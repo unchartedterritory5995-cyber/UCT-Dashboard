@@ -1281,9 +1281,9 @@
    "key": "w1",
    "title": "Counting the crowd",
    "steps": [
-    "Every day, some stocks close up and some close down. Those are advancers and decliners.",
-    "Advancers minus decliners gives net advances. Add each day's number to a running total and you have the A/D line.",
-    "Read its direction and shape, not its number. The number depends on when the count started."
+    "Every day some stocks close up and some close down. The ones up are advancers. The ones down are decliners.",
+    "Take advancers minus decliners and you get net advances. Keep a running total of that and you have the A/D line.",
+    "Don't read the number on it. Read the direction and the shape. The number just depends on when the count started."
    ],
    "facts": [
     "f99",
@@ -1297,9 +1297,9 @@
    "key": "w2",
    "title": "When the index and the crowd disagree",
    "steps": [
-    "A cap-weighted index is moved most by its biggest companies. The A/D line gives every stock one vote.",
-    "Index at a new high, A/D line at a lower high: that's a bearish divergence. Fewer stocks are doing the work.",
-    "Treat it as a warning, not a sell signal. Breadth is a poor timing tool, so let price confirm."
+    "A big index gets moved most by its biggest names. The A/D line gives every stock one vote.",
+    "Index makes a new high, A/D line makes a lower high. That's a bearish divergence: fewer stocks doing the work.",
+    "I treat it as a warning, not a sell signal. Breadth is a lousy timing tool. Let price confirm it."
    ],
    "facts": [
     "f73",
@@ -1315,10 +1315,10 @@
    "key": "w3",
    "title": "IBD's two days",
    "steps": [
-    "IBD counts a distribution day when the Nasdaq or S&P 500 falls 0.2% or more on higher volume than the day before.",
-    "One means little. Five or six in a few weeks is IBD's warning that the uptrend is weakening.",
-    "A follow-through day is the other side: a strong index gain on higher volume, Day 4 or later of a rally attempt.",
-    "No guarantees. Some follow-throughs fail, and Bulkowski's tests found distribution clusters in a rising market did not predict drops."
+    "IBD's distribution day: the Nasdaq or S&P 500 down 0.2% or more, on higher volume than the day before.",
+    "One here or there means little. Five or six over a few weeks, and IBD says the rally's in trouble.",
+    "The follow-through day is the flip side. A strong index gain on higher volume, Day 4 or later of a rally attempt.",
+    "No guarantees. Some follow-throughs fail, so don't go all in. One study found distribution clusters in a rising market didn't predict drops."
    ],
    "facts": [
     "f112",

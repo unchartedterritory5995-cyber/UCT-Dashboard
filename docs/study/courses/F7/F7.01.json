@@ -771,9 +771,9 @@
    "key": "w1",
    "title": "Two lines, measured from the high",
    "steps": [
-    "Measure every drop from the last peak close. Closes count, not intraday lows.",
-    "Down more than 10% is a correction. Down 20% or more is a bear market.",
-    "Up 20% or more off a low is a bull market. These lines are conventions, not laws."
+    "Measure every drop from the last peak close. Closing prices count, not the intraday lows.",
+    "Down more than 10% off that high is a correction. Down 20% or more is a bear market.",
+    "Up 20% or more off a low is a bull market. Those lines are conventions people agreed on, not laws."
    ],
    "facts": [
     "f09",
@@ -792,9 +792,9 @@
    "key": "w2",
    "title": "Bulls run long, bears run fast",
    "steps": [
-    "Bull markets have lasted far longer than bears. Since 1966 the average bear lasted roughly 14 months.",
-    "Corrections are common, and most stop short. Schwab counted 27 since November 1974, and only six became bear markets.",
-    "When the 20% close comes, the bear is dated back to the high. The low is only known afterward."
+    "Bulls last a lot longer than bears. Since 1966 the average bear lasted roughly 14 months.",
+    "Corrections are common, and most stop short. Since November 1974 there were 27, and only six became bear markets.",
+    "When the 20% close finally comes, the bear gets dated back to the high. You only know the low afterward."
    ],
    "facts": [
     "f07",
@@ -812,10 +812,10 @@
    "key": "w3",
    "title": "Four stages on one chart",
    "steps": [
-    "Weinstein reads a weekly chart against its 30-week moving average. In his method, every chart sits in one of four stages.",
-    "Stage 1 is a sideways base after a decline. The average goes flat.",
-    "Stage 2 breaks out and climbs above a rising average, with higher highs and higher lows.",
-    "Stage 3 goes sideways after the climb as the average flattens. Stage 4 falls, usually under a falling average."
+    "Pull up a weekly chart with the 30-week moving average. Weinstein says every chart is in one of four stages.",
+    "Stage 1 is the sideways base after a decline. Price chops around and the average goes flat.",
+    "Stage 2 is the uptrend. It breaks out and climbs over a rising average, with higher highs and higher lows.",
+    "Stage 3 goes sideways after the climb and the average flattens. Stage 4 falls, usually under a falling average."
    ],
    "facts": [
     "f62",

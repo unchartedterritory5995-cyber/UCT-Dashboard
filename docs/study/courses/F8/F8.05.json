@@ -530,10 +530,10 @@
    "key": "w1",
    "title": "What a run does to your head",
    "steps": [
-    "A run of winners feels like proof you've figured it out.",
-    "That's self-attribution: the wins are your skill, the losses are bad luck or someone else's fault.",
-    "Gervais and Odean show where it leads. Traders take too much credit for their successes and become overconfident.",
-    "Overconfidence can show up as bigger positions. And bigger positions lose money faster when you're wrong."
+    "A run of winners feels like proof you've finally figured this game out.",
+    "That's self-attribution. The wins are your skill. The losses are bad luck, or somebody else's fault.",
+    "Take too much credit for the wins and you get overconfident. And overconfidence shows up as bigger positions.",
+    "Bigger positions lose money a lot faster when you're wrong. Feeling hot is exactly when to stay humble."
    ],
    "facts": [
     "f52",
@@ -548,9 +548,9 @@
    "key": "w2",
    "title": "There's no house money",
    "steps": [
-    "After a gain, people tend to take more risk. Thaler and Johnson called it the house money effect.",
-    "It hits pros too. Market makers on Taiwan's index options market took above-average risk after a profitable morning.",
-    "Profit is not play money. It's your money, and it follows your normal rules."
+    "After a gain, people take more risk. It's called the house money effect, like betting with the casino's chips.",
+    "Pros do it too. On Taiwan's index options market, even market makers took bigger risks after a profitable morning.",
+    "Profit isn't play money. It's your money, and it follows your normal rules."
    ],
    "facts": [
     "f39",
@@ -562,15 +562,16 @@
    "key": "w3",
    "title": "Keep the risk flat",
    "steps": [
-    "Write your risk per trade into your plan before the run starts.",
-    "As the account grows, the same percent means more dollars. That's compounding by rule, and it's fine.",
-    "What you never do is raise the percent because you feel hot. One oversized loss can wipe out the run."
+    "Write your risk per trade into the plan before any run starts. A calm day, one number.",
+    "As the account grows, the same percent is more dollars. That's compounding by rule, and it's fine.",
+    "What you never do is raise the percent because you feel hot. One oversized loss can wipe out the whole run."
    ],
    "facts": [
     "f26",
     "f18",
     "f12",
-    "f21"
+    "f21",
+    "f55"
    ]
   }
  ],

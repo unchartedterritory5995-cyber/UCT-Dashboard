@@ -1022,10 +1022,10 @@
    "key": "w1",
    "title": "DK, August 2026: the textbook pivot",
    "steps": [
-    "DK, 2026-08-24, on 30-minute bars. A leader in an uptrend sells off all morning: 6 red candles, 9:30 to 12:00.",
-    "The selling lands on the rising 10-day EMA, 66.48. The 12:30 candle turns green, low 66.08, and closes at its high.",
-    "The 13:00 candle takes the pivot high: buy at market, 66.83. Stop 3 cents under the low, 66.05, 1.17% away.",
-    "Failure mode: a trade under 66.08. Not here. 3R arrives in 6 bars, day one; stop to breakeven, no sell yet."
+    "DK, August 24, 2026, on the 30-minute chart. A leader sells off all morning, 6 red candles from 9:30 to 12:00.",
+    "The selling lands on its rising daily average, 66.48. The 12:30 candle turns green off 66.08 and closes on its high.",
+    "That green candle is your pivot. The 13:00 candle takes its high: buy at market, 66.83. Stop 66.05, 1.17% away.",
+    "A trade under 66.08 and it's wrong. It held. 3R in 6 bars, same day. Stop to breakeven, no sell yet."
    ],
    "facts": [
     "d01",
@@ -1043,10 +1043,10 @@
    "key": "w2",
    "title": "DOCU, October 2026: the shake at the 21-day",
    "steps": [
-    "DOCU, 2026-10-06, on 30-minute bars. A leader pulls back into its rising 21-day EMA, 67.53: 5 red candles.",
-    "The 14:00 candle flushes through the average to 66.83, then closes back above it, at its high. That is the shake.",
-    "The 14:30 candle trades over its high: buy at market, 68.08. Stop a few cents under the pivot low, 66.80, 1.88% away.",
-    "Slower than most: 3R on 10-09, 5R on 10-14. Sell by judgment into the push. A swing trade, not a day trade."
+    "October 6, 2026: DOCU, a leader, pulls back on the 30-minute chart. Five red candles into its rising daily average, 67.53.",
+    "At 14:00 it flushes through to 66.83, then closes back above the average, on its high. That shake raises the grade.",
+    "The 14:30 candle trades over that high: buy at market, 68.08. Stop 66.80, a few cents under the pivot low, 1.88% away.",
+    "Slower than most. 3R on October 9, 5R on October 14. A swing trade, not a day trade: sell into a push."
    ],
    "facts": [
     "d05",
@@ -1064,10 +1064,10 @@
    "key": "w3",
    "title": "PSX, August 2026: when the cap sets the size",
    "steps": [
-    "PSX, 2026-08-27, on 30-minute bars. A leader drifts down 5 red candles onto its rising 10-day EMA, 236.78.",
-    "The 11:00 candle is the pivot and the day's low, 237.12. Both stop choices agree here: a few cents under 237.12.",
-    "The 11:30 candle takes its high: buy 238.91, stop 237.09, 0.76% away. A stop that tight makes the risk-based size huge.",
-    "So the 40% position cap sets the size. 3R comes the next session, 5R two on; first sell is judgment, rest trails."
+    "A quiet pullback in PSX, August 27, 2026: 5 red 30-minute candles down onto its rising daily average, 236.78.",
+    "The 11:00 candle is the pivot, and its low, 237.12, is the day's low too. The stop goes a few cents under.",
+    "The 11:30 candle takes its high: buy 238.91, stop 237.09. That's only 0.76%, so the risk math spits out a huge size.",
+    "That's where the 40% position cap steps in and sets your size. 3R the next session, 5R two sessions on."
    ],
    "facts": [
     "d03",

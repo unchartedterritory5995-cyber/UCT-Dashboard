@@ -535,7 +535,7 @@
    "title": "Three kinds of expiry",
    "steps": [
     "Every option has a deadline. Standard monthlies expire on the third Friday of the month.",
-    "Weeklies exist on a limited set of names. Most expire on a Friday, but read the date.",
+    "Weeklies are only listed on some names, so open the chain and see. Most expire on a Friday. Read the date.",
     "LEAPS sit at the long end, with expiries up to three years out."
    ],
    "facts": [
@@ -550,9 +550,9 @@
    "key": "w2",
    "title": "What time costs you",
    "steps": [
-    "More time costs more. A later expiry on the same strike has a higher price and a higher break-even.",
-    "On an at-the-money option, decay is gradual at first, then picks up fast in about the last 30 days.",
-    "It runs on weekends too, and it runs whether the stock moves or not."
+    "More time costs more. Same strike, later expiry: a higher price and a higher break-even.",
+    "On an at-the-money option, decay starts slow. In about the last 30 days it picks up fast.",
+    "It runs on weekends too. And it runs whether the stock moves or not."
    ],
    "facts": [
     "f35",
@@ -569,9 +569,9 @@
    "key": "w3",
    "title": "Match the expiry to the plan",
    "steps": [
-    "Start with how long the move should take. That's your plan's window.",
-    "Then buy past it. I want to sell with time left, before the last month.",
-    "Check the calendar too. If earnings land before your expiry, you're paying for the report."
+    "Figure out how long the move should take. That's your window.",
+    "Then buy past it, with room. Time value drains fast in about the last 30 days.",
+    "Check the calendar too. Earnings before your expiry means you're paying up for the report."
    ],
    "facts": [
     "f18",

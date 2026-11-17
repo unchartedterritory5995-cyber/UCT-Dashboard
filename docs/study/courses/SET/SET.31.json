@@ -1248,10 +1248,10 @@
    "key": "w1",
    "title": "GDS, February 2025: the textbook climax",
    "steps": [
-    "GDS, February 2025. A 13-session run from a flat base, up 145%, four of four boxes.",
-    "On 2025-02-20 it gaps up 15.4% on record volume, the highest of the run. Nothing at the open.",
-    "The trigger lives on the 5-minute chart: the break under VWAP after the high. Our daily stand-in is the red close, 48.50.",
-    "Stop a few cents over the day's high, 52.56. Target the daily 9 EMA: reached in 2 sessions, 3R on day 5."
+    "I only recommend shorting to traders who've already made $1 million trading. With that said, here's the cleanest one we found.",
+    "GDS, February 2025: up 145% in 13 sessions off a flat base. February 20 it gaps up 15.4% on record volume.",
+    "Nothing at the open. Wait for the crack, a break under VWAP after the high. Short it, stop just over the high.",
+    "Cover at the daily 9 EMA. It got there in 2 sessions, and 3R came by day 5."
    ],
    "facts": [
     "d01",
@@ -1263,17 +1263,19 @@
     "c04",
     "c05",
     "h05",
-    "b14"
+    "b14",
+    "c42",
+    "r07"
    ]
   },
   {
    "key": "w2",
    "title": "CGC, February 2021: three gaps into the top",
    "steps": [
-    "CGC, February 2021: a cannabis mania. Up 74% in 12 sessions, three gap days in a row into the climax.",
-    "On 2021-02-10 it gaps up 7.6% on 3x volume and prints a long upper wick: it opens higher and closes lower.",
-    "Short at the crack. On daily bars that is the close, 521.70. Stop just over the high, 565.54.",
-    "The 9 EMA comes the next day, 3R on day 2, 5R in 6 weeks. Failure mode: a reclaim of the high."
+    "CGC, February 2021, the cannabis mania. Up 74% in 12 sessions, gapping up three days in a row into the top.",
+    "February 10 it gaps up 7.6% on 3 times volume. Opens higher, closes lower, with a long upper wick. That's the shape.",
+    "On daily bars the short is the close, 521.70, stop just over the high at 565.54. That's 8.4% away.",
+    "Past 5%, I mostly wait for a tighter trigger. Reclaim the high and you're out. This hit the 9 EMA next day."
    ],
    "facts": [
     "d04",
@@ -1282,17 +1284,19 @@
     "b21",
     "c05",
     "c06",
-    "h05"
+    "h05",
+    "r01",
+    "r02"
    ]
   },
   {
    "key": "w3",
-   "title": "BILI, October 2024: a wide stop, fewer shares",
+   "title": "BILI, October 2024: a stop past 5%",
    "steps": [
-    "BILI, October 2024. A twelve-session vertical on China stimulus, up 121%, three of four boxes.",
-    "On 2024-10-02 it gaps up 11.3% on the biggest volume of the run and closes in the lower third.",
-    "Short the crack; on daily bars the close, 29.66. Stop over the high, 31.81, 7.2% away: fewer shares.",
-    "The 9 EMA in 4 sessions, 3R on day 4, 5.46R at best. Paid at the 9 EMA, or not at all."
+    "BILI, October 2024. China stimulus sends it up 121% in twelve sessions, straight up.",
+    "October 2 it gaps up 11.3% on the biggest volume of the run, then closes in the lower third. It cracked.",
+    "On daily bars, short 29.66, stop 31.81. That's 7.2%, past our 5%. I'd mostly wait. Take it, and it's fewer shares.",
+    "It hit the 9 EMA in 4 sessions. This setup pays there within a few sessions, or not at all."
    ],
    "facts": [
     "d07",
@@ -1301,7 +1305,9 @@
     "h09",
     "h18",
     "h05",
-    "d30"
+    "d30",
+    "r01",
+    "r02"
    ]
   }
  ],

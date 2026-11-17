@@ -686,10 +686,10 @@
    "key": "w1",
    "title": "Sell first, buy back later",
    "steps": [
-    "A short sale is selling a stock you don't own. Your broker usually lends you the shares, and you sell them.",
-    "Later you buy the same number back and return them to the lender. That purchase is the buy to cover.",
-    "Sell at $60 and cover at $40: you make $20 a share before costs.",
-    "Cover at $80 instead and you lose $20 a share."
+    "A short flips the trade around. You sell a stock you don't own, using shares your broker usually lends you.",
+    "Later you buy the same number back and hand them to the lender. That buy is the buy to cover.",
+    "Sell at $60, cover at $40, and you keep $20 a share before costs.",
+    "Cover at $80 instead and you lose $20 a share. The stock going up is your risk."
    ],
    "facts": [
     "f01",
@@ -707,9 +707,9 @@
    "title": "The locate comes first",
    "steps": [
     "Before you ever short: we only recommend it to traders who've already made $1 million trading.",
-    "Shorting happens in a margin account. Before your short goes through, your broker must locate the shares.",
-    "A locate means reasonable grounds the shares can be borrowed and delivered on time. An easy-to-borrow list generally counts.",
-    "Hard-to-borrow names can cost more to borrow, and your order may be refused."
+    "You short in a margin account. And before the order goes through, your broker has to locate the shares.",
+    "That means it has good reason to think it can borrow them and deliver on time. An easy-to-borrow list can be enough.",
+    "On a hard-to-borrow name the fee can run higher, and your order may just get refused."
    ],
    "facts": [
     "f42",
@@ -728,10 +728,10 @@
    "key": "w3",
    "title": "What a short costs while you hold it",
    "steps": [
-    "You usually pay to borrow the shares. The fee is a yearly rate, charged for each day the short is open.",
-    "On average it's cheap. SEC staff found lending fees averaged 1.5% from 2007 to 2018. Fees over 100% were rare.",
-    "The rate can change overnight. Schwab's example goes from 20% one night to 85% the next day.",
-    "If the stock pays a dividend while you're short, you pay it to the lender."
+    "Holding a short costs money. You usually pay a borrow fee, a yearly rate charged for each day you're short.",
+    "On average it's cheap: SEC staff found fees averaged 1.5% from 2007 to 2018. Over 100% was rare.",
+    "But the rate can jump overnight. You log off short at 20% and log in the next day paying 85%.",
+    "And if the stock pays a dividend while you're short, you pay it to the lender. Out of your own pocket."
    ],
    "facts": [
     "f09",

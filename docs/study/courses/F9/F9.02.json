@@ -320,42 +320,47 @@
    "key": "w1",
    "title": "Stop first",
    "steps": [
-    "Find the price that proves the idea wrong. That's the honest stop, and you set it first.",
-    "Measure from your entry to that stop. That's what each share can cost you.",
-    "Only then pick the size. Picking the size first is the mistake StockCharts calls the biggest."
+    "Find the price that proves the idea wrong, like just under the low of the day. That's your stop. It comes first.",
+    "Measure from your entry down to it. That's what each share can cost you.",
+    "Only then pick the size. Pick the size first and you end up squeezing the stop to make it fit."
    ],
    "facts": [
     "f18",
     "f17",
-    "f01"
+    "f01",
+    "h01"
    ]
   },
   {
    "key": "w2",
    "title": "The math, worked once",
    "steps": [
-    "Schwab's example: buy at $67, stop at $57. That's $10 of risk per share.",
-    "The trader will risk 0.5% of the account, which is $750.",
-    "$750 divided by $10 is 75 shares. That's about 3.4% of the account.",
-    "So risking 0.5% put about 3.4% in the stock. Risk and position size are different numbers."
+    "Here's the math on a wide one. Buy at $67, stop at $57. That's $10 a share at risk.",
+    "You're risking 0.5% of the account, $750. $750 divided by $10 is 75 shares.",
+    "75 shares is about 3.4% of the account. So 0.5% risk put 3.4% in the stock. Two different numbers.",
+    "That stop's way too wide for us. We like 1-3%, and 5% is the most we'll take."
    ],
    "facts": [
     "f13",
     "f14",
-    "f15"
+    "f15",
+    "h10"
    ]
   },
   {
    "key": "w3",
    "title": "The same math in percents",
    "steps": [
-    "Position % is your risk % divided by your stop distance %.",
-    "Here's how I put it: a 1% stop on a 50% size is 0.5% risk.",
-    "That assumes you get out at the stop. A gap past it can cost more than you planned."
+    "Same math in percents: your position size is your risk divided by your stop distance.",
+    "Here's how I put it. A 1% stop on a 50% size is 0.5% risk.",
+    "That assumes you get out at the stop. A gap right past it can cost more than you planned.",
+    "And a tight stop never earns a bigger position than our cap, 40% of the account."
    ],
    "facts": [
     "h02",
-    "f03"
+    "f03",
+    "h04",
+    "h05"
    ]
   }
  ],

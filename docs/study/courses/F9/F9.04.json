@@ -501,9 +501,9 @@
    "key": "w1",
    "title": "Measured from the high",
    "steps": [
-    "A drawdown is the drop from your account's high to the low that follows, as a percent of the high.",
-    "Investopedia's example: an account at $20,000 drops to $18,000, then recovers. That's a 10% drawdown.",
-    "It runs from the peak, not from what you paid. So it isn't always the same as your loss."
+    "Your drawdown is how far the account has dropped from its high, as a percent of that high.",
+    "Say an account at $20,000 drops to $18,000, then comes back. That was a 10% drawdown.",
+    "It runs from the peak, not from what you paid. So it isn't always the same as a loss."
    ],
    "facts": [
     "f01",
@@ -515,9 +515,9 @@
    "key": "w2",
    "title": "Losses cost more to fix",
    "steps": [
-    "Down 10%, you need about an 11% gain to get back. Down 50%, you need 100%.",
-    "The gain is earned on what's left, so it always has to be bigger than the loss.",
-    "Up 50% then down 50% is not even. $100 goes to $150, then to $75."
+    "Down 10%, you need about 11% to get back. Down 50%, you need 100%.",
+    "The gain gets earned on what's left. So it always has to be bigger than the loss was.",
+    "Up 50% then down 50% isn't even. $100 goes to $150, then $75. Keep your losers small."
    ],
    "facts": [
     "f20",
@@ -529,10 +529,10 @@
    "key": "w3",
    "title": "Our drawdown ladder, down and back up",
    "steps": [
-    "A drawdown is how far the account sits below its highest value, open trades included. We check it at least weekly.",
-    "Under 6% down, the normal cap of 40%. At 6% down, a 10% max position. At 8%, 8%. At 10%, 5%.",
-    "At 15% down, no new trades. Review before you trade again.",
-    "Back up: one rung each time you win back half the drawdown. The normal cap returns within 5% of the peak."
+    "Check your drawdown at least weekly, open trades included. It sets how big you're allowed to go.",
+    "Under 6% down, the normal 40% cap. At 6% down, max position 10%. At 8%, 8%. At 10%, 5%.",
+    "At 15% down, no new trades. Stop and review before you trade again.",
+    "On the way back, one rung up each time you win back half the drawdown. Within 5% of the peak, normal cap."
    ],
    "facts": [
     "h03",

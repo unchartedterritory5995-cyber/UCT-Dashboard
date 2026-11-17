@@ -1212,10 +1212,10 @@
    "key": "w1",
    "title": "MOD, May 2023: neglect plus a catalyst",
    "steps": [
-    "MOD, May 2023. Flat for six months, down 8%. Then a surprise earnings report gaps it 18.8% on 3.2x volume.",
-    "The gap day closes at 96% of its range and never fills. Neglect plus a named catalyst: the EP picture.",
-    "Day two opens above the gap-day high, 24.50. Buy at market, 25.00. Stop under the day's low, 24.75.",
-    "Failure mode: a fill or a reversal through the stop. Instead 3R comes next session; no day-one sell. It ran to 89.9R."
+    "MOD sat flat for six months, down 8%. Then a surprise earnings report gaps it 18.8% on 3.2 times volume.",
+    "It closes near the high and never fills the gap. A neglected stock plus real news: that's an EP.",
+    "Day two it opens over the gap-day high, 24.50. Buy at market, 25.00. Stop just under the day's low, 24.75.",
+    "A fill or a stop-out and the idea's dead. Instead, 3R the next session, too soon to sell. It ran to 89.9R."
    ],
    "facts": [
     "d01",
@@ -1231,12 +1231,12 @@
   },
   {
    "key": "w2",
-   "title": "CACI, August 2004: the day-one entry",
+   "title": "CACI, August 2004: the day-one buy",
    "steps": [
-    "CACI, August 2004. An 11.3% earnings gap on 6.7x volume after six months of drift, down 5%.",
-    "The one day-one entry of the ten: the gap day's low sat within 3% of the close. The stop fits.",
-    "Buy at market as it trades through, 46.55. Stop a few cents under the low of the day, 45.42, 2.4% away.",
-    "A slower start: 3R on day 6, then a steady trend. Sell into the push; trail the rest."
+    "CACI drifted six months, down 5%. Then August 19, 2004, an earnings gap of 11.3% on 6.7 times volume.",
+    "The gap day's low sits within 3% of the price. The stop fits, so this one you can buy on day one.",
+    "Buy at market, 46.55. Stop a few cents under the low of the day, 45.42, 2.4% away.",
+    "Slower start, 3R on day 6, then a steady trend. Sell into a push and trail the rest on the 20 EMA."
    ],
    "facts": [
     "d03",
@@ -1252,12 +1252,12 @@
   },
   {
    "key": "w3",
-   "title": "ENPH, October 2021: the trims and the trail",
+   "title": "ENPH, October 2021: sell into the push, trail the rest",
    "steps": [
-    "ENPH, October 2021. An 18.5% earnings gap on 8.3x volume, closing at 56% of its range: the upper half, just.",
-    "Day three: it breaks the post-gap high, 227.59. Buy at market, 227.60. Stop 224.95, 1.2% under.",
-    "3R the next session, too soon to sell: stop to breakeven. We sell into the push; the rest trails the 9 EMA.",
-    "Later it tops and collapses back through the old stop. The trims and the trail kept it a win."
+    "ENPH gaps 18.5% on earnings in October 2021, on 8.3 times volume. The close is 56% up its range, upper half, just.",
+    "Day three it breaks the post-gap high, 227.59. Buy at market, 227.60. Stop 224.95, 1.2% under.",
+    "3R the next session, too soon to sell. Stop to breakeven. Sell into a push, trail the rest on the 9 EMA.",
+    "Later it tops and collapses back through the old stop. The sells and the trail kept it a win."
    ],
    "facts": [
     "d05",

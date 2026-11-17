@@ -871,10 +871,10 @@
    "key": "w1",
    "title": "NKE, August 2020: the clean small stop",
    "steps": [
-    "NKE, 2020. A dip under the 50-day after the 2020 recovery. The remount day is 2020-08-05, a strong close over the line.",
-    "The next day is an inside day above the line. Its high is the buy point: 101.18.",
-    "2020-08-07: it trades over the high. Buy at market, 101.19. Stop a few cents under the quiet day's low: 99.98, 1.2% away.",
-    "Failure mode: the line is lost again and the stop takes it. Instead 3R came the next day; it ran to 25.0R."
+    "NKE, summer 2020. The recovery's on, but it dips under its 50-day for 7 days. August 5 it closes back over, strong.",
+    "Next day it sits quiet, an inside day above the line. Its high, 101.18, is your buy point.",
+    "August 7 it trades over that high. Buy at market, 101.19. Stop 99.98, under the inside day's low. 1.2% away.",
+    "The stop is the exit, not a close under the line. 3R came the next day. It ran to 25.0R."
    ],
    "facts": [
     "d01",
@@ -890,10 +890,10 @@
    "key": "w2",
    "title": "AMD, November 2023: the reaction day remount",
    "steps": [
-    "AMD, 2023. The report came after the close on 2023-10-31. On 2023-11-01 it remounts the 50-day.",
-    "A remount on the earnings gap is after the report, so it is allowed. The quiet day sets the buy point: 109.41.",
-    "2023-11-03: buy at market, 109.42. Stop a few cents under the quiet day's low: 105.86, 3.3% away. Size comes from that stop.",
-    "Failure mode: the stop. Instead it ran to 21.2R. A stop past the 1-3% we prefer means fewer shares."
+    "AMD reported October 31, 2023, after the close. Next day, November 1, it took back the 50-day on the gap.",
+    "We don't buy the 3 days before a report. This is after, so it counts.",
+    "Quiet day's high is 109.41. November 3 it trades over: buy at market, 109.42. Stop 105.86, under the quiet day's low.",
+    "That's 3.3%, wider than I like. So fewer shares, never a tighter stop. It ran to 21.2R."
    ],
    "facts": [
     "d03",
@@ -910,10 +910,10 @@
    "key": "w3",
    "title": "DOCU, March 2024: a planned loss",
    "steps": [
-    "DOCU, 2024. A long stay under the 50-day, then a remount on 2024-03-11 and an inside quiet day above the line.",
-    "2024-03-14: buy at market over the quiet day's high, 59.54. Stop a few cents under its low: 58.44, 1.8% away.",
-    "Failure mode, and it happened: a gap under the stop on 2024-03-15. The stop is the exit.",
-    "It held the 50-day for 20 sessions and reached 61.47. The level was right; the trigger did not run."
+    "DOCU spent a long stretch under its 50-day. March 11, 2024, it remounts. Then a quiet inside day above the line.",
+    "March 14 it clears the quiet day's high. Buy at market, 59.54. Stop 58.44, under its low, 1.8% away.",
+    "Next morning, March 15, it gaps under the stop and the trade's done. The stop is the exit.",
+    "Then it held the 50-day for 20 sessions and reached 61.47. Right level. That trigger just didn't run."
    ],
    "facts": [
     "d05",

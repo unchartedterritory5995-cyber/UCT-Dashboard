@@ -651,10 +651,10 @@
    "key": "w1",
    "title": "Why a report is different",
    "steps": [
-    "Most companies report before the open or after the close. The regular session reacts at the next open.",
-    "That reaction can be a gap: a sharp move with no trades in between.",
-    "Your stop can't trade inside a gap. It becomes a market order and fills at the next price.",
-    "Schwab's example: stop at $34, the stock gaps from over $34 to about $32, and the stop fills at $32."
+    "Here's what makes a report different. Most land while the market's shut. The first real trade is the next open.",
+    "And that open can be a gap: a sharp move with no trades in between.",
+    "Your stop can't fill inside a gap. It turns into a market order and takes the next price.",
+    "Say your stop's at $34 and it gaps from over $34 to about $32. You're out at $32, not $34."
    ],
    "facts": [
     "f1",
@@ -672,10 +672,10 @@
    "key": "w2",
    "title": "Three answers before the numbers",
    "steps": [
-    "You have three answers: hold it all, trim some, or step aside before the report.",
+    "Before a report you've got three choices: hold it all, trim some, or step aside.",
     "Nobody knows the reaction. A company can beat and still drop.",
     "ZM lost almost 17% the day after a report. AMBA climbed almost 35% within two days of one.",
-    "Step aside and you can still buy after the numbers, once you've seen the reaction."
+    "Step aside and you can still buy after, once you've seen how it reacts."
    ],
    "facts": [
     "f48",
@@ -693,18 +693,16 @@
    "key": "w3",
    "title": "Size and the gain decide",
    "steps": [
-    "The gap hits every share you hold. The bigger the position, the bigger the hit.",
-    "Your gain so far is your cushion. A big gain can absorb a gap. A fresh entry has no cushion.",
-    "The options market prices an expected move. It's a size, not a direction, and it's no cap.",
+    "A gap hits every share you hold. The bigger the position, the bigger the hit.",
+    "Your gain so far is your cushion. We only hold through a report if the trade's up 5R.",
+    "A fresh entry has no cushion at all. And we don't buy in the 3 days before a report.",
     "Plan it the night before. Act in the last regular session before the numbers."
    ],
    "facts": [
     "f35",
     "f34",
     "f49",
-    "f26",
-    "f27",
-    "f28",
+    "h4",
     "f1",
     "f12",
     "f47"

@@ -2098,9 +2098,9 @@
    "key": "w1",
    "title": "Read the trend first",
    "steps": [
-    "Read a chart by its peaks and troughs. Higher highs and higher lows: that's an uptrend.",
-    "Lower highs and lower lows: a downtrend. Flat highs and flat lows: a trading range.",
-    "A trend holds until price proves otherwise. An uptrend ends when a lower low drops under the last trough."
+    "First thing I look at: the peaks and the troughs. Higher highs and higher lows, that's an uptrend.",
+    "Lower highs and lower lows is a downtrend. Flat highs and flat lows is a range, going nowhere.",
+    "Trust the trend until price proves otherwise. The uptrend is over when it makes a lower low under the last trough."
    ],
    "facts": [
     "f1",
@@ -2113,9 +2113,9 @@
    "key": "w2",
    "title": "Floors, ceilings and breaks",
    "steps": [
-    "Support is a floor where buyers have stepped in before. Resistance is a ceiling where sellers have.",
-    "A breakout is price clearing that level. Heavy volume on the break says real buyers showed up.",
-    "Once broken, an old ceiling often becomes the new floor, and the other way round."
+    "Support is a floor, where buyers stepped in before. Resistance is a ceiling, where sellers did.",
+    "A breakout is price clearing that level. Big volume on the break raises the grade. Light volume fails more often.",
+    "Once it breaks, the old ceiling often turns into the new floor. Works the other way too."
    ],
    "facts": [
     "f31",
@@ -2123,19 +2123,22 @@
     "f59",
     "f54",
     "f36",
-    "f45"
+    "f45",
+    "h_w_vol"
    ]
   },
   {
    "key": "w3",
    "title": "How far is too far",
    "steps": [
-    "Extended means stretched far above the moving averages. We give it as a percent, not a feeling.",
-    "Overbought is a gauge reading: RSI above 70. Oversold is RSI below 30.",
-    "Neither reading is a signal on its own. Strong stocks can stay overbought, and weak ones can stay oversold."
+    "Extended means stretched way above the moving averages. I put a number on it, a percent, not a feeling.",
+    "More than 10% over the 9 EMA and I skip it. Too stretched to buy.",
+    "Overbought and oversold are gauge readings. RSI over 70 is overbought, under 30 is oversold.",
+    "Neither one is a signal on its own. Strong stocks can stay overbought for a long time, weak ones oversold."
    ],
    "facts": [
     "h1",
+    "h_c29",
     "f96",
     "f101",
     "f102",

@@ -530,10 +530,10 @@
    "key": "w1",
    "title": "Three clocks",
    "steps": [
-    "A day trader buys and sells the same stock the same day. Nothing is held overnight.",
-    "A swing trader holds overnight, for days to a few weeks, to catch one swing in price.",
-    "A position trader holds for weeks to months, sometimes years, and rides the bigger trend.",
-    "Look at how long you held. That tells you which of the three you were."
+    "Three clocks. A day trader is in and out the same day, flat by the close, nothing held overnight.",
+    "A swing trader holds overnight, days to a few weeks, to catch one move. That's us.",
+    "A position trader rides the bigger trend for weeks or months, sometimes years.",
+    "How long you held tells you which one you were."
    ],
    "facts": [
     "f10",
@@ -541,6 +541,7 @@
     "f19",
     "f26",
     "f27",
+    "h01",
     "f30",
     "f41",
     "f32"
@@ -550,10 +551,10 @@
    "key": "w2",
    "title": "What one bar means",
    "steps": [
-    "A day trader often reads one-minute or five-minute bars. Each bar is a few minutes of trading.",
-    "A swing trader often decides on the daily chart. One bar is one whole day.",
-    "A position trader often works from the weekly chart. One bar is a whole week.",
-    "Short bars show more detail and more noise. Match the bar to how long you hold."
+    "Each clock reads a different bar. A day trader lives on one-minute or five-minute bars.",
+    "A swing trader decides on the daily chart. One bar, one day.",
+    "A position trader works off the weekly. Each bar is a whole week.",
+    "Shorter bars show more detail and more noise. Match the bar to how long you plan to hold."
    ],
    "facts": [
     "f20",
@@ -570,9 +571,9 @@
    "key": "w3",
    "title": "What each clock costs you",
    "steps": [
-    "Day trading costs you the session. You watch the market the whole time, and spreads and fees add up over many trades.",
-    "Swing trading takes less screen time, but a check every day. You carry the overnight and weekend gaps.",
-    "Position trading leans least on any one day's news. You still hold the gaps, and you pay in patience through pullbacks."
+    "Day trading costs you the whole session at the screen, and fees and spreads pile up over all those trades.",
+    "Swing trading takes less screen time, but you check in every day. And you carry the overnight and weekend gaps.",
+    "Position trading leans least on any one day. You still hold the gaps, and you sit through the pullbacks."
    ],
    "facts": [
     "f2",

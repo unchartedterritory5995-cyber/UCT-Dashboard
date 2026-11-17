@@ -556,10 +556,10 @@
    "key": "w1",
    "title": "The price of a day",
    "steps": [
-    "Theta estimates how much an option's price drops in one day if nothing else changes.",
-    "It's quoted per share. A theta of -0.05 means about five cents a share a day.",
-    "One contract covers 100 shares, so that's about five dollars a contract each day.",
-    "Buyers pay it. Sellers collect it."
+    "Theta is what one day of waiting costs you. It's how much the option drops if nothing else moves.",
+    "It's quoted per share, and shown as a negative. A theta of -0.05 is about five cents a share a day.",
+    "One contract covers 100 shares, so that's about five dollars a contract, every single day.",
+    "Own the option and you pay it. The seller's the one collecting it."
    ],
    "facts": [
     "f1",
@@ -574,10 +574,10 @@
    "key": "w2",
    "title": "The clock speeds up",
    "steps": [
-    "Decay is slow early in an option's life and fast near the end.",
-    "At the money takes the biggest hit. Deep in or far out of the money decays little.",
-    "In Cboe's example, a 45 call loses 0.18 in the week from 35 to 28 days left.",
-    "Its last week costs 0.76, everything it had left."
+    "Decay is slow early in an option's life. Near the end it speeds up hard.",
+    "At the money takes the biggest hit. Deep in or far out of the money barely decays.",
+    "Say a 45 call costs 1.71 with 35 days left. The next week it loses only 0.18.",
+    "With 7 days left it's worth 0.76. That last week takes all 0.76."
    ],
    "facts": [
     "f2",
@@ -590,8 +590,8 @@
    "title": "What theta leaves out",
    "steps": [
     "Theta assumes nothing else moves. Real days rarely work that way.",
-    "If a quiet day passes and your option holds its price, something else changed. Most often, implied volatility rose.",
-    "Weekends count too. Models spread seven days of decay over five trading days."
+    "Say a quiet day passes and your option holds its price. Something else moved. Most often, implied volatility rose.",
+    "Weekends count too. The models spread seven days of decay across five trading days."
    ],
    "facts": [
     "f1",

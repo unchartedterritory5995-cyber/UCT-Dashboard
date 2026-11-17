@@ -708,28 +708,28 @@
    "key": "w1",
    "title": "Every setup carries a plan",
    "steps": [
-    "Every trade plan we teach hands you two prices: the trigger, which is the entry, and the stop.",
-    "R is your risk per share, entry to stop. The first sell is a judgment, usually day 3 or later.",
-    "Then you trail. The stop follows the stock up, under each higher low or a rising average."
+    "Every setup we teach hands you two prices before you buy: the trigger, which is your entry, and the stop.",
+    "R is your risk per share, entry to stop. The first sell is judgment, usually day 3 or later.",
+    "Sell into a push, trail the rest. The stop follows it up under each higher low, or the 9 or 20 EMA."
    ],
    "facts": [
     "h01",
-    "h02",
-    "h03",
     "r01",
+    "r03",
+    "h03",
     "h08",
     "h16",
-    "p01",
-    "l01"
+    "p01"
    ]
   },
   {
    "key": "w2",
    "title": "Names and families",
    "steps": [
-    "Our catalog sorts every setup into a family. Learn the family and the name gets easier to place.",
-    "The Kicker, High Volume Edge and Gap Support are Gaps & Catalysts. Oops Reversal and Slingshot are Reversals & Reclaims.",
-    "The Launchpad sits in Bases & Breakouts. The Go Signal and the ORB are Intraday."
+    "There are a lot of names. Sort them into families and they're easier to keep straight.",
+    "Gaps & Catalysts: the Kicker, the High Volume Edge and Gap Support.",
+    "Reversals & Reclaims: the Oops Reversal and the Slingshot. Bases & Breakouts: the Launchpad.",
+    "Intraday: the Go Signal and the ORB, the opening range break."
    ],
    "facts": [
     "m01",
@@ -746,16 +746,16 @@
    "key": "w3",
    "title": "A name is not an edge",
    "steps": [
-    "The textbook kicker is a down candle, then a gap up the other way.",
-    "Investopedia calls it highly reliable. Bulkowski's tests found it reversed the trend 53% of the time, almost random.",
-    "So I don't trade the name. I trade the plan: our entry, our stop, a first sell by judgment."
+    "The textbook kicker: a red candle, then a gap up the other way.",
+    "Some guides call it highly reliable. Bulkowski tested it. It reversed the trend 53% of the time. Basically a coin flip.",
+    "So I don't trade the name. I trade the plan: the trigger, the stop, and a first sell by judgment."
    ],
    "facts": [
     "t01",
     "t03",
     "t06",
-    "h02",
-    "h03"
+    "h03",
+    "r03"
    ]
   }
  ],

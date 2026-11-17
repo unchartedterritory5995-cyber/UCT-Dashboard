@@ -689,9 +689,9 @@
    "key": "w1",
    "title": "The two big monthly prints",
    "steps": [
-    "CPI tracks the average change in prices consumers pay. Core CPI drops food and energy, the volatile parts.",
-    "The jobs report has two headlines from two surveys. Payrolls come from businesses. The unemployment rate comes from households.",
-    "Both land at 8:30 a.m. Eastern. Regular trading opens at 9:30, so the news is out before the bell."
+    "CPI is the average change in what consumers pay. Core CPI strips out food and energy, because those jump around.",
+    "The jobs report has two headlines from two surveys. Payrolls come from businesses, the unemployment rate from households.",
+    "Both drop at 8:30 a.m. Eastern. The regular session opens at 9:30, so you get the number before the open."
    ],
    "facts": [
     "f01",
@@ -709,9 +709,9 @@
    "key": "w2",
    "title": "Where they sit on the calendar",
    "steps": [
-    "The jobs report typically lands the first Friday of the next month. October 2026's came out Friday, Nov. 6.",
-    "CPI has no set weekday. BLS set October's for Tuesday, Nov. 10, and November's for Thursday, Dec. 10.",
-    "Jobless claims come every Thursday at 8:30. Dates do move, so check the calendar each week."
+    "The jobs report lands the first Friday of the next month, most of the time. October 2026's came out Friday, November 6.",
+    "CPI has no set weekday. October's came out Tuesday, November 10. November's is set for Thursday, December 10.",
+    "Jobless claims come every Thursday at 8:30. Holidays move dates, so check the calendar every week."
    ],
    "facts": [
     "f18",
@@ -728,9 +728,10 @@
    "key": "w3",
    "title": "The surprise is the news",
    "steps": [
-    "Before each print, a survey of forecasters gives a consensus, the median forecast. The surprise is the actual number minus that consensus.",
-    "Research finds it's the surprise that moves stocks. A print matching the forecast was already expected. Inflation above forecast is called hot.",
-    "BLS revises the jobs number in the next two reports. Its 90% margin of error is about 122,000 either way."
+    "Before each print, forecasters put out a consensus. The surprise is the actual number minus that consensus.",
+    "The surprise is what moves stocks. A number that matches the forecast was already expected.",
+    "Inflation over the forecast is called hot. On average, a hot print has gone with lower stocks.",
+    "And the jobs number gets revised in the next two reports. The margin of error is about 122,000 either way."
    ],
    "facts": [
     "f54",

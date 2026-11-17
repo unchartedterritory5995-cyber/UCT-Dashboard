@@ -789,9 +789,9 @@
    "key": "w1",
    "title": "Where an earnings gap comes from",
    "steps": [
-    "The company reports after the close. Buy orders pile up overnight, while the regular session is shut.",
-    "Next morning it opens above yesterday's high. If today's low stays above it, the chart shows an empty space.",
-    "That space is the gap. If price later comes back to its pre-gap level, the gap is filled."
+    "Say a company reports a strong quarter after the close. Buy orders pile up overnight while the market's shut.",
+    "Next morning it opens over yesterday's high. Hold above that high all day and the chart shows an empty space.",
+    "That empty space is the gap. Come all the way back to where it was before, and the gap's filled."
    ],
    "facts": [
     "f1",
@@ -805,9 +805,9 @@
    "key": "w2",
    "title": "Gap and go, or gap and fade",
    "steps": [
-    "Day one, watch three things: whether it holds the gap, where it closes, and how heavy the volume is.",
-    "A close near the high on big volume means buyers kept coming all day.",
-    "If it sells back below yesterday's close, the gap faded. The buying wasn't strong enough to hold it."
+    "Day one, I watch three things: does it hold the gap, where it closes, and how heavy the volume is.",
+    "A close near the high on big volume means buyers kept coming right up to the bell. That's a Power Earnings Gap.",
+    "Sell it back under yesterday's close and the gap faded. The buying just wasn't there to hold it."
    ],
    "facts": [
     "f11",
@@ -823,13 +823,14 @@
    "key": "w3",
    "title": "Risk first, then the drift",
    "steps": [
-    "Our default stop is the day's low or the prior day's low. On a gap day, the day-one low is nearer.",
-    "Size from that distance. Earnings days tend to swing wide, so the stop is often far and the share count smaller.",
-    "After a big beat, prices have tended to keep drifting up. Researchers have measured it since 1968.",
-    "It's an average, not a promise. Some newer studies say it has shrunk, maybe to nothing in big stocks."
+    "Our stop goes under the low of the day or the prior day's low. On a gap up, today's low is closer.",
+    "Size from that distance. Gap days swing wide, so you buy fewer shares. Past 5%, we mostly wait for a tighter trigger.",
+    "After a big beat, prices have tended to keep drifting up. People have measured that since 1968.",
+    "It's an average, not a promise. Some newer studies say it's shrunk to nothing, at least in big stocks."
    ],
    "facts": [
     "h1",
+    "hr1",
     "f9",
     "f39",
     "f75",

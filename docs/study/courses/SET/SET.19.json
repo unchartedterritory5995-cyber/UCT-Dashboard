@@ -1024,10 +1024,10 @@
    "key": "w1",
    "title": "AMZN, October 2017: the classic pause buy",
    "steps": [
-    "AMZN, 2017. A five-month base, then a report after the close on 2017-10-26. So 2017-10-27 is the PEG day.",
-    "The gap is 6 ATRs on 5.5x volume, closing at 0.92 of its range. The pause: five days, 1.7% deep.",
-    "Buy at market over the pause high, 56.14. Stop a few cents under the low, 55.39.",
-    "Failure mode: the gap fills, or a close under the gap-day low. Instead 3R came in 13 sessions. Sell into the push."
+    "AMZN based five months, then reported after the close on October 26, 2017. So the next session is the PEG day.",
+    "It gaps 8.8% on 5.5 times volume and closes near the high. Then a five-day pause, only 1.7% deep.",
+    "November 6 it trades over the pause high. Buy at market, 56.14. Stop a few cents under the low, 55.39.",
+    "Fill the gap or close under the gap-day low and it's wrong. Instead, 3R in 13 sessions, then a trend."
    ],
    "facts": [
     "d01",
@@ -1046,10 +1046,10 @@
    "key": "w2",
    "title": "BIDU, February 2010: a flat shelf and two tight days",
    "steps": [
-    "BIDU, 2010. A four-month flat shelf. Report after the close on 2010-02-09, so 2010-02-10 is the PEG day, up 8.5%.",
-    "The gap clears the shelf on 3.0x volume, closing at 0.95 of its range. Then two tight days, 0.3% deep.",
-    "Buy at market over the pause high, 48.93. Stop a few cents under the low, 48.20.",
-    "Failure mode: a close under the PEG-day low. Instead it ran ten weeks up the 10-day. We sell into a push."
+    "BIDU sat flat four months. It reports after the close February 9, 2010, so the 10th is the PEG day.",
+    "The gap, 8.5%, clears the shelf on 3.0 times volume and closes near the high. Then two tight days, 0.3% deep.",
+    "February 16 it trades over the pause high. Buy at market, 48.93. Stop a few cents under the low, 48.20.",
+    "A close under the PEG-day low kills it. Instead, ten weeks up its rising averages. Sell into pushes, trail the rest."
    ],
    "facts": [
     "d04",
@@ -1069,10 +1069,10 @@
    "key": "w3",
    "title": "COCO, April 2026: a pre-open report and a big gap",
    "steps": [
-    "COCO, 2026. A report before the open on 2026-04-29 makes that day the PEG day: a 17.4% gap on 4.0x volume.",
-    "The day closes at 0.98 of its range, the strong close we want. Then a six-day flag, 5.1% deep, before the buy.",
-    "Buy at market over the pause high, 69.58. Stop a few cents under the low, 68.27, 1.9% away.",
-    "We sell part into the push within about two weeks, day 3 or later. The rest trails the 9 EMA."
+    "COCO reports before the open April 29, 2026, so that's the PEG day. It gaps 17.4% on 4.0 times volume.",
+    "It closes right at its high, the strong close I want. Then a six-day flag, 5.1% deep.",
+    "May 8 it trades over the pause high. Buy at market, 69.58. Stop a few cents under the low, 68.27, 1.9% away.",
+    "5R inside two weeks. Sell some into that push, day 3 or later, and trail the rest on the 9 EMA."
    ],
    "facts": [
     "d14",

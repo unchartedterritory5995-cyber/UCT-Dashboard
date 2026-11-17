@@ -399,9 +399,10 @@
    "key": "w1",
    "title": "Two prices, one gap",
    "steps": [
-    "Every quote has two prices. The bid is the most a buyer will pay right now.",
+    "Every quote has two prices. The bid is the most a buyer will pay you right now.",
     "The ask is the least a seller will take. It sits above the bid.",
-    "The gap between them is the spread. Buy at the ask, sell at the bid, and that gap is your cost."
+    "The gap between them is the spread. It's a cost you pay on every round trip.",
+    "Buy 200 shares at a $60 ask and dump them at the $59.50 bid. That's $100 gone, and nothing moved."
    ],
    "facts": [
     "f1",
@@ -416,8 +417,8 @@
    "title": "What you pay right now",
    "steps": [
     "Buy at market and you pay about the ask. Sell at market and you get about the bid.",
-    "Bid $49.90, ask $50.10. Buy now and you'd pay about $50.10. Sell now and you'd get about $49.90.",
-    "The last price is a trade that already happened. It is not a promise of your fill."
+    "Bid $49.90, ask $50.10. Buy now and it's about $50.10. Sell now, about $49.90.",
+    "Don't count on the last price for your fill. That's a trade that already happened."
    ],
    "facts": [
     "f7",
@@ -430,10 +431,10 @@
    "key": "w3",
    "title": "Size: how many shares sit at each price",
    "steps": [
-    "Every bid and ask comes with a size: the shares waiting at that price.",
-    "On the full order book (Level II), the best prices usually sit on top: the highest bid, the lowest ask.",
-    "Size at the best price is often small. A bigger order reaches into worse prices.",
-    "Say 100 shares are offered at $50.10. Buy 10,000 and you might pay $50.25 or more."
+    "Every bid and ask comes with a size: how many shares are waiting at that price.",
+    "On Level II, the full order book, the best prices sit on top. Highest bid, lowest ask.",
+    "The size at the best price is often small. A bigger order eats into worse prices.",
+    "Say 100 shares are offered at $50.10. Buy 10,000 at market and you might pay $50.25 or more."
    ],
    "facts": [
     "f35",

@@ -733,9 +733,9 @@
    "key": "w1",
    "title": "The number the market expects",
    "steps": [
-    "Before a report, analysts publish estimates for EPS and revenue. The average of them is the consensus.",
-    "Actual above the consensus is a beat. Below is a miss. Equal is in line.",
-    "The surprise is the gap between actual and estimate, as a percent of the estimate."
+    "Before a report, analysts put out their estimates for EPS and revenue. Average them and you've got the consensus.",
+    "That's the bar. Come in above it, a beat. Below it, a miss. Right on it, in line.",
+    "The surprise is how far off it was: actual minus the estimate, divided by the estimate, times 100."
    ],
    "facts": [
     "f9",
@@ -749,10 +749,10 @@
    "key": "w2",
    "title": "The guide looks ahead",
    "steps": [
-    "The report covers the quarter that just ended. Guidance is management's forecast for what comes next.",
-    "It usually comes as a range, for next quarter or the full year.",
-    "The stock is priced on future profits. So the guide can move it more than the beat.",
-    "And the guide is judged against the consensus, not against the last quarter."
+    "The report tells you about the quarter that just ended. Guidance is management telling you what's coming next.",
+    "Most of the time it's a range, for next quarter or the full year.",
+    "A stock trades on future profits. So the guide can move it more than the beat does.",
+    "Judge the guide against the consensus, not last quarter. A midpoint under the street's number counts as negative."
    ],
    "facts": [
     "f37",
@@ -766,9 +766,9 @@
    "key": "w3",
    "title": "Intel, October 2026",
    "steps": [
-    "Intel's third-quarter earnings beat expectations.",
-    "Then the guide: 25 cents a share for the fourth quarter. Analysts expected 43 cents.",
-    "That weak forecast overshadows the beat. The stock has its worst day since the 1970s.",
+    "Intel's third quarter comes in better than expected. A beat. So far so good.",
+    "Then the guide: 25 cents a share for the fourth quarter, when analysts wanted 43 cents.",
+    "The stock falls 29%, its worst day since the 1970s. The weak forecast buries the beat.",
     "The beat was about the past. The guide was the news."
    ],
    "facts": [

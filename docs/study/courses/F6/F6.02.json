@@ -563,9 +563,9 @@
    "key": "w1",
    "title": "A quote is per share",
    "steps": [
-    "Stock option prices are quoted per share.",
-    "Most stock option contracts cover 100 shares.",
-    "So a $4 quote costs $400 for one contract, before commissions."
+    "Pull up an option chain. Every price on it is per share, not per contract.",
+    "Most stock option contracts cover 100 shares. So you multiply the quote by 100.",
+    "A $4 quote costs you $400 for one contract, plus commissions. Price the contract, never the quote."
    ],
    "facts": [
     "f10",
@@ -577,9 +577,10 @@
    "key": "w2",
    "title": "Debit or credit",
    "steps": [
-    "Buy an option and you start with a net debit. The premium leaves your account.",
-    "Sell one to open and you start with a net credit. The premium comes in.",
-    "With two legs, net them. Pay more than you collect and it's a debit. Collect more and it's a credit."
+    "Buying opens with a debit. The premium leaves your account, and you may never get it back.",
+    "Sell one to open and it's a credit. The premium comes in. That's the seller's side, not ours.",
+    "With two legs, net them. Pay 3.30 for a call, collect 1.50 selling a higher one. You're out 1.80, a debit.",
+    "Collect more than you pay and it's a credit. Money comes in the day you open it."
    ],
    "facts": [
     "f4",
@@ -595,9 +596,9 @@
    "key": "w3",
    "title": "What each side can lose",
    "steps": [
-    "A buyer can't lose more than the premium paid, plus commissions.",
-    "A seller's best case is keeping the premium collected.",
-    "A seller's worst case is much bigger. On a call written without the stock, there's no ceiling."
+    "As a buyer, the most you can lose is what you paid, plus commissions. The premium is your stop.",
+    "The seller's best case is keeping the premium they collected. That's as good as it gets for them.",
+    "Their worst case is far bigger. Write a call without owning the stock and the loss has no ceiling."
    ],
    "facts": [
     "f21",

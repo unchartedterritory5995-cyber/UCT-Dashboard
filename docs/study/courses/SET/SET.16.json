@@ -1095,10 +1095,10 @@
    "key": "w1",
    "title": "TGT, March 2021: the clearest coil",
    "steps": [
-    "TGT, March 2021. A 17% correction with 15 of 15 closes under the 20 EMA, still above the 200-day.",
-    "A 10-day base, 166.83 to 181.79. The bars shrink to 0.44, the tightest of our ten. The pivot is 181.79.",
-    "2021-03-19: it trades through on 2.2x the base's volume. Buy at market, 181.80. Stop a few cents under the day's low, 179.58.",
-    "Failure mode: a fade back under the pivot, stop taken next day. Instead 3R comes the next session. Too soon to sell."
+    "TGT corrected 17% into March 2021. Every one of its last 15 closes sat under the 20 EMA. It held the 200-day.",
+    "Then a 10-day base, 166.83 to 181.79, the bars shrinking as it goes. The tightest coil we found. Pivot: 181.79.",
+    "March 19 it trades through on 2.2 times the base's volume. Buy at market, 181.80. Stop just under the day's low, 179.58.",
+    "A fade back under the pivot says it's wrong. Instead, 3R the very next session. Too soon to sell, so you sit."
    ],
    "facts": [
     "d01",
@@ -1116,10 +1116,10 @@
    "key": "w2",
    "title": "RCL, July 2009: the gap through the pivot",
    "steps": [
-    "RCL, July 2009, early in a new cycle. A 34% decline, 14 of 15 closes under the 20 EMA.",
-    "A 4-day base, 11.80 to 12.95: the shortest the rule allows, right at the 200-day. The pivot is 12.95.",
-    "2009-07-15: it gaps open above the pivot, under the 4% chase line. Buy the open, 13.18. Stop under the day's low, 12.97.",
-    "Failure mode: a fade back into the base. Instead 3R comes the next session: too soon to sell, stop to breakeven."
+    "RCL in July 2009, early in a new cycle. It fell 34%, and 14 of 15 closes sat under the 20 EMA.",
+    "Then a 4-day base, 11.80 to 12.95, sitting right on the 200-day. Short, and that's fine. Pivot: 12.95.",
+    "July 15 it gaps over the pivot, under our 4% chase line. Buy the open, 13.18. Stop under the day's low, 12.97.",
+    "Fade back into the base and it's wrong. It hit 3R the next session instead. Hold it, stop up to breakeven."
    ],
    "facts": [
     "d03",
@@ -1136,10 +1136,10 @@
    "key": "w3",
    "title": "STLD, March 2026: light volume, slow start",
    "steps": [
-    "STLD, March 2026. A 22% decline, all 15 closes under the 20 EMA. Then a 7-day base, 162.16 to 175.51.",
-    "2026-03-31: it trades through 175.51 on only 1.2 times the base's volume. A B-grade pop: normal size.",
-    "Buy at market, 175.52. Stop a few cents under the day's low, 171.31: 2.4% away, inside about 3%.",
-    "Failure mode: a fade back into the base. Instead 3R takes six sessions. We sell into the push, then trail to 280."
+    "STLD fell 22% into March 2026, its last 15 closes all under the 20 EMA. Then a 7-day base, 162.16 to 175.51.",
+    "March 31 it trades through 175.51 on just 1.2 times the base's volume. I'd call that a B pop, normal size.",
+    "Buy at market, 175.52. Stop just under the day's low, 171.31. That's 2.4% away, inside the 3% I like.",
+    "3R took six sessions. Then 175 to 280 in ten weeks. Sell into the pushes, trail the rest."
    ],
    "facts": [
     "d05",

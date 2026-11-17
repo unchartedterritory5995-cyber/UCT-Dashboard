@@ -1922,7 +1922,7 @@
   "difficulty": 1,
   "id": "si_77bb3210946c",
   "lesson_origin": "session",
-  "lesson_text": "Up 20% or more off a low is a bull market. These lines are conventions, not laws.",
+  "lesson_text": "Up 20% or more off a low is a bull market. Those lines are conventions people agreed on, not laws.",
   "module": "F7",
   "prompt_json": {
    "order": 1,
@@ -1930,9 +1930,9 @@
    "parts": 3,
    "q": "Two lines, measured from the high",
    "steps": [
-    "Measure every drop from the last peak close. Closes count, not intraday lows.",
-    "Down more than 10% is a correction. Down 20% or more is a bear market.",
-    "Up 20% or more off a low is a bull market. These lines are conventions, not laws."
+    "Measure every drop from the last peak close. Closing prices count, not the intraday lows.",
+    "Down more than 10% off that high is a correction. Down 20% or more is a bear market.",
+    "Up 20% or more off a low is a bull market. Those lines are conventions people agreed on, not laws."
    ],
    "subject": "F7.01#w1"
   },
@@ -1999,7 +1999,7 @@
   "difficulty": 1,
   "id": "si_c8ad0f829770",
   "lesson_origin": "session",
-  "lesson_text": "When the 20% close comes, the bear is dated back to the high. The low is only known afterward.",
+  "lesson_text": "When the 20% close finally comes, the bear gets dated back to the high. You only know the low afterward.",
   "module": "F7",
   "prompt_json": {
    "order": 2,
@@ -2007,9 +2007,9 @@
    "parts": 3,
    "q": "Bulls run long, bears run fast",
    "steps": [
-    "Bull markets have lasted far longer than bears. Since 1966 the average bear lasted roughly 14 months.",
-    "Corrections are common, and most stop short. Schwab counted 27 since November 1974, and only six became bear markets.",
-    "When the 20% close comes, the bear is dated back to the high. The low is only known afterward."
+    "Bulls last a lot longer than bears. Since 1966 the average bear lasted roughly 14 months.",
+    "Corrections are common, and most stop short. Since November 1974 there were 27, and only six became bear markets.",
+    "When the 20% close finally comes, the bear gets dated back to the high. You only know the low afterward."
    ],
    "subject": "F7.01#w2"
   },
@@ -2062,7 +2062,7 @@
   "difficulty": 1,
   "id": "si_5733f573b335",
   "lesson_origin": "session",
-  "lesson_text": "Stage 3 goes sideways after the climb as the average flattens. Stage 4 falls, usually under a falling average.",
+  "lesson_text": "Stage 3 goes sideways after the climb and the average flattens. Stage 4 falls, usually under a falling average.",
   "module": "F7",
   "prompt_json": {
    "order": 3,
@@ -2070,10 +2070,10 @@
    "parts": 3,
    "q": "Four stages on one chart",
    "steps": [
-    "Weinstein reads a weekly chart against its 30-week moving average. In his method, every chart sits in one of four stages.",
-    "Stage 1 is a sideways base after a decline. The average goes flat.",
-    "Stage 2 breaks out and climbs above a rising average, with higher highs and higher lows.",
-    "Stage 3 goes sideways after the climb as the average flattens. Stage 4 falls, usually under a falling average."
+    "Pull up a weekly chart with the 30-week moving average. Weinstein says every chart is in one of four stages.",
+    "Stage 1 is the sideways base after a decline. Price chops around and the average goes flat.",
+    "Stage 2 is the uptrend. It breaks out and climbs over a rising average, with higher highs and higher lows.",
+    "Stage 3 goes sideways after the climb and the average flattens. Stage 4 falls, usually under a falling average."
    ],
    "subject": "F7.01#w3"
   },
@@ -3597,7 +3597,7 @@
   "difficulty": 1,
   "id": "si_2473a9861335",
   "lesson_origin": "session",
-  "lesson_text": "Next day, the Fed stands ready as a source of liquidity. Less than two years later, stocks are at new highs.",
+  "lesson_text": "Next day the Fed says it's ready to supply liquidity. Less than two years later, stocks are at new highs.",
   "module": "F7",
   "prompt_json": {
    "order": 1,
@@ -3605,10 +3605,10 @@
    "parts": 3,
    "q": "Black Monday, 1987",
    "steps": [
-    "By late August 1987, the Dow is up 44% in seven months. Then mid-October turns ugly.",
-    "Monday, October 19. The Dow crashes at the opening bell and closes down 22.6%, 508 points.",
-    "Portfolio insurance sells as prices fall. That pushes prices lower, so it sells again.",
-    "Next day, the Fed stands ready as a source of liquidity. Less than two years later, stocks are at new highs."
+    "Late August 1987. The Dow's up 44% in seven months and people are talking bubble. Then mid-October turns ugly.",
+    "Monday, October 19. The Dow crashes at the opening bell and closes down 508 points. That's 22.6% in one day.",
+    "Portfolio insurance sells as prices fall. That pushes prices lower, so it sells again. A vicious circle.",
+    "Next day the Fed says it's ready to supply liquidity. Less than two years later, stocks are at new highs."
    ],
    "subject": "F7.02#w1"
   },
@@ -3640,7 +3640,7 @@
   "difficulty": 1,
   "id": "si_f850ef606839",
   "lesson_origin": "session",
-  "lesson_text": "Then the climb. By August 18 it closes at a record again, 3,389.78.",
+  "lesson_text": "Then it climbs right back. By August 18 it closes at a new record, 3,389.78.",
   "module": "F7",
   "prompt_json": {
    "order": 2,
@@ -3648,10 +3648,10 @@
    "parts": 3,
    "q": "March 2020",
    "steps": [
-    "February 19, 2020. The S&P 500 closes at a record 3,386.15.",
-    "Then the selling starts. Four times in March, a 7% drop halts all trading for 15 minutes.",
-    "March 23, the S&P 500 closes at 2,237.40. Peak to trough, stocks drop as much as 34%.",
-    "Then the climb. By August 18 it closes at a record again, 3,389.78."
+    "Start at the top. February 19, 2020, the S&P 500 closes at a record, 3,386.15.",
+    "Then the selling hits. Four times in March, a 7% drop halts all trading for 15 minutes.",
+    "March 23 it closes at 2,237.40. From peak to trough, stocks dropped as much as 34%.",
+    "Then it climbs right back. By August 18 it closes at a new record, 3,389.78."
    ],
    "subject": "F7.02#w2"
   },
@@ -3718,7 +3718,7 @@
   "difficulty": 1,
   "id": "si_75526b162f66",
   "lesson_origin": "session",
-  "lesson_text": "And not every crash bounces fast. After 1929, the Dow took until 1954 to get back.",
+  "lesson_text": "And not every crash bounces fast. After 1929, the Dow didn't get back to its high until 1954.",
   "module": "F7",
   "prompt_json": {
    "order": 3,
@@ -3726,10 +3726,10 @@
    "parts": 3,
    "q": "What a fast crash does to you",
    "steps": [
-    "A stop is a trigger, not a price. In a fast market, your fill can land far below it.",
+    "A stop is a trigger, not a price. In a fast market your fill can land well below it.",
     "A 7% drop before 3:25 p.m. halts everything for 15 minutes. A 20% drop closes the market for the day.",
-    "In 2020, the low came on bad news. The worst jobs report came out weeks after it.",
-    "And not every crash bounces fast. After 1929, the Dow took until 1954 to get back."
+    "In 2020 the low came on bad news. The worst jobs report showed up weeks later. Price doesn't wait for the news.",
+    "And not every crash bounces fast. After 1929, the Dow didn't get back to its high until 1954."
    ],
    "subject": "F7.02#w3"
   },
@@ -5592,7 +5592,7 @@
   "difficulty": 1,
   "id": "si_11722e0dcd75",
   "lesson_origin": "session",
-  "lesson_text": "Neither was one fast drop. Both bears ground on for more than a year before the low.",
+  "lesson_text": "Neither was one fast drop. Both ground on for more than a year, and that's what wears you out.",
   "module": "F7",
   "prompt_json": {
    "order": 1,
@@ -5600,9 +5600,9 @@
    "parts": 3,
    "q": "Two long bears",
    "steps": [
-    "The Nasdaq closed at 5,048.62 on March 10, 2000. Its low came on October 9, 2002, at 1,114.11.",
-    "The S&P 500 fell 57% from its October 2007 peak to its March 2009 trough.",
-    "Neither was one fast drop. Both bears ground on for more than a year before the low."
+    "March 10, 2000. The Nasdaq closes at 5,048.62. It doesn't bottom until October 9, 2002, at 1,114.11.",
+    "Next time it's the S&P 500. It falls 57% from its October 2007 peak to its March 2009 trough.",
+    "Neither was one fast drop. Both ground on for more than a year, and that's what wears you out."
    ],
    "subject": "F7.03#w1"
   },
@@ -5641,7 +5641,7 @@
   "difficulty": 1,
   "id": "si_c1e814b48d2f",
   "lesson_origin": "session",
-  "lesson_text": "From mid-2000 on, each big rally topped below the last one. Lower highs and lower lows: that's a downtrend.",
+  "lesson_text": "From mid-2000 on, every big rally topped under the last one. Lower highs and lower lows: that's a downtrend.",
   "module": "F7",
   "prompt_json": {
    "order": 2,
@@ -5649,9 +5649,9 @@
    "parts": 3,
    "q": "Rallies inside a bear",
    "steps": [
-    "Bear markets bounce, and the bounces are often fast and sharp.",
-    "In 2001 the Nasdaq rose almost 40% between April and the end of May. By September it made new lows.",
-    "From mid-2000 on, each big rally topped below the last one. Lower highs and lower lows: that's a downtrend."
+    "Bears bounce, and the bounces are fast and sharp. That's what pulls people back in.",
+    "In 2001 the Nasdaq ran almost 40% between April and the end of May. By September it was at new lows.",
+    "From mid-2000 on, every big rally topped under the last one. Lower highs and lower lows: that's a downtrend."
    ],
    "subject": "F7.03#w2"
   },
@@ -5711,7 +5711,7 @@
   "difficulty": 1,
   "id": "si_9ff80a40baa9",
   "lesson_origin": "session",
-  "lesson_text": "Even then, it points to a possible turn, not a sure one.",
+  "lesson_text": "Even then it's a possible turn, not a sure one.",
   "module": "F7",
   "prompt_json": {
    "order": 3,
@@ -5719,10 +5719,10 @@
    "parts": 3,
    "q": "How a bear ends",
    "steps": [
-    "A downtrend holds until price makes a higher low, then clears the last rally high.",
-    "After the October 2002 low, the Nasdaq held a higher low the next March. In early May, it cleared its November high.",
-    "You only see the bottom in hindsight. The rule gets you in late, but on evidence, not a guess.",
-    "Even then, it points to a possible turn, not a sure one."
+    "A downtrend holds until price makes a higher low, then takes out the last rally high.",
+    "After the October 2002 low, the Nasdaq held a higher low in March. In early May it cleared its November high.",
+    "You only see the bottom in hindsight. Waiting for that gets you in late, but on evidence, not a guess.",
+    "Even then it's a possible turn, not a sure one."
    ],
    "subject": "F7.03#w3"
   },
@@ -7649,7 +7649,7 @@
   "difficulty": 1,
   "id": "si_dabdc0d89eb7",
   "lesson_origin": "session",
-  "lesson_text": "The S&P 500 went from 4,796.56 on Jan. 3 to 3,577.03 on Oct. 12. That's about a quarter of its value gone.",
+  "lesson_text": "The S&P 500 went from 4,796.56 on January 3 to 3,577.03 on October 12. About a quarter of its value, gone.",
   "module": "F7",
   "prompt_json": {
    "order": 1,
@@ -7657,9 +7657,9 @@
    "parts": 3,
    "q": "2022: the rate bear",
    "steps": [
-    "Inflation ran hot. Prices rose 9.1% in the year to June 2022, the most since 1981.",
-    "The Fed started 2022 near zero. It hiked seven times and ended the year at 4.25% to 4.50%.",
-    "The S&P 500 went from 4,796.56 on Jan. 3 to 3,577.03 on Oct. 12. That's about a quarter of its value gone."
+    "Inflation was running hot. Prices were up 9.1% in the year to June 2022, the most since 1981.",
+    "The Fed started the year near zero. Seven hikes later it ended at 4.25% to 4.50%.",
+    "The S&P 500 went from 4,796.56 on January 3 to 3,577.03 on October 12. About a quarter of its value, gone."
    ],
    "subject": "F7.04#w1"
   },
@@ -7719,7 +7719,7 @@
   "difficulty": 1,
   "id": "si_4635766d15b0",
   "lesson_origin": "session",
-  "lesson_text": "No one signpost is proof. You want to see several line up.",
+  "lesson_text": "No one signpost proves it. I want to see several of them line up.",
   "module": "F7",
   "prompt_json": {
    "order": 2,
@@ -7727,10 +7727,10 @@
    "parts": 3,
    "q": "How a bottom forms",
    "steps": [
-    "A bottom is a process, not a day. It forms in fear and bad headlines.",
-    "First the panic: capitulation, a spike in the VIX, a breadth washout where almost nothing holds up.",
-    "Then the turn: bad news stops working, a follow-through day fires, and new leaders break out.",
-    "No one signpost is proof. You want to see several line up."
+    "A bottom is a process, not a day. And it forms in fear and bad headlines, not in clarity.",
+    "First the panic. Capitulation, the VIX spiking, a washout where almost nothing holds its 50-day.",
+    "Then the turn. Bad news stops working, a follow-through day fires, and new leaders break out.",
+    "No one signpost proves it. I want to see several of them line up."
    ],
    "subject": "F7.04#w2"
   },
@@ -7790,7 +7790,7 @@
   "difficulty": 1,
   "id": "si_33bb035bb16d",
   "lesson_origin": "session",
-  "lesson_text": "When it fires, look at the strongest stocks first. They're usually the first to emerge.",
+  "lesson_text": "When it fires, look at the strongest stocks first. They're usually the first ones out.",
   "module": "F7",
   "prompt_json": {
    "order": 3,
@@ -7798,10 +7798,10 @@
    "parts": 3,
    "q": "Confirm, don't predict",
    "steps": [
-    "O'Neil's advice: don't try to call the bottom. Wait until a new uptrend has begun.",
-    "The tell is a follow-through day: several days into a rally attempt, a major index rises strongly on higher volume.",
-    "It works often, not always. One StockCharts writer cites studies putting it at about half to two-thirds.",
-    "When it fires, look at the strongest stocks first. They're usually the first to emerge."
+    "Don't try to call the bottom. O'Neil's way is to wait until a new uptrend has already started.",
+    "The tell is a follow-through day. Several days into a rally attempt, a major index rises strongly on higher volume.",
+    "It's not foolproof. About half to two-thirds of them lead to a lasting uptrend.",
+    "When it fires, look at the strongest stocks first. They're usually the first ones out."
    ],
    "subject": "F7.04#w3"
   },
@@ -9912,7 +9912,7 @@
   "difficulty": 1,
   "id": "si_24506007b451",
   "lesson_origin": "session",
-  "lesson_text": "McClellan saw it all through 1999: a few big caps lifted the indexes while the A/D data showed the rest struggling.",
+  "lesson_text": "All through 1999 a few big caps carried the indexes. The A/D data showed the rest of the market struggling.",
   "module": "F7",
   "prompt_json": {
    "order": 1,
@@ -9920,10 +9920,10 @@
    "parts": 3,
    "q": "Count the stocks, not the points",
    "steps": [
-    "Big indexes like the S&P 500 weight each stock by its market cap. The giants move the number most.",
-    "So an index can climb while more than half its stocks fall. A handful of big winners drags it up.",
+    "The S&P 500 weights every stock by its market cap. So the giants move the number most.",
+    "That means the index can climb while more than half its stocks fall. A handful of big winners drags it up.",
     "Breadth counts stocks instead. On the A/D line every stock gets one vote, big or small.",
-    "McClellan saw it all through 1999: a few big caps lifted the indexes while the A/D data showed the rest struggling."
+    "All through 1999 a few big caps carried the indexes. The A/D data showed the rest of the market struggling."
    ],
    "subject": "F7.05#w1"
   },
@@ -9997,7 +9997,7 @@
   "difficulty": 1,
   "id": "si_ff04ae7cb074",
   "lesson_origin": "session",
-  "lesson_text": "A condition, not a signal. In 2007 the NYSE A/D line peaked in June. The index still hit new highs in October.",
+  "lesson_text": "Not a sell signal. In 2007 the NYSE A/D line peaked in June. The index made new highs into October anyway.",
   "module": "F7",
   "prompt_json": {
    "order": 2,
@@ -10005,10 +10005,10 @@
    "parts": 3,
    "q": "Confirm or diverge",
    "steps": [
-    "Each day, take the stocks that rose minus the ones that fell. That's net advances. The A/D line keeps a running total.",
-    "When the A/D line makes new highs with the index, the rally is broad. That's healthy.",
-    "Index at a new high, A/D line below its last peak: fewer stocks are doing the lifting. That's a bearish divergence.",
-    "A condition, not a signal. In 2007 the NYSE A/D line peaked in June. The index still hit new highs in October."
+    "Stocks up minus stocks down is net advances. Keep a running total and that's the A/D line.",
+    "When the A/D line makes new highs with the index, the rally is broad. That's what you want to see.",
+    "Index at a new high, A/D line under its last peak. Fewer stocks are doing the lifting. That's a bearish divergence.",
+    "Not a sell signal. In 2007 the NYSE A/D line peaked in June. The index made new highs into October anyway."
    ],
    "subject": "F7.05#w2"
   },
@@ -10047,7 +10047,7 @@
   "difficulty": 1,
   "id": "si_b551ec4baed0",
   "lesson_origin": "session",
-  "lesson_text": "The McClellan Oscillator is the 19-day EMA of net advances minus the 39-day EMA. Above zero, advancing stocks have the upper hand.",
+  "lesson_text": "Last, the McClellan Oscillator. A fast EMA of net advances, 19-day, minus a slow one, 39-day. Over zero, advancers are winning.",
   "module": "F7",
   "prompt_json": {
    "order": 3,
@@ -10055,10 +10055,10 @@
    "parts": 3,
    "q": "Three more gauges",
    "steps": [
-    "Percent above the 50-day: the share of stocks above their 50-day average. Over 50% leans bullish, under 50% leans bearish.",
-    "New highs vs new lows: more stocks at 52-week highs than at 52-week lows favors the bulls.",
-    "It lags at turns. In 2009 the NYSE Composite bottomed in early March; net new highs didn't top +100 until August.",
-    "The McClellan Oscillator is the 19-day EMA of net advances minus the 39-day EMA. Above zero, advancing stocks have the upper hand."
+    "Start with the share of stocks over their 50-day. Over 50% leans bullish, under 50% leans bearish.",
+    "Then new highs vs new lows. More stocks making 52-week highs than 52-week lows, the bulls have the edge.",
+    "That one's slow at turns. The NYSE Composite bottomed in early March 2009. Net new highs didn't top +100 until August.",
+    "Last, the McClellan Oscillator. A fast EMA of net advances, 19-day, minus a slow one, 39-day. Over zero, advancers are winning."
    ],
    "subject": "F7.05#w3"
   },
@@ -11953,7 +11953,7 @@
   "difficulty": 1,
   "id": "si_3ff8b49fc1ff",
   "lesson_origin": "session",
-  "lesson_text": "T-bill yields track that rate closely. Long-term yields also price where it's expected to go.",
+  "lesson_text": "T-bill yields move right with that rate. Longer yields also price where it's expected to go.",
   "module": "F7",
   "prompt_json": {
    "order": 1,
@@ -11961,10 +11961,10 @@
    "parts": 3,
    "q": "Who sets the rate",
    "steps": [
-    "The fed funds rate is what banks pay to borrow reserves from each other overnight.",
-    "The Fed's FOMC sets a target range for it at eight scheduled meetings a year.",
-    "The goal is the dual mandate: maximum employment and stable prices, with inflation at 2% a year.",
-    "T-bill yields track that rate closely. Long-term yields also price where it's expected to go."
+    "Banks lend each other reserves overnight. The rate they pay is the fed funds rate, the one Fed headlines are about.",
+    "The Fed's FOMC sets a target range for it. They meet eight times a year on the calendar.",
+    "What they're after is the dual mandate: maximum employment and stable prices, with inflation at 2% a year.",
+    "T-bill yields move right with that rate. Longer yields also price where it's expected to go."
    ],
    "subject": "F7.06#w1"
   },
@@ -12010,7 +12010,7 @@
   "difficulty": 1,
   "id": "si_df52c68774c2",
   "lesson_origin": "session",
-  "lesson_text": "December 30, 2022: the 2-year paid 4.41% and the 10-year 3.88%. Inverted.",
+  "lesson_text": "Fast forward to December 30, 2022. The 2-year paid 4.41%, the 10-year 3.88%. Inverted.",
   "module": "F7",
   "prompt_json": {
    "order": 2,
@@ -12018,10 +12018,10 @@
    "parts": 3,
    "q": "Reading the curve",
    "steps": [
-    "The yield curve lines up Treasury yields from the shortest maturity to the longest.",
-    "Normally it slopes up. January 3, 2022: the 2-year paid 0.78% and the 10-year 1.63%.",
-    "The 2s10s is the 10-year yield minus the 2-year. Below zero, the curve is inverted between those two points.",
-    "December 30, 2022: the 2-year paid 4.41% and the 10-year 3.88%. Inverted."
+    "Line up Treasury yields from the shortest maturity to the longest. That's the yield curve.",
+    "Normally it slopes up. January 3, 2022, the 2-year paid 0.78% and the 10-year paid 1.63%.",
+    "The 2s10s is the 10-year yield minus the 2-year. Below zero, the curve is inverted there.",
+    "Fast forward to December 30, 2022. The 2-year paid 4.41%, the 10-year 3.88%. Inverted."
    ],
    "subject": "F7.06#w2"
   },
@@ -12081,7 +12081,7 @@
   "difficulty": 1,
   "id": "si_edeeb2c86216",
   "lesson_origin": "session",
-  "lesson_text": "Growth stocks often lean on profits years out. A higher rate shrinks what those are worth today.",
+  "lesson_text": "Why tech got hit harder: growth stocks lean on profits years out. A higher rate shrinks what those are worth today.",
   "module": "F7",
   "prompt_json": {
    "order": 3,
@@ -12089,10 +12089,10 @@
    "parts": 3,
    "q": "2022, the year of hikes",
    "steps": [
-    "The Fed's range started 2022 at 0% to 0.25% and ended at 4.25% to 4.5%, after seven hikes.",
-    "Markets didn't wait. Yields rose and stocks fell before the first hike in March.",
-    "The tech-heavy Nasdaq lost 33.1% on the year.",
-    "Growth stocks often lean on profits years out. A higher rate shrinks what those are worth today."
+    "2022. The Fed's range starts the year at 0% to 0.25% and ends at 4.25% to 4.5%. Seven hikes.",
+    "The market didn't wait for them. Yields rose and stocks fell before the first hike in March.",
+    "By year-end the tech-heavy Nasdaq was down 33.1%.",
+    "Why tech got hit harder: growth stocks lean on profits years out. A higher rate shrinks what those are worth today."
    ],
    "subject": "F7.06#w3"
   },
@@ -13809,7 +13809,7 @@
   "difficulty": 1,
   "id": "si_4ca927fd7c60",
   "lesson_origin": "session",
-  "lesson_text": "Both land at 8:30 a.m. Eastern. Regular trading opens at 9:30, so the news is out before the bell.",
+  "lesson_text": "Both drop at 8:30 a.m. Eastern. The regular session opens at 9:30, so you get the number before the open.",
   "module": "F7",
   "prompt_json": {
    "order": 1,
@@ -13817,9 +13817,9 @@
    "parts": 3,
    "q": "The two big monthly prints",
    "steps": [
-    "CPI tracks the average change in prices consumers pay. Core CPI drops food and energy, the volatile parts.",
-    "The jobs report has two headlines from two surveys. Payrolls come from businesses. The unemployment rate comes from households.",
-    "Both land at 8:30 a.m. Eastern. Regular trading opens at 9:30, so the news is out before the bell."
+    "CPI is the average change in what consumers pay. Core CPI strips out food and energy, because those jump around.",
+    "The jobs report has two headlines from two surveys. Payrolls come from businesses, the unemployment rate from households.",
+    "Both drop at 8:30 a.m. Eastern. The regular session opens at 9:30, so you get the number before the open."
    ],
    "subject": "F7.07#w1"
   },
@@ -13886,7 +13886,7 @@
   "difficulty": 1,
   "id": "si_b91b9571ebf9",
   "lesson_origin": "session",
-  "lesson_text": "Jobless claims come every Thursday at 8:30. Dates do move, so check the calendar each week.",
+  "lesson_text": "Jobless claims come every Thursday at 8:30. Holidays move dates, so check the calendar every week.",
   "module": "F7",
   "prompt_json": {
    "order": 2,
@@ -13894,9 +13894,9 @@
    "parts": 3,
    "q": "Where they sit on the calendar",
    "steps": [
-    "The jobs report typically lands the first Friday of the next month. October 2026's came out Friday, Nov. 6.",
-    "CPI has no set weekday. BLS set October's for Tuesday, Nov. 10, and November's for Thursday, Dec. 10.",
-    "Jobless claims come every Thursday at 8:30. Dates do move, so check the calendar each week."
+    "The jobs report lands the first Friday of the next month, most of the time. October 2026's came out Friday, November 6.",
+    "CPI has no set weekday. October's came out Tuesday, November 10. November's is set for Thursday, December 10.",
+    "Jobless claims come every Thursday at 8:30. Holidays move dates, so check the calendar every week."
    ],
    "subject": "F7.07#w2"
   },
@@ -13956,7 +13956,7 @@
   "difficulty": 1,
   "id": "si_ff403202b010",
   "lesson_origin": "session",
-  "lesson_text": "BLS revises the jobs number in the next two reports. Its 90% margin of error is about 122,000 either way.",
+  "lesson_text": "And the jobs number gets revised in the next two reports. The margin of error is about 122,000 either way.",
   "module": "F7",
   "prompt_json": {
    "order": 3,
@@ -13964,9 +13964,10 @@
    "parts": 3,
    "q": "The surprise is the news",
    "steps": [
-    "Before each print, a survey of forecasters gives a consensus, the median forecast. The surprise is the actual number minus that consensus.",
-    "Research finds it's the surprise that moves stocks. A print matching the forecast was already expected. Inflation above forecast is called hot.",
-    "BLS revises the jobs number in the next two reports. Its 90% margin of error is about 122,000 either way."
+    "Before each print, forecasters put out a consensus. The surprise is the actual number minus that consensus.",
+    "The surprise is what moves stocks. A number that matches the forecast was already expected.",
+    "Inflation over the forecast is called hot. On average, a hot print has gone with lower stocks.",
+    "And the jobs number gets revised in the next two reports. The margin of error is about 122,000 either way."
    ],
    "subject": "F7.07#w3"
   },
@@ -15496,8 +15497,8 @@
    "q": "Four things to read in any fall",
    "steps": [
     "Every big fall has a depth, a length, a cause and an aftermath. Read all four before you call it.",
-    "Depth: the S&P 500 fell 57% from its 2007 peak to its 2009 trough. From 2000 to 2002 it fell 49.1%.",
-    "Length: in 2020 the fall took 33 days. The slide from 2000 to 2002 ground on for 30.5 months.",
+    "Depth first. The S&P 500 fell 57% from its 2007 peak to its 2009 trough. From 2000 to 2002, 49.1%.",
+    "Then length. In 2020 the fall took 33 days. The 2000 to 2002 slide ground on for 30.5 months.",
     "Cause tells you what broke. Aftermath tells you how long the repair took."
    ],
    "subject": "F7.08#w1"
@@ -15544,7 +15545,7 @@
   "difficulty": 1,
   "id": "si_65010ac0d2f0",
   "lesson_origin": "session",
-  "lesson_text": "Both times, the official end date came out over a year later. By then, price had already moved.",
+  "lesson_text": "Both times the official end date came out over a year later. By then, price had long since moved.",
   "module": "F7",
   "prompt_json": {
    "order": 2,
@@ -15552,9 +15553,9 @@
    "parts": 3,
    "q": "Stocks and the economy keep different clocks",
    "steps": [
-    "In 2009 the S&P 500 hit its trough in March. The recession didn't end until June.",
-    "In 2002 it ran the other way. The recession ended in November 2001, yet stocks slid to new lows by October 2002.",
-    "Both times, the official end date came out over a year later. By then, price had already moved."
+    "March 2009, the S&P 500 hits its trough. The recession doesn't end until June.",
+    "2002 ran the other way. The recession ended in November 2001, and stocks still slid to new lows by October 2002.",
+    "Both times the official end date came out over a year later. By then, price had long since moved."
    ],
    "subject": "F7.08#w2"
   },
@@ -15607,7 +15608,7 @@
   "difficulty": 1,
   "id": "si_75776b50e75b",
   "lesson_origin": "session",
-  "lesson_text": "By October 12 it closed at 3,577.03, a new low. Only in hindsight did that turn out to be the bottom.",
+  "lesson_text": "October 12 it closes at 3,577.03, a new low. That was the real bottom, and you only knew it in hindsight.",
   "module": "F7",
   "prompt_json": {
    "order": 3,
@@ -15615,9 +15616,9 @@
    "parts": 3,
    "q": "A bounce is not a bottom",
    "steps": [
-    "In 2022 the S&P 500 fell from a record 4,796.56 in January to 3,666.77 in mid-June.",
-    "Then it bounced for two months, up to 4,305.20 in mid-August.",
-    "By October 12 it closed at 3,577.03, a new low. Only in hindsight did that turn out to be the bottom."
+    "January 2022, the S&P 500 closes at a record, 4,796.56. By mid-June it's down to 3,666.77.",
+    "Then it bounces for two months, all the way up to 4,305.20 in mid-August. Feels like the bottom's in.",
+    "October 12 it closes at 3,577.03, a new low. That was the real bottom, and you only knew it in hindsight."
    ],
    "subject": "F7.08#w3"
   },
@@ -17114,7 +17115,7 @@
   "difficulty": 1,
   "id": "si_ded3a071d28b",
   "lesson_origin": "session",
-  "lesson_text": "A sector fund is a concentrated bet. It generally swings more than the overall market.",
+  "lesson_text": "A sector fund is a concentrated bet. It tends to swing more than the overall market.",
   "module": "F7",
   "prompt_json": {
    "order": 1,
@@ -17122,10 +17123,10 @@
    "parts": 3,
    "q": "Eleven sectors, one market",
    "steps": [
-    "GICS puts each company in one of 11 sectors, by its main business. Revenue is the first test.",
-    "Every S&P 500 stock sits in one sector index, and each sector has a fund. XLK is tech, XLE energy, XLU utilities.",
+    "Eleven sectors. GICS puts every company in one of them, by its main business, and revenue is the first test.",
+    "Every S&P 500 stock sits in one sector, and each sector has a fund. XLK is tech, XLE energy, XLU utilities.",
     "Some labels surprise people. Amazon is consumer discretionary. Alphabet and Meta are communication services.",
-    "A sector fund is a concentrated bet. It generally swings more than the overall market."
+    "A sector fund is a concentrated bet. It tends to swing more than the overall market."
    ],
    "subject": "F7.09#w1"
   },
@@ -17199,7 +17200,7 @@
   "difficulty": 1,
   "id": "si_87ad66d8b390",
   "lesson_origin": "session",
-  "lesson_text": "Same market, changing leaders. Energy led two years running, then slipped. Watch who leads now.",
+  "lesson_text": "Same market, leaders keep changing. Energy led two years running, then slipped. Know who's leading now.",
   "module": "F7",
   "prompt_json": {
    "order": 2,
@@ -17207,10 +17208,10 @@
    "parts": 3,
    "q": "Leadership rotates",
    "steps": [
-    "2020: tech is by far the top sector, its index up 43.89%. Energy's index loses 32.84%.",
-    "2021: energy and real estate lead. 2022, with dividends: the S&P 500 loses 18.11%, energy gains 64.56%.",
-    "2023: tech leads again, up 56.13%. Energy slips 0.59%.",
-    "Same market, changing leaders. Energy led two years running, then slipped. Watch who leads now."
+    "2020. Tech runs away with it, its index up 43.89%. Energy's index loses 32.84%.",
+    "2021, energy and real estate lead. 2022, the S&P 500 loses 18.11% with dividends and energy gains 64.56%.",
+    "2023, tech's back on top, up 56.13%. Energy slips 0.59%.",
+    "Same market, leaders keep changing. Energy led two years running, then slipped. Know who's leading now."
    ],
    "subject": "F7.09#w2"
   },
@@ -17305,7 +17306,7 @@
   "difficulty": 1,
   "id": "si_1b8bd205be1d",
   "lesson_origin": "session",
-  "lesson_text": "2021: energy leads. The S&P 500's top stock is Devon Energy, an oil and gas producer, up 178.6%.",
+  "lesson_text": "2021: energy leads. The S&P 500's best stock that year is Devon Energy, an oil and gas producer, up 178.6%.",
   "module": "F7",
   "prompt_json": {
    "order": 3,
@@ -17314,9 +17315,9 @@
    "q": "Group first, then the stock",
    "steps": [
     "Some groups lead the market and some lag it. Find the leading group first.",
-    "Then look for the strongest stocks inside it. Leave the laggards alone.",
-    "A group that holds up while the market drops is showing relative strength. Write it down.",
-    "2021: energy leads. The S&P 500's top stock is Devon Energy, an oil and gas producer, up 178.6%."
+    "Then find the strongest stocks inside it. Leave the laggards alone.",
+    "A group that holds up while the market drops is showing you relative strength. Put it on your radar.",
+    "2021: energy leads. The S&P 500's best stock that year is Devon Energy, an oil and gas producer, up 178.6%."
    ],
    "subject": "F7.09#w3"
   },

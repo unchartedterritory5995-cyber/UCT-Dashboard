@@ -503,9 +503,9 @@
    "key": "w1",
    "title": "Same fields, every trade",
    "steps": [
-    "Most journals are summaries of the day. One entry is detailed, the next is sketchy, and none of it sorts.",
-    "So log every trade in the same fixed fields. Schwab's worksheet works that way: one sheet, filled out for each trade.",
-    "Fixed fields and tags can be sorted. Then every trade of one kind comes up at once."
+    "Most journals are just a summary of the day. Detailed one day, sketchy the next, and none of it sorts.",
+    "So log every trade in the same fixed fields. Schwab's trade worksheet works that way, one sheet per trade.",
+    "Fixed fields and tags can be sorted. One filter pulls up every trade of one kind."
    ],
    "facts": [
     "f26",
@@ -520,10 +520,10 @@
    "key": "w2",
    "title": "Before the click, after the close",
    "steps": [
-    "Before you buy, log the date and the plan: why you're taking it, entry, stop, target and size.",
-    "Write the reason now. After the fact, the trade looks easier to call than it was.",
-    "After you close, log the result: the exit, the R it made, and how closely you followed the plan.",
-    "Finish with what worked, what didn't, and one lesson."
+    "Before you buy, log the date and the plan: why you're in, the entry, stop, target and size.",
+    "Write the why now. Once it's over, hindsight makes the trade look easier to call than it was.",
+    "After you sell, log the exit, the result in R, and how closely you followed the plan.",
+    "Finish with what worked, what didn't, and one lesson. We do it the same day."
    ],
    "facts": [
     "f10",
@@ -533,16 +533,17 @@
     "f42",
     "f12",
     "f37",
-    "f13"
+    "f13",
+    "h02"
    ]
   },
   {
    "key": "w3",
    "title": "Tags and a picture",
    "steps": [
-    "Tag the setup, the emotion and any mistake from a short list. Use the same word every time.",
-    "Save the chart when you enter, with your levels marked.",
-    "Keep it short enough to do on every trade. A journal only works if you keep working it."
+    "Tag the setup, how you felt, and any mistake. Same short list, same word every time.",
+    "Save the chart when you buy, with your levels marked on it.",
+    "Keep it light enough to do on every trade. A journal only works if you keep working it."
    ],
    "facts": [
     "f27",

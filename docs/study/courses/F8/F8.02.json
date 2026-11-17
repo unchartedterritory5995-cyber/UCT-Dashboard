@@ -724,9 +724,9 @@
    "key": "w1",
    "title": "What FOMO is",
    "steps": [
-    "FOMO is the fear of missing out. Everyone feels it, in markets and out of them.",
-    "In trading it's the urge to get into a move you're watching from the sidelines.",
-    "It often shows up in two ways. You buy late, after the move. Or you jump in before your signal."
+    "FOMO, the fear of missing out. A stock's ripping, you're on the sidelines, and it feels like you have to be in.",
+    "Everybody feels it. The urgency is what hurts you, because it pushes you into fast calls with no plan.",
+    "It shows up two ways. You buy late, way after the move. Or you jump in before your trigger."
    ],
    "facts": [
     "f01",
@@ -740,26 +740,30 @@
    "key": "w2",
    "title": "What a chase costs",
    "steps": [
-    "Your stop sits where the idea is wrong. Buy higher and you're further from it.",
-    "Risk per share is entry minus stop. Every dollar you chase gets added to it.",
-    "Keep your size and you risk more than you planned. Keep your risk and you buy fewer shares."
+    "Your stop sits where the idea is wrong. Buy higher and you're just further from it.",
+    "Risk per share is entry minus stop. Every dollar you chase gets added right onto it.",
+    "Keep your size and you risk more than you planned. We keep the risk, so a chase just buys you fewer shares.",
+    "Our line is 4%. More than 4% above the buy point, we don't touch it."
    ],
    "facts": [
     "f22",
     "f23",
-    "f34"
+    "f34",
+    "h04",
+    "h05"
    ]
   },
   {
    "key": "w3",
    "title": "The cure",
    "steps": [
-    "Write the entry and the stop before the open, while you're calm.",
-    "If you miss it, wait for a pullback that holds a higher low. Then buy with a close stop.",
-    "Or let it go. Another setup will come along."
+    "Write the entry, stop and size before the open, while you're calm. Then at the open you just execute.",
+    "If you missed it, wait for a pullback that holds a higher low. Then buy that with a tight stop.",
+    "Or let it go. I'd rather miss it than chase it. Another setup always comes along."
    ],
    "facts": [
     "f33",
+    "h06",
     "f37",
     "f42",
     "f51"

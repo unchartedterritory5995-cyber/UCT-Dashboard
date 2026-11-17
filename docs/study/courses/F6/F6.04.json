@@ -464,10 +464,10 @@
    "key": "w1",
    "title": "What delta measures",
    "steps": [
-    "Delta estimates how much an option's price moves when the stock moves $1.",
-    "A 0.50 delta means about $0.50 for each $1, with everything else held still.",
-    "Bought calls run from 0 to 1.00. Bought puts run from 0 to -1.00.",
-    "Sell the option and the sign flips. A short put carries positive delta."
+    "Delta is your quick read on how much the option moves when the stock moves $1.",
+    "A 0.50 delta: stock up a dollar, option up about $0.50. That's with everything else held still.",
+    "Calls you buy run from 0 to 1.00. Puts you buy run from 0 to -1.00. Stock up, your put down.",
+    "Sell the option and the sign flips. A short put carries positive delta. That's the seller's side, not ours."
    ],
    "facts": [
     "f1",
@@ -480,9 +480,9 @@
    "key": "w2",
    "title": "Delta as shares",
    "steps": [
-    "One stock option contract usually covers 100 shares.",
-    "Delta times 100 tells you how many shares it acts like. A 0.30 delta call moves like about 30 shares.",
-    "Deep in the money, delta gets close to 1.00. The option then moves almost like the stock."
+    "Now make it shares. A contract is 100 shares as a general rule, so multiply by 100.",
+    "Delta times 100 is how many shares it acts like. A 0.30 delta call moves like about 30 shares.",
+    "Deep in the money, delta gets close to 1.00. Then the option moves almost like the stock itself."
    ],
    "facts": [
     "f36",
@@ -495,9 +495,9 @@
    "key": "w3",
    "title": "A gauge, not a promise",
    "steps": [
-    "Delta keeps moving. The stock price, the days left and implied volatility all change it.",
-    "Some traders read delta as rough odds of finishing in the money. At about 0.50, that's a coin flip.",
-    "It's an estimate, not a promise. Recheck it as the trade moves."
+    "Delta keeps changing. The stock price, the days left and implied volatility all move it.",
+    "Some traders read it as rough odds of finishing in the money. At about 0.50, that's a coin flip.",
+    "It's an estimate, not a promise. Check it again as the trade moves."
    ],
    "facts": [
     "f8",

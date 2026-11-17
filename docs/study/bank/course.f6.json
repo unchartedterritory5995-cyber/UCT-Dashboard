@@ -1664,7 +1664,7 @@
   "difficulty": 1,
   "id": "si_33738d956fd3",
   "lesson_origin": "session",
-  "lesson_text": "The buyer never has to use it. You can exercise it, sell the option to another buyer, or let it expire.",
+  "lesson_text": "As the buyer you've got three outs. Exercise it, sell it to another buyer, or let it expire.",
   "module": "F6",
   "prompt_json": {
    "order": 1,
@@ -1672,10 +1672,10 @@
    "parts": 3,
    "q": "The right, not the obligation",
    "steps": [
-    "An option gives its buyer a right, not an obligation.",
-    "It's the right to buy or sell a stock at a fixed price, the strike, until expiry.",
-    "A call is the right to buy. A put is the right to sell.",
-    "The buyer never has to use it. You can exercise it, sell the option to another buyer, or let it expire."
+    "Buy an option and you own a right, not an obligation. Nothing forces you to use it.",
+    "The right to buy or sell a stock at a fixed price, the strike, until the option expires.",
+    "A call is the right to buy. A put is the right to sell. That's the whole difference.",
+    "As the buyer you've got three outs. Exercise it, sell it to another buyer, or let it expire."
    ],
    "subject": "F6.01#w1"
   },
@@ -1714,7 +1714,7 @@
   "difficulty": 1,
   "id": "si_064f7e2f72d6",
   "lesson_origin": "session",
-  "lesson_text": "The writer doesn't pick the day. On a stock option, assignment can come any time before expiry.",
+  "lesson_text": "And they don't pick the day. On a stock option, assignment can come any time before expiry.",
   "module": "F6",
   "prompt_json": {
    "order": 2,
@@ -1722,10 +1722,10 @@
    "parts": 3,
    "q": "The seller takes the obligation",
    "steps": [
-    "Every option has a seller, called the writer. The buyer is called the holder.",
-    "The writer collects the premium and takes on the obligation.",
-    "Assigned on a call, the writer must sell the shares at the strike. Assigned on a put, the writer must buy them.",
-    "The writer doesn't pick the day. On a stock option, assignment can come any time before expiry."
+    "Somebody sold you that option. They're the writer. You, the buyer, are the holder.",
+    "The writer collects your premium and takes on the obligation. That's the seller's side, not ours.",
+    "Assigned on a call, the writer must sell the shares at the strike. Assigned on a put, they must buy them.",
+    "And they don't pick the day. On a stock option, assignment can come any time before expiry."
    ],
    "subject": "F6.01#w2"
   },
@@ -1778,7 +1778,7 @@
   "difficulty": 1,
   "id": "si_1c22a24e1754",
   "lesson_origin": "session",
-  "lesson_text": "Standard monthly options expire on the third Friday. After that, the contract no longer exists.",
+  "lesson_text": "Standard monthly options expire on the third Friday. After that, the contract's just gone.",
   "module": "F6",
   "prompt_json": {
    "order": 3,
@@ -1786,9 +1786,9 @@
    "parts": 3,
    "q": "One contract, 100 shares",
    "steps": [
-    "A standard stock option contract covers 100 shares.",
-    "So the ZQRT 40 call is the right to buy 100 shares at $40 each, $4,000 in all.",
-    "Standard monthly options expire on the third Friday. After that, the contract no longer exists."
+    "One standard stock option contract covers 100 shares. Do that math before anything else.",
+    "So a ZQRT 40 call is the right to buy 100 shares at $40 each. That's $4,000 of stock.",
+    "Standard monthly options expire on the third Friday. After that, the contract's just gone."
    ],
    "subject": "F6.01#w3"
   },
@@ -3967,7 +3967,7 @@
   "difficulty": 1,
   "id": "si_b887d8e0d78d",
   "lesson_origin": "session",
-  "lesson_text": "So a $4 quote costs $400 for one contract, before commissions.",
+  "lesson_text": "A $4 quote costs you $400 for one contract, plus commissions. Price the contract, never the quote.",
   "module": "F6",
   "prompt_json": {
    "order": 1,
@@ -3975,9 +3975,9 @@
    "parts": 3,
    "q": "A quote is per share",
    "steps": [
-    "Stock option prices are quoted per share.",
-    "Most stock option contracts cover 100 shares.",
-    "So a $4 quote costs $400 for one contract, before commissions."
+    "Pull up an option chain. Every price on it is per share, not per contract.",
+    "Most stock option contracts cover 100 shares. So you multiply the quote by 100.",
+    "A $4 quote costs you $400 for one contract, plus commissions. Price the contract, never the quote."
    ],
    "subject": "F6.02#w1"
   },
@@ -4016,7 +4016,7 @@
   "difficulty": 1,
   "id": "si_8be6e7430d0c",
   "lesson_origin": "session",
-  "lesson_text": "With two legs, net them. Pay more than you collect and it's a debit. Collect more and it's a credit.",
+  "lesson_text": "Collect more than you pay and it's a credit. Money comes in the day you open it.",
   "module": "F6",
   "prompt_json": {
    "order": 2,
@@ -4024,9 +4024,10 @@
    "parts": 3,
    "q": "Debit or credit",
    "steps": [
-    "Buy an option and you start with a net debit. The premium leaves your account.",
-    "Sell one to open and you start with a net credit. The premium comes in.",
-    "With two legs, net them. Pay more than you collect and it's a debit. Collect more and it's a credit."
+    "Buying opens with a debit. The premium leaves your account, and you may never get it back.",
+    "Sell one to open and it's a credit. The premium comes in. That's the seller's side, not ours.",
+    "With two legs, net them. Pay 3.30 for a call, collect 1.50 selling a higher one. You're out 1.80, a debit.",
+    "Collect more than you pay and it's a credit. Money comes in the day you open it."
    ],
    "subject": "F6.02#w2"
   },
@@ -4079,7 +4080,7 @@
   "difficulty": 1,
   "id": "si_ed2f10bdb297",
   "lesson_origin": "session",
-  "lesson_text": "A seller's worst case is much bigger. On a call written without the stock, there's no ceiling.",
+  "lesson_text": "Their worst case is far bigger. Write a call without owning the stock and the loss has no ceiling.",
   "module": "F6",
   "prompt_json": {
    "order": 3,
@@ -4087,9 +4088,9 @@
    "parts": 3,
    "q": "What each side can lose",
    "steps": [
-    "A buyer can't lose more than the premium paid, plus commissions.",
-    "A seller's best case is keeping the premium collected.",
-    "A seller's worst case is much bigger. On a call written without the stock, there's no ceiling."
+    "As a buyer, the most you can lose is what you paid, plus commissions. The premium is your stop.",
+    "The seller's best case is keeping the premium they collected. That's as good as it gets for them.",
+    "Their worst case is far bigger. Write a call without owning the stock and the loss has no ceiling."
    ],
    "subject": "F6.02#w3"
   },
@@ -6157,7 +6158,7 @@
   "difficulty": 1,
   "id": "si_15e66186e95c",
   "lesson_origin": "session",
-  "lesson_text": "Stock at $45, the 40 call at $6. That's $5 of intrinsic value and $1 of time value.",
+  "lesson_text": "That $1 is what the clock costs you. Split every quote like this before you buy.",
   "module": "F6",
   "prompt_json": {
    "order": 1,
@@ -6165,10 +6166,10 @@
    "parts": 3,
    "q": "Two parts in every premium",
    "steps": [
-    "Every option price has two parts: intrinsic value and time value.",
-    "Intrinsic value is how far the option is in the money right now.",
-    "Time value is everything you pay on top of that.",
-    "Stock at $45, the 40 call at $6. That's $5 of intrinsic value and $1 of time value."
+    "Every option price is two things stacked together: intrinsic value and time value.",
+    "Intrinsic is how far it's in the money right now. Time value is everything you pay on top of that.",
+    "Stock at $45, the 40 call at $6. It's $5 in the money, so $5 intrinsic and $1 of time.",
+    "That $1 is what the clock costs you. Split every quote like this before you buy."
    ],
    "subject": "F6.03#w1"
   },
@@ -6207,7 +6208,7 @@
   "difficulty": 1,
   "id": "si_bd07328260f7",
   "lesson_origin": "session",
-  "lesson_text": "Only in-the-money options have intrinsic value. Everything else has zero.",
+  "lesson_text": "Only in-the-money options carry intrinsic value. Everything else has zero, so its whole price is time value.",
   "module": "F6",
   "prompt_json": {
    "order": 2,
@@ -6215,10 +6216,10 @@
    "parts": 3,
    "q": "In, at and out of the money",
    "steps": [
-    "A call is in the money when the stock is above the strike.",
-    "A put is in the money when the stock is below the strike.",
-    "Stock right at the strike is at the money.",
-    "Only in-the-money options have intrinsic value. Everything else has zero."
+    "Start with the call. It's in the money when the stock trades above the strike.",
+    "Flip it for a put. A put is in the money when the stock's below the strike.",
+    "Stock sitting right on the strike is at the money.",
+    "Only in-the-money options carry intrinsic value. Everything else has zero, so its whole price is time value."
    ],
    "subject": "F6.03#w2"
   },
@@ -6235,7 +6236,7 @@
      {
       "accessed": "2026-11-08",
       "name": "The Options Clearing Corporation and the US options exchanges: Characteristics and Risks of Standardized Options (June 2024 edition)",
-      "quote": "This term means that the current market value of the underlying interest is the same as the exercise price of the option. … the intrinsic value reflects the amount, if any, by which the option is in the money. An option that is out of the money would have an intrinsic value of zero.",
+      "quote": "This term means that the current market value of the underlying interest is the same as the exercise price of the option. … the intrinsic value reflects the amount, if any, by which the option is in the money. An option that is out of the money would have an intrinsic value of zero. … Time value is whatever the premium of the option is in addition to its intrinsic value. Time value is that part of the premium that reflects the time remaining before expiration.",
       "tier": 1,
       "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf"
      }
@@ -6257,7 +6258,7 @@
   "difficulty": 1,
   "id": "si_b0e8ce28de02",
   "lesson_origin": "session",
-  "lesson_text": "If you're the buyer, time value is the part the clock takes from you.",
+  "lesson_text": "As the buyer, that melt comes out of your pocket. It's the seller it helps.",
   "module": "F6",
   "prompt_json": {
    "order": 3,
@@ -6265,9 +6266,9 @@
    "parts": 3,
    "q": "The clock on time value",
    "steps": [
-    "All else equal, time value shrinks as expiry gets closer, and the shrinking speeds up near the end.",
-    "At expiry there is no time left. The option is worth its intrinsic value only.",
-    "If you're the buyer, time value is the part the clock takes from you."
+    "Time value doesn't sit still. All else equal, it shrinks as expiry gets closer, and faster near the end.",
+    "On expiry day there's no time left. The option's worth its intrinsic value and nothing else.",
+    "As the buyer, that melt comes out of your pocket. It's the seller it helps."
    ],
    "subject": "F6.03#w3"
   },
@@ -8059,7 +8060,7 @@
   "difficulty": 1,
   "id": "si_c9d0201f89d2",
   "lesson_origin": "session",
-  "lesson_text": "Sell the option and the sign flips. A short put carries positive delta.",
+  "lesson_text": "Sell the option and the sign flips. A short put carries positive delta. That's the seller's side, not ours.",
   "module": "F6",
   "prompt_json": {
    "order": 1,
@@ -8067,10 +8068,10 @@
    "parts": 3,
    "q": "What delta measures",
    "steps": [
-    "Delta estimates how much an option's price moves when the stock moves $1.",
-    "A 0.50 delta means about $0.50 for each $1, with everything else held still.",
-    "Bought calls run from 0 to 1.00. Bought puts run from 0 to -1.00.",
-    "Sell the option and the sign flips. A short put carries positive delta."
+    "Delta is your quick read on how much the option moves when the stock moves $1.",
+    "A 0.50 delta: stock up a dollar, option up about $0.50. That's with everything else held still.",
+    "Calls you buy run from 0 to 1.00. Puts you buy run from 0 to -1.00. Stock up, your put down.",
+    "Sell the option and the sign flips. A short put carries positive delta. That's the seller's side, not ours."
    ],
    "subject": "F6.04#w1"
   },
@@ -8109,7 +8110,7 @@
   "difficulty": 1,
   "id": "si_834614c6b796",
   "lesson_origin": "session",
-  "lesson_text": "Deep in the money, delta gets close to 1.00. The option then moves almost like the stock.",
+  "lesson_text": "Deep in the money, delta gets close to 1.00. Then the option moves almost like the stock itself.",
   "module": "F6",
   "prompt_json": {
    "order": 2,
@@ -8117,9 +8118,9 @@
    "parts": 3,
    "q": "Delta as shares",
    "steps": [
-    "One stock option contract usually covers 100 shares.",
-    "Delta times 100 tells you how many shares it acts like. A 0.30 delta call moves like about 30 shares.",
-    "Deep in the money, delta gets close to 1.00. The option then moves almost like the stock."
+    "Now make it shares. A contract is 100 shares as a general rule, so multiply by 100.",
+    "Delta times 100 is how many shares it acts like. A 0.30 delta call moves like about 30 shares.",
+    "Deep in the money, delta gets close to 1.00. Then the option moves almost like the stock itself."
    ],
    "subject": "F6.04#w2"
   },
@@ -8165,7 +8166,7 @@
   "difficulty": 1,
   "id": "si_a94cfcb4bfbe",
   "lesson_origin": "session",
-  "lesson_text": "It's an estimate, not a promise. Recheck it as the trade moves.",
+  "lesson_text": "It's an estimate, not a promise. Check it again as the trade moves.",
   "module": "F6",
   "prompt_json": {
    "order": 3,
@@ -8173,9 +8174,9 @@
    "parts": 3,
    "q": "A gauge, not a promise",
    "steps": [
-    "Delta keeps moving. The stock price, the days left and implied volatility all change it.",
-    "Some traders read delta as rough odds of finishing in the money. At about 0.50, that's a coin flip.",
-    "It's an estimate, not a promise. Recheck it as the trade moves."
+    "Delta keeps changing. The stock price, the days left and implied volatility all move it.",
+    "Some traders read it as rough odds of finishing in the money. At about 0.50, that's a coin flip.",
+    "It's an estimate, not a promise. Check it again as the trade moves."
    ],
    "subject": "F6.04#w3"
   },
@@ -9686,7 +9687,7 @@
   "difficulty": 1,
   "id": "si_11123c12be4a",
   "lesson_origin": "session",
-  "lesson_text": "Buyers pay it. Sellers collect it.",
+  "lesson_text": "Own the option and you pay it. The seller's the one collecting it.",
   "module": "F6",
   "prompt_json": {
    "order": 1,
@@ -9694,10 +9695,10 @@
    "parts": 3,
    "q": "The price of a day",
    "steps": [
-    "Theta estimates how much an option's price drops in one day if nothing else changes.",
-    "It's quoted per share. A theta of -0.05 means about five cents a share a day.",
-    "One contract covers 100 shares, so that's about five dollars a contract each day.",
-    "Buyers pay it. Sellers collect it."
+    "Theta is what one day of waiting costs you. It's how much the option drops if nothing else moves.",
+    "It's quoted per share, and shown as a negative. A theta of -0.05 is about five cents a share a day.",
+    "One contract covers 100 shares, so that's about five dollars a contract, every single day.",
+    "Own the option and you pay it. The seller's the one collecting it."
    ],
    "subject": "F6.05#w1"
   },
@@ -9757,7 +9758,7 @@
   "difficulty": 1,
   "id": "si_05e014e40442",
   "lesson_origin": "session",
-  "lesson_text": "Its last week costs 0.76, everything it had left.",
+  "lesson_text": "With 7 days left it's worth 0.76. That last week takes all 0.76.",
   "module": "F6",
   "prompt_json": {
    "order": 2,
@@ -9765,10 +9766,10 @@
    "parts": 3,
    "q": "The clock speeds up",
    "steps": [
-    "Decay is slow early in an option's life and fast near the end.",
-    "At the money takes the biggest hit. Deep in or far out of the money decays little.",
-    "In Cboe's example, a 45 call loses 0.18 in the week from 35 to 28 days left.",
-    "Its last week costs 0.76, everything it had left."
+    "Decay is slow early in an option's life. Near the end it speeds up hard.",
+    "At the money takes the biggest hit. Deep in or far out of the money barely decays.",
+    "Say a 45 call costs 1.71 with 35 days left. The next week it loses only 0.18.",
+    "With 7 days left it's worth 0.76. That last week takes all 0.76."
    ],
    "subject": "F6.05#w2"
   },
@@ -9807,7 +9808,7 @@
   "difficulty": 1,
   "id": "si_d652d1b087d8",
   "lesson_origin": "session",
-  "lesson_text": "Weekends count too. Models spread seven days of decay over five trading days.",
+  "lesson_text": "Weekends count too. The models spread seven days of decay across five trading days.",
   "module": "F6",
   "prompt_json": {
    "order": 3,
@@ -9816,8 +9817,8 @@
    "q": "What theta leaves out",
    "steps": [
     "Theta assumes nothing else moves. Real days rarely work that way.",
-    "If a quiet day passes and your option holds its price, something else changed. Most often, implied volatility rose.",
-    "Weekends count too. Models spread seven days of decay over five trading days."
+    "Say a quiet day passes and your option holds its price. Something else moved. Most often, implied volatility rose.",
+    "Weekends count too. The models spread seven days of decay across five trading days."
    ],
    "subject": "F6.05#w3"
   },
@@ -11651,7 +11652,7 @@
   "difficulty": 1,
   "id": "si_e20b098fc2ee",
   "lesson_origin": "session",
-  "lesson_text": "Higher IV means pricier calls and pricier puts.",
+  "lesson_text": "When IV is high, calls and puts both cost more, most of all at the money.",
   "module": "F6",
   "prompt_json": {
    "order": 1,
@@ -11659,10 +11660,10 @@
    "parts": 3,
    "q": "What implied volatility is",
    "steps": [
-    "Implied volatility, IV for short, is how much the market expects the stock to move.",
-    "It's read from the option's price, so it looks forward, not back at the chart.",
-    "It sizes the move. It doesn't say which way.",
-    "Higher IV means pricier calls and pricier puts."
+    "Implied volatility, IV, is how big a move the market expects. It's read off what people pay for the option.",
+    "So it looks forward, not back at the chart. The chart shows what it did. IV prices what's next.",
+    "It sizes the move. It never says which way. Direction is your read from the chart.",
+    "When IV is high, calls and puts both cost more, most of all at the money."
    ],
    "subject": "F6.06#w1"
   },
@@ -11715,7 +11716,7 @@
   "difficulty": 1,
   "id": "si_02a144143cc3",
   "lesson_origin": "session",
-  "lesson_text": "After the stock price itself, IV is probably the biggest driver of your option's price.",
+  "lesson_text": "Calls and puts you own both gain when IV rises. After the stock price itself, IV's probably the biggest driver.",
   "module": "F6",
   "prompt_json": {
    "order": 2,
@@ -11723,10 +11724,10 @@
    "parts": 3,
    "q": "Vega puts a price on IV",
    "steps": [
-    "Vega is how much the option's price moves for each one-point change in IV.",
-    "Options Industry Council example: vega .15, IV up from 30% to 32%, and the option gains about $.30.",
-    "Calls and puts you own both gain when IV rises. If you sold the option, rising IV works against you.",
-    "After the stock price itself, IV is probably the biggest driver of your option's price."
+    "Vega tells you what a one-point change in IV does to your option's price.",
+    "Say a call is $4 with IV at 30% and a vega of .15. Then IV ticks up to 32%.",
+    "Two points times .15 is about $.30. The call's now around $4.30 without the stock doing a thing.",
+    "Calls and puts you own both gain when IV rises. After the stock price itself, IV's probably the biggest driver."
    ],
    "subject": "F6.06#w2"
   },
@@ -11793,7 +11794,7 @@
   "difficulty": 1,
   "id": "si_7231b1222897",
   "lesson_origin": "session",
-  "lesson_text": "If the crush takes more than the move gives, your call loses money on a gap up.",
+  "lesson_text": "So your call can lose money on a gap up. The move has to give you more than the crush takes.",
   "module": "F6",
   "prompt_json": {
    "order": 3,
@@ -11801,9 +11802,9 @@
    "parts": 3,
    "q": "The crush",
    "steps": [
-    "IV tends to climb into an earnings report, then often falls hard once the news is out.",
-    "That drop takes value out of calls and puts at the same time.",
-    "If the crush takes more than the move gives, your call loses money on a gap up."
+    "IV tends to climb into an earnings report. Once the news is out, it often falls hard.",
+    "That drop takes value out of calls and puts at the same time. Traders call it the IV crush.",
+    "So your call can lose money on a gap up. The move has to give you more than the crush takes."
    ],
    "subject": "F6.06#w3"
   },
@@ -13573,7 +13574,7 @@
   "difficulty": 1,
   "id": "si_af23a946d7db",
   "lesson_origin": "session",
-  "lesson_text": "Stock to $51: delta is now about 0.56, the old .50 plus the .06. The next dollar up pays more.",
+  "lesson_text": "Stock goes to $51 and delta's now about 0.56. The next dollar up pays you more than the last.",
   "module": "F6",
   "prompt_json": {
    "order": 1,
@@ -13581,10 +13582,10 @@
    "parts": 3,
    "q": "Gamma moves delta",
    "steps": [
-    "Delta estimates how much the option moves for each $1 in the stock.",
-    "Gamma is how much that delta changes for the same $1.",
-    "Stock at $50: the 50 call has a delta of .50 and a gamma of .06.",
-    "Stock to $51: delta is now about 0.56, the old .50 plus the .06. The next dollar up pays more."
+    "Think of delta as your speed: how much the option moves for each $1 in the stock.",
+    "Gamma is the acceleration. It's how much that delta changes for the same $1.",
+    "Say the stock's at $50. The 50 call has a delta of .50 and a gamma of .06.",
+    "Stock goes to $51 and delta's now about 0.56. The next dollar up pays you more than the last."
    ],
    "subject": "F6.07#w1"
   },
@@ -13623,7 +13624,7 @@
   "difficulty": 1,
   "id": "si_d007a7c77506",
   "lesson_origin": "session",
-  "lesson_text": "That's when an option starts moving fast.",
+  "lesson_text": "On expiry day, right at the strike, a call's delta can swing from near 0 to near 1.00. That's fast.",
   "module": "F6",
   "prompt_json": {
    "order": 2,
@@ -13631,10 +13632,9 @@
    "parts": 3,
    "q": "Where gamma is biggest",
    "steps": [
-    "Gamma is highest at the money. Deep in-the-money and far out-of-the-money options have less.",
-    "At the money, it also climbs as expiry gets close.",
-    "On expiry day, right at the strike, a call's delta can swing between near 0 and near 1.00.",
-    "That's when an option starts moving fast."
+    "Gamma's biggest at the money. Deep in the money or far out, there's less of it.",
+    "At the money it climbs as expiry gets close, and peaks right at the end.",
+    "On expiry day, right at the strike, a call's delta can swing from near 0 to near 1.00. That's fast."
    ],
    "subject": "F6.07#w2"
   },
@@ -13666,7 +13666,7 @@
   "difficulty": 1,
   "id": "si_b1b354bbd723",
   "lesson_origin": "session",
-  "lesson_text": "Sellers take that risk to collect time decay. That's the trade-off.",
+  "lesson_text": "Sellers take that risk to collect time decay. That's their trade, not ours.",
   "module": "F6",
   "prompt_json": {
    "order": 3,
@@ -13674,10 +13674,10 @@
    "parts": 3,
    "q": "Who gamma helps, who it hurts",
    "steps": [
-    "Buy a call or a put and you're long gamma. Sell one and you're short gamma.",
+    "Buy a call or a put and you're long gamma. That's the side we're on when we buy one.",
     "Long gamma speeds up your gains and slows your losses.",
-    "Short gamma does the opposite. When the stock runs at you, the losses speed up.",
-    "Sellers take that risk to collect time decay. That's the trade-off."
+    "Sell one and you're short gamma. When the stock runs at you, the losses speed up.",
+    "Sellers take that risk to collect time decay. That's their trade, not ours."
    ],
    "subject": "F6.07#w3"
   },
@@ -15953,7 +15953,7 @@
   "difficulty": 1,
   "id": "si_fa55a87cdfd8",
   "lesson_origin": "session",
-  "lesson_text": "It's a size, not a direction. It says how far, not which way.",
+  "lesson_text": "That's how far, not which way. Direction still comes from your chart.",
   "module": "F6",
   "prompt_json": {
    "order": 1,
@@ -15961,10 +15961,10 @@
    "parts": 3,
    "q": "One number, one year",
    "steps": [
-    "Implied volatility is quoted as a one-year number, even on an option with days left.",
-    "It's one standard deviation. That covers roughly 68% of outcomes.",
-    "Stock at $100, IV of 20%. The market prices a roughly 68% chance it trades between $80 and $120 a year out.",
-    "It's a size, not a direction. It says how far, not which way."
+    "IV is quoted as a one-year number, even on an option with only days left. Scale it before you read it.",
+    "It's one standard deviation, which covers roughly 68% of outcomes. About two in three.",
+    "A $100 stock with IV at 20%: roughly a 68% chance it's between $80 and $120 a year out.",
+    "That's how far, not which way. Direction still comes from your chart."
    ],
    "subject": "F6.08#w1"
   },
@@ -16003,7 +16003,7 @@
   "difficulty": 1,
   "id": "si_78538fcebc55",
   "lesson_origin": "session",
-  "lesson_text": "For one trading day, the Rule of 16: divide the IV by 16. $100 at 20% is about $1.25.",
+  "lesson_text": "For one trading day, use the Rule of 16: divide IV by 16. $100 at 20% moves about $1.25 a day.",
   "module": "F6",
   "prompt_json": {
    "order": 2,
@@ -16011,10 +16011,10 @@
    "parts": 3,
    "q": "Shrink it to your window",
    "steps": [
-    "Moves grow with the square root of time, not with time itself.",
-    "For a window in calendar days: price times IV, times the square root of the days over 365.",
-    "$100 at 20% IV over 30 days comes to about $5.73. That's a range of roughly $94.27 to $105.73.",
-    "For one trading day, the Rule of 16: divide the IV by 16. $100 at 20% is about $1.25."
+    "Moves grow with the square root of time, not with time itself. So you shrink the yearly number to your window.",
+    "The math: price times IV, times the square root of your calendar days over 365.",
+    "$100 at 20% over 30 days is about $5.73. So roughly $94.27 to $105.73.",
+    "For one trading day, use the Rule of 16: divide IV by 16. $100 at 20% moves about $1.25 a day."
    ],
    "subject": "F6.08#w2"
   },
@@ -16074,7 +16074,7 @@
   "difficulty": 1,
   "id": "si_63414b4db084",
   "lesson_origin": "session",
-  "lesson_text": "Once the report is out, IV usually drops fast. It was an estimate, and the stock can move more or less.",
+  "lesson_text": "After the report, IV tends to drop fast. It was only an estimate. The stock can move more than that, or less.",
   "module": "F6",
   "prompt_json": {
    "order": 3,
@@ -16083,9 +16083,9 @@
    "q": "The move priced for a report",
    "steps": [
     "Into a report, the first expiry after it tends to carry the highest IV. The event sits inside it.",
-    "The quick read is that expiry's at-the-money straddle. Lay its price on both sides of the stock.",
-    "When the options are very short-dated, the straddle and the IV math generally agree. Either gives the size, never the side.",
-    "Once the report is out, IV usually drops fast. It was an estimate, and the stock can move more or less."
+    "Quick read: that expiry's at-the-money straddle. Lay its price on both sides of the stock. That's the move priced in.",
+    "On very short-dated options, the straddle and the IV math come out close. Either gives you the size, never the side.",
+    "After the report, IV tends to drop fast. It was only an estimate. The stock can move more than that, or less."
    ],
    "subject": "F6.08#w3"
   },
@@ -17765,7 +17765,7 @@
   "difficulty": 1,
   "id": "si_26070da6cbd1",
   "lesson_origin": "session",
-  "lesson_text": "At the money, a call's delta sits around .50. Far out, delta is small and the option needs a strong move.",
+  "lesson_text": "At the money, a call's delta sits near .50. Way out of the money, delta's small and you need a strong move.",
   "module": "F6",
   "prompt_json": {
    "order": 1,
@@ -17773,9 +17773,9 @@
    "parts": 3,
    "q": "In, at or out of the money",
    "steps": [
-    "Same stock, same expiry: the deeper in the money the strike, the more the option costs.",
-    "Deep in the money, a call's delta heads toward 1.00 and it moves most like the stock. A put's heads toward -1.00.",
-    "At the money, a call's delta sits around .50. Far out, delta is small and the option needs a strong move."
+    "Same stock, same expiry. The deeper in the money the strike, the more you pay for it.",
+    "Deep in the money, a call's delta heads toward 1.00. It moves most like the stock. A put's heads to -1.00.",
+    "At the money, a call's delta sits near .50. Way out of the money, delta's small and you need a strong move."
    ],
    "subject": "F6.09#w1"
   },
@@ -17821,7 +17821,7 @@
   "difficulty": 1,
   "id": "si_20f83c8ac33e",
   "lesson_origin": "session",
-  "lesson_text": "Strikes further out are cheaper, but they need a bigger move, and the sooner it comes, the better.",
+  "lesson_text": "Further-out strikes are cheaper, but they need a bigger move. And the sooner it comes, the better.",
   "module": "F6",
   "prompt_json": {
    "order": 2,
@@ -17829,10 +17829,10 @@
    "parts": 3,
    "q": "Let the chart pick the strike",
    "steps": [
-    "Start with your chart: the price you expect, and how soon you expect it.",
+    "Start with the chart. Know the price you expect, and how soon you expect it.",
     "Held to expiry, a call breaks even at strike plus premium. A put breaks even at strike minus premium.",
-    "If you'll hold to expiry, your target has to clear that line. If it doesn't, that strike is wrong for the trade.",
-    "Strikes further out are cheaper, but they need a bigger move, and the sooner it comes, the better."
+    "If you'll hold to expiry, your target has to clear that line. If not, it's the wrong strike.",
+    "Further-out strikes are cheaper, but they need a bigger move. And the sooner it comes, the better."
    ],
    "subject": "F6.09#w2"
   },
@@ -17892,7 +17892,7 @@
   "difficulty": 1,
   "id": "si_e9ec676b22df",
   "lesson_origin": "session",
-  "lesson_text": "With a call, the premium is the most you can lose. Your chart stop still says when you're wrong.",
+  "lesson_text": "With a call you buy, the premium is the most you can lose. Your chart stop still tells you when you're wrong.",
   "module": "F6",
   "prompt_json": {
    "order": 3,
@@ -17900,10 +17900,10 @@
    "parts": 3,
    "q": "The strike and your stop",
    "steps": [
-    "Own the stock and a put, and the put's strike is your floor exit price until the put expires.",
-    "A stop price is a trigger, not a guaranteed fill. Gap below it, and you sell at whatever price is there.",
-    "A higher put strike gives a closer floor, and it costs more.",
-    "With a call, the premium is the most you can lose. Your chart stop still says when you're wrong."
+    "Own the stock and a put, and the put's strike is your floor. You can sell there until it expires.",
+    "A stop is a trigger, not a promised fill. Gap below it and you sell at whatever's there.",
+    "A higher put strike puts the floor closer, and it costs more.",
+    "With a call you buy, the premium is the most you can lose. Your chart stop still tells you when you're wrong."
    ],
    "subject": "F6.09#w3"
   },
@@ -19727,7 +19727,7 @@
    "q": "Three kinds of expiry",
    "steps": [
     "Every option has a deadline. Standard monthlies expire on the third Friday of the month.",
-    "Weeklies exist on a limited set of names. Most expire on a Friday, but read the date.",
+    "Weeklies are only listed on some names, so open the chain and see. Most expire on a Friday. Read the date.",
     "LEAPS sit at the long end, with expiries up to three years out."
    ],
    "subject": "F6.10#w1"
@@ -19774,7 +19774,7 @@
   "difficulty": 1,
   "id": "si_bc37efddaeec",
   "lesson_origin": "session",
-  "lesson_text": "It runs on weekends too, and it runs whether the stock moves or not.",
+  "lesson_text": "It runs on weekends too. And it runs whether the stock moves or not.",
   "module": "F6",
   "prompt_json": {
    "order": 2,
@@ -19782,9 +19782,9 @@
    "parts": 3,
    "q": "What time costs you",
    "steps": [
-    "More time costs more. A later expiry on the same strike has a higher price and a higher break-even.",
-    "On an at-the-money option, decay is gradual at first, then picks up fast in about the last 30 days.",
-    "It runs on weekends too, and it runs whether the stock moves or not."
+    "More time costs more. Same strike, later expiry: a higher price and a higher break-even.",
+    "On an at-the-money option, decay starts slow. In about the last 30 days it picks up fast.",
+    "It runs on weekends too. And it runs whether the stock moves or not."
    ],
    "subject": "F6.10#w2"
   },
@@ -19830,7 +19830,7 @@
   "difficulty": 1,
   "id": "si_78012730dd89",
   "lesson_origin": "session",
-  "lesson_text": "Check the calendar too. If earnings land before your expiry, you're paying for the report.",
+  "lesson_text": "Check the calendar too. Earnings before your expiry means you're paying up for the report.",
   "module": "F6",
   "prompt_json": {
    "order": 3,
@@ -19838,9 +19838,9 @@
    "parts": 3,
    "q": "Match the expiry to the plan",
    "steps": [
-    "Start with how long the move should take. That's your plan's window.",
-    "Then buy past it. I want to sell with time left, before the last month.",
-    "Check the calendar too. If earnings land before your expiry, you're paying for the report."
+    "Figure out how long the move should take. That's your window.",
+    "Then buy past it, with room. Time value drains fast in about the last 30 days.",
+    "Check the calendar too. Earnings before your expiry means you're paying up for the report."
    ],
    "subject": "F6.10#w3"
   },
@@ -21577,7 +21577,7 @@
   "difficulty": 1,
   "id": "si_7cd8f30e02da",
   "lesson_origin": "session",
-  "lesson_text": "At expiry, a call breaks even at the strike plus the premium. A put breaks even at the strike minus it.",
+  "lesson_text": "At expiry, a call breaks even at strike plus premium. A put breaks even at strike minus premium.",
   "module": "F6",
   "prompt_json": {
    "order": 1,
@@ -21585,9 +21585,9 @@
    "parts": 3,
    "q": "Calls up, puts down",
    "steps": [
-    "A call is for when you expect the stock to rise soon. A put is for when you expect a sharp drop.",
-    "Either way, the premium you pay is the most you can lose.",
-    "At expiry, a call breaks even at the strike plus the premium. A put breaks even at the strike minus it."
+    "Buy a call when you expect the stock up, soon. Buy a put when you expect a sharp drop, soon.",
+    "Either way, what you pay is the most you can lose. The premium is your stop.",
+    "At expiry, a call breaks even at strike plus premium. A put breaks even at strike minus premium."
    ],
    "subject": "F6.11#w1"
   },
@@ -21633,7 +21633,7 @@
   "difficulty": 1,
   "id": "si_47879804751e",
   "lesson_origin": "session",
-  "lesson_text": "The whole $220 is gone. Set a target or a review date before you buy.",
+  "lesson_text": "The whole $220, gone, on a trade that was up $800. Set a target or a review date before you buy.",
   "module": "F6",
   "prompt_json": {
    "order": 2,
@@ -21641,10 +21641,10 @@
    "parts": 3,
    "q": "A winner that turned into a loser",
    "steps": [
-    "The stock is at $68. You buy the 70 call for $2.20, which is $220 for the contract.",
-    "Two weeks later the stock is $80 and the call is $10.20. Selling now would make $800.",
-    "You hold for more. At expiry the stock is $65, below the strike, and the call expires worthless.",
-    "The whole $220 is gone. Set a target or a review date before you buy."
+    "The stock's at $68. You buy the 70 call for $2.20, so $220 for the contract.",
+    "Two weeks later it's $80 and the call's $10.20. Sell right there and you're up $800.",
+    "You hold for more. On expiry day the stock's $65, under the strike. The call expires worthless.",
+    "The whole $220, gone, on a trade that was up $800. Set a target or a review date before you buy."
    ],
    "subject": "F6.11#w2"
   },
@@ -21691,9 +21691,9 @@
    "parts": 3,
    "q": "When a call beats the shares",
    "steps": [
-    "One call controls 100 shares for much less money, and you know your worst case before you buy.",
-    "A gap can blow straight through a stop on shares. A long option can't lose more than its premium.",
-    "The catch: a deadline, a break-even past the strike, and time value that tends to melt day by day.",
+    "One call controls 100 shares for a lot less money. And you know your worst case before you buy.",
+    "Shares can gap straight through your stop. A call you own can't lose more than its premium.",
+    "The catch: a deadline, a break-even past the strike, and time value melting day by day.",
     "Shares can wait out a slow move. A call can't."
    ],
    "subject": "F6.11#w3"
@@ -23809,7 +23809,7 @@
   "difficulty": 1,
   "id": "si_f67b3b731def",
   "lesson_origin": "session",
-  "lesson_text": "On a credit spread, the option you buy is the one that caps your loss.",
+  "lesson_text": "On a credit spread, the option bought is what caps the loss. That's the seller's side, not ours.",
   "module": "F6",
   "prompt_json": {
    "order": 1,
@@ -23817,10 +23817,10 @@
    "parts": 3,
    "q": "Two legs, one expiry",
    "steps": [
-    "A vertical spread is two calls or two puts on one stock, same expiry, different strikes. You buy one and sell one.",
-    "Pay more than you collect and it's a debit spread. Collect more than you pay and it's a credit spread.",
-    "On a debit spread, the option you sell pays for part of the one you buy, and it caps your gain.",
-    "On a credit spread, the option you buy is the one that caps your loss."
+    "Take two calls, or two puts, on one stock. Same expiry, different strikes. Buy one, sell one: that's a vertical.",
+    "Pay more than you collect and it's a debit spread. Collect more than you pay, it's a credit spread.",
+    "On a debit spread, the option you sell pays for part of the one you buy. It also caps your gain.",
+    "On a credit spread, the option bought is what caps the loss. That's the seller's side, not ours."
    ],
    "subject": "F6.12#w1"
   },
@@ -23881,9 +23881,9 @@
    "parts": 3,
    "q": "A debit spread, worked",
    "steps": [
-    "Buy the 100 call at 3.30 and sell the 105 call at 1.50. You pay 1.80.",
-    "Below 100 at expiry, both calls expire worthless. You lose the 1.80.",
-    "At 105 or higher, you get the spread's full width, the 5.00 between the strikes. Less the 1.80, that's 3.20.",
+    "Say you buy the 100 call at 3.30 and sell the 105 call at 1.50. You're out 1.80.",
+    "Under 100 at expiry, both calls expire worthless. The 1.80 is your whole loss, and you knew it going in.",
+    "At 105 or higher, you collect the full 5.00 between the strikes. Less the 1.80, that's 3.20.",
     "Break-even at expiry is 101.80: the long strike plus what you paid."
    ],
    "subject": "F6.12#w2"
@@ -23930,18 +23930,18 @@
   "difficulty": 1,
   "id": "si_7adb45eb0db4",
   "lesson_origin": "session",
-  "lesson_text": "Break-even is 102.60: the short strike plus the credit.",
+  "lesson_text": "Break-even is 102.60, the short strike plus the credit. They risk $140 to make $60.",
   "module": "F6",
   "prompt_json": {
    "order": 3,
    "part": 3,
    "parts": 3,
-   "q": "A credit spread, worked",
+   "q": "A credit spread, from the seller's side",
    "steps": [
-    "Sell the 102/104 call spread for 0.60. That's $60 in your account per spread.",
-    "Below 102 at expiry, both calls expire worthless and you keep the $60.",
-    "Above 104, you lose the full 2.00 between the strikes, less the 0.60 credit. That's $140 a spread.",
-    "Break-even is 102.60: the short strike plus the credit."
+    "This one's the seller's side, not ours. They sell the 102/104 call spread for 0.60, $60 a spread.",
+    "Under 102 at expiry, both calls expire worthless and the seller keeps the $60. That's the best case.",
+    "Over 104, they lose the full 2.00 between the strikes, less the 0.60. That's $140 a spread.",
+    "Break-even is 102.60, the short strike plus the credit. They risk $140 to make $60."
    ],
    "subject": "F6.12#w3"
   },
@@ -25769,18 +25769,18 @@
   "difficulty": 1,
   "id": "si_1488e3867eda",
   "lesson_origin": "session",
-  "lesson_text": "So write it at a strike where you'd be glad to sell, with the premium on top.",
+  "lesson_text": "So the strike plus the premium has to be a price he'd be glad to sell at.",
   "module": "F6",
   "prompt_json": {
    "order": 1,
    "part": 1,
    "parts": 3,
-   "q": "Selling a call against your shares",
+   "q": "Selling a call against shares",
    "steps": [
-    "You own 100 shares and sell one call against them. That's a covered call.",
-    "The premium comes in now, and it's yours whatever happens.",
-    "In return, you agree to sell your shares at the strike if you're assigned.",
-    "So write it at a strike where you'd be glad to sell, with the premium on top."
+    "Say a friend owns 100 shares and sells one call against them. That's a covered call. His trade, not ours.",
+    "The premium comes in now, and he keeps it whatever happens.",
+    "In return, he has to sell his shares at the strike if he's assigned.",
+    "So the strike plus the premium has to be a price he'd be glad to sell at."
    ],
    "subject": "F6.13#w1"
   },
@@ -25826,7 +25826,7 @@
   "difficulty": 1,
   "id": "si_4baa48dd5d8b",
   "lesson_origin": "session",
-  "lesson_text": "If the stock falls instead, the drop is still yours. The premium only softens it.",
+  "lesson_text": "If the stock falls instead, the drop is still all his. The premium only softens it.",
   "module": "F6",
   "prompt_json": {
    "order": 2,
@@ -25834,10 +25834,10 @@
    "parts": 3,
    "q": "Where the cap is",
    "steps": [
-    "The stock is at 50. You sell the 50 call for 4.",
-    "It runs to 58 and you're assigned. You get 50 for the shares plus the 4 you kept.",
-    "That's 4 a share less than selling at 58. Above the strike, the gain went to the call buyer.",
-    "If the stock falls instead, the drop is still yours. The premium only softens it."
+    "His stock's at 50. He sells the 50 call for 4.",
+    "It runs to 58 and he's assigned. He gets 50 for the shares, plus the 4 he kept.",
+    "That's 4 a share less than just selling at 58. Everything over the strike went to the call buyer.",
+    "If the stock falls instead, the drop is still all his. The premium only softens it."
    ],
    "subject": "F6.13#w2"
   },
@@ -25869,7 +25869,7 @@
   "difficulty": 1,
   "id": "si_84392c3e96a6",
   "lesson_origin": "session",
-  "lesson_text": "Only sell it on a stock you'd own at that price, however far it falls.",
+  "lesson_text": "So he only sells it on a stock he'd own at that price, however far it falls.",
   "module": "F6",
   "prompt_json": {
    "order": 3,
@@ -25877,10 +25877,10 @@
    "parts": 3,
    "q": "The cash-secured put",
    "steps": [
-    "You sell a put and set aside the cash to buy the shares at the strike.",
-    "If the stock drops under the strike, you can be assigned and you buy.",
-    "Your real cost is the strike minus the premium you kept.",
-    "Only sell it on a stock you'd own at that price, however far it falls."
+    "Now the put side. He sells a put and parks the cash to buy the shares at the strike.",
+    "If the stock drops under the strike, he can be assigned, and he buys.",
+    "His real cost is the strike minus the premium he kept.",
+    "So he only sells it on a stock he'd own at that price, however far it falls."
    ],
    "subject": "F6.13#w3"
   },
@@ -28257,7 +28257,7 @@
   "difficulty": 1,
   "id": "si_358b149df00d",
   "lesson_origin": "session",
-  "lesson_text": "Rising implied volatility helps both. Quiet days hurt both.",
+  "lesson_text": "Rising implied volatility helps you. Quiet, flat days bleed you through time decay.",
   "module": "F6",
   "prompt_json": {
    "order": 1,
@@ -28265,10 +28265,10 @@
    "parts": 3,
    "q": "Straddle or strangle",
    "steps": [
-    "A long straddle buys a call and a put at the same strike, same expiry.",
-    "A long strangle buys an out-of-the-money call and an out-of-the-money put instead. The call strike sits above the put strike.",
-    "Both pay on a big enough move either way. The strangle costs less but needs a bigger move.",
-    "Rising implied volatility helps both. Quiet days hurt both."
+    "A long straddle buys a call and a put, same strike, same expiry. You don't care which way it goes.",
+    "A strangle buys both out of the money instead. The call strike sits above the put strike.",
+    "The strangle's cheaper, but it needs a bigger move to break even. Either way you're paying for size, not direction.",
+    "Rising implied volatility helps you. Quiet, flat days bleed you through time decay."
    ],
    "subject": "F6.14#w1"
   },
@@ -28314,7 +28314,7 @@
   "difficulty": 1,
   "id": "si_2d6e9db4d1cf",
   "lesson_origin": "session",
-  "lesson_text": "Close right at $100 on expiry day and both legs expire worthless.",
+  "lesson_text": "Worst case, it sits right at $100 into expiry. Both legs expire worthless and the whole $680 is gone.",
   "module": "F6",
   "prompt_json": {
    "order": 2,
@@ -28322,10 +28322,10 @@
    "parts": 3,
    "q": "One straddle, start to finish",
    "steps": [
-    "Stock at $100. Buy the 100 call and the 100 put, same expiry.",
-    "Max risk is $680 a contract: the two premiums together, times 100 shares.",
-    "The break-evens are $106.80 and $93.20: the strike plus or minus both premiums, per share.",
-    "Close right at $100 on expiry day and both legs expire worthless."
+    "Say the stock's at $100. You buy the 100 call and the 100 put, same expiry.",
+    "Both premiums together, times 100 shares, come to $680 a contract. That's your max risk, known up front.",
+    "Break-evens are $106.80 up top and $93.20 below. It has to get past one of them to pay.",
+    "Worst case, it sits right at $100 into expiry. Both legs expire worthless and the whole $680 is gone."
    ],
    "subject": "F6.14#w2"
   },
@@ -28371,7 +28371,7 @@
   "difficulty": 1,
   "id": "si_ea2585cb293f",
   "lesson_origin": "session",
-  "lesson_text": "Bought for a debit, a calendar's max loss is that debit.",
+  "lesson_text": "A big move either way hurts. Bought for a debit, the most a calendar can lose is that debit.",
   "module": "F6",
   "prompt_json": {
    "order": 3,
@@ -28379,10 +28379,10 @@
    "parts": 3,
    "q": "Calendars and diagonals",
    "steps": [
-    "A calendar sells a near-term option and buys a later one, same type, same strike.",
-    "A diagonal does the same with two different strikes.",
-    "The near option loses time value faster, so a quiet stock near the strike pays. A big move either way hurts.",
-    "Bought for a debit, a calendar's max loss is that debit."
+    "A calendar flips it around. It sells a near-term option and buys a later one, same type, same strike.",
+    "Give the two legs different strikes and it's a diagonal.",
+    "The short, near-term leg melts faster. So the trade wants the stock quiet, near the strike when that leg expires.",
+    "A big move either way hurts. Bought for a debit, the most a calendar can lose is that debit."
    ],
    "subject": "F6.14#w3"
   },
@@ -30376,7 +30376,7 @@
   "difficulty": 1,
   "id": "si_f14f293c81c2",
   "lesson_origin": "session",
-  "lesson_text": "Move both short strikes to one price and the same trade becomes an iron butterfly.",
+  "lesson_text": "Slide both short strikes to one price and it's an iron butterfly. Either way, that's the seller's side, not our trade.",
   "module": "F6",
   "prompt_json": {
    "order": 1,
@@ -30384,10 +30384,10 @@
    "parts": 3,
    "q": "Two credit spreads, one range",
    "steps": [
-    "An iron condor is two credit spreads on one stock: a put spread below the price and a call spread above it.",
-    "The Options Industry Council's example: short 65 call, long 70 call, short 55 put, long 50 put. All four expire together.",
-    "The long options sit further out. They're the wings, and they cap the loss on each side.",
-    "Move both short strikes to one price and the same trade becomes an iron butterfly."
+    "An iron condor is two credit spreads on one stock: a put spread under the price, a call spread over it.",
+    "Picture it: sell the 65 call, buy the 70. Sell the 55 put, buy the 50. All four expire together.",
+    "The two you buy sit further out. Those are the wings, and they cap the loss on each side.",
+    "Slide both short strikes to one price and it's an iron butterfly. Either way, that's the seller's side, not our trade."
    ],
    "subject": "F6.15#w1"
   },
@@ -30440,7 +30440,7 @@
   "difficulty": 1,
   "id": "si_b8e6ae6e011c",
   "lesson_origin": "session",
-  "lesson_text": "Only one side can lose at expiry. The stock can't be below 100 and above 105 at the same time.",
+  "lesson_text": "Only one side can lose at expiry. The stock can't finish under 100 and over 105 at once.",
   "module": "F6",
   "prompt_json": {
    "order": 2,
@@ -30448,10 +30448,10 @@
    "parts": 3,
    "q": "What it can make and lose",
    "steps": [
-    "Fidelity's example: buy the 95 put, sell the 100 put, sell the 105 call, buy the 110 call. You take in 2.80.",
-    "The most it makes is that 2.80, kept if the stock finishes between 100 and 105.",
-    "The most it loses is one side's width, 5.00, minus the credit. That's 2.20 a share.",
-    "Only one side can lose at expiry. The stock can't be below 100 and above 105 at the same time."
+    "Put numbers on it: buy the 95 put, sell the 100, sell the 105 call, buy the 110. You collect 2.80.",
+    "Best case, the stock finishes anywhere from 100 to 105 and you keep the whole 2.80.",
+    "Worst case is one side's width, 5.00, minus the 2.80 you took in. That's 2.20 a share.",
+    "Only one side can lose at expiry. The stock can't finish under 100 and over 105 at once."
    ],
    "subject": "F6.15#w2"
   },
@@ -30490,7 +30490,7 @@
   "difficulty": 1,
   "id": "si_aab5ea6b600b",
   "lesson_origin": "session",
-  "lesson_text": "That perfect pin is possible but rare. The Options Industry Council calls it statistically unlikely.",
+  "lesson_text": "Don't count on that pin. It can happen, but closing exactly on the middle strike is a long shot.",
   "module": "F6",
   "prompt_json": {
    "order": 3,
@@ -30498,10 +30498,10 @@
    "parts": 3,
    "q": "The butterfly",
    "steps": [
-    "A long call butterfly is one, two, one: buy a low call, sell two middle calls, buy a high call.",
-    "Fidelity's example: buy the 95, sell two 100s, buy the 105, for 1.25.",
-    "Pinned right at 100 at expiry, it makes 3.75. Outside the wings, you lose the 1.25.",
-    "That perfect pin is possible but rare. The Options Industry Council calls it statistically unlikely."
+    "A long call butterfly is one, two, one. Buy a low call, sell two in the middle, buy a high call.",
+    "Say you buy the 95, sell two 100s and buy the 105. It costs you 1.25.",
+    "Pinned right at 100 at expiry, it makes 3.75. Finish outside the wings and you lose the 1.25.",
+    "Don't count on that pin. It can happen, but closing exactly on the middle strike is a long shot."
    ],
    "subject": "F6.15#w3"
   },
@@ -32326,7 +32326,7 @@
   "difficulty": 1,
   "id": "si_18d692508d59",
   "lesson_origin": "session",
-  "lesson_text": "That writer is assigned and must buy or sell the shares at the strike, whatever the market price.",
+  "lesson_text": "Whoever gets picked is assigned. They have to buy or sell the shares at the strike, whatever the stock trades at.",
   "module": "F6",
   "prompt_json": {
    "order": 1,
@@ -32334,10 +32334,10 @@
    "parts": 3,
    "q": "Who gets the notice",
    "steps": [
-    "To exercise, the holder tells their broker, and the broker sends the notice to the Options Clearing Corporation (OCC).",
+    "Say a holder wants to exercise. They tell their broker, and the broker sends the notice to the clearing house, OCC.",
     "OCC hands it at random to a broker that carries shorts in that option.",
-    "That broker picks one of its short customers, at random or first in, first out.",
-    "That writer is assigned and must buy or sell the shares at the strike, whatever the market price."
+    "That broker picks one of its short customers. Random, or first in, first out, depending on the broker.",
+    "Whoever gets picked is assigned. They have to buy or sell the shares at the strike, whatever the stock trades at."
    ],
    "subject": "F6.16#w1"
   },
@@ -32390,7 +32390,7 @@
   "difficulty": 1,
   "id": "si_0d69076ce22c",
   "lesson_origin": "session",
-  "lesson_text": "Writers usually hear the next business day. On a Friday expiry, that means Monday.",
+  "lesson_text": "The writer hears the next business day. A Friday expiry means finding out Monday.",
   "module": "F6",
   "prompt_json": {
    "order": 2,
@@ -32398,9 +32398,9 @@
    "parts": 3,
    "q": "The bell on expiry day",
    "steps": [
-    "On expiry day, a stock option a cent ($0.01) or more in the money at the close is usually exercised.",
-    "Holders can say no, and FINRA's rule gives them until 5:30 p.m. ET to decide. After-hours news can still flip it.",
-    "Writers usually hear the next business day. On a Friday expiry, that means Monday."
+    "Expiry day. A stock option a cent, $0.01, or more in the money at the close gets exercised automatically.",
+    "The holder can still say no. FINRA gives them until 5:30 p.m. ET, so after-hours news can flip it.",
+    "The writer hears the next business day. A Friday expiry means finding out Monday."
    ],
    "subject": "F6.16#w2"
   },
@@ -32474,7 +32474,7 @@
   "difficulty": 1,
   "id": "si_1b5b1505d2a8",
   "lesson_origin": "session",
-  "lesson_text": "European-style index options like SPX can only be exercised at expiry, so they carry no early assignment.",
+  "lesson_text": "Index options like SPX are European-style. Exercise only at expiry, so no early assignment.",
   "module": "F6",
   "prompt_json": {
    "order": 3,
@@ -32482,10 +32482,10 @@
    "parts": 3,
    "q": "When early assignment comes",
    "steps": [
-    "Stock options are American-style, so a short can be assigned on any trading day.",
-    "A short call is most at risk the day before an ex-dividend date, when its time value is below the dividend.",
-    "A short put is most at risk once it's deep in the money.",
-    "European-style index options like SPX can only be exercised at expiry, so they carry no early assignment."
+    "Stock options are American-style. A writer can be assigned any day the market's open, not just at expiry.",
+    "A short call is most at risk the day before the ex-dividend date, when its time value is under the dividend.",
+    "A short put gets dangerous once it's deep in the money. That's when the pros exercise early.",
+    "Index options like SPX are European-style. Exercise only at expiry, so no early assignment."
    ],
    "subject": "F6.16#w3"
   },
@@ -34687,7 +34687,7 @@
   "difficulty": 1,
   "id": "si_0e411c9e822f",
   "lesson_origin": "session",
-  "lesson_text": "Until you close, a profit is only on paper.",
+  "lesson_text": "Until you close it, that profit is only on paper. It can be a loss tomorrow.",
   "module": "F6",
   "prompt_json": {
    "order": 1,
@@ -34695,10 +34695,10 @@
    "parts": 3,
    "q": "Getting out is a trade",
    "steps": [
-    "You get out of an option the way you got in: with a trade, this time on the other side.",
-    "If you bought it, sell to close. If you sold it, buy to close.",
-    "Most option positions end that way, not by exercise.",
-    "Until you close, a profit is only on paper."
+    "You get out of an option the same way you got in: with a trade, just on the other side.",
+    "Bought it, you sell to close. Sold it, you buy to close.",
+    "That's how most option positions end. Not with exercise.",
+    "Until you close it, that profit is only on paper. It can be a loss tomorrow."
    ],
    "subject": "F6.17#w1"
   },
@@ -34744,7 +34744,7 @@
   "difficulty": 1,
   "id": "si_5779f5fd87ad",
   "lesson_origin": "session",
-  "lesson_text": "Add a date to re-check the trade. Time decay is gradual at first and speeds up near expiry.",
+  "lesson_text": "Then put a date on the calendar to look at it again. Time decay starts slow and speeds up near expiry.",
   "module": "F6",
   "prompt_json": {
    "order": 2,
@@ -34752,9 +34752,10 @@
    "parts": 3,
    "q": "Write the exit before the entry",
    "steps": [
-    "Before you buy, set two exits: the target where you take profit and the stop where you're wrong.",
-    "Your stop can sit on the stock's chart or on the option's price. The Options Industry Council calls that your choice.",
-    "Add a date to re-check the trade. Time decay is gradual at first and speeds up near expiry."
+    "Before you buy, write down two exits. The target where you take profits, and the stop where you're wrong.",
+    "Some traders key a stop off the stock's chart, some off the option's price. Personal preference.",
+    "Ours is simpler. We trade shares. On the occasional option buy, the premium you paid is the stop.",
+    "Then put a date on the calendar to look at it again. Time decay starts slow and speeds up near expiry."
    ],
    "subject": "F6.17#w2"
   },
@@ -34795,6 +34796,13 @@
       "quote": "Thus, the amount of decay indicated by Theta tends to be gradual at first and accelerates as expiration approaches.",
       "tier": 1,
       "url": "https://www.optionseducation.org/advancedconcepts/theta"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "Options occasionally; no further rules. The premium paid is the stop. … Trade shares; options are only a defined-risk alternative.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -34814,7 +34822,7 @@
   "difficulty": 1,
   "id": "si_4e47461a8ae2",
   "lesson_origin": "session",
-  "lesson_text": "The new option is a fresh trade. It needs a reason of its own.",
+  "lesson_text": "Roll a loser and you've locked in the loss. The new option is a fresh trade and needs its own reason.",
   "module": "F6",
   "prompt_json": {
    "order": 3,
@@ -34822,9 +34830,9 @@
    "parts": 3,
    "q": "A roll is two trades",
    "steps": [
-    "A roll closes your option and opens a new one at another strike, another expiry, or both.",
-    "The old option's gain or loss is settled when it closes. The roll doesn't erase it.",
-    "The new option is a fresh trade. It needs a reason of its own."
+    "Somebody says just roll it. That means close your option and open a new one at another strike, expiry, or both.",
+    "The old one's gain or loss is settled the moment it closes. Rolling doesn't erase it.",
+    "Roll a loser and you've locked in the loss. The new option is a fresh trade and needs its own reason."
    ],
    "subject": "F6.17#w3"
   },
@@ -36619,7 +36627,7 @@
   "difficulty": 1,
   "id": "si_4cd57d06476f",
   "lesson_origin": "session",
-  "lesson_text": "The Options Clearing Corporation (OCC) counts open interest after the close. Today's flow shows up in it the next session.",
+  "lesson_text": "OCC posts open interest after the close. So today's flow shows up in the next session's number.",
   "module": "F6",
   "prompt_json": {
    "order": 1,
@@ -36627,9 +36635,9 @@
    "parts": 3,
    "q": "Volume, open interest, and what's new",
    "steps": [
-    "Volume counts the contracts that traded today. Open interest counts the contracts still open.",
-    "A trade adds to open interest only when both sides open. One side opening and the other closing just changes hands.",
-    "The Options Clearing Corporation (OCC) counts open interest after the close. Today's flow shows up in it the next session."
+    "Two columns on the chain. Volume is what traded today. Open interest is how many contracts are still open.",
+    "Open interest only goes up when both sides open. One opens, one closes, and the contract just changes hands.",
+    "OCC posts open interest after the close. So today's flow shows up in the next session's number."
    ],
    "subject": "F6.18#w1"
   },
@@ -36668,7 +36676,7 @@
   "difficulty": 1,
   "id": "si_12a8137be26a",
   "lesson_origin": "session",
-  "lesson_text": "Many traders call activity unusual at about five times a contract's normal volume. Unusual means look closer, not buy.",
+  "lesson_text": "Unusual means take a closer look. It's not a buy signal. The chart still makes the call.",
   "module": "F6",
   "prompt_json": {
    "order": 2,
@@ -36676,9 +36684,10 @@
    "parts": 3,
    "q": "Every print has two sides",
    "steps": [
-    "Every option trade has a buyer and a seller. Public data shows size, strike and expiry, not who traded.",
-    "A big put buy can be a bullish holder buying protection. A big call sale can be a covered call for income.",
-    "Many traders call activity unusual at about five times a contract's normal volume. Unusual means look closer, not buy."
+    "Every option trade has a buyer and a seller. The tape shows size, strike and expiry. Not who did it.",
+    "That big put buy might be a bull protecting shares. That big call sale might be a covered call for income.",
+    "Plenty of traders call it unusual at about five times a contract's normal volume.",
+    "Unusual means take a closer look. It's not a buy signal. The chart still makes the call."
    ],
    "subject": "F6.18#w2"
   },
@@ -36731,7 +36740,7 @@
   "difficulty": 1,
   "id": "si_55476b13fc5e",
   "lesson_origin": "session",
-  "lesson_text": "Studies find expiration-day closes cluster at strikes. But outsiders only estimate dealer positions, and the estimates have disagreed wildly.",
+  "lesson_text": "But nobody outside sees dealer positions. Estimates for SPX alone have run from record short to long $50 billion of gamma.",
   "module": "F6",
   "prompt_json": {
    "order": 3,
@@ -36739,9 +36748,10 @@
    "parts": 3,
    "q": "The dealer gamma theory",
    "steps": [
-    "Market makers, often called dealers, take the other side of public orders and hedge with stock to stay delta-neutral.",
-    "The theory: when they're long gamma, their hedging leans against moves. Short gamma, it chases them.",
-    "Studies find expiration-day closes cluster at strikes. But outsiders only estimate dealer positions, and the estimates have disagreed wildly."
+    "Market makers, the dealers, take the other side of public orders. Then they hedge with stock to stay neutral.",
+    "The theory: long gamma, their hedging sells rallies and buys dips. Short gamma, they chase the move.",
+    "There's real evidence behind it. On expiry day, closing prices cluster at the strikes.",
+    "But nobody outside sees dealer positions. Estimates for SPX alone have run from record short to long $50 billion of gamma."
    ],
    "subject": "F6.18#w3"
   },

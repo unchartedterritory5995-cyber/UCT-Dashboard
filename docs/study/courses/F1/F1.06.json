@@ -579,10 +579,10 @@
    "key": "w1",
    "title": "Price times shares",
    "steps": [
-    "Market cap is the share price times every share outstanding. It's the market's price tag on the whole company.",
-    "Price alone tells you nothing about size. Two stocks at $50 can be a $250 million company and a $250 billion one.",
-    "Size buckets are a convention, and the lines vary by source.",
-    "FINRA's usual lines: mega-cap $200 billion and up, large from $10 billion, mid from $2 billion, small from $250 million."
+    "Market cap is the share price times every share outstanding. It's the price tag on the whole company.",
+    "Price alone says nothing about size. Two $50 stocks can be a $250 million company and a $250 billion one.",
+    "The difference is the share count: 5 million shares against 5 billion.",
+    "Size buckets vary by source. FINRA's large-cap starts at $10 billion. We very rarely trade anything under $1 billion."
    ],
    "facts": [
     "f1",
@@ -592,38 +592,36 @@
     "f4",
     "f5",
     "f6",
-    "f12"
+    "f12",
+    "f68"
    ]
   },
   {
    "key": "w2",
    "title": "Outstanding versus float",
    "steps": [
-    "Shares outstanding count every holder: the public, the big funds, the officers and the employees.",
-    "The float is the part the public can actually trade. Insiders' holdings and restricted stock are left out.",
-    "Locked-up IPO shares join the float only when the lockup ends. Most lockups run 180 days.",
-    "Many index providers, Russell included, weight stocks by float-adjusted market cap: price times the shares available to the public."
+    "Shares outstanding counts every holder: the public, the big funds, the officers, the employees.",
+    "The float is what the public can actually trade. Take out insiders' holdings and restricted stock, and that's it.",
+    "Restricted shares can unlock. Most IPO lockups run 180 days, and when one ends, the float grows."
    ],
    "facts": [
     "f63",
     "f26",
     "f43",
-    "f41",
-    "f32",
-    "f40",
     "f44",
+    "f32",
     "f48",
-    "f61"
+    "f41"
    ]
   },
   {
    "key": "w3",
    "title": "Why a small float moves fast",
    "steps": [
-    "Fewer shares to go around means the same buying can push the price further. Volatility tends to run opposite to float.",
-    "It cuts both ways. Spreads tend to run wider, and getting out can be hard.",
-    "Pump-and-dump fraudsters use this. They quietly buy up a big part of the float, which makes the price easier to push.",
-    "Check the float before you size a name. A thin float can trap you on the way out."
+    "Fewer shares to go around means the same buying pushes price further. Small float, bigger swings.",
+    "It cuts both ways. Spreads run wider, and getting out can be hard right when you need to.",
+    "Pump-and-dump crews know this. They quietly buy up a big part of the float, then push the price.",
+    "So check the float before you size. A thin float can trap you on the way out."
    ],
    "facts": [
     "f27",

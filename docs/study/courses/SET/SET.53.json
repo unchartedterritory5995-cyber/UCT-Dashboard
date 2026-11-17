@@ -807,10 +807,10 @@
    "key": "w1",
    "title": "CEG, October 2025: a leader gaps down onto the 20-day EMA",
    "steps": [
-    "CEG, 2025-10-01, hourly bars. A leader drifts two weeks down to its rising 20-day EMA. That pullback is the setup.",
-    "It opens red, 325.97 against a prior close of 329.07, and dips to 323.88. The trigger is the prior close.",
-    "First hourly bar: price trades a cent over 329.07. Buy at market, 329.08. Stop a few cents under the dip low, 323.85.",
-    "Failure mode: a fall back under the line. Instead it closes near its high; 3R is behind it by the next day."
+    "CEG, October 2025. A leader drifts two weeks down onto its rising 20 EMA. That pullback is the setup.",
+    "October 1 it opens red, 325.97 against yesterday's 329.07 close, and dips to 323.88. Yesterday's close is your line.",
+    "First hour it trades a cent over 329.07. Buy at market, 329.08. Stop a few cents under the dip low, 323.85.",
+    "Lose the line and you're wrong. Instead it closes near the high, and 3R comes the next day."
    ],
    "facts": [
     "dCE",
@@ -827,10 +827,10 @@
    "key": "w2",
    "title": "TWLO, November 2024: a post-earnings flag at the 9-day EMA",
    "steps": [
-    "TWLO, 2024-11-20, hourly bars. A post-earnings runner pulls back four days to its 9-day EMA. That pullback is the setup.",
-    "It opens red, 95.38 against a prior close of 96.35, and dips to 94.70. The report is already behind it.",
-    "First hourly bar: price trades a cent over 96.35. Buy at market, 96.36. Stop a few cents under the dip low, 94.67.",
-    "Failure mode: a close back under the line. Instead it closes green on 1.1x volume and 3R prints the next day."
+    "TWLO, November 2024. A post-earnings runner pulls back four days to its 9 EMA. The report's already behind it.",
+    "November 20 it opens red, 95.38 against a 96.35 close, and dips to 94.70. Now watch 96.35.",
+    "First hour it trades a cent over. Buy at market, 96.36. Stop a few cents under the dip low, 94.67.",
+    "A 1.8% stop. A close back under 96.35 and you're out. Instead it closes green on 1.1x volume; 3R next day."
    ],
    "facts": [
     "dTW",
@@ -847,10 +847,10 @@
    "key": "w3",
    "title": "HOOD, November 2024: a flag at the rising 50-day",
    "steps": [
-    "HOOD, 2024-11-04, hourly bars. A leader flags five days at its rising 50-day. That pullback is the setup.",
-    "It opens red, 23.75 against a prior close of 23.97, and tags the line at 23.54. The trigger is the prior close.",
-    "First hourly bar: price trades a cent over 23.97. Buy at market, 23.98. Stop a few cents under the dip low, 23.51.",
-    "A 2.0% stop. Failure mode: a close under the line. Instead it closes in the top quarter; 3R in 2 days."
+    "This works off the 50-day too. HOOD, November 2024: a leader flags five days down to its rising 50-day.",
+    "November 4 it opens red, 23.75 against a 23.97 close, and tags the line at 23.54.",
+    "First hour it trades a cent over 23.97. Buy at market, 23.98. Stop a few cents under the dip low, 23.51.",
+    "A 2.0% stop, inside the 3% we like. It closes in the top quarter, and 3R comes in 2 days."
    ],
    "facts": [
     "dHO",

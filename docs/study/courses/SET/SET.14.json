@@ -1019,10 +1019,10 @@
    "key": "w1",
    "title": "GE, January 2024: the low kisses the line",
    "steps": [
-    "GE, January 2024. A leader in a rising trend drifts four days back to its rising 20 EMA on 0.78x volume.",
-    "The hold session: the low kisses the line to the cent and closes above it. Above the 50-day and 200-day.",
-    "Next session trades a cent over the hold candle's high. Buy at market, 100.39. Stop a few cents under its low, 99.07.",
-    "Failure mode: a slice back through the line that takes the day's low. Instead, 3R in 5 sessions. Time to sell part."
+    "GE in January 2024, a leader in an uptrend. It drifts back four days to its rising 20 EMA on light volume.",
+    "January 4 the low kisses the line to the cent and closes above it. It's over the 50-day and 200-day too.",
+    "Next day it trades a cent over the hold day's high. Buy at market, 100.39. Stop just under its low, 99.07.",
+    "A slice back through the line that takes the low says it's wrong. Instead, 3R in 5 sessions. Sell some into it."
    ],
    "facts": [
     "d01",
@@ -1042,10 +1042,10 @@
    "key": "w2",
    "title": "NVDA, May 2023: the textbook leader, out before the report",
    "steps": [
-    "NVDA, May 2023. A rising line, a light-volume four-day rest, 1.4 ATR off the high, pullback volume 0.74x.",
-    "The hold session closes above the line. Buy a cent over its high at market, 28.79. Stop under its low, 28.02.",
-    "3R in 3 sessions: a fair first sell, stop to breakeven. It stood at 3.9R the day before the report.",
-    "Hold through a report only if up 5R. We are out before the gap. The rule costs one gap and saves many."
+    "NVDA in May 2023, the textbook leader. Its 20 EMA is rising, and it rests four days on light volume.",
+    "The hold day closes above the line. Buy at market a cent over its high, 28.79. Stop under its low, 28.02.",
+    "3R in 3 sessions, a fair spot for a first sell. The day before the report it's up 3.9R.",
+    "Hold through a report only if you're up 5R. At 3.9R you sell before it, even on a chart this good."
    ],
    "facts": [
     "d03",
@@ -1055,17 +1055,18 @@
     "h22",
     "h24",
     "h05",
-    "h08"
+    "h08",
+    "c06"
    ]
   },
   {
    "key": "w3",
    "title": "CRM, June 2020: the shallow shakeout",
    "steps": [
-    "CRM, June 2020. A four-day pullback, 2.4 ATR off the high on 0.76x volume. The low dips 0.28 ATR under the line.",
-    "The same session closes back above the 20 EMA. That is a shakeout, not a lost line. The hold is in.",
-    "Next session trades a cent over the hold candle's high. Buy at market, 183.72. Stop a few cents under its low, 179.97.",
-    "Failure mode: a second close under the line before the trigger. Instead, 3R in 2 sessions. We hold."
+    "Watch the line on CRM, June 2020. A four-day pullback on light volume, then the low dips just under the 20 EMA.",
+    "Same session, it closes back above the line. That's a shakeout, not a lost line. The hold is in.",
+    "Next day it trades a cent over the hold day's high. Buy at market, 183.72. Stop just under its low, 179.97.",
+    "A second close under the line before the trigger would kill it. Instead, 3R in 2 sessions, and you hold."
    ],
    "facts": [
     "d05",

@@ -721,9 +721,9 @@
    "key": "w1",
    "title": "Three orders, one plan",
    "steps": [
-    "A bracket is your entry plus two exits. A sell limit above is your target. A sell stop below is your stop.",
-    "The exits wait for the entry. Once the buy fills, both go live.",
-    "Fidelity's example: buy $25, stop $23, limit $27. It fills, drops to $23, the stop sells, and the limit cancels."
+    "A bracket is three orders on one ticket: your buy, a sell limit above for the target, a sell stop below.",
+    "Nothing on the exit side works until the buy fills. The moment it fills, both exits go live.",
+    "A broker's sample ticket: buy $25, stop $23, target $27. It fills, drops to $23, the stop sells and the target cancels."
    ],
    "facts": [
     "f55",
@@ -739,9 +739,9 @@
    "key": "w2",
    "title": "One cancels the other",
    "steps": [
-    "The two exits are linked as one-cancels-other, or OCO. When one fills, the other is canceled for you.",
-    "Fidelity's example: sell limit $27, sell stop $24. The stock hits $27, the limit sells, and the stop is canceled.",
-    "The cancel is best effort. In a fast market both legs can fill, so check your orders after any fill."
+    "The two exits are linked: one-cancels-other, OCO. Whichever fills first, the broker pulls the other one for you.",
+    "Target $27, stop $24. It runs to $27, the target sells, and the stop goes away.",
+    "The cancel is best effort, not a promise. In a fast market both can fill. Check your orders after every fill."
    ],
    "facts": [
     "f18",
@@ -756,9 +756,10 @@
    "key": "w3",
    "title": "Why it keeps you honest",
    "steps": [
-    "You pick the stop and the target before you're in, while you're calm.",
-    "Once it's placed, you don't re-argue the exits as the price moves. The stop only moves up, as the plan trails it.",
-    "It can't stop a gap. Schwab's example: a $34 stop, gapped through at the open, fills at $32."
+    "You pick the stop and the target before you're in. Calm, before the stock starts moving on you.",
+    "Once it's on, you don't re-argue the exits every tick. The stop only moves up, as you trail it.",
+    "It can't catch a gap though. A $34 stop on a stock that opens at $32 sells you around $32.",
+    "The stop leg's the one we never skip. Every position we hold has a real stop with the broker."
    ],
    "facts": [
     "f66",
@@ -771,7 +772,8 @@
     "f81",
     "f42",
     "f76",
-    "f09"
+    "f09",
+    "hx1"
    ]
   }
  ],

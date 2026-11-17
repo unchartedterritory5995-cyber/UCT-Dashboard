@@ -963,12 +963,12 @@
  "walkthroughs": [
   {
    "key": "w1",
-   "title": "ON, August 2017: four contractions, each about half the last",
+   "title": "ON, August 2017: four pullbacks, each about half the last",
    "steps": [
-    "ON, 2017. A leader in an uptrend pulls back four times: 19.4%, 7.8%, 5.8%, then 3.5%. Each swing is smaller.",
-    "Volume should dry into the tight last swing. The pivot is that swing's high, 16.47.",
-    "2017-08-30: it trades through 16.47 on 1.7x volume. Buy at market. Stop a few cents under the day's low, 15.85.",
-    "Failure mode: the day closes back inside the base. Instead 3R comes in 20 days. First sell: a judgment."
+    "ON in 2017, a leader in an uptrend. It pulls back four times: 19.4%, 7.8%, 5.8%, then 3.5%. Each one smaller.",
+    "I like to see volume dry up into that last tight swing. Its high, 16.47, is the pivot.",
+    "August 30 it trades through 16.47 on 1.7 times volume. Buy at market. Stop just under the day's low, 15.85.",
+    "The worry is a close back inside the base. It held. 3R took 20 days, so this one takes patience."
    ],
    "facts": [
     "d01",
@@ -984,10 +984,10 @@
    "key": "w2",
    "title": "JOYY, January 2014: the pivot below the base high",
    "steps": [
-    "JOYY, 2014. After a 146% run, a six-week base with three pullbacks: 18.4%, 10.7%, 3.7%.",
-    "The base high is 56.75. The final swing's high is 51.22, lower. That is the pivot, as Minervini allows.",
-    "2014-01-02: it clears 51.22 on 1.9x volume. Buy at market. Stop a few cents under the day's low, 49.27.",
-    "Failure mode: stopped within days. Instead 3R comes the next day. We hold."
+    "JOYY ran 146%, then built a six-week base. Three pullbacks, each smaller: 18.4%, 10.7%, then just 3.7%.",
+    "The base high on the left is 56.75. The last swing tops out lower, at 51.22. That's your pivot.",
+    "January 2, 2014, it clears 51.22 on 1.9 times volume. Buy at market, stop just under the day's low, 49.27.",
+    "Lose the day's low in the first few days and you're out. Instead, 3R the very next day, and you hold."
    ],
    "facts": [
     "d06",
@@ -1002,10 +1002,10 @@
    "key": "w3",
    "title": "ALGN, October 2007: the squat",
    "steps": [
-    "ALGN, 2007. A 59-session base with two contractions, 27.5% then 7.1%. The pivot is 28.64.",
-    "2007-10-17: it trades through the pivot on 2.3x volume. Buy 28.65. Stop 27.70, 3.3% away.",
-    "But the day closes at 28.14, back inside the base. That is the squat, the warning with the worst numbers.",
-    "The next day trades to 27.64 and takes the stop. We take the loss. A new buy needs a new trigger."
+    "ALGN built a 59-session base in 2007 with two contractions, 27.5% then 7.1%. The pivot is 28.64.",
+    "October 17 it trades through on 2.3 times volume. Buy 28.65, stop 27.70, 3.3% away.",
+    "It closes at 28.14, back inside the base. A squat, the worst warning in our numbers. Not an exit by itself.",
+    "Next day it trades to 27.64 and takes the stop. Take the loss. A new buy needs a new trigger."
    ],
    "facts": [
     "d10",

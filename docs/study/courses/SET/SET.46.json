@@ -891,10 +891,10 @@
    "key": "w1",
    "title": "EPC, December 2006: the flat line",
    "steps": [
-    "EPC, late 2006. It falls 18.7% from its October high and closes 42 times under the AVWAP from that high.",
-    "Context checks out: above the 200-day. The line goes flat for a month at 52. Then one close 0.86 ATR over it.",
-    "Next session it trades over the reclaim day's high. Buy at market, 52.67. Stop under the reclaim day's low, 51.99.",
-    "Failure mode: back under the line, stop taken. Instead 3R comes in six sessions. First sell is our judgment; stop to breakeven."
+    "EPC, late 2006. It falls 18.7% off its October high and closes 42 times under the AVWAP anchored there.",
+    "Still above the 200-day. The line goes flat for a month at 52. Then one clean close over it.",
+    "Next day it trades over that day's high. Buy at market, 52.67. Stop a few cents under its low, 51.99.",
+    "A 1.3% stop. Back under the line, you're out small. Instead it ran, 3R in six sessions."
    ],
    "facts": [
     "d01",
@@ -911,10 +911,10 @@
    "key": "w2",
    "title": "NOW, April 2017: clear, not stretched",
    "steps": [
-    "NOW, spring 2017. Above a rising 200-day, it falls 11.9% from its February high and closes 40 times under the AVWAP.",
-    "The line goes flat. On 2017-04-19 it closes 0.31 ATR over it: clear, but not stretched.",
-    "2017-04-20 it trades over that day's high. Buy at market, 17.70. Stop a few cents under the reclaim day's low, 17.50.",
-    "Failure mode: a close back under, then the stop. Instead 3R in five sessions, before the report. The first sell is judgment."
+    "Same idea, smaller fall. NOW, spring 2017: above a rising 200-day, down 11.9% from its February high.",
+    "40 closes under the AVWAP, then the line goes flat. April 19 it closes over it: clear, but not stretched.",
+    "April 20 it trades over that day's high. Buy at market, 17.70. Stop a few cents under the reclaim day's low, 17.50.",
+    "Only a 1.1% stop. 3R came in five sessions, before the report even hit. Stop up to breakeven."
    ],
    "facts": [
     "d03",
@@ -931,10 +931,10 @@
    "key": "w3",
    "title": "MAS, July 2024: two lines in one place",
    "steps": [
-    "MAS, 2024. A 19.2% fall from the March high, then 70 closes under the AVWAP. The line goes flat near 70.",
-    "2024-07-12: it closes 0.49 ATR over the line, with the 50-day within one ATR: a second level, the A+ cue.",
-    "Next session, over the reclaim day's high: buy at market, 71.15. Stop a few cents under that day's low, 69.53.",
-    "Failure mode: back under the line, stop taken. Instead 3R in eight sessions. We sell by judgment; the rest rides."
+    "MAS, 2024. Down 19.2% from the March high, then 70 closes under the AVWAP. The line goes flat near 70.",
+    "July 12 it closes back over the line, the 50-day right there too. Two levels, one spot: an A+ cue.",
+    "Next day it clears that day's high. Buy at market, 71.15. Stop a few cents under its low, 69.53.",
+    "Lose the line and the stop goes. Instead 3R in eight sessions. Sell some into a push, let the rest ride."
    ],
    "facts": [
     "d05",

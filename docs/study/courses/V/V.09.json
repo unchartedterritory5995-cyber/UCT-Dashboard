@@ -1318,9 +1318,9 @@
    "key": "w1",
    "title": "The income statement, top to bottom",
    "steps": [
-    "Revenue is the top line: the money that came in from sales, before any costs.",
-    "Take out the cost of goods sold and you have gross profit. Take out operating expenses and you have operating income.",
-    "After interest and taxes you reach net income, the bottom line. Divide it by the shares outstanding and you get EPS."
+    "Start at the top. Revenue is the top line, everything that came in from sales before any costs.",
+    "Take out the cost of sales and you've got gross profit. Take out operating expenses and you've got operating income.",
+    "Interest and taxes come out last. What's left is net income, the bottom line. Divide by shares outstanding for EPS."
    ],
    "facts": [
     "f1",
@@ -1336,13 +1336,15 @@
    "key": "w2",
    "title": "The bar the report has to clear",
    "steps": [
-    "Before the report, analysts publish estimates. Their average is the consensus.",
-    "Above it is a beat, below it is a miss, equal is in line.",
-    "Guidance is management's forecast for what comes next. It can move the stock more than the quarter itself."
+    "Before the report, analysts put out estimates. Their average is the consensus. That's the bar.",
+    "Take NVIDIA: $1.30 a share adjusted against $1.25 expected. That's a beat. Below it's a miss. Right on it, in line.",
+    "Then there's guidance, what management expects next. It can move the stock more than the quarter itself.",
+    "So a company can beat and still drop if the outlook's weak."
    ],
    "facts": [
     "f34",
     "f35",
+    "f141",
     "f29",
     "f39",
     "f87"
@@ -1352,9 +1354,10 @@
    "key": "w3",
    "title": "When it lands and how big the move",
    "steps": [
-    "BMO means the report lands before the 9:30 a.m. ET open. AMC means after the 4:00 p.m. ET close.",
-    "Either way, the first reaction can come in extended hours, where spreads are wider.",
-    "The implied move is the swing the options market is pricing in. It's a size, not a direction."
+    "BMO means before the 9:30 a.m. ET open. AMC means after the 4:00 p.m. ET close.",
+    "Either way, the first reaction hits in extended hours, where spreads are wider.",
+    "The implied move is the swing options are pricing in. Read it off the nearest at-the-money straddle.",
+    "It's a size, not a direction. And it's no promise of either."
    ],
    "facts": [
     "f148",

@@ -564,8 +564,8 @@
    "title": "Four things to read in any fall",
    "steps": [
     "Every big fall has a depth, a length, a cause and an aftermath. Read all four before you call it.",
-    "Depth: the S&P 500 fell 57% from its 2007 peak to its 2009 trough. From 2000 to 2002 it fell 49.1%.",
-    "Length: in 2020 the fall took 33 days. The slide from 2000 to 2002 ground on for 30.5 months.",
+    "Depth first. The S&P 500 fell 57% from its 2007 peak to its 2009 trough. From 2000 to 2002, 49.1%.",
+    "Then length. In 2020 the fall took 33 days. The 2000 to 2002 slide ground on for 30.5 months.",
     "Cause tells you what broke. Aftermath tells you how long the repair took."
    ],
    "facts": [
@@ -578,9 +578,9 @@
    "key": "w2",
    "title": "Stocks and the economy keep different clocks",
    "steps": [
-    "In 2009 the S&P 500 hit its trough in March. The recession didn't end until June.",
-    "In 2002 it ran the other way. The recession ended in November 2001, yet stocks slid to new lows by October 2002.",
-    "Both times, the official end date came out over a year later. By then, price had already moved."
+    "March 2009, the S&P 500 hits its trough. The recession doesn't end until June.",
+    "2002 ran the other way. The recession ended in November 2001, and stocks still slid to new lows by October 2002.",
+    "Both times the official end date came out over a year later. By then, price had long since moved."
    ],
    "facts": [
     "f02",
@@ -596,9 +596,9 @@
    "key": "w3",
    "title": "A bounce is not a bottom",
    "steps": [
-    "In 2022 the S&P 500 fell from a record 4,796.56 in January to 3,666.77 in mid-June.",
-    "Then it bounced for two months, up to 4,305.20 in mid-August.",
-    "By October 12 it closed at 3,577.03, a new low. Only in hindsight did that turn out to be the bottom."
+    "January 2022, the S&P 500 closes at a record, 4,796.56. By mid-June it's down to 3,666.77.",
+    "Then it bounces for two months, all the way up to 4,305.20 in mid-August. Feels like the bottom's in.",
+    "October 12 it closes at 3,577.03, a new low. That was the real bottom, and you only knew it in hindsight."
    ],
    "facts": [
     "f43",

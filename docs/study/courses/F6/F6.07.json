@@ -627,10 +627,10 @@
    "key": "w1",
    "title": "Gamma moves delta",
    "steps": [
-    "Delta estimates how much the option moves for each $1 in the stock.",
-    "Gamma is how much that delta changes for the same $1.",
-    "Stock at $50: the 50 call has a delta of .50 and a gamma of .06.",
-    "Stock to $51: delta is now about 0.56, the old .50 plus the .06. The next dollar up pays more."
+    "Think of delta as your speed: how much the option moves for each $1 in the stock.",
+    "Gamma is the acceleration. It's how much that delta changes for the same $1.",
+    "Say the stock's at $50. The 50 call has a delta of .50 and a gamma of .06.",
+    "Stock goes to $51 and delta's now about 0.56. The next dollar up pays you more than the last."
    ],
    "facts": [
     "f19",
@@ -643,10 +643,9 @@
    "key": "w2",
    "title": "Where gamma is biggest",
    "steps": [
-    "Gamma is highest at the money. Deep in-the-money and far out-of-the-money options have less.",
-    "At the money, it also climbs as expiry gets close.",
-    "On expiry day, right at the strike, a call's delta can swing between near 0 and near 1.00.",
-    "That's when an option starts moving fast."
+    "Gamma's biggest at the money. Deep in the money or far out, there's less of it.",
+    "At the money it climbs as expiry gets close, and peaks right at the end.",
+    "On expiry day, right at the strike, a call's delta can swing from near 0 to near 1.00. That's fast."
    ],
    "facts": [
     "f17",
@@ -659,10 +658,10 @@
    "key": "w3",
    "title": "Who gamma helps, who it hurts",
    "steps": [
-    "Buy a call or a put and you're long gamma. Sell one and you're short gamma.",
+    "Buy a call or a put and you're long gamma. That's the side we're on when we buy one.",
     "Long gamma speeds up your gains and slows your losses.",
-    "Short gamma does the opposite. When the stock runs at you, the losses speed up.",
-    "Sellers take that risk to collect time decay. That's the trade-off."
+    "Sell one and you're short gamma. When the stock runs at you, the losses speed up.",
+    "Sellers take that risk to collect time decay. That's their trade, not ours."
    ],
    "facts": [
     "f4",

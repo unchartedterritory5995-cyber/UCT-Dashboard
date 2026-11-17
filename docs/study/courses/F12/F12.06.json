@@ -600,9 +600,9 @@
    "key": "w1",
    "title": "Your plays, written down",
    "steps": [
-    "Your playbook is your set of plays, like a team's: setups that make sense to you and that you want more of.",
-    "At SMB Capital, Mike Bellafiore's traders write one up after each session: the setup that made the most sense.",
-    "The writing is the practice. It helps you act when the play shows up again, instead of hesitating."
+    "A football team has a playbook, the plays it runs in different spots. Yours holds the setups you want more of.",
+    "At SMB Capital, Mike Bellafiore's traders write one up after every session: the setup that made the most sense to them.",
+    "The writing is the practice. Next time that play shows up, it helps you act instead of hesitating."
    ],
    "facts": [
     "f33",
@@ -617,10 +617,10 @@
    "key": "w2",
    "title": "One page, section by section",
    "steps": [
-    "His desk's form opens with a short name for the play. Then come the sections.",
-    "His book breaks each trade down in order: big picture, intraday fundamentals, technical analysis, tape reading, trade management, trade strategy, trade review.",
-    "In the SYY page he shared, the earnings beat sits under intraday fundamentals. The price levels sit under technical analysis.",
-    "A pattern is only part of a play. Trading coach Brett Steenbarger adds sizing, targets, adds and exits."
+    "Each page starts with a short name for the play, like \"Gap and Go.\" Then you work the trade section by section.",
+    "His book's order: big picture, intraday fundamentals, technical analysis, tape reading, trade management, trade strategy, trade review.",
+    "On the Sysco page he shared, the earnings beat goes under fundamentals. The 30.50, 31.50 and 32 levels go under technicals.",
+    "Just drawing the pattern is shortsighted, says trading coach Brett Steenbarger. Write the size, the targets, the adds and the exits too."
    ],
    "facts": [
     "f23",
@@ -636,9 +636,10 @@
    "key": "w3",
    "title": "Make it yours: our Kicker page",
    "steps": [
-    "Bellafiore trades intraday and says you may trade a different time frame. Build the page in a format that works for you.",
-    "Kicker entry: over the red day's high, at market. Stop: under the Kicker candle's low, or 3.5% under entry if closer.",
-    "First sell: judgment, usually day 3 or later. Trail under each higher low or the 9 EMA. That's the page."
+    "Bellafiore trades intraday, and he says you may trade a different time frame. So build the page your way.",
+    "Here's ours for a Kicker. We buy at market as it trades through the red day's high.",
+    "The stop goes under the Kicker's low, or 3.5% under your entry if that's closer.",
+    "Sell some into a push, usually day 3 or later. Trail the rest under each higher low or the 9 EMA."
    ],
    "facts": [
     "f55",
@@ -646,10 +647,10 @@
     "f06",
     "h04",
     "h05",
-    "h02",
-    "h06",
-    "h03",
-    "hw01"
+    "r01",
+    "r02",
+    "r03",
+    "h06"
    ]
   }
  ],

@@ -1777,10 +1777,10 @@
    "key": "w1",
    "title": "Rights and obligations",
    "steps": [
-    "A call is the right to buy the stock at the strike until expiration. A put is the right to sell it.",
-    "One equity contract usually covers 100 shares. The price you pay for it is the premium.",
-    "As the buyer, the most you can lose is that premium.",
-    "The seller, called the writer, collects the premium and takes on the obligation. If a holder exercises, a writer gets assigned."
+    "A call is the right to buy the stock at the strike until expiry. A put, the right to sell.",
+    "One contract usually covers 100 shares. What you pay for it is the premium.",
+    "Buy one and the most you can lose is that premium. For us, the premium paid is the stop.",
+    "The seller, the writer, collects the premium and takes on the duty. A holder exercises, a writer gets assigned."
    ],
    "facts": [
     "f9",
@@ -1789,17 +1789,18 @@
     "f68",
     "f74",
     "f66",
-    "f193"
+    "f193",
+    "h_b25"
    ]
   },
   {
    "key": "w2",
    "title": "What the premium is made of",
    "steps": [
-    "Every premium splits into two parts: intrinsic value and time value.",
-    "Intrinsic value is how far the option is in the money. Out of the money, it's zero.",
-    "Time value is the rest. All else equal, it melts as expiration nears. At expiration it's gone.",
-    "Implied volatility is the market's guess at the size of the move. When it rises, calls and puts tend to cost more."
+    "Break a premium down and you get two pieces: intrinsic value and time value.",
+    "Intrinsic is how far it's in the money. Out of the money, there's none.",
+    "Time value is the rest. It melts faster as expiration gets close, and at expiration it's gone.",
+    "Implied volatility is the move the market's pricing in. When it rises, calls and puts both get pricier."
    ],
    "facts": [
     "f48",
@@ -1816,10 +1817,10 @@
    "key": "w3",
    "title": "The Greeks in one pass",
    "steps": [
-    "Delta: about how much the option moves for a $1 move in the stock.",
-    "Gamma: how fast delta itself changes. Theta: what one day of time costs you.",
-    "Vega: how much the premium moves for a 1-point change in implied volatility.",
-    "They're estimates, not promises. They shift as the stock, the clock and volatility change."
+    "Start with delta. The stock moves $1, and delta is roughly how much your option moves with it.",
+    "Gamma is how fast delta itself changes. Theta is what one more day costs you.",
+    "Vega is how much your premium moves when implied volatility changes 1%.",
+    "They're estimates, not promises. They shift as the stock, the clock and volatility move."
    ],
    "facts": [
     "f104",

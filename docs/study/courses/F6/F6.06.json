@@ -646,10 +646,10 @@
    "key": "w1",
    "title": "What implied volatility is",
    "steps": [
-    "Implied volatility, IV for short, is how much the market expects the stock to move.",
-    "It's read from the option's price, so it looks forward, not back at the chart.",
-    "It sizes the move. It doesn't say which way.",
-    "Higher IV means pricier calls and pricier puts."
+    "Implied volatility, IV, is how big a move the market expects. It's read off what people pay for the option.",
+    "So it looks forward, not back at the chart. The chart shows what it did. IV prices what's next.",
+    "It sizes the move. It never says which way. Direction is your read from the chart.",
+    "When IV is high, calls and puts both cost more, most of all at the money."
    ],
    "facts": [
     "f13",
@@ -663,10 +663,10 @@
    "key": "w2",
    "title": "Vega puts a price on IV",
    "steps": [
-    "Vega is how much the option's price moves for each one-point change in IV.",
-    "Options Industry Council example: vega .15, IV up from 30% to 32%, and the option gains about $.30.",
-    "Calls and puts you own both gain when IV rises. If you sold the option, rising IV works against you.",
-    "After the stock price itself, IV is probably the biggest driver of your option's price."
+    "Vega tells you what a one-point change in IV does to your option's price.",
+    "Say a call is $4 with IV at 30% and a vega of .15. Then IV ticks up to 32%.",
+    "Two points times .15 is about $.30. The call's now around $4.30 without the stock doing a thing.",
+    "Calls and puts you own both gain when IV rises. After the stock price itself, IV's probably the biggest driver."
    ],
    "facts": [
     "f15",
@@ -683,9 +683,9 @@
    "key": "w3",
    "title": "The crush",
    "steps": [
-    "IV tends to climb into an earnings report, then often falls hard once the news is out.",
-    "That drop takes value out of calls and puts at the same time.",
-    "If the crush takes more than the move gives, your call loses money on a gap up."
+    "IV tends to climb into an earnings report. Once the news is out, it often falls hard.",
+    "That drop takes value out of calls and puts at the same time. Traders call it the IV crush.",
+    "So your call can lose money on a gap up. The move has to give you more than the crush takes."
    ],
    "facts": [
     "f44",

@@ -1012,12 +1012,12 @@
  "walkthroughs": [
   {
    "key": "w1",
-   "title": "YELP, June 2013: the fast leader on its 10-day",
+   "title": "YELP, June 2013: the fast leader's quiet dip",
    "steps": [
-    "YELP, June 2013. A leader that had ridden its 9 EMA since February drifts four quiet days onto the line.",
-    "The pattern checks out: a 1.42 ATR dip, 5.7% off the high, and a touch day on only 0.60x volume.",
-    "2013-06-26: it trades over the hold day's high. Buy at market, 31.80. Stop a few cents under the low, 30.67.",
-    "Stop 3.6% wide, past our preferred range: size comes down. Failure mode: the line gives way. Instead 3R came the next day."
+    "YELP, June 2013. A fast leader riding its rising short-term averages since February, then four quiet days back onto them.",
+    "Just 5.7% off the high, and volume dries up: the touch day trades on 0.60x volume.",
+    "June 26 it trades over the hold day's high. Buy at market, 31.80. Stop a few cents under the low, 30.67.",
+    "A 3.6% stop is wider than we like, so fewer shares. If they give way, you're out. Instead, 3R next day."
    ],
    "facts": [
     "dYELP",
@@ -1036,10 +1036,10 @@
    "key": "w2",
    "title": "CAT, September 2025: the 50-day on a mega cap",
    "steps": [
-    "CAT, 2025. A mega cap's first test of the rising 50 SMA after a run: six days down on quiet volume.",
-    "The pattern checks out: 2.36 ATR deep, 5.7% off the high, and the touch day on 0.79x volume.",
-    "2025-09-03: it trades over the hold day's high. Buy at market, 418.13. Stop a few cents under the low, 410.47.",
-    "The stop is 1.8% wide, inside our preferred 1-3%. Failure mode: the line gives way. Instead a two-week grind reached 3R."
+    "Mega caps do it too, just slower. CAT, September 2025: after a 4-month run, its first pullback to the rising 50-day.",
+    "Six days down on quiet volume, 5.7% off the high. A tight hold right on the line.",
+    "September 3 it trades over the hold day's high. Buy at market, 418.13. Stop a few cents under the low, 410.47.",
+    "A 1.8% stop, right where we like it. If the line gives way, you're out. Instead, a two-week grind to 3R."
    ],
    "facts": [
     "dCAT",
@@ -1054,12 +1054,12 @@
   },
   {
    "key": "w3",
-   "title": "MOH, June 2018: six quiet days on the 10-day",
+   "title": "MOH, June 2018: six quiet days on the line",
    "steps": [
-    "MOH, 2018. Six days sideways on the lowest volume on the chart, with the 9 EMA rising underneath.",
-    "The shallowest dip of our ten examples: 1.01 ATR, 7.8% off the high. The rule is 1 ATR, so it just passes.",
-    "2018-06-08: it trades over the hold day's high. Buy at market, 86.93. Stop a few cents under the low, 85.82.",
-    "The stop is 1.3% wide. Failure mode: the line gives way. Instead 3R came in one session."
+    "Watch the volume on this one. MOH, June 2018: six days sideways, 7.8% off the high, its rising short-term averages underneath.",
+    "Volume dries up to 0.4x, the lowest on the whole chart. Quiet like that raises the grade.",
+    "June 8 it trades over the hold day's high. Buy at market, 86.93. Stop a few cents under the low, 85.82.",
+    "Only a 1.3% stop. If the line gives way, you're out small. It paid 3R in one session."
    ],
    "facts": [
     "dMOH",

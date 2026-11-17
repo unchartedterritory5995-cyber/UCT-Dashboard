@@ -554,9 +554,9 @@
    "key": "w1",
    "title": "Calls up, puts down",
    "steps": [
-    "A call is for when you expect the stock to rise soon. A put is for when you expect a sharp drop.",
-    "Either way, the premium you pay is the most you can lose.",
-    "At expiry, a call breaks even at the strike plus the premium. A put breaks even at the strike minus it."
+    "Buy a call when you expect the stock up, soon. Buy a put when you expect a sharp drop, soon.",
+    "Either way, what you pay is the most you can lose. The premium is your stop.",
+    "At expiry, a call breaks even at strike plus premium. A put breaks even at strike minus premium."
    ],
    "facts": [
     "f1",
@@ -570,10 +570,10 @@
    "key": "w2",
    "title": "A winner that turned into a loser",
    "steps": [
-    "The stock is at $68. You buy the 70 call for $2.20, which is $220 for the contract.",
-    "Two weeks later the stock is $80 and the call is $10.20. Selling now would make $800.",
-    "You hold for more. At expiry the stock is $65, below the strike, and the call expires worthless.",
-    "The whole $220 is gone. Set a target or a review date before you buy."
+    "The stock's at $68. You buy the 70 call for $2.20, so $220 for the contract.",
+    "Two weeks later it's $80 and the call's $10.20. Sell right there and you're up $800.",
+    "You hold for more. On expiry day the stock's $65, under the strike. The call expires worthless.",
+    "The whole $220, gone, on a trade that was up $800. Set a target or a review date before you buy."
    ],
    "facts": [
     "f38",
@@ -589,9 +589,9 @@
    "key": "w3",
    "title": "When a call beats the shares",
    "steps": [
-    "One call controls 100 shares for much less money, and you know your worst case before you buy.",
-    "A gap can blow straight through a stop on shares. A long option can't lose more than its premium.",
-    "The catch: a deadline, a break-even past the strike, and time value that tends to melt day by day.",
+    "One call controls 100 shares for a lot less money. And you know your worst case before you buy.",
+    "Shares can gap straight through your stop. A call you own can't lose more than its premium.",
+    "The catch: a deadline, a break-even past the strike, and time value melting day by day.",
     "Shares can wait out a slow move. A call can't."
    ],
    "facts": [

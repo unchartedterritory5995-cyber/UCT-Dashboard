@@ -664,16 +664,18 @@
    "key": "w3",
    "title": "Scaling out, and what it costs",
    "steps": [
-    "Scaling out means selling part of a winner and letting the rest ride.",
-    "Our way: the first sell is a judgment, usually day 3 or later. Stop to breakeven; the rest trails a rising average.",
-    "It isn't free. In Bulkowski's tests, scaling out made less when the stock ran all the way.",
-    "It pays when the stock comes back before your target. You're trading some upside for a gain in hand."
+    "You're up nicely on a winner. Scaling out means you sell part of it and let the rest ride.",
+    "First sell's a judgment call, rarely before day 3, into a push. Stop can go to breakeven. The rest trails.",
+    "It isn't free. On a stock that runs straight to its target, selling half halfway made less than holding it all.",
+    "It pays when the stock comes back on you. You gave up some upside for a gain you get to keep."
    ],
    "facts": [
     "f21",
     "f18",
     "h01",
-    "h02",
+    "r01",
+    "r02",
+    "r03",
     "h03",
     "h04",
     "h05",
@@ -687,14 +689,15 @@
    "title": "One price, one stop",
    "steps": [
     "We buy the full size at one price, with one stop. No starter piece, no adding as it works.",
-    "The size is set before the buy, from the stop, and goes in as one market order.",
-    "What we scale is the exit: a first sell by judgment, usually day 3 or later, then a trail."
+    "The stop sets the size before the buy. Then it all goes in as one market order.",
+    "The only thing we scale is the exit. Sell some into strength, rarely before day 3, and trail the rest."
    ],
    "facts": [
     "h11",
     "h12",
     "h10",
-    "h02",
+    "r01",
+    "r02",
     "h04"
    ]
   }

@@ -868,9 +868,9 @@
    "key": "w1",
    "title": "Trading is a performance",
    "steps": [
-    "Singers, musicians and athletes all warm up before they perform. Coach Brett Steenbarger wants you to do the same.",
-    "Treat trading as a profession. Elite performers spend more time preparing than performing.",
-    "So your trading day has three parts: warm up, trade, cool down."
+    "Singers, musicians, athletes. Nobody serious walks out cold. They warm up first, and so should you.",
+    "Treat trading like a profession. The best performers spend more time preparing than performing.",
+    "So your day has three parts. Warm up, trade, cool down."
    ],
    "facts": [
     "fa1",
@@ -883,32 +883,36 @@
    "key": "w2",
    "title": "Before the open",
    "steps": [
-    "Start with the game plan: today's names, the levels, and an entry and stop for each.",
-    "Then check the trader. How you slept, what's on your mind, which mistake is most likely today.",
-    "Write an if-then rule for that mistake, like stepping away after a set loss. Commit to it before the bell."
+    "Start with the game plan. Today's names, the levels, and an entry, stop and size for each one.",
+    "Then check the trader. How you slept, what's on your mind, which mistake is most likely to bite today.",
+    "Write an if-then for that mistake, like a 15-minute break when the urge hits. Commit to it before the bell.",
+    "Tired, sick, angry or distracted, and it's a no-new-trades day. That's part of the plan too."
    ],
    "facts": [
     "ta5",
     "fe2",
+    "hd39",
     "fg1",
     "ta6",
     "wa1",
     "wa2",
-    "tb4"
+    "tb4",
+    "hf67"
    ]
   },
   {
    "key": "w3",
    "title": "During and after",
    "steps": [
-    "During the session, trade the plan. Take short breaks before you're drained, not after.",
-    "After the close, write it up while it's fresh: what went well, what went wrong, what to do better.",
-    "Then pick one thing to work on tomorrow. One thing, and specific. Small daily steps add up."
+    "During the session, trade the plan. Take a short break before you're drained, not after.",
+    "After the close, write it up while it's fresh. What went well, what went wrong, what you'd do better.",
+    "Then pick one thing to work on tomorrow. One thing, and specific. Small steps every day add up."
    ],
    "facts": [
     "ta7",
     "tb1",
     "ta10",
+    "hb27",
     "fc1",
     "ta2",
     "ff1",

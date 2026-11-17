@@ -685,10 +685,10 @@
    "key": "w1",
    "title": "Margin is a loan",
    "steps": [
-    "A margin account lets you borrow from your broker. Under Regulation T, it can lend up to half of a new buy.",
-    "After that, FINRA's floor applies: your equity must not fall below 25% of the stock's value. Your broker can set it higher.",
-    "Drop under it and expect a margin call. The broker can sell your stock without telling you first.",
-    "Borrowed money grows your losses too. You can lose more than you put in."
+    "Margin is your broker lending you money to buy. Under Regulation T, it can lend up to half of a new buy.",
+    "Then there's a floor. Your equity can't drop under 25% of what the stocks are worth. Your broker's line can be higher.",
+    "Break it and you get a margin call. They can sell your stock without even telling you first.",
+    "And the loan cuts both ways. It grows your losses too, and you can lose more than you put in."
    ],
    "facts": [
     "f75",
@@ -704,9 +704,9 @@
    "key": "w2",
    "title": "The day trading rule changed",
    "steps": [
-    "Old rule: four or more day trades in five business days made you a pattern day trader. Then you needed $25,000.",
-    "FINRA replaced it, effective June 4, 2026. No trade count, no $25,000. Your equity must cover your positions all day.",
-    "Brokers have until October 20, 2027 to switch. Until then, ask yours which rules your account runs on."
+    "Old rule: four or more day trades in five business days, and you're a pattern day trader. That meant $25,000 minimum.",
+    "FINRA scrapped it June 4, 2026. No trade count, no $25,000. Now your equity has to cover your positions all day.",
+    "Brokers have until October 20, 2027 to switch over. So ask yours which rules your account runs on today."
    ],
    "facts": [
     "f45",
@@ -722,9 +722,9 @@
    "key": "w3",
    "title": "Settled cash in a cash account",
    "steps": [
-    "Most trades settle T+1, the next business day. Sell on Tuesday and the cash settles on Wednesday.",
-    "Buy with cash that hasn't settled, then sell before it does, and that's a good faith violation.",
-    "Buy and sell before you pay at all, and that's freeriding. Your broker can freeze the account for 90 days."
+    "Most trades settle T+1, the next business day. Sell Tuesday, and that cash is yours Wednesday.",
+    "Buy with cash that hasn't settled, then sell before it does. That's a good faith violation.",
+    "Buy and sell before you've paid at all, and that's freeriding. Your broker can freeze the account for 90 days."
    ],
    "facts": [
     "f39",

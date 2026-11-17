@@ -1094,10 +1094,10 @@
    "key": "w1",
    "title": "LRCX, September 2026: the dip, then the drive",
    "steps": [
-    "LRCX, 2026-09-18, on 5-minute bars. A leader: RS 82, above its 200-day. It gaps up 1.5%.",
-    "First 5-minute bar: 272.80 to 277.23 on 5.7x volume. It dips first, then closes up. The day's low is in it.",
-    "9:35: it trades through 277.23. Buy at market, 277.24. Stop a few cents under the day's low, 272.75: 1.6% away.",
-    "Failure mode: back to the open, VWAP lost. Instead it runs. 3R comes at the next open, 5R by 11:40 that day."
+    "LRCX, September 18, 2026, on 5-minute bars. A leader with RS 82, over its 200-day, gapping up 1.5%.",
+    "First 5-minute bar: 272.80 to 277.23 on 5.7 times volume. It dips, then closes up. The day's low is in it.",
+    "9:35, it trades through 277.23. That's the trigger. We buy at market, 277.24, stop just under the low, 272.75. That's 1.6%.",
+    "Wrong if it slips to the open and loses VWAP. It closed near the high instead. 3R next morning, 5R by 11:40."
    ],
    "facts": [
     "d01",
@@ -1113,12 +1113,12 @@
   },
   {
    "key": "w2",
-   "title": "SANM, September 2026: a tight bar, then a gap",
+   "title": "SANM, September 2026: a tight bar, then a gap down",
    "steps": [
-    "SANM, 2026-09-11, 5-minute bars. A leader: RS 81, 10% over its 200-day. It gaps up 1.2%.",
-    "The first 5-minute bar runs 205.71 to 207.99 on 2.3x volume: a dip, then recovery. At 9:35 it trades through.",
-    "Buy at market, 208.00. Stop a few cents under the day's low, 205.66: 1.1% away. 3R, 215.02, comes at 10:35.",
-    "We rarely sell this early; stop to breakeven. On 09-14 it gaps down through it. First 30-minute low decides; out past 2R."
+    "Different morning, same play. SANM, September 11, 2026: RS 81, 10% over its 200-day, gapping up 1.2%.",
+    "The first 5-minute bar runs 205.71 to 207.99, a dip then a recovery. At 9:35 it trades through. Buy at market, 208.00.",
+    "Stop just under the low, 205.66, only 1.1% away. By 10:35 it hits 3R, 215.02. Too early to sell. Stop to breakeven.",
+    "September 14 it gaps down through the stop. Now the first 30-minute low is the stop. Past 2R of loss, you're out."
    ],
    "facts": [
     "d04",
@@ -1134,12 +1134,12 @@
   },
   {
    "key": "w3",
-   "title": "CNC, November 2026: the heaviest bar, and the first sell",
+   "title": "CNC, November 2026: the heaviest bar, then a round trip",
    "steps": [
-    "CNC, 2026-11-04, 5-minute bars. A leader: RS 90, 22% over its 200-day. It gaps up 4.7% over the prior high.",
-    "The first 5-minute bar runs 70.21 to 71.99 on 5.3x volume, the heaviest in our set. Trigger: a trade through 71.99.",
-    "Buy at market, 72.00. Stop a few cents under the day's low, 70.16: 2.6% away. The drive runs all day.",
-    "Next day at 9:35 it prints 3R, 77.52. Early to sell; the stop goes to breakeven. Two days later it fades."
+    "CNC on November 4, 2026. RS 90, 22% over its 200-day, and it gaps up 4.7% over the prior high.",
+    "First 5-minute bar: 70.21 to 71.99 on 5.3 times volume, the heaviest in our set. A trade through 71.99 is the trigger.",
+    "We buy at market, 72.00, stop just under the low, 70.16. That's 2.6%. The drive runs all day.",
+    "Next morning at 9:35 it tags 3R, 77.52, and tops. Stop to breakeven. Two days later it fades back and takes it."
    ],
    "facts": [
     "d07",

@@ -831,10 +831,10 @@
    "key": "w1",
    "title": "QCOM, September 2020: the same-day trap",
    "steps": [
-    "QCOM, 2020. A two-week flat shelf on the 50-day. The level to watch is 109.62, set on 09-08.",
-    "2020-09-21: the low hits 108.30, 1.20% under the level, and price is back over 109.62 the same day.",
-    "Buy at market as it clears the level, 109.63. Stop a few cents under the undercut low, 108.25: 1.26% away.",
-    "Failure mode: a close back under the level, then the low breaks. Instead 3R came in 1 day; it ran to 37.3R."
+    "Two weeks of flat shelf on the 50-day. That's QCOM in September 2020, and the level is 109.62.",
+    "September 21 the low hits 108.30, 1.20% under. Same day it's back over 109.62. That's the trap.",
+    "Never buy the undercut. Buy at market as it clears the level, 109.63. Stop 108.25, under the undercut low.",
+    "A close back under 109.62 is the warning. Instead it hit 3R in a day and ran to 37.3R."
    ],
    "facts": [
     "d01",
@@ -852,10 +852,10 @@
    "key": "w2",
    "title": "WYNN, November 2013: two closes under, then a gap back",
    "steps": [
-    "WYNN, 2013. The level is 159.37, set on 11-07. The stock closes under it two days running.",
-    "2013-11-21: it gaps back over 159.37. The undercut low was 157.48, 1.19% under. The reclaim came inside the window.",
-    "Buy at market at the open, 159.97, 0.4% over the level. Stop under the undercut low: 157.43, 1.59% away.",
-    "Failure mode: the reclaim fails and 157.43 breaks. Instead 3R took 8 days. Slow, and it ran to 26.0R."
+    "WYNN, November 2013. The level is 159.37, from November 7. It closes under it two days running.",
+    "Two closes under looks like a breakdown. But it doesn't stay down: November 21 it gaps right back over.",
+    "Buy at market on the open, 159.97, only 0.4% over the level. Stop 157.43, under the undercut low, 1.59% away.",
+    "A trade under 157.43 is the exit. It held, but slow: 3R took 8 days. Then it ran to 26.0R."
    ],
    "facts": [
     "d03",
@@ -871,10 +871,10 @@
    "key": "w3",
    "title": "NVDA, April 2024: a planned loss",
    "steps": [
-    "NVDA, 2024. The level is 87.62, set on 04-02. One close under it, a 1.99% undercut. It reclaims the next day.",
-    "2024-04-05: buy at market as it clears the level, 87.63. Stop a few cents under the undercut low: 85.83, 2.05% away.",
-    "Failure mode, and it happened: 0.67R, then a low of 83.02 on 04-09. The stop was the exit.",
-    "A planned loss. In our scan, 50.2% of hits reach 3R before the stop. A new try needs a new trigger."
+    "This one didn't work, and that's fine. NVDA's level is 87.62, from April 2, 2024. One close under, a 1.99% undercut.",
+    "It reclaims April 5. Buy at market as it clears the level, 87.63. Stop 85.83, under the undercut low, 2.05% away.",
+    "It gets to 0.67R, then rolls over. April 9 it trades down to 83.02, through the stop. You're out.",
+    "That loss was planned. Across our research, 50.2% reached 3R before the stop. Back in only on a new trigger."
    ],
    "facts": [
     "d15",

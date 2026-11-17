@@ -744,10 +744,10 @@
    "key": "w1",
    "title": "META, December 2023: the first-candle turn (hourly bars)",
    "steps": [
-    "META, 2023, hourly bars. A leader rests on its 20-day EMA, 328.52. The prior close is 333.17.",
-    "2023-12-15: the open dips under the prior close and the first hourly candle closes green back above it.",
-    "Study entry 336.42, that candle's close; live we buy through the prior close. Stop under the session low: 331.63, 1.42% away.",
-    "Failure mode: the reclaim gives it back within hours and the stop takes it. Instead 3R came in 2 days; 39.1R."
+    "META, December 2023. A leader resting on its 20-day EMA, 328.52. Yesterday's close, 333.17, is the line.",
+    "December 15 it opens under that close, a small gap down. The first hourly candle closes green, back above it.",
+    "You buy as it trades back through 333.17, not at the candle's close. Stop 331.63, just under the session low.",
+    "Give it back within hours and the stop takes you out. Instead 3R came in 2 days. It ran to 39.1R."
    ],
    "facts": [
     "d01",
@@ -756,19 +756,21 @@
     "g02",
     "g04",
     "g08",
+    "g40",
     "h24",
     "h05",
-    "r21"
+    "r21",
+    "r09"
    ]
   },
   {
    "key": "w2",
    "title": "VIAV, February 2026: the second-candle turn (hourly bars)",
    "steps": [
-    "VIAV, 2026, hourly bars. A leader pulls back to its 9 EMA. The prior close is 26.33.",
-    "2026-02-19: candle one is red and stays under the prior close. Candle two closes green back above it.",
-    "Study entry 26.43, that close; live we buy through the prior close. Stop under the session low: 25.66, 2.91% away.",
-    "Failure mode: no follow-through and the stop takes it. Instead 3R came in 3 days, and it ran to 44.2R."
+    "A leader pulling back to its short-term averages: VIAV, February 2026. Yesterday's close, 26.33, is the line.",
+    "February 19, candle one opens lower and stays under 26.33. Candle two closes green back above it. That still counts.",
+    "Buy as it gets back through 26.33. Stop 25.66, a few cents under the session low. Still inside 3%.",
+    "No follow-through and the stop takes it. Instead 3R came in 3 days, and it ran to 44.2R."
    ],
    "facts": [
     "d03",
@@ -778,17 +780,18 @@
     "g08",
     "h24",
     "h04",
-    "h21"
+    "h21",
+    "r09"
    ]
   },
   {
    "key": "w3",
    "title": "TSLA, May 2025: a planned loss (hourly bars)",
    "steps": [
-    "TSLA, 2025, hourly bars. A 26% run, then a dip under the prior close, 358.43, to a low of 353.82.",
-    "2025-05-30: the first candle closes green at 361.86, back over the prior close. Stop a few cents under the low: 353.79.",
-    "Failure mode, and it happened: the third candle broke back under the prior close, and the fourth fell through the stop.",
-    "The turn was real but given back within hours. The stop is the exit. A planned loss."
+    "Not every turn holds. TSLA ran 26% in five days, then on May 30, 2025 dipped under the 358.43 close, to 353.82.",
+    "Buy the move back through 358.43, stop 353.79 under the low. The first hourly candle closes green.",
+    "The third candle slips back under the prior close. The fourth falls through the stop, and you're out.",
+    "The turn was real, but it was gone by the 12:30 candle. The stop is the exit. A planned loss."
    ],
    "facts": [
     "d08",
@@ -796,8 +799,8 @@
     "d10",
     "g08",
     "g22",
-    "g23",
-    "h24"
+    "h24",
+    "r09"
    ]
   }
  ],

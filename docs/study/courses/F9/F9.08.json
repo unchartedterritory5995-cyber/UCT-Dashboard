@@ -316,10 +316,10 @@
    "key": "w1",
    "title": "Size from the stop, then cap it",
    "steps": [
-    "Stop first. Then shares = account × risk % ÷ (entry − stop), rounded down.",
-    "Then the cap. The size is the SMALLER of that and 40% of the account.",
-    "A tight stop never earns more than the cap. A gap can jump any stop.",
-    "Buy the full size at one price with one stop. No scaling in, no adding."
+    "Stop first. Then divide your dollars at risk by the risk per share. $500 over $20 a share is 25 shares.",
+    "Round down, then check the cap. You take the smaller of that number and 40% of the account.",
+    "Even a tight stop doesn't earn more than 40% of the account. A gap can jump any stop.",
+    "And you buy it all at one price, with one stop. No scaling in, no adding later."
    ],
    "facts": [
     "h21",
@@ -335,10 +335,10 @@
    "key": "w2",
    "title": "The grade sets the risk",
    "steps": [
-    "Grade the setup first: A+, A, B, B- or lower. That's a judgment call. We teach no checklist for it.",
-    "A+ risks 1% to 1.5% of the account. A and B, 0.5% to 1%. B- or lower, 0.25% to 0.5%.",
-    "2% is the absolute ceiling. New traders start at 0.25% a trade until 50 journaled trades followed the rules.",
-    "Risking the same percent every trade is fine too. Pick one way and write it in your plan."
+    "First you grade the setup: A+, A, B, or B- and lower. That's judgment. There's no checklist for it.",
+    "An A+ risks 1% to 1.5% of the account. A and B, 0.5% to 1%. B- or lower, 0.25% to 0.5%.",
+    "2% is the absolute ceiling, and no grade gets there. New traders stay at 0.25% until 50 journaled trades follow the rules.",
+    "Risking the same percent on every trade is fine too. Pick one way and write it in your plan."
    ],
    "facts": [
     "h09",
@@ -354,10 +354,10 @@
    "key": "w3",
    "title": "What we trade, and how much of it",
    "steps": [
-    "Stocks at $10 or more, trading at least $20 million a day. Never more than 1% of a stock's average daily volume.",
-    "The book: 100% of the account, or 200% on margin in a Green market. At 200%, ten positions average about 20% each.",
-    "2x and 3x ETFs are preferred, no extra rules. The same stock gets 3 tries a week, 6 a month.",
-    "Recalculate the account weekly or monthly and size every trade from it."
+    "Stocks at $10 or more, doing $20 million a day. Never own more than 1% of its average daily volume.",
+    "The whole book runs to 100% of the account. On margin in a Green market, 200%, so ten names average about 20%.",
+    "We prefer 2x and 3x ETFs, no extra rules. One stock gets 3 tries a week, 6 a month.",
+    "Recount the account weekly or monthly, and size every trade off that number."
    ],
    "facts": [
     "h11",

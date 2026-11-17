@@ -471,9 +471,9 @@
    "key": "w1",
    "title": "What the 1% means",
    "steps": [
-    "Risk per trade is what you plan to lose if your stop is hit, as a percent of the whole account.",
-    "Van Tharp's example: a $100,000 account risking 1% has $1,000 on the line.",
-    "That's your planned loss if you're wrong. The money you put into the stock is a different number."
+    "Risk per trade is what you lose if the stop gets hit, as a percent of the whole account.",
+    "Say you've got $100,000 and you risk 1%. That's $1,000 on the line.",
+    "That's your planned loss if you're wrong. It's not the money you put in the stock. That's a different number."
    ],
    "facts": [
     "f05",
@@ -486,12 +486,13 @@
    "key": "w2",
    "title": "Our range",
    "steps": [
-    "We risk 0.25% to 2% of the account on a trade. 2% is the hard ceiling.",
-    "Where you land depends on the setup, your recent results, the market and your edge.",
-    "Risking the same percent on every trade is a valid plan too. Pick one way and write it in your plan."
+    "We risk 0.25% to 2% of the account on a trade. Under 1% is normal. 2% is the ceiling.",
+    "Where you land depends on the setup, how you've been trading lately, the market and your edge.",
+    "Or risk the same percent on every trade. That works too. Pick one way and write it in your plan."
    ],
    "facts": [
     "h1",
+    "h3",
     "h2",
     "f20"
    ]
@@ -500,9 +501,9 @@
    "key": "w3",
    "title": "Why so small",
    "steps": [
-    "Losses are part of trading, and losing streaks happen to good traders too.",
-    "Under the 2% rule, a $100,000 account risks $2,000 a trade. Ten losses in a row cost 20%. You're still trading.",
-    "The trader Monroe Trout, quoted by CME Group, says he keeps his risk conservative. He wants to be around to play tomorrow."
+    "Losses are part of this. Losing streaks hit good traders too.",
+    "Risk 2% on $100,000 and that's $2,000 a trade. Ten losses in a row cost you 20%. You're still trading.",
+    "Small risk doesn't stop the losses. It caps what each one costs, so you're around for the ones that work."
    ],
    "facts": [
     "f06",

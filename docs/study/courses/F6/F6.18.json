@@ -704,9 +704,9 @@
    "key": "w1",
    "title": "Volume, open interest, and what's new",
    "steps": [
-    "Volume counts the contracts that traded today. Open interest counts the contracts still open.",
-    "A trade adds to open interest only when both sides open. One side opening and the other closing just changes hands.",
-    "The Options Clearing Corporation (OCC) counts open interest after the close. Today's flow shows up in it the next session."
+    "Two columns on the chain. Volume is what traded today. Open interest is how many contracts are still open.",
+    "Open interest only goes up when both sides open. One opens, one closes, and the contract just changes hands.",
+    "OCC posts open interest after the close. So today's flow shows up in the next session's number."
    ],
    "facts": [
     "f16",
@@ -720,9 +720,10 @@
    "key": "w2",
    "title": "Every print has two sides",
    "steps": [
-    "Every option trade has a buyer and a seller. Public data shows size, strike and expiry, not who traded.",
-    "A big put buy can be a bullish holder buying protection. A big call sale can be a covered call for income.",
-    "Many traders call activity unusual at about five times a contract's normal volume. Unusual means look closer, not buy."
+    "Every option trade has a buyer and a seller. The tape shows size, strike and expiry. Not who did it.",
+    "That big put buy might be a bull protecting shares. That big call sale might be a covered call for income.",
+    "Plenty of traders call it unusual at about five times a contract's normal volume.",
+    "Unusual means take a closer look. It's not a buy signal. The chart still makes the call."
    ],
    "facts": [
     "f55",
@@ -739,9 +740,10 @@
    "key": "w3",
    "title": "The dealer gamma theory",
    "steps": [
-    "Market makers, often called dealers, take the other side of public orders and hedge with stock to stay delta-neutral.",
-    "The theory: when they're long gamma, their hedging leans against moves. Short gamma, it chases them.",
-    "Studies find expiration-day closes cluster at strikes. But outsiders only estimate dealer positions, and the estimates have disagreed wildly."
+    "Market makers, the dealers, take the other side of public orders. Then they hedge with stock to stay neutral.",
+    "The theory: long gamma, their hedging sells rallies and buys dips. Short gamma, they chase the move.",
+    "There's real evidence behind it. On expiry day, closing prices cluster at the strikes.",
+    "But nobody outside sees dealer positions. Estimates for SPX alone have run from record short to long $50 billion of gamma."
    ],
    "facts": [
     "f30",

@@ -546,10 +546,10 @@
    "key": "w1",
    "title": "The right, not the obligation",
    "steps": [
-    "An option gives its buyer a right, not an obligation.",
-    "It's the right to buy or sell a stock at a fixed price, the strike, until expiry.",
-    "A call is the right to buy. A put is the right to sell.",
-    "The buyer never has to use it. You can exercise it, sell the option to another buyer, or let it expire."
+    "Buy an option and you own a right, not an obligation. Nothing forces you to use it.",
+    "The right to buy or sell a stock at a fixed price, the strike, until the option expires.",
+    "A call is the right to buy. A put is the right to sell. That's the whole difference.",
+    "As the buyer you've got three outs. Exercise it, sell it to another buyer, or let it expire."
    ],
    "facts": [
     "f1",
@@ -562,10 +562,10 @@
    "key": "w2",
    "title": "The seller takes the obligation",
    "steps": [
-    "Every option has a seller, called the writer. The buyer is called the holder.",
-    "The writer collects the premium and takes on the obligation.",
-    "Assigned on a call, the writer must sell the shares at the strike. Assigned on a put, the writer must buy them.",
-    "The writer doesn't pick the day. On a stock option, assignment can come any time before expiry."
+    "Somebody sold you that option. They're the writer. You, the buyer, are the holder.",
+    "The writer collects your premium and takes on the obligation. That's the seller's side, not ours.",
+    "Assigned on a call, the writer must sell the shares at the strike. Assigned on a put, they must buy them.",
+    "And they don't pick the day. On a stock option, assignment can come any time before expiry."
    ],
    "facts": [
     "f18",
@@ -580,9 +580,9 @@
    "key": "w3",
    "title": "One contract, 100 shares",
    "steps": [
-    "A standard stock option contract covers 100 shares.",
-    "So the ZQRT 40 call is the right to buy 100 shares at $40 each, $4,000 in all.",
-    "Standard monthly options expire on the third Friday. After that, the contract no longer exists."
+    "One standard stock option contract covers 100 shares. Do that math before anything else.",
+    "So a ZQRT 40 call is the right to buy 100 shares at $40 each. That's $4,000 of stock.",
+    "Standard monthly options expire on the third Friday. After that, the contract's just gone."
    ],
    "facts": [
     "f48",

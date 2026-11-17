@@ -883,10 +883,10 @@
    "key": "w1",
    "title": "EQT, August 2011: a leader flush in a fear spike",
    "steps": [
-    "EQT, August 2011. A leader up 32% falls five straight days, 25.2% in all, in a market sell-off.",
-    "Flush day: a 2.2 ATR drop on 2.0x volume, closing on the rising 200-day. A level to lean on. We wait.",
-    "2011-08-09: it climbs back over the flush close. Buy at market, 26.76. Stop a few cents under the low, 26.00.",
-    "Failure mode: a second flush under the low. Instead it closes near its high; 3R prints next day. Too early to sell."
+    "EQT, August 2011. A leader up 32% gets hit in a market sell-off: five straight down days, 25.2% gone.",
+    "The flush day drops on 2.0x volume and closes right on the rising 200-day. That's a level to lean on. We wait.",
+    "August 9 it climbs back over the flush close. Buy at market, 26.76. Stop a few cents under the low, 26.00.",
+    "Another flush under the low and you're out. Instead it closes near the high; 3R next day. Too soon to sell."
    ],
    "facts": [
     "dEQT",
@@ -902,10 +902,10 @@
    "key": "w2",
    "title": "KRYS, August 2023: an earnings flush with a level",
    "steps": [
-    "KRYS, August 2023. A leader up 59% slides four days, 17.9%. The report on 2023-08-07 is the flush day.",
-    "It is 12.6% under a rising 50-day, still 20% above its 200-day. A 3.3 ATR drop on 4.0x volume. We wait.",
-    "2023-08-08: it opens above the flush close. Buy at market, 109.13. Stop a few cents under the lows, 106.88.",
-    "Failure mode: a weak close. Instead it closes at 3R and 5R prints two sessions later. We sell by judgment, not rule."
+    "Sometimes the flush is the earnings report. KRYS, August 2023: a leader up 59% slides four days, 17.9%.",
+    "It's 12.6% under a rising 50-day but still 20% above its 200-day. An overreaction, on 4.0x volume. We wait.",
+    "Next morning it opens above the flush close. Buy at market, 109.13. Stop a few cents under the lows, 106.88.",
+    "That day it closes at 3R, and 5R prints two sessions later. Sell some into that push, trail the rest."
    ],
    "facts": [
     "dKR",
@@ -922,10 +922,10 @@
    "key": "w3",
    "title": "ACMR, September 2020: the post-blow-off snapback",
    "steps": [
-    "ACMR, September 2020. A stock up 79% runs parabolic, then breaks. Three down days, 38.6% lost, 39% under its 10-session high.",
-    "The flush: 3.5 ATR on 3.5x volume, the heaviest of the chart. RSI(2) at 0. Five stretch marks. We wait.",
-    "2020-09-09: it turns. Buy at market, 20.00. Stop a few cents under the lows, 19.29: 3.5% wide, so the size shrinks.",
-    "Failure mode: a stall. Instead it bounces to the 20-day, 8.1R at best, then drifts sideways."
+    "Even a broken parabolic can snap back. ACMR, September 2020: up 79%, then 38.6% gone in three down days.",
+    "The flush comes on 3.5x volume, the heaviest on the chart. RSI(2) hits 0. Stretched as far as it gets. We wait.",
+    "September 9 it turns. Buy at market, 20.00. Stop a few cents under the lows, 19.29: 3.5%, so fewer shares.",
+    "It bounces back to its short-term average, 8.1R at best, then goes sideways. A snapback, not a new trend."
    ],
    "facts": [
     "dAC",

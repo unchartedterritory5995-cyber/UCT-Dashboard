@@ -804,10 +804,10 @@
    "key": "w1",
    "title": "Two credit spreads, one range",
    "steps": [
-    "An iron condor is two credit spreads on one stock: a put spread below the price and a call spread above it.",
-    "The Options Industry Council's example: short 65 call, long 70 call, short 55 put, long 50 put. All four expire together.",
-    "The long options sit further out. They're the wings, and they cap the loss on each side.",
-    "Move both short strikes to one price and the same trade becomes an iron butterfly."
+    "An iron condor is two credit spreads on one stock: a put spread under the price, a call spread over it.",
+    "Picture it: sell the 65 call, buy the 70. Sell the 55 put, buy the 50. All four expire together.",
+    "The two you buy sit further out. Those are the wings, and they cap the loss on each side.",
+    "Slide both short strikes to one price and it's an iron butterfly. Either way, that's the seller's side, not our trade."
    ],
    "facts": [
     "f02",
@@ -822,10 +822,10 @@
    "key": "w2",
    "title": "What it can make and lose",
    "steps": [
-    "Fidelity's example: buy the 95 put, sell the 100 put, sell the 105 call, buy the 110 call. You take in 2.80.",
-    "The most it makes is that 2.80, kept if the stock finishes between 100 and 105.",
-    "The most it loses is one side's width, 5.00, minus the credit. That's 2.20 a share.",
-    "Only one side can lose at expiry. The stock can't be below 100 and above 105 at the same time."
+    "Put numbers on it: buy the 95 put, sell the 100, sell the 105 call, buy the 110. You collect 2.80.",
+    "Best case, the stock finishes anywhere from 100 to 105 and you keep the whole 2.80.",
+    "Worst case is one side's width, 5.00, minus the 2.80 you took in. That's 2.20 a share.",
+    "Only one side can lose at expiry. The stock can't finish under 100 and over 105 at once."
    ],
    "facts": [
     "f82",
@@ -839,10 +839,10 @@
    "key": "w3",
    "title": "The butterfly",
    "steps": [
-    "A long call butterfly is one, two, one: buy a low call, sell two middle calls, buy a high call.",
-    "Fidelity's example: buy the 95, sell two 100s, buy the 105, for 1.25.",
-    "Pinned right at 100 at expiry, it makes 3.75. Outside the wings, you lose the 1.25.",
-    "That perfect pin is possible but rare. The Options Industry Council calls it statistically unlikely."
+    "A long call butterfly is one, two, one. Buy a low call, sell two in the middle, buy a high call.",
+    "Say you buy the 95, sell two 100s and buy the 105. It costs you 1.25.",
+    "Pinned right at 100 at expiry, it makes 3.75. Finish outside the wings and you lose the 1.25.",
+    "Don't count on that pin. It can happen, but closing exactly on the middle strike is a long shot."
    ],
    "facts": [
     "f30",

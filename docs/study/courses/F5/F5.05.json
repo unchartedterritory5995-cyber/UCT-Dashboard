@@ -564,10 +564,10 @@
    "key": "w1",
    "title": "What the options are pricing",
    "steps": [
-    "Right before a report, short-dated options price the size of the reaction. That's the implied move, also called the expected move.",
-    "It's a size, not a direction. Options generally price how far, not which way.",
-    "The quick read: the at-the-money straddle in the nearest expiry that covers the report. Call plus put, divided by the stock price.",
-    "Cboe's example: a $200 stock with options implying a move of about 8% either way."
+    "Right before a report, short-dated options price how big the reaction might be. That's the implied move, or expected move.",
+    "It's a size, not a direction. Options price how far, not which way.",
+    "Quick read: the at-the-money straddle in the nearest expiry past the report. Call plus put, divided by the stock price.",
+    "Say a $200 stock's options imply about 8% either way. That's the swing priced in, up or down."
    ],
    "facts": [
     "f17",
@@ -584,10 +584,10 @@
    "key": "w2",
    "title": "A real one: MSFT, July 2020",
    "steps": [
-    "MSFT, July 22, 2020, a few hours before its report. The stock is $209.58.",
-    "The straddle, less its intrinsic value, comes to $9.48. That's about 4.5% priced.",
-    "Other methods give somewhat different numbers. Treat any of them as an estimate, never a promise.",
-    "Behind the straddle's price sits implied volatility: the options market's measure of how much it expects the price to move."
+    "MSFT, July 22, 2020, a few hours before its report. The stock's at $209.58.",
+    "Take the straddle, less its intrinsic value: $9.48. That's about 4.5% priced in.",
+    "Other ways of figuring it land a bit different. It's an estimate either way, never a promise.",
+    "What sets that price is implied volatility, the options market's read on how much it expects the stock to move."
    ],
    "facts": [
     "f33",
@@ -604,10 +604,10 @@
    "key": "w3",
    "title": "Implied vs realized",
    "steps": [
-    "After the report, measure what the stock actually did. That's the realized move.",
-    "Divide realized by implied. Near one is about as priced. Under one is smaller, over one is bigger.",
-    "GOOGL once priced about 6%, and the next morning it was up just under that. About as priced.",
-    "The straddle price is the hurdle. Clear it at expiry and the buyers win. Fall short and the sellers do."
+    "After the report, measure what the stock really did. That's the realized move.",
+    "Divide realized by implied. Near one, it moved about as priced. Under one, smaller. Over one, bigger.",
+    "GOOGL priced about 6%, and the next morning it was up just under that. About as priced.",
+    "The straddle price is the hurdle. A buyer needs the stock to clear it by expiry just to break even."
    ],
    "facts": [
     "f2",

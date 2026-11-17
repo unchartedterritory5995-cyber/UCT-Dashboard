@@ -651,10 +651,10 @@
    "key": "w1",
    "title": "The market comes first",
    "steps": [
-    "Our market reading is Green, Yellow, Orange or Red. It decides when the account trades, before you look at any stock.",
-    "Green: full risk per grade, up to 10 positions. Yellow: smaller and fewer. Orange: only A+ setups.",
-    "Red: mostly cash, plus shorts below the 200-day. IBD says 3 of 4 stocks move with the general market.",
-    "What the reading changes is a guide, not a hard cap. The hard rule is the next one."
+    "Before you look at a single stock, check our market reading. Green, Yellow, Orange or Red. It decides when the account trades.",
+    "Green, full risk per grade and up to 10 positions. Yellow, smaller and fewer. Orange, only the A+ setups.",
+    "Red is mostly cash, plus shorts below the 200-day. Three of four stocks go where the market goes.",
+    "What the reading changes is a guide, not a hard cap. The 200-day is a different story."
    ],
    "facts": [
     "h01",
@@ -668,31 +668,31 @@
    "key": "w2",
    "title": "The 200-day line, and the chase",
    "steps": [
-    "A simple moving average is the average price over a set number of days. The 200-day is the long one.",
-    "Our hard rule: no longs below the 200-day, shorts only below it. The one exception is a parabolic move.",
-    "Bracco's parabolic burst: three straight up days, two overnight gap ups, range and volume expanding, a gap up on the climax day.",
-    "Above the line, don't chase: never more than 4% over the buy point, never more than 10% over the 10-day."
+    "The 200-day is the average price over the last 200 days. It's the long one everybody watches.",
+    "Our hard line: no longs on a stock below the 200-day. Shorts only below it, unless it's a parabolic short.",
+    "Indexes and levered ETFs are the only exception, on a reversal extension or a parabolic long. Stocks, never.",
+    "Above the line, don't chase. Never more than 4% over the buy point, or 10% over the 9 EMA."
    ],
    "facts": [
     "f09",
     "f10",
+    "hw1",
     "h05",
     "h07",
-    "h08",
-    "b01",
+    "h09",
     "h10",
-    "h12",
-    "f11"
+    "h11",
+    "h12"
    ]
   },
   {
    "key": "w3",
    "title": "Before the open, after the close",
    "steps": [
-    "Before the open: entry, stop and size written for every buy, and a focus list of the 5 to 10 best setups.",
-    "Entries are market orders, in regular hours only. The stop is a real order with the broker.",
-    "No new buys in the 3 days before earnings; hold through only if up 5R. Under 1R after 10 trading days: sold.",
-    "After the close: journal every trade the same day, and review the week each weekend."
+    "Before the open, write the entry, stop and size for every buy. Then a focus list of the 5 to 10 best.",
+    "In the session, it's market orders, regular hours only. And a real stop with your broker, not one in your head.",
+    "No new buys in the 3 days before earnings. Hold through one only if you're up 5R.",
+    "A trade under 1R after 10 trading days gets sold. Journal every trade that day, and review the week each weekend."
    ],
    "facts": [
     "h25",

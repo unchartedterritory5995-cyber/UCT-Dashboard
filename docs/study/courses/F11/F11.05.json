@@ -719,6 +719,12 @@
    "source": "h2",
    "quote": "The first 30-minute bar stays the default window, but a strong move may be bought at the trigger right at the open if it triggers properly",
    "claim": "Our rule: waiting for the first 30-minute bar is the default, but a strong move may be bought at the trigger right at the open if it triggers properly."
+  },
+  {
+   "id": "wk1",
+   "source": "h2",
+   "quote": "Every setup buys as price trades through its trigger, during the day.",
+   "claim": "Every setup buys as price trades through its trigger, during the day, never at the close."
   }
  ],
  "walkthroughs": [
@@ -726,51 +732,47 @@
    "key": "w1",
    "title": "The shape of a day",
    "steps": [
-    "Volume runs heavy near the open, slows at midday, then builds again into the close.",
-    "The open prices in a whole night of news. It tends to swing hardest, and spreads are usually widest.",
-    "The day ends in the closing auction, often one of the day's biggest single trades."
+    "Volume comes in heavy at the open, slows through midday, then builds again into the close.",
+    "The open prices in a whole night of news at once. It tends to swing hardest, and spreads run widest.",
+    "The day ends with the closing auction at 4:00 p.m., often one of the day's biggest single trades.",
+    "We have no time-of-day rule. But know the shape, so you know when your names will move."
    ],
    "facts": [
     "f42",
     "f51",
     "f52",
-    "f10",
     "f23",
     "f22",
-    "f11"
+    "f11",
+    "h8"
    ]
   },
   {
    "key": "w2",
    "title": "The last ten minutes",
    "steps": [
-    "From 3:50 p.m., NYSE and Nasdaq publish the closing imbalance: on-close shares left unmatched, and on which side.",
-    "3:50 p.m. is also NYSE's cutoff for new market-on-close orders. Nasdaq takes them until 3:55 p.m.",
-    "At 4:00 p.m. the closing auction runs. On Nasdaq, it sets the official closing price.",
-    "Some of our setups, like the Slingshot and the Launchpad, enter on the close. This is when they act."
+    "The last ten minutes run on their own clock. From 3:50 p.m., NYSE and Nasdaq publish the closing imbalance.",
+    "That's the on-close shares left unmatched, buy side or sell side.",
+    "At 4:00 p.m. the closing auction runs. On Nasdaq it sets the official closing price.",
+    "Good to know, but we don't buy the close. Every setup buys as price trades through its trigger, during the day."
    ],
    "facts": [
     "f1",
-    "f70",
     "f15",
     "f67",
-    "f7",
-    "f6",
-    "f14",
     "f11",
     "f12",
-    "h3",
-    "h4"
+    "rd03"
    ]
   },
   {
    "key": "w3",
    "title": "Next week, from Sunday",
    "steps": [
-    "On Sunday, map the week: holidays and early closes, earnings dates, the Fed and the big data days.",
-    "Some Friday closes are giant. The Russell indexes now rebalance every June and December, and index funds trade that close.",
-    "Friday's close starts two days without a regular session. Weekend news can gap the stock at Monday's open.",
-    "Old weekday rules, like weak Mondays, have faded since they were published. Plan around real dates."
+    "Sunday, map the week: holidays and early closes, earnings dates, the Fed and the big data days.",
+    "Some Friday closes are giant. The Russell rebalance now runs every June and December, and index funds trade that close.",
+    "Friday's close starts two days with no regular session. Weekend news can gap your stock at Monday's open.",
+    "Weak Mondays and other weekday rules faded once they were published. Plan around real dates, not the day of the week."
    ],
    "facts": [
     "f3",

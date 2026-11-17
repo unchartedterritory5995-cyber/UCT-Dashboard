@@ -1724,9 +1724,9 @@
    "key": "w1",
    "title": "A pause or a turn",
    "steps": [
-    "Most chart patterns fall into two groups. A continuation is a pause, and the old trend resumes after it.",
-    "A reversal forms before the trend turns the other way. Tops and bottoms live here.",
-    "Either way, a pattern isn't complete until price breaks out of it. Until then it's just a shape."
+    "Most chart patterns are one of two kinds. A continuation is a pause. Price goes in and comes out the same way.",
+    "A reversal is a turn. In one way, out the other. That's where tops and bottoms live.",
+    "Either way, it's just a shape until price breaks out of it. The breakout is what makes it a pattern."
    ],
    "facts": [
     "f193",
@@ -1743,9 +1743,10 @@
    "key": "w2",
    "title": "The cup and its handle",
    "steps": [
-    "The cup is a U-shaped bowl that forms after an advance. A sharp V doesn't count.",
+    "The cup comes after a run. Price rounds out in a U, like a bowl. A sharp V doesn't count.",
     "The handle is the short pullback off the cup's right side. It should stay in the upper half of the cup.",
-    "The classic entry is a break above the top of the handle. The handle's low is a natural place for the stop."
+    "The buy is price trading through the top of the handle. Mark it the night before and set an alert.",
+    "Our stop goes a few cents under the low of the day. The handle's low works too."
    ],
    "facts": [
     "f17",
@@ -1757,16 +1758,17 @@
     "f35",
     "f36",
     "f32",
-    "f26"
+    "f26",
+    "f200"
    ]
   },
   {
    "key": "w3",
    "title": "Lines that frame the pause",
    "steps": [
-    "A flag hangs off a sharp run, the flagpole. Its two lines run parallel and tilt against the run.",
-    "A pennant is the same idea, but its lines come together like a tiny triangle.",
-    "Triangles and wedges have converging lines too. The point where the lines meet is the apex.",
+    "A flag needs a pole: a sharp, straight run. Then two parallel lines tilt against it. No pole, no flag.",
+    "A pennant is the same idea, but the lines squeeze together like a tiny triangle.",
+    "Triangles and wedges have converging lines too. Where the lines meet is the apex.",
     "In a wedge both lines slope the same way. In a triangle they don't."
    ],
    "facts": [

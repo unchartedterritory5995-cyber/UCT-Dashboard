@@ -594,10 +594,10 @@
    "key": "w1",
    "title": "The price you saw, the price you got",
    "steps": [
-    "Hit enter and your order goes to your broker first. The broker picks the market.",
-    "That trip takes time, and a quote covers only so many shares.",
-    "So your fill can land away from the quote. That gap is slippage.",
-    "Fast markets and big orders widen it. On a stop, it can cost more than you planned."
+    "You hit buy and the order goes to your broker first, not straight to the market. The broker picks where it fills.",
+    "That trip takes time. And the quote you saw only covers so many shares.",
+    "So you get filled away from the quote. That gap is slippage, and it comes out of your money.",
+    "Fast markets and big orders make it worse. On a stop, it can cost you more than you planned."
    ],
    "facts": [
     "f01",
@@ -616,9 +616,10 @@
    "key": "w2",
    "title": "Partial fills and your place in line",
    "steps": [
-    "A limit order can fill in part. Some shares now, the rest later or never.",
-    "Orders at one price usually fill in line, first come, first served. A trade at your limit is no promise.",
-    "All-or-none waits for the full size. Immediate-or-cancel takes what's there and cancels the rest."
+    "A limit order can fill in pieces. Some shares now, the rest later, or never.",
+    "Orders at one price fill first come, first served. So it can trade right at your limit and still skip you.",
+    "All-or-none waits for every share. Immediate-or-cancel grabs what's there and cancels the rest.",
+    "Me, I market order everything. The stop sits with the broker."
    ],
    "facts": [
     "f46",
@@ -628,16 +629,18 @@
     "f47",
     "f14",
     "f15",
-    "f12"
+    "f12",
+    "h1"
    ]
   },
   {
    "key": "w3",
    "title": "Fills outside the regular session",
    "steps": [
-    "Before the open and after the close, fewer people trade. Spreads usually widen, or quotes vanish.",
-    "Your order may fill in part or not at all. Venues aren't linked, so your price can be worse.",
-    "That price may not hold into the next open. Ask your broker whether unfilled orders cancel."
+    "Before the open and after the close, fewer people are trading. Spreads widen, or there's no quote at all.",
+    "You might fill in part or not at all. The venues aren't linked, so your price can be worse.",
+    "And that price may not hold into the open. Ask your broker if unfilled orders cancel or carry over.",
+    "For us it's simple: no new buys outside regular hours."
    ],
    "facts": [
     "f21",
@@ -649,7 +652,8 @@
     "f22",
     "f30",
     "f19",
-    "f31"
+    "f31",
+    "h2"
    ]
   }
  ],

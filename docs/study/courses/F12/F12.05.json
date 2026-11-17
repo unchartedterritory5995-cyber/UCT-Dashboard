@@ -659,11 +659,11 @@
  "walkthroughs": [
   {
    "key": "w1",
-   "title": "Three clocks",
+   "title": "Day, week, month",
    "steps": [
     "Every day, log each trade while it's fresh: the setup, the result in R, and any rule you broke.",
-    "Every week, check last week's change first. Then pick the biggest leak and turn it into one concrete change.",
-    "Every month, sort every trade by setup and see what the market is paying for. That sets next month's goals."
+    "Every weekend, check last week's goal first. Then find the biggest leak and turn it into one concrete change.",
+    "Every month, sort every trade by setup. See which kind the market's paying for, and set next month's goals."
    ],
    "facts": [
     "f32",
@@ -676,16 +676,17 @@
     "f12",
     "f08",
     "f09",
-    "f13"
+    "f13",
+    "f66"
    ]
   },
   {
    "key": "w2",
    "title": "A setup's numbers",
    "steps": [
-    "For each setup, count the trades, the win rate, and the average win and loss.",
-    "Add the results in R and divide by the count. That average R is what the setup has paid per trade.",
-    "Few trades, little proof. Tharp wants over thirty results for a rough read, and 100 to 200 for a clear one."
+    "For each setup, count the trades, the win rate, and the average win against the average loss.",
+    "Add up the results in R and divide by the count. That average R is what the setup pays per trade.",
+    "A handful of trades proves nothing. You want over thirty for a rough read, and 100 to 200 for a clear one."
    ],
    "facts": [
     "f10",
@@ -700,7 +701,7 @@
    "steps": [
     "Go back through your recent trades and tag every rule you broke.",
     "Add up what each kind of mistake cost you in R.",
-    "The costliest one becomes next week's single goal. Write exactly what you'll do differently.",
+    "The costliest one becomes next week's only goal. Write exactly what you'll do differently, not 'be more careful.'",
     "Next Sunday, check that goal before you set anything new."
    ],
    "facts": [

@@ -809,9 +809,9 @@
    "key": "w1",
    "title": "Two long bears",
    "steps": [
-    "The Nasdaq closed at 5,048.62 on March 10, 2000. Its low came on October 9, 2002, at 1,114.11.",
-    "The S&P 500 fell 57% from its October 2007 peak to its March 2009 trough.",
-    "Neither was one fast drop. Both bears ground on for more than a year before the low."
+    "March 10, 2000. The Nasdaq closes at 5,048.62. It doesn't bottom until October 9, 2002, at 1,114.11.",
+    "Next time it's the S&P 500. It falls 57% from its October 2007 peak to its March 2009 trough.",
+    "Neither was one fast drop. Both ground on for more than a year, and that's what wears you out."
    ],
    "facts": [
     "f02",
@@ -824,9 +824,9 @@
    "key": "w2",
    "title": "Rallies inside a bear",
    "steps": [
-    "Bear markets bounce, and the bounces are often fast and sharp.",
-    "In 2001 the Nasdaq rose almost 40% between April and the end of May. By September it made new lows.",
-    "From mid-2000 on, each big rally topped below the last one. Lower highs and lower lows: that's a downtrend."
+    "Bears bounce, and the bounces are fast and sharp. That's what pulls people back in.",
+    "In 2001 the Nasdaq ran almost 40% between April and the end of May. By September it was at new lows.",
+    "From mid-2000 on, every big rally topped under the last one. Lower highs and lower lows: that's a downtrend."
    ],
    "facts": [
     "f66",
@@ -847,10 +847,10 @@
    "key": "w3",
    "title": "How a bear ends",
    "steps": [
-    "A downtrend holds until price makes a higher low, then clears the last rally high.",
-    "After the October 2002 low, the Nasdaq held a higher low the next March. In early May, it cleared its November high.",
-    "You only see the bottom in hindsight. The rule gets you in late, but on evidence, not a guess.",
-    "Even then, it points to a possible turn, not a sure one."
+    "A downtrend holds until price makes a higher low, then takes out the last rally high.",
+    "After the October 2002 low, the Nasdaq held a higher low in March. In early May it cleared its November high.",
+    "You only see the bottom in hindsight. Waiting for that gets you in late, but on evidence, not a guess.",
+    "Even then it's a possible turn, not a sure one."
    ],
    "facts": [
     "f68",

@@ -529,9 +529,9 @@
    "key": "w1",
    "title": "In, at or out of the money",
    "steps": [
-    "Same stock, same expiry: the deeper in the money the strike, the more the option costs.",
-    "Deep in the money, a call's delta heads toward 1.00 and it moves most like the stock. A put's heads toward -1.00.",
-    "At the money, a call's delta sits around .50. Far out, delta is small and the option needs a strong move."
+    "Same stock, same expiry. The deeper in the money the strike, the more you pay for it.",
+    "Deep in the money, a call's delta heads toward 1.00. It moves most like the stock. A put's heads to -1.00.",
+    "At the money, a call's delta sits near .50. Way out of the money, delta's small and you need a strong move."
    ],
    "facts": [
     "f19",
@@ -547,10 +547,10 @@
    "key": "w2",
    "title": "Let the chart pick the strike",
    "steps": [
-    "Start with your chart: the price you expect, and how soon you expect it.",
+    "Start with the chart. Know the price you expect, and how soon you expect it.",
     "Held to expiry, a call breaks even at strike plus premium. A put breaks even at strike minus premium.",
-    "If you'll hold to expiry, your target has to clear that line. If it doesn't, that strike is wrong for the trade.",
-    "Strikes further out are cheaper, but they need a bigger move, and the sooner it comes, the better."
+    "If you'll hold to expiry, your target has to clear that line. If not, it's the wrong strike.",
+    "Further-out strikes are cheaper, but they need a bigger move. And the sooner it comes, the better."
    ],
    "facts": [
     "f39",
@@ -567,10 +567,10 @@
    "key": "w3",
    "title": "The strike and your stop",
    "steps": [
-    "Own the stock and a put, and the put's strike is your floor exit price until the put expires.",
-    "A stop price is a trigger, not a guaranteed fill. Gap below it, and you sell at whatever price is there.",
-    "A higher put strike gives a closer floor, and it costs more.",
-    "With a call, the premium is the most you can lose. Your chart stop still says when you're wrong."
+    "Own the stock and a put, and the put's strike is your floor. You can sell there until it expires.",
+    "A stop is a trigger, not a promised fill. Gap below it and you sell at whatever's there.",
+    "A higher put strike puts the floor closer, and it costs more.",
+    "With a call you buy, the premium is the most you can lose. Your chart stop still tells you when you're wrong."
    ],
    "facts": [
     "f27",

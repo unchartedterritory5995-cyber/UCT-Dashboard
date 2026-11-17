@@ -879,10 +879,10 @@
    "key": "w1",
    "title": "Count the stocks, not the points",
    "steps": [
-    "Big indexes like the S&P 500 weight each stock by its market cap. The giants move the number most.",
-    "So an index can climb while more than half its stocks fall. A handful of big winners drags it up.",
+    "The S&P 500 weights every stock by its market cap. So the giants move the number most.",
+    "That means the index can climb while more than half its stocks fall. A handful of big winners drags it up.",
     "Breadth counts stocks instead. On the A/D line every stock gets one vote, big or small.",
-    "McClellan saw it all through 1999: a few big caps lifted the indexes while the A/D data showed the rest struggling."
+    "All through 1999 a few big caps carried the indexes. The A/D data showed the rest of the market struggling."
    ],
    "facts": [
     "f109",
@@ -899,10 +899,10 @@
    "key": "w2",
    "title": "Confirm or diverge",
    "steps": [
-    "Each day, take the stocks that rose minus the ones that fell. That's net advances. The A/D line keeps a running total.",
-    "When the A/D line makes new highs with the index, the rally is broad. That's healthy.",
-    "Index at a new high, A/D line below its last peak: fewer stocks are doing the lifting. That's a bearish divergence.",
-    "A condition, not a signal. In 2007 the NYSE A/D line peaked in June. The index still hit new highs in October."
+    "Stocks up minus stocks down is net advances. Keep a running total and that's the A/D line.",
+    "When the A/D line makes new highs with the index, the rally is broad. That's what you want to see.",
+    "Index at a new high, A/D line under its last peak. Fewer stocks are doing the lifting. That's a bearish divergence.",
+    "Not a sell signal. In 2007 the NYSE A/D line peaked in June. The index made new highs into October anyway."
    ],
    "facts": [
     "f02",
@@ -919,10 +919,10 @@
    "key": "w3",
    "title": "Three more gauges",
    "steps": [
-    "Percent above the 50-day: the share of stocks above their 50-day average. Over 50% leans bullish, under 50% leans bearish.",
-    "New highs vs new lows: more stocks at 52-week highs than at 52-week lows favors the bulls.",
-    "It lags at turns. In 2009 the NYSE Composite bottomed in early March; net new highs didn't top +100 until August.",
-    "The McClellan Oscillator is the 19-day EMA of net advances minus the 39-day EMA. Above zero, advancing stocks have the upper hand."
+    "Start with the share of stocks over their 50-day. Over 50% leans bullish, under 50% leans bearish.",
+    "Then new highs vs new lows. More stocks making 52-week highs than 52-week lows, the bulls have the edge.",
+    "That one's slow at turns. The NYSE Composite bottomed in early March 2009. Net new highs didn't top +100 until August.",
+    "Last, the McClellan Oscillator. A fast EMA of net advances, 19-day, minus a slow one, 39-day. Over zero, advancers are winning."
    ],
    "facts": [
     "f20",

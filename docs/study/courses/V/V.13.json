@@ -1118,10 +1118,10 @@
    "key": "w1",
    "title": "Before the trade",
    "steps": [
-    "A trading plan is your rules for buying and selling, written before any money is on the line.",
-    "Your watchlist holds the stocks that meet your criteria. Entry and exit rules say when you get in and out.",
-    "A routine is the same prep every morning: the data out before the open, the index charts, your list.",
-    "None of it stops every loss. It cuts down the impulsive ones."
+    "Write your rules for buying and selling before any money's on the line. That's your trading plan.",
+    "Your watchlist: the stocks that fit what you're looking for. Entry and exit rules say when you get in and out.",
+    "Then your routine, the same prep every morning. The data out before the open, the index charts, your list.",
+    "It won't stop every loss. What it cuts down is the impulsive trade, the one you make up on the fly."
    ],
    "facts": [
     "f01",
@@ -1138,10 +1138,10 @@
    "key": "w2",
    "title": "After the trade",
    "steps": [
-    "Log every trade in your journal: entry, stop, exit, and what you were thinking and feeling.",
-    "Review it against the plan, and finish with a concrete plan for next time.",
-    "Your best setups, tested and written down, become your playbook.",
-    "Grade how you traded, not what you made. A good trade can lose."
+    "Log every trade in your journal. Entry, stop, exit, and what you were thinking and feeling at the time.",
+    "Then review it against the plan. Finish with something concrete for next time, or you're just looking in the rear view mirror.",
+    "Your best setups, the ones you've tested and written down, become your playbook.",
+    "Grade how you traded, not what you made. A good trade can still lose money."
    ],
    "facts": [
     "f14",
@@ -1157,10 +1157,10 @@
    "key": "w3",
    "title": "The numbers",
    "steps": [
-    "Win rate is how often you win. On its own it says little.",
-    "Put it next to your average win and average loss. Expectancy combines them: your average result per trade.",
+    "Win rate is how often you win. By itself it tells you very little.",
+    "Put it next to your average win and average loss. Expectancy puts them together: what you make per trade, on average.",
     "Profit factor is gross profit over gross loss. Over 1, the winners paid for the losers.",
-    "Judge none of it on a handful of trades. A small sample can fool you."
+    "Don't judge any of it on a handful of trades. A small sample can fool you."
    ],
    "facts": [
     "f31",

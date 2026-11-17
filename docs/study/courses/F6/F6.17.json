@@ -638,10 +638,10 @@
    "key": "w1",
    "title": "Getting out is a trade",
    "steps": [
-    "You get out of an option the way you got in: with a trade, this time on the other side.",
-    "If you bought it, sell to close. If you sold it, buy to close.",
-    "Most option positions end that way, not by exercise.",
-    "Until you close, a profit is only on paper."
+    "You get out of an option the same way you got in: with a trade, just on the other side.",
+    "Bought it, you sell to close. Sold it, you buy to close.",
+    "That's how most option positions end. Not with exercise.",
+    "Until you close it, that profit is only on paper. It can be a loss tomorrow."
    ],
    "facts": [
     "f43",
@@ -655,25 +655,28 @@
    "key": "w2",
    "title": "Write the exit before the entry",
    "steps": [
-    "Before you buy, set two exits: the target where you take profit and the stop where you're wrong.",
-    "Your stop can sit on the stock's chart or on the option's price. The Options Industry Council calls that your choice.",
-    "Add a date to re-check the trade. Time decay is gradual at first and speeds up near expiry."
+    "Before you buy, write down two exits. The target where you take profits, and the stop where you're wrong.",
+    "Some traders key a stop off the stock's chart, some off the option's price. Personal preference.",
+    "Ours is simpler. We trade shares. On the occasional option buy, the premium you paid is the stop.",
+    "Then put a date on the calendar to look at it again. Time decay starts slow and speeds up near expiry."
    ],
    "facts": [
     "f50",
     "f60",
     "f19",
     "f02",
-    "f36"
+    "f36",
+    "h01",
+    "h02"
    ]
   },
   {
    "key": "w3",
    "title": "A roll is two trades",
    "steps": [
-    "A roll closes your option and opens a new one at another strike, another expiry, or both.",
-    "The old option's gain or loss is settled when it closes. The roll doesn't erase it.",
-    "The new option is a fresh trade. It needs a reason of its own."
+    "Somebody says just roll it. That means close your option and open a new one at another strike, expiry, or both.",
+    "The old one's gain or loss is settled the moment it closes. Rolling doesn't erase it.",
+    "Roll a loser and you've locked in the loss. The new option is a fresh trade and needs its own reason."
    ],
    "facts": [
     "f30",

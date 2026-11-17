@@ -868,10 +868,10 @@
    "key": "w1",
    "title": "NUE, October 2006: eight touches, a tight drift",
    "steps": [
-    "NUE, 2006. A stock above its 200-day pulls back 26% from a 60.30 high. Eight touches over five months build the line.",
-    "Price drifts tight under the 106-session line. The break comes off a higher low above the 200-day.",
-    "2006-10-05: it trades through 50.47 on 1.8x volume. Buy at market, 50.48. Stop a few cents under the low, 49.20.",
-    "Failure mode: a thin break closes back under the line, stop taken. Instead 3R came in 6 sessions. First sell by judgment."
+    "NUE, 2006. Above its 200-day, it pulls back 26% off a 60.30 high. Eight touches over five months draw the line.",
+    "It drifts tight under a line 106 sessions long. A higher low forms above the 200-day, and it breaks from there.",
+    "October 5 it clears the line, 50.47, on 1.8x volume. Buy at market, 50.48. Stop just under the day's low, 49.20.",
+    "The fail is a thin break that closes back under the line. Not here: 3R in 6 sessions. First sell's your call."
    ],
    "facts": [
     "d01",
@@ -889,10 +889,10 @@
    "key": "w2",
    "title": "MSFT, January 2012: the small honest stop",
    "steps": [
-    "MSFT, 2012. A mega-cap drifts tight under a five-month line, 112 sessions old, with 6 touches.",
-    "It is a 16% pullback from 28.15. The drift is quiet, and the daily ranges are small.",
-    "2012-01-04: it trades through 26.89 and the prior high. Buy at market, 26.97. Stop a few cents under the low, 26.73.",
-    "Failure mode: the break closes back under the line, stop taken. Instead 3R came the next day. No day-one sell."
+    "Even a mega-cap does this. MSFT, January 2012, drifting tight under a five-month line with 6 touches.",
+    "A 16% pullback from 28.15, and the last days get quiet: small ranges, closes hugging the line.",
+    "January 4 it clears the line, 26.89, and the prior high. Buy at market, 26.97. Stop just under the low, 26.73.",
+    "That's a 0.9% stop. If the break fails, you're out small. Instead 3R came the next day."
    ],
    "facts": [
     "d03",
@@ -910,10 +910,10 @@
    "key": "w3",
    "title": "SCHW, February 2020: the planned loss",
    "steps": [
-    "SCHW, 2020. A clean break of a 46-session line comes on 1.81x volume, closing 0.98% over it.",
-    "2020-02-20: buy at market, 48.12. Stop a few cents under the day's low, 47.25, 1.80% away.",
-    "Failure mode: the next session was day one of the February 2020 market break. The low was 45.93; the stop traded.",
-    "A planned loss of 1.80%. The stock fell to 34.45 within 10 sessions. Another buy needs a new trigger."
+    "Here's one that didn't work. SCHW, February 2020: a clean break of a 46-session line on 1.81x volume.",
+    "Buy at market on February 20, 48.12. Stop a few cents under the day's low, 47.25. That's 1.80% risk.",
+    "Next day the February 2020 market break begins. The low hits 45.93 and the stop is gone.",
+    "A planned 1.80% loss, nothing more. It fell to 34.45 within 10 sessions. Back in only on a new trigger."
    ],
    "facts": [
     "d09",

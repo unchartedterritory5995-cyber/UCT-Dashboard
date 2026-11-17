@@ -619,10 +619,10 @@
    "key": "w1",
    "title": "A stop is a trigger",
    "steps": [
-    "Your plan's stop is where the idea is wrong. Ours defaults to the day's low or the prior day's low.",
-    "A sell stop order puts that price in the market. It sits below the price, waiting.",
-    "When the price reaches it, the stop becomes a market order and sells.",
-    "The stop price is the trigger, not a promise. In a fast market the fill can land well below it."
+    "Your stop is where the idea is wrong. Ours goes under the low of the day, or the prior day's low.",
+    "A sell stop puts that price in with your broker. It sits under the price and waits.",
+    "Once hit, it becomes a market order and sells. In a fast drop the fill can land well under it.",
+    "So the stop price is a trigger, not a promise. Its job is getting you out, not getting you a price."
    ],
    "facts": [
     "h01",
@@ -638,9 +638,9 @@
    "title": "Stop-limit: your price or nothing",
    "steps": [
     "A stop-limit has two prices. The stop triggers it. The limit is the worst price you'll take.",
-    "Schwab's example: a stock gaps down from more than $34 to around $32 at the open.",
-    "A plain sell stop at $34 triggers at the open and sells at $32.",
-    "A stop-limit at $34 with a $33 limit sells nothing. You still own it, waiting for $33."
+    "Say a stock closes over $34 and gaps down to around $32 at the next open.",
+    "A plain sell stop at $34 triggers at the open and sells at $32. You're out.",
+    "A stop-limit at $34 with a $33 limit sells nothing. You still own it, hoping for $33 while it trades lower."
    ],
    "facts": [
     "f7",
@@ -654,10 +654,10 @@
    "key": "w3",
    "title": "Trailing: the stop that only moves up",
    "steps": [
-    "A trailing stop sits a set dollar amount or percent under the price. It rises with the stock, never falls.",
-    "The SEC's example: a $1 trail, the stock peaks at $24, and the stop sits at $23.",
-    "To trail a moving average, move your stop up yourself. A 10-day hugs price; a 50-day gives more room.",
-    "Several of our trade plans trail under each higher low, or under the 9 EMA or the rising 20 EMA."
+    "A trailing stop sits a set dollar amount or percent under the price. It moves up with the stock, never down.",
+    "Say you trail by $1. The stock peaks at $24 and starts to drop. Your stop stays at $23.",
+    "Trailing an average, you move the stop up yourself. Ours: the 9 EMA for fast movers, 20 EMA for steadier ones.",
+    "A close under it sells what's left. On some setups we trail under each higher low instead."
    ],
    "facts": [
     "f11",
@@ -666,9 +666,6 @@
     "f14",
     "f15",
     "f43",
-    "f58",
-    "f61",
-    "f59",
     "h03",
     "h04",
     "h09"

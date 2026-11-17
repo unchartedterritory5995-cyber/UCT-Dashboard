@@ -731,9 +731,10 @@
    "key": "w1",
    "title": "Same steps, any clock",
    "steps": [
-    "Every trade runs the same steps. Find the setup, set the stop, size from it, manage it, review it.",
-    "A day trade opens and closes the same day. A position trade can run for months.",
-    "What changes is the chart you read, where the stop sits, and so the size."
+    "Same steps on any clock: find the setup, set the stop, size from it, manage it, review it.",
+    "That holds whether you're out by the close or holding for months.",
+    "What changes is the chart you read, where the stop sits, and so the size.",
+    "With a winner, we sell partials into strength and trail the rest under the rising averages."
    ],
    "facts": [
     "f46",
@@ -748,15 +749,16 @@
    "key": "w2",
    "title": "What our rules set",
    "steps": [
-    "Our risk on any trade is 0.25% to 2% of the account. 2% is the hard ceiling.",
-    "Our default stop is the low of the day, or the prior day's low.",
-    "Each setup plan has its own stop. Our first sell, by judgment, is usually day 3 or later."
+    "Some things never change with the clock. We risk 0.25% to 2% of the account a trade. 2% is the ceiling.",
+    "The stop goes a few cents under the low of the day, or the prior day's low.",
+    "The first sell is a judgment. We very rarely sell on day 1, and usually wait until day 3 at the earliest."
    ],
    "facts": [
     "h10",
     "h11",
+    "h15",
     "h01",
-    "h02",
+    "r02",
     "h14"
    ]
   },
@@ -765,8 +767,8 @@
    "title": "What changes with the clock",
    "steps": [
     "A short-term trader buying near the open might put the stop under the low of the first 10 minutes.",
-    "A longer-term trader judges exits on a longer timeframe, so the stop sits farther away.",
-    "Same risk, wider stop, smaller position. The size moves; the risk doesn't."
+    "A longer-term trader judges exits on a longer chart, so the stop sits farther away.",
+    "Put the stop where it belongs and change the size. Wider stop, fewer shares, same risk."
    ],
    "facts": [
     "f20",

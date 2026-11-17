@@ -1671,7 +1671,7 @@
   "difficulty": 1,
   "id": "si_4c5aa74fa8f2",
   "lesson_origin": "session",
-  "lesson_text": "That's your planned loss if you're wrong. The money you put into the stock is a different number.",
+  "lesson_text": "That's your planned loss if you're wrong. It's not the money you put in the stock. That's a different number.",
   "module": "F9",
   "prompt_json": {
    "order": 1,
@@ -1679,9 +1679,9 @@
    "parts": 3,
    "q": "What the 1% means",
    "steps": [
-    "Risk per trade is what you plan to lose if your stop is hit, as a percent of the whole account.",
-    "Van Tharp's example: a $100,000 account risking 1% has $1,000 on the line.",
-    "That's your planned loss if you're wrong. The money you put into the stock is a different number."
+    "Risk per trade is what you lose if the stop gets hit, as a percent of the whole account.",
+    "Say you've got $100,000 and you risk 1%. That's $1,000 on the line.",
+    "That's your planned loss if you're wrong. It's not the money you put in the stock. That's a different number."
    ],
    "subject": "F9.01#w1"
   },
@@ -1727,7 +1727,7 @@
   "difficulty": 1,
   "id": "si_44e3c0550f3a",
   "lesson_origin": "session",
-  "lesson_text": "Risking the same percent on every trade is a valid plan too. Pick one way and write it in your plan.",
+  "lesson_text": "Or risk the same percent on every trade. That works too. Pick one way and write it in your plan.",
   "module": "F9",
   "prompt_json": {
    "order": 2,
@@ -1735,9 +1735,9 @@
    "parts": 3,
    "q": "Our range",
    "steps": [
-    "We risk 0.25% to 2% of the account on a trade. 2% is the hard ceiling.",
-    "Where you land depends on the setup, your recent results, the market and your edge.",
-    "Risking the same percent on every trade is a valid plan too. Pick one way and write it in your plan."
+    "We risk 0.25% to 2% of the account on a trade. Under 1% is normal. 2% is the ceiling.",
+    "Where you land depends on the setup, how you've been trading lately, the market and your edge.",
+    "Or risk the same percent on every trade. That works too. Pick one way and write it in your plan."
    ],
    "subject": "F9.01#w2"
   },
@@ -1747,7 +1747,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Our trading rules",
-      "quote": "0.25% to 2% of the account, chosen by setup quality, your recent performance, market conditions and your edge. 2% is the hard ceiling. … Flat-risk sizing (the same percent on every trade) is taught as a valid alternative, not a mistake. Both are in the curriculum; the member chooses one and writes it in the plan.",
+      "quote": "0.25% to 2% of the account, chosen by setup quality, your recent performance, market conditions and your edge. 2% is the hard ceiling. … Under 1% is normal; 1.5% is the most any grade uses (E49); 2% is the absolute ceiling. … Flat-risk sizing (the same percent on every trade) is taught as a valid alternative, not a mistake. Both are in the curriculum; the member chooses one and writes it in the plan.",
       "tier": 3,
       "url": null
      },
@@ -1776,7 +1776,7 @@
   "difficulty": 1,
   "id": "si_c0ce816c1363",
   "lesson_origin": "session",
-  "lesson_text": "The trader Monroe Trout, quoted by CME Group, says he keeps his risk conservative. He wants to be around to play tomorrow.",
+  "lesson_text": "Small risk doesn't stop the losses. It caps what each one costs, so you're around for the ones that work.",
   "module": "F9",
   "prompt_json": {
    "order": 3,
@@ -1784,9 +1784,9 @@
    "parts": 3,
    "q": "Why so small",
    "steps": [
-    "Losses are part of trading, and losing streaks happen to good traders too.",
-    "Under the 2% rule, a $100,000 account risks $2,000 a trade. Ten losses in a row cost 20%. You're still trading.",
-    "The trader Monroe Trout, quoted by CME Group, says he keeps his risk conservative. He wants to be around to play tomorrow."
+    "Losses are part of this. Losing streaks hit good traders too.",
+    "Risk 2% on $100,000 and that's $2,000 a trade. Ten losses in a row cost you 20%. You're still trading.",
+    "Small risk doesn't stop the losses. It caps what each one costs, so you're around for the ones that work."
    ],
    "subject": "F9.01#w3"
   },
@@ -3938,7 +3938,7 @@
   "difficulty": 1,
   "id": "si_a5ee5eea4787",
   "lesson_origin": "session",
-  "lesson_text": "Only then pick the size. Picking the size first is the mistake StockCharts calls the biggest.",
+  "lesson_text": "Only then pick the size. Pick the size first and you end up squeezing the stop to make it fit.",
   "module": "F9",
   "prompt_json": {
    "order": 1,
@@ -3946,9 +3946,9 @@
    "parts": 3,
    "q": "Stop first",
    "steps": [
-    "Find the price that proves the idea wrong. That's the honest stop, and you set it first.",
-    "Measure from your entry to that stop. That's what each share can cost you.",
-    "Only then pick the size. Picking the size first is the mistake StockCharts calls the biggest."
+    "Find the price that proves the idea wrong, like just under the low of the day. That's your stop. It comes first.",
+    "Measure from your entry down to it. That's what each share can cost you.",
+    "Only then pick the size. Pick the size first and you end up squeezing the stop to make it fit."
    ],
    "subject": "F9.02#w1"
   },
@@ -3968,6 +3968,13 @@
       "quote": "The investor must then determine where to place their stop-loss order for the specific trade. For stock trades, the trade risk is the dollar difference between the entry price and the stop-loss.",
       "tier": 2,
       "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+     },
+     {
+      "accessed": "2026-11-08",
+      "name": "Our trading rules",
+      "quote": "Default stop: the low of the day, or the prior day's low. (Owner's answer.)",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -3987,7 +3994,7 @@
   "difficulty": 1,
   "id": "si_252ea5bd8bed",
   "lesson_origin": "session",
-  "lesson_text": "So risking 0.5% put about 3.4% in the stock. Risk and position size are different numbers.",
+  "lesson_text": "That stop's way too wide for us. We like 1-3%, and 5% is the most we'll take.",
   "module": "F9",
   "prompt_json": {
    "order": 2,
@@ -3995,10 +4002,10 @@
    "parts": 3,
    "q": "The math, worked once",
    "steps": [
-    "Schwab's example: buy at $67, stop at $57. That's $10 of risk per share.",
-    "The trader will risk 0.5% of the account, which is $750.",
-    "$750 divided by $10 is 75 shares. That's about 3.4% of the account.",
-    "So risking 0.5% put about 3.4% in the stock. Risk and position size are different numbers."
+    "Here's the math on a wide one. Buy at $67, stop at $57. That's $10 a share at risk.",
+    "You're risking 0.5% of the account, $750. $750 divided by $10 is 75 shares.",
+    "75 shares is about 3.4% of the account. So 0.5% risk put 3.4% in the stock. Two different numbers.",
+    "That stop's way too wide for us. We like 1-3%, and 5% is the most we'll take."
    ],
    "subject": "F9.02#w2"
   },
@@ -4011,6 +4018,13 @@
       "quote": "Start with the difference between the entry price, $67, and the exit price, $57, or $10, then divide the amount the trader is willing to lose, $750, by that difference to determine the number of shares … A more active trader may decide they only want to risk 0.5% of their portfolio, or $750 per trade … If they purchase 75 shares, for a total purchase price of $5,025, they'd be allocating about 3.4% of their total account value.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/5-elements-smart-trade-plan"
+     },
+     {
+      "accessed": "2026-11-11",
+      "name": "Our trading rules",
+      "quote": "A13's stop band is 1-3% preferred, 3.5% good, up to 5%; past 5%, wait for a tighter trigger.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -4030,7 +4044,7 @@
   "difficulty": 1,
   "id": "si_418a03dd8233",
   "lesson_origin": "session",
-  "lesson_text": "That assumes you get out at the stop. A gap past it can cost more than you planned.",
+  "lesson_text": "And a tight stop never earns a bigger position than our cap, 40% of the account.",
   "module": "F9",
   "prompt_json": {
    "order": 3,
@@ -4038,9 +4052,10 @@
    "parts": 3,
    "q": "The same math in percents",
    "steps": [
-    "Position % is your risk % divided by your stop distance %.",
-    "Here's how I put it: a 1% stop on a 50% size is 0.5% risk.",
-    "That assumes you get out at the stop. A gap past it can cost more than you planned."
+    "Same math in percents: your position size is your risk divided by your stop distance.",
+    "Here's how I put it. A 1% stop on a 50% size is 0.5% risk.",
+    "That assumes you get out at the stop. A gap right past it can cost more than you planned.",
+    "And a tight stop never earns a bigger position than our cap, 40% of the account."
    ],
    "subject": "F9.02#w3"
   },
@@ -4050,7 +4065,7 @@
      {
       "accessed": "2026-11-08",
       "name": "Our trading rules",
-      "quote": "if it's a 1% stop then technically a 50% size would be 0.5% risk.",
+      "quote": "if it's a 1% stop then technically a 50% size would be 0.5% risk. … Max position 40% of the account … A tight stop never justifies a bigger position than that",
       "tier": 3,
       "url": null
      },
@@ -6357,7 +6372,7 @@
   "difficulty": 1,
   "id": "si_73e7b418dfc9",
   "lesson_origin": "session",
-  "lesson_text": "Losses count the same way. Sell at the stop and it's 1R. Hold on past it, and it's bigger.",
+  "lesson_text": "Losses too. Sell at the stop and it's 1R. Sit on it past the stop, or gap through it, and it's bigger.",
   "module": "F9",
   "prompt_json": {
    "order": 1,
@@ -6365,9 +6380,9 @@
    "parts": 3,
    "q": "What R means",
    "steps": [
-    "Before you buy, pick the price that proves you wrong. Entry minus that stop is 1R, your initial risk.",
-    "Every result gets counted in R. Risk $10 a share, make $100 a share, and that's a 10R winner.",
-    "Losses count the same way. Sell at the stop and it's 1R. Hold on past it, and it's bigger."
+    "Before you buy, find the price that proves you wrong. Your entry minus that stop is 1R, your initial risk.",
+    "Everything gets counted in R. Risk $10 a share, make $100 a share, and that's a 10R winner.",
+    "Losses too. Sell at the stop and it's 1R. Sit on it past the stop, or gap through it, and it's bigger."
    ],
    "subject": "F9.03#w1"
   },
@@ -6420,7 +6435,7 @@
   "difficulty": 1,
   "id": "si_5af167a75542",
   "lesson_origin": "session",
-  "lesson_text": "Four trades is far too few to trust. He wants at least thirty, and 100 to 200 for a clear picture.",
+  "lesson_text": "But four trades tells you nothing. You want thirty at least, and 100 to 200 before you really trust it.",
   "module": "F9",
   "prompt_json": {
    "order": 2,
@@ -6428,9 +6443,9 @@
    "parts": 3,
    "q": "Expectancy, the average R",
    "steps": [
-    "Expectancy is your average R per trade. Add up the R, then divide by the number of trades.",
-    "Van Tharp's four trades: +2R, -3R, +10R and -1R. That's 8R over 4 trades, so 2R a trade.",
-    "Four trades is far too few to trust. He wants at least thirty, and 100 to 200 for a clear picture."
+    "Expectancy is your average R a trade. Add up all the R, winners and losers, and divide by the number of trades.",
+    "Four trades: +2R, -3R, +10R, -1R. That's 8R over 4, so 2R a trade.",
+    "But four trades tells you nothing. You want thirty at least, and 100 to 200 before you really trust it."
    ],
    "subject": "F9.03#w2"
   },
@@ -6462,7 +6477,7 @@
   "difficulty": 1,
   "id": "si_1db14e6e3641",
   "lesson_origin": "session",
-  "lesson_text": "With an edge, you're on the casino's side. Size for streaks: at $500 a trade on $25,000, 10 straight losses cost 20%.",
+  "lesson_text": "With an edge, you're the casino. Just size for streaks. $500 a trade on $25,000, ten straight losses cost 20%.",
   "module": "F9",
   "prompt_json": {
    "order": 3,
@@ -6470,10 +6485,10 @@
    "parts": 3,
    "q": "The marble game",
    "steps": [
-    "Picture a bag of marbles. Each marble is one trade's result, written in R.",
+    "Picture a bag of marbles. Each one's a trade result, written in R.",
     "Draw one, write it down, put it back. The bag never changes, so a run of losers never makes a winner due.",
-    "A casino plays a game like this all night. It loses plenty of single bets, and its small edge pays over many.",
-    "With an edge, you're on the casino's side. Size for streaks: at $500 a trade on $25,000, 10 straight losses cost 20%."
+    "A casino plays like this all night. It loses plenty of single bets, and its small edge pays over many.",
+    "With an edge, you're the casino. Just size for streaks. $500 a trade on $25,000, ten straight losses cost 20%."
    ],
    "subject": "F9.03#w3"
   },
@@ -8670,7 +8685,7 @@
   "difficulty": 1,
   "id": "si_68435e907e6d",
   "lesson_origin": "session",
-  "lesson_text": "It runs from the peak, not from what you paid. So it isn't always the same as your loss.",
+  "lesson_text": "It runs from the peak, not from what you paid. So it isn't always the same as a loss.",
   "module": "F9",
   "prompt_json": {
    "order": 1,
@@ -8678,9 +8693,9 @@
    "parts": 3,
    "q": "Measured from the high",
    "steps": [
-    "A drawdown is the drop from your account's high to the low that follows, as a percent of the high.",
-    "Investopedia's example: an account at $20,000 drops to $18,000, then recovers. That's a 10% drawdown.",
-    "It runs from the peak, not from what you paid. So it isn't always the same as your loss."
+    "Your drawdown is how far the account has dropped from its high, as a percent of that high.",
+    "Say an account at $20,000 drops to $18,000, then comes back. That was a 10% drawdown.",
+    "It runs from the peak, not from what you paid. So it isn't always the same as a loss."
    ],
    "subject": "F9.04#w1"
   },
@@ -8712,7 +8727,7 @@
   "difficulty": 1,
   "id": "si_84be3cf48647",
   "lesson_origin": "session",
-  "lesson_text": "Up 50% then down 50% is not even. $100 goes to $150, then to $75.",
+  "lesson_text": "Up 50% then down 50% isn't even. $100 goes to $150, then $75. Keep your losers small.",
   "module": "F9",
   "prompt_json": {
    "order": 2,
@@ -8720,9 +8735,9 @@
    "parts": 3,
    "q": "Losses cost more to fix",
    "steps": [
-    "Down 10%, you need about an 11% gain to get back. Down 50%, you need 100%.",
-    "The gain is earned on what's left, so it always has to be bigger than the loss.",
-    "Up 50% then down 50% is not even. $100 goes to $150, then to $75."
+    "Down 10%, you need about 11% to get back. Down 50%, you need 100%.",
+    "The gain gets earned on what's left. So it always has to be bigger than the loss was.",
+    "Up 50% then down 50% isn't even. $100 goes to $150, then $75. Keep your losers small."
    ],
    "subject": "F9.04#w2"
   },
@@ -8761,7 +8776,7 @@
   "difficulty": 1,
   "id": "si_83adc3800340",
   "lesson_origin": "session",
-  "lesson_text": "Back up: one rung each time you win back half the drawdown. The normal cap returns within 5% of the peak.",
+  "lesson_text": "On the way back, one rung up each time you win back half the drawdown. Within 5% of the peak, normal cap.",
   "module": "F9",
   "prompt_json": {
    "order": 3,
@@ -8769,10 +8784,10 @@
    "parts": 3,
    "q": "Our drawdown ladder, down and back up",
    "steps": [
-    "A drawdown is how far the account sits below its highest value, open trades included. We check it at least weekly.",
-    "Under 6% down, the normal cap of 40%. At 6% down, a 10% max position. At 8%, 8%. At 10%, 5%.",
-    "At 15% down, no new trades. Review before you trade again.",
-    "Back up: one rung each time you win back half the drawdown. The normal cap returns within 5% of the peak."
+    "Check your drawdown at least weekly, open trades included. It sets how big you're allowed to go.",
+    "Under 6% down, the normal 40% cap. At 6% down, max position 10%. At 8%, 8%. At 10%, 5%.",
+    "At 15% down, no new trades. Stop and review before you trade again.",
+    "On the way back, one rung up each time you win back half the drawdown. Within 5% of the peak, normal cap."
    ],
    "subject": "F9.04#w3"
   },
@@ -10262,7 +10277,7 @@
   "difficulty": 1,
   "id": "si_e50b3b371480",
   "lesson_origin": "session",
-  "lesson_text": "So is 5% on each of two. They found that setting this level matters far more than fine-tuning your trade timing.",
+  "lesson_text": "They found that level matters way more than entry timing. Ours moves with the market, a guide, not a hard cap.",
   "module": "F9",
   "prompt_json": {
    "order": 1,
@@ -10270,10 +10285,10 @@
    "parts": 3,
    "q": "Add up your stops",
    "steps": [
-    "Every open trade with a stop is a bet. The bet is what you lose if that stop is hit.",
-    "Add up the bets on all your open trades, as a percent of the account. That's your total open risk.",
-    "Ed Seykota and Dave Druz call it the heat of the portfolio. 2% on each of five trades is 10%.",
-    "So is 5% on each of two. They found that setting this level matters far more than fine-tuning your trade timing."
+    "Every open trade with a stop is a bet. The bet is what you lose if that stop gets hit.",
+    "Add up the bets on everything you hold, as a percent of the account. That's your total open risk.",
+    "Seykota and Druz call it heat. 2% on each of five trades is 10%. So is 5% on each of two.",
+    "They found that level matters way more than entry timing. Ours moves with the market, a guide, not a hard cap."
    ],
    "subject": "F9.05#w1"
   },
@@ -10286,6 +10301,13 @@
       "quote": "Placing a trade with a predetermined stop-loss point can be compared to placing a bet: The more money risked, the larger the bet. … In portfolio management, we call the distributed bet size the heat of the portfolio. … A diversified portfolio risking 2% on each of five instrument & has a total heat of 10%, as does a portfolio risking 5% on each of two instruments. … Setting the heat level is far and away more important than fiddling with trade timing parameters.",
       "tier": 2,
       "url": "https://store.traders.com/-v11-c03-determi-pdf.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Our trading rules",
+      "quote": "Total open risk and position size by market condition are guides that vary, not hard caps.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -10305,7 +10327,7 @@
   "difficulty": 1,
   "id": "si_0ffe26ed4da0",
   "lesson_origin": "session",
-  "lesson_text": "A stop is a trigger, not a promised price. If the whole group gaps down, fills can land past your stops.",
+  "lesson_text": "And a stop is a trigger, not a price. If the whole group gaps down, you can fill well past your stops.",
   "module": "F9",
   "prompt_json": {
    "order": 2,
@@ -10313,9 +10335,9 @@
    "parts": 3,
    "q": "Five names, one bet",
    "steps": [
-    "FINRA's warning: stocks in the same industry tend to be highly correlated. What hits one is likely to hit the others.",
-    "So five bank stocks aren't five small bets. On bad news for banks, their stops can all go the same day.",
-    "A stop is a trigger, not a promised price. If the whole group gaps down, fills can land past your stops."
+    "Stocks in the same industry tend to move together. What hits one is likely to hit the others.",
+    "So five chip stocks aren't five small bets. One bad headline for semis and all five stops can go the same day.",
+    "And a stop is a trigger, not a price. If the whole group gaps down, you can fill well past your stops."
    ],
    "subject": "F9.05#w2"
   },
@@ -12420,7 +12442,7 @@
   "difficulty": 1,
   "id": "si_43aceeaf93b4",
   "lesson_origin": "session",
-  "lesson_text": "Sell some at a profit and fewer shares can reach the stop. The risk left shrinks with them.",
+  "lesson_text": "It runs and you sell some into strength. Fewer shares can reach your stop now. Recount what's left at risk.",
   "module": "F9",
   "prompt_json": {
    "order": 1,
@@ -12428,9 +12450,9 @@
    "parts": 3,
    "q": "1R, and what a partial leaves",
    "steps": [
-    "Buy at $50 with the stop at $48. That's $2 of risk a share, and that $2 is 1R.",
-    "Hold 100 shares and $200 is on the line. R can mean that total too.",
-    "Sell some at a profit and fewer shares can reach the stop. The risk left shrinks with them."
+    "Buy at $50, and you're wrong at $48. That's $2 a share on the line. That $2 is your 1R.",
+    "On 100 shares that's $200 at risk. R can mean that total too. Just know which one you're talking about.",
+    "It runs and you sell some into strength. Fewer shares can reach your stop now. Recount what's left at risk."
    ],
    "subject": "F9.06#w1"
   },
@@ -12469,7 +12491,7 @@
   "difficulty": 1,
   "id": "si_d3c83dd2dd5e",
   "lesson_origin": "session",
-  "lesson_text": "A stop-out now sells above your entry. Your capital is safe, and at least an 8% gain is locked in, gaps aside.",
+  "lesson_text": "Stopped out there, you still bank at least 8%. Your money's safe now. Only a gap can beat that stop.",
   "module": "F9",
   "prompt_json": {
    "order": 2,
@@ -12477,9 +12499,9 @@
    "parts": 3,
    "q": "When the stop passes your entry",
    "steps": [
-    "Buy at $100 with the first stop at $95. That's a 5% risk.",
-    "The stock runs to $120, and the trailing stop is now at $108.",
-    "A stop-out now sells above your entry. Your capital is safe, and at least an 8% gain is locked in, gaps aside."
+    "You buy a breakout at $100 and put your first stop at $95. That's 5% you're willing to lose.",
+    "It runs to $120, and you've trailed the stop up to $108. That's above what you paid.",
+    "Stopped out there, you still bank at least 8%. Your money's safe now. Only a gap can beat that stop."
    ],
    "subject": "F9.06#w2"
   },
@@ -12518,7 +12540,7 @@
   "difficulty": 1,
   "id": "si_ecb08d095b65",
   "lesson_origin": "session",
-  "lesson_text": "Two catches. A gap can open below the stop, and a stop that close can catch a normal dip.",
+  "lesson_text": "Two catches. A gap can open right under your stop. And a stop that tight can get hit by a normal dip.",
   "module": "F9",
   "prompt_json": {
    "order": 3,
@@ -12526,15 +12548,22 @@
    "parts": 3,
    "q": "A stop at entry, and its catch",
    "steps": [
-    "Once the stock moves your way, you can raise the stop to your entry price. That's a breakeven stop.",
-    "Filled there, the shares you still hold come out even.",
-    "Two catches. A gap can open below the stop, and a stop that close can catch a normal dip."
+    "Once it's working, move the stop to your entry. Breakeven. I do that from 2R to 5R, or at my first sell.",
+    "Now your money's protected. Your open profit isn't. Get filled there and the shares you still hold come out even.",
+    "Two catches. A gap can open right under your stop. And a stop that tight can get hit by a normal dip."
    ],
    "subject": "F9.06#w3"
   },
   "reveal_json": {
    "depth": {
     "sources": [
+     {
+      "accessed": "2026-11-14",
+      "name": "Our trading rules",
+      "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+      "tier": 3,
+      "url": null
+     },
      {
       "accessed": "2026-11-09",
       "name": "SEC, Investor.gov: Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (updated August 18, 2026)",
@@ -12565,10 +12594,10 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "Interactive Brokers: Exiting Your Trades: What Works Best? (Dave Mabe, IBKR Campus, January 31, 2025)",
-      "quote": "Your stop should be based on some measure of volatility rather than price or percentage. Do I move my stop to breakeven? Never.",
+      "name": "Charles Schwab: Help Protect Your Position Using Stop Orders (August 7, 2024)",
+      "quote": "be careful not to place the stop price too close to the current price, or the order might be triggered by regular daily price fluctuations.",
       "tier": 2,
-      "url": "https://www.interactivebrokers.com/campus/ibkr-quant-news/exiting-your-trades-what-works-best/"
+      "url": "https://www.schwab.com/learn/story/help-protect-your-position-using-stop-orders"
      }
     ]
    },
@@ -14335,7 +14364,7 @@
   "difficulty": 1,
   "id": "si_44596f115316",
   "lesson_origin": "session",
-  "lesson_text": "Borrowed money grows your losses too. You can lose more than you put in.",
+  "lesson_text": "And the loan cuts both ways. It grows your losses too, and you can lose more than you put in.",
   "module": "F9",
   "prompt_json": {
    "order": 1,
@@ -14343,10 +14372,10 @@
    "parts": 3,
    "q": "Margin is a loan",
    "steps": [
-    "A margin account lets you borrow from your broker. Under Regulation T, it can lend up to half of a new buy.",
-    "After that, FINRA's floor applies: your equity must not fall below 25% of the stock's value. Your broker can set it higher.",
-    "Drop under it and expect a margin call. The broker can sell your stock without telling you first.",
-    "Borrowed money grows your losses too. You can lose more than you put in."
+    "Margin is your broker lending you money to buy. Under Regulation T, it can lend up to half of a new buy.",
+    "Then there's a floor. Your equity can't drop under 25% of what the stocks are worth. Your broker's line can be higher.",
+    "Break it and you get a margin call. They can sell your stock without even telling you first.",
+    "And the loan cuts both ways. It grows your losses too, and you can lose more than you put in."
    ],
    "subject": "F9.07#w1"
   },
@@ -14392,7 +14421,7 @@
   "difficulty": 1,
   "id": "si_5270765d8294",
   "lesson_origin": "session",
-  "lesson_text": "Brokers have until October 20, 2027 to switch. Until then, ask yours which rules your account runs on.",
+  "lesson_text": "Brokers have until October 20, 2027 to switch over. So ask yours which rules your account runs on today.",
   "module": "F9",
   "prompt_json": {
    "order": 2,
@@ -14400,9 +14429,9 @@
    "parts": 3,
    "q": "The day trading rule changed",
    "steps": [
-    "Old rule: four or more day trades in five business days made you a pattern day trader. Then you needed $25,000.",
-    "FINRA replaced it, effective June 4, 2026. No trade count, no $25,000. Your equity must cover your positions all day.",
-    "Brokers have until October 20, 2027 to switch. Until then, ask yours which rules your account runs on."
+    "Old rule: four or more day trades in five business days, and you're a pattern day trader. That meant $25,000 minimum.",
+    "FINRA scrapped it June 4, 2026. No trade count, no $25,000. Now your equity has to cover your positions all day.",
+    "Brokers have until October 20, 2027 to switch over. So ask yours which rules your account runs on today."
    ],
    "subject": "F9.07#w2"
   },
@@ -14448,7 +14477,7 @@
   "difficulty": 1,
   "id": "si_802147539594",
   "lesson_origin": "session",
-  "lesson_text": "Buy and sell before you pay at all, and that's freeriding. Your broker can freeze the account for 90 days.",
+  "lesson_text": "Buy and sell before you've paid at all, and that's freeriding. Your broker can freeze the account for 90 days.",
   "module": "F9",
   "prompt_json": {
    "order": 3,
@@ -14456,9 +14485,9 @@
    "parts": 3,
    "q": "Settled cash in a cash account",
    "steps": [
-    "Most trades settle T+1, the next business day. Sell on Tuesday and the cash settles on Wednesday.",
-    "Buy with cash that hasn't settled, then sell before it does, and that's a good faith violation.",
-    "Buy and sell before you pay at all, and that's freeriding. Your broker can freeze the account for 90 days."
+    "Most trades settle T+1, the next business day. Sell Tuesday, and that cash is yours Wednesday.",
+    "Buy with cash that hasn't settled, then sell before it does. That's a good faith violation.",
+    "Buy and sell before you've paid at all, and that's freeriding. Your broker can freeze the account for 90 days."
    ],
    "subject": "F9.07#w3"
   },
@@ -16067,7 +16096,7 @@
   "difficulty": 1,
   "id": "si_877909338bd5",
   "lesson_origin": "session",
-  "lesson_text": "Buy the full size at one price with one stop. No scaling in, no adding.",
+  "lesson_text": "And you buy it all at one price, with one stop. No scaling in, no adding later.",
   "module": "F9",
   "prompt_json": {
    "order": 1,
@@ -16075,10 +16104,10 @@
    "parts": 3,
    "q": "Size from the stop, then cap it",
    "steps": [
-    "Stop first. Then shares = account × risk % ÷ (entry − stop), rounded down.",
-    "Then the cap. The size is the SMALLER of that and 40% of the account.",
-    "A tight stop never earns more than the cap. A gap can jump any stop.",
-    "Buy the full size at one price with one stop. No scaling in, no adding."
+    "Stop first. Then divide your dollars at risk by the risk per share. $500 over $20 a share is 25 shares.",
+    "Round down, then check the cap. You take the smaller of that number and 40% of the account.",
+    "Even a tight stop doesn't earn more than 40% of the account. A gap can jump any stop.",
+    "And you buy it all at one price, with one stop. No scaling in, no adding later."
    ],
    "subject": "F9.08#w1"
   },
@@ -16124,7 +16153,7 @@
   "difficulty": 1,
   "id": "si_9bdd05afed06",
   "lesson_origin": "session",
-  "lesson_text": "Risking the same percent every trade is fine too. Pick one way and write it in your plan.",
+  "lesson_text": "Risking the same percent on every trade is fine too. Pick one way and write it in your plan.",
   "module": "F9",
   "prompt_json": {
    "order": 2,
@@ -16132,10 +16161,10 @@
    "parts": 3,
    "q": "The grade sets the risk",
    "steps": [
-    "Grade the setup first: A+, A, B, B- or lower. That's a judgment call. We teach no checklist for it.",
-    "A+ risks 1% to 1.5% of the account. A and B, 0.5% to 1%. B- or lower, 0.25% to 0.5%.",
-    "2% is the absolute ceiling. New traders start at 0.25% a trade until 50 journaled trades followed the rules.",
-    "Risking the same percent every trade is fine too. Pick one way and write it in your plan."
+    "First you grade the setup: A+, A, B, or B- and lower. That's judgment. There's no checklist for it.",
+    "An A+ risks 1% to 1.5% of the account. A and B, 0.5% to 1%. B- or lower, 0.25% to 0.5%.",
+    "2% is the absolute ceiling, and no grade gets there. New traders stay at 0.25% until 50 journaled trades follow the rules.",
+    "Risking the same percent on every trade is fine too. Pick one way and write it in your plan."
    ],
    "subject": "F9.08#w2"
   },
@@ -16174,7 +16203,7 @@
   "difficulty": 1,
   "id": "si_68c55c36c966",
   "lesson_origin": "session",
-  "lesson_text": "Recalculate the account weekly or monthly and size every trade from it.",
+  "lesson_text": "Recount the account weekly or monthly, and size every trade off that number.",
   "module": "F9",
   "prompt_json": {
    "order": 3,
@@ -16182,10 +16211,10 @@
    "parts": 3,
    "q": "What we trade, and how much of it",
    "steps": [
-    "Stocks at $10 or more, trading at least $20 million a day. Never more than 1% of a stock's average daily volume.",
-    "The book: 100% of the account, or 200% on margin in a Green market. At 200%, ten positions average about 20% each.",
-    "2x and 3x ETFs are preferred, no extra rules. The same stock gets 3 tries a week, 6 a month.",
-    "Recalculate the account weekly or monthly and size every trade from it."
+    "Stocks at $10 or more, doing $20 million a day. Never own more than 1% of its average daily volume.",
+    "The whole book runs to 100% of the account. On margin in a Green market, 200%, so ten names average about 20%.",
+    "We prefer 2x and 3x ETFs, no extra rules. One stock gets 3 tries a week, 6 a month.",
+    "Recount the account weekly or monthly, and size every trade off that number."
    ],
    "subject": "F9.08#w3"
   },
@@ -17829,7 +17858,7 @@
   "difficulty": 1,
   "id": "si_bea4d8194648",
   "lesson_origin": "session",
-  "lesson_text": "What the reading changes is a guide, not a hard cap. The hard rule is the next one.",
+  "lesson_text": "What the reading changes is a guide, not a hard cap. The 200-day is a different story.",
   "module": "F9",
   "prompt_json": {
    "order": 1,
@@ -17837,10 +17866,10 @@
    "parts": 3,
    "q": "The market comes first",
    "steps": [
-    "Our market reading is Green, Yellow, Orange or Red. It decides when the account trades, before you look at any stock.",
-    "Green: full risk per grade, up to 10 positions. Yellow: smaller and fewer. Orange: only A+ setups.",
-    "Red: mostly cash, plus shorts below the 200-day. IBD says 3 of 4 stocks move with the general market.",
-    "What the reading changes is a guide, not a hard cap. The hard rule is the next one."
+    "Before you look at a single stock, check our market reading. Green, Yellow, Orange or Red. It decides when the account trades.",
+    "Green, full risk per grade and up to 10 positions. Yellow, smaller and fewer. Orange, only the A+ setups.",
+    "Red is mostly cash, plus shorts below the 200-day. Three of four stocks go where the market goes.",
+    "What the reading changes is a guide, not a hard cap. The 200-day is a different story."
    ],
    "subject": "F9.09#w1"
   },
@@ -17879,7 +17908,7 @@
   "difficulty": 1,
   "id": "si_8ac3629e40d1",
   "lesson_origin": "session",
-  "lesson_text": "Above the line, don't chase: never more than 4% over the buy point, never more than 10% over the 10-day.",
+  "lesson_text": "Above the line, don't chase. Never more than 4% over the buy point, or 10% over the 9 EMA.",
   "module": "F9",
   "prompt_json": {
    "order": 2,
@@ -17887,10 +17916,10 @@
    "parts": 3,
    "q": "The 200-day line, and the chase",
    "steps": [
-    "A simple moving average is the average price over a set number of days. The 200-day is the long one.",
-    "Our hard rule: no longs below the 200-day, shorts only below it. The one exception is a parabolic move.",
-    "Bracco's parabolic burst: three straight up days, two overnight gap ups, range and volume expanding, a gap up on the climax day.",
-    "Above the line, don't chase: never more than 4% over the buy point, never more than 10% over the 10-day."
+    "The 200-day is the average price over the last 200 days. It's the long one everybody watches.",
+    "Our hard line: no longs on a stock below the 200-day. Shorts only below it, unless it's a parabolic short.",
+    "Indexes and levered ETFs are the only exception, on a reversal extension or a parabolic long. Stocks, never.",
+    "Above the line, don't chase. Never more than 4% over the buy point, or 10% over the 9 EMA."
    ],
    "subject": "F9.09#w2"
   },
@@ -17900,23 +17929,16 @@
      {
       "accessed": "2026-11-09",
       "name": "StockCharts.com: ChartSchool: Moving Averages - Simple and Exponential",
-      "quote": "A simple moving average is formed by computing the average price of a security over a specific number of periods. … The 200-day moving average is perhaps the most popular. Because of its length, this is clearly a long-term moving average. … A 10-day moving average will hug prices quite closely and turn shortly after prices turn.",
+      "quote": "A simple moving average is formed by computing the average price of a security over a specific number of periods. … The 200-day moving average is perhaps the most popular. Because of its length, this is clearly a long-term moving average.",
       "tier": 2,
       "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/moving-averages-simple-and-exponential"
      },
      {
-      "accessed": "2026-11-09",
+      "accessed": "2026-11-14",
       "name": "Our trading rules",
-      "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only below the 200-day, never above it unless it is a parabolic short. … 200SMA is hardened rule yes … the \"parabolic burst\", a 3-5 day final leg: three straight up days, two straight overnight gap ups, two of three days of range expansion, two days of rising volume, and a gap up on the climax day … No chasing: never buy more than 4% above the buy point. (\"28, make it 4%.\") … Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
+      "quote": "Below the 200-day is a hard no for stocks; indexes and leveraged ETFs are the one exception, on a reversal extension or a parabolic long. … The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only below the 200-day, never above it unless it is a parabolic short. … 200SMA is hardened rule yes … The post has no parabolic long; the long is the mirror image, a burst down (confirmed: \"1, yes.\"). … No chasing: never buy more than 4% above the buy point. (\"28, make it 4%.\") … Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink (A5). … Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
       "tier": 3,
       "url": null
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "UCT (Bracco), Uncharted Territory Substack: The Parabolic Short (Bracco, 2025-06-13)",
-      "quote": "This parabolic burst is a 3-5 day move that marks the final leg of a parabolic move.",
-      "tier": 3,
-      "url": "https://unchartedterritoryy.substack.com/p/the-parabolic-short"
      }
     ]
    },
@@ -17936,7 +17958,7 @@
   "difficulty": 1,
   "id": "si_1566c69cee91",
   "lesson_origin": "session",
-  "lesson_text": "After the close: journal every trade the same day, and review the week each weekend.",
+  "lesson_text": "A trade under 1R after 10 trading days gets sold. Journal every trade that day, and review the week each weekend.",
   "module": "F9",
   "prompt_json": {
    "order": 3,
@@ -17944,10 +17966,10 @@
    "parts": 3,
    "q": "Before the open, after the close",
    "steps": [
-    "Before the open: entry, stop and size written for every buy, and a focus list of the 5 to 10 best setups.",
-    "Entries are market orders, in regular hours only. The stop is a real order with the broker.",
-    "No new buys in the 3 days before earnings; hold through only if up 5R. Under 1R after 10 trading days: sold.",
-    "After the close: journal every trade the same day, and review the week each weekend."
+    "Before the open, write the entry, stop and size for every buy. Then a focus list of the 5 to 10 best.",
+    "In the session, it's market orders, regular hours only. And a real stop with your broker, not one in your head.",
+    "No new buys in the 3 days before earnings. Hold through one only if you're up 5R.",
+    "A trade under 1R after 10 trading days gets sold. Journal every trade that day, and review the week each weekend."
    ],
    "subject": "F9.09#w3"
   },

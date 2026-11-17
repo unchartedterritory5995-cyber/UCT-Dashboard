@@ -2000,7 +2000,7 @@
   "difficulty": 1,
   "id": "si_733fca5d3726",
   "lesson_origin": "session",
-  "lesson_text": "Cover at $80 instead and you lose $20 a share.",
+  "lesson_text": "Cover at $80 instead and you lose $20 a share. The stock going up is your risk.",
   "module": "F10b",
   "prompt_json": {
    "order": 1,
@@ -2008,10 +2008,10 @@
    "parts": 3,
    "q": "Sell first, buy back later",
    "steps": [
-    "A short sale is selling a stock you don't own. Your broker usually lends you the shares, and you sell them.",
-    "Later you buy the same number back and return them to the lender. That purchase is the buy to cover.",
-    "Sell at $60 and cover at $40: you make $20 a share before costs.",
-    "Cover at $80 instead and you lose $20 a share."
+    "A short flips the trade around. You sell a stock you don't own, using shares your broker usually lends you.",
+    "Later you buy the same number back and hand them to the lender. That buy is the buy to cover.",
+    "Sell at $60, cover at $40, and you keep $20 a share before costs.",
+    "Cover at $80 instead and you lose $20 a share. The stock going up is your risk."
    ],
    "subject": "F10b.01#w1"
   },
@@ -2057,7 +2057,7 @@
   "difficulty": 1,
   "id": "si_f2ec06ad86be",
   "lesson_origin": "session",
-  "lesson_text": "Hard-to-borrow names can cost more to borrow, and your order may be refused.",
+  "lesson_text": "On a hard-to-borrow name the fee can run higher, and your order may just get refused.",
   "module": "F10b",
   "prompt_json": {
    "order": 2,
@@ -2066,9 +2066,9 @@
    "q": "The locate comes first",
    "steps": [
     "Before you ever short: we only recommend it to traders who've already made $1 million trading.",
-    "Shorting happens in a margin account. Before your short goes through, your broker must locate the shares.",
-    "A locate means reasonable grounds the shares can be borrowed and delivered on time. An easy-to-borrow list generally counts.",
-    "Hard-to-borrow names can cost more to borrow, and your order may be refused."
+    "You short in a margin account. And before the order goes through, your broker has to locate the shares.",
+    "That means it has good reason to think it can borrow them and deliver on time. An easy-to-borrow list can be enough.",
+    "On a hard-to-borrow name the fee can run higher, and your order may just get refused."
    ],
    "subject": "F10b.01#w2"
   },
@@ -2142,7 +2142,7 @@
   "difficulty": 1,
   "id": "si_49af9a98c281",
   "lesson_origin": "session",
-  "lesson_text": "If the stock pays a dividend while you're short, you pay it to the lender.",
+  "lesson_text": "And if the stock pays a dividend while you're short, you pay it to the lender. Out of your own pocket.",
   "module": "F10b",
   "prompt_json": {
    "order": 3,
@@ -2150,10 +2150,10 @@
    "parts": 3,
    "q": "What a short costs while you hold it",
    "steps": [
-    "You usually pay to borrow the shares. The fee is a yearly rate, charged for each day the short is open.",
-    "On average it's cheap. SEC staff found lending fees averaged 1.5% from 2007 to 2018. Fees over 100% were rare.",
-    "The rate can change overnight. Schwab's example goes from 20% one night to 85% the next day.",
-    "If the stock pays a dividend while you're short, you pay it to the lender."
+    "Holding a short costs money. You usually pay a borrow fee, a yearly rate charged for each day you're short.",
+    "On average it's cheap: SEC staff found fees averaged 1.5% from 2007 to 2018. Over 100% was rare.",
+    "But the rate can jump overnight. You log off short at 20% and log in the next day paying 85%.",
+    "And if the stock pays a dividend while you're short, you pay it to the lender. Out of your own pocket."
    ],
    "subject": "F10b.01#w3"
   },
@@ -4208,8 +4208,8 @@
    "q": "The mirror",
    "steps": [
     "Before you ever short: we only recommend it to traders who've already made $1 million trading.",
-    "Long, the worst case is zero. You can lose what you paid for the shares, and no more.",
-    "Short, there is no ceiling. The stock can keep rising, and your loss keeps growing.",
+    "Long, the worst case is zero. You lose what you paid for the shares, and no more.",
+    "Short, there's no ceiling. The stock can keep rising, and your loss grows right along with it.",
     "So the stop flips sides. A buy stop sits above the price and buys you back if it rallies."
    ],
    "subject": "F10b.02#w1"
@@ -4270,7 +4270,7 @@
   "difficulty": 1,
   "id": "si_db4693f41e1f",
   "lesson_origin": "session",
-  "lesson_text": "A high number is fuel, not a spark. Plenty of heavily shorted stocks just keep falling.",
+  "lesson_text": "Heavy short interest doesn't mean it'll rise. Plenty of heavily shorted stocks just keep falling.",
   "module": "F10b",
   "prompt_json": {
    "order": 2,
@@ -4278,9 +4278,10 @@
    "parts": 3,
    "q": "Reading the crowd",
    "steps": [
-    "Short interest is the shares sold short and not yet bought back. FINRA takes the count twice a month.",
-    "Days to cover divides short interest by average daily volume. It's how many normal days the shorts need to get out.",
-    "A high number is fuel, not a spark. Plenty of heavily shorted stocks just keep falling."
+    "Short interest tells you how crowded the short side is: shares sold short and not bought back yet.",
+    "FINRA takes that count twice a month. Divide it by average daily volume and you get days to cover.",
+    "That's how many normal days the shorts need to get out. A big number is fuel, not a spark.",
+    "Heavy short interest doesn't mean it'll rise. Plenty of heavily shorted stocks just keep falling."
    ],
    "subject": "F10b.02#w2"
   },
@@ -4340,7 +4341,7 @@
   "difficulty": 1,
   "id": "si_251fae629125",
   "lesson_origin": "session",
-  "lesson_text": "Your buy stop turns into a market order when it triggers. In a squeeze it can fill far above your stop.",
+  "lesson_text": "Your buy stop becomes a market order when it triggers. In a squeeze, the fill can land far above your stop.",
   "module": "F10b",
   "prompt_json": {
    "order": 3,
@@ -4348,9 +4349,9 @@
    "parts": 3,
    "q": "How a squeeze feeds itself",
    "steps": [
-    "A sharp rally, or trouble borrowing shares, pushes shorts to buy back.",
-    "Their buying lifts the price, which pushes the next short to buy. Margin calls speed it up.",
-    "Your buy stop turns into a market order when it triggers. In a squeeze it can fill far above your stop."
+    "A squeeze starts with a sharp rally, or trouble borrowing the shares. Either one pushes shorts to buy back.",
+    "Their buying lifts the price, and that can force out the next short. Margin calls speed it up.",
+    "Your buy stop becomes a market order when it triggers. In a squeeze, the fill can land far above your stop."
    ],
    "subject": "F10b.02#w3"
   },

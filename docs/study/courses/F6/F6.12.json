@@ -759,10 +759,10 @@
    "key": "w1",
    "title": "Two legs, one expiry",
    "steps": [
-    "A vertical spread is two calls or two puts on one stock, same expiry, different strikes. You buy one and sell one.",
-    "Pay more than you collect and it's a debit spread. Collect more than you pay and it's a credit spread.",
-    "On a debit spread, the option you sell pays for part of the one you buy, and it caps your gain.",
-    "On a credit spread, the option you buy is the one that caps your loss."
+    "Take two calls, or two puts, on one stock. Same expiry, different strikes. Buy one, sell one: that's a vertical.",
+    "Pay more than you collect and it's a debit spread. Collect more than you pay, it's a credit spread.",
+    "On a debit spread, the option you sell pays for part of the one you buy. It also caps your gain.",
+    "On a credit spread, the option bought is what caps the loss. That's the seller's side, not ours."
    ],
    "facts": [
     "f1",
@@ -779,9 +779,9 @@
    "key": "w2",
    "title": "A debit spread, worked",
    "steps": [
-    "Buy the 100 call at 3.30 and sell the 105 call at 1.50. You pay 1.80.",
-    "Below 100 at expiry, both calls expire worthless. You lose the 1.80.",
-    "At 105 or higher, you get the spread's full width, the 5.00 between the strikes. Less the 1.80, that's 3.20.",
+    "Say you buy the 100 call at 3.30 and sell the 105 call at 1.50. You're out 1.80.",
+    "Under 100 at expiry, both calls expire worthless. The 1.80 is your whole loss, and you knew it going in.",
+    "At 105 or higher, you collect the full 5.00 between the strikes. Less the 1.80, that's 3.20.",
     "Break-even at expiry is 101.80: the long strike plus what you paid."
    ],
    "facts": [
@@ -795,12 +795,12 @@
   },
   {
    "key": "w3",
-   "title": "A credit spread, worked",
+   "title": "A credit spread, from the seller's side",
    "steps": [
-    "Sell the 102/104 call spread for 0.60. That's $60 in your account per spread.",
-    "Below 102 at expiry, both calls expire worthless and you keep the $60.",
-    "Above 104, you lose the full 2.00 between the strikes, less the 0.60 credit. That's $140 a spread.",
-    "Break-even is 102.60: the short strike plus the credit."
+    "This one's the seller's side, not ours. They sell the 102/104 call spread for 0.60, $60 a spread.",
+    "Under 102 at expiry, both calls expire worthless and the seller keeps the $60. That's the best case.",
+    "Over 104, they lose the full 2.00 between the strikes, less the 0.60. That's $140 a spread.",
+    "Break-even is 102.60, the short strike plus the credit. They risk $140 to make $60."
    ],
    "facts": [
     "f75",

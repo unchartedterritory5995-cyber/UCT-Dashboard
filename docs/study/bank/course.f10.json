@@ -1576,7 +1576,7 @@
   "difficulty": 1,
   "id": "si_01884ed86a9e",
   "lesson_origin": "session",
-  "lesson_text": "Pick what you need more: the fill or the price.",
+  "lesson_text": "So it comes down to one thing: what you need more right now, the fill or the price.",
   "module": "F10",
   "prompt_json": {
    "order": 1,
@@ -1584,10 +1584,10 @@
    "parts": 3,
    "q": "Two orders, two promises",
    "steps": [
-    "A market order says: fill me now at the best price there. You almost always get filled. The price isn't promised.",
+    "A market order says: fill me now, at the best price there. It almost always fills. The price isn't promised.",
     "A limit order says: my price or better. A buy limit fills at your price or lower.",
-    "A sell limit fills at your price or higher. The price is protected. The fill is not.",
-    "Pick what you need more: the fill or the price."
+    "A sell limit fills at your price or higher. The price is protected. The fill isn't.",
+    "So it comes down to one thing: what you need more right now, the fill or the price."
    ],
    "subject": "F10.01#w1"
   },
@@ -1633,7 +1633,7 @@
   "difficulty": 1,
   "id": "si_9e0831903c94",
   "lesson_origin": "session",
-  "lesson_text": "It fills at the best price there, which can be better than your limit. Your limit is only the most you'll pay.",
+  "lesson_text": "Your limit is only the most you'll pay. Anything under it is fair game.",
   "module": "F10",
   "prompt_json": {
    "order": 2,
@@ -1641,9 +1641,10 @@
    "parts": 3,
    "q": "Where you put the limit matters",
    "steps": [
-    "Put a buy limit below the market and it waits. It only fills if the stock comes down to it.",
-    "At or above the ask, it can fill right away. That's a marketable limit: a market order with a ceiling.",
-    "It fills at the best price there, which can be better than your limit. Your limit is only the most you'll pay."
+    "Put a buy limit under the market and it just sits there. It only fills if the stock comes down to it.",
+    "Put it at or over the ask and it can fill now. That's a marketable limit: a market order with a ceiling.",
+    "Say the ask is $50.00 and you send a buy limit at $50.02. You can get filled at $49.97.",
+    "Your limit is only the most you'll pay. Anything under it is fair game."
    ],
    "subject": "F10.01#w2"
   },
@@ -1703,7 +1704,7 @@
   "difficulty": 1,
   "id": "si_9ded49840713",
   "lesson_origin": "session",
-  "lesson_text": "Thin stock or a wild open: name your price. I'd rather miss it than chase it.",
+  "lesson_text": "When price matters more than the fill, use a limit. To buy only on a dip to a level, rest it there.",
   "module": "F10",
   "prompt_json": {
    "order": 3,
@@ -1711,10 +1712,10 @@
    "parts": 3,
    "q": "Picking the order",
    "steps": [
-    "For a pullback, rest a buy limit at your level. Let the stock come to you.",
-    "On a breakout, a buy limit below won't catch the move. Once it clears, send one at the most you'll pay.",
-    "Need out of a liquid stock right now: use a market order. The fill matters more than the last penny.",
-    "Thin stock or a wild open: name your price. I'd rather miss it than chase it."
+    "When the setup triggers, we buy at market. That's every entry we take.",
+    "A market order is the surest way to get filled. Same tool when you need out of a liquid stock right now.",
+    "The catch: no price protection. On a wild open, a market order can fill far from the quote on your screen.",
+    "When price matters more than the fill, use a limit. To buy only on a dip to a level, rest it there."
    ],
    "subject": "F10.01#w3"
   },
@@ -3540,7 +3541,7 @@
   "difficulty": 1,
   "id": "si_fbff652bc9a8",
   "lesson_origin": "session",
-  "lesson_text": "The stop price is the trigger, not a promise. In a fast market the fill can land well below it.",
+  "lesson_text": "So the stop price is a trigger, not a promise. Its job is getting you out, not getting you a price.",
   "module": "F10",
   "prompt_json": {
    "order": 1,
@@ -3548,10 +3549,10 @@
    "parts": 3,
    "q": "A stop is a trigger",
    "steps": [
-    "Your plan's stop is where the idea is wrong. Ours defaults to the day's low or the prior day's low.",
-    "A sell stop order puts that price in the market. It sits below the price, waiting.",
-    "When the price reaches it, the stop becomes a market order and sells.",
-    "The stop price is the trigger, not a promise. In a fast market the fill can land well below it."
+    "Your stop is where the idea is wrong. Ours goes under the low of the day, or the prior day's low.",
+    "A sell stop puts that price in with your broker. It sits under the price and waits.",
+    "Once hit, it becomes a market order and sells. In a fast drop the fill can land well under it.",
+    "So the stop price is a trigger, not a promise. Its job is getting you out, not getting you a price."
    ],
    "subject": "F10.02#w1"
   },
@@ -3597,7 +3598,7 @@
   "difficulty": 1,
   "id": "si_6bd7e7b23ed1",
   "lesson_origin": "session",
-  "lesson_text": "A stop-limit at $34 with a $33 limit sells nothing. You still own it, waiting for $33.",
+  "lesson_text": "A stop-limit at $34 with a $33 limit sells nothing. You still own it, hoping for $33 while it trades lower.",
   "module": "F10",
   "prompt_json": {
    "order": 2,
@@ -3606,9 +3607,9 @@
    "q": "Stop-limit: your price or nothing",
    "steps": [
     "A stop-limit has two prices. The stop triggers it. The limit is the worst price you'll take.",
-    "Schwab's example: a stock gaps down from more than $34 to around $32 at the open.",
-    "A plain sell stop at $34 triggers at the open and sells at $32.",
-    "A stop-limit at $34 with a $33 limit sells nothing. You still own it, waiting for $33."
+    "Say a stock closes over $34 and gaps down to around $32 at the next open.",
+    "A plain sell stop at $34 triggers at the open and sells at $32. You're out.",
+    "A stop-limit at $34 with a $33 limit sells nothing. You still own it, hoping for $33 while it trades lower."
    ],
    "subject": "F10.02#w2"
   },
@@ -3654,7 +3655,7 @@
   "difficulty": 1,
   "id": "si_d11a0bdc343f",
   "lesson_origin": "session",
-  "lesson_text": "Several of our trade plans trail under each higher low, or under the 9 EMA or the rising 20 EMA.",
+  "lesson_text": "A close under it sells what's left. On some setups we trail under each higher low instead.",
   "module": "F10",
   "prompt_json": {
    "order": 3,
@@ -3662,10 +3663,10 @@
    "parts": 3,
    "q": "Trailing: the stop that only moves up",
    "steps": [
-    "A trailing stop sits a set dollar amount or percent under the price. It rises with the stock, never falls.",
-    "The SEC's example: a $1 trail, the stock peaks at $24, and the stop sits at $23.",
-    "To trail a moving average, move your stop up yourself. A 10-day hugs price; a 50-day gives more room.",
-    "Several of our trade plans trail under each higher low, or under the 9 EMA or the rising 20 EMA."
+    "A trailing stop sits a set dollar amount or percent under the price. It moves up with the stock, never down.",
+    "Say you trail by $1. The stock peaks at $24 and starts to drop. Your stop stays at $23.",
+    "Trailing an average, you move the stop up yourself. Ours: the 9 EMA for fast movers, 20 EMA for steadier ones.",
+    "A close under it sells what's left. On some setups we trail under each higher low instead."
    ],
    "subject": "F10.02#w3"
   },
@@ -3685,20 +3686,6 @@
       "quote": "Trailing stops are not \"orders\" per se but a means to automatically move or \"trail\" stops (basic stop orders) that are already in place.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/how-to-use-advanced-stock-order-types"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: ChartSchool: Moving Averages, Simple and Exponential",
-      "quote": "A 10-day moving average will hug prices quite closely and turn shortly after prices turn. … The longer the moving average, the more the lag.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/moving-averages-simple-and-exponential"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Fidelity Investments: Technical Indicator Guide: Simple Moving Average (SMA) (Fidelity Learning Center)",
-      "quote": "50-bar SMAs are typically used to gauge the intermediate trend. Shorter period SMAs can be used to determine shorter term trends.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/trading-investing/technical-analysis/technical-indicator-guide/sma"
      },
      {
       "accessed": "2026-11-09",
@@ -5431,7 +5418,7 @@
   "difficulty": 1,
   "id": "si_7f3f72bbe396",
   "lesson_origin": "session",
-  "lesson_text": "Fidelity's example: buy $25, stop $23, limit $27. It fills, drops to $23, the stop sells, and the limit cancels.",
+  "lesson_text": "A broker's sample ticket: buy $25, stop $23, target $27. It fills, drops to $23, the stop sells and the target cancels.",
   "module": "F10",
   "prompt_json": {
    "order": 1,
@@ -5439,9 +5426,9 @@
    "parts": 3,
    "q": "Three orders, one plan",
    "steps": [
-    "A bracket is your entry plus two exits. A sell limit above is your target. A sell stop below is your stop.",
-    "The exits wait for the entry. Once the buy fills, both go live.",
-    "Fidelity's example: buy $25, stop $23, limit $27. It fills, drops to $23, the stop sells, and the limit cancels."
+    "A bracket is three orders on one ticket: your buy, a sell limit above for the target, a sell stop below.",
+    "Nothing on the exit side works until the buy fills. The moment it fills, both exits go live.",
+    "A broker's sample ticket: buy $25, stop $23, target $27. It fills, drops to $23, the stop sells and the target cancels."
    ],
    "subject": "F10.03#w1"
   },
@@ -5494,7 +5481,7 @@
   "difficulty": 1,
   "id": "si_86740003004c",
   "lesson_origin": "session",
-  "lesson_text": "The cancel is best effort. In a fast market both legs can fill, so check your orders after any fill.",
+  "lesson_text": "The cancel is best effort, not a promise. In a fast market both can fill. Check your orders after every fill.",
   "module": "F10",
   "prompt_json": {
    "order": 2,
@@ -5502,9 +5489,9 @@
    "parts": 3,
    "q": "One cancels the other",
    "steps": [
-    "The two exits are linked as one-cancels-other, or OCO. When one fills, the other is canceled for you.",
-    "Fidelity's example: sell limit $27, sell stop $24. The stock hits $27, the limit sells, and the stop is canceled.",
-    "The cancel is best effort. In a fast market both legs can fill, so check your orders after any fill."
+    "The two exits are linked: one-cancels-other, OCO. Whichever fills first, the broker pulls the other one for you.",
+    "Target $27, stop $24. It runs to $27, the target sells, and the stop goes away.",
+    "The cancel is best effort, not a promise. In a fast market both can fill. Check your orders after every fill."
    ],
    "subject": "F10.03#w2"
   },
@@ -5564,7 +5551,7 @@
   "difficulty": 1,
   "id": "si_59080526dd0c",
   "lesson_origin": "session",
-  "lesson_text": "It can't stop a gap. Schwab's example: a $34 stop, gapped through at the open, fills at $32.",
+  "lesson_text": "The stop leg's the one we never skip. Every position we hold has a real stop with the broker.",
   "module": "F10",
   "prompt_json": {
    "order": 3,
@@ -5572,9 +5559,10 @@
    "parts": 3,
    "q": "Why it keeps you honest",
    "steps": [
-    "You pick the stop and the target before you're in, while you're calm.",
-    "Once it's placed, you don't re-argue the exits as the price moves. The stop only moves up, as the plan trails it.",
-    "It can't stop a gap. Schwab's example: a $34 stop, gapped through at the open, fills at $32."
+    "You pick the stop and the target before you're in. Calm, before the stock starts moving on you.",
+    "Once it's on, you don't re-argue the exits every tick. The stop only moves up, as you trail it.",
+    "It can't catch a gap though. A $34 stop on a stock that opens at $32 sells you around $32.",
+    "The stop leg's the one we never skip. Every position we hold has a real stop with the broker."
    ],
    "subject": "F10.03#w3"
   },
@@ -5629,6 +5617,13 @@
       "quote": "The chart below shows a stock that \"gapped down\" from more than $34 to around $32 between a previous closing price and the next opening price. … which would trigger at the market's open because the stock's price fell below the stop price and, as a market order, executes at $32",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/3-order-types-market-limit-and-stop-orders"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Our trading rules",
+      "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -7596,7 +7591,7 @@
   "difficulty": 1,
   "id": "si_cec3410f368b",
   "lesson_origin": "session",
-  "lesson_text": "Fast markets and big orders widen it. On a stop, it can cost more than you planned.",
+  "lesson_text": "Fast markets and big orders make it worse. On a stop, it can cost you more than you planned.",
   "module": "F10",
   "prompt_json": {
    "order": 1,
@@ -7604,10 +7599,10 @@
    "parts": 3,
    "q": "The price you saw, the price you got",
    "steps": [
-    "Hit enter and your order goes to your broker first. The broker picks the market.",
-    "That trip takes time, and a quote covers only so many shares.",
-    "So your fill can land away from the quote. That gap is slippage.",
-    "Fast markets and big orders widen it. On a stop, it can cost more than you planned."
+    "You hit buy and the order goes to your broker first, not straight to the market. The broker picks where it fills.",
+    "That trip takes time. And the quote you saw only covers so many shares.",
+    "So you get filled away from the quote. That gap is slippage, and it comes out of your money.",
+    "Fast markets and big orders make it worse. On a stop, it can cost you more than you planned."
    ],
    "subject": "F10.04#w1"
   },
@@ -7667,7 +7662,7 @@
   "difficulty": 1,
   "id": "si_20f188d83ba9",
   "lesson_origin": "session",
-  "lesson_text": "All-or-none waits for the full size. Immediate-or-cancel takes what's there and cancels the rest.",
+  "lesson_text": "Me, I market order everything. The stop sits with the broker.",
   "module": "F10",
   "prompt_json": {
    "order": 2,
@@ -7675,9 +7670,10 @@
    "parts": 3,
    "q": "Partial fills and your place in line",
    "steps": [
-    "A limit order can fill in part. Some shares now, the rest later or never.",
-    "Orders at one price usually fill in line, first come, first served. A trade at your limit is no promise.",
-    "All-or-none waits for the full size. Immediate-or-cancel takes what's there and cancels the rest."
+    "A limit order can fill in pieces. Some shares now, the rest later, or never.",
+    "Orders at one price fill first come, first served. So it can trade right at your limit and still skip you.",
+    "All-or-none waits for every share. Immediate-or-cancel grabs what's there and cancels the rest.",
+    "Me, I market order everything. The stop sits with the broker."
    ],
    "subject": "F10.04#w2"
   },
@@ -7711,6 +7707,13 @@
       "quote": "An AON order is an order to buy or sell a stock that must be executed in its entirety, or not executed at all. … However, unlike the FOK order, an AON order that is not executed immediately will remain active until it is executed or it is canceled. … An IOC order is an order to buy or sell a stock that must be executed immediately. Any portion of the order that cannot be filled immediately will be canceled.",
       "tier": 1,
       "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-14"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "Entries are market orders. (\"57, No i market order everything.\") The stop still sits with the broker (D41).",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -7730,7 +7733,7 @@
   "difficulty": 1,
   "id": "si_bdde80a38cd8",
   "lesson_origin": "session",
-  "lesson_text": "That price may not hold into the next open. Ask your broker whether unfilled orders cancel.",
+  "lesson_text": "For us it's simple: no new buys outside regular hours.",
   "module": "F10",
   "prompt_json": {
    "order": 3,
@@ -7738,9 +7741,10 @@
    "parts": 3,
    "q": "Fills outside the regular session",
    "steps": [
-    "Before the open and after the close, fewer people trade. Spreads usually widen, or quotes vanish.",
-    "Your order may fill in part or not at all. Venues aren't linked, so your price can be worse.",
-    "That price may not hold into the next open. Ask your broker whether unfilled orders cancel."
+    "Before the open and after the close, fewer people are trading. Spreads widen, or there's no quote at all.",
+    "You might fill in part or not at all. The venues aren't linked, so your price can be worse.",
+    "And that price may not hold into the open. Ask your broker if unfilled orders cancel or carry over.",
+    "For us it's simple: no new buys outside regular hours."
    ],
    "subject": "F10.04#w3"
   },
@@ -7767,6 +7771,13 @@
       "quote": "A limit order may fill only in part (or not at all) before the session ends.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/how-does-extended-hours-trading-work"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "No new buys outside regular trading hours.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -9731,7 +9742,7 @@
   "difficulty": 1,
   "id": "si_7da5e2848fb8",
   "lesson_origin": "session",
-  "lesson_text": "It pays when the stock comes back before your target. You're trading some upside for a gain in hand.",
+  "lesson_text": "It pays when the stock comes back on you. You gave up some upside for a gain you get to keep.",
   "module": "F10",
   "prompt_json": {
    "order": 3,
@@ -9739,10 +9750,10 @@
    "parts": 4,
    "q": "Scaling out, and what it costs",
    "steps": [
-    "Scaling out means selling part of a winner and letting the rest ride.",
-    "Our way: the first sell is a judgment, usually day 3 or later. Stop to breakeven; the rest trails a rising average.",
-    "It isn't free. In Bulkowski's tests, scaling out made less when the stock ran all the way.",
-    "It pays when the stock comes back before your target. You're trading some upside for a gain in hand."
+    "You're up nicely on a winner. Scaling out means you sell part of it and let the rest ride.",
+    "First sell's a judgment call, rarely before day 3, into a push. Stop can go to breakeven. The rest trails.",
+    "It isn't free. On a stock that runs straight to its target, selling half halfway made less than holding it all.",
+    "It pays when the stock comes back on you. You gave up some upside for a gain you get to keep."
    ],
    "subject": "F10.05#w3"
   },
@@ -9766,7 +9777,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Our trading rules",
-      "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages. … The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R. … The stop may move up to breakeven between 2R and 5R, or at the first sell. … Later sells are a judgment too: sell more into strength on a later push, and trail what is left. … Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+      "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages. … The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R. … We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest. … Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. … The stop may move up to breakeven between 2R and 5R, or at the first sell. … Later sells are a judgment too: sell more into strength on a later push, and trail what is left. … Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
       "tier": 3,
       "url": null
      },
@@ -9795,7 +9806,7 @@
   "difficulty": 1,
   "id": "si_ae10ac21f49f",
   "lesson_origin": "session",
-  "lesson_text": "What we scale is the exit: a first sell by judgment, usually day 3 or later, then a trail.",
+  "lesson_text": "The only thing we scale is the exit. Sell some into strength, rarely before day 3, and trail the rest.",
   "module": "F10",
   "prompt_json": {
    "order": 4,
@@ -9804,8 +9815,8 @@
    "q": "One price, one stop",
    "steps": [
     "We buy the full size at one price, with one stop. No starter piece, no adding as it works.",
-    "The size is set before the buy, from the stop, and goes in as one market order.",
-    "What we scale is the exit: a first sell by judgment, usually day 3 or later, then a trail."
+    "The stop sets the size before the buy. Then it all goes in as one market order.",
+    "The only thing we scale is the exit. Sell some into strength, rarely before day 3, and trail the rest."
    ],
    "subject": "F10.05#w4"
   },
@@ -9815,7 +9826,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Our trading rules",
-      "quote": "The full size at one price with one stop; no adding. … I do not scale into trade i buy full at one spot with one stop. … Entries are market orders. … The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R. … Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+      "quote": "The full size at one price with one stop; no adding. … I do not scale into trade i buy full at one spot with one stop. … Entries are market orders. … The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R. … We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest. … Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
       "tier": 3,
       "url": null
      }

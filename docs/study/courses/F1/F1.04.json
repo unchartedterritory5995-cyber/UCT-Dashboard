@@ -581,9 +581,9 @@
    "key": "w1",
    "title": "What volume counts",
    "steps": [
-    "Volume is the number of shares that change hands.",
-    "Many charts show price on top and volume in a pane below. On a daily chart, each bar is one day.",
-    "Every share traded has a buyer and a seller. If A sells 100 shares to B, that's 100 shares of volume."
+    "Pull up a daily chart. Price is on top, and volume sits in its own pane underneath, one bar per day.",
+    "That bar counts the shares that changed hands. Every share traded has a buyer and a seller.",
+    "If A sells 100 shares to B, that's 100 shares of volume. Each share counts once, not twice."
    ],
    "facts": [
     "f1",
@@ -596,31 +596,36 @@
    "key": "w2",
    "title": "The normal day, in dollars",
    "steps": [
-    "Any one day can run far above or below normal. So read the average first.",
-    "Average volume is the total over a stretch of days, divided by the number of days.",
-    "Then multiply by the price. That's dollar volume, roughly the money that changes hands."
+    "One day can run way above or below normal. So never judge a stock off one bar.",
+    "Look at the average. Add up the volume over a stretch of days, then divide by the number of days.",
+    "Multiply that by the price and you've got dollar volume, roughly the money changing hands each day.",
+    "We only trade stocks at $10 or more doing at least $20 million a day."
    ],
    "facts": [
     "f15",
     "f6",
     "f8",
-    "f43"
+    "f43",
+    "h1"
    ]
   },
   {
    "key": "w3",
    "title": "Why thin names hurt",
    "steps": [
-    "A liquid stock lets you buy and sell fast without moving the price much.",
-    "A thin one doesn't. Even small orders can push the price around.",
-    "When you need out fast, you may have to take a lower price. Sometimes there's no buyer at your price at all."
+    "A liquid stock trades enough volume to get in and out. You buy or sell fast and price barely moves.",
+    "A thin one doesn't. Even a small order can shove the price around.",
+    "The exit is where it bites. Need out fast and you take a lower price, or find no buyer at all.",
+    "That's why we never own more than 1% of a stock's average daily volume. Thin names don't even make my list."
    ],
    "facts": [
     "f17",
+    "h3",
     "f13",
     "f35",
     "f20",
-    "f21"
+    "f21",
+    "h2"
    ]
   }
  ],

@@ -907,10 +907,10 @@
    "key": "w1",
    "title": "FFIV, September 2026: the cleanest break",
    "steps": [
-    "FFIV, 2026-09-15, on 30-minute bars. A leader, RS 81, above its 50-day and 200-day. It opens flat on heavy volume, 2.67x normal.",
-    "The first 30-minute candle sets the range: high 418.45, low 412.06. The high sits above the prior day's high.",
-    "10:00: the next candle trades a cent through 418.45. Buy at market, 418.46. Stop a few cents under the low, 412.01.",
-    "Failure mode: a big-volume reversal back into the range. Instead it never looks back. 3R in two sessions; first sell is judgment."
+    "FFIV, September 15, 2026. A leader with RS 81, over its 50-day and 200-day. It opens flat on 2.67 times normal volume.",
+    "At 10:00 the first 30-minute candle sets the range: 418.45 high, 412.06 low. That high's already above yesterday's high.",
+    "The very next candle trades a cent through 418.45. Buy at market, 418.46. Stop 412.01, a few cents under the low.",
+    "A heavy-volume reversal back into the range would be your warning. It never looked back. 3R in two sessions."
    ],
    "facts": [
     "d01",
@@ -929,10 +929,10 @@
    "key": "w2",
    "title": "SNX, September 2026: the trims and the gap",
    "steps": [
-    "SNX, 2026-09-21. It gaps up 2.3%, opening above the prior day's high. The first half hour trades 2.42x normal volume.",
-    "A tight range, 274.03 to 270.72. At 10:05 it trades through the high. Buy at market, 274.04. Stop 270.67.",
-    "5R in two sessions: stop to breakeven; the first sell is judgment, not a fixed third. The rest rides the trail.",
-    "Then the report of 2026-09-24 gaps it through the stop. The first 30-minute low decides. What we sold already banked the win."
+    "September 21, 2026: SNX gaps 2.3% over yesterday's high. At 10:05 it clears the 274.03 range high: buy 274.04, stop 270.67.",
+    "Check the calendar: earnings were September 24, 3 sessions out. We don't buy that close to a report.",
+    "It hit 5R in two sessions anyway. Sell some into the push and move the stop to breakeven.",
+    "September 24 the report gaps it through the stop. The first 30-minute low becomes the stop. What you sold kept the win."
    ],
    "facts": [
     "d08",
@@ -942,17 +942,19 @@
     "h05",
     "h20",
     "h06",
-    "h22"
+    "h22",
+    "c26",
+    "h08"
    ]
   },
   {
    "key": "w3",
    "title": "JBI, December 2023: the Kicker's two entries",
    "steps": [
-    "JBI, 2023-12-14, a Kicker on 30-minute bars. It opens below the red day's high, so two entries are in play.",
-    "Inside the first 30 minutes it trades through that high: the first entry, 11.05, stop 10.80, 2.3% away.",
-    "The ORB entry, a cent over the first 30-minute high, fills at 11.21: 3.7% to the same stop, the confirmation.",
-    "The cap: 3.5% under 11.21 is 10.82, the Kicker low itself. At the close: the first entry 2.3R, the ORB 1.0R."
+    "JBI, December 14, 2023, a Kicker day. It opens under the red day's high, so you've got two entries in play.",
+    "First one: it trades through that high inside the first 30 minutes. Fill 11.05, stop 10.80, 2.3% away.",
+    "Second one: the ORB, a cent over the first 30-minute high, fills at 11.21. Same stop is now 3.7% away.",
+    "That's past our 3.5% Kicker cap, so the stop comes up to 10.82. At the close: first fill 2.3R, the ORB 1.0R."
    ],
    "facts": [
     "c07",

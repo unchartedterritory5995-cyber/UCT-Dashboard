@@ -2,7 +2,7 @@
  "unit": "F8.04",
  "track": "F8",
  "title": "Tilt and revenge",
- "teaches": "Tilt is emotion taking over your trade decisions after losses, mistakes or bad breaks; revenge trading is sizing up and trading more to win it back fast; you stop both with rules set before the session: a daily loss limit, a cap on trades, a pause when the urge hits, and smaller size after losses.",
+ "teaches": "Tilt is emotion taking over your trade decisions after losses, mistakes or bad breaks; revenge trading is sizing up and trading more to win it back fast; you stop both with rules set before the session: no new trades on a day you're tired, angry or distracted, the same size rules on every trade, and our monthly loss limit.",
  "skills": [
   {
    "id": "psych.tilt",
@@ -642,9 +642,9 @@
    "key": "w1",
    "title": "What tilt is",
    "steps": [
-    "Tilt is a poker word. A loss or a bad break gets under your skin, and the emotion starts making your calls.",
-    "Jared Tendler coaches poker players and traders. His trading book names five kinds: hating to lose, mistakes, injustice, revenge and entitlement.",
-    "Revenge is behind many blowups. You size up and trade more to win it back, and the next loss can be bigger."
+    "Tilt's a poker word. A loss gets under your skin, and from there the emotion's making your calls.",
+    "Jared Tendler coaches poker players and traders. He names five kinds: hating to lose, mistakes, injustice, revenge and entitlement.",
+    "Revenge is behind lots of blowups. You size up, trade more to win it back, and the next loss can be bigger."
    ],
    "facts": [
     "f55",
@@ -661,28 +661,31 @@
    "key": "w2",
    "title": "Your circuit breaker",
    "steps": [
-    "Markets have circuit breakers. If the S&P 500 falls 7% in a day before 3:25 p.m., trading halts market-wide for 15 minutes.",
-    "Build your own: a daily loss limit, a cap on trades, and a break when the urge to break a rule hits.",
-    "Write them before the session, while you're calm. Once tilt builds, your mind can't stop it, so the rule has to."
+    "The market has circuit breakers. If the S&P 500 drops 7% before 3:25 p.m., everything halts for 15 minutes.",
+    "Build your own before the session, while you're calm. Once tilt builds, your head can't stop it. The rule has to.",
+    "Ours: no daily loss limit. But down 8% in a calendar month, no new trades for the rest of it.",
+    "Tired, angry or distracted, no new trades that day. A 15-minute break when the urge to break a rule hits works too."
    ],
    "facts": [
     "f01",
     "f02",
     "f03",
     "f23",
-    "f39",
-    "f25",
     "f24",
-    "f45"
+    "f25",
+    "f45",
+    "h02",
+    "h03",
+    "h04"
    ]
   },
   {
    "key": "w3",
    "title": "After a run of losses",
    "steps": [
-    "Losing streaks happen to the best traders. They can still mess with your head and your execution.",
-    "After a big loss, step away first. Come back smaller, and add size back only as your execution proves itself.",
-    "Here's our rule: after a 6% drawdown, max position size drops to 10%. Deeper drawdowns cut it further."
+    "Losing streaks hit the best traders. Even a small one can get in your head and mess with your execution.",
+    "After a big loss, step away first. The urge to jump right back in is strong. Let it pass.",
+    "No streak rule for us. Only drawdown cuts size: down 6%, max position 10%. Down 8%, max 8%. Down 10%, max 5%."
    ],
    "facts": [
     "f15",
@@ -690,7 +693,8 @@
     "f20",
     "f21",
     "f16",
-    "h01"
+    "h01",
+    "h13"
    ]
   }
  ],
@@ -911,33 +915,34 @@
    "skill": "psych.tilt",
    "rung": 3,
    "format": "mcq",
-   "q": "After a stop-out you tend to fire off trade after trade to win it back. Besides a loss limit, what rule stops that?",
+   "q": "After a stop-out you fire off trade after trade to win it back. Which of our rules stops that?",
    "choices": [
-    "A cap on trades per day",
+    "Rattled? No new trades that day",
     "A tighter stop on every trade",
-    "A bigger watchlist each day",
-    "A daily profit target"
+    "A bigger watchlist for the day",
+    "A daily profit target to hit"
    ],
-   "answer": "A cap on trades per day",
-   "why": "A cap on trades per day. Revenge trading means more trades, not only bigger ones. A count cap hits that head on. Hit the number and you're done clicking, however you feel. Decide the count while you're calm, then let it decide for you. We don't run a daily cap ourselves. Ours counts tries per stock: at most 3 tries in a week and 6 in a month on the same name. Same idea, it stops you from hammering one name to get even.",
-   "lesson_line": "Count the clicks. A cap on trades stops a burst before it grows.",
+   "answer": "Rattled? No new trades that day",
+   "why": "No new trades that day. Tired, sick, angry or distracted, you're done. Revenge trading is anger doing the clicking. One more trade won't fix it. It just starts a burst of bad ones. Walk away, and the setups will still be there tomorrow. On a single name we also stop at 3 tries in a week and 6 in a month.",
+   "lesson_line": "Rattled after a stop, you're done for the day. The setups will be there tomorrow.",
    "facts": [
     "f39",
     "f12",
     "f10",
     "f13",
+    "h04",
     "h08",
     "h02",
     "h03"
    ],
    "wrong": {
     "A tighter stop on every trade": "That shrinks each loss, but you still fire off the whole burst.",
-    "A daily profit target": "A target tells you when to stop on a good day. Revenge happens on the bad ones.",
-    "A bigger watchlist each day": "More names means more things to click. After a stop you want fewer names in front of you, not more."
+    "A bigger watchlist for the day": "More names means more things to click. After a stop you want fewer names in front of you, not more.",
+    "A daily profit target to hit": "A target tells you when to stop on a good day. Revenge happens on the bad ones."
    },
-   "simple": "A cap on trades per day, because once you hit the count you stop, however badly you want it back.",
+   "simple": "Angry or rattled means no new trades that day, so the burst never starts.",
    "deeper": {
-    "example": "Jared Tendler names firm controls on the number of trades a day, or a daily loss limit. Investopedia says traders set limits on how many trades fit them, and trading past the limit is unsound. Our own loss limit is monthly, not daily: at 8% down in a calendar month, no new trades for the rest of the month."
+    "example": "Jared Tendler names firm controls on the number of trades a day. Investopedia says traders set limits on how many trades fit them. We don't cap trades per day, and we have no daily loss limit. Our loss limit is monthly: at 8% down in a calendar month, no new trades for the rest of the month."
    },
    "tier": "core",
    "risk": {
@@ -947,7 +952,7 @@
      "the key is general practice (Tendler, Investopedia); our rulebook caps tries per stock (E56), not trades per day"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "voice-9-2026-11-17"
   },
   {
    "key": "q08",
@@ -1866,9 +1871,9 @@
   },
   "q07": {
    "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Why is good and honest that we cap tries per stock (3 a week, 6 a month, h08), not trades per day. One wrong note claimed 'Overtrading looks like buying anything that might be good', which no fact in the lesson supports; replaced with a plain reason tied to our focus-list habit."
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded voice-9-2026-11-17; awaiting cold re-read"
   },
   "q08": {
    "status": "cut",

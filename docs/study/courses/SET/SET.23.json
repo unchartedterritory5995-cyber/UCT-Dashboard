@@ -914,10 +914,10 @@
    "key": "w1",
    "title": "BBY, July 2013: the cleanest two candles on a base",
    "steps": [
-    "BBY, 2013. A leader coils in a 6.2% range. The red day, down 1.8%, closes at 2% of its range.",
-    "Sellers think it is breaking down. Next morning it gaps up 2.1% over that close, and the gap holds.",
-    "2013-07-01: it trades through the red high. Buy at market, 27.97. Stop a few cents under the low so far, 3.5% max.",
-    "The gap holds: it closes at 92% of its range, up 8.8%. On the scan's stop, 3R came in a day."
+    "BBY, late June 2013. A leader coiled in a tight 6.2% range. Then a red day, down 1.8%, closing on its low.",
+    "Looks like a breakdown, so sellers bail. Next morning, July 1, it gaps up 2.1% over that close and the gap holds.",
+    "It trades through the red day's high: buy at market, 27.97. Stop 27.67, a few cents under the low. That's 1.1%.",
+    "If the gap fills, it's wrong. Instead it closes up 8.8%, near the high. 3R came in one day."
    ],
    "facts": [
     "dBBY",
@@ -936,10 +936,10 @@
    "key": "w2",
    "title": "COHR, January 2024: a fill at the open",
    "steps": [
-    "COHR, 2024. A six-week shelf on the 20 EMA. The red day, down 1.8%, closes at 19% of its range.",
-    "2024-01-16: it gaps up 2.6% and opens just over the red high, 42.83. A market order fills at the open.",
-    "No low yet: the first stop is 3.5% under the fill, 41.33. At 10:00 raise it to the 30-minute low if higher.",
-    "Failure mode: the gap fills. Instead it closes at 81% of its range, up 8.2%. 3R takes four days: sell on judgment."
+    "COHR spent six weeks on a shelf, riding its rising short-term averages. Then a red day, down 1.8%, closing near the low.",
+    "January 16, 2024, it gaps up 2.6% and opens just over the red high. Your market order fills at the open, 42.83.",
+    "There's no low yet, so start the stop 3.5% under, 41.33. At 10:00, raise it to the 30-minute low if that's higher.",
+    "The gap never fills. It closes up 8.2% and hits 3R on day 4. First sell is your call, into a push."
    ],
    "facts": [
     "dCOHR",
@@ -958,10 +958,10 @@
    "key": "w3",
    "title": "ATRO, June 2026: the trims and the trail",
    "steps": [
-    "ATRO, 2026. The red day, down 2.7%, drops into the 21-day EMA and the 50-day. It closes at 13% of its range.",
-    "2026-06-11: it gaps up 3.0% and trades through the red high. Buy at market, 68.80. The scan's stop was 67.36, 2.1% away.",
-    "Closes at 99% of its range, up 15.1%. 3R on day 1, too soon to sell: stop to breakeven. First sell: judgment.",
-    "On the scan's fixed stop it ran 13.8R in two weeks, then gave most back. The trims kept the win."
+    "A red day drops ATRO 2.7% right into its 50-day, June 2026. It closes near the low.",
+    "June 11 it gaps up 3.0% and trades through the red high. Buy at market, 68.80. Stop 67.36, 2.1% away.",
+    "It closes on the high, up 15.1%. 3R on day 1 is too soon to sell, so the stop goes to breakeven.",
+    "It ran 13.8R in two weeks, then gave most of it back. Sell into the push, or you hand it back."
    ],
    "facts": [
     "dATRO",

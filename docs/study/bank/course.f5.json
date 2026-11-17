@@ -1551,7 +1551,7 @@
   "difficulty": 1,
   "id": "si_29c0f2c06912",
   "lesson_origin": "session",
-  "lesson_text": "Line actual EPS and revenue up against their estimates. Above is a beat, below a miss, equal is in line.",
+  "lesson_text": "Now line them up. Above the consensus is a beat, below is a miss. Right on it is in line.",
   "module": "F5",
   "prompt_json": {
    "order": 1,
@@ -1559,10 +1559,10 @@
    "parts": 3,
    "q": "The four numbers you check first",
    "steps": [
-    "Revenue is the top line: the money brought in from sales. Net income is the bottom line, after every expense.",
-    "Divide net income by the shares outstanding and you get EPS, earnings per share.",
-    "Analysts estimate both EPS and revenue. The consensus is their average.",
-    "Line actual EPS and revenue up against their estimates. Above is a beat, below a miss, equal is in line."
+    "Start at the top line: revenue, the money in from sales. The bottom line is net income, after every expense.",
+    "Divide net income by the shares outstanding and you've got EPS, earnings per share.",
+    "Analysts estimate EPS and revenue before the report. Average them and that's the consensus.",
+    "Now line them up. Above the consensus is a beat, below is a miss. Right on it is in line."
    ],
    "subject": "F5.01#w1"
   },
@@ -1608,7 +1608,7 @@
   "difficulty": 1,
   "id": "si_8a9785919432",
   "lesson_origin": "session",
-  "lesson_text": "Year over year, that quarter grew 9%. For a seasonal business, that's the comparison I trust.",
+  "lesson_text": "Year over year, that quarter grew 9%. For a seasonal business, that's the number I trust.",
   "module": "F5",
   "prompt_json": {
    "order": 2,
@@ -1616,10 +1616,10 @@
    "parts": 3,
    "q": "Pick the right quarter to compare",
    "steps": [
-    "Year over year compares a quarter with the same one a year ago. Quarter over quarter uses the one just before.",
-    "Amazon's net sales fell from $187.8 billion in its fourth quarter to $155.7 billion in the next one.",
-    "That's the season, not the business. Amazon says its fourth quarter has historically had higher sales.",
-    "Year over year, that quarter grew 9%. For a seasonal business, that's the comparison I trust."
+    "Year over year compares a quarter with the same one last year. Quarter over quarter uses the one right before.",
+    "Amazon's net sales went from $187.8 billion in its fourth quarter to $155.7 billion the next one. Looks ugly.",
+    "That's the season, not the business. Amazon's fourth quarter has historically been its big one.",
+    "Year over year, that quarter grew 9%. For a seasonal business, that's the number I trust."
    ],
    "subject": "F5.01#w2"
   },
@@ -1679,7 +1679,7 @@
   "difficulty": 1,
   "id": "si_af07916c00fe",
   "lesson_origin": "session",
-  "lesson_text": "Before you call a beat or a miss, check which EPS the estimate was set against. Compare like with like.",
+  "lesson_text": "The street expected $1.61 adjusted. So it was a miss, not a beat. Always check which EPS the estimate was set on.",
   "module": "F5",
   "prompt_json": {
    "order": 3,
@@ -1687,10 +1687,10 @@
    "parts": 3,
    "q": "Two kinds of EPS",
    "steps": [
-    "A release can show two EPS numbers. GAAP follows the standard accounting rules. Adjusted, or non-GAAP, can leave some amounts out.",
-    "Show an adjusted number and the company must also show the GAAP one, and how the two differ.",
-    "Target's first-quarter GAAP EPS was $2.27. Adjusted, without the lawsuit settlement gains, it was $1.30.",
-    "Before you call a beat or a miss, check which EPS the estimate was set against. Compare like with like."
+    "A lot of releases show two EPS numbers. GAAP follows the accounting rules. Adjusted, or non-GAAP, can leave things out.",
+    "Show the adjusted one and the company has to show the GAAP one too, and how they differ.",
+    "Target's first quarter: GAAP EPS $2.27. Adjusted, without its lawsuit settlement gains, $1.30. Big difference.",
+    "The street expected $1.61 adjusted. So it was a miss, not a beat. Always check which EPS the estimate was set on."
    ],
    "subject": "F5.01#w3"
   },
@@ -3416,7 +3416,7 @@
   "difficulty": 1,
   "id": "si_efca9bf22a0b",
   "lesson_origin": "session",
-  "lesson_text": "The surprise is the gap between actual and estimate, as a percent of the estimate.",
+  "lesson_text": "The surprise is how far off it was: actual minus the estimate, divided by the estimate, times 100.",
   "module": "F5",
   "prompt_json": {
    "order": 1,
@@ -3424,9 +3424,9 @@
    "parts": 3,
    "q": "The number the market expects",
    "steps": [
-    "Before a report, analysts publish estimates for EPS and revenue. The average of them is the consensus.",
-    "Actual above the consensus is a beat. Below is a miss. Equal is in line.",
-    "The surprise is the gap between actual and estimate, as a percent of the estimate."
+    "Before a report, analysts put out their estimates for EPS and revenue. Average them and you've got the consensus.",
+    "That's the bar. Come in above it, a beat. Below it, a miss. Right on it, in line.",
+    "The surprise is how far off it was: actual minus the estimate, divided by the estimate, times 100."
    ],
    "subject": "F5.02#w1"
   },
@@ -3472,7 +3472,7 @@
   "difficulty": 1,
   "id": "si_6769469b5be2",
   "lesson_origin": "session",
-  "lesson_text": "And the guide is judged against the consensus, not against the last quarter.",
+  "lesson_text": "Judge the guide against the consensus, not last quarter. A midpoint under the street's number counts as negative.",
   "module": "F5",
   "prompt_json": {
    "order": 2,
@@ -3480,10 +3480,10 @@
    "parts": 3,
    "q": "The guide looks ahead",
    "steps": [
-    "The report covers the quarter that just ended. Guidance is management's forecast for what comes next.",
-    "It usually comes as a range, for next quarter or the full year.",
-    "The stock is priced on future profits. So the guide can move it more than the beat.",
-    "And the guide is judged against the consensus, not against the last quarter."
+    "The report tells you about the quarter that just ended. Guidance is management telling you what's coming next.",
+    "Most of the time it's a range, for next quarter or the full year.",
+    "A stock trades on future profits. So the guide can move it more than the beat does.",
+    "Judge the guide against the consensus, not last quarter. A midpoint under the street's number counts as negative."
    ],
    "subject": "F5.02#w2"
   },
@@ -3537,9 +3537,9 @@
    "parts": 3,
    "q": "Intel, October 2026",
    "steps": [
-    "Intel's third-quarter earnings beat expectations.",
-    "Then the guide: 25 cents a share for the fourth quarter. Analysts expected 43 cents.",
-    "That weak forecast overshadows the beat. The stock has its worst day since the 1970s.",
+    "Intel's third quarter comes in better than expected. A beat. So far so good.",
+    "Then the guide: 25 cents a share for the fourth quarter, when analysts wanted 43 cents.",
+    "The stock falls 29%, its worst day since the 1970s. The weak forecast buries the beat.",
     "The beat was about the past. The guide was the news."
    ],
    "subject": "F5.02#w3"
@@ -5498,7 +5498,7 @@
   "difficulty": 1,
   "id": "si_b477bc21aaf5",
   "lesson_origin": "session",
-  "lesson_text": "Check that sales grew too. Sales are much harder to dress up than earnings.",
+  "lesson_text": "And check that sales grew too. Sales are a lot harder to dress up than earnings.",
   "module": "F5",
   "prompt_json": {
    "order": 1,
@@ -5506,10 +5506,10 @@
    "parts": 3,
    "q": "Start with the growth numbers",
    "steps": [
-    "William O'Neil's growth screen starts with this quarter's earnings per share against the same quarter a year ago.",
-    "His floor for that jump runs from 18-20% to 25%, depending on the version. His biggest winners usually showed far more.",
-    "Then the yearly record. He wants EPS up 25% or more a year over the last three years.",
-    "Check that sales grew too. Sales are much harder to dress up than earnings."
+    "O'Neil's screen starts here: this quarter's EPS against the same quarter a year ago. That's the C in CANSLIM.",
+    "His floor: 18-20% to 25%. Three-quarters of the 500 best stocks he studied had EPS up 70% or more before the move.",
+    "Then the yearly record. He wants EPS up 25% or more a year, three years running.",
+    "And check that sales grew too. Sales are a lot harder to dress up than earnings."
    ],
    "subject": "F5.03#w1"
   },
@@ -5562,7 +5562,7 @@
   "difficulty": 1,
   "id": "si_903f0e365ae6",
   "lesson_origin": "session",
-  "lesson_text": "O'Neil's method looks for earnings and sales that speed up. Slowing growth is where growth stocks can get hit.",
+  "lesson_text": "What you want is growth that speeds up. When it slows, that's when growth stocks can get hit.",
   "module": "F5",
   "prompt_json": {
    "order": 2,
@@ -5570,10 +5570,10 @@
    "parts": 3,
    "q": "Speeding up or slowing down",
    "steps": [
-    "Palantir's revenue growth through 2024: 21%, then 27%, 30% and 36%. Each quarter grew faster than the last. That's acceleration.",
-    "NVIDIA over its fiscal 2025: 262%, 122%, 94%, 78%. Far bigger numbers, but slower every quarter.",
-    "NVIDIA's revenue still set a record each quarter. Slower growth is not shrinking.",
-    "O'Neil's method looks for earnings and sales that speed up. Slowing growth is where growth stocks can get hit."
+    "Palantir through 2024: revenue up 21%, then 27%, 30%, 36%. Every quarter faster than the last. That's acceleration.",
+    "NVIDIA over its fiscal 2025: 262%, 122%, 94%, 78%. Way bigger numbers, but slower every quarter.",
+    "And NVIDIA still set a revenue record every quarter. Slowing growth isn't shrinking.",
+    "What you want is growth that speeds up. When it slows, that's when growth stocks can get hit."
    ],
    "subject": "F5.03#w2"
   },
@@ -5682,7 +5682,7 @@
   "difficulty": 1,
   "id": "si_3a16d5c2a198",
   "lesson_origin": "session",
-  "lesson_text": "That's why a growth screen leads with growth. The P/E comes second, as context.",
+  "lesson_text": "So a growth screen leads with growth. The P/E is context, not the reason you buy.",
   "module": "F5",
   "prompt_json": {
    "order": 3,
@@ -5690,10 +5690,10 @@
    "parts": 3,
    "q": "Where the P/E fits",
    "steps": [
-    "P/E is the share price divided by the last 12 months of earnings per share.",
-    "A high P/E means buyers expect growth. A fast grower can grow into it.",
-    "A low P/E can be a business in decline. And a company losing money has no P/E at all.",
-    "That's why a growth screen leads with growth. The P/E comes second, as context."
+    "P/E is just the price divided by the last 12 months of EPS.",
+    "A high P/E means buyers expect growth. A fast grower can grow right into it.",
+    "A low one can be a business going downhill. And a company losing money has no P/E at all.",
+    "So a growth screen leads with growth. The P/E is context, not the reason you buy."
    ],
    "subject": "F5.03#w3"
   },
@@ -6872,7 +6872,7 @@
   "difficulty": 1,
   "id": "si_c1ebe27265e7",
   "lesson_origin": "session",
-  "lesson_text": "Hundreds of names report in a short window. It can be a busy, volatile stretch for the market.",
+  "lesson_text": "So check the date on everything you own or want. We don't buy in the 3 days before a report.",
   "module": "F5",
   "prompt_json": {
    "order": 1,
@@ -6880,9 +6880,10 @@
    "parts": 3,
    "q": "Four times a year",
    "steps": [
-    "A quarter ends. Over the next few weeks, most public companies report. That's earnings season.",
-    "Most use calendar quarters, so it usually starts in early to mid January, April, July and October.",
-    "Hundreds of names report in a short window. It can be a busy, volatile stretch for the market."
+    "A quarter ends, and over the next few weeks most public companies report. That's earnings season.",
+    "Most run on calendar quarters, so it kicks off early to mid January, April, July and October.",
+    "Hundreds of names report in a short window. It gets busy, and it can get volatile.",
+    "So check the date on everything you own or want. We don't buy in the 3 days before a report."
    ],
    "subject": "F5.04#w1"
   },
@@ -6902,6 +6903,13 @@
       "quote": "Every quarter, hundreds of companies report earnings results within a compressed window, and the market's reaction can be swift and significant.",
       "tier": 2,
       "url": "https://www.cboe.com/insights/posts/why-trade-options-around-earnings-season"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -6921,7 +6929,7 @@
   "difficulty": 1,
   "id": "si_a5b6bca4e31d",
   "lesson_origin": "session",
-  "lesson_text": "Get the time from the company's own release. Meta's said after the close on Feb. 2, 2022.",
+  "lesson_text": "Get the time from the company's own release. Meta's said after the close on February 2, 2022.",
   "module": "F5",
   "prompt_json": {
    "order": 2,
@@ -6929,10 +6937,10 @@
    "parts": 3,
    "q": "Before the open or after the close",
    "steps": [
-    "Most companies report while regular trading is shut: before the 9:30 a.m. open or after the 4:00 p.m. close.",
-    "After the close, the stock can swing after hours. The regular session first takes the news at the next open.",
-    "Before the open, that same morning's open takes it. Either way, the close before the report is your last regular-session exit.",
-    "Get the time from the company's own release. Meta's said after the close on Feb. 2, 2022."
+    "Most companies report while the market's shut: before the 9:30 a.m. open or after the 4:00 p.m. close.",
+    "Report after the close and it can swing after hours. The regular session gets its say at the next open.",
+    "Report before the open, and that morning's open takes it. Either way, the close before is your last regular-session exit.",
+    "Get the time from the company's own release. Meta's said after the close on February 2, 2022."
    ],
    "subject": "F5.04#w2"
   },
@@ -6985,7 +6993,7 @@
   "difficulty": 1,
   "id": "si_7df458b5c4a8",
   "lesson_origin": "session",
-  "lesson_text": "Put it in dollars on your position. A stop is a trigger, not a price. It can't catch that gap.",
+  "lesson_text": "Your stop can't catch a gap. So put that move in dollars on your whole position before you decide to hold.",
   "module": "F5",
   "prompt_json": {
    "order": 3,
@@ -6993,9 +7001,9 @@
    "parts": 3,
    "q": "The implied move",
    "steps": [
-    "Options price in a move for the report, a plus or minus number. That's the implied move, also called the expected move.",
-    "It's a size, not a direction, and not a cap. The real move can be bigger or smaller.",
-    "Put it in dollars on your position. A stop is a trigger, not a price. It can't catch that gap."
+    "The options market puts a number on the report: a move, plus or minus. That's the implied move, or the expected move.",
+    "It's a size, not a direction. And it's not a cap. The real move can be bigger, smaller, or nothing at all.",
+    "Your stop can't catch a gap. So put that move in dollars on your whole position before you decide to hold."
    ],
    "subject": "F5.04#w3"
   },
@@ -8799,7 +8807,7 @@
   "difficulty": 1,
   "id": "si_64f235f9c3dd",
   "lesson_origin": "session",
-  "lesson_text": "Cboe's example: a $200 stock with options implying a move of about 8% either way.",
+  "lesson_text": "Say a $200 stock's options imply about 8% either way. That's the swing priced in, up or down.",
   "module": "F5",
   "prompt_json": {
    "order": 1,
@@ -8807,10 +8815,10 @@
    "parts": 3,
    "q": "What the options are pricing",
    "steps": [
-    "Right before a report, short-dated options price the size of the reaction. That's the implied move, also called the expected move.",
-    "It's a size, not a direction. Options generally price how far, not which way.",
-    "The quick read: the at-the-money straddle in the nearest expiry that covers the report. Call plus put, divided by the stock price.",
-    "Cboe's example: a $200 stock with options implying a move of about 8% either way."
+    "Right before a report, short-dated options price how big the reaction might be. That's the implied move, or expected move.",
+    "It's a size, not a direction. Options price how far, not which way.",
+    "Quick read: the at-the-money straddle in the nearest expiry past the report. Call plus put, divided by the stock price.",
+    "Say a $200 stock's options imply about 8% either way. That's the swing priced in, up or down."
    ],
    "subject": "F5.05#w1"
   },
@@ -8877,7 +8885,7 @@
   "difficulty": 1,
   "id": "si_003433c0c380",
   "lesson_origin": "session",
-  "lesson_text": "Behind the straddle's price sits implied volatility: the options market's measure of how much it expects the price to move.",
+  "lesson_text": "What sets that price is implied volatility, the options market's read on how much it expects the stock to move.",
   "module": "F5",
   "prompt_json": {
    "order": 2,
@@ -8885,10 +8893,10 @@
    "parts": 3,
    "q": "A real one: MSFT, July 2020",
    "steps": [
-    "MSFT, July 22, 2020, a few hours before its report. The stock is $209.58.",
-    "The straddle, less its intrinsic value, comes to $9.48. That's about 4.5% priced.",
-    "Other methods give somewhat different numbers. Treat any of them as an estimate, never a promise.",
-    "Behind the straddle's price sits implied volatility: the options market's measure of how much it expects the price to move."
+    "MSFT, July 22, 2020, a few hours before its report. The stock's at $209.58.",
+    "Take the straddle, less its intrinsic value: $9.48. That's about 4.5% priced in.",
+    "Other ways of figuring it land a bit different. It's an estimate either way, never a promise.",
+    "What sets that price is implied volatility, the options market's read on how much it expects the stock to move."
    ],
    "subject": "F5.05#w2"
   },
@@ -8948,7 +8956,7 @@
   "difficulty": 1,
   "id": "si_5eb1801bd6c8",
   "lesson_origin": "session",
-  "lesson_text": "The straddle price is the hurdle. Clear it at expiry and the buyers win. Fall short and the sellers do.",
+  "lesson_text": "The straddle price is the hurdle. A buyer needs the stock to clear it by expiry just to break even.",
   "module": "F5",
   "prompt_json": {
    "order": 3,
@@ -8956,10 +8964,10 @@
    "parts": 3,
    "q": "Implied vs realized",
    "steps": [
-    "After the report, measure what the stock actually did. That's the realized move.",
-    "Divide realized by implied. Near one is about as priced. Under one is smaller, over one is bigger.",
-    "GOOGL once priced about 6%, and the next morning it was up just under that. About as priced.",
-    "The straddle price is the hurdle. Clear it at expiry and the buyers win. Fall short and the sellers do."
+    "After the report, measure what the stock really did. That's the realized move.",
+    "Divide realized by implied. Near one, it moved about as priced. Under one, smaller. Over one, bigger.",
+    "GOOGL priced about 6%, and the next morning it was up just under that. About as priced.",
+    "The straddle price is the hurdle. A buyer needs the stock to clear it by expiry just to break even."
    ],
    "subject": "F5.05#w3"
   },
@@ -10971,7 +10979,7 @@
   "difficulty": 1,
   "id": "si_d5bdab7fb411",
   "lesson_origin": "session",
-  "lesson_text": "Schwab's example: stop at $34, the stock gaps from over $34 to about $32, and the stop fills at $32.",
+  "lesson_text": "Say your stop's at $34 and it gaps from over $34 to about $32. You're out at $32, not $34.",
   "module": "F5",
   "prompt_json": {
    "order": 1,
@@ -10979,10 +10987,10 @@
    "parts": 3,
    "q": "Why a report is different",
    "steps": [
-    "Most companies report before the open or after the close. The regular session reacts at the next open.",
-    "That reaction can be a gap: a sharp move with no trades in between.",
-    "Your stop can't trade inside a gap. It becomes a market order and fills at the next price.",
-    "Schwab's example: stop at $34, the stock gaps from over $34 to about $32, and the stop fills at $32."
+    "Here's what makes a report different. Most land while the market's shut. The first real trade is the next open.",
+    "And that open can be a gap: a sharp move with no trades in between.",
+    "Your stop can't fill inside a gap. It turns into a market order and takes the next price.",
+    "Say your stop's at $34 and it gaps from over $34 to about $32. You're out at $32, not $34."
    ],
    "subject": "F5.06#w1"
   },
@@ -11049,7 +11057,7 @@
   "difficulty": 1,
   "id": "si_72c338ce7925",
   "lesson_origin": "session",
-  "lesson_text": "Step aside and you can still buy after the numbers, once you've seen the reaction.",
+  "lesson_text": "Step aside and you can still buy after, once you've seen how it reacts.",
   "module": "F5",
   "prompt_json": {
    "order": 2,
@@ -11057,10 +11065,10 @@
    "parts": 3,
    "q": "Three answers before the numbers",
    "steps": [
-    "You have three answers: hold it all, trim some, or step aside before the report.",
+    "Before a report you've got three choices: hold it all, trim some, or step aside.",
     "Nobody knows the reaction. A company can beat and still drop.",
     "ZM lost almost 17% the day after a report. AMBA climbed almost 35% within two days of one.",
-    "Step aside and you can still buy after the numbers, once you've seen the reaction."
+    "Step aside and you can still buy after, once you've seen how it reacts."
    ],
    "subject": "F5.06#w2"
   },
@@ -11128,9 +11136,9 @@
    "parts": 3,
    "q": "Size and the gain decide",
    "steps": [
-    "The gap hits every share you hold. The bigger the position, the bigger the hit.",
-    "Your gain so far is your cushion. A big gain can absorb a gap. A fresh entry has no cushion.",
-    "The options market prices an expected move. It's a size, not a direction, and it's no cap.",
+    "A gap hits every share you hold. The bigger the position, the bigger the hit.",
+    "Your gain so far is your cushion. We only hold through a report if the trade's up 5R.",
+    "A fresh entry has no cushion at all. And we don't buy in the 3 days before a report.",
     "Plan it the night before. Act in the last regular session before the numbers."
    ],
    "subject": "F5.06#w3"
@@ -11153,18 +11161,11 @@
       "url": "https://www.cabotwealth.com/daily/how-to-invest/rules-handling-earnings-season/"
      },
      {
-      "accessed": "2026-11-08",
-      "name": "Charles Schwab: Tools for Trading Options Around Earnings (January 20, 2026)",
-      "quote": "The MMM tells traders the one-day expected move in the underlying stock due to an upcoming event like earnings.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/trading-options-around-earnings-announcements"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Charles Schwab: Price Movement Indicator: Market Maker Move",
-      "quote": "Note that the MMM value does not guarantee a stock will move by a certain magnitude, nor does it indicate in which direction a move might occur. … Checking the MMM on an existing position ahead of earnings might be a good way to decide if it's worth the risk to hold through the event.",
-      "tier": 2,
-      "url": "https://www.schwab.com/learn/story/price-movement-indicator-market-maker-move"
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+      "tier": 3,
+      "url": null
      },
      {
       "accessed": "2026-11-08",
@@ -12949,7 +12950,7 @@
   "difficulty": 1,
   "id": "si_c459bd2871b9",
   "lesson_origin": "session",
-  "lesson_text": "That space is the gap. If price later comes back to its pre-gap level, the gap is filled.",
+  "lesson_text": "That empty space is the gap. Come all the way back to where it was before, and the gap's filled.",
   "module": "F5",
   "prompt_json": {
    "order": 1,
@@ -12957,9 +12958,9 @@
    "parts": 3,
    "q": "Where an earnings gap comes from",
    "steps": [
-    "The company reports after the close. Buy orders pile up overnight, while the regular session is shut.",
-    "Next morning it opens above yesterday's high. If today's low stays above it, the chart shows an empty space.",
-    "That space is the gap. If price later comes back to its pre-gap level, the gap is filled."
+    "Say a company reports a strong quarter after the close. Buy orders pile up overnight while the market's shut.",
+    "Next morning it opens over yesterday's high. Hold above that high all day and the chart shows an empty space.",
+    "That empty space is the gap. Come all the way back to where it was before, and the gap's filled."
    ],
    "subject": "F5.07#w1"
   },
@@ -13012,7 +13013,7 @@
   "difficulty": 1,
   "id": "si_188e7d13d814",
   "lesson_origin": "session",
-  "lesson_text": "If it sells back below yesterday's close, the gap faded. The buying wasn't strong enough to hold it.",
+  "lesson_text": "Sell it back under yesterday's close and the gap faded. The buying just wasn't there to hold it.",
   "module": "F5",
   "prompt_json": {
    "order": 2,
@@ -13020,9 +13021,9 @@
    "parts": 3,
    "q": "Gap and go, or gap and fade",
    "steps": [
-    "Day one, watch three things: whether it holds the gap, where it closes, and how heavy the volume is.",
-    "A close near the high on big volume means buyers kept coming all day.",
-    "If it sells back below yesterday's close, the gap faded. The buying wasn't strong enough to hold it."
+    "Day one, I watch three things: does it hold the gap, where it closes, and how heavy the volume is.",
+    "A close near the high on big volume means buyers kept coming right up to the bell. That's a Power Earnings Gap.",
+    "Sell it back under yesterday's close and the gap faded. The buying just wasn't there to hold it."
    ],
    "subject": "F5.07#w2"
   },
@@ -13082,7 +13083,7 @@
   "difficulty": 1,
   "id": "si_91cc797ffb6f",
   "lesson_origin": "session",
-  "lesson_text": "It's an average, not a promise. Some newer studies say it has shrunk, maybe to nothing in big stocks.",
+  "lesson_text": "It's an average, not a promise. Some newer studies say it's shrunk to nothing, at least in big stocks.",
   "module": "F5",
   "prompt_json": {
    "order": 3,
@@ -13090,10 +13091,10 @@
    "parts": 3,
    "q": "Risk first, then the drift",
    "steps": [
-    "Our default stop is the day's low or the prior day's low. On a gap day, the day-one low is nearer.",
-    "Size from that distance. Earnings days tend to swing wide, so the stop is often far and the share count smaller.",
-    "After a big beat, prices have tended to keep drifting up. Researchers have measured it since 1968.",
-    "It's an average, not a promise. Some newer studies say it has shrunk, maybe to nothing in big stocks."
+    "Our stop goes under the low of the day or the prior day's low. On a gap up, today's low is closer.",
+    "Size from that distance. Gap days swing wide, so you buy fewer shares. Past 5%, we mostly wait for a tighter trigger.",
+    "After a big beat, prices have tended to keep drifting up. People have measured that since 1968.",
+    "It's an average, not a promise. Some newer studies say it's shrunk to nothing, at least in big stocks."
    ],
    "subject": "F5.07#w3"
   },
@@ -13103,7 +13104,7 @@
      {
       "accessed": "2026-11-08",
       "name": "Our trading rules",
-      "quote": "Default stop: the low of the day, or the prior day's low. (Owner's answer.)",
+      "quote": "Default stop: the low of the day, or the prior day's low. (Owner's answer.) … Stop distance: 1-3% is preferred, 3.5% is good, and up to 5% is acceptable; past 5%, we mostly wait for a tighter trigger.",
       "tier": 3,
       "url": null
      },
@@ -15153,9 +15154,9 @@
    "parts": 3,
    "q": "Two numbers, one verdict",
    "steps": [
-    "Every quarter has two sides. The company's own numbers usually come in a press release, filed with an 8-K.",
-    "The other side is the consensus: the average of the analysts' estimates.",
-    "Above the consensus is a beat. Below is a miss. Equal is in line.",
+    "Every quarter, put two numbers side by side. First, the company's own, most often in a press release filed with an 8-K.",
+    "Second, the consensus: the average of what the analysts expect.",
+    "Above it, a beat. Below, a miss. Right on it, in line.",
     "Then work the surprise: actual minus consensus, divided by the consensus, times 100."
    ],
    "subject": "F5.08#w1"
@@ -15202,7 +15203,7 @@
   "difficulty": 1,
   "id": "si_c259d3da4f66",
   "lesson_origin": "session",
-  "lesson_text": "The beat was about the quarter just gone. Members and the guide were about what comes next.",
+  "lesson_text": "The beat was the quarter that's gone. Members and the guide were what's coming. That's what traded.",
   "module": "F5",
   "prompt_json": {
    "order": 2,
@@ -15210,10 +15211,10 @@
    "parts": 3,
    "q": "Netflix, April 2022",
    "steps": [
-    "Netflix earns $3.53 a share. The consensus was $2.89. An EPS beat.",
-    "But paid members fall by 0.2 million, against its own forecast of 2.5 million added.",
-    "And it guides to losing 2 million more next quarter. The stock plunges 35% in one day.",
-    "The beat was about the quarter just gone. Members and the guide were about what comes next."
+    "Netflix earns $3.53 a share against a $2.89 consensus. A clean EPS beat.",
+    "But it loses 0.2 million paid members, when its own forecast called for adding 2.5 million.",
+    "Then it guides to losing 2 million more next quarter. The stock drops 35% in one day.",
+    "The beat was the quarter that's gone. Members and the guide were what's coming. That's what traded."
    ],
    "subject": "F5.08#w2"
   },
@@ -15267,9 +15268,9 @@
    "parts": 3,
    "q": "Meta, February 2023",
    "steps": [
-    "Meta reports EPS of $1.76. Analysts expected $2.22. On its face, a miss.",
-    "But $4.20 billion of restructuring charges sit in that number. Without them, EPS is $1.24 higher.",
-    "Revenue beats, the 2023 cost outlook comes down, and the buyback grows by $40 billion.",
+    "Meta reports EPS of $1.76. Analysts wanted $2.22. Looks like a miss.",
+    "But $4.20 billion of restructuring charges sit inside that number. Take them out and EPS is $1.24 higher.",
+    "Revenue beats. The 2023 cost outlook comes down. The buyback grows by $40 billion.",
     "The stock closes up 23% the next day. Read the whole release, not one line."
    ],
    "subject": "F5.08#w3"

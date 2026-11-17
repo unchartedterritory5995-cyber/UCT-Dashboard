@@ -1077,8 +1077,8 @@
    "parts": 3,
    "q": "A share, and its ticker",
    "steps": [
-    "A share is a small piece of ownership in a company. That's why stocks are also called equities.",
-    "Every US stock gets a short code that names it: its ticker, one to five letters.",
+    "Buy a share and you own a small piece of the company. That's why stocks get called equities.",
+    "Every US stock has a short code that names it, its ticker. One to five letters, like NVDA.",
     "Funds get tickers too. SPY, QQQ and IWM are funds, and each one tracks an index."
    ],
    "subject": "F1.02#w1"
@@ -1153,7 +1153,7 @@
   "difficulty": 1,
   "id": "si_6292bf3c4c69",
   "lesson_origin": "session",
-  "lesson_text": "When you buy, your broker picks where the order goes: that exchange, another one, or a market maker.",
+  "lesson_text": "When you hit buy, your broker decides where the order goes. That exchange, another one, or a market maker.",
   "module": "F1",
   "prompt_json": {
    "order": 2,
@@ -1161,9 +1161,9 @@
    "parts": 3,
    "q": "Where it trades",
    "steps": [
-    "A company can list its stock on an exchange, like the NYSE or Nasdaq. Both are registered with the SEC.",
-    "To list, it has to meet that exchange's standards. Fall short later and it can be delisted.",
-    "When you buy, your broker picks where the order goes: that exchange, another one, or a market maker."
+    "A company lists its stock on an exchange, like the NYSE or Nasdaq. Both are registered with the SEC.",
+    "To get listed it has to meet that exchange's standards. Stop meeting them and it can get delisted.",
+    "When you hit buy, your broker decides where the order goes. That exchange, another one, or a market maker."
    ],
    "subject": "F1.02#w2"
   },
@@ -1216,7 +1216,7 @@
   "difficulty": 1,
   "id": "si_75283e599670",
   "lesson_origin": "session",
-  "lesson_text": "Check all three before any stock. A stock's price also moves with the market, not just on its own news.",
+  "lesson_text": "Check all three before you open a single chart. Most stocks follow the market, about three of every four.",
   "module": "F1",
   "prompt_json": {
    "order": 3,
@@ -1224,9 +1224,9 @@
    "parts": 3,
    "q": "Three funds, three markets",
    "steps": [
-    "SPY tracks the S&P 500: large US companies from all eleven sectors.",
-    "QQQ tracks the Nasdaq-100, the largest non-financial Nasdaq names. IWM tracks the Russell 2000: small caps.",
-    "Check all three before any stock. A stock's price also moves with the market, not just on its own news."
+    "SPY tracks the S&P 500: the big US companies, across all eleven sectors.",
+    "QQQ tracks the Nasdaq-100, the biggest non-financial Nasdaq names. IWM tracks the Russell 2000, the small caps.",
+    "Check all three before you open a single chart. Most stocks follow the market, about three of every four."
    ],
    "subject": "F1.02#w3"
   },
@@ -2855,7 +2855,7 @@
   "difficulty": 1,
   "id": "si_c92833f6b2cc",
   "lesson_origin": "session",
-  "lesson_text": "The gap between them is the spread. Buy at the ask, sell at the bid, and that gap is your cost.",
+  "lesson_text": "Buy 200 shares at a $60 ask and dump them at the $59.50 bid. That's $100 gone, and nothing moved.",
   "module": "F1",
   "prompt_json": {
    "order": 1,
@@ -2863,9 +2863,10 @@
    "parts": 3,
    "q": "Two prices, one gap",
    "steps": [
-    "Every quote has two prices. The bid is the most a buyer will pay right now.",
+    "Every quote has two prices. The bid is the most a buyer will pay you right now.",
     "The ask is the least a seller will take. It sits above the bid.",
-    "The gap between them is the spread. Buy at the ask, sell at the bid, and that gap is your cost."
+    "The gap between them is the spread. It's a cost you pay on every round trip.",
+    "Buy 200 shares at a $60 ask and dump them at the $59.50 bid. That's $100 gone, and nothing moved."
    ],
    "subject": "F1.03#w1"
   },
@@ -2897,7 +2898,7 @@
   "difficulty": 1,
   "id": "si_dd69f711c478",
   "lesson_origin": "session",
-  "lesson_text": "The last price is a trade that already happened. It is not a promise of your fill.",
+  "lesson_text": "Don't count on the last price for your fill. That's a trade that already happened.",
   "module": "F1",
   "prompt_json": {
    "order": 2,
@@ -2906,8 +2907,8 @@
    "q": "What you pay right now",
    "steps": [
     "Buy at market and you pay about the ask. Sell at market and you get about the bid.",
-    "Bid $49.90, ask $50.10. Buy now and you'd pay about $50.10. Sell now and you'd get about $49.90.",
-    "The last price is a trade that already happened. It is not a promise of your fill."
+    "Bid $49.90, ask $50.10. Buy now and it's about $50.10. Sell now, about $49.90.",
+    "Don't count on the last price for your fill. That's a trade that already happened."
    ],
    "subject": "F1.03#w2"
   },
@@ -2946,7 +2947,7 @@
   "difficulty": 1,
   "id": "si_524d997ea8a2",
   "lesson_origin": "session",
-  "lesson_text": "Say 100 shares are offered at $50.10. Buy 10,000 and you might pay $50.25 or more.",
+  "lesson_text": "Say 100 shares are offered at $50.10. Buy 10,000 at market and you might pay $50.25 or more.",
   "module": "F1",
   "prompt_json": {
    "order": 3,
@@ -2954,10 +2955,10 @@
    "parts": 3,
    "q": "Size: how many shares sit at each price",
    "steps": [
-    "Every bid and ask comes with a size: the shares waiting at that price.",
-    "On the full order book (Level II), the best prices usually sit on top: the highest bid, the lowest ask.",
-    "Size at the best price is often small. A bigger order reaches into worse prices.",
-    "Say 100 shares are offered at $50.10. Buy 10,000 and you might pay $50.25 or more."
+    "Every bid and ask comes with a size: how many shares are waiting at that price.",
+    "On Level II, the full order book, the best prices sit on top. Highest bid, lowest ask.",
+    "The size at the best price is often small. A bigger order eats into worse prices.",
+    "Say 100 shares are offered at $50.10. Buy 10,000 at market and you might pay $50.25 or more."
    ],
    "subject": "F1.03#w3"
   },
@@ -4488,7 +4489,7 @@
   "difficulty": 1,
   "id": "si_4627ef1b918f",
   "lesson_origin": "session",
-  "lesson_text": "Every share traded has a buyer and a seller. If A sells 100 shares to B, that's 100 shares of volume.",
+  "lesson_text": "If A sells 100 shares to B, that's 100 shares of volume. Each share counts once, not twice.",
   "module": "F1",
   "prompt_json": {
    "order": 1,
@@ -4496,9 +4497,9 @@
    "parts": 3,
    "q": "What volume counts",
    "steps": [
-    "Volume is the number of shares that change hands.",
-    "Many charts show price on top and volume in a pane below. On a daily chart, each bar is one day.",
-    "Every share traded has a buyer and a seller. If A sells 100 shares to B, that's 100 shares of volume."
+    "Pull up a daily chart. Price is on top, and volume sits in its own pane underneath, one bar per day.",
+    "That bar counts the shares that changed hands. Every share traded has a buyer and a seller.",
+    "If A sells 100 shares to B, that's 100 shares of volume. Each share counts once, not twice."
    ],
    "subject": "F1.04#w1"
   },
@@ -4551,7 +4552,7 @@
   "difficulty": 1,
   "id": "si_62a64970b768",
   "lesson_origin": "session",
-  "lesson_text": "Then multiply by the price. That's dollar volume, roughly the money that changes hands.",
+  "lesson_text": "We only trade stocks at $10 or more doing at least $20 million a day.",
   "module": "F1",
   "prompt_json": {
    "order": 2,
@@ -4559,9 +4560,10 @@
    "parts": 3,
    "q": "The normal day, in dollars",
    "steps": [
-    "Any one day can run far above or below normal. So read the average first.",
-    "Average volume is the total over a stretch of days, divided by the number of days.",
-    "Then multiply by the price. That's dollar volume, roughly the money that changes hands."
+    "One day can run way above or below normal. So never judge a stock off one bar.",
+    "Look at the average. Add up the volume over a stretch of days, then divide by the number of days.",
+    "Multiply that by the price and you've got dollar volume, roughly the money changing hands each day.",
+    "We only trade stocks at $10 or more doing at least $20 million a day."
    ],
    "subject": "F1.04#w2"
   },
@@ -4595,6 +4597,13 @@
       "quote": "annual dollar value traded is defined as the average closing price multiplied by the historical volume over the 365 calendar days prior to the evaluation date.",
       "tier": 1,
       "url": "https://press.spglobal.com/2024-12-09-S-P-Dow-Jones-Indices-Float-Adjusted-Liquidity-Ratio-Clarification-for-Certain-U-S-Indices"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -4614,7 +4623,7 @@
   "difficulty": 1,
   "id": "si_389c1bb9917f",
   "lesson_origin": "session",
-  "lesson_text": "When you need out fast, you may have to take a lower price. Sometimes there's no buyer at your price at all.",
+  "lesson_text": "That's why we never own more than 1% of a stock's average daily volume. Thin names don't even make my list.",
   "module": "F1",
   "prompt_json": {
    "order": 3,
@@ -4622,9 +4631,10 @@
    "parts": 3,
    "q": "Why thin names hurt",
    "steps": [
-    "A liquid stock lets you buy and sell fast without moving the price much.",
-    "A thin one doesn't. Even small orders can push the price around.",
-    "When you need out fast, you may have to take a lower price. Sometimes there's no buyer at your price at all."
+    "A liquid stock trades enough volume to get in and out. You buy or sell fast and price barely moves.",
+    "A thin one doesn't. Even a small order can shove the price around.",
+    "The exit is where it bites. Need out fast and you take a lower price, or find no buyer at all.",
+    "That's why we never own more than 1% of a stock's average daily volume. Thin names don't even make my list."
    ],
    "subject": "F1.04#w3"
   },
@@ -4637,6 +4647,13 @@
       "quote": "A stock’s liquidity generally refers to how rapidly shares of a stock can be bought or sold without substantially impacting the stock price.",
       "tier": 1,
       "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/liquidity-or-marketability"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "a liquid stock is one that trades enough volume to get in and out … Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+      "tier": 3,
+      "url": null
      },
      {
       "accessed": "2026-11-09",
@@ -5949,7 +5966,7 @@
   "difficulty": 1,
   "id": "si_c97eb7dacf94",
   "lesson_origin": "session",
-  "lesson_text": "Your broker sets its own window. Fidelity and Schwab start pre-market at 7:00 a.m.",
+  "lesson_text": "Your broker sets its own window, often a shorter one. We don't buy outside regular hours anyway.",
   "module": "F1",
   "prompt_json": {
    "order": 1,
@@ -5957,10 +5974,10 @@
    "parts": 3,
    "q": "Three sessions, one clock",
    "steps": [
-    "The regular session runs 9:30 a.m. to 4:00 p.m. Eastern Time. That's where most of the trading happens.",
-    "Before it is pre-market. After it is after hours. Some stocks now trade overnight too. All of it is extended hours.",
-    "At Nasdaq, pre-market starts at 4:00 a.m. and after hours runs to 8:00 p.m.",
-    "Your broker sets its own window. Fidelity and Schwab start pre-market at 7:00 a.m."
+    "The regular session runs 9:30 a.m. to 4:00 p.m. Eastern. That's where the crowd is.",
+    "Before it is pre-market, after it is after hours. Some stocks trade overnight too. All of that is extended hours.",
+    "On Nasdaq, pre-market starts at 4:00 a.m. and after hours runs to 8:00 p.m.",
+    "Your broker sets its own window, often a shorter one. We don't buy outside regular hours anyway."
    ],
    "subject": "F1.05#w1"
   },
@@ -5989,18 +6006,11 @@
       "url": "https://www.nasdaq.com/stock-market-trading-hours-for-nasdaq"
      },
      {
-      "accessed": "2026-11-08",
-      "name": "Fidelity Investments: Trading FAQs: Placing Orders",
-      "quote": "Orders for the premarket session can be placed from 7:00 a.m. to 9:28 a.m. ET. Orders in the after-hours session can be placed from 4:00 p.m. to 8:00 p.m. ET.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/trading/faqs-placing-orders"
-     },
-     {
-      "accessed": "2026-11-08",
-      "name": "Charles Schwab: Extended Hours Trading: Pre-Market & After-Hours Trading",
-      "quote": "Pre-market session: 7:00 a.m. to 9:25 a.m.",
-      "tier": 2,
-      "url": "https://www.schwab.com/stocks/extended-hours-trading"
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "E58. No new buys outside regular trading hours. (\"58, that is fine.\")",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -6020,7 +6030,7 @@
   "difficulty": 1,
   "id": "si_9da6dee180c0",
   "lesson_origin": "session",
-  "lesson_text": "The official open and close normally come from the auctions. The close is the 4 p.m. price, whatever trades later.",
+  "lesson_text": "The close is the 4 p.m. price, whatever trades after. On Nasdaq, the auctions set the official open and close.",
   "module": "F1",
   "prompt_json": {
    "order": 2,
@@ -6028,10 +6038,10 @@
    "parts": 3,
    "q": "Thin prints and official prints",
    "steps": [
-    "Outside regular hours, far fewer people trade. Spreads widen and one order can swing the price.",
-    "Those trades carry a T flag. They add to the day's volume.",
-    "But the consolidated record, which combines every venue, leaves them out of the day's high, low and last.",
-    "The official open and close normally come from the auctions. The close is the 4 p.m. price, whatever trades later."
+    "Outside regular hours, far fewer people trade. Spreads widen, and one order can swing the price.",
+    "Those trades still count in the day's volume. They carry a T flag.",
+    "But they don't set the day's official high, low or last price.",
+    "The close is the 4 p.m. price, whatever trades after. On Nasdaq, the auctions set the official open and close."
    ],
    "subject": "F1.05#w2"
   },
@@ -6105,7 +6115,7 @@
   "difficulty": 1,
   "id": "si_b6b2a6c247c6",
   "lesson_origin": "session",
-  "lesson_text": "Once hit, a stop becomes a market order. It fills at the going price, which can be far from your stop.",
+  "lesson_text": "Then it triggers and becomes a market order. It fills wherever the stock trades, which can be well past your stop.",
   "module": "F1",
   "prompt_json": {
    "order": 3,
@@ -6113,10 +6123,10 @@
    "parts": 3,
    "q": "Why gaps show up at the open",
    "steps": [
-    "Earnings and other big company news usually come out while the regular session is closed.",
-    "The stock reprices on thin after-hours and pre-market trading. The open can land far from yesterday's close. That jump is the gap.",
-    "Many brokers take only limit orders outside regular hours. At those brokers, a stop waits for the open.",
-    "Once hit, a stop becomes a market order. It fills at the going price, which can be far from your stop."
+    "Earnings and other big news mostly land while the regular session is closed.",
+    "It reprices on thin trading and opens well off yesterday's close. That's the gap. On earnings, it's an earnings gapper.",
+    "Here's the catch. Many brokers take only limit orders outside regular hours, so your stop waits for the open.",
+    "Then it triggers and becomes a market order. It fills wherever the stock trades, which can be well past your stop."
    ],
    "subject": "F1.05#w3"
   },
@@ -6150,6 +6160,13 @@
       "quote": "A gap is a change in price levels between the close and open of two consecutive days.",
       "tier": 2,
       "url": "https://chartschool.stockcharts.com/table-of-contents/trading-strategies-and-models/trading-strategies/gap-trading-strategies"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "a gap on earnings is an earnings gapper.",
+      "tier": 3,
+      "url": null
      },
      {
       "accessed": "2026-11-08",
@@ -7347,7 +7364,7 @@
   "difficulty": 1,
   "id": "si_4defa3d01637",
   "lesson_origin": "session",
-  "lesson_text": "FINRA's usual lines: mega-cap $200 billion and up, large from $10 billion, mid from $2 billion, small from $250 million.",
+  "lesson_text": "Size buckets vary by source. FINRA's large-cap starts at $10 billion. We very rarely trade anything under $1 billion.",
   "module": "F1",
   "prompt_json": {
    "order": 1,
@@ -7355,10 +7372,10 @@
    "parts": 3,
    "q": "Price times shares",
    "steps": [
-    "Market cap is the share price times every share outstanding. It's the market's price tag on the whole company.",
-    "Price alone tells you nothing about size. Two stocks at $50 can be a $250 million company and a $250 billion one.",
-    "Size buckets are a convention, and the lines vary by source.",
-    "FINRA's usual lines: mega-cap $200 billion and up, large from $10 billion, mid from $2 billion, small from $250 million."
+    "Market cap is the share price times every share outstanding. It's the price tag on the whole company.",
+    "Price alone says nothing about size. Two $50 stocks can be a $250 million company and a $250 billion one.",
+    "The difference is the share count: 5 million shares against 5 billion.",
+    "Size buckets vary by source. FINRA's large-cap starts at $10 billion. We very rarely trade anything under $1 billion."
    ],
    "subject": "F1.06#w1"
   },
@@ -7378,6 +7395,13 @@
       "quote": "Newer investors might mistakenly believe that stock price alone could be a good indicator of how large a company is, but what’s most important in determining a company's size is the number of shares outstanding. … Both have stocks trading at $50 a share, but Company A has 5 million shares outstanding, and Company B has 5 billion shares outstanding. … That means Company A has a market cap of $250 million, making it a small-cap company, whereas Company B has a market cap of $250 billion, … The delineation between each group can vary, but generally, you'll see them broken down like this: mega-cap: market value of $200 billion or more; … large-cap: market value between $10 billion and $200 billion; mid-cap: market value between $2 billion and $10 billion; … small-cap: market value between $250 million and $2 billion; and micro-cap: market value of less than $250 million. … market cap is the perceived value of a company because stock price is determined by investors.",
       "tier": 1,
       "url": "https://www.finra.org/investors/insights/market-cap"
+     },
+     {
+      "accessed": "2026-11-17",
+      "name": "Our trading rules",
+      "quote": "I don't really trade small caps though. Very rarely under $1B but sometimes.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -7397,7 +7421,7 @@
   "difficulty": 1,
   "id": "si_42d8565adb45",
   "lesson_origin": "session",
-  "lesson_text": "Many index providers, Russell included, weight stocks by float-adjusted market cap: price times the shares available to the public.",
+  "lesson_text": "Restricted shares can unlock. Most IPO lockups run 180 days, and when one ends, the float grows.",
   "module": "F1",
   "prompt_json": {
    "order": 2,
@@ -7405,10 +7429,9 @@
    "parts": 3,
    "q": "Outstanding versus float",
    "steps": [
-    "Shares outstanding count every holder: the public, the big funds, the officers and the employees.",
-    "The float is the part the public can actually trade. Insiders' holdings and restricted stock are left out.",
-    "Locked-up IPO shares join the float only when the lockup ends. Most lockups run 180 days.",
-    "Many index providers, Russell included, weight stocks by float-adjusted market cap: price times the shares available to the public."
+    "Shares outstanding counts every holder: the public, the big funds, the officers, the employees.",
+    "The float is what the public can actually trade. Take out insiders' holdings and restricted stock, and that's it.",
+    "Restricted shares can unlock. Most IPO lockups run 180 days, and when one ends, the float grows."
    ],
    "subject": "F1.06#w2"
   },
@@ -7438,13 +7461,6 @@
      },
      {
       "accessed": "2026-11-08",
-      "name": "FTSE Russell (LSEG): Russell US Equity Indexes Construction and Methodology, v7.2, August 2026",
-      "quote": "shares that are locked up during the IPO will be considered for inclusion within the free float of a company only once the lock up has expired … Stocks in the Russell US indexes are weighted by their available (also called float-adjusted) market capitalization, which is calculated by multiplying the primary closing price by the available shares.",
-      "tier": 1,
-      "url": "https://www.lseg.com/content/dam/ftse-russell/en_us/documents/ground-rules/russell-us-indexes-construction-and-methodology.pdf"
-     },
-     {
-      "accessed": "2026-11-08",
       "name": "SEC, Investor.gov: Initial Public Offerings: Lockup Agreements",
       "quote": "The terms of lockup agreements may vary, but most prevent insiders from selling their shares for 180 days.",
       "tier": 1,
@@ -7452,10 +7468,10 @@
      },
      {
       "accessed": "2026-11-08",
-      "name": "Fidelity Investments: What is market cap and how do you calculate it? (Fidelity Viewpoints, Learning Center, March 31, 2026)",
-      "quote": "Free-float market cap considers only shares that are considered to be freely available for trading in the market, and is a common measure used in index weightings.",
-      "tier": 2,
-      "url": "https://www.fidelity.com/learning-center/trading-investing/market-cap"
+      "name": "FTSE Russell (LSEG): Russell US Equity Indexes Construction and Methodology, v7.2, August 2026",
+      "quote": "shares that are locked up during the IPO will be considered for inclusion within the free float of a company only once the lock up has expired",
+      "tier": 1,
+      "url": "https://www.lseg.com/content/dam/ftse-russell/en_us/documents/ground-rules/russell-us-indexes-construction-and-methodology.pdf"
      }
     ]
    },
@@ -7475,7 +7491,7 @@
   "difficulty": 1,
   "id": "si_c16f81845266",
   "lesson_origin": "session",
-  "lesson_text": "Check the float before you size a name. A thin float can trap you on the way out.",
+  "lesson_text": "So check the float before you size. A thin float can trap you on the way out.",
   "module": "F1",
   "prompt_json": {
    "order": 3,
@@ -7483,10 +7499,10 @@
    "parts": 3,
    "q": "Why a small float moves fast",
    "steps": [
-    "Fewer shares to go around means the same buying can push the price further. Volatility tends to run opposite to float.",
-    "It cuts both ways. Spreads tend to run wider, and getting out can be hard.",
-    "Pump-and-dump fraudsters use this. They quietly buy up a big part of the float, which makes the price easier to push.",
-    "Check the float before you size a name. A thin float can trap you on the way out."
+    "Fewer shares to go around means the same buying pushes price further. Small float, bigger swings.",
+    "It cuts both ways. Spreads run wider, and getting out can be hard right when you need to.",
+    "Pump-and-dump crews know this. They quietly buy up a big part of the float, then push the price.",
+    "So check the float before you size. A thin float can trap you on the way out."
    ],
    "subject": "F1.06#w3"
   },
@@ -9070,7 +9086,7 @@
   "difficulty": 1,
   "id": "si_b35f0bb5d249",
   "lesson_origin": "session",
-  "lesson_text": "Many ETFs track an index. You can't buy the index itself, so you buy a fund that tracks it.",
+  "lesson_text": "And you trade it on an exchange all day, at a live price, just like a stock.",
   "module": "F1",
   "prompt_json": {
    "order": 1,
@@ -9078,9 +9094,9 @@
    "parts": 3,
    "q": "What an ETF is",
    "steps": [
-    "An ETF is a fund. It pools money into a basket of stocks, bonds or other assets.",
-    "Each share is a slice of that basket, and it trades on an exchange all day like a stock.",
-    "Many ETFs track an index. You can't buy the index itself, so you buy a fund that tracks it."
+    "You can't buy an index itself. So you buy a fund that tracks it, an ETF.",
+    "The ETF pools everyone's money into a basket of stocks, bonds or other assets. Each share is a slice of it.",
+    "And you trade it on an exchange all day, at a live price, just like a stock."
    ],
    "subject": "F1.07#w1"
   },
@@ -9126,7 +9142,7 @@
   "difficulty": 1,
   "id": "si_edc101aeba7c",
   "lesson_origin": "session",
-  "lesson_text": "Together, the 11 sector indexes cover every company in the S&P 500.",
+  "lesson_text": "Put all 11 together and you've got every company in the S&P 500. Line them up to see which groups lead.",
   "module": "F1",
   "prompt_json": {
    "order": 2,
@@ -9134,9 +9150,9 @@
    "parts": 3,
    "q": "Eleven sectors, eleven funds",
    "steps": [
-    "GICS sorts each company into one of 11 sectors by its main business.",
-    "Each sector has a Select Sector SPDR fund. XLK is tech, XLF financials, XLE energy.",
-    "Together, the 11 sector indexes cover every company in the S&P 500."
+    "Every company gets sorted into one of 11 sectors by its main business. That's GICS.",
+    "Each sector has its own fund. XLK is tech, XLF financials, XLE energy.",
+    "Put all 11 together and you've got every company in the S&P 500. Line them up to see which groups lead."
    ],
    "subject": "F1.07#w2"
   },
@@ -9182,7 +9198,7 @@
   "difficulty": 1,
   "id": "si_18428f18affa",
   "lesson_origin": "session",
-  "lesson_text": "Over the two days the index lost 1%. The 2x fund lost 4%. Chop works against these funds.",
+  "lesson_text": "Two days: the index lost 1%, the fund lost 4%. Chop grinds these funds down.",
   "module": "F1",
   "prompt_json": {
    "order": 3,
@@ -9190,10 +9206,10 @@
    "parts": 3,
    "q": "What a 2x or 3x fund does",
    "steps": [
-    "A 2x or 3x fund aims for two or three times the index's move for one day. Then it resets.",
-    "Take $100 in a 2x fund. The index drops 10%, so the fund drops 20%, to $80.",
-    "Next day the index rises 10%. The fund gains 20%, but only on $80, so it reaches $96.",
-    "Over the two days the index lost 1%. The 2x fund lost 4%. Chop works against these funds."
+    "A 2x or 3x fund aims for two or three times the index's move, for one day. Then it resets.",
+    "Say you put $100 in a 2x fund. The index drops 10%, the fund drops 20%, to $80.",
+    "Next day the index climbs 10%. The fund gains 20%, but on $80, so it only gets back to $96.",
+    "Two days: the index lost 1%, the fund lost 4%. Chop grinds these funds down."
    ],
    "subject": "F1.07#w3"
   },

@@ -1509,9 +1509,9 @@
    "key": "w1",
    "title": "The Fed's words",
    "steps": [
-    "The FOMC is the Fed's rate committee. It meets eight times a year on a set schedule.",
-    "It sets a target range for the federal funds rate, what banks charge each other overnight.",
-    "Hawks lean toward tighter policy to fight inflation. Doves lean toward easier policy to support jobs.",
+    "The FOMC is the Fed's rate committee. Eight scheduled meetings a year. Put them on your calendar.",
+    "It sets a target range, 25 basis points wide, for the fed funds rate: what banks charge each other overnight.",
+    "Hawks lean tighter to fight inflation. Doves lean easier to support jobs.",
     "QE means the Fed buys bonds and its balance sheet grows. QT is the reverse."
    ],
    "facts": [
@@ -1527,10 +1527,10 @@
    "key": "w2",
    "title": "The data words",
    "steps": [
-    "CPI tracks what consumers pay. Core CPI drops food and energy, two categories whose prices swing a lot.",
-    "The Fed's 2% inflation goal is measured with the PCE price index from BEA, not CPI.",
-    "The jobs report has two surveys. Payrolls come from employers. The unemployment rate comes from households.",
-    "GDP is the value of what the economy produces. Real GDP strips out inflation."
+    "CPI is what consumers pay. Core CPI drops food and energy, because those prices swing a lot.",
+    "The Fed's 2% inflation goal is measured on PCE, from the BEA. Not CPI.",
+    "The jobs report is two surveys. Payrolls come from employers. The unemployment rate comes from households.",
+    "GDP is the value of what the economy produces. Real GDP takes inflation out."
    ],
    "facts": [
     "f62",
@@ -1550,10 +1550,10 @@
    "key": "w3",
    "title": "The bond words",
    "steps": [
-    "Bond prices and yields move in opposite directions. When yields rise, prices of existing bonds fall.",
+    "Bond prices and yields move opposite. Yields up, prices of the bonds already out there go down.",
     "A basis point is a hundredth of a percentage point. A quarter-point Fed move is 25 basis points.",
-    "The yield curve lines up Treasury yields from short maturities to long. Usually it slopes up.",
-    "When short yields sit above long ones, the curve is inverted. It has warned of recessions, with false alarms."
+    "The yield curve lines up Treasury yields from short to long. Normally it slopes up.",
+    "Short yields over long ones means it's inverted. That came before each of the last eight recessions, with some false alarms."
    ],
    "facts": [
     "f133",

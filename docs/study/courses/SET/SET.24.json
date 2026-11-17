@@ -779,10 +779,10 @@
    "key": "w1",
    "title": "QCOM, September 2020: the same-day reclaim",
    "steps": [
-    "QCOM, 2020. The 2020-09-08 low, 109.62, is nine sessions old. The stock pulls back to it and everyone watches.",
-    "2020-09-21: it undercuts the low by 1.20% and reclaims it the same session, closing in the top 6% of its range.",
-    "Buy at market as it trades back above, 109.63. Stop a few cents under the day's low, 108.25, 1.26% away.",
-    "Failure mode: it closes back under the low. Instead 3R came the next day: too soon to sell, stop to breakeven."
+    "QCOM, September 2020. The September 8 low, 109.62, is nine sessions old. Price drifts back to it and everyone's watching.",
+    "September 21 it undercuts that low by 1.20%. The sellers can't follow through. It's back above the same session.",
+    "That reclaim is the trigger. Buy at market, 109.63. Stop 108.25, a few cents under the day's low, 1.26% away.",
+    "Back under the low, you're out. It hit 3R next day. Move the stop to breakeven and let it work."
    ],
    "facts": [
     "dQCOM",
@@ -800,10 +800,10 @@
    "key": "w2",
    "title": "PYPL, March 2018: a fill at the open, and a loss",
    "steps": [
-    "PYPL, 2018. The 2018-03-02 low, 76.93, holds for three weeks. Then it undercuts by 0.75% and closes under it.",
-    "2018-03-26: it opens at 77.98, 1.4% over the low. A market order fills at the open.",
-    "That is inside the 4% chase limit. The stop sits a few cents under the undercut low, 76.30, 2.15% away.",
-    "The next day it fell through the stop. A planned loss: the stop did its job."
+    "March 2, 2018: PYPL sets a low at 76.93. It holds three weeks, then gets undercut by 0.75%, closing under it.",
+    "Next day, March 26, it opens back over the low at 77.98, 1.4% above it. Your market order fills at the open.",
+    "Only 1.4% over, inside our 4% limit, so it's buyable. Stop 76.30 under the undercut low, 2.15% away.",
+    "Next day it falls through the stop, with SPY still making lower lows. Small, planned loss. The stop did its job."
    ],
    "facts": [
     "dPYPL",
@@ -819,10 +819,10 @@
    "key": "w3",
    "title": "SHOP, November 2019: a leader near its 200-day",
    "steps": [
-    "SHOP, 2019. A leader sits 6.9% above its rising 200-day. The 2019-09-25 low, 28.61, is a six-week-old swing low.",
-    "On 2019-11-08 it opens under the low, undercuts it by 1.39% and trades back above it. Buy at market, 28.62.",
-    "Stop a few cents under the undercut low, 28.16, 1.6% away. 3R came next day: too soon to sell; stop to breakeven.",
-    "Failure mode: a close back under the low within days. Instead the level held on every later test."
+    "SHOP in November 2019, a leader sitting 6.9% over its rising 200-day. Its September 25 low, 28.61, is six weeks old.",
+    "It undercuts that low by 1.39%. On November 8 it trades back above it. Buy at market, 28.62.",
+    "Stop 28.16 under the undercut low, 1.6% away. Next day it's at 3R. Stop to breakeven, and you hold.",
+    "Close back under 28.61 within days and you're out. It never did. Every later test held the level."
    ],
    "facts": [
     "dSHOP",

@@ -1166,10 +1166,10 @@
    "key": "w1",
    "title": "BABA, March 2022: the clearest V",
    "steps": [
-    "BABA, March 2022. A China washout: 43.4% off the high in 17 sessions, all five boxes, the fall getting steeper.",
-    "2022-03-15: a 3.4% gap down on 3.6x volume. The low prints, then price reclaims VWAP. Buy at market.",
-    "Stop a few cents under the climax low, 73.20. Target: the 9 EMA. Our bars use the close, 76.76, as the fill.",
-    "Failure mode: the bar loses VWAP and the low breaks. Instead it closed 2.2% above its open; 3R came next session."
+    "BABA, March 2022. A China washout: down 43.4% in 17 sessions, every box ticked, the fall getting steeper.",
+    "March 15, it gaps down 3.4% on 3.6 times volume. After the low, a 5-minute close back over VWAP is the buy.",
+    "Stop under the climax low, 73.20. Target the 9 EMA. It closed 2.2% over its open and hit 3R next session.",
+    "One problem: BABA's a stock under its 200-day, a hard no. MCHI and FXI fired the same day. Both hit 5R."
    ],
    "facts": [
     "d01",
@@ -1180,17 +1180,19 @@
     "c26",
     "p12",
     "h22",
-    "h24"
+    "h24",
+    "r01",
+    "r02"
    ]
   },
   {
    "key": "w2",
    "title": "DB, August 2024: the short, sharp burst on a Monday",
    "steps": [
-    "DB, August 2024. Nine sessions down, 19.7% off the high, four boxes ticked, the whole market unwinding.",
-    "Monday 2024-08-05: a 4.2% gap down on 2.3x volume. The first 5-minute close over VWAP is the buy.",
-    "Stop a few cents under the day's low, 13.67. Our bars use the close, 14.08, as the fill.",
-    "Bracco's best turns come on Mondays. A new low under 13.67 would have ended it; instead 3R came in 9 sessions."
+    "DB, August 2024. Nine sessions down, 19.7% off the high, with the whole market unwinding.",
+    "Monday, August 5, a 4.2% gap down on 2.3 times volume. The first 5-minute close back over VWAP is the buy.",
+    "Stop 13.67, just under the low. A new low means the selling's not done. It held; 3R in 9 sessions.",
+    "Turns like this often come on a Monday. And on a stock, check the 200-day first. Under it, it's a pass."
    ],
    "facts": [
     "d03",
@@ -1201,17 +1203,19 @@
     "c15",
     "s04",
     "h22",
-    "h24"
+    "h24",
+    "r01",
+    "r02"
    ]
   },
   {
    "key": "w3",
    "title": "HTHT, July 2021: a crowded group unwinding at once",
    "steps": [
-    "HTHT, July 2021. The China liquidation: six names fire the same day. 29% off the high, all five boxes.",
-    "2021-07-27: a 4.5% gap down on 7.2x volume. It reclaims VWAP; buy at market.",
-    "Stop under the climax low, 38.97. Our bars use the close, 40.75, as the fill. Room to the 9 EMA.",
-    "Failure mode: the first bounce stalls and a new low prints. Instead 3R came the next session, 5R within six weeks."
+    "July 2021, China gets liquidated. Six names fire the same day. HTHT is one, 29% off its high, every box ticked.",
+    "July 27, a 4.5% gap down on 7.2 times volume. It reclaims VWAP after the low, and you buy at market.",
+    "Stop under the climax low, 38.97. Target the 9 EMA. 3R came the next session, 5R within six weeks.",
+    "The best setting is a crowded group unwinding at once. As a stock under its 200-day, though, HTHT is a pass today."
    ],
    "facts": [
     "d05",
@@ -1223,7 +1227,9 @@
     "c25",
     "p12",
     "h22",
-    "h24"
+    "h24",
+    "r01",
+    "r02"
    ]
   }
  ],

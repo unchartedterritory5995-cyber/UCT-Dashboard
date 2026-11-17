@@ -419,10 +419,10 @@
    "key": "w1",
    "title": "Two orders, two promises",
    "steps": [
-    "A market order says: fill me now at the best price there. You almost always get filled. The price isn't promised.",
+    "A market order says: fill me now, at the best price there. It almost always fills. The price isn't promised.",
     "A limit order says: my price or better. A buy limit fills at your price or lower.",
-    "A sell limit fills at your price or higher. The price is protected. The fill is not.",
-    "Pick what you need more: the fill or the price."
+    "A sell limit fills at your price or higher. The price is protected. The fill isn't.",
+    "So it comes down to one thing: what you need more right now, the fill or the price."
    ],
    "facts": [
     "f01",
@@ -439,9 +439,10 @@
    "key": "w2",
    "title": "Where you put the limit matters",
    "steps": [
-    "Put a buy limit below the market and it waits. It only fills if the stock comes down to it.",
-    "At or above the ask, it can fill right away. That's a marketable limit: a market order with a ceiling.",
-    "It fills at the best price there, which can be better than your limit. Your limit is only the most you'll pay."
+    "Put a buy limit under the market and it just sits there. It only fills if the stock comes down to it.",
+    "Put it at or over the ask and it can fill now. That's a marketable limit: a market order with a ceiling.",
+    "Say the ask is $50.00 and you send a buy limit at $50.02. You can get filled at $49.97.",
+    "Your limit is only the most you'll pay. Anything under it is fair game."
    ],
    "facts": [
     "f41",
@@ -458,10 +459,10 @@
    "key": "w3",
    "title": "Picking the order",
    "steps": [
-    "For a pullback, rest a buy limit at your level. Let the stock come to you.",
-    "On a breakout, a buy limit below won't catch the move. Once it clears, send one at the most you'll pay.",
-    "Need out of a liquid stock right now: use a market order. The fill matters more than the last penny.",
-    "Thin stock or a wild open: name your price. I'd rather miss it than chase it."
+    "When the setup triggers, we buy at market. That's every entry we take.",
+    "A market order is the surest way to get filled. Same tool when you need out of a liquid stock right now.",
+    "The catch: no price protection. On a wild open, a market order can fill far from the quote on your screen.",
+    "When price matters more than the fill, use a limit. To buy only on a dip to a level, rest it there."
    ],
    "facts": [
     "f32",

@@ -557,10 +557,10 @@
    "key": "w1",
    "title": "Black Monday, 1987",
    "steps": [
-    "By late August 1987, the Dow is up 44% in seven months. Then mid-October turns ugly.",
-    "Monday, October 19. The Dow crashes at the opening bell and closes down 22.6%, 508 points.",
-    "Portfolio insurance sells as prices fall. That pushes prices lower, so it sells again.",
-    "Next day, the Fed stands ready as a source of liquidity. Less than two years later, stocks are at new highs."
+    "Late August 1987. The Dow's up 44% in seven months and people are talking bubble. Then mid-October turns ugly.",
+    "Monday, October 19. The Dow crashes at the opening bell and closes down 508 points. That's 22.6% in one day.",
+    "Portfolio insurance sells as prices fall. That pushes prices lower, so it sells again. A vicious circle.",
+    "Next day the Fed says it's ready to supply liquidity. Less than two years later, stocks are at new highs."
    ],
    "facts": [
     "f03",
@@ -575,10 +575,10 @@
    "key": "w2",
    "title": "March 2020",
    "steps": [
-    "February 19, 2020. The S&P 500 closes at a record 3,386.15.",
-    "Then the selling starts. Four times in March, a 7% drop halts all trading for 15 minutes.",
-    "March 23, the S&P 500 closes at 2,237.40. Peak to trough, stocks drop as much as 34%.",
-    "Then the climb. By August 18 it closes at a record again, 3,389.78."
+    "Start at the top. February 19, 2020, the S&P 500 closes at a record, 3,386.15.",
+    "Then the selling hits. Four times in March, a 7% drop halts all trading for 15 minutes.",
+    "March 23 it closes at 2,237.40. From peak to trough, stocks dropped as much as 34%.",
+    "Then it climbs right back. By August 18 it closes at a new record, 3,389.78."
    ],
    "facts": [
     "f53",
@@ -596,10 +596,10 @@
    "key": "w3",
    "title": "What a fast crash does to you",
    "steps": [
-    "A stop is a trigger, not a price. In a fast market, your fill can land far below it.",
+    "A stop is a trigger, not a price. In a fast market your fill can land well below it.",
     "A 7% drop before 3:25 p.m. halts everything for 15 minutes. A 20% drop closes the market for the day.",
-    "In 2020, the low came on bad news. The worst jobs report came out weeks after it.",
-    "And not every crash bounces fast. After 1929, the Dow took until 1954 to get back."
+    "In 2020 the low came on bad news. The worst jobs report showed up weeks later. Price doesn't wait for the news.",
+    "And not every crash bounces fast. After 1929, the Dow didn't get back to its high until 1954."
    ],
    "facts": [
     "f51",

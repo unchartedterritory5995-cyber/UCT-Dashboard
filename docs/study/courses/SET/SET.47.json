@@ -870,10 +870,10 @@
    "key": "w1",
    "title": "AAOI, April 2026: a shakeout bought back",
    "steps": [
-    "AAOI, 2026. News gaps it down 5.5% on 2.1x volume, a 33% shakeout inside a leader's run.",
-    "By the close it is green: 0.93 up the day's range and 20.3% over the prior close, an Oops shape.",
-    "Buy at market as it trades back over the prior close, 86.36. Stop a few cents under the news day's low, 81.48.",
-    "Stop 5.7%, past our limit, rarely taken; size comes from it. Failure mode: a new low. Instead 3R came in 1 day."
+    "AAOI, April 2026. A leader's run, then a 33% shakeout. News gaps it down 5.5% on 2.1x volume, under the 50-day.",
+    "Then buyers take it all back: a close 20.3% over the prior close, near the high. That's a news failure.",
+    "The trigger is back over the prior close, 86.36. The honest stop goes a few cents under the news day's low, 81.48.",
+    "That's 5.7%, past our 5%. We mostly wait for a tighter trigger here. It ran anyway: 3R in 1 day."
    ],
    "facts": [
     "dAAOI",
@@ -884,17 +884,19 @@
     "n10",
     "hA13",
     "hA3",
-    "n18"
+    "n18",
+    "r03",
+    "r04"
    ]
   },
   {
    "key": "w2",
    "title": "SEDG, November 2025: an earnings gap reversed",
    "steps": [
-    "SEDG, 2025. An earnings gap takes it down 4.1% on 3.8x volume, after a 24% fall into the 50-day.",
-    "By the close it is 28.9% over the prior close, in the top 5% of the range.",
+    "SEDG, November 2025. A 24% fall into the 50-day, then earnings gap it down another 4.1% on 3.8x volume.",
+    "By the close it's up 28.9% from the prior close, in the top 5% of the day's range. Bad news, bought hard.",
     "Buy at market as it trades back over the prior close, 31.83. Stop a few cents under the news day's low, 30.23.",
-    "Stop 5.0%, at our limit, so size comes from it. Failure mode: a new low. Instead 3R came the next day."
+    "A 5.0% stop, right at our limit, so the size comes from it. No new low: 3R came the next day."
    ],
    "facts": [
     "dSEDG",
@@ -905,17 +907,18 @@
     "n10",
     "hA13",
     "hA3",
-    "n18"
+    "n18",
+    "r03"
    ]
   },
   {
    "key": "w3",
    "title": "SKIN, August 2022: the short mirror",
    "steps": [
-    "SKIN, 2022. An earnings gap takes it up 4.8% on 3.7x volume, after a 54% run.",
-    "By the close it is 16.2% under the prior close, at the low of the day, below the 200-day.",
-    "Short at market as it trades back under the prior close, 15.26. Stop a few cents over the day's high, 16.05.",
-    "Stop 5.2%, past our limit, rarely taken; size comes from it. Failure mode: a new high. Instead 3R came in 6 days."
+    "The short side mirrors it. SKIN, August 2022: up 54% in a run, then earnings gap it up 4.8% on 3.7x volume.",
+    "By the close it's 16.2% under the prior close, right at the low of the day, below the 200-day.",
+    "The short triggers back under the prior close, 15.26, with the stop a few cents over the day's high, 16.05.",
+    "That's 5.2%, past our 5%: we'd mostly wait. And we only recommend shorting to traders who've already made $1 million trading."
    ],
    "facts": [
     "dSKIN",
@@ -927,7 +930,9 @@
     "hA13",
     "hA3",
     "n18",
-    "hB26"
+    "hB26",
+    "r02",
+    "r04"
    ]
   }
  ],

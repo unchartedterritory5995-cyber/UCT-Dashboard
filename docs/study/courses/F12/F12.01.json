@@ -538,24 +538,25 @@
    "key": "w1",
    "title": "Four decisions, made early",
    "steps": [
-    "Every trade is four decisions: what to trade, how much, when to get in, and when to get out.",
-    "A plan makes all four before you click. Investopedia notes most trading experts want no money at risk until it's made.",
-    "Write it down. Some traders use an old notebook, some a spreadsheet. Either works, as long as it's written before the trade."
+    "Every trade is four decisions: what to buy, how much, when to get in, when to get out.",
+    "Make all four before you click. No money goes at risk until the plan is made.",
+    "Write it down, notebook or spreadsheet. Entry, stop and size go on paper before the market opens."
    ],
    "facts": [
     "f03",
     "f21",
-    "f18"
+    "f18",
+    "h9"
    ]
   },
   {
    "key": "w2",
    "title": "What goes on it",
    "steps": [
-    "Start with the why: what you expect, how long it should take, and what could go wrong.",
-    "Then the numbers. The entry, the stop and the target, each one a price you could type into an order.",
+    "Start with the why. What you expect, how long it should take, what could go wrong.",
+    "Then the numbers: entry, stop and target, each a price you could type straight into an order.",
     "Add what would change your mind, and the dates that matter, like the next earnings report.",
-    "Our plans read Entry, Stop, Trim, Trail. Trim: where you take some off. Trail: how the stop follows a winner up."
+    "Ours reads Entry, Stop, Trim, Trail. Trim: where you sell some. Trail: how the stop follows a winner up."
    ],
    "facts": [
     "f06",
@@ -564,7 +565,6 @@
     "f14",
     "f44",
     "h1",
-    "h2",
     "h3",
     "h4"
    ]
@@ -573,9 +573,9 @@
    "key": "w3",
    "title": "Plan it closed, trade it open",
    "steps": [
-    "Pilots have run checklists since the 1930s to stop human error. A written plan does the same job for a trade.",
-    "You write the plan, and change it, while the market is closed. While it's open, you follow it.",
-    "Plan your trade, then trade your plan. It's no guarantee of success, but it can help limit some of the risk."
+    "Pilots have run checklists since the 1930s to stop human error. Your plan does that job for a trade.",
+    "Write it, and change it, while the market's closed. Once it opens, you follow it.",
+    "Plan your trade, then trade your plan. It won't guarantee a winner, but it takes some of the risk off the table."
    ],
    "facts": [
     "f47",

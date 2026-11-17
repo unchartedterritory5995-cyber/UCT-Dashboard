@@ -954,10 +954,10 @@
    "key": "w1",
    "title": "ULTA, March 2016: a big gap and a shallow pullback",
    "steps": [
-    "ULTA, 2016. Report on 2016-03-10; the gap day is 2016-03-11, up 14.2% on 4.8x volume. It closes at 94% of its range.",
-    "A big gap out of a correction. Then a 4-session pullback, 2.8% deep, that holds the gap-day low.",
-    "Day 6: buy at market over the prior day's high, 190.69. Stop a few cents under the pullback low, 186.55.",
-    "Failure mode: a close under the gap-day low. Instead it ran to 12.1R. Sell into a push, trail the rest."
+    "ULTA reported March 10, 2016. Next day it gapped up 14.2% on 4.8 times normal volume and closed near the high.",
+    "A big gap out of a correction. Then four quiet days, only 2.8% deep, and it never lost the gap-day low.",
+    "Day 6 it takes out the prior day's high, 190.69. We buy at market, stop just under the pullback low, 186.55.",
+    "A close under the gap-day low says we're wrong. Never happened. It ran to 12.1R: sell into a push, trail the rest."
    ],
    "facts": [
     "d01",
@@ -977,10 +977,10 @@
    "key": "w2",
    "title": "TWLO, February 2018: a gap through the 200-day",
    "steps": [
-    "TWLO, 2018. Report on 2018-02-13; the gap day is 2018-02-14, up 10.0% on 8.3x volume. It closes at 62% of its range.",
-    "It gaps out of a 3-month bottom, through the 200-day. Then a 6-session pullback holds the gap-day low.",
-    "Day 8: buy at market over the prior day's high, 33.55. Stop a few cents under the pullback low, 32.59, 2.9% away.",
-    "Failure mode: the pullback closes under the gap-day low. Instead 3R came in 4 sessions. First sell: judgment; trail the rest."
+    "TWLO spent 3 months bottoming. Then its February 13, 2018 report gapped it 10.0% the next day, on 8.3 times volume.",
+    "That gap goes straight through the 200-day. Then a 6-session pullback that holds the gap-day low.",
+    "Day 8 it trades over the prior day's high. Buy at market, 33.55. Stop under the pullback low, 32.59, 2.9% away.",
+    "Close under the gap-day low and it's wrong. Instead, 3R in 4 sessions, and 24.1R at its best."
    ],
    "facts": [
     "d04",
@@ -999,10 +999,10 @@
    "key": "w3",
    "title": "NFLX, October 2024: new highs from a tight base",
    "steps": [
-    "NFLX, 2024. Report on 2024-10-17; the gap day is 2024-10-18, up 7.3% on 5.6x volume. It closes at 92% of its range.",
-    "A gap to new highs from a tight base. The pullback runs 4 sessions, 2.9% deep, and holds the gap-day low.",
-    "Day 6: buy at market over the prior day's high, 75.62. Stop a few cents under the pullback low, 74.38, 1.6% away.",
-    "Failure mode: the gap fills, or it closes red. Instead a two-month run: sell into a push, trail the rest."
+    "October 18, 2024, the day after its report, NFLX gaps 7.3% to new highs on 5.6 times volume. Closes near the top.",
+    "It came out of a tight base. Then a 4-session pullback, only 2.9% deep, holding the gap-day low.",
+    "Day 6 it takes out the prior day's high. Buy at market, 75.62, stop under the pullback low, 74.38. Only 1.6% risk.",
+    "A red first day or a filled gap would've said no. Instead, a two-month run. Sell into a push, trail the rest."
    ],
    "facts": [
     "d07",

@@ -1143,10 +1143,10 @@
    "key": "w1",
    "title": "Market, limit, stop",
    "steps": [
-    "A market order says: fill me now at the best price available. The fill is close to sure. The price isn't.",
-    "A limit order says: my price or better. You control the price, but it may never fill.",
-    "A stop order waits. When price reaches the stop price, it becomes a market order.",
-    "A stop-limit becomes a limit order instead. Your price is protected, but the fill isn't."
+    "A market order says fill me now. You'll almost surely get filled. The price isn't promised. I market order my entries.",
+    "A limit order says my price or better. You control the price, but it might never fill.",
+    "A stop order sits and waits. When price hits the stop, it turns into a market order.",
+    "A stop-limit turns into a limit order instead. Your price is protected. Your fill isn't."
    ],
    "facts": [
     "f1",
@@ -1157,17 +1157,18 @@
     "f7",
     "f8",
     "f13",
-    "f14"
+    "f14",
+    "h2"
    ]
   },
   {
    "key": "w2",
    "title": "How long it lives, how much fills",
    "steps": [
-    "Every order has a time in force. Pick nothing and it's usually a day order.",
-    "A day order that doesn't fill generally cancels at the close. It won't carry into after-hours or tomorrow.",
-    "Good 'til canceled stays live until it fills or you cancel, within your broker's time limit.",
-    "IOC takes what fills now and cancels the rest. FOK is all of it now, or nothing."
+    "Every order has a time in force. Don't pick one and it's a day order.",
+    "A day order that doesn't fill dies at the close. It won't carry into after-hours or tomorrow.",
+    "Good 'til canceled stays live until it fills or you cancel it. Your broker sets how long that can run.",
+    "IOC fills what it can right now and cancels the rest. FOK is all of it now, or nothing."
    ],
    "facts": [
     "f74",
@@ -1183,10 +1184,10 @@
    "key": "w3",
    "title": "Short words",
    "steps": [
-    "A short sale sells shares you don't own. Your broker usually lends them to you, and the loan can carry a fee.",
-    "Before the short, the broker needs a locate: good reason to believe the shares can be borrowed.",
-    "To close a short you buy the shares back. That's covering, entered as buy to cover.",
-    "When many shorts cover at once, their buying pushes price higher. That's a short squeeze."
+    "Shorting sells shares you don't own. Your broker lends them to you, and that loan can cost you.",
+    "Before you short, the broker needs a locate: good reason to believe the shares can be borrowed.",
+    "Close it by buying the shares back, a buy to cover. A crowd covering at once shoves price up: a short squeeze.",
+    "We only recommend shorting to traders who've already made $1 million trading."
    ],
    "facts": [
     "f36",
@@ -1200,7 +1201,8 @@
     "f70",
     "f102",
     "f43",
-    "f44"
+    "f44",
+    "hx1"
    ]
   }
  ],

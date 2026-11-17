@@ -935,12 +935,12 @@
  "walkthroughs": [
   {
    "key": "w1",
-   "title": "NVDA, January 2024: TraderLion's own example",
+   "title": "NVDA, January 2024: four days after the breakout",
    "steps": [
-    "NVDA, 2024. A breakout, then four days later an inside day on light volume, above a rising 50 and 200-day.",
-    "The bar is small, 36% of the mother bar, and quiet. Location first: days after a breakout in a leader.",
-    "2024-01-16: it opens 0.1% over the trigger. Buy the open at market, 55.02. Stop a few cents under the inside low, 54.28.",
-    "Failure mode: the break lasts a day and the stop goes. Instead 3R comes in two days. First sell is judgment."
+    "NVDA broke out in January 2024. Four days later, an inside day on light volume, above a rising 50 and 200-day.",
+    "Small and quiet, 36% of the mother bar. What matters is where it sits: a leader resting days after a breakout.",
+    "January 16 it opens 0.1% over the trigger. Buy at market, 55.02. Stop a few cents under the inside low, 54.28.",
+    "If the break fails and the stop goes, we're wrong. Instead 3R came in two days. The first sell is your call."
    ],
    "facts": [
     "d04",
@@ -956,12 +956,12 @@
   },
   {
    "key": "w2",
-   "title": "MPC, January 2013: at the 10-day after a shelf",
+   "title": "MPC, January 2013: a quiet day after a shelf",
    "steps": [
-    "MPC, 2013. A two-week shelf at the 10-day, then an inside day closing near its high on 0.66x the mother bar's volume.",
-    "Quiet, light, at the 10-day: the location carries the trade, not the bar.",
-    "2013-01-15: price trades over the high. Buy at market, 31.33. Stop a few cents under the low, 30.90, 1.37% away.",
-    "Failure mode: the low trades first, or the break lasts a day. Instead 3R came the next day. No day-one sell."
+    "MPC, January 2013. A two-week shelf on its rising short-term averages, then an inside day closing near its high.",
+    "Volume's light, 0.66x the mother bar. Quiet, and in a good spot. The spot carries this trade, not the bar.",
+    "January 15 it trades through the high. Buy at market, 31.33. Stop a few cents under the low, 30.90: 1.37% risk.",
+    "If the low trades first, we're wrong. Instead 3R came the next day. We still rarely sell on day one."
    ],
    "facts": [
     "d02",
@@ -977,10 +977,10 @@
    "key": "w3",
    "title": "VST, December 2023: the slow one and the trail",
    "steps": [
-    "VST, 2023. A plain inside day at the 10-day in a slow, orderly trend. Nothing dramatic about the bar.",
-    "2023-12-22: price trades over the high. Buy at market, 38.00. Stop a few cents under the inside day's low, 37.53.",
-    "Failure mode: a stall still under 1R after 10 days is sold. Instead it reaches 3R on day 10.",
-    "First sell by judgment, then trail the rest. In our test, buys without a trail lose on average."
+    "Not every winner is fast. VST, December 2023: a plain inside day in a slow, orderly trend.",
+    "December 22 it trades over the high. Buy at market, 38.00. Stop a few cents under the inside day's low, 37.53.",
+    "Then it crawls. A stall under 1R after 10 days gets sold. This one just made it: 3R right on day 10.",
+    "Sell some into a push, trail the rest. It ran to 60R. In our testing, buys with no trail lose on average."
    ],
    "facts": [
     "d03",

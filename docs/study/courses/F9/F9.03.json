@@ -595,9 +595,9 @@
    "key": "w1",
    "title": "What R means",
    "steps": [
-    "Before you buy, pick the price that proves you wrong. Entry minus that stop is 1R, your initial risk.",
-    "Every result gets counted in R. Risk $10 a share, make $100 a share, and that's a 10R winner.",
-    "Losses count the same way. Sell at the stop and it's 1R. Hold on past it, and it's bigger."
+    "Before you buy, find the price that proves you wrong. Your entry minus that stop is 1R, your initial risk.",
+    "Everything gets counted in R. Risk $10 a share, make $100 a share, and that's a 10R winner.",
+    "Losses too. Sell at the stop and it's 1R. Sit on it past the stop, or gap through it, and it's bigger."
    ],
    "facts": [
     "f20",
@@ -611,9 +611,9 @@
    "key": "w2",
    "title": "Expectancy, the average R",
    "steps": [
-    "Expectancy is your average R per trade. Add up the R, then divide by the number of trades.",
-    "Van Tharp's four trades: +2R, -3R, +10R and -1R. That's 8R over 4 trades, so 2R a trade.",
-    "Four trades is far too few to trust. He wants at least thirty, and 100 to 200 for a clear picture."
+    "Expectancy is your average R a trade. Add up all the R, winners and losers, and divide by the number of trades.",
+    "Four trades: +2R, -3R, +10R, -1R. That's 8R over 4, so 2R a trade.",
+    "But four trades tells you nothing. You want thirty at least, and 100 to 200 before you really trust it."
    ],
    "facts": [
     "f10",
@@ -627,10 +627,10 @@
    "key": "w3",
    "title": "The marble game",
    "steps": [
-    "Picture a bag of marbles. Each marble is one trade's result, written in R.",
+    "Picture a bag of marbles. Each one's a trade result, written in R.",
     "Draw one, write it down, put it back. The bag never changes, so a run of losers never makes a winner due.",
-    "A casino plays a game like this all night. It loses plenty of single bets, and its small edge pays over many.",
-    "With an edge, you're on the casino's side. Size for streaks: at $500 a trade on $25,000, 10 straight losses cost 20%."
+    "A casino plays like this all night. It loses plenty of single bets, and its small edge pays over many.",
+    "With an edge, you're the casino. Just size for streaks. $500 a trade on $25,000, ten straight losses cost 20%."
    ],
    "facts": [
     "f40",

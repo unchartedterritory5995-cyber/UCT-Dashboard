@@ -756,10 +756,10 @@
    "key": "w1",
    "title": "Straddle or strangle",
    "steps": [
-    "A long straddle buys a call and a put at the same strike, same expiry.",
-    "A long strangle buys an out-of-the-money call and an out-of-the-money put instead. The call strike sits above the put strike.",
-    "Both pay on a big enough move either way. The strangle costs less but needs a bigger move.",
-    "Rising implied volatility helps both. Quiet days hurt both."
+    "A long straddle buys a call and a put, same strike, same expiry. You don't care which way it goes.",
+    "A strangle buys both out of the money instead. The call strike sits above the put strike.",
+    "The strangle's cheaper, but it needs a bigger move to break even. Either way you're paying for size, not direction.",
+    "Rising implied volatility helps you. Quiet, flat days bleed you through time decay."
    ],
    "facts": [
     "f1",
@@ -775,10 +775,10 @@
    "key": "w2",
    "title": "One straddle, start to finish",
    "steps": [
-    "Stock at $100. Buy the 100 call and the 100 put, same expiry.",
-    "Max risk is $680 a contract: the two premiums together, times 100 shares.",
-    "The break-evens are $106.80 and $93.20: the strike plus or minus both premiums, per share.",
-    "Close right at $100 on expiry day and both legs expire worthless."
+    "Say the stock's at $100. You buy the 100 call and the 100 put, same expiry.",
+    "Both premiums together, times 100 shares, come to $680 a contract. That's your max risk, known up front.",
+    "Break-evens are $106.80 up top and $93.20 below. It has to get past one of them to pay.",
+    "Worst case, it sits right at $100 into expiry. Both legs expire worthless and the whole $680 is gone."
    ],
    "facts": [
     "f57",
@@ -794,10 +794,10 @@
    "key": "w3",
    "title": "Calendars and diagonals",
    "steps": [
-    "A calendar sells a near-term option and buys a later one, same type, same strike.",
-    "A diagonal does the same with two different strikes.",
-    "The near option loses time value faster, so a quiet stock near the strike pays. A big move either way hurts.",
-    "Bought for a debit, a calendar's max loss is that debit."
+    "A calendar flips it around. It sells a near-term option and buys a later one, same type, same strike.",
+    "Give the two legs different strikes and it's a diagonal.",
+    "The short, near-term leg melts faster. So the trade wants the stock quiet, near the strike when that leg expires.",
+    "A big move either way hurts. Bought for a debit, the most a calendar can lose is that debit."
    ],
    "facts": [
     "f37",

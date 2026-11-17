@@ -1355,7 +1355,7 @@
   "difficulty": 1,
   "id": "si_77b7082722ce",
   "lesson_origin": "session",
-  "lesson_text": "Look at how long you held. That tells you which of the three you were.",
+  "lesson_text": "How long you held tells you which one you were.",
   "module": "F11",
   "prompt_json": {
    "order": 1,
@@ -1363,10 +1363,10 @@
    "parts": 3,
    "q": "Three clocks",
    "steps": [
-    "A day trader buys and sells the same stock the same day. Nothing is held overnight.",
-    "A swing trader holds overnight, for days to a few weeks, to catch one swing in price.",
-    "A position trader holds for weeks to months, sometimes years, and rides the bigger trend.",
-    "Look at how long you held. That tells you which of the three you were."
+    "Three clocks. A day trader is in and out the same day, flat by the close, nothing held overnight.",
+    "A swing trader holds overnight, days to a few weeks, to catch one move. That's us.",
+    "A position trader rides the bigger trend for weeks or months, sometimes years.",
+    "How long you held tells you which one you were."
    ],
    "subject": "F11.01#w1"
   },
@@ -1402,6 +1402,13 @@
       "url": "https://www.schwab.com/learn/story/swing-trading-strategies"
      },
      {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "We swing trade: days to a few weeks; a winner can be held longer while it keeps working.",
+      "tier": 3,
+      "url": null
+     },
+     {
       "accessed": "2026-11-09",
       "name": "Fidelity Investments: Stock trading (Fidelity Learning Center, Smart Money, June 5, 2026)",
       "quote": "Position traders may hold their position for many months or years.",
@@ -1426,7 +1433,7 @@
   "difficulty": 1,
   "id": "si_7620a2eb80fa",
   "lesson_origin": "session",
-  "lesson_text": "Short bars show more detail and more noise. Match the bar to how long you hold.",
+  "lesson_text": "Shorter bars show more detail and more noise. Match the bar to how long you plan to hold.",
   "module": "F11",
   "prompt_json": {
    "order": 2,
@@ -1434,10 +1441,10 @@
    "parts": 3,
    "q": "What one bar means",
    "steps": [
-    "A day trader often reads one-minute or five-minute bars. Each bar is a few minutes of trading.",
-    "A swing trader often decides on the daily chart. One bar is one whole day.",
-    "A position trader often works from the weekly chart. One bar is a whole week.",
-    "Short bars show more detail and more noise. Match the bar to how long you hold."
+    "Each clock reads a different bar. A day trader lives on one-minute or five-minute bars.",
+    "A swing trader decides on the daily chart. One bar, one day.",
+    "A position trader works off the weekly. Each bar is a whole week.",
+    "Shorter bars show more detail and more noise. Match the bar to how long you plan to hold."
    ],
    "subject": "F11.01#w2"
   },
@@ -1490,7 +1497,7 @@
   "difficulty": 1,
   "id": "si_586a3a6a4014",
   "lesson_origin": "session",
-  "lesson_text": "Position trading leans least on any one day's news. You still hold the gaps, and you pay in patience through pullbacks.",
+  "lesson_text": "Position trading leans least on any one day. You still hold the gaps, and you sit through the pullbacks.",
   "module": "F11",
   "prompt_json": {
    "order": 3,
@@ -1498,9 +1505,9 @@
    "parts": 3,
    "q": "What each clock costs you",
    "steps": [
-    "Day trading costs you the session. You watch the market the whole time, and spreads and fees add up over many trades.",
-    "Swing trading takes less screen time, but a check every day. You carry the overnight and weekend gaps.",
-    "Position trading leans least on any one day's news. You still hold the gaps, and you pay in patience through pullbacks."
+    "Day trading costs you the whole session at the screen, and fees and spreads pile up over all those trades.",
+    "Swing trading takes less screen time, but you check in every day. And you carry the overnight and weekend gaps.",
+    "Position trading leans least on any one day. You still hold the gaps, and you sit through the pullbacks."
    ],
    "subject": "F11.01#w3"
   },
@@ -3055,7 +3062,7 @@
   "difficulty": 1,
   "id": "si_8e3c25bfe6a0",
   "lesson_origin": "session",
-  "lesson_text": "Pick setups that run on the clock you can actually keep.",
+  "lesson_text": "Pick setups that run on a clock you can actually keep.",
   "module": "F11",
   "prompt_json": {
    "order": 1,
@@ -3063,10 +3070,10 @@
    "parts": 3,
    "q": "Three clocks, three charts",
    "steps": [
-    "A day trader is in and out the same day, holding for seconds to hours. The work happens on intraday charts.",
-    "A swing trader holds for days or weeks. The setup usually lives on the daily chart, often timed on an hourly one.",
-    "A position trader rides a trend for weeks or months. Many work off the weekly chart.",
-    "Pick setups that run on the clock you can actually keep."
+    "Start with how long you'll hold. A day trader holds seconds to hours and works intraday charts.",
+    "A swing trader holds days or weeks. The setup lives on the daily, and the entry often gets timed on the hourly.",
+    "A position trader rides a trend for weeks or months, off the weekly chart.",
+    "Pick setups that run on a clock you can actually keep."
    ],
    "subject": "F11.02#w1"
   },
@@ -3119,7 +3126,7 @@
   "difficulty": 1,
   "id": "si_5b280eedb828",
   "lesson_origin": "session",
-  "lesson_text": "Size from the stop. The wider the stop, the smaller the position.",
+  "lesson_text": "So size from the stop. Wider stop, fewer shares, same risk.",
   "module": "F11",
   "prompt_json": {
    "order": 2,
@@ -3127,10 +3134,10 @@
    "parts": 3,
    "q": "One shape, any chart",
    "steps": [
-    "A breakout from a sideways range shows up on a 1-minute chart and on a weekly chart.",
-    "Bulkowski runs one on the 5-minute chart with a tight stop. Weinstein's method buys a weekly base breakout and holds for months.",
-    "Stops scale too. Tight on the 5-minute chart. Bulkowski's Weinstein rules skip a trade if the first stop is over 20% away.",
-    "Size from the stop. The wider the stop, the smaller the position."
+    "A breakout from a sideways range looks the same on a 1-minute chart and a weekly chart.",
+    "Day traders run it on the 5-minute, stop tight. Weinstein's traders buy the weekly break and hold 2 to 4 months.",
+    "The stop scales with the chart. Tight on the 5-minute, far wider on the weekly.",
+    "So size from the stop. Wider stop, fewer shares, same risk."
    ],
    "subject": "F11.02#w2"
   },
@@ -3143,13 +3150,6 @@
       "quote": "You can use this setup on any time scale but you can narrow your potential loss if you use a short time period to exit, like the 1-minute scale. … This trading setup uses the 1- or 5-minute chart to take advantage of price staging a breakout from a congestion area. You buy the stock on the breakout and then use a tight stop as price climbs.",
       "tier": 2,
       "url": "https://www.thepatternsite.com/hcrl.html"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "StockCharts.com: ChartSchool: Gap Trading Strategies",
-      "quote": "gap trading strategies can be applied to weekly, end-of-day or intraday gaps.",
-      "tier": 2,
-      "url": "https://chartschool.stockcharts.com/table-of-contents/trading-strategies-and-models/trading-strategies/gap-trading-strategies"
      },
      {
       "accessed": "2026-11-09",
@@ -3168,7 +3168,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Thomas Bulkowski, ThePatternSite.com: Trading Weinstein (Bulkowski's test of Weinstein's setup, 2023-10-25)",
-      "quote": "Set a buy stop a penny above the base (above the most recent peak in the trendline). … I'll discuss his method as it applies to investors (hold time up to a year), not traders (hold time: 2-4 months), from the long side only … Is the distance from the initial stop location more than 20%? If so, then don't trade it.",
+      "quote": "Set a buy stop a penny above the base (above the most recent peak in the trendline). … I'll discuss his method as it applies to investors (hold time up to a year), not traders (hold time: 2-4 months), from the long side only",
       "tier": 2,
       "url": "https://www.thepatternsite.com/TradingWeinstein.html"
      },
@@ -3197,7 +3197,7 @@
   "difficulty": 1,
   "id": "si_0649d813416f",
   "lesson_origin": "session",
-  "lesson_text": "The trail is each higher low or the 9 EMA. The intraday entry doesn't make it a day trade.",
+  "lesson_text": "That intraday entry doesn't make it a day trade. We still swing it, days to a few weeks.",
   "module": "F11",
   "prompt_json": {
    "order": 3,
@@ -3205,9 +3205,10 @@
    "parts": 3,
    "q": "Entry chart, holding clock",
    "steps": [
-    "Use three charts. The longer sets the trend, your main one gives the signal, a shorter one times the entry.",
-    "Our Kicker is a daily setup. One entry is the day-one break of the 30-minute opening range.",
-    "The trail is each higher low or the 9 EMA. The intraday entry doesn't make it a day trade."
+    "Think in three charts. The longer one sets the trend, your main one gives the signal, a short one times the entry.",
+    "Our Kicker is a daily setup. One way in is the day-one break of the 30-minute opening range.",
+    "From there the stop trails each higher low, or the 9 EMA.",
+    "That intraday entry doesn't make it a day trade. We still swing it, days to a few weeks."
    ],
    "subject": "F11.02#w3"
   },
@@ -3238,7 +3239,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Our trading rules",
-      "quote": "over previous day high or on day 1 kicker ORB on the 30 minute … Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+      "quote": "over previous day high or on day 1 kicker ORB on the 30 minute … Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it. … We swing trade: days to a few weeks; a winner can be held longer while it keeps working.",
       "tier": 3,
       "url": null
      }
@@ -4918,7 +4919,7 @@
   "difficulty": 1,
   "id": "si_8449043c4b33",
   "lesson_origin": "session",
-  "lesson_text": "What changes is the chart you read, where the stop sits, and so the size.",
+  "lesson_text": "With a winner, we sell partials into strength and trail the rest under the rising averages.",
   "module": "F11",
   "prompt_json": {
    "order": 1,
@@ -4926,9 +4927,10 @@
    "parts": 3,
    "q": "Same steps, any clock",
    "steps": [
-    "Every trade runs the same steps. Find the setup, set the stop, size from it, manage it, review it.",
-    "A day trade opens and closes the same day. A position trade can run for months.",
-    "What changes is the chart you read, where the stop sits, and so the size."
+    "Same steps on any clock: find the setup, set the stop, size from it, manage it, review it.",
+    "That holds whether you're out by the close or holding for months.",
+    "What changes is the chart you read, where the stop sits, and so the size.",
+    "With a winner, we sell partials into strength and trail the rest under the rising averages."
    ],
    "subject": "F11.03#w1"
   },
@@ -4995,7 +4997,7 @@
   "difficulty": 1,
   "id": "si_21b53815053c",
   "lesson_origin": "session",
-  "lesson_text": "Each setup plan has its own stop. Our first sell, by judgment, is usually day 3 or later.",
+  "lesson_text": "The first sell is a judgment. We very rarely sell on day 1, and usually wait until day 3 at the earliest.",
   "module": "F11",
   "prompt_json": {
    "order": 2,
@@ -5003,9 +5005,9 @@
    "parts": 3,
    "q": "What our rules set",
    "steps": [
-    "Our risk on any trade is 0.25% to 2% of the account. 2% is the hard ceiling.",
-    "Our default stop is the low of the day, or the prior day's low.",
-    "Each setup plan has its own stop. Our first sell, by judgment, is usually day 3 or later."
+    "Some things never change with the clock. We risk 0.25% to 2% of the account a trade. 2% is the ceiling.",
+    "The stop goes a few cents under the low of the day, or the prior day's low.",
+    "The first sell is a judgment. We very rarely sell on day 1, and usually wait until day 3 at the earliest."
    ],
    "subject": "F11.03#w2"
   },
@@ -5015,7 +5017,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Our trading rules",
-      "quote": "0.25% to 2% of the account, chosen by setup quality, your recent performance, market conditions and your edge. 2% is the hard ceiling. … Default stop: the low of the day, or the prior day's low. (Owner's answer.) … The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R. … Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+      "quote": "0.25% to 2% of the account, chosen by setup quality, your recent performance, market conditions and your edge. 2% is the hard ceiling. … Default stop: the low of the day, or the prior day's low. (Owner's answer.) … The stop sits a few cents under the day's low, not exactly on it. … We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest. … Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
       "tier": 3,
       "url": null
      },
@@ -5044,7 +5046,7 @@
   "difficulty": 1,
   "id": "si_5db2deb2c9f0",
   "lesson_origin": "session",
-  "lesson_text": "Same risk, wider stop, smaller position. The size moves; the risk doesn't.",
+  "lesson_text": "Put the stop where it belongs and change the size. Wider stop, fewer shares, same risk.",
   "module": "F11",
   "prompt_json": {
    "order": 3,
@@ -5053,8 +5055,8 @@
    "q": "What changes with the clock",
    "steps": [
     "A short-term trader buying near the open might put the stop under the low of the first 10 minutes.",
-    "A longer-term trader judges exits on a longer timeframe, so the stop sits farther away.",
-    "Same risk, wider stop, smaller position. The size moves; the risk doesn't."
+    "A longer-term trader judges exits on a longer chart, so the stop sits farther away.",
+    "Put the stop where it belongs and change the size. Wider stop, fewer shares, same risk."
    ],
    "subject": "F11.03#w3"
   },
@@ -6437,7 +6439,7 @@
   "difficulty": 1,
   "id": "si_fa5cbc950353",
   "lesson_origin": "session",
-  "lesson_text": "So pick the style that fits your clock, your money and your nerves.",
+  "lesson_text": "So pick the style that fits your clock, your money and your nerves. For us, that's swing trading.",
   "module": "F11",
   "prompt_json": {
    "order": 1,
@@ -6446,9 +6448,9 @@
    "q": "Fit comes first",
    "steps": [
     "Every style asks something of you. Day trading wants your eyes on the market all day.",
-    "The SEC says most investors lack the wealth, the time or the temperament for it. Swing trading takes less screen time.",
-    "Coach Brett Steenbarger sees traders fall short when their methods don't use their strengths.",
-    "So pick the style that fits your clock, your money and your nerves."
+    "The SEC says most investors lack the wealth, the time or the temperament for it. Swing trading takes far less screen time.",
+    "Plenty of traders fall short just because their method doesn't play to their strengths.",
+    "So pick the style that fits your clock, your money and your nerves. For us, that's swing trading."
    ],
    "subject": "F11.04#w1"
   },
@@ -6489,6 +6491,13 @@
       "quote": "Our job is to find the ways of trading that best play to our personality strengths.",
       "tier": 2,
       "url": "https://traderfeed.blogspot.com/2025/03/what-kind-of-trader-are-you.html"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "We swing trade: days to a few weeks; a winner can be held longer while it keeps working.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -6508,7 +6517,7 @@
   "difficulty": 1,
   "id": "si_0e764909f01a",
   "lesson_origin": "session",
-  "lesson_text": "Most of your energy goes into trading, measuring and reviewing those. New ideas get tested on the side, small.",
+  "lesson_text": "Most of your energy goes into trading, logging and reviewing those. Test new ideas on the side, very small.",
   "module": "F11",
   "prompt_json": {
    "order": 2,
@@ -6516,9 +6525,9 @@
    "parts": 3,
    "q": "Go deep on a few",
    "steps": [
-    "Coaches differ on the start. Linda Raschke: learn one setup well first. Trading firm SMB: sample several setups with edge.",
-    "SMB's beginners then build a playbook of the setups that suit them. Steenbarger's specialist does one or two things really well.",
-    "Most of your energy goes into trading, measuring and reviewing those. New ideas get tested on the side, small."
+    "Coaches split on how to start. Linda Raschke says learn one setup well first. SMB has you sample a few with edge.",
+    "You end up with a short playbook that suits you. A specialist does one or two things really well.",
+    "Most of your energy goes into trading, logging and reviewing those. Test new ideas on the side, very small."
    ],
    "subject": "F11.04#w2"
   },
@@ -6564,7 +6573,7 @@
   "difficulty": 1,
   "id": "si_511644056378",
   "lesson_origin": "session",
-  "lesson_text": "Losing streaks will come. Size up only after months of proven, logged results.",
+  "lesson_text": "Starting out, risk 0.25% a trade until you've logged 50 trades that followed the rules. Then size up.",
   "module": "F11",
   "prompt_json": {
    "order": 3,
@@ -6572,10 +6581,10 @@
    "parts": 3,
    "q": "Write your lane down",
    "steps": [
-    "Write down your style, the few setups you'll trade, and why they fit you.",
-    "Tag every trade by setup and keep score. That's how you find out what you trade well.",
-    "Judge a setup on a real sample. Van Tharp wanted at least thirty trades, and 100 to 200 for a clear picture.",
-    "Losing streaks will come. Size up only after months of proven, logged results."
+    "Write it down: your style, the few setups you'll trade, and why they fit you.",
+    "Tag every trade by setup and keep score. That's how you find out what you actually trade well.",
+    "Don't grade a setup off a few trades. Van Tharp wanted thirty at least, and 100 to 200 for a clear picture.",
+    "Starting out, risk 0.25% a trade until you've logged 50 trades that followed the rules. Then size up."
    ],
    "subject": "F11.04#w3"
   },
@@ -6609,6 +6618,13 @@
       "quote": "once a trader has confidence in their trading plan, they must have the discipline to stay the course, even when there are the inevitable losing streaks.",
       "tier": 2,
       "url": "https://www.investopedia.com/articles/active-trading/022715/20-rules-followed-professional-traders.asp"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "New traders start at 0.25% risk per trade until 50 journaled trades followed the rules, then size up.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -8095,7 +8111,7 @@
   "difficulty": 1,
   "id": "si_4cff26940a37",
   "lesson_origin": "session",
-  "lesson_text": "The day ends in the closing auction, often one of the day's biggest single trades.",
+  "lesson_text": "We have no time-of-day rule. But know the shape, so you know when your names will move.",
   "module": "F11",
   "prompt_json": {
    "order": 1,
@@ -8103,9 +8119,10 @@
    "parts": 3,
    "q": "The shape of a day",
    "steps": [
-    "Volume runs heavy near the open, slows at midday, then builds again into the close.",
-    "The open prices in a whole night of news. It tends to swing hardest, and spreads are usually widest.",
-    "The day ends in the closing auction, often one of the day's biggest single trades."
+    "Volume comes in heavy at the open, slows through midday, then builds again into the close.",
+    "The open prices in a whole night of news at once. It tends to swing hardest, and spreads run widest.",
+    "The day ends with the closing auction at 4:00 p.m., often one of the day's biggest single trades.",
+    "We have no time-of-day rule. But know the shape, so you know when your names will move."
    ],
    "subject": "F11.05#w1"
   },
@@ -8128,17 +8145,24 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "Nasdaq (NasdaqTrader): The Nasdaq Opening and Closing Crosses: Frequently Asked Questions (2025)",
-      "quote": "At 9:30 a.m. ET, the Opening Cross is initiated … At 4:00 p.m., the Closing Cross is initiated",
-      "tier": 1,
-      "url": "https://nasdaqtrader.com/content/productsservices/trading/crosses/openclose_faqs.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
       "name": "Cboe Global Markets (Cboe Insights): The Impact Closing Auctions Have on Volumes (Nov. 18, 2020)",
       "quote": "Spreads throughout the day are downward sloping and are typically widest at the open, as they continue to decrease until the close. … The opening and closing prints typically make up the largest individual trades for the day",
       "tier": 2,
       "url": "https://www.cboe.com/insights/posts/the-impact-closing-auctions-have-on-volumes/"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Nasdaq (NasdaqTrader): The Nasdaq Opening and Closing Crosses: Frequently Asked Questions (2025)",
+      "quote": "At 4:00 p.m., the Closing Cross is initiated",
+      "tier": 1,
+      "url": "https://nasdaqtrader.com/content/productsservices/trading/crosses/openclose_faqs.pdf"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "No time-of-day rule.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -8158,7 +8182,7 @@
   "difficulty": 1,
   "id": "si_241dcdf29aa2",
   "lesson_origin": "session",
-  "lesson_text": "Some of our setups, like the Slingshot and the Launchpad, enter on the close. This is when they act.",
+  "lesson_text": "Good to know, but we don't buy the close. Every setup buys as price trades through its trigger, during the day.",
   "module": "F11",
   "prompt_json": {
    "order": 2,
@@ -8166,10 +8190,10 @@
    "parts": 3,
    "q": "The last ten minutes",
    "steps": [
-    "From 3:50 p.m., NYSE and Nasdaq publish the closing imbalance: on-close shares left unmatched, and on which side.",
-    "3:50 p.m. is also NYSE's cutoff for new market-on-close orders. Nasdaq takes them until 3:55 p.m.",
-    "At 4:00 p.m. the closing auction runs. On Nasdaq, it sets the official closing price.",
-    "Some of our setups, like the Slingshot and the Launchpad, enter on the close. This is when they act."
+    "The last ten minutes run on their own clock. From 3:50 p.m., NYSE and Nasdaq publish the closing imbalance.",
+    "That's the on-close shares left unmatched, buy side or sell side.",
+    "At 4:00 p.m. the closing auction runs. On Nasdaq it sets the official closing price.",
+    "Good to know, but we don't buy the close. Every setup buys as price trades through its trigger, during the day."
    ],
    "subject": "F11.05#w2"
   },
@@ -8185,29 +8209,15 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "NYSE: Auctions (auction timelines for NYSE-listed securities)",
-      "quote": "Cutoff time for Market on Close/Limit on Close (MOC/LOC) order entry: Imbalance publication begins and disseminated every 1 second until auction is complete",
-      "tier": 1,
-      "url": "https://www.nyse.com/trade/auctions"
-     },
-     {
-      "accessed": "2026-11-09",
       "name": "Nasdaq (NasdaqTrader): The Nasdaq Opening and Closing Crosses: Frequently Asked Questions (2025)",
-      "quote": "Nasdaq begins disseminating Net Order Imbalance information at 9:25 a.m. for the Opening Cross and 3:50 p.m. for the Closing Cross. … Imbalance Shares: The number of opening or closing shares that would remain unexecuted at the current reference price. … Market-on-close (MOC) orders must be received prior to 3:55 p.m. … At 4:00 p.m., the Closing Cross is initiated … The Closing Cross sets the Nasdaq Official Closing Price (NOCP).",
+      "quote": "Nasdaq begins disseminating Net Order Imbalance information at 9:25 a.m. for the Opening Cross and 3:50 p.m. for the Closing Cross. … Imbalance Shares: The number of opening or closing shares that would remain unexecuted at the current reference price. … At 4:00 p.m., the Closing Cross is initiated … The Closing Cross sets the Nasdaq Official Closing Price (NOCP).",
       "tier": 1,
       "url": "https://nasdaqtrader.com/content/productsservices/trading/crosses/openclose_faqs.pdf"
      },
      {
-      "accessed": "2026-11-09",
-      "name": "NYSE: NYSE opening and closing auctions (fact sheet, 2024)",
-      "quote": "After 3:50 p.m. can be entered only on the contra-side of a MOC/LOC Significant Imbalance until 4:00 p.m. … 3:50 p.m. Cutoff time for MOC/LOC order entry",
-      "tier": 1,
-      "url": "https://www.nyse.com/publicdocs/nyse/markets/nyse/NYSE_Opening_and_Closing_Auctions_Fact_Sheet.pdf"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Our trade plans",
-      "quote": "the close back over the 4-day average of the highs … the close out of the tight cluster of averages",
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "Every setup buys as price trades through its trigger, during the day.",
       "tier": 3,
       "url": null
      }
@@ -8229,7 +8239,7 @@
   "difficulty": 1,
   "id": "si_ed1a7ceb03b3",
   "lesson_origin": "session",
-  "lesson_text": "Old weekday rules, like weak Mondays, have faded since they were published. Plan around real dates.",
+  "lesson_text": "Weak Mondays and other weekday rules faded once they were published. Plan around real dates, not the day of the week.",
   "module": "F11",
   "prompt_json": {
    "order": 3,
@@ -8237,10 +8247,10 @@
    "parts": 3,
    "q": "Next week, from Sunday",
    "steps": [
-    "On Sunday, map the week: holidays and early closes, earnings dates, the Fed and the big data days.",
-    "Some Friday closes are giant. The Russell indexes now rebalance every June and December, and index funds trade that close.",
-    "Friday's close starts two days without a regular session. Weekend news can gap the stock at Monday's open.",
-    "Old weekday rules, like weak Mondays, have faded since they were published. Plan around real dates."
+    "Sunday, map the week: holidays and early closes, earnings dates, the Fed and the big data days.",
+    "Some Friday closes are giant. The Russell rebalance now runs every June and December, and index funds trade that close.",
+    "Friday's close starts two days with no regular session. Weekend news can gap your stock at Monday's open.",
+    "Weak Mondays and other weekday rules faded once they were published. Plan around real dates, not the day of the week."
    ],
    "subject": "F11.05#w3"
   },

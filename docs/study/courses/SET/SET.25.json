@@ -720,10 +720,10 @@
    "key": "w1",
    "title": "ACN, October 2006: the textbook Oops",
    "steps": [
-    "ACN, 2006. A three-week drift, 5.0% off its high, down to the 21-day EMA. Yesterday's close is the line.",
-    "2006-10-23: it opens under the prior close, trades 0.73% under the prior low, then reclaims the close.",
-    "Our scans buy as it trades back over the prior close: 31.51. Stop a few cents under the low, 31.12, 1.24% away.",
-    "Failure mode: a close back under the prior close. Instead it closed over the prior high. 3R took 3 days."
+    "ACN, October 2006. Three weeks of drift off a fresh high, 5.0% down, to its short-term averages. Yesterday's close is the line.",
+    "October 23 it opens under that close and slips 0.73% under the prior low. Looks weak. That's the trap.",
+    "Set an alert at the prior close. It trades back over, and you buy at market, 31.51. Stop 31.12, under the low.",
+    "Close back under the prior close and it's wrong. Instead it closed over the prior high. 3R took 3 days."
    ],
    "facts": [
     "dACN",
@@ -740,10 +740,10 @@
    "key": "w2",
    "title": "ADBE, May 2018: the undercut that tags two averages",
    "steps": [
-    "ADBE, 2018. A leader drifts three weeks, 5.2% off its high, onto the 21-day EMA and the 50-day.",
-    "2018-05-03: it opens under the prior close and undercuts the prior low by 0.82%, tagging both averages.",
-    "Our scans buy as price trades back over the prior close: 221.11. Stop a few cents under the low, 218.69.",
-    "Failure mode: a close back under the prior close. Instead it closed over the prior high. 3R came the next day."
+    "ADBE in May 2018, a leader drifting three weeks, 5.2% off its high, onto the 50-day.",
+    "May 3 it opens under the prior close and undercuts the prior low by 0.82%, right into the 50-day.",
+    "Then it trades back over the prior close. Buy at market, 221.11. Stop a few cents under the low, 218.69.",
+    "It closes over the prior high, the Super version. 3R came the very next day."
    ],
    "facts": [
     "dADBE",
@@ -760,10 +760,10 @@
    "key": "w3",
    "title": "DELL, March 2026: a deeper undercut and the widest stop",
    "steps": [
-    "DELL, 2026. A two-week drift to the 21-day EMA after a 200-day reclaim, 5.4% off its high.",
-    "2026-03-19: a deeper undercut, 1.58% under the prior low, then a close at 0.97 of its range.",
-    "Our scans buy at market, 149.22, as it reclaims the close. Stop a few cents under the low, 146.52, 1.81% away.",
-    "Failure mode: a close back under the prior close. Instead it closed over the prior high, and 3R came the next day."
+    "Here's one fresh off a 200-day reclaim. DELL, March 2026, drifts two weeks, 5.4% off its high.",
+    "March 19 it digs deeper, 1.58% under the prior low. Then it rips back and closes at the high.",
+    "Buy at market as it reclaims the prior close, 149.22. Stop 146.52 under the low. 1.81% is wider, still well inside 3%.",
+    "It closed over the prior high and hit 3R the next day. That was the start of a very large run."
    ],
    "facts": [
     "dDELL",

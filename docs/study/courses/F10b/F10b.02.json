@@ -734,8 +734,8 @@
    "title": "The mirror",
    "steps": [
     "Before you ever short: we only recommend it to traders who've already made $1 million trading.",
-    "Long, the worst case is zero. You can lose what you paid for the shares, and no more.",
-    "Short, there is no ceiling. The stock can keep rising, and your loss keeps growing.",
+    "Long, the worst case is zero. You lose what you paid for the shares, and no more.",
+    "Short, there's no ceiling. The stock can keep rising, and your loss grows right along with it.",
     "So the stop flips sides. A buy stop sits above the price and buys you back if it rallies."
    ],
    "facts": [
@@ -751,9 +751,10 @@
    "key": "w2",
    "title": "Reading the crowd",
    "steps": [
-    "Short interest is the shares sold short and not yet bought back. FINRA takes the count twice a month.",
-    "Days to cover divides short interest by average daily volume. It's how many normal days the shorts need to get out.",
-    "A high number is fuel, not a spark. Plenty of heavily shorted stocks just keep falling."
+    "Short interest tells you how crowded the short side is: shares sold short and not bought back yet.",
+    "FINRA takes that count twice a month. Divide it by average daily volume and you get days to cover.",
+    "That's how many normal days the shorts need to get out. A big number is fuel, not a spark.",
+    "Heavy short interest doesn't mean it'll rise. Plenty of heavily shorted stocks just keep falling."
    ],
    "facts": [
     "f90",
@@ -769,9 +770,9 @@
    "key": "w3",
    "title": "How a squeeze feeds itself",
    "steps": [
-    "A sharp rally, or trouble borrowing shares, pushes shorts to buy back.",
-    "Their buying lifts the price, which pushes the next short to buy. Margin calls speed it up.",
-    "Your buy stop turns into a market order when it triggers. In a squeeze it can fill far above your stop."
+    "A squeeze starts with a sharp rally, or trouble borrowing the shares. Either one pushes shorts to buy back.",
+    "Their buying lifts the price, and that can force out the next short. Margin calls speed it up.",
+    "Your buy stop becomes a market order when it triggers. In a squeeze, the fill can land far above your stop."
    ],
    "facts": [
     "f03",

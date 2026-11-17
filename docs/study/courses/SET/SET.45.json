@@ -1194,10 +1194,10 @@
    "key": "w1",
    "title": "CRSP, November 2019: the shortest base that counts",
    "steps": [
-    "CRSP, 2019. A 47% run begins on an earnings reaction, then the stock rests 10 sessions in a 14% band.",
-    "The base checks out: 10 sessions is the shortest allowed, and 14% is inside the 25% depth cap.",
-    "2019-11-12: it clears 52.28 on 3.1x volume. Buy at market, 52.35. Stop a few cents under the day's low, 51.21.",
-    "The stop is 2.2%, inside our preferred 1-3%. Failure mode: a close back inside the base. Instead 3R came in 1 day."
+    "Big move first, then a short rest. CRSP, 2019: an earnings reaction kicks off a 47% run.",
+    "Then 10 sessions of rest, only 14% deep. That's short and shallow next to the run before it.",
+    "November 12 it clears 52.28 on 3.1x volume. Buy at market, 52.35. Stop a few cents under the day's low, 51.21.",
+    "A 2.2% stop, where we like it. A close back inside the base means it failed. Instead, 3R in 1 day."
    ],
    "facts": [
     "dCRSP",
@@ -1214,10 +1214,10 @@
    "key": "w2",
    "title": "HWM, May 2025: a steady name after an earnings gap",
    "steps": [
-    "HWM, 2025. A large, steady name gaps on earnings, then rests 12 sessions in a 17% band after a 43% run.",
-    "The base checks out: 12 sessions is inside 10 to 40, and 17% is inside the 25% depth cap.",
-    "2025-05-15: it clears 161.58 on 1.5x volume. Buy at market, 161.59. Stop a few cents under the low, 158.95.",
-    "Stop 1.6%, inside our preferred 1-3%. Failure mode: a close back in the base. Instead 3R took 7 days."
+    "This one's steady, not a rocket. HWM, 2025: a large name with a 43% run and an earnings gap.",
+    "Then 12 tight sessions in a 17% band. Calm, sideways, holding its gains.",
+    "May 15 it clears 161.58 on 1.5x volume. Buy at market, 161.59. Stop a few cents under the low, 158.95.",
+    "Just a 1.6% stop. A close back in the base says it failed. This one took 7 days to 3R."
    ],
    "facts": [
     "dHWM",
@@ -1234,10 +1234,10 @@
    "key": "w3",
    "title": "CPRI, December 2020: quiet volume, still a breakout",
    "steps": [
-    "CPRI, 2020. A 59% run in a month, then 11 sessions of rising lows. The 10 and 20-day never let go.",
-    "The base checks out: 11 sessions is inside 10 to 40, and 21% is inside the 25% depth cap.",
-    "2020-12-03: it clears 38.00 on 0.8x volume, which only grades. Buy at market, 38.01. Stop a few cents under the low, 37.37.",
-    "Stop 1.7%, inside our preferred range. Failure mode: a close back in the base. Instead 3R came in 5 days."
+    "CPRI, 2020. A 59% run in a month, then 11 sessions with each low a little higher than the last.",
+    "It's 21% deep, but its rising short-term averages never let go. That's a stock resting, not breaking down.",
+    "December 3 it clears 38.00 on only 0.8x volume. Buy at market, 38.01. Stop a few cents under the low, 37.37.",
+    "Volume only raises the grade, so a quiet break still gets bought. Stop 1.7%, and 3R came in 5 days."
    ],
    "facts": [
     "dCPRI",

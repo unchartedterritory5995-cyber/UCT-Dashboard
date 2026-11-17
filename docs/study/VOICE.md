@@ -290,3 +290,38 @@ worded".
 > *Yes. Price is over the 50-day and the 200-day, and the 50 is over the 200. Everything's pointed the right way.
 > That's what a leader looks like while it rests. NUS had nearly doubled, then built this shelf, and it broke out the
 > next day on 1.9x volume. Under the 200-day we don't buy stocks. That's a hard line.*
+
+### A walkthrough (the worked example before a lesson's questions) (2026-11-17)
+
+A walkthrough is him walking you through one chart or one idea, beat by beat. Each step is one beat on one screen:
+22 words at most (the importer's limit), one or two short sentences. Two to four steps.
+
+- **A setup walkthrough** narrates the trade in order: what happened, why it's a setup, the buy and the stop with
+  their numbers, then how it ends (the idea is wrong if X; what it did; what you do with a winner). Dates are said the
+  way a person says them ("March 10, 2016", "September 2013"), never 2016-03-10. No labels like "Failure mode:" or
+  "Context and pattern check out". These are examples from our research on real charts, so never say we personally
+  traded one unless a fact says so ("we buy at market" as the play is fine; "we made 12R on it" is not).
+- **A concept walkthrough** teaches one idea the way he'd explain it across the desk: plain, short, with "you", and a
+  number example where the facts give one. No textbook definitions read aloud ("X is defined as...").
+- A research measurement on the 10- or 21-day stays a measurement, but never present those as our lines (ours are the
+  9 and 20 EMA). "Riding its rising short-term averages" is the safe way to say it.
+- Every number in a step must be in a fact the walkthrough cites. A step that needs a new number cites a new fact
+  (word for word from a source the lesson already has).
+
+> Before (SET.20 w1). *ULTA, 2016. Report on 2016-03-10; the gap day is 2016-03-11, up 14.2% on 4.8x volume. It closes
+> at 94% of its range. / A big gap out of a correction. Then a 4-session pullback, 2.8% deep, that holds the gap-day
+> low. / Day 6: buy at market over the prior day's high, 190.69. Stop a few cents under the pullback low, 186.55. /
+> Failure mode: a close under the gap-day low. Instead it ran to 12.1R. Sell into a push, trail the rest.*
+>
+> After. *ULTA reported March 10, 2016. Next day it gapped up 14.2% on 4.8 times normal volume and closed near the
+> high. / A big gap out of a correction. Then four quiet days, only 2.8% deep, and it never lost the gap-day low. /
+> Day 6 it takes out the prior day's high, 190.69. We buy at market, stop just under the pullback low, 186.55. / A
+> close under the gap-day low says we're wrong. Never happened. It ran to 12.1R: sell into a push, trail the rest.*
+
+> Before (V.02 w1). *Read a chart by its peaks and troughs. Higher highs and higher lows: that's an uptrend. / Lower
+> highs and lower lows: a downtrend. Flat highs and flat lows: a trading range. / A trend holds until price proves
+> otherwise. An uptrend ends when a lower low drops under the last trough.*
+>
+> After. *First thing I look at: the peaks and the troughs. Higher highs and higher lows, that's an uptrend. / Lower
+> highs and lower lows is a downtrend. Flat highs and flat lows is a range, going nowhere. / Trust the trend until
+> price proves otherwise. The uptrend is over when it makes a lower low under the last trough.*

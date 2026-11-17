@@ -659,10 +659,10 @@
    "key": "w1",
    "title": "The four numbers you check first",
    "steps": [
-    "Revenue is the top line: the money brought in from sales. Net income is the bottom line, after every expense.",
-    "Divide net income by the shares outstanding and you get EPS, earnings per share.",
-    "Analysts estimate both EPS and revenue. The consensus is their average.",
-    "Line actual EPS and revenue up against their estimates. Above is a beat, below a miss, equal is in line."
+    "Start at the top line: revenue, the money in from sales. The bottom line is net income, after every expense.",
+    "Divide net income by the shares outstanding and you've got EPS, earnings per share.",
+    "Analysts estimate EPS and revenue before the report. Average them and that's the consensus.",
+    "Now line them up. Above the consensus is a beat, below is a miss. Right on it is in line."
    ],
    "facts": [
     "f02",
@@ -678,10 +678,10 @@
    "key": "w2",
    "title": "Pick the right quarter to compare",
    "steps": [
-    "Year over year compares a quarter with the same one a year ago. Quarter over quarter uses the one just before.",
-    "Amazon's net sales fell from $187.8 billion in its fourth quarter to $155.7 billion in the next one.",
-    "That's the season, not the business. Amazon says its fourth quarter has historically had higher sales.",
-    "Year over year, that quarter grew 9%. For a seasonal business, that's the comparison I trust."
+    "Year over year compares a quarter with the same one last year. Quarter over quarter uses the one right before.",
+    "Amazon's net sales went from $187.8 billion in its fourth quarter to $155.7 billion the next one. Looks ugly.",
+    "That's the season, not the business. Amazon's fourth quarter has historically been its big one.",
+    "Year over year, that quarter grew 9%. For a seasonal business, that's the number I trust."
    ],
    "facts": [
     "f58",
@@ -696,10 +696,10 @@
    "key": "w3",
    "title": "Two kinds of EPS",
    "steps": [
-    "A release can show two EPS numbers. GAAP follows the standard accounting rules. Adjusted, or non-GAAP, can leave some amounts out.",
-    "Show an adjusted number and the company must also show the GAAP one, and how the two differ.",
-    "Target's first-quarter GAAP EPS was $2.27. Adjusted, without the lawsuit settlement gains, it was $1.30.",
-    "Before you call a beat or a miss, check which EPS the estimate was set against. Compare like with like."
+    "A lot of releases show two EPS numbers. GAAP follows the accounting rules. Adjusted, or non-GAAP, can leave things out.",
+    "Show the adjusted one and the company has to show the GAAP one too, and how they differ.",
+    "Target's first quarter: GAAP EPS $2.27. Adjusted, without its lawsuit settlement gains, $1.30. Big difference.",
+    "The street expected $1.61 adjusted. So it was a miss, not a beat. Always check which EPS the estimate was set on."
    ],
    "facts": [
     "f17",

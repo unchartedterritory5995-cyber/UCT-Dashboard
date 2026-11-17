@@ -905,10 +905,10 @@
    "key": "w1",
    "title": "TVTX, March 2015: the clean one",
    "steps": [
-    "TVTX, March 2015. A $4M-a-day name in a quiet uptrend, 25% over its 200-day. Then record volume, up 37%.",
-    "It closes at 0.98 of its range. That close, 20.17, is the HVC: mark a ray and an AVWAP.",
-    "Day 2, 2015-03-19: a dip under the HVC, then back over. Buy a cent over it. Stop 19.89, under the day-2 low.",
-    "Failure mode: back under the fill. Instead it stair-steps to +70% by day 54, the HVC never traded again."
+    "TVTX, March 2015. Quiet uptrend, 25% over its 200-day. Then record volume, up 37%, closing near the high.",
+    "That close, 20.17, is the HVC, the high volume close. Mark a ray there and an AVWAP from that day.",
+    "Day 2, March 19, dips under 20.17 and trades back over. Buy a cent over it, stop 19.89 under the day-2 low.",
+    "Close back under the fill and we're out. Didn't happen. It stair-stepped to +70% by day 54, never back to 20.17."
    ],
    "facts": [
     "d01",
@@ -925,10 +925,10 @@
    "key": "w2",
    "title": "DOCU, September 2019: earnings that count",
    "steps": [
-    "DOCU, September 2019. An earnings report brings the most shares it has ever traded. Up 22%, from 7% under its 200-day.",
-    "Earnings on ordinary big volume is a PEG. This volume is extreme, an all-time record: an HVE. Mark the close.",
-    "2019-09-09, day 2 dips and reclaims. Buy at market, a cent over the 56.27 close. Stop under the day-2 low, 55.53.",
-    "Failure mode: back under the fill. Day 3 dips 0.8% under the HVC, holds the stop, then rises 30% by day 55."
+    "DOCU reported September 5, 2019. Next day it traded more shares than ever before, up 22%, from 7% under its 200-day.",
+    "Ordinary big volume on earnings is a PEG. An all-time record is an HVE. Mark the close, 56.27.",
+    "Day 2, September 9, dips and takes it back. Buy at market a cent over 56.27, stop 55.53 under the day-2 low.",
+    "Day 3 dips 0.8% under the HVC. Not the stop, so you sit. It's up 30% by day 55."
    ],
    "facts": [
     "d04",
@@ -946,10 +946,10 @@
    "key": "w3",
    "title": "INOD, May 2026: the trims are the trade",
    "steps": [
-    "INOD, May 2026. An earnings report on extreme volume, an all-time record, up 86%. Its close is the level.",
-    "2026-05-11, day 2 dips 1.8% under the HVC and reclaims. Buy a cent over 84.89. Stop under the day-2 low, 83.38.",
-    "5R in two sessions, too soon to sell: stop to breakeven. The peak, +47%, comes on day 17.",
-    "Failure mode: a slide back under the level. By day 30 it round-trips under the HVC. The trims kept the win."
+    "May 2026. INOD reports and trades its biggest volume ever, up 86%. That close, 84.89, is the level.",
+    "Day 2, May 11, dips 1.8% under it and reclaims. Buy a cent over 84.89, stop under the day-2 low, 83.38.",
+    "5R in two sessions. Too early to sell, so the stop goes to breakeven. It peaks up 47% on day 17.",
+    "By day 30 it's round-tripped under the HVC. If you sold into a push on the way up, you kept a winner."
    ],
    "facts": [
     "d07",

@@ -602,12 +602,12 @@
  "walkthroughs": [
   {
    "key": "w1",
-   "title": "Selling a call against your shares",
+   "title": "Selling a call against shares",
    "steps": [
-    "You own 100 shares and sell one call against them. That's a covered call.",
-    "The premium comes in now, and it's yours whatever happens.",
-    "In return, you agree to sell your shares at the strike if you're assigned.",
-    "So write it at a strike where you'd be glad to sell, with the premium on top."
+    "Say a friend owns 100 shares and sells one call against them. That's a covered call. His trade, not ours.",
+    "The premium comes in now, and he keeps it whatever happens.",
+    "In return, he has to sell his shares at the strike if he's assigned.",
+    "So the strike plus the premium has to be a price he'd be glad to sell at."
    ],
    "facts": [
     "f57",
@@ -621,10 +621,10 @@
    "key": "w2",
    "title": "Where the cap is",
    "steps": [
-    "The stock is at 50. You sell the 50 call for 4.",
-    "It runs to 58 and you're assigned. You get 50 for the shares plus the 4 you kept.",
-    "That's 4 a share less than selling at 58. Above the strike, the gain went to the call buyer.",
-    "If the stock falls instead, the drop is still yours. The premium only softens it."
+    "His stock's at 50. He sells the 50 call for 4.",
+    "It runs to 58 and he's assigned. He gets 50 for the shares, plus the 4 he kept.",
+    "That's 4 a share less than just selling at 58. Everything over the strike went to the call buyer.",
+    "If the stock falls instead, the drop is still all his. The premium only softens it."
    ],
    "facts": [
     "f38",
@@ -637,10 +637,10 @@
    "key": "w3",
    "title": "The cash-secured put",
    "steps": [
-    "You sell a put and set aside the cash to buy the shares at the strike.",
-    "If the stock drops under the strike, you can be assigned and you buy.",
-    "Your real cost is the strike minus the premium you kept.",
-    "Only sell it on a stock you'd own at that price, however far it falls."
+    "Now the put side. He sells a put and parks the cash to buy the shares at the strike.",
+    "If the stock drops under the strike, he can be assigned, and he buys.",
+    "His real cost is the strike minus the premium he kept.",
+    "So he only sells it on a stock he'd own at that price, however far it falls."
    ],
    "facts": [
     "f21",

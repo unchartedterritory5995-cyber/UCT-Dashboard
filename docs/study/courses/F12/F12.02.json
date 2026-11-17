@@ -807,10 +807,10 @@
    "key": "w1",
    "title": "Before the open",
    "steps": [
-    "Run the day on three checkpoints: before the open, during the session, and after the close.",
+    "Split the day in three: before the open, during the session, after the close.",
     "Start wide. Index futures trade nearly 24 hours, so they show how the market took the overnight news.",
-    "Then the calendar. CPI lands at 8:30 a.m. ET, and companies usually report before the open or after the close.",
-    "Then narrow your list to the few best names. Each gets levels, an entry, a stop and a risk amount."
+    "Then the calendar. CPI drops at 8:30 a.m. Eastern, and earnings come before the open or after the close.",
+    "Then cut your list to the 5 to 10 best setups. Each one gets an entry, a stop and a risk amount."
    ],
    "facts": [
     "rp1",
@@ -819,16 +819,19 @@
     "fb2",
     "fe1",
     "iw3",
-    "t4"
+    "h3",
+    "t4",
+    "h8"
    ]
   },
   {
    "key": "w2",
    "title": "During the session",
    "steps": [
-    "Volume is usually heavy early, slows at midday, and picks up again into the close.",
-    "Midday is a check, not a hunt: what you own, your stops, and news due later, like a 2:00 p.m. Fed statement.",
-    "The rules you wrote stay the rules. Changes wait until the market is closed."
+    "Once the bell rings, the action's front-loaded. Volume's heavy early, slows at midday, and picks up into the close.",
+    "Midday is a check, not a hunt. Look at what you own and where your stops sit.",
+    "Then check what's due later, like a 2:00 p.m. Fed statement.",
+    "The rules you wrote stay the rules. Changes wait until the market's closed."
    ],
    "facts": [
     "sb1",
@@ -842,14 +845,15 @@
    "key": "w3",
    "title": "After the close",
    "steps": [
-    "The recap starts with what you own. Check each stop, and consider raising it under a new higher low.",
-    "Check who reports tonight or before tomorrow's open. News after the close can gap a stock past your stop.",
-    "Then log today's ideas and write tomorrow's list and levels while the market is closed.",
-    "Veteran trader Gatis Roze found his best planned days generally gave his best results."
+    "After the bell, start with what you own. Check each stop. A new higher low is your chance to raise it.",
+    "Check who reports tonight or before tomorrow's open. News after the close can gap a stock right past your stop.",
+    "Then log today's ideas and write tomorrow's list and levels.",
+    "Do that work while the market's closed. The best-planned days tend to give the best results."
    ],
    "facts": [
     "ss2",
     "m2",
+    "h11",
     "fe1",
     "sb4",
     "ips2",

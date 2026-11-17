@@ -665,10 +665,10 @@
    "key": "w1",
    "title": "Three sessions, one clock",
    "steps": [
-    "The regular session runs 9:30 a.m. to 4:00 p.m. Eastern Time. That's where most of the trading happens.",
-    "Before it is pre-market. After it is after hours. Some stocks now trade overnight too. All of it is extended hours.",
-    "At Nasdaq, pre-market starts at 4:00 a.m. and after hours runs to 8:00 p.m.",
-    "Your broker sets its own window. Fidelity and Schwab start pre-market at 7:00 a.m."
+    "The regular session runs 9:30 a.m. to 4:00 p.m. Eastern. That's where the crowd is.",
+    "Before it is pre-market, after it is after hours. Some stocks trade overnight too. All of that is extended hours.",
+    "On Nasdaq, pre-market starts at 4:00 a.m. and after hours runs to 8:00 p.m.",
+    "Your broker sets its own window, often a shorter one. We don't buy outside regular hours anyway."
    ],
    "facts": [
     "f1",
@@ -678,18 +678,17 @@
     "f15",
     "f16",
     "f27",
-    "f57",
-    "f64"
+    "f76"
    ]
   },
   {
    "key": "w2",
    "title": "Thin prints and official prints",
    "steps": [
-    "Outside regular hours, far fewer people trade. Spreads widen and one order can swing the price.",
-    "Those trades carry a T flag. They add to the day's volume.",
-    "But the consolidated record, which combines every venue, leaves them out of the day's high, low and last.",
-    "The official open and close normally come from the auctions. The close is the 4 p.m. price, whatever trades later."
+    "Outside regular hours, far fewer people trade. Spreads widen, and one order can swing the price.",
+    "Those trades still count in the day's volume. They carry a T flag.",
+    "But they don't set the day's official high, low or last price.",
+    "The close is the 4 p.m. price, whatever trades after. On Nasdaq, the auctions set the official open and close."
    ],
    "facts": [
     "f17",
@@ -709,16 +708,17 @@
    "key": "w3",
    "title": "Why gaps show up at the open",
    "steps": [
-    "Earnings and other big company news usually come out while the regular session is closed.",
-    "The stock reprices on thin after-hours and pre-market trading. The open can land far from yesterday's close. That jump is the gap.",
-    "Many brokers take only limit orders outside regular hours. At those brokers, a stop waits for the open.",
-    "Once hit, a stop becomes a market order. It fills at the going price, which can be far from your stop."
+    "Earnings and other big news mostly land while the regular session is closed.",
+    "It reprices on thin trading and opens well off yesterday's close. That's the gap. On earnings, it's an earnings gapper.",
+    "Here's the catch. Many brokers take only limit orders outside regular hours, so your stop waits for the open.",
+    "Then it triggers and becomes a market order. It fills wherever the stock trades, which can be well past your stop."
    ],
    "facts": [
     "f20",
     "f6",
     "f72",
     "f73",
+    "f78",
     "f9",
     "f66",
     "f52",

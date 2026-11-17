@@ -469,9 +469,9 @@
    "key": "w1",
    "title": "1R, and what a partial leaves",
    "steps": [
-    "Buy at $50 with the stop at $48. That's $2 of risk a share, and that $2 is 1R.",
-    "Hold 100 shares and $200 is on the line. R can mean that total too.",
-    "Sell some at a profit and fewer shares can reach the stop. The risk left shrinks with them."
+    "Buy at $50, and you're wrong at $48. That's $2 a share on the line. That $2 is your 1R.",
+    "On 100 shares that's $200 at risk. R can mean that total too. Just know which one you're talking about.",
+    "It runs and you sell some into strength. Fewer shares can reach your stop now. Recount what's left at risk."
    ],
    "facts": [
     "f20",
@@ -486,9 +486,9 @@
    "key": "w2",
    "title": "When the stop passes your entry",
    "steps": [
-    "Buy at $100 with the first stop at $95. That's a 5% risk.",
-    "The stock runs to $120, and the trailing stop is now at $108.",
-    "A stop-out now sells above your entry. Your capital is safe, and at least an 8% gain is locked in, gaps aside."
+    "You buy a breakout at $100 and put your first stop at $95. That's 5% you're willing to lose.",
+    "It runs to $120, and you've trailed the stop up to $108. That's above what you paid.",
+    "Stopped out there, you still bank at least 8%. Your money's safe now. Only a gap can beat that stop."
    ],
    "facts": [
     "f46",
@@ -501,16 +501,17 @@
    "key": "w3",
    "title": "A stop at entry, and its catch",
    "steps": [
-    "Once the stock moves your way, you can raise the stop to your entry price. That's a breakeven stop.",
-    "Filled there, the shares you still hold come out even.",
-    "Two catches. A gap can open below the stop, and a stop that close can catch a normal dip."
+    "Once it's working, move the stop to your entry. Breakeven. I do that from 2R to 5R, or at my first sell.",
+    "Now your money's protected. Your open profit isn't. Get filled there and the shares you still hold come out even.",
+    "Two catches. A gap can open right under your stop. And a stop that tight can get hit by a normal dip."
    ],
    "facts": [
+    "h08",
     "f01",
     "f38",
     "f35",
     "f13",
-    "f39"
+    "f34"
    ]
   }
  ],

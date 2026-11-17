@@ -336,10 +336,10 @@
    "key": "w1",
    "title": "Two parts in every premium",
    "steps": [
-    "Every option price has two parts: intrinsic value and time value.",
-    "Intrinsic value is how far the option is in the money right now.",
-    "Time value is everything you pay on top of that.",
-    "Stock at $45, the 40 call at $6. That's $5 of intrinsic value and $1 of time value."
+    "Every option price is two things stacked together: intrinsic value and time value.",
+    "Intrinsic is how far it's in the money right now. Time value is everything you pay on top of that.",
+    "Stock at $45, the 40 call at $6. It's $5 in the money, so $5 intrinsic and $1 of time.",
+    "That $1 is what the clock costs you. Split every quote like this before you buy."
    ],
    "facts": [
     "f1",
@@ -352,25 +352,26 @@
    "key": "w2",
    "title": "In, at and out of the money",
    "steps": [
-    "A call is in the money when the stock is above the strike.",
-    "A put is in the money when the stock is below the strike.",
-    "Stock right at the strike is at the money.",
-    "Only in-the-money options have intrinsic value. Everything else has zero."
+    "Start with the call. It's in the money when the stock trades above the strike.",
+    "Flip it for a put. A put is in the money when the stock's below the strike.",
+    "Stock sitting right on the strike is at the money.",
+    "Only in-the-money options carry intrinsic value. Everything else has zero, so its whole price is time value."
    ],
    "facts": [
     "f2",
     "f3",
     "f8",
-    "f10"
+    "f10",
+    "f11"
    ]
   },
   {
    "key": "w3",
    "title": "The clock on time value",
    "steps": [
-    "All else equal, time value shrinks as expiry gets closer, and the shrinking speeds up near the end.",
-    "At expiry there is no time left. The option is worth its intrinsic value only.",
-    "If you're the buyer, time value is the part the clock takes from you."
+    "Time value doesn't sit still. All else equal, it shrinks as expiry gets closer, and faster near the end.",
+    "On expiry day there's no time left. The option's worth its intrinsic value and nothing else.",
+    "As the buyer, that melt comes out of your pocket. It's the seller it helps."
    ],
    "facts": [
     "f14",

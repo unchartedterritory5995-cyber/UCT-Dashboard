@@ -720,10 +720,10 @@
    "key": "w1",
    "title": "Who gets the notice",
    "steps": [
-    "To exercise, the holder tells their broker, and the broker sends the notice to the Options Clearing Corporation (OCC).",
+    "Say a holder wants to exercise. They tell their broker, and the broker sends the notice to the clearing house, OCC.",
     "OCC hands it at random to a broker that carries shorts in that option.",
-    "That broker picks one of its short customers, at random or first in, first out.",
-    "That writer is assigned and must buy or sell the shares at the strike, whatever the market price."
+    "That broker picks one of its short customers. Random, or first in, first out, depending on the broker.",
+    "Whoever gets picked is assigned. They have to buy or sell the shares at the strike, whatever the stock trades at."
    ],
    "facts": [
     "f1",
@@ -739,9 +739,9 @@
    "key": "w2",
    "title": "The bell on expiry day",
    "steps": [
-    "On expiry day, a stock option a cent ($0.01) or more in the money at the close is usually exercised.",
-    "Holders can say no, and FINRA's rule gives them until 5:30 p.m. ET to decide. After-hours news can still flip it.",
-    "Writers usually hear the next business day. On a Friday expiry, that means Monday."
+    "Expiry day. A stock option a cent, $0.01, or more in the money at the close gets exercised automatically.",
+    "The holder can still say no. FINRA gives them until 5:30 p.m. ET, so after-hours news can flip it.",
+    "The writer hears the next business day. A Friday expiry means finding out Monday."
    ],
    "facts": [
     "f69",
@@ -758,10 +758,10 @@
    "key": "w3",
    "title": "When early assignment comes",
    "steps": [
-    "Stock options are American-style, so a short can be assigned on any trading day.",
-    "A short call is most at risk the day before an ex-dividend date, when its time value is below the dividend.",
-    "A short put is most at risk once it's deep in the money.",
-    "European-style index options like SPX can only be exercised at expiry, so they carry no early assignment."
+    "Stock options are American-style. A writer can be assigned any day the market's open, not just at expiry.",
+    "A short call is most at risk the day before the ex-dividend date, when its time value is under the dividend.",
+    "A short put gets dangerous once it's deep in the money. That's when the pros exercise early.",
+    "Index options like SPX are European-style. Exercise only at expiry, so no early assignment."
    ],
    "facts": [
     "f47",

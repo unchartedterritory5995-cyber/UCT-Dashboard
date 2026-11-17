@@ -729,10 +729,10 @@
    "key": "w1",
    "title": "Three clocks, three charts",
    "steps": [
-    "A day trader is in and out the same day, holding for seconds to hours. The work happens on intraday charts.",
-    "A swing trader holds for days or weeks. The setup usually lives on the daily chart, often timed on an hourly one.",
-    "A position trader rides a trend for weeks or months. Many work off the weekly chart.",
-    "Pick setups that run on the clock you can actually keep."
+    "Start with how long you'll hold. A day trader holds seconds to hours and works intraday charts.",
+    "A swing trader holds days or weeks. The setup lives on the daily, and the entry often gets timed on the hourly.",
+    "A position trader rides a trend for weeks or months, off the weekly chart.",
+    "Pick setups that run on a clock you can actually keep."
    ],
    "facts": [
     "f39",
@@ -751,20 +751,18 @@
    "key": "w2",
    "title": "One shape, any chart",
    "steps": [
-    "A breakout from a sideways range shows up on a 1-minute chart and on a weekly chart.",
-    "Bulkowski runs one on the 5-minute chart with a tight stop. Weinstein's method buys a weekly base breakout and holds for months.",
-    "Stops scale too. Tight on the 5-minute chart. Bulkowski's Weinstein rules skip a trade if the first stop is over 20% away.",
-    "Size from the stop. The wider the stop, the smaller the position."
+    "A breakout from a sideways range looks the same on a 1-minute chart and a weekly chart.",
+    "Day traders run it on the 5-minute, stop tight. Weinstein's traders buy the weekly break and hold 2 to 4 months.",
+    "The stop scales with the chart. Tight on the 5-minute, far wider on the weekly.",
+    "So size from the stop. Wider stop, fewer shares, same risk."
    ],
    "facts": [
     "f51",
-    "f21",
     "f50",
     "f08",
     "f46",
     "f66",
     "f47",
-    "f49",
     "h7"
    ]
   },
@@ -772,9 +770,10 @@
    "key": "w3",
    "title": "Entry chart, holding clock",
    "steps": [
-    "Use three charts. The longer sets the trend, your main one gives the signal, a shorter one times the entry.",
-    "Our Kicker is a daily setup. One entry is the day-one break of the 30-minute opening range.",
-    "The trail is each higher low or the 9 EMA. The intraday entry doesn't make it a day trade."
+    "Think in three charts. The longer one sets the trend, your main one gives the signal, a short one times the entry.",
+    "Our Kicker is a daily setup. One way in is the day-one break of the 30-minute opening range.",
+    "From there the stop trails each higher low, or the 9 EMA.",
+    "That intraday entry doesn't make it a day trade. We still swing it, days to a few weeks."
    ],
    "facts": [
     "f57",
@@ -783,7 +782,8 @@
     "h2",
     "h6",
     "h3",
-    "h15"
+    "h15",
+    "h14"
    ]
   }
  ],

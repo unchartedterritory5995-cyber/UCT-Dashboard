@@ -807,8 +807,8 @@
    "key": "w1",
    "title": "A share, and its ticker",
    "steps": [
-    "A share is a small piece of ownership in a company. That's why stocks are also called equities.",
-    "Every US stock gets a short code that names it: its ticker, one to five letters.",
+    "Buy a share and you own a small piece of the company. That's why stocks get called equities.",
+    "Every US stock has a short code that names it, its ticker. One to five letters, like NVDA.",
     "Funds get tickers too. SPY, QQQ and IWM are funds, and each one tracks an index."
    ],
    "facts": [
@@ -826,9 +826,9 @@
    "key": "w2",
    "title": "Where it trades",
    "steps": [
-    "A company can list its stock on an exchange, like the NYSE or Nasdaq. Both are registered with the SEC.",
-    "To list, it has to meet that exchange's standards. Fall short later and it can be delisted.",
-    "When you buy, your broker picks where the order goes: that exchange, another one, or a market maker."
+    "A company lists its stock on an exchange, like the NYSE or Nasdaq. Both are registered with the SEC.",
+    "To get listed it has to meet that exchange's standards. Stop meeting them and it can get delisted.",
+    "When you hit buy, your broker decides where the order goes. That exchange, another one, or a market maker."
    ],
    "facts": [
     "f14",
@@ -844,9 +844,9 @@
    "key": "w3",
    "title": "Three funds, three markets",
    "steps": [
-    "SPY tracks the S&P 500: large US companies from all eleven sectors.",
-    "QQQ tracks the Nasdaq-100, the largest non-financial Nasdaq names. IWM tracks the Russell 2000: small caps.",
-    "Check all three before any stock. A stock's price also moves with the market, not just on its own news."
+    "SPY tracks the S&P 500: the big US companies, across all eleven sectors.",
+    "QQQ tracks the Nasdaq-100, the biggest non-financial Nasdaq names. IWM tracks the Russell 2000, the small caps.",
+    "Check all three before you open a single chart. Most stocks follow the market, about three of every four."
    ],
    "facts": [
     "f42",

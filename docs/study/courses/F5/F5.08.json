@@ -862,9 +862,9 @@
    "key": "w1",
    "title": "Two numbers, one verdict",
    "steps": [
-    "Every quarter has two sides. The company's own numbers usually come in a press release, filed with an 8-K.",
-    "The other side is the consensus: the average of the analysts' estimates.",
-    "Above the consensus is a beat. Below is a miss. Equal is in line.",
+    "Every quarter, put two numbers side by side. First, the company's own, most often in a press release filed with an 8-K.",
+    "Second, the consensus: the average of what the analysts expect.",
+    "Above it, a beat. Below, a miss. Right on it, in line.",
     "Then work the surprise: actual minus consensus, divided by the consensus, times 100."
    ],
    "facts": [
@@ -878,10 +878,10 @@
    "key": "w2",
    "title": "Netflix, April 2022",
    "steps": [
-    "Netflix earns $3.53 a share. The consensus was $2.89. An EPS beat.",
-    "But paid members fall by 0.2 million, against its own forecast of 2.5 million added.",
-    "And it guides to losing 2 million more next quarter. The stock plunges 35% in one day.",
-    "The beat was about the quarter just gone. Members and the guide were about what comes next."
+    "Netflix earns $3.53 a share against a $2.89 consensus. A clean EPS beat.",
+    "But it loses 0.2 million paid members, when its own forecast called for adding 2.5 million.",
+    "Then it guides to losing 2 million more next quarter. The stock drops 35% in one day.",
+    "The beat was the quarter that's gone. Members and the guide were what's coming. That's what traded."
    ],
    "facts": [
     "f13",
@@ -895,9 +895,9 @@
    "key": "w3",
    "title": "Meta, February 2023",
    "steps": [
-    "Meta reports EPS of $1.76. Analysts expected $2.22. On its face, a miss.",
-    "But $4.20 billion of restructuring charges sit in that number. Without them, EPS is $1.24 higher.",
-    "Revenue beats, the 2023 cost outlook comes down, and the buyback grows by $40 billion.",
+    "Meta reports EPS of $1.76. Analysts wanted $2.22. Looks like a miss.",
+    "But $4.20 billion of restructuring charges sit inside that number. Take them out and EPS is $1.24 higher.",
+    "Revenue beats. The 2023 cost outlook comes down. The buyback grows by $40 billion.",
     "The stock closes up 23% the next day. Read the whole release, not one line."
    ],
    "facts": [

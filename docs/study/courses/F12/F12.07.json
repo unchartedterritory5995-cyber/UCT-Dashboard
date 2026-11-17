@@ -893,9 +893,9 @@
    "key": "w1",
    "title": "Read the plan line by line",
    "steps": [
-    "A plan is written before you buy. It names the setup, the entry, the stop and the size.",
-    "Read it one line at a time. Ask if that line keeps the loss small and decided in advance.",
-    "One bad line can sink the trade. That's the line you're hunting for."
+    "Your plan gets written before you buy. The setup, the entry, the stop, the size, and how you get out.",
+    "Now read it one line at a time. Ask if each line keeps the loss small and decided before you're in.",
+    "One bad line can sink the trade. Find it before the market does."
    ],
    "facts": [
     "f11",
@@ -907,9 +907,9 @@
    "key": "w2",
    "title": "The mistakes that grow a loss",
    "steps": [
-    "No stop. A stop moved lower. Shares added to a loser. Each one lets the loss grow past your plan.",
-    "Sizing before the stop breaks the plan. You risk losing big, or the stop gets squeezed to fit.",
-    "Our ceiling is 2% of the account on any one trade. Every line has to respect it."
+    "No stop. A stop moved lower. Buying more of a loser. Each one lets the loss grow past what you planned.",
+    "Size picked before the stop is backwards. Either you risk losing big, or the stop gets squeezed to fit.",
+    "We never risk more than 2% of the account on one trade. A line that breaks that gets fixed before you buy."
    ],
    "facts": [
     "f19",
@@ -922,16 +922,17 @@
    "key": "w3",
    "title": "The mistakes of timing and feel",
    "steps": [
-    "Chasing a stock far past its breakout. Trading bigger to win back a loss.",
-    "Holding full size into earnings, as if a stop could catch a gap. A market order into a thin premarket.",
-    "Smaller size limits what a gap can cost. A limit order guards against a bad fill in a thin market."
+    "Some mistakes are about timing and feel. Chasing a stock far past its breakout. Sizing up to win back a loss.",
+    "Full size into earnings, trusting the stop to save you. It can't: a gap jumps right past it.",
+    "So our rule: no new buys in the 3 days before a report. Hold through one only if you're up 5R.",
+    "And no market orders in a thin premarket. We don't buy outside regular hours at all."
    ],
    "facts": [
     "f70",
     "f40",
     "f30",
-    "f06",
-    "f35"
+    "h09",
+    "h10"
    ]
   }
  ],

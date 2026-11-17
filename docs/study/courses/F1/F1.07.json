@@ -743,9 +743,9 @@
    "key": "w1",
    "title": "What an ETF is",
    "steps": [
-    "An ETF is a fund. It pools money into a basket of stocks, bonds or other assets.",
-    "Each share is a slice of that basket, and it trades on an exchange all day like a stock.",
-    "Many ETFs track an index. You can't buy the index itself, so you buy a fund that tracks it."
+    "You can't buy an index itself. So you buy a fund that tracks it, an ETF.",
+    "The ETF pools everyone's money into a basket of stocks, bonds or other assets. Each share is a slice of it.",
+    "And you trade it on an exchange all day, at a live price, just like a stock."
    ],
    "facts": [
     "f1",
@@ -760,9 +760,9 @@
    "key": "w2",
    "title": "Eleven sectors, eleven funds",
    "steps": [
-    "GICS sorts each company into one of 11 sectors by its main business.",
-    "Each sector has a Select Sector SPDR fund. XLK is tech, XLF financials, XLE energy.",
-    "Together, the 11 sector indexes cover every company in the S&P 500."
+    "Every company gets sorted into one of 11 sectors by its main business. That's GICS.",
+    "Each sector has its own fund. XLK is tech, XLF financials, XLE energy.",
+    "Put all 11 together and you've got every company in the S&P 500. Line them up to see which groups lead."
    ],
    "facts": [
     "f47",
@@ -776,10 +776,10 @@
    "key": "w3",
    "title": "What a 2x or 3x fund does",
    "steps": [
-    "A 2x or 3x fund aims for two or three times the index's move for one day. Then it resets.",
-    "Take $100 in a 2x fund. The index drops 10%, so the fund drops 20%, to $80.",
-    "Next day the index rises 10%. The fund gains 20%, but only on $80, so it reaches $96.",
-    "Over the two days the index lost 1%. The 2x fund lost 4%. Chop works against these funds."
+    "A 2x or 3x fund aims for two or three times the index's move, for one day. Then it resets.",
+    "Say you put $100 in a 2x fund. The index drops 10%, the fund drops 20%, to $80.",
+    "Next day the index climbs 10%. The fund gains 20%, but on $80, so it only gets back to $96.",
+    "Two days: the index lost 1%, the fund lost 4%. Chop grinds these funds down."
    ],
    "facts": [
     "f7",

@@ -942,10 +942,10 @@
    "key": "w1",
    "title": "UTHR, September 2025: the textbook Slingshot",
    "steps": [
-    "UTHR, September 2025. A 37.7% news gap on 2025-09-02 is the drive. Three tiny red days hug the line.",
-    "Context holds: above its 50-day and 200-day, 9.3% deep, orderly at 0.45 ATR.",
-    "2025-09-18: a close back over the line, 0.92 of its range. Study entry 409.87; live we buy through the trigger. Stop 402.47.",
-    "Failure mode: the next session opens lower and takes the stop. Instead it reaches 3R in 3 sessions. First sell is judgment."
+    "UTHR, September 2025. A 37.7% news gap on September 2 is the drive. Then three tiny red days rest under the line.",
+    "The line is the 4-day EMA of the highs. Only 9.3% deep, and still above the 50-day and 200-day.",
+    "September 18 it pushes back over the line, closing near the high. Buy as it goes through, never at the close.",
+    "Stop 402.47, under the day's low. A lower open through it next day says you're wrong. Instead, 3R in 3 sessions."
    ],
    "facts": [
     "d01",
@@ -958,17 +958,18 @@
     "c07",
     "h24",
     "c27",
-    "h05"
+    "h05",
+    "r01"
    ]
   },
   {
    "key": "w2",
    "title": "RELY, November 2024: the earnings-gap Slingshot",
    "steps": [
-    "RELY, November 2024. An earnings gap of 24.4% on 2024-10-31, a 17.8% day: the drive. Then a four-day rest.",
-    "Four closes under the 4-day line, 7.5% deep, inside 1.04 ATR. Not the gap day: the drive is never the trigger.",
-    "2024-11-20: it closes over the line, 0.92 of its range. Study entry 20.46; live we buy through the trigger. Stop 19.96.",
-    "Failure mode: a weak next session through the stop. Instead a steady stair-step up the 10-day, to 13.7R."
+    "Earnings on October 31, 2024 gap RELY up 24.4%, and it closes up 17.8%. That's the drive.",
+    "Then a four-day rest: four closes under the line, 7.5% deep. The drive day is never the trigger.",
+    "November 20 it pushes back over the line. Buy as it goes through. Stop 19.96, under the day's low.",
+    "A weak next day through the stop says no. Instead it climbed steadily along its rising short-term averages, to 13.7R."
    ],
    "facts": [
     "d03",
@@ -979,17 +980,18 @@
     "c04",
     "c07",
     "h24",
-    "c27"
+    "c27",
+    "r01"
    ]
   },
   {
    "key": "w3",
    "title": "URI, November 2016: the trims and the trail",
    "steps": [
-    "URI, November 2016. A 9.3% gap the session after the election, a 17.1% day. Three small red candles follow.",
-    "2016-11-21: it closes over the line, 0.88 of its range. Study entry 93.86; live we buy through the trigger. Stop 91.69.",
-    "A 2.3% stop. 3R in 6 sessions: stop to breakeven, first sell by judgment. More into strength, then trail the 9 EMA.",
-    "Failure mode: the next session opens lower through the stop. Instead the trend ran two months, 17.2R at best."
+    "November 9, 2016, the session after the election, URI gaps 9.3% and closes up 17.1%.",
+    "Three small red candles under the line. November 21 it pushes back through it. Buy right there, not at the close.",
+    "Stop 91.69 under the day's low, 2.3% away. 3R in 6 sessions. Stop to breakeven, first sell into a push.",
+    "Sell more into strength, trail the rest on the 9 EMA. The trend ran two months, 17.2R at best."
    ],
    "facts": [
     "d05",
@@ -1000,7 +1002,8 @@
     "h05",
     "h20",
     "h21",
-    "c27"
+    "c27",
+    "r01"
    ]
   }
  ],

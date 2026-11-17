@@ -655,9 +655,9 @@
    "title": "Fit comes first",
    "steps": [
     "Every style asks something of you. Day trading wants your eyes on the market all day.",
-    "The SEC says most investors lack the wealth, the time or the temperament for it. Swing trading takes less screen time.",
-    "Coach Brett Steenbarger sees traders fall short when their methods don't use their strengths.",
-    "So pick the style that fits your clock, your money and your nerves."
+    "The SEC says most investors lack the wealth, the time or the temperament for it. Swing trading takes far less screen time.",
+    "Plenty of traders fall short just because their method doesn't play to their strengths.",
+    "So pick the style that fits your clock, your money and your nerves. For us, that's swing trading."
    ],
    "facts": [
     "f2",
@@ -665,16 +665,17 @@
     "f1",
     "f65",
     "f20",
-    "f12"
+    "f12",
+    "f77"
    ]
   },
   {
    "key": "w2",
    "title": "Go deep on a few",
    "steps": [
-    "Coaches differ on the start. Linda Raschke: learn one setup well first. Trading firm SMB: sample several setups with edge.",
-    "SMB's beginners then build a playbook of the setups that suit them. Steenbarger's specialist does one or two things really well.",
-    "Most of your energy goes into trading, measuring and reviewing those. New ideas get tested on the side, small."
+    "Coaches split on how to start. Linda Raschke says learn one setup well first. SMB has you sample a few with edge.",
+    "You end up with a short playbook that suits you. A specialist does one or two things really well.",
+    "Most of your energy goes into trading, logging and reviewing those. Test new ideas on the side, very small."
    ],
    "facts": [
     "f37",
@@ -689,10 +690,10 @@
    "key": "w3",
    "title": "Write your lane down",
    "steps": [
-    "Write down your style, the few setups you'll trade, and why they fit you.",
-    "Tag every trade by setup and keep score. That's how you find out what you trade well.",
-    "Judge a setup on a real sample. Van Tharp wanted at least thirty trades, and 100 to 200 for a clear picture.",
-    "Losing streaks will come. Size up only after months of proven, logged results."
+    "Write it down: your style, the few setups you'll trade, and why they fit you.",
+    "Tag every trade by setup and keep score. That's how you find out what you actually trade well.",
+    "Don't grade a setup off a few trades. Van Tharp wanted thirty at least, and 100 to 200 for a clear picture.",
+    "Starting out, risk 0.25% a trade until you've logged 50 trades that followed the rules. Then size up."
    ],
    "facts": [
     "f54",
@@ -702,7 +703,8 @@
     "f46",
     "f47",
     "f58",
-    "f49"
+    "f49",
+    "f75"
    ]
   }
  ],

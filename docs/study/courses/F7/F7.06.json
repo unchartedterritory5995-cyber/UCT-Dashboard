@@ -832,10 +832,10 @@
    "key": "w1",
    "title": "Who sets the rate",
    "steps": [
-    "The fed funds rate is what banks pay to borrow reserves from each other overnight.",
-    "The Fed's FOMC sets a target range for it at eight scheduled meetings a year.",
-    "The goal is the dual mandate: maximum employment and stable prices, with inflation at 2% a year.",
-    "T-bill yields track that rate closely. Long-term yields also price where it's expected to go."
+    "Banks lend each other reserves overnight. The rate they pay is the fed funds rate, the one Fed headlines are about.",
+    "The Fed's FOMC sets a target range for it. They meet eight times a year on the calendar.",
+    "What they're after is the dual mandate: maximum employment and stable prices, with inflation at 2% a year.",
+    "T-bill yields move right with that rate. Longer yields also price where it's expected to go."
    ],
    "facts": [
     "f9",
@@ -851,10 +851,10 @@
    "key": "w2",
    "title": "Reading the curve",
    "steps": [
-    "The yield curve lines up Treasury yields from the shortest maturity to the longest.",
-    "Normally it slopes up. January 3, 2022: the 2-year paid 0.78% and the 10-year 1.63%.",
-    "The 2s10s is the 10-year yield minus the 2-year. Below zero, the curve is inverted between those two points.",
-    "December 30, 2022: the 2-year paid 4.41% and the 10-year 3.88%. Inverted."
+    "Line up Treasury yields from the shortest maturity to the longest. That's the yield curve.",
+    "Normally it slopes up. January 3, 2022, the 2-year paid 0.78% and the 10-year paid 1.63%.",
+    "The 2s10s is the 10-year yield minus the 2-year. Below zero, the curve is inverted there.",
+    "Fast forward to December 30, 2022. The 2-year paid 4.41%, the 10-year 3.88%. Inverted."
    ],
    "facts": [
     "f81",
@@ -870,10 +870,10 @@
    "key": "w3",
    "title": "2022, the year of hikes",
    "steps": [
-    "The Fed's range started 2022 at 0% to 0.25% and ended at 4.25% to 4.5%, after seven hikes.",
-    "Markets didn't wait. Yields rose and stocks fell before the first hike in March.",
-    "The tech-heavy Nasdaq lost 33.1% on the year.",
-    "Growth stocks often lean on profits years out. A higher rate shrinks what those are worth today."
+    "2022. The Fed's range starts the year at 0% to 0.25% and ends at 4.25% to 4.5%. Seven hikes.",
+    "The market didn't wait for them. Yields rose and stocks fell before the first hike in March.",
+    "By year-end the tech-heavy Nasdaq was down 33.1%.",
+    "Why tech got hit harder: growth stocks lean on profits years out. A higher rate shrinks what those are worth today."
    ],
    "facts": [
     "f67",

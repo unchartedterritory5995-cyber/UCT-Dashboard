@@ -896,10 +896,10 @@
    "key": "w1",
    "title": "GPN, October 2013: the first touch of the line",
    "steps": [
-    "GPN, 2013. A quiet stock gaps up on 2013-10-02 on 11.5x volume. The gap-up low, 27.00, is the line.",
-    "Five sessions later, on 2013-10-09, the low dips 0.3% under the line. The day closes at 62% of its range.",
-    "We buy as price trades back over the line, not the close. Scan fill 27.15. Stop under the test low, 26.89.",
-    "Failure mode: a close under the line. Instead it ran to 24.9R. First sell: a judgment, into the push."
+    "GPN gapped up October 2, 2013, opening 7.0% higher on 11.5 times normal volume. The gap-up low, 27.00, is the line.",
+    "A week later, October 9, it comes back. The low dips 0.3% under 27.00 and it closes well off the low.",
+    "Buy as it trades back over the line, around 27.15. Stop 26.89, under the test-day low. That's 0.9% of risk.",
+    "Close under the line and the gap's failed. It held, and ran to 24.9R."
    ],
    "facts": [
     "e01",
@@ -917,10 +917,10 @@
    "key": "w2",
    "title": "ILMN, November 2010: the slight undercut that reclaims",
    "steps": [
-    "ILMN, 2010. An earnings gap on 2010-10-27 opens 5.6% up on 3.6x volume. The gap-up low, 53.03, is the line.",
-    "Four sessions later the low breaks the line by 1.1%, but the day closes at 94% of its range.",
-    "We buy as price trades back over the line, not the close. Scan fill 53.27. Stop under the low, 52.40, 1.6% away.",
-    "Failure mode: a close under the line. Instead it ran to 18.6R. First sell: a judgment, into the push."
+    "October 27, 2010: ILMN gaps on earnings, opening 5.6% up on 3.6 times volume. The gap-up low, 53.03, is the line.",
+    "Four sessions later the low slips 1.1% under it. Looks broken. But the day closes near its high, back over the line.",
+    "A slight undercut that gets taken back still counts. Buy back over the line, around 53.27. Stop 52.40, 1.6% away.",
+    "What makes it wrong is a close under 53.03 with no reclaim. It ran to 18.6R instead."
    ],
    "facts": [
     "e04",
@@ -938,10 +938,10 @@
    "key": "w3",
    "title": "AXON, December 2022: the late test",
    "steps": [
-    "AXON, 2022. A gap on 2022-11-09 opens 8.0% up on 3.6x volume. The gap-up low, 161.70, is the line.",
-    "The test comes 35 sessions later, on 2022-12-30. A 15% slide stops 0.4% above the line, closing at 82% of its range.",
-    "We buy as price trades back over the line, not the close. Scan fill 165.93. Stop under the low, 162.22, 2.2% away.",
-    "Failure mode: the gap fills. Instead it ran to 16.2R: sell part into the push, trail the rest."
+    "Earnings put AXON up 8.0% at the open, November 9, 2022, on 3.6 times volume. The line: the gap-up low, 161.70.",
+    "Then a 15% slide off the high. It takes 35 sessions, and stops just 0.4% above the line with a hammer.",
+    "A late test still counts. Buy as it turns up off the line, around 165.93. Stop 162.22, under the hammer, 2.2% away.",
+    "A close under the line kills it. It held and ran to 16.2R. Sell part into the push, trail the rest."
    ],
    "facts": [
     "e07",
@@ -950,6 +950,8 @@
     "g01",
     "g12",
     "g27",
+    "g30",
+    "g51",
     "h05",
     "h20",
     "h21",

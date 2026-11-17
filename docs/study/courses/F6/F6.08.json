@@ -614,10 +614,10 @@
    "key": "w1",
    "title": "One number, one year",
    "steps": [
-    "Implied volatility is quoted as a one-year number, even on an option with days left.",
-    "It's one standard deviation. That covers roughly 68% of outcomes.",
-    "Stock at $100, IV of 20%. The market prices a roughly 68% chance it trades between $80 and $120 a year out.",
-    "It's a size, not a direction. It says how far, not which way."
+    "IV is quoted as a one-year number, even on an option with only days left. Scale it before you read it.",
+    "It's one standard deviation, which covers roughly 68% of outcomes. About two in three.",
+    "A $100 stock with IV at 20%: roughly a 68% chance it's between $80 and $120 a year out.",
+    "That's how far, not which way. Direction still comes from your chart."
    ],
    "facts": [
     "f1",
@@ -633,10 +633,10 @@
    "key": "w2",
    "title": "Shrink it to your window",
    "steps": [
-    "Moves grow with the square root of time, not with time itself.",
-    "For a window in calendar days: price times IV, times the square root of the days over 365.",
-    "$100 at 20% IV over 30 days comes to about $5.73. That's a range of roughly $94.27 to $105.73.",
-    "For one trading day, the Rule of 16: divide the IV by 16. $100 at 20% is about $1.25."
+    "Moves grow with the square root of time, not with time itself. So you shrink the yearly number to your window.",
+    "The math: price times IV, times the square root of your calendar days over 365.",
+    "$100 at 20% over 30 days is about $5.73. So roughly $94.27 to $105.73.",
+    "For one trading day, use the Rule of 16: divide IV by 16. $100 at 20% moves about $1.25 a day."
    ],
    "facts": [
     "f48",
@@ -652,9 +652,9 @@
    "title": "The move priced for a report",
    "steps": [
     "Into a report, the first expiry after it tends to carry the highest IV. The event sits inside it.",
-    "The quick read is that expiry's at-the-money straddle. Lay its price on both sides of the stock.",
-    "When the options are very short-dated, the straddle and the IV math generally agree. Either gives the size, never the side.",
-    "Once the report is out, IV usually drops fast. It was an estimate, and the stock can move more or less."
+    "Quick read: that expiry's at-the-money straddle. Lay its price on both sides of the stock. That's the move priced in.",
+    "On very short-dated options, the straddle and the IV math come out close. Either gives you the size, never the side.",
+    "After the report, IV tends to drop fast. It was only an estimate. The stock can move more than that, or less."
    ],
    "facts": [
     "f45",

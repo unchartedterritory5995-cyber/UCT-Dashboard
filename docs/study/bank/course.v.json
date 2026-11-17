@@ -4780,7 +4780,7 @@
   "difficulty": 1,
   "id": "si_938b01c5705c",
   "lesson_origin": "session",
-  "lesson_text": "A trend holds until price proves otherwise. An uptrend ends when a lower low drops under the last trough.",
+  "lesson_text": "Trust the trend until price proves otherwise. The uptrend is over when it makes a lower low under the last trough.",
   "module": "V",
   "prompt_json": {
    "order": 1,
@@ -4788,9 +4788,9 @@
    "parts": 3,
    "q": "Read the trend first",
    "steps": [
-    "Read a chart by its peaks and troughs. Higher highs and higher lows: that's an uptrend.",
-    "Lower highs and lower lows: a downtrend. Flat highs and flat lows: a trading range.",
-    "A trend holds until price proves otherwise. An uptrend ends when a lower low drops under the last trough."
+    "First thing I look at: the peaks and the troughs. Higher highs and higher lows, that's an uptrend.",
+    "Lower highs and lower lows is a downtrend. Flat highs and flat lows is a range, going nowhere.",
+    "Trust the trend until price proves otherwise. The uptrend is over when it makes a lower low under the last trough."
    ],
    "subject": "V.02#w1"
   },
@@ -4829,7 +4829,7 @@
   "difficulty": 1,
   "id": "si_208986fc03e1",
   "lesson_origin": "session",
-  "lesson_text": "Once broken, an old ceiling often becomes the new floor, and the other way round.",
+  "lesson_text": "Once it breaks, the old ceiling often turns into the new floor. Works the other way too.",
   "module": "V",
   "prompt_json": {
    "order": 2,
@@ -4837,9 +4837,9 @@
    "parts": 3,
    "q": "Floors, ceilings and breaks",
    "steps": [
-    "Support is a floor where buyers have stepped in before. Resistance is a ceiling where sellers have.",
-    "A breakout is price clearing that level. Heavy volume on the break says real buyers showed up.",
-    "Once broken, an old ceiling often becomes the new floor, and the other way round."
+    "Support is a floor, where buyers stepped in before. Resistance is a ceiling, where sellers did.",
+    "A breakout is price clearing that level. Big volume on the break raises the grade. Light volume fails more often.",
+    "Once it breaks, the old ceiling often turns into the new floor. Works the other way too."
    ],
    "subject": "V.02#w2"
   },
@@ -4873,6 +4873,13 @@
       "quote": "Known as the Polarity Principle, once resistance is broken, it becomes support, and vice versa.",
       "tier": 2,
       "url": "https://www.investopedia.com/terms/r/resistance.asp"
+     },
+     {
+      "accessed": "2026-11-14",
+      "name": "Our trading rules",
+      "quote": "Volume raises the grade; it is not a requirement, except where volume is the setup.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -4892,7 +4899,7 @@
   "difficulty": 1,
   "id": "si_0ada4c73b9ed",
   "lesson_origin": "session",
-  "lesson_text": "Neither reading is a signal on its own. Strong stocks can stay overbought, and weak ones can stay oversold.",
+  "lesson_text": "Neither one is a signal on its own. Strong stocks can stay overbought for a long time, weak ones oversold.",
   "module": "V",
   "prompt_json": {
    "order": 3,
@@ -4900,9 +4907,10 @@
    "parts": 3,
    "q": "How far is too far",
    "steps": [
-    "Extended means stretched far above the moving averages. We give it as a percent, not a feeling.",
-    "Overbought is a gauge reading: RSI above 70. Oversold is RSI below 30.",
-    "Neither reading is a signal on its own. Strong stocks can stay overbought, and weak ones can stay oversold."
+    "Extended means stretched way above the moving averages. I put a number on it, a percent, not a feeling.",
+    "More than 10% over the 9 EMA and I skip it. Too stretched to buy.",
+    "Overbought and oversold are gauge readings. RSI over 70 is overbought, under 30 is oversold.",
+    "Neither one is a signal on its own. Strong stocks can stay overbought for a long time, weak ones oversold."
    ],
    "subject": "V.02#w3"
   },
@@ -4912,7 +4920,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Our trading rules",
-      "quote": "% down from highs and % extended from MAs",
+      "quote": "% down from highs and % extended from MAs … Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
       "tier": 3,
       "url": null
      },
@@ -9268,7 +9276,7 @@
   "difficulty": 1,
   "id": "si_ff416f35516e",
   "lesson_origin": "session",
-  "lesson_text": "The thin lines are shadows, also called wicks or tails. The top one reaches the high, the bottom one the low.",
+  "lesson_text": "The thin lines are the wicks, also called shadows or tails. The top one is the high, the bottom one the low.",
   "module": "V",
   "prompt_json": {
    "order": 1,
@@ -9276,9 +9284,9 @@
    "parts": 3,
    "q": "Four prices in one candle",
    "steps": [
-    "Every candle holds four prices: the open, the high, the low and the close.",
-    "The body runs open to close. On most charts, hollow or green closed above the open; filled or red, below it.",
-    "The thin lines are shadows, also called wicks or tails. The top one reaches the high, the bottom one the low."
+    "Every candle packs in four prices: the open, the high, the low and the close.",
+    "The body runs open to close. On most charts, green or hollow closed above the open. Red or filled, below.",
+    "The thin lines are the wicks, also called shadows or tails. The top one is the high, the bottom one the low."
    ],
    "subject": "V.03#w1"
   },
@@ -9338,7 +9346,7 @@
   "difficulty": 1,
   "id": "si_8fd7a6e7f522",
   "lesson_origin": "session",
-  "lesson_text": "Either way, the textbook wants the long shadow at least twice the length of the body.",
+  "lesson_text": "So the shape doesn't name it. What came before does. The long wick should be at least twice the body.",
   "module": "V",
   "prompt_json": {
    "order": 2,
@@ -9346,9 +9354,9 @@
    "parts": 3,
    "q": "Same shape, different name",
    "steps": [
-    "Small body, long lower shadow: after a decline it's a hammer. After a rise, it's a hanging man.",
-    "Flip it over, long shadow on top. After a decline that's an inverted hammer. After a rise, a shooting star.",
-    "Either way, the textbook wants the long shadow at least twice the length of the body."
+    "Small body, long lower wick. After a decline it's a hammer. After a run up, the same candle's a hanging man.",
+    "Flip it, long wick on top. After a decline that's an inverted hammer. After a rise, a shooting star.",
+    "So the shape doesn't name it. What came before does. The long wick should be at least twice the body."
    ],
    "subject": "V.03#w2"
   },
@@ -9394,7 +9402,7 @@
   "difficulty": 1,
   "id": "si_3510be9e9088",
   "lesson_origin": "session",
-  "lesson_text": "A pattern at a real level, like a prior low, counts for more than one in the middle of a range.",
+  "lesson_text": "Where it forms matters. A hammer at a prior low means a lot more than one in the middle of a range.",
   "module": "V",
   "prompt_json": {
    "order": 3,
@@ -9402,9 +9410,9 @@
    "parts": 3,
    "q": "A clue, not a call",
    "steps": [
-    "A candle shows buyers against sellers over one period. It can't tell you whether the high or low came first.",
-    "Most patterns need the next candles to agree. That's called confirmation.",
-    "A pattern at a real level, like a prior low, counts for more than one in the middle of a range."
+    "A candle shows buyers against sellers over one period. It can't tell you if the high or the low came first.",
+    "Most patterns need the next candles to agree. That's confirmation. Until then it's a yellow flag, not a red one.",
+    "Where it forms matters. A hammer at a prior low means a lot more than one in the middle of a range."
    ],
    "subject": "V.03#w3"
   },
@@ -14338,7 +14346,7 @@
   "difficulty": 1,
   "id": "si_d60f2e974ce4",
   "lesson_origin": "session",
-  "lesson_text": "Either way, a pattern isn't complete until price breaks out of it. Until then it's just a shape.",
+  "lesson_text": "Either way, it's just a shape until price breaks out of it. The breakout is what makes it a pattern.",
   "module": "V",
   "prompt_json": {
    "order": 1,
@@ -14346,9 +14354,9 @@
    "parts": 3,
    "q": "A pause or a turn",
    "steps": [
-    "Most chart patterns fall into two groups. A continuation is a pause, and the old trend resumes after it.",
-    "A reversal forms before the trend turns the other way. Tops and bottoms live here.",
-    "Either way, a pattern isn't complete until price breaks out of it. Until then it's just a shape."
+    "Most chart patterns are one of two kinds. A continuation is a pause. Price goes in and comes out the same way.",
+    "A reversal is a turn. In one way, out the other. That's where tops and bottoms live.",
+    "Either way, it's just a shape until price breaks out of it. The breakout is what makes it a pattern."
    ],
    "subject": "V.04#w1"
   },
@@ -14408,7 +14416,7 @@
   "difficulty": 1,
   "id": "si_7ce0746cde14",
   "lesson_origin": "session",
-  "lesson_text": "The classic entry is a break above the top of the handle. The handle's low is a natural place for the stop.",
+  "lesson_text": "Our stop goes a few cents under the low of the day. The handle's low works too.",
   "module": "V",
   "prompt_json": {
    "order": 2,
@@ -14416,9 +14424,10 @@
    "parts": 3,
    "q": "The cup and its handle",
    "steps": [
-    "The cup is a U-shaped bowl that forms after an advance. A sharp V doesn't count.",
+    "The cup comes after a run. Price rounds out in a U, like a bowl. A sharp V doesn't count.",
     "The handle is the short pullback off the cup's right side. It should stay in the upper half of the cup.",
-    "The classic entry is a break above the top of the handle. The handle's low is a natural place for the stop."
+    "The buy is price trading through the top of the handle. Mark it the night before and set an alert.",
+    "Our stop goes a few cents under the low of the day. The handle's low works too."
    ],
    "subject": "V.04#w2"
   },
@@ -14452,6 +14461,13 @@
       "quote": "Avoid handles that are overly deep also, as handles should form in the top half of the cup pattern. … Place a stop buy order slightly above the upper trend line of the handle.",
       "tier": 2,
       "url": "https://www.investopedia.com/terms/c/cupandhandle.asp"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -14479,9 +14495,9 @@
    "parts": 3,
    "q": "Lines that frame the pause",
    "steps": [
-    "A flag hangs off a sharp run, the flagpole. Its two lines run parallel and tilt against the run.",
-    "A pennant is the same idea, but its lines come together like a tiny triangle.",
-    "Triangles and wedges have converging lines too. The point where the lines meet is the apex.",
+    "A flag needs a pole: a sharp, straight run. Then two parallel lines tilt against it. No pole, no flag.",
+    "A pennant is the same idea, but the lines squeeze together like a tiny triangle.",
+    "Triangles and wedges have converging lines too. Where the lines meet is the apex.",
     "In a wedge both lines slope the same way. In a triangle they don't."
    ],
    "subject": "V.04#w3"
@@ -18374,7 +18390,7 @@
   "difficulty": 1,
   "id": "si_8ccd51b11e5b",
   "lesson_origin": "session",
-  "lesson_text": "Then you trail. The stop follows the stock up, under each higher low or a rising average.",
+  "lesson_text": "Sell into a push, trail the rest. The stop follows it up under each higher low, or the 9 or 20 EMA.",
   "module": "V",
   "prompt_json": {
    "order": 1,
@@ -18382,9 +18398,9 @@
    "parts": 3,
    "q": "Every setup carries a plan",
    "steps": [
-    "Every trade plan we teach hands you two prices: the trigger, which is the entry, and the stop.",
-    "R is your risk per share, entry to stop. The first sell is a judgment, usually day 3 or later.",
-    "Then you trail. The stop follows the stock up, under each higher low or a rising average."
+    "Every setup we teach hands you two prices before you buy: the trigger, which is your entry, and the stop.",
+    "R is your risk per share, entry to stop. The first sell is judgment, usually day 3 or later.",
+    "Sell into a push, trail the rest. The stop follows it up under each higher low, or the 9 or 20 EMA."
    ],
    "subject": "V.05#w1"
   },
@@ -18394,14 +18410,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Our trade plans",
-      "quote": "returns its own trigger (the entry) and stop for the candle it fires on. … under each higher low, or under the 9 EMA … under the rising 20 EMA, or under each higher low … Each lesson's levels are the plan's: the entry, the stop, and the marks at 3R and 5R",
-      "tier": 3,
-      "url": null
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Our trading rules",
-      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R. … Later sells are a judgment too: sell more into strength on a later push, and trail what is left. … Hold your winners by selling partials into strength and trailing the rising moving averages.",
+      "quote": "returns its own trigger (the entry) and stop for the candle it fires on. … under each higher low, or under the 9 EMA … under the rising 20 EMA, or under each higher low",
       "tier": 3,
       "url": null
      },
@@ -18411,6 +18420,13 @@
       "quote": "R represents your initial risk per unit. It is simply the initial risk per share of stock, or futures contract, or minimum investment unit.",
       "tier": 2,
       "url": "https://vantharp.com/tharp-think-trading-concepts/"
+     },
+     {
+      "accessed": "2026-11-14",
+      "name": "Our trading rules",
+      "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest. … Later sells are a judgment too: sell more into strength on a later push, and trail what is left. … Hold your winners by selling partials into strength and trailing the rising moving averages.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -18430,7 +18446,7 @@
   "difficulty": 1,
   "id": "si_ed63e9ea5e42",
   "lesson_origin": "session",
-  "lesson_text": "The Launchpad sits in Bases & Breakouts. The Go Signal and the ORB are Intraday.",
+  "lesson_text": "Intraday: the Go Signal and the ORB, the opening range break.",
   "module": "V",
   "prompt_json": {
    "order": 2,
@@ -18438,9 +18454,10 @@
    "parts": 3,
    "q": "Names and families",
    "steps": [
-    "Our catalog sorts every setup into a family. Learn the family and the name gets easier to place.",
-    "The Kicker, High Volume Edge and Gap Support are Gaps & Catalysts. Oops Reversal and Slingshot are Reversals & Reclaims.",
-    "The Launchpad sits in Bases & Breakouts. The Go Signal and the ORB are Intraday."
+    "There are a lot of names. Sort them into families and they're easier to keep straight.",
+    "Gaps & Catalysts: the Kicker, the High Volume Edge and Gap Support.",
+    "Reversals & Reclaims: the Oops Reversal and the Slingshot. Bases & Breakouts: the Launchpad.",
+    "Intraday: the Go Signal and the ORB, the opening range break."
    ],
    "subject": "V.05#w2"
   },
@@ -18472,7 +18489,7 @@
   "difficulty": 1,
   "id": "si_b4380fbeb863",
   "lesson_origin": "session",
-  "lesson_text": "So I don't trade the name. I trade the plan: our entry, our stop, a first sell by judgment.",
+  "lesson_text": "So I don't trade the name. I trade the plan: the trigger, the stop, and a first sell by judgment.",
   "module": "V",
   "prompt_json": {
    "order": 3,
@@ -18480,9 +18497,9 @@
    "parts": 3,
    "q": "A name is not an edge",
    "steps": [
-    "The textbook kicker is a down candle, then a gap up the other way.",
-    "Investopedia calls it highly reliable. Bulkowski's tests found it reversed the trend 53% of the time, almost random.",
-    "So I don't trade the name. I trade the plan: our entry, our stop, a first sell by judgment."
+    "The textbook kicker: a red candle, then a gap up the other way.",
+    "Some guides call it highly reliable. Bulkowski tested it. It reversed the trend 53% of the time. Basically a coin flip.",
+    "So I don't trade the name. I trade the plan: the trigger, the stop, and a first sell by judgment."
    ],
    "subject": "V.05#w3"
   },
@@ -18504,9 +18521,9 @@
       "url": "https://thepatternsite.com/KickingBull.html"
      },
      {
-      "accessed": "2026-11-09",
+      "accessed": "2026-11-14",
       "name": "Our trading rules",
-      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R. … Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+      "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left. … We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
       "tier": 3,
       "url": null
      }
@@ -23691,7 +23708,7 @@
   "difficulty": 1,
   "id": "si_4168d6c2678d",
   "lesson_origin": "session",
-  "lesson_text": "Average your R-multiples over many trades. That's your expectancy, what one trade is worth on average.",
+  "lesson_text": "Average your R over a lot of trades and you've got your expectancy: what one trade is worth to you.",
   "module": "V",
   "prompt_json": {
    "order": 1,
@@ -23700,8 +23717,8 @@
    "q": "R: the unit of risk",
    "steps": [
     "Before you buy, find the price that proves you wrong. Entry minus that stop is R, your initial risk.",
-    "Count every result in R. Risk $10 and make $100, and that's a 10R multiple.",
-    "Average your R-multiples over many trades. That's your expectancy, what one trade is worth on average."
+    "Count every result in R. Risk $10 and make $100, and that's a 10R winner.",
+    "Average your R over a lot of trades and you've got your expectancy: what one trade is worth to you."
    ],
    "subject": "V.06#w1"
   },
@@ -23761,7 +23778,7 @@
   "difficulty": 1,
   "id": "si_82636fe2bd41",
   "lesson_origin": "session",
-  "lesson_text": "Risk too much per trade and a normal losing streak can finish the account. Those odds are your risk of ruin.",
+  "lesson_text": "So we keep it small. Under 1% a trade is normal, and 2% is the absolute ceiling.",
   "module": "V",
   "prompt_json": {
    "order": 2,
@@ -23769,9 +23786,10 @@
    "parts": 3,
    "q": "Drawdown and ruin",
    "steps": [
-    "A drawdown is the fall from your account's high to the low after it, quoted as a percent.",
-    "Losses are harder to undo than they look. A 50% loss needs a 100% gain to get back.",
-    "Risk too much per trade and a normal losing streak can finish the account. Those odds are your risk of ruin."
+    "A drawdown is the drop from your account's high to the low after it, as a percent.",
+    "Losses are harder to fix than they look. Lose 50% and you need 100% just to get back.",
+    "Risk too much per trade and a normal losing streak can finish you. That's risk of ruin.",
+    "So we keep it small. Under 1% a trade is normal, and 2% is the absolute ceiling."
    ],
    "subject": "V.06#w2"
   },
@@ -23812,6 +23830,13 @@
       "quote": "If you risk little, you win little. If you risk too much, you eventually run to ruin.",
       "tier": 2,
       "url": "https://store.traders.com/-v11-c03-determi-pdf.html"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Our trading rules",
+      "quote": "Under 1% is normal; 1.5% is the most any grade uses (E49); 2% is the absolute ceiling.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -23831,7 +23856,7 @@
   "difficulty": 1,
   "id": "si_04bb7810e77c",
   "lesson_origin": "session",
-  "lesson_text": "Too tight and normal swings take you out. Too loose and a real reversal eats your profit.",
+  "lesson_text": "Too tight and normal wiggles knock you out. Too loose and a real reversal eats your profit.",
   "module": "V",
   "prompt_json": {
    "order": 3,
@@ -23839,9 +23864,10 @@
    "parts": 3,
    "q": "Stops that follow the trend",
    "steps": [
-    "Your first stop sets R. As the trade works, you can move the stop up, never down.",
-    "A trailing stop follows price by a set amount. The Chandelier Exit sets it three ATRs under the recent high by default.",
-    "Too tight and normal swings take you out. Too loose and a real reversal eats your profit."
+    "Your first stop sets R. As the trade works, the stop moves up. Never down, never wider.",
+    "A trailing stop follows price. The Chandelier Exit hangs it three ATRs under the 22-day high.",
+    "We keep it simpler: the 9 EMA for fast movers, the 20 EMA for steadier ones.",
+    "Too tight and normal wiggles knock you out. Too loose and a real reversal eats your profit."
    ],
    "subject": "V.06#w3"
   },
@@ -23889,6 +23915,13 @@
       "quote": "If you set the trailing stop too close to the current price, normal price swings that don't constitute a true reversal could stop you out, leaving money on the table. … If the stop is too far away, a true reversal could end up chewing up more of your potential profit than necessary",
       "tier": 2,
       "url": "https://www.investopedia.com/terms/t/trailingstop.asp"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Our trading rules",
+      "quote": "The stop is the exit. It only moves up, never down or wider. … Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -28144,7 +28177,7 @@
   "difficulty": 1,
   "id": "si_84033475d1e8",
   "lesson_origin": "session",
-  "lesson_text": "A stop-limit becomes a limit order instead. Your price is protected, but the fill isn't.",
+  "lesson_text": "A stop-limit turns into a limit order instead. Your price is protected. Your fill isn't.",
   "module": "V",
   "prompt_json": {
    "order": 1,
@@ -28152,10 +28185,10 @@
    "parts": 3,
    "q": "Market, limit, stop",
    "steps": [
-    "A market order says: fill me now at the best price available. The fill is close to sure. The price isn't.",
-    "A limit order says: my price or better. You control the price, but it may never fill.",
-    "A stop order waits. When price reaches the stop price, it becomes a market order.",
-    "A stop-limit becomes a limit order instead. Your price is protected, but the fill isn't."
+    "A market order says fill me now. You'll almost surely get filled. The price isn't promised. I market order my entries.",
+    "A limit order says my price or better. You control the price, but it might never fill.",
+    "A stop order sits and waits. When price hits the stop, it turns into a market order.",
+    "A stop-limit turns into a limit order instead. Your price is protected. Your fill isn't."
    ],
    "subject": "V.07#w1"
   },
@@ -28175,6 +28208,13 @@
       "quote": "This type of order provides the most certainty that your order will be executed because it's not tied to any restrictions.",
       "tier": 1,
       "url": "https://www.finra.org/investors/investing/investment-products/stocks/order-types"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "E57. Entries are market orders. (\"57, No i market order everything.\") The stop still sits with the broker (D41).",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -28194,7 +28234,7 @@
   "difficulty": 1,
   "id": "si_b72c7214f06b",
   "lesson_origin": "session",
-  "lesson_text": "IOC takes what fills now and cancels the rest. FOK is all of it now, or nothing.",
+  "lesson_text": "IOC fills what it can right now and cancels the rest. FOK is all of it now, or nothing.",
   "module": "V",
   "prompt_json": {
    "order": 2,
@@ -28202,10 +28242,10 @@
    "parts": 3,
    "q": "How long it lives, how much fills",
    "steps": [
-    "Every order has a time in force. Pick nothing and it's usually a day order.",
-    "A day order that doesn't fill generally cancels at the close. It won't carry into after-hours or tomorrow.",
-    "Good 'til canceled stays live until it fills or you cancel, within your broker's time limit.",
-    "IOC takes what fills now and cancels the rest. FOK is all of it now, or nothing."
+    "Every order has a time in force. Don't pick one and it's a day order.",
+    "A day order that doesn't fill dies at the close. It won't carry into after-hours or tomorrow.",
+    "Good 'til canceled stays live until it fills or you cancel it. Your broker sets how long that can run.",
+    "IOC fills what it can right now and cancels the rest. FOK is all of it now, or nothing."
    ],
    "subject": "V.07#w2"
   },
@@ -28244,7 +28284,7 @@
   "difficulty": 1,
   "id": "si_8bdee0515f89",
   "lesson_origin": "session",
-  "lesson_text": "When many shorts cover at once, their buying pushes price higher. That's a short squeeze.",
+  "lesson_text": "We only recommend shorting to traders who've already made $1 million trading.",
   "module": "V",
   "prompt_json": {
    "order": 3,
@@ -28252,10 +28292,10 @@
    "parts": 3,
    "q": "Short words",
    "steps": [
-    "A short sale sells shares you don't own. Your broker usually lends them to you, and the loan can carry a fee.",
-    "Before the short, the broker needs a locate: good reason to believe the shares can be borrowed.",
-    "To close a short you buy the shares back. That's covering, entered as buy to cover.",
-    "When many shorts cover at once, their buying pushes price higher. That's a short squeeze."
+    "Shorting sells shares you don't own. Your broker lends them to you, and that loan can cost you.",
+    "Before you short, the broker needs a locate: good reason to believe the shares can be borrowed.",
+    "Close it by buying the shares back, a buy to cover. A crowd covering at once shoves price up: a short squeeze.",
+    "We only recommend shorting to traders who've already made $1 million trading."
    ],
    "subject": "V.07#w3"
   },
@@ -28310,6 +28350,13 @@
       "quote": "Fidelity customers with a margin agreement in place may enter short sale and buy-to-cover orders for any U.S. stock using our online trading platform.",
       "tier": 2,
       "url": "https://www.fidelity.com/trading/faqs-order-types"
+     },
+     {
+      "accessed": "2026-11-14",
+      "name": "Our trading rules",
+      "quote": "Shorting is recommended only for traders who have already made $1 million trading.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -33351,7 +33398,7 @@
   "difficulty": 1,
   "id": "si_566941e18327",
   "lesson_origin": "session",
-  "lesson_text": "The seller, called the writer, collects the premium and takes on the obligation. If a holder exercises, a writer gets assigned.",
+  "lesson_text": "The seller, the writer, collects the premium and takes on the duty. A holder exercises, a writer gets assigned.",
   "module": "V",
   "prompt_json": {
    "order": 1,
@@ -33359,10 +33406,10 @@
    "parts": 3,
    "q": "Rights and obligations",
    "steps": [
-    "A call is the right to buy the stock at the strike until expiration. A put is the right to sell it.",
-    "One equity contract usually covers 100 shares. The price you pay for it is the premium.",
-    "As the buyer, the most you can lose is that premium.",
-    "The seller, called the writer, collects the premium and takes on the obligation. If a holder exercises, a writer gets assigned."
+    "A call is the right to buy the stock at the strike until expiry. A put, the right to sell.",
+    "One contract usually covers 100 shares. What you pay for it is the premium.",
+    "Buy one and the most you can lose is that premium. For us, the premium paid is the stop.",
+    "The seller, the writer, collects the premium and takes on the duty. A holder exercises, a writer gets assigned."
    ],
    "subject": "V.08#w1"
   },
@@ -33410,6 +33457,13 @@
       "quote": "When a buyer exercises his or her right under an option contract, the seller of the option contract receives a notice called an assignment",
       "tier": 1,
       "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-63"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "Options occasionally; no further rules. The premium paid is the stop.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -33429,7 +33483,7 @@
   "difficulty": 1,
   "id": "si_174336ee5e4b",
   "lesson_origin": "session",
-  "lesson_text": "Implied volatility is the market's guess at the size of the move. When it rises, calls and puts tend to cost more.",
+  "lesson_text": "Implied volatility is the move the market's pricing in. When it rises, calls and puts both get pricier.",
   "module": "V",
   "prompt_json": {
    "order": 2,
@@ -33437,10 +33491,10 @@
    "parts": 3,
    "q": "What the premium is made of",
    "steps": [
-    "Every premium splits into two parts: intrinsic value and time value.",
-    "Intrinsic value is how far the option is in the money. Out of the money, it's zero.",
-    "Time value is the rest. All else equal, it melts as expiration nears. At expiration it's gone.",
-    "Implied volatility is the market's guess at the size of the move. When it rises, calls and puts tend to cost more."
+    "Break a premium down and you get two pieces: intrinsic value and time value.",
+    "Intrinsic is how far it's in the money. Out of the money, there's none.",
+    "Time value is the rest. It melts faster as expiration gets close, and at expiration it's gone.",
+    "Implied volatility is the move the market's pricing in. When it rises, calls and puts both get pricier."
    ],
    "subject": "V.08#w2"
   },
@@ -33514,7 +33568,7 @@
   "difficulty": 1,
   "id": "si_321ffb66b30c",
   "lesson_origin": "session",
-  "lesson_text": "They're estimates, not promises. They shift as the stock, the clock and volatility change.",
+  "lesson_text": "They're estimates, not promises. They shift as the stock, the clock and volatility move.",
   "module": "V",
   "prompt_json": {
    "order": 3,
@@ -33522,10 +33576,10 @@
    "parts": 3,
    "q": "The Greeks in one pass",
    "steps": [
-    "Delta: about how much the option moves for a $1 move in the stock.",
-    "Gamma: how fast delta itself changes. Theta: what one day of time costs you.",
-    "Vega: how much the premium moves for a 1-point change in implied volatility.",
-    "They're estimates, not promises. They shift as the stock, the clock and volatility change."
+    "Start with delta. The stock moves $1, and delta is roughly how much your option moves with it.",
+    "Gamma is how fast delta itself changes. Theta is what one more day costs you.",
+    "Vega is how much your premium moves when implied volatility changes 1%.",
+    "They're estimates, not promises. They shift as the stock, the clock and volatility move."
    ],
    "subject": "V.08#w3"
   },
@@ -37931,7 +37985,7 @@
   "difficulty": 1,
   "id": "si_4b3f0aa4d28c",
   "lesson_origin": "session",
-  "lesson_text": "After interest and taxes you reach net income, the bottom line. Divide it by the shares outstanding and you get EPS.",
+  "lesson_text": "Interest and taxes come out last. What's left is net income, the bottom line. Divide by shares outstanding for EPS.",
   "module": "V",
   "prompt_json": {
    "order": 1,
@@ -37939,9 +37993,9 @@
    "parts": 3,
    "q": "The income statement, top to bottom",
    "steps": [
-    "Revenue is the top line: the money that came in from sales, before any costs.",
-    "Take out the cost of goods sold and you have gross profit. Take out operating expenses and you have operating income.",
-    "After interest and taxes you reach net income, the bottom line. Divide it by the shares outstanding and you get EPS."
+    "Start at the top. Revenue is the top line, everything that came in from sales before any costs.",
+    "Take out the cost of sales and you've got gross profit. Take out operating expenses and you've got operating income.",
+    "Interest and taxes come out last. What's left is net income, the bottom line. Divide by shares outstanding for EPS."
    ],
    "subject": "V.09#w1"
   },
@@ -37973,7 +38027,7 @@
   "difficulty": 1,
   "id": "si_f5bdbb50126f",
   "lesson_origin": "session",
-  "lesson_text": "Guidance is management's forecast for what comes next. It can move the stock more than the quarter itself.",
+  "lesson_text": "So a company can beat and still drop if the outlook's weak.",
   "module": "V",
   "prompt_json": {
    "order": 2,
@@ -37981,9 +38035,10 @@
    "parts": 3,
    "q": "The bar the report has to clear",
    "steps": [
-    "Before the report, analysts publish estimates. Their average is the consensus.",
-    "Above it is a beat, below it is a miss, equal is in line.",
-    "Guidance is management's forecast for what comes next. It can move the stock more than the quarter itself."
+    "Before the report, analysts put out estimates. Their average is the consensus. That's the bar.",
+    "Take NVIDIA: $1.30 a share adjusted against $1.25 expected. That's a beat. Below it's a miss. Right on it, in line.",
+    "Then there's guidance, what management expects next. It can move the stock more than the quarter itself.",
+    "So a company can beat and still drop if the outlook's weak."
    ],
    "subject": "V.09#w2"
   },
@@ -37996,6 +38051,13 @@
       "quote": "several groups track a “consensus” estimate that’s the average for all the analysts covering the stock. … A company beats (exceeds) the estimate or misses (falls short of) the estimate based on how actual earnings or revenues compare to the consensus. If the number equals the estimate, it’s said to be in line. … an indication of what management expects its numbers will be in the future. … Sometimes a company might beat estimates but provide a dour outlook for the future, leading the share price to drop.",
       "tier": 1,
       "url": "https://www.finra.org/investors/insights/earnings-season"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "CNBC: Nvidia shares rise on stronger-than-expected revenue, forecast (Kif Leswing, Nov. 19, 2025)",
+      "quote": "Earnings per share: $1.30 adjusted vs. $1.25 estimated Revenue: $57.01 billion vs. $54.92 billion estimated",
+      "tier": 2,
+      "url": "https://www.cnbc.com/2025/11/19/nvidia-nvda-earnings-report-q3-2026.html"
      },
      {
       "accessed": "2026-11-09",
@@ -38022,7 +38084,7 @@
   "difficulty": 1,
   "id": "si_1612bbf13e2b",
   "lesson_origin": "session",
-  "lesson_text": "The implied move is the swing the options market is pricing in. It's a size, not a direction.",
+  "lesson_text": "It's a size, not a direction. And it's no promise of either.",
   "module": "V",
   "prompt_json": {
    "order": 3,
@@ -38030,9 +38092,10 @@
    "parts": 3,
    "q": "When it lands and how big the move",
    "steps": [
-    "BMO means the report lands before the 9:30 a.m. ET open. AMC means after the 4:00 p.m. ET close.",
-    "Either way, the first reaction can come in extended hours, where spreads are wider.",
-    "The implied move is the swing the options market is pricing in. It's a size, not a direction."
+    "BMO means before the 9:30 a.m. ET open. AMC means after the 4:00 p.m. ET close.",
+    "Either way, the first reaction hits in extended hours, where spreads are wider.",
+    "The implied move is the swing options are pricing in. Read it off the nearest at-the-money straddle.",
+    "It's a size, not a direction. And it's no promise of either."
    ],
    "subject": "V.09#w3"
   },
@@ -42211,9 +42274,9 @@
    "parts": 3,
    "q": "The Fed's words",
    "steps": [
-    "The FOMC is the Fed's rate committee. It meets eight times a year on a set schedule.",
-    "It sets a target range for the federal funds rate, what banks charge each other overnight.",
-    "Hawks lean toward tighter policy to fight inflation. Doves lean toward easier policy to support jobs.",
+    "The FOMC is the Fed's rate committee. Eight scheduled meetings a year. Put them on your calendar.",
+    "It sets a target range, 25 basis points wide, for the fed funds rate: what banks charge each other overnight.",
+    "Hawks lean tighter to fight inflation. Doves lean easier to support jobs.",
     "QE means the Fed buys bonds and its balance sheet grows. QT is the reverse."
    ],
    "subject": "V.10#w1"
@@ -42274,7 +42337,7 @@
   "difficulty": 1,
   "id": "si_621928ed5152",
   "lesson_origin": "session",
-  "lesson_text": "GDP is the value of what the economy produces. Real GDP strips out inflation.",
+  "lesson_text": "GDP is the value of what the economy produces. Real GDP takes inflation out.",
   "module": "V",
   "prompt_json": {
    "order": 2,
@@ -42282,10 +42345,10 @@
    "parts": 3,
    "q": "The data words",
    "steps": [
-    "CPI tracks what consumers pay. Core CPI drops food and energy, two categories whose prices swing a lot.",
-    "The Fed's 2% inflation goal is measured with the PCE price index from BEA, not CPI.",
-    "The jobs report has two surveys. Payrolls come from employers. The unemployment rate comes from households.",
-    "GDP is the value of what the economy produces. Real GDP strips out inflation."
+    "CPI is what consumers pay. Core CPI drops food and energy, because those prices swing a lot.",
+    "The Fed's 2% inflation goal is measured on PCE, from the BEA. Not CPI.",
+    "The jobs report is two surveys. Payrolls come from employers. The unemployment rate comes from households.",
+    "GDP is the value of what the economy produces. Real GDP takes inflation out."
    ],
    "subject": "V.10#w2"
   },
@@ -42359,7 +42422,7 @@
   "difficulty": 1,
   "id": "si_4f8117c0778e",
   "lesson_origin": "session",
-  "lesson_text": "When short yields sit above long ones, the curve is inverted. It has warned of recessions, with false alarms.",
+  "lesson_text": "Short yields over long ones means it's inverted. That came before each of the last eight recessions, with some false alarms.",
   "module": "V",
   "prompt_json": {
    "order": 3,
@@ -42367,10 +42430,10 @@
    "parts": 3,
    "q": "The bond words",
    "steps": [
-    "Bond prices and yields move in opposite directions. When yields rise, prices of existing bonds fall.",
+    "Bond prices and yields move opposite. Yields up, prices of the bonds already out there go down.",
     "A basis point is a hundredth of a percentage point. A quarter-point Fed move is 25 basis points.",
-    "The yield curve lines up Treasury yields from short maturities to long. Usually it slopes up.",
-    "When short yields sit above long ones, the curve is inverted. It has warned of recessions, with false alarms."
+    "The yield curve lines up Treasury yields from short to long. Normally it slopes up.",
+    "Short yields over long ones means it's inverted. That came before each of the last eight recessions, with some false alarms."
    ],
    "subject": "V.10#w3"
   },
@@ -46902,7 +46965,7 @@
   "difficulty": 1,
   "id": "si_26f1fd63c81d",
   "lesson_origin": "session",
-  "lesson_text": "Read its direction and shape, not its number. The number depends on when the count started.",
+  "lesson_text": "Don't read the number on it. Read the direction and the shape. The number just depends on when the count started.",
   "module": "V",
   "prompt_json": {
    "order": 1,
@@ -46910,9 +46973,9 @@
    "parts": 3,
    "q": "Counting the crowd",
    "steps": [
-    "Every day, some stocks close up and some close down. Those are advancers and decliners.",
-    "Advancers minus decliners gives net advances. Add each day's number to a running total and you have the A/D line.",
-    "Read its direction and shape, not its number. The number depends on when the count started."
+    "Every day some stocks close up and some close down. The ones up are advancers. The ones down are decliners.",
+    "Take advancers minus decliners and you get net advances. Keep a running total of that and you have the A/D line.",
+    "Don't read the number on it. Read the direction and the shape. The number just depends on when the count started."
    ],
    "subject": "V.11#w1"
   },
@@ -46958,7 +47021,7 @@
   "difficulty": 1,
   "id": "si_29922f7d4bc9",
   "lesson_origin": "session",
-  "lesson_text": "Treat it as a warning, not a sell signal. Breadth is a poor timing tool, so let price confirm.",
+  "lesson_text": "I treat it as a warning, not a sell signal. Breadth is a lousy timing tool. Let price confirm it.",
   "module": "V",
   "prompt_json": {
    "order": 2,
@@ -46966,9 +47029,9 @@
    "parts": 3,
    "q": "When the index and the crowd disagree",
    "steps": [
-    "A cap-weighted index is moved most by its biggest companies. The A/D line gives every stock one vote.",
-    "Index at a new high, A/D line at a lower high: that's a bearish divergence. Fewer stocks are doing the work.",
-    "Treat it as a warning, not a sell signal. Breadth is a poor timing tool, so let price confirm."
+    "A big index gets moved most by its biggest names. The A/D line gives every stock one vote.",
+    "Index makes a new high, A/D line makes a lower high. That's a bearish divergence: fewer stocks doing the work.",
+    "I treat it as a warning, not a sell signal. Breadth is a lousy timing tool. Let price confirm it."
    ],
    "subject": "V.11#w2"
   },
@@ -47021,7 +47084,7 @@
   "difficulty": 1,
   "id": "si_84e40807ffb0",
   "lesson_origin": "session",
-  "lesson_text": "No guarantees. Some follow-throughs fail, and Bulkowski's tests found distribution clusters in a rising market did not predict drops.",
+  "lesson_text": "No guarantees. Some follow-throughs fail, so don't go all in. One study found distribution clusters in a rising market didn't predict drops.",
   "module": "V",
   "prompt_json": {
    "order": 3,
@@ -47029,10 +47092,10 @@
    "parts": 3,
    "q": "IBD's two days",
    "steps": [
-    "IBD counts a distribution day when the Nasdaq or S&P 500 falls 0.2% or more on higher volume than the day before.",
-    "One means little. Five or six in a few weeks is IBD's warning that the uptrend is weakening.",
-    "A follow-through day is the other side: a strong index gain on higher volume, Day 4 or later of a rally attempt.",
-    "No guarantees. Some follow-throughs fail, and Bulkowski's tests found distribution clusters in a rising market did not predict drops."
+    "IBD's distribution day: the Nasdaq or S&P 500 down 0.2% or more, on higher volume than the day before.",
+    "One here or there means little. Five or six over a few weeks, and IBD says the rally's in trouble.",
+    "The follow-through day is the flip side. A strong index gain on higher volume, Day 4 or later of a rally attempt.",
+    "No guarantees. Some follow-throughs fail, so don't go all in. One study found distribution clusters in a rising market didn't predict drops."
    ],
    "subject": "V.11#w3"
   },
@@ -51176,7 +51239,7 @@
   "difficulty": 1,
   "id": "si_1a9bf2272709",
   "lesson_origin": "session",
-  "lesson_text": "Mental game coach Jared Tendler puts it simply: you can't correct what you can't see. A name lets you see it.",
+  "lesson_text": "You can't fix what you can't see. Once you can name it in the moment, you can catch it.",
   "module": "V",
   "prompt_json": {
    "order": 1,
@@ -51184,9 +51247,9 @@
    "parts": 3,
    "q": "Name it to catch it",
    "steps": [
-    "A research report done for the SEC says investors fall into predictable patterns. They make the same mistakes repeatedly.",
-    "Those patterns have names: FOMO, tilt, loss aversion, overconfidence and more. This unit teaches the names.",
-    "Mental game coach Jared Tendler puts it simply: you can't correct what you can't see. A name lets you see it."
+    "Traders fall into the same patterns and make the same mistakes, over and over. It's predictable.",
+    "Those patterns have names: FOMO, tilt, loss aversion, overconfidence. This lesson gives you the names.",
+    "You can't fix what you can't see. Once you can name it in the moment, you can catch it."
    ],
    "subject": "V.12#w1"
   },
@@ -51225,7 +51288,7 @@
   "difficulty": 1,
   "id": "si_9d68095cca24",
   "lesson_origin": "session",
-  "lesson_text": "The fix is plain. Step away from the screen, cool off, then come back to your plan.",
+  "lesson_text": "The fix is simple. Step away from the screen, cool off, then come back to your plan.",
   "module": "V",
   "prompt_json": {
    "order": 2,
@@ -51234,9 +51297,9 @@
    "q": "After a loss",
    "steps": [
     "A loss stings more than an equal win feels good. That's loss aversion.",
-    "Anger can follow. Tendler calls that tilt: anger hurting your decisions.",
-    "Tilt can turn into revenge trading: bigger size and more trades, trying to win it back fast.",
-    "The fix is plain. Step away from the screen, cool off, then come back to your plan."
+    "Then the anger shows up. That's tilt: anger getting into your decisions.",
+    "Tilt can turn into revenge trading. Bigger size, more trades, trying to win it all back fast.",
+    "The fix is simple. Step away from the screen, cool off, then come back to your plan."
    ],
    "subject": "V.12#w2"
   },
@@ -51303,7 +51366,7 @@
   "difficulty": 1,
   "id": "si_6f2ec4b233c5",
   "lesson_origin": "session",
-  "lesson_text": "A short streak proves less than it feels. Keep your size tied to your rule, not your mood.",
+  "lesson_text": "A short hot streak proves less than it feels like. Keep your size tied to your rules, not your mood.",
   "module": "V",
   "prompt_json": {
    "order": 3,
@@ -51311,9 +51374,9 @@
    "parts": 3,
    "q": "After a win",
    "steps": [
-    "Wins set traps too. A trader who takes too much credit for wins grows overconfident.",
-    "Profits can feel like house money, so risk creeps up after a gain.",
-    "A short streak proves less than it feels. Keep your size tied to your rule, not your mood."
+    "Wins set traps too. Take too much credit for a few winners and you get overconfident.",
+    "Profits start to feel like house money, so you risk more after a gain.",
+    "A short hot streak proves less than it feels like. Keep your size tied to your rules, not your mood."
    ],
    "subject": "V.12#w3"
   },
@@ -55327,7 +55390,7 @@
   "difficulty": 1,
   "id": "si_95349c7cb933",
   "lesson_origin": "session",
-  "lesson_text": "None of it stops every loss. It cuts down the impulsive ones.",
+  "lesson_text": "It won't stop every loss. What it cuts down is the impulsive trade, the one you make up on the fly.",
   "module": "V",
   "prompt_json": {
    "order": 1,
@@ -55335,10 +55398,10 @@
    "parts": 3,
    "q": "Before the trade",
    "steps": [
-    "A trading plan is your rules for buying and selling, written before any money is on the line.",
-    "Your watchlist holds the stocks that meet your criteria. Entry and exit rules say when you get in and out.",
-    "A routine is the same prep every morning: the data out before the open, the index charts, your list.",
-    "None of it stops every loss. It cuts down the impulsive ones."
+    "Write your rules for buying and selling before any money's on the line. That's your trading plan.",
+    "Your watchlist: the stocks that fit what you're looking for. Entry and exit rules say when you get in and out.",
+    "Then your routine, the same prep every morning. The data out before the open, the index charts, your list.",
+    "It won't stop every loss. What it cuts down is the impulsive trade, the one you make up on the fly."
    ],
    "subject": "V.13#w1"
   },
@@ -55391,7 +55454,7 @@
   "difficulty": 1,
   "id": "si_53f36edc5153",
   "lesson_origin": "session",
-  "lesson_text": "Grade how you traded, not what you made. A good trade can lose.",
+  "lesson_text": "Grade how you traded, not what you made. A good trade can still lose money.",
   "module": "V",
   "prompt_json": {
    "order": 2,
@@ -55399,10 +55462,10 @@
    "parts": 3,
    "q": "After the trade",
    "steps": [
-    "Log every trade in your journal: entry, stop, exit, and what you were thinking and feeling.",
-    "Review it against the plan, and finish with a concrete plan for next time.",
-    "Your best setups, tested and written down, become your playbook.",
-    "Grade how you traded, not what you made. A good trade can lose."
+    "Log every trade in your journal. Entry, stop, exit, and what you were thinking and feeling at the time.",
+    "Then review it against the plan. Finish with something concrete for next time, or you're just looking in the rear view mirror.",
+    "Your best setups, the ones you've tested and written down, become your playbook.",
+    "Grade how you traded, not what you made. A good trade can still lose money."
    ],
    "subject": "V.13#w2"
   },
@@ -55469,7 +55532,7 @@
   "difficulty": 1,
   "id": "si_192f1c6ed191",
   "lesson_origin": "session",
-  "lesson_text": "Judge none of it on a handful of trades. A small sample can fool you.",
+  "lesson_text": "Don't judge any of it on a handful of trades. A small sample can fool you.",
   "module": "V",
   "prompt_json": {
    "order": 3,
@@ -55477,10 +55540,10 @@
    "parts": 3,
    "q": "The numbers",
    "steps": [
-    "Win rate is how often you win. On its own it says little.",
-    "Put it next to your average win and average loss. Expectancy combines them: your average result per trade.",
+    "Win rate is how often you win. By itself it tells you very little.",
+    "Put it next to your average win and average loss. Expectancy puts them together: what you make per trade, on average.",
     "Profit factor is gross profit over gross loss. Over 1, the winners paid for the losers.",
-    "Judge none of it on a handful of trades. A small sample can fool you."
+    "Don't judge any of it on a handful of trades. A small sample can fool you."
    ],
    "subject": "V.13#w3"
   },

@@ -1459,9 +1459,9 @@
    "key": "w1",
    "title": "Four prices in one candle",
    "steps": [
-    "Every candle holds four prices: the open, the high, the low and the close.",
-    "The body runs open to close. On most charts, hollow or green closed above the open; filled or red, below it.",
-    "The thin lines are shadows, also called wicks or tails. The top one reaches the high, the bottom one the low."
+    "Every candle packs in four prices: the open, the high, the low and the close.",
+    "The body runs open to close. On most charts, green or hollow closed above the open. Red or filled, below.",
+    "The thin lines are the wicks, also called shadows or tails. The top one is the high, the bottom one the low."
    ],
    "facts": [
     "f6",
@@ -1481,9 +1481,9 @@
    "key": "w2",
    "title": "Same shape, different name",
    "steps": [
-    "Small body, long lower shadow: after a decline it's a hammer. After a rise, it's a hanging man.",
-    "Flip it over, long shadow on top. After a decline that's an inverted hammer. After a rise, a shooting star.",
-    "Either way, the textbook wants the long shadow at least twice the length of the body."
+    "Small body, long lower wick. After a decline it's a hammer. After a run up, the same candle's a hanging man.",
+    "Flip it, long wick on top. After a decline that's an inverted hammer. After a rise, a shooting star.",
+    "So the shape doesn't name it. What came before does. The long wick should be at least twice the body."
    ],
    "facts": [
     "f41",
@@ -1500,9 +1500,9 @@
    "key": "w3",
    "title": "A clue, not a call",
    "steps": [
-    "A candle shows buyers against sellers over one period. It can't tell you whether the high or low came first.",
-    "Most patterns need the next candles to agree. That's called confirmation.",
-    "A pattern at a real level, like a prior low, counts for more than one in the middle of a range."
+    "A candle shows buyers against sellers over one period. It can't tell you if the high or the low came first.",
+    "Most patterns need the next candles to agree. That's confirmation. Until then it's a yellow flag, not a red one.",
+    "Where it forms matters. A hammer at a prior low means a lot more than one in the middle of a range."
    ],
    "facts": [
     "f14",

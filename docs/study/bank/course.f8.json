@@ -1304,7 +1304,7 @@
   "difficulty": 1,
   "id": "si_93a2fc6602f0",
   "lesson_origin": "session",
-  "lesson_text": "Mapping comes first. It's a fact-based record of when and how your emotions swing, so the pattern shows.",
+  "lesson_text": "Mapping comes first. A plain record of when and how your emotions swing, until the pattern's obvious.",
   "module": "F8",
   "prompt_json": {
    "order": 1,
@@ -1312,9 +1312,9 @@
    "parts": 3,
    "q": "Map before you fix",
    "steps": [
-    "A research review done for the SEC says investors make the same mistakes over and over. Yours repeat too.",
-    "Jared Tendler, who wrote The Mental Game of Trading, works in three stages: map your pattern, find the root, then correct it.",
-    "Mapping comes first. It's a fact-based record of when and how your emotions swing, so the pattern shows."
+    "Most traders make the same mistakes over and over. Yours repeat too, and for the same reasons. That's good news.",
+    "Jared Tendler, a trading coach, works in three stages: map the pattern, find the root, then correct it.",
+    "Mapping comes first. A plain record of when and how your emotions swing, until the pattern's obvious."
    ],
    "subject": "F8.01#w1"
   },
@@ -1368,8 +1368,8 @@
    "parts": 3,
    "q": "What goes on the map",
    "steps": [
-    "When a mistake happens, write down what came before it, during it and after it.",
-    "Your thoughts, your feelings, what you did and how your decisions changed. Then name the mistake plainly.",
+    "Every time you make a mistake, write down what came right before it, during it and after.",
+    "What you thought, what you felt, what you did. Then name it plainly, like taking the same trade over and over.",
     "Be a detective, not a critic. Beating yourself up just makes it worse."
    ],
    "subject": "F8.01#w2"
@@ -1402,7 +1402,7 @@
   "difficulty": 1,
   "id": "si_e4ee75c7ff51",
   "lesson_origin": "session",
-  "lesson_text": "So judge the decision, not the result. Your review checks one thing first: whether you followed your plan.",
+  "lesson_text": "So judge the decision, not the result. Every review starts with one check: whether you followed your plan.",
   "module": "F8",
   "prompt_json": {
    "order": 3,
@@ -1410,9 +1410,9 @@
    "parts": 3,
    "q": "A loss is not a mistake",
    "steps": [
-    "A planned trade that hits its stop is a loss. Losses are part of the risk.",
-    "A mistake is breaking your own plan. It counts even when the trade makes money.",
-    "So judge the decision, not the result. Your review checks one thing first: whether you followed your plan."
+    "You took a planned trade and it hit your stop. That's a loss, not a mistake. Losses are part of this.",
+    "A mistake is breaking your plan. It counts even when it makes money. Getting paid for it just makes it feel right.",
+    "So judge the decision, not the result. Every review starts with one check: whether you followed your plan."
    ],
    "subject": "F8.01#w3"
   },
@@ -3442,7 +3442,7 @@
   "difficulty": 1,
   "id": "si_9f6627c05e8e",
   "lesson_origin": "session",
-  "lesson_text": "It often shows up in two ways. You buy late, after the move. Or you jump in before your signal.",
+  "lesson_text": "It shows up two ways. You buy late, way after the move. Or you jump in before your trigger.",
   "module": "F8",
   "prompt_json": {
    "order": 1,
@@ -3450,9 +3450,9 @@
    "parts": 3,
    "q": "What FOMO is",
    "steps": [
-    "FOMO is the fear of missing out. Everyone feels it, in markets and out of them.",
-    "In trading it's the urge to get into a move you're watching from the sidelines.",
-    "It often shows up in two ways. You buy late, after the move. Or you jump in before your signal."
+    "FOMO, the fear of missing out. A stock's ripping, you're on the sidelines, and it feels like you have to be in.",
+    "Everybody feels it. The urgency is what hurts you, because it pushes you into fast calls with no plan.",
+    "It shows up two ways. You buy late, way after the move. Or you jump in before your trigger."
    ],
    "subject": "F8.02#w1"
   },
@@ -3512,7 +3512,7 @@
   "difficulty": 1,
   "id": "si_a15cac90e241",
   "lesson_origin": "session",
-  "lesson_text": "Keep your size and you risk more than you planned. Keep your risk and you buy fewer shares.",
+  "lesson_text": "Our line is 4%. More than 4% above the buy point, we don't touch it.",
   "module": "F8",
   "prompt_json": {
    "order": 2,
@@ -3520,9 +3520,10 @@
    "parts": 3,
    "q": "What a chase costs",
    "steps": [
-    "Your stop sits where the idea is wrong. Buy higher and you're further from it.",
-    "Risk per share is entry minus stop. Every dollar you chase gets added to it.",
-    "Keep your size and you risk more than you planned. Keep your risk and you buy fewer shares."
+    "Your stop sits where the idea is wrong. Buy higher and you're just further from it.",
+    "Risk per share is entry minus stop. Every dollar you chase gets added right onto it.",
+    "Keep your size and you risk more than you planned. We keep the risk, so a chase just buys you fewer shares.",
+    "Our line is 4%. More than 4% above the buy point, we don't touch it."
    ],
    "subject": "F8.02#w2"
   },
@@ -3542,6 +3543,13 @@
       "quote": "You don't want to find yourself, for instance, investing more because prices are rising and taking on more risk than you intended.",
       "tier": 2,
       "url": "https://www.fidelity.com/learning-center/smart-money/trading-plan"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "No chasing: never buy more than 4% above the buy point. … Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink (A5).",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -3561,7 +3569,7 @@
   "difficulty": 1,
   "id": "si_123db9c54d2c",
   "lesson_origin": "session",
-  "lesson_text": "Or let it go. Another setup will come along.",
+  "lesson_text": "Or let it go. I'd rather miss it than chase it. Another setup always comes along.",
   "module": "F8",
   "prompt_json": {
    "order": 3,
@@ -3569,9 +3577,9 @@
    "parts": 3,
    "q": "The cure",
    "steps": [
-    "Write the entry and the stop before the open, while you're calm.",
-    "If you miss it, wait for a pullback that holds a higher low. Then buy with a close stop.",
-    "Or let it go. Another setup will come along."
+    "Write the entry, stop and size before the open, while you're calm. Then at the open you just execute.",
+    "If you missed it, wait for a pullback that holds a higher low. Then buy that with a tight stop.",
+    "Or let it go. I'd rather miss it than chase it. Another setup always comes along."
    ],
    "subject": "F8.02#w3"
   },
@@ -3584,6 +3592,13 @@
       "quote": "It's important to determine this process before you start investing so you aren't making spur-of-the-moment choices based on temporary market peaks or valleys.",
       "tier": 2,
       "url": "https://www.fidelity.com/learning-center/smart-money/trading-plan"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "Every planned buy has its entry, stop and size written down before the market opens.",
+      "tier": 3,
+      "url": null
      },
      {
       "accessed": "2026-11-09",
@@ -5264,7 +5279,7 @@
   "difficulty": 1,
   "id": "si_54f6b7e054de",
   "lesson_origin": "session",
-  "lesson_text": "So fear pushes you to close trades too soon, or to skip risk your own plan allows.",
+  "lesson_text": "So fear closes trades too soon. It talks you out of risk your own plan already said yes to.",
   "module": "F8",
   "prompt_json": {
    "order": 1,
@@ -5272,9 +5287,9 @@
    "parts": 3,
    "q": "Three ways fear shows up",
    "steps": [
-    "Fear shows up in three common ways. You freeze at the trigger, hesitate and buy late, or sell a winner early.",
-    "Behind all three is the fear of losing. Most people mind a loss more than they like an equal gain.",
-    "So fear pushes you to close trades too soon, or to skip risk your own plan allows."
+    "Fear hits three ways. You freeze at the trigger, hesitate and buy late, or dump a winner early.",
+    "Under all three is the fear of losing. A loss stings more than the same size gain feels good.",
+    "So fear closes trades too soon. It talks you out of risk your own plan already said yes to."
    ],
    "subject": "F8.03#w1"
   },
@@ -5327,7 +5342,7 @@
   "difficulty": 1,
   "id": "si_32596f4f8b12",
   "lesson_origin": "session",
-  "lesson_text": "Selling the winner can feel safe. On average, it cost them.",
+  "lesson_text": "Selling the winner felt safe. On average, they dumped the wrong one.",
   "module": "F8",
   "prompt_json": {
    "order": 2,
@@ -5335,10 +5350,10 @@
    "parts": 3,
    "q": "What cutting winners costs",
    "steps": [
-    "Odean studied 10,000 accounts at a large discount broker.",
-    "A stock that was up was more than 50% more likely to be sold than one that was down.",
-    "Over the next year, the winners people sold beat the losers they kept by 3.4 percentage points.",
-    "Selling the winner can feel safe. On average, it cost them."
+    "One big study went through 10,000 accounts at a discount broker. Look at what people sold.",
+    "A stock that was up was more than 50% more likely to get sold than one that was down.",
+    "Over the next year, the winners they sold beat the losers they kept by 3.4 percentage points.",
+    "Selling the winner felt safe. On average, they dumped the wrong one."
    ],
    "subject": "F8.03#w2"
   },
@@ -5370,7 +5385,7 @@
   "difficulty": 1,
   "id": "si_590b61f50252",
   "lesson_origin": "session",
-  "lesson_text": "Then follow the plan, at a size you can sit through.",
+  "lesson_text": "Then follow the plan, at a size you can sit through. Too big, and every pullback feels like a disaster.",
   "module": "F8",
   "prompt_json": {
    "order": 3,
@@ -5379,8 +5394,8 @@
    "q": "Fear, or a real reason",
    "steps": [
     "A real reason to pass is a rule you wrote before the trigger. Fear is a feeling that shows up at it.",
-    "When the feeling hits, name it: that's fear from the last two losses. Seeing it helps you stop it steering.",
-    "Then follow the plan, at a size you can sit through."
+    "When it hits, name it: that's fear from my last two losses. Once you see it, it steers you less.",
+    "Then follow the plan, at a size you can sit through. Too big, and every pullback feels like a disaster."
    ],
    "subject": "F8.03#w3"
   },
@@ -5804,27 +5819,27 @@
  },
  {
   "answer_json": {
-   "answer": "A cap on trades per day"
+   "answer": "Rattled? No new trades that day"
   },
   "difficulty": 1,
   "id": "si_13421fc2cd05",
   "lesson_origin": "session",
-  "lesson_text": "A cap on trades per day. Revenge trading means more trades, not only bigger ones. A count cap hits that head on. Hit the number and you're done clicking, however you feel. Decide the count while you're calm, then let it decide for you. We don't run a daily cap ourselves. Ours counts tries per stock: at most 3 tries in a week and 6 in a month on the same name. Same idea, it stops you from hammering one name to get even. Count the clicks. A cap on trades stops a burst before it grows.",
+  "lesson_text": "No new trades that day. Tired, sick, angry or distracted, you're done. Revenge trading is anger doing the clicking. One more trade won't fix it. It just starts a burst of bad ones. Walk away, and the setups will still be there tomorrow. On a single name we also stop at 3 tries in a week and 6 in a month. Rattled after a stop, you're done for the day. The setups will be there tomorrow.",
   "module": "F8",
   "prompt_json": {
    "choices": [
     "A tighter stop on every trade",
-    "A daily profit target",
-    "A cap on trades per day",
-    "A bigger watchlist each day"
+    "A daily profit target to hit",
+    "Rattled? No new trades that day",
+    "A bigger watchlist for the day"
    ],
    "kind": "mcq",
-   "q": "After a stop-out you tend to fire off trade after trade to win it back. Besides a loss limit, what rule stops that?",
+   "q": "After a stop-out you fire off trade after trade to win it back. Which of our rules stops that?",
    "subject": "F8.04#q07"
   },
   "reveal_json": {
    "deeper": {
-    "example": "Jared Tendler names firm controls on the number of trades a day, or a daily loss limit. Investopedia says traders set limits on how many trades fit them, and trading past the limit is unsound. Our own loss limit is monthly, not daily: at 8% down in a calendar month, no new trades for the rest of the month."
+    "example": "Jared Tendler names firm controls on the number of trades a day. Investopedia says traders set limits on how many trades fit them. We don't cap trades per day, and we have no daily loss limit. Our loss limit is monthly: at 8% down in a calendar month, no new trades for the rest of the month."
    },
    "depth": {
     "sources": [
@@ -5845,24 +5860,24 @@
      {
       "accessed": "2026-11-12",
       "name": "Our trading rules",
-      "quote": "The same stock: at most 3 tries in a week and 6 in a month. … B15. No daily loss limit. (\"15, no.\") … No weekly loss limit; a monthly loss limit of 8%: at 8% down in a calendar month (from the month's starting value), no new trades for the rest of the month.",
+      "quote": "Tired, sick, angry or distracted: no new trades that day. … The same stock: at most 3 tries in a week and 6 in a month. … B15. No daily loss limit. (\"15, no.\") … No weekly loss limit; a monthly loss limit of 8%: at 8% down in a calendar month (from the month's starting value), no new trades for the rest of the month.",
       "tier": 3,
       "url": null
      }
     ],
-    "summary": "Tendler: firm controls on trades per day, or a daily loss limit, keep the damage in check. Traders set limits on risk and on the number of trades; trading past the limit is unsound. Revenge trading usually means raising both the size and the number of trades to win losses back. A burst of positions with no plan behind any of them is a telltale sign of overtrading. We try the same stock at most 3 times a week and 6 times a month. Our rules set no daily loss limit. Our loss limit is monthly: 8% down in a calendar month means no new trades until the month ends."
+    "summary": "Tendler: firm controls on trades per day, or a daily loss limit, keep the damage in check. Traders set limits on risk and on the number of trades; trading past the limit is unsound. Revenge trading usually means raising both the size and the number of trades to win losses back. A burst of positions with no plan behind any of them is a telltale sign of overtrading. Our rule: tired, sick, angry or distracted means no new trades that day. We try the same stock at most 3 times a week and 6 times a month. Our rules set no daily loss limit. Our loss limit is monthly: 8% down in a calendar month means no new trades until the month ends."
    },
    "facts": {
-    "given": "After a stop-out you tend to fire off trade after trade to win it back. Besides a loss limit, what rule stops that? A cap on trades per day A tighter stop on every trade A bigger watchlist each day A daily profit target"
+    "given": "After a stop-out you fire off trade after trade to win it back. Which of our rules stops that? Rattled? No new trades that day A tighter stop on every trade A bigger watchlist for the day A daily profit target to hit"
    },
-   "lesson_line": "Count the clicks. A cap on trades stops a burst before it grows.",
-   "simple": "A cap on trades per day, because once you hit the count you stop, however badly you want it back.",
+   "lesson_line": "Rattled after a stop, you're done for the day. The setups will be there tomorrow.",
+   "simple": "Angry or rattled means no new trades that day, so the burst never starts.",
    "tier": "core",
    "unit": "F8.04",
-   "why": "A cap on trades per day. Revenge trading means more trades, not only bigger ones. A count cap hits that head on. Hit the number and you're done clicking, however you feel. Decide the count while you're calm, then let it decide for you. We don't run a daily cap ourselves. Ours counts tries per stock: at most 3 tries in a week and 6 in a month on the same name. Same idea, it stops you from hammering one name to get even.",
+   "why": "No new trades that day. Tired, sick, angry or distracted, you're done. Revenge trading is anger doing the clicking. One more trade won't fix it. It just starts a burst of bad ones. Walk away, and the setups will still be there tomorrow. On a single name we also stop at 3 tries in a week and 6 in a month.",
    "wrong": {
-    "A bigger watchlist each day": "More names means more things to click. After a stop you want fewer names in front of you, not more.",
-    "A daily profit target": "A target tells you when to stop on a good day. Revenge happens on the bad ones.",
+    "A bigger watchlist for the day": "More names means more things to click. After a stop you want fewer names in front of you, not more.",
+    "A daily profit target to hit": "A target tells you when to stop on a good day. Revenge happens on the bad ones.",
     "A tighter stop on every trade": "That shrinks each loss, but you still fire off the whole burst."
    }
   },
@@ -7141,7 +7156,7 @@
   "difficulty": 1,
   "id": "si_1f3124140f0f",
   "lesson_origin": "session",
-  "lesson_text": "Revenge is behind many blowups. You size up and trade more to win it back, and the next loss can be bigger.",
+  "lesson_text": "Revenge is behind lots of blowups. You size up, trade more to win it back, and the next loss can be bigger.",
   "module": "F8",
   "prompt_json": {
    "order": 1,
@@ -7149,9 +7164,9 @@
    "parts": 3,
    "q": "What tilt is",
    "steps": [
-    "Tilt is a poker word. A loss or a bad break gets under your skin, and the emotion starts making your calls.",
-    "Jared Tendler coaches poker players and traders. His trading book names five kinds: hating to lose, mistakes, injustice, revenge and entitlement.",
-    "Revenge is behind many blowups. You size up and trade more to win it back, and the next loss can be bigger."
+    "Tilt's a poker word. A loss gets under your skin, and from there the emotion's making your calls.",
+    "Jared Tendler coaches poker players and traders. He names five kinds: hating to lose, mistakes, injustice, revenge and entitlement.",
+    "Revenge is behind lots of blowups. You size up, trade more to win it back, and the next loss can be bigger."
    ],
    "subject": "F8.04#w1"
   },
@@ -7211,7 +7226,7 @@
   "difficulty": 1,
   "id": "si_e87452a14207",
   "lesson_origin": "session",
-  "lesson_text": "Write them before the session, while you're calm. Once tilt builds, your mind can't stop it, so the rule has to.",
+  "lesson_text": "Tired, angry or distracted, no new trades that day. A 15-minute break when the urge to break a rule hits works too.",
   "module": "F8",
   "prompt_json": {
    "order": 2,
@@ -7219,9 +7234,10 @@
    "parts": 3,
    "q": "Your circuit breaker",
    "steps": [
-    "Markets have circuit breakers. If the S&P 500 falls 7% in a day before 3:25 p.m., trading halts market-wide for 15 minutes.",
-    "Build your own: a daily loss limit, a cap on trades, and a break when the urge to break a rule hits.",
-    "Write them before the session, while you're calm. Once tilt builds, your mind can't stop it, so the rule has to."
+    "The market has circuit breakers. If the S&P 500 drops 7% before 3:25 p.m., everything halts for 15 minutes.",
+    "Build your own before the session, while you're calm. Once tilt builds, your head can't stop it. The rule has to.",
+    "Ours: no daily loss limit. But down 8% in a calendar month, no new trades for the rest of it.",
+    "Tired, angry or distracted, no new trades that day. A 15-minute break when the urge to break a rule hits works too."
    ],
    "subject": "F8.04#w2"
   },
@@ -7238,16 +7254,9 @@
      {
       "accessed": "2026-11-09",
       "name": "Charles Schwab: Trading Psychology: Recovering From Big Losses (Henry Hoenig, 2026-02-10)",
-      "quote": "They can also implement “circuit breakers” to prevent additional trading after a certain level of loss in a day. … For example, they could pledge to step away for the day if they lose a certain amount of money or take 15 minutes if they feel an urge to break a trading rule. … Traders should at least have written “if, then” plans to help limit emotion-based actions and prevent additional big losses and should consciously commit to these plans before every trading session.",
+      "quote": "They can also implement “circuit breakers” to prevent additional trading after a certain level of loss in a day. … Traders should at least have written “if, then” plans to help limit emotion-based actions and prevent additional big losses and should consciously commit to these plans before every trading session. … For example, they could pledge to step away for the day if they lose a certain amount of money or take 15 minutes if they feel an urge to break a trading rule.",
       "tier": 2,
       "url": "https://www.schwab.com/learn/story/trading-psychology-recovering-from-big-losses"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Jared Tendler (author's site): Hating to Lose (2025-11-10)",
-      "quote": "This isn’t the worst problem to have if they put firm risk management controls in place about the number of trades/day, or a daily loss-limit, and the market provides plenty of opportunities.",
-      "tier": 2,
-      "url": "https://jaredtendler.com/hating-to-lose/"
      },
      {
       "accessed": "2026-11-09",
@@ -7255,6 +7264,13 @@
       "quote": "Catching it early is critical. When emotions get too intense, the mind isn’t powerful enough to stop them and mistakes become inevitable. Seeing it afterwards, is like seeing a trade you missed.",
       "tier": 2,
       "url": "https://jaredtendler.com/you-cant-stop-a-problem-you-cant-see/"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "B15. No daily loss limit. (\"15, no.\") … No weekly loss limit; a monthly loss limit of 8%: at 8% down in a calendar month (from the month's starting value), no new trades for the rest of the month. … Tired, sick, angry or distracted: no new trades that day.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -7274,7 +7290,7 @@
   "difficulty": 1,
   "id": "si_b54c499978ee",
   "lesson_origin": "session",
-  "lesson_text": "Here's our rule: after a 6% drawdown, max position size drops to 10%. Deeper drawdowns cut it further.",
+  "lesson_text": "No streak rule for us. Only drawdown cuts size: down 6%, max position 10%. Down 8%, max 8%. Down 10%, max 5%.",
   "module": "F8",
   "prompt_json": {
    "order": 3,
@@ -7282,9 +7298,9 @@
    "parts": 3,
    "q": "After a run of losses",
    "steps": [
-    "Losing streaks happen to the best traders. They can still mess with your head and your execution.",
-    "After a big loss, step away first. Come back smaller, and add size back only as your execution proves itself.",
-    "Here's our rule: after a 6% drawdown, max position size drops to 10%. Deeper drawdowns cut it further."
+    "Losing streaks hit the best traders. Even a small one can get in your head and mess with your execution.",
+    "After a big loss, step away first. The urge to jump right back in is strong. Let it pass.",
+    "No streak rule for us. Only drawdown cuts size: down 6%, max position 10%. Down 8%, max 8%. Down 10%, max 5%."
    ],
    "subject": "F8.04#w3"
   },
@@ -7308,7 +7324,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Our trading rules",
-      "quote": "After a 6% drawdown I immediately reduce to 10% max. After an 8% drawdown I reduce to 8% max. And after 10% drawdown I reduce to 5% max.",
+      "quote": "After a 6% drawdown I immediately reduce to 10% max. After an 8% drawdown I reduce to 8% max. And after 10% drawdown I reduce to 5% max. … B17. No losing-streak rule: size is cut only by the drawdown ladder, in percent (A8, B13, B14).",
       "tier": 3,
       "url": null
      }
@@ -8972,7 +8988,7 @@
   "difficulty": 1,
   "id": "si_40f1295a75a4",
   "lesson_origin": "session",
-  "lesson_text": "Overconfidence can show up as bigger positions. And bigger positions lose money faster when you're wrong.",
+  "lesson_text": "Bigger positions lose money a lot faster when you're wrong. Feeling hot is exactly when to stay humble.",
   "module": "F8",
   "prompt_json": {
    "order": 1,
@@ -8980,10 +8996,10 @@
    "parts": 3,
    "q": "What a run does to your head",
    "steps": [
-    "A run of winners feels like proof you've figured it out.",
-    "That's self-attribution: the wins are your skill, the losses are bad luck or someone else's fault.",
-    "Gervais and Odean show where it leads. Traders take too much credit for their successes and become overconfident.",
-    "Overconfidence can show up as bigger positions. And bigger positions lose money faster when you're wrong."
+    "A run of winners feels like proof you've finally figured this game out.",
+    "That's self-attribution. The wins are your skill. The losses are bad luck, or somebody else's fault.",
+    "Take too much credit for the wins and you get overconfident. And overconfidence shows up as bigger positions.",
+    "Bigger positions lose money a lot faster when you're wrong. Feeling hot is exactly when to stay humble."
    ],
    "subject": "F8.05#w1"
   },
@@ -9043,7 +9059,7 @@
   "difficulty": 1,
   "id": "si_ae1058626ee8",
   "lesson_origin": "session",
-  "lesson_text": "Profit is not play money. It's your money, and it follows your normal rules.",
+  "lesson_text": "Profit isn't play money. It's your money, and it follows your normal rules.",
   "module": "F8",
   "prompt_json": {
    "order": 2,
@@ -9051,9 +9067,9 @@
    "parts": 3,
    "q": "There's no house money",
    "steps": [
-    "After a gain, people tend to take more risk. Thaler and Johnson called it the house money effect.",
-    "It hits pros too. Market makers on Taiwan's index options market took above-average risk after a profitable morning.",
-    "Profit is not play money. It's your money, and it follows your normal rules."
+    "After a gain, people take more risk. It's called the house money effect, like betting with the casino's chips.",
+    "Pros do it too. On Taiwan's index options market, even market makers took bigger risks after a profitable morning.",
+    "Profit isn't play money. It's your money, and it follows your normal rules."
    ],
    "subject": "F8.05#w2"
   },
@@ -9099,7 +9115,7 @@
   "difficulty": 1,
   "id": "si_aeaf7eae1c28",
   "lesson_origin": "session",
-  "lesson_text": "What you never do is raise the percent because you feel hot. One oversized loss can wipe out the run.",
+  "lesson_text": "What you never do is raise the percent because you feel hot. One oversized loss can wipe out the whole run.",
   "module": "F8",
   "prompt_json": {
    "order": 3,
@@ -9107,9 +9123,9 @@
    "parts": 3,
    "q": "Keep the risk flat",
    "steps": [
-    "Write your risk per trade into your plan before the run starts.",
-    "As the account grows, the same percent means more dollars. That's compounding by rule, and it's fine.",
-    "What you never do is raise the percent because you feel hot. One oversized loss can wipe out the run."
+    "Write your risk per trade into the plan before any run starts. A calm day, one number.",
+    "As the account grows, the same percent is more dollars. That's compounding by rule, and it's fine.",
+    "What you never do is raise the percent because you feel hot. One oversized loss can wipe out the whole run."
    ],
    "subject": "F8.05#w3"
   },
@@ -9136,6 +9152,13 @@
       "quote": "However, a doubling down on a given winning bet exposes him to a single large loss that may wipe out previous gains.",
       "tier": 2,
       "url": "https://www.investopedia.com/terms/a/antimartingale.asp"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "Never raise risk past the rules after a run of winners.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -10340,7 +10363,7 @@
   "difficulty": 1,
   "id": "si_2964f2cd7a25",
   "lesson_origin": "session",
-  "lesson_text": "That flaw drives the emotional swings and the same mistake, again and again. Find it and you know what to fix.",
+  "lesson_text": "That flaw drives the swings and the same mistake, again and again. Find it and you know what to fix.",
   "module": "F8",
   "prompt_json": {
    "order": 1,
@@ -10348,9 +10371,9 @@
    "parts": 3,
    "q": "The rock in your shoe",
    "steps": [
-    "Fear, greed, anger. They feel like the problem. Coach Jared Tendler says they're the pain, and pain is a signal.",
-    "The problem is the rock: a hidden flaw in your thinking, like the need to be right.",
-    "That flaw drives the emotional swings and the same mistake, again and again. Find it and you know what to fix."
+    "Fear, greed, anger. They feel like the problem. Jared Tendler says they're the pain, and pain's just a signal.",
+    "The real problem is the rock in your shoe. A hidden flaw in how you think, like needing to be right.",
+    "That flaw drives the swings and the same mistake, again and again. Find it and you know what to fix."
    ],
    "subject": "F8.06#w1"
   },
@@ -10389,7 +10412,7 @@
   "difficulty": 1,
   "id": "si_6940c318e0d1",
   "lesson_origin": "session",
-  "lesson_text": "Step 5: explain why the correction is correct. Draft it, set it down for a day or two, then come back.",
+  "lesson_text": "Five, explain why the correction's right. Then put it down a day or two and come back to it.",
   "module": "F8",
   "prompt_json": {
    "order": 2,
@@ -10397,9 +10420,9 @@
    "parts": 3,
    "q": "Five steps, on paper",
    "steps": [
-    "Step 1: describe the problem in detail. Step 2: explain why it makes sense that you react that way.",
-    "Step 3: explain why that logic is flawed. Step 4: come up with a correction to it.",
-    "Step 5: explain why the correction is correct. Draft it, set it down for a day or two, then come back."
+    "Grab a pen. One, write out the problem in detail. Two, explain why it makes sense you react that way.",
+    "Three, show where that logic breaks. Four, write the correction.",
+    "Five, explain why the correction's right. Then put it down a day or two and come back to it."
    ],
    "subject": "F8.06#w2"
   },
@@ -10438,7 +10461,7 @@
   "difficulty": 1,
   "id": "si_bcfb97f9e25e",
   "lesson_origin": "session",
-  "lesson_text": "Next session, when the urge shows up, you remind yourself of that line. Early, ideally before it builds. Then again, every time.",
+  "lesson_text": "Next session the urge shows up. He says that line early, before it builds. Then again, every single time.",
   "module": "F8",
   "prompt_json": {
    "order": 3,
@@ -10446,9 +10469,9 @@
    "parts": 3,
    "q": "A worked example",
    "steps": [
-    "A trader keeps forcing trades in the opening range. To him, it feels like proving something to himself.",
+    "One trader kept forcing trades in the opening range. To him, it felt like proving something to himself.",
     "The flaw: he made it about himself, not the market. His correction: take what the market gives you.",
-    "Next session, when the urge shows up, you remind yourself of that line. Early, ideally before it builds. Then again, every time."
+    "Next session the urge shows up. He says that line early, before it builds. Then again, every single time."
    ],
    "subject": "F8.06#w3"
   },
@@ -11975,7 +11998,7 @@
   "difficulty": 1,
   "id": "si_466448f316e4",
   "lesson_origin": "session",
-  "lesson_text": "So your trading day has three parts: warm up, trade, cool down.",
+  "lesson_text": "So your day has three parts. Warm up, trade, cool down.",
   "module": "F8",
   "prompt_json": {
    "order": 1,
@@ -11983,9 +12006,9 @@
    "parts": 3,
    "q": "Trading is a performance",
    "steps": [
-    "Singers, musicians and athletes all warm up before they perform. Coach Brett Steenbarger wants you to do the same.",
-    "Treat trading as a profession. Elite performers spend more time preparing than performing.",
-    "So your trading day has three parts: warm up, trade, cool down."
+    "Singers, musicians, athletes. Nobody serious walks out cold. They warm up first, and so should you.",
+    "Treat trading like a profession. The best performers spend more time preparing than performing.",
+    "So your day has three parts. Warm up, trade, cool down."
    ],
    "subject": "F8.07#w1"
   },
@@ -12038,7 +12061,7 @@
   "difficulty": 1,
   "id": "si_dabcca5eab54",
   "lesson_origin": "session",
-  "lesson_text": "Write an if-then rule for that mistake, like stepping away after a set loss. Commit to it before the bell.",
+  "lesson_text": "Tired, sick, angry or distracted, and it's a no-new-trades day. That's part of the plan too.",
   "module": "F8",
   "prompt_json": {
    "order": 2,
@@ -12046,9 +12069,10 @@
    "parts": 3,
    "q": "Before the open",
    "steps": [
-    "Start with the game plan: today's names, the levels, and an entry and stop for each.",
-    "Then check the trader. How you slept, what's on your mind, which mistake is most likely today.",
-    "Write an if-then rule for that mistake, like stepping away after a set loss. Commit to it before the bell."
+    "Start with the game plan. Today's names, the levels, and an entry, stop and size for each one.",
+    "Then check the trader. How you slept, what's on your mind, which mistake is most likely to bite today.",
+    "Write an if-then for that mistake, like a 15-minute break when the urge hits. Commit to it before the bell.",
+    "Tired, sick, angry or distracted, and it's a no-new-trades day. That's part of the plan too."
    ],
    "subject": "F8.07#w2"
   },
@@ -12068,6 +12092,13 @@
       "quote": "Ideas must include entries/stops/targets/risk amount",
       "tier": 2,
       "url": "https://traderfeed.blogspot.com/2015/03/best-practices-in-trading-organizing_2.html"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "Every planned buy has its entry, stop and size written down before the market opens. … Tired, sick, angry or distracted: no new trades that day.",
+      "tier": 3,
+      "url": null
      },
      {
       "accessed": "2026-11-09",
@@ -12108,7 +12139,7 @@
   "difficulty": 1,
   "id": "si_36206e3b15b7",
   "lesson_origin": "session",
-  "lesson_text": "Then pick one thing to work on tomorrow. One thing, and specific. Small daily steps add up.",
+  "lesson_text": "Then pick one thing to work on tomorrow. One thing, and specific. Small steps every day add up.",
   "module": "F8",
   "prompt_json": {
    "order": 3,
@@ -12116,9 +12147,9 @@
    "parts": 3,
    "q": "During and after",
    "steps": [
-    "During the session, trade the plan. Take short breaks before you're drained, not after.",
-    "After the close, write it up while it's fresh: what went well, what went wrong, what to do better.",
-    "Then pick one thing to work on tomorrow. One thing, and specific. Small daily steps add up."
+    "During the session, trade the plan. Take a short break before you're drained, not after.",
+    "After the close, write it up while it's fresh. What went well, what went wrong, what you'd do better.",
+    "Then pick one thing to work on tomorrow. One thing, and specific. Small steps every day add up."
    ],
    "subject": "F8.07#w3"
   },
@@ -12138,6 +12169,13 @@
       "quote": "What did you do well in general and/or improve on the things you've been working on? What mistakes did you make? How can you improve on them and/or be better next time?",
       "tier": 2,
       "url": "https://jaredtendler.com/effective-journaling/"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "Journal every trade the same day and review the week every weekend, ideally.",
+      "tier": 3,
+      "url": null
      },
      {
       "accessed": "2026-11-09",

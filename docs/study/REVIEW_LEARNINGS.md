@@ -152,3 +152,31 @@ Each failure behind this loop happened; the fixes say why each step exists.
    charts and reveal included, not chat text. Chat hid the charts ("I cant see it").
 7. **Tell him in a few lines what was learned and what changed**, then keep the questions in front of him. Do not
    bury them under status updates.
+
+### His rules we keep getting wrong (the checkers' catches, 2026-11-17)
+
+Every writer gets this list, and every checker tests against it. Each line was caught in a rewrite at least once.
+
+- Below the 200-day is a hard no for a STOCK. Only indexes and levered ETFs are excepted (D-009).
+- Breakeven is 2R to 5R, or at the first sell, as judgment. It is never fixed at 2R (D-013).
+- The first sell is judgment, usually day 3 or later, into a 3, 5 or 7 day push. It is never a fixed third at 3R.
+- Our trails are the 9 and 20 EMA, never the 10-day or 21-day (D-021). A research measurement on those stays a
+  measurement.
+- The stop is the exit. A close back inside the base is a warning, not a sell by itself.
+- We buy as price trades through the level, never at the close. A risk measured from a close fill isn't ours.
+- A stop is 1-3%, up to 5%. Past 5% we mostly wait; never show a wider stop as a normal trade we take.
+- Volume raises the grade. It is never a must.
+- The market reading is a guide, and Red is mostly cash. "No buys in Red" is not a rule (F65).
+- Total open risk is a guide that moves with the market, never a hard cap (A10).
+- There's no daily loss limit (B15), no weekly one, and no losing-streak rule (B17). Size is cut only by the drawdown
+  ladder. The only loss limit is monthly: 8% down in a calendar month, no new trades that month (B16).
+- There's no cap on trades per day. The cap is per stock: 3 tries in a week, 6 in a month (E56). Tired, sick, angry or
+  distracted: no new trades that day.
+- Earnings: no new buys in the 3 days before a report. Hold through one only if the trade is up 5R (B22). Halving
+  size into a report is an outside idea, not ours.
+- No new buys outside regular trading hours.
+- We trade shares. An option is an occasional defined-risk buy, and the premium is the stop (A6, B25). The member
+  never sells an option as our trade.
+- Shorting is only for traders who've already made $1 million trading (D-001).
+- A card proposal or a scanner cutoff is never our rule. Neither is the 50-day over the 200-day; that's a plus.
+- Never give one of his rules a reason he didn't give.

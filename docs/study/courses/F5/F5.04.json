@@ -685,26 +685,28 @@
    "key": "w1",
    "title": "Four times a year",
    "steps": [
-    "A quarter ends. Over the next few weeks, most public companies report. That's earnings season.",
-    "Most use calendar quarters, so it usually starts in early to mid January, April, July and October.",
-    "Hundreds of names report in a short window. It can be a busy, volatile stretch for the market."
+    "A quarter ends, and over the next few weeks most public companies report. That's earnings season.",
+    "Most run on calendar quarters, so it kicks off early to mid January, April, July and October.",
+    "Hundreds of names report in a short window. It gets busy, and it can get volatile.",
+    "So check the date on everything you own or want. We don't buy in the 3 days before a report."
    ],
    "facts": [
     "f1",
     "f2",
     "f3",
     "f44",
-    "f15"
+    "f15",
+    "h01"
    ]
   },
   {
    "key": "w2",
    "title": "Before the open or after the close",
    "steps": [
-    "Most companies report while regular trading is shut: before the 9:30 a.m. open or after the 4:00 p.m. close.",
-    "After the close, the stock can swing after hours. The regular session first takes the news at the next open.",
-    "Before the open, that same morning's open takes it. Either way, the close before the report is your last regular-session exit.",
-    "Get the time from the company's own release. Meta's said after the close on Feb. 2, 2022."
+    "Most companies report while the market's shut: before the 9:30 a.m. open or after the 4:00 p.m. close.",
+    "Report after the close and it can swing after hours. The regular session gets its say at the next open.",
+    "Report before the open, and that morning's open takes it. Either way, the close before is your last regular-session exit.",
+    "Get the time from the company's own release. Meta's said after the close on February 2, 2022."
    ],
    "facts": [
     "f7",
@@ -719,9 +721,9 @@
    "key": "w3",
    "title": "The implied move",
    "steps": [
-    "Options price in a move for the report, a plus or minus number. That's the implied move, also called the expected move.",
-    "It's a size, not a direction, and not a cap. The real move can be bigger or smaller.",
-    "Put it in dollars on your position. A stop is a trigger, not a price. It can't catch that gap."
+    "The options market puts a number on the report: a move, plus or minus. That's the implied move, or the expected move.",
+    "It's a size, not a direction. And it's not a cap. The real move can be bigger, smaller, or nothing at all.",
+    "Your stop can't catch a gap. So put that move in dollars on your whole position before you decide to hold."
    ],
    "facts": [
     "f47",

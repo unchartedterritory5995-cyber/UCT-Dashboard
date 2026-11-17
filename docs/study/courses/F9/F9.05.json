@@ -2,7 +2,7 @@
  "unit": "F9.05",
  "track": "F9",
  "title": "Heat and the book",
- "teaches": "Add up what every open trade loses if its stop is hit and read the total as a single percent of the account, keep that total under a cap you set, and never add to a losing trade: our size goes on at one price with one stop.",
+ "teaches": "Add up what every open trade loses if its stop is hit and read the total as a single percent of the account, treat that total as a guide that moves with the market rather than a hard cap, and never add to a losing trade: our size goes on at one price with one stop.",
  "skills": [
   {
    "id": "risk.heat",
@@ -395,25 +395,26 @@
    "key": "w1",
    "title": "Add up your stops",
    "steps": [
-    "Every open trade with a stop is a bet. The bet is what you lose if that stop is hit.",
-    "Add up the bets on all your open trades, as a percent of the account. That's your total open risk.",
-    "Ed Seykota and Dave Druz call it the heat of the portfolio. 2% on each of five trades is 10%.",
-    "So is 5% on each of two. They found that setting this level matters far more than fine-tuning your trade timing."
+    "Every open trade with a stop is a bet. The bet is what you lose if that stop gets hit.",
+    "Add up the bets on everything you hold, as a percent of the account. That's your total open risk.",
+    "Seykota and Druz call it heat. 2% on each of five trades is 10%. So is 5% on each of two.",
+    "They found that level matters way more than entry timing. Ours moves with the market, a guide, not a hard cap."
    ],
    "facts": [
     "f01",
     "f02",
     "f03",
-    "f04"
+    "f04",
+    "h03"
    ]
   },
   {
    "key": "w2",
    "title": "Five names, one bet",
    "steps": [
-    "FINRA's warning: stocks in the same industry tend to be highly correlated. What hits one is likely to hit the others.",
-    "So five bank stocks aren't five small bets. On bad news for banks, their stops can all go the same day.",
-    "A stop is a trigger, not a promised price. If the whole group gaps down, fills can land past your stops."
+    "Stocks in the same industry tend to move together. What hits one is likely to hit the others.",
+    "So five chip stocks aren't five small bets. One bad headline for semis and all five stops can go the same day.",
+    "And a stop is a trigger, not a price. If the whole group gaps down, you can fill well past your stops."
    ],
    "facts": [
     "f13",

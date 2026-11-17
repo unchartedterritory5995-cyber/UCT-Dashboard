@@ -1466,7 +1466,7 @@
   "difficulty": 1,
   "id": "si_25429c42a74f",
   "lesson_origin": "session",
-  "lesson_text": "Write it down. Some traders use an old notebook, some a spreadsheet. Either works, as long as it's written before the trade.",
+  "lesson_text": "Write it down, notebook or spreadsheet. Entry, stop and size go on paper before the market opens.",
   "module": "F12",
   "prompt_json": {
    "order": 1,
@@ -1474,9 +1474,9 @@
    "parts": 3,
    "q": "Four decisions, made early",
    "steps": [
-    "Every trade is four decisions: what to trade, how much, when to get in, and when to get out.",
-    "A plan makes all four before you click. Investopedia notes most trading experts want no money at risk until it's made.",
-    "Write it down. Some traders use an old notebook, some a spreadsheet. Either works, as long as it's written before the trade."
+    "Every trade is four decisions: what to buy, how much, when to get in, when to get out.",
+    "Make all four before you click. No money goes at risk until the plan is made.",
+    "Write it down, notebook or spreadsheet. Entry, stop and size go on paper before the market opens."
    ],
    "subject": "F12.01#w1"
   },
@@ -1496,6 +1496,13 @@
       "quote": "Most trading experts recommend that no capital should be risked until a trading plan is made. It's a researched and written document that guides a trader's decisions.",
       "tier": 2,
       "url": "https://www.investopedia.com/terms/t/trading-plan.asp"
+     },
+     {
+      "accessed": "2026-11-09",
+      "name": "Our trading rules",
+      "quote": "Every planned buy has its entry, stop and size written down before the market opens.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -1515,7 +1522,7 @@
   "difficulty": 1,
   "id": "si_40aefe419233",
   "lesson_origin": "session",
-  "lesson_text": "Our plans read Entry, Stop, Trim, Trail. Trim: where you take some off. Trail: how the stop follows a winner up.",
+  "lesson_text": "Ours reads Entry, Stop, Trim, Trail. Trim: where you sell some. Trail: how the stop follows a winner up.",
   "module": "F12",
   "prompt_json": {
    "order": 2,
@@ -1523,10 +1530,10 @@
    "parts": 3,
    "q": "What goes on it",
    "steps": [
-    "Start with the why: what you expect, how long it should take, and what could go wrong.",
-    "Then the numbers. The entry, the stop and the target, each one a price you could type into an order.",
+    "Start with the why. What you expect, how long it should take, what could go wrong.",
+    "Then the numbers: entry, stop and target, each a price you could type straight into an order.",
     "Add what would change your mind, and the dates that matter, like the next earnings report.",
-    "Our plans read Entry, Stop, Trim, Trail. Trim: where you take some off. Trail: how the stop follows a winner up."
+    "Ours reads Entry, Stop, Trim, Trail. Trim: where you sell some. Trail: how the stop follows a winner up."
    ],
    "subject": "F12.01#w2"
   },
@@ -1550,7 +1557,7 @@
      {
       "accessed": "2026-11-09",
       "name": "Our trading rules",
-      "quote": "I would rather have Entry, Stop, Trim, Trail, Advance … The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R. … Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+      "quote": "I would rather have Entry, Stop, Trim, Trail, Advance … Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
       "tier": 3,
       "url": null
      },
@@ -1579,7 +1586,7 @@
   "difficulty": 1,
   "id": "si_c84314f13446",
   "lesson_origin": "session",
-  "lesson_text": "Plan your trade, then trade your plan. It's no guarantee of success, but it can help limit some of the risk.",
+  "lesson_text": "Plan your trade, then trade your plan. It won't guarantee a winner, but it takes some of the risk off the table.",
   "module": "F12",
   "prompt_json": {
    "order": 3,
@@ -1587,9 +1594,9 @@
    "parts": 3,
    "q": "Plan it closed, trade it open",
    "steps": [
-    "Pilots have run checklists since the 1930s to stop human error. A written plan does the same job for a trade.",
-    "You write the plan, and change it, while the market is closed. While it's open, you follow it.",
-    "Plan your trade, then trade your plan. It's no guarantee of success, but it can help limit some of the risk."
+    "Pilots have run checklists since the 1930s to stop human error. Your plan does that job for a trade.",
+    "Write it, and change it, while the market's closed. Once it opens, you follow it.",
+    "Plan your trade, then trade your plan. It won't guarantee a winner, but it takes some of the risk off the table."
    ],
    "subject": "F12.01#w3"
   },
@@ -3244,7 +3251,7 @@
   "difficulty": 1,
   "id": "si_fa2e613010d3",
   "lesson_origin": "session",
-  "lesson_text": "Then narrow your list to the few best names. Each gets levels, an entry, a stop and a risk amount.",
+  "lesson_text": "Then cut your list to the 5 to 10 best setups. Each one gets an entry, a stop and a risk amount.",
   "module": "F12",
   "prompt_json": {
    "order": 1,
@@ -3252,10 +3259,10 @@
    "parts": 3,
    "q": "Before the open",
    "steps": [
-    "Run the day on three checkpoints: before the open, during the session, and after the close.",
+    "Split the day in three: before the open, during the session, after the close.",
     "Start wide. Index futures trade nearly 24 hours, so they show how the market took the overnight news.",
-    "Then the calendar. CPI lands at 8:30 a.m. ET, and companies usually report before the open or after the close.",
-    "Then narrow your list to the few best names. Each gets levels, an entry, a stop and a risk amount."
+    "Then the calendar. CPI drops at 8:30 a.m. Eastern, and earnings come before the open or after the close.",
+    "Then cut your list to the 5 to 10 best setups. Each one gets an entry, a stop and a risk amount."
    ],
    "subject": "F12.02#w1"
   },
@@ -3298,6 +3305,13 @@
       "url": "https://www.investopedia.com/terms/w/watchlist.asp"
      },
      {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "Each day, a focus list of the 5 to 10 best setups; the rest are ignored. … Every planned buy has its entry, stop and size written down before the market opens.",
+      "tier": 3,
+      "url": null
+     },
+     {
       "accessed": "2026-11-09",
       "name": "Brett Steenbarger, TraderFeed: Best Practices in Trading: Organizing Your Trading Morning (2015-03-02)",
       "quote": "Ideas must include entries/stops/targets/risk amount",
@@ -3322,7 +3336,7 @@
   "difficulty": 1,
   "id": "si_20376fcef075",
   "lesson_origin": "session",
-  "lesson_text": "The rules you wrote stay the rules. Changes wait until the market is closed.",
+  "lesson_text": "The rules you wrote stay the rules. Changes wait until the market's closed.",
   "module": "F12",
   "prompt_json": {
    "order": 2,
@@ -3330,9 +3344,10 @@
    "parts": 3,
    "q": "During the session",
    "steps": [
-    "Volume is usually heavy early, slows at midday, and picks up again into the close.",
-    "Midday is a check, not a hunt: what you own, your stops, and news due later, like a 2:00 p.m. Fed statement.",
-    "The rules you wrote stay the rules. Changes wait until the market is closed."
+    "Once the bell rings, the action's front-loaded. Volume's heavy early, slows at midday, and picks up into the close.",
+    "Midday is a check, not a hunt. Look at what you own and where your stops sit.",
+    "Then check what's due later, like a 2:00 p.m. Fed statement.",
+    "The rules you wrote stay the rules. Changes wait until the market's closed."
    ],
    "subject": "F12.02#w2"
   },
@@ -3392,7 +3407,7 @@
   "difficulty": 1,
   "id": "si_42d992b1f076",
   "lesson_origin": "session",
-  "lesson_text": "Veteran trader Gatis Roze found his best planned days generally gave his best results.",
+  "lesson_text": "Do that work while the market's closed. The best-planned days tend to give the best results.",
   "module": "F12",
   "prompt_json": {
    "order": 3,
@@ -3400,10 +3415,10 @@
    "parts": 3,
    "q": "After the close",
    "steps": [
-    "The recap starts with what you own. Check each stop, and consider raising it under a new higher low.",
-    "Check who reports tonight or before tomorrow's open. News after the close can gap a stock past your stop.",
-    "Then log today's ideas and write tomorrow's list and levels while the market is closed.",
-    "Veteran trader Gatis Roze found his best planned days generally gave his best results."
+    "After the bell, start with what you own. Check each stop. A new higher low is your chance to raise it.",
+    "Check who reports tonight or before tomorrow's open. News after the close can gap a stock right past your stop.",
+    "Then log today's ideas and write tomorrow's list and levels.",
+    "Do that work while the market's closed. The best-planned days tend to give the best results."
    ],
    "subject": "F12.02#w3"
   },
@@ -3423,6 +3438,13 @@
       "quote": "The best place to buy a market is near support levels. That support is usually a previous reaction low.",
       "tier": 2,
       "url": "https://chartschool.stockcharts.com/table-of-contents/overview/john-murphys-10-laws-of-technical-trading"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "The stop is the exit. It only moves up, never down or wider.",
+      "tier": 3,
+      "url": null
      },
      {
       "accessed": "2026-11-09",
@@ -5169,7 +5191,7 @@
   "difficulty": 1,
   "id": "si_92a5ad0a63f8",
   "lesson_origin": "session",
-  "lesson_text": "Fixed fields and tags can be sorted. Then every trade of one kind comes up at once.",
+  "lesson_text": "Fixed fields and tags can be sorted. One filter pulls up every trade of one kind.",
   "module": "F12",
   "prompt_json": {
    "order": 1,
@@ -5177,9 +5199,9 @@
    "parts": 3,
    "q": "Same fields, every trade",
    "steps": [
-    "Most journals are summaries of the day. One entry is detailed, the next is sketchy, and none of it sorts.",
-    "So log every trade in the same fixed fields. Schwab's worksheet works that way: one sheet, filled out for each trade.",
-    "Fixed fields and tags can be sorted. Then every trade of one kind comes up at once."
+    "Most journals are just a summary of the day. Detailed one day, sketchy the next, and none of it sorts.",
+    "So log every trade in the same fixed fields. Schwab's trade worksheet works that way, one sheet per trade.",
+    "Fixed fields and tags can be sorted. One filter pulls up every trade of one kind."
    ],
    "subject": "F12.03#w1"
   },
@@ -5239,7 +5261,7 @@
   "difficulty": 1,
   "id": "si_6896cf98bf2a",
   "lesson_origin": "session",
-  "lesson_text": "Finish with what worked, what didn't, and one lesson.",
+  "lesson_text": "Finish with what worked, what didn't, and one lesson. We do it the same day.",
   "module": "F12",
   "prompt_json": {
    "order": 2,
@@ -5247,10 +5269,10 @@
    "parts": 3,
    "q": "Before the click, after the close",
    "steps": [
-    "Before you buy, log the date and the plan: why you're taking it, entry, stop, target and size.",
-    "Write the reason now. After the fact, the trade looks easier to call than it was.",
-    "After you close, log the result: the exit, the R it made, and how closely you followed the plan.",
-    "Finish with what worked, what didn't, and one lesson."
+    "Before you buy, log the date and the plan: why you're in, the entry, stop, target and size.",
+    "Write the why now. Once it's over, hindsight makes the trade look easier to call than it was.",
+    "After you sell, log the exit, the result in R, and how closely you followed the plan.",
+    "Finish with what worked, what didn't, and one lesson. We do it the same day."
    ],
    "subject": "F12.03#w2"
   },
@@ -5291,6 +5313,13 @@
       "quote": "All profits and losses can be expressed as a multiple of the initial risk (R) taken.",
       "tier": 2,
       "url": "https://vantharpinstitute.com/glossary/r-multiple"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "Journal every trade the same day and review the week every weekend, ideally.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -5310,7 +5339,7 @@
   "difficulty": 1,
   "id": "si_648ad3983142",
   "lesson_origin": "session",
-  "lesson_text": "Keep it short enough to do on every trade. A journal only works if you keep working it.",
+  "lesson_text": "Keep it light enough to do on every trade. A journal only works if you keep working it.",
   "module": "F12",
   "prompt_json": {
    "order": 3,
@@ -5318,9 +5347,9 @@
    "parts": 3,
    "q": "Tags and a picture",
    "steps": [
-    "Tag the setup, the emotion and any mistake from a short list. Use the same word every time.",
-    "Save the chart when you enter, with your levels marked.",
-    "Keep it short enough to do on every trade. A journal only works if you keep working it."
+    "Tag the setup, how you felt, and any mistake. Same short list, same word every time.",
+    "Save the chart when you buy, with your levels marked on it.",
+    "Keep it light enough to do on every trade. A journal only works if you keep working it."
    ],
    "subject": "F12.03#w3"
   },
@@ -6915,7 +6944,7 @@
   "difficulty": 1,
   "id": "si_a7a23895d07e",
   "lesson_origin": "session",
-  "lesson_text": "And one for his preparation: morning exercise, a look at the markets and a review of the day before.",
+  "lesson_text": "Third, your prep. His is exercise, a look at the markets, and a review of yesterday, all before the open.",
   "module": "F12",
   "prompt_json": {
    "order": 1,
@@ -6923,10 +6952,10 @@
    "parts": 3,
    "q": "Three grades, every day",
    "steps": [
-    "Brett Steenbarger gives himself at least three grades every trading day.",
-    "One for his ideas: whether the trade had a genuine edge behind it.",
-    "One for how he traded them: the entry, the size, the management and the exit.",
-    "And one for his preparation: morning exercise, a look at the markets and a review of the day before."
+    "Trading coach Brett Steenbarger gives himself at least three grades every trading day. Do the same.",
+    "First, your ideas. A real edge behind the trade, or just a bias or a headline pulling you in.",
+    "Second, how you traded it. A good entry or a chase, then the size, how you managed it, and the exit.",
+    "Third, your prep. His is exercise, a look at the markets, and a review of yesterday, all before the open."
    ],
    "subject": "F12.04#w1"
   },
@@ -6965,7 +6994,7 @@
   "difficulty": 1,
   "id": "si_3b0ecb4b12b4",
   "lesson_origin": "session",
-  "lesson_text": "So grade what you did. A trade made on everything your plan asks for is an A, even if it lost.",
+  "lesson_text": "So grade what you did. Follow your whole plan and it's an A trade, even if it lost.",
   "module": "F12",
   "prompt_json": {
    "order": 2,
@@ -6974,8 +7003,8 @@
    "q": "The result is not the grade",
    "steps": [
     "In poker you can win with the worst hand and lose with the best. One trade works the same way.",
-    "Grading a decision by how it turned out is what Annie Duke calls resulting.",
-    "So grade what you did. A trade made on everything your plan asks for is an A, even if it lost."
+    "Judging a decision by how it turned out is what Annie Duke calls resulting.",
+    "So grade what you did. Follow your whole plan and it's an A trade, even if it lost."
    ],
    "subject": "F12.04#w2"
   },
@@ -7028,7 +7057,7 @@
   "difficulty": 1,
   "id": "si_d76aa7b4531a",
   "lesson_origin": "session",
-  "lesson_text": "Grade each trade on process. Then let the pile of trades judge the setup.",
+  "lesson_text": "So grade each trade on process. Let the pile judge the setup.",
   "module": "F12",
   "prompt_json": {
    "order": 3,
@@ -7036,9 +7065,9 @@
    "parts": 3,
    "q": "When the results do count",
    "steps": [
-    "One trade tells you very little. Many trades taken the same way start to tell you something.",
-    "Jared Tendler calls money the scoreboard, just not for the short term. He points to three to six months.",
-    "Grade each trade on process. Then let the pile of trades judge the setup."
+    "One trade tells you almost nothing. A pile of trades taken the same way starts to talk.",
+    "Money is the scoreboard, just not in the short run. Jared Tendler looks at three to six months.",
+    "So grade each trade on process. Let the pile judge the setup."
    ],
    "subject": "F12.04#w3"
   },
@@ -8935,17 +8964,17 @@
   "difficulty": 1,
   "id": "si_c600d9c847e3",
   "lesson_origin": "session",
-  "lesson_text": "Every month, sort every trade by setup and see what the market is paying for. That sets next month's goals.",
+  "lesson_text": "Every month, sort every trade by setup. See which kind the market's paying for, and set next month's goals.",
   "module": "F12",
   "prompt_json": {
    "order": 1,
    "part": 1,
    "parts": 3,
-   "q": "Three clocks",
+   "q": "Day, week, month",
    "steps": [
     "Every day, log each trade while it's fresh: the setup, the result in R, and any rule you broke.",
-    "Every week, check last week's change first. Then pick the biggest leak and turn it into one concrete change.",
-    "Every month, sort every trade by setup and see what the market is paying for. That sets next month's goals."
+    "Every weekend, check last week's goal first. Then find the biggest leak and turn it into one concrete change.",
+    "Every month, sort every trade by setup. See which kind the market's paying for, and set next month's goals."
    ],
    "subject": "F12.05#w1"
   },
@@ -8993,6 +9022,13 @@
       "quote": "The successful money managers I've worked with have had structured processes for previewing markets, viewing markets during trading hours, and reviewing trading once the day and week are finished. … At the end of each month, I perform a post-analysis on all of my trades. … Sometimes breakouts are working, or mean reversion, or pullback trades. The only way to determine this is by breaking down every trade at the end of each month. … From this, I can set goals for the next month.",
       "tier": 2,
       "url": "https://traderfeed.blogspot.com/2015/03/best-practices-in-trading-conducting.html"
+     },
+     {
+      "accessed": "2026-11-12",
+      "name": "Our trading rules",
+      "quote": "Journal every trade the same day and review the week every weekend, ideally.",
+      "tier": 3,
+      "url": null
      }
     ]
    },
@@ -9012,7 +9048,7 @@
   "difficulty": 1,
   "id": "si_87780c365a93",
   "lesson_origin": "session",
-  "lesson_text": "Few trades, little proof. Tharp wants over thirty results for a rough read, and 100 to 200 for a clear one.",
+  "lesson_text": "A handful of trades proves nothing. You want over thirty for a rough read, and 100 to 200 for a clear one.",
   "module": "F12",
   "prompt_json": {
    "order": 2,
@@ -9020,9 +9056,9 @@
    "parts": 3,
    "q": "A setup's numbers",
    "steps": [
-    "For each setup, count the trades, the win rate, and the average win and loss.",
-    "Add the results in R and divide by the count. That average R is what the setup has paid per trade.",
-    "Few trades, little proof. Tharp wants over thirty results for a rough read, and 100 to 200 for a clear one."
+    "For each setup, count the trades, the win rate, and the average win against the average loss.",
+    "Add up the results in R and divide by the count. That average R is what the setup pays per trade.",
+    "A handful of trades proves nothing. You want over thirty for a rough read, and 100 to 200 for a clear one."
    ],
    "subject": "F12.05#w2"
   },
@@ -9085,7 +9121,7 @@
    "steps": [
     "Go back through your recent trades and tag every rule you broke.",
     "Add up what each kind of mistake cost you in R.",
-    "The costliest one becomes next week's single goal. Write exactly what you'll do differently.",
+    "The costliest one becomes next week's only goal. Write exactly what you'll do differently, not 'be more careful.'",
     "Next Sunday, check that goal before you set anything new."
    ],
    "subject": "F12.05#w3"
@@ -10232,7 +10268,7 @@
   "difficulty": 1,
   "id": "si_28d7d11bb308",
   "lesson_origin": "session",
-  "lesson_text": "The writing is the practice. It helps you act when the play shows up again, instead of hesitating.",
+  "lesson_text": "The writing is the practice. Next time that play shows up, it helps you act instead of hesitating.",
   "module": "F12",
   "prompt_json": {
    "order": 1,
@@ -10240,9 +10276,9 @@
    "parts": 3,
    "q": "Your plays, written down",
    "steps": [
-    "Your playbook is your set of plays, like a team's: setups that make sense to you and that you want more of.",
-    "At SMB Capital, Mike Bellafiore's traders write one up after each session: the setup that made the most sense.",
-    "The writing is the practice. It helps you act when the play shows up again, instead of hesitating."
+    "A football team has a playbook, the plays it runs in different spots. Yours holds the setups you want more of.",
+    "At SMB Capital, Mike Bellafiore's traders write one up after every session: the setup that made the most sense to them.",
+    "The writing is the practice. Next time that play shows up, it helps you act instead of hesitating."
    ],
    "subject": "F12.06#w1"
   },
@@ -10288,7 +10324,7 @@
   "difficulty": 1,
   "id": "si_af56dfd17eb8",
   "lesson_origin": "session",
-  "lesson_text": "A pattern is only part of a play. Trading coach Brett Steenbarger adds sizing, targets, adds and exits.",
+  "lesson_text": "Just drawing the pattern is shortsighted, says trading coach Brett Steenbarger. Write the size, the targets, the adds and the exits too.",
   "module": "F12",
   "prompt_json": {
    "order": 2,
@@ -10296,10 +10332,10 @@
    "parts": 3,
    "q": "One page, section by section",
    "steps": [
-    "His desk's form opens with a short name for the play. Then come the sections.",
-    "His book breaks each trade down in order: big picture, intraday fundamentals, technical analysis, tape reading, trade management, trade strategy, trade review.",
-    "In the SYY page he shared, the earnings beat sits under intraday fundamentals. The price levels sit under technical analysis.",
-    "A pattern is only part of a play. Trading coach Brett Steenbarger adds sizing, targets, adds and exits."
+    "Each page starts with a short name for the play, like \"Gap and Go.\" Then you work the trade section by section.",
+    "His book's order: big picture, intraday fundamentals, technical analysis, tape reading, trade management, trade strategy, trade review.",
+    "On the Sysco page he shared, the earnings beat goes under fundamentals. The 30.50, 31.50 and 32 levels go under technicals.",
+    "Just drawing the pattern is shortsighted, says trading coach Brett Steenbarger. Write the size, the targets, the adds and the exits too."
    ],
    "subject": "F12.06#w2"
   },
@@ -10345,7 +10381,7 @@
   "difficulty": 1,
   "id": "si_28ce7d692d89",
   "lesson_origin": "session",
-  "lesson_text": "First sell: judgment, usually day 3 or later. Trail under each higher low or the 9 EMA. That's the page.",
+  "lesson_text": "Sell some into a push, usually day 3 or later. Trail the rest under each higher low or the 9 EMA.",
   "module": "F12",
   "prompt_json": {
    "order": 3,
@@ -10353,9 +10389,10 @@
    "parts": 3,
    "q": "Make it yours: our Kicker page",
    "steps": [
-    "Bellafiore trades intraday and says you may trade a different time frame. Build the page in a format that works for you.",
-    "Kicker entry: over the red day's high, at market. Stop: under the Kicker candle's low, or 3.5% under entry if closer.",
-    "First sell: judgment, usually day 3 or later. Trail under each higher low or the 9 EMA. That's the page."
+    "Bellafiore trades intraday, and he says you may trade a different time frame. So build the page your way.",
+    "Here's ours for a Kicker. We buy at market as it trades through the red day's high.",
+    "The stop goes under the Kicker's low, or 3.5% under your entry if that's closer.",
+    "Sell some into a push, usually day 3 or later. Trail the rest under each higher low or the 9 EMA."
    ],
    "subject": "F12.06#w3"
   },
@@ -10384,9 +10421,9 @@
       "url": null
      },
      {
-      "accessed": "2026-11-09",
+      "accessed": "2026-11-12",
       "name": "Our trading rules",
-      "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R. … Later sells are a judgment too: sell more into strength on a later push, and trail what is left. … Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+      "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R. … We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest. … Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
       "tier": 3,
       "url": null
      }
@@ -12555,7 +12592,7 @@
   "difficulty": 1,
   "id": "si_ceccab6de501",
   "lesson_origin": "session",
-  "lesson_text": "One bad line can sink the trade. That's the line you're hunting for.",
+  "lesson_text": "One bad line can sink the trade. Find it before the market does.",
   "module": "F12",
   "prompt_json": {
    "order": 1,
@@ -12563,9 +12600,9 @@
    "parts": 3,
    "q": "Read the plan line by line",
    "steps": [
-    "A plan is written before you buy. It names the setup, the entry, the stop and the size.",
-    "Read it one line at a time. Ask if that line keeps the loss small and decided in advance.",
-    "One bad line can sink the trade. That's the line you're hunting for."
+    "Your plan gets written before you buy. The setup, the entry, the stop, the size, and how you get out.",
+    "Now read it one line at a time. Ask if each line keeps the loss small and decided before you're in.",
+    "One bad line can sink the trade. Find it before the market does."
    ],
    "subject": "F12.07#w1"
   },
@@ -12604,7 +12641,7 @@
   "difficulty": 1,
   "id": "si_d3d1323400b1",
   "lesson_origin": "session",
-  "lesson_text": "Our ceiling is 2% of the account on any one trade. Every line has to respect it.",
+  "lesson_text": "We never risk more than 2% of the account on one trade. A line that breaks that gets fixed before you buy.",
   "module": "F12",
   "prompt_json": {
    "order": 2,
@@ -12612,9 +12649,9 @@
    "parts": 3,
    "q": "The mistakes that grow a loss",
    "steps": [
-    "No stop. A stop moved lower. Shares added to a loser. Each one lets the loss grow past your plan.",
-    "Sizing before the stop breaks the plan. You risk losing big, or the stop gets squeezed to fit.",
-    "Our ceiling is 2% of the account on any one trade. Every line has to respect it."
+    "No stop. A stop moved lower. Buying more of a loser. Each one lets the loss grow past what you planned.",
+    "Size picked before the stop is backwards. Either you risk losing big, or the stop gets squeezed to fit.",
+    "We never risk more than 2% of the account on one trade. A line that breaks that gets fixed before you buy."
    ],
    "subject": "F12.07#w2"
   },
@@ -12667,7 +12704,7 @@
   "difficulty": 1,
   "id": "si_54858e11c869",
   "lesson_origin": "session",
-  "lesson_text": "Smaller size limits what a gap can cost. A limit order guards against a bad fill in a thin market.",
+  "lesson_text": "And no market orders in a thin premarket. We don't buy outside regular hours at all.",
   "module": "F12",
   "prompt_json": {
    "order": 3,
@@ -12675,9 +12712,10 @@
    "parts": 3,
    "q": "The mistakes of timing and feel",
    "steps": [
-    "Chasing a stock far past its breakout. Trading bigger to win back a loss.",
-    "Holding full size into earnings, as if a stop could catch a gap. A market order into a thin premarket.",
-    "Smaller size limits what a gap can cost. A limit order guards against a bad fill in a thin market."
+    "Some mistakes are about timing and feel. Chasing a stock far past its breakout. Sizing up to win back a loss.",
+    "Full size into earnings, trusting the stop to save you. It can't: a gap jumps right past it.",
+    "So our rule: no new buys in the 3 days before a report. Hold through one only if you're up 5R.",
+    "And no market orders in a thin premarket. We don't buy outside regular hours at all."
    ],
    "subject": "F12.07#w3"
   },
@@ -12707,17 +12745,10 @@
      },
      {
       "accessed": "2026-11-09",
-      "name": "SEC, Investor.gov: Extended-Hours Trading: Investor Bulletin (2022-06-06)",
-      "quote": "With respect to extended-hours trading, many brokerage firms currently accept only limit orders in order to protect investors from unexpectedly bad prices.",
-      "tier": 1,
-      "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-42"
-     },
-     {
-      "accessed": "2026-11-09",
-      "name": "Investopedia: Master Position Sizing: Minimize Risk and Boost Investment Returns (James Chen, updated 2026-07-01)",
-      "quote": "If expecting volatility, like before earnings reports, investors might halve their position size to cut gap risk.",
-      "tier": 2,
-      "url": "https://www.investopedia.com/terms/p/positionsizing.asp"
+      "name": "Our trading rules",
+      "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R. … No new buys outside regular trading hours.",
+      "tier": 3,
+      "url": null
      }
     ]
    },

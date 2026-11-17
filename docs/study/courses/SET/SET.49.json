@@ -1174,10 +1174,10 @@
    "key": "w1",
    "title": "ALB, May 2010: the tiny stop",
    "steps": [
-    "ALB on 2010-05-06, the flash-crash session. The low is 17.2% under the 10-day high close and 3.94 ATR under the prior close.",
-    "Three lower closes, then a spike low. We do not buy the flush close. We wait for the turn.",
-    "On 2010-05-07 it undercuts 38.31 and closes at 39.23. The buy is the reclaim, 38.49, as a market order.",
-    "The stop is 38.26, 0.6% away. A stop that tight puts 5R only about 3% above the buy."
+    "May 6, 2010, the flash crash. ALB drops 17.2% off its 10-day high close, after three lower closes.",
+    "That's the flush. We don't buy that close. We wait for the turn.",
+    "May 7 it undercuts 38.31 and closes 39.23. We buy the reclaim at market, 38.49.",
+    "Stop 38.26, just 0.6% away. With a stop that tight, 5R is only about 3% above your buy."
    ],
    "facts": [
     "d01",
@@ -1190,10 +1190,10 @@
    "key": "w2",
    "title": "OKTA, April 2025: the Monday turn",
    "steps": [
-    "On Friday 2025-04-04 OKTA's low is 23.4% under its 10-day high close, 2.67 ATR under the prior close, on 2.28x volume.",
-    "On Monday, 2025-04-07, it opens at 88.34 under the flush low, undercuts to 87.93 and closes at 91.24.",
-    "We buy the reclaim at 89.37. The stop sits a few cents under the undercut low, 87.88.",
-    "That stop is 1.7% away. Several down days into a Friday, then a Monday turn: Bracco's Monday Effect."
+    "OKTA, April 2025. Thursday and Friday it flushes 23.4% off its 10-day high close, on 2.28x volume.",
+    "Monday, April 7, it opens 88.34, under the flush low. It undercuts to 87.93, then closes 91.24.",
+    "Buy the reclaim at market, 89.37. Stop a few cents under the undercut low, 87.88, 1.7% away.",
+    "Down days into a Friday, then a Monday gap that gets bought. Bracco calls that the Monday Effect. Learn to spot it."
    ],
    "facts": [
     "d07",
@@ -1207,10 +1207,10 @@
    "key": "w3",
    "title": "BN, March 2020: the crash had one more leg",
    "steps": [
-    "BN on 2020-03-09 flushes 16.5% off its 10-day high, 3.29 ATR, on 3.03x volume.",
-    "The reclaim comes the next day. We buy 19.57 with a stop at 19.40, 0.89% away.",
-    "On 2020-03-11 the low is 18.98, through the stop. The index made a new low the same week.",
-    "The stock traded 41% under the buy. The crash had one more leg. The stop kept the loss small."
+    "Not every flush is the bottom. BN, March 9, 2020: down 16.5% off its 10-day high on 3.03x volume.",
+    "Next day it reclaims. Buy at market, 19.57, stop 19.40. That's only 0.89% of risk.",
+    "March 11 the low hits 18.98, right through the stop. The index made a new low that same week.",
+    "The crash had one more leg. BN traded 41% under the buy. The stop kept that a tiny loss."
    ],
    "facts": [
     "d10",

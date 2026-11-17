@@ -1149,10 +1149,10 @@
    "key": "w1",
    "title": "SRPT, June 2015: the textbook pole and flag",
    "steps": [
-    "SRPT, 2015. A report, then a +60% day tops a near-vertical two-week run: +129% in 14 sessions.",
-    "Then a 14-day sideways flag, 15.0% deep, on lighter volume. It rides the 20 EMA. The pattern high is the line.",
-    "2015-06-10: it trades through the high. Buy at market, 27.50. Stop a few cents under the day's low, 26.59.",
-    "Failure mode: a breakout nobody buys, stopped next session. Instead 3R comes on day 5. Time for the first sell."
+    "SRPT reported in May 2015, then had a 60% day. That topped a near-vertical run, up 129% in 14 sessions.",
+    "Then a 14-day sideways flag, 15.0% deep, on lighter volume, riding its rising averages. The pattern high is the line.",
+    "June 10 it trades through that high. Buy at market, 27.50. Stop just under the day's low, 26.59.",
+    "A breakout nobody buys gets stopped the next session. This one: 3R on day 5. Sell into a push, trail the rest."
    ],
    "facts": [
     "d01",
@@ -1170,10 +1170,10 @@
    "key": "w2",
    "title": "SOFI, November 2024: a gap over the high",
    "steps": [
-    "SOFI, 2024. The pole holds a report: +91% in 28 sessions. Then a 7-day flag, 9.9% deep.",
-    "The pattern high is 14.44. The stock gaps over it. The open is 1.5% past the high, inside the 4% line.",
-    "So the fill is the open, 14.65, at market. The stop sits under the day's low, 14.24: 2.8% of risk.",
-    "Failure mode: a close back under the high, stop taken next day. Instead 3R comes on day 3."
+    "SOFI ran 91% in 28 sessions in 2024, a report inside the run. Then a 7-day flag, only 9.9% deep.",
+    "The high is 14.44 and SOFI gaps over it, opening 1.5% past. That's inside our 4% line, so it's still a buy.",
+    "You buy the open at market, 14.65. Stop just under the day's low, 14.24. That's 2.8% of risk.",
+    "A close back under 14.44 says it's wrong. Instead, 3R on day 3."
    ],
    "facts": [
     "d03",
@@ -1188,12 +1188,12 @@
   },
   {
    "key": "w3",
-   "title": "BIDU, February 2021: trims, then the trail",
+   "title": "BIDU, February 2021: the push, then the trail",
    "steps": [
-    "BIDU, 2021. A large-cap double, +100% in 36 sessions. A 12-day flag, 13.2% deep, on lighter volume.",
-    "2021-02-05: buy at market as it clears the high, 264.95. Stop under the day's low, 255.06.",
-    "3R on day 2: we hold. The first sell comes later, by judgment. It runs to about 354.",
-    "Failure mode: it unwinds as fast as it rose. Under the flag low by late March. The trail got you out."
+    "BIDU, a big-cap, doubled in 36 sessions in early 2021. Then a 12-day flag, 13.2% deep, on lighter volume.",
+    "February 5 it clears the high. Buy at market, 264.95. Stop just under the day's low, 255.06.",
+    "3R on day 2, and you hold. It runs to about 354 in three weeks. That's a push to sell into.",
+    "Then it unwinds as fast as it rose, under the flag low by late March. The 9 EMA trail gets you out."
    ],
    "facts": [
     "d05",

@@ -1520,8 +1520,8 @@
    "title": "R: the unit of risk",
    "steps": [
     "Before you buy, find the price that proves you wrong. Entry minus that stop is R, your initial risk.",
-    "Count every result in R. Risk $10 and make $100, and that's a 10R multiple.",
-    "Average your R-multiples over many trades. That's your expectancy, what one trade is worth on average."
+    "Count every result in R. Risk $10 and make $100, and that's a 10R winner.",
+    "Average your R over a lot of trades and you've got your expectancy: what one trade is worth to you."
    ],
    "facts": [
     "f40",
@@ -1536,9 +1536,10 @@
    "key": "w2",
    "title": "Drawdown and ruin",
    "steps": [
-    "A drawdown is the fall from your account's high to the low after it, quoted as a percent.",
-    "Losses are harder to undo than they look. A 50% loss needs a 100% gain to get back.",
-    "Risk too much per trade and a normal losing streak can finish the account. Those odds are your risk of ruin."
+    "A drawdown is the drop from your account's high to the low after it, as a percent.",
+    "Losses are harder to fix than they look. Lose 50% and you need 100% just to get back.",
+    "Risk too much per trade and a normal losing streak can finish you. That's risk of ruin.",
+    "So we keep it small. Under 1% a trade is normal, and 2% is the absolute ceiling."
    ],
    "facts": [
     "f75",
@@ -1546,16 +1547,18 @@
     "f142",
     "f73",
     "f66",
-    "f74"
+    "f74",
+    "hA1"
    ]
   },
   {
    "key": "w3",
    "title": "Stops that follow the trend",
    "steps": [
-    "Your first stop sets R. As the trade works, you can move the stop up, never down.",
-    "A trailing stop follows price by a set amount. The Chandelier Exit sets it three ATRs under the recent high by default.",
-    "Too tight and normal swings take you out. Too loose and a real reversal eats your profit."
+    "Your first stop sets R. As the trade works, the stop moves up. Never down, never wider.",
+    "A trailing stop follows price. The Chandelier Exit hangs it three ATRs under the 22-day high.",
+    "We keep it simpler: the 9 EMA for fast movers, the 20 EMA for steadier ones.",
+    "Too tight and normal wiggles knock you out. Too loose and a real reversal eats your profit."
    ],
    "facts": [
     "f39",
@@ -1565,7 +1568,9 @@
     "f111",
     "f88",
     "f89",
-    "f112"
+    "f112",
+    "hA4",
+    "hE52"
    ]
   }
  ],
