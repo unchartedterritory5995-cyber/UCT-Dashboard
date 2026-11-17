@@ -112,7 +112,10 @@ def _runtime_purged() -> set[str]:
     # ...and the alert stores (alert_taxonomy.db, screener.db, calendar_alerts.db,
     # transcript_alerts.db, catalysts.db), flat under theirs.
     alerts = set((report.get("alert_stores") or {}).get("rows_deleted") or {})
-    return set(report["rows_deleted"]) | second | alerts
+    # ...and the member stores the 2026-11-17 census found (chart_iq_feedback.db, uct_agent.db,
+    # study.db), flat under theirs.
+    members = set((report.get("member_stores") or {}).get("rows_deleted") or {})
+    return set(report["rows_deleted"]) | second | alerts | members
 
 
 def _diff(label_a: str, a: set[str], label_b: str, b: set[str]) -> str:
@@ -129,7 +132,8 @@ def test_the_manifest_names_exactly_the_tables_the_purge_deletes():
     # Non-vacuity, by name, on BOTH sides.
     for name in ("j2_notes", "j2_option_legs", "user_definitions", "definition_shares",
                  "inbound_alert_tokens", "alert_predicates", "alert_fire_channel_reads",
-                 "spec_alerts_fired", "keyword_subs"):
+                 "spec_alerts_fired", "keyword_subs", "chart_iq_feedback", "agent_conversation_state",
+                 "study_game_runs", "j2_note_tweet_captures"):
         assert name in runtime, f"the purge's own report does not name {name}: {sorted(runtime)}"
         assert name in doc, f"the doc's table does not name {name}"
     problem = _diff("the purge (runtime)", runtime, "docs/account-deletion-manifest.md", doc)
