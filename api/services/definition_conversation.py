@@ -1401,13 +1401,24 @@ def _check_references(envelope: Mapping[str, Any], view: Any) -> None:
 #      refused (`envelope:reference`) for a footnote. The assumption's TEXT is kept and its pointer
 #      is dropped. An assumption carries no op, so nothing can ride in on one.
 #
+#   3. ONE COLOUR STATE ON THE CANDLES OR THE BACKGROUND (added the same day, after the first two
+#      were served and the same requests were run again: it was two of the three repairs left).
+#      "Colour the candles yellow when the range is the narrowest of 7" came back as
+#      `set_color_states` on a channel with one state and no `otherwise`, which the browser refuses
+#      (`color:states-few`) and the door's own diagnostic answers with "use `set_paint` with that
+#      condition's output". When an output of the answer IS that condition, the op is re-spelled
+#      as that `set_paint`: the same bars, the same colour. A line coloured by one state is NOT
+#      touched: what the other bars should be is the model's to say.
+#
 # ⛔ `check_envelope` STILL NEVER REPAIRS AND NEVER STRIPS. These run before it, as the argument
 # unwrap does, and what they produce meets the same strict check. Each is recorded by NAME only
 # (`usage.mended`), so how often the model needs them is measured rather than hidden.
-# ⛔ NEITHER TOUCHES AN OP'S MEANING: no op is added, removed or reordered, no number changes.
+# ⛔ NONE TOUCHES WHAT THE ANSWER MEANS: no op is added, removed or reordered, no number changes;
+# the third replaces one op with the op that says the same thing.
 
 MEND_OUTPUT_REF = "output-ref"
 MEND_ASSUMPTION = "assumption-link"
+MEND_STATE_PAINT = "state-as-paint"
 _MEND_MAX_PASSES = 8
 
 
@@ -1490,6 +1501,33 @@ def _mend_output_refs(envelope: Dict[str, Any], view: Any) -> int:
     return count[0]
 
 
+def _mend_single_state_paint(envelope: Dict[str, Any], view: Any) -> int:
+    """Re-spell `set_color_states` on a CHANNEL (candles / background) that carries exactly one
+    `when` state and no `otherwise` as `set_paint` of the output whose tree is that condition.
+    Left alone when no output is that condition (a mend adds no output), when the target is a
+    line (`output`), or when the state is a `relation`."""
+    trees = _authored_trees(envelope, view)
+    done = 0
+    ops = envelope.get("ops") or []
+    for i, o in enumerate(ops):
+        if not (isinstance(o, dict) and o.get("op") == "set_color_states"
+                and o.get("channel") in ("barcolor", "bgcolor") and "output" not in o
+                and "otherwise" not in o):
+            continue
+        states = o.get("states")
+        if not (isinstance(states, list) and len(states) == 1 and isinstance(states[0], Mapping)
+                and isinstance(states[0].get("when"), Mapping) and "relation" not in states[0]
+                and isinstance(states[0].get("color"), str)):
+            continue
+        when = json.dumps(states[0]["when"], sort_keys=True)
+        key = next((k for k, t in trees.items() if json.dumps(t, sort_keys=True) == when), None)
+        if key is None:
+            continue
+        ops[i] = {"op": "set_paint", "output": key, "channel": o["channel"], "color": states[0]["color"]}
+        done += 1
+    return done
+
+
 def _mend_assumptions(envelope: Dict[str, Any], view: Any) -> int:
     """Drop the pointer of an assumption that points at nothing, keeping its text. The verdict is
     the reference check's OWN (`_check_references` raises it and names the assumption), so there
@@ -1524,6 +1562,8 @@ def mend(candidate: Any, view: Any) -> Tuple[Any, List[str]]:
         names: List[str] = []
         if _mend_output_refs(work, view):
             names.append(MEND_OUTPUT_REF)
+        if _mend_single_state_paint(work, view):
+            names.append(MEND_STATE_PAINT)
         if _mend_assumptions(work, view):
             names.append(MEND_ASSUMPTION)
         return (work, names) if names else (candidate, [])

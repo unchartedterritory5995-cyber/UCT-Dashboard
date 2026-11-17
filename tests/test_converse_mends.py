@@ -95,6 +95,63 @@ def test_CONTROL_a_table_name_keeps_its_table_meaning_even_as_an_output_key(conv
     assert conv._mend_output_refs(work, None) == 0 and work == e
 
 
+# ═══ one colour state on the candles or the background ════════════════════════════
+
+NARROW = op("<=", op("-", HIGH, LOW), call("lowest", op("-", HIGH, LOW), num(7)))
+NREF = {"type": "series", "name": "narrow"}
+CANDLES = "Colour the candles yellow when the day's range is the narrowest of the last 7 days."
+
+
+def painted(states_op, extra_outputs=()):
+    return env(0, [{"op": "create", "name": "Narrow range", "placement": "price", "outputs": [
+        {"key": "narrow", "label": "Narrowest of 7", "tree": NARROW}, *extra_outputs]}, states_op], reply="Built it.")
+
+
+def test_ASKED_colour_the_candles__ANSWERED_one_colour_state__DID_one_call_as_the_paint_it_means(conv, model):
+    """Measured 2026-11-17, after the first two mends were served: this shape was two of the three
+    repairs left. The door's own diagnostic said "use `set_paint` with that condition's output"."""
+    for when in (NARROW, NREF):                               # written out, or read by its key
+        one = {"op": "set_color_states", "channel": "barcolor", "states": [{"when": when, "color": "#FFEB3B"}]}
+        client = model([emits(painted(one))])
+        r = conv.converse(CANDLES, user_id="u1", view=empty_view(0))
+        assert r["ok"] is True and r["attempts"] == 1 and len(client.calls) == 1, r
+        assert r["envelope"]["ops"][1] == {"op": "set_paint", "output": "narrow", "channel": "barcolor", "color": "#FFEB3B"}
+        assert "state-as-paint" in r["usage"]["mended"].split(",")
+        assert len(r["envelope"]["ops"]) == 2 and r["envelope"]["ops"][0]["outputs"][0]["tree"] == NARROW
+
+
+def test_the_background_is_the_same_mend(conv, model):
+    one = {"op": "set_color_states", "channel": "bgcolor", "states": [{"when": NARROW, "color": "#F23645"}]}
+    model([emits(painted(one))])
+    r = conv.converse("red shading while the range is the narrowest of 7", user_id="u1", view=empty_view(0))
+    assert r["ok"] is True and r["attempts"] == 1
+    assert r["envelope"]["ops"][1] == {"op": "set_paint", "output": "narrow", "channel": "bgcolor", "color": "#F23645"}
+
+
+def test_CONTROL_a_condition_that_is_no_output_of_the_answer_is_left_to_the_repair(conv):
+    """A mend adds no output: with nothing to point the paint at, the op is untouched."""
+    other = op(">", CLOSE, num(5))
+    e = painted({"op": "set_color_states", "channel": "barcolor", "states": [{"when": other, "color": "#FFEB3B"}]})
+    got, names = conv.mend(e, empty_view(0))
+    assert got is e and names == []
+
+
+def test_CONTROL_a_LINE_coloured_by_one_state_is_not_touched(conv):
+    """What the other bars of a line should be is the model's to say (`otherwise`), not a mend's."""
+    e = painted({"op": "set_color_states", "output": "narrow", "states": [{"when": NARROW, "color": "#FFEB3B"}]})
+    got, names = conv.mend(e, empty_view(0))
+    assert got is e and names == []
+
+
+def test_CONTROL_two_colours_on_a_channel_are_already_valid_and_untouched(conv):
+    for extra in ({"otherwise": "#9CA3AF"},
+                  {"states": [{"when": NARROW, "color": "#FFEB3B"}, {"when": op(">", CLOSE, num(5)), "color": "#F23645"}]}):
+        e = painted({"op": "set_color_states", "channel": "barcolor",
+                     "states": [{"when": NARROW, "color": "#FFEB3B"}], **extra})
+        got, names = conv.mend(e, empty_view(0))
+        assert got is e and names == []
+
+
 # ═══ what a mend never does ══════════════════════════════════════════════════
 
 def test_a_mend_never_adds_removes_or_reorders_an_op_and_never_changes_a_number(conv):
