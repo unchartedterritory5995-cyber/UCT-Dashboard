@@ -9,8 +9,9 @@ ended in "couldn't produce a valid change", every time, although the assistant h
 function correctly.
 
   1. each of the four functions passes the door on the first attempt;
-  2. a running value's own name is still refused anywhere else (bare, in a seed, in a warm-up);
-  3. the exemption reads which arguments are updates, and what they bind, from the table;
+  2. a running value's own name in the MODEL's text is still refused (bare, or in ordinary maths);
+  3. so is a recurrence the model spells out itself: the gate reads what the model wrote, never
+     the door's own expansion of an offered function, and it loosened nowhere;
   4. the instructions name the two as functions, with each direction's own sign, and say what to
      do with a ratcheting stop that is neither.
 
@@ -75,43 +76,64 @@ def test_a_running_values_own_name_outside_its_update_is_refused_by_name(conv, c
     assert r["ok"] is False and r["gate"] == "schema:name", r
 
 
-# ─── 3. the exemption is read from the table ─────────────────────────────────────
+# ─── 3. the gate reads what the MODEL wrote, and is as strict as it ever was ─────
 
-def test_only_a_read_inside_its_own_update_is_exempt():
+HOSTILE = [
+    # the model spells a recurrence out itself: the same construct the expansion writes
+    call("accum", num(0), op("+", ser("self"), ser("close")), num(50)),
+    call("accum", ser("self"), ser("close"), num(50)),                         # the name in a seed
+    call("accum2", num(1), num(50), ser("close"), ser("close"),
+         op("+", ser("state1"), ser("state2")), ser("state2")),
+    # an offered function handed the name as an argument
+    call("supertrend", ser("self"), num(10)),
+    op(">", ser("close"), call("accum", num(0), ser("self"), num(9))),          # buried in ordinary maths
+]
+
+
+@pytest.mark.parametrize("tree", HOSTILE, ids=["accum-update", "accum-seed", "accum2", "as-argument", "buried"])
+def test_a_recurrence_the_MODEL_writes_out_itself_is_still_refused(conv, clean_env, model, tree):
+    """Only the door's own expansion of an offered function may carry these names. A `self` or a
+    `state1` in the model's text is refused by name, whatever it sits inside."""
+    model([emits(create(tree)), emits(create(tree))])
+    r = conv.converse("x", user_id="u1", view=EMPTY())
+    assert r["ok"] is False, tree
+    # by name: the vocabulary gate for a name the model wrote; the expansion's own gate when the
+    # name was handed to an offered function as an argument (it asks for numbers)
+    want = "resolve:expansion" if tree.get("name") == "supertrend" else "schema:name"
+    assert r["gate"] == want, (r["gate"], tree)
+
+
+def test_the_boundary_reads_the_models_text_with_offered_calls_made_plain():
     from api.services import definition_conversation as dcv
-    one = num(1)
-    # accum(seed, update, warmup): `self` is bound in the update (argument 1) and nowhere else
-    tree = call("accum", ser("self"), op("+", ser("self"), ser("close")), num(50))
+    declared = lambda name: name in ("sma", "accum")  # noqa: E731
+    tree = op(">", ser("close"), call("supertrend", num(3), num(10)))
     before = copy.deepcopy(tree)
-    out = dcv._bound_reads_as_constants(tree)
-    assert out["args"][0] == ser("self")                            # a seed: untouched, so still refused
-    assert out["args"][1] == op("+", one, ser("close"))             # the update: the bound read only
+    out = dcv._offered_calls_as_plain(tree, declared)
+    # the offered call becomes a plain node over the SAME arguments, so they are still checked
+    assert out == op(">", ser("close"), op("+", num(3), num(10)))
     assert tree == before                                           # the caller's tree is not changed
-    # accum2(stateIndex, warmup, seed1, seed2, update1, update2): both names, in both updates only
-    two = call("accum2", num(1), num(50), ser("state1"), ser("close"),
-               op("+", ser("state1"), ser("state2")), op("-", ser("state2"), ser("self")))
-    got = dcv._bound_reads_as_constants(two)
-    assert got["args"][2] == ser("state1")                          # a seed
-    assert got["args"][4] == op("+", one, one)
-    assert got["args"][5] == op("-", one, ser("self"))              # `self` is not accum2's name
-    # nested: an inner recurrence inside an outer update keeps the outer name bound
-    nested = call("accum", num(0), call("accum", num(0), op("+", ser("self"), ser("close")), num(5)), num(9))
-    assert dcv._bound_reads_as_constants(nested)["args"][1]["args"][1] == op("+", one, ser("close"))
-    # nothing bound, nothing changed
-    plain = op("+", ser("close"), call("sma", ser("close"), num(20)))
-    assert dcv._bound_reads_as_constants(plain) == plain
+    # an argument is kept exactly, a bad one included: the gate then refuses it by name
+    assert dcv._offered_calls_as_plain(call("supertrend", ser("self"), num(10)), declared) == op("+", ser("self"), num(10))
+    # a function the TABLE declares is left alone, and so is everything inside it
+    kept = call("accum", num(0), op("+", ser("self"), ser("close")), num(50))
+    assert dcv._offered_calls_as_plain(kept, declared) == kept
+    # a name the table declares is never treated as an expansion, even if it is also offered as one
+    assert dcv._offered_calls_as_plain(call("supertrend", num(3), num(10)), lambda _n: True) == call("supertrend", num(3), num(10))
+    # nested offered calls, innermost too
+    nested = call("kcUpper", call("supertrend", num(3), num(10)), num(20), num(2))
+    assert dcv._offered_calls_as_plain(nested, declared) == op("+", op("+", num(3), num(10)), num(20), num(2))
 
 
-def test_the_bound_names_and_update_positions_come_from_the_table():
+def test_the_names_the_expansions_bind_are_the_tables_own():
     from api.services import ast_table
     from api.services import call_expansions
     single, multi = ast_table.recurrences(), ast_table.multi_states()
     assert single["accum"]["binds"] == call_expansions.ACCUM_SELF == "self"
-    assert single["accum"]["body"] == 1
     assert list(multi["accum4"]["binds"]) == ["state1", "state2", "state3", "state4"]
-    assert list(multi["accum4"]["updates"]) == [6, 7, 8, 9]
-    # every name an expansion binds is one the table declares (so the exemption covers them all)
-    assert set(ast_table.recurrence_bindings()) >= {"self", "state1", "state2", "state3", "state4"}
+    # and none of them is a name the model is offered
+    from api.services import definition_concierge as dc
+    offered = set(dc.tool_schema(None)["names"]["series"])
+    assert not (offered & set(ast_table.recurrence_bindings()))
 
 
 # ─── 4. the instructions ─────────────────────────────────────────────────────────
@@ -142,3 +164,22 @@ def test_the_signs_the_instructions_state_are_the_ones_the_expansions_compute():
     # Parabolic SAR seeds its trend 1 on a rising close and puts the dot at the LOW: 1 is under price
     sar = ce.sar_trees(num(0.02), num(0.2))
     assert sar is not None and set(sar) >= {"value", "direction"}
+
+
+# ─── 5. a period in weeks is time; "yesterday's" is a daily value ─────────────────
+#
+# The same exploratory round: "Mansfield relative strength versus SPY over 52 weeks" was built
+# over 52 bars of the chart (52 DAYS on a daily chart), with a note asking the member to switch
+# to a weekly chart; and "yesterday's high and low" was built as the previous bar, which is the
+# previous five minutes on an intraday chart. Both were disclosed, and both were not what was asked.
+
+def test_the_instructions_say_a_period_in_weeks_is_time_and_yesterday_is_daily():
+    from api.services import definition_conversation as dcv
+    text = dcv.system_prompt()
+    assert "is that much TIME, never that many bars of the chart" in text
+    assert "52 bars INSIDE a `tf` W read" in text
+    assert "a 52-week high is the highest of 252 daily bars" in text
+    assert "Do not build it in the chart's own bars and ask the member to switch charts" in text
+    assert "DAILY values: set_calculation_timeframe D" in text
+    assert "`high[1]` alone is only the previous BAR" in text
+

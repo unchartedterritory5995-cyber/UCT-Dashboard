@@ -630,6 +630,13 @@ CONVERSE_SYSTEM_PROMPT = (
     "unsupported, say it needs a line that remembers its own earlier value, and offer what can "
     "be built instead: SuperTrend, Parabolic SAR, or a line a fixed distance under the highest "
     "close of a FIXED window.\n"
+    "  A length the member gives in weeks, months or years is that much TIME, never that many "
+    "bars of the chart: read it on that timeframe (\"over 52 weeks\" is 52 bars INSIDE a `tf` W "
+    "read; a whole indicator in weeks is set_calculation_timeframe W), or, for a price extreme, "
+    "use the daily count (a 52-week high is the highest of 252 daily bars). Do not build it in "
+    "the chart's own bars and ask the member to switch charts. \"Yesterday's\", \"the prior "
+    "day's\" and \"today's\" values are DAILY values: set_calculation_timeframe D, so they hold "
+    "on an intraday chart; `high[1]` alone is only the previous BAR.\n"
     "  A `sym` goes OUTSIDE a timeframe read, never under one: SPY's weekly close is "
     "sym(SPY, tf(close, W)). Wrap only what is read from the other symbol: "
     "\"close above SPY's 50 EMA\" compares the chart's close with "
@@ -1180,52 +1187,45 @@ def _inputs_as_constants(tree: Any, inputs: frozenset) -> Any:
     return root
 
 
-def _bound_reads_as_constants(tree: Any) -> Any:
-    """For the SCHEMA BOUNDARY ONLY: the tree with a running value's own name replaced by a
-    constant wherever it is read INSIDE the update it is bound in.
+def _offered_calls_as_plain(tree: Any, declared: Any) -> Any:
+    """What the MODEL wrote, in a form the boundary gate can read: every call to a function the
+    door offers as an EXPANSION (`call_expansions.CALL_EXPANSIONS`, and not a name the table
+    declares) becomes a plain node over the same arguments. Its arguments are still checked; its
+    name, which the boundary's own name list does not carry, is not asked about twice
+    (`expand_calls` has already accepted or refused it by name).
 
-    ⚰️ WHY (found on production, 2026-11-17). The vocabulary offers `supertrend`,
-    `supertrendDirection`, `sar` and `sarDirection`, and `call_expansions` writes each as bounded
-    recurrences: `accum(seed, update, warmup)` whose update reads its own previous value through
-    the name the table declares for that (`functions.accum.recurrence.binds`, "self";
-    `accumN.multiState.binds`, "state1".."state4"). The boundary gate checks every `series` name
-    against the names the MODEL may write, and those bound names are not among them, so the door
-    refused its own expansion of a function it had offered: "SuperTrend 10, 3" cost two model
-    calls and ended in "couldn't produce a valid change", every time.
+    ⚰️ WHY THE BOUNDARY READS THIS AND NOT THE EXPANDED TREE (found on production, 2026-11-17).
+    The vocabulary offers `supertrend`, `supertrendDirection`, `sar` and `sarDirection`, and
+    `call_expansions` writes each as bounded recurrences: `accum(seed, update, warmup)` whose
+    update reads its own previous value through the name the table declares for that ("self";
+    "state1".."state4" for the multi-state ones). The boundary gate polices the names the MODEL
+    may write, and those are the system's own names, not the model's. Handed the EXPANDED tree,
+    it refused the door's own expansion of a function the door had offered: "SuperTrend 10, 3"
+    cost two model calls and ended in "couldn't produce a valid change", every time.
 
-    ⛔ ONLY INSIDE ITS OWN UPDATE. A bound name anywhere else (a bare `self` the model wrote, or
-    one in a seed or a warm-up) is left as it is and is still refused by name. Which arguments are
-    updates and what they bind is READ from the table (`ast_table.recurrences` / `multi_states`),
-    never typed here. Every other gate below (canonical form, budget, repaint lint, and the
-    engine's own interpreter) sees the real tree and already understands these names.
+    ⛔ SO THE GATE LOOSENS NOWHERE. It reads the model's text, and a `self` or a `state1` the
+    model wrote itself (bare, in ordinary maths, or inside an `accum` it spelled out by hand) is
+    refused by name exactly as before. The expanded tree, which the system wrote, goes to the
+    gates that judge a tree about to be stored: canonical form, budget, the repaint lint, and
+    the engine's own interpreter, all of which already understand those names.
+    Iterative copy; the input is never mutated.
     """
-    from api.services import ast_table
-    single, multi = ast_table.recurrences(), ast_table.multi_states()
-
-    def scope_of(node: Mapping[str, Any]):
-        if node.get("type") != "call":
-            return None
-        name = node.get("name")
-        if name in single:
-            return frozenset({single[name]["binds"]}), {single[name]["body"]}
-        if name in multi:
-            return frozenset(multi[name]["binds"]), set(multi[name]["updates"])
-        return None
-
-    def walk(node: Any, bound: frozenset, depth: int) -> Any:
-        if not isinstance(node, dict) or depth > 400:
-            return node
-        if node.get("type") == "series" and node.get("name") in bound:
-            return {"type": "num", "value": 1}
-        args = node.get("args")
-        if isinstance(args, list):
-            scope = scope_of(node)
-            for j, arg in enumerate(args):
-                inner = (bound | scope[0]) if (scope and j in scope[1]) else bound
-                args[j] = walk(arg, inner, depth + 1)
+    def plain(node: Any) -> Any:
+        if (isinstance(node, dict) and node.get("type") == "call"
+                and node.get("name") in call_expansions.CALL_EXPANSIONS
+                and not declared(node.get("name"))):
+            args = node.get("args")
+            return {"type": "op", "name": "+", "args": args if isinstance(args, list) else []}
         return node
 
-    return walk(copy.deepcopy(tree), frozenset(), 0)
+    root = plain(copy.deepcopy(tree))
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict) and isinstance(node.get("args"), list):
+            node["args"] = [plain(a) for a in node["args"]]
+            stack.extend(node["args"])
+    return root
 
 
 def _check_tree(where: str, tree: Any, inputs: frozenset = frozenset()) -> None:
@@ -1234,16 +1234,19 @@ def _check_tree(where: str, tree: Any, inputs: frozenset = frozenset()) -> None:
     # checked as the tree the browser will STORE (``call_expansions``, mirrored from
     # ``callExpansions.js``), so budget, schema and lint judge only declared names.
     from api.services import ast_table
+    declared = lambda name: name in (ast_table.TABLE.get("functions") or {})  # noqa: E731
+    written = _inputs_as_constants(tree, inputs)          # what the MODEL wrote
     try:
-        tree = call_expansions.expand_calls(
-            tree, lambda name: name in (ast_table.TABLE.get("functions") or {}))
+        tree = call_expansions.expand_calls(tree, declared)
     except call_expansions.ExpansionRefused as exc:
         raise _Refused(exc.guard, f"{where}: {exc}", member=str(exc)) from exc
     tree = _inputs_as_constants(tree, inputs)
     _check_scopes(where, tree)
     try:
-        # a running value's own name is legal inside the update that binds it, and only there
-        dc._assert_within_schema(_bound_reads_as_constants(_unscoped(tree)))
+        # ⛔ the boundary reads the model's own text, never the door's expansion of it
+        # (`_offered_calls_as_plain`): strict about every name the model wrote, and silent about
+        # the names the system writes inside a function it offered
+        dc._assert_within_schema(_unscoped(_offered_calls_as_plain(written, declared)))
     except dc._Refused as exc:
         # the concierge's own gate; its located text is the model's diagnostic
         raise _Refused(exc.gate, f"{exc.reason} ({where})") from exc
