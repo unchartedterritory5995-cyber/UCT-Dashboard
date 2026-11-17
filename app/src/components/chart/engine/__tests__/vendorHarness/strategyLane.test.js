@@ -17,9 +17,10 @@
 //   SL5 THE LANE ASSERTION CAN FAIL: runtime-on with the gate dark, or with no broker run, is refused.
 //   SL6 ONE CODE PATH, IN THE SOURCE: neither `strategyLane.js` nor `ourSide.js` builds with `strategyBroker` or
 //       widens the pin ledger with `brokerPinned`.
-//   SL7 A REPORT REFUSED WHOLE IS REFUSED BY NAME: on a member's daily bars (ISO date keys) the record's bar times are
-//       dates and the report refuses whole (`runtime:strategy-report-record`); the grade says so, never "profit
-//       differs" on a withheld profit; control: the same capture on epoch-second bars MATCHes.
+//   SL7 A REPORT REFUSED WHOLE IS REFUSED BY NAME: a record the report cannot read (a trade time that is a date, the
+//       shape a daily chart's run recorded before 2026-11-17) refuses whole (`runtime:strategy-report-record`); the
+//       grade says so, never "profit differs" on a withheld profit. On a member's daily bars the run now records each
+//       bar's opening instant and the same capture MATCHes; control: on epoch-second bars it MATCHes too.
 //
 // Mutation proofs: docs/pine/evidence/2026-11-17-admit-strategy-decl/EVIDENCE.md.
 
@@ -139,13 +140,29 @@ describe('SL4 one code path, on a real capture', () => {
 
 describe('SL7 a report refused whole is refused by name, never a different answer', () => {
   const ID = 'w9-q-s1a-size-v2-rddt-1d-2026-11-15'
-  it('on a member\'s daily bars (ISO date keys) the report refuses whole, and the capture grades INCONCLUSIVE', () => {
+  // ⚰️ (2026-11-17, strategy-epoch-bar-times) this capture was SL7's real refused report: on a member's daily bars the
+  // run recorded DATES and the report refused whole. The run now records each bar's opening instant
+  // (`runtimeColumns.js::brokerBarTimes`), so the same capture is the positive case below, and the refused-whole branch
+  // is held on that run's record with one trade time put back to the date it used to be.
+  it('on a member\'s daily bars (ISO date keys) the report is read and the capture is graded on its trades: MATCH', () => {
     armed(true)
     const { verdict } = gradeCapture(cap(ID))
     expect(verdict.strategy.broker).toBe(true)
-    expect(verdict.strategy.refusedBy).toBe('runtime:strategy-report-record')
-    expect(verdict.strategy.verdict).toBe('EXPECTED-REFUSAL')
-    expect(verdict.verdict).toBe('INCONCLUSIVE')
+    expect(verdict.strategy.refusedBy).toBeUndefined()
+    expect(verdict.strategy.verdict).toBe('MATCH')
+    expect(verdict.verdict).toBe('MATCH')
+  })
+  it('a record the report cannot read (a trade time that is a date) refuses whole by name: EXPECTED-REFUSAL, no compare', () => {
+    armed(true)
+    const { ours } = gradeCapture(cap(ID))
+    const rec = ours.strategy.record
+    expect(rec.trades.length).toBeGreaterThan(0)
+    const dated = { ...ours, strategy: { ...ours.strategy,
+      record: { ...rec, trades: rec.trades.map((t, i) => (i === 0 ? { ...t, entryTime: '2024-07-30' } : t)) } } }
+    const { view, unrun } = strategyRanView(cap(ID))
+    const g = strategyLaneGradeOf(view, dated, { unrun })
+    expect(g.refusedBy).toBe('runtime:strategy-report-record')
+    expect(g.verdict).toBe('EXPECTED-REFUSAL')
   })
   it('control: the same capture on epoch-second bars, every rule allowed (`runOurBroker`, the pin question), is MATCH', () => {
     expect(gradeStrategyCapture(cap(ID), { slotMap: STRATEGY_SLOT_MAP }).verdict).toBe('MATCH')

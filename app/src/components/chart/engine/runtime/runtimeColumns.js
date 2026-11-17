@@ -43,6 +43,7 @@ import { sameDrawings } from './warmupDrawings.js'
 import { runtimeInputValues, runtimeBuildInputs } from './runtimeInputs.js'
 // ⭐⭐ W9-T11 — the run's `strategy` record (design 3.2) and the window a broker run takes.
 import { BROKER_START_GUARD } from './broker.js'
+import { barOpenInstants } from '../../indicators.js'
 import { STRATEGY_WINDOW_HISTORY, strategyRecordOf, withStrategyRecord } from './strategyRecord.js'
 import { makeWarmupProbe, sameProgram } from './warmupProbe.js'
 export { RUNTIME_WARMUP_KEY, runtimeWarmupOf }
@@ -1382,6 +1383,17 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     series[0][i] = b.o; series[1][i] = b.h; series[2][i] = b.l; series[3][i] = b.c; series[4][i] = b.v
     barTimes[i] = b.t
   }
+  // ⭐⭐ (2026-11-17, strategy-epoch-bar-times) — A BROKER RUN READS A BAR'S TIME AS `time` DOES. The product keys a
+  // D / W / M bar by its ISO DATE (`/api/bars` `t: 'YYYY-MM-DD'`) and an intraday bar by its unix seconds; `time` reads
+  // either as the instant the bar opened (`indicators.js::barOpenInstants`, the clock columns' own gate). A broker run
+  // is handed THOSE instants, so its clock reads, its fills, its trades' and orders' times and its record's window
+  // (below) are the times an epoch-second run records for the same bars, and `strategy.closedtrades.entry_time` is
+  // `time` of the fill bar. A series the gate cannot read is `na` on every bar, as `time` is there: never a key in
+  // disguise. ⚰️ The broker was handed the keys: on a daily chart every trade time was a date string, the report
+  // refused whole (`runtime:strategy-report-record`) and every trade-time read refused by name.
+  // ⛔ A run WITHOUT a broker keeps the keys it always had: changing what every other script's run reads is a wider
+  // engine change, not this one.
+  const runTimes = runProgram.broker ? brokerBarTimes(rows, tf) : barTimes
   // ⭐⭐ P3 WS-F — `varip` and `barstate.isnew`: the realtime ledger of this chart's run
   const realtime = sessionKey ? realtimeRun(def, ctx, opts.sessionRole || 'run', built.ir, compute.source,
     rows, forming, lastConfirmed) : null
@@ -1406,7 +1418,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       // Only a bar KNOWN to have finished is confirmed; unknown fails closed the
       // way `interpret` does for the four realtime clock columns.
       confirmed: forming === false,
-      barTimes,
+      barTimes: runTimes,
       // ⭐⭐ RS RATING L5 — the requested bars and, per chart bar, which one is read
       ...(reqSupply ? { requestSupply: reqSupply.supply } : {}),
       // ⭐⭐ W9-T11 — the window the VM checks a broker run against (`vm.js`, [3.4]): the
@@ -1527,7 +1539,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   if (realtime) Object.defineProperty(out, RUNTIME_REALTIME_KEY, { enumerable: false, configurable: true, value: realtime.info })
   // ⭐⭐ W9-T11 — THE RUN'S `strategy` RECORD (design 3.2), plain data beside the columns
   if (res.broker) {
-    withStrategyRecord(out, strategyRecordOf({ summary: res.broker, decl: runProgram.broker, barTimes,
+    withStrategyRecord(out, strategyRecordOf({ summary: res.broker, decl: runProgram.broker, barTimes: runTimes,
       historyWindowBars: ctx && ctx.historyWindowBars, confirmed: forming === false }))
   }
   // ⭐⭐ RT5 — THE DRAWINGS THIS SAME RUN MADE, as plain data (structured-clone
@@ -1542,6 +1554,16 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     withRuntimeObjects(out, held || { ...fin, pineVersion: Number.isFinite(program.version) ? program.version : null })
   }
   return out
+}
+
+/** ⭐⭐ (2026-11-17) — THE BAR TIMES A BROKER RUN IS HANDED: each bar's opening instant in unix seconds, from the ONE
+ *  gate `time` reads (`indicators.js::barOpenInstants`), or `NaN` on every bar when that gate reads the series as
+ *  having none (one unreadable bar blanks `time` on every bar, and so here). A plain array: the VM's clock, the
+ *  broker (`broker.js` `timeOf` / `barTimeMs`) and the record (`strategyRecord.js` `timeAt`) index it. */
+export function brokerBarTimes(rows, tf) {
+  const opens = barOpenInstants(rows, tf)
+  const n = Array.isArray(rows) ? rows.length : 0
+  return opens ? Array.from(opens) : new Array(n).fill(NaN)
 }
 
 /** ⭐ RS RATING L5 — where a run's newest-bar request withholding rides (non-enumerable). */

@@ -65,19 +65,11 @@ export function strategyRanView(capture) {
   return { view: { ...capture, newestBarIsForming: false, bars: { ...capture.bars, rows, count: rows.length } }, unrun }
 }
 
-const onClock = (unixOf, t) => (t === null || t === undefined ? t : (unixOf.has(String(t)) ? unixOf.get(String(t)) : t))
-
-/** The record on TradingView's clock: each bar time it states (a trade's entry and exit, an order's placing, trigger
- *  and fill) mapped through `unixOf` (the product's bar key -> the capture's bar time, row for row). Every number
- *  is the run's, untouched. */
-export function recordOnCaptureClock(record, unixOf) {
-  return {
-    ...record,
-    trades: record.trades.map((t) => ({ ...t, entryTime: onClock(unixOf, t.entryTime), exitTime: onClock(unixOf, t.exitTime) })),
-    orders: record.orders.map((o) => ({ ...o, placedTime: onClock(unixOf, o.placedTime), modifiedTime: onClock(unixOf, o.modifiedTime),
-      triggerTime: onClock(unixOf, o.triggerTime), fillTime: onClock(unixOf, o.fillTime), endTime: onClock(unixOf, o.endTime) })),
-  }
-}
+// ⚰️ (2026-11-17, strategy-epoch-bar-times) `recordOnCaptureClock` mapped each time the record stated from the
+// product's bar KEY to the capture's bar time, because a daily chart's run recorded dates. The run now records each
+// bar's opening instant (`runtimeColumns.js::brokerBarTimes`, the gate `time` reads), so the record is graded on ITS
+// OWN times: a run that recorded a date, or an instant off TradingView's, now grades as what it is instead of being
+// mapped onto TradingView's clock by the harness.
 
 /** Our `plot()` outputs, in the order the source makes them, each `[{time, value}]` on the capture's bars. */
 function plotsOf(ours, capture) {
@@ -106,8 +98,8 @@ function drawnOf(s) {
 }
 
 /**
- * The product's run, in the shape `gradeStrategyCapture`'s `run` returns: `{ok, record, report, plots, drawn}` on
- * TradingView's clock, or `{ok: false, refusal}` with the name our side refused by (always `expected`: a refusal
+ * The product's run, in the shape `gradeStrategyCapture`'s `run` returns: `{ok, record, report, plots, drawn}` (the
+ * record's times its own, plots and labels on the capture's bars), or `{ok: false, refusal}` with the name our side refused by (always `expected`: a refusal
  * by name is our side declining to answer, never a different answer).
  */
 export function strategyLaneRunOf(capture, ours) {
@@ -126,7 +118,7 @@ export function strategyLaneRunOf(capture, ours) {
     const first = (report.refusals || [])[0] || {}
     return refused(first.guard || 'runtime:strategy-report', first.sentence || 'the strategy report refused')
   }
-  return { ok: true, record: recordOnCaptureClock(s.record, s.unixOf), report, plots: plotsOf(ours, capture), drawn: drawnOf(s), ruleFirstTime: null }
+  return { ok: true, record: s.record, report, plots: plotsOf(ours, capture), drawn: drawnOf(s), ruleFirstTime: null }
 }
 
 /**
