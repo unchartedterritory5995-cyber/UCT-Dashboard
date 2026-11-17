@@ -170,6 +170,7 @@ import { serverColumnsFor, notifyColumnsLanded, scalarsFor } from './serverCompu
 // `computeSignature` carries the benchmark tail's version into the binder's memo.
 import { definitionHasLiveTail, liveTailSignature } from './liveTail'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash, runtimeFormingRefusalOf, RUNTIME_FORMING_GUARD } from './runtimeKill'
+import { HOST_KNOWN_DIVERGENCE_STAMP } from './hostKnownDivergence'
 // ⭐⭐ ENGINE 54 — the run half's program binding, object rail (registered) and refusal telemetry
 import { runHalfProgramBound, runHalfProgramStamped } from './runHalfProgram.js'
 import { registeredRunHalfObjectRail, runHalfSettingsAdmitted } from './runHalfRailSeam.js'
@@ -4439,6 +4440,16 @@ export function validateUserDefinitions(rawDefs) {
       continue
     }
     if (kind === 'ast') {
+      // ⭐⭐ HOST KNOWN-DIVERGENCE (owner decision 2026-11-17) — A SAVED HOST DOCUMENT WHOSE SCRIPT IS ON
+      // THE HOST LIST is served stamped `meta.hostKnownDivergence` (`runtime_definitions.stamp_served`,
+      // the server's authority: a stored document does not carry its script). It is not drawn —
+      // refused with the server's sentence, by name — and it stays in the store, untouched.
+      const hk = def.meta && def.meta[HOST_KNOWN_DIVERGENCE_STAMP]
+      if (typeof hk === 'string' && hk) {
+        errors.push(`${def.id}: ${hk} — the saved definition is kept; it comes back when it is taken off the list.`)
+        killedIds.push(def.id)
+        continue
+      }
       const laneErrors = validateAstLane(def)
       if (laneErrors.length) {
         errors.push(...laneErrors.map(e => `${def.id}: ${e}`))
