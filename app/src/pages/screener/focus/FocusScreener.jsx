@@ -164,11 +164,17 @@ function rememberNamed(item) {
 // Options. It is the first thing on the top bar, so the page has ONE bar; Table mode has no top
 // bar of its own, so there it gets a slim bar to itself.
 export default function FocusScreener({ modeTabs = null }) {
-  const [mode, setMode] = useState(() => {
+  const [storedMode, setMode] = useState(() => {
     const m = readLS(MODE_KEY, 'list')
     return m === 'table' || m === 'grid' || m === 'map' ? m : 'list'
   })
-  const onMode = useCallback(m => { setMode(m); writeLS(MODE_KEY, m) }, [])
+  // The scan board (owner ruling 2026-11-17: no Table and no Map as options): a Table or Map view
+  // remembered from an earlier visit does not decide where the page opens, the board does. Either
+  // still opens from the More menu, for that visit (`picked`).
+  const boardOn = useContext(AuthContext)?.screenerScanBoardEnabled === true && isDesktopNow()
+  const [picked, setPicked] = useState(false)
+  const onMode = useCallback(m => { setPicked(true); setMode(m); writeLS(MODE_KEY, m) }, [])
+  const mode = boardOn && !picked && (storedMode === 'table' || storedMode === 'map') ? 'list' : storedMode
   if (mode === 'table') {
     return (
       <div className={styles.page} data-testid="focus-screener" data-mode="table">
@@ -178,7 +184,7 @@ export default function FocusScreener({ modeTabs = null }) {
           <HowToChecklist surface="screener.stocks" />
           {/* ONE bar in Table mode: the List|Table switch leads the table's own toolbar (P14). */}
           <Suspense fallback={<SkeletonTable rows={12} cols={6} />}>
-            <ScannerShell toolbarLead={<ModeSwitch mode={mode} onMode={onMode} />} />
+            <ScannerShell toolbarLead={<ModeSwitch mode={mode} onMode={onMode} only={boardOn ? [...BOARD_MODES, mode] : null} />} />
           </Suspense>
         </div>
       </div>
