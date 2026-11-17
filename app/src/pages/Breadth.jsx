@@ -352,13 +352,19 @@ function cellClass(col, val, row = null) {
   } else if (col.colorFn && val != null) {
     c = col.colorFn(val)
   }
-  if (c === 'g3') return styles.bgG3
-  if (c === 'g2') return styles.bgG2
-  if (c === 'g1') return styles.bgG1
-  if (c === 'a')  return styles.bgA
-  if (c === 'r1') return styles.bgR1
-  if (c === 'r2') return styles.bgR2
-  if (c === 'r3') return styles.bgR3
+  return tierShadeClass(c)
+}
+
+// UCT Signature "Quiet ledger" (owner 2026-11-17): the SAME tiers as always decide
+// what is strong or weak; only the picture changed. A cell is shaded only when its
+// reading is unusually strong (g2 / g3) or weak (r2 / r3) — a low-alpha tint of the
+// theme's own up / down colour, two steps by strength. Near-normal readings (g1, the
+// caution step, r1) get no fill at all.
+function tierShadeClass(tier) {
+  if (tier === 'g3') return styles.shUp2
+  if (tier === 'g2') return styles.shUp1
+  if (tier === 'r2') return styles.shDn1
+  if (tier === 'r3') return styles.shDn2
   return ''
 }
 
@@ -505,7 +511,7 @@ function BreadthAnalogues() {
   return (
     <div className={styles.analoguesWrap}>
       <div className={styles.analoguesHeader}>
-        <h2 className={styles.analoguesTitle}>Historical Analogues</h2>
+        <h2 className={styles.analoguesTitle}>Historical analogues</h2>
         <span className={styles.analoguesSub}>
           Matching against {refDate}
         </span>
@@ -1028,7 +1034,7 @@ export default function Breadth() {
     const noRows = !rows.length
     return (
       <div className={pageCls}>
-        <SurfaceHeader icon="breadth" title="Breadth">
+        <SurfaceHeader title="Breadth" className={styles.sigHeader}>
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         </SurfaceHeader>
         <div className={styles.overviewBody}>
@@ -1054,7 +1060,7 @@ export default function Breadth() {
   if (activeTab === 'cot') {
     return (
       <div className={`${pageCls} ${styles.pageCot}`}>
-        <SurfaceHeader icon="breadth" title="Breadth" className={styles.cotTabHeader}>
+        <SurfaceHeader title="Breadth" className={`${styles.cotTabHeader} ${styles.sigHeader}`}>
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         </SurfaceHeader>
         <CotData />
@@ -1065,7 +1071,7 @@ export default function Breadth() {
   if (activeTab === 'charts') {
     return (
       <div className={pageCls}>
-        <SurfaceHeader icon="breadth" title="Breadth">
+        <SurfaceHeader title="Breadth" className={styles.sigHeader}>
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         </SurfaceHeader>
         <BreadthCharts />
@@ -1076,7 +1082,7 @@ export default function Breadth() {
   if (activeTab === 'analogues' && isAdmin) {
     return (
       <div className={pageCls}>
-        <SurfaceHeader icon="breadth" title="Breadth">
+        <SurfaceHeader title="Breadth" className={styles.sigHeader}>
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         </SurfaceHeader>
         <BreadthAnalogues />
@@ -1087,13 +1093,13 @@ export default function Breadth() {
   return (
     <div className={pageCls}>
       <SurfaceHeader
-        icon="breadth"
         title="Breadth"
+        className={styles.sigHeader}
         right={activeTab !== 'heatmap' ? (
           <>
             <AgentDockButton className={styles.hdrBtn} />
-            {/* Share (branded snapshot) · CSV · Customize — Customize pinned to
-                the far right of the bar, next to the help "?". */}
+            {/* Share (branded snapshot) · Export CSV · Columns — soft buttons in the
+                same top row, pushed right; Columns is the row's one primary. */}
             {activeTab === 'breadth' && (
               <div className={customizeStyles.anchor}>
                 <button
@@ -1101,7 +1107,7 @@ export default function Breadth() {
                   onClick={() => setShareOpen(o => !o)}
                   title="Share a UCT Intelligence snapshot of the breadth sheet"
                 >
-                  <UIcon name="camera" size={13} /> Share
+                  Share
                 </button>
                 {shareOpen && (
                   <ScreenshotPopover
@@ -1119,21 +1125,25 @@ export default function Breadth() {
               onClick={() => exportCsv(rows, visibleCols)}
               title="Download as CSV"
             >
-              ↓ CSV
+              Export CSV
             </button>
             {activeTab === 'breadth' && (
               <div className={customizeStyles.anchor}>
                 <button
-                  className={`${customizeStyles.triggerBtn} ${customizeOpen ? customizeStyles.triggerBtnActive : ''}`}
+                  className={`${styles.hdrBtn} ${styles.hdrBtnPrimary} ${customizeOpen ? styles.hdrBtnOpen : ''}`}
                   onClick={() => setCustomizeOpen(o => !o)}
                   data-guide="breadth.customize"
-                  title="Customize which metrics show in the sheet"
+                  aria-expanded={customizeOpen}
+                  title="Choose which metrics show as columns in the sheet"
                 >
-                  <span className={customizeStyles.triggerIcon}><UIcon name="gear" size={14} /></span>
-                  Customize
+                  Columns
+                  <span className={styles.hdrChevron} aria-hidden="true">
+                    <svg width="9" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  </span>
                 </button>
                 {customizeOpen && (
                   <CustomizePanel
+                    title="Columns"
                     cols={COLS}
                     activePreset={customize.activePreset}
                     hidden={customize.hidden}
@@ -1208,7 +1218,7 @@ export default function Breadth() {
             title="Refresh breadth data now"
             aria-label="Refresh breadth data"
           >
-            <UIcon name="refresh" size={13} />
+            <UIcon name="refresh" size={14} gold={false} />
           </button>
         )}
       </SurfaceHeader>
@@ -1235,7 +1245,7 @@ export default function Breadth() {
 
       {grid.count > 0 && activeTab === 'breadth' && visibleCols.length === 0 && (
         <div className={styles.empty}>
-          All metrics hidden — open <strong>Customize</strong> to show some.
+          All metrics are hidden. Open <strong>Columns</strong> to show some.
         </div>
       )}
 
@@ -1275,7 +1285,7 @@ export default function Breadth() {
                       scope="col"
                       key={col.key}
                       title={isColCollapsed ? `Click to expand ${col.label}` : `Click to collapse ${col.label}`}
-                      className={`${styles.th} ${styles.colLabel} ${styles.colLabelClickable} ${isColCollapsed ? styles.colLabelCollapsed : ''} ${groupStartKeys.has(col.key) ? styles.groupStart : ''}`}
+                      className={`${styles.th} ${styles.colLabel} ${styles.colLabelClickable} ${isColCollapsed ? styles.colLabelCollapsed : ''} ${groupStartKeys.has(col.key) ? styles.groupStart : ''} ${col.type === 'ma_stack' ? styles.thLeft : ''}`}
                       onClick={() => toggleCol(col.key)}
                     >
                       {isColCollapsed
@@ -1354,43 +1364,25 @@ export default function Breadth() {
                       )
                     }
                     if (col.type === 'ma_stack') {
-                      // keys order: [10sma, 20sma, 50sma, 200sma]
-                      const above10  = row[col.keys[0]] === 1
-                      const above20  = row[col.keys[1]] === 1
-                      const above50  = row[col.keys[2]] === 1
-                      const above200 = row[col.keys[3]] === 1
-                      const hasData  = col.keys.some(k => row[k] != null)
-                      let stackBg = ''
-                      if (hasData) {
-                        if (above50) {
-                          // Green side — above 50SMA
-                          if (above10 && above20 && above200) stackBg = styles.bgG3  // all 4
-                          else if (above200 && (above10 || above20)) stackBg = styles.bgG2  // 50+200+1 short
-                          else if (above200)                         stackBg = styles.bgG1  // 50+200 only
-                          else                                       stackBg = styles.bgA   // above 50, not 200
-                        } else {
-                          // Red side — below 50SMA
-                          if (above200)              stackBg = styles.bgR1  // below 50, still above 200
-                          else if (above10 || above20) stackBg = styles.bgR2  // below 50+200, short-term bounce
-                          else                         stackBg = styles.bgR3  // below all
-                        }
-                      }
+                      // keys order: [10sma, 20sma, 50sma, 200sma]. Four small dots:
+                      // filled up colour = above that average, a hollow down-colour
+                      // ring = below, a faint ring = no reading. The title and the
+                      // label say which average is which.
+                      const sym = col.label.split(' ')[0]
+                      const said = col.keys.map((k, i) => {
+                        const v = row[k]
+                        return `${col.maLabels[i]}-day: ${v === 1 ? 'above' : v === 0 ? 'below' : 'no reading'}`
+                      }).join(', ')
                       return (
-                        <td key={col.key} className={`${styles.td} ${styles.maStackCell} ${stackBg}`}>
-                          <div className={styles.maStack}>
-                            {col.keys.map((k, i) => {
+                        <td key={col.key} className={`${styles.td} ${styles.maStackCell} ${groupStart}`}
+                            title={`${sym} vs its moving averages — ${said}`}>
+                          <span className={styles.maDots} role="img" aria-label={`${sym} moving averages: ${said}`}>
+                            {col.keys.map((k) => {
                               const v = row[k]
-                              const isCheck = v === 1
-                              const isCross = v === 0
-                              return (
-                                <div key={k} className={styles.maItem}>
-                                  <span className={isCheck ? styles.maCheck : isCross ? styles.maCross : styles.maDash}>
-                                    {v === null || v === undefined ? '—' : isCheck ? <UIcon name="check" size={12} /> : <UIcon name="x" size={12} />}
-                                  </span>
-                                </div>
-                              )
+                              const cls = v === 1 ? styles.maDotUp : v === 0 ? styles.maDotDown : styles.maDotNone
+                              return <span key={k} className={`${styles.maDot} ${cls}`} data-ma={k} />
                             })}
-                          </div>
+                          </span>
                         </td>
                       )
                     }
@@ -1468,6 +1460,11 @@ export default function Breadth() {
             </tbody>
           </table>
         </div>
+      )}
+      {grid.count > 0 && activeTab === 'breadth' && visibleCols.length > 0 && (
+        <p className={styles.legend}>
+          Shading appears only where a reading is unusually strong or weak. MA dots: filled = above that average (10, 20, 50, 200-day), ring = below.
+        </p>
       )}
       {drill && (
           <Suspense fallback={null}>

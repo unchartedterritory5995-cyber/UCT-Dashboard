@@ -30,6 +30,7 @@ export const NAV_ITEMS = [
   // instead (`useTerminalNavPath`, applied in renderItem); `to` here stays the declared route.
   // ⭐ CHARTS IS THE HOME (owner 2026-11-11): first in the rail and the default landing page.
   { to: '/charts',       label: 'Charts',        icon: 'equity' },
+  { to: '/breadth',      label: 'Breadth',       icon: 'breadth' },
   { to: '/terminal',     label: 'UCT Terminal',  icon: 'calendar', alsoActive: ['/calendar'] },
   { to: '/morning-wire', label: 'Morning Wire',  icon: 'wire' },
   // MARKETS
@@ -37,7 +38,6 @@ export const NAV_ITEMS = [
   // /charts (App.jsx). The page and its code are kept, to be brought back later.
   { to: '/ai-search',    label: 'AI Search',     icon: 'sparkle' },
   { to: '/uct-20',       label: 'UCT 20',        icon: 'star' },
-  { to: '/breadth',      label: 'Breadth',       icon: 'breadth' },
   { to: '/screener',     label: 'Screener',      icon: 'screener' },
   { to: '/options-flow', label: 'Options Flow',  icon: 'flow' },
   { to: '/flow-scoreboard', label: 'Flow Record',  icon: 'flag' },

@@ -1,15 +1,17 @@
-.switcher { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 3px; border-radius: 9px;
-  background: color-mix(in srgb, var(--text-heading) 4%, transparent); border: 1px solid color-mix(in srgb, var(--text-heading) 8%, transparent); }
-.btn { padding: 5px 14px; border: none; background: transparent; color: var(--text);
-  font: 700 11px var(--font-sans); letter-spacing: .4px; border-radius: var(--radius-md);
-  cursor: pointer; transition: background .15s, color .15s; }
-.btn:hover { color: var(--text-bright); }
-.btnActive { background: color-mix(in srgb, var(--ut-gold) 18%, transparent); color: var(--accent); }
+/* Views tab switcher — UCT Signature: plain words on no box, the chosen view on the
+   soft selected tone (bright text). Gold stays on the page's own current tab only. */
+.switcher { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 0; }
+.btn { height: 28px; padding: 0 10px; border: none; background: transparent; color: var(--br-rest, var(--text-muted));
+  font: 500 12.5px var(--font-sans); border-radius: 7px;
+  cursor: pointer; transition: background .12s, color .12s; white-space: nowrap; }
+.btn:hover { color: var(--br-bright, var(--text-bright)); background: var(--br-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); }
+.btn:focus-visible { outline: 2px solid var(--br-ring, var(--text-muted)); outline-offset: 1px; }
+.btnActive { background: var(--br-soft-hi, color-mix(in srgb, var(--text-bright) 11%, transparent)); color: var(--br-bright, var(--text-bright)); font-weight: 600; }
 
-.group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.group + .group { margin-left: 8px; padding-left: 10px; border-left: 1px solid color-mix(in srgb, var(--text-heading) 10%, transparent); }
-.groupLabel { font: 800 var(--text-xs) var(--font-sans); letter-spacing: .8px;
-  text-transform: uppercase; color: var(--text-muted); padding: 0 4px; user-select: none; }
+.group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.group + .group { margin-left: 6px; padding-left: 8px; border-left: 1px solid var(--br-line, var(--border)); }
+.groupLabel { font: 600 11px var(--font-sans);
+  color: var(--br-faint, var(--text-muted)); padding: 0 6px 0 2px; user-select: none; }
 
 /* Phone — the view buttons wrap to several bulky rows, and the strip grows
    whenever a view is added, so no count belongs here. Convert to a single

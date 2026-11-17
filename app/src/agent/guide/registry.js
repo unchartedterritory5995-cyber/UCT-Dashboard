@@ -619,10 +619,10 @@ export const GUIDE_FEATURES = [
     words: [/\b(tabs?|views?|customi[sz]e|heat ?map|overview|cot)\b/, /\b(hide|show|choose|pick)\b.*\b(metrics?|columns?)\b/],
     caps: ['breadth.page'],
     // pages/Breadth.jsx — BreadthTabs and the Customize button (the sheet's own CustomizePanel)
-    explain: 'The tabs along the top of Breadth switch between its views — the monitor sheet, the heat map, the overview and the others. On the sheet, Customize chooses which metrics show as columns.',
+    explain: 'The tabs along the top of Breadth switch between its views — the monitor sheet, the heat map, the overview and the others. On the sheet, Columns chooses which metrics show.',
     steps: [
       { target: 'breadth.tabs', text: 'These tabs switch between Breadth’s views.' },
-      { target: 'breadth.customize', text: 'On the sheet, Customize chooses which metrics show.', optional: true },
+      { target: 'breadth.customize', text: 'On the sheet, Columns chooses which metrics show.', optional: true },
     ],
     doIt: { say: 'Breadth is read only for me — switch the view with the tabs, and ask me what the sheet shows or for a breadth reading.' },
   },

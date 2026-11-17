@@ -4,63 +4,79 @@
 .nav {
   display: inline-flex;
   align-items: center;
-  gap: 1px;
+  gap: 4px;
   flex-shrink: 0;
-  margin-left: auto; /* push to the right edge, as the day pills did */
 }
 
-/* ◀ / ▶ one-day steppers */
+/* ‹ / › one-day steppers — Signature icon buttons (28px, radius 7, no fill). */
 .step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   background: transparent;
-  color: var(--text-muted);
-  border: 1px solid transparent;
-  border-radius: 3px;
-  padding: 3px 5px;
-  font-size: var(--text-xs);
+  color: var(--br-rest, var(--text-muted));
+  border: 0;
+  border-radius: 7px;
+  padding: 0;
   line-height: 1;
   cursor: pointer;
   flex-shrink: 0;
 }
-.step:hover { color: var(--ut-gold); border-color: var(--border-accent); }
-.step:disabled { opacity: 0.35; cursor: default; }
-.step:disabled:hover { color: var(--text-muted); border-color: transparent; }
+.step:hover { color: var(--br-bright, var(--text-bright)); background: var(--br-soft, color-mix(in srgb, var(--text-bright) 7%, transparent)); }
+.step:disabled { opacity: 0.3; cursor: default; }
+.step:disabled:hover { color: var(--br-rest, var(--text-muted)); background: transparent; }
+.step:focus-visible { outline: 2px solid var(--br-ring, var(--text-muted)); outline-offset: 1px; }
+
+/* The soft "dropdown" button: the typeable date + its chevron on one soft fill. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  border-radius: 7px;
+  background: var(--br-soft, color-mix(in srgb, var(--text-bright) 6%, transparent));
+  transition: background 0.12s;
+}
+.pill:hover, .pill:focus-within { background: var(--br-soft-hi, color-mix(in srgb, var(--text-bright) 11%, transparent)); }
 
 /* The date field — reads the current top row; type + Enter to jump */
 .field {
-  width: 96px;
+  width: calc(5.4em + 12px);
+  height: 28px;
+  box-sizing: border-box;
   background: transparent;
-  color: var(--text);
-  border: 1px solid var(--border-accent);
-  border-radius: 3px;
-  padding: 3px 6px;
-  margin: 0 2px;
+  color: var(--br-text, var(--text));
+  border: 0;
+  border-radius: 7px;
+  padding: 0 0 0 10px;
+  margin: 0;
   font-family: var(--font-sans);
-  font-size: var(--text-sm);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.4px;
-  text-align: center;
+  text-align: left;
   font-variant-numeric: tabular-nums;
   outline: none;
-  transition: border-color 0.12s ease;
 }
-.field::placeholder { color: var(--text-muted); font-weight: 500; letter-spacing: 0.2px; }
-.field:hover { border-color: var(--text-muted); }
-.field:focus { border-color: var(--ut-gold); color: var(--text-bright); }
+.field::placeholder { color: var(--br-faint, var(--text-muted)); font-weight: 500; }
+.field:focus { color: var(--br-bright, var(--text-bright)); }
 
-/* ▾ dropdown trigger */
+/* ⌄ dropdown trigger, inside the soft button */
 .caret {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  height: 28px;
   background: transparent;
-  color: var(--text-muted);
-  border: 1px solid transparent;
-  border-radius: 3px;
-  padding: 4px 5px;
+  color: var(--br-faint, var(--text-muted));
+  border: 0;
+  border-radius: 7px;
+  padding: 0 10px 0 4px;
   cursor: pointer;
   flex-shrink: 0;
 }
-.caret:hover, .caret[aria-expanded='true'] { color: var(--ut-gold); border-color: var(--border-accent); }
+.caret:hover, .caret[aria-expanded='true'] { color: var(--br-bright, var(--text-bright)); }
+.caret:focus-visible { outline: 2px solid var(--br-ring, var(--text-muted)); outline-offset: -2px; }
 
 /* ── Dropdown popover (portaled to body, positioned by anchor) ── */
 .pop {
@@ -90,7 +106,7 @@
   background: transparent; border: none; cursor: pointer;
   color: var(--menu-text-faint); font-size: var(--text-xl); line-height: 1; padding: 2px 8px; border-radius: var(--radius-md);
 }
-.calNav:hover { color: var(--menu-accent); background: var(--menu-hover); }
+.calNav:hover { color: var(--menu-text); background: var(--menu-hover); }
 .calDow {
   display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px;
   margin-bottom: 2px;
@@ -107,11 +123,11 @@
   color: var(--menu-text); font-size: var(--text-sm); font-variant-numeric: tabular-nums;
   cursor: pointer; padding: 0;
 }
-.calDay:hover { background: var(--menu-hover); border-color: var(--menu-border); color: var(--menu-accent); }
+.calDay:hover { background: var(--menu-hover); color: var(--menu-text); }
 .calDay:disabled { color: var(--menu-text-faint); cursor: default; opacity: 0.4; }
 .calDay:disabled:hover { background: transparent; border-color: transparent; color: var(--menu-text-faint); }
-/* The currently-framed date — gold TEXT only (no fill/outline). */
-.calDaySel { color: var(--menu-accent); font-weight: 700; }
+/* The currently-framed date — bold on the soft selected tone (Signature: no gold here). */
+.calDaySel { color: var(--menu-text); font-weight: 700; background: var(--menu-hover); }
 
 /* Year list column */
 .years {
@@ -121,8 +137,8 @@
   padding: 8px;
 }
 .yearsLabel {
-  font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--menu-text); padding: 0 0 4px;
+  font-size: 11px; font-weight: 600;
+  color: var(--menu-text-faint); padding: 0 0 4px;
   text-align: center;
 }
 /* Hide the year-list scrollbar so the centered year buttons use the full column
@@ -138,9 +154,9 @@
   color: var(--menu-text); font-size: var(--text-base); font-variant-numeric: tabular-nums;
   text-align: center; padding: 4px 8px; cursor: pointer;
 }
-.yearBtn:hover { background: var(--menu-hover); border-color: var(--menu-border); color: var(--menu-accent); }
-/* The year of the currently-framed date — gold TEXT only (no fill/outline). */
-.yearBtnSel { color: var(--menu-accent); font-weight: 700; }
+.yearBtn:hover { background: var(--menu-hover); color: var(--menu-text); }
+/* The year of the currently-framed date — bold on the soft selected tone. */
+.yearBtnSel { color: var(--menu-text); font-weight: 700; background: var(--menu-hover); }
 
 /* TOUCH TIER (<=1024px) -- nav/toolbar ---------------------------------------
    The date scrubber: step-a-day arrows measured 20x17, the field 96x22 and the caret 21x16 at 820px.

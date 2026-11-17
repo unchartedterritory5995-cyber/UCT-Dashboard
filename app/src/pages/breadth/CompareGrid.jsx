@@ -84,7 +84,7 @@ export default function CompareGrid({ quad = [], propsForStyle, customizeForStyl
                           aria-label={`Customize ${custom.viewLabel}`}
                           title={`Customize ${custom.viewLabel}${custom.isDefaultActive ? '' : ` · ${custom.activePreset}`}`}
                           onClick={() => setOpenPane(p => (p === i ? null : i))}>
-                    <UIcon name="gear" size={12} />
+                    <UIcon name="gear" size={12} gold={false} />
                     {!custom.isDefaultActive && (
                       <span className={styles.gearPreset}>{custom.activePreset}</span>
                     )}

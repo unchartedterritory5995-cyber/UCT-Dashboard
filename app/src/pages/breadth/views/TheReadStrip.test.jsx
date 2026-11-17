@@ -118,7 +118,7 @@ describe('the strip', () => {
       // The clauses are blocks now, so the DOM concatenates them without the
       // joining space `read.text` uses — compare against the same construction.
       expect(screen.getByTestId('the-read').textContent)
-        .toBe(`The Read${composed.clauses.map(c => c.text).join('')}`)
+        .toBe(`The read${composed.clauses.map(c => c.text).join('')}`)
     })
 
     it('the figure split re-emits its input, on every clause the composer writes', () => {

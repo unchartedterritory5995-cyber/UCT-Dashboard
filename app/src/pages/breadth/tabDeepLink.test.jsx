@@ -55,14 +55,14 @@ describe('?tab= opens the requested Breadth sub-tab on load', () => {
   it('?tab=charts opens Data Charts on the very first render', () => {
     isAdminRef.current = false
     mount('/breadth?tab=charts')
-    expect(tab('Data Charts').className).toMatch(/tabActive/)
+    expect(tab('Data charts').className).toMatch(/tabActive/)
     expect(screen.getByTestId('v1-charts')).toBeInTheDocument()
   })
 
   it('?tab=cot opens COT Data', () => {
     isAdminRef.current = false
     mount('/breadth?tab=cot')
-    expect(tab('COT Data').className).toMatch(/tabActive/)
+    expect(tab('COT data').className).toMatch(/tabActive/)
     expect(screen.getByTestId('cot-data')).toBeInTheDocument()
   })
 

@@ -29,13 +29,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--ut-gold);
+  color: var(--text-muted);
 }
 .eyebrow::before {
+  display: none;
   content: '';
   width: 18px;
   height: 1px;
@@ -51,10 +50,8 @@
   line-height: 1.2;
 }
 .whenLabel {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 1.4px;
-  text-transform: uppercase;
   color: var(--text-muted);
 }
 .whenDate {
@@ -64,7 +61,7 @@
   font-variant-numeric: tabular-nums;
 }
 .whenScrub .whenLabel,
-.whenScrub .whenDate { color: var(--ut-gold); }
+.whenScrub .whenDate { color: var(--text-bright); }
 
 /* ── Verdict tiles ──────────────────────────────────────────────────────── */
 .verdicts {
@@ -82,10 +79,8 @@
 }
 
 .tileLabel {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 1.4px;
-  text-transform: uppercase;
   color: var(--text-muted);
   margin-bottom: 5px;
 }
@@ -130,10 +125,8 @@
 
 .rowHead {
   padding: 7px 0 5px;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
   color: var(--text-muted);
 }
 .rowHead .cellLabel { font-weight: 700; color: var(--text-muted); }
@@ -261,18 +254,15 @@
 .watch {
   margin-top: 2px;
   padding: 10px 12px;
-  border: 1px solid var(--ut-gold-glow);
-  border-left: 2px solid var(--ut-gold);
-  border-radius: var(--radius-md);
-  background: var(--ut-gold-dim);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--text-bright) 4%, transparent);
 }
 
 .watchLabel {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 1.6px;
-  text-transform: uppercase;
-  color: var(--ut-gold);
+  color: var(--text-muted);
   margin-bottom: 4px;
 }
 
@@ -333,7 +323,7 @@
 }
 .chipBull::before    { background: var(--gain); }
 .chipBear::before    { background: var(--loss); }
-.chipNeutral::before { background: var(--ut-gold); }
+.chipNeutral::before { background: var(--text-muted); }
 
 /* ── v2: sections ───────────────────────────────────────────────────────── */
 .section {
@@ -388,15 +378,13 @@
 .details summary {
   cursor: pointer;
   list-style: none;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
+  font-size: 11.5px;
+  font-weight: 600;
   color: var(--text-muted);
   padding: 2px 0;
 }
 .details summary::-webkit-details-marker { display: none; }
-.details summary::before { content: '▸ '; color: var(--ut-gold); }
+.details summary::before { content: '▸ '; color: var(--text-muted); }
 .details[open] summary::before { content: '▾ '; }
 .details .points { margin-top: 8px; }
 
@@ -418,7 +406,7 @@
 }
 .checkBull    { background: var(--gain); }
 .checkBear    { background: var(--loss); }
-.checkCaution { background: var(--ut-gold); }
+.checkCaution { background: var(--text-muted); }
 .checkInfo    { background: var(--info); }
 .checkLabel {
   display: block;
@@ -443,10 +431,8 @@
   min-width: 0;
 }
 .precH {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
   color: var(--text-muted);
   margin-bottom: 4px;
 }
@@ -506,7 +492,7 @@
   .fold > summary::after {
     content: '\25B8';
     margin-left: auto;
-    color: var(--ut-gold);
+    color: var(--text-muted);
     font-size: 11px;
   }
   .fold[open] > summary::after { content: '\25BE'; }

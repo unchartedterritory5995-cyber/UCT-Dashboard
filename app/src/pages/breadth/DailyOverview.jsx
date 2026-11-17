@@ -40,7 +40,8 @@ const BEAR_KEYS = new Set(['down_4pct_today', 'new_52w_lows'])
 
 // CSS custom-property values (the hero paints them through `--hero-hue` in CSS), so they
 // are the theme's own tokens and follow a theme switch.
-const TONE_HUE = { gain: 'var(--gain)', loss: 'var(--loss)', gold: 'var(--ut-gold)' }
+// The caution step reads in the theme's muted text, not gold (UCT Signature: gold is the current tab only).
+const TONE_HUE = { gain: 'var(--gain)', loss: 'var(--loss)', gold: 'var(--text-muted)' }
 
 function tierTone(tier) {
   if (!tier) return null

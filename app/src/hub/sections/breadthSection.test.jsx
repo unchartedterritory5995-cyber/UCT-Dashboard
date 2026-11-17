@@ -135,12 +135,12 @@ describe('the resolved list — the admin tab is the whole reason this module ex
     // Rendered DOM, not the constant: the member's strip must not carry an Analogues button at
     // all, and the admin's must — otherwise "resolved" is a word rather than a behaviour.
     openBreadth({ admin: false })
-    expect(tabLabels()).toEqual(['Monitor', 'Views', 'Daily', 'COT Data', 'Data Charts'])
+    expect(tabLabels()).toEqual(['Monitor', 'Views', 'Daily', 'COT data', 'Data charts'])
     expect(strip().queryByRole('button', { name: 'Analogues' })).toBeNull()
 
     cleanup()
     openBreadth({ admin: true })
-    expect(tabLabels()).toEqual(['Monitor', 'Views', 'Daily', 'COT Data', 'Data Charts', 'Analogues'])
+    expect(tabLabels()).toEqual(['Monitor', 'Views', 'Daily', 'COT data', 'Data charts', 'Analogues'])
     expect(strip().getByRole('button', { name: 'Analogues' })).toBeTruthy()
   })
 
@@ -161,8 +161,8 @@ describe('tap and double-tap walk the strip and CLAMP', () => {
     expect(activeTabLabel()).toBe('Monitor')
     tap(); expect(activeTabLabel()).toBe('Views')
     tap(); expect(activeTabLabel()).toBe('Daily')
-    tap(); expect(activeTabLabel()).toBe('COT Data')
-    tap(); expect(activeTabLabel()).toBe('Data Charts')
+    tap(); expect(activeTabLabel()).toBe('COT data')
+    tap(); expect(activeTabLabel()).toBe('Data charts')
   })
 
   it('⛔ tap CLAMPS at the last tab and never wraps back to the first', () => {
@@ -170,13 +170,13 @@ describe('tap and double-tap walk the strip and CLAMP', () => {
     // walking away from — indistinguishable, on a phone, from the gesture having done nothing.
     openBreadth()
     tap(10)
-    expect(activeTabLabel()).toBe('Data Charts')
+    expect(activeTabLabel()).toBe('Data charts')
   })
 
   it('⛔ double-tap retreats and CLAMPS at the first tab, never wrapping to the last', () => {
     openBreadth()
     tap(3)
-    expect(activeTabLabel()).toBe('COT Data')
+    expect(activeTabLabel()).toBe('COT data')
     doubleTap(); expect(activeTabLabel()).toBe('Daily')
     doubleTap(10)
     expect(activeTabLabel()).toBe('Monitor')
@@ -192,7 +192,7 @@ describe('tap and double-tap walk the strip and CLAMP', () => {
     cleanup()
     openBreadth({ admin: false })
     tap(10)
-    expect(activeTabLabel()).toBe('Data Charts')
+    expect(activeTabLabel()).toBe('Data charts')
   })
 
   it('the tab CONTENT follows, not just the highlight', () => {
@@ -245,13 +245,13 @@ describe('the scrub — the range IS the resolved list', () => {
       cfg().onScrub(CTX, { delta: 5, axis: 'x' })   // five pad-travels to the right
       cfg().onScrubCommit()
     })
-    expect(activeTabLabel()).toBe('Data Charts')
+    expect(activeTabLabel()).toBe('Data charts')
   })
 
   it('a drag back past the start clamps on the first tab', () => {
     openBreadth({ admin: false })
     tap(4)
-    expect(activeTabLabel()).toBe('Data Charts')
+    expect(activeTabLabel()).toBe('Data charts')
     act(() => {
       cfg().onScrub(CTX, { delta: -5, axis: 'x' })
       cfg().onScrubCommit()

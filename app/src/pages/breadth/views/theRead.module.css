@@ -12,8 +12,8 @@
   padding: 8px 14px 9px;
   margin: 0 4px 6px;
   border-radius: 9px;
-  background: color-mix(in srgb, var(--text-heading) 2.5%, transparent);
-  border: 1px solid color-mix(in srgb, var(--text-heading) 6%, transparent);
+  background: var(--br-panel, var(--bg-surface));
+  border: 1px solid var(--br-line, var(--border));
 }
 
 /* A rule, not a word floating beside a paragraph: the strip has two jobs on one
@@ -21,11 +21,9 @@
 .kicker {
   align-self: stretch;
   padding: 3px 13px 0 0;
-  border-right: 1px solid color-mix(in srgb, var(--text-heading) 7%, transparent);
-  font: 800 var(--text-xs) var(--font-sans);
-  letter-spacing: 0.9px;
-  text-transform: uppercase;
-  color: var(--text-muted);
+  border-right: 1px solid var(--br-line, var(--border));
+  font: 600 11.5px var(--font-sans);
+  color: var(--br-rest, var(--text-muted));
   white-space: nowrap;
 }
 

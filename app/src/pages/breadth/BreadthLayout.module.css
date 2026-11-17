@@ -3,49 +3,57 @@
 .toggle {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px;
-  border: 1px solid color-mix(in srgb, var(--text-heading) 8%, transparent);
-  border-radius: 8px;
-  background: var(--bg);
+  gap: 2px;
 }
 
 .btn {
-  height: 22px;
+  height: 28px;
   padding: 0 10px;
-  border-radius: 6px;
-  border: 1px solid transparent;
+  border-radius: 7px;
+  border: 0;
   background: transparent;
-  color: var(--text-muted);
-  font: 700 10px var(--font-sans);
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
+  color: var(--br-rest, var(--text-muted));
+  font: 500 12.5px var(--font-sans);
   cursor: pointer;
 }
-.btn:hover { color: var(--text-bright); }
+.btn:hover { color: var(--br-bright, var(--text-bright)); background: var(--br-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); }
+/* The chosen layout: the Signature soft selected tone, no gold. */
 .btnActive {
-  background: var(--bg);
-  border-color: var(--ut-gold);
-  color: var(--text-bright);
+  background: var(--br-soft-hi, color-mix(in srgb, var(--text-bright) 11%, transparent));
+  color: var(--br-bright, var(--text-bright));
+  font-weight: 600;
 }
 
 .note {
-  font: 600 10px var(--font-sans);
-  color: var(--text-muted);
+  font: 500 11.5px var(--font-sans);
+  color: var(--br-faint, var(--text-muted));
 }
 
 /* The refused `?date=` — legible, muted, and carrying the reason. */
 .refusal {
-  font: 600 10px var(--font-sans);
-  color: var(--text-muted);
+  font: 500 11.5px var(--font-sans);
+  color: var(--br-faint, var(--text-muted));
   border-bottom: 1px dotted color-mix(in srgb, var(--text-muted) 50%, transparent);
 }
 
-/* The day stepper's two arrows and its LATEST escape. On desktop they keep the
-   app's default button styling — these classes carry nothing but the phone
-   hook, and `touch-action` is the one property that is right at every width. */
+/* The day stepper's two arrows and its LATEST escape. `touch-action` is the one
+   property that is right at every width; the phone rules below size them. */
 .step { touch-action: manipulation; }
 .latest { touch-action: manipulation; }
+/* Signature: the arrows are icon buttons, LATEST a soft button. */
+.step {
+  width: 28px; height: 28px; padding: 0; border: 0; border-radius: 7px;
+  background: transparent; color: var(--br-rest, var(--text-muted));
+  font: 500 14px var(--font-sans); cursor: pointer;
+}
+.step:hover:not(:disabled) { background: var(--br-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); color: var(--br-bright, var(--text-bright)); }
+.step:disabled { opacity: 0.3; cursor: default; }
+.latest {
+  height: 28px; padding: 0 10px; border: 0; border-radius: 7px;
+  background: var(--br-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); color: var(--br-text, var(--text));
+  font: 600 12px var(--font-sans); cursor: pointer;
+}
+.latest:hover { background: var(--br-soft-hi, color-mix(in srgb, var(--text-bright) 11%, transparent)); color: var(--br-bright, var(--text-bright)); }
 
 /* ⛔ PHONE — MEASURED, NOT ASSUMED. Rendered at 390×844 in Chromium, the tab
    had NO horizontal overflow (the switcher's own scroll strip already handles

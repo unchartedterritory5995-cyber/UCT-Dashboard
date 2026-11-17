@@ -195,20 +195,36 @@ export default function BreadthDateNav({
         aria-label="Step back one trading day"
         onClick={() => onStep(-1)}
       ><UIcon name="chevronRight" size={12} gold={false} aria-hidden="true" style={{ transform: 'rotate(180deg)' }} /></button>
-      <Input
-        className={styles.field}
-        value={shown}
-        placeholder="M/D/YYYY"
-        spellCheck={false}
-        title="Go to a date — type and press Enter"
-        onFocus={(e) => { setEditing(true); setDraft(isoToDisplay(topDate)); requestAnimationFrame(() => e.target.select()) }}
-        onChange={(e) => setDraft(maskMDY(e.target.value))}
-        onBlur={() => setEditing(false)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') { e.preventDefault(); submit(); e.currentTarget.blur() }
-          else if (e.key === 'Escape') { setEditing(false); e.currentTarget.blur() }
-        }}
-      />
+      {/* The date "dropdown": a soft button holding the typeable date and its chevron. */}
+      <span className={styles.pill}>
+        <Input
+          className={styles.field}
+          value={shown}
+          placeholder="M/D/YYYY"
+          spellCheck={false}
+          title="Go to a date — type and press Enter"
+          onFocus={(e) => { setEditing(true); setDraft(isoToDisplay(topDate)); requestAnimationFrame(() => e.target.select()) }}
+          onChange={(e) => setDraft(maskMDY(e.target.value))}
+          onBlur={() => setEditing(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); submit(); e.currentTarget.blur() }
+            else if (e.key === 'Escape') { setEditing(false); e.currentTarget.blur() }
+          }}
+        />
+        <button
+          ref={caretRef}
+          type="button"
+          className={styles.caret}
+          title="Pick a date or year"
+          aria-label="Pick a date or year"
+          aria-expanded={open}
+          onClick={() => (open ? setOpen(false) : openMenu())}
+        >
+          <svg width="9" height="6" viewBox="0 0 10 6" aria-hidden="true">
+            <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </span>
       <button
         type="button"
         className={styles.step}
@@ -217,19 +233,6 @@ export default function BreadthDateNav({
         disabled={!canForward}
         onClick={() => canForward && onStep(1)}
       ><UIcon name="chevronRight" size={12} gold={false} aria-hidden="true" /></button>
-      <button
-        ref={caretRef}
-        type="button"
-        className={styles.caret}
-        title="Pick a date or year"
-        aria-label="Pick a date or year"
-        aria-expanded={open}
-        onClick={() => (open ? setOpen(false) : openMenu())}
-      >
-        <svg width="9" height="6" viewBox="0 0 10 6" aria-hidden="true">
-          <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
       {open && (
         <CalendarPopover
           anchor={anchor}

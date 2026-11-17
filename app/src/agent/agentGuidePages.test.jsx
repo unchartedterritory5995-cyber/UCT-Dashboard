@@ -187,7 +187,7 @@ describe('W2-C2 · /breadth (read only)', () => {
     type('where are the breadth tabs?')
     await waitFor(() => expect(cardText()).toMatch(/These tabs switch between Breadth’s views/))
     fireEvent.click(screen.getByRole('button', { name: /Next/ }))
-    await waitFor(() => expect(cardText()).toMatch(/Customize chooses which metrics show/))
+    await waitFor(() => expect(cardText()).toMatch(/Columns chooses which metrics show/))
     type('do it for me')
     await screen.findAllByText(/Breadth is read only for me/)
     expect(screen.queryByTestId('agent-receipt')).toBeNull()

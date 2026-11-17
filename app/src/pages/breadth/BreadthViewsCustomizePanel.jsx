@@ -119,7 +119,7 @@ export default function BreadthViewsCustomizePanel({
          ref={panelRef} role="dialog" aria-label={`Customize ${viewLabel}`}>
       <div className={styles.header}>
         <h2 className={styles.title}>Customize {viewLabel}</h2>
-        <button className={styles.xBtn} onClick={onClose} aria-label="Close"><UIcon name="x" size={14} /></button>
+        <button className={styles.xBtn} onClick={onClose} aria-label="Close"><UIcon name="x" size={14} gold={false} /></button>
       </div>
 
       <div className={styles.presetRow}>

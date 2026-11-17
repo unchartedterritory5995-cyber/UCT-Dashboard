@@ -55,8 +55,8 @@ export const BREADTH_TAB_ITEMS = Object.freeze([
   { key: 'breadth', label: 'Monitor' },
   { key: 'heatmap', label: 'Views' },
   { key: 'overview', label: 'Daily' },
-  { key: 'cot', label: 'COT Data' },
-  { key: 'charts', label: 'Data Charts' },
+  { key: 'cot', label: 'COT data' },
+  { key: 'charts', label: 'Data charts' },
 ])
 
 /** Appended for admins only. Kept separate so "who sees it" is one name, not a spread buried in JSX. */

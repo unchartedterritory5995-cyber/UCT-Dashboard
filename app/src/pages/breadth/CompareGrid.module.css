@@ -21,9 +21,9 @@
   flex-direction: column;
   min-height: 0;
   min-width: 0;
-  border: 1px solid color-mix(in srgb, var(--text-heading) 8%, transparent);
-  border-radius: 8px;
-  background: var(--bg);
+  border: 1px solid var(--br-line, var(--border));
+  border-radius: 12px;
+  background: var(--br-panel, var(--bg-surface));
   overflow: visible;
 }
 
@@ -32,22 +32,21 @@
   align-items: center;
   gap: 8px;
   padding: 4px 6px;
-  border-bottom: 1px solid color-mix(in srgb, var(--text-heading) 6%, transparent);
+  border-bottom: 1px solid var(--br-row, var(--border));
 }
 
 .pick {
-  height: 22px;
+  height: 26px;
   max-width: 100%;
-  border-radius: 6px;
-  border: 1px solid color-mix(in srgb, var(--text-heading) 12%, transparent);
-  background: var(--bg);
-  color: var(--text-muted);
-  font: 700 10px var(--font-sans);
-  letter-spacing: 0.3px;
-  padding: 0 4px;
+  border-radius: 7px;
+  border: 0;
+  background: var(--br-soft, color-mix(in srgb, var(--text-bright) 6%, transparent));
+  color: var(--br-text, var(--text));
+  font: 600 12px var(--font-sans);
+  padding: 0 6px;
   cursor: pointer;
 }
-.pick:hover { border-color: var(--ut-gold); color: var(--text-bright); }
+.pick:hover { background: var(--br-soft-hi, color-mix(in srgb, var(--text-bright) 11%, transparent)); color: var(--br-bright, var(--text-bright)); }
 
 .gearAnchor {
   margin-left: auto;
@@ -57,20 +56,19 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  height: 22px;
-  padding: 0 6px;
-  border-radius: 6px;
-  border: 1px solid color-mix(in srgb, var(--text-heading) 12%, transparent);
-  background: var(--bg);
-  color: var(--text-muted);
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 7px;
+  border: 0;
+  background: transparent;
+  color: var(--br-rest, var(--text-muted));
   cursor: pointer;
 }
-.gear:hover { border-color: var(--ut-gold); color: var(--text-bright); }
-.gear[aria-expanded='true'] { border-color: var(--ut-gold); color: var(--ut-gold); }
+.gear:hover { background: var(--br-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); color: var(--br-bright, var(--text-bright)); }
+.gear[aria-expanded='true'] { background: var(--br-soft-hi, color-mix(in srgb, var(--text-bright) 11%, transparent)); color: var(--br-bright, var(--text-bright)); }
 
 .gearPreset {
-  font: 700 var(--text-xs) var(--font-sans);
-  letter-spacing: 0.3px;
+  font: 600 11.5px var(--font-sans);
   max-width: 84px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -81,7 +79,7 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  border-radius: 0 0 7px 7px;
+  border-radius: 0 0 11px 11px;
 }
 
 @media (max-width: 640px) {

@@ -35,7 +35,7 @@ import AgentProvider from '../../agent/AgentProvider'
 
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
-const TABS = ['COT Data', 'Data Charts', 'Analogues', 'Daily', 'Views']
+const TABS = ['COT data', 'Data charts', 'Analogues', 'Daily', 'Views']
 
 describe('/breadth: switching tabs never changes the hook count', () => {
   it.each([
