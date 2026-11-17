@@ -119,20 +119,44 @@ describe('the doors on a member’s own indicator', () => {
   })
 
   it('⛔ the doors sit on a line of their own under the name (stylesheet + source rail)', () => {
-    // Five doors on the name's line left the name no room: on production (2026-11-17) the name
-    // was cut to its first word and a label slid under "Modify". jsdom does no layout, so this
-    // pins the three rules that make the second line; the measurement is a real-browser check.
+    // Five doors on the name's line left the name no room (production, 2026-11-17). jsdom does no
+    // layout, so this pins the rules that make the second line AND the nesting they depend on; the
+    // measurement itself is a real-browser check on the live page.
     const css = fs.readFileSync(path.resolve(__dirname, './ChartSettingsIndicators.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
-    const rule = (sel) => { const m = new RegExp(`${sel.replace(/[.]/g, '\\.')}\\s*\\{([^}]*)\\}`).exec(css); return m ? m[1] : null }
-    expect(rule('.resRowOwn')).toMatch(/flex-wrap:\s*wrap/)
+    // a rule's body by its WHOLE selector (anchored at the start of a rule, so `.resRowOwn` is not
+    // found inside `.resRowOwn .resMain`)
+    const rule = (sel) => {
+      const at = new RegExp(`(?:^|[}])\\s*${sel.replace(/[.]/g, '[.]')}\\s*[{]([^}]*)[}]`).exec(css)
+      return at ? at[1] : null
+    }
+    // ⛔ THE DOORS ARE INSIDE `.resMain`, so `.resMain` is what wraps. The first fix wrapped the ROW
+    // and gave the doors a whole-line basis inside a `.resMain` that could not wrap: the name was
+    // squeezed to zero width on production.
+    expect(rule('.resRowOwn .resMain')).toMatch(/flex-wrap:\s*wrap/)
     expect(rule('.resRowOwn .resActions')).toMatch(/flex:\s*1 0 100%/)        // the whole second line
     expect(rule('.resRowOwn .resActions')).toMatch(/flex-wrap:\s*wrap/)        // and it wraps when narrow
-    expect(rule('.resRowOwn .resMain')).toMatch(/flex:\s*1 1 0\b/)              // the name keeps the first line
+    expect(rule('.resRowOwn')).not.toMatch(/flex-wrap/)                         // the row itself stays one line
+    expect(rule('.resRowOwn .resMain')).not.toMatch(/flex:\s*1 1 0\b/)
     // CONTROL: the reader sees a real rule, and a rule that is not there is null
     expect(rule('.resActions')).toMatch(/display:\s*flex/)
     expect(rule('.noSuchRule')).toBeNull()
     // the window marks the member's own rows, and only those that have doors
-    expect(code(WINDOW_SRC)).toMatch(/row\.userDefined && definitionDoors \? styles\.resRowOwn : ''/)
+    const w = code(WINDOW_SRC)
+    expect(w).toMatch(/row\.userDefined && definitionDoors \? styles\.resRowOwn : ''/)
+    // and the nesting the rules assume: between `.resMain` opening and the doors, every span and
+    // button that opened has closed, so the doors are a direct child of `.resMain`
+    const open = w.indexOf('<span className={`${styles.resMain}')
+    const doors = w.indexOf('<YourIndicatorActions', open)
+    expect(open).toBeGreaterThan(-1)
+    expect(doors).toBeGreaterThan(open)
+    const between = w.slice(w.indexOf('>', open) + 1, doors)
+    const count = (needle) => between.split(needle).length - 1
+    expect(count('<span')).toBeGreaterThan(0)
+    expect(count('<span')).toBe(count('</span>'))
+    expect(count('<button')).toBe(count('</button>'))
+    // CONTROL: the count sees a missing close (the doors moved out of `.resMain` would read so)
+    const moved = `${between}</span>`
+    expect(moved.split('<span').length).not.toBe(moved.split('</span>').length)
   })
 
   it('the Indicators window uses these doors for the member’s own rows (source rail; comments stripped)', () => {
