@@ -136,6 +136,25 @@ export default function ConverseBox({
   /** ⭐ DIRECTION A — 'start' is the start view's "Describe it" well (nothing to undo,
    *  no identity line until there is an indicator); 'ask' is the editor's Ask tab. */
   const startWell = variant === 'start'
+  // ⭐ 2026-11-17 — THE START VIEW OPENS WITH THE CURSOR IN "DESCRIBE IT". Measured on production: the
+  // window opened with focus on the dialog itself, so after "Create indicator" (or the palette's
+  // "Describe an indicator") a member still had to click the box before typing. After the sheet's own
+  // focus handling has run (a tick later), and never over something the member is already typing in.
+  // ⛔ NOT ON A TOUCH SCREEN: a keyboard that opens by itself covers the four doors under the box.
+  const inputRef = useRef(null)
+  useEffect(() => {
+    if (!startWell) return undefined
+    const coarse = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      && window.matchMedia('(pointer: coarse)').matches
+    if (coarse) return undefined
+    const t = setTimeout(() => {
+      const el = inputRef.current
+      const at = typeof document !== 'undefined' ? document.activeElement : null
+      const typing = at && at !== el && (at.tagName === 'INPUT' || at.tagName === 'TEXTAREA' || at.isContentEditable)
+      if (el && !el.disabled && !typing) el.focus()
+    }, 0)
+    return () => clearTimeout(t)
+  }, [startWell])
   const [initial] = useState(() => readSession(sessionKey))
   /** The key this conversation is kept under. A NEW definition's conversation
    *  moves to its `edit:<id>` key once saved, so "New formula" later starts clean
@@ -471,7 +490,7 @@ export default function ConverseBox({
           to whatever is underneath (measured: the drill board's list moved).
           `send` already refuses a second turn while one is in flight. */}
       <div style={S.well}>
-        <textarea id="converse-input" style={S.input} value={message} disabled={disabled} rows={2}
+        <textarea id="converse-input" ref={inputRef} style={S.input} value={message} disabled={disabled} rows={2}
           placeholder={state.working ? 'e.g. make it 80 · paint the candles gold · alert me when it becomes true' : 'e.g. RSI under 30 while price is above its 200-day average'}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(message) } }} />
