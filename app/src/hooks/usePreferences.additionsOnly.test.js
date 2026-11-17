@@ -202,7 +202,11 @@ const BASELINE_OPAQUE = {
   // identifier, so the site is baselined the way master baselined its own two
   // (f6b1e3d72, mirrored verbatim above and below so the merge sees one text).
   // The key behind it is `notebook_daily_template`.
-  'pages/journal-2-0/components/notebook/MemberTemplates.jsx': 1,
+  // ⭐ 1 -> 2 on 2026-11-16 (fix/master-red-rails): the template DELETE now clears that same
+  // preference with `setPref(DAILY_TEMPLATE_PREF, '', op)`, carrying an op begun before its await
+  // (usePreferences.asyncBoundaries flags a writer handed on bare after an await, so it cannot go
+  // through `writeDaily`). Same constant, same one spelling, same key.
+  'pages/journal-2-0/components/notebook/MemberTemplates.jsx': 2,
   // ⭐ DECLARED AFTER THE FACT (sweep, 2026-09-24). The screener redesign
   // (a7176a764, PR #157, 2026-09-20) added column presets written through the
   // exported constant `PRESETS_KEY = 'screener_column_presets'` — a NEW key, one

@@ -217,7 +217,7 @@ describe('useTickerMeta', () => {
       })
       await expect(fetcher('/api/ticker-meta/ENPH')).resolves.toEqual({
         name: 'Enphase Energy, Inc.', sector: 'Technology', industry: 'Solar', theme: 'Clean Energy',
-        exchange: null,
+        exchange: null, security_type: null,
       })
     })
   })
