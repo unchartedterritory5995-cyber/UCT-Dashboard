@@ -144,8 +144,11 @@ export function railRelationCases(seed = 7) {
         const words = `${p} ${pick(ORDER_ANCHOR)}`
         pushAll(`${pick(VERBS)} ${words}`, { syms, refs, link: null, selection: refs[i], subject: refs[(i + 1) % sh.n], previous: pick(THING_PREV) }, 'orderPreviousThing')
         pushAll(`the ${pick(THING_NOUN)} is wrong, ${pick(VERBS)} ${words}`, { syms, refs, link: null, selection: refs[i], subject: refs[(i + 1) % sh.n], previous: null }, 'orderThingWords')
-        // (report only, never asserted: the order form WITH a chart noun after a thing — "delete the chart before that")
-        for (const [col, plan] of refs.map(r => ['chart', [r]])) out.push({ id: `rr-ordn-${String(++k).padStart(4, '0')}`, fam: 'orderChartNoun', words: `${pick(VERBS)} the chart ${pick(['before', 'after'])} that`, w: { syms, refs, link: null, selection: refs[i], subject: null, previous: pick(THING_PREV) }, plan, expect: 'blocked', col, shape: sh.shape, anchorKind: 'previousThing' })
+        // the order form WITH a chart noun and a bare pronoun anchor that points at a thing — "delete the chart before that"
+        for (const [col, plan] of refs.map(r => ['chart', [r]])) {
+          out.push({ id: `rr-ordn-${String(++k).padStart(4, '0')}`, fam: 'orderChartNoun', words: `${pick(VERBS)} the chart ${pick(['before', 'after', 'following', 'preceding'])} ${pick(ORDER_ANCHOR)}`, w: { syms, refs, link: null, selection: refs[i], subject: null, previous: pick(THING_PREV) }, plan, expect: 'blocked', col, shape: sh.shape, anchorKind: 'previousThing' })
+          out.push({ id: `rr-ordn-${String(++k).padStart(4, '0')}`, fam: 'orderChartNoun', words: `the ${pick(THING_NOUN)} is wrong, ${pick(VERBS)} the chart ${pick(['before', 'after'])} ${pick(ORDER_ANCHOR)}`, w: { syms, refs, link: null, selection: refs[i], subject: null, previous: null }, plan, expect: 'blocked', col, shape: sh.shape, anchorKind: 'thingWords' })
+        }
       }
       for (const p of generic) {
         // (a1) the previous target was a thing; the click / the conversation chart would otherwise anchor the relation
@@ -169,6 +172,18 @@ export function railRelationCases(seed = 7) {
       const s3 = [...POOL].sort(() => rnd() - 0.5).slice(0, 3)
       const [a, b] = [['c1', 'c3'], ['c2', 'c3'], ['c1', 'c2'], ['c3', 'c1']][rep % 4]
       out.push({ id: `rr-ctl-${String(++k).padStart(4, '0')}`, fam: 'thingControl', words: `${pick(VERBS)} ${p}`, w: { syms: s3, refs: ['c1', 'c2', 'c3'], link: null, selection: a, subject: null, previous: `chart:${b}` }, plan: [a, b], expect: 'resolved', col: 'pair', shape: 'three', anchorKind: 'previousChart' })
+    }
+  }
+  // (order controls: a CHART anchor — a named chart, or "this chart" with the click — still resolves with a thing as the previous target)
+  for (const n of [2, 3, 4]) {
+    const sy = [...POOL].sort(() => rnd() - 0.5).slice(0, n)
+    const rf = sy.map((_, i) => `c${i + 1}`)
+    for (let a = 0; a < n; a++) for (const [side, d] of [['after', 1], ['before', -1]]) {
+      const t = rf[a + d]
+      if (!t) continue
+      const w0 = { syms: sy, refs: rf, link: null, selection: null, subject: null, previous: pick(THING_PREV) }
+      out.push({ id: `rr-ctl-${String(++k).padStart(4, '0')}`, fam: 'thingControl', words: `${pick(VERBS)} the chart ${side} the ${sy[a]} chart`, w: w0, plan: [t], expect: 'resolved', col: 'orderNamed', shape: String(n), anchorKind: 'previousThing' })
+      out.push({ id: `rr-ctl-${String(++k).padStart(4, '0')}`, fam: 'thingControl', words: `${pick(VERBS)} the chart ${side} this chart`, w: { ...w0, selection: rf[a] }, plan: [t], expect: 'resolved', col: 'orderThisChart', shape: String(n), anchorKind: 'previousThing' })
     }
   }
   // ── BOTH + EXCEPTION (AUDIT 11-17 mutant: the excluded guard dropped from `relWord === OK && …`): "both" resolved to a pair with
@@ -211,7 +226,7 @@ describe(`RELATION-WORD REMOVALS · the chart rail over generated families (${CA
     }
     expect(T.cases).toBeGreaterThan(1000)
   }, 300000)
-  for (const fam of ['complement', 'everyOther', 'both', 'order', 'thingAbout', 'thingAboutOrder', 'bothExcept', 'thingControl']) {
+  for (const fam of ['complement', 'everyOther', 'both', 'order', 'thingAbout', 'thingAboutOrder', 'orderChartNoun', 'bothExcept', 'thingControl']) {
     it(`${fam}: the rail never applies what the model blocks (anchor · a pick · outside)`, () => {
       expect(T.byFam[fam]?.cases).toBeGreaterThan(40)
       expect(T.wrongApply.filter(x => x.includes(`[${fam}/`))).toEqual([])

@@ -847,6 +847,8 @@ function relationWordRefusal(w, host, removed, { all, excluded, selected, subjec
   if (o) {
     const phrase = o[0].trim()
     if (thingAbout(o)) return ask(phrase)                               // ("the one after it" about a THING: asked, never skipped)
+    // ("the chart before that" — a bare pronoun anchor after a THING target / beside a thing noun points at the thing: asked)
+    if (/^(?:(?:this|that)(?:\s+one)?|it)$/i.test(o[2].trim()) && ((typeOfId(previous) && typeOfId(previous) !== 'chart') || pronounAntecedent(`${s.slice(0, o.index)} ${s.slice(o.index + o[0].length)}`, (x) => syms.has(x))?.type === 'thing')) return ask(phrase)
     let anchor = []
     if (/^(?:this|that|it)\b/i.test(o[2])) anchor = pointer()
     else { const hit = all.filter(x => symbolSaid(o[2], x.symbol) || named(o[2], { ref: x.ref, symbol: up(x.symbol), position: x.position || null }, host)).map(x => x.ref); if (hit.length && objs(hit) === 1) anchor = expand(hit) }
