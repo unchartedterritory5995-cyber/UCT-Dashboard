@@ -230,8 +230,10 @@ jobs:
         run: |
           npx vitest list $AGENT_VITEST_PATHS --filesOnly > ../agent-files.txt
           T=../tools/agent_vitest_shard_timings.json; [ -s ../.shard-timings/agent_vitest_shard_timings.json ] && T=../.shard-timings/agent_vitest_shard_timings.json; echo "shard timings: $T"
-          python3 ../tools/agent_vitest_shards.py --files-list ../agent-files.txt --of "${AGENT_SHARDS}" --timings "$T" --plan
-          python3 ../tools/agent_vitest_shards.py --files-list ../agent-files.txt --of "${AGENT_SHARDS}" --timings "$T" \
+          # a file the refreshed week has no time for (added or split since) is weighed by the committed file (2026-11-17)
+          F=../tools/agent_vitest_shard_timings.json
+          python3 ../tools/agent_vitest_shards.py --files-list ../agent-files.txt --of "${AGENT_SHARDS}" --timings "$T" --timings-fallback "$F" --plan
+          python3 ../tools/agent_vitest_shards.py --files-list ../agent-files.txt --of "${AGENT_SHARDS}" --timings "$T" --timings-fallback "$F" \
             --shard ${{ matrix.shard }} > ../shard-${{ matrix.shard }}.files
           # never fall through to an unfiltered `vitest run` (it would run the whole app suite)
           test -s ../shard-${{ matrix.shard }}.files || { echo "::error::shard ${{ matrix.shard }} has no files"; exit 1; }
