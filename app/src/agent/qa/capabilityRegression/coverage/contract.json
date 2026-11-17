@@ -1796,6 +1796,32 @@
    ],
    "fast": true
   },
+  "leveragedEtf.addChart": {
+   "domain": "leveragedEtf",
+   "group": "leveragedEtf",
+   "target": "workspace",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "leveragedEtf.switch": {
+   "domain": "leveragedEtf",
+   "group": "leveragedEtf",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
   "multiChart.cell": {
    "domain": "multiChart",
    "group": "multiChart",

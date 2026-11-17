@@ -6820,6 +6820,120 @@
    "shape": null
   },
   {
+   "name": "leveragedEtf.switch",
+   "domain": "leveragedEtf",
+   "target": "chart",
+   "summary": "Switch ONE chart to a stock's leveraged or inverse single-stock ETF (or back to the stock), as the chart's Leverage / Inverse control does — the funds come from UCT's own list. Undo puts the previous symbol back.",
+   "hints": "target = the chart to switch. underlying = the stock whose leveraged / inverse ETF is meant (uppercase), or null for the chart's own stock. leverage = the factor the member said (2 for \"2x\" / \"double\", 3 for \"3x\" / \"triple\"), else null. direction = bull (long, up) or bear (short, inverse, down), else null. ticker = null (UCT picks the fund from its own list; several that fit are asked). Never type a fund ticker you were not given. To open the fund on a NEW chart, use leveragedEtf.addChart.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "underlying": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "leverage": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "direction": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "bull",
+       "bear",
+       null
+      ]
+     },
+     "ticker": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "underlying",
+     "leverage",
+     "direction",
+     "ticker"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
+   "name": "leveragedEtf.addChart",
+   "domain": "leveragedEtf",
+   "target": "workspace",
+   "summary": "Open a NEW chart on a stock's leveraged or inverse single-stock ETF (from UCT's own list), placed in empty space and not linked. No existing chart changes; Undo closes the new chart.",
+   "hints": "target = the ref of the workspace entry. underlying = the stock whose leveraged / inverse ETF is meant (uppercase), or null for the chart's own stock. leverage = the factor the member said (2 for \"2x\" / \"double\", 3 for \"3x\" / \"triple\"), else null. direction = bull (long, up) or bear (short, inverse, down), else null. ticker = null (UCT picks the fund from its own list; several that fit are asked). Never type a fund ticker you were not given. underlying is required here (the stock the member named).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "underlying": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "leverage": {
+      "type": [
+       "number",
+       "null"
+      ]
+     },
+     "direction": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "bull",
+       "bear",
+       null
+      ]
+     },
+     "ticker": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "underlying",
+     "leverage",
+     "direction",
+     "ticker"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "drawing.positionCalculator",
    "domain": "drawing",
    "target": "chart",
@@ -7582,6 +7696,7 @@
        "customIndicator",
        "indicators",
        "drawings",
+       "leveragedEtfs",
        "chartSettings",
        "charts",
        "savedScreens",

@@ -234,6 +234,8 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
       'add the fundamentals strip to the nvda chart', 'take the strip under the chart off', 'switch to the ownership tab', 'open the news tab of the company panel'],
     // chartReplay: the bar replay as a thing played — a playback verb governing "the replay", the replay bar / speed, a step "in the replay"
     chartReplay: ['play the replay', 'pause the bar replay', 'step the replay forward 10 bars', 'set the replay speed to 5x', 'next bar in the replay', 'open the time machine'],
+    // leveragedEtf: an ETF / fund AND its kind (leveraged, inverse, bull, bear, a factor)
+    leveragedEtf: ['switch this chart to the inverse ETF', 'show me the 3x bull ETF of NVDA', 'open a new chart of the 2x bear fund of AMD', 'the leveraged etf of tsla please'],
   }
   // chartReplay negatives: Replay Mode's cutoff (chart.replay), a step outside replay (chartSetup.stepBars), other replays
   it.each(['replay mode as of oct 15', 'go back to oct 15', 'replay as of last friday', 'exit replay mode', 'next bar', 'step forward 10 bars',
@@ -246,6 +248,8 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
   ('"%s": not the Drawing Boards group', (msg) => {
     expect(wordsSelect('drawingBoards', msg)).toBe(false)
   })
+  // leveragedEtf negatives: an ETF's holdings, an ETF screen, a factor that is no fund (a 2x2 grid, a 3x speed)
+  it.each(['show the ETF holdings of SPY', 'screen for leveraged ETFs', 'make a 2x2 grid', 'set the replay speed to 3x', 'is QQQ an ETF', 'buy the dip'])('"%s": not the leveragedEtf words', (msg) => expect(wordsSelect('leveragedEtf', msg)).toBe(false))
   // family C: "ask" / "watermark" / "journal" / "header" alone never select chartMenu (the words are used elsewhere)
   // chartFeatures: a bare earnings / news / panel / strip word never selects it (data questions, other widgets' panels)
   it.each(['when does nvda report earnings', 'show me the latest news on amd', 'open the settings panel', 'what is in the news tab',

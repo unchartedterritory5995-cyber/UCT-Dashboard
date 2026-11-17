@@ -110,6 +110,9 @@ export const BOARDS = {
   UCTI_ADDED: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: { ...bareSettings(), showPatterns: true, uctIntelligence: { added: true, labels: true, supportResistance: true } } } }],
     { 'N:c1': 'NVDA' }, { uctIntel: UCTI_GATES }],
 }
+const NVDA_ETFS = { underlying: 'NVDA', long: [{ ticker: 'NVUU', name: 'Fixture 2x Long NVDA', factor: 2 }, { ticker: 'NVU3', name: 'Fixture 3x Long NVDA', factor: 3 }],
+  short: [{ ticker: 'NVDD', name: 'Fixture 2x Short NVDA', factor: 2 }], best_long: 'NVUU', best_short: 'NVDD' }
+const ETF_FAMILIES = { NVDA: NVDA_ETFS, NVUU: NVDA_ETFS, NVU3: NVDA_ETFS, NVDD: NVDA_ETFS }
 const UCTI_GATES = { available: true, known: true, availability: { supportResistance: true, supportResistanceEmpty: false, candles: false, setups: true, caution: false } }
 
 // Synthetic screener catalog / universe (never real values)
@@ -270,6 +273,10 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
       }
     }
     if (u.startsWith('/api/user-definitions')) return st.defs.size ? json({ definitions: [...st.defs.values()] }) : base(url, init)
+    // leveragedEtf.*: the Leverage / Inverse control's own family read (GET /api/single-stock-etfs/{sym}, the api's shape),
+    // a made-up NVDA family (2x + 3x bull, 2x bear); any other symbol has none (the 200 empty shape)
+    const etf = /^\/api\/single-stock-etfs\/([^/?]+)/.exec(u)
+    if (etf) return json(ETF_FAMILIES[decodeURIComponent(etf[1]).toUpperCase()] || { underlying: null, long: [], short: [], best_long: null, best_short: null })
     // the drawings SYNC as the server holds it (useTracingsSync: prefs.tracings_doc = { updatedAt, doc }) — the account
     // copy mirrors this tab's store, as it does once the sync has run (host.confirmDrawingsSynced reads it back)
     if (u === '/api/auth/preferences' && method === 'GET') {

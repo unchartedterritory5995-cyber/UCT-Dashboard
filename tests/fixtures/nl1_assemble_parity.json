@@ -167,6 +167,8 @@
   "chartFeatures.companyPanel": "chartFeatures",
   "chartFeatures.earningsStrip": "chartFeatures",
   "chartReplay.playback": "chartReplay",
+  "leveragedEtf.switch": "leveragedEtf",
+  "leveragedEtf.addChart": "leveragedEtf",
   "drawing.positionCalculator": "drawingExtras",
   "drawing.saveDefaults": "drawingExtras",
   "drawing.favoriteTool": "drawingExtras",
@@ -227,6 +229,10 @@
   {
    "id": "chartFeatures",
    "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+  },
+  {
+   "id": "leveragedEtf",
+   "title": "A stock’s leveraged or inverse single-stock ETF (the chart’s Leverage / Inverse control): switch a chart to one, or open one on a new chart"
   },
   {
    "id": "chartGrid",
@@ -434,6 +440,10 @@
      {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
+      "id": "leveragedEtf",
+      "title": "A stock’s leveraged or inverse single-stock ETF (the chart’s Leverage / Inverse control): switch a chart to one, or open one on a new chart"
      },
      {
       "id": "chartGrid",
@@ -659,6 +669,10 @@
      {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
+      "id": "leveragedEtf",
+      "title": "A stock’s leveraged or inverse single-stock ETF (the chart’s Leverage / Inverse control): switch a chart to one, or open one on a new chart"
      },
      {
       "id": "chartGrid",
@@ -898,6 +912,10 @@
      {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
+     },
+     {
+      "id": "leveragedEtf",
+      "title": "A stock’s leveraged or inverse single-stock ETF (the chart’s Leverage / Inverse control): switch a chart to one, or open one on a new chart"
      },
      {
       "id": "chartGrid",
@@ -1149,6 +1167,10 @@
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
+      "id": "leveragedEtf",
+      "title": "A stock’s leveraged or inverse single-stock ETF (the chart’s Leverage / Inverse control): switch a chart to one, or open one on a new chart"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -1370,6 +1392,10 @@
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
+      "id": "leveragedEtf",
+      "title": "A stock’s leveraged or inverse single-stock ETF (the chart’s Leverage / Inverse control): switch a chart to one, or open one on a new chart"
+     },
+     {
       "id": "chartGrid",
       "title": "Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells"
      },
@@ -1520,6 +1546,7 @@
     "newsLibrary",
     "chartMenu",
     "chartFeatures",
+    "leveragedEtf",
     "chartGrid",
     "boardEdit",
     "workspace",
@@ -1715,6 +1742,8 @@
     "chartFeatures.companyPanel",
     "chartFeatures.earningsStrip",
     "chartReplay.playback",
+    "leveragedEtf.switch",
+    "leveragedEtf.addChart",
     "drawing.positionCalculator",
     "drawing.saveDefaults",
     "drawing.favoriteTool",

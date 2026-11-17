@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 217,
-  "withProductionKinds": 205,
+  "all": 219,
+  "withProductionKinds": 207,
   "darkGated": 12
  },
  "totals": {
-  "capabilities": 217,
-  "withAnyRegressionCase": 165,
+  "capabilities": 219,
+  "withAnyRegressionCase": 167,
   "perProtection": {
    "nl": {
-    "covered": 162,
-    "applicable": 217
+    "covered": 164,
+    "applicable": 219
    },
    "routing": {
-    "covered": 159,
-    "applicable": 217
+    "covered": 161,
+    "applicable": 219
    },
    "args": {
-    "covered": 165,
-    "applicable": 217
+    "covered": 167,
+    "applicable": 219
    },
    "execution": {
-    "covered": 162,
-    "applicable": 217
+    "covered": 164,
+    "applicable": 219
    },
    "receipt": {
-    "covered": 134,
-    "applicable": 217
+    "covered": 136,
+    "applicable": 219
    },
    "refusal": {
     "covered": 35,
-    "applicable": 217
+    "applicable": 219
    },
    "permission": {
-    "covered": 210,
-    "applicable": 217
+    "covered": 212,
+    "applicable": 219
    },
    "undo": {
-    "covered": 84,
-    "applicable": 143
+    "covered": 86,
+    "applicable": 145
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 217
+    "applicable": 219
    },
    "phrasings": {
-    "covered": 158,
-    "applicable": 217
+    "covered": 159,
+    "applicable": 219
    }
   }
  },
@@ -7582,6 +7582,120 @@
     "permission": [],
     "undo": [
      "layout.unpinFromBar: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "leveragedEtf.addChart": {
+   "domain": "leveragedEtf",
+   "group": "leveragedEtf",
+   "target": "workspace",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": false
+   },
+   "phrasings": 2,
+   "evidence": {
+    "nl": [
+     "leveragedEtf.addChart: \"add a new chart of the 3x bull ETF of NVDA\"",
+     "leveragedEtf.addChart: \"open a new chart with the 3x long ETF of NVDA\""
+    ],
+    "routing": [
+     "leveragedEtf.addChart: \"add a new chart of the 3x bull ETF of NVDA\"",
+     "leveragedEtf.addChart: \"open a new chart with the 3x long ETF of NVDA\""
+    ],
+    "args": [
+     "corpus leveragedEtf.addChart"
+    ],
+    "execution": [
+     "leveragedEtf.addChart (c)"
+    ],
+    "receipt": [
+     "leveragedEtf.addChart (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "leveragedEtf.addChart: undo restores"
+    ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "leveragedEtf.switch": {
+   "domain": "leveragedEtf",
+   "group": "leveragedEtf",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 5,
+   "evidence": {
+    "nl": [
+     "leveragedEtf.switch: \"switch this chart to the 3x bull ETF\"",
+     "leveragedEtf.switch: \"change this chart to the 3x long ETF\"",
+     "leveragedEtf.switch: \"flip this chart to the 3x bullish fund\"",
+     "leveragedEtf.switch.named: \"show me the 3x bull ETF of NVDA\"",
+     "leveragedEtf.switch.named: \"switch this chart to the 3x long ETF of NVDA\""
+    ],
+    "routing": [
+     "leveragedEtf.switch: \"switch this chart to the 3x bull ETF\"",
+     "leveragedEtf.switch: \"change this chart to the 3x long ETF\"",
+     "leveragedEtf.switch: \"flip this chart to the 3x bullish fund\"",
+     "leveragedEtf.switch.named: \"show me the 3x bull ETF of NVDA\"",
+     "leveragedEtf.switch.named: \"switch this chart to the 3x long ETF of NVDA\""
+    ],
+    "args": [
+     "corpus leveragedEtf.switch",
+     "corpus leveragedEtf.switch.named"
+    ],
+    "execution": [
+     "leveragedEtf.switch (c)",
+     "leveragedEtf.switch.named (c)"
+    ],
+    "receipt": [
+     "leveragedEtf.switch (c)",
+     "leveragedEtf.switch.named (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "leveragedEtf.switch: undo restores",
+     "leveragedEtf.switch.named: undo restores"
     ],
     "multiStep": [],
     "phrasings": []
