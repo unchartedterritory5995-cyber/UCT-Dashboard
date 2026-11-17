@@ -180,3 +180,8 @@ Every writer gets this list, and every checker tests against it. Each line was c
 - Shorting is only for traders who've already made $1 million trading (D-001).
 - A card proposal or a scanner cutoff is never our rule. Neither is the 50-day over the 200-day; that's a plus.
 - Never give one of his rules a reason he didn't give.
+- Game lessons have a shape the game reads. F5.08 (Earnings Desk): each question or story opens "Company, quarter:",
+  why opens on the answer itself, why ends on what the stock did, and number answers stay typed (never multiple
+  choice). F7.08 (History Detective) keeps its typed numbers too. The V courses feed Word Match: a vocab question names
+  its word and asks what it means. Every content pass runs the Study app tests (`npx vitest run src/pages/study
+  --maxWorkers=1` in app/), because the games read lesson text.

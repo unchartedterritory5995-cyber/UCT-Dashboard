@@ -140,22 +140,6 @@
    "accessed": "2026-11-09"
   },
   {
-   "id": "s17",
-   "tier": 1,
-   "publisher": "Federal Reserve Bank of St. Louis, FRED (data: S&P Dow Jones Indices LLC)",
-   "title": "S&P 500 (SP500), daily close, January 2, 2018 to April 23, 2019 (CSV)",
-   "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=SP500&cosd=2018-01-02&coed=2019-04-23",
-   "accessed": "2026-11-09"
-  },
-  {
-   "id": "s18",
-   "tier": 1,
-   "publisher": "Federal Reserve Bank of St. Louis, FRED (data: S&P Dow Jones Indices LLC)",
-   "title": "S&P 500 (SP500), daily close, January 3, 2022 to January 19, 2024 (CSV)",
-   "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=SP500&cosd=2022-01-03&coed=2024-01-19",
-   "accessed": "2026-11-09"
-  },
-  {
    "id": "s19",
    "tier": 1,
    "publisher": "Federal Reserve Bank of St. Louis, FRED (data: Nasdaq OMX Group)",
@@ -194,6 +178,57 @@
    "title": "History of bear markets since 1929 (Jade Scipioni, December 26, 2018; data: Ned Davis Research)",
    "url": "https://www.foxbusiness.com/markets/history-of-bear-markets-since-1929",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "s24",
+   "tier": 2,
+   "publisher": "Associated Press",
+   "title": "S&P 500, Nasdaq close at record highs as earnings roll in (Damian J. Troise and Alex Veiga, April 23, 2019, as published by Fox Business)",
+   "url": "https://www.foxbusiness.com/markets/sp-500-nasdaq-close-at-record-highs-as-earnings-roll-in",
+   "accessed": "2026-11-17"
+  },
+  {
+   "id": "s25",
+   "tier": 2,
+   "publisher": "Schaeffer's Investment Research",
+   "title": "Christmas Eve Sell-Off Smacks Dow Below 22,000 (Patrick Martin, Dec. 24, 2018)",
+   "url": "https://www.schaeffersresearch.com/content/ezines/2018/12/24/christmas-eve-sell-off-smacks-dow-below-22-000",
+   "accessed": "2026-11-17",
+   "why_reliable": "Long-running U.S. market research firm, already cited at Tier 2 in SET.48; dated, bylined closing recap. Its 'Sept. 20 closing high' agrees with AP's 2,930.75 record (s24)."
+  },
+  {
+   "id": "s26",
+   "tier": 2,
+   "publisher": "Wikipedia",
+   "title": "Closing milestones of the S&P 500 (fixed revision of Oct. 28, 2026)",
+   "url": "https://en.wikipedia.org/w/index.php?title=Closing_milestones_of_the_S%26P_500&oldid=1382457658",
+   "accessed": "2026-11-17",
+   "why_reliable": "A fixed revision (permalink), so the quoted text cannot change. Not on the README tier list: used because it prints the close next to its date, which the questions' dates need. 2,933.68 (April 23, 2019) matches AP (s24) and CNBC; 3,577.03 (Oct. 12, 2022) is Dow Jones Market Data and matches CNBC's same-day close (checked 2026-11-17)."
+  },
+  {
+   "id": "s27",
+   "tier": 2,
+   "publisher": "Kiplinger",
+   "title": "Stock Market Today: New Record High Within Reach for S&P 500 (Karee Venema, Dec. 28, 2023)",
+   "url": "https://kiplinger.com/investing/stocks/stock-market-today-new-record-high-within-reach-for-sandp-500",
+   "accessed": "2026-11-17",
+   "why_reliable": "Long-established U.S. personal-finance publisher (Kiplinger's Personal Finance); named author and date on the page. Its 4,796.56 for Jan. 3, 2022 matches the S&P Dow Jones Indices table CNBC prints (s20)."
+  },
+  {
+   "id": "s28",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Dow sinks 700 points, dropping back below 30,000 to the lowest level in more than a year (Samantha Subin and Pippa Stevens; market close of Thursday, June 16, 2022)",
+   "url": "https://www.cnbc.com/2022/06/15/stock-market-futures-open-to-close-news.html",
+   "accessed": "2026-11-17"
+  },
+  {
+   "id": "s29",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Dow closes 200 points higher on Tuesday for fifth day of gains, buoyed by Walmart and Home Depot (live updates, Aug. 16, 2022)",
+   "url": "https://www.cnbc.com/2022/08/15/stock-market-news-futures-open-to-close.html",
+   "accessed": "2026-11-17"
   }
  ],
  "facts": [
@@ -385,50 +420,50 @@
   },
   {
    "id": "f32",
-   "source": "s17",
-   "quote": "2018-09-20, 2930.75",
-   "claim": "The S&P 500 closed at 2,930.75 on September 20, 2018, its highest close in the cited series before April 2019."
+   "source": "s24",
+   "quote": "It's previous record high was 2,930.75, which was set on Sept. 20.",
+   "claim": "The S&P 500's record close before April 2019 was 2,930.75, set on Sept. 20, 2018."
   },
   {
    "id": "f33",
-   "source": "s17",
-   "quote": "2018-12-24, 2351.10",
-   "claim": "The S&P 500 closed at 2,351.10 on December 24, 2018, the lowest close in the cited series."
+   "source": "s25",
+   "quote": "The S&P 500 Index (SPX - 2,351.10) shed 65.5 points, or 2.7%, to settle at its own new annual low. The S&P is down 19.8% from its Sept. 20 closing high.",
+   "claim": "On Dec. 24, 2018 the S&P 500 closed at 2,351.10, a new low for the year, 19.8% under its Sept. 20 closing high."
   },
   {
    "id": "f34",
-   "source": "s17",
-   "quote": "2019-04-23, 2933.68",
-   "claim": "On April 23, 2019 the S&P 500 closed at 2,933.68, its first close above 2,930.75 since September 20, 2018 (every close between is in the cited series)."
+   "source": "s26",
+   "quote": "2,930.75[k] 2,933.68 April 23, 2019",
+   "claim": "On April 23, 2019 the S&P 500 closed at a record 2,933.68, above its 2,930.75 record from Sept. 20, 2018."
   },
   {
    "id": "f35",
-   "source": "s18",
-   "quote": "2022-01-03, 4796.56",
+   "source": "s27",
+   "quote": "a stone's throw away from its all-time closing high of 4,796.56 from January 3, 2022",
    "claim": "The S&P 500 closed at 4,796.56 on January 3, 2022, the peak before the 2022 bear market."
   },
   {
    "id": "f36",
-   "source": "s18",
-   "quote": "2022-06-16, 3666.77",
-   "claim": "The S&P 500 closed at 3,666.77 on June 16, 2022, its lowest close of 2022 up to that day."
+   "source": "s28",
+   "quote": "The Dow dropped 2.42%, or 741.46 points, to 29,927.07, while the S&P 500 slipped 3.25% to 3,666.77.",
+   "claim": "The S&P 500 closed at 3,666.77 on June 16, 2022, down 3.25% that day."
   },
   {
    "id": "f37",
-   "source": "s18",
-   "quote": "2022-08-16, 4305.20",
-   "claim": "The S&P 500 closed at 4,305.20 on August 16, 2022, the highest close between June 16 and October 12, 2022."
+   "source": "s29",
+   "quote": "The S&P 500 ticked 0.19% higher to close at 4,305.20. The Nasdaq Composite slipped 0.19%, ending the session at 13,102.55. - Darla Mercado Tue, Aug 16 2022",
+   "claim": "The S&P 500 closed at 4,305.20 on Aug. 16, 2022."
   },
   {
    "id": "f38",
-   "source": "s18",
-   "quote": "2022-10-12, 3577.03",
-   "claim": "The S&P 500 closed at 3,577.03 on October 12, 2022, the lowest close in the cited series, below the June 16 close."
+   "source": "s26",
+   "quote": "The 4,292.44 level marked a 20% rally off the bear-market closing low of 3,577.03 set on Oct. 12, 2022.",
+   "claim": "The S&P 500's bear-market closing low was 3,577.03, set on Oct. 12, 2022."
   },
   {
    "id": "f39",
-   "source": "s18",
-   "quote": "2024-01-19, 4839.81",
+   "source": "s21",
+   "quote": "Fri, Jan 19 2024 4:03 PM EST Stocks close higher Friday U.S. stocks ended Friday's trading session in the green. The S&P 500 gained 1.23% to 4,839.81, breaking its previous record close from Jan. 2022.",
    "claim": "On January 19, 2024 the S&P 500 closed at 4,839.81, its first close above 4,796.56 since January 3, 2022."
   },
   {
@@ -914,7 +949,7 @@
    "format": "tf",
    "q": "Within months of this Christmas Eve 2018 low, the S&P 500 closed back above its old high.",
    "answer": "True",
-   "why": "True. The S&P 500 closed at 2,351.10 on December 24, 2018. On April 23, 2019 it closed at 2,933.68, back above the 2,930.75 closing high from September. About four months, low to old high. Not every sharp drop turns into a long bear. This one healed fast. So keep working your watchlist while the market falls. Note which names hold up best. When it turns, those are the ones you want to own first.",
+   "why": "True. The S&P 500 closed at 2,351.10 on Christmas Eve 2018. On April 23, 2019 it closed at 2,933.68, back above the 2,930.75 closing high from September. About four months, low to old high. Not every sharp drop turns into a long bear. This one healed fast. So keep working your watchlist while the market falls. Note which names hold up best. When it turns, those are the ones you want to own first.",
    "lesson_line": "Not every deep drop becomes a long bear. Keep your list ready for the turn.",
    "facts": [
     "f34",
@@ -1191,7 +1226,7 @@
    "skill": "history.detective",
    "rung": 7,
    "format": "scenario",
-   "story": "2022. The S&P 500 has fallen for months. Then it rallies for two straight months off its June low, from 3,666.77 to 4,305.20. It feels like the bottom's in.",
+   "story": "2022. The S&P 500 has fallen for months. Then it rallies for two straight months, from 3,666.77 in June to 4,305.20. It feels like the bottom's in.",
    "q": "Where did the index go from here?",
    "choices": [
     "Gave it all back and made a new low",
@@ -1200,7 +1235,7 @@
     "Dipped back but held above its low"
    ],
    "answer": "Gave it all back and made a new low",
-   "why": "It gave it all back and made a new low. From 4,305.20 on August 16, the S&P 500 slid to 3,577.03 by October 12. That's under the June low of 3,666.77. The January record of 4,796.56 wasn't topped until January 19, 2024. Rallies inside a bear are fast and convincing, and that's how they pull people back in. A big bounce isn't a bottom. You only know the bottom in hindsight. So take the setups that work, keep your stops tight, and don't go all in on a bounce.",
+   "why": "It gave it all back and made a new low. From 4,305.20 on August 16, the S&P 500 slid to 3,577.03 by October 12. That's under June's 3,666.77. The January record of 4,796.56 wasn't topped until January 19, 2024. Rallies inside a bear are fast and convincing, and that's how they pull people back in. A big bounce isn't a bottom. You only know the bottom in hindsight. So take the setups that work, keep your stops tight, and don't go all in on a bounce.",
    "lesson_line": "A big bounce inside a bear isn't a bottom. You only know the bottom in hindsight.",
    "facts": [
     "f36",

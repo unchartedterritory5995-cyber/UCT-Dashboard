@@ -68,15 +68,6 @@
    "accessed": "2026-11-09"
   },
   {
-   "id": "s8",
-   "tier": 1,
-   "publisher": "Federal Reserve Bank of St. Louis, FRED (data: S&P Dow Jones Indices LLC)",
-   "title": "S&P 500 (SP500), daily close, February 14 to August 31, 2020 (CSV)",
-   "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=SP500&cosd=2020-02-14&coed=2020-08-31",
-   "accessed": "2026-11-09",
-   "why_reliable": "FRED is the St. Louis Fed's data service; its SP500 series is the index provider's own daily close ('the daily index value at market close', series notes). Each quote is one CSV row, date then close. FRED keeps 10 years of S&P history, so these 2020 rows leave FRED around 2030: re-cite CNBC (s13 to s15) then."
-  },
-  {
    "id": "s9",
    "tier": 1,
    "publisher": "U.S. Bureau of Labor Statistics",
@@ -164,6 +155,64 @@
    "url": "https://www.csmonitor.com/1989/0814/fwal14.html",
    "accessed": "2026-11-09",
    "why_reliable": "A national US daily newspaper (founded 1908); a named markets columnist writing at the time, August 14, 1989. Used only to date the Dow's recovery, and it agrees with CNBC (s18) and the Fed (s1)."
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "Associated Press",
+   "title": "S&P 500 closes at a record, erasing last of pandemic losses (Stan Choe, Alex Veiga and Damian J. Troise, Aug. 18, 2020, as published by PBS NewsHour)",
+   "url": "https://www.pbs.org/newshour/economy/sp-500-closes-at-a-record-erasing-last-of-pandemic-losses",
+   "accessed": "2026-11-17"
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "Wikipedia",
+   "title": "List of largest daily changes in the S&P 500 Index (fixed revision of Nov. 9, 2026)",
+   "url": "https://en.wikipedia.org/w/index.php?title=List_of_largest_daily_changes_in_the_S%26P_500_Index&oldid=1384741177",
+   "accessed": "2026-11-17",
+   "why_reliable": "A fixed revision (permalink), so the quoted row cannot change. Not on the README tier list: used because it prints the close next to its date, which the questions' dates need. Its March 2020 rows match CNBC's and AP's same-day close reports (checked 2026-11-17)."
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Dow tumbles 900 points to end Wall Street's worst week since 2008 (Fred Imbert and Pippa Stevens; market close of Friday, March 20, 2020)",
+   "url": "https://www.cnbc.com/2020/03/19/stock-market-futures-open-to-close-news.html",
+   "accessed": "2026-11-17"
+  },
+  {
+   "id": "s23",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "S&P 500 doubles from its pandemic bottom, marking the fastest bull market rally since WWII (Yun Li and Nate Rattner, Aug. 16, 2021)",
+   "url": "https://www.cnbc.com/2021/08/16/sp-500-doubles-from-its-pandemic-bottom-marking-the-fastest-bull-market-rally-since-wwii.html",
+   "accessed": "2026-11-17"
+  },
+  {
+   "id": "s24",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "What happened to the stock market Tuesday: Best day since 1933 for Dow (Fred Imbert, March 24, 2020)",
+   "url": "https://www.cnbc.com/2020/03/24/what-happened-to-the-stock-market-tuesday-best-day-since-2008-for-dow.html",
+   "accessed": "2026-11-17"
+  },
+  {
+   "id": "s25",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "What happened to the stock market on Friday: More than 20 million jobs lost in April (Fred Imbert, May 8, 2020)",
+   "url": "https://www.cnbc.com/2020/05/08/what-happened-to-the-stock-market-on-friday-more-than-20-million-jobs-lost-in-april.html",
+   "accessed": "2026-11-17"
+  },
+  {
+   "id": "s26",
+   "tier": 2,
+   "publisher": "Wikipedia",
+   "title": "Closing milestones of the S&P 500 (fixed revision of Oct. 28, 2026)",
+   "url": "https://en.wikipedia.org/w/index.php?title=Closing_milestones_of_the_S%26P_500&oldid=1382457658",
+   "accessed": "2026-11-17",
+   "why_reliable": "A fixed revision (permalink), so the quoted text cannot change. Not on the README tier list: used because it prints the close next to its date, which the questions' dates need. Its 3,389.78 for Aug. 18, 2020 matches AP's (s20) and CNBC's (s15) same-day reports."
   }
  ],
  "facts": [
@@ -409,44 +458,44 @@
   },
   {
    "id": "f41",
-   "source": "s8",
-   "quote": "2020-02-19, 3386.15",
+   "source": "s20",
+   "quote": "That eclipses the S&P 500's previous record closing high of 3,386.15, which was set Feb. 19, before the pandemic shut down businesses around the world",
    "claim": "The S&P 500 closed at 3,386.15 on February 19, 2020, its record before the crash."
   },
   {
    "id": "f42",
-   "source": "s8",
-   "quote": "2020-03-16, 2386.13",
+   "source": "s21",
+   "quote": "2020-03-16 2,386.13 −324.89 −11.98",
    "claim": "The S&P 500 closed at 2,386.13 on March 16, 2020."
   },
   {
    "id": "f43",
-   "source": "s8",
-   "quote": "2020-03-20, 2304.92",
+   "source": "s22",
+   "quote": "The S&P 500 slid 4.3% to 2,304.92.",
    "claim": "The S&P 500 closed at 2,304.92 on Friday, March 20, 2020."
   },
   {
    "id": "f44",
-   "source": "s8",
-   "quote": "2020-03-23, 2237.40",
+   "source": "s23",
+   "quote": "The broad equity benchmark has rallied 100% on a closing basis from its Covid trough of 2,237.40 on March 23, 2020.",
    "claim": "The S&P 500 closed at 2,237.40 on March 23, 2020, its closing low."
   },
   {
    "id": "f45",
-   "source": "s8",
-   "quote": "2020-03-24, 2447.33",
+   "source": "s24",
+   "quote": "The S&P 500 climbed 9.38% to 2,447.33.",
    "claim": "The next day, March 24, 2020, the S&P 500 closed sharply higher at 2,447.33."
   },
   {
    "id": "f61",
-   "source": "s8",
-   "quote": "2020-05-08, 2929.80",
+   "source": "s25",
+   "quote": "The S&P 500 climbed 1.69% to 2,929.80.",
    "claim": "On May 8, 2020, the day the April jobs report came out, the S&P 500 closed at 2,929.80."
   },
   {
    "id": "f46",
-   "source": "s8",
-   "quote": "2020-08-18, 3389.78",
+   "source": "s26",
+   "quote": "August 18, 2020: The S&P 500 index closed at a record high of 3389.78 amid the ongoing COVID-19 pandemic in the United States.",
    "claim": "The S&P 500 closed at 3,389.78 on August 18, 2020, above its February 19 record."
   },
   {

@@ -129,7 +129,7 @@
    "publisher": "Investopedia",
    "title": "CBOE Volatility Index (VIX)",
    "url": "https://www.investopedia.com/terms/v/vix.asp",
-   "accessed": "2026-11-09"
+   "accessed": "2026-11-17"
   },
   {
    "id": "s16",
@@ -227,6 +227,72 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "s28",
+   "tier": 2,
+   "publisher": "Kiplinger",
+   "title": "Stock Market Today: New Record High Within Reach for S&P 500 (Karee Venema, Dec. 28, 2023)",
+   "url": "https://kiplinger.com/investing/stocks/stock-market-today-new-record-high-within-reach-for-sandp-500",
+   "accessed": "2026-11-17",
+   "why_reliable": "Long-established U.S. personal-finance publisher (Kiplinger's Personal Finance); named author and date on the page. Its 4,796.56 for Jan. 3, 2022 matches CNBC's close report for that day and AP's Jan. 19, 2024 record story (checked 2026-11-17)."
+  },
+  {
+   "id": "s29",
+   "tier": 2,
+   "publisher": "Wikipedia",
+   "title": "Closing milestones of the S&P 500 (fixed revision of Oct. 28, 2026)",
+   "url": "https://en.wikipedia.org/w/index.php?title=Closing_milestones_of_the_S%26P_500&oldid=1382457658",
+   "accessed": "2026-11-17",
+   "why_reliable": "A fixed revision (permalink), so the quoted text cannot change. Not on the README tier list: used because it prints the close next to its date, which the questions' dates need. The two quoted passages are Dow Jones Market Data figures; 3,577.03 (Oct. 12, 2022) and 4,293.93 (June 8, 2023) match CNBC's same-day close reports (checked 2026-11-17)."
+  },
+  {
+   "id": "s30",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Dow sinks 700 points, dropping back below 30,000 to the lowest level in more than a year (Samantha Subin and Pippa Stevens; market close of Thursday, June 16, 2022)",
+   "url": "https://www.cnbc.com/2022/06/15/stock-market-futures-open-to-close-news.html",
+   "accessed": "2026-11-17"
+  },
+  {
+   "id": "s31",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Dow closes 200 points higher on Tuesday for fifth day of gains, buoyed by Walmart and Home Depot (live updates, Aug. 16, 2022)",
+   "url": "https://www.cnbc.com/2022/08/15/stock-market-news-futures-open-to-close.html",
+   "accessed": "2026-11-17"
+  },
+  {
+   "id": "s32",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Dow tumbles 500 points on Friday to end September down nearly 9% (Sarah Min and Alex Harring; live updates, Sept. 30, 2022)",
+   "url": "https://www.cnbc.com/2022/09/29/stock-futures-are-flat-following-thursdays-broad-sell-off.html",
+   "accessed": "2026-11-17"
+  },
+  {
+   "id": "s33",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Dow rallies more than 1,500 points in two days, S&P 500 posts best 2-day gain since 2020 (Tanaya Macheel and Alex Harring; live updates, Oct. 4, 2022)",
+   "url": "https://www.cnbc.com/2022/10/03/stock-market-futures-open-to-close-news.html",
+   "accessed": "2026-11-17"
+  },
+  {
+   "id": "s34",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Dow closes 400 points lower to end a wild week of trading (Carmen Reinicke and Tanaya Macheel; market close of Friday, Oct. 14, 2022)",
+   "url": "https://www.cnbc.com/2022/10/13/stock-market-futures-open-to-close-news.html",
+   "accessed": "2026-11-17"
+  },
+  {
+   "id": "s35",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Dow closes more than 350 points lower in broad selloff, Apple tumbles 3% (Tanaya Macheel and Alex Harring; market close of Wednesday, Dec. 28, 2022)",
+   "url": "https://www.cnbc.com/2022/12/27/stock-market-futures-open-to-close-news.html",
+   "accessed": "2026-11-17"
   }
  ],
  "facts": [
@@ -262,57 +328,57 @@
   },
   {
    "id": "f07",
-   "source": "s3",
-   "quote": "2022-01-03|4796.56",
-   "claim": "The S&P 500 closed at 4,796.56 on Jan. 3, 2022, the highest 2022 close in FRED's table."
+   "source": "s28",
+   "quote": "a stone's throw away from its all-time closing high of 4,796.56 from January 3, 2022",
+   "claim": "The S&P 500's all-time closing high was 4,796.56, set on January 3, 2022."
   },
   {
    "id": "f08",
-   "source": "s3",
-   "quote": "2022-10-12|3577.03",
-   "claim": "The S&P 500 closed at 3,577.03 on Oct. 12, 2022, the lowest 2022 close in FRED's table."
+   "source": "s29",
+   "quote": "The 4,292.44 level marked a 20% rally off the bear-market closing low of 3,577.03 set on Oct. 12, 2022.",
+   "claim": "The S&P 500's bear-market closing low was 3,577.03, set on Oct. 12, 2022; 4,292.44 marks a 20% rally off it."
   },
   {
    "id": "f09",
-   "source": "s3",
-   "quote": "2022-06-16|3666.77",
-   "claim": "The S&P 500 closed at 3,666.77 on June 16, 2022, its lowest close of that June."
+   "source": "s30",
+   "quote": "The Dow dropped 2.42%, or 741.46 points, to 29,927.07, while the S&P 500 slipped 3.25% to 3,666.77.",
+   "claim": "The S&P 500 closed at 3,666.77 on June 16, 2022, down 3.25% that day."
   },
   {
    "id": "f10",
-   "source": "s3",
-   "quote": "2022-08-16|4305.20",
+   "source": "s31",
+   "quote": "The S&P 500 ticked 0.19% higher to close at 4,305.20. The Nasdaq Composite slipped 0.19%, ending the session at 13,102.55. - Darla Mercado Tue, Aug 16 2022",
    "claim": "The S&P 500 closed at 4,305.20 on Aug. 16, 2022."
   },
   {
    "id": "f11",
-   "source": "s3",
-   "quote": "2022-09-30|3585.62",
-   "claim": "The S&P 500 closed at 3,585.62 on Sept. 30, 2022, its lowest 2022 close up to that day in FRED's table."
+   "source": "s32",
+   "quote": "The S&P 500 ended Friday down 1.51%, closing at 3,585.62.",
+   "claim": "The S&P 500 closed at 3,585.62 on Friday, Sept. 30, 2022, down 1.51% that day."
   },
   {
    "id": "f12",
-   "source": "s3",
-   "quote": "2022-10-04|3790.93",
+   "source": "s33",
+   "quote": "The S&P 500 added 3.1% to 3,790.93, and the Nasdaq Composite was up 3.3% to 11,176.41. — Tanaya Macheel Tue, Oct 4 2022",
    "claim": "Two sessions later, on Oct. 4, 2022, the S&P 500 closed at 3,790.93."
   },
   {
    "id": "f13",
-   "source": "s3",
-   "quote": "2022-10-14|3583.07",
-   "claim": "On Oct. 14, 2022, the S&P 500 closed at 3,583.07, back near its Oct. 12 low close."
+   "source": "s34",
+   "quote": "The S&P 500 shed 2.37% to 3,583.07 and notched its seventh negative close in eight days.",
+   "claim": "On Oct. 14, 2022, the S&P 500 closed at 3,583.07, down 2.37%, its seventh negative close in eight days."
   },
   {
    "id": "f14",
-   "source": "s3",
-   "quote": "2022-12-28|3783.22",
-   "claim": "On Dec. 28, 2022, the S&P 500 closed at 3,783.22, well above its Oct. 12 close."
+   "source": "s35",
+   "quote": "The S&P 500 fell 1.2% to 3,783.22, and the Nasdaq Composite dropped 1.35% to 10,213.29.",
+   "claim": "On Dec. 28, 2022, the S&P 500 closed at 3,783.22, down 1.2% that day."
   },
   {
    "id": "f15",
-   "source": "s3",
-   "quote": "2023-06-08|4293.93",
-   "claim": "On June 8, 2023, the S&P 500 closed at 4,293.93, 20% above its Oct. 12, 2022 low close; the first close that high in FRED's table."
+   "source": "s29",
+   "quote": "June 8, 2023: The S&P 500 advanced 26.41 points, or 0.6%, to end at 4,293.93 Thursday, its highest closing level since Aug. 16, 2022, according to Dow Jones Market Data.",
+   "claim": "On June 8, 2023, the S&P 500 closed at 4,293.93, its highest close since Aug. 16, 2022."
   },
   {
    "id": "f17",
@@ -503,7 +569,7 @@
   {
    "id": "f46",
    "source": "s15",
-   "quote": "The CBOE Volatility Index (VIX) measures the market's expectation of 30-day volatility for the S&P 500.",
+   "quote": "The CBOE Volatility Index (VIX) is a real-time market index indicating the expected 30-day volatility of the S&P 500.",
    "claim": "The VIX is the market's expected 30-day volatility for the S&P 500."
   },
   {
@@ -1590,7 +1656,7 @@
    "skill": "history.bottoms",
    "rung": 7,
    "format": "scenario",
-   "story": "After a long slide, the index closes at a new low of 3,585.62. Two sessions later it's at 3,790.93.",
+   "story": "After a long slide, the index closes at 3,585.62. Two sessions later it's at 3,790.93.",
    "q": "Is the low in?",
    "choices": [
     "Not proven, early pops often fail",
@@ -1599,7 +1665,7 @@
     "Yes, that new low was capitulation"
    ],
    "answer": "Not proven, early pops often fail",
-   "why": "Not proven. Two big days off a low feel great. But early rallies often fail and pull you right back into the decline. Two sessions is also too soon for a follow-through day. That comes several days into the attempt, on higher volume. This was the S&P 500, Sept. 30 to Oct. 4, 2022. It closed at a new low of 3,577.03 on Oct. 12. Buy that pop with size and you'd have given it all back. Let the market prove it first.",
+   "why": "Not proven. Two big days off a low feel great. But early rallies often fail and pull you right back into the decline. Two sessions is also too soon for a follow-through day. That comes several days into the attempt, on higher volume. This was the S&P 500, the end of September to Oct. 4, 2022. It went on to close at 3,577.03 on Oct. 12, the bear market's closing low. Buy that pop with size and you'd have given it all back. Let the market prove it first.",
    "lesson_line": "The first pop off a low proves little. I let the market prove it.",
    "facts": [
     "f71",
@@ -1618,7 +1684,7 @@
    },
    "simple": "Not yet. Early bounces often fail, and two strong days can't prove a bottom.",
    "deeper": {
-    "trap": "The trap is a sharp pop right after a new low. Here the S&P 500 went from 3,585.62 on Sept. 30 to 3,790.93 two sessions later. Then it closed at 3,577.03 on Oct. 12, a new low. Capitulation is only certain after the price has rebounded. Let the market prove the turn."
+    "trap": "The trap is a sharp pop right after a new low. Here the S&P 500 went from 3,585.62 at the end of September to 3,790.93 two sessions later. Then it closed at 3,577.03 on Oct. 12, a new low. Capitulation is only certain after the price has rebounded. Let the market prove the turn."
    },
    "tier": "extended",
    "risk": {

@@ -919,7 +919,7 @@
    "skill": "fund.earnings_desk",
    "rung": 1,
    "format": "mcq",
-   "q": "NFLX reports Q1 2022. EPS is $3.53. The Refinitiv consensus was $2.89, and the same quarter last year was $3.75. How do you read EPS?",
+   "q": "Netflix, first quarter 2022: EPS $3.53. Refinitiv consensus $2.89. Same quarter last year, $3.75. How do you read EPS?",
    "choices": [
     "A beat, it's over the consensus",
     "A miss, it's under the consensus",
@@ -927,7 +927,7 @@
     "A miss, it's under last year"
    ],
    "answer": "A beat, it's over the consensus",
-   "why": "Beat. The only bar for beat or miss is the consensus, the average of what the analysts covering the stock expect. $3.53 against $2.89 clears it by a lot. Last year's $3.75 is a growth question, not a beat-or-miss one. One thing I'd flag before you get excited: Netflix says the $3.53 held a $162 million non-cash currency gain. The beat's real, but I wouldn't take its size at face value.",
+   "why": "A beat. The only bar for beat or miss is the consensus, the average of what the analysts covering the stock expect. $3.53 against $2.89 clears it by a lot. Last year's $3.75 is a growth question, not a beat-or-miss one. One thing I'd flag before you get excited: Netflix says the $3.53 held a $162 million non-cash currency gain. The beat's real, but I wouldn't take its size at face value.",
    "lesson_line": "Beat or miss is always against the consensus. Last year is a different question.",
    "facts": [
     "f10",
@@ -954,7 +954,7 @@
    "skill": "fund.earnings_desk",
    "rung": 1,
    "format": "tf",
-   "q": "WMT prints adjusted EPS of $1.30 for Q1 of fiscal 2023. Analysts were looking for $1.48. That's a beat.",
+   "q": "Walmart, first quarter of fiscal 2023: adjusted EPS of $1.30. Analysts were looking for $1.48. That's a beat.",
    "answer": "False",
    "why": "False. That's a miss, and a big one. $1.30 is under the $1.48 the Street wanted. CNBC said Walmart missed by a wide margin, and AP's Zacks survey had it far short of $1.48 too. Get the direction right first. Everything else you read in the report hangs off it.",
    "lesson_line": "Under the consensus is a miss. Nail the direction before you read anything else.",
@@ -1002,7 +1002,7 @@
    "skill": "fund.earnings_desk",
    "rung": 2,
    "format": "mcq",
-   "q": "GOOGL, Q1 2024. EPS $1.89 vs $1.51 expected. Revenue $80.54 billion vs $78.59 billion expected. What's the read?",
+   "q": "Alphabet, first quarter 2024: EPS $1.89 vs $1.51 expected. Revenue $80.54 billion vs $78.59 billion expected. What's the read?",
    "choices": [
     "Beat on EPS and revenue",
     "EPS beat, revenue missed",
@@ -1010,7 +1010,7 @@
     "In line on both lines"
    ],
    "answer": "Beat on EPS and revenue",
-   "why": "Beat on both lines. EPS of $1.89 cleared the $1.51 LSEG estimate. Revenue of $80.54 billion cleared $78.59 billion. Reuters called it a beat on sales and profit too. You read each line on its own, against its own estimate, because they don't always agree. When they split, that's where the story is. Growth is a separate check: sales were up 15% on a year ago. That's the kind of report I want behind a stock I own.",
+   "why": "Beat on EPS and revenue. EPS of $1.89 cleared the $1.51 LSEG estimate. Revenue of $80.54 billion cleared $78.59 billion. Reuters called it a beat on sales and profit too. You read each line on its own, against its own estimate, because they don't always agree. When they split, that's where the story is. Growth is a separate check: sales were up 15% on a year ago. That's the kind of report I want behind a stock I own.",
    "lesson_line": "EPS and revenue are two lines. Each one beats or misses on its own.",
    "facts": [
     "f76",
@@ -1041,7 +1041,7 @@
    "skill": "fund.earnings_desk",
    "rung": 2,
    "format": "mcq",
-   "q": "TGT, Q1 2022. Adjusted EPS $2.19 vs $3.07 expected. Revenue $25.17 billion vs $24.49 billion expected. How does it read?",
+   "q": "Target, first quarter 2022: adjusted EPS $2.19 vs $3.07 expected. Revenue $25.17 billion vs $24.49 billion expected. How does it read?",
    "choices": [
     "EPS missed, revenue beat",
     "EPS beat, revenue missed",
@@ -1049,7 +1049,7 @@
     "Beat on EPS and revenue"
    ],
    "answer": "EPS missed, revenue beat",
-   "why": "Profit missed, sales beat. Adjusted EPS of $2.19 came in 88 cents short of the $3.07 consensus. That's a big hole. Revenue of $25.17 billion topped the $24.49 billion expected, and AP's FactSet poll makes the same two calls. So people kept shopping at Target, and the money got lost between the register and the bottom line. When the lines split, say both halves out loud. Then go find out why they split.",
+   "why": "EPS missed, revenue beat. Adjusted EPS of $2.19 came in 88 cents short of the $3.07 consensus. That's a big hole. Revenue of $25.17 billion topped the $24.49 billion expected, and AP's FactSet poll makes the same two calls. So people kept shopping at Target, and the money got lost between the register and the bottom line. When the lines split, say both halves out loud. Then go find out why they split.",
    "lesson_line": "A sales beat and a profit miss can sit in one report. Say both halves, then find out why.",
    "facts": [
     "f55",
@@ -1106,7 +1106,7 @@
    "skill": "fund.earnings_desk",
    "rung": 3,
    "format": "mcq",
-   "q": "NKE's Q4 release says results 'led us to update our Fiscal '25 outlook.' No new numbers follow. Where do you go to get them?",
+   "q": "Nike's fiscal Q4 2024 release says results 'led us to update our Fiscal '25 outlook.' No new numbers follow. Where do you get them?",
    "choices": [
     "The earnings call",
     "The consensus estimate",
@@ -1114,7 +1114,7 @@
     "Last quarter's release"
    ],
    "answer": "The earnings call",
-   "why": "The call. Nike's release only said the outlook changed. The numbers came that afternoon, when finance chief Matthew Friend walked analysts through the cut. Schwab says the same: if the guide isn't in the release, check the materials around it or wait for the call. Don't skip it, because guidance can often be the top factor in the near-term price. In our app, open the name from the earnings calendar and check the Call tab for the recap and transcript.",
+   "why": "The earnings call. Nike's release only said the outlook changed. The numbers came that afternoon, when finance chief Matthew Friend walked analysts through the cut. Schwab says the same: if the guide isn't in the release, check the materials around it or wait for the call. Don't skip it, because guidance can often be the top factor in the near-term price. In our app, open the name from the earnings calendar and check the Call tab for the recap and transcript.",
    "lesson_line": "The guide isn't always in the release. When it's missing, go to the call.",
    "facts": [
     "f66",
@@ -1168,10 +1168,10 @@
    "key": "q09",
    "skill": "fund.earnings_desk",
    "rung": 4,
-   "format": "mcq",
-   "q": "GOOGL reports Q1 2024 EPS of $1.89. The LSEG consensus was $1.51. What's the surprise, in percent?",
-   "answer": "25.2%",
-   "suffix": "",
+   "format": "numeric",
+   "q": "Alphabet, first quarter 2024: EPS of $1.89. The LSEG consensus was $1.51. What's the surprise, in percent?",
+   "answer": 25.2,
+   "suffix": "%",
    "calc": {
     "fn": "pct_change",
     "args": {
@@ -1198,17 +1198,6 @@
    "batch": "voice-8-2026-11-17",
    "deeper": {
     "example": "Zacks writes the formula as actual minus consensus, over the absolute value of the consensus, times 100. The absolute value only matters when analysts expect a loss. Every consensus in this lesson is a profit, so the plain form works."
-   },
-   "choices": [
-    "25.2%",
-    "20.1%",
-    "38.0%",
-    "125.2%"
-   ],
-   "wrong": {
-    "20.1%": "That divides 0.38 by the $1.89 actual. The surprise is always measured off the consensus, $1.51.",
-    "38.0%": "That's the gap in cents read as a percent. You still have to divide 0.38 by $1.51.",
-    "125.2%": "That's $1.89 divided by $1.51, times 100. You skipped taking the $1.51 off first. The surprise is only the gap, over the consensus."
    }
   },
   {
@@ -1216,7 +1205,7 @@
    "skill": "fund.earnings_desk",
    "rung": 4,
    "format": "numeric",
-   "q": "NFLX guided to adding 2.5 million paid members in Q1 2022. It lost 0.2 million instead. How far short of its own number was it?",
+   "q": "Netflix guided to adding 2.5 million paid members in Q1 2022. It lost 0.2 million instead. How far short of its own number was it?",
    "answer": 2.7,
    "suffix": "million",
    "calc": {
@@ -1274,7 +1263,7 @@
    "skill": "fund.earnings_desk",
    "rung": 4,
    "format": "mcq",
-   "q": "META, Q4 2022. Revenue $32.17 billion, down 4% from a year ago. Analysts expected $31.53 billion. How does revenue read?",
+   "q": "Meta, fourth quarter 2022: revenue $32.17 billion, down 4% from a year ago. Analysts expected $31.53 billion. How does revenue read?",
    "choices": [
     "A beat, though sales fell",
     "A miss, because sales fell",
@@ -1282,7 +1271,7 @@
     "Can't tell without EPS"
    ],
    "answer": "A beat, though sales fell",
-   "why": "A beat, even with sales down. $32.17 billion came in over the $31.53 billion Refinitiv estimate, so revenue beat. The 4% drop from a year ago is growth, a different test. Keep the two apart. The analysts already had sales shrinking, and Meta did better than they feared. Bloomberg said the same: sales fell and still beat. When Meta jumped the next day, Morningstar tied it to this revenue beat.",
+   "why": "A beat, though sales fell. $32.17 billion came in over the $31.53 billion Refinitiv estimate, so revenue beat. The 4% drop from a year ago is growth, a different test. Keep the two apart. The analysts already had sales shrinking, and Meta did better than they feared. Bloomberg said the same: sales fell and still beat. When Meta jumped the next day, Morningstar tied it to this revenue beat.",
    "lesson_line": "Growth compares with last year. Beat or miss compares with the estimate. Keep them apart.",
    "facts": [
     "f24",
@@ -1308,10 +1297,10 @@
    "key": "q12",
    "skill": "fund.earnings_desk",
    "rung": 5,
-   "format": "mcq",
-   "q": "WMT's adjusted EPS for Q1 of fiscal 2023 is $1.30. The Refinitiv consensus was $1.48. How big is the miss, in percent?",
-   "answer": "12.2%",
-   "suffix": "",
+   "format": "numeric",
+   "q": "Walmart, first quarter of fiscal 2023: adjusted EPS $1.30. The Refinitiv consensus was $1.48. How big is the miss, in percent?",
+   "answer": 12.2,
+   "suffix": "%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1321,7 +1310,7 @@
     },
     "round": 1
    },
-   "why": "12.2%, and for Walmart that's a big miss. The shortfall is $1.48 minus $1.30, which is 0.18, the 18 cents CNBC reported. Divide by the $1.48 consensus, not the actual, then times 100: 12.2%. In Zacks's terms it's a negative surprise, minus 12.2%. CNBC said it missed by a wide margin, and the stock closed down 11.38% that day. Size the miss before you judge it.",
+   "why": "12.2%. For Walmart, that's a big miss. The shortfall is $1.48 minus $1.30, which is 0.18, the 18 cents CNBC reported. Divide by the $1.48 consensus, not the actual, then times 100: 12.2%. In Zacks's terms it's a negative surprise, minus 12.2%. CNBC said it missed by a wide margin, and the stock closed down 11.38% that day. Size the miss before you judge it.",
    "lesson_line": "Put the miss in percent, off the consensus, so you can weigh it against any other report.",
    "facts": [
     "f41",
@@ -1339,25 +1328,14 @@
      "computed key"
     ]
    },
-   "batch": "voice-8-2026-11-17",
-   "choices": [
-    "12.2%",
-    "13.8%",
-    "18.0%",
-    "87.8%"
-   ],
-   "wrong": {
-    "13.8%": "That divides 0.18 by the $1.30 actual. The miss is measured off the consensus, $1.48.",
-    "18.0%": "That's the 18 cent gap read as a percent. You still divide 0.18 by $1.48.",
-    "87.8%": "That's $1.30 over $1.48. It tells you what share of the estimate Walmart earned, not how far it missed."
-   }
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q13",
    "skill": "fund.earnings_desk",
    "rung": 5,
    "format": "numeric",
-   "q": "META reports Q4 2022 EPS of $1.76. Its release says EPS would be $1.24 higher without restructuring charges. What's EPS without them?",
+   "q": "Meta's Q4 2022 EPS was $1.76. Its release says EPS would be $1.24 higher without restructuring charges. What's EPS without them?",
    "answer": 3,
    "prefix": "$",
    "calc": {
@@ -1413,8 +1391,8 @@
    "skill": "fund.earnings_desk",
    "rung": 5,
    "format": "scenario",
-   "story": "NKE, fiscal Q4 2024. Adjusted EPS $1.01 vs 83 cents expected. Revenue $12.61 billion vs $12.84 billion expected. It guides fiscal 2025 sales down mid-single digits. Analysts expected a 0.9% rise.",
-   "q": "If you held NKE into this, which line worries you most?",
+   "story": "Nike, fiscal Q4 2024: adjusted EPS $1.01 vs 83 cents expected. Revenue $12.61 billion vs $12.84 billion expected. It guides fiscal 2025 sales down mid-single digits. Analysts expected a 0.9% rise.",
+   "q": "If you held Nike into this, which line worries you most?",
    "choices": [
     "The full-year sales guide",
     "The adjusted EPS line",
@@ -1422,7 +1400,7 @@
     "Nothing, EPS beat the estimate"
    ],
    "answer": "The full-year sales guide",
-   "why": "The guide. Analysts had fiscal 2025 sales up 0.9%, and Nike told them down mid single digits. That marks down a whole year. The EPS beat and the revenue miss are about a quarter that's already gone. Schwab says guidance can often be the top factor in the near-term price. Nike plunged nearly 20% the next day, and CNBC tied it to the cut. It's why we only hold through a report when the trade's up 5R.",
+   "why": "The full-year sales guide. Analysts had fiscal 2025 sales up 0.9%, and Nike told them down mid single digits. That marks down a whole year. The EPS beat and the revenue miss are about a quarter that's already gone. Schwab says guidance can often be the top factor in the near-term price. Our rule: hold through a report only when the trade's up 5R. Nike plunged nearly 20% the next day, and CNBC tied it to the cut.",
    "lesson_line": "Read the guide before you celebrate the beat. The beat is last quarter. The guide is the year ahead.",
    "facts": [
     "f68",
@@ -1456,7 +1434,7 @@
    "skill": "fund.earnings_desk",
    "rung": 6,
    "format": "mcq",
-   "q": "WMT updates its full-year guide in May 2022. Sales up about 4%, was 3%. EPS down about 1%, was up mid single digits. What's the read?",
+   "q": "Walmart, May 2022: a new full-year guide. Sales up about 4%, was 3%. EPS down about 1%, was up mid single digits. What's the read?",
    "choices": [
     "Sales raised, profit cut",
     "A raise across the board",
@@ -1491,10 +1469,10 @@
    "key": "q16",
    "skill": "fund.earnings_desk",
    "rung": 6,
-   "format": "mcq",
-   "q": "A day after Walmart, TGT reports adjusted EPS of $2.19. The Refinitiv consensus was $3.07. How deep is the miss, in percent?",
-   "answer": "28.7%",
-   "suffix": "",
+   "format": "numeric",
+   "q": "Target, first quarter 2022: a day after Walmart, adjusted EPS of $2.19. The Refinitiv consensus was $3.07. How deep is the miss, in percent?",
+   "answer": 28.7,
+   "suffix": "%",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1521,25 +1499,14 @@
      "computed key"
     ]
    },
-   "batch": "voice-8-2026-11-17",
-   "choices": [
-    "28.7%",
-    "40.2%",
-    "88.0%",
-    "71.3%"
-   ],
-   "wrong": {
-    "40.2%": "That divides 0.88 by the $2.19 actual. The miss is measured off the consensus, $3.07.",
-    "88.0%": "That's the 88 cent gap read as a percent. You still divide 0.88 by $3.07.",
-    "71.3%": "That's $2.19 over $3.07, the share of the estimate Target earned. It's not the size of the miss."
-   }
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
    "skill": "fund.earnings_desk",
    "rung": 7,
    "format": "scenario",
-   "story": "WMT, Q1 of fiscal 2023. Revenue: $141.57 billion vs $138.94 billion expected. Adjusted EPS: $1.30 vs $1.48 expected.",
+   "story": "Walmart, first quarter of fiscal 2023. Revenue: $141.57 billion vs $138.94 billion expected. Adjusted EPS: $1.30 vs $1.48 expected.",
    "q": "What's that mix telling you about the quarter?",
    "choices": [
     "Sales held, costs hit profit",
@@ -1548,7 +1515,7 @@
     "A strong quarter all around"
    ],
    "answer": "Sales held, costs hit profit",
-   "why": "Sales held, costs ate the profit. Revenue beat, so shoppers kept coming. EPS missed, so the money leaked out between the sale and the bottom line. The CEO said food and fuel inflation hit margins and costs harder than expected. AP named labor, fuel and inventory. It's not a one-off charge either. Walmart's adjusted EPS only strips out swings on its equity investments, and what everyone pointed at were everyday running costs. Running costs can stick around, so my next question is whether they carry into next quarter. The stock closed down 11.38% that day.",
+   "why": "Sales held, costs hit profit. Revenue beat, so shoppers kept coming. EPS missed, so the money leaked out between the sale and the bottom line. The CEO said food and fuel inflation hit margins and costs harder than expected. AP named labor, fuel and inventory. It's not a one-off charge either. Walmart's adjusted EPS only strips out swings on its equity investments, and what everyone pointed at were everyday running costs. Running costs can stick around, so my next question is whether they carry into next quarter. The stock closed down 11.38% that day.",
    "lesson_line": "A sales beat with a profit miss points at costs. Find which ones, and whether they'll last.",
    "facts": [
     "f48",
@@ -1583,7 +1550,7 @@
    "skill": "fund.earnings_desk",
    "rung": 7,
    "format": "scenario",
-   "story": "NFLX, Q1 2022. EPS $3.53 vs $2.89 expected. Revenue $7.87 billion vs $7.93 billion. Paid members fell by 200,000, against 2.73 million adds expected. It guides to losing 2 million more next quarter.",
+   "story": "Netflix, first quarter 2022: EPS $3.53 vs $2.89 expected. Revenue $7.87 billion vs $7.93 billion. Paid members fell by 200,000, against 2.73 million adds expected. It guides to losing 2 million more next quarter.",
    "q": "What's the real news in this report?",
    "choices": [
     "Lost members and the guide",
@@ -1592,7 +1559,7 @@
     "A currency gain inside the EPS"
    ],
    "answer": "Lost members and the guide",
-   "why": "The members, and the guide. Netflix lost 200,000 paid members where StreetAccount expected 2.73 million added. Then it guided to losing 2 million more. Subscriber growth had long been the key number for Netflix, so this hit the reason people owned it. The EPS beat looks back at a quarter that's done. Members and the guide tell you what's coming. The stock plunged 35% in one day. Find the number each stock lives on before you read the headline.",
+   "why": "Lost members and the guide. Netflix lost 200,000 paid members where StreetAccount expected 2.73 million added. Then it guided to losing 2 million more. Subscriber growth had long been the key number for Netflix, so this hit the reason people owned it. The EPS beat looks back at a quarter that's done. Members and the guide tell you what's coming. Find the number each stock lives on before you read the headline. The stock plunged 35% in one day.",
    "lesson_line": "Find the number each stock lives on. For Netflix in 2022, that was members, not EPS.",
    "facts": [
     "f15",
@@ -1629,7 +1596,7 @@
    "skill": "fund.earnings_desk",
    "rung": 7,
    "format": "scenario",
-   "story": "META, Q4 2022. EPS $1.76 vs $2.22 expected. The release says $4.20 billion of restructuring charges sit in that number. Without them, EPS would be $1.24 higher.",
+   "story": "Meta, fourth quarter 2022: EPS $1.76 vs $2.22 expected. The release says $4.20 billion of restructuring charges sit in that number. Without them, EPS would be $1.24 higher.",
    "q": "Before you call EPS a beat or a miss, what do you need to know?",
    "choices": [
     "What the $2.22 estimate included",
@@ -1638,7 +1605,7 @@
     "Whether revenue beat its estimate"
    ],
    "answer": "What the $2.22 estimate included",
-   "why": "What the $2.22 estimate counted. As reported, $1.76 sits under $2.22. Add back the $1.24 the charges took and it clears $2.22. CNBC said the charges made the comparison difficult. You can only compare an estimate and an actual on the same basis. If the analysts built the charges in, compare $2.22 with $1.76. If they didn't, compare it with the number without them. Until you know, I wouldn't call it either way. The stock closed up 23% the next day.",
+   "why": "What the $2.22 estimate included. As reported, $1.76 sits under $2.22. Add back the $1.24 the charges took and it clears $2.22. CNBC said the charges made the comparison difficult. You can only compare an estimate and an actual on the same basis. If the analysts built the charges in, compare $2.22 with $1.76. If they didn't, compare it with the number without them. Until you know, I wouldn't call it either way. The stock closed up 23% the next day.",
    "lesson_line": "When a big charge sits in EPS, check what the estimate counted before you call it.",
    "facts": [
     "f31",
@@ -1677,7 +1644,7 @@
    "format": "tf",
    "q": "The bigger a company's EPS beat, the bigger the stock's jump the next day.",
    "answer": "False",
-   "why": "False. NKE beat, $1.01 against 83 cents. NFLX beat, $3.53 against $2.89. GOOGL beat, $1.89 against $1.51. Then Nike plunged nearly 20%, Netflix fell 35% in one day, and Alphabet rose 10%. Three beats, two big drops. FINRA says simply beating or missing isn't always what moves a price. The guide and the rest of the report can outweigh it. That's part of why we don't make new buys in the 3 days before a report.",
+   "why": "False. Nike beat, $1.01 against 83 cents. Netflix beat, $3.53 against $2.89. Alphabet beat, $1.89 against $1.51. FINRA says simply beating or missing isn't always what moves a price. The guide and the rest of the report can outweigh it. And remember our rule: no new buys in the 3 days before a report. Three beats, and here's what the stocks did: Nike plunged nearly 20%, Netflix fell 35% in one day, and Alphabet rose 10%.",
    "lesson_line": "The size of the beat doesn't set the move. The guide and the rest of the report do.",
    "facts": [
     "f68",
@@ -1709,7 +1676,7 @@
    "format": "tf",
    "q": "A company that reports EPS below the consensus will see its stock fall.",
    "answer": "False",
-   "why": "False. A miss makes a drop likely, not certain. META's reported $1.76 sat under the $2.22 estimate, charges and all. It closed up 23% the next day. Revenue beat, and Meta lowered its 2023 expense outlook, so the market looked past the EPS line to costs coming down. Weak earnings with upbeat guidance can lift a stock. Read everything under the headline before you decide what it means.",
+   "why": "False. A miss makes a drop likely, not certain. Meta's reported $1.76 sat under the $2.22 estimate, charges and all. Revenue beat, and Meta lowered its 2023 expense outlook, so the market looked past the EPS line to costs coming down. Weak earnings with upbeat guidance can lift a stock. Read everything under the headline before you decide what it means. Meta closed up 23% the next day.",
    "lesson_line": "A miss is likely to hurt, but the rest of the report can outweigh it. Read past the EPS line.",
    "facts": [
     "f85",
@@ -1742,7 +1709,7 @@
    "skill": "fund.earnings_desk",
    "rung": 8,
    "format": "scenario",
-   "story": "May 2022. On Tuesday, WMT's sales beat but its profit missed. You own TGT, and it reports on Wednesday.",
+   "story": "May 2022. On Tuesday, Walmart's sales beat but its profit missed. You own Target, and it reports on Wednesday.",
    "q": "What does Walmart's report tell you about your Target shares?",
    "choices": [
     "A warning about Target's costs",
@@ -1751,7 +1718,7 @@
     "Sales beat, so retail is fine"
    ],
    "answer": "A warning about Target's costs",
-   "why": "It's a warning on costs. Walmart's sales beat, so its miss came from costs, not lost shoppers. Same kind of store, same kind of costs. A day later Target missed by 88 cents and blamed freight and transportation costs. CNBC said Target's miss confirmed the same story from Walmart. A peer's report is a heads-up, not a sure thing. But if you own Target, this is your heads-up. Up 5R on the trade, you can sit through the report. Not up 5R, we don't hold through earnings anyway, so you're out before it hits. Target fell nearly 25%, and both had their worst days since 1987.",
+   "why": "A warning about Target's costs. Walmart's sales beat, so its miss came from costs, not lost shoppers. Same kind of store, same kind of costs. A day later Target missed by 88 cents and blamed freight and transportation costs. CNBC said Target's miss confirmed the same story from Walmart. A peer's report is a heads-up, not a sure thing. But if you own Target, this is your heads-up. Up 5R on the trade, you can sit through the report. Not up 5R, we don't hold through earnings anyway, so you're out before it hits. Target fell nearly 25%, and both had their worst days since 1987.",
    "lesson_line": "When a bigger name in your group reports a cost squeeze, treat it as a warning for yours.",
    "facts": [
     "f43",
@@ -1785,7 +1752,7 @@
    "skill": "fund.earnings_desk",
    "rung": 9,
    "format": "scenario",
-   "story": "NKE, fiscal Q4 2024: EPS $1.01 vs 83 cents expected, revenue $12.61 billion vs $12.84 billion, full-year sales guided down. GOOGL, Q1 2024: EPS $1.89 vs $1.51, revenue $80.54 billion vs $78.59 billion, a first dividend.",
+   "story": "Two EPS beats. Nike, fiscal Q4 2024: EPS $1.01 vs 83 cents expected, revenue $12.61 billion vs $12.84 billion, full-year sales guided down. Alphabet, first quarter 2024: EPS $1.89 vs $1.51, revenue $80.54 billion vs $78.59 billion, a first dividend.",
    "q": "Both beat on EPS. Which one had the problem underneath?",
    "choices": [
     "Nike's, revenue missed and guide cut",
@@ -1794,7 +1761,7 @@
     "Neither, an EPS beat outweighs it"
    ],
    "answer": "Nike's, revenue missed and guide cut",
-   "why": "Nike's. Look past EPS and it falls apart. Revenue came in at $12.61 billion against $12.84 billion expected. Then the full-year sales guide got cut to down mid single digits. Alphabet is the opposite. Revenue beat, $80.54 billion against $78.59 billion, and grew 15%. It added a first dividend and a $70 billion buyback on top. Same EPS headline, opposite next days. Nike plunged nearly 20%. Alphabet rose 10%, its sharpest rally since July 2015. Read every line, the same way, for both, before you decide anything.",
+   "why": "Nike's. Look past EPS and it falls apart. Revenue came in at $12.61 billion against $12.84 billion expected. Then the full-year sales guide got cut to down mid single digits. Alphabet is the opposite. Revenue beat, $80.54 billion against $78.59 billion, and grew 15%. It added a first dividend and a $70 billion buyback on top. Read every line, the same way, for both, before you decide anything. Same EPS headline, opposite next days. Nike plunged nearly 20%. Alphabet rose 10%, its sharpest rally since July 2015.",
    "lesson_line": "Two beats, two opposite days. Read past the EPS line before you decide anything.",
    "facts": [
     "f68",
@@ -1836,7 +1803,7 @@
    "skill": "fund.earnings_desk",
    "rung": 9,
    "format": "scenario",
-   "story": "META guides Q1 2023 revenue to $26 billion to $28.5 billion. Refinitiv's consensus is $27.1 billion. Bloomberg News cites an average projection of $27.3 billion.",
+   "story": "Meta guides first-quarter 2023 revenue to $26 billion to $28.5 billion. Refinitiv's consensus is $27.1 billion. Bloomberg News cites an average projection of $27.3 billion.",
    "q": "How does Meta's guide stack up against what analysts expect?",
    "choices": [
     "Close, the midpoint is $27.25B",
@@ -1853,7 +1820,7 @@
      "high": 28.5
     }
    },
-   "why": "Right between the two, so I'd call it close. Read a range at its midpoint: $26 billion and $28.5 billion, added and split in half, is $27.25 billion. That's a hair over Refinitiv's $27.1 billion and a hair under the $27.3 billion Bloomberg cited. FactSet scores guided EPS ranges the same way, by the midpoint. Grab the top end and you'll see a beat that isn't there. Grab the bottom and you'll see a miss. Bloomberg called it in line.",
+   "why": "Close. The midpoint sits right between the two. Read a range at its midpoint: $26 billion and $28.5 billion, added and split in half, is $27.25 billion. That's a hair over Refinitiv's $27.1 billion and a hair under the $27.3 billion Bloomberg cited. FactSet scores guided EPS ranges the same way, by the midpoint. Grab the top end and you'll see a beat that isn't there. Grab the bottom and you'll see a miss. Bloomberg called it in line.",
    "lesson_line": "Judge a guided range by its midpoint, and know whose consensus you're using.",
    "facts": [
     "f29",

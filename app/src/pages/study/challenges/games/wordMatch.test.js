@@ -48,6 +48,11 @@ describe('the plain checks', () => {
     expect(meaningProblem('double top', 'double')).toBe('one word')                       // a fill-in
     expect(meaningProblem('Morning star', '3')).toBe('a number')                          // "How many bars make a Morning star?"
     expect(meaningProblem('Basis point', '0.01 percentage point')).toBeNull()
+    // a worked answer is not a meaning (V.10, V.12, V.13 in the owner's voice, 2026-11-17)
+    expect(meaningProblem('10-year minus 2-year spread', '38 basis points')).toBe('a number')
+    expect(meaningProblem('Overtrading', '6.5 points')).toBe('a number')
+    expect(meaningProblem('IOC', '500 shares')).toBe('a number')
+    expect(meaningProblem('Negative expectancy', '-50 dollars')).toBe('a number')
     expect(meaningProblem('Earnings call', 'The earnings call')).toBe('names the word')    // an item read backwards
     expect(meaningProblem('Trading range', 'trading range')).toBe('names the word')
     expect(meaningProblem('ATR', 'A quarter ATR under the lower average')).toBe('names the word')
@@ -110,6 +115,14 @@ describe("each pair's own question", () => {
       ['Spinning top', 'What does a spinning top look like?', 'Small body, shadows longer than it'],
       ['Hollow candle', 'On a standard candlestick chart, what does a hollow (or green) body tell you?', 'It closed above its open'],
       ['New high', 'On a breadth page, what counts as a new high?', 'A stock at its highest price in a year'],
+      // the trader's way of asking (the V courses in the owner's voice, 2026-11-17)
+      ['Parabolic', "A buddy says his stock went parabolic. What's the price doing?", 'Rising faster and faster'],
+      ['Doji', "Someone calls today's candle on your stock a doji. What did the stock do to print one?", 'Open and close about equal'],
+      ['Darvas box', "An old-school trader says his stock is 'in a Darvas box.' What's he describing?", 'A range set by recent highs and lows'],
+      ['Apex', "You draw both lines of a triangle and extend them to the right. What's the apex?", 'Where the two lines meet'],
+      ['Payoff ratio', 'A stats page shows your payoff ratio. How is that number worked out?', 'Average win divided by average loss'],
+      ['Short squeeze', "A heavily shorted stock pops on news. Someone calls it a short squeeze. What's happening?", 'Short covering lifts the price fast'],
+      ['Shakeout', "Your buddy texts that his stock 'just had a shakeout.' What happened?", 'A sharp dip that scares holders out'],
     ]
     for (const [term, q, meaning] of real) expect(meaningPromptProblem(mcqFor(P('x', term, meaning), q), P('x', term, meaning)), q).toBeNull()
     // a glossary item from the bank carries no kind: still a choice question
@@ -123,6 +136,9 @@ describe("each pair's own question", () => {
     expect(at('Which chart shows a rounding bottom best?')).toBe('asks something else')
     expect(at('When do the minutes of a rounding bottom come out?')).toBe('asks something else')
     expect(at('What happens to a rounding bottom after it ends?')).toBe('asks something else')
+    expect(at('Your stock grinds higher out of a rounding bottom. Which way do textbooks lean?')).toBe('asks something else')
+    expect(at("A rounding bottom is done. What's your read on how the stock trades it?")).toBe('asks something else')
+    expect(at("You're hunting for a rounding bottom. What's the stock you'd pull up?")).toBe('asks something else')
     expect(at('What is a rounding bottom?', { kind: 'tf' })).toBe('not a choice question')
     expect(at('What is a rounding bottom?', { kind: 'fill' })).toBe('not a choice question')
     expect(at('What is a rounding bottom?', { kind: 'fill_numeric' })).toBe('not a choice question')
