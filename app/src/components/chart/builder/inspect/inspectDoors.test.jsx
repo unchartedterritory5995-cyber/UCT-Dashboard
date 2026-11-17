@@ -8,7 +8,7 @@ import path from 'node:path'
 import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { names, build, computeFor } from './inspectDoors'
-import { inspectScript, readBar } from './barInspection'
+import { inspectScript, readBar, notComputedWords } from './barInspection'
 import InspectBarPanel from './InspectBarPanel'
 
 // the engine's script-lane switch (`engine/memberPaneGate.js`): on, as on production, unless a case sets it
@@ -121,6 +121,41 @@ describe('end to end, on real bars', () => {
     expect(within(row('slow')).getByTestId('inspect-bar-reason').textContent)
       .toMatch(/^Its first value is on .*2026, 9 bars after this one: it needs that much history first\.$/)
     expect(screen.getByTestId('inspect-bar-limits').textContent).toMatch(/inside an if, a loop or a function are not listed/)
+  })
+})
+
+describe('a script this panel cannot compute says why, once, in a member\'s words', () => {
+  const src = (...body) => ['//@version=6', 'indicator("X")', ...body].join(String.fromCharCode(10))
+  const PLAIN = 'This script is not computed here, so there is nothing to read.'
+
+  it('another symbol: one sentence for the script, never a row per variable saying "not a number"', async () => {
+    const script = src('spy = request.security("SPY", "D", close)', 'ratio = close / spy', 'plot(ratio, "Ratio")')
+    const got = await inspectScript({ source: script, bars: BARS, names, build, compute: computeFor({ tf: 'D', sym: 'TEST' }) })
+    expect(got.ok).toBe(false)
+    expect(got.reason).toBe("This script reads another symbol. Inspect a bar reads this chart's own bars only, so it cannot show this script's values yet.")
+    expect(got.failed).toEqual([])
+    expect(got.probes).toEqual([])
+  })
+
+  it('another timeframe likewise; anything else gets the plain sentence, and the engine\'s own text is not shown', async () => {
+    const weekly = src('wk = request.security(syminfo.tickerid, "W", close)', 'plot(wk)')
+    const got = await inspectScript({ source: weekly, bars: BARS, names, build, compute: computeFor({ tf: 'D', sym: 'TEST' }) })
+    expect(got.ok).toBe(false)
+    expect(got.reason.startsWith("This script reads another timeframe. Inspect a bar reads this chart's own bars only")).toBe(true)
+    expect(notComputedWords({ code: 'pine:known-divergence', reason: 'engineer text' })).toBe(PLAIN)
+    expect(notComputedWords(null)).toBe(PLAIN)
+    for (const words of [notComputedWords({ code: 'other-symbol:bare', reason: 'our store holds no listing' }), got.reason]) {
+      for (const leak of ['store', 'witnessed', 'capture', 'request.security']) expect(words).not.toContain(leak)
+    }
+  })
+
+  it('the panel shows that sentence and no rows', async () => {
+    const script = src('spy = request.security("SPY", "D", close)', 'plot(close / spy)')
+    render(<InspectBarPanel source={script} bars={BARS} tf="D" sym="TEST" />)
+    fireEvent.click(screen.getByTestId('inspect-bar-toggle'))
+    const said = await screen.findByTestId('inspect-bar-refused')
+    expect(said.textContent.startsWith('This script reads another symbol.')).toBe(true)
+    expect(screen.queryAllByTestId('inspect-bar-row')).toHaveLength(0)
   })
 })
 
