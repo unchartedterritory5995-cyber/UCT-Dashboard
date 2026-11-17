@@ -101,7 +101,8 @@ describe('the editor status panel', () => {
   it('names the family: a drawn difference on a captured chart, withheld until fixed', () => {
     const f = familyOf(HOST_KNOWN_DIVERGENCE_GUARD)
     expect(f.id).toBe('divergence')
-    expect(f.why).toMatch(/differs from TradingView/)
+    expect(f.why).toMatch(/draws something that differs from what TradingView draws/)
+    expect(f.why).toMatch(/names the capture/)
     expect(f.why).toMatch(/withheld until/)
   })
 })
