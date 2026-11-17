@@ -31,8 +31,11 @@ import { __permitRuntimePaneForTests, __resetRuntimePanePermission } from './run
 import { __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList } from './runtimeKill'
 import { __resetHostKnownDivergence, __ignoreHostKnownDivergenceForTests } from './hostKnownDivergence'
 import { setRuntimeDoorClock } from './runtime/runtimeColumns'
+import { astLanePlan, astSideRecordsOf, withAstSideRecords } from './astColumns'
+import { packRows, ctxImageOf, answerImageOf, answerFromImage } from './hostLaneWire'
 
 const OUT = process.env.HOST_WORKER_MEASURE_OUT
+const RT_OUT = process.env.HOST_WORKER_ROUNDTRIP_OUT
 const ONLY = process.env.HOST_LANE_COST_ONLY ? new Set(process.env.HOST_LANE_COST_ONLY.split(',')) : null
 const REPO = path.resolve(process.cwd(), '..')
 const SERIES = path.join(REPO, 'tests', 'fixtures', 'vendor', 'harness', 'vw-deadband-ticks-aapl-1d-2026-09-28.json')
@@ -149,3 +152,84 @@ describe.skipIf(!OUT)('what stays on the main thread when the host values move (
     expect(out.length).toBeGreaterThan(0)
   })
 })
+
+// ─── THE CHEAP DOCUMENT'S QUESTION: what a worker round trip costs the main thread, beside the compute ───
+//
+// For every host document UNDER the budget (the ones the route keeps on the main thread): its values'
+// compute (`astLaneColumns`), against what posting it to the worker and reading the answer back costs
+// the chart's thread: packing the rows and the context (`hostLaneWire`), and the structured clone of
+// the message with its transfer list and of the answer (`postMessage` serialises on the sender and
+// deserialises on the receiver; one clone here is both halves, an upper bound on either side). The
+// round trip's other main-thread cost, the repaint its landing asks for, is measured in the browser.
+//
+//   cd app && HOST_WORKER_ROUNDTRIP_OUT=<file.json> node node_modules/vitest/vitest.mjs run \
+//     src/components/chart/engine/hostLaneWorker.measure.test.js --maxWorkers=1 --testTimeout=7200000
+describe.skipIf(!RT_OUT)('a cheap document: the worker round trip against the compute (opt-in)', () => {
+  it('times the compute and the round trip\'s main-thread share for every host document under the budget', () => {
+    const cap = JSON.parse(fs.readFileSync(SERIES, 'utf8'))
+    const all = cap.bars.rows
+    const corpus = path.join(REPO, 'corpus', 'committed')
+    const files = fs.readdirSync(corpus).filter((f) => f.endsWith('.pine')).sort()
+    const out = []
+    const median = (xs) => xs.sort((a, b) => a - b)[Math.floor(xs.length / 2)]
+    try {
+      for (const f of files) {
+        const slug = f.replace(/\.pine$/, '')
+        if (ONLY && !ONLY.has(slug) && !ONLY.has(slug.replace(/__.*$/, ''))) continue
+        views.off()
+        let door
+        try { door = enterMemberDoor(fs.readFileSync(path.join(corpus, f), 'utf8')) } catch { registry.uninstallUserDefinition(HARNESS_DEF_ID); continue }
+        const def = door.def
+        try {
+          if (!def || !def.compute || def.compute.kind !== 'ast' || hostLaneCostOf(def).over) continue
+          const row = { file: slug }
+          for (const [name, rows, ctx] of [['b600', all.slice(-600), CTX_5000], ['b5000', rows5kOf(all), CTX_5000], ['listing', all, CTX_LISTING]]) {
+            const compute = []
+            const dispatch = []
+            const answer = []
+            for (let k = 0; k < 4; k += 1) {
+              const bars = freshBars(rows)
+              const t0 = performance.now()
+              let cols
+              try { cols = astLaneColumns(def, bars, undefined, { ...ctx }) } catch { cols = null }
+              const t1 = performance.now()
+              const plan = astLanePlan(def, bars, undefined, { ...ctx })
+              const t2 = performance.now()
+              const packed = packRows(plan.valueRows || bars)
+              const img = ctxImageOf(plan.valueCtx || ctx, { secondary: new Set(), lowerTf: new Set(), exchange: new Map() })
+              structuredClone({ id: 1, kind: 'values', docId: 1, rows: packed.pack, ctx: img.image, scalars: plan.scalars, stop: null },
+                { transfer: [...packed.transfer, ...img.transfer] })
+              const t3 = performance.now()
+              if (cols) {
+                const copy = {}
+                for (const key of Object.keys(cols)) copy[key] = ArrayBuffer.isView(cols[key]) ? cols[key].slice() : cols[key]
+                withAstSideRecords(copy, astSideRecordsOf(cols))
+                const t4 = performance.now()
+                const { answer: a, transfer } = answerImageOf(copy, astSideRecordsOf)
+                answerFromImage(structuredClone({ id: 1, ok: true, answer: a }, { transfer }).answer, withAstSideRecords)
+                answer.push(performance.now() - t4)
+              }
+              if (k) { compute.push(t1 - t0); dispatch.push(t3 - t2) }
+            }
+            row[name] = { computeMs: Number(median(compute).toFixed(2)), dispatchMs: Number(median(dispatch).toFixed(2)),
+              answerMs: answer.length ? Number(median(answer.slice(1)).toFixed(2)) : null }
+          }
+          out.push(row)
+          // eslint-disable-next-line no-console
+          console.log(`[host-worker rt] ${slug}: ${JSON.stringify(row.b5000)}`)
+        } finally {
+          registry.uninstallUserDefinition(HARNESS_DEF_ID)
+        }
+      }
+    } finally {
+      __resetHostKnownDivergence()
+      __ignoreHostKnownDivergenceForTests()
+      __permitRuntimePaneForTests()
+      __allowEveryRuntimeScriptForTests()
+    }
+    fs.writeFileSync(RT_OUT, JSON.stringify({ measuredOn: new Date().toISOString(), node: process.version, rows: out }, null, 1))
+    expect(out.length).toBeGreaterThan(0)
+  })
+})
+
+function rows5kOf(all) { return all.slice(-N_BARS) }

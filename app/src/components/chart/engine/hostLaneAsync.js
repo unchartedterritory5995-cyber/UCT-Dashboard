@@ -432,7 +432,7 @@ export function hostObjectsOffThread(def, bars, readerOpts, pane) {
     if (hit.state === 'failed') throw errorFromImage(hit.error)
     if (hit.state === 'main') return served(null)
     if (hit.state === 'refused') return served({ refused: hit.sentence })
-    return { pending: true, keep: _objServed.get(opane) === sig }
+    return objectsPending(opane, sig)
   }
   const job = { kind: 'objects', pane: opane, sig, key, per, docId, rows: bars, asked, inputs,
     sendDef: def, postRows: bars, postCtx: readerOpts }
@@ -440,6 +440,12 @@ export function hostObjectsOffThread(def, bars, readerOpts, pane) {
   submit(job)
   const now = per.get(key)
   if (now && now.state === 'main') return served(null)
+  return objectsPending(opane, sig)
+}
+
+/** ⭐ THE ONE RULE for a pending drawing: the layer on screen stays only when the picture last handed
+ *  to this pane has this pane signature (same document, settings, symbol, timeframe). */
+function objectsPending(opane, sig) {
   return { pending: true, keep: _objServed.get(opane) === sig }
 }
 

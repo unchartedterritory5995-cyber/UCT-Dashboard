@@ -1269,15 +1269,17 @@ export function createBinder({ chart, LWC, scope = '' }) {
     const markOutcomes = new Map()
     for (const inst of instances) {
       if (!inst || typeof inst.instanceId !== 'string' || inst.hidden === true) continue
-      // ⭐⭐ HOST WORKER — AN INSTANCE WHOSE VALUES ARE IN THE WORKER KEEPS ITS DRAWINGS AS THEY STAND
-      // (stale-while-revalidate): its layer, its notes and its markers are left exactly as the last
-      // sync drew them (a drawing is placed by bar TIME, so it stays where it was), and redrawn with
-      // the values when they land. Nothing is evaluated for it this pass.
-      if (heldIds && heldIds.has(inst.instanceId)) {
+      const def = ctx.registry && attempt(() => ctx.registry.getDefinition(inst.defId)).value
+      // ⭐⭐ HOST WORKER — AN INSTANCE WHOSE VALUES ARE IN THE WORKER, AND WHOSE DRAWINGS COME FROM THEM
+      // (a run half, a runtime document's run, a strategy's trade markers), KEEPS ITS DRAWINGS AS THEY
+      // STAND (stale-while-revalidate): its layer, notes and markers are left as the last sync drew
+      // them (a drawing is placed by bar TIME, so it stays where it was) and redrawn when the values
+      // land. A host object program reads no plot value: it goes on below, to its own door.
+      if (heldIds && heldIds.has(inst.instanceId)
+          && (!def || !def.objects || drawsRuntimeObjects(def) || carriesRunHalf(def) || drawsTradeMarkers(def))) {
         if (objectLayers.has(inst.instanceId)) alive.add(inst.instanceId)
         continue
       }
-      const def = ctx.registry && attempt(() => ctx.registry.getDefinition(inst.defId)).value
       // ⭐⭐ RT5 — THE RUN'S OWN DRAWINGS: read off the column record step 1
       // already computed (one run, both answers), drawn by the same render state.
       // ⛔ No columns yet (a worker run in flight) or a run that computed nothing

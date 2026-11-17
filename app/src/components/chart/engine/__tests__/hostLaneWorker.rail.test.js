@@ -31,8 +31,8 @@ import {
   hostObjectsOffThread, hostObjectsSendable,
 } from '../hostLaneAsync'
 import { hostObjectReaderOpts } from '../hostObjects'
-import { HOST_CTX_FIELDS, HOST_CTX_CARRIED } from '../hostLaneWire'
-import { AST_SIDE_RECORDS } from '../astColumns'
+import { HOST_CTX_FIELDS, HOST_CTX_CARRIED, packRows, unpackRows } from '../hostLaneWire'
+import { AST_SIDE_RECORDS, astSideRecordsOf, withAstSideRecords, withColumnErrors, withRuntimeErrorStop } from '../astColumns'
 import { runtimeErrorNoticeFor, resetRuntimeErrorNotices } from '../runtimeErrorNotice'
 import { standInWorkers, firstDifference } from './hostLaneStandIn'
 import { __permitRuntimePaneForTests, __resetRuntimePanePermission } from '../runtimePaneGate'
@@ -395,6 +395,39 @@ describe('5. the worker computes the main thread\'s function on the main thread\
     expect(read.size).toBeGreaterThan(6)
     const carried = new Set([...HOST_CTX_FIELDS, ...HOST_CTX_CARRIED, 'newest_bar_is_forming'])
     expect([...read].filter((f) => !carried.has(f)), 'a context field the worker is not handed').toEqual([])
+  })
+
+  it('every field of every bar crosses, as it was: an ISO-date time, -0, NaN, Infinity, null, a field one bar lacks', () => {
+    const rows = [
+      { t: '1980-12-12', o: -0, h: 1.5, l: NaN, c: Infinity, v: 10 },
+      { t: '1980-12-15', o: 2, h: null, l: 1, c: 2.25, v: 20, x: 'extra' },
+      { t: '1980-12-16', o: 3, h: 4, l: 2, c: 3.5, v: -Infinity },
+    ]
+    const { pack, transfer } = packRows(rows)
+    const back = unpackRows(structuredClone(pack, { transfer }))
+    expect(back.length).toBe(rows.length)
+    rows.forEach((r, i) => {
+      expect(Object.keys(back[i]).sort(), `bar ${i}`).toEqual(Object.keys(r).sort())
+      for (const k of Object.keys(r)) expect(Object.is(back[i][k], r[k]), `bar ${i}.${k}`).toBe(true)
+    })
+  })
+
+  it('every record the values carry crosses and is re-attached exactly as attached (keys, non-enumerable, frozen depth)', () => {
+    // one values map carrying every record: astColumns' own attach helpers where they are exported,
+    // its record table (`AST_SIDE_RECORDS`) for the rest
+    const out = { a: new Float64Array([1, NaN, -0]) }
+    withColumnErrors(out, { b: { guard: 'g:one', message: 'one' } })
+    withRuntimeErrorStop(out, { reached: false, unknown: [{ line: 3, why: 'w' }], unread: [] })
+    withAstSideRecords(out, {
+      __lowerTf: { served: ['5'], refused: [{ code: '1', refusal: 'r', reason: 'x' }] },
+      __otherSymbols: { served: ['SPY'], refused: [{ ticker: 'QQQ', code: 'c', reason: 'y' }] },
+      __withheldBars: { a: { 'pine:tie-unwitnessed': new Float64Array([0, 1, 0]) } },
+      __chartClock: { withheld: [{ code: 'k', reason: 'z', plots: ['a'] }] },
+    })
+    expect(Object.keys(astSideRecordsOf(out)).sort()).toEqual(Object.keys(AST_SIDE_RECORDS).sort())
+    const back = withAstSideRecords({ a: out.a }, structuredClone(astSideRecordsOf(out)))
+    expect(firstDifference(out, back)).toBeNull()
+    expect(Object.isFrozen(back.__columnErrors)).toBe(true)   // non-vacuity: the depth is compared
   })
 
   it('every record the values attach is re-attached on the chart\'s side', () => {

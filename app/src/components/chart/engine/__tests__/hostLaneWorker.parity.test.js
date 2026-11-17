@@ -102,7 +102,7 @@ function bothAnswers(def, set) {
   return { main, mainErr, worker, workerErr, pendingFirst }
 }
 
-const tally = { docs: 0, compared: 0, threw: 0, bars: 0, drawings: 0, drawn: 0 }
+const tally = { docs: 0, compared: 0, threw: 0, bars: 0, drawings: 0, drawn: 0, records: {} }
 
 /** The drawings as the binder reads them: the run, and the reader's facts it reads. */
 const drawingsOf = (host) => (host ? {
@@ -153,6 +153,9 @@ describe('host lane worker: byte-equal to the main thread over the committed cor
       expect(hostLaneStats().posted, `${file} ${set.name}: nothing was posted`).toBeGreaterThan(before)
       expect(isHostLanePending(r.worker), `${file} ${set.name}: still pending after the worker answered`).toBe(false)
       expect(firstDifference(r.main, r.worker), `${file} ${set.name}`).toBeNull()
+      for (const k of Reflect.ownKeys(r.main)) {
+        if (typeof k === 'string' && !Object.getOwnPropertyDescriptor(r.main, k).enumerable) tally.records[k] = (tally.records[k] || 0) + 1
+      }
       tally.compared += 1
       tally.bars += set.bars.length
       // ── and its DRAWINGS (the host object program), when the worker takes them ──
@@ -175,6 +178,8 @@ describe('host lane worker: byte-equal to the main thread over the committed cor
   }, 600000)
 
   it('compared a corpus, not nothing', () => {
+    // eslint-disable-next-line no-console
+    console.log(`[host-worker parity] records compared: ${JSON.stringify(tally.records)}`)
     // eslint-disable-next-line no-console
     console.log(`[host-worker parity] ${tally.docs} host documents, ${tally.compared} answers byte-equal, ${tally.threw} equal throws, ${tally.bars} bars; drawings equal on ${tally.drawings} (${tally.drawn} drawing something)`)
     if (!ONLY) {

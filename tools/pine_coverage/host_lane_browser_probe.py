@@ -114,6 +114,11 @@ DEFS_JS = """async () => {
 
 ME_JS = """async () => fetch('/api/auth/me', { credentials: 'same-origin' }).then(r => r.json()).catch(e => ({ err: String(e) }))"""
 
+#: ⭐ HOST WORKER (docs/pine/evidence/2026-11-17-host-lane-worker/EVIDENCE.md) — every job the host
+#: lane's worker answered: `[posted at, post -> landed ms, {kind, workerMs, ok, bars}]` (the user-timing
+#: measure `hostLaneAsync.js` records on each landing). Empty on a build without the worker.
+HOST_RUNS_JS = """() => performance.getEntriesByName('host-lane:worker-run').map(e => [Math.round(e.startTime), Math.round(e.duration), e.detail || null])"""
+
 #: The member door as it is today (UCT Signature R2, 2026-11-16): Chart settings -> Indicators ->
 #: "Create indicator" -> "Paste a script". (`pine_member_pane_capture.py`'s OPEN_DOOR_JS still looks
 #: for the retired "New Formula" button.)
@@ -339,6 +344,7 @@ def measure_load(browser, base, storage, out_dir, label, title, server, poll, tr
             break
         last_lt = p
     load = page.evaluate("() => JSON.parse(JSON.stringify(window.__probe))")
+    load["hostLaneRuns"] = page.evaluate(HOST_RUNS_JS)
     load["navToSettleS"] = round(time.time() - t_nav, 1)
     load["requests"] = [(round(t - t_nav, 2), k, d) for t, k, d in server.log]
     load["permission"] = page.evaluate("() => fetch('/api/auth/me').then(r => r.json()).then(j => j.pine_runtime_pane_enabled).catch(() => null)")
@@ -355,10 +361,12 @@ def measure_load(browser, base, storage, out_dir, label, title, server, poll, tr
         t_poll = time.time()
         page.wait_for_timeout(30000)
         after = page.evaluate("() => JSON.parse(JSON.stringify(window.__probe))")
+        host_runs_after = page.evaluate(HOST_RUNS_JS)
         prof2 = cdp.send("Profiler.stop")["profile"]
         (out_dir / f"{label}.poll.cpuprofile").write_text(json.dumps(prof2), encoding="utf-8")
         poll_perf = after["lt"][before:]
         result["poll"] = {"waitedS": round(t_poll - t_wait, 1), "polled": server.tail_polls > polls0,
+                          "hostLaneRuns": host_runs_after[len(load["hostLaneRuns"]):],
                           "longTasks": poll_perf, "gaps": [g for g in after["gaps"] if g not in load["gaps"]],
                           "chips": after["chips"][-3:],
                           "requests": [(round(t - t_nav, 2), k, d) for t, k, d in server.log]}
@@ -374,6 +382,7 @@ def summarise(res):
     s = {"longTasks": len(lt), "longTaskMs": round(sum(d for _, d in lt)), "maxLongTaskMs": round(max([d for _, d in lt] or [0])),
          "maxFrameGapMs": round(max([g for _, g in res["load"]["gaps"]] or [0])),
          "firstDigitMs": round(res["load"]["firstDigit"]) if res["load"]["firstDigit"] is not None else None}
+    s["hostLaneRuns"] = len(res["load"].get("hostLaneRuns") or [])
     if "poll" in res:
         plt = res["poll"]["longTasks"]
         s["poll"] = {"polled": res["poll"]["polled"], "longTasks": len(plt), "longTaskMs": round(sum(d for _, d in plt)),
