@@ -605,7 +605,7 @@ def describe() -> dict:
                             "%": "percent fields only; the same number (25% is 25)"},
         "field_to_field": sorted(COL_OP),
         **({"scopes": {"$TICKER": "a ticker subject; adjacent tickers union",
-                       "#flagged | #unflagged | #tag:<colour> | #wl:<id> | #<list_name>":
+                       "#flagged | #unflagged | #tag:<color> | #wl:<id> | #<list_name>":
                            "one of your own lists (spaces in a name written as _)"},
             "arithmetic": {"operators": list(ARITH_OPS), "max_terms": MAX_ARITH_NODES},
             "not_supported": ["@group scope prefixes (use sector in [..])"]}

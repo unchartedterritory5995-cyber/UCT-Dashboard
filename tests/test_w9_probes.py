@@ -27,11 +27,16 @@ EXPECTED = {
     "Q-S1-core": ["s1-broker-core"], "Q-S1-core-b": ["s1-broker-core-range"],
     # 2026-11-08, W9 integration review N2: two full exits on one trade (S1's B-EXIT-BIND witness)
     "Q-S1-core-2x": ["w9-q-s1core-two-exits"],
-    "Q-S1a": ["w9-q-s1a-size-v4", "w9-q-s1a-size-v6", "w9-q-s1a-size-v5pct", "w9-q-s1a-size-v5cash", "w9-q-s1a-size-v2"],
-    "Q-S1b": ["w9-q-s1b-defaults-v4", "w9-q-s1b-defaults-v5", "w9-q-s1b-defaults-v6"],
+    # + the STOP entry under v6's percent default (2026-11-16, the strategy coverage unit: six built-ins stop there)
+    "Q-S1a": ["w9-q-s1a-size-v4", "w9-q-s1a-size-v6", "w9-q-s1a-size-v5pct", "w9-q-s1a-size-v5cash", "w9-q-s1a-size-v2",
+              "w9-q-s1a-size-stop-v6"],
+    "Q-S1b": ["w9-q-s1b-defaults-v4", "w9-q-s1b-defaults-v5", "w9-q-s1b-defaults-v6",
+              # 2026-11-17, ruling D12b: one probe per other v4 declaration shape the armed census meets
+              "w9-q-s1b-v4-shape-a", "w9-q-s1b-v4-shape-b", "w9-q-s1b-v4-shape-c", "w9-q-s1b-v4-shape-d",
+              "w9-q-s1b-v4-shape-e"],
     "Q-S1c": ["w9-q-s1c-tie"], "Q-S1d": ["w9-q-s1d-same-tick"], "Q-S1e": ["w9-q-s1e-live-past"],
     "Q-S1f": ["w9-q-s1f-reversal-exit"], "Q-S1g": ["w9-q-s1g-pyr-limit"], "Q-S1h": ["w9-q-s1h-fifo"],
-    "Q-S1i": ["w9-q-s1i-funds"], "Q-S1j": ["w9-q-s1j-stop-limit"],
+    "Q-S1i": ["w9-q-s1i-funds", "w9-q-s1i-short-v6"], "Q-S1j": ["w9-q-s1j-stop-limit"],
     "Q-S1k": ["w9-q-s1k-exit-levels", "w9-q-s1k-exit-levels-v6"], "Q-S1l": ["w9-q-s1l-off-grid"],
     "Q-S1m": ["w9-q-s1m-index"], "Q-S1p": ["w9-q-s1p-when"], "Q-S1n": ["s1-broker-core"],
     "W9-D1": ["w9-d1-v6-defaults", "w9-d1-margin50"], "W9-D2": ["w9-d2-currency"],
@@ -51,6 +56,9 @@ EXPECTED = {
     "W9-G1": ["w9-g1-v3-properties"],
     # 2026-11-16, ruling D11: the one shape that can exercise the exception (late first use of B-PYR)
     "W9-V-D11": ["w9-d11-late-first-use"],
+    # 2026-11-16 (#1526): why TradingView's strategy stopped one bar short -- W9-MK1's probe on ANOTHER chart
+    # (NASDAQ:ALAB 1D), so no existing RDDT capture answers it
+    "W9-NB1": ["w9-mk1-markers"],
 }
 EXPECTED["W9-R1i"] = ["w9-r1-risk-intraday", "w9-r1-risk-intraday-range"]
 #: method (b) variants: range_guard.py over their parent probe. The capture of W9-R1i's was taken with the parent's
@@ -182,6 +190,7 @@ def test_every_w9_queue_row_resolves_to_its_probe_and_chart():
     assert rows["W9-R1i"]["charts"] == [["AMEX:SPY", "15"]]
     assert rows["Q-S1o"]["charts"] == [["AMEX:SPY", "5"]]
     assert rows["Q-S1a"]["charts"] == [["NYSE:RDDT", "1D"]]
+    assert rows["W9-NB1"]["charts"] == [["NASDAQ:ALAB", "1D"]]
 
 
 def test_no_generated_probe_is_an_orphan_of_the_queue():

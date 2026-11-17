@@ -30,7 +30,7 @@ describe('chart settings descriptors — the completeness rail', () => {
     for (const d of CHART_SETTING_DESCRIPTORS) expect(d.agent, d.id).toMatch(AGENT)
     for (const d of ELIGIBLE_SETTINGS) {
       expect(d.label && d.section && d.ui, d.id).toBeTruthy()
-      expect(['bool', 'enum', 'color', 'number'], d.id).toContain(d.type)
+      expect(['bool', 'enum', 'color', 'number', 'statLabel'], d.id).toContain(d.type)
       if (d.type === 'enum') expect(d.options.length, d.id).toBeGreaterThan(1)
       if (d.type === 'number') { expect(Number.isFinite(d.min) && Number.isFinite(d.max) && d.min < d.max, d.id).toBe(true) }
       if (d.requires?.setting) expect(settingDescriptor(d.requires.setting), `${d.id} requires an unknown setting`).toBeTruthy()
@@ -55,6 +55,11 @@ describe('chart settings descriptors — the completeness rail', () => {
       const base = ready(d)
       expect(settingUnavailable(d, base), d.id).toBe(d.inert ?? null)
       const cur = settingValue(base, d)
+      if (d.type === 'statLabel') {   // a map row: one stat renamed, read back as the cleaned map (R2, owner 11-16)
+        const written = withSetting(base, d, { key: 'mcap', label: 'MCap' })
+        expect(settingValue(mergeChartSettings(written), d), d.id).toEqual({ mcap: 'MCap' })
+        continue
+      }
       const want = d.type === 'bool' ? !cur : d.type === 'color' ? (cur === '#123456' ? '#654321' : '#123456') : d.type === 'number' ? (cur === d.min ? d.max : d.min) : d.options.find(o => o !== cur)
       const written = withSetting(base, d, want)
       expect(settingValue(mergeChartSettings(written), d), d.id).toEqual(want)

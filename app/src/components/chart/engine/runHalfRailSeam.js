@@ -84,16 +84,71 @@ export function runHalfEntryAdmits(entry) {
   }
   const seen = new Set()
   for (const c of Array.isArray(entry.captures) ? entry.captures : []) {
-    if (!c || typeof c.capture !== 'string' || !c.capture) continue
-    if (c.verdict !== want || c.runtimeOn !== true) continue
-    if (names !== null && substitutedNames(c.substituted) !== names) continue
-    // objects-v2 MATCH; or, ON THE SUBSTITUTED PATH ONLY, objects-v2 MATCH_SUBSTITUTED naming exactly
-    // the record's inputs (`objectsV2Substituted`; coordinator ruling 2026-11-15, after owner ruling (a))
-    const objectsOk = c.objectsV2 === true || (names !== null && substitutedNames(c.objectsV2Substituted) === names)
-    if (!objectsOk) continue
-    seen.add(c.capture)
+    // ⭐ SETTINGS PARITY (2c) — a capture taken at moved settings (`inputs`) is evidence for THOSE
+    // settings (`runHalfSettingsEntryAdmits`), never for the author's defaults
+    if (capturedAtSettings(c)) continue
+    if (captureCounts(c, want, names)) seen.add(c.capture)
   }
   return seen.size >= RUN_HALF_EVIDENCE_MIN_CAPTURES
+}
+
+/** The record's path: `{want, names}`, or null when nothing on it can count. */
+function entryPath(entry) {
+  if (!entry || typeof entry !== 'object') return null
+  if (entry.admission === undefined || entry.admission === null) return { want: 'MATCH', names: null }
+  if (entry.admission !== ADMISSION_SUBSTITUTED) return null
+  const names = substitutedNames(entry.substituted)
+  return names === null ? null : { want: 'MATCH_SUBSTITUTED', names }
+}
+
+/** One capture counts on the record's path (the rule `runHalfEntryAdmits` states). */
+function captureCounts(c, want, names) {
+  if (!c || typeof c.capture !== 'string' || !c.capture) return false
+  if (c.verdict !== want || c.runtimeOn !== true) return false
+  if (names !== null && substitutedNames(c.substituted) !== names) return false
+  // objects-v2 MATCH; or, ON THE SUBSTITUTED PATH ONLY, objects-v2 MATCH_SUBSTITUTED naming exactly
+  // the record's inputs (`objectsV2Substituted`; coordinator ruling 2026-11-15, after owner ruling (a))
+  return c.objectsV2 === true || (names !== null && substitutedNames(c.objectsV2Substituted) === names)
+}
+
+/** A capture taken with at least one setting moved off the author's default (`inputs`: Pine name -> value). */
+function capturedAtSettings(c) {
+  return !!(c && c.inputs && typeof c.inputs === 'object' && !Array.isArray(c.inputs) && Object.keys(c.inputs).length)
+}
+
+/**
+ * ⭐⭐ SETTINGS PARITY (2c) — THE RULE FOR A RUN HALF AT A MEMBER'S SETTINGS. The run rebuilds
+ * the script with the member's value as the literal the author would have typed, so the
+ * question per setting is whether a run with THAT setting moved has been graded against
+ * TradingView. A moved setting (a Pine name) is admitted when at least
+ * `RUN_HALF_EVIDENCE_MIN_CAPTURES` distinct captures that count on the record's path
+ * (`captureCounts`) were taken with that setting moved (`inputs` names it). Every moved setting
+ * must be admitted; the answer names the ones that are not. Mirrors
+ * `runtime_definitions.py::run_half_settings_admits`; both answer every `settings` case of
+ * tests/fixtures/ast/run_half_evidence_parity.json.
+ * @returns {{ok: boolean, missing: string[]}}
+ */
+export function runHalfSettingsEntryAdmits(entry, moved) {
+  const keys = Array.isArray(moved) ? [...new Set(moved.filter((k) => typeof k === 'string' && k))].sort() : []
+  if (!keys.length) return { ok: true, missing: [] }
+  const path = entryPath(entry)
+  if (!path) return { ok: false, missing: keys }
+  const byKey = new Map(keys.map((k) => [k, new Set()]))
+  for (const c of Array.isArray(entry.captures) ? entry.captures : []) {
+    if (!capturedAtSettings(c) || !captureCounts(c, path.want, path.names)) continue
+    for (const k of Object.keys(c.inputs)) if (byKey.has(k)) byKey.get(k).add(c.capture)
+  }
+  const missing = keys.filter((k) => byKey.get(k).size < RUN_HALF_EVIDENCE_MIN_CAPTURES)
+  return { ok: missing.length === 0, missing }
+}
+
+/** Is this script's run half admitted at these moved settings (Pine names)? */
+export function runHalfSettingsAdmitted(sha256, moved) {
+  if (_admitEveryForGrade) return { ok: true, missing: [] }
+  const entry = typeof sha256 === 'string' ? _evidence.get(sha256.toLowerCase()) : null
+  const keys = Array.isArray(moved) ? moved : []
+  if (!entry) return { ok: keys.length === 0, missing: [...new Set(keys)].sort() }
+  return runHalfSettingsEntryAdmits(entry, keys)
 }
 
 /** Is this script (by source sha256) admitted without a comparable object? Only on

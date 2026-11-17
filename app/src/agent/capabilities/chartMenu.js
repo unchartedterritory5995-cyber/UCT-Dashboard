@@ -2,7 +2,7 @@
 //
 // A chart's right-click menu items the Agent could not reach, through the SAME writers / doors the menu uses:
 //
-//   chartMenu.askAi           right-click → "Ask AI about {sym}" (C1-178): ChartWidget's own openAskAi, the
+//   chartMenu.askAi           right-click → "Ask the UCT Agent about {sym}" (C1-178): ChartWidget's own openAskAi, the
 //                             /research/:sym?section=ai route (host.charts.askAi → the ChartWidget adapter).
 //                             It leaves Charts, so — as app.open — it opens AFTER the receipt; no Undo (Back).
 //   chartMenu.resetWatermark  Chart Settings → Watermark → "Reset to center" (C1-061; the right-click "Watermark settings"
@@ -19,9 +19,9 @@ import { registerCapability } from '../capabilities'
 const onCharts = (ctx) => ctx.surface === 'charts'
 const chartCommon = { target: 'chart', surfaces: ['charts'], available: onCharts }
 
-export const ASK_AI_NO_UNDO = 'Ask AI opens another page, so there is nothing to undo here: use Back to return to Charts.'
-const NO_ASK_AI = 'I can\'t open Ask AI from that chart here. Right-click the chart\'s bars → Ask AI, or open the stock in Research.'
-const NO_SYMBOL = 'That chart has no symbol yet, so there is nothing to ask AI about.'
+export const ASK_AI_NO_UNDO = '"Ask the UCT Agent" opens another page, so there is nothing to undo here: use Back to return to Charts.'
+const NO_ASK_AI = 'I can\'t open "Ask the UCT Agent" from that chart here. Right-click the chart\'s bars → Ask the UCT Agent, or open the stock in Research.'
+const NO_SYMBOL = 'That chart has no symbol yet, so there is nothing to ask the UCT Agent about.'
 
 let registered = false
 export function registerChartMenuCapabilities() {
@@ -31,8 +31,8 @@ export function registerChartMenuCapabilities() {
   registerCapability({
     ...chartCommon,
     name: 'chartMenu.askAi',
-    summary: 'Open Ask AI about ONE chart\'s stock, as its right-click "Ask AI about {symbol}" does (Research, AI section). Leaves Charts; changes nothing; no Undo.',
-    hints: 'target = the chart. Only when they ask to OPEN Ask AI about it; answer data questions here.',
+    summary: 'Open Ask the UCT Agent about ONE chart\'s stock, as its right-click "Ask the UCT Agent about {symbol}" does (Research, UCT Agent section). Leaves Charts; changes nothing; no Undo.',
+    hints: 'target = the chart. Only when they ask to OPEN Ask the UCT Agent (or "Ask AI") about it; answer data questions here.',
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
     undo: 'none',
     undoNote: ASK_AI_NO_UNDO,
@@ -41,7 +41,7 @@ export function registerChartMenuCapabilities() {
       return st.canAskAi ? null : NO_ASK_AI
     },
     apply: (st) => ({ ...st, askAi: true }),
-    describe: (b, a) => (a.askAi ? `Opening Ask AI about ${b.symbol} (its Research page) — this closes the panel; nothing on the chart changed` : null),
+    describe: (b, a) => (a.askAi ? `Opening Ask the UCT Agent about ${b.symbol} (its Research page) — this closes the panel; nothing on the chart changed` : null),
   })
 
   registerCapability({

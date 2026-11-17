@@ -838,7 +838,7 @@ export const indicatorDraftsKind = {
         const saved = out.name || name || 'the indicator'
         // the builder's own ASSUMPTIONS (Indicators condition 8: "Assumed: 20-bar lookback") — not the
         // engine's presentation defaults
-        const assumed = (st.readback?.assumptions || []).filter(a => /^(Assumed|UCT Intelligence assumed)/.test(String(a)))
+        const assumed = (st.readback?.assumptions || []).filter(a => /^(Assumed|The UCT Agent assumed|UCT Intelligence assumed)/.test(String(a)))
         // live test 2026-10-28: where it draws, said once ("put it in a separate pane" → "drawn in its own pane")
         const drawn = op.r1 ? (st.readback?.presentation || []).find(l => /^drawn (?:in its own pane|on the price chart)$/.test(String(l))) : null
         const what = op.r1 ? ` — ${sentence(oneLineOf(st))}${assumed.length ? ` (${assumed.join('; ')})` : ''}${drawn ? ` — ${drawn}` : ''}` : ''

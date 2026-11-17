@@ -819,7 +819,15 @@ export function compareCapture(capture, ours, opts = {}) {
   // with an edited input is a different script as far as the numbers go, and
   // grading it against the defaults would report the edit as a divergence.
   const changed = nonDefaultInputs(capture)
-  if (changed.length) return inconclusive(`the vendor study ran with non-default inputs (${changed.map((i) => `${i.name || i.id}=${JSON.stringify(i.value)} vs default ${JSON.stringify(i.defval)}`).join(', ')}); v1 compares at default inputs only — re-capture at defaults`)
+  // ⭐⭐ SETTINGS PARITY (2c) — UNLESS OUR SIDE RAN AT THE SAME SETTINGS. `ourSide.js` now computes a
+  // capture at the inputs TradingView recorded in it (`captureInputs.js`) and reports them
+  // (`ours.capturedInputs`: Pine name -> the vendor's value, one per moved input); a capture whose
+  // every moved input our side moved too is graded like any other, and says which settings it
+  // graded (`settings`). One our side did not move, or could not, stays INCONCLUSIVE by name.
+  const tookSettings = changed.length && ours && ours.ok && ours.capturedInputs
+    && typeof ours.capturedInputs === 'object' && Object.keys(ours.capturedInputs).length === changed.length
+  if (tookSettings) base.settings = { ...ours.capturedInputs }
+  if (changed.length && !tookSettings) return inconclusive(`the vendor study ran with non-default inputs (${changed.map((i) => `${i.name || i.id}=${JSON.stringify(i.value)} vs default ${JSON.stringify(i.defval)}`).join(', ')}); v1 compares at default inputs only — re-capture at defaults`)
   if (!ours || !ours.ok) return inconclusive(`refused on our side: ${(ours && ours.refusal) || 'no result'}`)
   // ⭐ L7 — a substituted input must have been FED the vendor's own value, or nothing below
   // proves the engine (`substitutionProblems`).
@@ -1818,8 +1826,24 @@ function signalsDiffer(ref, our, graded, tol) {
 
 const ruleOf = (t) => (t && t.rule) || 'unattributed'
 
+/** ⭐ (2026-11-17) the closed trades of each ENTRY BAR, in one canonical order: exit time, then exit price, then
+ *  quantity. One entry fill can close as SEVERAL trades (a margin call or a partial exit closes part of a trade,
+ *  which keeps its entry): w9-q-s1i-short-v6 lists trades 4-8 all entered on one bar, two of them exited on one bar
+ *  (60 at 108.19, 316 at 113.8). ⚰️ This joined on the entry time alone (a Map, one trade per time), so the second
+ *  trade of a bar silently replaced the first and was compared against the reference's first. Both sides are put in
+ *  the same canonical order, so two lists that hold the same trades pair them whatever order each side lists them
+ *  in; a bar whose count differs is a DIVERGE. */
+function tradesByEntry(list) {
+  const m = new Map()
+  for (const t of list) {
+    if (!m.has(t.entryTime)) m.set(t.entryTime, [])
+    m.get(t.entryTime).push(t)
+  }
+  for (const g of m.values()) g.sort((x, y) => (x.exitTime - y.exitTime) || (x.exitPrice - y.exitPrice) || (x.qty - y.qty))
+  return m
+}
 function compareTrades(refTrades, ourTrades, tick) {
-  const byEntry = new Map(ourTrades.map((t) => [t.entryTime, t]))
+  const byEntry = tradesByEntry(ourTrades)
   const refEntries = new Set(refTrades.map((t) => t.entryTime))
   if (refTrades.length !== ourTrades.length) {
     const ref = [...refTrades].sort((x, y) => x.entryTime - y.entryTime)
@@ -1827,18 +1851,25 @@ function compareTrades(refTrades, ourTrades, tick) {
       || [...ourTrades].sort((x, y) => x.entryTime - y.entryTime).find((t) => !refEntries.has(t.entryTime))
     return { verdict: 'DIVERGE', reason: `trade counts differ (reference ${refTrades.length}, ours ${ourTrades.length})`, first: first ? { time: first.entryTime, rule: ruleOf(first) } : null }
   }
-  for (const r of [...refTrades].sort((x, y) => x.entryTime - y.entryTime)) {
-    const o = byEntry.get(r.entryTime)
-    if (!o) return { verdict: 'DIVERGE', reason: `no fill of ours at ${r.entryTime}`, first: { time: r.entryTime, rule: ruleOf(r) } }
-    const bad = [
-      o.direction !== r.direction && 'direction',
-      o.exitTime !== r.exitTime && 'exitTime',
-      !sameTick(o.entryPrice, r.entryPrice, tick) && 'entryPrice',
-      !sameTick(o.exitPrice, r.exitPrice, tick) && 'exitPrice',
-      o.qty !== r.qty && 'qty',
-      !sameCurrency(o.profit, r.profit) && 'profit',
-    ].find(Boolean)
-    if (bad) return { verdict: 'DIVERGE', reason: `${bad} differs at ${r.entryTime}`, first: { time: r.entryTime, rule: ruleOf(r) } }
+  const refByEntry = tradesByEntry(refTrades)
+  for (const [entryTime, refGroup] of [...refByEntry.entries()].sort((x, y) => x[0] - y[0])) {
+    const ourGroup = byEntry.get(entryTime) || []
+    if (ourGroup.length && ourGroup.length !== refGroup.length) {
+      return { verdict: 'DIVERGE', reason: `the trades entered at ${entryTime} differ in number (reference ${refGroup.length}, ours ${ourGroup.length})`, first: { time: entryTime, rule: ruleOf(ourGroup[0]) } }
+    }
+    for (const [k, r] of refGroup.entries()) {
+      const o = ourGroup[k]
+      if (!o) return { verdict: 'DIVERGE', reason: `no fill of ours at ${r.entryTime}`, first: { time: r.entryTime, rule: ruleOf(r) } }
+      const bad = [
+        o.direction !== r.direction && 'direction',
+        o.exitTime !== r.exitTime && 'exitTime',
+        !sameTick(o.entryPrice, r.entryPrice, tick) && 'entryPrice',
+        !sameTick(o.exitPrice, r.exitPrice, tick) && 'exitPrice',
+        o.qty !== r.qty && 'qty',
+        !sameCurrency(o.profit, r.profit) && 'profit',
+      ].find(Boolean)
+      if (bad) return { verdict: 'DIVERGE', reason: `${bad} differs at ${r.entryTime}`, first: { time: r.entryTime, rule: ruleOf(r) } }
+    }
   }
   return { verdict: 'MATCH', reason: 'every trade and value equal', first: null }
 }

@@ -16,10 +16,72 @@
 //
 // Published by StockChart as CSS variables on its wrapper; every legend rule reads them with its
 // old token as the fallback, so text rendered outside a chart is unchanged.
-import { legendCanvasRgb, legendInkForCanvas, legendTextContrast } from './chartThemes'
+import { legendCanvasRgb, legendInkForCanvas, legendTextContrast, LEGEND_INK_ON_LIGHT } from './chartThemes'
 import { parseColorAlpha } from '../../utils/dividerColor'
 
 export const LEGEND_MIN_CONTRAST = 4.5
+
+/** ⭐ Owner 11-16 — "make sure they're all the same contrast and brightness": within a legend
+ *  row the LABEL and the VALUE share ONE ink and (owner experiment, same day) one weight, 500 —
+ *  they differ by position and series colour only. This is that ink's role, published as `--legend-ink-pair[-low]`.
+ *  ⭐ `muted`, MEASURED: on the default dark canvas `text` resolves to #f0efea (OKLCH L 0.95),
+ *  0.02 under `bright` — labels would simply turn white, and a coloured value clamped to L 0.95
+ *  has almost no chroma left in sRGB (every series colour reads as off-white). `muted` (#cfcac0,
+ *  L 0.84) is the ink the owner's labels already wore, so the values come down to the labels. */
+export const LEGEND_PAIR_ROLE = 'muted'
+/** Owner 11-16 ("it feels a little dim"): the pair ink is the muted ink lifted this far toward the BRIGHT ink
+ *  of the same canvas (sRGB mix). Dark default: #cfcac0 → ≈#e1ddd5, still a step under the title's white; on a
+ *  light canvas both inks are the canvas ink, so nothing moves. */
+export const LEGEND_PAIR_LIFT = 0.6  // owner 11-16: 0.45 felt dim, 0.75 a little too bright — a notch under
+/** Mix two colours `parseColorAlpha` reads (opaque result, sRGB), t = share of `b`. null when either won't parse. */
+export function mixInk(a, b, t) {
+  const pa = parseColorAlpha(a); const pb = parseColorAlpha(b)
+  if (!pa || !pb) return null
+  const h = (v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')
+  return '#' + [0, 1, 2].map((i) => h(pa.rgb[i] + (pb.rgb[i] - pa.rgb[i]) * t)).join('')
+}
+
+/** Half-width of the OKLCH lightness band a coloured value is clamped into, around the pair ink. */
+export const LEGEND_VALUE_BAND = 0.03
+/** The band before the ink is known (first paint, jsdom, an unreadable colour). */
+export const LEGEND_VALUE_BAND_FALLBACK = Object.freeze({
+  dark: Object.freeze({ lmin: 0.89, lmax: 0.95 }),
+  light: Object.freeze({ lmin: 0.3, lmax: 0.4 }),
+})
+
+/** OKLCH lightness (0..1) of any colour `parseColorAlpha` reads; a translucent colour is first
+ *  composited over `canvasRgb` when given (else its alpha is ignored). null when unreadable. */
+export function oklchLightness(color, canvasRgb = null) {
+  const p = parseColorAlpha(color)
+  if (!p) return null
+  const a = canvasRgb && p.a < 1 ? p.a : 1
+  const [r, g, b] = p.rgb.map((c, i) => {
+    const v = (a < 1 ? c * a + canvasRgb[i] * (1 - a) : c) / 255
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+  })
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+  return 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s
+}
+
+/** The lightness band a coloured legend value is clamped into: centred on its label's ink, so
+ *  every hue reads as bright as the label beside it. `L` null → the fallback for the canvas. */
+export function legendValueBand(L, lightCanvas = false) {
+  if (L == null || !Number.isFinite(L)) return LEGEND_VALUE_BAND_FALLBACK[lightCanvas ? 'light' : 'dark']
+  const r = (x) => Math.round(Math.max(0, Math.min(1, x)) * 1000) / 1000
+  return { lmin: r(L - LEGEND_VALUE_BAND), lmax: r(L + LEGEND_VALUE_BAND) }
+}
+
+/** The pre-measure CSS variables: the fallback band for both samples (StockChart spreads
+ *  `legendInkVars` over these once the inks resolve). */
+export function legendValueBandVars(lightCanvas = false) {
+  const { lmin, lmax } = legendValueBand(null, lightCanvas)
+  return {
+    '--legend-val-lmin': String(lmin), '--legend-val-lmax': String(lmax),
+    '--legend-val-lmin-low': String(lmin), '--legend-val-lmax-low': String(lmax),
+  }
+}
 
 /** role → the app token it stands for, and the lowest opacity a rule draws that role at
  *  (the bar strip's keys sit at 0.72, its date at 0.82; LegendRow's label at 1). */
@@ -57,6 +119,19 @@ export function legendInkVars({ tokens = {}, top, low, under = null, legendColor
       else v = pick(tokens[role]) || ink
       out[`--legend-ink-${role}${suffix}`] = v
     }
+    // ⭐ Owner 11-16 — the shared label/value ink, and the band a coloured value is clamped into,
+    // measured from THAT ink on THIS sample (so a pane legend low on a gradient canvas gets its own).
+    const pairBase = out[`--legend-ink-${LEGEND_PAIR_ROLE}${suffix}`]
+    // Lift toward the APP's bright ink when it reads on this canvas — so a legend colour a chart theme stored
+    // (header.colors.legend, e.g. #d6d8dd) brightens too instead of pinning the legend dim (owner 11-16).
+    const brightTok = tokens.bright && legendTextContrast(tokens.bright, canvas, 1) != null
+      && legendTextContrast(tokens.bright, canvas, 1) >= LEGEND_MIN_CONTRAST ? tokens.bright : null
+    const pair = mixInk(pairBase, brightTok || out[`--legend-ink-bright${suffix}`], LEGEND_PAIR_LIFT) || pairBase
+    out[`--legend-ink-pair${suffix}`] = pair
+    const lightCanvas = !!canvas && ink === LEGEND_INK_ON_LIGHT
+    const band = legendValueBand(oklchLightness(pair, canvas), lightCanvas)
+    out[`--legend-val-lmin${suffix}`] = String(band.lmin)
+    out[`--legend-val-lmax${suffix}`] = String(band.lmax)
   }
   return out
 }

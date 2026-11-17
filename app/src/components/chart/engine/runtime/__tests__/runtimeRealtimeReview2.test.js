@@ -60,7 +60,7 @@ const refusal = (body) => {
 
 describe('B — a dotted read that can hold a drawing is refused', () => {
   const REFUSED = {
-    'a method returning a line (`q.mk()`)': 'type Q\n    int n\nmethod mk(Q q) => line.new(bar_index, close, bar_index + 1, close)\nvar q = Q.new(0)\nvarip l = q.mk()\nplot(close)\n',
+    'a method returning a line (`q.mk()`)': 'type Q\n    int n\nmethod mk(Q q) => line.new(bar_index, close + q.n * 0, bar_index + 1, close)\nvar q = Q.new(0)\nvarip l = q.mk()\nplot(close)\n',
     'a field of a line type (`f.l`)': 'type F\n    line l\nvar f = F.new(na)\nvarip x = f.l\nplot(close)\n',
     'a field chain ending in a line (`g.f.l`)': 'type F\n    line l\ntype G\n    F f\nvar g = G.new(F.new(na))\nvarip y = g.f.l\nplot(close)\n',
     'a field whose record type holds a line (`g.f`)': 'type F\n    line l\ntype G\n    F f\nvar g = G.new(F.new(na))\nvarip y = g.f\nplot(close)\n',

@@ -1158,7 +1158,7 @@ RELATIONS = [
                  "bullish harami built from two red bars."),
     Pattern("separating-lines", "Separating Lines", "relation", 2,
             "neutral", "continuation", 61, detect=d_separating_lines,
-            desc="Two opposite-coloured bars opening at the same price — the second "
+            desc="Two opposite-colored bars opening at the same price — the second "
                  "session restarted from where the first began."),
 ]
 

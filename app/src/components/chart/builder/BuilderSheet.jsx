@@ -78,6 +78,7 @@ import { Component, useCallback, useContext, useEffect, useMemo, useRef, useStat
 import { AuthContext } from '../../../context/AuthContext'
 import { useCreateIndicatorAccess } from './studio/createIndicatorFlag'
 import Sheet from '../../mobile/Sheet'
+import ChoiceMenu from '../ChoiceMenu'
 import UIcon from '../../ui/UIcon'
 import { PORTAL_POPUP_ATTR } from '../ColorPicker'
 import { SCHEMA_VERSION, MARKER_SHAPES, MARKER_POSITIONS, PLOT_LINE_STYLES } from '../engine/defSchema'
@@ -116,6 +117,9 @@ import FormulaField, { evaluateFormula, canSaveFormula, SHEET } from './FormulaF
 import { manifestFromPlacements } from './pineParamManifest'
 import { carryPriorParamIds, savedParamManifest, carryNotice, inputPlaces } from './paramCarry'
 import ParamControls from './ParamControls'
+import SettingsFields from './studio/SettingsFields'
+import { settingsOfTrees } from './authoring/derivedSettings'
+import { formulasWithSetting } from './authoring/settingsOnFormulas'
 import { applyParamEdit } from './paramEdit'
 // ⭐ W1a HAND-BACK — THE DRAFT, DRAWN WHILE IT IS BEING TYPED. The preview is
 // a VIEW: it installs the document this form would save under one fixed id and
@@ -256,6 +260,19 @@ const PLOT_STYLE_CHOICES = Object.freeze([
   ['baseline', 'Baseline'],
   ['markers', 'Circles'],
 ])
+/** The same choices in `ChoiceMenu`'s shape (UCT Signature: no native <select>). */
+const PLOT_STYLE_OPTIONS = Object.freeze(PLOT_STYLE_CHOICES.map(([value, label]) => ({ value, label })))
+const PLACEMENT_OPTIONS = Object.freeze([
+  { value: 'pane', label: 'Own pane' },
+  { value: 'price', label: 'Overlay on price' },
+])
+/** `arrowUp` → "Arrow up", `aboveBar` → "Above bar": the schema's own values, in words. */
+const choiceWords = (v) => {
+  const w = String(v).replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()
+  return w.charAt(0).toUpperCase() + w.slice(1)
+}
+const MARKER_SHAPE_OPTIONS = Object.freeze(MARKER_SHAPES.map((s) => ({ value: s, label: choiceWords(s) })))
+const MARKER_POSITION_OPTIONS = Object.freeze(MARKER_POSITIONS.map((s) => ({ value: s, label: choiceWords(s) })))
 
 /** A blank plot row. ⛔ ITS COLOUR AND WIDTH ARE `BUILDER_INPUTS`' OWN DEFAULTS,
  *  read from the array rather than retyped, so "untouched" means one thing to
@@ -687,6 +704,11 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       // conversational row model does, so a dashed plot is representable there.
       // Last, where `preservePresentation` has always appended it.
       ...(PLOT_LINE_STYLES.includes(r.lineStyle) ? { lineStyle: r.lineStyle } : {}),
+      // ⭐ ROW 42 (2026-11-17) — "BREAKS WHERE IT HAS NO VALUE" (`plots[].sparse`), an
+      // AUTHORED choice: a Pine "with breaks" style, or the conversation's
+      // `set_style.breaks`. Only a row that carries `true` writes it, so every
+      // document whose rows do not stays byte-identical and keeps drawing joined.
+      ...(r.sparse === true ? { sparse: true } : {}),
       // ⭐⭐ LINE IDENTITY (owner decision 2026-11-02) — a row ADDED in this edit (or
       // re-keyed) tells the store it is a NEW line, so a key removed and typed again
       // before one save does not inherit the removed line's references or alerts
@@ -881,7 +903,35 @@ export function storedSourceFor(compute, key, i) {
   return (i === 0 && !c.sources && typeof c.source === 'string') ? c.source : null
 }
 
-const DEFAULT_MODE = 'library'
+// ⭐⭐ DIRECTION A (owner 2026-11-16) — a new formula with no door opens on the START
+// VIEW (describe it, or start from a script / picture / conditions / a UCT setup, or
+// write it yourself), not on a tab. `buildMode` is then only the EDITOR's current tab,
+// and the editor opens on the Formula unless a door names its source.
+const DEFAULT_MODE = 'formula'
+/** The sources a formula can come from — each is the editor's "Source" tab, labelled
+ *  by where the formula came from, so the member can re-paste / re-pick. */
+const SOURCE_TAB_LABEL = Object.freeze({ pine: 'Script', image: 'Picture', picker: 'Conditions', library: 'Setup' })
+const SOURCE_CHIP = Object.freeze({ image: 'From a picture', picker: 'From conditions', library: 'From a setup' })
+/** Which view a sheet opens on: a door (a mode, an edit, a generated draft) goes
+ *  straight to the editor; a bare "New formula" opens the start view. */
+const openingView = (editRow, initialMode, initialDraft) => (
+  editRow || initialMode || draftSourceOf(initialDraft) ? 'editor' : 'start'
+)
+/** The source a door names, or null (an edit decides its own in `openForEdit`). */
+const originOf = (editRow, initialMode) => (
+  !editRow && initialMode && SOURCE_TAB_LABEL[initialMode] ? initialMode : null
+)
+/** "From Pine v5" / "From thinkScript" / "From TC2000" — the pasted script's own dialect. */
+function scriptChip(dialect, text, storedVersion = null) {
+  if (dialect === 'pine' || (!dialect && /\/\/\s*@version\s*=/.test(text || ''))) {
+    const v = /\/\/\s*@version\s*=\s*(\d+)/.exec(text || '')
+    if (v) return `From Pine v${v[1]}`
+    return Number.isInteger(storedVersion) ? `From Pine v${storedVersion}` : 'From Pine'
+  }
+  if (dialect === 'thinkscript') return 'From thinkScript'
+  if (dialect === 'tc2000' || dialect === 'pcf') return 'From TC2000'
+  return dialect ? 'From a script' : null
+}
 /** ⛔ AN EDIT OPENS ON THE FORMULA. A member editing their OWN definition has no
  *  use for a gallery of starters above it, and leaving one there invites a click
  *  that replaces their work. Spelled once; `openForEdit` reads the same name. */
@@ -892,9 +942,17 @@ const EDIT_MODE = 'formula'
  *  ⛔ EVERY NAME HERE MUST BE RESET when edit mode ends, or the sheet paints a
  *  panel with no tab selected. Adding an editing-only tab means adding it to
  *  this set — which is the whole reason it is a set and not a comparison. */
-const EDITING_ONLY_MODES = new Set(['evidence', 'share'])
+const EDITING_ONLY_MODES = new Set(['evidence', 'share', 'sources'])
 const openingMode = (editRow, initialMode) => (
   editRow ? EDIT_MODE : (initialMode || DEFAULT_MODE)
+)
+/** ⭐ UCT SIGNATURE R2 — the words a caller PRE-FILLS into the start view's Describe it box
+ *  (`initialDescription`), as a fresh object per opening so the box re-applies them; null when the
+ *  sheet does not open on the start view (an edit, a door, a draft) or there is nothing to put. */
+const openingPrefill = (editRow, initialMode, initialDraft, initialDescription) => (
+  openingView(editRow, initialMode, initialDraft) === 'start'
+    && typeof initialDescription === 'string' && initialDescription.trim()
+    ? { text: initialDescription.trim() } : null
 )
 /** The formula a caller's `initialDraft` puts in the box, or '' when it carries none. Read by the mount seed and the
  *  open-reset, so the two cannot disagree about what counts as a draft. */
@@ -987,12 +1045,17 @@ function EvidenceBody({ editing, rows, source, plotRows }) {
  * ⚠️ Like `editRow`, it MUST be held in the caller's state (stable identity):
  * it is a dependency of the reset, so a literal rebuilt per render would empty
  * the member's edits on every parent render.
+ *
+ * ⭐ `initialDescription` (UCT Signature R2, owner Option 1) — words from the Indicators window's
+ * "Build “…” with the UCT Agent" row. On a new sheet that opens on the START view they are
+ * PRE-FILLED into Describe it; NOTHING IS SENT — the member reads them and presses Send. Ignored
+ * for an edit, a named door or a generated draft (those open on the editor).
  */
 export default function BuilderSheet({
   open, onClose, onSaved = null, settings = null, onChange = null, bars = null,
   /* W1a hand-back: the chart the sheet was opened over — the live preview draws on it */
   sym = null, tf = null,
-  initialMode = null, editRow = null, initialDraft = null,
+  initialMode = null, editRow = null, initialDraft = null, initialDescription = null,
 }) {
   /** ⛔⛔ CONVERSATIONAL AUTHORING IS DARK (release gate 2026-10-06). It shipped
    *  UNGATED here once and reached every paid member's New Formula sheet; it is
@@ -1371,6 +1434,20 @@ export default function BuilderSheet({
   // otherwise it saves the formula form, exactly as before.
   const [converseCommit, setConverseCommit] = useState(null)
   const converseCommitRef = useRef(null)
+  // ⭐ 2026-11-17 — THE CONVERSATION'S NAME SHOWS IN THE NAME FIELD. The field stayed "Name it" while
+  // the conversation had already named the indicator, and what the member then typed there was not
+  // saved. It follows the conversation's name until the member types their own (then theirs stays),
+  // and the conversation's save is handed whatever the field holds.
+  const autoNameRef = useRef('')
+  const converseName = (converseCommit && converseCommit.dirty && typeof converseCommit.name === 'string') ? converseCommit.name : ''
+  useEffect(() => {
+    if (!converseName) return
+    setName((cur) => {
+      if (cur && cur !== autoNameRef.current) return cur          // the member's own words stay
+      autoNameRef.current = converseName.slice(0, 48)
+      return autoNameRef.current
+    })
+  }, [converseName])
   // ⭐ WHICH DOOR IS OPEN, AND NOTHING MORE. `buildMode` decides whether the
   // picker is on screen; it is NOT persisted, NOT written into the document and
   // NOT read back — the saved artifact is the same one either door produces.
@@ -1399,6 +1476,16 @@ export default function BuilderSheet({
   // this, twice; the prop-level test could see neither, because a mock has no
   // tabs to be on the wrong one of.)
   const [buildMode, setBuildMode] = useState(() => openingMode(editRow, initialMode))
+  /** ⭐ DIRECTION A — 'start' (describe it / start from…) or 'editor' (the tabs). Seeded
+   *  from the same opening props as `buildMode`, for the same no-wrong-first-frame reason. */
+  const [view, setView] = useState(() => openingView(editRow, initialMode, initialDraft))
+  /** Where this formula came from ('pine' | 'image' | 'picker' | 'library'), or null —
+   *  it names the editor's Source tab and the header chip. Never written into the document. */
+  const [origin, setOrigin] = useState(() => originOf(editRow, initialMode))
+  /** The start view's pre-filled description (`openingPrefill`) — handed to the Describe it box. */
+  const [prefill, setPrefill] = useState(() => openingPrefill(editRow, initialMode, initialDraft, initialDescription))
+  /** The pasted script's dialect once the Import door applied it (the chip's "From Pine v5"). */
+  const [scriptDialect, setScriptDialect] = useState(null)
   const [pickerNote, setPickerNote] = useState(null)
   /** ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — set while a script document saved WITHOUT its
    *  source is open for its one-time upgrade (the legend row's door): the Pine tab,
@@ -1425,6 +1512,8 @@ export default function BuilderSheet({
     // paints on the library and then switches. Both props are null for the
     // chart's door, which is what keeps the Library the default it has been.
     setEditing(null); setBuildMode(openingMode(editRow, initialMode)); setPickerNote(null); setScriptUpgradeNote(null)
+    setView(openingView(editRow, initialMode, initialDraft)); setOrigin(originOf(editRow, initialMode)); setScriptDialect(null)
+    setPrefill(openingPrefill(editRow, initialMode, initialDraft, initialDescription))
     // ⛔ THE PLOTS RESET TOO. A sheet reopened with the previous formula's second
     // plot still in it would offer a Save whose document names a tree the box no
     // longer shows — the same reason `source` and `name` are cleared here.
@@ -1444,7 +1533,7 @@ export default function BuilderSheet({
     // warning on that prop matters: a string compares by value, an object
     // compares by identity, so a row rebuilt inline per render would empty this
     // form on every parent render.
-  }, [open, editRow, initialMode, initialDraft, resetPlots])
+  }, [open, editRow, initialMode, initialDraft, initialDescription, resetPlots])
 
   /** Open a stored formula for editing — its SOURCE, its name, and its id.
    *
@@ -1477,6 +1566,7 @@ export default function BuilderSheet({
       const stored = typeof row.pine_source === 'string' && row.pine_source.trim() ? row.pine_source : ''
       setPineText(stored)
       setBuildMode('pine')
+      setView('editor'); setOrigin('pine'); setScriptDialect(null)
       setScriptUpgradeNote(stored ? SCRIPT_UPGRADE_RESAVE_NOTE : SCRIPT_UPGRADE_PASTE_NOTE)
       return
     }
@@ -1499,6 +1589,7 @@ export default function BuilderSheet({
       setName(String(def?.meta?.name || ''))
       setPineText(compute.source)
       setBuildMode('pine')
+      setView('editor'); setOrigin('pine'); setScriptDialect(null)
       return
     }
     if (compute.kind !== undefined && compute.kind !== 'ast') {
@@ -1684,6 +1775,14 @@ export default function BuilderSheet({
     // route: `openForEdit` is also called for a row that shows up while the
     // sheet is already open, when no seed is going to run again.
     setBuildMode(EDIT_MODE)
+    // ⭐ A formula an earlier Pine import wrote (its provenance / door stamps) keeps a
+    // Script tab, so the member can re-paste the script into it (C46 carries the ids).
+    {
+      const meta = (def && def.meta) || {}
+      const fromPine = !!(meta.importedFrom || meta.doorVersion !== undefined)
+      setView('editor'); setOrigin(fromPine ? 'pine' : null)
+      setScriptDialect(fromPine ? 'pine' : null)
+    }
     setPickerNote(null)
   }, [resetPlots])
 
@@ -1707,7 +1806,11 @@ export default function BuilderSheet({
     // ⚠️ A SET, NOT AN `||` CHAIN, because the next editing-only tab must land
     // here by adding one name rather than by remembering this line exists —
     // `share` was added second and only because this comment said so.
-    setBuildMode((m) => (EDITING_ONLY_MODES.has(m) ? EDIT_MODE : m))
+    // ⭐ DIRECTION A — "New formula" is a new formula with no door: the START view,
+    // with the editor reset to its Formula tab for whichever start comes next (so a
+    // Conditions panel left open cannot suppress the start view's describe box).
+    setBuildMode((m) => (EDITING_ONLY_MODES.has(m) ? EDIT_MODE : DEFAULT_MODE))
+    setView('start'); setOrigin(null); setScriptDialect(null)
   }, [resetPlots])
 
   // ── W4a HAND-BACK: the `/screener` door opens the sheet ON A ROW ──────────
@@ -1997,27 +2100,27 @@ export default function BuilderSheet({
   // exactly the confusing-message failure mode this hint exists to prevent.
   const converseActive = !!(conversationOn && buildMode !== 'picker' && converseCommit && converseCommit.dirty)
   const saveHint = converseActive
-    ? 'Saves the indicator from the conversation above.'
+    ? 'Saves the indicator from the conversation (Ask the UCT Agent).'
     : supersededByConversation
-    ? `The conversation above saved this indicator as version ${conversationSaved.version}. Reopen it from "Your indicators" to edit it here.`
+    ? `The conversation saved this indicator as version ${conversationSaved.version}. Reopen it from "Your indicators" to edit it here.`
     : (saveGates.idle && !saveGates.settled)
     ? 'Checking your formula…'
     : (saveGates.idle && saveGates.settled && saveGates.formula && !saveGates.named)
-      ? 'Give it a name to save.'
+      ? 'Name it to save.'
       // An input problem already names itself on its own row, so this points at
       // WHICH gate is shut without restating the reason a second time.
       : (saveGates.idle && saveGates.settled && saveGates.formula && saveGates.named
         && !saveGates.inputs)
-        ? 'Fix the input names above to save.'
+        ? 'Fix the input names on the Inputs tab to save.'
         // Same rule as the line above it: every plot problem already names itself
         // on its own row (a key sentence, or its own refusal chip), so this points
         // at WHICH gate is shut without restating the reason a second time.
         : (saveGates.idle && saveGates.settled && saveGates.formula && saveGates.named
           && saveGates.inputs && !saveGates.plots)
-          ? 'Fix the plots above to save.'
+          ? 'Fix the plots on the Plots tab to save.'
           : (saveGates.idle && saveGates.settled && saveGates.formula && saveGates.named
             && saveGates.inputs && saveGates.plots && !saveGates.intent)
-            ? 'This formula cannot be saved as what you chose it for — see "What is it for?" above.'
+            ? 'This formula cannot be saved as what you chose it for — see "What is it for?" on the Plots tab.'
             : null
 
   // ── focus trap ─────────────────────────────────────────────────────────────
@@ -2471,7 +2574,12 @@ export default function BuilderSheet({
   }, [formPrint])
   useEffect(() => { if (!editing) setOpenPrint(null) }, [editing])
   const untouchedSinceOpen = !!(editing && openPrint !== null && openPrint === formPrint)
-  const dirty = (pineText.trim() !== '' || source.trim() !== '' || name.trim() !== ''
+  // ⭐ 2026-11-17 — A NAME THE SHEET FILLED IN IS NOT THE MEMBER'S UNSAVED FORMULA. Since the name field
+  // follows the conversation (`autoNameRef`), a described indicator put a name in the form, and closing
+  // asked "Discard this formula?" about a form nobody touched, and asked again after the conversation
+  // was saved. Only a name the MEMBER typed counts; the conversation's own unsaved state asks for itself.
+  const nameIsMembers = name.trim() !== '' && name !== autoNameRef.current
+  const dirty = (pineText.trim() !== '' || source.trim() !== '' || nameIsMembers
       || plotRows.some((r) => String(r.source || '').trim() !== '')
       || !isUntouchedRow(plot0) || target !== 'pane' || levelsText.trim() !== '')
     && !(savedRow && savedRow.source === source)
@@ -2488,200 +2596,358 @@ export default function BuilderSheet({
     onClose?.()
   }, [dirty, conversationDirty, onClose])
 
+  // ── ⭐⭐ DIRECTION A — THE START VIEW AND THE EDITOR (owner-approved 2026-11-16) ──
+  //
+  // A new formula with no door opens on the START VIEW: describe it, or start from a
+  // script / a picture / conditions / a UCT setup, or write it yourself. Every one of
+  // those lands in the EDITOR — name in the header, tabs underneath (Formula · Source ·
+  // Inputs · Plots · Ask) — which is also where an edit and every door open directly.
+  //
+  // ⛔ A LAYOUT, NOT A SECOND BUILDER. Each start is the SAME door it always was (it
+  // writes `source` and nothing else, through the same parse / budget / linter /
+  // read-back / Save), and `buildMode` is still the one value that decides which door
+  // is open — it is simply shown as the editor's current tab now.
+  const startFrom = useCallback((mode) => {
+    setOrigin(mode); setView('editor'); setStoreError(null)
+  }, [])
+  const writeMyself = useCallback(() => { setView('editor'); setStoreError(null) }, [])
+  const backToStart = useCallback(() => { setView('start'); setStoreError(null) }, [])
+  /** The one-shot describe box's "Use this formula": the formula lands in the editor,
+   *  on the Formula tab, exactly as a paste or a starter does. */
+  const acceptProposal = useCallback((proposal, { toFormula = true } = {}) => {
+    setSource(proposal?.source || '')
+    // ⭐ P2X — a drafted formula replaces the stored script's maths wholesale.
+    if (editing) setScriptReplaced(true)
+    // ⭐ Phase One Track C. `propose_definition` (the plain-language
+    // door) mints `import_id` SERVER-SIDE and already fired
+    // `import_submitted`/`compile_finished` for it — `proposal`
+    // here IS that same response object, passed through unchanged
+    // by `ConciergeBox`, so its `import_id` is captured for
+    // `import_accepted` to join back to on Save.
+    if (proposal?.import_id) {
+      importTelemetryRef.current = { importId: proposal.import_id, dialect: 'plain-language' }
+    }
+    if (toFormula) { setView('editor'); setBuildMode('formula') }
+  }, [editing])
+  // ⭐ A DESCRIBE TURN THAT PRODUCES A FORMULA MOVES TO THE EDITOR — onto the Ask tab,
+  // where the same conversation (same box, same session) carries on. Only on the
+  // turn that makes it dirty, so "‹ back to start" with a draft open stays put.
+  const converseDirty = !!(converseCommit && converseCommit.dirty)
+  const converseDirtyRef = useRef(converseDirty)
+  useEffect(() => {
+    if (converseDirty && !converseDirtyRef.current && view === 'start') { setView('editor'); setBuildMode('ask') }
+    converseDirtyRef.current = converseDirty
+  }, [converseDirty, view])
+
+  // ⛔ ABOVE THE EARLY RETURN: these are hooks, and a hook after `if (!open) return null` is a hook that
+  // runs on some renders and not others ("Rendered fewer hooks than expected", caught by the sheet's own suite).
+  // ⭐ 2026-11-17 — THE FORMULAS' OWN NUMBERS, AS SETTINGS (`authoring/derivedSettings.js`). An indicator
+  // built from a description opened here read "Inputs 0": its lengths, levels and multiples are
+  // literals in the formulas. They are derived from the formulas as parsed, stored nowhere, and a
+  // change rewrites the formula text through the same door a typed edit uses. A Pine import keeps
+  // its own parameters above (`paramManifest`); these are offered only when it has none.
+  const formTrees = useMemo(() => (paramManifest && Object.keys(paramManifest).length ? [] : allRows
+    .map((r, i) => ({ key: r.key || (i === 0 ? 'value' : `plot${i}`), tree: (i === 0 ? result : r.result)?.ast || null }))
+    .filter((o) => o.tree)), [allRows, result, paramManifest])
+  const formSettings = useMemo(() => settingsOfTrees(formTrees), [formTrees])
+  const setFormSetting = useCallback((setting, value) => {
+    const out = formulasWithSetting(formTrees, setting, value)
+    if (!out.ok) return out
+    for (const [key, text] of Object.entries(out.sources)) {
+      const i = formTrees.length ? allRows.findIndex((r, j) => (r.key || (j === 0 ? 'value' : `plot${j}`)) === key) : -1
+      if (i === 0) setSource(text)
+      else if (i > 0) patchPlot(i, { source: text })
+    }
+    return { ok: true }
+  }, [formTrees, allRows, patchPlot])
   if (!open) return null
+
+  const isEditor = view === 'editor'
+  const sheetTitle = editing ? 'Edit formula' : 'New formula'
+  const chip = origin === 'pine'
+    ? scriptChip(scriptDialect, pineText, editing && editing.prior && editing.prior.meta ? editing.prior.meta.pineVersion : null)
+    : (origin ? SOURCE_CHIP[origin] : null)
+  // ⭐ WHILE A CONVERSATION HOLDS THE INDICATOR (an unsaved description), ITS numbers are the inputs:
+  // the form is the older version it was opened at, or empty for a new one (the owner's "Inputs 0").
+  const converseNumbers = (converseCommit && converseCommit.dirty && Array.isArray(converseCommit.numbers)) ? converseCommit.numbers : null
+  const inputCount = converseNumbers
+    ? converseNumbers.length
+    : memberInputs.length + (paramManifest ? Object.keys(paramManifest).length : 0) + formSettings.length
+  const addsToChart = !!(settings && onChange)
+  const footHint = isEditor
+    ? (editing ? null : (addsToChart ? (target === 'price' ? 'Adds to this chart over the price' : 'Adds to this chart as its own pane') : null))
+    : 'Nothing is saved until you name it.'
+  const tabClass = (on) => `${styles.tab} ${on ? styles.tabOn : ''}`
+  /** The four starts — the start view's "Or start from", and an edit's Source tab
+   *  (re-paste a script into a saved formula, re-read a picture, re-pick). Each one is
+   *  the SAME door it always was: it writes `source` and nothing else. */
+  const startGrid = (
+            <div className={styles.startGrid} data-guide="builder.modes">
+              {/* ── THE FOURTH DOOR ONTO THE SAME OBJECT (Phase F, F-3) ──────────
+                  `PineBox` translates a pasted script and hands back the SAME
+                  `source` string every other door writes. ⛔ NOTHING ABOUT THE
+                  SAVED DOCUMENT REMEMBERS IT WAS PINE beyond its provenance stamps. */}
+              <button type="button" className={styles.startCard} data-testid="start-pine"
+                data-guide="builder.startScript" onClick={() => { startFrom('pine'); setBuildMode('pine') }}>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M8 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" /><path d="M14 4h6v6" /><path d="M10 14 20 4" /></svg>
+                <span className={styles.startText}>
+                  <span className={styles.startName}>Paste a script</span>
+                  <span className={styles.startHint}>TradingView Pine, thinkorswim thinkScript or a TC2000 formula</span>
+                </span>
+              </button>
+              {/* ⭐⭐ A member who CANNOT export their indicator shows us the picture.
+                  Same engine, same grammar, same save door; only the way in is new. */}
+              <button type="button" className={styles.startCard} data-testid="start-image"
+                data-guide="builder.startPicture" onClick={() => { startFrom('image'); setBuildMode('image') }}>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="m21 15-5-5-9 9" /></svg>
+                <span className={styles.startText}>
+                  <span className={styles.startName}>From a picture</span>
+                  <span className={styles.startHint}>A screenshot of an indicator. The UCT Agent reads it and offers its best guesses</span>
+                </span>
+              </button>
+              {/* ── THE SECOND DOOR (Phase E, E-4) — a MODE, not a second builder:
+                  the picker's only output is the same `source` string. */}
+              <button type="button" className={styles.startCard} data-testid="start-picker"
+                data-guide="builder.startConditions" onClick={() => { startFrom('picker'); setBuildMode('picker') }}>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h10M4 18h7" /><path d="m15 17 2 2 4-4" /></svg>
+                <span className={styles.startText}>
+                  <span className={styles.startName}>Build from conditions</span>
+                  <span className={styles.startHint}>Rows like &quot;RSI 14 is below 30&quot;, joined by all or any</span>
+                </span>
+              </button>
+              {/* ── THE THIRD DOOR (Phase E, E-8) — the firm's own setups as
+                  ordinary scans; a starter is special-cased nowhere. */}
+              <button type="button" className={styles.startCard} data-testid="start-library"
+                data-guide="builder.startSetup" onClick={() => { startFrom('library'); setBuildMode('library') }}>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5a1 1 0 0 1 1-1h5v16H5a1 1 0 0 1-1-1z" /><path d="M14 4h5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-5" /></svg>
+                <span className={styles.startText}>
+                  <span className={styles.startName}>A UCT setup</span>
+                  <span className={styles.startHint}>Flag/Pullback, VCP, Flat Base, Kicker… yours to change</span>
+                </span>
+              </button>
+            </div>
+  )
 
   return (
     <Sheet
       open={open}
       onClose={requestClose}
       variant="auto"
-      title={editing ? 'Edit formula' : 'New formula'}
-      maxWidth={640}
+      ariaLabel={sheetTitle}
+      maxWidth={700}
+      // The start page fits its content (owner 11-16: a fixed 660px left a big empty block when there are no saved
+      // formulas yet); the editor keeps the fixed size so tabs never resize the window.
+      className={`${styles.sheetPanel}${isEditor ? '' : ` ${styles.sheetPanelStart}`}`}
+      bodyClassName={styles.sheetBody}
     >
       {/* The portal exemption — `ChartToolbar` closes its settings panel on any
           outside mousedown, and `Sheet` renders into `document.body`, so without
           this the mousedown of the very click that opens this sheet would unmount
           the panel underneath it. Same trap `IndicatorLibraryDialog` documents. */}
-      <div className={styles.body} ref={rootRef} {...{ [PORTAL_POPUP_ATTR]: 'formula-builder' }}>
+      <div className={styles.body} ref={rootRef} data-view={view} {...{ [PORTAL_POPUP_ATTR]: 'formula-builder' }}>
         <BuilderBoundary>
-          {/* ── THE AI DOOR (Phase D Task 13) ────────────────────────────────
-              ⭐ IT IS MOUNTED HERE, ABOVE THE TYPED FIELD, AND UNTIL NOW IT WAS
-              MOUNTED NOWHERE. `ConciergeBox` shipped complete — a prop
-              contract, a derived read-back, a full test file — with ZERO
-              non-test importers, so `POST /api/user-definitions/propose` (cost
-              -guarded, `MAX_MODEL_CALLS = 2`) had no product caller and
-              "describe an indicator in English" existed on no screen.
-
-              ⛔ `onAccept` WRITES THE SOURCE AND NOTHING ELSE. The box
-              deliberately never saves; handing its `source` to the field the
-              user already types in means the proposal goes through the SAME
-              parse, the SAME budget walk, the SAME linter and the SAME
-              read-back as a typed formula, and the Save button below stays the
-              one and only write path. Taking `body.ast` straight to
-              `buildDefinition` would be a second door with a second set of
-              gates to keep in step — the exact shape this phase retires.
-
-              ⚠️ NO `fetchImpl`. The box's injection point is for tests only;
-              production uses the global `fetch`, so what this surface issues is
-              a real request (`lesson_injected_dependency_hides_the_fetch`).
-
-              ⭐ AND THE KIND IS THE MODE THE MEMBER IS IN (Phase E, E-5). On the
-              Conditions tab they are building a SCREEN, so the request says so
-              and the server's condition stage can refuse a tree that produces a
-              number — `sma(close,20)` handed back as a screen would silently
-              match every symbol on the board. A box that always asked for an
-              indicator would be a box whose scan stage can never fire, and no
-              component test on either side could see it. */}
-          {/* ⭐⭐ P2 — CONVERSATIONAL AUTHORING. A self-contained box: it holds
-              its own working definition (the deterministic engine applies the
-              server's patch), shows the readback from the definition, and saves
-              through the same doors as `save()` (`conversationSave.js`). It does
-              not touch this sheet's formula box or save state. Indicator modes
-              only; the Conditions tab keeps the one-shot box below. */}
-          {buildMode !== 'picker' && conversationOn && (
-            <ConverseBox key={converseKey} sessionKey={converseKey}
-              settings={settings} onChange={onChange} sym={sym} tf={tf}
-              editing={editing} disabled={saving}
-              onCommitState={setConverseCommit} commitRef={converseCommitRef}
-              onSaved={(defId, version) => setConversationSaved({ defId, version, formPrint: formPrintRef.current })} />
-          )}
-          {/* ⭐ SLICE 2 ROLLOUT RULE — the one-shot box drafts an INDICATOR only
-              while conversation is off; with it on, the conversation replaces it.
-              The Conditions tab (a scan) always keeps it. */}
-          {(buildMode === 'picker' || !conversationOn) && (
-          <ConciergeBox
-            bars={bars}
-            kind={buildMode === 'picker' ? 'scan' : 'indicator'}
-            disabled={saving}
-            replacedAt={replacedAt}
-            onAccept={(proposal) => {
-              setSource(proposal?.source || '')
-              // ⭐ P2X — a drafted formula replaces the stored script's maths wholesale.
-              if (editing) setScriptReplaced(true)
-              // ⭐ Phase One Track C. `propose_definition` (the plain-language
-              // door) mints `import_id` SERVER-SIDE and already fired
-              // `import_submitted`/`compile_finished` for it — `proposal`
-              // here IS that same response object, passed through unchanged
-              // by `ConciergeBox`, so its `import_id` is captured for
-              // `import_accepted` to join back to on Save.
-              if (proposal?.import_id) {
-                importTelemetryRef.current = { importId: proposal.import_id, dialect: 'plain-language' }
-              }
-            }}
-          />
+          {/* ── THE HEADER ─────────────────────────────────────────────────────
+              Start: the window's title. Editor: ‹ back (a new formula only), the
+              NAME as the title — Save needs one — the source chip, and ✕. */}
+          {isEditor ? (
+            <div className={styles.head}>
+              {!editing && (
+                <button type="button" className={styles.iconBtn} aria-label="Back to start"
+                  data-testid="builder-back" onClick={() => { backToStart(); setBuildMode('formula') }}>‹</button>
+              )}
+              <label className={styles.srOnly} htmlFor="uct-formula-name">Name</label>
+              <input
+                id="uct-formula-name"
+                data-guide="builder.name"
+                className={styles.nameField}
+                type="text"
+                maxLength={48}
+                placeholder="Name it"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              {chip && <span className={styles.chip} data-testid="source-chip">{chip}</span>}
+              <button type="button" className={styles.iconBtn} aria-label="Close" onClick={requestClose}>✕</button>
+            </div>
+          ) : (
+            <div className={styles.head}>
+              <h2 className={styles.title}>{sheetTitle}</h2>
+              <button type="button" className={styles.iconBtn} aria-label="Close" onClick={requestClose}>✕</button>
+            </div>
           )}
 
-          {/* ── THE SECOND DOOR ONTO ONE OBJECT (Phase E, E-4) ───────────────────
-              ⛔ A MODE, NOT A SECOND BUILDER. The picker's only output is the SAME
-              `source` string the text box holds, so a picked condition goes through
-              the same parse, the same budget walk, the same linter, the same
-              read-back and the same Save button as a typed one. A second builder
-              would be a second grammar — the seam this task exists to close.
+          {/* ── THE TABS — gold underline on the current one only (UCT Signature §2b) ── */}
+          {isEditor ? (
+            <div className={styles.tabs} role="tablist" aria-label="How to build this" data-guide="builder.modes">
+              <button type="button" role="tab" className={tabClass(buildMode === 'formula')}
+                aria-selected={buildMode === 'formula'} onClick={() => setBuildMode('formula')}>Formula</button>
+              {/* ⭐ THE SOURCE TAB — only when the formula came from one, labelled by it,
+                  so the member can re-paste the script / re-read the picture / re-pick. */}
+              {origin && (
+                <button type="button" role="tab" className={tabClass(buildMode === origin)}
+                  aria-selected={buildMode === origin} data-testid="source-tab"
+                  onClick={() => setBuildMode(origin)}>{SOURCE_TAB_LABEL[origin]}</button>
+              )}
+              <button type="button" role="tab" className={tabClass(buildMode === 'inputs')}
+                aria-selected={buildMode === 'inputs'} onClick={() => setBuildMode('inputs')}>
+                Inputs <span className={styles.tabCount}>{inputCount}</span>
+              </button>
+              <button type="button" role="tab" className={tabClass(buildMode === 'plots')}
+                aria-selected={buildMode === 'plots'} onClick={() => setBuildMode('plots')}>
+                Plots <span className={styles.tabCount}>{allRows.length}</span>
+              </button>
+              {/* ── EVIDENCE AND SHARE SHOW ONLY FOR A SAVED DEFINITION (W5a) ──────
+                  Evidence is a fact about a definition the STORE holds — a receipt
+                  keyed by its hash — and a share link points at one, so a NEW sheet
+                  has nothing to show for either; a tab offering them would be an
+                  affordance that is false about the thing it sits on. `editing` is
+                  the store's own row id, which is precisely that condition. */}
+              {/* An edit whose source is not known (nothing in the saved document says
+                  where it came from) still keeps every way to replace its maths. */}
+              {editing && !origin && (
+                <button type="button" role="tab" className={tabClass(buildMode === 'sources')}
+                  aria-selected={buildMode === 'sources'} data-testid="source-tab"
+                  onClick={() => setBuildMode('sources')}>Source</button>
+              )}
+              {editing && (
+                <button type="button" role="tab" className={tabClass(buildMode === 'evidence')}
+                  aria-selected={buildMode === 'evidence'} onClick={() => setBuildMode('evidence')}>Evidence</button>
+              )}
+              {editing && (
+                <button type="button" role="tab" className={tabClass(buildMode === 'share')}
+                  aria-selected={buildMode === 'share'} onClick={() => setBuildMode('share')}>Share</button>
+              )}
+              <span className={styles.tabGap} aria-hidden="true" />
+              <button type="button" role="tab" className={tabClass(buildMode === 'ask')}
+                aria-selected={buildMode === 'ask'} onClick={() => setBuildMode('ask')}>
+                <span className={styles.spark} aria-hidden="true">✦</span> Ask the UCT Agent to change it
+              </button>
+            </div>
+          ) : null}
 
-              ⛔ AND THE PICKER IS DERIVED FROM THE TREE, NOT STORED. Switching to it
-              reads `result.ast`; a formula it cannot show is REPORTED, and the
-              picker stays empty rather than half-right. */}
-          {/* ── THE THIRD DOOR ONTO THE SAME OBJECT (Phase E, E-8) ──────────────
-              ⭐ A BLANK FORMULA BOX LOSES THE WIDE AUDIENCE. The library is the
-              onboarding path: a member picks one of the FIRM'S OWN setups, gets
-              a working scan in the box below, and edits it — which is how people
-              learn a syntax.
+          <div className={styles.content}>
+            {/* ⭐⭐ P2 — CONVERSATIONAL AUTHORING. A self-contained box: it holds
+                its own working definition (the deterministic engine applies the
+                server's patch), shows the readback from the definition, and saves
+                through the same doors as `save()` (`conversationSave.js`). It does
+                not touch this sheet's formula box or save state. Indicator modes
+                only; the Conditions source keeps the one-shot box.
+                ⛔ ONE SLOT, BOTH VIEWS. It is the start view's "Describe it" and the
+                editor's Ask tab — the SAME element at the same place in the tree, so
+                moving from one view to the other never remounts the conversation. */}
+            <div className={isEditor ? styles.panel : styles.describe}
+              hidden={isEditor && buildMode !== 'ask'} data-testid="converse-slot">
+              {buildMode !== 'picker' && conversationOn && (
+                <ConverseBox key={converseKey} sessionKey={converseKey}
+                  variant={isEditor ? 'ask' : 'start'}
+                  settings={settings} onChange={onChange} sym={sym} tf={tf}
+                  editing={editing} disabled={saving} prefill={prefill}
+                  onCommitState={setConverseCommit} commitRef={converseCommitRef}
+                  onSaved={(defId, version) => setConversationSaved({ defId, version, formPrint: formPrintRef.current })} />
+              )}
+              {/* ── THE AI DOOR, ONE-SHOT (Phase D Task 13) — the same slot, while the
+                  conversation is dark. ⛔ `onAccept` WRITES THE SOURCE AND NOTHING ELSE
+                  (same parse / budget / linter / read-back / Save as a typed formula).
+                  ⚠️ NO `fetchImpl` — production uses the global `fetch`. One instance for
+                  both views, so a typed description survives the move and is still told
+                  when another lane replaced the formula (`replacedAt`); its refusal is
+                  cleared when the view changes (`clearKey`). */}
+              {buildMode !== 'picker' && !conversationOn && (
+                <ConciergeBox bars={bars} kind="indicator" disabled={saving} replacedAt={replacedAt}
+                  clearKey={view} prefill={prefill} onAccept={(proposal) => acceptProposal(proposal)} />
+              )}
+            </div>
 
-              ⛔ AND IT IS A MODE, NOT A THIRD BUILDER. Its only output is the
-              same `source` string the other two doors write, so a starter meets
-              the same parse, the same budget, the same linter, the same
-              read-back and the same Save button. There is no starter save path,
-              no starter flag on the document and no starter column on the store
-              — a starter that was special-cased would be a second class of
-              object, and `BuilderSheet.starters.test.jsx` asserts the saved
-              blob carries no trace of where it came from. */}
-          <div className={styles.modeRow} role="tablist" aria-label="How to build this" data-guide="builder.modes">
-            <button
-              type="button" role="tab"
-              className={`${styles.modeTab} ${buildMode === 'library' ? styles.modeTabActive : ''}`}
-              aria-selected={buildMode === 'library'}
-              onClick={() => setBuildMode('library')}
-            >Library</button>
-            <button
-              type="button" role="tab"
-              className={`${styles.modeTab} ${buildMode === 'picker' ? styles.modeTabActive : ''}`}
-              aria-selected={buildMode === 'picker'}
-              onClick={() => setBuildMode('picker')}
-            >Conditions</button>
-            {/* ── THE FOURTH DOOR ONTO THE SAME OBJECT (Phase F, F-3) ──────────
-                ⭐ A MEMBER ARRIVES CARRYING A PINE SCRIPT, and until now the
-                answer was "retype it". `PineBox` translates one and hands back
-                the SAME `source` string every other door writes — so a pasted
-                script meets the same parse, the same budget walk, the same
-                repaint linter, the same read-back and the same Save button.
+            {/* ── THE AI DOOR, ONE-SHOT (Phase D Task 13) ─────────────────────────
+                ⛔ `onAccept` WRITES THE SOURCE AND NOTHING ELSE. The box deliberately
+                never saves; handing its `source` to the field the user already types
+                in means the proposal goes through the SAME parse, budget walk, linter
+                and read-back as a typed formula, and Save stays the one write path.
+                ⚠️ NO `fetchImpl` — production uses the global `fetch`.
+                ⭐ SLICE 2 ROLLOUT RULE — it drafts an INDICATOR only while the
+                conversation is off; with it on, the conversation replaces it. The
+                Conditions source (a SCAN, kind 'scan') always keeps its own. */}
 
-                ⛔ NOTHING ABOUT THE SAVED DOCUMENT REMEMBERS IT WAS PINE. There
-                is no Pine flag, no Pine column and no Pine save path; a script
-                that translates becomes an ordinary definition whose `compute.fn`
-                is the same `astHash` a typed formula of the same shape produces,
-                which is what lets the chart, the alert and the scan keep sharing
-                one object. */}
-            <button
-              type="button" role="tab"
-              className={`${styles.modeTab} ${buildMode === 'pine' ? styles.modeTabActive : ''}`}
-              aria-selected={buildMode === 'pine'}
-              onClick={() => setBuildMode('pine')}
-            >Import</button>
-            {/* ⭐⭐ THE FOURTH DOOR: a member who CANNOT export their indicator — a
-                closed-source script, a paid one, an idea from a screenshot —
-                shows us the picture. Same engine, same grammar, same save door;
-                only the way in is new. */}
-            <button
-              type="button" role="tab"
-              className={`${styles.modeTab} ${buildMode === 'image' ? styles.modeTabActive : ''}`}
-              aria-selected={buildMode === 'image'}
-              onClick={() => setBuildMode('image')}
-            >Screenshot</button>
-            <button
-              type="button" role="tab"
-              className={`${styles.modeTab} ${buildMode === 'formula' ? styles.modeTabActive : ''}`}
-              aria-selected={buildMode === 'formula'}
-              onClick={() => setBuildMode('formula')}
-            >Formula</button>
-            {/* ── THE FIFTH DOOR SHOWS ONLY FOR A SAVED DEFINITION (W5a) ──────
-                Evidence is a fact about a definition the STORE holds — a receipt
-                keyed by its hash and a forward record filed under its hash — so a
-                NEW sheet has nothing to show it for, and a tab offering it would
-                be an affordance that is false about the thing it sits on.
-                `editing` is the store's own row id, which is precisely the
-                condition under which evidence can exist. */}
-            {editing && (
-              <button
-                type="button" role="tab"
-                className={`${styles.modeTab} ${buildMode === 'evidence' ? styles.modeTabActive : ''}`}
-                aria-selected={buildMode === 'evidence'}
-                onClick={() => setBuildMode('evidence')}
-              >Evidence</button>
+            {/* ══ THE START VIEW ══════════════════════════════════════════════ */}
+            {!isEditor && (
+              <section className={styles.group} aria-labelledby="uct-start-head">
+                <h3 className={styles.groupLabel} id="uct-start-head">Or start from</h3>
+                {startGrid}
+                <button type="button" className={styles.writeLink} data-testid="start-formula"
+                  data-guide="builder.writeMyself" onClick={() => { writeMyself(); setBuildMode('formula') }}>
+                  Write the formula myself →
+                </button>
+              </section>
             )}
-            {/* ⛔ SAME CONDITION AS EVIDENCE, AND FOR THE SAME REASON. A share
-                link points at a definition the STORE holds — there is nothing to
-                share about a sheet that has never been saved, and a tab offering
-                it would be an affordance that is false about the thing it sits
-                on. `editing` is the store's own row id, which is exactly when a
-                link can exist. */}
-            {editing && (
-              <button
-                type="button" role="tab"
-                className={`${styles.modeTab} ${buildMode === 'share' ? styles.modeTabActive : ''}`}
-                aria-selected={buildMode === 'share'}
-                onClick={() => setBuildMode('share')}
-              >Share</button>
-            )}
-          </div>
 
-          {/* ⭐ GT (RT4 follow-up, owner ruling 2026-10-02) — A DEFINITION SAVED UNDER
-              AN OLDER REPAINT RULE. The store serves `repaint_notice` beside a row
-              whose stored label is LOOSER than today's measurement (the relint
-              pass's direction B, `user_definition_relint.member_notice`): e.g. a
-              formula saved before the shared clock-table fix that reads one of the
-              nine last-bar clock leaves. ⛔ The stored label is NEVER flipped
-              silently; its owner is told, here, when they open it. The sentence is
-              the server's, verbatim. */}
+            {!isEditor && rows.length === 0 && (
+              <p className={styles.savedEmpty} data-testid="saved-empty">Indicators you save show up here.</p>
+            )}
+
+            {!isEditor && rows.length > 0 && (
+              <section className={styles.group} aria-labelledby="uct-saved-head">
+                <div className={styles.groupHead}>
+                  <h3 className={styles.groupLabel} id="uct-saved-head">Your indicators</h3>
+                  <span className={styles.groupCount}>{rows.length}</span>
+                </div>
+                <ul className={styles.list}>
+                  {rows.map((row) => {
+                    const rowName = row.definition?.meta?.name || row.def_id
+                    const bar = ((row.definition?.inputs || []).find((s) => s && s.key === 'color') || {}).default
+                    return (
+                      <li key={row.def_id} className={styles.listRow}>
+                        <span className={styles.listBar} aria-hidden="true"
+                          style={typeof bar === 'string' ? { background: bar } : undefined} />
+                        <span className={styles.listName}>{rowName}</span>
+                        {/* ⭐ P1 HARDENING — a runtime document's source is a whole script, not a formula line */}
+                        <span className={styles.listSource}>{row.definition?.compute?.kind === 'runtime'
+                          ? 'Script drawn bar by bar' : row.definition?.compute?.source}</span>
+                        <button
+                          type="button"
+                          className={styles.rowBtn}
+                          aria-label={`Edit ${rowName}`}
+                          data-guide="builder.edit"
+                          onClick={() => openForEdit(row)}
+                        ><UIcon name="edit" size={14} /></button>
+                        {/* ⭐⭐ DELETE ASKS FIRST — one armed row at a time (see `pendingDelete`). */}
+                        {pendingDelete === row.def_id ? (
+                          <>
+                            <span className={styles.deleteAsk}>Delete?</span>
+                            <button type="button" className={styles.rowTextBtn} onClick={() => setPendingDelete(null)}>Keep</button>
+                            <button
+                              type="button"
+                              className={styles.rowTextBtn}
+                              aria-label={`Confirm delete ${rowName}`}
+                              onClick={() => remove(row.def_id)}
+                            >Delete</button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            className={styles.rowBtn}
+                            aria-label={`Delete ${rowName}`}
+                            onClick={() => setPendingDelete(row.def_id)}
+                          ><UIcon name="trash" size={14} /></button>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </section>
+            )}
+
+            {/* ══ THE EDITOR ══════════════════════════════════════════════════
+                ⛔ THE FORMULA, INPUTS AND PLOTS PANELS STAY MOUNTED (hidden when not
+                current). Their fields debounce, evaluate and feed the ONE save gate;
+                a tab switch that unmounted them would drop a settling evaluation
+                and a plot row's own verdict. The source panels render only while
+                open, exactly as the old mode tabs did. */}
+            {isEditor && (
+              <>
+                <div className={styles.panel} data-panel="Formula" hidden={buildMode !== 'formula'}
+                  data-testid="panel-formula">
+                  {/* ⭐ GT (RT4 follow-up) — a definition saved under an OLDER repaint rule
+                      is told so, in the server's own sentence; and W5-T18's per-lane line. */}
           {editing && (() => {
             const openRow = (Array.isArray(rows) ? rows : []).find((r) => r && r.def_id === editing.defId)
             const notice = openRow && openRow.repaint_notice
@@ -2698,8 +2964,105 @@ export default function BuilderSheet({
             const openRow = (Array.isArray(rows) ? rows : []).find((r) => r && r.def_id === editing.defId)
             return openRow ? <RunsOnLine serverLanes={openRow.server_lanes} /> : null
           })()}
+          <FormulaField
+            value={source}
+            onChange={setSource}
+            onEvaluated={handleEvaluated}
+            onPendingChange={setPending}
+            result={result}
+            autoFocus
+            inputs={inputScope}
+          />
+          {/* W1a hand-back: the draft, drawn by the engine, on the chart this sheet was opened over. */}
+                  {/* ── THE READ-BACK — a green ✓ and the tree's own sentence.
+                      ⛔ `{result.readback}` AND NOTHING ELSE inside `readback`. See the header. */}
+                  {result?.ok && (
+                    <section className={styles.readbackLine} aria-label="This is what will be computed">
+                      <span className={styles.okMark} aria-hidden="true">✓</span>
+                      <div className={styles.readbackText}>
+                        <span className={styles.readsAs}>Reads as:</span>{' '}
+                        <p className={styles.readback} data-testid="readback">{result.readback}</p>
+                        <p className={styles.measured}>
+                          {result.measured
+                            ? `${result.measured.maxNodes} nodes · ${result.measured.maxLookback}-bar lookback · `
+                              + `${result.measured.maxSeriesRefs} series`
+                            : null}
+                        </p>
+                      </div>
+                    </section>
+                  )}
+          {/* ── THE BADGE ────────────────────────────────────────────────────
+              Shown only for an ADMISSIBLE formula: a repaint verdict printed
+              beside "unknown function `foo`" describes a formula that does not
+              exist, and would read as the reason it was refused.
+              ⛔⛔ `worstVerdict.reasons`, NOT `result.verdict.reasons` (FIX ROUND
+              1, IMPORTANT #3). `mode` above is already `worstVerdict.mode` — the
+              worst across every row — but this text used to read PLOT 1's OWN
+              reasons unconditionally. The moment a LATER row is the one carrying
+              the worst verdict, that put a warning-coloured badge beside plot 1's
+              `non-repainting` explanation: a caption stating something false
+              beside a correctly-coloured badge. Measured live via
+              `ichimokuChikou`, not hypothetical — see the report. */}
+          {result?.ok && badge && (
+            <p
+              className={`${styles.badge} ${mode === 'non-repainting' ? styles.badgeClean : styles.badgeWarn}`}
+              data-testid="repaint-badge"
+              data-mode={mode}
+            >
+              <UIcon name={mode === 'non-repainting' ? 'check' : 'warning'} size={14} />
+              {badge}
+              <span className={styles.badgeWhy}>{(worstVerdict?.reasons || []).join('; ')}</span>
+            </p>
+          )}
 
-          {buildMode === 'library' && (
+          {/* ── PLOT 1's OWN ACKNOWLEDGEMENT ─────────────────────────────────
+              ⛔⛔ GATED AND WORDED ON PLOT 1's OWN VERDICT, NOT THE SHEET-WIDE
+              WORST (FIX ROUND 1, IMPORTANT #3). This used to key off `mode` (the
+              worst row across the WHOLE sheet) and write to one flag every row's
+              `canSaveFormula` call read — so ticking a box captioned with
+              WHICHEVER row's claim `worstVerdict` happened to surface also
+              silently cleared every OTHER row's own, possibly-different,
+              `preview-repaints` claim. `patchPlot(0, …)` is the same setter every
+              other row's checkbox uses below (`plot0` is a row like any other),
+              so plot 1 is not a special case any more — it is simply the row
+              whose checkbox lives beside the Save button instead of inside the
+              row loop, because its formula box is above that loop too. For a
+              single-plot document this is behaviourally IDENTICAL to before:
+              `worstVerdict` reduces to `result.verdict` when there is only one
+              row. */}
+          {result?.ok && result.verdict?.mode === 'preview-repaints' && (
+            <label className={styles.ack}>
+              <input
+                type="checkbox"
+                checked={plot0.acknowledged === true}
+                onChange={(e) => patchPlot(0, { acknowledged: e.target.checked })}
+                data-testid="repaint-ack"
+              />
+              <span>
+                I understand this value is not final until {result.verdict.forward} more bar(s) close.
+              </span>
+            </label>
+          )}
+
+          {result?.error && (
+            <div className={styles.diagRow}>
+              <button type="button" className="btn btn-ghost" onClick={copyDiagnostic}>
+                <UIcon name="copy" size={14} />{copied ? 'Copied' : 'Copy diagnostic'}
+              </button>
+            </div>
+          )}
+          <PreviewPane sym={sym} tf={tf} settings={settings} definition={previewDefinition} />
+                </div>
+
+                {buildMode === 'sources' && editing && (
+                  <div className={styles.panel} data-panel="Source">
+                    <h3 className={styles.groupLabel}>Replace the formula from</h3>
+                    {startGrid}
+                  </div>
+                )}
+
+                {buildMode === 'library' && (
+                  <div className={styles.panel} data-panel="Setup">
             <StarterLibrary
               activeSource={source}
               onPick={(entry) => {
@@ -2726,12 +3089,14 @@ export default function BuilderSheet({
                 setReplacedAt((n) => n + 1)
               }}
             />
-          )}
+                  </div>
+                )}
 
-          {buildMode === 'pine' && scriptUpgradeNote && (
-            <p className={styles.pickerNote} role="status" data-testid="script-upgrade-note">{scriptUpgradeNote}</p>
-          )}
-          {buildMode === 'pine' && (
+                {buildMode === 'pine' && scriptUpgradeNote && (
+                  <p className={styles.pickerNote} role="status" data-testid="script-upgrade-note">{scriptUpgradeNote}</p>
+                )}
+                {buildMode === 'pine' && (
+                  <div className={styles.panel} data-panel="Script">
             <ImportBox
               // ⭐ UIE PHASE 5 (M1) — a script opened for edit seeds a FRESH box (its
               // source is an initial value, read on mount)
@@ -3181,6 +3546,7 @@ export default function BuilderSheet({
                 // where the backend observes the full request/response cycle.
                 const importId = newImportId()
                 importTelemetryRef.current = { importId, dialect }
+                setScriptDialect(dialect)
                 // ⭐ PHASE 4 — the Apply door's provenance for the saved document.
                 applyProvenanceRef.current = applyProvenanceFor(dialect, pineText)
                 pineDoorStampRef.current = pineDoorStampFor(dialect, pineText)
@@ -3192,9 +3558,11 @@ export default function BuilderSheet({
                 logIndicatorTelemetry('compile_finished', { importId, dialect, props: { success: true } })
               }}
             />
-          )}
+                  </div>
+                )}
 
-          {buildMode === 'image' && (
+                {buildMode === 'image' && (
+                  <div className={styles.panel} data-panel="Picture">
             <ImageBox
               bars={bars}
               disabled={saving}
@@ -3218,19 +3586,28 @@ export default function BuilderSheet({
                 if (editing) setScriptReplaced(true)
               }}
             />
-          )}
+                  </div>
+                )}
 
-          {buildMode === 'picker' && (
-            <CriteriaPicker
-              ast={result?.ast || null}
-              onSourceChange={setSource}
-              onUnrepresentable={(refusal) => setPickerNote(refusal.reason)}
-            />
-          )}
-
-          {buildMode === 'picker' && pickerNote && (
-            <p className={styles.pickerNote} role="status" data-testid="picker-note">{pickerNote}</p>
-          )}
+                {buildMode === 'picker' && (
+                  <div className={styles.panel} data-panel="Conditions">
+                    {/* ⭐ AND THE KIND IS THE MODE THE MEMBER IS IN (Phase E, E-5): here
+                        they are building a SCREEN, so the request says so and the
+                        server's condition stage can refuse a tree that produces a number. */}
+                    <ConciergeBox bars={bars} kind="scan" disabled={saving} replacedAt={replacedAt}
+                      onAccept={(proposal) => acceptProposal(proposal, { toFormula: false })} />
+                    {/* ⛔ THE PICKER IS DERIVED FROM THE TREE, NOT STORED. It reads
+                        `result.ast`; a formula it cannot show is REPORTED. */}
+                    <CriteriaPicker
+                      ast={result?.ast || null}
+                      onSourceChange={setSource}
+                      onUnrepresentable={(refusal) => setPickerNote(refusal.reason)}
+                    />
+                    {pickerNote && (
+                      <p className={styles.pickerNote} role="status" data-testid="picker-note">{pickerNote}</p>
+                    )}
+                  </div>
+                )}
 
           {buildMode === 'evidence' && editing && (
             <EvidenceBody editing={editing} rows={rows} source={source} plotRows={plotRows} />
@@ -3244,18 +3621,9 @@ export default function BuilderSheet({
             />
           )}
 
-          <FormulaField
-            value={source}
-            onChange={setSource}
-            onEvaluated={handleEvaluated}
-            onPendingChange={setPending}
-            result={result}
-            autoFocus
-            inputs={inputScope}
-          />
-          {/* W1a hand-back: the draft, drawn by the engine, on the chart this sheet was opened over. */}
-          <PreviewPane sym={sym} tf={tf} settings={settings} definition={previewDefinition} />
 
+                {/* The member's own Pine, drawn whole — beside the script and the formula. */}
+                <div hidden={buildMode !== 'pine' && buildMode !== 'formula'}>
           {/* ⭐⭐ T5 — THE MEMBER'S OWN PINE, ON A PANE, BEHIND A FLAG.
               The importer `MemberPane.jsx` was written for, and the reason its
               flag-off rail stops being vacuous: with no consumer, "renders
@@ -3288,7 +3656,10 @@ export default function BuilderSheet({
               onAttachCopy: attachPineCopy, copyLabel: 'Save as a new indicator',
             } : {})}
           />
+                </div>
 
+                <div className={styles.panel} data-panel="Inputs" hidden={buildMode !== 'inputs'}
+                  data-testid="panel-inputs">
           {/* ⭐⭐ TRACK F (DEC-006) — a Pine import's own adjustable parameters.
               `applyParamEdit` operates on `compute.ast`/`compute.paramManifest`
               directly (never on Pine, never on a second parser — see
@@ -3319,7 +3690,18 @@ export default function BuilderSheet({
               }}
             />
           )}
-
+          {/* ⭐ THE FORMULAS' OWN NUMBERS (2026-11-17): every length, level and multiple, editable. */}
+          {converseNumbers ? (
+            <div data-testid="converse-settings">
+              <SettingsFields settings={converseNumbers} label="Numbers in this indicator"
+                onSet={(setting, value) => (converseCommitRef.current && typeof converseCommitRef.current.setNumber === 'function'
+                  ? converseCommitRef.current.setNumber(setting, value) : { ok: false })} />
+            </div>
+          ) : (
+            <div data-testid="form-settings" hidden={formSettings.length === 0}>
+              <SettingsFields settings={formSettings} onSet={setFormSetting} label="Numbers in this indicator" />
+            </div>
+          )}
           {/* ── THE MEMBER'S OWN INPUTS ──────────────────────────────────────
               ⭐ WHAT MAKES AN AUTHORED INDICATOR TUNABLE RATHER THAN FROZEN.
               Without these the period lives in the formula as a literal, so a
@@ -3380,7 +3762,10 @@ export default function BuilderSheet({
               + Add an input
             </button>
           </section>
+                </div>
 
+                <div className={styles.panel} data-panel="Plots" hidden={buildMode !== 'plots'}
+                  data-testid="panel-plots">
           {/* ── THE PLOTS (W1b.5) ────────────────────────────────────────────
               ⭐ WHERE A MULTI-PLOT INDICATOR IS ACTUALLY AUTHORED, and until now
               a member could only ever write ONE line: `buildDefinition` hard-coded
@@ -3445,16 +3830,13 @@ export default function BuilderSheet({
                       aria-label={`Plot ${n} label`}
                       onChange={(e) => patchPlot(i, { label: e.target.value })}
                     />
-                    <select
-                      className={styles.plotStyle}
+                    {/* ⭐ UCT Signature — the one "pick one" control (ChoiceMenu), never a native <select>. */}
+                    <ChoiceMenu
                       value={row.style}
-                      aria-label={`Plot ${n} style`}
-                      onChange={(e) => patchPlot(i, { style: e.target.value })}
-                    >
-                      {PLOT_STYLE_CHOICES.map(([value, text]) => (
-                        <option key={value} value={value}>{text}</option>
-                      ))}
-                    </select>
+                      options={PLOT_STYLE_OPTIONS}
+                      ariaLabel={`Plot ${n} style`}
+                      onChange={(v) => patchPlot(i, { style: v })}
+                    />
                     {/* ⛔ A PLAIN SWATCH, NOT `ColorPicker`. That component opens a
                         portal popup and belongs to the settings dialog; a second
                         portal inside this sheet is where focus traps and outside-
@@ -3463,7 +3845,7 @@ export default function BuilderSheet({
                       className={styles.plotColor}
                       type="color"
                       value={row.color}
-                      aria-label={`Plot ${n} colour`}
+                      aria-label={`Plot ${n} color`}
                       onChange={(e) => patchPlot(i, { color: e.target.value })}
                     />
                     <input
@@ -3564,18 +3946,14 @@ export default function BuilderSheet({
               {/* ⛔ THE VALUE IS `price`; "Overlay on price" IS THE LABEL. Three
                   consumers read `PLACEMENT_TARGETS` and a fourth spelling of
                   "the candles' scale" would need every one of them to learn it. */}
-              <label className={styles.label} htmlFor="uct-placement">Placement</label>
-              <select
-                id="uct-placement"
-                className={styles.plotStyle}
+              <span className={styles.label} aria-hidden="true">Placement</span>
+              <ChoiceMenu
                 value={target}
-                aria-label="Placement"
-                data-guide="builder.placement"
-                onChange={(e) => setTarget(e.target.value)}
-              >
-                <option value="pane">Own pane</option>
-                <option value="price">Overlay on price</option>
-              </select>
+                options={PLACEMENT_OPTIONS}
+                ariaLabel="Placement"
+                guide="builder.placement"
+                onChange={(v) => setTarget(v)}
+              />
               {/* ⛔ ONE `hlines` PLOT, NOT ONE PER NUMBER. `pool.guidePlots` attaches
                   a definition's hlines levels to the FIRST data plot's series as
                   price lines, so a second guide plot would be a second attachment
@@ -3599,7 +3977,6 @@ export default function BuilderSheet({
               )}
             </div>
           </section>
-
           {/* ── ⭐⭐ P1 — WHAT IS IT FOR? (authoring intent) ───────────────────
               Intent picks the wording, the default presentation and the
               consumer asked for after Save. ⛔ It never sets a type: each output
@@ -3623,17 +4000,12 @@ export default function BuilderSheet({
               ))}
             </div>
             {intentRead && intent !== INTENTS.PLOT && intentRead.outputs.length > 1 && (
-              <select
-                className={styles.plotStyle}
+              <ChoiceMenu
                 value={intentRead.selectedKey || ''}
-                aria-label={intent === INTENTS.SIGNAL ? 'Signal output' : 'Value output'}
-                data-testid="intent-output"
-                onChange={(e) => setIntentKey(e.target.value)}
-              >
-                {intentRead.outputs.map((o) => (
-                  <option key={o.key} value={o.key}>{o.label}</option>
-                ))}
-              </select>
+                options={intentRead.outputs.map((o) => ({ value: o.key, label: o.label }))}
+                ariaLabel={intent === INTENTS.SIGNAL ? 'Signal output' : 'Value output'}
+                onChange={(v) => setIntentKey(v)}
+              />
             )}
             {intentRead && (
               <ul className={styles.measured} data-testid="typed-readback">
@@ -3680,24 +4052,18 @@ export default function BuilderSheet({
                 </label>
                 {signalLook.marker && (
                   <>
-                    <select
-                      className={styles.plotStyle}
-                      aria-label="Marker shape"
-                      data-testid="signal-marker-shape"
+                    <ChoiceMenu
+                      ariaLabel="Marker shape"
                       value={signalLook.marker.shape}
-                      onChange={(e) => setSignalLook((l) => ({ ...l, marker: { ...l.marker, shape: e.target.value } }))}
-                    >
-                      {MARKER_SHAPES.map((s) => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <select
-                      className={styles.plotStyle}
-                      aria-label="Marker position"
-                      data-testid="signal-marker-position"
+                      options={MARKER_SHAPE_OPTIONS}
+                      onChange={(v) => setSignalLook((l) => ({ ...l, marker: { ...l.marker, shape: v } }))}
+                    />
+                    <ChoiceMenu
+                      ariaLabel="Marker position"
                       value={signalLook.marker.position || 'aboveBar'}
-                      onChange={(e) => setSignalLook((l) => ({ ...l, marker: { ...l.marker, position: e.target.value } }))}
-                    >
-                      {MARKER_POSITIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-                    </select>
+                      options={MARKER_POSITION_OPTIONS}
+                      onChange={(v) => setSignalLook((l) => ({ ...l, marker: { ...l.marker, position: v } }))}
+                    />
                   </>
                 )}
                 <label className={styles.plotToggle}>
@@ -3707,10 +4073,10 @@ export default function BuilderSheet({
                     data-testid="signal-barcolor"
                     onChange={(e) => setSignalLook((l) => ({ ...l, barcolor: e.target.checked ? SIGNAL_PAINT_DEFAULTS.barcolor : null }))}
                   />
-                  <span>Colour the candles</span>
+                  <span>Color the candles</span>
                 </label>
                 {signalLook.barcolor && (
-                  <input className={styles.plotColor} type="color" aria-label="Candle colour" value={signalLook.barcolor}
+                  <input className={styles.plotColor} type="color" aria-label="Candle color" value={signalLook.barcolor}
                     onChange={(e) => setSignalLook((l) => ({ ...l, barcolor: e.target.value }))} />
                 )}
                 <label className={styles.plotToggle}>
@@ -3723,7 +4089,7 @@ export default function BuilderSheet({
                   <span>Shade the background</span>
                 </label>
                 {signalLook.bgcolor && (
-                  <input className={styles.plotColor} type="color" aria-label="Background colour" value={signalLook.bgcolor}
+                  <input className={styles.plotColor} type="color" aria-label="Background color" value={signalLook.bgcolor}
                     onChange={(e) => setSignalLook((l) => ({ ...l, bgcolor: e.target.value }))} />
                 )}
                 <p className={styles.measured} data-testid="signal-look-note">
@@ -3741,96 +4107,9 @@ export default function BuilderSheet({
               <p className={styles.measured} role="status" data-testid="value-note">{valueNote}</p>
             )}
           </section>
-
-          {/* ── THE READ-BACK ────────────────────────────────────────────────
-              ⛔ `{result.readback}` AND NOTHING ELSE. See the header. */}
-          {result?.ok && (
-            <section className={styles.readbackWrap} aria-labelledby="uct-readback-head">
-              <h3 className={styles.sectionHead} id="uct-readback-head">This is what will be computed</h3>
-              <p className={styles.readback} data-testid="readback">{result.readback}</p>
-              <p className={styles.measured}>
-                {result.measured
-                  ? `${result.measured.maxNodes} nodes · ${result.measured.maxLookback}-bar lookback · `
-                    + `${result.measured.maxSeriesRefs} series`
-                  : null}
-              </p>
-            </section>
-          )}
-
-          {/* ── THE BADGE ────────────────────────────────────────────────────
-              Shown only for an ADMISSIBLE formula: a repaint verdict printed
-              beside "unknown function `foo`" describes a formula that does not
-              exist, and would read as the reason it was refused.
-              ⛔⛔ `worstVerdict.reasons`, NOT `result.verdict.reasons` (FIX ROUND
-              1, IMPORTANT #3). `mode` above is already `worstVerdict.mode` — the
-              worst across every row — but this text used to read PLOT 1's OWN
-              reasons unconditionally. The moment a LATER row is the one carrying
-              the worst verdict, that put a warning-coloured badge beside plot 1's
-              `non-repainting` explanation: a caption stating something false
-              beside a correctly-coloured badge. Measured live via
-              `ichimokuChikou`, not hypothetical — see the report. */}
-          {result?.ok && badge && (
-            <p
-              className={`${styles.badge} ${mode === 'non-repainting' ? styles.badgeClean : styles.badgeWarn}`}
-              data-testid="repaint-badge"
-              data-mode={mode}
-            >
-              <UIcon name={mode === 'non-repainting' ? 'check' : 'warning'} size={14} />
-              {badge}
-              <span className={styles.badgeWhy}>{(worstVerdict?.reasons || []).join('; ')}</span>
-            </p>
-          )}
-
-          {/* ── PLOT 1's OWN ACKNOWLEDGEMENT ─────────────────────────────────
-              ⛔⛔ GATED AND WORDED ON PLOT 1's OWN VERDICT, NOT THE SHEET-WIDE
-              WORST (FIX ROUND 1, IMPORTANT #3). This used to key off `mode` (the
-              worst row across the WHOLE sheet) and write to one flag every row's
-              `canSaveFormula` call read — so ticking a box captioned with
-              WHICHEVER row's claim `worstVerdict` happened to surface also
-              silently cleared every OTHER row's own, possibly-different,
-              `preview-repaints` claim. `patchPlot(0, …)` is the same setter every
-              other row's checkbox uses below (`plot0` is a row like any other),
-              so plot 1 is not a special case any more — it is simply the row
-              whose checkbox lives beside the Save button instead of inside the
-              row loop, because its formula box is above that loop too. For a
-              single-plot document this is behaviourally IDENTICAL to before:
-              `worstVerdict` reduces to `result.verdict` when there is only one
-              row. */}
-          {result?.ok && result.verdict?.mode === 'preview-repaints' && (
-            <label className={styles.ack}>
-              <input
-                type="checkbox"
-                checked={plot0.acknowledged === true}
-                onChange={(e) => patchPlot(0, { acknowledged: e.target.checked })}
-                data-testid="repaint-ack"
-              />
-              <span>
-                I understand this value is not final until {result.verdict.forward} more bar(s) close.
-              </span>
-            </label>
-          )}
-
-          {result?.error && (
-            <div className={styles.diagRow}>
-              <button type="button" className="btn btn-ghost" onClick={copyDiagnostic}>
-                <UIcon name="copy" size={14} />{copied ? 'Copied' : 'Copy diagnostic'}
-              </button>
-            </div>
-          )}
-
-          <div className={styles.fieldWrap}>
-            <label className={styles.label} htmlFor="uct-formula-name">Name</label>
-            <input
-              id="uct-formula-name"
-              data-guide="builder.name"
-              className={styles.nameField}
-              type="text"
-              maxLength={48}
-              placeholder="20-bar average"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
+                </div>
+              </>
+            )}
 
           {/* ⛔ THE STORE'S REFUSAL USED TO RENDER HERE, AND HERE IS THE
               SCROLLING BODY. On a pasted script it sat below the whole listing —
@@ -3866,13 +4145,11 @@ export default function BuilderSheet({
               )}
             </p>
           )}
+          </div>
 
-        {/* ⭐⭐ ONE STICKY FOOTER, NOT THREE STACKED THINGS.
-            ⚰️ Making `.actions` sticky on its own (2026-08-11) pinned the buttons
-            and left the two lines that EXPLAIN them scrolling underneath: driving
-            the real dialog showed Cancel/Save sitting on top of "Discard this
-            formula?", with its Keep-editing/Discard buttons peeking out below and
-            unreachable. A sticky element must carry whatever it is answering. */}
+        {/* ⭐⭐ ONE FOOTER, NOT THREE STACKED THINGS — the buttons AND the lines
+            that explain them (the save hint, the refusal, the discard confirm).
+            A pinned element must carry whatever it is answering. */}
         <div className={styles.footer}>
           {/* ⭐⭐ THE REFUSAL TRAVELS WITH THE BUTTON. A sentence that explains a
               control has to be reachable from that control, and in the scrolling
@@ -3886,9 +4163,6 @@ export default function BuilderSheet({
               sharing one bar make neither obviously about anything. */}
           {storeError && (
             <p className={styles.storeError} role="alert" data-testid="store-error">{storeError}</p>
-          )}
-          {saveHint && (
-            <p className={styles.saveHint} data-testid="save-hint">{saveHint}</p>
           )}
           {/* ⭐⭐ P2X (owner decision 3) — THE LOSSY-SAVE CONFIRMATION. Shown only
               when this edit cannot carry the stored drawings; nothing has been
@@ -3944,77 +4218,35 @@ export default function BuilderSheet({
           )}
 
           <div className={styles.actions}>
+            {saveHint && isEditor
+              ? <p className={styles.saveHint} data-testid="save-hint">{saveHint}</p>
+              : <span className={styles.footHint}>{footHint}</span>}
             {editing && (
               <button
                 type="button"
-                className="btn btn-ghost"
+                className={styles.ghostBtn}
                 onClick={cancelEdit}
               >New formula</button>
             )}
             {/* Cancel goes through the SAME door as Escape and the × — one place
                 decides whether unsaved work needs a prompt. */}
-            <button type="button" className="btn btn-ghost" data-guide="builder.cancel" onClick={requestClose}>Cancel</button>
+            <button type="button" className={styles.ghostBtn} data-guide="builder.cancel" onClick={requestClose}>Cancel</button>
             {/* ⛔ UIE PHASE 5 (M1) — while a stored SCRIPT is open for edit, the formula
                 save is not offered: it would PUT the formula draft over the script. The
-                script's own save is the member pane's ("Save changes"). */}
-            {!(editing && editing.runtime) && <button
+                script's own save is the member pane's ("Save changes").
+                ⭐ DIRECTION A — the primary is a soft-bright button, never gold. */}
+            {isEditor && !(editing && editing.runtime) && <button
               type="button"
-              className="btn btn-primary"
+              className={styles.saveBtn}
               data-testid="sheet-save"
               data-guide="builder.save"
-              onClick={converseActive ? () => converseCommitRef.current?.save() : save}
+              onClick={converseActive ? () => converseCommitRef.current?.save(name) : save}
               disabled={converseActive ? !converseCommit.canSave : !canSave}
             >{converseActive
                 ? (converseCommit.saving ? 'Saving…' : converseCommit.label)
-                : (saving ? 'Saving…' : (editing ? 'Save changes' : 'Save'))}</button>}
+                : (saving ? 'Saving…' : (editing ? 'Save' : (addsToChart ? 'Save and add' : 'Save')))}</button>}
           </div>
         </div>
-
-          {rows.length > 0 && (
-            <section className={styles.listWrap} aria-labelledby="uct-saved-head">
-              <h3 className={styles.sectionHead} id="uct-saved-head">Your indicators</h3>
-              <ul className={styles.list}>
-                {rows.map((row) => (
-                  <li key={row.def_id} className={styles.listRow}>
-                    <span className={styles.listName}>{row.definition?.meta?.name || row.def_id}</span>
-                    {/* ⭐ P1 HARDENING — a runtime document's source is a whole script, not a formula line */}
-                    <span className={styles.listSource}>{row.definition?.compute?.kind === 'runtime'
-                      ? 'Script drawn bar by bar' : row.definition?.compute?.source}</span>
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      aria-label={`Edit ${row.definition?.meta?.name || row.def_id}`}
-                      data-guide="builder.edit"
-                      onClick={() => openForEdit(row)}
-                    ><UIcon name="edit" size={14} /></button>
-                    {pendingDelete === row.def_id ? (
-                      <>
-                        <span className={styles.deleteAsk}>Delete?</span>
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          onClick={() => setPendingDelete(null)}
-                        >Keep</button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          aria-label={`Confirm delete ${row.definition?.meta?.name || row.def_id}`}
-                          onClick={() => remove(row.def_id)}
-                        >Delete</button>
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn btn-ghost"
-                        aria-label={`Delete ${row.definition?.meta?.name || row.def_id}`}
-                        onClick={() => setPendingDelete(row.def_id)}
-                      ><UIcon name="trash" size={14} /></button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
         </BuilderBoundary>
       </div>
     </Sheet>

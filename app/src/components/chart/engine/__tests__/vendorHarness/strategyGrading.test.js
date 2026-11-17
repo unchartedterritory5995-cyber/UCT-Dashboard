@@ -224,6 +224,24 @@ const STRATEGY_CAPTURE_ROWS = Object.freeze({
   'w9-g1-v3-properties-rddt-1d-2026-11-15': 'W9-G1',
   // s27, method (b) on AMEX:SPY 15
   'w9-r1-risk-intraday-range-spy-15-2026-11-15': 'W9-R1i',
+  // capture night 2026-11-16, closed bar, method (a) with the Strategy Tester report: the S1 shapes and
+  // W9-D1 / W9-V-D11 / W9-MK1 re-taken under their own ids (-rpt: the morning captures, forming bar and
+  // no report, are committed and evidence is appended, never replaced), W9-MK1 (run ac5), Q-S1i (ac8)
+  'vw-s1-q-s1d-close-reverse-rpt-rddt-1d-2026-11-16': 'Q-S1d',
+  'vw-s1-q-s1d-two-entries-rpt-rddt-1d-2026-11-16': 'Q-S1d',
+  'vw-s1-q-s1d-two-stops-rpt-rddt-1d-2026-11-16': 'Q-S1d',
+  'vw-s1-q-s1e-stop-past-rpt-rddt-1d-2026-11-16': 'Q-S1e',
+  'vw-s1-q-s1g-blocked-stop-entry-rpt-rddt-1d-2026-11-16': 'Q-S1g',
+  'vw-s1-q-s1h-fifo-exit-rpt-rddt-1d-2026-11-16': 'Q-S1h',
+  'vw-s1-q-s1j-stop-limit-rpt-rddt-1d-2026-11-16': 'Q-S1j',
+  'vw-s1-q-s1k-fractional-profit-rpt-rddt-1d-2026-11-16': 'Q-S1k',
+  'vw-s1-q-s1k-na-modify-rpt-rddt-1d-2026-11-16': 'Q-S1k',
+  'vw-s1-q-s1k-profit-and-limit-rpt-rddt-1d-2026-11-16': 'Q-S1k',
+  'w9-d1-margin50-rpt-rddt-1d-2026-11-16': 'W9-D1',
+  'w9-d11-late-first-use-rpt-rddt-1d-2026-11-16': 'W9-V-D11',
+  'w9-mk1-markers-rddt-1d-2026-11-16': 'W9-MK1',
+  'w9-mk1-markers-rpt-rddt-1d-2026-11-16': 'W9-MK1',
+  'w9-q-s1i-short-v6-rddt-1d-2026-11-16': 'Q-S1i',
 })
 
 function committedReportCaptures() {
@@ -587,19 +605,23 @@ describe('ruling D11: a DIVERGE records its first difference and its culprit set
   })
 })
 
-describe('ruling D12: the two Pine v4 captures are EXPECTED refusals about a setting (the v4 margin default)', () => {
+// ⚰️ Until ruling D12b (2026-11-17) both v4 captures were EXPECTED refusals about the setting. D12b: the capture wins
+// where it witnesses the RUN, for exactly its declaration shape; the two now run at the read-back margin 0 and MATCH.
+describe('ruling D12b: the two Pine v4 captures run at the margin TradingView read back (0), for their exact declaration shape', () => {
   it.each(['w9-q-s1a-size-v4-rddt-1d-2026-11-15', 'w9-q-s1b-defaults-v4-rddt-1d-2026-11-15'])('%s', (id) => {
     const capture = JSON.parse(fs.readFileSync(path.join(HARNESS_DIR, `${id}.json`), 'utf8'))
-    // TradingView read both margins back as 0, and the source states neither
+    // TradingView read both margins back as 0, and the source states neither: its strategy() is a title and overlay
     const props = Object.fromEntries(capture.provenance.strategySettings.properties.map((p) => [p.name, p.value]))
     expect([props['Margin Long'], props['Margin Short']]).toEqual([0, 0])
     expect(capture.source.text).not.toMatch(/margin_(long|short)/)
+    expect(capture.source.text).toMatch(/^strategy\(title="[^"]*", overlay=false\)$/m)
     const run = runOurBroker(capture)
-    expect(run.ok).toBe(false)
-    expect(run.refusal).toMatchObject({ guard: 'runtime:strategy-unsettled', expected: true })
-    expect(run.refusal.message).toMatch(/Pine v4 strategy states no `margin_long` \/ `margin_short`/)
+    expect(run.ok, run.refusal && run.refusal.message).toBe(true)
+    expect(run.record.settings).toMatchObject({ margin_long: 0, margin_short: 0 })
     const g = gradeStrategyCapture(capture, { slotMap: SLOT_MAP })
-    expect(g).toMatchObject({ verdict: 'EXPECTED-REFUSAL', step: 1, rulesExercised: [] })
+    // step 7 is the last step these captures hold: neither draws a label, so there is no text for step 8 to grade
+    expect(g).toMatchObject({ verdict: 'MATCH', step: 7, graded: { trades: true, fills: true, texts: 0 } })
+    expect(g.rulesExercised).toContain('B-V4-MARGIN0')
   })
   it('⛔ any other broker refusal against a TradingView value is still a DIVERGE (only a SETTING is expected)', () => {
     expect(S25.verdict === 'DIVERGE' ? S25.rule : 'runtime:strategy-unsettled').toBe('runtime:strategy-unsettled')

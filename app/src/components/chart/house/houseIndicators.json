@@ -323,7 +323,7 @@
   {
    "slug": "relative_strength_vs_spy",
    "name": "Relative Strength vs SPY",
-   "summary": "The relative strength line against SPY with its 21-bar average, and a dot at each new 52-week high of the line.",
+   "summary": "The relative strength line against SPY (close divided by the close of SPY) with its 21-bar average.",
    "definition": {
     "schemaVersion": 1,
     "id": "house_relative_strength_vs_spy",
@@ -403,70 +403,13 @@
          "value": 21
         }
        ]
-      },
-      "newHigh": {
-       "type": "op",
-       "name": ">=",
-       "args": [
-        {
-         "type": "op",
-         "name": "/",
-         "args": [
-          {
-           "type": "series",
-           "name": "close"
-          },
-          {
-           "type": "sym",
-           "value": "SPY",
-           "args": [
-            {
-             "type": "series",
-             "name": "close"
-            }
-           ]
-          }
-         ]
-        },
-        {
-         "type": "call",
-         "name": "highest",
-         "args": [
-          {
-           "type": "op",
-           "name": "/",
-           "args": [
-            {
-             "type": "series",
-             "name": "close"
-            },
-            {
-             "type": "sym",
-             "value": "SPY",
-             "args": [
-              {
-               "type": "series",
-               "name": "close"
-              }
-             ]
-            }
-           ]
-          },
-          {
-           "type": "num",
-           "value": 252
-          }
-         ]
-        }
-       ]
       }
      },
-     "treesHash": "sha256:f2a284b950a6f407af0dcb0c0b4044d6192ace1eb5db5c2b4c94fc61354188cb",
+     "treesHash": "sha256:9c7498b236dd26326b9ddf031b0f7550d31e08fc4cdfa4a7264627fc9e58d60d",
      "scanPlot": "rs",
      "sources": {
       "rs": "close / sym('SPY', close)",
-      "rsEma": "ema(close / sym('SPY', close), 21)",
-      "newHigh": "close / sym('SPY', close) >= highest(close / sym('SPY', close), 252)"
+      "rsEma": "ema(close / sym('SPY', close), 21)"
      }
     },
     "meta": {
@@ -517,21 +460,6 @@
       "min": 1,
       "max": 10,
       "step": 1
-     },
-     {
-      "key": "newHighColor",
-      "type": "color",
-      "label": "Close divided by SPY Close at or above HIGHEST 252 (Close d… colour",
-      "default": "#2962FF"
-     },
-     {
-      "key": "newHighWidth",
-      "type": "int",
-      "label": "Close divided by SPY Close at or above HIGHEST 252 (Close d… width",
-      "default": 1,
-      "min": 1,
-      "max": 10,
-      "step": 1
      }
     ],
     "plots": [
@@ -555,21 +483,6 @@
       "role": "secondary",
       "legend": {
        "decimals": 2
-      }
-     },
-     {
-      "key": "newHigh",
-      "label": "Close divided by SPY Close at or above HIGHEST 252 (Close d…",
-      "style": "markers",
-      "color": "$newHighColor",
-      "width": "$newHighWidth",
-      "role": "secondary",
-      "legend": {
-       "decimals": 2
-      },
-      "marker": {
-       "shape": "circle",
-       "position": "inBar"
       }
      }
     ]
@@ -2023,16 +1936,16 @@
    }
   },
   {
-   "slug": "gap_up_volume_marker",
-   "name": "Gap Up Volume Marker",
-   "summary": "Marks a gap up of 4% or more on above-average volume, and keeps a line at that day's low for 20 bars.",
+   "slug": "gap_up_on_volume",
+   "name": "Gap Up on Volume",
+   "summary": "Marks a gap up of 4% or more on above-average volume with an arrow under the bar.",
    "definition": {
     "schemaVersion": 1,
-    "id": "house_gap_up_volume_marker",
+    "id": "house_gap_up_on_volume",
     "version": 1,
     "compute": {
      "kind": "ast",
-     "fn": "sha256:70033bc1e66f1ea48d48db44fb35b18a35b658768edb2bdbbbd5f3b06a61c64d",
+     "fn": "sha256:dda9d9890ea8d828968941abf0ee89a766a1768b0e603aa08cc4e007fd157770",
      "rev": 1,
      "ast": {
       "type": "op",
@@ -2044,15 +1957,31 @@
         "args": [
          {
           "type": "op",
-          "name": "/",
+          "name": "*",
           "args": [
            {
             "type": "op",
-            "name": "-",
+            "name": "/",
             "args": [
              {
-              "type": "series",
-              "name": "open"
+              "type": "op",
+              "name": "-",
+              "args": [
+               {
+                "type": "series",
+                "name": "open"
+               },
+               {
+                "type": "offset",
+                "value": 1,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               }
+              ]
              },
              {
               "type": "offset",
@@ -2067,20 +1996,14 @@
             ]
            },
            {
-            "type": "offset",
-            "value": 1,
-            "args": [
-             {
-              "type": "series",
-              "name": "close"
-             }
-            ]
+            "type": "num",
+            "value": 100
            }
           ]
          },
          {
           "type": "num",
-          "value": 0.04
+          "value": 4
          }
         ]
        },
@@ -2110,187 +2033,13 @@
        }
       ]
      },
-     "source": "(open - close[1]) / close[1] >= 0.04 && volume > sma(volume, 50)",
-     "trees": {
-      "gapUp": {
-       "type": "op",
-       "name": "&&",
-       "args": [
-        {
-         "type": "op",
-         "name": ">=",
-         "args": [
-          {
-           "type": "op",
-           "name": "/",
-           "args": [
-            {
-             "type": "op",
-             "name": "-",
-             "args": [
-              {
-               "type": "series",
-               "name": "open"
-              },
-              {
-               "type": "offset",
-               "value": 1,
-               "args": [
-                {
-                 "type": "series",
-                 "name": "close"
-                }
-               ]
-              }
-             ]
-            },
-            {
-             "type": "offset",
-             "value": 1,
-             "args": [
-              {
-               "type": "series",
-               "name": "close"
-              }
-             ]
-            }
-           ]
-          },
-          {
-           "type": "num",
-           "value": 0.04
-          }
-         ]
-        },
-        {
-         "type": "op",
-         "name": ">",
-         "args": [
-          {
-           "type": "series",
-           "name": "volume"
-          },
-          {
-           "type": "call",
-           "name": "sma",
-           "args": [
-            {
-             "type": "series",
-             "name": "volume"
-            },
-            {
-             "type": "num",
-             "value": 50
-            }
-           ]
-          }
-         ]
-        }
-       ]
-      },
-      "gapLow": {
-       "type": "call",
-       "name": "valuewhen",
-       "args": [
-        {
-         "type": "op",
-         "name": "&&",
-         "args": [
-          {
-           "type": "op",
-           "name": ">=",
-           "args": [
-            {
-             "type": "op",
-             "name": "/",
-             "args": [
-              {
-               "type": "op",
-               "name": "-",
-               "args": [
-                {
-                 "type": "series",
-                 "name": "open"
-                },
-                {
-                 "type": "offset",
-                 "value": 1,
-                 "args": [
-                  {
-                   "type": "series",
-                   "name": "close"
-                  }
-                 ]
-                }
-               ]
-              },
-              {
-               "type": "offset",
-               "value": 1,
-               "args": [
-                {
-                 "type": "series",
-                 "name": "close"
-                }
-               ]
-              }
-             ]
-            },
-            {
-             "type": "num",
-             "value": 0.04
-            }
-           ]
-          },
-          {
-           "type": "op",
-           "name": ">",
-           "args": [
-            {
-             "type": "series",
-             "name": "volume"
-            },
-            {
-             "type": "call",
-             "name": "sma",
-             "args": [
-              {
-               "type": "series",
-               "name": "volume"
-              },
-              {
-               "type": "num",
-               "value": 50
-              }
-             ]
-            }
-           ]
-          }
-         ]
-        },
-        {
-         "type": "series",
-         "name": "low"
-        },
-        {
-         "type": "num",
-         "value": 20
-        }
-       ]
-      }
-     },
-     "treesHash": "sha256:97a4d1f13a8de705e90bb99abbc75d7be76edf80ecb783a10f70011daa271510",
-     "scanPlot": "gapUp",
-     "sources": {
-      "gapUp": "(open - close[1]) / close[1] >= 0.04 && volume > sma(volume, 50)",
-      "gapLow": "valuewhen((open - close[1]) / close[1] >= 0.04 && volume > sma(volume, 50), low, 20)"
-     }
+     "source": "(open - close[1]) / close[1] * 100 >= 4 && volume > sma(volume, 50)"
     },
     "meta": {
-     "name": "Gap Up Volume Marker",
-     "shortName": "Gap Up",
+     "name": "Gap Up on Volume",
+     "shortName": "Gap Up on",
      "category": "Custom",
-     "description": "(1 when ((open minus (close 1 bar ago)) divided by (close 1 bar ago)) is greater than or equal to 0.04 and 0 otherwise) and (1 when volume is greater than (the 50-bar average of volume) and 0 otherwise)",
+     "description": "(1 when (((open minus (close 1 bar ago)) divided by (close 1 bar ago)) times 100) is greater than or equal to 4 and 0 otherwise) and (1 when volume is greater than (the 50-bar average of volume) and 0 otherwise)",
      "tags": [
       "custom"
      ],
@@ -2316,27 +2065,12 @@
       "min": 1,
       "max": 10,
       "step": 1
-     },
-     {
-      "key": "gapLowColor",
-      "type": "color",
-      "label": "VALUEWHEN 20 ((Open minus previous Close) divided by previo… colour",
-      "default": "#2962FF"
-     },
-     {
-      "key": "gapLowWidth",
-      "type": "int",
-      "label": "VALUEWHEN 20 ((Open minus previous Close) divided by previo… width",
-      "default": 2,
-      "min": 1,
-      "max": 10,
-      "step": 1
      }
     ],
     "plots": [
      {
-      "key": "gapUp",
-      "label": "Gap Up",
+      "key": "gapUpVol",
+      "label": "Gap Up on",
       "style": "markers",
       "color": "$color",
       "width": "$lineWidth",
@@ -2346,21 +2080,8 @@
       },
       "marker": {
        "shape": "arrowUp",
-       "position": "belowBar",
-       "text": "GAP"
+       "position": "belowBar"
       }
-     },
-     {
-      "key": "gapLow",
-      "label": "VALUEWHEN 20 ((Open minus previous Close) divided by previo…",
-      "style": "stepline",
-      "color": "$gapLowColor",
-      "width": "$gapLowWidth",
-      "role": "secondary",
-      "legend": {
-       "decimals": 2
-      },
-      "lineStyle": "dashed"
      }
     ]
    }
@@ -4493,6 +4214,204 @@
       "width": 1,
       "lineStyle": "largeDashed",
       "role": "context"
+     }
+    ]
+   }
+  },
+  {
+   "slug": "follow_through_day",
+   "name": "Follow-Through Day",
+   "summary": "Marks a follow-through day: up 1.7% or more on higher volume, 4 to 12 bars after the 50-session low.",
+   "definition": {
+    "schemaVersion": 1,
+    "id": "house_follow_through_day",
+    "version": 1,
+    "compute": {
+     "kind": "ast",
+     "fn": "sha256:0d15ac7c0d35186076747e7d5d3171c125ea38451280090bfd17524f40cbb41e",
+     "rev": 1,
+     "ast": {
+      "type": "op",
+      "name": "&&",
+      "args": [
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": ">=",
+          "args": [
+           {
+            "type": "op",
+            "name": "/",
+            "args": [
+             {
+              "type": "op",
+              "name": "-",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "offset",
+                "value": 1,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "offset",
+              "value": 1,
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 0.017
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": ">",
+          "args": [
+           {
+            "type": "series",
+            "name": "volume"
+           },
+           {
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "series",
+              "name": "volume"
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": ">=",
+          "args": [
+           {
+            "type": "call",
+            "name": "lowestbars",
+            "args": [
+             {
+              "type": "series",
+              "name": "low"
+             },
+             {
+              "type": "num",
+              "value": 50
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 4
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "<=",
+          "args": [
+           {
+            "type": "call",
+            "name": "lowestbars",
+            "args": [
+             {
+              "type": "series",
+              "name": "low"
+             },
+             {
+              "type": "num",
+              "value": 50
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 12
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "source": "(close - close[1]) / close[1] >= 0.017 && volume > volume[1] && (lowestbars(low, 50) >= 4 && lowestbars(low, 50) <= 12)"
+    },
+    "meta": {
+     "name": "Follow-Through Day",
+     "shortName": "Follow-Throu",
+     "category": "Custom",
+     "description": "((1 when ((close minus (close 1 bar ago)) divided by (close 1 bar ago)) is greater than or equal to 0.017 and 0 otherwise) and (1 when volume is greater than (volume 1 bar ago) and 0 otherwise)) and ((1 when (the number of bars back to the bar holding the lowest low of the last 50 bars, the newest of a tie over a bar price and withheld on a tie over anything else) is greater than or equal to 4 and 0 otherwise) and (1 when (the number of bars back to the bar holding the lowest low of the last 50 bars, the newest of a tie over a bar price and withheld on a tie over anything else) is less than or equal to 12 and 0 otherwise))",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live"
+    },
+    "placement": {
+     "target": "price"
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#089981"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "ftd",
+      "label": "Follow-Throu",
+      "style": "markers",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+       "decimals": 2
+      },
+      "marker": {
+       "shape": "arrowUp",
+       "position": "belowBar",
+       "text": "FTD"
+      }
      }
     ]
    }

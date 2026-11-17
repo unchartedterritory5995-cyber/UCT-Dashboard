@@ -86,8 +86,9 @@ describe('the rules are named, each with its capture row; the ledger pins every 
     expect(BROKER_RULES[rule].capture).toBe(row)
     expect(pinned(rule)).toBe(!UNPINNED.has(rule))
   })
-  it('the exit ids the captures witness are the three kinds `witnessedExitIdOf` names, each behind its own rule', () => {
-    expect(Object.values(WITNESSED_EXIT_ID_RULES).sort()).toEqual(['B-TXT-CLOSE-ALL-ID', 'B-TXT-CLOSE-ID', 'B-TXT-ENTRY-CLOSE-ID'])
+  it('the exit ids the captures witness are the four kinds `witnessedExitIdOf` names, each behind its own rule', () => {
+    // + the margin call's (2026-11-17): `Close position order`, behind B-MARGIN-CALL, the rule of the event itself
+    expect(Object.values(WITNESSED_EXIT_ID_RULES).sort()).toEqual(['B-MARGIN-CALL', 'B-TXT-CLOSE-ALL-ID', 'B-TXT-CLOSE-ID', 'B-TXT-ENTRY-CLOSE-ID'])
     for (const rule of Object.values(WITNESSED_EXIT_ID_RULES)) expect(Object.keys(BROKER_RULES)).toContain(rule)
   })
 })
@@ -365,6 +366,7 @@ describe('the exit texts the captures witness: strategy.closedtrades.exit_id / e
     expect(witnessedExitIdOf(row())).toEqual({ text: 'Close entry(s) order L', rule: 'B-TXT-CLOSE-ID' })
     expect(witnessedExitIdOf(row({ kind: 'close_all', from: null }))).toEqual({ text: 'Close position order', rule: 'B-TXT-CLOSE-ALL-ID' })
     expect(witnessedExitIdOf(row({ kind: 'entry', id: 'S', from: null }))).toEqual({ text: 'S', rule: 'B-TXT-ENTRY-CLOSE-ID' })
+    expect(witnessedExitIdOf(row({ kind: 'margin_call', from: null, comment: 'Margin call' }))).toEqual({ text: 'Close position order', rule: 'B-MARGIN-CALL' })
     // not witnessed: an entry with a comment, or one whose comment the script computes
     expect(witnessedExitIdOf(row({ kind: 'entry', id: 'S', comment: 'flip' }))).toBe(null)
     expect(witnessedExitIdOf(row({ kind: 'entry', id: 'S', commentRecorded: false }))).toBe(null)
@@ -434,6 +436,21 @@ describe('ruling D12: a Pine v4 strategy that states no margin stops at bind, by
     const none = attempt(V4(''), { pins: () => false })
     expect(none.err.guard).toBe('runtime:strategy-unsettled')
     expect(none.err.setting).toBe(V4_MARGIN_DEFAULT_SETTING)
+  })
+
+  // ⭐⭐ RULING D12b (2026-11-17): EXACTLY the declaration shape both v4 captures have (a title and `overlay`, nothing
+  // else) runs at the margin TradingView read back for it, 0, behind B-V4-MARGIN0. Every other shape still stops.
+  it('D12b: `strategy("t", overlay = true)` (the witnessed shape, title by position) runs at margin 0 under B-V4-MARGIN0', () => {
+    const V4OV = (decl) => `//@version=4\nstrategy("t", overlay = true${decl})\nstrategy.entry("L", true, when = bar_index == 1)\nplot(strategy.position_size)\n`
+    const ok = served(V4OV(''))
+    expect(ok.cols[0][2]).toBe(1)
+    expect(ok.rec.rulesUsed).toContain('B-V4-MARGIN0')
+    const un = attempt(V4OV(''), { pins: (id) => id !== 'B-V4-MARGIN0' })
+    expect(un.err && un.err.rule).toBe('B-V4-MARGIN0')
+    // one more argument is another shape: D12's bind refusal, unchanged
+    for (const extra of [', shorttitle = "s"', ', pyramiding = 1', ', initial_capital = 100000']) {
+      expect(attempt(V4OV(extra)).err.setting, extra).toBe(V4_MARGIN_DEFAULT_SETTING)
+    }
   })
 
   it('ONE margin stated is still not both: it stops the same way', () => {

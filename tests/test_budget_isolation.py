@@ -408,7 +408,10 @@ def test_G2_every_ledger_writer_is_classified_as_audited():
     # vision writes its row as a RESERVATION before the model runs (cost_guard.reserve_member_call)
     vision = (ROOT / "api/services/indicator_from_image.py").read_text("utf-8")
     assert 'ticker = f"indicator-vision:{user_id}"' in vision
-    assert "reserve_member_call(market_date, ticker" in vision
+    # ⭐ 2026-11-17 -- whitespace-tolerant. The call was wrapped across two lines on 2026-11-05
+    # (`reserve_member_call(` / `market_date, ticker, ...`) and the one-line needle went red on a
+    # reformat while the reservation it guards was still there.
+    assert re.search(r"reserve_member_call\(\s*market_date,\s*ticker", vision)
     background = ("api/services/catalyst/synthesize.py", "api/services/catalyst/hunter.py",
                   "api/services/catalyst/curator.py", "api/services/catalyst/rule_learner.py",
                   "api/services/call_recap.py", "api/services/calendar_sector_read.py")

@@ -1,0 +1,34 @@
+//@version=6
+indicator("UCTPROBE_VW_WSA_V6_BOOL_UNMATCHED_TUPLE", overlay = false)
+
+// PROVENANCE: written 2026-11-16 for the Pine parity programme, capture queue row Q-A3 (tuple half;
+// docs/pine/capture-queue-2026-10-31-wsa-for-bound.md). NEVER COMPILED ON TRADINGVIEW.
+// The sibling probe `vw-wsa-v6-bool-unmatched.pine` asks the one-value form. This file asks the
+// TUPLE form the built-in "Volatility stop" uses: a user function whose body is an `if` with no
+// `else`, ending in a tuple of a float and a bool. On bars where the `if` does not run (A01 = 0):
+//   T01  na(p) ? 1 : 0          the float element of the unmatched tuple is `na`
+//   T02  q == false ? 1 : 0     the bool element of the unmatched tuple is `false` (a v6 bool is never `na`)
+// The same pair for a `switch` with no default arm:
+//   T03  na(r) ? 1 : 0
+//   T04  s == false ? 1 : 0
+// On matched bars (A01 = 1): p = r = close and q = s = close > open (A02), the controls.
+// CHART: NYSE:RDDT 1D from the listing, inputs at defaults (none), after the close.
+
+f(float x) =>
+    if x > 0
+        [close, close > open]
+
+g(float x) =>
+    switch
+        x > 0 => [close, close > open]
+
+[p, q] = f(close - close[1])
+[r, s] = g(close - close[1])
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(close > close[1] ? 1 : 0, "A01_matched_CONTROL")
+plot(close > open ? 1 : 0, "A02_arm_value_CONTROL")
+plot(na(p) ? 1 : 0, "T01_if_float_elem_is_na")
+plot(q == false ? 1 : 0, "T02_if_bool_elem_is_false")
+plot(na(r) ? 1 : 0, "T03_switch_float_elem_is_na")
+plot(s == false ? 1 : 0, "T04_switch_bool_elem_is_false")

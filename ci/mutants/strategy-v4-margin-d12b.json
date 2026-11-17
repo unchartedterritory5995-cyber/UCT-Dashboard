@@ -1,0 +1,39 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "D1",
+   "mutant": "D12b off: the witnessed v4 shape is not given the read-back margin 0 (D12's bind refusal again; both v4 captures stop)",
+   "file": "app/src/components/chart/engine/ast/strategyBroker.js",
+   "from": "  cfg.v4MarginReadBack = v === 4 && [...named.keys()].sort().join(',') === 'overlay,title'",
+   "to": "  cfg.v4MarginReadBack = false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js -t \"w9-q-s1a-size-v4\"",
+   "expectRed": "w9-q-s1a-size-v4"
+  },
+  {
+   "id": "D2",
+   "mutant": "the witnessed shape runs at the v4 reference's 100 instead of the read-back 0",
+   "file": "app/src/components/chart/engine/ast/strategyBroker.js",
+   "from": "  if (cfg.v4MarginReadBack) { cfg.marginLong = 0; cfg.marginShort = 0 }",
+   "to": "  if (cfg.v4MarginReadBack) { cfg.marginLong = 100; cfg.marginShort = 100 }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js -t \"w9-q-s1b-defaults-v4\"",
+   "expectRed": "w9-q-s1b-defaults-v4"
+  },
+  {
+   "id": "D3",
+   "mutant": "the read-back margin is served for ANY v4 declaration that states no margin (not only the witnessed shape)",
+   "file": "app/src/components/chart/engine/ast/strategyBroker.js",
+   "from": "  cfg.v4MarginReadBack = v === 4 && [...named.keys()].sort().join(',') === 'overlay,title'",
+   "to": "  cfg.v4MarginReadBack = v === 4 && !named.has('margin_long') && !named.has('margin_short')",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  },
+  {
+   "id": "D4",
+   "mutant": "the witnessed shape runs without asking B-V4-MARGIN0 (served with no pin)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    rule('B-V4-MARGIN0')",
+   "to": "    void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
+  }
+ ]
+}

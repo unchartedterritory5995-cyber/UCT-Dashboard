@@ -156,6 +156,30 @@ def test_RT5_a_drawing_only_document_maps_no_plot_and_is_stored(store, monkeypat
         svc.save(USER, "u_0000000000a2", d2)
 
 
+TESTER_SOURCE = ('//@version=5\nstrategy("t")\nif bar_index == 3\n    strategy.entry("L", strategy.long, qty = 1)\n'
+                 'if bar_index == 8\n    strategy.close("L")\n')
+
+
+def test_W9_armed_a_broker_document_maps_no_plot_and_is_stored(store, monkeypatch):
+    """W9 armed route (2026-11-16): a document stamped with the strategy window runs the broker, and a
+    tester-only strategy's output is its trades, so `outputs` may be empty (`defSchema.js`, the same rule);
+    the same empty map on any other runtime document is still refused."""
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    d = runtime_defn(TESTER_SOURCE, "u_0000000000b1")
+    d["compute"].update(outputs={})
+    d["meta"]["runtimeHistory"] = "strategy-window"
+    d["plots"] = [{"key": "value", "style": "line", "role": "primary", "label": "", "hidden": True}]
+    row = svc.save(USER, "u_0000000000b1", d)
+    assert row["appended"] is True
+    # ⛔ CONTROL — the same document stamped with the listing window is refused
+    d2 = runtime_defn(TESTER_SOURCE, "u_0000000000b2")
+    d2["compute"].update(outputs={})
+    d2["meta"]["runtimeHistory"] = "listing"
+    d2["plots"] = [{"key": "value", "style": "line", "role": "primary", "label": "", "hidden": True}]
+    with pytest.raises(ValueError, match=r"compute\.outputs"):
+        svc.save(USER, "u_0000000000b2", d2)
+
+
 def test_the_count_cap_is_asked_for_a_runtime_document_too(store, monkeypatch):
     """The toolkit's count verdict is the same door a formula goes through."""
     monkeypatch.setenv(rt.SAVE_ENV, "1")

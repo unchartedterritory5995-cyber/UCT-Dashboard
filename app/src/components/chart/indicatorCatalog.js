@@ -163,7 +163,7 @@ export const BUILT_IN_ROWS = Object.freeze([
     carvedOut: false,
     engineOwned: false,
     userDefined: false,
-    description: 'Shares traded per bar, coloured up or down, with a moving average.',
+    description: 'Shares traded per bar, colored up or down, with a moving average.',
     tags: Object.freeze(['volume', 'vol', 'shares', 'turnover']),
     repaint: null,
     measuredRepaint: null,
@@ -422,6 +422,23 @@ function find(id, registry) {
 export function labelFor(id, registry) {
   const row = find(id, registry)
   return row ? row.shortName : id
+}
+
+/**
+ * A name for ANY definition a chart can hold: a shipped one by its short name, a member's own
+ * (built, pasted, installed from UCT's set or another member's) by the name it was saved under.
+ *
+ * ⭐ 2026-11-17 — FOUND ON PRODUCTION: putting a house indicator on a chart said
+ * "u_ace6fec50339 added". `labelFor` reads the shipped catalogue only (`listDefinitions`), so
+ * every member-made indicator fell through to its id in the chart's history toast and its Undo
+ * list. This is the reader for surfaces that name whatever is on the chart; `labelFor` is
+ * unchanged for the menus that list shipped indicators.
+ */
+export function anyLabelFor(id, registry) {
+  const row = find(id, registry)
+  if (row) return row.shortName
+  const own = userCatalogRows(registry).find((r) => r.id === id)
+  return own ? (own.name || own.shortName || id) : id
 }
 
 /** The library dialog and the generated settings rows. */

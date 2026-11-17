@@ -189,7 +189,7 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     root = store.store_root()
     if args.list:
-        for e in store.list_entries(root):
+        for e in store.list_entries(root, served=False):
             print("%-48s %-10s %s" % (e["path"], e["licence"], e.get("licenceBasis") or ""))
         return 0
     queue = list(args.paths)
@@ -208,7 +208,8 @@ def main(argv=None) -> int:
         if path in seen:
             continue
         seen.add(path)
-        existing = store.read_entry(path, root=root)
+        # what the store HOLDS (promoted or not): a held version is never silently re-fetched
+        existing = store.stored_entry(path, root=root)
         if existing and not args.refetch:
             print("have  %s" % path)
             if args.recursive:
