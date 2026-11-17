@@ -15,6 +15,16 @@
 # files the AGENT_SHARDS shards executed equals the set `vitest list` reports for the same paths, and
 # unless the file count clears the same floor the gate uses (30). Since 2026-11-15 (owner D27 #2)
 # it also fails if any file ran in more than one shard.
+#
+# MERGE-TREE EVIDENCE (P2, 2026-11-17; inert until merged, activation = AUDIT T2 + owner): a same-repo agent/** PR into
+# MASTER now also runs every job on its pull_request event, i.e. on refs/pull/N/merge (the tree a merge would land), not
+# only on the branch head's push run (the head on its OLD base). PRs into agent/int keep skipping (push evidence only).
+# Each required job uploads `agent-ci-evidence-pr<N>-<job key>` (merge commit, its tree, base + head parents, the failed
+# test names per suite); tools/agent_ci_evidence.py verify turns them into PASS/FAIL for one PR + one expected tree.
+# workflow_dispatch (pr + merge_sha) is the RE-ARM for one named PR after master moved: tools/agent_ci_rearm.py waits
+# for GitHub's merge ref to be current, then dispatches once; every job checks out that exact merge commit.
+# Push runs are unchanged: every added step is `github.event_name != 'push'`, the checkout `ref:` is empty on push,
+# and the push concurrency group is the same string as before (rails: tests/test_ci_agent_merge_ref.py).
 name: agent ci
 
 on:
@@ -96,9 +106,26 @@ on:
       - 'docs/agent/knowledge/setup-criteria.json'
       - 'docs/agent/program/**'
       - '.github/workflows/agent-ci.yml'
+  # RE-ARM (P2): ONE named PR's evidence run on its current merge commit. Start it only through tools/agent_ci_rearm.py
+  # (it refuses a stale merge ref, a conflict, a closed / non-agent / non-master PR). Inputs are never put in a shell.
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: 'PR number (an open same-repo agent/** PR into master)'
+        required: true
+        type: string
+      merge_sha:
+        description: 'that PR''s current merge commit (pulls/N merge_commit_sha, parents = [master tip, PR head])'
+        required: true
+        type: string
 
+# P2: an evidence run (pull_request, or a re-arm dispatch) is grouped PER PR (`agent-ci-pr-<N>`), so a push anywhere else
+# (another PR, this PR's own branch push run, master) never cancels it. A new push to the SAME PR fires `synchronize`, whose
+# run joins the same group and cancels the superseded one (its tree is no longer the PR's); a re-arm of the same PR does
+# the same. A base (master) move fires no event, so it cancels nothing: re-arm. Push runs keep `agent-ci-<ref>`, the exact
+# group string they had before.
 concurrency:
-  group: agent-ci-${{ github.ref }}
+  group: ${{ github.event_name == 'pull_request' && format('agent-ci-pr-{0}', github.event.pull_request.number) || github.event_name == 'workflow_dispatch' && format('agent-ci-pr-{0}', github.event.inputs.pr) || format('agent-ci-{0}', github.ref) }}
   cancel-in-progress: true
 
 env:
@@ -115,13 +142,14 @@ env:
 jobs:
   server:
     name: UCT Agent server tests (production dependency set)
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'workflow_dispatch' || github.base_ref == 'master'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.inputs.merge_sha }}   # P2 re-arm: the dispatched merge commit; '' (the default) otherwise
       # Some QA rails diff the tree against the integration branch (e.g. the F-16 rail that proves
       # the member Screener's server code is untouched). A shallow checkout has no such ref.
       - name: Fetch the integration branch for diff-based rails
@@ -136,11 +164,24 @@ jobs:
           python -m pip install --quiet --upgrade pip
           python -m pip install --quiet -r requirements.txt pytest httpx
       - name: pytest tests/test_uct_agent*.py
+        env:
+          PYTEST_ADDOPTS: ${{ github.event_name != 'push' && '--junitxml=evidence-pytest.xml' || '' }}   # P2: '' on push
         run: python -m pytest tests/test_uct_agent*.py -q -p no:cacheprovider
+      # P2 evidence (pull_request / re-arm runs only): merge commit, tree, parents, failed test names
+      - name: Evidence record
+        if: always() && github.event_name != 'push'
+        run: python3 tools/agent_ci_evidence.py record --job-key server --junit evidence-pytest.xml --out evidence/evidence.json
+      - name: Upload the evidence record
+        if: always() && github.event_name != 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-ci-evidence-pr${{ github.event.pull_request.number || github.event.inputs.pr }}-server
+          path: evidence/evidence.json
+          if-no-files-found: error
 
   browser:
     name: UCT Agent browser tests (shard ${{ matrix.shard }}/8)
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'workflow_dispatch' || github.base_ref == 'master'
     runs-on: ubuntu-latest
     # 25 -> 40 (2026-11-11): shard 4/4 hit the 25-min limit and was CANCELLED on #1101 (25m18s) and #1107 (25m12s)
     # while shards 1-3 ran 10-17 min; shard 4 ran 17-22 min on earlier runs the same day. Headroom only, not a redesign:
@@ -154,6 +195,8 @@ jobs:
         shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.merge_sha }}   # P2 re-arm: the dispatched merge commit; '' (the default) otherwise
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -203,6 +246,19 @@ jobs:
             shard-${{ matrix.shard }}.json
             shard-${{ matrix.shard }}.files
           if-no-files-found: error
+      # P2 evidence (pull_request / re-arm runs only): merge commit, tree, parents, failed test names
+      - name: Evidence record
+        if: always() && github.event_name != 'push'
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: python3 tools/agent_ci_evidence.py record --job-key "browser-$SHARD" --vitest-json "shard-$SHARD.json" --out evidence/evidence.json
+      - name: Upload the evidence record
+        if: always() && github.event_name != 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-ci-evidence-pr${{ github.event.pull_request.number || github.event.inputs.pr }}-browser-${{ matrix.shard }}
+          path: evidence/evidence.json
+          if-no-files-found: error
 
   # Mission 2 (2026-11-04): the deterministic CAPABILITY REGRESSION suite, as its own named check — the NL equivalence
   # corpus (routing / deterministic plan / final state), the golden workflows, the capability inventory + coverage
@@ -217,7 +273,7 @@ jobs:
   # and `rth` = the regular session. The baseline (Python) rail runs once, on the `post` leg.
   capability-regression-clock:
     name: UCT Agent capability regression (deterministic, no model) @ ${{ matrix.clock }}
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'workflow_dispatch' || github.base_ref == 'master'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -230,6 +286,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.inputs.merge_sha }}   # P2 re-arm: the dispatched merge commit; '' (the default) otherwise
       # the baseline rail also holds the corpus to the lock AS IT IS ON MASTER (merge base), so a hand-edited lock in
       # the same PR cannot launder a weakening (review #769)
       - name: Fetch master for the merge-base baseline check
@@ -241,6 +298,8 @@ jobs:
           python-version: '3.12'
       - name: Baseline lock (removing or weakening a baseline entry needs a recorded decision)
         if: matrix.clock == 'post'
+        env:
+          PYTEST_ADDOPTS: ${{ github.event_name != 'push' && '--junitxml=evidence-pytest.xml' || '' }}   # P2: '' on push
         run: |
           python -m pip install --quiet pytest
           python -m pytest tests/test_uct_agent_capreg_*.py -q -p no:cacheprovider
@@ -262,13 +321,28 @@ jobs:
       - name: vitest src/agent/qa/capabilityRegression (CAPREG_CLOCK=${{ matrix.clock }})
         if: matrix.clock == 'rth'
         working-directory: app
-        run: npx vitest run src/agent/qa/capabilityRegression --reporter=default
+        env:
+          EVIDENCE_VITEST_ARGS: ${{ github.event_name != 'push' && '--reporter=json --outputFile=../evidence-vitest.json' || '' }}   # P2: '' on push
+        run: npx vitest run src/agent/qa/capabilityRegression --reporter=default $EVIDENCE_VITEST_ARGS
+      # P2 evidence (pull_request / re-arm runs only): merge commit, tree, parents, failed test names
+      - name: Evidence record
+        if: always() && github.event_name != 'push'
+        run: |
+          if [ "$CAPREG_CLOCK" = post ]; then R="--junit evidence-pytest.xml"; else R="--vitest-json evidence-vitest.json"; fi
+          python3 tools/agent_ci_evidence.py record --job-key "capability-regression-clock-$CAPREG_CLOCK" $R --out evidence/evidence.json
+      - name: Upload the evidence record
+        if: always() && github.event_name != 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-ci-evidence-pr${{ github.event.pull_request.number || github.event.inputs.pr }}-capability-regression-clock-${{ matrix.clock }}
+          path: evidence/evidence.json
+          if-no-files-found: error
 
   # one named result for both clock legs (the check to watch / require)
   capability-regression:
     name: UCT Agent capability regression (deterministic, no model)
     needs: capability-regression-clock
-    if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/'))
+    if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'workflow_dispatch' || github.base_ref == 'master')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -276,15 +350,36 @@ jobs:
         run: |
           echo "clock legs: ${{ needs.capability-regression-clock.result }}"
           test "${{ needs.capability-regression-clock.result }}" = "success"
+      # P2: this job had no checkout; evidence runs take a one-file sparse one to read the merge commit + tree
+      - uses: actions/checkout@v4
+        if: always() && github.event_name != 'push'
+        with:
+          ref: ${{ github.event.inputs.merge_sha }}   # P2 re-arm: the dispatched merge commit; '' (the default) otherwise
+          sparse-checkout: |
+            tools/agent_ci_evidence.py
+          sparse-checkout-cone-mode: false
+      # P2 evidence (pull_request / re-arm runs only): merge commit, tree, parents, failed test names
+      - name: Evidence record
+        if: always() && github.event_name != 'push'
+        run: python3 tools/agent_ci_evidence.py record --job-key capability-regression --out evidence/evidence.json
+      - name: Upload the evidence record
+        if: always() && github.event_name != 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-ci-evidence-pr${{ github.event.pull_request.number || github.event.inputs.pr }}-capability-regression
+          path: evidence/evidence.json
+          if-no-files-found: error
 
   union:
     name: Shards cover every Agent test file (equivalence rail)
     needs: browser
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'workflow_dispatch' || github.base_ref == 'master'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.merge_sha }}   # P2 re-arm: the dispatched merge commit; '' (the default) otherwise
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -327,3 +422,16 @@ jobs:
           if (ran.size < 30) { console.log('::error::fewer than 30 Agent test files ran'); process.exit(1); }
           if (missing.length || dupes.length || failed > 0) process.exit(1);
           EOF
+      # P2 evidence (pull_request / re-arm runs only): merge commit, tree, parents, failed test names
+      - name: Evidence record
+        if: always() && github.event_name != 'push'
+        run: |
+          set --; for f in shards/shard-*.json; do if [ -f "$f" ]; then set -- "$@" --vitest-json "$f"; fi; done
+          python3 tools/agent_ci_evidence.py record --job-key union "$@" --out evidence/evidence.json
+      - name: Upload the evidence record
+        if: always() && github.event_name != 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-ci-evidence-pr${{ github.event.pull_request.number || github.event.inputs.pr }}-union
+          path: evidence/evidence.json
+          if-no-files-found: error

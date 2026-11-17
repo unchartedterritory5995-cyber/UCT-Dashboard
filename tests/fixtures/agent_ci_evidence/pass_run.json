@@ -1,0 +1,384 @@
+{
+ "_about": "agent_ci_evidence.decide() PASS baseline: PR #1700 (agent/pl/x -> master), one completed green pull_request run whose 13 records agree. tests/test_agent_ci_evidence.py mutates ONE field per fail-closed case.",
+ "expected_tree": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+ "base_tip": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+ "pr": {
+  "number": 1700,
+  "state": "open",
+  "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+  "head_ref": "agent/pl/x",
+  "head_repo": "o/r",
+  "repo": "o/r",
+  "base_ref": "master"
+ },
+ "runs": [
+  {
+   "id": 44100000001,
+   "event": "pull_request",
+   "status": "completed",
+   "conclusion": "success",
+   "created_at": "2026-11-17T10:00:00Z",
+   "html_url": "https://github.com/o/r/actions/runs/44100000001",
+   "jobs": [
+    {
+     "name": "UCT Agent server tests (production dependency set)",
+     "conclusion": "success"
+    },
+    {
+     "name": "UCT Agent browser tests (shard 1/8)",
+     "conclusion": "success"
+    },
+    {
+     "name": "UCT Agent browser tests (shard 2/8)",
+     "conclusion": "success"
+    },
+    {
+     "name": "UCT Agent browser tests (shard 3/8)",
+     "conclusion": "success"
+    },
+    {
+     "name": "UCT Agent browser tests (shard 4/8)",
+     "conclusion": "success"
+    },
+    {
+     "name": "UCT Agent browser tests (shard 5/8)",
+     "conclusion": "success"
+    },
+    {
+     "name": "UCT Agent browser tests (shard 6/8)",
+     "conclusion": "success"
+    },
+    {
+     "name": "UCT Agent browser tests (shard 7/8)",
+     "conclusion": "success"
+    },
+    {
+     "name": "UCT Agent browser tests (shard 8/8)",
+     "conclusion": "success"
+    },
+    {
+     "name": "UCT Agent capability regression (deterministic, no model) @ post",
+     "conclusion": "success"
+    },
+    {
+     "name": "UCT Agent capability regression (deterministic, no model) @ rth",
+     "conclusion": "success"
+    },
+    {
+     "name": "UCT Agent capability regression (deterministic, no model)",
+     "conclusion": "success"
+    },
+    {
+     "name": "Shards cover every Agent test file (equivalence rail)",
+     "conclusion": "success"
+    }
+   ],
+   "records": {
+    "server": {
+     "schema": "uct.agent-ci-evidence/v1",
+     "job_key": "server",
+     "event": "pull_request",
+     "pr": 1700,
+     "ref": "refs/pull/1700/merge",
+     "sha": "dddddddddddddddddddddddddddddddddddddddd",
+     "tree": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+     "parents": [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "cccccccccccccccccccccccccccccccccccccccc"
+     ],
+     "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "payload_base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "payload_head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "run_id": 44100000001,
+     "run_attempt": 1,
+     "failed": {},
+     "reports_unreadable": [],
+     "errors": []
+    },
+    "browser-1": {
+     "schema": "uct.agent-ci-evidence/v1",
+     "job_key": "browser-1",
+     "event": "pull_request",
+     "pr": 1700,
+     "ref": "refs/pull/1700/merge",
+     "sha": "dddddddddddddddddddddddddddddddddddddddd",
+     "tree": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+     "parents": [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "cccccccccccccccccccccccccccccccccccccccc"
+     ],
+     "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "payload_base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "payload_head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "run_id": 44100000001,
+     "run_attempt": 1,
+     "failed": {
+      "vitest": []
+     },
+     "reports_unreadable": [],
+     "errors": []
+    },
+    "browser-2": {
+     "schema": "uct.agent-ci-evidence/v1",
+     "job_key": "browser-2",
+     "event": "pull_request",
+     "pr": 1700,
+     "ref": "refs/pull/1700/merge",
+     "sha": "dddddddddddddddddddddddddddddddddddddddd",
+     "tree": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+     "parents": [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "cccccccccccccccccccccccccccccccccccccccc"
+     ],
+     "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "payload_base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "payload_head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "run_id": 44100000001,
+     "run_attempt": 1,
+     "failed": {
+      "vitest": []
+     },
+     "reports_unreadable": [],
+     "errors": []
+    },
+    "browser-3": {
+     "schema": "uct.agent-ci-evidence/v1",
+     "job_key": "browser-3",
+     "event": "pull_request",
+     "pr": 1700,
+     "ref": "refs/pull/1700/merge",
+     "sha": "dddddddddddddddddddddddddddddddddddddddd",
+     "tree": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+     "parents": [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "cccccccccccccccccccccccccccccccccccccccc"
+     ],
+     "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "payload_base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "payload_head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "run_id": 44100000001,
+     "run_attempt": 1,
+     "failed": {
+      "vitest": []
+     },
+     "reports_unreadable": [],
+     "errors": []
+    },
+    "browser-4": {
+     "schema": "uct.agent-ci-evidence/v1",
+     "job_key": "browser-4",
+     "event": "pull_request",
+     "pr": 1700,
+     "ref": "refs/pull/1700/merge",
+     "sha": "dddddddddddddddddddddddddddddddddddddddd",
+     "tree": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+     "parents": [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "cccccccccccccccccccccccccccccccccccccccc"
+     ],
+     "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "payload_base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "payload_head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "run_id": 44100000001,
+     "run_attempt": 1,
+     "failed": {
+      "vitest": []
+     },
+     "reports_unreadable": [],
+     "errors": []
+    },
+    "browser-5": {
+     "schema": "uct.agent-ci-evidence/v1",
+     "job_key": "browser-5",
+     "event": "pull_request",
+     "pr": 1700,
+     "ref": "refs/pull/1700/merge",
+     "sha": "dddddddddddddddddddddddddddddddddddddddd",
+     "tree": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+     "parents": [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "cccccccccccccccccccccccccccccccccccccccc"
+     ],
+     "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "payload_base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "payload_head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "run_id": 44100000001,
+     "run_attempt": 1,
+     "failed": {
+      "vitest": []
+     },
+     "reports_unreadable": [],
+     "errors": []
+    },
+    "browser-6": {
+     "schema": "uct.agent-ci-evidence/v1",
+     "job_key": "browser-6",
+     "event": "pull_request",
+     "pr": 1700,
+     "ref": "refs/pull/1700/merge",
+     "sha": "dddddddddddddddddddddddddddddddddddddddd",
+     "tree": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+     "parents": [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "cccccccccccccccccccccccccccccccccccccccc"
+     ],
+     "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "payload_base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "payload_head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "run_id": 44100000001,
+     "run_attempt": 1,
+     "failed": {
+      "vitest": []
+     },
+     "reports_unreadable": [],
+     "errors": []
+    },
+    "browser-7": {
+     "schema": "uct.agent-ci-evidence/v1",
+     "job_key": "browser-7",
+     "event": "pull_request",
+     "pr": 1700,
+     "ref": "refs/pull/1700/merge",
+     "sha": "dddddddddddddddddddddddddddddddddddddddd",
+     "tree": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+     "parents": [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "cccccccccccccccccccccccccccccccccccccccc"
+     ],
+     "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "payload_base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "payload_head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "run_id": 44100000001,
+     "run_attempt": 1,
+     "failed": {
+      "vitest": []
+     },
+     "reports_unreadable": [],
+     "errors": []
+    },
+    "browser-8": {
+     "schema": "uct.agent-ci-evidence/v1",
+     "job_key": "browser-8",
+     "event": "pull_request",
+     "pr": 1700,
+     "ref": "refs/pull/1700/merge",
+     "sha": "dddddddddddddddddddddddddddddddddddddddd",
+     "tree": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+     "parents": [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "cccccccccccccccccccccccccccccccccccccccc"
+     ],
+     "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "payload_base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "payload_head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "run_id": 44100000001,
+     "run_attempt": 1,
+     "failed": {
+      "vitest": []
+     },
+     "reports_unreadable": [],
+     "errors": []
+    },
+    "capability-regression-clock-post": {
+     "schema": "uct.agent-ci-evidence/v1",
+     "job_key": "capability-regression-clock-post",
+     "event": "pull_request",
+     "pr": 1700,
+     "ref": "refs/pull/1700/merge",
+     "sha": "dddddddddddddddddddddddddddddddddddddddd",
+     "tree": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+     "parents": [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "cccccccccccccccccccccccccccccccccccccccc"
+     ],
+     "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "payload_base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "payload_head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "run_id": 44100000001,
+     "run_attempt": 1,
+     "failed": {},
+     "reports_unreadable": [],
+     "errors": []
+    },
+    "capability-regression-clock-rth": {
+     "schema": "uct.agent-ci-evidence/v1",
+     "job_key": "capability-regression-clock-rth",
+     "event": "pull_request",
+     "pr": 1700,
+     "ref": "refs/pull/1700/merge",
+     "sha": "dddddddddddddddddddddddddddddddddddddddd",
+     "tree": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+     "parents": [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "cccccccccccccccccccccccccccccccccccccccc"
+     ],
+     "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "payload_base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "payload_head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "run_id": 44100000001,
+     "run_attempt": 1,
+     "failed": {},
+     "reports_unreadable": [],
+     "errors": []
+    },
+    "capability-regression": {
+     "schema": "uct.agent-ci-evidence/v1",
+     "job_key": "capability-regression",
+     "event": "pull_request",
+     "pr": 1700,
+     "ref": "refs/pull/1700/merge",
+     "sha": "dddddddddddddddddddddddddddddddddddddddd",
+     "tree": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+     "parents": [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "cccccccccccccccccccccccccccccccccccccccc"
+     ],
+     "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "payload_base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "payload_head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "run_id": 44100000001,
+     "run_attempt": 1,
+     "failed": {},
+     "reports_unreadable": [],
+     "errors": []
+    },
+    "union": {
+     "schema": "uct.agent-ci-evidence/v1",
+     "job_key": "union",
+     "event": "pull_request",
+     "pr": 1700,
+     "ref": "refs/pull/1700/merge",
+     "sha": "dddddddddddddddddddddddddddddddddddddddd",
+     "tree": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+     "parents": [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "cccccccccccccccccccccccccccccccccccccccc"
+     ],
+     "base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "payload_base_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "payload_head_sha": "cccccccccccccccccccccccccccccccccccccccc",
+     "run_id": 44100000001,
+     "run_attempt": 1,
+     "failed": {
+      "vitest": []
+     },
+     "reports_unreadable": [],
+     "errors": []
+    }
+   }
+  }
+ ]
+}

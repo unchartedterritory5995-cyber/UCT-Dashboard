@@ -26,3 +26,31 @@
 - [ ] All required PR checks are green on the release candidate.
 - [ ] Flags stay off in production. Turning one on is a separate owner decision.
 - [ ] After promotion: the exact production commit, the live bundle, `/api/health`, `/healthz`, and admin-only access are verified. flow-worker is not restarted.
+
+## Merge-tree evidence for an `agent/**` PR into master (P2, proposed 2026-11-17)
+
+**Status: inert until its PR is merged. Activation = that merge, after AUDIT's full T2 review AND the owner's OK.**
+Until then, the push run on the branch head (the head on its OLD base) stays the only evidence, as today.
+
+The push run proves the PR head; what lands on master is the merge of that head with master's current tip. Once
+active, `.github/workflows/agent-ci.yml` also runs all 13 required jobs (8 browser shards) on the `pull_request`
+event of a same-repo `agent/**` PR into master, i.e. on `refs/pull/N/merge`. PRs into `agent/int` are unchanged.
+Push runs are unchanged (every added step is skipped on push; rails: `tests/test_ci_agent_merge_ref.py`).
+
+1. **Run.** Each required job uploads `agent-ci-evidence-pr<N>-<job key>`: the merge commit, its tree, its parents
+   (base tip, PR head), the run id, and the failed test names per suite (pytest junit, vitest JSON), so two runs'
+   offenders can be compared. The concurrency group is per PR (`agent-ci-pr-<N>`): pushes elsewhere never cancel
+   it; a new push to the same PR supersedes it (its tree is no longer the PR's).
+2. **Re-arm** when master moved: `python tools/agent_ci_rearm.py --pr <N>`. It waits for GitHub's merge ref to be
+   exactly [master tip, PR head], refuses a conflict / stale ref / non-agent / non-master PR, then dispatches
+   agent-ci.yml ONCE (`workflow_dispatch`, inputs `pr` + `merge_sha`) for that PR only. No commit is made; the PR is
+   not touched. Every job checks out that one merge commit.
+3. **Verify** from a master checkout: `python tools/agent_ci_evidence.py verify --pr <N> --tree <expected tree>`
+   (add `--accept-dispatch` to accept a re-arm run). PASS only when the newest evidence run for the PR is completed,
+   every required job (read from master's agent-ci.yml) is success, all 13 records are present and agree, the merge
+   commit's parents are the CURRENT master tip and PR head, and its tree is the expected tree. Everything else is a
+   named FAIL (no run, run in progress, non-PR event, missing job, job not success, missing artifact, record
+   mismatch, stale merge ref, tree mismatch, API error).
+
+Cost: an `agent/**` PR into master that touches an Agent path pays one more full Agent run per PR push (the push run
+still runs). `agent-ci-required` is unchanged and still reads the push run.
