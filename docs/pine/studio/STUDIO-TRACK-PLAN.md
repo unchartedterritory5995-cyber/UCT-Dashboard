@@ -290,7 +290,7 @@ build-time flag with no per-user stage.
 | O2 | The door's client check accepts the cohort for admins as well as the browser switch | `createIndicatorFlag.js` | revert |
 | O3 | `CREATE_INDICATOR_COHORT_ENABLED=1` on web; the ledger row moves from pending to armed in the same change | env, `feature_flags.json` | unset: read first on every call, so new turns stop at once |
 | O4 | `VITE_PINE_EDITOR_STATUS=1` at build; request R2 (an admin-only stage) is no longer needed | `Dockerfile.web`, ledger | rebuild without it |
-| O5 | Rehearse the reversal of O3 once and record how long it takes to act. **Not rehearsed: it is a member-facing change (two restarts of the web service with Create Indicator off in between) and waits for the owner's go; the coordinator has asked for an overnight window.** The steps, and the trap: (1) `railway variable delete CREATE_INDICATOR_COHORT_ENABLED --service web`; (2) ⛔ that STAGES the change and does not restart the pod, so the feature is still on: `railway redeploy --service web --yes`; (3) confirm from the POD, not from `railway variables` (a fresh boot in `/api/health`, and a Create Indicator turn answering the closed sentence as the synthetic member); (4) to restore, `railway variables --service web --set CREATE_INDICATOR_COHORT_ENABLED=1` and confirm a boot the same way. The time to act is one web deploy, not "at once" as row O3 says: the variable is read on every call, from a process that has to restart to see it | - | - |
+| O5 | Rehearse the reversal of O3 once and record how long it takes to act. **REHEARSED on production 2026-11-17, on the owner's go (his words: do anything like that at any time while there are no users).** Closing took about 80 seconds: the variable deleted, the web service redeployed, a fresh boot serving. Confirmed as the synthetic member: the sign-in payload no longer listed the cohort, so the browser hides the door, and a turn answered 403 in 0.1 s with no model call. Restoring took about 6 minutes: on web, `--set` does not restart the running image, it starts a full build of the production branch, so a restore is also a deploy of whatever production holds. After it the member's turn answered again. Not tested: setting the variable with deploys skipped and then `railway redeploy`, which should restore in the 80 seconds closing took. The steps, and the trap: (1) `railway variable delete CREATE_INDICATOR_COHORT_ENABLED --service web`; (2) ⛔ that STAGES the change and does not restart the pod, so the feature is still on: `railway redeploy --service web --yes`; (3) confirm from the POD, not from `railway variables` (a fresh boot in `/api/health`, and a Create Indicator turn answering the closed sentence as the synthetic member); (4) to restore, `railway variables --service web --set CREATE_INDICATOR_COHORT_ENABLED=1` and confirm a boot the same way. The time to act is one web deploy, not "at once" as row O3 says: the variable is read on every call, from a process that has to restart to see it | - | - |
 | O6 | Set the per-member daily allowance and the shared interactive reserve on purpose. The reserve is one pool shared by every model feature, admins and this track's own measuring runs, and it is smaller than one admin's cap: a measuring run can pause the assistant for everyone for the day. **Both are set on the web service as of 2026-11-17** (read them with `railway variables --service web --kv`; the values are not written here). Admin turns and this track's measuring runs still count against the shared reserve, by the owner's ruling of 2026-10-07; today's measuring runs stayed inside it | env | set |
 | O7 | Split credit and authentication failures from transport failures, so an outage is not read as a billing problem (Indicators backlog item 4) | Indicators | - |
 
@@ -772,10 +772,19 @@ Not started, and why:
 - **R1, run over a list from the chart**: waits for the Screener owner's answer to R13.
 - **R4 and R5**: requests to the Pine engine owner (a verdict on a shared indicator; two exports
   for the inspector).
-- **R6, a load budget on library cards**: worth building once members publish; the library is
-  empty today.
-- **H2, the remainder (tabs as a strip in the phone sheet)**: a layout change the owner should see
-  as a mock-up first (section 6).
+- **R6, a load budget on library cards**: designed with the engine's owner on 2026-11-17, and
+  waiting for one engine export. The verdict (refuse to publish) is a deterministic work count
+  over one seeded 5,000-bar reference series, never a clock, with the budget a fraction of the
+  engine's existing whole-run ceiling; the server computes it at publish (off the request path)
+  and keeps it on the listing row; the card shows a class (light, moderate, heavy) from that
+  count and the share preview adds the time it took on the viewer's own device. The engine
+  builds the headless export `(definition, bars) -> { lane, outputs, work }` and the reference
+  series; this track then builds the publish path, the refusal and the cards. Nothing is
+  shipped on the cards before the server sends the field.
+- **H2, the remainder**: DONE 2026-11-17 (#1642). The owner saw the three mock-ups and picked B, one
+  dropdown. The library sheet (the indicators surface on a phone and a tablet) has one "Showing"
+  control naming every list with its count: all, on this chart, yours, UCT's, members', and each
+  catalogue heading. The two door rows and their separate views with a way back are gone.
 - **O6, a separate budget lane for admins and measuring runs**: a decision on its size is the
   owner's; today the shared pool was raised instead.
 - From the launch-readiness list: the paid evaluation run and the hidden set (spend approval, a
