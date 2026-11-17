@@ -168,10 +168,50 @@ def test_after_the_close_with_no_settled_row_yet_the_full_session_is_built(env):
 
 
 def test_an_empty_since_delta_still_gets_today(env):
+    """The delta carries no rows, so the gap is judged on the stored series (fetch_index_bars's read)."""
     env.pin(IN_SESSION)
     env.seed("SPX", "5", TODAY_5M, saved_at=IN_SESSION - 60)
+    env.seed("SPX", "D", DAILY, saved_at=IN_SESSION - 600)
     out = env.serve("SPX", daily=[], since=str(DAILY[-1]["t"]))
     assert [b["t"] for b in out["bars"]] == [TODAY_KEY]
+
+
+# ── never across a gap: the daily series must reach the previous session ──────────────────
+
+STALE = [{"t": _utc_midnight(d), "o": 2780.0, "h": 2790.0, "l": 2760.0, "c": 2784.0, "v": 1}
+         for d in ("2026-10-20", "2026-10-21", "2026-10-22")]
+
+
+def test_a_daily_series_that_stopped_weeks_ago_gets_no_today_bar(env):
+    """Production 2026-11-17 19:30Z: RUT's daily store ended 10-22 while its 5m series was fresh."""
+    env.pin(IN_SESSION)
+    env.seed("RUT", "5", TODAY_5M, saved_at=IN_SESSION - 60)
+    out = env.serve("RUT", STALE)
+    assert out["bars"] == STALE and out["developing"] is None
+
+
+def test_an_empty_since_delta_over_a_stale_store_gets_no_today_bar(env):
+    env.pin(IN_SESSION)
+    env.seed("RUT", "5", TODAY_5M, saved_at=IN_SESSION - 60)
+    env.seed("RUT", "D", STALE, saved_at=IN_SESSION - 600)
+    assert env.serve("RUT", daily=[], since=str(STALE[-1]["t"]))["bars"] == []
+
+
+def test_a_today_snapshot_over_a_stale_series_is_not_replaced_either(env):
+    env.pin(IN_SESSION)
+    snap = {"t": TODAY_KEY, "o": 1.0, "h": 2.0, "l": 0.5, "c": 1.5, "v": 7}
+    env.seed("RUT", "5", TODAY_5M, saved_at=IN_SESSION - 60)
+    env.seed("RUT", "D", STALE + [snap], saved_at=_et(f"{TODAY}T10:00:00"))
+    assert env.serve("RUT", STALE + [snap])["bars"] == STALE + [snap]
+
+
+def test_monday_after_a_weekend_reaches_friday_and_gets_today(env):
+    now = _et("2026-11-16T13:04:00")
+    env.pin(now)
+    friday = [dict(b) for b in DAILY[:2]]               # ends 2026-11-13, a Friday
+    env.seed("SPX", "5", _fives("2026-11-16", "09:30", "13:00"), saved_at=now - 60)
+    out = env.serve("SPX", friday)
+    assert out["bars"][-1]["t"] == _utc_midnight("2026-11-16")
 
 
 # ── out of session: nothing is built, the contract says null ──────────────────────────────
@@ -201,7 +241,10 @@ def test_a_half_day_judges_the_lag_against_its_own_close(env):
     env.pin(now)
     half = _fives("2026-11-27", "09:30", "12:55")
     env.seed("SPX", "5", half, saved_at=now - 60)
-    out = env.serve("SPX")
+    # the session before the day after Thanksgiving is Wednesday 11-25 (11-26 is a holiday)
+    through_wed = [{"t": _utc_midnight(d), "o": 1.0, "h": 2.0, "l": 0.5, "c": 1.5, "v": 1}
+                   for d in ("2026-11-23", "2026-11-24", "2026-11-25")]
+    out = env.serve("SPX", through_wed)
     assert out["bars"][-1]["t"] == _utc_midnight("2026-11-27")
     assert out["bars"][-1]["c"] == half[-1]["c"]
 
