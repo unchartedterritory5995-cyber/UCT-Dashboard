@@ -48,6 +48,11 @@ describe(`RESOLVER × ORACLE · ${POLICY.length} frozen removal rows`, () => {
   it('every non-emulated row agrees (masterGap rows included)', () => {
     expect(disagree.filter(d => d.cat !== 'emulated')).toEqual([])
   })
+  // (P2) the REASON is locked too: an agreeing row gives the oracle's own code / source (emulated rows included)
+  it('every agreeing row gives the oracle reason (code or source)', () => {
+    expect(reasonAgree.differs).toEqual([])
+    expect(reasonAgree.same).toBeGreaterThanOrEqual(292)
+  })
 })
 
 afterAll(() => {

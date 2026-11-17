@@ -81,6 +81,8 @@ function npCharts(np, det, charts, { plural = false } = {}) {
   if (!sets.length) return { refs: null, constrained: false, det, plural, source: null }
   let refs = sets[0]
   for (const s of sets.slice(1)) refs = refs.filter(r => s.includes(r))
+  // (P2 reason fix · "the left SPY chart" on a board with two SPY charts: the POSITION is what picks one — its evidence licenses)
+  if (syms.length && sets.length > 1 && refs.length && objectsOf(charts, sets[0]) > 1 && objectsOf(charts, refs) < objectsOf(charts, sets[0])) source = 'ordinal-position'
   return { refs: withGroup(charts, refs), constrained: true, det, plural, source }
 }
 
@@ -264,7 +266,7 @@ export function readRemoval(input) {
     reading.destroying = destroying(carried || typed)
     if (pick) {
       const byLabel = choices.some(c => c.ref === pick && c.label.toLowerCase() === typed.trim().toLowerCase().replace(/[.!]+$/, ''))
-      reading.groups.push({ type: 'chart', refs: withGroup(charts, [pick]).map(cid), source: byLabel ? 'description' : 'answer' })
+      reading.groups.push({ type: 'chart', refs: withGroup(charts, [pick]).map(cid), source: byLabel ? 'description' : 'answer', picked: true })
       ev(byLabel ? 'description' : 'answer', { type: 'chart' })
       return reading
     }
@@ -307,7 +309,10 @@ export function readRemoval(input) {
     const rc = relativeChart(text, charts, w.selection)
     // (a relation needs an ANCHOR said — this / it / the clicked one; "the chart on the left" is a position, read below)
     const anchored = rc?.match && /\b(?:this|that|it|here|selected|clicked|current|highlighted|active|focused|picked|tapped)\b/i.test(String(rc.match[0]))
-    if (rc && rc.match && (anchored || rc.hits.length)) {
+    // (P2 reason fix · "put a fib on the right chart and get rid of it": a "relation" whose span runs over a destroying verb has
+    // the verb's own object pronoun as its "anchor" — two clauses, no relation)
+    const spansVerb = rc?.match && destroying(String(rc.match[0]))
+    if (rc && rc.match && !spansVerb && (anchored || rc.hits.length)) {
       relation = true
       if (w.selection) reading.anchors.add(cid(w.selection))
       const hits = rc.hits.map(c => c.ref)
@@ -345,6 +350,26 @@ export function readRemoval(input) {
   const prons = removalPronouns(text)
   const live0 = prons.filter(p => !p.cont)
   if (prons.length && !live0.length) { reading.cont = true; ev('continuation') }
+  // (P2 reason fix · CONTINUATION TAILS) a pronoun whose clause goes on is no removal object; what its tail says is read here, once:
+  //   "delete it off of the IWM chart" — taken off a chart the words NAME: the pronoun is a thing ON that chart (as "take it off
+  //   the QQQ chart"; chartRail keeps the "off of" form as `cont`) → a thing group, so a chart close is a type mismatch;
+  //   "clear it of drawings" — the tail's thing nouns are the pronoun's COMPLEMENT, not a removal object of their own: kept as
+  //   `complement` groups (a drawing plan still reads them), and a plan of another type is outside the words, not a type mismatch.
+  for (const q of prons.filter(x => x.cont).sort((x, y) => y.index - x.index)) {
+    const rest = text.slice(q.index + q.length)
+    const end = rest.search(NEG_END)
+    const tail = end < 0 ? rest : rest.slice(0, end)
+    const off = /^(?:\s+(?:off|down|away|out))?\s+(?:off\s+of|out\s+of|from|off)\s+/i.exec(tail)
+    if (off && chartMentions(tail.slice(off[0].length), w).some(x => x.refs && x.refs.length)) {
+      reading.groups.push({ type: '*thing', refs: [], source: 'container', anyThing: true, onChart: true })
+      ev('container', { type: 'thing', onChart: true })
+    } else {
+      const ig = indicatorGroup(tail, w, null)
+      const dg = drawingGroup(tail, w, null)
+      for (const g of [ig, dg]) if (g) reading.groups.push({ ...g, complement: true })
+    }
+    text = blank(text, q.index + q.length, tail.length)
+  }
   const p = live0[0]
   if (p) {
     const ap = p.appos ? pronounAntecedent(p.appos, isSym) : null

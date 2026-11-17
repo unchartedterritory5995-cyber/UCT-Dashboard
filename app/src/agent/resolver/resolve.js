@@ -29,11 +29,13 @@ export function decideTarget(t, reading) {
   const gs = reading.groups
   if (!gs.length) return refuse('plan-outside-words')                                               // I1: the plan never licenses
   const same = gs.filter(g => g.type === t.type || (g.type === '*thing' && t.type !== 'chart'))
-  if (!same.length) return refuse('type-mismatch')                                                   // I3
+  // I3 — unless every group is a continuation's complement ("clear it of drawings"): those ask to destroy nothing of their own
+  if (!same.length) return refuse(gs.every(g => g.complement) ? 'plan-outside-words' : 'type-mismatch')
   const hits = same.filter(g => g.type === '*thing' || g.refs.includes(t.id))
   if (!hits.length) {                                                                                // I1: outside what the words name
     if (same.every(g => g.absent && !g.refs.length)) return refuse('absent')
-    if (same.every(g => g.source === 'description')) return refuse('description-mismatch')
+    // (an answer picked by its offered label is an ANSWER, not a description of what the chart is)
+    if (same.every(g => g.source === 'description' && !g.picked)) return refuse('description-mismatch')
     return refuse('plan-outside-words')
   }
   const conflict = hits.find(g => g.ask === 'pointer-vs-words')
