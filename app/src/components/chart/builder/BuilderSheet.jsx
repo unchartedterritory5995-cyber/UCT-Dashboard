@@ -3636,6 +3636,7 @@ export default function BuilderSheet({
               defId={editing.defId}
               defName={(editing.row && editing.row.definition
                 && editing.row.definition.meta && editing.row.definition.meta.name) || null}
+              noun={noun === 'indicator' ? 'indicator' : 'formula'}
             />
           )}
 

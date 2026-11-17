@@ -51,7 +51,11 @@ export const LIBRARY_SOURCE_SENTENCE =
   'Publishing this script to the library shows its Pine source code to every member.'
 
 
-export default function SharePanel({ defId, defName, onInstalled }) {
+/** ⭐ `noun`: what the thing being shared is called where this panel is opened. "indicator" on a
+ *  chart (the builder's Share tab there, and the Share window of a row of "Your indicators");
+ *  "formula", the default, from the Screener. Seen on production 2026-11-17: a window titled
+ *  "Share <an indicator's name>" opened on "Share this formula. This formula is private." */
+export default function SharePanel({ defId, defName, onInstalled, noun = 'formula' }) {
   const [token, setToken] = useState(null)
   const [includesSource, setIncludesSource] = useState(false)
   // ⛔ (review of #1227) nothing that makes a link is offered until the share state has been READ
@@ -203,7 +207,7 @@ export default function SharePanel({ defId, defName, onInstalled }) {
   return (
     <div className={styles.panel}>
       <section className={styles.block}>
-        <h3 className={styles.heading}>Share this formula</h3>
+        <h3 className={styles.heading}>Share this {noun}</h3>
         {token ? (
           <>
             <p className={styles.note}>
@@ -230,7 +234,7 @@ export default function SharePanel({ defId, defName, onInstalled }) {
         ) : (
           <>
             <p className={styles.note}>
-              This formula is private. Nothing is shared until you create a link.
+              This {noun} is private. Nothing is shared until you create a link.
             </p>
             {sourceLine}
             <button type="button" className={styles.btn} onClick={mint} disabled={busy || !defId || !shareRead}>
@@ -314,9 +318,9 @@ export default function SharePanel({ defId, defName, onInstalled }) {
 
         {preview ? (
           <div className={styles.preview}>
-            <p className={styles.previewName}>{preview.definition?.meta?.name || 'Untitled formula'}</p>
+            <p className={styles.previewName}>{preview.definition?.meta?.name || `Untitled ${noun}`}</p>
             <p className={styles.note}>
-              Version {preview.origin_version} of someone else&rsquo;s formula. Installing
+              Version {preview.origin_version} of someone else&rsquo;s {noun}. Installing
               makes your own copy that you can edit freely.
             </p>
             <button type="button" className={styles.btn} onClick={install} disabled={busy}>
@@ -367,4 +371,5 @@ SharePanel.propTypes = {
   defId: PropTypes.string,
   defName: PropTypes.string,
   onInstalled: PropTypes.func,
+  noun: PropTypes.oneOf(['formula', 'indicator']),
 }

@@ -1,6 +1,8 @@
 // The doors on one of the member's own indicators in the Indicators window (Studio lane R1, second slice).
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, waitFor, within } from '@testing-library/react'
+import fs from 'node:fs'
+import path from 'node:path'
 import YourIndicatorActions, { nameOfDefinition } from './YourIndicatorActions'
 import WINDOW_SRC from './ChartSettingsIndicators.jsx?raw'
 
@@ -75,7 +77,10 @@ describe('the doors on a member’s own indicator', () => {
     fireEvent.click(screen.getByTestId('your-indicator-share'))
     const dialog = await screen.findByRole('dialog', { name: 'Share My indicator' })
     // the real panel, reading both consents for this id and granting neither
-    await within(dialog).findByText(/This formula is private/i)
+    // in the member's word for it: this is an indicator's row (the Screener's panel says "formula")
+    await within(dialog).findByText(/This indicator is private/i)
+    expect(within(dialog).getByRole('heading', { name: 'Share this indicator' })).toBeTruthy()
+    expect(dialog.textContent).not.toMatch(/this formula/i)
     expect(within(dialog).getByTestId('library-block')).toBeTruthy()
     expect(new Set(calls)).toEqual(new Set([
       `GET /api/user-definitions/${MINE.id}/share`,
@@ -111,6 +116,23 @@ describe('the doors on a member’s own indicator', () => {
     expect(nameOfDefinition({ meta: { name: 'B' } })).toBe('B')
     expect(nameOfDefinition({ label: 7 })).toBe('')
     expect(nameOfDefinition(null)).toBe('')
+  })
+
+  it('⛔ the doors sit on a line of their own under the name (stylesheet + source rail)', () => {
+    // Five doors on the name's line left the name no room: on production (2026-11-17) the name
+    // was cut to its first word and a label slid under "Modify". jsdom does no layout, so this
+    // pins the three rules that make the second line; the measurement is a real-browser check.
+    const css = fs.readFileSync(path.resolve(__dirname, './ChartSettingsIndicators.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const rule = (sel) => { const m = new RegExp(`${sel.replace(/[.]/g, '\\.')}\\s*\\{([^}]*)\\}`).exec(css); return m ? m[1] : null }
+    expect(rule('.resRowOwn')).toMatch(/flex-wrap:\s*wrap/)
+    expect(rule('.resRowOwn .resActions')).toMatch(/flex:\s*1 0 100%/)        // the whole second line
+    expect(rule('.resRowOwn .resActions')).toMatch(/flex-wrap:\s*wrap/)        // and it wraps when narrow
+    expect(rule('.resRowOwn .resMain')).toMatch(/flex:\s*1 1 0\b/)              // the name keeps the first line
+    // CONTROL: the reader sees a real rule, and a rule that is not there is null
+    expect(rule('.resActions')).toMatch(/display:\s*flex/)
+    expect(rule('.noSuchRule')).toBeNull()
+    // the window marks the member's own rows, and only those that have doors
+    expect(code(WINDOW_SRC)).toMatch(/row\.userDefined && definitionDoors \? styles\.resRowOwn : ''/)
   })
 
   it('the Indicators window uses these doors for the member’s own rows (source rail; comments stripped)', () => {

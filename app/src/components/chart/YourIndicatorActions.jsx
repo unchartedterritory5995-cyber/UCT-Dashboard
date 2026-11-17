@@ -74,7 +74,7 @@ export default function YourIndicatorActions({ def, doors, className, actionClas
           <Sheet open onClose={() => setSharing(false)} maxWidth={560} labelledByTitle
             title={name ? `Share ${name}` : 'Share this indicator'}>
             <Suspense fallback={<p data-testid="your-indicator-share-loading">Opening…</p>}>
-              <SharePanel defId={def.id} defName={name || null} />
+              <SharePanel defId={def.id} defName={name || null} noun="indicator" />
             </Suspense>
           </Sheet>
         </span>
