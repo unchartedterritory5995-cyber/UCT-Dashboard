@@ -39,6 +39,8 @@ export function loadLine(load) {
 /** The time a fresh run took on THIS device, for the share preview: said as this device's, with
  *  the bar count it was measured over. Null for anything that is not a real measurement. */
 export function deviceTimeLine(ms, bars) {
+  // the engine's script lane is switched off in this build, so nothing was run here: said, not guessed
+  if (ms && typeof ms === 'object' && ms.unmeasured) return 'The time on this device was not measured.'
   if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0) return null
   if (!Number.isInteger(bars) || bars <= 0) return null
   const shown = ms < 1 ? 'under 1 ms' : ms < 10 ? `${ms.toFixed(1)} ms` : `${Math.round(ms)} ms`

@@ -6,12 +6,18 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
-import { describe, it, expect, afterEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { names, build, computeFor } from './inspectDoors'
 import { inspectScript, readBar } from './barInspection'
 import InspectBarPanel from './InspectBarPanel'
 
-afterEach(() => { cleanup(); vi.restoreAllMocks() })
+// the engine's script-lane switch (`engine/memberPaneGate.js`): on, as on production, unless a case sets it
+const lane = (value) => {
+  if (value === undefined) delete import.meta.env.VITE_PINE_MEMBER_PANE_ENABLED
+  else import.meta.env.VITE_PINE_MEMBER_PANE_ENABLED = value
+}
+beforeEach(() => lane('1'))
+afterEach(() => { cleanup(); vi.restoreAllMocks(); lane(undefined) })
 
 // 60 daily bars, closes 101..160: every average is exact arithmetic
 const BARS = Array.from({ length: 60 }, (_, i) => {
@@ -115,6 +121,21 @@ describe('end to end, on real bars', () => {
     expect(within(row('slow')).getByTestId('inspect-bar-reason').textContent)
       .toMatch(/^Its first value is on .*2026, 9 bars after this one: it needs that much history first\.$/)
     expect(screen.getByTestId('inspect-bar-limits').textContent).toMatch(/inside an if, a loop or a function are not listed/)
+  })
+})
+
+describe('the engine\'s script-lane switch', () => {
+  it('⛔ switched off, the panel renders nothing at all: it would compute a script through the lane', () => {
+    for (const off of [undefined, '0', '', 'true']) {
+      lane(off)
+      const { container } = render(<InspectBarPanel source={SCRIPT} bars={BARS} tf="D" sym="TEST" />)
+      expect(container.innerHTML, String(off)).toBe('')
+      cleanup()
+    }
+    // CONTROL: on, the same mount shows its toggle
+    lane('1')
+    render(<InspectBarPanel source={SCRIPT} bars={BARS} tf="D" sym="TEST" />)
+    expect(screen.getByTestId('inspect-bar-toggle')).toBeTruthy()
   })
 })
 

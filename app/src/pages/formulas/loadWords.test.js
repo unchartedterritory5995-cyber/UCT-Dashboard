@@ -28,6 +28,8 @@ describe('the load line', () => {
 describe('the time on this device', () => {
   it('is said as this device\'s, with the bars it was measured over', () => {
     expect(deviceTimeLine(0.4, 5000)).toBe('Drew 5,000 bars in under 1 ms on this device.')
+    // nothing was run here (the engine's script lane is off in this build): said, never a number
+    expect(deviceTimeLine({ unmeasured: 'lane-off' })).toBe('The time on this device was not measured.')
     expect(deviceTimeLine(6.25, 5000)).toBe('Drew 5,000 bars in 6.3 ms on this device.')
     expect(deviceTimeLine(41.7, 5000)).toBe('Drew 5,000 bars in 42 ms on this device.')
   })

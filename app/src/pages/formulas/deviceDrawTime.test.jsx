@@ -6,7 +6,7 @@
 import { render, screen, cleanup, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, it, expect, afterEach, vi } from 'vitest'
-import { measureDeviceDraw, SLOW_RUN_MS } from './deviceDrawTime'
+import { measureDeviceDraw, SLOW_RUN_MS, UNMEASURED_LANE_OFF } from './deviceDrawTime'
 import SharedFormula from './SharedFormula'
 import FormulaLibrary from './FormulaLibrary'
 import IndicatorMembersTab from '../../components/chart/IndicatorMembersTab'
@@ -24,7 +24,8 @@ function engine(times, { result = { lane: 'ast', outputs: [], work: 9 } } = {}) 
   let run = 0
   const computeHeadless = vi.fn(() => { t += times[Math.min(run, times.length - 1)]; run += 1; return typeof result === 'function' ? result() : result })
   return {
-    options: { load: async () => ({ computeHeadless, referenceBars: () => BARS, referenceOptions: () => ({ tf: 'D' }) }), now: () => t },
+    // `laneOn`: the engine's script-lane switch, on, as on production (off is its own test below)
+    options: { load: async () => ({ computeHeadless, referenceBars: () => BARS, referenceOptions: () => ({ tf: 'D' }) }), now: () => t, laneOn: true },
     computeHeadless,
   }
 }
@@ -60,9 +61,38 @@ describe('the time on this device', () => {
     expect(await measureDeviceDraw(FORMULA, refused.options)).toBeNull()
     const threw = engine([2], { result: () => { throw new Error('engine') } })
     expect(await measureDeviceDraw(FORMULA, threw.options)).toBeNull()
-    expect(await measureDeviceDraw(FORMULA, { load: async () => { throw new Error('chunk') }, now: () => 0 })).toBeNull()
-    const noBars = { load: async () => ({ computeHeadless: () => ({ outputs: [] }), referenceBars: () => [], referenceOptions: () => ({}) }), now: () => 0 }
+    expect(await measureDeviceDraw(FORMULA, { load: async () => { throw new Error('chunk') }, now: () => 0, laneOn: true })).toBeNull()
+    const noBars = { load: async () => ({ computeHeadless: () => ({ outputs: [] }), referenceBars: () => [], referenceOptions: () => ({}) }), now: () => 0, laneOn: true }
     expect(await measureDeviceDraw(FORMULA, noBars)).toBeNull()
+  })
+})
+
+describe('the engine\'s script-lane switch closes this path too', () => {
+  it('⛔ switched off: the engine is never loaded, and the answer says by name that nothing was measured', async () => {
+    const e = engine([1])
+    const load = vi.fn(e.options.load)
+    expect(await measureDeviceDraw(FORMULA, { ...e.options, load, laneOn: false })).toEqual({ unmeasured: UNMEASURED_LANE_OFF })
+    expect(load).not.toHaveBeenCalled()
+    expect(e.computeHeadless).not.toHaveBeenCalled()
+    // anything but an explicit yes is off
+    for (const laneOn of [undefined, null, 0, '1', 'true']) {
+      if (laneOn === undefined) continue
+      expect(await measureDeviceDraw(FORMULA, { ...e.options, load, laneOn })).toEqual({ unmeasured: UNMEASURED_LANE_OFF })
+    }
+    expect(load).not.toHaveBeenCalled()
+  })
+
+  it('with no option given it reads the engine\'s own gate (off in this test build, as in any build without the flag)', async () => {
+    const e = engine([1])
+    const load = vi.fn(e.options.load)
+    const { laneOn, ...rest } = e.options
+    expect(laneOn).toBe(true)
+    expect(await measureDeviceDraw(FORMULA, { ...rest, load })).toEqual({ unmeasured: UNMEASURED_LANE_OFF })
+    expect(load).not.toHaveBeenCalled()
+  })
+
+  it('a pasted script is still answered first: not a formula, nothing to say', async () => {
+    expect(await measureDeviceDraw({ compute: { kind: 'runtime', source: 'plot(close)' } }, { laneOn: false })).toBeNull()
   })
 })
 
@@ -87,6 +117,17 @@ describe('on the share page', () => {
     expect(time.textContent.trim()).toBe('Drew 5,000 bars in 4.0 ms on this device.')
     // directly under the verdict, above everything else
     expect(screen.getByTestId('shared-formula-verdict').nextElementSibling).toBe(line)
+  })
+
+  it('⛔ with the engine\'s switch off the page says this device\'s time was not measured, and makes up no number', async () => {
+    const e = engine([9, 4])
+    const load = vi.fn(e.options.load)
+    open({ load: { class: 'light', work: 37 } }, { ...e.options, load, laneOn: false })
+    const line = await screen.findByTestId('shared-formula-load')
+    const time = await screen.findByTestId('shared-formula-device-time')
+    expect(line.textContent).toBe('Light to draw. The time on this device was not measured.')
+    expect(time.textContent).not.toMatch(/\d/)
+    expect(load).not.toHaveBeenCalled()
   })
 
   it('⛔ "not measured yet" is said in words and nothing is timed', async () => {

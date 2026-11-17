@@ -119,7 +119,9 @@ export default function SharedFormula({ deviceOptions } = {}) {
   const sharedNow = state.shared || null
   const load = loadLine(sharedNow && sharedNow.load)
   const deviceTime = useDeviceDrawTime(sharedNow ? sharedNow.definition : null, !!(load && load.code !== 'unmeasured'), deviceOptions)
-  const deviceLine = deviceTime ? deviceTimeLine(deviceTime.ms, deviceTime.bars) : null
+  const deviceLine = deviceTime
+    ? (deviceTime.unmeasured ? deviceTimeLine(deviceTime) : deviceTimeLine(deviceTime.ms, deviceTime.bars))
+    : null
 
   const install = useCallback(async () => {
     setInstalling(true); setInstallError(null)
