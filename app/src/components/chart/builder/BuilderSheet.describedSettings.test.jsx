@@ -70,6 +70,9 @@ describe('a described indicator shows its numbers', () => {
     openInputs()
     const rows = within(screen.getByTestId('converse-settings')).getAllByTestId('studio-setting')
     expect(rows.map((r) => box(r).value)).toEqual(['14', '70'])
+    // the form's own "add an input" note is not offered beside them: it would act on a formula
+    // this indicator does not have
+    expect(screen.getByTestId('declared-inputs').hidden).toBe(true)
   })
 
   it('changing a number asks the assistant nothing, and what will run follows it', async () => {

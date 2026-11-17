@@ -3707,7 +3707,10 @@ export default function BuilderSheet({
               Without these the period lives in the formula as a literal, so a
               saved indicator is ONE INSTANCE of itself — nobody can change it,
               and sharing it hands over somebody else's constant. */}
-          <section className={styles.readbackWrap} aria-labelledby="uct-inputs-head">
+          {/* ⭐ Not while a conversation holds the indicator: an input declared here belongs to the FORM's
+              formula, and the described indicator's own numbers are the fields above. */}
+          <section className={styles.readbackWrap} aria-labelledby="uct-inputs-head" hidden={!!converseNumbers}
+            data-testid="declared-inputs">
             <h3 className={styles.sectionHead} id="uct-inputs-head">Inputs you can change later</h3>
             {memberInputs.length === 0 && (
               <p className={styles.measured} data-testid="no-inputs">

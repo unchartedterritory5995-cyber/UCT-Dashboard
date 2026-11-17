@@ -64,14 +64,17 @@ describe('the dock’s settings', () => {
     expect(field(rows()[0]).value).toBe('20')
   })
 
-  it('leaving the field commits too; Escape gives the typing up', async () => {
+  it('leaving the field commits too; Escape is left to the window', async () => {
     mount()
     await say('Add a 20 EMA')
     await type(rows()[0], '34', 'blur')
     expect(field(rows()[0]).value).toBe('34')
+    // Escape belongs to the surface the field sits in (it closes, or asks first): the field does not
+    // commit on it and does not quietly throw the typing away
     fireEvent.change(field(rows()[0]), { target: { value: '99' } })
     await act(async () => { fireEvent.keyDown(field(rows()[0]), { key: 'Escape' }) })
-    expect(field(rows()[0]).value).toBe('34')
+    expect(field(rows()[0]).value).toBe('99')
+    expect(rows()[0].textContent).toMatch(/EMA 34/)                      // nothing was committed
   })
 
   it('a value a length cannot take is refused in words beside the field, and nothing changes', async () => {
