@@ -3921,6 +3921,581 @@
      }
     ]
    }
+  },
+  {
+   "slug": "flat_base",
+   "name": "Flat Base",
+   "summary": "Shades a flat base: a 25-session range under 15%, within 15% of the 52-week high, after an advance of 20% or more.",
+   "definition": {
+    "schemaVersion": 1,
+    "id": "house_flat_base",
+    "version": 1,
+    "paints": [
+     {
+      "kind": "bgcolor",
+      "title": "Signal background",
+      "colorMode": "column:flatBase",
+      "colorUp": "#2962FF",
+      "colorDown": "transparent",
+      "opacity": 0.2
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "sha256:6665f543177879aa89ec640e75b8d2465fbb57b28c406460e8c16b010094ab5a",
+     "rev": 1,
+     "ast": {
+      "type": "op",
+      "name": "&&",
+      "args": [
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": "<=",
+          "args": [
+           {
+            "type": "call",
+            "name": "highest",
+            "args": [
+             {
+              "type": "series",
+              "name": "high"
+             },
+             {
+              "type": "num",
+              "value": 25
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": "*",
+            "args": [
+             {
+              "type": "call",
+              "name": "lowest",
+              "args": [
+               {
+                "type": "series",
+                "name": "low"
+               },
+               {
+                "type": "num",
+                "value": 25
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 1.15
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": ">=",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "op",
+            "name": "*",
+            "args": [
+             {
+              "type": "call",
+              "name": "highest",
+              "args": [
+               {
+                "type": "series",
+                "name": "high"
+               },
+               {
+                "type": "num",
+                "value": 252
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 0.85
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": ">=",
+        "args": [
+         {
+          "type": "offset",
+          "value": 25,
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "*",
+          "args": [
+           {
+            "type": "offset",
+            "value": 125,
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 1.2
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "source": "highest(high, 25) <= lowest(low, 25) * 1.15 && close >= highest(high, 252) * 0.85 && close[25] >= close[125] * 1.2"
+    },
+    "meta": {
+     "name": "Flat Base",
+     "shortName": "Flat Base",
+     "category": "Custom",
+     "description": "((1 when (the highest high of the last 25 bars) is less than or equal to ((the lowest low of the last 25 bars) times 1.15) and 0 otherwise) and (1 when close is greater than or equal to ((the highest high of the last 252 bars) times 0.85) and 0 otherwise)) and (1 when (close 25 bars ago) is greater than or equal to ((close 125 bars ago) times 1.2) and 0 otherwise)",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live"
+    },
+    "placement": {
+     "target": "price"
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "flatBase",
+      "label": "Flat Base",
+      "style": "line",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true
+     }
+    ]
+   }
+  },
+  {
+   "slug": "up_down_volume_ratio_50",
+   "name": "Up/Down Volume Ratio (50)",
+   "summary": "Volume on up days divided by volume on down days over 50 sessions, with a line at 1.0 and shading above 1.2.",
+   "definition": {
+    "schemaVersion": 1,
+    "id": "house_up_down_volume_ratio_50",
+    "version": 1,
+    "paints": [
+     {
+      "kind": "bgcolor",
+      "title": "Signal background",
+      "colorMode": "column:strong",
+      "colorUp": "#089981",
+      "colorDown": "transparent",
+      "opacity": 0.2
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "sha256:9467d911b726a7c6f9ae16239383df48d7ea3f45c368ed0e7f812c58fd11f21f",
+     "rev": 1,
+     "ast": {
+      "type": "op",
+      "name": "/",
+      "args": [
+       {
+        "type": "call",
+        "name": "sum",
+        "args": [
+         {
+          "type": "op",
+          "name": "?:",
+          "args": [
+           {
+            "type": "op",
+            "name": ">",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "series",
+              "name": "open"
+             }
+            ]
+           },
+           {
+            "type": "series",
+            "name": "volume"
+           },
+           {
+            "type": "num",
+            "value": 0
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 50
+         }
+        ]
+       },
+       {
+        "type": "call",
+        "name": "sum",
+        "args": [
+         {
+          "type": "op",
+          "name": "?:",
+          "args": [
+           {
+            "type": "op",
+            "name": "<",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "series",
+              "name": "open"
+             }
+            ]
+           },
+           {
+            "type": "series",
+            "name": "volume"
+           },
+           {
+            "type": "num",
+            "value": 0
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 50
+         }
+        ]
+       }
+      ]
+     },
+     "source": "sum(close > open ? volume : 0, 50) / sum(close < open ? volume : 0, 50)",
+     "trees": {
+      "udr": {
+       "type": "op",
+       "name": "/",
+       "args": [
+        {
+         "type": "call",
+         "name": "sum",
+         "args": [
+          {
+           "type": "op",
+           "name": "?:",
+           "args": [
+            {
+             "type": "op",
+             "name": ">",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "series",
+               "name": "open"
+              }
+             ]
+            },
+            {
+             "type": "series",
+             "name": "volume"
+            },
+            {
+             "type": "num",
+             "value": 0
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 50
+          }
+         ]
+        },
+        {
+         "type": "call",
+         "name": "sum",
+         "args": [
+          {
+           "type": "op",
+           "name": "?:",
+           "args": [
+            {
+             "type": "op",
+             "name": "<",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "series",
+               "name": "open"
+              }
+             ]
+            },
+            {
+             "type": "series",
+             "name": "volume"
+            },
+            {
+             "type": "num",
+             "value": 0
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 50
+          }
+         ]
+        }
+       ]
+      },
+      "strong": {
+       "type": "op",
+       "name": ">",
+       "args": [
+        {
+         "type": "op",
+         "name": "/",
+         "args": [
+          {
+           "type": "call",
+           "name": "sum",
+           "args": [
+            {
+             "type": "op",
+             "name": "?:",
+             "args": [
+              {
+               "type": "op",
+               "name": ">",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "series",
+                 "name": "open"
+                }
+               ]
+              },
+              {
+               "type": "series",
+               "name": "volume"
+              },
+              {
+               "type": "num",
+               "value": 0
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 50
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "sum",
+           "args": [
+            {
+             "type": "op",
+             "name": "?:",
+             "args": [
+              {
+               "type": "op",
+               "name": "<",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "series",
+                 "name": "open"
+                }
+               ]
+              },
+              {
+               "type": "series",
+               "name": "volume"
+              },
+              {
+               "type": "num",
+               "value": 0
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 50
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "num",
+         "value": 1.2
+        }
+       ]
+      }
+     },
+     "treesHash": "sha256:42f9952edc15261367518a5d551c951d3716ad213446af755704d63be605af29",
+     "scanPlot": "udr",
+     "sources": {
+      "udr": "sum(close > open ? volume : 0, 50) / sum(close < open ? volume : 0, 50)",
+      "strong": "sum(close > open ? volume : 0, 50) / sum(close < open ? volume : 0, 50) > 1.2"
+     }
+    },
+    "meta": {
+     "name": "Up/Down Volume Ratio (50)",
+     "shortName": "Up/Down",
+     "category": "Custom",
+     "description": "(the sum of (volume when (1 when close is greater than open and 0 otherwise) is not zero, 0 when it is zero, and nothing while it is unknown) over the last 50 bars) divided by (the sum of (volume when (1 when close is less than open and 0 otherwise) is not zero, 0 when it is zero, and nothing while it is unknown) over the last 50 bars)",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live"
+    },
+    "placement": {
+     "target": "pane",
+     "pane": {
+      "height": 0.15
+     }
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "strongColor",
+      "type": "color",
+      "label": "SUM 50 (Volume when Close above Open, else 0) divided by SU… colour",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "strongWidth",
+      "type": "int",
+      "label": "SUM 50 (Volume when Close above Open, else 0) divided by SU… width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "udr",
+      "label": "Up/Down",
+      "style": "line",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+       "decimals": 2
+      }
+     },
+     {
+      "key": "strong",
+      "label": "SUM 50 (Volume when Close above Open, else 0) divided by SU…",
+      "style": "line",
+      "color": "$strongColor",
+      "width": "$strongWidth",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true
+     },
+     {
+      "key": "levels",
+      "label": "Levels",
+      "style": "hlines",
+      "levels": [
+       1
+      ],
+      "color": "rgba(255,255,255,0.12)",
+      "width": 1,
+      "lineStyle": "largeDashed",
+      "role": "context"
+     }
+    ]
+   }
   }
  ]
 }
