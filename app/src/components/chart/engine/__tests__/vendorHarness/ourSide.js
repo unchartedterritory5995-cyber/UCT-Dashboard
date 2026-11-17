@@ -1081,6 +1081,18 @@ function drawnColours(def, bars, ctx, inputs = undefined) {
     const plot = plotByKey.get(b.plotKey) || {}
     const seriesColor = b.series.__options && b.series.__options.color
     const byTime = new Map(data.map((p) => [String(p.time), p]))
+    // ⭐⭐ A GAP-BREAKING LINE IS DRAWN BY MORE THAN ONE SERIES (`gapRuns.js`): the
+    // primary holds the NEWEST valued run and whitespace elsewhere, and each earlier
+    // run is drawn by a run series the binding owns (`runSeries` / `runData`). Reading
+    // the primary alone read every earlier run as "none" — a renderer that drew the
+    // colour, scored as one that did not (row 42: `plot.style_linebr` now breaks, and
+    // supertrend-strategy / pa-zigzag read 332 and 8 phantom colour misses). What the
+    // renderer was handed for a bar is the valued point of whichever series drew it.
+    for (const run of (Array.isArray(b.runData) ? b.runData : [])) {
+      for (const p of (Array.isArray(run) ? run : [])) {
+        if (p && Number.isFinite(p.value)) byTime.set(String(p.time), p)
+      }
+    }
     // ⭐⭐ A DISPLACED PLOT'S COLOUR IS READ WHERE THE RENDERER DREW IT.
     // `offset = -N` draws the value computed on bar i at bar i - N (the binder's
     // `displacedColumn`), and TradingView's study data keys that value — and its

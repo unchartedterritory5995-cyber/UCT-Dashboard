@@ -10,7 +10,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet, { buildDefinition } from './BuilderSheet'
-import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from './builderStart.testkit.js'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { BUILDER_INPUT_SCOPE } from './builderInputs'
 import { evaluateFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'

@@ -315,3 +315,44 @@ def test_the_cases_file_holds_the_owner_examples_and_five_controls():
     for c in doc["cases"]:
         if c["group"] == "example":
             assert [t["expect"]["kind"] for t in c["turns"]] == ["change", "change"], c["id"]
+
+
+# ═══ 2026-11-17 — the lane must be able to BUILD, and that is checked without a bundler ════════
+
+def test_every_asset_type_the_app_imports_has_a_loader_in_the_lane():
+    """⚰️ The compass mark became a `.webp` on 2026-11-12. The lane's loader map had no entry for it,
+    the bundle failed, and the runner answered "LANE UNAVAILABLE -- nothing was graded" for five
+    days, while every test above was skipped wherever `app/node_modules` is absent.
+
+    This reads the app's own import statements (no node, no bundler) and fails on a file type the
+    lane cannot swallow."""
+    import re
+    from pathlib import Path
+    import tools.converse_eval as ce
+
+    src = Path(ce.APP) / "src"
+    assert src.is_dir()
+    # a dotted module name (`./b1Core.steps`) is code, not a file type: only a NON-CODE type counts
+    non_code = {".css", ".scss", ".less", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".svg", ".ico",
+                ".bmp", ".apng", ".cur", ".tiff", ".woff", ".woff2", ".ttf", ".otf", ".eot", ".mp3", ".mp4",
+                ".webm", ".wav", ".ogg", ".flac", ".aac", ".m4a", ".mov", ".pdf", ".wasm", ".txt", ".md",
+                ".csv", ".tsv", ".xml", ".yaml", ".yml", ".glsl", ".frag", ".vert", ".html"}
+    known = set(ce.ASSET_LOADERS)
+    pattern = re.compile(r"""(?:from|import)\s*\(?\s*['"][^'"\n]+?(\.[A-Za-z0-9]{2,5})['"]""")
+    seen: dict = {}
+    for path in src.rglob("*.js*"):
+        if ".test." in path.name or "node_modules" in path.parts:
+            continue                                   # tests are not in the lane's bundle
+        for ext in pattern.findall(path.read_text("utf-8", errors="ignore")):
+            seen.setdefault(ext.lower(), path)
+    assert ".webp" in seen and ".css" in seen, "the scan read no asset imports at all"
+    missing = {ext: str(p.relative_to(src)) for ext, p in seen.items() if ext in non_code and ext not in known}
+    assert not missing, f"the lane has no loader for: {missing}"
+
+
+def test_CONTROL_the_asset_scan_would_catch_a_missing_loader(monkeypatch):
+    """The rail above can fail: take `.webp` out of the map and it names it."""
+    import tools.converse_eval as ce
+    monkeypatch.setattr(ce, "ASSET_LOADERS", {k: v for k, v in ce.ASSET_LOADERS.items() if k != ".webp"})
+    with pytest.raises(AssertionError, match=r"\.webp"):
+        test_every_asset_type_the_app_imports_has_a_loader_in_the_lane()

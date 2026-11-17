@@ -36,6 +36,7 @@ import { hasSomethingToSend } from './sendConversation'
 // ⭐ L8 — loaded on the press: most conversations are never sent
 const SendConversationDialog = lazy(() => import('./SendConversationDialog'))
 import { safeCssColour } from '../../engine/objectColour'
+import SettingsFields from './SettingsFields'
 
 const EXAMPLES = Object.freeze(['Add a 20 EMA', 'RSI overbought signal', 'Volume above its 50-day average'])
 const PANEL_W = 360
@@ -597,6 +598,9 @@ export default function CreateIndicatorPanel({
               {[...rb.alerts, ...rb.infoValues].map((l) => <div key={l} className={styles.detail}>{l}</div>)}
             </div>
           )}
+          {/* ⭐ SETTINGS (2026-11-17) — every length, level and multiple of the indicator, as a field.
+              A change is the ordinary slot edit: the preview redraws and Undo takes it back. */}
+          <SettingsFields settings={conv.settings} onSet={conv.setNumber} disabled={busy || saving} />
           {conv.needsAck.length > 0 && (
             <label className={styles.ack}>
               <input type="checkbox" checked={conv.acked} onChange={(e) => conv.setAcked(e.target.checked)}
