@@ -307,44 +307,122 @@ def test_over_the_budget_is_refused_by_name_and_nothing_is_written(store, monkey
 
 @pytest.mark.parametrize("state", [lb.UNAVAILABLE, lb.RUNTIME_LANE, lb.ENGINE_REFUSED])
 def test_what_could_not_be_measured_lists_and_says_so(store, monkeypatch, state):
-    monkeypatch.setattr(lb, "measure_row", lambda _row: not_measured(state))
+    monkeypatch.setattr(lb, "measure_row", lambda _row: not_measured(state, "no-node"))
     store.save(OWNER, did(1), defn(did(1)))
     out = store.publish(OWNER, did(1))
     assert out["listed"] is True and out["load"] == {"class": None, "measured": False}
     assert _entry(store, out["token"])["load"] == {"class": None, "measured": False}
 
 
-def test_a_measurement_is_about_one_version_and_an_unmeasured_version_has_no_load_key(store, monkeypatch):
+def _v2(store, n=1, period=50):
+    """The owner edits: version 2 of definition `n`."""
+    store.save(OWNER, did(n), {**defn(did(n), period=period), "version": 2})
+
+
+def test_re_sharing_a_LISTED_indicator_over_budget_is_refused_and_the_listing_keeps_its_version(store, monkeypatch):
+    """The way around a budget checked only at listing: list a light version, save a heavy one,
+    re-share. The library shows whatever the link pins, so the gate is on the door that moves the pin."""
+    monkeypatch.setattr(lb, "measure_row", lambda _row: measured(37))
+    store.save(OWNER, did(1), defn(did(1)))
+    out = store.publish(OWNER, did(1))
+    assert out["version"] == 1 and out["load"] == {"class": "light", "work": 37}
+
+    _v2(store)
+    monkeypatch.setattr(lb, "measure_row", lambda row: measured(9200 if row["version"] == 2 else 37))
+    with pytest.raises(store.ShareRefused) as exc:
+        store.share(OWNER, did(1))
+    assert exc.value.reason == "load-budget" and "9,200" in exc.value.detail
+    # nothing moved: the link, the entry and the preview are still the light version
+    assert store.share_status(OWNER, did(1))["version"] == 1
+    assert store.resolve_share(out["token"])["origin_version"] == 1
+    assert _entry(store, out["token"])["load"] == {"class": "light", "work": 37}
+    assert store.share_load(OWNER, did(1), 2) is None               # no row for the refused version
+    assert store.listing_status(OWNER, did(1))["listed"] is True    # and it is still listed
+    # listing it again is the same door and the same answer
+    with pytest.raises(store.ShareRefused) as again:
+        store.publish(OWNER, did(1))
+    assert again.value.reason == "load-budget"
+    assert store.share_status(OWNER, did(1))["version"] == 1
+
+
+def test_re_sharing_a_LISTED_indicator_within_budget_records_the_new_versions_own_measurement(store, monkeypatch):
+    monkeypatch.setattr(lb, "measure_row", lambda _row: measured(37))
+    store.save(OWNER, did(1), defn(did(1)))
+    out = store.publish(OWNER, did(1))
+    _v2(store)
+    monkeypatch.setattr(lb, "measure_row", lambda row: measured(5000 if row["version"] == 2 else 37))
+    again = store.share(OWNER, did(1))
+    assert again["token"] == out["token"] and again["version"] == 2
+    assert again["load"] == {"class": "heavy", "work": 5000}
+    assert _entry(store, out["token"])["load"] == {"class": "heavy", "work": 5000}
+    assert store.resolve_share(out["token"])["load"] == {"class": "heavy", "work": 5000}
+    # a measurement is about ONE version: version 1 keeps its own
+    assert store.share_load(OWNER, did(1), 1) == {"class": "light", "work": 37}
+    assert store.share_load(OWNER, did(1), 2) == {"class": "heavy", "work": 5000}
+
+
+def test_a_link_that_is_not_listed_is_never_measured_and_never_refused(store, monkeypatch):
+    calls = []
+    monkeypatch.setattr(lb, "measure_row", lambda row: calls.append(row["version"]) or measured(9200))
+    store.save(OWNER, did(1), defn(did(1)))
+    first = store.share(OWNER, did(1))                              # a private link: no budget applies
+    assert calls == [] and "load" not in first
+    _v2(store)
+    assert store.share(OWNER, did(1))["version"] == 2 and calls == []
+    # listed, then taken out of the library by its owner: the link is private again
+    monkeypatch.setattr(lb, "measure_row", lambda row: calls.append(row["version"]) or measured(37))
+    store.publish(OWNER, did(1))
+    assert calls == [2]
+    assert store.unpublish(OWNER, did(1)) is True
+    store.save(OWNER, did(1), {**defn(did(1), period=80), "version": 3})
+    assert store.share(OWNER, did(1))["version"] == 3 and calls == [2]
+    assert "load" not in store.resolve_share(first["token"])        # version 3 was never measured
+
+
+def test_a_version_pinned_while_the_switch_is_off_carries_no_load_key(store, monkeypatch):
     monkeypatch.setattr(lb, "measure_row", lambda _row: measured(37))
     store.save(OWNER, did(1), defn(did(1)))
     out = store.publish(OWNER, did(1))
     assert "load" in _entry(store, out["token"])
-    # the owner edits and re-shares: the link now pins version 2, which nobody measured
-    store.save(OWNER, did(1), {**defn(did(1), period=50), "version": 2})
-    again = store.share(OWNER, did(1))
-    assert again["token"] == out["token"] and again["version"] == 2
+    _v2(store)
+    monkeypatch.setattr(lb, "measure_row", lambda _row: None)       # the switch went off
+    assert store.share(OWNER, did(1))["version"] == 2
     assert "load" not in _entry(store, out["token"])
     assert "load" not in store.resolve_share(out["token"])
     assert store.share_load(OWNER, did(1), 1) == {"class": "light", "work": 37}    # version 1 keeps its own
 
 
-def test_a_save_between_measuring_and_pinning_leaves_the_listing_unmeasured(store, monkeypatch):
-    """The measurement was made on the version read first. If the link ends up pinning another one
-    (a save landed in between), the number describes a version nobody will be served."""
-    monkeypatch.setattr(lb, "measure_row", lambda _row: measured(37))
+@pytest.mark.parametrize("code", ["busy", "timeout"])
+def test_a_measurement_that_could_not_be_made_in_time_refuses_the_listing_to_be_asked_again(store, monkeypatch, code):
+    """Not accepted unmeasured: a crowded or slow measurement would be the way around the budget."""
+    monkeypatch.setattr(lb, "measure_row", lambda _row: not_measured(lb.UNAVAILABLE, code))
     store.save(OWNER, did(1), defn(did(1)))
-    real_share = store.share
+    with pytest.raises(store.ShareRefused) as exc:
+        store.publish(OWNER, did(1))
+    assert exc.value.reason == "load-busy"
+    assert ("Try again" in exc.value.detail) and ("not listed" in exc.value.detail)
+    assert store.share_status(OWNER, did(1)) is None and store.public_library(limit=60)["entries"] == []
+    assert router_mod._SHARE_STATUS["load-busy"] == 503
+    # CONTROL: the server's own trouble (no node, an unreadable answer) refuses nobody
+    monkeypatch.setattr(lb, "measure_row", lambda _row: not_measured(lb.UNAVAILABLE, "no-node"))
+    assert store.publish(OWNER, did(1))["load"] == {"class": None, "measured": False}
 
-    def share_after_a_save(user_id, def_id):
-        store.save(user_id, def_id, {**defn(def_id, period=50), "version": 2})
-        return real_share(user_id, def_id)
-    monkeypatch.setattr(store, "share", share_after_a_save)
-    out = store.publish(OWNER, did(1))
-    assert out["listed"] is True and out["version"] == 2
-    assert "load" not in out
-    with svc.contextlib.closing(svc._connect()) as c:
-        assert c.execute("SELECT COUNT(*) FROM definition_load_measurements").fetchone()[0] == 0
-    assert "load" not in _entry(store, out["token"])
+
+def test_which_unavailable_outcomes_ask_again():
+    assert lb.RETRY_CODES == ("busy", "timeout")
+    assert lb.must_retry(not_measured(lb.UNAVAILABLE, "busy")) and lb.must_retry(not_measured(lb.UNAVAILABLE, "timeout"))
+    for m in (None, {}, measured(9), not_measured(lb.UNAVAILABLE, "no-node"), not_measured(lb.UNAVAILABLE, "bad-answer"),
+              not_measured(lb.ENGINE_REFUSED, "timeout"), not_measured(lb.RUNTIME_LANE, "busy")):
+        assert lb.must_retry(m) is False, m
+    assert "time limit" in lb.retry_message(not_measured(lb.UNAVAILABLE, "timeout"))
+    assert "in a moment" in lb.retry_message(not_measured(lb.UNAVAILABLE, "busy"))
+
+
+def test_one_listing_holds_a_worker_for_a_bounded_time_and_the_subprocess_count_is_capped():
+    """Stated in the module's header: a wait for a slot, then the run's own limit."""
+    assert lb.MEASURE_CONCURRENCY == 2
+    assert lb.SLOT_WAIT_S + lb.MEASURE_TIMEOUT_S == 15
+    assert lb._SLOTS._initial_value == lb.MEASURE_CONCURRENCY
 
 
 def test_a_listing_from_before_this_existed_and_a_bare_share_carry_no_load_key(store, monkeypatch):

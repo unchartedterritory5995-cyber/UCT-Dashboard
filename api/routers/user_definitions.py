@@ -1001,7 +1001,10 @@ _SHARE_STATUS = {"not-found": 404, "revoked": 410, "gone": 410,
                  "taken-down": 403, "listing-limit": 409,
                  # ⭐ STUDIO R6: over the library's load budget (`load_budget`), measured
                  # by the server at listing. A conflict the owner resolves by simplifying.
-                 "load-budget": 409}
+                 "load-budget": 409,
+                 # the measurement could not be MADE in time (no free slot, or stopped at its
+                 # time limit): nothing was listed or re-pinned; asking again is the remedy.
+                 "load-busy": 503}
 
 
 def _share_http(exc: "svc.ShareRefused") -> HTTPException:

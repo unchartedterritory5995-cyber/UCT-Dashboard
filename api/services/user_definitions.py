@@ -4140,9 +4140,37 @@ def _newest_share(c: sqlite3.Connection, user_id: Any, def_id: str):
     ).fetchone()
 
 
-def share(user_id: Any, def_id: str) -> Optional[dict]:
+def _load_gate(row: Any) -> Optional[dict]:
+    """⭐ STUDIO R6 — measure the version a LISTING is about to pin, and refuse by name.
+
+    `load_budget.measure_row`: the document AS SERVED, one short-lived subprocess, a count and
+    never a clock. Raises ``ShareRefused("load-budget")`` for a count over the library's budget
+    (admins included: the bar is the same for a house indicator) and ``ShareRefused("load-busy")``
+    when the measurement could not be MADE in time (no free slot, or the run was stopped at its
+    time limit): a listing is not accepted unmeasured because the measurer was busy or because
+    the indicator ran past the limit. Every other outcome (the switch is off: None; no node; an
+    engine refusal; a pasted script) comes back as it is and refuses nobody.
+    """
+    from api.services import load_budget                           # noqa: PLC0415
+    measured = load_budget.measure_row(row)
+    if load_budget.over_budget(measured):
+        raise ShareRefused("load-budget", load_budget.refusal_message(measured))
+    if load_budget.must_retry(measured):
+        raise ShareRefused("load-busy", load_budget.retry_message(measured))
+    return measured
+
+
+def share(user_id: Any, def_id: str, *, _for_listing: bool = False) -> Optional[dict]:
     """Mint (or re-pin) the share link for a definition. ``None`` if there is
     nothing live to share.
+
+    ⭐⭐ STUDIO R6 — THIS IS THE ONE DOOR THAT MOVES THE VERSION A LINK PINS, so the library's
+    load budget is enforced HERE, whenever the definition is listed (its owner's last word is
+    `listed`) or is being listed now (`_for_listing`, from `publish`). The library shows
+    whatever version the link pins; a budget checked only at `publish` would let a member list
+    a light version, save a heavy one and re-share. A refusal writes nothing: the link keeps
+    the version it had. The measurement is recorded for the version this call pins, in the
+    same transaction as the pin. A link that is not listed is never measured.
 
     ⭐ IDEMPOTENT ON THE TOKEN. Pressing Share twice must not mint a second one:
     the first may already be in somebody's chat window, and replacing it would
@@ -4172,10 +4200,20 @@ def share(user_id: Any, def_id: str) -> Optional[dict]:
     why = consumer_refusal("share", row.get("requirements"))
     if why:
         raise ShareRefused("requirements", why)
+    # ⭐ STUDIO R6 — a listed definition's link is about to pin `row`: measured first, and a
+    # refusal leaves the link where it was (see the docstring).
+    listed = _for_listing
+    if not listed:
+        with contextlib.closing(_connect()) as c:
+            _ensure(c)
+            word = _newest_listing(c, user_id, def_id)
+        listed = bool(word is not None and word["listed"])
+    measured = _load_gate(row) if listed else None
     table_version = _current_table_version()
     with contextlib.closing(_connect()) as c:
         _ensure(c)
         with c:
+            now = int(time.time())
             live = _newest_share(c, user_id, def_id)
             token = (live["token"] if live is not None and not live["revoked"]
                      else share_token())
@@ -4184,11 +4222,22 @@ def share(user_id: Any, def_id: str) -> Optional[dict]:
                 " (token, user_id, def_id, version, ast_hash, table_version,"
                 "  revoked, created_at) VALUES (?,?,?,?,?,?,0,?)",
                 (token, str(user_id), def_id, row["version"], row["ast_hash"],
-                 table_version, int(time.time())),
+                 table_version, now),
             )
-    return {"token": token, "def_id": def_id, "version": row["version"],
-            "ast_hash": row["ast_hash"], "table_version": table_version,
-            "includesSource": shares_source(row.get("definition"))}
+            if measured is not None:
+                c.execute(
+                    "INSERT INTO definition_load_measurements (user_id, def_id, version, state,"
+                    " lane, work, ceiling, code, reference, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    (str(user_id), def_id, int(row["version"]), measured["state"], measured["lane"],
+                     measured["work"], measured["ceiling"], measured["code"], measured["reference"], now),
+                )
+    out = {"token": token, "def_id": def_id, "version": row["version"],
+           "ast_hash": row["ast_hash"], "table_version": table_version,
+           "includesSource": shares_source(row.get("definition"))}
+    if measured is not None:
+        from api.services import load_budget                       # noqa: PLC0415
+        out["load"] = load_budget.served(measured)
+    return out
 
 
 def unshare(user_id: Any, def_id: str) -> bool:
@@ -4552,45 +4601,25 @@ def publish(user_id: Any, def_id: str, *, role: Any = None) -> Optional[dict]:
             mine = _listed_def_ids(c, user_id)
             if def_id not in mine and len(mine) >= LISTINGS_PER_MEMBER_MAX:
                 raise ShareRefused("listing-limit", LISTING_LIMIT_MESSAGE)
-    # ⭐ STUDIO R6 — THE LOAD BUDGET, measured by the server before anything is written
-    # (`load_budget.measure_row`: the document AS SERVED, one short-lived subprocess, a count and
-    # never a clock). An indicator over the budget is refused BY NAME (`load-budget`), admins
-    # included: the library's bar is the same for a house indicator. Only a NUMBER refuses; a
-    # measurement that could not be made lists with no class.
-    measured = None
-    if row is not None and row.get("deleted_at") is None:
-        from api.services import load_budget                       # noqa: PLC0415
-        measured = load_budget.measure_row(row)
-        if load_budget.over_budget(measured):
-            raise ShareRefused("load-budget", load_budget.refusal_message(measured))
-    shared = share(user_id, def_id)
+    # ⭐ STUDIO R6 — THE LOAD BUDGET. `share(..., _for_listing=True)` measures the version it is
+    # about to pin BEFORE it writes anything and refuses by name (`load-budget`, `load-busy`);
+    # the same gate runs on every later re-share of a listed definition (`share`'s docstring).
+    shared = share(user_id, def_id, _for_listing=True)
     if shared is None:
         return None
-    # the measurement is about the version it was made on: recorded only when that is the
-    # version the link now pins (a save between the two reads leaves this listing unmeasured)
-    record = measured if (measured is not None and row.get("version") == shared["version"]) else None
     with contextlib.closing(_connect()) as c:
         _ensure(c)
         with c:
-            now = int(time.time())
             c.execute(
                 "INSERT INTO definition_listings (user_id, def_id, listed, created_at)"
                 " VALUES (?,?,1,?)",
-                (str(user_id), def_id, now),
+                (str(user_id), def_id, int(time.time())),
             )
-            if record is not None:
-                c.execute(
-                    "INSERT INTO definition_load_measurements (user_id, def_id, version, state,"
-                    " lane, work, ceiling, code, reference, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                    (str(user_id), def_id, int(shared["version"]), record["state"], record["lane"],
-                     record["work"], record["ceiling"], record["code"], record["reference"], now),
-                )
     out = {"def_id": def_id, "listed": True, "token": shared["token"],
            "version": shared["version"], "table_version": shared["table_version"],
            "includesSource": shared["includesSource"]}
-    if record is not None:
-        from api.services import load_budget                       # noqa: PLC0415
-        out["load"] = load_budget.served(record)
+    if "load" in shared:
+        out["load"] = shared["load"]
     return out
 
 

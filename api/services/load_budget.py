@@ -25,13 +25,23 @@ WHAT THE WEB POD MEASURES, AND WHAT IT DOES NOT:
     budget), but the run half is not, so the listing says "not measured yet" as well. The run
     half's source is stripped before the document leaves this process.
 
-NEVER A GUESS. A measurement that could not be made (`node` is missing, the run timed out, the
-engine refused the document headlessly) is recorded as that, by name, and the listing goes ahead
-with no class: the refusal needs a number, and a missing number refuses nobody. While the switch
-is off nothing is measured or recorded at all, and no answer carries a `load`.
+NEVER A GUESS. A measurement that could not be made because of this server (`node` is missing,
+the driver's answer is unreadable) or because the engine refused the document headlessly is
+recorded as that, by name, and the listing goes ahead with no class: a missing number refuses
+nobody. While the switch is off nothing is measured or recorded at all, and no answer carries a
+`load`.
+
+⛔ BUT NOT UNMEASURED BECAUSE IT WAS SLOW OR CROWDED. A run stopped at its time limit, or one
+that found no free slot, is not accepted as an unmeasured listing (that would be the way around
+the budget): the listing is refused by name (`load-busy`) and the member asks again
+(`must_retry`).
 
 One subprocess per measurement, at most `MEASURE_CONCURRENCY` at once in this process, killed at
 `MEASURE_TIMEOUT_S`, never retried, with an environment that carries nothing but the search path.
+A measurement that finds every slot taken WAITS up to `SLOT_WAIT_S` for one, on the request's own
+worker thread, and then answers `busy`: so one listing holds a worker thread for at most
+`SLOT_WAIT_S + MEASURE_TIMEOUT_S` seconds (15), and at most `MEASURE_CONCURRENCY` subprocesses
+exist at any moment however many members press List at once.
 """
 from __future__ import annotations
 
@@ -122,6 +132,28 @@ def over_budget(measurement: Any) -> bool:
     work, ceiling = measurement.get("work"), measurement.get("ceiling")
     limit = budget_of(ceiling)
     return bool(_count(work) and limit is not None and work > limit)
+
+
+#: The two outcomes that mean the measurement could not be MADE in time. A listing is refused on
+#: them (by name, `load-busy`) rather than accepted unmeasured: `busy` is every slot taken for
+#: `SLOT_WAIT_S`, `timeout` is a run stopped at `MEASURE_TIMEOUT_S`.
+RETRY_CODES = ("busy", "timeout")
+
+
+def must_retry(measurement: Any) -> bool:
+    """Could this measurement not be made in time? (Then the listing is refused, to be asked again.)"""
+    return bool(isinstance(measurement, Mapping) and measurement.get("state") == UNAVAILABLE
+                and measurement.get("code") in RETRY_CODES)
+
+
+def retry_message(measurement: Mapping) -> str:
+    """What the member reads when the measurement could not be made in time."""
+    if measurement.get("code") == "timeout":
+        return ("This indicator could not be measured within the library's time limit, so it was "
+                "not listed. Try again; if it keeps happening, simplify it. It still works on your "
+                "own charts and through a link you send.")
+    return ("The library is measuring other indicators right now, so this one was not listed. "
+            "Try again in a moment. Nothing about your indicator changed.")
 
 
 def refusal_message(measurement: Mapping) -> str:
