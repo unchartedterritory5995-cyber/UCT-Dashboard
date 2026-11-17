@@ -131,6 +131,8 @@ const ARG_SAMPLE = {
   etDate: '2026-01-02', scatUniverse: 'NDX', scatY: 'RS_RANK', scatX: 'CHG_1M',
   longRunLens: '60D', analystKind: 'DOWN', hiloSide: 'LOWS', hiloGroup: 'SECTOR', rsScreen: 'NHBP',
   journalAccount: 'ALL', flowList: 'OPEN',
+  confluenceLean: 'BEAR', repeatOrder: 'LATEST', periodRange: 'QTD', periodDate: '2026-01-02', periodSide: 'LOSERS', callQuery: 'margins',
+  rotationSide: 'OUT',
 }
 
 afterEach(cleanup)
