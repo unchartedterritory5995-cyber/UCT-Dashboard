@@ -254,3 +254,40 @@ export function settleDrop(base, item, repack, accept, wasMove = false) {
   if (sameBox(proposed, base)) return 'same'
   return accept(proposed, item.i, wasMove) ? 'accepted' : 'refused'
 }
+
+// ── Customize by keyboard ──
+// The box a widget asks for when an arrow key is pressed on its bar; the drop rule and the board's
+// own check then decide exactly as they do for a drag (settleDrop). Null when there is nothing to do.
+//   move   (arrow): the widget takes the place of the neighbour it touches on that side (the
+//          biggest one, when it touches several), which is what dragging it there does.
+//   resize (Shift + arrow): right / left make it one column wider / narrower, down / up one row
+//          taller / shorter. The edge that moves is the one facing into the board: a widget sitting
+//          on the right or bottom edge of the board grows and shrinks from its other side.
+export const KEY_DIRS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' }
+const spans = (a0, a1, b0, b1) => a0 < b1 && b0 < a1
+export function keyboardTarget(widgets, id, dir, resize = false) {
+  const w = (widgets || []).find(x => x.id === id)
+  const def = w && WIDGETS[w.type]
+  if (!def || !['left', 'right', 'up', 'down'].includes(dir)) return null
+  if (resize) {
+    const wide = dir === 'left' || dir === 'right'
+    const d = dir === 'right' || dir === 'down' ? 1 : -1
+    const size = (wide ? w.w : w.h) + d
+    if (size < (wide ? def.minW : def.minH) || size > (wide ? COLS : ROWS)) return null
+    const atFar = wide ? w.x + w.w === COLS : w.y + w.h === ROWS
+    const atNear = wide ? w.x === 0 : w.y === 0
+    if (d > 0 && atFar && atNear) return null
+    const shift = atFar && !atNear ? -d : 0 // on the far edge: the near side moves instead
+    return wide ? { x: w.x + shift, y: w.y, w: size, h: w.h } : { x: w.x, y: w.y + shift, w: w.w, h: size }
+  }
+  const touching = widgets.filter(o => o.id !== id && (
+    dir === 'left' ? o.x + o.w === w.x && spans(w.y, w.y + w.h, o.y, o.y + o.h)
+      : dir === 'right' ? w.x + w.w === o.x && spans(w.y, w.y + w.h, o.y, o.y + o.h)
+        : dir === 'up' ? o.y + o.h === w.y && spans(w.x, w.x + w.w, o.x, o.x + o.w)
+          : w.y + w.h === o.y && spans(w.x, w.x + w.w, o.x, o.x + o.w)))
+  const nb = touching.sort((p, q) => q.w * q.h - p.w * p.h)[0]
+  if (!nb) return null
+  const x = dir === 'left' ? nb.x : dir === 'right' ? nb.x + nb.w - w.w : w.x
+  const y = dir === 'up' ? nb.y : dir === 'down' ? nb.y + nb.h - w.h : w.y
+  return { x: Math.max(0, Math.min(x, COLS - w.w)), y: Math.max(0, Math.min(y, ROWS - w.h)), w: w.w, h: w.h }
+}

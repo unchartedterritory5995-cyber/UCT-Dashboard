@@ -16,6 +16,7 @@
 .board[data-edit] .bwBody { padding-top: 30px; }
 .bwBar { position: absolute; left: 0; right: 0; top: 0; z-index: 6; display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 4px 0 10px; border-radius: 8px; background: var(--scr-selected); color: var(--scr-bright); font: 600 12px/1 var(--font-sans); cursor: grab; user-select: none; }
 .bwBar:active { cursor: grabbing; }
+.bwBar:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 1px; }
 .bwGrip { color: var(--scr-rest); letter-spacing: -2px; }
 .bwName { white-space: nowrap; }
 .bwHint { flex: 1 1 auto; min-width: 0; font-weight: 500; color: var(--scr-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

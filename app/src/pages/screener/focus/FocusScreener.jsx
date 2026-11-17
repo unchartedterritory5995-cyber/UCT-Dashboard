@@ -1226,7 +1226,9 @@ function FocusList({ mode, onMode, modeTabs = null }) {
           liveSortEligible={liveSortEligible} liveSortOn={liveSortOn} onToggleLiveSort={() => setLiveSortOn(v => !v)}
           density={density} onDensity={d => { setDensity(d); writeLS(DENSITY_KEY, d) }}
           showCompany={showCompany} onToggleCompany={() => setShowCompany(v => { writeLS(COMPANY_KEY, v ? '0' : '1'); return !v })}
-          views={board ? [['Table view', () => { s.flush(); onMode('table') }], ['Map view', () => { s.flush(); onMode('map') }]].filter(v => !(mode === 'map' && v[0] === 'Map view')) : null} />}
+          /* Owner ruling 2026-11-17: no Table and no heat map as views on the board. The older page
+             stays reachable for what only it has (the full scan builder), under that name. */
+          views={board ? [['Scan builder', () => { s.flush(); onMode('table') }]] : null} />}
         helpMenu={<HelpMenu onHowTo={howTo ? () => setSheet('howto') : null} onMethodology={() => setSheet('methodology')}
           onLibrary={() => setSheet('library')} onGlossary={() => openFilters()} shortcuts={shortcuts}
           onRsHelp={starters.some(x => x && x.row) ? openRsHelp : null} />}

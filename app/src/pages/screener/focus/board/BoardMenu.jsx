@@ -64,7 +64,7 @@ export function BoardEditBar({ board, api }) {
   return (
     <div className={s.editBar} role="region" aria-label="Customize layout" data-testid="board-edit-bar">
       <span className={s.editTitle}>Customizing layout</span>
-      <span className={s.editHint}>Drag a widget by its bar. Resize it from a corner.</span>
+      <span className={s.editHint}>Drag a widget by its bar and resize it from a corner, or use the arrow keys on a bar (Shift resizes).</span>
       <span className={focus.spacer} />
       <Menu label="Add widget" trigger="+ Add widget" align="right" width={300} testId="board-add-menu" disabled={missing.length === 0} disabledTitle="Every widget is on the board">
         {missing.map(t => <MenuItem key={t} onSelect={() => api.addWidget(t)}>{WIDGETS[t].name}<span className={s.addBlurb}>{WIDGETS[t].blurb}</span></MenuItem>)}

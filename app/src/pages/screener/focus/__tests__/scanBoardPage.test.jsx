@@ -83,12 +83,14 @@ test('with the flag, on a desktop: the page is the board on its first preset', a
   expect(screen.getByRole('button', { name: /Change screen/ })).toHaveTextContent('All screens')
 })
 
-test('owner ruling: the view switch offers List and Charts; Table and Map open from the More menu', async () => {
+test('owner ruling: no Table and no Map as views; the More menu offers the scan builder and nothing else of them', async () => {
   draw()
   await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
   expect(within(screen.getByRole('group', { name: 'View' })).getAllByRole('button').map(b => b.textContent)).toEqual(['List', 'Charts'])
   fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
-  expect(within(screen.getByRole('menu', { name: 'More actions' })).getAllByRole('menuitem').slice(0, 2).map(i => i.textContent)).toEqual(['Table view', 'Map view'])
+  const items = within(screen.getByRole('menu', { name: 'More actions' })).getAllByRole('menuitem').map(i => i.textContent)
+  expect(items[0]).toBe('Scan builder')
+  expect(items.join(' ')).not.toMatch(/table|map/i)
 })
 
 test('without the flag, and with it on a phone or a tablet, the page is not the board', async () => {
@@ -149,12 +151,12 @@ test('a Table or Map view remembered from an earlier visit does not decide where
   }
 })
 
-test('Table view still opens from the More menu for that visit, and its switch offers no Map', async () => {
+test('the scan builder (the older page) still opens from the More menu for that visit, and its switch offers no Map', async () => {
   localStorage.setItem('uct.screener.layout', 'table')
   draw()
   await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
   fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
-  fireEvent.click(within(screen.getByRole('menu', { name: 'More actions' })).getByRole('menuitem', { name: 'Table view' }))
+  fireEvent.click(within(screen.getByRole('menu', { name: 'More actions' })).getByRole('menuitem', { name: 'Scan builder' }))
   const table = await screen.findByTestId('table-mode')
   expect(within(table).getAllByRole('button').map(b => b.textContent)).toEqual(['List', 'Charts', 'Table'])
 })
