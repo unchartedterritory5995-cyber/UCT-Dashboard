@@ -118,6 +118,31 @@ describe('typed intraday warm', () => {
     await expect(typed).resolves.toBe('network')
   })
 
+  it('a cache that is slow to read never holds the request up (pack ingesting: no daily read at all)', async () => {
+    localStorage.removeItem('barspack.version')                    // the pack still ingests: IDB busy
+    const w = await boot()
+    const { INTENT_HYDRATE_RACE_MS } = await import('./prefetch')
+    w.store.persist.hydrate = () => new Promise(() => {})          // every cache read stalls
+    const typed = w.pf.warmTypedSymbol('SLOW', '5')
+    await vi.advanceTimersByTimeAsync(INTENT_HYDRATE_RACE_MS - 10)
+    expect(ofTf(w.server.calls, '5')).toEqual([])                  // (it does wait for the race, no longer)
+    await vi.advanceTimersByTimeAsync(20)
+    expect(ofTf(w.server.calls, '5')).toEqual(['SLOW'])           // asked anyway
+    await w.server.drain()
+    await expect(typed).resolves.toBe('network')
+  })
+
+  it('with the pack held, a daily read that does not answer in time does not block a real ticker', async () => {
+    const w = await boot()
+    const { INTENT_HYDRATE_RACE_MS } = await import('./prefetch')
+    w.store.persist.hydrate = () => new Promise(() => {})
+    const typed = w.pf.warmTypedSymbol('SLOWD', '5')
+    await vi.advanceTimersByTimeAsync(2 * INTENT_HYDRATE_RACE_MS + 20)   // the daily read's race, then the key's
+    expect(ofTf(w.server.calls, '5')).toEqual(['SLOWD'])
+    await w.server.drain()
+    await expect(typed).resolves.toBe('network')
+  })
+
   it('a replay (windowed) or a non-ticker text is never warmed', async () => {
     const w = await boot()
     expect(w.pf.warmTypedSymbol('$$$', '5')).toBe(null)
