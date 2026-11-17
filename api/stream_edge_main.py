@@ -35,8 +35,9 @@ def edge_access(uct_chart_edge: Optional[str] = Cookie(None)) -> dict:
     from api import chart_edge_token
     verdict, _payload = chart_edge_token.verify(uct_chart_edge)
     if verdict != "VALID":
-        # 401 on MISSING/EXPIRED/INVALID: the client re-fetches /api/auth/me (which
-        # re-mints) and reconnects; the Worker never sends a non-member here.
+        # 401 on MISSING/EXPIRED/INVALID. The Worker then serves the request from web
+        # (session auth); the client keeps the token fresh (barsStreamManager re-mints via
+        # /api/auth/me while a stream is open), so a member normally never lands here.
         raise HTTPException(status_code=401, detail={"error": "not_entitled", "reason": verdict.lower()})
     return {"via": "edge_token"}
 
@@ -74,7 +75,8 @@ def build_app(start_feed: bool = True) -> FastAPI:
     def status():
         # Counters only: no prices, no symbols, no secrets.
         st = feed_client.status() or {}
-        return JSONResponse({"feed": {k: st.get(k) for k in ("connected", "gen", "last_error", "counters")},
+        # No `last_error`: this is a public domain and exception text can name internal hosts.
+        return JSONResponse({"feed": {k: st.get(k) for k in ("connected", "gen", "counters")},
                              "streams": stream_router.subscriber_count("bars")})
 
     app.include_router(router)
