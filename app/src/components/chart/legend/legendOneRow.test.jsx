@@ -116,6 +116,16 @@ describe('the study stack\'s rows meet: no gap for the pointer to fall through t
     expect(pad * 2, 'two neighbouring rows must meet in the middle of the gap').toBe(gap)
   })
 
+  it('a pane readout stack reaches the same way: half its own row gap', () => {
+    // every rule that is `.paneLegend` alone and declares a row-gap is the vertical readout stack
+    const rules = [...CHART_CSS.matchAll(/(?:^|\})\s*\.paneLegend\s*\{([^}]*)\}/g)].map((m) => m[1])
+    const stackRule = rules.find((r) => /row-gap:/.test(r))
+    expect(stackRule, 'the pane readout stack rule is gone').toBeTruthy()
+    const gap = px(/row-gap:\s*(\d+(?:\.\d+)?)px/, stackRule, '.paneLegend row-gap')
+    const pad = px(/--row-hit-pad:\s*(\d+(?:\.\d+)?)px/, stackRule, '.paneLegend --row-hit-pad')
+    expect(pad * 2).toBe(gap)
+  })
+
   it.each([
     ['LegendRow', ROW_CSS, '.vRow'],
     ['IndicatorChip', CHIP_CSS, '.chipGridRow'],
