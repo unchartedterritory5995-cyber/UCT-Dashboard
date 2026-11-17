@@ -14378,6 +14378,17 @@ export default function StockChart({
         // then open a moment), whereas this runs on every commit whatever armed it.
         // Verified load-bearing: disable this and the TF-flip test reds.
         pendingTfReframeRef.current = null
+      } else if (pendingTfReframeRef.current && pendingTfReframeRef.current.tf === resolvedTf && userViewMovedRef.current) {
+        // ⛔⛔ THE MEMBER MOVED THE VIEW SINCE THE SWITCH: THE SETTLING IS OVER FOR THE FRAME.
+        // Release WITHOUT re-asserting. `userViewMovedRef` is cleared by the switch itself (the
+        // zoomKey branch above), so here it can only mean a drag, a wheel, a Go-to-date or a
+        // synced chart's range AFTER the switch. ⚰️ (2026-11-17) The re-assert below ran first
+        // and the release check after it, so the first framing pass after a member's move put
+        // the outgoing frame back: drag a chart the moment it appears and the next late answer
+        // (its name and sector, its listing date) snapped it to newest-at-right. The rest gate
+        // (#1207) moved those answers past the first paint, which is how a negative control saw
+        // it (dailyFirstPaintAcceptance.test.jsx, NC-D and SETTLING).
+        pendingTfReframeRef.current = null
       } else if (pendingTfReframeRef.current && pendingTfReframeRef.current.tf === resolvedTf) {
         // Just switched INTO this timeframe: deterministically re-assert the PRESERVED
         // viewport (same last-candle position + zoom width as the outgoing view) on every
@@ -14419,9 +14430,10 @@ export default function StockChart({
         // bar ("today's candle opens on tomorrow, then snaps back"). Keeping the guard armed means
         // THIS reserve-aware re-assert (above) runs on that commit and cancels the slide — `to` is
         // invariant across the yesterday→today flip (idx(yesterday)+1 == idx(today)+0). A user pan
-        // (userViewMovedRef) still ends the hold so a deliberate scroll is never fought, and off-gate
-        // the reserve is 0 so the release timing is byte-identical to before.
-        const _reserveHolding = _intradayLoadReserve(filteredBars, resolvedTf) > 0 && !userViewMovedRef.current
+        // ends the guard before this branch (the `userViewMovedRef` arm above, the one place that
+        // rule lives), so a deliberate scroll is never fought, and off-gate the reserve is 0 so the
+        // release timing is byte-identical to before.
+        const _reserveHolding = _intradayLoadReserve(filteredBars, resolvedTf) > 0
         if (filteredBars.length === oldBarCount && _sessionSettled && !_reserveHolding) pendingTfReframeRef.current = null
       } else {
         // "Was viewing the latest": last bar visible with a normal (not huge) right gap.
