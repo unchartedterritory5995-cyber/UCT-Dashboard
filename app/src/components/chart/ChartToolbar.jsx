@@ -52,7 +52,7 @@ const BuilderSheet = lazy(() => import('./builder/BuilderSheet'))
 const CreateIndicatorPanel = lazy(() => import('./builder/studio/CreateIndicatorPanel'))
 const SaveReceipt = lazy(() => import('./builder/studio/SaveReceipt'))
 import { mintScope, chartScope, createKey, editKey, draftWillRestore } from './builder/authoring/conversationSessions'
-import { seedFrom } from './builder/agentSeams'
+import { seedFrom, sendSeedFrom } from './builder/agentSeams'
 import { useUserDefinitions, readUserDefinition } from '../../hooks/useUserDefinitions'
 import { scriptUpgradeHeld } from './builder/memberPane/savedScriptUpgrade'
 import { createCustomCopy } from './builder/definitionActions'
@@ -1190,6 +1190,9 @@ function ChartToolbar({
   const [createOpen, setCreateOpen] = useState(false)
   // ⭐ AGENT M1 — a request to PREFILL into the studio's box (never sent); consumed at mount
   const [createSeed, setCreateSeed] = useState(null)
+  // ⭐ 2026-11-16 — the member's own plain-words box asked for the seed to be SENT (`sendSeedFrom`).
+  // Read only together with a seed, so every door that clears the seed clears this too.
+  const [createSendSeed, setCreateSendSeed] = useState(false)
   // a seed lives for ONE opening: every other door clears it as it opens the studio
   // ⭐ PHASE 4 — UNIFIED EDITING. The STORE's row the studio / builder was opened on
   // (null = a new indicator). Held in state (a stable identity: the builder's
@@ -1406,6 +1409,7 @@ function ChartToolbar({
       if (!sameOpen) {
         // a different definition (or create ↔ edit) re-mounts the panel (its `key`)
         setCreateSeed(prefilled ? seed : null)
+        setCreateSendSeed(prefilled && sendSeedFrom(opts))
         setCreateEditRow(row)
         setCreateOpen(true)
       }
@@ -2056,8 +2060,9 @@ function ChartToolbar({
               key={createEditRow ? `edit:${createEditRow.def_id}` : 'create'}
               editRow={createEditRow}
               onEditFormula={createEditRow ? () => { const r = createEditRow; setCreateOpen(false); setCreateEditRow(null); setBuilderEditRow(r); setBuilderMode(null); setBuilderEverOpened(true); setBuilderOpen(true) } : null}
-              onClose={(res) => { setCreateOpen(false); setCreateEditRow(null); setCreateSeed(null); if (res && res.receipt) setSaveReceipt(res.receipt) }}
+              onClose={(res) => { setCreateOpen(false); setCreateEditRow(null); setCreateSeed(null); setCreateSendSeed(false); if (res && res.receipt) setSaveReceipt(res.receipt) }}
               seed={createSeed}
+              sendSeed={!!createSeed && createSendSeed}
               settings={cs}
               onChange={onUpdateSettings}
               sym={currentSym}

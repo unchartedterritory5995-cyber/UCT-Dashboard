@@ -221,7 +221,8 @@ describe('Manage templates: the Plain templates group', () => {
       .toHaveTextContent("Delete “Morning plan”? This can't be undone. Daily notes start from this template. After deleting it they start from a blank page.")
     fireEvent.click(within(screen.getByRole('group', { name: 'Delete Morning plan?' })).getByRole('button', { name: 'Delete' }))
     await screen.findByText('Deleted “Morning plan”. Notes made from it are unchanged.')
-    expect(setPref).toHaveBeenCalledWith('notebook_daily_template', '')
+    // ...carrying the prefs op begun BEFORE the delete's await (usePreferences.asyncBoundaries)
+    expect(setPref).toHaveBeenCalledWith('notebook_daily_template', '', expect.objectContaining({ stale: expect.any(Function) }))
   })
 
   it('(2a) CONTROL: deleting another template says nothing of daily notes and leaves the preference alone', async () => {
