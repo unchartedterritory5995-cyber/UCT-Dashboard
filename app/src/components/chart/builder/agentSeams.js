@@ -162,6 +162,25 @@ const CONTROL = new RegExp(`[${String.fromCharCode(0)}-${String.fromCharCode(8)}
  * ⛔ It is never sent. The panel puts it in the box; the member reads, edits and
  * presses Send — the same turn, budget and gates as typing it themselves.
  */
+/**
+ * ⭐ 2026-11-16 — SEND WHAT THE MEMBER TYPED. The Indicators window's own plain-words box (the
+ * member typed the sentence and pressed Enter, or pressed one of its examples) may ask for its
+ * words to be sent as the first turn, so a chart reaches a preview in two actions.
+ * ⛔ Nothing else may: `agentOpenOpts` removes the flag from UCT Agent's door, whose seed is
+ * still only placed in the box (`seedFrom`).
+ */
+export function sendSeedFrom(opts) {
+  return !!(opts && typeof opts === 'object' && opts.send === true)
+}
+
+/** The options UCT Agent's door may pass on: everything it gave, minus `send`. */
+export function agentOpenOpts(opts) {
+  if (!opts || typeof opts !== 'object') return null
+  const rest = { ...opts }
+  delete rest.send
+  return rest
+}
+
 export function seedFrom(text) {
   if (typeof text !== 'string') return null
   let s = text.replace(CONTROL, '').replace(/\s+/g, ' ').trim()

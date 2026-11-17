@@ -1,0 +1,58 @@
+// DOOR-ROBUSTNESS (2026-11-16) - probe Q-ROB4 for the capture lane, the vw-rob1 family. Queue:
+// docs/pine/capture-queue-2026-11-16-door-robustness.md
+// Chart: NYSE:RDDT 1D from the listing, inputs at defaults, AFTER THE CLOSE. Read each table cell's text from the
+// chart model (and which cells exist), not from pixels.
+// Not compiled on TradingView yet: if a row does not compile, the error names the line; split it out.
+//
+// The shapes the drawing lane now serves that only licence-held captures witness today
+// (williams-r-rsi-ema-tendance-silver-wong, volume-pace-pressure-table):
+//   G01  a `var string` written under `if mode == "B"`, `mode` an input.string at its default "B": the write's text
+//   G02  the same under `if mode == "A"` (false at the default): the seed
+//   G03  three sequential `if mode == ...` blocks, the default matching the middle one: that block's text
+//   G04  a `var string` with a text seed written only under `if timeframe.isminutes`: on a daily chart, the seed
+//   G05  a `var string` written only under `if timeframe.isdaily`: on a daily chart, the write (refused as a latch today)
+//   G06  a write under `if flag`, `flag` an input.bool at its default true: the write's text
+//   G07  a cell inside `if timeframe.isminutes` (never runs on a daily chart): the cell does NOT exist
+//   G08  a cell inside `if timeframe.isdaily or timeframe.multiplier >= 60`: the cell exists (control)
+//@version=5
+indicator("vw-rob1b-var-string-guards", overlay = true)
+mode = input.string("B", "mode", options = ["A", "B", "C"])
+flag = input.bool(true, "flag")
+var string g01 = "seed"
+var string g02 = "seed"
+var string g03 = "seed"
+var string g04 = "daily seed"
+var string g05 = "seed"
+var string g06 = "seed"
+var string g07 = na
+if mode == "B"
+    g01 := "B " + str.tostring(close, "#.##")
+if mode == "A"
+    g02 := "A " + str.tostring(close, "#.##")
+if mode == "A"
+    g03 := "first"
+if mode == "B"
+    g03 := "second"
+if mode == "C"
+    g03 := "third"
+if timeframe.isminutes
+    g04 := "minutes " + str.tostring(close, "#.##")
+if timeframe.isdaily
+    g05 := "daily " + str.tostring(close, "#.##")
+if flag
+    g06 := "flag " + str.tostring(close, "#.##")
+if timeframe.isminutes
+    g07 := "intraday " + str.tostring(close, "#.##")
+var table tb = table.new(position.top_right, 1, 8)
+if barstate.islast
+    table.cell(tb, 0, 0, text = g01)
+    table.cell(tb, 0, 1, text = g02)
+    table.cell(tb, 0, 2, text = g03)
+    table.cell(tb, 0, 3, text = g04)
+    table.cell(tb, 0, 4, text = g05)
+    table.cell(tb, 0, 5, text = g06)
+    if timeframe.isminutes
+        table.cell(tb, 0, 6, text = g07)
+    if timeframe.isdaily or timeframe.multiplier >= 60
+        table.cell(tb, 0, 7, text = "G08 daily")
+plot(close, "close")

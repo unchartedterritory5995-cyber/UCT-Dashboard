@@ -1989,6 +1989,17 @@
       ]
     },
     {
+      "key": "uct.historyLake",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Deep intraday history from the edge (rollout switch)",
+      "files": [
+        "app/src/data/barStore/historyFeed.js"
+      ]
+    },
+    {
       "key": "uct.barsPool.disabled",
       "store": "localStorage",
       "scope": "device-local",

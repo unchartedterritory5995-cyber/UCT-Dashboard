@@ -913,7 +913,35 @@ def _window_fn(name: str, reduce: Callable[[Sequence[float], int, int], float],
     return fn
 
 
+def _exact_sum(series: Sequence[float], lo: int, hi: int) -> float:
+    """The exactly rounded window sum (``math.fsum``), twin of ``interpret.js::exactSum``.
+
+    ``math.fsum`` RAISES on an overflow and on ``inf + -inf``, and this module holds no ``try``
+    (``test_ast_budget``: a caught error is one line from a refusal), so the window is admitted to it
+    only when the sum of its magnitudes is finite and below ``1e307``: every partial ``math.fsum`` forms is
+    then bounded by it, so nothing can overflow. Any other window (a NaN, an infinity, a magnitude near
+    the top of the range) answers the left-to-right sum, as before and as the JS twin does. ⭐ Both checks
+    run in C (``sum(map(abs, ...))``): a generator scan in Python cost more than the sum itself, measured
+    on 3,742 tickers x sma(50) + sma(200) x 1,500 bars."""
+    window = series[lo:hi + 1]
+    if sum(map(abs, window)) < 1e307:  # False for a NaN or an infinity too
+        return math.fsum(window)
+    total = 0.0
+    for v in window:
+        total += v
+    return total
+
+
 def _window_mean(series: Sequence[float], lo: int, hi: int) -> float:
+    """``ta.sma``: the EXACTLY ROUNDED window sum over its length (``math.fsum``), the twin of
+    ``interpret.js::windowMean`` / ``exactSum`` (SMA-EXACT, NUMBER PENDING): TradingView's sma
+    equals it on every bar of every capture from 2026-11-14 on. A NaN in the window answers NaN."""
+    return _exact_sum(series, lo, hi) / (hi - lo + 1)
+
+
+def _window_mean_naive(series: Sequence[float], lo: int, hi: int) -> float:
+    """The left-to-right mean ``ta.dev`` / ``ta.stdev`` centre on, unchanged by SMA-EXACT (the twin
+    of ``interpret.js::windowMeanNaive``)."""
     total = 0.0
     for i in range(lo, hi + 1):
         total += series[i]
@@ -1058,10 +1086,8 @@ def _pivot_col(series: Sequence[float], left: int, right: int,
 
 
 def _window_sum(series: Sequence[float], lo: int, hi: int) -> float:
-    total = 0.0
-    for i in range(lo, hi + 1):
-        total += series[i]
-    return total
+    """``math.sum``: the exactly rounded window sum (``math.fsum``), twin of ``interpret.js::windowSum``."""
+    return _exact_sum(series, lo, hi)
 
 
 def _window_mean_abs_dev(series: Sequence[float], lo: int, hi: int) -> float:
@@ -1072,7 +1098,7 @@ def _window_mean_abs_dev(series: Sequence[float], lo: int, hi: int) -> float:
     ``stdev`` returns a plausible CCI that is wrong on every bar, the same
     look-alike failure the PCF refusal table exists to prevent.
     """
-    avg = _window_mean(series, lo, hi)
+    avg = _window_mean_naive(series, lo, hi)
     total = 0.0
     for i in range(lo, hi + 1):
         total += abs(series[i] - avg)
@@ -1089,7 +1115,7 @@ def _window_stdev(series: Sequence[float], lo: int, hi: int) -> float:
     (``sqrt(sqSum / period)``), so a user's ``sma(close,20) + 2*stdev(close,20)``
     draws the same band the native Bollinger definition draws.
     """
-    avg = _window_mean(series, lo, hi)
+    avg = _window_mean_naive(series, lo, hi)
     sq = 0.0
     for i in range(lo, hi + 1):
         sq += (series[i] - avg) ** 2
@@ -2638,6 +2664,30 @@ _BAR_PRICE_MEANS = (("high", "low"), ("high", "low", "close"), ("open", "high", 
                     ("high", "low", "close", "close"))
 
 
+def _is_series(t: Any, name: str) -> bool:
+    return isinstance(t, dict) and t.get("type") == "series" and t.get("name") == name
+
+
+def _is_hlcc4_tree(total: Any, k: Any) -> bool:
+    """``hlcc4`` as ``pine.js::derivedSeriesTree`` builds it since it took TradingView's
+    arithmetic: ``(high + low + 2 * close) / 4`` (witnessed bit for bit, h3-vwap-source S08).
+    The twin of ``interpret.js::isHlcc4Tree``; a hand-written four-term sum stays in
+    ``_BAR_PRICE_MEANS``."""
+    if not isinstance(k, dict) or k.get("type") != "num" or k.get("value") != 4:
+        return False
+    if not (isinstance(total, dict) and total.get("type") == "op" and total.get("name") == "+"
+            and isinstance(total.get("args"), list) and len(total["args"]) == 2):
+        return False
+    hl, two_c = total["args"]
+    return (isinstance(hl, dict) and hl.get("type") == "op" and hl.get("name") == "+"
+            and isinstance(hl.get("args"), list) and len(hl["args"]) == 2
+            and _is_series(hl["args"][0], "high") and _is_series(hl["args"][1], "low")
+            and isinstance(two_c, dict) and two_c.get("type") == "op" and two_c.get("name") == "*"
+            and isinstance(two_c.get("args"), list) and len(two_c["args"]) == 2
+            and isinstance(two_c["args"][0], dict) and two_c["args"][0].get("type") == "num"
+            and two_c["args"][0].get("value") == 2 and _is_series(two_c["args"][1], "close"))
+
+
 def is_bar_price_tree(t: Any) -> bool:
     """ENGINE 56 (S4-2) -- is this canonical source a price the bar itself holds?
     ``open``/``high``/``low``/``close`` or Pine's ``hl2``/``hlc3``/``ohlc4``/``hlcc4`` as
@@ -2655,6 +2705,8 @@ def is_bar_price_tree(t: Any) -> bool:
     total, k = args
     if not isinstance(k, dict) or k.get("type") != "num":
         return False
+    if _is_hlcc4_tree(total, k):
+        return True
     names: List[str] = []
     at = total
     while (isinstance(at, dict) and at.get("type") == "op" and at.get("name") == "+"

@@ -154,6 +154,9 @@ describe('(h) — three syminfo fields retire by name, from the roster', () => {
     // `pine:library-changed` (other code than the document was saved against),
     // `pine:library-licence` (a non-commercial licence) and `pine:library-denied` (the deny list).
     // Rail: `pineLibraryPinning.test.js`.
-    expect(Object.keys(REFUSALS).length).toBe(51)
+    // ⭐ AND 51 → 52 ON 2026-11-16 (U15 Phase B), AGAIN NOT BECAUSE OF (h): `pine:library-version` (a v5
+    // library in a v6 script whose reached code holds a construct the v6 migration guide changed).
+    // Rail: `pineLibraryVersion.test.js`.
+    expect(Object.keys(REFUSALS).length).toBe(52)
   })
 })

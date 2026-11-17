@@ -152,9 +152,16 @@ describe('W9-T4-F1 — one authority: the fold and the broker read the same valu
     expect(minContractOf({})).toBeUndefined()
     expect(minContractOf(null)).toBeUndefined()
   })
-  it('the PRODUCTION table today: NYSE:RDDT settles no minimum contract', () => {
-    expect(SYMBOL_MIN_CONTRACT).toEqual({})
-    expect(minContractOf(symbolConstants({ ticker: 'RDDT', exchange: 'NYSE' }))).toBeUndefined()
+  // ⚰️ This said "the PRODUCTION table today: NYSE:RDDT settles no minimum contract" until 2026-11-16, when the
+  // three captures of the committed probe (NYSE:RDDT, AMEX:SPY, NASDAQ:AAPL, value 1 on every bar) became rows.
+  it('the PRODUCTION table: the three witnessed exchanges settle 1, an unwitnessed one settles nothing', () => {
+    expect(SYMBOL_MIN_CONTRACT).toEqual({ NYSE: '1', 'NYSE Arca': '1', NASDAQ: '1' })
+    expect(minContractOf(symbolConstants({ ticker: 'RDDT', exchange: 'NYSE' }))).toBe(1)
+    expect(minContractOf(symbolConstants({ ticker: 'SPY', exchange: 'NYSE Arca' }))).toBe(1)
+    expect(minContractOf(symbolConstants({ ticker: 'AAPL', exchange: 'NASDAQ' }))).toBe(1)
+    // ⛔ CONTROL: a confirmed exchange with no row (and an unconfirmed one) settles none, never a guessed 1
+    expect(minContractOf(symbolConstants({ ticker: 'X', exchange: 'NYSE American' }))).toBeUndefined()
+    expect(minContractOf(symbolConstants({ ticker: 'AITX', exchange: 'OTC' }))).toBeUndefined()
     // the neighbours it shares a key with still settle: the table is independent evidence
     expect(symbolConstants({ ticker: 'RDDT', exchange: 'NYSE' })['syminfo.pointvalue']).toBe('1')
   })
@@ -162,12 +169,17 @@ describe('W9-T4-F1 — one authority: the fold and the broker read the same valu
 
 describe('W9-T4-F1 — a script reading `syminfo.mincontract`', () => {
   const bars = Array.from({ length: 5 }, (_, i) => ({ t: 1700000000 + i * 86400, o: 10, h: 11, l: 9, c: 10, v: 1 }))
-  it('on the production table refuses BY NAME (the bind-time field it names), never a guessed 1', () => {
+  it('on the production table, an exchange with no row refuses BY NAME (the bind-time field it names), never a guessed 1', () => {
     const built = buildRuntimeIr('//@version=6\nindicator("m")\nplot(syminfo.mincontract * close)\n',
-      { bars, inputs: {}, symbol: { ticker: 'RDDT', exchange: 'NYSE' }, pane: true })
+      { bars, inputs: {}, symbol: { ticker: 'X', exchange: 'NYSE American' }, pane: true })
     expect(built.ok).toBe(false)
     expect(built.refusal.guard).toBe('interpret:bind-time-text')
     expect(built.refusal.message).toMatch(/did not settle syminfo\.mincontract/)
+  })
+  it('on the production table, a witnessed exchange (NYSE:RDDT) settles it and the script builds', () => {
+    const built = buildRuntimeIr('//@version=6\nindicator("m")\nplot(syminfo.mincontract * close)\n',
+      { bars, inputs: {}, symbol: { ticker: 'RDDT', exchange: 'NYSE' }, pane: true })
+    expect(built.ok, JSON.stringify(built.refusal)).toBe(true)
   })
   it('its sibling `syminfo.pointvalue` on the same symbol settles (control: the refusal is the table, not the lane)', () => {
     const built = buildRuntimeIr('//@version=6\nindicator("m")\nplot(syminfo.pointvalue * close)\n',

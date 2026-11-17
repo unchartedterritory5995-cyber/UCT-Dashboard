@@ -55,6 +55,7 @@ metallic gradient/glow, never a gold fill, gold border, gold text block or gold 
 **Stays grey/white:** soft squares (even when ticked), counts, icons, primary buttons (white),
 hover states, focus rings, headings. **Rule of thumb:** one or two gold marks per surface; if a
 menu shows three, drop one. A long list never turns gold (that is why ticks stay grey).
+Chart header (owner 11-16): with no saved colour the ticker title is white (`#ededed`) and the day change uses the chart's own candle up/down colours — never gold (`pane/headerDefaultColors.js`).
 Approval board with the five recipes we compared: https://claude.ai/artifact/QfJN6erpTCMEzdubY5H42W
 
 ## 2. Tokens (dark — the default; exact values)
@@ -141,6 +142,13 @@ picker and the watchlist column menu offer the same list
 A 36px well on the card colour with a ✦ spark, placeholder "Change it in plain words, e.g. …",
 and a send arrow. Replaces "Modify with AI" buttons.
 
+### On-chart marks of the member's own activity (Chart Settings → Markers → Your activity)
+Quiet, read-only, default off, and never gold. **Price alerts:** a 1px dashed line in muted
+steel-blue `#6ba3be`, axis label "Alert". **My trades** (owner 11-16): a small up-arrow under the
+bar for a buy and a small down-arrow over it for a sell, in the chart's **own** up / down candle
+colours at 60% strength (no fixed green/red, no permanent text on the chart); hovering one shows
+"Bought 100 @ 12.34 · Mar 2, 2026, 10:31 AM", or "3 fills · net +200" for a bar with several fills.
+
 ## 4. Don'ts
 - No gold beyond §2b: no gold fills, borders, buttons, text blocks, counts or decorative icons; no metallic gold icons.
 - No uppercase / tracked-out labels, no "spreadsheet" borders, no boxed tables inside cards.
@@ -156,6 +164,14 @@ and a send arrow. Replaces "Modify with AI" buttons.
 - Timeframe menu (first "remake it in UCT Signature" test, 2026-11-15): `app/src/pages/charts/widgets/TimeframeMenu.jsx` + `.module.css` — grouped list, white ✓ on the current item, favourite stars on the right (filled always shown, empty on hover), a ChoiceMenu inside a popover (its portalled list is `[data-choice-menu]`, so the host's outside-click must ignore it).
 - Chart-type header button + shared glyph: `app/src/components/chart/pane/ChartTypeMenu.jsx`, `ChartTypeGlyph.jsx`.
 - Command Center widgets / widget settings menus (Theme Tracker "…" menu, design B).
+- A whole PAGE in the style (2026-11-16): the Screener's Focus layout, `app/src/pages/screener/focus/`
+  (`FocusScreener.module.css`, `FocusMenus.module.css`, `RsScreens.module.css`). One top bar (tabs with
+  the gold underline for Stocks | Options and for the view), one context line (a screen's quick
+  controls as soft chips, the chosen one in the Selected tone), one notices line, a list whose
+  selected row is the raised tone with the 2px gold bar, and a screen picker with a group rail.
+  Its values are the `--scr-*` names in `FocusMenus.module.css`, which map to the app's own light
+  tokens under the light theme. Rail: `focus/__tests__/signatureLayout.test.jsx` (every use of gold
+  in those sheets must be one of the section 2b marks).
 - Design labs (owner-approved mockups, 2026-11-15): Chart Settings Lab — Indicators list + editor,
   Header & legend with the stat picker — https://claude.ai/artifact/57juSevqLBPhRxK3eUo5DG
 
@@ -167,6 +183,10 @@ always beside the widget), the widget-tab right-click menu · PR #1311 (watchlis
 **Localhost (feat/widget-uct-style, not shipped):** chart right-click menu M4 · chart-type header
 button + menu · Chart Settings (S2 rail, cards, soft squares, ChoiceMenu dropdowns) · timeframe
 menu · date calendar + "Go to a date" · drawing-tools ★ menu · the /charts top row (layout name = Layouts button + save state, + Add widget picker, Tools, Merge toggle) · left nav (grey icons, gold current page).
+**Screener (PR of 2026-11-16):** the Focus layout's List, Charts and Map views, its top bar, context
+and notices lines, the screen picker, Save / More / Help / Sort menus, the Filters drawer (and the
+filter rail inside it, `FilterRail skin="signature"`), the name dialog, the toast, the phone sheets.
+**Screener, not yet converted:** Table view (the older ScannerShell page) and the Options tab's own page.
 **Designed, not built (lab):** Chart Settings Indicators section + indicator editor, Header &
 legend with the stat picker. **Not yet converted:** Breadth widget (parked), Chart Settings light
 theme, pages outside /charts.

@@ -89,6 +89,12 @@ export const isUdtRecord = (v) => (
  *  misspelled field as "no data for this bar", which is the wrong answer
  *  wearing the costume of a fact (`collections.js::at` makes the same trade). */
 export function fieldGet(rec, name) {
+  // ⭐ UDT unit (ac6 readings) — off an `na` object it is TradingView's own stop: "Cannot access the '{name}' field
+  // of an undefined object. The object is 'na'." (Runtime error, probe `vw-w6-receivers-na-field`, run ac6.)
+  if (rec === null || rec === undefined || (typeof rec === 'number' && Number.isNaN(rec))) {
+    throw new RecordError(`\`.${name}\` reads a field of a user-defined type, and this value is \`na\` — TradingView `
+      + `stops the script here too ("Cannot access the '${name}' field of an undefined object. The object is 'na'.", run ac6)`)
+  }
   if (!isUdtRecord(rec)) {
     throw new RecordError(
       `\`.${name}\` reads a field of a user-defined type, and this value is `

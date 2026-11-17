@@ -34,6 +34,7 @@ import { lowerIrProgram, naTestsOf } from '../lowerIr.js'
 import { execute } from '../vm.js'
 import { probeRuntimeProgram } from '../runtimeColumns.js'
 import { EXPR } from '../ir.js'
+import { runGuardOf } from './condHistoryOutcome.js'
 
 const DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
 const CAP = JSON.parse(fs.readFileSync(path.join(DIR, 'vw-arm-history-rddt-1d-2026-10-02.json'), 'utf8'))
@@ -50,6 +51,8 @@ const v3 = (...lines) => ['//@version=3', 'study("t")', ...lines].join(NL)
 
 const build = (src, extra = {}) => buildRuntimeIr(src, { bars: BARS, inputs: {}, pane: true, ...extra })
 const refusalOf = (src, extra) => { const b = build(src, extra); return b.ok ? null : b.refusal }
+// ⭐ HIST-S3 — the build's refusal guard, else the guard the run stopped with (`callSiteRuns`), else null
+const guardOf = (src, extra = {}) => runGuardOf(src, { bars: BARS, extra: { pane: true, ...extra } })
 function run(src, { listing = true } = {}) {
   const b = build(src)
   if (!b.ok) throw new Error(`refused ${b.refusal.guard}: ${b.refusal.message}`)
@@ -199,16 +202,22 @@ describe('2 — the test is read as a condition, by the version\'s `na` rule', (
   it('off the listing the `na` reading is not claimed: counted, as `SELECT`\'s test is', () => {
     expect(naTestsOf(run(SRC, { listing: false }).program)).toBe(1)
   })
-  it('v3 (s18): a `?:` whose test can be na reads it as false like v4+ (nothing counted), and an arm with history is refused', () => {
+  it('v3 (s18): a `?:` whose test can be na reads it as false like v4+ (nothing counted); an arm with history is EAGER (HIST-S1)', () => {
     // ⚰️ WAS: below v4 nothing claimed, counted (`runtime:na-test`)
     const p = probeRuntimeProgram(v3('x = 0.0', 'x := close[1]', 'plot(x ? 1 : 2)'))
     expect(p.ok, p.refusal && p.refusal.message).toBe(true)
     expect(p.naTests).toBe(0)
-    expect(refusalOf(v3('x = 0.0', 'x := close[1]', 'plot(x ? sma(close, 3) : 2)')).guard).toBe(R4)
+    // ⚰️ WAS refused (R4). Before v4 both arms run on every bar (vw-ternary-arm-legacy-v3, HIST-S1)
+    const eager = run(v3('x = 0.0', 'x := close[1]', 'plot(x ? sma(close, 3) : 2)')).out[0]
+    const every = run(v3('plot(sma(close, 3))')).out[0]
+    expectRows(eager, every.map((v, i) => (i >= 1 && CLOSE[i - 1] ? v : 2)), 'v3 eager arm')
   })
 })
 
-describe('3 — ⛔ refused by name: every arm shape no capture settles', () => {
+// ⭐ HIST-S3 — every shape here is still NEVER drawn per run: the build refuses it by name, or (new)
+// it is drawn only while its arm has run on every bar and the run STOPS by the same guard at the
+// first skip. These bars' `close > open` varies, so each answer is R4 either way (`guardOf`).
+describe('3 — ⛔ never drawn per run: refused by name, or stopped by name at the first skip (HIST-S3)', () => {
   const ARM = (call) => v6('up = close > open', `plot(up ? ${call} : close)`)
   it.each([
     ['ta.stdev(close, 5)', 'H1'], ['ta.sum(close, 5)', 'H1'], ['ta.median(close, 5)', 'H1'],
@@ -218,12 +227,11 @@ describe('3 — ⛔ refused by name: every arm shape no capture settles', () => 
     ['ta.sma(ta.ema(close, 3), 3)', 'a source with its own history'],
     ['ta.wma(close, 5)', 'not witnessed'], ['fixnan(close)', 'not witnessed'],
   ])('`%s` in an arm (%s)', (call) => {
-    const r = refusalOf(ARM(call))
-    expect(r && r.guard, call).toBe(R4)
+    expect(guardOf(ARM(call)), call).toBe(R4)
   })
   it('a nested `?:` with history, and a function that keeps history (U01)', () => {
-    expect(refusalOf(v6('up = close > open', 'plot(up ? (close > close[1] ? ta.sma(close, 3) : 0.0) : close)')).guard).toBe(R4)
-    expect(refusalOf(v6('f(x) => x - x[1]', 'up = close > open', 'plot(up ? f(close) : 0.0)')).guard).toBe(R4)
+    expect(guardOf(v6('up = close > open', 'plot(up ? (close > close[1] ? ta.sma(close, 3) : 0.0) : close)'))).toBe(R4)
+    expect(guardOf(v6('f(x) => x - x[1]', 'up = close > open', 'plot(up ? f(close) : 0.0)'))).toBe(R4)
   })
   it('a `?:` sent past the column route (a Pine twin in an arm, a colour) is asked the same rule', () => {
     // ⚰️ these were lowered with `SELECT`, their arm's state stepping on every bar
@@ -231,7 +239,7 @@ describe('3 — ⛔ refused by name: every arm shape no capture settles', () => 
       'plot(close > open ? ta.valuewhen(close > close[1], close, 0) : close)',
       'plot(close > open ? ta.barssince(close > close[1]) : 0)',
       'plot(close > open ? fixnan(close) : close)',
-    ]) expect(refusalOf(v6(body)) && refusalOf(v6(body)).guard, body).toBe(R4)
+    ]) expect(guardOf(v6(body)), body).toBe(R4)
     // a plot's colour is fail-soft (RT6): that colour alone is refused, by the same rule
     const colourOf = (body) => probeRuntimeProgram(v6(body)).outputs.find((o) => o.colour).colour
     expect(colourOf('plot(close, color = close > open ? (ta.sma(close, 3) > close ? color.red : color.blue) : color.gray)').refused)
@@ -241,13 +249,16 @@ describe('3 — ⛔ refused by name: every arm shape no capture settles', () => 
     expect(colourOf('plot(close, color = close > open ? color.red : color.blue)').refused).toBeUndefined()
   })
   it('`ta.change` (H2) and `ta.stdev` (H1) in an `if` block stay refused', () => {
-    expect(refusalOf(v6('float y = na', 'if close > open', '    y := ta.change(close)', 'plot(y)')).guard).toBe(R4)
-    expect(refusalOf(v6('float y = na', 'if close > open', '    y := ta.stdev(close, 5)', 'plot(y)')).guard).toBe(R4)
+    expect(guardOf(v6('float y = na', 'if close > open', '    y := ta.change(close)', 'plot(y)'))).toBe(R4)
+    expect(guardOf(v6('float y = na', 'if close > open', '    y := ta.stdev(close, 5)', 'plot(y)'))).toBe(R4)
   })
-  it('Pine v5 (Q-PT1), v4 (Q-PT3) and v4 `iff` (H10) keep the refusal', () => {
-    expect(refusalOf(v5('up = close > open', 'plot(up ? ta.sma(close, 5) : close)')).guard).toBe(R4)
-    expect(refusalOf(v4('up = close > open', 'plot(up ? sma(close, 5) : close)')).guard).toBe(R4)
-    expect(refusalOf(v4('up = close > open', 'plot(iff(up, sma(close, 3), 0))')).guard).toBe(R4)
+  it('Pine v5 (Q-PT1) and v4 (Q-PT3) are never drawn per run; v4 `iff` (H10) is EAGER and drawn (HIST-S1)', () => {
+    expect(guardOf(v5('up = close > open', 'plot(up ? ta.sma(close, 5) : close)'))).toBe(R4)
+    expect(guardOf(v4('up = close > open', 'plot(up ? sma(close, 5) : close)'))).toBe(R4)
+    // ⚰️ WAS refused: `iff` evaluates both arguments (vw-cs2-v4-ternary-lazy C00, 666 / 666)
+    const iffOut = run(v4('up = close > open', 'plot(iff(up, sma(close, 3), 0))')).out[0]
+    const sma3 = run(v4('plot(sma(close, 3))')).out[0]
+    expectRows(iffOut, sma3.map((v, i) => (UP[i] ? v : 0)), 'v4 iff')
   })
   it('a `?:` not lowered at the root: function body, loop, varying block, call argument, offset', () => {
     const shapes = [
@@ -266,7 +277,7 @@ describe('3 — ⛔ refused by name: every arm shape no capture settles', () => 
       v6('var float s = 0.0', 's := s + 1', 'float y = na', 'if close > close[1]', '    y := s > 3 ? ta.sma(close, 3) : close', 'plot(y)'),
       v6('var float s = 0.0', 's := s + 1', 'float acc = 0.0', 'for i = 0 to 1', '    acc += s > 3 ? ta.sma(close, 3) : close', 'plot(acc)'),
     ]
-    for (const s of shapes) expect(refusalOf(s) && refusalOf(s).guard, s).toBe(R4)
+    for (const s of shapes) expect(guardOf(s), s).toBe(R4)
   })
   it('the drawing build (`objectsInRun`) and the object door keep master\'s refusal', () => {
     const src = v6('up = close > open', 'plot(up ? ta.sma(close, 5) : close)')

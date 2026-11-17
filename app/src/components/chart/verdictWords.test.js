@@ -33,6 +33,7 @@ const SURFACES = [
   './ChartSettingsIndicators.jsx',
   './IndicatorLibraryDialog.jsx',
   './IndicatorMembersTab.jsx',
+  './IndicatorHouseTab.jsx',
   './builder/studio/CreateIndicatorPanel.jsx',
   './builder/SharePanel.jsx',
   './builder/BuilderSheet.jsx',

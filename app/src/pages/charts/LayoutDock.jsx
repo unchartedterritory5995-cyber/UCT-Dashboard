@@ -1,12 +1,14 @@
 // app/src/pages/charts/LayoutDock.jsx
 //
-// The Layout Dock — a 34px strip welded to the bottom of the .workspace frame,
-// in UCT Signature (docs/uct-signature-style.md, owner-approved 2026-11-15):
-// layouts as sentence-case tabs, the open one bright with a 2px GOLD line along
-// its TOP edge (the timeframe underline, flipped because the bar sits at the
-// bottom), a gold dot while it has unsaved changes, a grey lock on prebuilt ones.
-// ＋ (start a new layout, named inline) follows the tabs; the library sits at
-// the right end.
+// The Layout Dock — the pinned layout TABS in the /charts top row, right after the
+// layout name (owner 11-16: the 34px rail that used to sit under the board is gone,
+// so the board gains its height). UCT Signature (docs/uct-signature-style.md):
+// compact sentence-case tabs, the open one bright with the 2px GOLD underline every
+// current tab carries, a gold dot while it has unsaved changes, a grey lock on
+// prebuilt ones. ＋ (start a new layout, named inline) follows the tabs; whatever
+// does not fit goes behind ⋯. The library opens from the Layouts menu ("Layout
+// library…", through `controlRef.openLibrary()`), and the save state sits beside
+// the layout name (ChartsWorkspace.jsx), not here.
 //
 // ⭐ THE MODEL — the LIBRARY owns layouts, the RAIL is only a working set.
 //
@@ -20,12 +22,10 @@
 // So the rail's menu offers "Close" and never "Delete", and ＋ opens the library
 // rather than immediately making something.
 //
-// ⭐ Why this sits AFTER </main> inside .workspace rather than in Layout.jsx:
-// `computeRowHeight()` divides whatever the ResizeObserver measures on
-// .workspaceBody into FIXED_ROWS, so a flex sibling below <main> shrinks the
-// board and re-tiles the grid with zero changes to the layout math. It also
-// makes the dock start after the 60px nav rail, bracketing the workspace with
-// the same frame the header opens.
+// ⭐ Width: the tabs take only what they need (the lane's flex-basis is their
+// measured natural width), so "+ Add widget" sits right after them; when the row
+// is cramped the lane shrinks, the ResizeObserver re-measures, and the overflow
+// fit trims tabs into ⋯.
 //
 // ⭐ YOUR layouts AUTO-SAVE into the library as you work (the workspace owns
 // that; every switch flushes first). A PREBUILT layout is shared with every
@@ -42,17 +42,17 @@ import {
 } from './layoutDockPins'
 import styles from './LayoutDock.module.css'
 
+const NEW_BTN_GAP = 10
+
 export default function LayoutDock({
   entries, activeId, loading = false, merged = false, isAdmin = false,
   // `dirty`: the open layout has changes not yet saved (the workspace's own save
-  // state, the same flag the top row's "Unsaved changes" reads). Shown as a dot.
+  // state, the same flag the save dot beside the layout name reads). Shown as a dot.
   dirty = false,
-  // `saveState`: 'saved' | 'auto' | 'dirty' | null — shown at the bar's right end (owner 11-15: it moved here from
-  // beside the layout name, where its changing length pushed the top row's buttons around). `canSave` shows the
-  // "Save" link on an unsaved layout the member may save.
-  saveState = null, canSave = false,
   onOpen, onCreate, onSave, onDuplicate, onDelete, onRename, onRestored,
   agentRef = null,
+  // `controlRef`: { openLibrary } — the Layouts menu's "Layout library…" row opens the library through it.
+  controlRef = null,
 }) {
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
   const stored = useMemo(() => readDockPref(prefs?.[DOCK_PREF]), [prefs])
@@ -92,12 +92,20 @@ export default function LayoutDock({
   const mirrorRef = useRef(null)
   const newBtnRef = useRef(null)
   const [visibleCount, setVisibleCount] = useState(slots.length)
+  // Every tab + the ＋ at natural width: the lane's flex-basis, so the lane is exactly
+  // as wide as its tabs when the row has room and shrinks (and re-measures) when not.
+  const [natural, setNatural] = useState(0)
 
   const measure = useCallback(() => {
     const strip = stripRef.current
     const mirror = mirrorRef.current
     if (!strip || !mirror) return
+    // NEW_BTN_GAP: the ＋'s left margin (LayoutDock.module.css `.lane > .ctl`, owner 11-16: spaced off the tabs).
+    const newW = (newBtnRef.current?.offsetWidth || 0) + NEW_BTN_GAP
     const avail = strip.clientWidth - (newBtnRef.current?.offsetWidth || 0)
+    let total = 0
+    for (const child of mirror.children) total += child.offsetWidth
+    setNatural(total + newW)
     let used = 0
     let fit = 0
     for (const child of mirror.children) {
@@ -276,6 +284,11 @@ export default function LayoutDock({
     }
   ), [dock, entries, prefsLoading, loading, writeDock])
 
+  // The Layouts menu's "Layout library…" row (the library button left the bar with the rail).
+  useImperativeHandle(controlRef, () => ({
+    openLibrary: () => { setOverflowOpen(false); setMenu(null); setConfirmDeleteId(null); setHistoryEntry(null); setLibraryOpen(true) },
+  }), [])
+
   const renderItem = (slot, isProvisional = false) => {
     const { entry, index } = slot
     const active = !isProvisional && entry.id === activeId
@@ -339,7 +352,7 @@ export default function LayoutDock({
       aria-label="Saved layouts"
       data-guide="workspace.layouts"
     >
-      <div className={styles.lane} ref={stripRef}>
+      <div className={styles.lane} ref={stripRef} style={(natural && !creating) ? { flexBasis: natural + 1, width: natural + 1 } : undefined /* not while naming a new layout: the measured width has no room for the name box (owner 11-16: the + showed a clipped "Nam"). */ /* width too: the dock's own size comes from its children's WIDTH, not their flex-basis (owner test 11-16: tabs collapsed to one with room to spare) */}>
       <div className={styles.strip}>
         {shown.map(s => renderItem(s))}
         {showProvisional && renderItem({ entry: { id: '__provisional', name: provisional }, index: -1 }, true)}
@@ -373,7 +386,7 @@ export default function LayoutDock({
           title="New layout"
           aria-label="New layout"
         >
-          <UIcon name="plus" size={14} gold={false} />
+          <UIcon name="plus" size={16} gold={false} />
         </button>
       </div>
 
@@ -403,25 +416,6 @@ export default function LayoutDock({
             <span className={styles.count}>+{overflow.length}</span>
           </button>
         )}
-        {saveState && (
-          <span className={`${styles.saveState}${saveState === 'dirty' ? ' ' + styles.saveStateDirty : ''}`} data-testid="layout-save-state">
-            <span className={styles.saveDot} aria-hidden="true" />
-            {saveState === 'dirty'
-              ? (<>Unsaved changes{canSave && onSave && <> · <button type="button" className={styles.saveLink} onClick={() => onSave()}>Save</button></>}</>)
-              : saveState === 'auto' ? 'Saves automatically' : 'Saved'}
-          </span>
-        )}
-        <button
-          type="button"
-          className={styles.ctl}
-          onClick={() => { setOverflowOpen(false); setMenu(null); setLibraryOpen(o => !o) }}
-          title="Layout library"
-          aria-label="Layout library"
-          data-guide="workspace.layoutLibrary"
-          aria-expanded={libraryOpen}
-        >
-          <UIcon name="library" size={15} gold={false} />
-        </button>
       </div>
 
       {/* ── the layout library ──────────────────────────────────────────── */}

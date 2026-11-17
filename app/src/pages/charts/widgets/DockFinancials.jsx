@@ -338,7 +338,7 @@ function Line({ item, periods, annual, mode, revenues, extraCols, openKey, setOp
           </span>
         ))}
         <span className={`${styles.finVal}${negLatest ? ' ' + styles.neg : ''}`}>{fmtVal(latest, item.fmt)}</span>
-        <span className={`${styles.finYoy} ${yoyCls}`} title={signed ? undefined : 'Change shown without direction colour — for this metric an increase is not automatically good or bad.'}>
+        <span className={`${styles.finYoy} ${yoyCls}`} title={signed ? undefined : 'Change shown without direction color — for this metric an increase is not automatically good or bad.'}>
           {ppDelta != null ? `${ppDelta > 0 ? '+' : ''}${ppDelta.toFixed(1)}pp` : fmtYoY(yoy)}
         </span>
       </div>

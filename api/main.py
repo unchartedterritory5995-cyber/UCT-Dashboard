@@ -22,6 +22,12 @@ _install_log_redaction()
 from api.services.role_guard import refuse_full_app_on_front_door as _refuse_full_app_on_front_door
 _refuse_full_app_on_front_door()
 
+# LOCAL_LIGHT_MODE=1 (developer PCs only; production never sets it). A few modules start a
+# warm loop AT IMPORT behind their own kill switch; with the flag set those switches are
+# defaulted off here, before the router imports below reach them. Unset: nothing happens.
+from api.services import local_light_mode as _local_light_mode
+_local_light_mode.apply_import_time_defaults()
+
 # APScheduler trap: a pre-built CronTrigger(...) resolves tzlocal (UTC on
 # Railway), NOT the scheduler's timezone -- every trigger below must carry
 # an explicit timezone or its "ET" schedule silently fires 4h early.
@@ -2077,6 +2083,9 @@ def start_screener_snapshot_warm():
     job.
     """
     if os.environ.get("SCREENER_SNAPSHOT_WARM_ENABLED", "1") != "1":
+        return None
+    from api.services import local_light_mode
+    if local_light_mode.skip("screener-snapshot-warm"):
         return None
 
     def _num(name, default, cast):
@@ -4750,6 +4759,11 @@ def idb_cache_logic_version(src_path: str | None = None) -> int | None:
     return found[0] if len(found) == 1 else None
 
 
+def _stream_feed_remote() -> bool:
+    from api.services import feed_client as _fc
+    return _fc.feed_source() == "remote"
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # ⛔ Keep the Web Share Target's query out of OUR access log. The share
@@ -4760,6 +4774,11 @@ async def lifespan(app: FastAPI):
     # discarding a filter added earlier (measured). This does NOT reach
     # Railway's edge, which sees the URL before we do — see the module.
     _boot_mark("lifespan-start")
+    # LOCAL_LIGHT_MODE=1 (developer PCs only; production never sets it). With the flag
+    # unset `_light_skip(name)` is always False, so every guarded start below runs exactly
+    # as before; set, it records `name` and that warm / seed / heal / loop is not started.
+    # See api/services/local_light_mode.py and docs/local-dev.md.
+    from api.services.local_light_mode import skip as _light_skip
     try:
         from api import logging_redaction
         logging_redaction.install()
@@ -4805,7 +4824,8 @@ async def lifespan(app: FastAPI):
 
     # Self-logging burst capture (2026-06-09/10 thread-exhaustion incident).
     try:
-        _start_thread_burst_watch()
+        if not _light_skip("thread-burst-watch"):
+            _start_thread_burst_watch()
     except Exception as e:
         print(f"[startup] thread-burst watch failed to start (non-fatal): {e}")
 
@@ -4815,7 +4835,7 @@ async def lifespan(app: FastAPI):
     # request block stuck past 10/30/90/180/360 s. Kill switch: BOOT_PROBE_ENABLED=0.
     try:
         if (os.environ.get("BOOT_PROBE_ENABLED", "1").strip().lower()
-                not in ("0", "false", "no", "off")):
+                not in ("0", "false", "no", "off") and not _light_skip("boot-probe")):
             import asyncio as _bp_aio
             from api.services import boot_probe as _boot_probe
             app.state.boot_probe_task = _bp_aio.get_running_loop().create_task(
@@ -4937,7 +4957,8 @@ async def lifespan(app: FastAPI):
         print("[startup] desk.db initialized")
         # Fire an initial Substack poll in the background so Articles isn't empty
         # before the hourly job's first :07 run. Best-effort, never blocks boot.
-        if os.environ.get("SUBSTACK_ENABLED", "1").lower() in ("1", "true", "yes"):
+        if (os.environ.get("SUBSTACK_ENABLED", "1").lower() in ("1", "true", "yes")
+                and not _light_skip("substack-initial-poll")):
             import threading as _desk_threading
             from api.services.substack_poller import poll_all as _substack_poll_once
             _desk_threading.Thread(target=_substack_poll_once, daemon=True,
@@ -5004,8 +5025,9 @@ async def lifespan(app: FastAPI):
         # Background pre-warm of year-gain stats so the gallery loads instantly.
         import threading as _mb_threading
         from api.routers import modelbook as _mb_router
-        _mb_threading.Thread(target=_mb_router.warm_all_stats, daemon=True,
-                             name="modelbook-stats-warm").start()
+        if not _light_skip("modelbook-stats-warm"):
+            _mb_threading.Thread(target=_mb_router.warm_all_stats, daemon=True,
+                                 name="modelbook-stats-warm").start()
     except Exception as e:
         print(f"[startup] modelbook init failed (non-fatal): {e}")
 
@@ -5383,9 +5405,10 @@ async def lifespan(app: FastAPI):
                     "[startup] bootstrap scan failed: %s", _e
                 )
 
-        threading.Thread(
-            target=_bootstrap_scan, daemon=True, name="chart-health-bootstrap"
-        ).start()
+        if not _light_skip("chart-health-bootstrap"):
+            threading.Thread(
+                target=_bootstrap_scan, daemon=True, name="chart-health-bootstrap"
+            ).start()
     except Exception as e:
         logging.getLogger(__name__).exception(
             "[startup] chart-health bootstrap failed: %s", e
@@ -5406,7 +5429,8 @@ async def lifespan(app: FastAPI):
         # a deploy. Idempotent and additive (the ALTER is skipped once present),
         # so running it here costs a no-op on every boot after the first.
         _alert_rev.init_schema()
-        indicator_alert_evaluator.start_evaluator(interval_sec=60)
+        if not _light_skip("indicator-alert-evaluator"):
+            indicator_alert_evaluator.start_evaluator(interval_sec=60)
         logging.getLogger(__name__).info("[startup] indicator alert evaluator started")
     except Exception:
         logging.getLogger(__name__).exception("[startup] indicator alert evaluator failed to start")
@@ -5420,7 +5444,8 @@ async def lifespan(app: FastAPI):
     # boot from the pod.
     try:
         from api.services import price_alert_evaluator
-        price_alert_evaluator.start_evaluator(interval_sec=60)
+        if not _light_skip("price-alert-evaluator"):
+            price_alert_evaluator.start_evaluator(interval_sec=60)
         logging.getLogger(__name__).info("[startup] price alert evaluator thread started (flag-gated)")
     except Exception:
         logging.getLogger(__name__).exception("[startup] price alert evaluator failed to start")
@@ -5494,7 +5519,8 @@ async def lifespan(app: FastAPI):
         )
 
     try:
-        _start_priority_audit_background()
+        if not _light_skip("startup-priority-audit"):
+            _start_priority_audit_background()
         logging.getLogger(__name__).info("[startup] priority audit scheduled (~30s after boot)")
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule priority audit: %s", e)
@@ -5508,7 +5534,10 @@ async def lifespan(app: FastAPI):
     # failure can never hold a deploy hostage.
     try:
         readiness.register("hot_tier")
-        _start_hot_tier_warm_background()
+        if _light_skip("hot-tier-warmer"):
+            readiness.mark_done("hot_tier")
+        else:
+            _start_hot_tier_warm_background()
         logging.getLogger(__name__).info("[startup] hot tier warm scheduled (~45s after boot)")
     except Exception:
         readiness.mark_done("hot_tier")
@@ -5549,34 +5578,44 @@ async def lifespan(app: FastAPI):
             except Exception:
                 _log.exception("[startup] breadth reconstructed rebuild_stale failed")
 
-        _th.Thread(target=_breadth_numeric_backfill, name="breadth-numeric-backfill",
-                   daemon=True).start()
+        if not _light_skip("breadth-numeric-backfill"):
+            _th.Thread(target=_breadth_numeric_backfill, name="breadth-numeric-backfill",
+                       daemon=True).start()
     except Exception:
         logging.getLogger(__name__).exception("[startup] could not schedule the breadth backfill")
 
     try:
-        _start_cold_path_boot_preload()
+        if not _light_skip("cold-preload"):
+            _start_cold_path_boot_preload()
     except Exception:
         logging.getLogger(__name__).exception(
             "[startup] cold-start-guard boot preload failed to start")
 
     try:
         readiness.register("dashboard")
-        _start_dashboard_warm_background()
-        _start_breadth_series_warm_background()
-        _start_research_panel_warm_background()
-        _start_chart_renderer_warm_background()
+        if _light_skip("dashboard-warmer"):
+            readiness.mark_done("dashboard")
+        else:
+            _start_dashboard_warm_background()
+        if not _light_skip("breadth-series-warmer"):
+            _start_breadth_series_warm_background()
+        if not _light_skip("research-panel-warmer"):
+            _start_research_panel_warm_background()
+        if not _light_skip("chart-renderer-warmer"):
+            _start_chart_renderer_warm_background()
         # ⛔ The discord-chart hot-warm interval job does NOT register here:
         # `_scheduler` is assigned ~1,300 lines below in this same function, so
         # a use at this line is an unbound LOCAL (UnboundLocalError every boot)
         # — and the raise skipped the calendar warm on the next line too. It
         # registers in the scheduler block instead
         # (tests/test_lifespan_scheduler_binds_before_use.py).
-        _start_calendar_enrichment_warm_background()
+        if not _light_skip("calendar-enrichment-warmer"):
+            _start_calendar_enrichment_warm_background()
         # Perf wave 2: keep the current-week calendar slot inside its serve-stale bound all day,
         # every day (api/routers/calendar.py::WEEKLY_REWARM_INTERVAL_S).
         from api.routers.calendar import start_weekly_rewarm as _start_weekly_rewarm
-        _start_weekly_rewarm()
+        if not _light_skip("calendar-weekly-rewarm"):
+            _start_weekly_rewarm()
         logging.getLogger(__name__).info(
             "[startup] dashboard warm scheduled (~20s after boot); "
             "calendar-enrichment re-warm every 240s (under the 300s TTL); "
@@ -5590,7 +5629,8 @@ async def lifespan(app: FastAPI):
     # cache so a user request is a ~1ms hit instead of a cold 60-holding recompute.
     # Cheap now that theme_index reads the warm shared bars cache. Boot warm (~35s,
     # after wire_data seeds) + a 15-min refresh (under the 30-min cache TTL).
-    if os.environ.get("THEME_INDEX_PREWARM_ENABLED", "1") != "0":
+    if (os.environ.get("THEME_INDEX_PREWARM_ENABLED", "1") != "0"
+            and not _light_skip("theme-index-prewarm")):
         def _theme_index_prewarm():
             try:
                 from api.services import theme_index as _ti
@@ -5620,34 +5660,43 @@ async def lifespan(app: FastAPI):
         from api.services.screener import query as _scr_query
         _dg = threading.Timer(_BOOT_QUIET_S["screener_deal_gate_warm"], _scr_query.warm_deal_gate)
         _dg.daemon = True
-        _dg.start()
+        if not _light_skip("screener-deal-gate-warm"):
+            _dg.start()
     except Exception:
         logging.getLogger(__name__).exception("[startup] failed to schedule the deal gate warm")
 
     try:
         readiness.register("rs_rankings")
-        _start_rs_rankings_warm_background()
+        if _light_skip("rs-rankings-warmer"):
+            readiness.mark_done("rs_rankings")
+        else:
+            _start_rs_rankings_warm_background()
         logging.getLogger(__name__).info("[startup] rs-rankings warm scheduled (~120s after boot)")
     except Exception:
         readiness.mark_done("rs_rankings")
         logging.getLogger(__name__).exception("[startup] failed to schedule rs-rankings warm")
 
     try:
-        _start_industry_map_background()
+        if not _light_skip("industry-map-warmer"):
+            _start_industry_map_background()
         logging.getLogger(__name__).info("[startup] industry-map prewarm scheduled (~75s after boot)")
     except Exception:
         logging.getLogger(__name__).exception("[startup] failed to schedule industry-map prewarm")
 
     _boot_mark("L5213")
     try:
-        _start_darkpool_prewarm_background()
+        if not _light_skip("darkpool-prewarm-warmer"):
+            _start_darkpool_prewarm_background()
         logging.getLogger(__name__).info("[startup] darkpool prewarm scheduled (~60s after boot)")
     except Exception:
         logging.getLogger(__name__).exception("[startup] failed to schedule darkpool prewarm")
 
     try:
         readiness.register("scanner")
-        _start_scanner_warm_background()
+        if _light_skip("scanner-warmer"):
+            readiness.mark_done("scanner")
+        else:
+            _start_scanner_warm_background()
         logging.getLogger(__name__).info(
             "[startup] scanner-preset warm scheduled (~30s after boot); "
             "re-warm every 50s during market hours, 300s off-hours")
@@ -5661,13 +5710,15 @@ async def lifespan(app: FastAPI):
     # gates on a flag file + spawns its own rate-limited daemon thread.
     try:
         from api.services import ticker_meta as _ticker_meta
-        _ticker_meta.heal_nameless_names()
+        if not _light_skip("ticker-meta-name-heal"):
+            _ticker_meta.heal_nameless_names()
         logging.getLogger(__name__).info("[startup] ticker-meta name-heal scheduled (one-shot)")
     except Exception:
         logging.getLogger(__name__).exception("[startup] failed to schedule ticker-meta name-heal")
 
     try:
-        _start_deploy_smoke_background()
+        if not _light_skip("deploy-smoke"):
+            _start_deploy_smoke_background()
         logging.getLogger(__name__).info("[startup] deploy smoke audit scheduled")
     except Exception:
         logging.getLogger(__name__).exception("[startup] failed to schedule deploy smoke")
@@ -5683,7 +5734,8 @@ async def lifespan(app: FastAPI):
         _bca_timer = threading.Timer(_BOOT_QUIET_S["bars_continuous_audit"], _start_bars_continuous_audit)
         _bca_timer.daemon = True
         _bca_timer.name = "bars-continuous-audit-delay"
-        _bca_timer.start()
+        if not _light_skip("bars-continuous-audit"):
+            _bca_timer.start()
         logging.getLogger(__name__).info("[startup] bars_continuous_audit scheduled (+%ss)",
                                          _BOOT_QUIET_S["bars_continuous_audit"])
     except Exception:
@@ -5710,7 +5762,8 @@ async def lifespan(app: FastAPI):
     # read. Massive is flat-rate, so canonical fetches cost nothing.
     try:
         from api.services import bars_reconciliation
-        bars_reconciliation.start()
+        if not _light_skip("bars-reconciliation"):
+            bars_reconciliation.start()
         logging.getLogger(__name__).info("[startup] bars_reconciliation started")
     except Exception:
         logging.getLogger(__name__).exception("[startup] bars_reconciliation start failed")
@@ -5719,7 +5772,8 @@ async def lifespan(app: FastAPI):
     # bars_reconciliation). No-ops unless FUNDAMENTALS_MONITOR_ENABLED=1.
     try:
         from api.services import fundamentals_monitor
-        fundamentals_monitor.start()
+        if not _light_skip("fundamentals-monitor"):
+            fundamentals_monitor.start()
         logging.getLogger(__name__).info("[startup] fundamentals_monitor started")
     except Exception:
         logging.getLogger(__name__).exception("[startup] fundamentals_monitor start failed")
@@ -5730,7 +5784,8 @@ async def lifespan(app: FastAPI):
     # NHNL_SCANNER_ENABLED=1.
     try:
         from api.services import nhnl_live
-        nhnl_live.start()
+        if not _light_skip("nhnl-live"):
+            nhnl_live.start()
         if nhnl_live.enabled():
             logging.getLogger(__name__).info("[startup] nhnl_live accumulator started")
     except Exception:
@@ -5740,7 +5795,8 @@ async def lifespan(app: FastAPI):
     # nhnl_live (no extra REST). No-ops unless VOLUME_SCANNER_ENABLED=1.
     try:
         from api.services import volume_live
-        volume_live.start()
+        if not _light_skip("volume-live"):
+            volume_live.start()
         if volume_live.enabled():
             logging.getLogger(__name__).info("[startup] volume_live accumulator started")
     except Exception:
@@ -5756,7 +5812,8 @@ async def lifespan(app: FastAPI):
     # PROVIDER_COVERAGE_MONITOR_ENABLED=1.
     try:
         from api.services import provider_coverage_monitor
-        provider_coverage_monitor.start()
+        if not _light_skip("provider-coverage-monitor"):
+            provider_coverage_monitor.start()
         logging.getLogger(__name__).info("[startup] provider_coverage_monitor started")
     except Exception:
         logging.getLogger(__name__).exception("[startup] provider_coverage_monitor start failed")
@@ -5767,7 +5824,7 @@ async def lifespan(app: FastAPI):
     # to disable.
     try:
         from api.services import disk_watchdog
-        if disk_watchdog.start():
+        if not _light_skip("disk-watchdog") and disk_watchdog.start():
             logging.getLogger(__name__).info(
                 "[startup] disk_watchdog started (warn=%s%% crit=%s%% every %ss)",
                 disk_watchdog.WARN_PCT, disk_watchdog.CRIT_PCT,
@@ -5976,7 +6033,8 @@ async def lifespan(app: FastAPI):
                     pass
         except Exception as e:
             print(f"[startup] bars.db full integrity_check error (non-fatal): {e}")
-    threading.Thread(target=_integrity_check_bg, daemon=True, name="sqlite-integrity").start()
+    if not _light_skip("sqlite-integrity"):
+        threading.Thread(target=_integrity_check_bg, daemon=True, name="sqlite-integrity").start()
 
     # Web-side Bars Pack ingest — fold the universe D/W/M pack the worker already
     # publishes into THIS pod's bars.db, so a cold long-tail view serves from SQLite
@@ -6033,10 +6091,12 @@ async def lifespan(app: FastAPI):
             _sp.warm_reuse_map()
         except Exception as e:
             print(f"[startup] reuse-map pre-warm error (non-fatal): {e}")
-    threading.Thread(target=_warm_reuse_map_bg, daemon=True, name="reuse-map-warm").start()
+    if not _light_skip("reuse-map-warm"):
+        threading.Thread(target=_warm_reuse_map_bg, daemon=True, name="reuse-map-warm").start()
     try:
         from api.services import bars_bydate_index as _bbi
-        _bbi.start_scheduled_builder()
+        if not _light_skip("bars-bydate-index-builder"):
+            _bbi.start_scheduled_builder()
     except Exception as e:
         print(f"[startup] by-date index scheduler failed to start (non-fatal): {e}")
 
@@ -6362,14 +6422,16 @@ async def lifespan(app: FastAPI):
     # _fmt_sqlite_bars keeps charts clean until the purge lands.
     try:
         from api.services import bars_sqlite as _wk_bs
-        _wk_bs.purge_mis_keyed_weekly_rows_async()
+        if not _light_skip("weekly-key-purge"):
+            _wk_bs.purge_mis_keyed_weekly_rows_async()
         print("[startup] weekly_key_purge: scheduled (background)")
     except Exception as e:
         print(f"[startup] weekly_key_purge error (non-fatal): {e}")
     # Off-grid intraday rows (intraday_grid): background, paced, idempotent repair.
     try:
         from api.services import intraday_grid as _grid
-        _grid.sweep_async(delay_s=120)
+        if not _light_skip("intraday-offgrid-sweep"):
+            _grid.sweep_async(delay_s=120)
     except Exception as e:
         print(f"[startup] offgrid_sweep error (non-fatal): {e}")
 
@@ -6511,7 +6573,8 @@ async def lifespan(app: FastAPI):
 
             except Exception as _e:
                 print(f"[startup] Memory pre-warm failed (non-fatal): {_e}")
-        threading.Thread(target=_memory_prewarm_background, daemon=True, name="memory-prewarm").start()
+        if not _light_skip("memory-prewarm"):
+            threading.Thread(target=_memory_prewarm_background, daemon=True, name="memory-prewarm").start()
         print("[startup] Memory pre-warm scheduled (background thread)")
 
     # Web-pod memory watch -- the worker has had a [mem] line since the 2026-06-10
@@ -6534,14 +6597,16 @@ async def lifespan(app: FastAPI):
             except Exception:
                 pass
             _mw_time.sleep(60)
-    threading.Thread(target=_web_memwatch, daemon=True, name="web-memwatch").start()
+    if not _light_skip("web-memwatch"):
+        threading.Thread(target=_web_memwatch, daemon=True, name="web-memwatch").start()
 
     if os.environ.get("USE_REMOTE_BARS") == "1":
         print("[startup] USE_REMOTE_BARS=1 -- skipping in-process prewarmer/seeder; pulling snapshot from worker via R2")
     else:
         try:
             from api.services.bars_seeder import start_background_seeder
-            start_background_seeder()
+            if not _light_skip("bars-seeder"):
+                start_background_seeder()
         except Exception as e:
             print(f"[startup] Bar seeder start error (non-fatal): {e}")
 
@@ -6549,7 +6614,8 @@ async def lifespan(app: FastAPI):
 
     if os.environ.get("USE_REMOTE_BARS") != "1":
         from api.services.bars_prewarm import run_prewarmer_forever
-        threading.Thread(target=run_prewarmer_forever, daemon=True, name="prewarm").start()
+        if not _light_skip("bars-prewarm"):
+            threading.Thread(target=run_prewarmer_forever, daemon=True, name="prewarm").start()
 
     # Slow background backfill: warm the ticker_meta disk cache for every
     # cap_universe ticker so /api/ticker-search autocomplete shows company
@@ -6557,7 +6623,8 @@ async def lifespan(app: FastAPI):
     # fresh entries on each boot. Daemon thread -- never blocks startup.
     try:
         from api.services.ticker_names_prewarm import start_async as _names_start
-        _names_start()
+        if not _light_skip("ticker-names-prewarm"):
+            _names_start()
         print("[startup] ticker-names prewarm scheduled")
     except Exception as e:
         print(f"[startup] ticker-names prewarm scheduling failed (non-fatal): {e}")
@@ -6573,7 +6640,8 @@ async def lifespan(app: FastAPI):
     # Disable via TICKER_LOGOS_PREWARM_DISABLED=1.
     try:
         from api.services.ticker_logos_prewarm import start_async as _logos_start
-        _logos_start()
+        if not _light_skip("ticker-logos-prewarm"):
+            _logos_start()
         print("[startup] ticker-logos prewarm scheduled")
     except Exception as e:
         print(f"[startup] ticker-logos prewarm scheduling failed (non-fatal): {e}")
@@ -6593,7 +6661,8 @@ async def lifespan(app: FastAPI):
     # of a multi-second yfinance fetch. Only 7 symbols → cheap to run web-side.
     try:
         from api import index_bars as _idx
-        _idx.start_index_warm()
+        if not _light_skip("index-bars-warm"):
+            _idx.start_index_warm()
         print("[startup] index-bars warm loop scheduled")
     except Exception as e:
         print(f"[startup] index-bars warm scheduling failed (non-fatal): {e}")
@@ -6604,7 +6673,8 @@ async def lifespan(app: FastAPI):
     # cheap web-side; the periodic pass also picks up the 4:30pm EOD breadth push.
     try:
         from api.services import breadth_symbols as _bsym
-        _bsym.start_breadth_warm()
+        if not _light_skip("breadth-bars-warm"):
+            _bsym.start_breadth_warm()
         print("[startup] breadth-bars warm loop scheduled")
     except Exception as e:
         print(f"[startup] breadth-bars warm scheduling failed (non-fatal): {e}")
@@ -6628,8 +6698,9 @@ async def lifespan(app: FastAPI):
                     print(f"[startup] logo_hires_v1 error (non-fatal): {_e}")
 
             import threading as _threading
-            _threading.Thread(target=_logo_hires_runner, daemon=True,
-                              name="logo-hires-startup").start()
+            if not _light_skip("logo-hires-startup"):
+                _threading.Thread(target=_logo_hires_runner, daemon=True,
+                                  name="logo-hires-startup").start()
             print("[startup] logo_hires_v1: upgrade scheduled (~90s after boot)")
     except Exception as e:
         print(f"[startup] logo_hires_v1 scheduling failed (non-fatal): {e}")
@@ -6809,7 +6880,8 @@ async def lifespan(app: FastAPI):
     # the Monitor's reconstructed pre-2026 rows carry the sentiment block. Cheap,
     # idempotent (row-count-guarded upsert), best-effort, and only fills dates the
     # 4:15 collector never saw. Skippable via BREADTH_DEEP_HISTORY=0.
-    if os.environ.get("BREADTH_DEEP_HISTORY", "1") != "0":
+    if (os.environ.get("BREADTH_DEEP_HISTORY", "1") != "0"
+            and not _light_skip("breadth-sentiment-seed")):
         def _breadth_sentiment_seed():
             try:
                 from api.services import breadth_sentiment_history as _bsh
@@ -6833,7 +6905,8 @@ async def lifespan(app: FastAPI):
     # the Monitor's sentiment block; this feeds the chartable series. They are two stores
     # with two schemas and two accept gates, and collapsing them would make the chart's
     # point-in-time semantics depend on a table that has none.
-    if os.environ.get("MARKET_INDICATORS_SEED", "1") != "0":
+    if (os.environ.get("MARKET_INDICATORS_SEED", "1") != "0"
+            and not _light_skip("naaim-series-seed")):
         def _naaim_series_seed():
             try:
                 from api.services.market_indicators import naaim_store as _ns
@@ -6863,7 +6936,8 @@ async def lifespan(app: FastAPI):
     # the Cboe flag: turning off the refresh must not silently leave the status route
     # reporting `availability_warming` forever. A flag that disables a second, unrelated
     # thing is a trap, and this one would only show up as permanently missing metadata.
-    if os.environ.get("MARKET_INDICATORS_BOOT_JOBS", "1") != "0":
+    if (os.environ.get("MARKET_INDICATORS_BOOT_JOBS", "1") != "0"
+            and not _light_skip("market-indicator-jobs")):
         def _market_indicator_jobs():
             while True:
                 if os.environ.get("MARKET_INDICATORS_CBOE_REFRESH", "1") != "0":
@@ -6894,7 +6968,8 @@ async def lifespan(app: FastAPI):
     # because `/api/bars` answers seed symbols from this pod's `/data/pine_seeds.db`. A
     # few small CSVs from GitHub every 2 h; the first boot replays the file's history
     # (at most PINE_SEEDS_MAX_PAGES x 100 uploads).
-    if os.environ.get("PINE_SEEDS_REFRESH", "1") != "0":
+    if (os.environ.get("PINE_SEEDS_REFRESH", "1") != "0"
+            and not _light_skip("pine-seed-jobs")):
         def _pine_seed_jobs():
             from api.services import pine_seed_store as _seeds
             _seeds.refresh_loop()
@@ -6906,7 +6981,8 @@ async def lifespan(app: FastAPI):
     # current + prior days are always accurate. Boot pass fixes any leftover bad
     # day now; a slow loop keeps watch (cheap — it only recomputes a day that is
     # actually degraded). Web pod (breadth_snapshots is web-local). BREADTH_SELF_HEAL.
-    if os.environ.get("BREADTH_SELF_HEAL", "1") != "0":
+    if (os.environ.get("BREADTH_SELF_HEAL", "1") != "0"
+            and not _light_skip("breadth-self-heal")):
         try:
             from api.services import breadth_self_heal
             breadth_self_heal.start_background_heal(delay_seconds=_BOOT_QUIET_S["breadth_self_heal"])
@@ -6959,7 +7035,13 @@ async def lifespan(app: FastAPI):
         except Exception:
             logging.getLogger(__name__).exception("brain pack sync failed to start")
 
-    if os.environ.get("STREAM_BARS_ENABLED") == "1":
+    if os.environ.get("STREAM_BARS_ENABLED") == "1" and _stream_feed_remote():
+        # STREAM_FEED_SOURCE=remote: the stream-ingest service holds the Massive socket;
+        # this pod mirrors its feed (no bar_stream thread, no second socket).
+        from api.services import feed_client as _feed_client
+        _feed_client.start_remote()
+        print("[startup] Bar feed: REMOTE (stream-ingest) — no Massive socket in this pod")
+    elif os.environ.get("STREAM_BARS_ENABLED") == "1":
         from api.services import bar_stream, bar_broadcaster, volume_live
         bb = bar_broadcaster.init_broadcaster(
             on_first_subscribe=bar_stream.subscribe_symbols_one,
@@ -7062,13 +7144,15 @@ async def lifespan(app: FastAPI):
             except Exception as e:
                 print(f"[warm] {name} warm failed (non-fatal): {e}")
 
-    threading.Thread(target=_warm_dashboard_caches, daemon=True,
-                     name="dashboard-cache-warm").start()
+    if not _light_skip("dashboard-cache-warm"):
+        threading.Thread(target=_warm_dashboard_caches, daemon=True,
+                         name="dashboard-cache-warm").start()
 
     try:
         from api.services.voice_kb_service import seed_on_startup as _kb_seed
         import threading as _t
-        _t.Thread(target=_kb_seed, daemon=True, name="voice-kb-seed").start()
+        if not _light_skip("voice-kb-seed"):
+            _t.Thread(target=_kb_seed, daemon=True, name="voice-kb-seed").start()
     except Exception as e:
         print(f"[startup] Voice KB seed scheduling failed (non-fatal): {e}")
 
@@ -7078,7 +7162,8 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] WebSocket stream failed (non-fatal): {e}")
     from api.daily_tracker import start_snapshot_scheduler, stop_snapshot_scheduler
-    start_snapshot_scheduler()
+    if not _light_skip("daily-tracker-snapshot"):
+        start_snapshot_scheduler()
 
     _top_flow_tracker.init()
     _top_flow_tracker.archive_expired()
@@ -7139,7 +7224,8 @@ async def lifespan(app: FastAPI):
                 print(f"[startup] Flow DB pruned {_pruned} expired rows")
         except Exception as e:
             print(f"[startup] Flow DB auto-seed error (non-fatal): {e}")
-    threading.Thread(target=_flow_db_seed_background, daemon=True, name="flow-db-seed").start()
+    if not _light_skip("flow-db-seed"):
+        threading.Thread(target=_flow_db_seed_background, daemon=True, name="flow-db-seed").start()
 
     # -- Darkpool DB: auto-seed from static CSV if available ----------------
     def _darkpool_db_seed_background():
@@ -7200,7 +7286,8 @@ async def lifespan(app: FastAPI):
                 print(f"[startup] Darkpool DB pruned {_pruned} rows beyond 120-day window")
         except Exception as e:
             print(f"[startup] Darkpool DB auto-seed error (non-fatal): {e}")
-    threading.Thread(target=_darkpool_db_seed_background, daemon=True, name="darkpool-db-seed").start()
+    if not _light_skip("darkpool-db-seed"):
+        threading.Thread(target=_darkpool_db_seed_background, daemon=True, name="darkpool-db-seed").start()
 
     # Seed the prebuilt watchlists (Liquid Major ETFs; deletes retired lists like Delisted
     # Legends). Idempotent + self-healing; deferred so the admin user + watchlists table are
@@ -7219,13 +7306,15 @@ async def lifespan(app: FastAPI):
                 _pbr.maybe_startup_catchup()
         except Exception:
             pass
-    threading.Thread(target=_seed_prebuilt_bg, daemon=True, name="prebuilt-watchlists-seed").start()
+    if not _light_skip("prebuilt-watchlists-seed"):
+        threading.Thread(target=_seed_prebuilt_bg, daemon=True, name="prebuilt-watchlists-seed").start()
 
     try:
         _cot_service.init_db()
         if _cot_service.is_empty():
             print("[startup] COT table empty -- seeding from CFTC historical archive (background)...")
-            threading.Thread(target=_cot_seed_background, daemon=True, name="cot-seed").start()
+            if not _light_skip("cot-seed"):
+                threading.Thread(target=_cot_seed_background, daemon=True, name="cot-seed").start()
         else:
             from datetime import date as _date
             now_et = datetime.now(ZoneInfo("America/New_York"))
@@ -7237,7 +7326,8 @@ async def lifespan(app: FastAPI):
                     f"[startup] COT data stale -- latest={latest_iso} expected={expected} "
                     f"({days_old}d old) -- running catch-up refresh..."
                 )
-                threading.Thread(target=_cot_catchup_background, daemon=True, name="cot-catchup").start()
+                if not _light_skip("cot-catchup"):
+                    threading.Thread(target=_cot_catchup_background, daemon=True, name="cot-catchup").start()
             else:
                 print(f"[startup] COT database ready (latest: {latest_iso}).")
     except Exception as e:
@@ -9070,11 +9160,13 @@ async def lifespan(app: FastAPI):
             _scheduler.add_job(_study_jobs.job_gen_detections,
                 trigger=CronTrigger(day_of_week="mon-fri", hour=2, minute=30, timezone=_ET),
                 id="study_gen_detections", max_instances=1, replace_existing=True)
-            threading.Thread(target=_study_jobs.job_weekly_close_catchup, daemon=True,
-                             name="study-weekly-close-catchup").start()
+            if not _light_skip("study-weekly-close-catchup"):
+                threading.Thread(target=_study_jobs.job_weekly_close_catchup, daemon=True,
+                                 name="study-weekly-close-catchup").start()
             # the Hard / Spot the Setup pool sweep, warmed once after boot so no member waits on it (study_jobs)
-            threading.Thread(target=_study_jobs.job_warm_hard_pool, daemon=True,
-                             name="study-hard-pool-warm").start()
+            if not _light_skip("study-hard-pool-warm"):
+                threading.Thread(target=_study_jobs.job_warm_hard_pool, daemon=True,
+                                 name="study-hard-pool-warm").start()
             print("[scheduler] study jobs registered (reminders */15, weekly close Sun 23:59 ET, "
                   "detections 02:30 ET weekdays; weekly-close catch-up on boot)")
         except Exception as e:
@@ -10670,7 +10762,12 @@ async def lifespan(app: FastAPI):
             print(f"[startup] chart monitor dead-man registration failed (non-fatal): {e}")
 
         _boot_mark("S10265")
-        _scheduler.start()
+        if _light_skip("apscheduler-jobs"):
+            _scheduler.start(paused=True)
+            print(f"[local-light] APScheduler started PAUSED: {len(_scheduler.get_jobs())} "
+                  "registered job(s) will not run")
+        else:
+            _scheduler.start()
         _boot_mark("S10266")
         print("[startup] COT scheduler running -- Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET")
         _boot_mark("S10267")
@@ -10697,7 +10794,7 @@ async def lifespan(app: FastAPI):
         _boot_mark("S10283")
         try:
             from api.massive_ws_worker import start as _start_massive_ws
-            if _start_massive_ws():
+            if not _light_skip("massive-ws-consumer") and _start_massive_ws():
                 print("[startup] Massive WS consumer started")
             else:
                 print("[startup] Massive WS consumer not started (disabled or no MASSIVE_API_KEY)")
@@ -10746,7 +10843,8 @@ async def lifespan(app: FastAPI):
             # its connection waits up to 30 s on flow.db's write lock. Every deploy is a gap for members
             # until the pod serves, and nothing needs this before the first request: it is a once-per-boot
             # cache-bust (a fill in the last 24 h) and a prune, both safe a few seconds later.
-            threading.Thread(target=flow_gap_autofill.startup_check, name="gap-fill-startup-check", daemon=True).start()
+            if not _light_skip("gap-fill-startup-check"):
+                threading.Thread(target=flow_gap_autofill.startup_check, name="gap-fill-startup-check", daemon=True).start()
             if flow_gap_autofill.register_jobs(_scheduler):
                 print("[startup] Flow gap-autofill cron registered (16:45/21:00/08:00 ET Mon-Fri)")
         except Exception as e:
@@ -10975,8 +11073,9 @@ async def lifespan(app: FastAPI):
                     print(f"[startup] FLOW DB INTEGRITY FAILED: {_fb.get('detail')}")
             except Exception as _e:
                 print(f"[startup] flow.db integrity check failed (non-fatal): {_e}")
-        _thr.Thread(target=_flow_integrity_probe, name="flow-integrity-probe",
-                    daemon=True).start()
+        if not _light_skip("flow-integrity-probe"):
+            _thr.Thread(target=_flow_integrity_probe, name="flow-integrity-probe",
+                        daemon=True).start()
     except Exception as _e:
         print(f"[startup] flow.db integrity probe thread failed to start: {_e}")
 
@@ -11030,9 +11129,20 @@ async def lifespan(app: FastAPI):
     except Exception as _e:
         print(f"[startup] discord-render V2 runtime failed to start (non-fatal): {_e}")
 
+    try:
+        from api.services import local_light_mode as _light_mode
+        _light_mode.log_summary()   # one "[local-light] ON ..." line; silent when the flag is unset
+    except Exception as _e:
+        print(f"[startup] local-light summary failed (non-fatal): {_e}")
     _boot_mark("ready"); _boot_log()
     yield
     _shutdown_t0 = time.monotonic()  # the deploy gap includes this pod's shutdown (2026-11-12)
+    # stream-ingest remote mode: close the feed connection cleanly (a no-op in local mode).
+    try:
+        from api.services import feed_client as _feed_client_stop
+        await _feed_client_stop.stop_remote()
+    except Exception as e:
+        print(f"[shutdown] feed client stop failed (non-fatal): {type(e).__name__}")
     # U5 (review L4): stop the capability detector process (a no-op when it never started)
     try:
         from api.services import pine_capability_worker as _pcw_stop

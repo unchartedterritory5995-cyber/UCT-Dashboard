@@ -71,7 +71,7 @@ describe('chartMenu.askAi: the clicked chart\'s symbol, after the receipt, no Un
     const before = JSON.stringify(b.state.widgets)
     p.st.envelopes.push(planOn('c1', 'chartMenu.askAi'))
     const out = await say('ask ai about this chart')
-    expect(out).toMatch(/Opening Ask AI about QQQ/)
+    expect(out).toMatch(/Opening Ask the UCT Agent about QQQ/)
     expect(opened).toEqual([])                            // the receipt first; the page changes after it
     await waitFor(() => expect(opened).toEqual(['/research/QQQ?section=ai']), { timeout: 3000 })
     expect(JSON.stringify(b.state.widgets)).toBe(before)
@@ -90,7 +90,7 @@ describe('chartMenu.askAi: the clicked chart\'s symbol, after the receipt, no Un
     m.h.charts.askAi = () => { calls += 1; return true }
     p.st.envelopes.push(planOn('c0', 'chartMenu.askAi'))
     const out = await m.say('ask ai about this chart')
-    expect(out).toMatch(/can't open Ask AI from that chart/)
+    expect(out).toMatch(/can't open "Ask the UCT Agent" from that chart/)
     await new Promise(r => setTimeout(r, 1200))
     expect(calls).toBe(0)
   }, 40000)

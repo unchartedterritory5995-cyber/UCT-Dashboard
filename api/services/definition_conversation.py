@@ -64,6 +64,7 @@ from jsonschema import Draft202012Validator
 
 from api.services import ast_interpret, ast_lint, call_expansions, conversation_preflight, user_definitions
 from api.services import definition_concierge as dc
+from api.services import chart_twins
 from api.services.ast_budget import BudgetExceeded, check_budget
 from api.services.ast_interpret import TableRefusal
 from api.services.catalyst import cost_guard
@@ -561,21 +562,21 @@ CONVERSE_SYSTEM_PROMPT = (
     "the chart\" is placement \"pane\"; on the price chart, an overlay or \"on the "
     "candles\" is placement \"price\". A ratio, percentage or difference that is not "
     "in price units belongs in \"pane\" unless the member says otherwise.\n"
-    "  * Presentation: set_style (colour, width, style, hidden, lineStyle "
+    "  * Presentation: set_style (color, width, style, hidden, lineStyle "
     "solid/dashed/dotted/largeDashed), set_marker / remove_marker, set_paint / "
     "remove_paint (markers, paints and alerts need a yes/no output, type \"condition\"), "
     "set_levels (horizontal lines at fixed values; [] removes them), set_fill / "
     "remove_fill (shade between two NUMBER outputs), "
-    "set_placement. Per-bar colour of a line or histogram: set_color_rule (rule "
-    "sign = up colour at or above zero, down below; rising = up when higher than the "
-    "bar before; condition = up when a yes/no output is true; none = one colour). "
-    "SEVERAL colours by state (up to four, counting `otherwise`) -- a histogram bright green "
+    "set_placement. Per-bar color of a line or histogram: set_color_rule (rule "
+    "sign = up color at or above zero, down below; rising = up when higher than the "
+    "bar before; condition = up when a yes/no output is true; none = one color). "
+    "SEVERAL colors by state (up to four, counting `otherwise`) -- a histogram bright green "
     "above zero and rising, dark green above zero and falling, red below zero and falling, "
     "orange below zero and rising; candles green in an uptrend, yellow in consolidation, red in "
     "a downtrend: set_color_states (`output` for a line / histogram, whose states may name a "
     "`relation` of that output; or `channel` barcolor / bgcolor for the candles / background, "
     "whose states are yes/no `when` trees). The first true state wins; re-send the WHOLE list "
-    "to change one state. A marker's size and colour: set_marker `size` / `color`. "
+    "to change one state. A marker's size and color: set_marker `size` / `color`. "
     "A conditional cloud: set_fill with `when` (colorAbove where the first output is "
     "above the second, colorBelow where below). A header value: request_info_value. "
     "An alert: request_alert -- on a yes/no output with triggerPolicy is_true, "
@@ -584,7 +585,7 @@ CONVERSE_SYSTEM_PROMPT = (
     "another (higher) timeframe than the chart's: set_calculation_timeframe (\"a daily "
     "EMA on my 5-minute chart\"). A TABLE drawn on the chart: set_table (a position and cells; a "
     "cell is fixed text or the latest value of an output -- put values that belong only in the "
-    "table in HIDDEN outputs and point cells at them; a cell's text or background colour may "
+    "table in HIDDEN outputs and point cells at them; a cell's text or background color may "
     "follow a yes/no output -- colorWhen / backgroundWhen, e.g. green where bullish, red where "
     "not -- a yes/no cell may show its own `labels`, `size` sets text size and `span` merges a "
     "title across columns); remove_table removes it. Formula functions linreg, correlation, "
@@ -613,6 +614,9 @@ CONVERSE_SYSTEM_PROMPT = (
     "or month\n"
     "  Windows are plain whole-number nodes; negation is the unary-minus operator; a "
     "condition is a 0/1 column; never read a later bar.\n"
+    "  A count of bars is never negative here: `highestbars`, `lowestbars` and `barssince` "
+    "answer how many bars BACK (0 = this bar, 3 = three bars ago). This is not TradingView's "
+    "sign: never negate one, and compare it with numbers of 0 or more.\n"
     "  A `sym` goes OUTSIDE a timeframe read, never under one: SPY's weekly close is "
     "sym(SPY, tf(close, W)). Wrap only what is read from the other symbol: "
     "\"close above SPY's 50 EMA\" compares the chart's close with "
@@ -702,13 +706,10 @@ def user_turn(message: str, notes: Mapping[str, Any], view: Mapping[str, Any],
 # the language stage -- the concierge's plan(), re-framed as DATA
 # --------------------------------------------------------------------------- #
 
-#: Per-bar twins of nightly scalars, for the CHART form of a firm concept only
-#: (this door's notes; the shared vocabulary is untouched). ``rsi14`` is the
-#: nightly 14-period RSI of the daily close; per bar it is ``rsi(close, 14)``.
-CHART_TWINS: Mapping[str, Mapping[str, Any]] = {
-    "rsi14": {"type": "call", "name": "rsi",
-              "args": [{"type": "series", "name": "close"}, {"type": "num", "value": 14}]},
-}
+#: Per-bar twins of nightly scalars (⭐ L4, 2026-11-16: `chart_twins`, the ONE registry, each
+#: twin held equal to its Screener column by `tests/test_chart_twins_parity.py`). Used for the
+#: CHART form of a firm concept and for a Screener term the member wrote ("ADR %").
+CHART_TWINS: Mapping[str, Mapping[str, Any]] = chart_twins.TWINS
 
 
 def _chart_form(tree: Any) -> Optional[Dict[str, Any]]:
@@ -726,6 +727,19 @@ def _chart_form(tree: Any) -> Optional[Dict[str, Any]]:
         out["args"] = args
     if ast_interpret.unresolved_scalars(out, None):
         return None
+    return out
+
+
+def _matched_term(t: Mapping[str, Any]) -> Dict[str, Any]:
+    """One term the member wrote that names a table entry. ⭐ L4: a Screener column with a
+    chart twin carries the house formula, so "ADR %" on a chart is the Screener's ADR %
+    (21 sessions of (high - low) / close), not whatever the model would improvise."""
+    out: Dict[str, Any] = {"wrote": t.get("matched_as"), "entry": t.get("name")}
+    twin = CHART_TWINS.get(t.get("name")) if isinstance(t.get("name"), str) else None
+    if twin is not None:
+        out["chart_formula"] = dc.formula_for(twin)
+        out["rule"] = ("the firm's meaning of this term on a chart: use this formula and "
+                       "disclose its numbers in `assumptions`")
     return out
 
 
@@ -765,8 +779,7 @@ def _language_notes(understanding: Mapping[str, Any]) -> Dict[str, Any]:
                              "rule": "use this formula exactly; do not reinterpret the word"})
     return {
         "firm_concepts": concepts,
-        "matched_terms": [{"wrote": t.get("matched_as"), "entry": t.get("name")}
-                          for t in understanding.get("terms") or []],
+        "matched_terms": [_matched_term(t) for t in understanding.get("terms") or []],
         "member_numbers": [{"wrote": n.get("wrote"), "value": n.get("value")}
                            for n in understanding.get("numbers") or []],
         "not_understood": [{"phrase": n.get("phrase"), "gate": n.get("gate")}
@@ -890,6 +903,83 @@ def _refuse_unsupported_nodes(trees: List[Tuple[str, Any]]) -> None:
                 raise _Refused("unsupported:node",
                                f"{where}: {why.format(value=node.get('value'))}",
                                member=member.format(value=_member_value(node.get("value"))))
+
+
+#: Functions that answer a count of bars BACK: 0 on this bar, never negative here.
+#: (TradingView's ``ta.highestbars`` / ``ta.lowestbars`` answer a NON-POSITIVE offset; the
+#: translator negates it for a pasted script. A model that knows Pine writes the negative form.)
+_BARS_BACK_CALLS = frozenset({"highestbars", "lowestbars", "barssince"})
+_COMPARISONS = frozenset({"<", "<=", ">", ">=", "==", "!="})
+
+
+def _literal_sign(node: Any) -> int:
+    """+1 / -1 for a non-zero number literal (a plain one, or unary minus over one); 0 otherwise."""
+    if not isinstance(node, Mapping):
+        return 0
+    flip = 1
+    if node.get("type") == "op" and node.get("name") == "u-":
+        args = node.get("args")
+        if not (isinstance(args, list) and len(args) == 1 and isinstance(args[0], Mapping)):
+            return 0
+        node, flip = args[0], -1
+    if node.get("type") != "num":
+        return 0
+    v = node.get("value")
+    if not isinstance(v, (int, float)) or isinstance(v, bool) or v == 0:
+        return 0
+    return flip * (1 if v > 0 else -1)
+
+
+def _bars_back_sign(node: Any) -> Tuple[int, Optional[str]]:
+    """(+1, name) for a bars-back count, (-1, name) for one under unary minus, (0, None) otherwise."""
+    if not isinstance(node, Mapping):
+        return 0, None
+    if node.get("type") == "call" and node.get("name") in _BARS_BACK_CALLS:
+        return 1, node.get("name")
+    if node.get("type") == "op" and node.get("name") == "u-":
+        args = node.get("args")
+        if isinstance(args, list) and len(args) == 1:
+            sign, name = _bars_back_sign(args[0])
+            if sign == 1:
+                return -1, name
+    return 0, None
+
+
+def _refuse_negative_bars_back(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-16 -- A BARS-BACK COUNT COMPARED ACROSS ITS SIGN.
+
+    Found by the house set's value check, twice in one evening. Asked for a follow-through
+    day "from day 4 through day 12 after the lowest low of the last 50 sessions", the model
+    wrote ``lowestbars(low, 50) >= -11 && lowestbars(low, 50) <= -3`` (TradingView's
+    convention). Asked again with "made 3 to 11 bars ago", it wrote
+    ``-lowestbars(low, 50) >= 3 && -lowestbars(low, 50) <= 11``: the same belief, negated.
+    Here the count is 0 or more, so both built, read back plausibly, and could not fire on
+    any bar (0 of 700 on two symbols, where a plain calculation marks 1 and 8).
+
+    The rule is the SIGN, not the minus: a count (0 or more) against a negative number, or a
+    negated count (0 or less) against a positive one, is a comparison that never changes its
+    answer. ``-lowestbars(...) <= -3`` is consistent (it is what a pasted TradingView script
+    translates to) and passes.
+    """
+    for where, tree in trees:
+        for node in _walk(tree):
+            if node.get("type") != "op" or node.get("name") not in _COMPARISONS:
+                continue
+            args = node.get("args")
+            if not isinstance(args, list) or len(args) != 2:
+                continue
+            for count, other in ((args[0], args[1]), (args[1], args[0])):
+                sign, name = _bars_back_sign(count)
+                lit = _literal_sign(other)
+                if sign and lit and sign != lit:
+                    how = ("is compared with a negative number" if sign > 0
+                           else "is negated and compared with a positive number")
+                    raise _Refused(
+                        "envelope:reference",
+                        f"{where}: `{name}` {how}. Here `{name}` answers a count of bars BACK: "
+                        "0 on this bar, 1 one bar ago, never negative (unlike TradingView's "
+                        "`ta.highestbars` / `ta.lowestbars`). Use the count itself, not negated, "
+                        "with numbers of 0 or more: \"3 to 11 bars ago\" is `>= 3` and `<= 11`.")
 
 
 def _refuse_scalars(trees: List[Tuple[str, Any]]) -> None:
@@ -1236,6 +1326,20 @@ def _check_references(envelope: Mapping[str, Any], view: Any) -> None:
             authored[o["output"]] = o["tree"]
         elif name == "remove_output" and isinstance(o.get("output"), str):
             keys.discard(o["output"])
+        if name == "set_color_states":
+            # ⭐ 2026-11-16 -- THE BROWSER'S `color:states-few`, HERE TOO. One state and no
+            # `otherwise` (or an `otherwise` alone) is refused by `applyPatch.set_color_states`;
+            # this door passed it, so the model never got its repair and a member read "couldn't
+            # produce a valid change" for "green shading while it is above 1.2" (house set).
+            states = o.get("states") if isinstance(o.get("states"), list) else []
+            has_otherwise = "otherwise" in o
+            if (not states and has_otherwise) or (len(states) == 1 and not has_otherwise):
+                raise _Refused(
+                    "envelope:reference",
+                    f"ops[{i}] set_color_states: colouring by state needs at least two colours "
+                    "(two states, or one state and an `otherwise` colour). For ONE condition on "
+                    "the candles or the background use `set_paint` with that condition's output; "
+                    "for a line, add an `otherwise` colour.")
         if name in _RESHAPING_OPS and isinstance(o.get("output"), str):
             reshaped.add(o["output"])
 
@@ -1381,6 +1485,7 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
     if not isinstance(envelope, Mapping):
         raise _Refused("model:no-tool", "no patch in the answer")
     _refuse_unsupported_nodes(_trees_of(envelope))
+    _refuse_negative_bars_back(_trees_of(envelope))
     _refuse_scalars(_trees_of(envelope))
     errors = _schema_errors(envelope)
     if errors:
@@ -1603,6 +1708,21 @@ def _env_usd(name: str) -> Optional[float]:
     return value
 
 
+def allowance_left(user_id: Any, cap_usd: float, market_date: Optional[str] = None) -> Optional[float]:
+    """The share of today's allowance this member has left, 0 to 1, to the nearest 5 percent
+    (a coarse figure: the dock says "about"). None when there is no positive cap. It reads the
+    same ledger the cap reads (`definition_concierge.spend_for`), so the two cannot disagree."""
+    try:
+        cap = float(cap_usd)
+    except (TypeError, ValueError):
+        return None
+    if not (cap > 0) or cap != cap:
+        return None
+    spent = dc.spend_for(user_id, market_date or dc._market_date())
+    share = max(0.0, min(1.0, 1.0 - float(spent) / cap))
+    return round(round(share * 20) / 20, 2)
+
+
 def conversation_cap_usd(*, admin: bool = False) -> float:
     """The daily $ cap ``converse`` compares the member's ledger against."""
     member = _env_usd(CONVERSE_USER_CAP_ENV)
@@ -1742,6 +1862,14 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
         logger.exception("[converse] usage accounting failed")
     _record_turn(user_id, conversation_id, result, admin=admin, message=message,
                  latency_ms=latency_ms)
+    # ⭐ F1 (2026-11-16): how much of today's allowance is left, so the dock can say so before
+    # it runs out rather than only when it has. A SHARE, never dollars. Never breaks a turn.
+    try:
+        left = allowance_left(user_id, cap_usd)
+        if left is not None:
+            result["allowance_left"] = left
+    except Exception:                              # noqa: BLE001
+        logger.exception("[converse] allowance read failed")
     if admin and not result.get("ok") and trace.get("refusals"):
         # WHY EACH ATTEMPT WAS REFUSED, FOR THE BUILDERS ONLY (2026-11-16). The house set
         # found requests that fail twice at a name or reference check, and nothing outside

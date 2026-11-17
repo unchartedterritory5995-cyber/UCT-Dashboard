@@ -62,7 +62,7 @@ describe('E · Explain teaches and changes nothing', () => {
   it.each([
     ["What's the difference between a chart indicator and a condition?", /An indicator draws VALUES on the chart.*A condition is a true\/false rule/],
     ['what is a layout?', /A layout is a saved board/],
-    ['what are link colours', /Widgets in the same colour share a symbol/],
+    ['what are link colours', /Widgets in the same color share a symbol/],
     ['explain the drawing tools', /The drawing tools run along the chart’s toolbar/],
     // the catalog's own rows (components/chart/indicatorCatalog) — name, short name or tag, exactly one
     ['What is RSI?', /RSI \(Relative Strength Index\) — Momentum on a 0-100 scale/],

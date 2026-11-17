@@ -3922,7 +3922,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               className={styles.ctxItem}
               data-menu-id="ai"
               onClick={() => { navigate(`/research/${ctxMenu.sym}?section=ai`); setCtxMenu(null) }}
-            ><UIcon name="sparkle" size={14} className={styles.ctxIcon} />Ask AI about {ctxMenu.sym}</button>
+            ><UIcon name="sparkle" size={14} className={styles.ctxIcon} />Ask the UCT Agent about {ctxMenu.sym}</button>
             <button
               className={styles.ctxItem}
               data-menu-id="compare"

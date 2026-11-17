@@ -83,17 +83,29 @@ describe('1. CHANGE-TURN TRUTH — the model is not the authority on applied sta
       fireEvent.keyDown(box, { key: 'Enter' })
       await flush()
     }
-    const log = screen.getByTestId('create-indicator-log').textContent
-    expect(log).toMatch(/EMA 50/)
-    expect(log).not.toMatch(/still says/)
-    expect(log).not.toMatch(/I added a 20-bar EMA/)
+    // ⭐ 2026-11-16 (Studio plan, section 5 / N2, #1495): the dock now ALSO shows "What the
+    // assistant says it built", labelled as the assistant's and kept apart from the engine's
+    // words. The P3S rule still holds for the engine's lines: they carry the readback of the
+    // RESULT and none of the model's prose. So the prose may appear ONLY inside that labelled line.
+    const logEl = screen.getByTestId('create-indicator-log')
+    const engineOnly = logEl.cloneNode(true)
+    engineOnly.querySelectorAll('[data-testid="create-indicator-said"]').forEach((n) => n.remove())
+    const engine = engineOnly.textContent
+    expect(engine).toMatch(/EMA 50/)
+    expect(engine).not.toMatch(/still says/)
+    expect(engine).not.toMatch(/I added a 20-bar EMA/)
+    const said = screen.queryAllByTestId('create-indicator-said')
+    for (const n of said) expect(n.textContent).toMatch(/^What the assistant says it built/)
+    // control: the stale prose this file exists for IS what the labelled line carries, so the
+    // engine-only check above is not passing because no prose reached the log at all
+    expect(said.map((n) => n.textContent).join(' ')).toMatch(/still says/)
   })
 
   it('ConverseBox: a change renders no "Assistant:" line; a clarify still does', async () => {
     const converse = p3rConverse()
     render(createElement(ConverseBox, { converse, sessionKey: newKey('p3s1') }))
     const send = async (text) => {
-      fireEvent.change(screen.getByLabelText(/Describe the indicator|Change it/), { target: { value: text } })
+      fireEvent.change(screen.getByLabelText(/^Describe it$|^Change it$/), { target: { value: text } })
       fireEvent.click(screen.getByTestId('converse-send'))
       await flush()
     }

@@ -1254,12 +1254,12 @@ export const THEME_FOLLOW_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].th
 // order within each are the menu order.
 export const WIDGET_CATEGORIES = [
   { key: 'charts',    label: 'Charts',                 items: ['chart'] },
-  { key: 'lists',     label: 'Watchlists & Screening', items: ['watchlist', 'themes', 'scanner', 'scatter'] },
+  { key: 'lists',     label: 'Watchlists & screening', items: ['watchlist', 'themes', 'scanner', 'scatter'] },
   // "Market Internals" is the home for the real-time, market-wide tools — the growing
   // NH/NL-style family. Renamed from "Breadth & Momentum" as that family expands.
-  { key: 'internals', label: 'Market Internals',       items: ['indexes', 'breadth', 'marketcontext', 'nhnl', 'nhnlPulse', 'volumescan'] },
+  { key: 'internals', label: 'Market internals',       items: ['indexes', 'breadth', 'marketcontext', 'nhnl', 'nhnlPulse', 'volumescan'] },
   { key: 'research',  label: 'Research',               items: ['fundamentals', 'profile', 'news', 'tradeExchangeNews', 'aisearch', 'calendar', 'notebook'] },
-  { key: 'flow',      label: 'Flow & Alerts',          items: ['optionsflow', 'alerts'] },
+  { key: 'flow',      label: 'Flow & alerts',          items: ['optionsflow', 'alerts'] },
 ]
 
 // ── Widget catalog presentation ──────────────────────────────────────────────
@@ -1278,7 +1278,7 @@ export const WIDGET_CATALOG = {
   breadth:      { icon: 'breadth',  blurb: 'Market breadth & participation monitor.', live: true },
   indexes:      { icon: 'equity',   blurb: 'Index levels and the day’s move, live.', live: true },
   marketcontext:{ icon: 'compass',  blurb: 'Phase, exposure and breadth in one read.' },
-  aisearch:     { icon: 'sparkle',  blurb: 'Ask AI about any stock or the market.' },
+  aisearch:     { icon: 'sparkle',  blurb: 'Ask the UCT Agent about any stock or the market.' },
   news:         { icon: 'wire',     blurb: 'High-impact news & catalysts per stock.' },
   tradeExchangeNews: { icon: 'wire', blurb: 'Breaking market headlines from Trade Exchange, live.', live: true },
   profile:      { icon: 'book',     blurb: 'Company profile, description & stats.' },

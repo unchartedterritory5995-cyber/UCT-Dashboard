@@ -35,7 +35,9 @@ const openAdd = () => {
 const search = (text) => fireEvent.change(screen.getByPlaceholderText(/Search indicators/i), { target: { value: text } })
 
 describe('the Indicators window', () => {
-  it('nothing found: one press opens Create Indicator with the words in its box', async () => {
+  // Superseded by UCT Signature R2 Option 1 (owner 11-16): a search offers "Not quite it?" → the UCT Agent row
+  // (ChartSettingsIndicators.agentBuild.test.jsx), not the describe-instead pill.
+  it.skip('nothing found: one press opens Create Indicator with the words in its box', async () => {
     const open = vi.fn()
     act(() => { setCreateIndicatorFlag(true) })
     render(<Host onCreateFormula={() => {}} onCreateIndicator={open} />)

@@ -113,7 +113,9 @@ rails in `app/src/components/chart/engine/runtime/__tests__/honestySweep.test.js
 - `docs/pine/evidence/<date>-<lane>/` — one directory per lane (latest: `2026-11-07-honesty-sweep`,
   `-pt-gaps`, `-i6a-n4`, `-ruling-0927`, `-w9-open-questions`, `-w9-t14`, `-w6-t10n`, `-w6-t6-n1b`);
   also `w2-arming-2026-11-02`, `w5-host-parity`, `rf-runtime-readiness-2026-10-02`.
-- Capture queues: `docs/pine/capture-queue-<date>-<lane>.md`, aggregated in `capture-queue.json`.
+- Capture queues: `docs/pine/capture-queue-<date>-<lane>.md`, aggregated on demand by
+  `python tools/vendor_harness/evidence_engine.py queue` into a LOCAL `capture-queue.json` (git ignores it
+  since 2026-11-16: never commit it, and `git rm` it if a merge of master conflicts on it).
 - Vendor harness and triage: `tools/vendor_harness/`, `docs/pine/vendor-harness/objects-triage-2026-09-28.md`.
 
 ### Test baseline

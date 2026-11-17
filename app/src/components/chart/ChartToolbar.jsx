@@ -1,5 +1,5 @@
 // app/src/components/chart/ChartToolbar.jsx — TradingView-style horizontal drawing toolbar + settings panel
-import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, useContext, forwardRef, useImperativeHandle, lazy, Suspense } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, useContext, forwardRef, useImperativeHandle, lazy, Suspense, Fragment } from 'react'
 import { createPortal } from 'react-dom'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from './chartDefaults'
 import { keepIndicatorState } from './indicatorPreservation'
@@ -52,7 +52,7 @@ const BuilderSheet = lazy(() => import('./builder/BuilderSheet'))
 const CreateIndicatorPanel = lazy(() => import('./builder/studio/CreateIndicatorPanel'))
 const SaveReceipt = lazy(() => import('./builder/studio/SaveReceipt'))
 import { mintScope, chartScope, createKey, editKey, draftWillRestore } from './builder/authoring/conversationSessions'
-import { seedFrom } from './builder/agentSeams'
+import { seedFrom, sendSeedFrom } from './builder/agentSeams'
 import { useUserDefinitions, readUserDefinition } from '../../hooks/useUserDefinitions'
 import { scriptUpgradeHeld } from './builder/memberPane/savedScriptUpgrade'
 import { createCustomCopy } from './builder/definitionActions'
@@ -215,6 +215,16 @@ export const TOOLS = [
   // which of them it opens.
   { id: 'position',   label: chorded('position', 'Position Calculator') },
 ]
+
+// Group index of every drawing tool, read off TOOLS' own 'sep' markers (lines ·
+// shapes · studies · annotation · position). The row draws a hairline between
+// groups (owner 11-16, UCT Signature) — the order and the groups stay TOOLS'.
+export const TOOL_GROUP = (() => {
+  const m = {}
+  let g = 0
+  for (const t of TOOLS) { if (t === 'sep') g++; else m[t.id] = g }
+  return m
+})()
 
 const WIDTHS = [1, 2, 3]
 const FONT_SIZES = [10, 13, 16, 20, 26, 34, 44]
@@ -743,6 +753,39 @@ function ChartSettingsPanel({
               }} />
             Desk mentions
           </label>
+          {/* Next earnings date (owner 11-16): the modal's Events row writes the top-level `nextEarningsMarker`
+              (absent = off; chartViewOptions.js) — mirrored here so neither surface drifts behind. */}
+          <label className={styles.sCheck}>
+            <input type="checkbox"
+              checked={cs.nextEarningsMarker === true}
+              onChange={e => {
+                const next = { ...cs, nextEarningsMarker: e.target.checked, preset: 'custom' }
+                onUpdateSettings(next)
+              }} />
+            Next earnings date
+          </label>
+          {/* Price alerts (owner 11-16): the modal's Your activity row writes the top-level `priceAlertLines`
+              (absent = off; chartViewOptions.js) — mirrored here so neither surface drifts behind. */}
+          <label className={styles.sCheck}>
+            <input type="checkbox"
+              checked={cs.priceAlertLines === true}
+              onChange={e => {
+                const next = { ...cs, priceAlertLines: e.target.checked, preset: 'custom' }
+                onUpdateSettings(next)
+              }} />
+            Price alerts
+          </label>
+          {/* My trades (owner 11-16): the modal's Your activity row writes the top-level `myTradeMarkers`
+              (absent = off; chartViewOptions.js) — mirrored here so neither surface drifts behind. */}
+          <label className={styles.sCheck}>
+            <input type="checkbox"
+              checked={cs.myTradeMarkers === true}
+              onChange={e => {
+                const next = { ...cs, myTradeMarkers: e.target.checked, preset: 'custom' }
+                onUpdateSettings(next)
+              }} />
+            My trades
+          </label>
         </div>
       </div>
 
@@ -1180,8 +1223,12 @@ function ChartToolbar({
   // ⭐ P2 Track B — which door the builder opens on when Create Indicator hands
   // off to it (Formula / Import / Screenshot). `null` = the builder's own default.
   const [builderMode, setBuilderMode] = useState(null)
-  const openBuilder = useCallback((mode = null) => {
+  // ⭐ UCT SIGNATURE R2 — words to PRE-FILL into the start view's Describe it (never sent):
+  // the Indicators window's "Build “…” with the UCT Agent". Every other opening clears them.
+  const [builderDescription, setBuilderDescription] = useState(null)
+  const openBuilder = useCallback((mode = null, opts = null) => {
     setBuilderMode(typeof mode === 'string' ? mode : null)
+    setBuilderDescription(opts && typeof opts.description === 'string' && opts.description.trim() ? opts.description : null)
     setBuilderEverOpened(true)
     setBuilderOpen(true)
   }, [])
@@ -1190,6 +1237,9 @@ function ChartToolbar({
   const [createOpen, setCreateOpen] = useState(false)
   // ⭐ AGENT M1 — a request to PREFILL into the studio's box (never sent); consumed at mount
   const [createSeed, setCreateSeed] = useState(null)
+  // ⭐ 2026-11-16 — the member's own plain-words box asked for the seed to be SENT (`sendSeedFrom`).
+  // Read only together with a seed, so every door that clears the seed clears this too.
+  const [createSendSeed, setCreateSendSeed] = useState(false)
   // a seed lives for ONE opening: every other door clears it as it opens the studio
   // ⭐ PHASE 4 — UNIFIED EDITING. The STORE's row the studio / builder was opened on
   // (null = a new indicator). Held in state (a stable identity: the builder's
@@ -1336,10 +1386,11 @@ function ChartToolbar({
     // reason `openIndicatorLibrary` does: a read-only mount site passes no
     // `onUpdateSettings`, and a caller that got `true` would render a button that
     // opened nothing.
-    openFormulaBuilder: () => {
+    // ⭐ UCT SIGNATURE R2 — `{description}` opens the start view with those words in Describe it.
+    openFormulaBuilder: (opts = null) => {
       if (!canManageIndicators) return false
       setLibraryOpen(false)   // never two Sheets: see the mount comment below
-      openBuilder()
+      openBuilder(null, opts && typeof opts.description === 'string' ? { description: opts.description } : null)
       return true
     },
     // ⭐ P2 Track B — Chart Settings → Indicators → "+ Create Indicator". Only a
@@ -1406,6 +1457,7 @@ function ChartToolbar({
       if (!sameOpen) {
         // a different definition (or create ↔ edit) re-mounts the panel (its `key`)
         setCreateSeed(prefilled ? seed : null)
+        setCreateSendSeed(prefilled && sendSeedFrom(opts))
         setCreateEditRow(row)
         setCreateOpen(true)
       }
@@ -1627,15 +1679,21 @@ function ChartToolbar({
     <>
     <div className={`${styles.toolbar} ${collapsed ? styles.collapsed : ''}`} style={hiddenHost ? { display: 'none' } : prominent ? { opacity: 1 } : undefined}>
       {/* ── Tool buttons ── */}
-      {/* Every button is evenly spaced by the flex `gap`. TOOLS still carries its
-          'sep' markers and DRAW_TOOL_LIST still drops them: V2 tried rendering them
-          as ~6px of breathing room between lines / shapes / studies / annotation,
-          and the owner's call on the real chart was that the even row reads better.
-          One rhythm the whole way across. */}
+      {/* ⭐ GROUP HAIRLINES (owner 11-16, UCT Signature): a 1px divider sits between
+          TOOLS' own groups (its 'sep' markers — lines · shapes · studies · annotation
+          · position) and before the Boards/★ pair. It goes in front of the first
+          VISIBLE tool of a group, so hiding a group's first tool never orphans or
+          drops a line. (V2's plain ~6px gaps lost to an even row; the hairlines
+          were approved 11-16.) */}
       <div className={styles.tools} data-guide="chart.drawingTools">
-        {(toolFilter ? DRAW_TOOL_LIST.filter(t => toolFilter.includes(t.id)) : DRAW_TOOL_LIST).map((t) => (
+        {(() => { let lastGroup = null; return (toolFilter ? DRAW_TOOL_LIST.filter(t => toolFilter.includes(t.id)) : DRAW_TOOL_LIST).map((t) => {
+          const shown = toolFilter || !hiddenTools.includes(t.id)
+          const divide = shown && lastGroup !== null && TOOL_GROUP[t.id] !== lastGroup
+          if (shown) lastGroup = TOOL_GROUP[t.id]
+          return (
+          <Fragment key={t.id}>
+          {divide && <span className={styles.groupDivider} data-tool-divider="" aria-hidden="true" />}
           <button
-            key={t.id}
             /* Hidden tools stay in the DOM but collapse to width 0 (styles.toolHidden)
                so show/hide animates smoothly instead of popping. */
             className={`${styles.btn} ${activeTool === t.id ? styles.active : ''} ${(!toolFilter && hiddenTools.includes(t.id)) ? styles.toolHidden : ''}`}
@@ -1647,7 +1705,12 @@ function ChartToolbar({
           >
             {ICONS[t.id]}
           </button>
-        ))}
+          </Fragment>
+          )
+        }) })()}
+        {!toolFilter && DRAW_TOOL_LIST.some(t => !hiddenTools.includes(t.id)) && (
+          <span className={styles.groupDivider} data-tool-divider="" aria-hidden="true" />
+        )}
         {/* Drawing Boards — at the END of the drawing tools, styled identically (it's
             handed this toolbar's own scoped button classes). Charts workspace only. */}
         {!toolFilter && showTracings && (
@@ -2037,6 +2100,7 @@ function ChartToolbar({
             sym={currentSym}
             tf={tf}
             initialMode={builderMode}
+            initialDescription={builderDescription}
             /* ⭐ PHASE 4 — "Edit formula" from the legend / inspector / Your indicators */
             editRow={builderEditRow}
           />
@@ -2056,8 +2120,9 @@ function ChartToolbar({
               key={createEditRow ? `edit:${createEditRow.def_id}` : 'create'}
               editRow={createEditRow}
               onEditFormula={createEditRow ? () => { const r = createEditRow; setCreateOpen(false); setCreateEditRow(null); setBuilderEditRow(r); setBuilderMode(null); setBuilderEverOpened(true); setBuilderOpen(true) } : null}
-              onClose={(res) => { setCreateOpen(false); setCreateEditRow(null); setCreateSeed(null); if (res && res.receipt) setSaveReceipt(res.receipt) }}
+              onClose={(res) => { setCreateOpen(false); setCreateEditRow(null); setCreateSeed(null); setCreateSendSeed(false); if (res && res.receipt) setSaveReceipt(res.receipt) }}
               seed={createSeed}
+              sendSeed={!!createSeed && createSendSeed}
               settings={cs}
               onChange={onUpdateSettings}
               sym={currentSym}

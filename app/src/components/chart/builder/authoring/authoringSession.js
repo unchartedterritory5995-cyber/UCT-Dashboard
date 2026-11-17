@@ -181,6 +181,15 @@ export function renameTurn(before, name, { gateCtx = {}, memberWords = null } = 
       lines: [`Renamed to “${out.readback.name || name}”.`] }] }
 }
 
+/** The longest description of its own work the dock shows from the assistant. */
+export const SAID_MAX = 400
+
+/** The assistant's description of a change, as plain bounded text; '' when there is none. */
+export function saidOf(reply) {
+  const t = typeof reply === 'string' ? reply.replace(/\s+/g, ' ').trim() : ''
+  return t.length > SAID_MAX ? `${t.slice(0, SAID_MAX - 1).trimEnd()}…` : t
+}
+
 /** PACKAGE 3: `envelope` with its `create` name kept as a custom name (see modelTurn), else the SAME envelope. */
 function withCreateName(envelope, words, accept) {
   if (!envelope || !Array.isArray(envelope.ops)) return envelope
@@ -236,7 +245,19 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
   // patch (an appended `rename_definition`: one revision, one Undo step). Only for the turn that CREATES the definition,
   // only when the member named nothing, and only for a name the predicate accepts. The dock never passes it: there,
   // `create` still takes the derived name (derivedName.js).
-  const envelope = typeof keepCreateName === 'function' && !before.working ? withCreateName(named, words, keepCreateName) : named
+  // ⭐ 2026-11-16 — the predicate is also told the name the engine WOULD derive (a dry run of
+  // the same patch against the same state; `applyTurn` writes nothing), so a caller can keep
+  // the assistant's name only where the derived one is unreadable (`readableName.js`, the dock).
+  const wantsName = typeof keepCreateName === 'function' && !before.working
+  let nameCtx = { derivedName: null }
+  if (wantsName) {
+    try {
+      const dry = applyTurn(current(), named, { gateCtx, memberWords: words })
+      const w = dry && dry.state && dry.state.working
+      nameCtx = { derivedName: (w && w.meta && typeof w.meta.name === 'string') ? w.meta.name : null }
+    } catch { nameCtx = { derivedName: null } }
+  }
+  const envelope = wantsName ? withCreateName(named, words, (n) => keepCreateName(n, nameCtx)) : named
   const now = current()
   const out = applyTurn(now, envelope, { gateCtx, memberWords: words })
   const { result } = out
@@ -254,7 +275,14 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
   // ⛔ P3S: a CHANGE shows the deterministic readback of the RESULT and nothing the model wrote.
   return { ok: true, state: out.state, changed: true, outcome: turn.outcome, changes: result.changes || [],
     entries: [{ role: 'uct', kind: before.working ? 'patched' : 'created', revision: out.state.revision, updated: true,
-      lines: [...replyLines(out.readback, out.state, result.changes), ...unclear] }] }
+      lines: [...replyLines(out.readback, out.state, result.changes), ...unclear],
+      // ⭐ 2026-11-16 (Studio plan, section 5) — WHAT THE ASSISTANT SAYS IT BUILT, kept apart from
+      // the engine's words above and labelled as the assistant's by the dock. The engine's lines
+      // stay the authority; this is the plain sentence a member checks their request against
+      // (a read-back like "1 when (the 10-bar exponential average ...) and 0 otherwise" is true
+      // and hard to read). ⛔ Its own field, NOT `reply`: `snippetOf` reads `reply`, and what is
+      // sent back to the model as context must not change.
+      ...(saidOf(turn.reply) ? { said: saidOf(turn.reply) } : {}) }] }
 }
 
 /**
@@ -338,8 +366,12 @@ export async function saveConversation(cur, { acked = false, settings = null, on
     const m = memberSaveError(stored)
     return { ok: false, error: stored.error, stored, entry: { role: 'uct', kind: 'refusal', codes: [m.code], details: [m.detail], lines: ['Not saved.', m.text] } }
   }
+  // ⭐ L7: the stored definition's own id (its strict shape, never a name), so the owner report
+  // can ask a week later whether it is still kept
+  const savedId = stored.row && typeof stored.row.def_id === 'string' && /^u_[0-9a-f]{12}$/.test(stored.row.def_id)
+    ? stored.row.def_id : undefined
   logStudioAction(cur.lineage, 'saved', { surface: 'studio', created: !!stored.created, origin: 'native',
-    kinds: definitionKinds(stored.storedDoc, stored.requests) })
+    kinds: definitionKinds(stored.storedDoc, stored.requests), def_id: savedId })
   // ⛔ BATCH 1 — FROM HERE THE DEFINITION IS SAVED, WHATEVER FOLLOWS.
   if (typeof beforeAttach === 'function') { try { beforeAttach() } catch { /* the preview teardown */ } }
   let attached

@@ -658,30 +658,42 @@ async def stream_bars(
 
     async def event_generator():
         last_heartbeat = time.time()
+        # ⭐ EVENT-DRIVEN, NOT POLLED (2026-11-16). One pending `get()` per subscribed pair; the
+        # loop wakes the moment any queue receives a frame and sends it. This replaced a poll that
+        # slept 250 ms whenever nothing was ready, so a frame landing during the sleep waited up to
+        # 250 ms (~125 ms on average) before leaving the pod: production measured exchange -> pod
+        # dequeue at most 100 ms at the median and ~310 ms exchange -> browser, so most of the gap
+        # was this wait. It also costs less CPU than the poll it replaced (the reason the poll was
+        # slowed from 100 ms): an idle connection wakes once a second (WAIT_S) to notice a
+        # disconnect and keep the heartbeat on time, instead of four times a second.
+        WAIT_S = 1.0
+        getters: dict[int, asyncio.Task] = {}
         try:
             if resume is not None:
                 yield _frame("bars", json.dumps(resume), "resume")
             while True:
                 if await request.is_disconnected():
                     break
-                # Drain whatever is ready from any queue without blocking forever.
-                # We round-robin one wait at a time so no queue starves.
-                got_one = False
-                for (sym, tf, q) in queues:
-                    try:
-                        msg = q.get_nowait()
-                    except asyncio.QueueEmpty:
+                for i, (_sym, _tf, q) in enumerate(queues):
+                    if i not in getters:
+                        getters[i] = asyncio.ensure_future(q.get())
+                done, _pending = await asyncio.wait(
+                    set(getters.values()), timeout=WAIT_S, return_when=asyncio.FIRST_COMPLETED)
+                # Pairs in subscription order; within a pair, the frame the getter took and then
+                # whatever queued behind it, so each pair's frames keep their order.
+                for i, (_sym, _tf, q) in enumerate(queues):
+                    task = getters.get(i)
+                    if task is None or task not in done:
                         continue
-                    got_one = True
+                    del getters[i]
+                    msg = task.result()
                     yield _frame("bars", json.dumps(_contract_event(_bar_contract, msg, session)), "bar")
-
-                if not got_one:
-                    # 250ms idle floor — MATCH stream_prices (deliberately slowed
-                    # 100ms→250ms because every open tab holds one of these loops on the
-                    # single shared event loop; 20Hz here was 2x that tuned budget). The
-                    # broadcaster's 10Hz upstream throttle already caps freshness, so the
-                    # extra ≤250ms drain latency is imperceptible.
-                    await asyncio.sleep(0.25)
+                    while True:
+                        try:
+                            msg = q.get_nowait()
+                        except asyncio.QueueEmpty:
+                            break
+                        yield _frame("bars", json.dumps(_contract_event(_bar_contract, msg, session)), "bar")
 
                 if time.time() - last_heartbeat > 15:
                     # NAMED event (not a `:` comment): a bare comment keeps the
@@ -693,6 +705,8 @@ async def stream_bars(
                     yield _frame("bars", "{}", "heartbeat")
                     last_heartbeat = time.time()
         finally:
+            for task in getters.values():   # a disconnect leaves one pending get() per pair
+                task.cancel()
             unsubscribe("bars", _token)
             for (sym, tf, q) in queues:
                 if session == "rth":

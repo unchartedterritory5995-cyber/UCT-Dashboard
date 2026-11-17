@@ -155,8 +155,8 @@ export default function StarterLibrary({ onPick = null, activeSource = '' }) {
     <section className={styles.wrap} data-testid="starter-library"
              aria-label="Starter scans">
       <p className={styles.lede}>
-        The firm&apos;s setups, as ordinary scans. Pick one and it lands in the
-        formula box below — yours to change.
+        The firm&apos;s setups, as ordinary scans. Pick one and it opens on the
+        Formula tab — yours to change.
       </p>
 
       {families.map(({ family, entries }) => (

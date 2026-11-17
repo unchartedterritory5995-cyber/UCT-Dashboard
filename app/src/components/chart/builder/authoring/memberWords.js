@@ -22,32 +22,32 @@
 import { modelOf, fidelityPlan, AuthoringError } from './model'
 import { ackRequiredText } from './repaintWarning'
 
-const GENERIC = 'UCT Intelligence proposed a change that does not fit this indicator, so nothing was applied. Try saying it another way.'
+const GENERIC = 'The UCT Agent proposed a change that does not fit this indicator, so nothing was applied. Try saying it another way.'
 
-const KIND_TEXT = 'This indicator is built in a form UCT Intelligence cannot edit yet. You can still edit it manually.'
-const UNREPRESENTABLE_TEXT = 'This indicator has parts UCT Intelligence cannot reproduce yet, so it cannot be changed by conversation. You can still edit it manually.'
+const KIND_TEXT = 'This indicator is built in a form the UCT Agent cannot edit yet. You can still edit it manually.'
+const UNREPRESENTABLE_TEXT = 'This indicator has parts the UCT Agent cannot reproduce yet, so it cannot be changed by conversation. You can still edit it manually.'
 
 /** code → member sentence. `n` names the output the error is about (its label). */
 const BY_CODE = Object.freeze({
   'patch:stale': () => 'The indicator changed while that reply was on its way, so nothing was applied. Send it again.',
-  'patch:empty': () => 'UCT Intelligence did not propose any change.',
+  'patch:empty': () => 'The UCT Agent did not propose any change.',
   'authoring:kind': () => KIND_TEXT,
   'authoring:unrepresentable': () => UNREPRESENTABLE_TEXT,
-  'authoring:no-output': () => 'This indicator has no line or condition UCT Intelligence can work with.',
-  'authoring:no-source': () => 'This indicator was saved without its formula text, so UCT Intelligence cannot edit it. You can still edit it manually.',
+  'authoring:no-output': () => 'This indicator has no line or condition the UCT Agent can work with.',
+  'authoring:no-source': () => 'This indicator was saved without its formula text, so the UCT Agent cannot edit it. You can still edit it manually.',
   'definition:none': () => 'There is no indicator yet — describe the one you want first.',
   'definition:invalid': () => 'That change would not leave a valid indicator, so nothing was applied.',
   'create:exists': () => 'You are already working on an indicator — describe what to change in it.',
   'clause:numeric-operand': (n) => `${n ? `${n} is` : 'That is'} a number, not a yes/no — say what to compare it to (for example "above 70") before adding a condition.`,
   'tree:repaints': () => 'That formula would read future bars and repaint, so it cannot be saved.',
-  'tree:unsupported-node': () => 'That needs something UCT Intelligence cannot build by conversation yet.',
+  'tree:unsupported-node': () => 'That needs something the UCT Agent cannot build by conversation yet.',
   'output:last': () => 'An indicator needs at least one line or condition, so the last one cannot be removed.',
   'output:referenced': (n) => `${n || 'That output'} is used by another part of the indicator (a colouring or fill), so it cannot be removed here.`,
   'output:limit': () => 'This indicator already has as many lines as it can hold.',
   'style:has-marker': (n) => `${n || 'That output'} is drawn as markers — remove the marker before changing its line style.`,
   'marker:none': (n) => `${n || 'That output'} has no marker to remove.`,
   'paint:none': (n) => `${n || 'That output'} has no colouring to remove.`,
-  'paint:foreign': (n) => `An imported colouring already reads ${n || 'that output'}; UCT Intelligence will not overwrite it.`,
+  'paint:foreign': (n) => `An imported coloring already reads ${n || 'that output'}; the UCT Agent will not overwrite it.`,
   'request:none': () => 'There is no pending alert or header value like that to cancel.',
 })
 
@@ -112,7 +112,7 @@ export function conversationEditability(def) {
     const m = memberError({ code: e.code, message: e.message })
     const imported = !!(def.meta && (def.meta.recurrenceOrigin || def.meta.importedFrom || def.meta.import))
     const text = e.code === 'authoring:kind' && imported
-      ? 'This indicator was imported in a form UCT Intelligence cannot edit yet. You can still edit it manually.'
+      ? 'This indicator was imported in a form the UCT Agent cannot edit yet. You can still edit it manually.'
       : m.text
     return Object.freeze({ editable: false, code: e.code, text, detail: m.detail })
   }
@@ -125,7 +125,7 @@ export function conversationEditability(def) {
     return Object.freeze({
       editable: false, code: 'authoring:unrepresentable',
       text: imported
-        ? 'This indicator was imported in a form UCT Intelligence cannot edit yet. You can still edit it manually.'
+        ? 'This indicator was imported in a form the UCT Agent cannot edit yet. You can still edit it manually.'
         : UNREPRESENTABLE_TEXT,
       detail: `authoring:unrepresentable: ${residual.slice(0, 8).join(', ')}`,
     })
@@ -135,7 +135,7 @@ export function conversationEditability(def) {
 
 /** ⭐ PHASE 4 — the note shown when an opened definition carries fields the
  *  conversation keeps but cannot change. */
-export const CARRIED_NOTE = 'Some imported settings are kept exactly as they are — UCT Intelligence can’t change those, but everything else can be edited here.'
+export const CARRIED_NOTE = 'Some imported settings are kept exactly as they are — the UCT Agent can’t change those, but everything else can be edited here.'
 
 // ─── ⭐ ROLLOUT — a turn that could not run, in member words ─────────────────
 //
@@ -147,17 +147,17 @@ export const CARRIED_NOTE = 'Some imported settings are kept exactly as they are
 // schema. ⛔ No promised times: the daily allowance renews with the market day,
 // which this sentence does not try to pin to a clock.
 const REFUSAL_BY_GATE = Object.freeze({
-  'cost:user': "You've used today's UCT Intelligence allowance. It renews each day — your indicators are unaffected, and you can still edit them in the Formula tab.",
-  'cost:global': 'UCT Intelligence is at capacity right now. Your indicators are unaffected — please try again later.',
-  'http:429': "You're sending requests faster than UCT Intelligence can take them. Wait a minute, then try again.",
+  'cost:user': "You've used today's UCT Agent allowance. It renews each day — your indicators are unaffected, and you can still edit them in the Formula tab.",
+  'cost:global': 'The UCT Agent is at capacity right now. Your indicators are unaffected — please try again later.',
+  'http:429': "You're sending requests faster than the UCT Agent can take them. Wait a minute, then try again.",
   // ⭐ one interactive AI call in flight per member: the same accepted sentence as 429
-  'rate:busy': "You're sending requests faster than UCT Intelligence can take them. Wait a minute, then try again.",
+  'rate:busy': "You're sending requests faster than the UCT Agent can take them. Wait a minute, then try again.",
   'http:402': 'Custom indicators require a paid plan.',
-  'http:403': "UCT Intelligence isn't available on your account yet.",
+  'http:403': "The UCT Agent isn't available on your account yet.",
   'http:401': 'Your session has ended. Sign in again to continue.',
 })
-const PLATFORM = 'UCT Intelligence is briefly unavailable. Try again in a moment.'
-const MODEL = "UCT Intelligence couldn't produce a valid change for that. Try rephrasing it."
+const PLATFORM = 'The UCT Agent is briefly unavailable. Try again in a moment.'
+const MODEL = "The UCT Agent couldn't produce a valid change for that. Try rephrasing it."
 
 /**
  * The member sentence for a refused conversation turn, or the server's own reason

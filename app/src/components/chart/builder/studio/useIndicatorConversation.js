@@ -33,6 +33,7 @@ import { readback, isDirty } from '../authoring'
 import { converseTurn, transcriptSnippets } from '../authoring/converseClient'
 import { writeSession, clearSession, holdInDock, releaseDock } from '../authoring/conversationSessions'
 import { logStudioAction } from '../authoring/studioTelemetry'
+import { keepAssistantName } from '../authoring/readableName'
 // ⭐ M3 S1 — the turn / Undo / Save / restore steps live in `authoring/authoringSession.js`
 // (moved verbatim) so the dock and UCT Agent run ONE pipeline. This hook is the React
 // wrapper: it holds the state, numbers the transcript entries and keeps the session.
@@ -72,6 +73,14 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
   const [transcript, setTranscript] = useState(() => initialTranscript(initial, open))
   const transcriptRef = useRef(transcript)
   const [busy, setBusy] = useState(false)
+  /** ⭐ F1 — the share of today's allowance left, from the last answer that carried one. */
+  const [allowanceLeft, setAllowanceLeft] = useState(null)
+  const converseTracked = useCallback(async (args) => {
+    const r = await converse(args)
+    if (r && typeof r.allowanceLeft === 'number') setAllowanceLeft(r.allowanceLeft)
+    else if (r && r.gate === 'cost:user') setAllowanceLeft(0)
+    return r
+  }, [converse])
   /** ⭐ STOP — the in-flight turn's abort handle (null between turns). */
   const abortRef = useRef(null)
   const [saving, setSaving] = useState(false)
@@ -142,12 +151,13 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     setBusy(true)
     try {
       return take(await modelTurn(before, () => stateRef.current, words,
-        { snippets, gateCtx, converse, signal: ctl ? ctl.signal : null }))
+        // ⭐ a new indicator keeps the assistant's name only where the derived one is unreadable
+        { snippets, gateCtx, converse: converseTracked, signal: ctl ? ctl.signal : null, keepCreateName: keepAssistantName }))
     } finally {
       if (abortRef.current === ctl) abortRef.current = null
       setBusy(false)
     }
-  }, [busy, converse, gateCtx, sym, tf, say, take])
+  }, [busy, converseTracked, gateCtx, sym, tf, say, take])
 
   /** ⭐ STOP — give up waiting for the turn in flight. The answer, if one still comes, is
    *  not read (`modelTurn`); the working indicator and the preview are untouched. */
@@ -252,6 +262,7 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
   return {
     state, transcript, rb, busy, saving, acked, setAcked, needsAck, questions, changeSeq,
     previewDefinition, send, stop, undo, goBackTo, steps, save, discard, dirty, restored, recovered, dropped, editing,
+    allowanceLeft,
     canUndo: state.history.length > 0 && !busy && !saving,
     canSave: dirty && !busy && !saving && (!needsAck.length || acked),
   }

@@ -509,13 +509,18 @@ plot(ta.dmiplusleg(x, 105))
     expect(b.ir.history, 'the hoisted source gets a ring').toHaveLength(1)
   })
 
-  it('⛔ but a window over an EXPRESSION inside a BRANCH still says so', () => {
-    // ⛔ THE BOUND IS A CORRECTNESS ARGUMENT, NOT CAUTION. A declare hoisted out
-    // of this branch would run on every bar while the window inside it runs only
-    // on the bars the branch takes — two different series, and the vendor answer
-    // for a conditionally-called `ta.*` is not pinned here.
+  // ⚰️ WAS refused (`runtime:history-expression`): a declare hoisted out of the branch would run on
+  // every bar while the window runs only on the branch's bars. ⭐ HIST-S2 hoists NOTHING: `ta.sma`
+  // keeps its own ring of the values it is handed, so the expression is handed in place and steps only
+  // when the branch runs, which is Pine's per-call-site `ta.sma` (C48 C03 / D02). Here it runs every bar.
+  it('a window over an EXPRESSION inside a BRANCH is handed the expression in place (HIST-S2), never hoisted', () => {
     const src = `${head}var x = 0.0\nx := close\nvar y = 0.0\nif close > 0\n    y := ta.sma(x + 1, 3)\nplot(y)\n`
-    expect(refusalOf(src).guard).toBe('runtime:history-expression')
+    const b = buildRuntimeIr(src, { bars: BARS, inputs: {} })
+    expect(b.ok, JSON.stringify(b.refusal || {})).toBe(true)
+    expect(b.ir.history, 'nothing hoisted: no ring for an expression slot').toHaveLength(0)
+    const got = runPine(src).out
+    const want = runPine(`${head}var x = 0.0\nx := close + 1\nplot(ta.sma(x, 3))\n`).out
+    got.forEach((v, i) => expect(Number.isNaN(v) ? Number.isNaN(want[i]) : Math.abs(v - want[i]) < 1e-9, `bar ${i}`).toBe(true))
   })
 
   it('⛔ a non-value namespace cannot reach a window reducer', () => {

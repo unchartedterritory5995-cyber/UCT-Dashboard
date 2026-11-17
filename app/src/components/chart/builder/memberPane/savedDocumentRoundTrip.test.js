@@ -353,11 +353,24 @@ describe('C46 — documents saved under the walk-order ids', () => {
     expect(ids.every((id) => /^__uct_param_\d{1,2}$/.test(id))).toBe(true)
   })
 
+  // ⭐ DOOR ROBUSTNESS (2026-11-16) — two of these documents NEVER INSTALLED and STILL DO NOT: the
+  // install door (`validateUserDefinitions` -> `compute.budget`) refused each one, so no chart ever drew
+  // it and a stored copy is refused at every load. The member door now says so when it builds them,
+  // under the budget's own guard, instead of handing back a document that installs nothing (the
+  // opposite case to NEVER_INSTALLED above, which installs now). ⛔ A DECISION, NOT A DIFF: a script
+  // joins this list only with the guard the door names; any other refusal is still a move.
+  const INSTALL_REFUSED = {
+    'corpus/committed/volume-spikes-growing-volume-signals-with-alerts-scanner__8e706f448f.pine': 'budget:lookback',
+    'tests/fixtures/pine_oos/mid_engagement__16-ict-smc-guide.pine': 'budget:nodes',
+  }
+
   it('⛔⛔ every saved document: the door still builds the same manifest — same ids, same inputs, same places', () => {
     const moved = []
+    const refusedAsPinned = []
     for (const script of scripts) {
       const was = SAVED[script]
       const built = build(script)
+      if (!built.ok && INSTALL_REFUSED[script] && built.guard === INSTALL_REFUSED[script]) { refusedAsPinned.push(script); continue }
       if (!built.ok) { moved.push({ script, problem: `the door no longer builds it: ${built.reason}` }); continue }
       // ⭐ landing train 1 — engine 56-v2's moves re-address a locator (a node appears on its path), so
       // the manifest is read off the document with that claimed move undone, as its digest is below
@@ -388,6 +401,8 @@ describe('C46 — documents saved under the walk-order ids', () => {
       }
     }
     expect(moved, `saved documents no longer round-trip:\n${JSON.stringify(moved, null, 2)}`).toEqual([])
+    // every pinned install refusal is still refused by that guard (one the door builds again leaves the list)
+    expect(refusedAsPinned.sort()).toEqual(Object.keys(INSTALL_REFUSED).sort())
   }, 900000)
 
   it('⛔⛔ every saved document: the values a member saved, replayed BY ID, land on the same inputs', () => {

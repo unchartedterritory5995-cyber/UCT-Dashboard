@@ -110,6 +110,7 @@ describe('B1 — paints graded against the captures that record them', () => {
     'mcclellan-indicators-spy-1d-2026-10-03.json': ['supply warm vw-object-gc-b-spy-1d-2026-09-28.json 6677 notReplayed', 'plot_4 naBoth 1800/1800 painted=0', 'plot_15 naBoth 1800/1800 painted=0'],
     'renko-candles-overlay-rddt-1d-2026-10-03.json': ['refused pine:collection'],
     'renko-candles-overlay-spy-1d-2026-10-03.json': ['refused pine:collection'],
+    'renko-candles-overlay-crwv-1d-2026-11-16.json': ['refused pine:collection'],
     'supertrend-strategy-rddt-1d-2026-10-02.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
     'supertrend-strategy-spy-1d-2026-10-02.json': ['supply warm vw-object-gc-b-spy-1d-2026-09-28.json 6677 notReplayed', 'plot_9 withheld'],
     'trend-targets-algoalpha-rddt-1d-2026-10-02.json': ['refused pine:state'],
@@ -152,7 +153,7 @@ describe('B1 — paints graded against the captures that record them', () => {
     'fx-market-sessions-rddt-1d-2026-11-15.json': ['refused pine:module'],
     'heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-rddt-1d-2026-11-14.json': ['refused pine:cycle'],
     'ict-institutional-order-flow-fadi-rddt-1d-2026-11-14.json': ['refused pine:objects-only'],
-    'ict-killzone-index-version-rddt-1d-2026-11-14.json': ['refused pine:no-output'],
+    'ict-killzone-index-version-rddt-1d-2026-11-14.json': ['refused pine:objects-only'],   // bt (NUMBER PENDING): its session translates now, so the door reaches the objects-only refusal
     'inside-bar-boxes-rddt-1d-2026-11-14.json': ['refused pine:reassign'],
     'kalman-psar-backquant-rddt-1d-2026-11-15.json': ['refused pine:module'],
     'kernel-channel-backquant-rddt-1d-2026-11-14.json': ['refused pine:block'],
@@ -173,7 +174,8 @@ describe('B1 — paints graded against the captures that record them', () => {
     'relative-volume-at-time-rddt-1d-2026-11-14.json': ['refused pine:text-value'],
     'relative-volume-at-time-spy-1d-2026-11-14.json': ['refused pine:text-value'],
     'session-hilo-rddt-1d-2026-11-14.json': ['supply bar0 warmup=0', 'plot_5 agree 666/666 painted=0'],
-    'sessions-rddt-1d-2026-11-14.json': ['refused pine:function'],
+    // bt (NUMBER PENDING): its wrapping sessions translate now; every paint agrees with TradingView
+    'sessions-rddt-1d-2026-11-14.json': ['supply bar0 warmup=0', 'plot_3 agree 666/666 painted=666', 'plot_7 agree 666/666 painted=666', 'plot_11 agree 666/666 painted=0', 'plot_15 naBoth 666/666 painted=0'],
     'smart-money-breakouts-chartprime-rddt-1d-2026-11-14.json': ['refused pine:reassign'],
     'smart-money-interest-index-algoalpha-rddt-1d-2026-11-14.json': ['supply bar0 warmup=0', 'plot_10 agree 666/666 painted=0'],
     'smoothed-gaussian-trend-filter-algoalpha-rddt-1d-2026-11-15.json': ['refused pine:state'],
@@ -191,8 +193,8 @@ describe('B1 — paints graded against the captures that record them', () => {
     'volatility-trend-score-backquant-rddt-1d-2026-11-14.json': ['refused pine:type'],
     'volume-delta-hapharmonic-rddt-1d-2026-11-14.json': ['refused pine:type'],
     'volume-profile-auto-line-v2-rddt-1d-2026-11-14.json': ['refused pine:no-output'],
-    'volume-spikes-growing-volume-signals-with-alerts-scanner-rddt-1d-2026-11-14.json': ['refused install door refused: u_member-pane-vendorharness: compute.budget: exceeds the lookback budget — this formula measures 1000 and the cap is 960 (guard "budget:lookback"). Measured {"maxNodes":19,"maxLookback":1000} against caps {"maxNodes":128,"maxLookback":960,"maxSeriesRefs":8}. The tree measured is compute.trees.value.'],
-    'volume-spikes-growing-volume-signals-with-alerts-scanner-spy-1d-2026-11-14.json': ['refused install door refused: u_member-pane-vendorharness: compute.budget: exceeds the lookback budget — this formula measures 1000 and the cap is 960 (guard "budget:lookback"). Measured {"maxNodes":19,"maxLookback":1000} against caps {"maxNodes":128,"maxLookback":960,"maxSeriesRefs":8}. The tree measured is compute.trees.value.'],
+    'volume-spikes-growing-volume-signals-with-alerts-scanner-rddt-1d-2026-11-14.json': ['refused member door refused (budget:lookback): this script is not drawn: its plot `Volume Up Spike Marker` needs 1000 bars of history behind every bar, and one plot may reach back at most 960 here'],
+    'volume-spikes-growing-volume-signals-with-alerts-scanner-spy-1d-2026-11-14.json': ['refused member door refused (budget:lookback): this script is not drawn: its plot `Volume Up Spike Marker` needs 1000 bars of history behind every bar, and one plot may reach back at most 960 here'],
     'volume-suite-by-leviathan-rddt-1d-2026-11-15.json': ['refused pine:tuple'],
     'volume-suite-by-leviathan-spy-1d-2026-11-15.json': ['refused pine:tuple'],
     // ⭐ ENGINE 58 COLOURS (landing train 1): a v1-v3 `bgcolor` with no `transp` draws at 90 (S1), so the three

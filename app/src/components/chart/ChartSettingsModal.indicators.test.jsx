@@ -598,6 +598,8 @@ describe('ChartSettingsModal — the ways IN (search · add · author)', () => {
     const { unmount } = render(<ChartSettingsModal open settings={base()} onChange={vi.fn()} />)
     openIndicators()
     fireEvent.click(screen.getByTestId('add-enter'))
+    // ⭐ UCT Signature R2 (owner Option 1): the builder's door in this window is "✦ Create indicator".
+    expect(screen.queryByRole('button', { name: /Create indicator/i })).toBeNull()
     expect(screen.queryByRole('button', { name: /New Formula/i })).toBeNull()
     unmount()
 
@@ -605,7 +607,7 @@ describe('ChartSettingsModal — the ways IN (search · add · author)', () => {
     render(<ChartSettingsModal open settings={base()} onChange={vi.fn()} onCreateFormula={onCreateFormula} />)
     openIndicators()
     fireEvent.click(screen.getByTestId('add-enter'))
-    fireEvent.click(screen.getByRole('button', { name: /New Formula/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Create indicator/i }))
     expect(onCreateFormula, 'the launcher renders but is wired to nothing').toHaveBeenCalledTimes(1)
   })
 

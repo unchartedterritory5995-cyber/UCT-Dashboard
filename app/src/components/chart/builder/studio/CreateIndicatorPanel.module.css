@@ -361,6 +361,32 @@
   .historyClose { min-height: 44px; padding: 0 8px; }
 }
 
+/* F1 — the allowance line, quiet, just above the box it limits. */
+.allowance {
+  flex: none;
+  margin: 0; padding: 0 14px 6px;
+  font-size: 11px; color: var(--menu-text-faint, #93939a);
+}
+
+/* L8 — the quiet way to send a conversation to UCT, at the end of the log. */
+.sendRow { padding: 2px 12px 6px; }
+.sendLink {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font-family: inherit; font-size: 11px; color: var(--menu-text-faint, #93939a);
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.sendLink:hover { color: var(--menu-text, #ededed); }
+@media (max-width: 1024px) { .sendLink { min-height: 44px; } }
+
+/* What the assistant says it built: quieter than the engine's lines above it, with its label. */
+.said {
+  display: flex; flex-direction: column; gap: 2px;
+  margin-top: 6px; padding-top: 6px;
+  border-top: 1px solid var(--menu-border, #2c2c30);
+  font-size: 11.5px; color: var(--menu-text-dim, #b3b3b9);
+}
+.saidLabel { font-size: 10.5px; color: var(--menu-text-faint, #93939a); }
+
 .foot {
   flex: none;
   display: flex; align-items: center; gap: 8px;

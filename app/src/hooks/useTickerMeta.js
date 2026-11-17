@@ -4,7 +4,7 @@ import { tickerMetaKey } from './tickerMetaKey'
 
 // Frozen so the shared fallback can never be mutated by a consumer.
 const NULLS = Object.freeze({
-  name: null, sector: null, industry: null, theme: null, exchange: null,
+  name: null, sector: null, industry: null, theme: null, exchange: null, security_type: null,
 })
 
 // ── localStorage layer: instant watermark on first paint ──
@@ -90,6 +90,12 @@ function projectMeta(j) {
     // one that BUILDS that object, one layer above — the same "built, wired and
     // dark for want of one field" shape R-K itself closed a layer below.
     exchange: j?.exchange ?? null,
+    // ⭐⭐ RS RATING L3 — `security_type`, AND IT WAS DROPPED THE SAME WAY `exchange` WAS (2026-11-16).
+    // `ticker_meta.get_ticker_meta` has declared it since a9f7c8cde7 (the screener universe's
+    // Stock / ADR / ETF, present only when known) and `StockChart`'s `symbolMeta.securityType`
+    // reads it, but this projection never named it, so the fold always saw null. The T5b rail
+    // below reads the server's declared keys and caught it once its parser read the `[, ...]`.
+    security_type: j?.security_type ?? null,
   }
 }
 

@@ -268,7 +268,9 @@ placedTime, modifiedTime, triggerTime, status, why, endTime, fillTime, fillPrice
   exit orders until after the entry order executes"); one that MAY cover the trade a reversal opened (Q-S1f) has none.
 - `status`: `placed` (still live at `asOfBar`), `filled`, `cancelled` (`why`: `strategy.cancel`, `strategy.cancel_all`,
   `oca-cancel`, `oca-reduce`, `trade-closed`, `nothing-to-close`), `rejected` (`why`: `pyramiding`, [B-PYR] "does not
-  execute"; `risk-allow-entry-in`, a forbidden entry with no position to close). `rule`: the fill's rule, as the trade's.
+  execute"; `risk-allow-entry-in`, a forbidden entry with no position to close; `funds`, [B-FUNDS] Q-S1i, a flat long
+  market entry at the percent-of-equity default of 100 and margin 100% that needs more than the equity at its fill price,
+  witnessed by w9-q-s1a-size-v6). `rule`: the fill's rule, as the trade's.
 - `opened` / `closed`: the trade numbers the fill opened / closed. **One authority per link**: the broker stamps each trade
   with the row that opened it and each closed trade with the row that closed it; the rows' lists are derived from those.
 

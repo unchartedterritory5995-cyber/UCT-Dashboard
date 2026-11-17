@@ -116,7 +116,7 @@ describe('AskAiTab', () => {
   it('a model outage answered as a 200 refusal with `error` is the error turn with Ask again, not "not enough evidence"', async () => {
     mockFetchOnce(200, {
       sym: 'AAPL', response_state: 'refuse', summary: '', key_facts: [], citations: [],
-      insufficient_evidence: true, insufficient_evidence_reason: 'The AI assistant is temporarily unavailable.',
+      insufficient_evidence: true, insufficient_evidence_reason: 'The UCT Agent is temporarily unavailable.',
       error: 'internal error', turn_state: { sym: 'AAPL', response_state: 'refuse' },
     })
     render(<AskAiTab sym="AAPL" />)
