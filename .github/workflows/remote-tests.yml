@@ -173,6 +173,24 @@ jobs:
           git fetch --no-tags --quiet origin "+$RT_REF:refs/rt/under-test"
           git checkout --quiet --detach refs/rt/under-test
           git log -1 --format='testing %H %s'
+      # ⚰️ 2026-11-17 — SEVEN NOTEBOOK BRIDGE RAILS WERE RED HERE AND NOWHERE ELSE. They spawn `python` to run
+      # the real exporter (tools/*_bridge.py, roundtrip_export_fixture.py), which imports the repo-root conftest
+      # (pytest) and anyio; this job installed no Python, so every one died on ModuleNotFoundError before its
+      # own assertions ran (run 44066213548). The nightly's vitest job installs all of requirements.txt; this
+      # one runs per shard, so it installs only what those processes import: NAMES measured by
+      # tests/test_bridge_python_requirements.py, VERSIONS read from requirements.txt by the tool.
+      # ⛔ The tool is THIS RUN'S copy ($GITHUB_SHA, the dispatch ref: master), like the validator, so a branch
+      # cut before the tool existed still gets its Python; the versions are the commit under test's own.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the Python the bridge rails spawn
+        run: |
+          git show "$GITHUB_SHA:tools/bridge_python_requirements.py" > "$RUNNER_TEMP/bridge_python_requirements.py"
+          python "$RUNNER_TEMP/bridge_python_requirements.py" --pins --requirements requirements.txt \
+            > "$RUNNER_TEMP/bridge-requirements.txt"
+          cat "$RUNNER_TEMP/bridge-requirements.txt"
+          python -m pip install --quiet -r "$RUNNER_TEMP/bridge-requirements.txt"
       - uses: actions/setup-node@v4
         with:
           node-version: '20'

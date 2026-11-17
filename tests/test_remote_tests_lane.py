@@ -198,3 +198,21 @@ def test_both_test_steps_keep_their_exit_code_through_tee():
     for job in ("pytest", "vitest"):
         run = [s for s in _wf()["jobs"][job]["steps"] if s.get("name") == job][0]["run"]
         assert "set -o pipefail" in run and "| tee" in run, job
+
+
+def test_the_vitest_job_installs_the_python_its_rails_spawn():
+    """2026-11-17: seven Notebook bridge rails spawn `python` (conftest -> pytest, the exporter -> anyio) and were
+    red on this lane alone, because this job installed no Python (run 44066213548). The job must set up Python and
+    install what tools/bridge_python_requirements.py prints -- master's copy of the tool (like the validator, so an
+    old branch still gets it), the commit under test's requirements.txt -- after the ref is checked out and before
+    vitest runs. tests/test_bridge_python_requirements.py measures that the list covers what the rails import."""
+    steps = _wf()["jobs"]["vitest"]["steps"]
+    labels = [s.get("name") or s.get("uses") for s in steps]
+    setup = [i for i, s in enumerate(steps) if (s.get("uses") or "").startswith("actions/setup-python@")]
+    assert len(setup) == 1 and str(steps[setup[0]]["with"]["python-version"]) == "3.12", steps
+    install = [i for i, s in enumerate(steps) if "bridge_python_requirements.py" in (s.get("run") or "")]
+    assert len(install) == 1, labels
+    run = steps[install[0]]["run"]
+    assert 'git show "$GITHUB_SHA:tools/bridge_python_requirements.py"' in run, run
+    assert "--pins --requirements requirements.txt" in run and "pip install" in run, run
+    assert labels.index("Check out the commit under test") < setup[0] < install[0] < labels.index("vitest"), labels
