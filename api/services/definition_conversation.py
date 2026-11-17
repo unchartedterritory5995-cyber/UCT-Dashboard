@@ -1685,6 +1685,35 @@ def _named_after_intent(label: str, text: str) -> bool:
     return False
 
 
+_NUMBER_IN_LABEL = re.compile(r"\d+(?:[.,]\d+)*")
+
+
+def _numbers_only_relabel(old: Any, new: Any) -> bool:
+    """``new`` is ``old`` with one or more of its numbers changed and nothing else (both folded
+    by ``_label_text``): "rsi 14" -> "rsi 21", "bb 20, 2" -> "bb 20, 2.5". False when the old
+    label has no number, when the words differ, or when a number was added or removed."""
+    if not (isinstance(old, str) and isinstance(new, str) and old and new and old != new):
+        return False
+    # two different labels that are equal once every number is masked differ ONLY in a number,
+    # so the old one necessarily carries one: no separate check for that
+    return _NUMBER_IN_LABEL.sub("#", old) == _NUMBER_IN_LABEL.sub("#", new)
+
+
+def _outputs_edited(ops: Any) -> set:
+    """The output keys whose MATHS this patch changes: a slot of theirs set (``key#n``), their
+    tree replaced, or a clause added to or removed from them."""
+    keys: set = set()
+    for o in ops or []:
+        if not isinstance(o, Mapping):
+            continue
+        name = o.get("op")
+        if name == "set_slot" and isinstance(o.get("slot"), str) and "#" in o["slot"]:
+            keys.add(o["slot"].split("#", 1)[0])
+        elif name in ("set_output_tree", "add_clause", "remove_clause") and isinstance(o.get("output"), str):
+            keys.add(o["output"])
+    return keys
+
+
 def check_output_renames(envelope: Mapping[str, Any], message: Any, view: Any,
                          turns: Any = ()) -> None:
     """⭐ 2026-11-02 -- OPEN-FINDINGS-2026-10 §3. A LINE IS RENAMED ONLY IN THE MEMBER'S
@@ -1706,7 +1735,16 @@ def check_output_renames(envelope: Mapping[str, Any], message: Any, view: Any,
     Refused like any envelope gate (never stripped -- ``check_envelope`` does not
     edit a patch), so the model gets its ONE bounded repair with the reason.
     Passes: a rename of a line this same patch creates or adds (it has no name the
-    member could have chosen yet), and a "rename" to the label it already has."""
+    member could have chosen yet), and a "rename" to the label it already has.
+
+    ⭐ 2026-11-17 -- AND A LABEL THAT ONLY FOLLOWS ITS OWN NUMBERS. Measured on production
+    over twenty multi-turn conversations: "make it 21" on a line labelled "RSI 14" came
+    back as the right ``set_slot`` plus ``rename_output`` to "RSI 21", was refused here, and
+    cost a second model call (twice the price and about six more seconds) on the commonest
+    edit there is. That relabel names nothing new: it is the same label with its numbers
+    updated, on a line whose maths this same patch changes. It passes
+    (``_numbers_only_relabel``). A label whose WORDS change is still refused, and so is a
+    number-only relabel of a line this patch does not touch."""
     if envelope.get("disposition") != "change":
         return
     ops = [o for o in (envelope.get("ops") or []) if isinstance(o, Mapping)]
@@ -1732,11 +1770,14 @@ def check_output_renames(envelope: Mapping[str, Any], message: Any, view: Any,
         cue_names.update(_label_text(n) for n in names)
         asked.append(_label_text(rest))
     one_line = len(current) <= 1
+    edited = _outputs_edited(ops)
     for i, o in enumerate(ops):
         if o.get("op") != "rename_output" or o.get("output") in new_keys:
             continue
         label = _label_text(o.get("label"))
         if not label or label == current.get(o.get("output")):
+            continue
+        if o.get("output") in edited and _numbers_only_relabel(current.get(o.get("output")), label):
             continue
         if (one_line and label in cue_names) or any(_named_after_intent(label, a) for a in asked):
             continue
