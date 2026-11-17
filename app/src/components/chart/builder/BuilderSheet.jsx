@@ -673,10 +673,10 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
                 // band (`binder.bandColoursFor`). Only an input this document declares.
                 ...(typeof r.fill.colorUpInput === 'string'
                   && declared.some((s) => s.key === r.fill.colorUpInput && s.type === 'color')
-                  ? { colorUpInput: r.fill.colorUpInput } : {}),
+                  ? { colorUpInput: r.fill.colorUpInput, ...(r.fill.colorUpInputOwnAlpha === true ? { colorUpInputOwnAlpha: true } : {}) } : {}),
                 ...(typeof r.fill.colorDownInput === 'string'
                   && declared.some((s) => s.key === r.fill.colorDownInput && s.type === 'color')
-                  ? { colorDownInput: r.fill.colorDownInput } : {}),
+                  ? { colorDownInput: r.fill.colorDownInput, ...(r.fill.colorDownInputOwnAlpha === true ? { colorDownInputOwnAlpha: true } : {}) } : {}),
               }
               : {}),
             ...(r.fill.colorMode && !r.fill.colorUp && Array.isArray(r.fill.colorPalette)
