@@ -905,7 +905,7 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
           >
             <span className={styles.createPlus} aria-hidden="true">＋</span>
             <span className={styles.createMain}>
-              <span className={styles.createName}>New formula</span>
+              <span className={styles.createName}>Create indicator</span>
               <span className={styles.createBlurb}>
                 Build your own indicator or screen — pick conditions, describe it in
                 plain English, or start from one of the firm’s setups.

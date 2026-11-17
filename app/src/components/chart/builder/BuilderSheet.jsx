@@ -158,6 +158,7 @@ import {
   NEW_LINE_FLAG, rowIsNewLine, withLocalLineIdentities, servedLineIdentities, withoutNewLineMarkers,
 } from '../engine/lineIdentity'
 import { fieldsForInstance } from '../indicatorRegistry'
+import { windowTitle, startOverLabel } from './windowTitle'
 import styles from './BuilderSheet.module.css'
 
 /** The badge vocabulary, cased for display. ⛔ The definition's vocabulary is
@@ -1057,6 +1058,11 @@ export default function BuilderSheet({
   /* W1a hand-back: the chart the sheet was opened over — the live preview draws on it */
   sym = null, tf = null,
   initialMode = null, editRow = null, initialDraft = null, initialDescription = null,
+  /* ⭐ WHAT THIS WINDOW IS CALLED, BY WHERE IT OPENS (owner decision 2026-11-17, backlog 49). From a
+     chart the member pressed "Create indicator", so the window says so; from the Screener the same
+     window builds a scan's formula and keeps "New formula". Only the title and the footer's
+     start-over button read it. */
+  noun = 'formula',
 }) {
   /** ⛔⛔ CONVERSATIONAL AUTHORING IS DARK (release gate 2026-10-06). It shipped
    *  UNGATED here once and reached every paid member's New Formula sheet; it is
@@ -2666,7 +2672,7 @@ export default function BuilderSheet({
   if (!open) return null
 
   const isEditor = view === 'editor'
-  const sheetTitle = editing ? 'Edit formula' : 'New formula'
+  const sheetTitle = windowTitle(noun, !!editing)
   const chip = origin === 'pine'
     ? scriptChip(scriptDialect, pineText, editing && editing.prior && editing.prior.meta ? editing.prior.meta.pineVersion : null)
     : (origin ? SOURCE_CHIP[origin] : null)
@@ -4258,7 +4264,7 @@ export default function BuilderSheet({
                 type="button"
                 className={styles.ghostBtn}
                 onClick={cancelEdit}
-              >New formula</button>
+              >{startOverLabel(noun)}</button>
             )}
             {/* Cancel goes through the SAME door as Escape and the × — one place
                 decides whether unsaved work needs a prompt. */}
