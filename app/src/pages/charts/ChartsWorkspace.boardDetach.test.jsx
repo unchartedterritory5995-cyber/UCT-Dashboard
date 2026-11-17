@@ -22,6 +22,10 @@ vi.mock('./grid/MultiChartGrid', () => ({ default: () => <div data-testid="multi
 vi.mock('./grid/MultiChartMenu', () => ({ default: () => <div data-testid="multichart-menu">MC MENU</div> }))
 vi.mock('react-grid-layout', () => ({ Responsive: ({ children }) => <div data-testid="rgl-responsive">{children}</div>, WidthProvider: (C) => C }))
 vi.mock('../journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
+// the ONE float switch (./floatButton FLOAT_BUTTON_ON — owner 11-14: off), read live through a getter so a test flips it: the
+// workspace's header button and the Agent's boardDetach.float both follow it
+const floatSwitch = vi.hoisted(() => ({ on: false }))
+vi.mock('./floatButton', () => ({ get FLOAT_BUTTON_ON() { return floatSwitch.on } }))
 
 const prefStore = (() => {
   let prefs = {}
@@ -61,6 +65,7 @@ const MAIN = { id: 1, name: 'Detach Board', scope: 'user', groups: null, layout:
 
 let envelopes
 beforeEach(() => {
+  floatSwitch.on = true
   envelopes = []
   try { localStorage.clear() } catch { /* */ }
   localStorage.setItem(AGENT_FLAG_KEY, '1')
@@ -119,21 +124,22 @@ test('"float the news widget": the workspace\'s own float flag flips (the stub i
   expect(setPref.mock.calls.some(([k]) => /float/i.test(k))).toBe(false)
 }, 60000)
 
-test('EQUALITY RAIL: the Agent\'s "move into tabs" saves EXACTLY the board the member\'s own click saves (tab id aside)', async () => {
+test.each([['on', true], ['off', false]])('EQUALITY RAIL (float switch %s for the Agent): the Agent\'s "move into tabs" saves EXACTLY the board the member\'s own click saves (tab id aside)', async (_n, agentSwitch) => {
   // the member's own click: float the news widget, then "Move into tabs of" the watchlist on its floating panel
-  // (owner 11-14: the widget header's Float button is switched off — FLOAT_BUTTON_ON — so the widget is floated through the
-  //  workspace's own handleFloatWidget via the Agent's float; the floating panel's "Move into tabs of" click is the member's own)
+  // (the member's own path exists only while the header Float button is shown: the switch is ON for it)
+  floatSwitch.on = true
   const first = mount()
-  await screen.findByTestId('body-news-1')
-  await say('float the news widget')
-  await waitFor(() => expect(floatingOf('news-1')).toBe(true), { timeout: 15000 })
+  fireEvent.click(await screen.findByTestId('float-news-1'))
+  await waitFor(() => expect(floatingOf('news-1')).toBe(true))
   fireEvent.click(screen.getByTestId('totab-news-1-watchlist-1'))
   await waitFor(() => expect(savedLayout().widgets.some(w => w.id === 'news-1')).toBe(false))
   const byHand = savedLayout().widgets
   first.unmount()
   cleanup()
 
-  // the Agent, on the same board (scripted model plan, then Apply on the card)
+  // the Agent, on the same board (scripted model plan, then Apply on the card) — moving a DOCKED widget needs no float, so the
+  // result is the same with the switch on or off
+  floatSwitch.on = agentSwitch
   mount()
   await screen.findByTestId('body-news-1')
   envelopes.push((body) => ({ disposition: 'apply', reply: '', question: null, unsupported_category: null,
@@ -144,6 +150,17 @@ test('EQUALITY RAIL: the Agent\'s "move into tabs" saves EXACTLY the board the m
   await waitFor(() => expect(savedLayout().widgets.some(w => w.id === 'news-1')).toBe(false), { timeout: 15000 })
   await settle()
   expect(noTabIds(savedLayout().widgets)).toEqual(noTabIds(byHand))
+}, 60000)
+
+test('float switch OFF: no Float button on the header, and "float the news widget" gets the honest reply — nothing floats, nothing saved', async () => {
+  floatSwitch.on = false
+  mount()
+  await screen.findByTestId('body-news-1')
+  expect(screen.queryByTestId('float-news-1')).toBeNull()
+  await say('float the news widget')
+  expect(await screen.findByText(/Floating widgets is switched off on the Charts board for now/, {}, { timeout: 15000 })).toBeTruthy()
+  expect(floatingOf('news-1')).toBe(false)
+  expect(setPref.mock.calls.some(([k]) => /float/i.test(k))).toBe(false)
 }, 60000)
 
 test('"merge the board": the Merge widgets toggle\'s own key (charts_merged) is written once, read back; "on every layout" is said', async () => {

@@ -50,6 +50,7 @@ import { manifestFor } from '../capabilities'
 import { readIndicator, readWidget, readSetting, SLOTS } from './slots'
 import { GEAR, TOOLS_MENU, actionFeatures } from './actions'
 import { CONTROL_FEATURE } from './controls'
+import { FLOAT_BUTTON_ON } from '../../pages/charts/floatButton'
 
 // ── shared openings ──
 const INDICATORS_TAB = { target: 'chartSettings.tab.indicators', name: 'the Indicators tab', text: 'Open the Indicators tab.', waitFor: { id: 'chartSettings.tab.indicators', on: true } }
@@ -205,9 +206,9 @@ export const GUIDE_FEATURES = [
   {
     // WidgetHeader.jsx — the buttons every widget carries, on the chart talked about
     id: 'widgetHeader', slots: ['ctl'], terms: ['widget header'], control: 'the widget’s header', title: 'Widget controls: {ctl.label}', topic: 'arrange',
-    words: [/\b(float|pop[- ]?out|popout)\b.*\b(widgets?|charts?|window)?\b/, /\b(close|remove|delete|get rid of)\b.*\b(widgets?|panel)\b/, /\b(add|new)\b.*\btab\b.*\bwidget\b/, /\bwidget\b.*\btabs?\b/, /\b(own|separate|new) window\b/, /\bother monitor\b|\bsecond (monitor|screen)\b/],
+    words: [FLOAT_BUTTON_ON ? /\b(float|pop[- ]?out|popout)\b.*\b(widgets?|charts?|window)?\b/ : /\b(pop[- ]?out|popout)\b.*\b(widgets?|charts?|window)?\b/, /\b(close|remove|delete|get rid of)\b.*\b(widgets?|panel)\b/, /\b(add|new)\b.*\btab\b.*\bwidget\b/, /\bwidget\b.*\btabs?\b/, /\b(own|separate|new) window\b/, /\bother monitor\b|\bsecond (monitor|screen)\b/],
     caps: [],
-    explain: 'Each widget’s header carries its controls: the color dot links it, + adds a tab, ▣ floats it over other widgets, ⧉ opens it in its own window and × closes it.',
+    explain: `Each widget’s header carries its controls: the color dot links it, + adds a tab, ${FLOAT_BUTTON_ON ? '▣ floats it over other widgets, ' : ''}⧉ opens it in its own window and × closes it.`,
     steps: [
       { target: 'widget.{ctl.id}', name: 'that button', text: '{ctl.say}' },
     ],

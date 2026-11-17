@@ -90,6 +90,7 @@ import Input from '../../components/ui/Input'
 import { isSuspendedGroup } from './colorGroups'
 import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 import { planLayoutUndo, layoutUndoDecision } from './layoutUndo'
+import { FLOAT_BUTTON_ON } from './floatButton'
 // Owner 11-16: the "Switched to “X” · Undo" banner on a member's layout switch is OFF.
 const LAYOUT_SWITCH_BANNER = false
 
@@ -179,10 +180,8 @@ const DEFAULT_LAYOUT = {
 
 // The classic watchlist + chart + themes arrangement, offered as a one-click
 // "Starter layout" on the get-started panel.
-// Owner 11-14: the widget Float button (⧉, float a widget on top of another) is switched
-// off for now. The feature itself stays (handleFloatWidget, FloatingWidget, the header's
-// button): flip this back to true to offer it again.
-const FLOAT_BUTTON_ON = false
+// Owner 11-14: the widget Float button is switched off for now — FLOAT_BUTTON_ON lives in
+// ./floatButton (one source: the UCT Agent's boardDetach.float reads the same switch).
 
 const STARTER_LAYOUT = {
   widgets: [

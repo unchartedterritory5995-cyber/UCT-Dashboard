@@ -22,6 +22,7 @@ import { labelMap } from '../../widgets/registry'
 import { positionWord } from '../host'
 import { moveIntoTabs, sanitizeWidgetTabs } from '../../pages/charts/widgetTabs'
 import { GROUPS } from '../routing'
+import { FLOAT_BUTTON_ON } from '../../pages/charts/floatButton'
 
 // ⛔ AUDIT T2 (#1304): intoTabs runs only when the member's OWN words say the into-tabs move STRUCTURALLY — a verb, the target
 // widget phrase and the into … tabs relation: the SAME words its routing group selects on (routing.js boardDetach, its
@@ -45,6 +46,11 @@ const widgetOf = (st, id) => (id == null ? null : st.board.find(w => String(w.id
 export const NOT_HERE = 'Floating and merging widgets is part of the Charts board on a desktop screen — it isn’t available here.'
 export const ON_PHONE = 'On the phone view widgets don’t float or merge — that’s the desktop Charts board. Nothing was changed.'
 export const IN_GRID = 'In Multi Chart, widgets don’t float or merge — leave Multi Chart first, then ask again. Nothing was changed.'
+// ⛔ owner 11-14: the widget header's Float button is switched off (pages/charts/floatButton.js FLOAT_BUTTON_ON — the ONE switch,
+// read here, never copied). While it is off the Agent floats nothing either: an honest refusal, no write, no card. Read at call
+// time, so flipping the switch on brings the float back with the button.
+export const floatOn = () => FLOAT_BUTTON_ON === true
+export const FLOAT_OFF = 'Floating widgets is switched off on the Charts board for now, so nothing was changed. I can dock a floating widget, move one widget into another widget’s tabs, or merge the board’s widgets instead.'
 export const OWN_TABS = 'That widget has its own tabs, and moving it into another widget’s tabs would lose them. Move its tabs first, or dock it — nothing was changed.'
 const notOnBoard = (id) => `There’s no widget “${id}” on this board — use an id from the board entry.`
 const FLOAT_NOTE = 'floating until reload — a reload docks it'
@@ -121,6 +127,7 @@ export function registerBoardDetachCapabilities() {
     args: { type: 'object', properties: { widget: { type: 'string' } }, required: ['widget'], additionalProperties: false },
     fast: ({ lower, host }) => fastFloat(lower, host),
     check(st, { widget } = {}) {
+      if (!floatOn()) return FLOAT_OFF
       const why = placeWhy(st)
       if (why) return why
       const w = widgetOf(st, widget)

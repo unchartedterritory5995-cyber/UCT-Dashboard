@@ -13,14 +13,20 @@ import { wordsSelect, groupOfAction, GROUPS } from './routing'
 import { pendingLine } from './proposalWording'
 import { fastParse } from './fastPath'
 import { moveIntoTabs, addWidgetTab } from '../pages/charts/widgetTabs'
-import { BOARD_DETACH_ACTIONS, OWN_TABS, ON_PHONE, IN_GRID } from './capabilities/boardDetach'
+import { BOARD_DETACH_ACTIONS, OWN_TABS, ON_PHONE, IN_GRID, FLOAT_OFF } from './capabilities/boardDetach'
+import { TOPICS } from './discovery'
+import { HEADER_CONTROLS } from './guide/slots'
 import { stateEffects, stateRailRefusal } from './stateRail'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
+// the ONE float switch (pages/charts/floatButton.js FLOAT_BUTTON_ON, owner 11-14: off): read live through a getter, so a test
+// flips it. Every test below runs with the switch ON (the float behaviour itself) unless it says off.
+const floatSwitch = vi.hoisted(() => ({ on: false }))   // OFF at load, as the real switch
+vi.mock('../pages/charts/floatButton', () => ({ get FLOAT_BUTTON_ON() { return floatSwitch.on } }))
 registerBuiltins()
 
 let p
-beforeEach(() => { p = setupPanel() })
+beforeEach(() => { floatSwitch.on = true; p = setupPanel() })
 afterEach(() => { vi.restoreAllMocks(); cleanup() })
 
 const [FLOAT, DOCK, TABS, MERGED] = BOARD_DETACH_ACTIONS
@@ -213,6 +219,63 @@ describe('setMerged — the Merge widgets toggle\'s own key, on every layout, ex
     expect(wordsSelect('boardDetach', t)).toBe(false)
     expect((fastParse(t)?.ops || []).some(o => o.action === MERGED)).toBe(false)
   })
+})
+
+describe('the float switch (FLOAT_BUTTON_ON, owner 11-14: off) — the Agent floats only while the button is on', () => {
+  beforeEach(() => { floatSwitch.on = false })
+  it.each(['float the news widget', 'float my news panel', 'detach the news widget'])('OFF, "%s" (fast path): the honest reply, nothing written, no card, no model call', async (t) => {
+    const { say, board: b } = mountOn()
+    const was = widgetsJson(b)
+    expect(await say(t)).toContain(FLOAT_OFF.slice(0, 60))
+    expect(p.turns()).toBe(0)
+    expect(widgetsJson(b)).toBe(was)
+    expect(b.state.detach.floating).toEqual([])
+    expect(b.state.detach.calls || []).toEqual([])
+    expect(screen.queryAllByRole('button', { name: 'Apply' })).toHaveLength(0)
+  }, 40000)
+  it.each([['apply', plan], ['propose', propose]])('OFF, a model plan of float (%s): refused with the same reply, nothing written, no card', async (_m, env) => {
+    const { say, board: b } = mountOn()
+    const was = widgetsJson(b)
+    p.st.envelopes.push(env([FLOAT, { widget: 'wl' }]))
+    expect(await say('can you put the watchlist on top of the board for me')).toContain(FLOAT_OFF.slice(0, 60))
+    expect(widgetsJson(b)).toBe(was)
+    expect(b.state.detach.floating).toEqual([])
+    expect(b.state.detach.calls || []).toEqual([])
+    expect(screen.queryAllByTestId('agent-proposal').filter(e => e.getAttribute('data-status') === 'pending')).toHaveLength(0)
+    expect(undoButton()).toBeNull()
+  }, 40000)
+  it('OFF, the reply names what it CAN do instead: dock, move into tabs, merge', () => {
+    expect(FLOAT_OFF).toMatch(/switched off/)
+    expect(FLOAT_OFF).toMatch(/dock/)
+    expect(FLOAT_OFF).toMatch(/tabs/)
+    expect(FLOAT_OFF).toMatch(/merge/)
+  })
+  it('OFF, the rest of the family still works: merge the board', async () => {
+    const { say, board: b } = mountOn()
+    expect(await say('merge the board')).toMatch(/Merged the board’s widgets/)
+    expect(b.state.detach.merged).toBe(true)
+  }, 40000)
+  it('discovery / guide: float is advertised only while the switch is on', () => {
+    const arrange = TOPICS.find(t => t.id === 'arrange')
+    expect(arrange.caps).not.toContain(FLOAT)
+    expect(arrange.canDo).not.toMatch(/float a widget/)
+    expect(arrange.known().join(' ')).toMatch(/floating a widget .*switched off/)
+    floatSwitch.on = true
+    expect(arrange.caps).toContain(FLOAT)
+    expect(arrange.canDo).toMatch(/float a widget over the board and dock it back/)
+    expect(arrange.known().join(' ')).not.toMatch(/float/)
+  })
+  it('the guide never points at the Float button (the real switch is off at load)', () => {
+    expect(HEADER_CONTROLS.map(c => c.id)).not.toContain('float')
+  })
+  it('ON (the switch flipped in this test): the existing float works — floated, read back, Undo docks it', async () => {
+    floatSwitch.on = true
+    const { say, board: b } = mountOn()
+    expect(await say('float the news widget')).toMatch(/Floated the News .* over the board/)
+    expect(b.state.detach.floating).toEqual(['news'])
+    await say('undo')
+    expect(b.state.detach.floating).toEqual([])
+  }, 40000)
 })
 
 describe('the phone view and Multi Chart: nothing floats or merges there', () => {
