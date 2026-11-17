@@ -679,6 +679,25 @@ its id; fixed in #1518 (every member-made indicator had this, not only house one
 Only one request was timed in the dock: the synthetic member's daily allowance was spent by
 the day's other checks.
 
+## 14c. What 2026-11-17 measured
+
+Through the production door, as the synthetic admin, with requests the assistant had not seen
+(relatives of the house indicators with other numbers and wording, and new ideas in the same
+vocabulary). The requests and the per-request results stay local.
+
+- **Every request built, with worked examples off and on, and the formulas read correct both
+  ways.** A request for "ADR percent over 14 days" kept the house shape with the member's 14.
+  The earlier door fixes (the bars-back sign, the one-colour state, the reference checks) are
+  what made the difference; examples added nothing that could be measured on this set.
+- **About one turn in four paid a second model call**, nearly always at one gate
+  (`envelope:reference`). That, not build rate, is now the largest cost a member feels: a repair
+  roughly doubles the wait. Indicators backlog 46.
+- **A declared input cannot be a length.** Through the patch engine a declared input is applied as
+  a level or a multiple and refused as a window. Settings for a built indicator therefore come
+  from the formula's own slots (S1 above), not from the assistant declaring inputs.
+- **A house term was recognised only by the Screener's own label.** Of fifteen ordinary
+  phrasings, two matched. Fixed by L4's second part.
+
 ## 15. Resume here
 
 **State at the end of 2026-11-16.** "LIVE" means used on production as a member (the synthetic
@@ -711,6 +730,15 @@ the deploy gate.
 | X1 | the plain-words box sends what the member typed | SUPERSEDED the same night: the layouts release (#1477, the owner's Option 1 of 2026-11-16) replaced the plain-words box in the Indicators window with one "Create indicator" button that opens the New formula window's start view. #1500's send plumbing remains (toolbar, pane, dock) and nothing in the window calls it now; its window rail is skipped. It was live and checked on the build before that release |
 | toast | the chart's "added" toast and Undo list name a member's indicator, not its id | LIVE (#1518): "Flat Base added" |
 | spend | the picture door's prompt bound re-measured, so a reservation bounds the prompt again (a member's daily picture share now holds two worst-case reservations, not three; the owner may raise it). It turned the master deploy gate red for about 70 minutes: two Agent limit tests held the literal three. They derive the count now | #1509, #1522 |
+| L4 (second part) | the words members use for a house term reach its definition ("relative volume", "distance from the 52 week high"); nineteen twins, each proved equal to its Screener column | merged (#1572) |
+| L5 | worked examples: the nearest one or two house builds ride along as data for a new indicator. Built and dark. Measured on and off through the production door with new requests on 2026-11-17: every request built both ways, the formulas read correct both ways, and the share built without a repair did not rise. The bar in section 9 is not met, so it stays OFF for members | merged (#1563), OFF |
+| S1 | **a built indicator's numbers are settings**: every length, level and multiple of the indicator in the dock is an editable field, derived from the formula at read time and changed by the ordinary slot edit (no model call, live preview, Undo). All fourteen house indicators checked: every setting shown can be changed in one step | merged (#1583); what is left is Indicators backlog 45 |
+| R1 | run over a list from the indicator itself: a row on the legend chip and on each row of "Your indicators" opens the Screener's existing run flow on that indicator (`/screener?scan=<id>`, read once, removed through the router; an unknown or foreign id opens nothing) | merged (#1566); the "Your indicators" row is #1585 |
+| R4, R5 | the page-side spec for the verdict on a shared indicator and the two engine exports for "Inspect a bar" are filed with repros; the engine builds to them | Indicators backlog 43, 44 |
+| O7 | a credit or key failure at the model provider is told apart from a transport failure, and a member reads the platform's sentence, not a billing one | LIVE (#1555) |
+| tool | an admin's turn that was repaired into a change says what the first attempt was refused for | merged (#1580) |
+| polish | names in the New formula window follow the assistant's name (#1553, and #1564 for the close prompt it broke); "can't be drawn here" in a member's words (#1557); the scan-moved change is said (#1549); the spent-allowance message once (#1568) | merged |
+| gate | five long-standing reds on master found while running the gate's own suite before merging, and fixed: four vision truth cases and the ledger-writer rail (#1562), the refusal-sentence truth case (in #1563) | merged |
 
 **The house set, second look (2026-11-16, production).** Of the five that did not draw on
 the first run: both relative-strength requests draw (the marker fix); volume bars coloured
