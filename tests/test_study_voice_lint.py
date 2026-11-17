@@ -74,3 +74,10 @@ def test_plain_english_criteria_is_not_our_working_file():
     bad = {"key": "q02", "q": "Which one?", "why": "Our criteria say the base needs three taps."}
     assert vl.lint_question(ok, SPEC)["hard"] == []
     assert {t[0] for t in vl.lint_question(bad, SPEC)["hard"]} == {"internal_ids"}
+
+
+def test_the_whole_library_stays_free_of_hard_tells():
+    # 2026-11-17: every lesson was rewritten in his voice and the library reached 0 hard tells (from 918 "our card"
+    # lines, 137 "rulebook", 73 textbook phrases before). This keeps it there: a new or edited lesson that brings one
+    # back fails here, not in his review.
+    assert vl.main(["--strict"]) == 0
