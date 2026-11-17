@@ -6,7 +6,11 @@
 // shows the last picks regardless of outcome, and the methodology is printed
 // verbatim from the API so the numbers and the words can't drift apart.
 //
-// Data: GET /api/flow-scoreboard (public, read-only, 5-min server cache).
+// Data: GET /api/flow-scoreboard (read-only, 5-min server cache; mounted behind the open-reads
+// gate in api/main.py, family `paid`; see api/flow_scoreboard.py for what that gate does).
+// Two sources, and the label below names both: the picks and their entry prices come from our
+// options flow tape; every result (gains, win rates, open-interest confirmation) is computed from
+// daily option price and open-interest snapshots read from Schwab (api/top_flow_tracker.py).
 import { useState } from 'react'
 import useSWR from 'swr'
 import PanelTicker from '../components/terminal/PanelTicker'
@@ -22,6 +26,11 @@ import jsonFetcher from '../utils/jsonFetcher'
 // mapped every failure to null, which rendered "The tracker is warming up" - an outage read
 // as a young tracker (quality pass 2026-10-05).
 const fetcher = (url) => jsonFetcher(url, { credentials: 'include' })
+
+// The panel header's source line. Picks and entry prices: our options flow tape. Results: daily
+// Schwab snapshots of each contract's price and open interest. It said only "our options flow
+// tape" until 2026-11-17, which named half of where the numbers come from.
+export const FREC_SOURCE = 'UCT flow record (picks from our options flow tape; results from daily Schwab option prices and open interest)'
 
 /** "Oct 5, 4:12 PM ET" from the payload's generated_at, or null. */
 export function asOfText(iso) {
@@ -95,7 +104,7 @@ export default function FlowScoreboard({ embedded = false, mine: mineProp = fals
   const overall = data?.overall
   // TERM-019: name this page's source (and its as-of) in the terminal panel header; a no-op elsewhere.
   usePanelFreshness(data && !error
-    ? { source: 'UCT flow record (our options flow tape)', observedAt: data.generated_at || null,
+    ? { source: FREC_SOURCE, observedAt: data.generated_at || null,
       age: { asOfDate: asOfText(data.generated_at) } }
     : null)
   // In a terminal panel the panel header names FREC; the public-page hero copy steps aside.

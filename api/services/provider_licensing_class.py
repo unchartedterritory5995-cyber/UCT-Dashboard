@@ -99,6 +99,28 @@ _TABLE: dict[tuple[str, str], LicensingClassEntry] = {
     ("finviz", "short_interest"): LicensingClassEntry(
         "LA", "Short float / short ratio (and short interest derived from them) off the Finviz Elite whole-market export — T-48, ANSWERED (see T-47): LA. Still single-sourced; the owner ruling of 2026-09-29 makes it the short-interest source (TERM-046).", "T-48",
     ),
+    # ── Charles Schwab (Trader / Market Data API). Rows added 2026-11-17: until then this table had NO Schwab
+    # row, so every Schwab lookup fell to `_DEFAULT` ("U"), which contradicted the register. The recorded position:
+    # the owner approved showing Schwab-sourced option data to members (T-77 "ANSWERED BY THE OWNER 2026-09-19:
+    # Schwab confirmed"; ESC-10 "CLOSED AND APPROVED BY THE OWNER 2026-09-26"; the agreement document itself is not
+    # captured in the repo). These rows restate the register; they are not a ruling. Nothing looks a Schwab pair up
+    # today, so they switch nothing on (tests/test_schwab_licensing_record.py holds both facts).
+    ("schwab", "option_chains"): LicensingClassEntry(
+        "LA", "Option chains + Greeks + open interest (marketdata/v1/chains) shown to members as GEX, gamma walls, zero-gamma and dealer positioning — T-77, ANSWERED BY THE OWNER 2026-09-19 (Commercial/Redistribution tier with display to non-account-holders): LA. Member surfaces only; public recordings are the T-79 row below.", "T-77",
+    ),
+    ("schwab", "option_quotes"): LicensingClassEntry(
+        "LA", "One contract's price, volume and open interest read out of the same /chains response (schwab_service.get_option_quote / get_batch_option_quotes: the Flow Record's daily snapshots, /api/schwab/options-quotes) — the T-77 data class: LA for member display. A public or unauthenticated surface is its own row (T-27).", "T-77",
+    ),
+    ("schwab", "open_interest"): LicensingClassEntry(
+        "LA", "Stored Schwab open-interest snapshots for day-over-day OI attribution — T-78, ANSWERED (see T-77): LA.", "T-78",
+    ),
+    ("schwab", "gex_public_recordings"): LicensingClassEntry(
+        "R", "Schwab-derived GEX inside PUBLIC Desk YouTube recordings — T-79: R, unchanged pending T-18's own gate (public exposure), which Schwab's answer did not address. Not loosened by the rows above.", "T-79",
+    ),
+    # No ("schwab", "quotes") row: the register's Schwab rows (T-77, T-78, T-79) cover option chains, stored open
+    # interest and the public recordings. Schwab EQUITY quotes (schwab_service.get_equity_quote / get_market_summary /
+    # get_mktcap_batch, marketdata/v1/quotes) have no register row of their own, so that pair is left unregistered
+    # and falls through to `_DEFAULT` ("U" — not researched, never inferred), like ("fmp", "ipo") below.
     # ── UCT Agent asset-class kinds (W1-C C-03): index.quote / commodity.quote / crypto.quote serve a class ONLY from
     # a row in force as A or LA (api/services/uct_agent/marketdata/asset_quotes.py). None below is, so every read
     # declines honestly today. Flipping a row (after the register changes) is what turns the kind on — no adapter edit.

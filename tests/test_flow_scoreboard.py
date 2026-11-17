@@ -229,6 +229,34 @@ def test_empty_board_is_well_formed():
     assert isinstance(board["methodology"], str) and board["methodology"]
 
 
+def test_the_method_text_names_both_sources():
+    """The picks and entry prices come from the flow tape; every daily price and
+    open-interest snapshot (so every gain, win rate and OI confirmation) is read
+    from Schwab (api.top_flow_tracker.snapshot_prices). The page prints this text
+    verbatim, so it has to say both (2026-11-17)."""
+    text = compute_scoreboard([], today=TODAY)["methodology"]
+    assert "flagged on UCT's options flow tape" in text
+    assert "open interest, read from Schwab" in text
+
+
+def test_the_docstring_describes_the_gated_mount_not_a_public_route():
+    """The module said "No auth on the GET ... public" long after api/main.py began
+    mounting it behind the open-reads gate. The docstring must describe the mount,
+    and the mount must still be what it describes."""
+    import pathlib
+
+    import api.flow_scoreboard as fs
+    doc = " ".join(fs.__doc__.split())
+    assert "no longer public by design" in doc and "open-reads gate" in doc
+    assert "cacheable, public" not in doc and "public trust asset" not in doc
+    root = pathlib.Path(fs.__file__).resolve().parents[1]
+    main_src = (root / "api" / "main.py").read_text(encoding="utf-8")
+    assert "app.include_router(flow_scoreboard_router, dependencies=_OPEN_READS)" in main_src
+    from api import open_reads_gate as g
+    assert g.GATED_READS["/api/flow-scoreboard"] == g.PAID
+    assert g.GATED_READS["/api/flow-scoreboard/"] == g.PAID
+
+
 # ── compute_scoreboard: grade calibration ────────────────────────────────────
 
 def test_by_grade_buckets_and_emoji_strip():
