@@ -598,6 +598,22 @@ would have been 0 equals 0 on every bar and would have passed the two builds tha
 fire. The rail's own check that a condition must happen on the test bars refused it, and a
 rare condition now gets bars on which it occurs.
 
+**A look at all fourteen on a real chart (2026-11-17, production, AGL daily).** A value
+check says the numbers are right; it does not say the picture is. Twelve draw as described.
+Two computed correctly and drew badly, and both were rebuilt through the door (#1534):
+the relative strength line sat flat because its 0 or 1 new-high flag shared the pane's
+scale (now the line and its average only); the gap-up indicator's 20-bar low line was drawn
+joined across the bars where it has no value (now a marker only, "Gap Up on Volume"). The
+two causes are the chart engine's and are in the backlog for its owner. So a house
+indicator passes three things, in this order: the formula says what was asked, the values
+equal an independent calculation, and it has been looked at on a chart. The owner's look
+is still the last word.
+
+**One press (#1532).** "Add to chart" in the UCT tab saves the member's copy and puts it on
+the chart as soon as the chart knows it (it was Install, a wait, then Put it on this chart).
+A member who already holds an unchanged copy gets that copy, recognised by its maths, so a
+second press no longer leaves two identical indicators.
+
 **The set.** Eleven are in the UCT tab (#1496), and the flat base makes twelve (#1501): distribution day count; relative strength
 against SPY, and its new high before price; extension above the 50-day in ATRs; percent from
 the 10-week; volume against its 50-day average; tight weekly closes; gap up on volume; inside
@@ -680,7 +696,7 @@ the deploy gate.
 | R2, R3 | TradingView names on the reference page; the reference as one file for a member's own assistant | LIVE |
 | launch | library moderation (UCT takedown, a 20-listing cap per member, the licence line); spend that cannot be written still counts | merged (#1451, #1452) |
 | tool | a refused turn tells an admin why each attempt was refused | LIVE |
-| H | the house set: fourteen indicators in a UCT tab (window and phone sheet), each held to an independent calculation | LIVE with thirteen (window at 1500 px, sheet at 390 and 820 px); the fourteenth is #1527 |
+| H | the house set: fourteen indicators in a UCT tab (window and phone sheet), each held to an independent calculation and looked at on a chart; one press adds one | LIVE with fourteen; one-press add and the two rebuilt are #1532, #1534 |
 | N2 | the dock keeps the assistant's name where the derived one is unreadable; "What the assistant says it built" under the engine's lines | LIVE (#1495) |
 | door | a one-colour colour-states patch is refused at the door, so the model gets its repair; so is a bars-back count compared across its sign, and the prompt states that convention | #1493, #1499, #1506 |
 | X1 | the plain-words box sends what the member typed: four actions on Charts (was five), two where a chart shows "Add to Chart" | LIVE (#1500) |
