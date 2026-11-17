@@ -22,20 +22,19 @@ feels, and then routes by cost where that is honest.
   control (the same chart, no script) never stops for more than 150 ms. The CPU profile puts the time in
   `engine/ast/interpret.js`. Moved to the runtime lane, pivot-point-supertrend's longest main-thread task is
   **0.2 s** and its poll costs 0.2 s (section 3).
-- **The runtime lane is NOT what an ordinary member is served today.** The compute-caps evidence says
-  "production runs the runtime pane armed". The flag ledger says `PINE_RUNTIME_STAGE = admins` (since
-  2026-11-12): the per-bar runtime lane reaches role `admin` only. For a member, every script the host
-  lane accepts is computed on the host lane, and nothing is routed anywhere else.
-- **Route by cost is built (section 6) and moves 6 committed scripts, for viewers whose runtime lane is
-  on**: pivot-point-supertrend (23.5 s on the host lane, 11 ms on the runtime lane), twin-range-filter
-  (13.8 s / 5 ms), qqe-signals (3.5 s / 8 ms), trendlines (2.6 s / 18 ms), btc-charlie (404 / 141 ms),
-  trend-duration-forecast (82 / 9 ms). **Today that is admins only.** It reaches members when
-  `PINE_RUNTIME_STAGE` moves past `admins` (the owner's D1 ruling: admins first, then everyone).
+- **Members are on the runtime lane, and the host lane still computes every script it accepts.** Stage:
+  read live on production by the coordinator on 2026-11-17 (`railway variables --service web --kv`): `PINE_RUNTIME_STAGE=all`, `VITE_PINE_RUNTIME_PANE_ENABLED=1` and `VITE_PINE_MEMBER_PANE_ENABLED=1` on both `web` and `web-front`, capability admission on. (The flag ledger still read `admins`; it is corrected in #1714.) The member door asks the HOST lane
+  first, so a script the host lane accepts is computed there, on the main thread, for every member, even
+  when the runtime lane would draw it in milliseconds: that is what this change addresses.
+- **Route by cost is built (section 6) and moves 6 committed scripts, for every viewer whose runtime lane is
+  on, which at stage `all` is every member as soon as it ships**: pivot-point-supertrend (23.5 s on the host
+  lane, 11 ms on the runtime lane), twin-range-filter (13.8 s / 5 ms), qqe-signals (3.5 s / 8 ms), trendlines
+  (2.6 s / 18 ms), btc-charlie (404 / 141 ms), trend-duration-forecast (82 / 9 ms).
 - **Of the 16 host documents over a second it moves 4** (pivot-point-supertrend, twin-range-filter,
-  qqe-signals, trendlines). **It cannot honestly move the other 12**, even for admins: the runtime lane draws
+  qqe-signals, trendlines). **It cannot honestly move the other 12**, for any viewer: the runtime lane draws
   a different picture for 6 (it draws no fills yet; markers lost), declines 4, does not admit 1
   (pa-zigzag-fibonacci-fan, `request-other`), and 1 is window work the route does not offer
-  (reverse-stochastic). Those, and every member today, need the host lane's own compute off the main thread
+  (reverse-stochastic). Those need the host lane's own compute off the main thread
   (option b, section 8: not built here).
 
 ## 2. Where the host lane computes (the code)
@@ -84,7 +83,10 @@ V8 CPU profile of the main thread mapped to source files through the build's hid
 (`tools/pine_coverage/profile_by_source.mjs`). Then the chart's own next daily poll (300 s) is waited for.
 A Chromium performance trace was recorded for pivot-point-supertrend (kept locally, 175 MB).
 
-**Member view** = `PINE_RUNTIME_STAGE=off` on the sandbox (what a member has today: no runtime pane).
+**Before the route** = `PINE_RUNTIME_STAGE=off` on the sandbox (this rig was planned on the stale ledger). For
+these host-accepted scripts it is also what a runtime-on member got before this change: the door asks the host
+lane first and served the same host document either way. (The only runtime-on run that saved a host document,
+a first pivot run that attached before its verdict landed, is noted below; it ran on a busier machine.)
 
 | run | long tasks on load | longest | frames stopped (max gap) | script values first on screen | each daily poll |
 |---|---|---|---|---|---|
@@ -104,9 +106,10 @@ Five minutes later the daily poll moves the newest bar: the page freezes again, 
 the poll's new array, then the merged deep array), **10,202 ms** in `interpret.js`. On a daily chart that is
 every five minutes of a session; on an intraday chart the poll is every 30 seconds.
 
-**After the route, a runtime-on viewer** (`PINE_RUNTIME_STAGE=admins` on a second sandbox, the account an
-admin as production's admins are; the probe attaches only once the preview says it is drawn bar by bar, i.e.
-after the capability verdict landed and the door moved it). Run B sits between A and A2 above, back to back,
+**After the route, a runtime-on viewer: every member at production's stage `all`** (`PINE_RUNTIME_STAGE=admins`
+on a second sandbox with the sandbox account an admin, which admits the same viewer for this question; the
+probe attaches only once the preview says it is drawn bar by bar, i.e. after the capability verdict landed and
+the door moved it). Run B sits between A and A2 above, back to back,
 so the three share the machine's conditions:
 
 | run | saved document | long tasks on load | longest | frames stopped | values first / final | each daily poll |
@@ -346,19 +349,16 @@ rails inherited from this branch's base and fixed on master since by `69931215c4
 
 ## 8. What a member still feels, and the fix this does not build
 
-For a member today this change moves nothing: the runtime pane is `admins` only. Even with it on for
-everyone, 12 of the 16 host documents over a second stay on the host lane (6 draw fills or markers the
-runtime lane does not draw yet; 4 the runtime lane declines; 1 it does not admit; 1 is window work), and they
-include the worst (supertrend-strategy
+With the runtime pane on for every member (stage `all`), this change moves the 6 committed scripts for every
+member. 12 of the 16 host documents over a second stay on the host lane (6 draw fills or markers the runtime
+lane does not draw yet; 4 the runtime lane declines; 1 it does not admit; 1 is window work), and they include
+the worst (supertrend-strategy
 8.6 s per load freeze and two 7.5 to 8.1 s freezes per daily poll in the browser; pmax-explorer and
 supertrend-explorer 17 s at 5,000 bars in node).
 
-Two ways to reach them, both larger than this change, for the owner and coordinator to choose:
+The way to reach them, larger than this change:
 
-1. **Turn the runtime pane on for members** (`PINE_RUNTIME_STAGE` past `admins`, the owner's D1 ruling,
-   "admins first, then everyone"). With this change shipped, that alone moves the 6 committed scripts for
-   every member; the other 12 over a second stay frozen.
-2. **Compute the host lane off the main thread (option b).** The same lane, the same code, in a worker:
+- **Compute the host lane off the main thread (option b).** The same lane, the same code, in a worker:
    every host document, every member, today, values unchanged by construction. What it needs, read off the
    code: the host values are `astColumns.js::astColumnsFor`, already host-neutral (the server bundle runs it,
    `headlessCompute.js`), and the run-read parts are applied AFTER it (`astLaneColumns`'s `extras`), so they
@@ -389,7 +389,7 @@ HOST_LANE_COST_ROWS_OUT=$O/rows.json HOST_LANE_COST_ONLY=<slug,...> ... -t "what
 VITE_PINE_MEMBER_PANE_ENABLED=1 VITE_PINE_OBJECTS_ONLY_PANE_ENABLED=1 VITE_PINE_RUNTIME_PANE_ENABLED=1 \
   VITE_PINE_STRATEGY_BROKER_ENABLED=1 npm run build
 PINE_RUNTIME_STAGE=off    PINE_RUNTIME_CAPABILITY_ADMISSION=on PINE_RUNTIME_SAVE_ENABLED=1 \
-  python tools/local_backend_sandbox.py --port 8142 --email <sandbox>   # the member view
+  python tools/local_backend_sandbox.py --port 8142 --email <sandbox>   # before the route
 PINE_RUNTIME_STAGE=admins PINE_RUNTIME_CAPABILITY_ADMISSION=on PINE_RUNTIME_SAVE_ENABLED=1 \
   python tools/local_backend_sandbox.py --port 8141 --email <sandbox>   # a runtime-on viewer
 python tools/pine_coverage/host_lane_browser_probe.py --base http://127.0.0.1:8142 \

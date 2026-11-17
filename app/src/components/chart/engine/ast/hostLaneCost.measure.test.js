@@ -3,7 +3,7 @@
 // ─── THE HOST LANE'S COST, AND THE SAME SCRIPTS ON THE RUNTIME LANE (opt-in) ────────────────────
 //
 // Measurement only (docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md). For every committed
-// script (`corpus/committed/*.pine`) the member door installs on the HOST lane for a member today,
+// script (`corpus/committed/*.pine`) the member door installs on the HOST lane,
 // this times `computeFor` on that document, then asks the SAME door for the runtime lane's
 // document of the same script and times that, and compares the two lanes output by output.
 //
@@ -12,8 +12,9 @@
 //     src/components/chart/engine/ast/hostLaneCost.measure.test.js --maxWorkers=1
 //
 // ⭐ THE MEMBER'S VIEW, NOT THE TEST HOST'S: `src/test-setup.js` permits the runtime pane, grades
-// every script and ignores the host known-divergence list. A member today has none of that
-// (`PINE_RUNTIME_STAGE=admins`): the host pass runs with the runtime pane OFF and the committed
+// every script and ignores the host known-divergence list. The host pass is what the door served a member
+// for a host-accepted script before the cost route (it asks the host lane first, whatever the stage): it
+// runs with the runtime pane OFF and the committed
 // known-divergence list ON, which is the door a member walks through.
 //
 // ⭐ THE RUNTIME PASS FORCES THE DOOR'S OWN RUNTIME ROUTE for one script at a time: the script's

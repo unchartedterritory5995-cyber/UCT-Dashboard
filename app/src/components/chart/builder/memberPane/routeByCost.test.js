@@ -64,7 +64,7 @@ describe('route by cost — the door', () => {
     expect(drawn.note).not.toMatch(/single formula per line/)
   })
 
-  it('⛔ with the runtime pane off (a member today) nothing moves and nothing is asked', () => {
+  it('⛔ with the runtime pane off (a viewer the stage does not reach) nothing moves and nothing is asked', () => {
     memberView()
     const built = memberPaneDefinition({ source: script(TWIN_RANGE), id: 'u_member-pane-cost' })
     expect(kindOf(built)).toBe('ast')
