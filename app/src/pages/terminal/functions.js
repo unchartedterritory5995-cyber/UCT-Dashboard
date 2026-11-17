@@ -391,6 +391,35 @@ export const FUNCTIONS = [
   // (until now only a Discord card) and the open flow board (the /open-flow page).
   { code: 'FLWL', label: 'Options flow lists (Cream of the Crop, open flow board)', group: 'Options',
     market: { panel: 'FlowLists', args: [{ kind: 'flowList', prop: 'list' }] } },
+
+  // ── data wave 4 (2026-11-17) ──
+  // CONFL: stocks where large dark pool size and long-dated options flow line up (GET
+  // /api/confluence), until now a tab inside the Options Flow page. `CONFL BEAR` = bearish names.
+  { code: 'CONFL', label: 'Confluence board (dark pool size with long-dated options flow)', group: 'Options',
+    market: { panel: 'Confluence', args: [{ kind: 'confluenceLean', prop: 'lean' }] } },
+  // ACCUM: the option contracts hit again and again in one session, under the day's bullish
+  // against bearish premium (GET /api/live/massive/by-contract and /day-stats). `ACCUM 11/14`
+  // = a past day, `ACCUM LATEST` = newest first.
+  { code: 'ACCUM', label: 'Repeat-hit option contracts, with the day\'s flow read', group: 'Options',
+    market: { panel: 'RepeatContracts', args: [{ kind: 'etDate', prop: 'date' }, { kind: 'repeatOrder', prop: 'order' }] } },
+  // PCHG: every stock ranked by percent change between two dates (GET /api/scans/period-change).
+  // `PCHG QTD`, `PCHG 2026-01-02 2026-06-30 LOSERS`; a start alone means "since that day".
+  { code: 'PCHG', label: 'Performance between any two dates', group: 'Market',
+    market: { panel: 'PeriodChange', args: [{ kind: 'periodRange', prop: 'range' }, { kind: 'periodDate', prop: 'start' },
+      { kind: 'periodDate', prop: 'end' }, { kind: 'periodSide', prop: 'side' }] } },
+  // TSRC: a word or phrase searched across every indexed earnings call, with its monthly share
+  // of calls (GET /api/earnings/transcript-search and /transcript-trend). `TSRC pricing power`.
+  { code: 'TSRC', label: 'Search every earnings call', group: 'Market',
+    market: { panel: 'CallSearch', args: [{ kind: 'callQuery', prop: 'q', rest: true }] } },
+  // EXMV: what the options market priced before each earnings report beside what the stock then
+  // did, and the coming report's priced move (GET /api/research/expected-move/{sym} and
+  // /api/earnings-intel/{sym}).
+  { code: 'EXMV', label: 'Expected move into earnings, against past reports', group: 'Security',
+    ticker: { panel: 'ExpectedMove' } },
+  // TROT: the themes whose rank changed most between last week and this one (GET
+  // /api/theme-rotation), which no screen drew. `TROT OUT` = only the themes rotating out.
+  { code: 'TROT', label: 'Theme rotation (themes rotating in and out)', group: 'Market',
+    market: { panel: 'ThemeRotation', args: [{ kind: 'rotationSide', prop: 'side' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -572,7 +601,7 @@ const FUNCTION_WORDS = {
   EEH: { keywords: ['revisions', 'estimate revisions'] },
   ANR: { keywords: ['analysts', 'upgrades', 'downgrades', 'price target'] },
   RTG: { keywords: ['rating', 'score'] },
-  OWN: { keywords: ['ownership', 'institutions', 'holders', '13f'] },
+  OWN: { keywords: ['ownership', 'institutions', 'holders', '13f', 'short interest', 'short float', 'days to cover'] },
   PPL: { keywords: ['executives', 'management', 'ceo'] },
   TRAN: { keywords: ['transcript', 'conference call', 'earnings call'] },
   MB: { keywords: ['model book'] },
@@ -649,6 +678,12 @@ const FUNCTION_WORDS = {
   LEARN: { example: 'NVDA LEARN', keywords: ['lessons', 'desk articles', 'desk videos', 'learn about this stock'] },
   PERF: { example: 'PERF ALL', keywords: ['my stats', 'trading stats', 'win rate', 'expectancy', 'equity curve', 'my performance'] },
   FLWL: { example: 'FLWL OPEN', keywords: ['cream of the crop', 'open flow board', 'flow lists', 'open flow'] },
+  CONFL: { example: 'CONFL BULL', keywords: ['confluence', 'dark pool and flow', 'long-dated flow', 'leaps'] },
+  ACCUM: { example: 'ACCUM LATEST', keywords: ['repeat hits', 'accumulation', 'repeat contracts', 'flow read', 'bullish premium'] },
+  PCHG: { example: 'PCHG QTD', keywords: ['period change', 'performance between dates', 'since a date', 'best this quarter', 'custom range'] },
+  TSRC: { example: 'TSRC pricing power', keywords: ['search earnings calls', 'transcript search', 'who said', 'call mentions'] },
+  EXMV: { example: 'NVDA EXMV', keywords: ['expected move', 'implied move', 'earnings straddle', 'priced move'] },
+  TROT: { example: 'TROT IN', keywords: ['theme rotation', 'rotating in', 'rotating out', 'themes gaining rank'] },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

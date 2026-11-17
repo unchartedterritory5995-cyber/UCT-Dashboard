@@ -108,6 +108,13 @@ export const PANEL_IMPORTERS = {
   // data wave 3 (2026-11-17)
   Performance: () => import('./panels/PerformancePanel'),
   FlowLists: () => import('./panels/FlowListsPanel'),
+  // data wave 4 (2026-11-17)
+  Confluence: () => import('./panels/ConfluencePanel'),
+  RepeatContracts: () => import('./panels/RepeatContractsPanel'),
+  PeriodChange: () => import('./panels/PeriodChangePanel'),
+  CallSearch: () => import('./panels/CallSearchPanel'),
+  ExpectedMove: () => import('./panels/ExpectedMovePanel'),
+  ThemeRotation: () => import('./panels/ThemeRotationPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),
   // wave 8, lane E: market reads (SENT)
   Sentiment: () => import('./panels/SentimentPanel'),
