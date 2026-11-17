@@ -50,7 +50,7 @@ function RotationTable({ side, rows }) {
           <tr>
             <th scope="col" className={styles.wrapCell} title="Click a theme to see which of its stocks drive it">Theme</th>
             <th scope="col" title="1 week strength rank less 1 month strength rank, in percentile points">Rank change</th>
-            <th scope="col" title="Strength rank among all themes, 0 weakest to 100 strongest: over 1 month, then over 1 week">Rank, 1M to 1W</th>
+            <th scope="col" className={styles.phoneHide} title="Strength rank among all themes, 0 weakest to 100 strongest: over 1 month, then over 1 week">Rank, 1M to 1W</th>
             <th scope="col" title="The theme's return over the last week">1W return</th>
             <th scope="col" className={styles.phoneHide} title="The theme's return over the last month">1M return</th>
           </tr>
@@ -64,7 +64,7 @@ function RotationTable({ side, rows }) {
                   label={`Open the stocks driving ${r.name}`}>{r.name}</PanelCommand>
               </td>
               <td className={tone(r.delta)}>{deltaText(r) ?? NA}</td>
-              <td>{rankMoveText(r) ?? NA}</td>
+              <td className={styles.phoneHide}>{rankMoveText(r) ?? NA}</td>
               <td className={tone(r.ret1w)}>{pct(r.ret1w)}</td>
               <td className={`${styles.phoneHide} ${tone(r.ret1m) || ''}`}>{pct(r.ret1m)}</td>
             </tr>

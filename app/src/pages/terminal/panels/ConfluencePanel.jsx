@@ -162,7 +162,7 @@ function Board({ code, lean, onLean }) {
               <tr>
                 <th scope="col" title="Click a symbol to load it into the linked panels">Symbol</th>
                 <th scope="col" title="Which way the open option premium leans, and whether the last 5 trading days are still adding to it">Direction</th>
-                <th scope="col" className={styles.wrapCell}
+                <th scope="col"
                   title="Bullish premium less bearish premium on option contracts that are still open, then the part of the open premium that sits in long-dated contracts and its share of all of it">Open option premium</th>
                 <th scope="col" className={styles.wrapCell}
                   title="Dollars traded in the dark pool over the window, the average price paid there, and the last dark pool session's price against that average">Dark pool</th>
@@ -177,12 +177,14 @@ function Board({ code, lean, onLean }) {
                     <PanelSymbol sym={r.sym} className={styles.sym} />
                   </td>
                   <td className={toneOf(r.direction)}>{leanWords(r)}</td>
-                  {/* One cell, not two columns: six columns cut the last one off at a half-width panel. */}
-                  <td className={styles.wrapCell}>
-                    <span className={tone(r.net)}>{r.net == null ? NA : `${signedMoney(r.net)}${NBSP}net`}</span>
+                  {/* One cell of two fixed lines, not two columns: six columns cut the last one off at a
+                      half-width panel, and a wrapping cell broke a word in the middle on a phone. */}
+                  <td>
+                    <span className={tone(r.net)}>{r.net == null ? NA : `${signedMoney(r.net)} net`}</span>
+                    <br />
                     <span className={styles.muted}>
-                      {` ${money(r.leapPremium)}${NBSP}${unbroken('long-dated')}`}
-                      {r.leapSharePct == null ? null : `${NBSP}(${formatPercent(r.leapSharePct, { decimals: 0 })})`}
+                      {`${money(r.leapPremium)} long-dated`}
+                      {r.leapSharePct == null ? null : ` (${formatPercent(r.leapSharePct, { decimals: 0 })})`}
                     </span>
                   </td>
                   <td className={styles.wrapCell}>

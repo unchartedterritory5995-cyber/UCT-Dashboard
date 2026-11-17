@@ -206,7 +206,7 @@ function Results({ q, code }) {
             <thead>
               <tr>
                 <th scope="col" title="Click a symbol to load it into the linked panels">Symbol</th>
-                <th scope="col" title="The company's fiscal quarter the call was for, and the date of the call">Call</th>
+                <th scope="col" className={styles.wrapCell} title="The company's fiscal quarter the call was for, and the date of the call">Call</th>
                 <th scope="col" className={styles.wrapCell} title="The index's own short excerpt around the match; the matched words are bold and underlined">Quote</th>
               </tr>
             </thead>
@@ -217,7 +217,7 @@ function Results({ q, code }) {
                     <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
                     <PanelSymbol sym={h.sym} className={styles.sym} />
                   </td>
-                  <td>
+                  <td className={styles.wrapCell}>
                     {quarterText(h)}
                     <span className={styles.muted}>{h.day ? `, ${unbroken(h.day)}` : ', date not given'}</span>
                   </td>
