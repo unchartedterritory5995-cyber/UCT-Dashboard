@@ -39,6 +39,7 @@ import * as nativeRegistry from '../components/chart/engine/nativeRegistry'
 import { tickersIn } from './multiChart'
 import { matchPosition } from './fastPath'
 import { pronounReferent } from './chartRail'
+import { activeIndicatorAlertPeers } from './capabilities/indicatorAlerts'
 
 export const STATE_RAIL_MARK = 'state-rail'
 
@@ -219,6 +220,7 @@ const READERS = {
     const b = p.before || p.snap || {}
     const label = String(b.label || [b.sym, b.instanceLabel || b.indicator].filter(Boolean).join(' ') || 'an indicator alert')
     const own = { label, id: `alert:${b.id || p.ref}`, instanceId: b.instanceId || null, inScope: Number(b.activeInScope) || 0,
+      sym: String(b.sym || '').toLowerCase(), peers: (() => { try { return activeIndicatorAlertPeers() } catch { return null } })(),
       ownWords: [b.sym, b.instanceLabel, b.indicator].filter(Boolean).flatMap(x => String(x).toLowerCase().split(/[^a-z0-9]+/)).filter(t => t.length >= 2) }
     if (p.after?.deleted || p.patch?.delete) return [{ state: 'alert', type: 'delete', name: `your indicator alert “${nm(label)}”`, ...own }]
     const pausing = (p.patch?.toggle && p.patch.to === false) || (p.after && p.before && p.before.active === true && p.after.active === false)
@@ -296,7 +298,7 @@ export const CLASS = {
   layoutBar: /\b(?:layout bar|the bar|bar)\b/i,
   template: /\btemplates?\b/i,
   // (#1263) an indicator alert ("the RSI alert", "my alarms")
-  alert: /\b(?:alerts?|alarms?)\b/i,
+  alert: /\b(?:alerts?|alarms?|notifications?)\b/i,
   // newsLibrary.* (2026-11-15): the member's saved UCT News headlines and their collections. A bare "collection" is NOT
   // this class (a watchlist is a collection too: "retire the Momentum collection") — a collection is named by its own name
   newsLibrary: /\b(?:headlines?|stor(?:y|ies)|articles?|bookmarks?|(?:news|headline) collections?|(?:news )?library)\b/i,
@@ -344,19 +346,46 @@ export function indicatorsNamed(clause, peers) {
 const DTYPE_NOUN = { trendline: /\btrend ?lines?\b/i, horizontal: /\bhorizontal(?: lines?)?\b|\bh-?lines?\b/i, vertical: /\bvertical(?: lines?)?\b/i,
   fib: /\bfib\w*\b/i, ray: /\brays?\b/i, rect: /\b(?:box|boxes|rectangles?|rect)\b/i, circle: /\bcircles?\b/i, channel: /\bchannels?\b/i,
   arrow: /\barrows?\b/i, text: /\b(?:notes?|texts?|labels?)\b/i, avwap: /\bavwaps?\b/i, pitchfork: /\bpitchforks?\b/i }
+// (#1263, AUDIT T2) which ACTIVE alerts a pause's words describe: a symbol said (one a running alert is on) and an
+// indicator said (a known indicator name, or a word of an active alert's own) narrow them; nothing said = every active alert.
+// This alert must be among them, and be the only one — or the words are an explicit plural ("all my alerts", "both alerts",
+// "the alerts", "my notifications"). A bare "mute alerts" / "turn off notifications" with several running fails closed.
+const ALERT_STOP = new Set(['the', 'my', 'alert', 'alerts', 'alarm', 'alarms', 'notification', 'notifications', 'on', 'of', 'for', 'and', 'all', 'every', 'each', 'both', 'your', 'that', 'this', 'these', 'those'])
+const ALERT_FILL = new Set(['turn', 'off', 'switch', 'shut', 'it', 'its', 'them', 'please', 'now', 'just', 'an', 'a', 'our', 'any', 'one', 'running', 'active', 'current', 'indicator', 'in', 'at', 'here', 'too', 'also', 'again', 'chart', 'set'])
+const ALERT_ALL = /\b(?:all|every|each|both)\b|\b(?:the|my|these|those|your)\s+(?:[\w.()-]+\s+){0,2}?(?:alerts|alarms|notifications)\b/i
+function pauseNamesAlert(e, clause) {
+  const self = String(e.id || '').replace(/^alert:/, '')
+  const peers = e.peers?.length ? e.peers : [{ id: self, sym: e.sym || '', words: e.ownWords || [] }]
+  const got = tokens(clause)
+  const syms = new Set(peers.map(p => p.sym).filter(Boolean))
+  const peerWords = new Set(peers.flatMap(p => p.words || []))
+  // every word of the object must be one UCT knows (an alert's own, a known indicator, a symbol a running alert is on, or the
+  // words of the request itself): "the nvda alert", "the alert on QQQ" while the QQQ one is paused, "my squeeze alert" name no
+  // running alert — fails closed, never the one that happens to be running
+  const known = (t) => ALERT_STOP.has(t) || ALERT_FILL.has(t) || PAUSE_ANY.test(t) || /^\d+$/.test(t) || syms.has(t) || peerWords.has(t) || IND_TYPE.some(([re]) => re.test(t))
+  if (got.some(t => !known(t))) return false
+  const symSaid = new Set(got.filter(t => syms.has(t)))
+  const indRes = IND_TYPE.map(([re]) => re).filter(re => re.test(clause))
+  const indToks = got.filter(t => peerWords.has(t) && !syms.has(t) && !ALERT_STOP.has(t) && !/^\d+$/.test(t))
+  const covers = (p) => {
+    if (symSaid.size && !symSaid.has(p.sym)) return false
+    if (!indRes.length && !indToks.length) return true
+    const ws = (p.words || []).join(' ')
+    return indRes.some(re => re.test(ws)) || indToks.some(t => (p.words || []).includes(t))
+  }
+  const covered = peers.filter(covers)
+  if (!covered.some(p => String(p.id) === self)) return false
+  return covered.length === 1 || ALERT_ALL.test(clause)
+}
 /** Does this clause name the effect's object — its class, or (when it names no OTHER class) its own name? */
 export function namesObject(e, clause0, why = null) {
   const mine = classesOf(e)
-  // ⛔ (#1263) "pause the alert" with SEVERAL active alerts names none of them: only its own words (its symbol / indicator) or a
-  // plural ("all my alerts", "the alerts") name it. Fails closed — the ask with the real alerts as choices is H14's (#1324).
-  if (e.state === 'alert' && e.type === 'pause' && e.inScope > 1 && CLASS.alert.test(clause0)) {
-    if (/\b(?:all|every|each|both)\b|\b(?:alerts|alarms)\b/i.test(clause0)) return true
-    const got = new Set(tokens(clause0))
-    return (e.ownWords || []).some(t => got.has(t))
-  }
+  // ⛔ (#1263, AUDIT T2) a pause names an alert only when its words COVER it (pauseNamesAlert): "pause the MACD alert" never
+  // pauses the RSI one, even when the RSI one is the only alert running; "pause the alert" with several running names none
+  if (e.state === 'alert' && e.type === 'pause' && CLASS.alert.test(clause0)) return pauseNamesAlert(e, clause0)
   // ⛔ (#1263) "delete the RSI alert" names an ALERT, never the RSI: the words naming the alert (up to three before its noun)
   // are not read as naming anything else ("remove the RSI and its alert" still names the RSI)
-  const clause = mine.includes('alert') ? clause0 : String(clause0 || '').replace(/\b(?:the|my|that|this|your|its|their|an?)\s+(?:(?!(?:and|or|then|but)\b)[\w.()-]+\s+){0,3}?(?:alerts?|alarms?)\b|\b[\w.()-]+\s+(?:alerts?|alarms?)\b/gi, ' ')
+  const clause = mine.includes('alert') ? clause0 : String(clause0 || '').replace(/\b(?:the|my|that|this|your|its|their|an?)\s+(?:(?!(?:and|or|then|but)\b)[\w.()-]+\s+){0,3}?(?:alerts?|alarms?|notifications?)\b|\b[\w.()-]+\s+(?:alerts?|alarms?|notifications?)\b/gi, ' ')
   // ⛔ H14: an indicator is named only UNIQUELY (its own words, or a class with one instance / said as plural)
   if (e.state === 'indicator' && e.instanceId && Array.isArray(e.peers)) {
     const n = indicatorsNamed(clause, e.peers)
@@ -429,6 +458,9 @@ const NEG = /\b(?:no|not|nothing|none|never|without|neither|nor|don['’]?t|dont
 // (#1263) pausing an alert: the ONLY verbs that license an `alert:pause` (multi-word forms first: "turn off", "switch off")
 const PAUSE_SRC = String.raw`turn(?:s|ed|ing)? off|switch(?:es|ed|ing)? off|shut(?:s|ting)? off|paus\w*|mut(?:e|es|ed|ing)|disabl\w*|stop|stops|stopped|stopping|silenc\w*|deactivat\w*|suspend\w*|disarm\w*|snooz\w*`
 const PAUSE_ANY = new RegExp(String.raw`^(?:${PAUSE_SRC})$`, 'i')
+const PAUSE_IN = new RegExp(String.raw`\b(?:${PAUSE_SRC})\b`, 'i')
+// a time said with a pause ("for an hour", "for 30 minutes", "until tomorrow", "till the close", "for the day", "2h")
+const TIMED = /\b(?:for|in)\s+(?:(?:an?|one|two|three|four|five|ten|\d+(?:\.\d+)?|a few|a couple(?: of)?|half an?|several)\s+)?(?:sec(?:ond)?s?|min(?:ute)?s?|h(?:ou)?rs?|days?|weeks?|months?|moments?|(?:a )?while)\b|\b(?:until|till|til|through)\b|\bfor\s+(?:the\s+)?(?:day|today|tonight|week|weekend|session|rest of (?:the )?(?:day|week|session))\b|\b(?:\d+|an?|one|two|three)[\s-]?(?:min(?:ute)?s?|h(?:ou)?rs?|days?)\b|\b\d+\s*[mhd]\b/i
 // (#1263) "cancel the RSI alert": cancel is how a member deletes an alert
 const MORE_DESTROY = String.raw`cancel\w*|retire\w*|prune\w*|trim\w*|ditch\w*|scrap\w*|purge\w*|axe|axed|drop|drops|dropped|dropping|take (?:\S+ ){0,3}?(?:off|out|away|down)|empty|emptied|unflag\w*|close|closes|closing`
 // modify verbs (beyond MODIFY): hide / show a part, drag an anchor, flatten, call it something, thicken
@@ -445,6 +477,8 @@ const POINTS = /^(?:it|them|both(?= of them|\s*$)|all of them|(?:the|that|this|t
 // ("nvda FROM my tech watchlist", "spy IN my list"); a SAVE keeps "to / into / as" (its container: "save it to my layout",
 // "save these indicators as my Swing Setup template")
 const OBJ_END = /\s(?:with|for|by|using|like|as|and|onto|into|to|at|than)\s/i
+// (#1263) a PAUSE keeps "for / at": "pause my alert for NVDA" names the alert on NVDA (a time said is refused before: TIMED)
+const PAUSE_END = /\s(?:with|by|using|like|as|and|onto|into|to|than)\s/i
 const SAVE_END = /\s(?:with|for|by|using|like|and|at|than)\s/i
 // a NEW object ("a 20 ema", "another line", "some notes"): never an existing one to destroy or change
 const INDEFINITE = /^(?:a|an|another|some|any|new|one more|more|extra)\b/i
@@ -589,7 +623,7 @@ export function permits(e0, words, subjects = null, previous = null, previousSet
         if (cut >= 0) obj = obj.slice(0, cut)
         // a display verb's object is where it goes ("go back TO the list picker", "take the watchlist back TO its picker")
         if (e.type === 'replace' && e.state === 'widget') obj = obj.replace(/^\s*(?:to|back to|over to|into)\s+/i, ' ')
-        const end = obj.search(saving ? SAVE_END : OBJ_END)
+        const end = obj.search(saving ? SAVE_END : e.type === 'pause' ? PAUSE_END : OBJ_END)
         if (end >= 0) obj = obj.slice(0, end)
         obj = obj.trim().replace(/^(?:up|out|off|away|over|down|of|rid of)\s+/i, '')
         // a widget's content may be switched to a NEW pick ("pick a different list"); nothing else is named by "a …"
@@ -726,6 +760,11 @@ export function stateRailRefusal(plan, { words = '', mode = 'apply', subjects = 
   try {
     const effects = stateEffects(plan, scope)
     if (!effects.length) return null
+    // ⛔ (#1263, AUDIT T2) a pause FOR A TIME ("snooze the RSI alert for an hour"): an alert's switch has no timer — a paused
+    // alert stays paused until it is turned back on. Never paused as if it would come back by itself: nothing is changed, and
+    // pausing it with no time is offered instead
+    if (effects.some(e => e.state === 'alert' && e.type === 'pause') && clausesOf(w).some(c => PAUSE_IN.test(c) && TIMED.test(c)))
+      return `I didn’t change anything: UCT can’t pause an alert for a set time — a paused alert stays paused until you turn it back on (it never resumes by itself). Say “pause the alert” without a time to pause it now, and resume it whenever you like.${notDoneLine(notDoneAdds(plan))}`
     const amb = effects.map(e => homograph(e, w)).find(Boolean)
     if (amb) return `Do you mean your “${amb}” list, or the ticker ${String(amb).toUpperCase()}? Nothing was changed — say “show my ${amb} list” to switch the widget to it, or “add ${String(amb).toUpperCase()} to my watchlist” to add the symbol.${notDoneLine(notDoneAdds(plan))}`
     // (a save-over is never refused here: it goes to its card — stateRailDecision)
