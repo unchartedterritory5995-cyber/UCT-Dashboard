@@ -48,3 +48,25 @@ export function prewarmVisibleList(...a) { return warmers().prewarmVisibleList(.
 export function prefetchListDeep(...a) { return warmers().prefetchListDeep(...a) }
 export function prefetchReplayTimeframes(...a) { return warmers().prefetchReplayTimeframes(...a) }
 export function prefetchBarOnIntent(...a) { return warmers().prefetchBarOnIntent(...a) }
+
+/**
+ * A list's hold on the rows around its selection (store only: `createNeighborHold` in the
+ * facade pins them against the registry's LRU so the flip finds them in memory). The store's
+ * hold is created on the first `set` after the facade has registered; until then, and on the
+ * legacy path (whose caches have no LRU to pin against), it does nothing.
+ */
+export function createNeighborHold() {
+  let inner = null
+  return {
+    set(syms, tf, opts) {
+      if (!inner) {
+        let make
+        try { make = warmers().createNeighborHold } catch { make = undefined }   // a strict mock throws on a missing name
+        if (typeof make !== 'function') return
+        inner = make()
+      }
+      inner.set(syms, tf, opts)
+    },
+    clear() { inner?.clear() },
+  }
+}

@@ -63,9 +63,13 @@ describe('prefetch facade — same names and signatures as utils/prefetchBars', 
   it('exports every name the app imports, same kind, same arity', async () => {
     const legacy = await import('../../utils/prefetchBars')
     const facade = await import('./prefetch')
+    const door = await import('../../utils/barsWarm')
     const bad = []
     for (const [name, users] of Object.entries(legacyImports())) {
       if (!(name in facade)) { bad.push(`${name}: missing (imported by ${users.join(', ')})`); continue }
+      // A door-only helper (barsWarm.createNeighborHold) is store-side by design: the legacy
+      // caches have no LRU to pin against, so it has no legacy twin to match.
+      if (!(name in legacy) && typeof door[name] === 'function' && !door.WARMER_NAMES.includes(name)) continue
       if (typeof facade[name] !== typeof legacy[name]) bad.push(`${name}: ${typeof facade[name]} vs ${typeof legacy[name]}`)
       else if (typeof legacy[name] === 'function' && facade[name].length !== legacy[name].length) {
         bad.push(`${name}: arity ${facade[name].length} vs ${legacy[name].length}`)

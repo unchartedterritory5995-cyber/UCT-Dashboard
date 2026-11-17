@@ -226,7 +226,15 @@ export function createPrefetch(o = {}) {
    */
   function _cooling(key, s) {
     const a = asked.get(key)
-    if (!a) return false
+    // ⛔ A REQUEST STILL WAITING IS NOT AN ANSWER (2026-11-17). The ask is noted when the request
+    // STARTS; a background warm held in the lane (`_holdBackgroundWarm`: the daily pack still
+    // ingesting, a first visit's 90 s+) therefore read as "asked recently" and made every later
+    // warm of the key skip — the URGENT next-row warm included, the one meant to bypass that
+    // hold. Measured (debug build, flip proof 60m): the rows ahead held a 180-bar copy hours
+    // behind (`provisional`), never re-asked, and the flip fetched them itself (129 ms). Only an
+    // answered ask cools; a later ask of a key still in flight joins / promotes that request
+    // (network.fetchOnce, promoteLaneRequest), so nothing is fetched twice.
+    if (!a || !a.answered) return false
     // An INVALIDATE since the answer resets it (gen moved on an entry that says so); a fresh
     // entry re-hydrated after an LRU eviction has a new gen but was never invalidated.
     const invalidated = s?.invalidatedFor != null && s.gen !== a.gen
@@ -235,7 +243,7 @@ export function createPrefetch(o = {}) {
     return true
   }
   function _noteAsked(key) {
-    const a = { at: now(), gen: S().peek(key)?.gen ?? 0 }
+    const a = { at: now(), gen: S().peek(key)?.gen ?? 0, answered: false }
     asked.delete(key)
     asked.set(key, a)
     if (asked.size > COOLDOWN_MAX_KEYS) {
@@ -266,6 +274,8 @@ export function createPrefetch(o = {}) {
     if ((signal?.aborted || (s?.error && s.error !== 'no_data')) && asked.get(key) === a) asked.delete(key)
     else if (s) {
       a.gen = s.gen   // the gen the answer landed under
+      a.answered = true
+      a.at = now()    // the cooldown runs from the ANSWER, not from when the request was queued
       if (isIntradayTf(s.tf ?? parseKey(key)?.tf)) _noteFull(key)   // every request asks a full window
     }
     return s
@@ -502,6 +512,36 @@ export function createPrefetch(o = {}) {
     for (const tf of GRID_WARM_TFS) _many(list, tf, 'grid', { warm: true })
   }
 
+  /**
+   * ⭐ THE ROWS AROUND A LIST'S SELECTION STAY IN THE STORE (2026-11-17). A list warm loads
+   * every row at the chart's tf AND daily — ~200 keys for a 100-row list, the registry's whole
+   * LRU (`DEFAULT_MAX_KEYS`) — so the rows next to the selection were evicted before the
+   * member reached them, and the flip re-read them from IndexedDB (400-900 ms while the warm
+   * writes) and lost the race to its own request (flip proof 2026-11-17, 60m UVXY 109 ms, 5m
+   * UVXY 100 ms, against ~35 ms for rows still held). A hold PINS its keys (registry refs, never
+   * evicted) and hydrates them; `set` swaps the window, `clear` lets them go. One hold per list
+   * (two lists on a board never release each other's rows); a dozen keys, a few thousand bars.
+   */
+  function createNeighborHold() {
+    let held = new Map()   // key → true
+    return {
+      set(syms, tf, { showExtended } = {}) {
+        const st = S()
+        const want = new Map()
+        for (const sym of syms || []) { const k = keyFor(sym, tf, { showExtended }); if (k) want.set(k, true) }
+        for (const k of want.keys()) if (!held.has(k)) { st.registry.acquire(k); _hydrate(k) }
+        for (const k of held.keys()) if (!want.has(k)) st.registry.release(k)
+        held = want
+      },
+      clear() {
+        const st = S()
+        for (const k of held.keys()) st.registry.release(k)
+        held = new Map()
+      },
+      keys: () => [...held.keys()],
+    }
+  }
+
   /** IDB → store, no network (the legacy IDB → mem promotion). */
   function warmMemFromIDB(tickers, tfs = SCAN_WARM_TFS) {
     if (!tickers?.length) return
@@ -596,7 +636,7 @@ export function createPrefetch(o = {}) {
     keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, prepareForDisplay, prepareDailyForDisplay,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
-    prefetchBarOnIntent, warmTypedSymbol,
+    prefetchBarOnIntent, warmTypedSymbol, createNeighborHold,
     /** @internal */ _stats: () => ({ asked: asked.size, preparing: preparing.size, urgent: urgentCtl.size }),
   }
 }
@@ -626,6 +666,7 @@ export function prefetchListDeep(tickers, opts = {}) { return _f().prefetchListD
 export function prefetchReplayTimeframes(sym, cutoffIso, opts = {}) { return _f().prefetchReplayTimeframes(sym, cutoffIso, opts) }
 export function prefetchBarOnIntent(sym, tf = 'D', opts = {}) { return _f().prefetchBarOnIntent(sym, tf, opts) }
 export function warmTypedSymbol(sym, tf = 'D') { return _f().warmTypedSymbol(sym, tf) }
+export function createNeighborHold() { return _f().createNeighborHold() }
 
 // ⭐ THE WARMERS' REGISTRY (2026-11-17, utils/barsWarm.js). Under BARSTORE the store's warmers
 // stand in for the legacy ones on every list that warms through `barsWarm`, so a list's warm
@@ -636,5 +677,6 @@ export const STORE_WARMERS = Object.freeze({
   prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
   prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
   prefetchBarOnIntent,
+  createNeighborHold,   // store only: the legacy caches have no LRU to pin against
 })
 if (BARSTORE && typeof globalThis !== 'undefined') globalThis.__uctStoreWarmers = STORE_WARMERS

@@ -66,8 +66,22 @@ describe('the facade registers itself under BARSTORE only', () => {
   it('BARSTORE on: registered under the door key, with exactly the door names', async () => {
     const { facade, d } = await facadeWith(true)
     expect(globalThis[d.STORE_WARMERS_KEY]).toBe(facade.STORE_WARMERS)
-    expect(Object.keys(facade.STORE_WARMERS).sort()).toEqual([...d.WARMER_NAMES].sort())
+    // the forwarded warmers, plus the store-only neighbor hold
+    expect(Object.keys(facade.STORE_WARMERS).sort()).toEqual([...d.WARMER_NAMES, 'createNeighborHold'].sort())
     expect(d.warmers()).toBe(facade.STORE_WARMERS)
+  })
+
+  it('a neighbor hold drives the store once registered, and is a no-op on the legacy path', async () => {
+    const { d, calls } = await door()
+    const legacyHold = d.createNeighborHold()
+    expect(() => { legacyHold.set(['A'], '5'); legacyHold.clear() }).not.toThrow()   // legacy: nothing to pin
+    const seen = []
+    globalThis[d.STORE_WARMERS_KEY] = { ...stubModule('store', calls),
+      createNeighborHold: () => ({ set: (...a) => seen.push(['set', ...a]), clear: () => seen.push(['clear']) }) }
+    const hold = d.createNeighborHold()
+    hold.set(['A', 'B'], '60')
+    hold.clear()
+    expect(seen).toEqual([['set', ['A', 'B'], '60', undefined], ['clear']])
   })
 
   it('BARSTORE off: nothing registered, the door stays on the legacy module', async () => {
