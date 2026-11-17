@@ -182,10 +182,12 @@ describe('W9 armed: the census predicate (`runtime/__tests__/strategyArmed.js`) 
   })
   it('⛔ CONTROL: an unpinned rule the run reaches is its wall, by rule', () => {
     flags(true)
-    // a second long entry at the default pyramiding: [B-PYR], which no committed capture pins yet
-    const pyr = PLOTS.replace('if bar_index == 8', 'if bar_index == 5' + NL + '    strategy.entry("L2", strategy.long, qty = 1)' + NL + 'if bar_index == 8')
-    const v = armedStrategyVerdict({ source: pyr, door: censusDoor, bars: BARS, ctx: CTX })
+    // a partial close: [B-CLOSE-QTY], which no committed capture pins yet. (⚰️ This was a second long entry at the
+    // default pyramiding, [B-PYR], until w9-q-s1b-defaults-v5 / -v6 and w9-d11-late-first-use-rpt pinned it, 2026-11-17.)
+    const part = PLOTS.replace('strategy.entry("L", strategy.long, qty = 1)', 'strategy.entry("L", strategy.long, qty = 2)')
+      .replace('if bar_index == 8', 'if bar_index == 5' + NL + '    strategy.close("L", qty = 1)' + NL + 'if bar_index == 8')
+    const v = armedStrategyVerdict({ source: part, door: censusDoor, bars: BARS, ctx: CTX })
     expect(v.transfers).toBe(false)
-    expect(v.wall).toBe('run:runtime:strategy-unpinned:B-PYR')
+    expect(v.wall).toBe('run:runtime:strategy-unpinned:B-CLOSE-QTY')
   })
 })

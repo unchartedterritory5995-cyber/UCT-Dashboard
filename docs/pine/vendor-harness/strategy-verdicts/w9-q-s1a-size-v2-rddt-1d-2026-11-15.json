@@ -8,20 +8,83 @@
  "symbol": "NYSE:RDDT",
  "timeframe": "1D",
  "gradeMethod": "a",
- "verdict": "DIVERGE",
- "step": 1,
- "reason": "our run refused (runtime:strategy-option) against a TradingView value",
+ "verdict": "MATCH",
+ "step": 7,
+ "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar",
  "first": null,
  "graded": {
-  "trades": false,
-  "fills": false,
-  "slots": 0,
-  "values": 0,
+  "trades": true,
+  "fills": true,
+  "slots": 9,
+  "values": 9,
   "texts": 0
  },
  "referenceTrades": 20,
- "rulesExercised": [],
- "ungradedSlots": [],
+ "rulesExercised": [
+  "B-CLOSE",
+  "B-DEFAULTS",
+  "B-DIR",
+  "B-FIFO",
+  "B-FILL",
+  "B-MARGIN",
+  "B-MARKET",
+  "B-QTY",
+  "B-ROUND",
+  "B-SIG",
+  "B-V3",
+  "B-VAL",
+  "B-WHEN"
+ ],
+ "ungradedSlots": [
+  {
+   "slot": "maxDrawdown",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "maxRunup",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "buyAndHoldReturn",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "percentProfitable",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgWinningTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgLosingTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "largestWinningTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "largestLosingTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgBarsInTrades",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "sharpeRatio",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "sortinoRatio",
+   "why": "ours runtime:strategy-report-unstated"
+  }
+ ],
  "ungradedTexts": [],
  "firstDifference": null,
  "prefixExact": null,

@@ -704,8 +704,26 @@ def _make_value_fn(def_id: str, plot_key: str,
     plot_tree_key = plot_key if (isinstance(trees, Mapping) and plot_key in trees) else None
     _special_trees: dict = {}
 
+    # ⭐ SETTINGS PARITY (symbol) -- a symbol the script reads through an input (``meta.symbolInputs``,
+    # ``engine/symbolInputs.js``): the chart fetches and computes the member's choice; this lane computes
+    # the AUTHOR'S symbol only, so an alert at another symbol is withheld by name, never computed at the
+    # wrong instrument.
+    symbol_inputs = [r for r in ((definition.get("meta") or {}).get("symbolInputs") or [])
+                     if isinstance(r, Mapping) and isinstance(r.get("input"), str) and isinstance(r.get("default"), str)]
+
+    def symbol_moved(params: Optional[Mapping]) -> Optional[str]:
+        for r in symbol_inputs:
+            v = (params or {}).get(r["input"])
+            if isinstance(v, str) and v.strip().upper() != r["default"].strip().upper():
+                return (f"{r.get('title') or r['input']} is set to {v.strip()}: an alert computes this indicator "
+                        f"against its author's symbol ({r['default']}) only, so it is not armed at another")
+        return None
+
     def tree_for(params: Optional[Mapping]) -> tuple:
         """``(tree, None)`` for the instance's parameter settings, or ``(None, sentence)``."""
+        sym_why = symbol_moved(params)
+        if sym_why:
+            return None, sym_why
         if not param_specs:
             return tree, None
         sig = tuple((s["key"], (params or {}).get(s["key"])) for s in param_specs)

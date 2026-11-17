@@ -59,6 +59,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import crypto from 'node:crypto'
+import { instanceDocumentForFetch } from '../../symbolInputs.js'
 
 // ─── ⭐⭐ C26 — ANOTHER SYMBOL'S BARS, FROM COMMITTED CAPTURES ONLY ─────────────
 //
@@ -1536,7 +1537,9 @@ function runOurSideOnTheParityClock(capture) {
       barIndexFromFirstBar: barIndexStartsAtZero(capture),
     }
     // ⭐ C26 — another symbol's bars, from committed captures only.
-    const supply = otherSymbolSupply(def, capture)
+    // ⭐ SETTINGS PARITY (symbol): the supply the capture's own symbol choice asks for (the chart fetches
+    // the instance's chosen comparison symbol, `symbolInputs.instanceDocumentForFetch`)
+    const supply = otherSymbolSupply(instanceDocumentForFetch(def, { inputs: instanceInputs }), capture)
     if (supply.secondary) { ctx.secondary = supply.secondary; ctx.exchangeOf = supply.exchangeOf }
     notes.push(...supply.notes)
     if (ctx.symbol.securityType) {

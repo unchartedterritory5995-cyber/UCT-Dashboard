@@ -2544,10 +2544,10 @@ export default function ChartSettingsIndicators({
           )}
           {f.type === 'toggle' && (
             <button
-              type="button" role="switch" aria-checked={val !== false} aria-label={f.label}
+              type="button" role="switch" aria-checked={f.numeric ? Number(val) === 1 : val !== false} aria-label={f.label}
               {...inert}
-              className={`${styles.toggle} ${val !== false ? styles.toggleOn : ''} ${dis || off ? styles.toggleOff : ''}`}
-              onClick={() => onRowPatch?.(row, { [f.key]: val === false })}
+              className={`${styles.toggle} ${(f.numeric ? Number(val) === 1 : val !== false) ? styles.toggleOn : ''} ${dis || off ? styles.toggleOff : ''}`}
+              onClick={() => onRowPatch?.(row, { [f.key]: f.numeric ? (Number(val) === 1 ? 0 : 1) : val === false })}
             ><span className={styles.toggleKnob} /></button>
           )}
           {f.type === 'number' && (

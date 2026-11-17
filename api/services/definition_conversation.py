@@ -1771,7 +1771,8 @@ def reset_conversation_usage() -> None:
 def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
              outcome: str, admin: bool, cap_usd: float,
              repair_gate: Optional[str] = None,
-             input_wrapper: Optional[str] = None) -> Dict[str, Any]:
+             input_wrapper: Optional[str] = None,
+             examples: Optional[int] = None) -> Dict[str, Any]:
     """The turn's cost record: returned to the caller as ``usage`` and logged.
 
     ⛔ SHAPE ONLY. Model id, token counts, call count, dollars, the outcome code
@@ -1791,6 +1792,8 @@ def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
         "repair_gate": repair_gate,
         # ⭐ P3S: the argument wrapper unwrapped this turn (None = the input arrived bare)
         "input_wrapper": input_wrapper,
+        # ⭐ L5: how many worked examples rode along (None = the turn carried none)
+        "examples": examples,
         "conversation": None,
     }
     key = conversation_key(conversation_id)
@@ -1815,7 +1818,7 @@ def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
 
 def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
              snippets: Any = None, chart: Any = None, admin: bool = False,
-             conversation_id: Any = None) -> Dict[str, Any]:
+             conversation_id: Any = None, examples: Any = False) -> Dict[str, Any]:
     """One conversational turn. NEVER raises.
 
     ``{ok: True, disposition: 'change'|'answer'|'clarify'|'unsupported', reply,
@@ -1848,7 +1851,7 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
         if free:
             result = _converse_turn(message, user_id=user_id, view=view, authoring=authoring,
                                     snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls,
-                                    trace=trace)
+                                    trace=trace, admin=admin, examples=examples is True)
         else:
             result = {"ok": False, "gate": "rate:busy", "reason": dc.REFUSALS["rate:busy"]}
     latency_ms = int((time.monotonic() - started) * 1000)
@@ -1857,7 +1860,8 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
         result["usage"] = _account(user_id, conversation_id, calls, outcome=str(outcome),
                                    admin=admin, cap_usd=cap_usd,
                                    repair_gate=trace.get("repair_gate"),
-                                   input_wrapper=trace.get("input_wrapper"))
+                                   input_wrapper=trace.get("input_wrapper"),
+                                   examples=trace.get("examples"))
     except Exception:                              # noqa: BLE001 -- telemetry never breaks a turn
         logger.exception("[converse] usage accounting failed")
     _record_turn(user_id, conversation_id, result, admin=admin, message=message,
@@ -1891,6 +1895,8 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
 _BUDGET_GATES = {"cost:user": "budget_user", "cost:global": "budget_global",
                  "rate:busy": "rate_limited"}
 _PLATFORM_GATES = {"model:transport"}
+#: ⭐ O7 -- the provider refused OUR ACCOUNT. Its own class: an outage heals, this needs a person.
+_ACCOUNT_GATES = {"model:unavailable"}
 _INTERNAL_GATES = {"internal:error"}
 _MODEL_GATE_PREFIXES = ("envelope:", "model:", "schema:", "lint:", "budget:", "converse:")
 
@@ -1946,6 +1952,8 @@ def failure_class(result: Mapping[str, Any]) -> str:
         return "backstop_refused"
     if gate in _BUDGET_GATES:
         return _BUDGET_GATES[gate]
+    if gate in _ACCOUNT_GATES:
+        return "provider_account"
     if gate in _PLATFORM_GATES:
         return "platform"
     if gate in _INTERNAL_GATES:
@@ -2011,6 +2019,7 @@ def _record_turn(user_id: Any, conversation_id: Any, result: Mapping[str, Any], 
             calls=usage.get("calls"),
             repair_gate=usage.get("repair_gate"),
             input_wrapper=usage.get("input_wrapper"),
+            examples=usage.get("examples"),
             usd=usage.get("usd"),
             input_tokens=usage.get("input_tokens"),
             output_tokens=usage.get("output_tokens"),
@@ -2101,7 +2110,8 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
 def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
                    snippets: Any, chart: Any, cap_usd: float,
                    calls: List[Dict[str, Any]],
-                   trace: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+                   trace: Optional[Dict[str, Any]] = None,
+                   admin: bool = False, examples: bool = False) -> Dict[str, Any]:
     trace = trace if trace is not None else {}
     try:
         message, view, state, turns = _bounded_inputs(message, view, authoring, snippets)
@@ -2121,7 +2131,19 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     discussed = understood_turn["discussed"]
     not_understood = understood_turn["not_understood"]
     unavailable = understood_turn["unavailable"]
-    content = user_turn(request_text, notes, view, state, turns)
+    # ⭐ L5 -- WORKED EXAMPLES (`worked_examples.py`): for a NEW indicator, the nearest one or two of
+    # UCT's own checked builds ride along INSIDE <uct_language_notes> (data, by the instructions' own
+    # rule; the cached instruction block is untouched). Dark for members; an admin turn can ask.
+    # ⛔ They never cost a turn: if they would push it over the size cap, the turn goes without.
+    from api.services import worked_examples
+    carried = worked_examples.for_turn(message, view, admin=admin, asked=examples)
+    content = user_turn(request_text, {**notes, "worked_examples": carried} if carried else notes,
+                        view, state, turns)
+    if carried and len(content) > MAX_INPUT_CHARS:
+        carried = []
+        content = user_turn(request_text, notes, view, state, turns)
+    if carried:
+        trace["examples"] = len(carried)
     if len(content) > MAX_INPUT_CHARS:
         return _refusal("converse:too-large", f"turn {len(content)} > {MAX_INPUT_CHARS}",
                         member="the turn as a whole is too large to send")
@@ -2146,9 +2168,14 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         try:
             msg, in_tokens, out_tokens = _call_model(messages)
         except Exception as exc:                   # noqa: BLE001 -- never raises out
-            logger.warning("[converse] model call failed: %s", exc)
+            gate = dc.model_failure_gate(exc)
+            if gate == "model:unavailable":
+                # ERROR, not WARNING: this does not heal by itself (O7)
+                logger.error("[converse] the provider refused the account: %s", type(exc).__name__)
+            else:
+                logger.warning("[converse] model call failed: %s", exc)
             dc.charge_unreported(exc, user_id, market_date, dc.MODEL, dc.MAX_TOKENS, _request_for(messages))
-            return _refusal("model:transport", **extra)
+            return _refusal(gate, **extra)
 
         # ⭐ P3S -- with the cache breakpoint, `input_tokens` is only the UNCACHED part;
         # the cached prefix arrives as these two fields and must be charged too, or the

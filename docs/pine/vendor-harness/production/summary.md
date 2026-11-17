@@ -1318,6 +1318,18 @@ rs-rating-fred6724-setb-alab-1d-2026-11-16   NASDAQ:ALAB 1D   0      INCONCLUSIV
 rs-rating-fred6724-setb-rddt-1d-2026-11-16   NYSE:RDDT 1D     0      INCONCLUSIVE      the vendor study ran with non-default inputs (Hide Rating=true vs default false, Approximate Value of Comparative Symbol=5000 vs default 4200, Plot RS New Highs=false vs default true, Plot RS New Lows=true vs default false, Type="Historical RS New Lows  Before Price" vs default "Historical RS New Lows", Look-back=200 vs default 250, Size="Large" vs default "Tiny", Display MA 1 on RS Line=true vs default false, Area Color=true vs default false, Lenght Da=40 vs default 50); v1 compares at default inputs only — re-capture at defaults
 rs-rating-fred6724-setc-alab-1d-2026-11-16   NASDAQ:ALAB 1D   0      INCONCLUSIVE      the vendor study ran with non-default inputs (Color="rgba(255,0,0,1)" vs default "rgba(0,0,255,1)", Display MA 1 on RS Line=true vs default false, Color="#00BCD4" vs default "#FF9800"); v1 compares at default inputs only — re-capture at defaults
 rs-rating-fred6724-setc-rddt-1d-2026-11-16   NYSE:RDDT 1D     0      INCONCLUSIVE      the vendor study ran with non-default inputs (Color="rgba(255,0,0,1)" vs default "rgba(0,0,255,1)", Display MA 1 on RS Line=true vs default false, Color="#00BCD4" vs default "#FF9800"); v1 compares at default inputs only — re-capture at defaults
+rs-rating-fred6724-setd-alab-1d-2026-11-16   NASDAQ:ALAB 1D   4      DIVERGE           1 of 5 compared items diverge
+    RS Line                                  MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    objects                                  DIVERGE       TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost) — the object gate withheld the whole drawing program for a lost removal (guard:delete)
+rs-rating-fred6724-setd-rddt-1d-2026-11-16   NYSE:RDDT 1D     4      DIVERGE           1 of 5 compared items diverge
+    RS Line                                  MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    objects                                  DIVERGE       TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost) — the object gate withheld the whole drawing program for a lost removal (guard:delete)
 rs-rating-fred6724-spy-1d-2026-11-15         AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: the supply this grade needs is not recorded — other symbol SPX: not graded, by owner ruling 2026-11-15 ("Leave spy blank imo"). The served SPX source (FMP) is recorded since L9 (local supply store, out of git), but this capture is deliberately not supplied, so no verdict implies a pass or a fail for it. Before the ruling, the L5 builder's probe on the yfinance fallback read a rating of 63 where TradingView draws 64.
 rs-seed-rsrating-pm-alab-1d-2026-11-16       NASDAQ:ALAB 1D   6      DIVERGE           S01_seed_close: bar 639 t=1791379800 na vendor=199.57 ours=na
     S01_seed_close                           DIVERGE           cmp 668 ok 643 warm 0/0 steady 25/668 maxRel 0.00e+0 — 25 steady-state bars disagree; first at bar 639 (na: vendor 199.57 vs ours na) — scattered, last at bar 663
@@ -1358,6 +1370,14 @@ rs-spx-daily-pm-rddt-1d-2026-11-16           NYSE:RDDT 1D     6      INCONCLUSIV
     X04_spx_D_close                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (other-symbol:no-bars)
     X05_spx_period_close                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (other-symbol:no-bars)
     X06_chart_close_CONTROL                  MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+rs-spx-daily-pm-spy-1d-2026-11-16            AMEX:SPY 1D      6      INCONCLUSIVE      5 of 7 items could not be compared
+    X01_spx_D_open                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (other-symbol:no-bars)
+    X02_spx_D_high                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (other-symbol:no-bars)
+    X03_spx_D_low                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (other-symbol:no-bars)
+    X04_spx_D_close                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (other-symbol:no-bars)
+    X05_spx_period_close                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (other-symbol:no-bars)
+    X06_chart_close_CONTROL                  MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 rs-spx-daily-rddt-1d-2026-11-15              NYSE:RDDT 1D     6      INCONCLUSIVE      5 of 7 items could not be compared
     X01_spx_D_open                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (other-symbol:no-bars)

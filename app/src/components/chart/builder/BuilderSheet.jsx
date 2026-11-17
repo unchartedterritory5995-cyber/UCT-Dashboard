@@ -1426,6 +1426,20 @@ export default function BuilderSheet({
   // otherwise it saves the formula form, exactly as before.
   const [converseCommit, setConverseCommit] = useState(null)
   const converseCommitRef = useRef(null)
+  // ⭐ 2026-11-17 — THE CONVERSATION'S NAME SHOWS IN THE NAME FIELD. The field stayed "Name it" while
+  // the conversation had already named the indicator, and what the member then typed there was not
+  // saved. It follows the conversation's name until the member types their own (then theirs stays),
+  // and the conversation's save is handed whatever the field holds.
+  const autoNameRef = useRef('')
+  const converseName = (converseCommit && converseCommit.dirty && typeof converseCommit.name === 'string') ? converseCommit.name : ''
+  useEffect(() => {
+    if (!converseName) return
+    setName((cur) => {
+      if (cur && cur !== autoNameRef.current) return cur          // the member's own words stay
+      autoNameRef.current = converseName.slice(0, 48)
+      return autoNameRef.current
+    })
+  }, [converseName])
   // ⭐ WHICH DOOR IS OPEN, AND NOTHING MORE. `buildMode` decides whether the
   // picker is on screen; it is NOT persisted, NOT written into the document and
   // NOT read back — the saved artifact is the same one either door produces.
@@ -2552,7 +2566,12 @@ export default function BuilderSheet({
   }, [formPrint])
   useEffect(() => { if (!editing) setOpenPrint(null) }, [editing])
   const untouchedSinceOpen = !!(editing && openPrint !== null && openPrint === formPrint)
-  const dirty = (pineText.trim() !== '' || source.trim() !== '' || name.trim() !== ''
+  // ⭐ 2026-11-17 — A NAME THE SHEET FILLED IN IS NOT THE MEMBER'S UNSAVED FORMULA. Since the name field
+  // follows the conversation (`autoNameRef`), a described indicator put a name in the form, and closing
+  // asked "Discard this formula?" about a form nobody touched, and asked again after the conversation
+  // was saved. Only a name the MEMBER typed counts; the conversation's own unsaved state asks for itself.
+  const nameIsMembers = name.trim() !== '' && name !== autoNameRef.current
+  const dirty = (pineText.trim() !== '' || source.trim() !== '' || nameIsMembers
       || plotRows.some((r) => String(r.source || '').trim() !== '')
       || !isUntouchedRow(plot0) || target !== 'pane' || levelsText.trim() !== '')
     && !(savedRow && savedRow.source === source)
@@ -4175,7 +4194,7 @@ export default function BuilderSheet({
               className={styles.saveBtn}
               data-testid="sheet-save"
               data-guide="builder.save"
-              onClick={converseActive ? () => converseCommitRef.current?.save() : save}
+              onClick={converseActive ? () => converseCommitRef.current?.save(name) : save}
               disabled={converseActive ? !converseCommit.canSave : !canSave}
             >{converseActive
                 ? (converseCommit.saving ? 'Saving…' : converseCommit.label)

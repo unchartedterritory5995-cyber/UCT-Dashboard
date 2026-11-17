@@ -359,6 +359,7 @@
   "sentence:unsayable-name",
   "sentence:window",
   "setting:param-refused",
+  "setting:symbol-refused",
   "strategy:clear",
   "strategy:delete",
   "thinkscript:account",

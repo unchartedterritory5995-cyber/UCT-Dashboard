@@ -188,6 +188,7 @@ import { registeredObjectRuntimeValues, inputsAtDefaults } from './objectRuntime
 import { manifestAtDefaults } from './paramLiteral.js'
 // ⭐ SETTINGS PARITY (2a): one instance's parameter settings, written into its literals.
 import { specializeParams } from './paramInputs.js'
+import { specializeSymbols, originalDocumentOf } from './symbolInputs.js'
 import { noteRuntimeLoadFailed } from './runtimeRunTelemetry.js'
 // ⭐⭐ CBC-FMT — `calc_bars_count`: the window both lanes take (pure, imports nothing).
 import { calcBarsWindowOf, windowContext, widenToChart, withCalcBarsRecord, calcBarsWindowReport,
@@ -3613,7 +3614,7 @@ function withRunHalf(def, out, bars, inputs, ctx) {
   // (`runHalfProgram.js`). An edited tree or object program, kept under the old stamp, is refused.
   // ⭐ SETTINGS PARITY (2a) — the stamp digests the STORED trees: a copy specialised to a member's
   // length (`paramInputs.specializeParams`) is checked as the document it was specialised from
-  const stamped = def.specializedFrom || def
+  const stamped = originalDocumentOf(def)
   if (!runHalfProgramStamped(stamped)) return refused(RUN_HALF_PROGRAM_UNSTAMPED)
   if (!runHalfProgramBound(stamped)) return refused(RUN_HALF_PROGRAM_UNBOUND)
   const stamp = servedRunStamp(def)
@@ -3720,6 +3721,8 @@ function runHalfGateSignature(def) {
 
 /** The guard a parameter setting the door would refuse carries (`paramInputs.js`). */
 export const PARAM_SETTING_GUARD = 'setting:param-refused'
+/** ⭐ SETTINGS PARITY (symbol): a member's choice of a symbol setting no binding can serve. */
+export const SYMBOL_SETTING_GUARD = 'setting:symbol-refused'
 
 export function computeFor(def, bars, inputs, ctx) {
   if (def?.compute?.kind === 'runtime') {
@@ -3743,6 +3746,13 @@ export function computeFor(def, bars, inputs, ctx) {
     // written into the literals they stand for (`paramInputs.specializeParams`), memoised per
     // value set, so this pane computes the tree its member chose. A value the door would refuse
     // is refused by name on every column, never computed.
+    // ⭐ SETTINGS PARITY (symbol): the instance's choice of each symbol setting (`symbolInputs.js`), then its
+    // parameter settings. A choice no binding can serve is refused by name on every column, never fetched.
+    const symbols = specializeSymbols(def, inputs)
+    if (!symbols.ok) {
+      return withColumnErrors({}, Object.fromEntries(astPlotKey(def).map((k) => [k, { guard: SYMBOL_SETTING_GUARD, message: symbols.message }])))
+    }
+    def = symbols.def
     const special = specializeParams(def, inputs)
     if (special && special.refused) {
       const message = `${special.refused}: the chart does not compute a setting the indicator's own bounds refuse`
