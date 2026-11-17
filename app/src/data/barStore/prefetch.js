@@ -107,6 +107,11 @@ const DEEP_WARM_CAP = 120
 const REPLAY_WARM_TFS = Object.freeze(['5', '15', '30', '60'])
 const TYPED_FRESH_MS = 60_000
 const COOLDOWN_MAX_KEYS = 400
+/** TERM-033: what a FAILED device-cache hydrate resolves to (`_hydrate`). "Nothing was hydrated",
+ *  never an answer: the caller takes its verdict on the store as it stands, so the key is asked of
+ *  the server like any key the cache does not hold. */
+const NOTHING_HYDRATED = null
+const nothingHydrated = () => NOTHING_HYDRATED
 
 /** Re-ask cooldown of a key the server already answered (see header). */
 export function cooldownMs(tf) {
@@ -214,7 +219,9 @@ export function createPrefetch(o = {}) {
     // Pinned while it reads, so a herd hydrating more keys than the LRU holds cannot evict
     // the entry between its cache read and the verdict taken on it.
     st.registry.acquire(key)
-    return st.persist.hydrate(key).catch(() => null)
+    // TERM-033: a FAILED device-cache read hydrates nothing (NOTHING_HYDRATED). It is never read as
+    // an answer: the verdict below is taken on what the store holds, so the warm asks the server.
+    return st.persist.hydrate(key).catch(nothingHydrated)
       .then(() => st.peek(key))
       .finally(() => st.registry.release(key))
   }

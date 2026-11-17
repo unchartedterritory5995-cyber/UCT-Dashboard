@@ -230,6 +230,12 @@ export function runtimeAdmissionOf({ source, hash } = {}) {
 export const RUNTIME_ADMISSION_PENDING_RETRY_MS = 1500
 export const RUNTIME_ADMISSION_PENDING_RETRIES = 5
 
+/** TERM-033: what a FAILED admission request resolves to. It is "no verdict", never a verdict:
+ *  nothing is latched, the script stays "being checked" (fail closed), and `watchRuntimeAdmission`
+ *  asks again on its recheck. Never read as admitted or as refused. */
+const NO_ADMISSION_VERDICT = null
+const noAdmissionVerdict = () => NO_ADMISSION_VERDICT
+
 export function requestRuntimeAdmission(source, _attempt = 0) {
   if (!_capabilityAdmission || typeof source !== 'string' || !source) return Promise.resolve(null)
   if (typeof window === 'undefined' || typeof fetch !== 'function') return Promise.resolve(null)
@@ -263,7 +269,7 @@ export function requestRuntimeAdmission(source, _attempt = 0) {
         latchRuntimeAdmission(h, { admitted: d.admitted === true, historyOnly })
         return _verdicts.get(h) || null
       })
-      .catch(() => null)
+      .catch(noAdmissionVerdict)
       .finally(() => { _admissionInFlight.delete(h) })
       .then((v) => (v && v.retry
         ? new Promise((resolve) => { setTimeout(resolve, RUNTIME_ADMISSION_PENDING_RETRY_MS) })

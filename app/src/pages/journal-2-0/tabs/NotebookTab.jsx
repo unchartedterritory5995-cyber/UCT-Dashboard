@@ -297,9 +297,12 @@ function readRepairNotice(userId) {
 }
 // Either button retires it for this page load at once; the POST retires it for good. A failed POST
 // leaves the server row, so the notice can come back on a later load: never lost, never repeated here.
+// TERM-033: a FAILED dismissal POST resolves to `dismissNotSaved`'s null, which means "not saved":
+// the server row stands, so the notice can show again on a later load. Nothing reads it as an answer.
+const dismissNotSaved = () => null
 function dismissRepairNotice(userId) {
   repairNoticeRead = { userId, promise: Promise.resolve(0) }
-  return fetch(`${REPAIR_NOTICE_URL}/dismiss`, { method: 'POST', credentials: 'include' }).catch(() => null)
+  return fetch(`${REPAIR_NOTICE_URL}/dismiss`, { method: 'POST', credentials: 'include' }).catch(dismissNotSaved)
 }
 export function __resetRepairNoticeForTests() { repairNoticeRead = null }
 const ExportDialog = lazyDialog(() => import('../components/notebook/export/ExportDialog'), 'export')
