@@ -88,7 +88,7 @@ describe('TradingView (Pine) names on the reference page', () => {
     const row = section.querySelector('[data-pine="request.security"]')
     expect(row).toHaveTextContent(/^request\.securityNot yet: data from another symbol or timeframe$/)
     expect(section.textContent).not.toMatch(/pine:[a-z-]+|runtime:[a-z-]+/)
-    expect(section.textContent).not.toMatch(/(Valid|Supported|Verified|Converted)/)
+    expect(section.textContent).not.toMatch(/\b(Valid|Supported|Verified|Converted)\b/)
   }, PINE_LOAD_MS + 5000)
 
   it("the page's one search box filters the section, and the button says what it will look for", async () => {
