@@ -3,9 +3,9 @@
   "capture": {
    "scripts": 867,
    "admitted": 442,
-   "runtimeLane": 70,
+   "runtimeLane": 72,
    "hostLane": 244,
-   "refused": 128,
+   "refused": 126,
    "coreOnly": 44
   },
   "committed": {
@@ -5473,7 +5473,7 @@
   },
   {
    "capture": "vw-udt-legacy-array-param-rddt-1d-2026-11-16",
-   "lane": null,
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -5831,7 +5831,7 @@
   },
   {
    "capture": "vw-w6-forin-fn-two-sites-rddt-1d-2026-11-16",
-   "lane": null,
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
