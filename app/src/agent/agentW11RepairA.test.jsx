@@ -115,7 +115,7 @@ describe('R-01 — "turn the gradient off on this chart" is the dialog\'s own bg
     expect(getCapability('chart.setSetting').args.properties.setting.enum).toContain('bgMode')
     expect(CHART_SETTING_DESCRIPTORS.filter(x => x.id === 'bgMode')).toHaveLength(1)
     expect(settingDescriptor('background').agent).toBe('specialized:chart.setBackground')     // the solid colour stays chart.setBackground's
-    expect(ELIGIBLE_SETTINGS.filter(x => x.type === 'number').map(x => x.id).sort()).toEqual(['positionCalc.accountSize', 'positionCalc.riskPct', 'volume.maPeriod', 'volume.paneHeightPct', 'watermark.opacity', 'watermark.x', 'watermark.y'])
+    expect(ELIGIBLE_SETTINGS.filter(x => x.type === 'number').map(x => x.id).sort()).toEqual(['positionCalc.accountSize', 'positionCalc.riskPct', 'scaleTime.rightMargin', 'volume.maPeriod', 'volume.paneHeightPct', 'watermark.opacity', 'watermark.x', 'watermark.y'])
   })
   it('the fast path (0 model turns): on → gradient, "turn the gradient off on this chart" → solid, Undo walks back', async () => {
     const { say, board } = p.mount(...ONE('NVDA'))

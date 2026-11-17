@@ -1222,7 +1222,11 @@ _OUTCOME_LABEL = {
 #: Actions whose results are local only. Decided by NAME on the server (never trusted from the
 #: browser alone); the browser's `localOnly` flag on the same capabilities is a second signal.
 # journal.reviewTrades (W3 review B3): the member's own journal stats are shown, never replayed to a model
-LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades"})
+# news.movers (Phase 2 catalysts): UCT's catalyst board — stored third-party headlines and the engine's AI write-ups
+# (catalysts.board is model-isolated): a model never sees them, so a co-occurring headline never becomes a stated cause
+# rs.compare (Phase 2 market intelligence): UCT's RS Ratings / leadership are UCT-derived (rs.leadership is model-isolated)
+LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades", "news.movers",
+                                "rs.compare"})
 #: ⛔ DATA-READ ANSWERS (hotfix 2026-11-03, live: "when does nvda report" got a reply inventing a date and a
 #: beat while the stock.earnings card said the date was not in UCT's data). These read-only actions (manifest
 #: `query: true`, market / screen data) answer with UCT's own deterministic card; the model's `reply` is written
@@ -1514,6 +1518,10 @@ ACTIONLESS_OUTCOME_KINDS = frozenset({
     # of its changes are still on the board (each of them already has its own receipt row, with its actions); this row
     # names no action, so the model never reads it as an applied change
     "compound-takeback-failed",
+    # H14 / D23 (#1324): a chart pick refused because that chart changed since the question was asked — UCT's own
+    # fixed sentence ("Your board changed since I asked, so I didn't change anything …"), no data, nothing applied;
+    # the same class as "refused-stale", so it is replayable and names no action
+    "refused-stale-pick",
 })
 
 

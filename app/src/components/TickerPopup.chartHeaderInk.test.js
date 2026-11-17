@@ -173,7 +173,9 @@ describe('TickerPopup / Ticker Hub chart header: identity label and info values 
     expect(read('components/chart/pane/ChartIdentityRow.jsx')).toMatch(/data-testid="sym-label"\s*className=\{styles\.symbolStatic\}/)
     const row = read('components/chart/pane/ChartMetaRow.jsx')
     expect(row).toMatch(/className=\{styles\.chartMetaVal\} data-meta-key=\{it\.key\} data-sign=\{it\.sign \|\| undefined\}/)
-    expect(read('components/chart/pane/ChartPane.jsx')).toMatch(/sign: f\.signed \? \(sign \|\| 'pos'\) : null/)
+    // (owner 11-16) the item builder moved to headerStatCatalog.js (the stat library); ChartPane calls it
+    expect(read('components/chart/pane/ChartPane.jsx')).toMatch(/headerStatItems\(infoFieldKeys, statLabels, hdrColors, ctx\)/)
+    expect(read('components/chart/headerStatCatalog.js')).toMatch(/sign: f\.signed \? \(sign \|\| 'pos'\) : null/)
     // the keys the rules name are the field registry's own
     const fields = read('components/chart/headerFields.js')
     for (const key of Object.keys(VALUE_KEYS)) expect(fields, key).toMatch(new RegExp(`key: '${key}'`))

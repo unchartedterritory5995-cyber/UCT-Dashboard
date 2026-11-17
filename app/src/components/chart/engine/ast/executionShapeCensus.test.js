@@ -139,7 +139,7 @@ const WINDOW_COMPOSITE = {
   // a percentage (`percentileNearestRank`), a rank of every bar against every
   // other (`rci`), and weights read off two more columns (`alma`).
   percentileNearestRank: 'windowPercentileNearest — a window, plus percentage',
-  rci: 'windowRci — a rank correlation within the window',
+  rci: 'rciCol — the Pearson correlation of average ranks within the window (engine 57)',
   alma: 'almaCol — a weighted window, weights from offset and sigma',
   donchianUpper: 'computeDonchian — highest/lowest',
   donchianMiddle: 'computeDonchian — highest/lowest',
@@ -149,6 +149,8 @@ const WINDOW_COMPOSITE = {
   ichimokuSpanA: 'midpoint of two midpoints',
   ichimokuSpanB: 'highest/lowest midpoint',
   stoch: 'computeStochastic — highest/lowest',
+  // ⭐ (2026-11-14, engine 57) Pine's `ta.stoch`: the last n finite highs/lows, the last value held.
+  stochPine: 'stochPineScan — highest/lowest of the last n finite values',
   williamsR: 'highest/lowest',
   cci: 'sma + dev (mean absolute deviation)',
   mfi: 'windowed sums of signed money flow',

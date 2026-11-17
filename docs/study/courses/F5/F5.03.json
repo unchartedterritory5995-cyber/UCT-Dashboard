@@ -1,0 +1,1967 @@
+{
+ "unit": "F5.03",
+ "track": "F5",
+ "title": "Growth numbers the desk screens for",
+ "teaches": "Read a growth screen row: EPS growth against the same quarter a year ago, the yearly record, the sales growth behind it, whether growth is speeding up or slowing down, and what the P/E does and does not tell you, which is why a growth screen leads with growth and not with P/E.",
+ "skills": [
+  {
+   "id": "fund.growth",
+   "title": "Growth numbers the desk screens for"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Price-earnings ratio",
+   "url": "https://www.nasdaq.com/glossary/p/price-earnings-ratio",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Earnings per share (EPS)",
+   "url": "https://www.nasdaq.com/glossary/e/earnings-per-share",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "Nasdaq",
+   "title": "Glossary: Growth stock",
+   "url": "https://www.nasdaq.com/glossary/g/growth-stock",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "NVIDIA Corporation (newsroom)",
+   "title": "NVIDIA Announces Financial Results for First Quarter Fiscal 2025 (May 22, 2024)",
+   "url": "https://nvidianews.nvidia.com/news/nvidia-announces-financial-results-for-first-quarter-fiscal-2025",
+   "accessed": "2026-11-09",
+   "why_reliable": "Primary record: the company's own earnings release on its newsroom. NVIDIA also filed its results on EDGAR as a Form 8-K (Item 2.02) the same day, 2024-05-22."
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "NVIDIA Corporation (newsroom)",
+   "title": "NVIDIA Announces Financial Results for Second Quarter Fiscal 2025 (August 28, 2024)",
+   "url": "https://nvidianews.nvidia.com/news/nvidia-announces-financial-results-for-second-quarter-fiscal-2025",
+   "accessed": "2026-11-09",
+   "why_reliable": "Primary record: the company's own earnings release on its newsroom. NVIDIA also filed its results on EDGAR as a Form 8-K (Item 2.02) the same day, 2024-08-28."
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "NVIDIA Corporation (newsroom)",
+   "title": "NVIDIA Announces Financial Results for Third Quarter Fiscal 2025 (November 20, 2024)",
+   "url": "https://nvidianews.nvidia.com/news/nvidia-announces-financial-results-for-third-quarter-fiscal-2025",
+   "accessed": "2026-11-09",
+   "why_reliable": "Primary record: the company's own earnings release on its newsroom. NVIDIA also filed its results on EDGAR as a Form 8-K (Item 2.02) the same day, 2024-11-20."
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "NVIDIA Corporation (newsroom)",
+   "title": "NVIDIA Announces Financial Results for Fourth Quarter and Fiscal 2025 (February 26, 2025)",
+   "url": "https://nvidianews.nvidia.com/news/nvidia-announces-financial-results-for-fourth-quarter-and-fiscal-2025",
+   "accessed": "2026-11-09",
+   "why_reliable": "Primary record: the company's own earnings release on its newsroom. NVIDIA also filed its results on EDGAR as a Form 8-K (Item 2.02) the same day, 2025-02-26."
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "Palantir Technologies Inc., Form 8-K Exhibit 99.1 (SEC EDGAR)",
+   "title": "Palantir Reports Revenue Growth of 21% Year-Over-Year (Q1 2024, May 6, 2024)",
+   "url": "https://www.sec.gov/Archives/edgar/data/1321655/000132165524000069/a2024q1ex991earningsrelease.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "Palantir Technologies Inc., Form 8-K Exhibit 99.1 (SEC EDGAR)",
+   "title": "Palantir Reports Revenue Growth of 27% Year-Over-Year (Q2 2024, August 5, 2024)",
+   "url": "https://www.sec.gov/Archives/edgar/data/1321655/000132165524000133/a2024q2ex991pressrelease.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 1,
+   "publisher": "Palantir Technologies Inc., Form 8-K Exhibit 99.1 (SEC EDGAR)",
+   "title": "Palantir Reports Revenue Growth of 30% Y/Y (Q3 2024, November 4, 2024)",
+   "url": "https://www.sec.gov/Archives/edgar/data/1321655/000132165524000207/a2024q3ex991earningsrelease.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 1,
+   "publisher": "Palantir Technologies Inc., Form 8-K Exhibit 99.1 (SEC EDGAR)",
+   "title": "Palantir Reports Q4 2024 Revenue Growth of 36% Y/Y (February 3, 2025)",
+   "url": "https://www.sec.gov/Archives/edgar/data/1321655/000132165525000007/a2024q4ex991earningsrelease.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Master the CANSLIM Strategy for Financial Growth (James Chen, CMT; updated August 24, 2026)",
+   "url": "https://www.investopedia.com/terms/c/canslim.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Price-to-Earnings (P/E) Ratio: Definition, Formula, and Examples (Jason Fernando; updated April 15, 2026)",
+   "url": "https://www.investopedia.com/terms/p/price-earningsratio.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Price/Earnings-to-Growth (PEG) Ratio: What It Is and the Formula (Will Kenton; updated November 28, 2025)",
+   "url": "https://www.investopedia.com/terms/p/pegratio.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Growth Stock: What It Is, Examples, vs. Value Stock (Adam Hayes, Ph.D., CFA; updated September 1, 2026)",
+   "url": "https://www.investopedia.com/terms/g/growthstock.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Growth Rates: Definition, Formula, and How to Calculate (James Chen, CMT; updated April 29, 2026)",
+   "url": "https://www.investopedia.com/terms/g/growthrates.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Company Valuation Ratios (Learning Center; article © 2013 DST Systems, reprinted by Fidelity)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/fundamental-analysis/company-valuation-ratios",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "Desjardins Online Brokerage (Disnat)",
+   "title": "CANSLIM (Learning: Trading basics, stock selection strategies)",
+   "url": "https://www.disnat.com/en/learning/trading-basics/stock-selection-strategies/canslim",
+   "accessed": "2026-11-09",
+   "why_reliable": "Broker education centre of Desjardins Securities Inc. (a CIRO member), the brokerage arm of the Desjardins group, the same kind of source as the Fidelity and Schwab centres the contract lists. It summarises O'Neil's book and attributes each number to him."
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "Corporate Finance Institute (CFI)",
+   "title": "CAN SLIM: Definition, How It Works, Growth Characteristics",
+   "url": "https://corporatefinanceinstitute.com/resources/knowledge/trading-investing/can-slim/",
+   "accessed": "2026-11-09",
+   "why_reliable": "CFI Education Inc. is a professional finance-training institution (it runs the FMVA and CMSA certifications). The page is its own reference entry on O'Neil's method; its numbers match Investopedia's and Stockopedia's."
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "Stockopedia",
+   "title": "How Does CAN SLIM Investing Work? (Stockopedia Features, April 19, 2011)",
+   "url": "https://www.stockopedia.com/content/how-does-can-slim-investing-work-55881",
+   "accessed": "2026-11-09",
+   "why_reliable": "Stockopedia is an established UK stock-research and screening company; this dated feature summarises O'Neil's book edition by edition and names its sources (the book, AAII's screen data). Used only where it agrees with another publisher."
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "Thomas Bulkowski, ThePatternSite.com",
+   "title": "Bulkowski on the Search for 10 Baggers (study of 974 stocks, 1992 to 2007)",
+   "url": "https://www.thepatternsite.com/10Baggers.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "Thomas Bulkowski, ThePatternSite.com",
+   "title": "Bulkowski on the Price to Earnings (P/E) Ratio (study of 178 stocks, 1991 to 2008)",
+   "url": "https://www.thepatternsite.com/PERatio.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s23",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s1",
+   "quote": "Shows the multiple of earnings at which a stock sells. Determined by dividing current stock price by current earnings per share (adjusted for stock splits).",
+   "claim": "P/E is the share price divided by earnings per share."
+  },
+  {
+   "id": "f02",
+   "source": "s1",
+   "quote": "Earnings per share for the P/E ratio are determined by dividing earnings for past 12 months by the number of common shares outstanding.",
+   "claim": "The EPS in a standard P/E covers the past 12 months."
+  },
+  {
+   "id": "f03",
+   "source": "s1",
+   "quote": "Higher multiple means investors have higher expectations for future growth, and have bid up the stock's price.",
+   "claim": "A higher P/E means buyers expect more growth and have bid the price up."
+  },
+  {
+   "id": "f04",
+   "source": "s2",
+   "quote": "The one-year (historical or trailing) EPS growth rate is calculated as the percentage change in earnings per share.",
+   "claim": "EPS growth is the percent change in earnings per share."
+  },
+  {
+   "id": "f05",
+   "source": "s3",
+   "quote": "Common stock of a company that has very attractive possibilities for revenue growth.",
+   "claim": "A growth stock is defined by its prospects for revenue growth."
+  },
+  {
+   "id": "f06",
+   "source": "s12",
+   "quote": "Current quarterly earnings per share (EPS) have increased sharply from the same quarter in the prior year. Generally, investors using CANSLIM want EPS growth of over 25%, but the higher the better.",
+   "claim": "O'Neil's C: this quarter's EPS against the same quarter a year earlier, up more than 25%, and higher is better."
+  },
+  {
+   "id": "f07",
+   "source": "s12",
+   "quote": "Annual earnings increases over the last three years. Again, annual EPS growth should ideally be in excess of 25% over the last three to five years.",
+   "claim": "O'Neil's A: annual EPS growth above 25% over the last three to five years."
+  },
+  {
+   "id": "f08",
+   "source": "s12",
+   "quote": "Any slowing in the growth trajectory, or the market as a whole, may result in the stock being punished.",
+   "claim": "When a CAN SLIM stock's growth slows, the stock can get hit."
+  },
+  {
+   "id": "f09",
+   "source": "s12",
+   "quote": "Investors use it to find companies with improving earnings, strong sales, market momentum, and other growth signs.",
+   "claim": "O'Neil's method looks for strong sales as well as improving earnings."
+  },
+  {
+   "id": "f10",
+   "source": "s12",
+   "quote": "However, CANSLIM stocks can quickly decline if the market shifts and institutional investors move to safer assets.",
+   "claim": "Stocks that pass CAN SLIM can fall fast when the market turns."
+  },
+  {
+   "id": "f11",
+   "source": "s13",
+   "quote": "A high P/E ratio could mean that a company's stock is overvalued or that investors expect high growth rates.",
+   "claim": "A high P/E can mean overvalued, or it can mean buyers expect high growth."
+  },
+  {
+   "id": "f12",
+   "source": "s13",
+   "quote": "Companies with no earnings or that are losing money don't have a P/E ratio because there's nothing to put in the denominator.",
+   "claim": "A company losing money has no P/E."
+  },
+  {
+   "id": "f13",
+   "source": "s13",
+   "quote": "The bargain is an illusion if a company has a low P/E ratio because its business model is declining",
+   "claim": "A low P/E can come from a declining business, and then it is no bargain."
+  },
+  {
+   "id": "f14",
+   "source": "s13",
+   "quote": "The P/E is expressed as N/A when a company has no earnings or is posting losses.",
+   "claim": "With losses or no earnings, the P/E shows as N/A."
+  },
+  {
+   "id": "f15",
+   "source": "s13",
+   "quote": "relies on past performance by dividing the current share price by the total EPS for the previous 12 months.",
+   "claim": "The trailing P/E uses the actual EPS of the previous 12 months."
+  },
+  {
+   "id": "f16",
+   "source": "s13",
+   "quote": "The forward (or leading) P/E uses future earnings guidance rather than trailing figures.",
+   "claim": "The forward P/E is the one built on future earnings estimates."
+  },
+  {
+   "id": "f17",
+   "source": "s13",
+   "quote": "Investors are paying $20 for $1 of current earnings if a company trades at a P/E multiple of 20x.",
+   "claim": "The P/E is what buyers pay for each $1 of earnings."
+  },
+  {
+   "id": "f18",
+   "source": "s13",
+   "quote": "but the source of earnings information is the company itself. It's therefore possible that it could be manipulated.",
+   "claim": "Earnings come from the company itself and can be shaped."
+  },
+  {
+   "id": "f19",
+   "source": "s13",
+   "quote": "It doesn't account for future earnings growth, it can be influenced by accounting practices, and it may not be comparable across different industries.",
+   "claim": "P/E on its own ignores future earnings growth."
+  },
+  {
+   "id": "f20",
+   "source": "s14",
+   "quote": "The price/earnings to growth ratio (PEG ratio) is a stock's price-to-earnings (P/E) ratio divided by the growth rate of its earnings for a specified time period.",
+   "claim": "PEG is the P/E divided by the earnings growth rate."
+  },
+  {
+   "id": "f21",
+   "source": "s14",
+   "quote": "But compared to Company B, it doesn't have a high enough growth rate to justify its current P/E.",
+   "claim": "A lower P/E can still be the pricier stock when its growth is too slow to justify it."
+  },
+  {
+   "id": "f22",
+   "source": "s14",
+   "quote": "The PEG ratio works best for companies with steady growth but can be unreliable for cyclical stocks and high-growth tech firms.",
+   "claim": "PEG is a rough check that can mislead on cyclical and high-growth stocks."
+  },
+  {
+   "id": "f23",
+   "source": "s15",
+   "quote": "Growth stocks often look expensive, trading at a high P/E ratio, but such valuations could actually be cheap if the company continues to grow rapidly which will drive the share price up.",
+   "claim": "A high P/E on a fast grower can turn out cheap if the growth continues."
+  },
+  {
+   "id": "f24",
+   "source": "s15",
+   "quote": "The risk is that growth may slow or fail to meet expectations; in that case, investors may reassess the company's valuation, and its stock price can fall sharply.",
+   "claim": "If a growth stock's growth slows, the price can fall sharply."
+  },
+  {
+   "id": "f25",
+   "source": "s15",
+   "quote": "Growth stocks may have low or even negative earnings, often making them high P/E stocks.",
+   "claim": "Growth stocks often have high P/Es, or losses."
+  },
+  {
+   "id": "f26",
+   "source": "s15",
+   "quote": "Growth stocks are those companies expected to grow sales and earnings at a faster rate than the market average.",
+   "claim": "A growth stock grows sales and earnings faster than the market."
+  },
+  {
+   "id": "f27",
+   "source": "s15",
+   "quote": "These stocks generally do not pay dividends.",
+   "claim": "Growth stocks usually pay no dividend."
+  },
+  {
+   "id": "f28",
+   "source": "s16",
+   "quote": "A simple growth measurement simply divides the difference between the ending and starting value by the beginning value, or (EV-BV)/BV.",
+   "claim": "Growth rate is the change divided by the starting value."
+  },
+  {
+   "id": "f29",
+   "source": "s16",
+   "quote": "Country A is growing at a modest rate that is declining over the three years. Country B is growing rapidly and at an increasing rate.",
+   "claim": "Growing at an increasing rate is acceleration; a declining rate is deceleration."
+  },
+  {
+   "id": "f30",
+   "source": "s16",
+   "quote": "Growth rates also ignore the nominal amounts involved. For instance, Company A's earnings may grow from $100,000 per year to $150,000 per year, representing 50% growth, but only a $50,000 change.",
+   "claim": "A big growth percent can sit on a small amount of money."
+  },
+  {
+   "id": "f31",
+   "source": "s17",
+   "quote": "The ratio is determined by dividing a company's current share price by its earnings per share.",
+   "claim": "P/E is the share price divided by EPS."
+  },
+  {
+   "id": "f32",
+   "source": "s17",
+   "quote": "For example, if a company is currently trading at $25 a share and its earnings over the last 12 months are $1.35 per share, the P/E ratio for the stock would be 18.5 ($25/$1.35).",
+   "claim": "Fidelity's example: $25 over $1.35 of 12-month EPS is a P/E of 18.5."
+  },
+  {
+   "id": "f33",
+   "source": "s17",
+   "quote": "It is calculated by dividing the P/E ratio by the earnings-per-share growth.",
+   "claim": "PEG is the P/E divided by EPS growth."
+  },
+  {
+   "id": "f34",
+   "source": "s17",
+   "quote": "A PEG of 1 or less is typically taken to indicate that the company is undervalued.",
+   "claim": "By convention a PEG of 1 or less is read as cheap for the growth."
+  },
+  {
+   "id": "f35",
+   "source": "s17",
+   "quote": "One of the advantages of using the P/S ratio is that sales are much harder to manipulate than earnings.",
+   "claim": "Sales are much harder to manipulate than earnings."
+  },
+  {
+   "id": "f36",
+   "source": "s17",
+   "quote": "The P/S ratio can be used in place of the P/E ratio in situations where the company has a net loss.",
+   "claim": "With a net loss there is no usable P/E, so price-to-sales stands in."
+  },
+  {
+   "id": "f37",
+   "source": "s18",
+   "quote": "O'Neil emphasizes the importance of choosing stocks whose earnings per share (EPS) in the most recent quarter have grown in relation to the EPS of last year's same quarter.",
+   "claim": "O'Neil compares the latest quarter's EPS with the same quarter last year."
+  },
+  {
+   "id": "f65",
+   "source": "s18",
+   "quote": "For example, a company's EPS figures reported in this year's quarter from April to June should have grown relative to the EPS figures for that same three-month period one year ago.",
+   "claim": "Disnat's example: April to June EPS against April to June a year earlier."
+  },
+  {
+   "id": "f38",
+   "source": "s18",
+   "quote": "The percentage of growth a company's EPS should show is somewhat debatable, but the CANSLIM system suggests no less than 18-20%.",
+   "claim": "This version of O'Neil's floor for quarterly EPS growth is 18-20%."
+  },
+  {
+   "id": "f39",
+   "source": "s18",
+   "quote": "O'Neil found that in the period from 1953 to 1993, three-quarters of the 500 top-performing equity securities in the U.S. showed quarterly earnings gains of at least 70% prior to a major price increase.",
+   "claim": "In O'Neil's study of 500 big winners, three-quarters showed quarterly earnings gains of at least 70% before the big move."
+  },
+  {
+   "id": "f40",
+   "source": "s18",
+   "quote": "This mindset is the logic behind choosing companies with annual earnings growth within the 25-50% range.",
+   "claim": "O'Neil's annual earnings growth range is 25-50%."
+  },
+  {
+   "id": "f41",
+   "source": "s18",
+   "quote": "Cheap stocks are cheap for a reason, usually because they are market laggards.",
+   "claim": "In O'Neil's view, cheap stocks are usually cheap for a reason."
+  },
+  {
+   "id": "f42",
+   "source": "s19",
+   "quote": "Current quarterly earnings per share (EPS) should increase by at least 25% when compared to the same quarter from the year before.",
+   "claim": "CFI's version of O'Neil's C: EPS up at least 25% on the same quarter a year before."
+  },
+  {
+   "id": "f43",
+   "source": "s19",
+   "quote": "Additionally, accelerating EPS growth in recent quarters is a strong positive sign.",
+   "claim": "In O'Neil's method, EPS growth that speeds up is a strong plus."
+  },
+  {
+   "id": "f44",
+   "source": "s19",
+   "quote": "Annual earnings should have increased over the last five years. Additionally, yearly EPS should be growing at least 25% or more over the past three years.",
+   "claim": "O'Neil's A: yearly EPS growth of at least 25% over the past three years."
+  },
+  {
+   "id": "f45",
+   "source": "s19",
+   "quote": "O'Neil indicates that a stock may satisfy the first six factors of CAN SLIM and still sink if the market is on a decline.",
+   "claim": "A stock can pass the first six CAN SLIM tests and still sink in a falling market."
+  },
+  {
+   "id": "f46",
+   "source": "s19",
+   "quote": "CAN SLIM should be used by seasoned investors as stocks that satisfy CAN SLIM are typically the ones that drop the fastest when market direction shifts and sentiment becomes bearish.",
+   "claim": "Stocks that pass CAN SLIM often drop fastest when the market turns."
+  },
+  {
+   "id": "f47",
+   "source": "s20",
+   "quote": "He prefers to focus on companies that are still in a stage of earnings acceleration before they make major price advances.",
+   "claim": "O'Neil looks for companies whose earnings are accelerating."
+  },
+  {
+   "id": "f48",
+   "source": "s20",
+   "quote": "O'Neil's study revealed that winning stocks generally have strong quarterly earnings per share performance prior to their significant price run ups.",
+   "claim": "O'Neil's winners generally showed strong quarterly EPS before their big runs."
+  },
+  {
+   "id": "f49",
+   "source": "s20",
+   "quote": "O'Neil says that stocks that seem too high-priced and risky most often go even higher, while stocks that seem cheap often go even lower.",
+   "claim": "O'Neil's view: stocks that seem cheap often go lower still."
+  },
+  {
+   "id": "f50",
+   "source": "s20",
+   "quote": "It looks for growing and accelerating earnings and sales",
+   "claim": "O'Neil's method looks for earnings and sales that grow and speed up."
+  },
+  {
+   "id": "f51",
+   "source": "s21",
+   "quote": "Net profit, P/E ratio, and ROE are almost meaningless when searching for 10-baggers (because many companies were unprofitable).",
+   "claim": "In Bulkowski's 10-bagger study, P/E was almost meaningless because many were unprofitable."
+  },
+  {
+   "id": "f52",
+   "source": "s22",
+   "quote": "A study of the P/E ratio (price divided by earnings), shows that stocks with P/E ratios below the median of all stocks studied outperformed those with higher P/E ratios 71% of the time.",
+   "claim": "In Bulkowski's study, low-P/E stocks beat high-P/E stocks 71% of the time."
+  },
+  {
+   "id": "f53",
+   "source": "s4",
+   "quote": "NVIDIA Announces Financial Results for First Quarter Fiscal 2025 May 22, 2024 Record quarterly revenue of $26.0 billion, up 18% from Q4 and up 262% from a year ago",
+   "claim": "NVIDIA's first quarter of fiscal 2025: record revenue of $26.0 billion, up 262% year over year."
+  },
+  {
+   "id": "f54",
+   "source": "s5",
+   "quote": "NVIDIA Announces Financial Results for Second Quarter Fiscal 2025 August 28, 2024 Record quarterly revenue of $30.0 billion, up 15% from Q1 and up 122% from a year ago",
+   "claim": "Second quarter of fiscal 2025: record revenue of $30.0 billion, up 122% year over year."
+  },
+  {
+   "id": "f55",
+   "source": "s6",
+   "quote": "NVIDIA Announces Financial Results for Third Quarter Fiscal 2025 November 20, 2024 Record quarterly revenue of $35.1 billion, up 17% from Q2 and up 94% from a year ago",
+   "claim": "Third quarter of fiscal 2025: record revenue of $35.1 billion, up 94% year over year."
+  },
+  {
+   "id": "f56",
+   "source": "s7",
+   "quote": "reported revenue for the fourth quarter ended January 26, 2025, of $39.3 billion, up 12% from the previous quarter and up 78% from a year ago.",
+   "claim": "Fourth quarter of fiscal 2025, ended January 26, 2025: revenue of $39.3 billion, up 78% year over year."
+  },
+  {
+   "id": "f57",
+   "source": "s7",
+   "quote": "Record quarterly revenue of $39.3 billion, up 12% from Q3 and up 78% from a year ago",
+   "claim": "The $39.3 billion was a record quarter."
+  },
+  {
+   "id": "f58",
+   "source": "s8",
+   "quote": "Palantir Reports Revenue Growth of 21% Year-Over-Year and Sixth Consecutive Quarter of GAAP Profitability; GAAP EPS of $0.04 in Q1 2024",
+   "claim": "Palantir's Q1 2024 revenue grew 21% year over year."
+  },
+  {
+   "id": "f59",
+   "source": "s9",
+   "quote": "Q2 2024 Highlights Revenue grew 27% year-over-year and 7% quarter-over-quarter to $678 million",
+   "claim": "Palantir's Q2 2024 revenue grew 27% year over year."
+  },
+  {
+   "id": "f60",
+   "source": "s10",
+   "quote": "Revenue grew 30% year-over-year and 7% quarter-over-quarter to $726 million",
+   "claim": "Palantir's Q3 2024 revenue grew 30% year over year."
+  },
+  {
+   "id": "f61",
+   "source": "s11",
+   "quote": "Palantir Reports Q4 2024 Revenue Growth of 36% Y/Y, U.S. Revenue Growth of 52% Y/Y",
+   "claim": "Palantir's Q4 2024 revenue grew 36% year over year."
+  },
+  {
+   "id": "f62",
+   "source": "s9",
+   "quote": "GAAP earnings per share (“EPS”) grew 500% year-over-year to $0.06",
+   "claim": "Palantir's Q2 2024 GAAP EPS grew 500% year over year, to $0.06."
+  },
+  {
+   "id": "f63",
+   "source": "s9",
+   "quote": "Net earnings per share attributable to common stockholders, diluted $ 0.06 $ 0.01",
+   "claim": "In the table, diluted EPS was $0.06 for Q2 2024 against $0.01 a year earlier."
+  },
+  {
+   "id": "f64",
+   "source": "s9",
+   "quote": "Adjusted EPS grew 80% year-over-year to $0.09",
+   "claim": "Palantir's Q2 2024 adjusted EPS grew 80%, to $0.09."
+  },
+  {
+   "id": "f66",
+   "source": "s23",
+   "quote": "Prefer stocks with growing sales and earnings; the chart comes first.",
+   "claim": "Our rule D40: prefer stocks with growing sales and earnings, and the chart comes first."
+  },
+  {
+   "id": "f67",
+   "source": "s9",
+   "quote": "GAAP net income of $134 million, representing a 20% margin",
+   "claim": "Palantir's Q2 2024 GAAP net income was $134 million, a 20% margin."
+  },
+  {
+   "id": "f68",
+   "source": "s9",
+   "quote": "Net income attributable to common stockholders $ 134,126 $ 28,127",
+   "claim": "In the Q2 2024 table, net income attributable to common stockholders was $134,126 thousand against $28,127 thousand a year earlier."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Start with the growth numbers",
+   "steps": [
+    "William O'Neil's growth screen starts with this quarter's earnings per share against the same quarter a year ago.",
+    "His floor for that jump runs from 18-20% to 25%, depending on the version. His biggest winners usually showed far more.",
+    "Then the yearly record. He wants EPS up 25% or more a year over the last three years.",
+    "Check that sales grew too. Sales are much harder to dress up than earnings."
+   ],
+   "facts": [
+    "f06",
+    "f37",
+    "f38",
+    "f42",
+    "f39",
+    "f07",
+    "f44",
+    "f35",
+    "f09"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Speeding up or slowing down",
+   "steps": [
+    "Palantir's revenue growth through 2024: 21%, then 27%, 30% and 36%. Each quarter grew faster than the last. That's acceleration.",
+    "NVIDIA over its fiscal 2025: 262%, 122%, 94%, 78%. Far bigger numbers, but slower every quarter.",
+    "NVIDIA's revenue still set a record each quarter. Slower growth is not shrinking.",
+    "O'Neil's method looks for earnings and sales that speed up. Slowing growth is where growth stocks can get hit."
+   ],
+   "facts": [
+    "f58",
+    "f59",
+    "f60",
+    "f61",
+    "f53",
+    "f54",
+    "f55",
+    "f56",
+    "f57",
+    "f43",
+    "f50",
+    "f08",
+    "f24"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Where the P/E fits",
+   "steps": [
+    "P/E is the share price divided by the last 12 months of earnings per share.",
+    "A high P/E means buyers expect growth. A fast grower can grow into it.",
+    "A low P/E can be a business in decline. And a company losing money has no P/E at all.",
+    "That's why a growth screen leads with growth. The P/E comes second, as context."
+   ],
+   "facts": [
+    "f01",
+    "f02",
+    "f03",
+    "f23",
+    "f13",
+    "f12",
+    "f19",
+    "f51"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "fund.growth",
+   "rung": 1,
+   "format": "mcq",
+   "q": "William O'Neil's C test looks at this quarter's EPS. What does it compare it with?",
+   "choices": [
+    "The same quarter a year earlier",
+    "The quarter just before it",
+    "The analysts' estimate",
+    "Last year's full-year EPS"
+   ],
+   "answer": "The same quarter a year earlier",
+   "why": "The same quarter a year earlier. Investopedia, CFI and Disnat all describe O'Neil's C test the same way. It is this quarter's EPS against the same quarter a year before. Disnat's example is April to June this year against April to June last year. O'Neil wants a sharp jump on that comparison. It is not the quarter just before, not the analysts' estimate, and not a full year.",
+   "lesson_line": "O'Neil's C: this quarter's EPS against the same quarter last year.",
+   "facts": [
+    "f06",
+    "f37",
+    "f65",
+    "f42"
+   ],
+   "wrong": {
+    "The quarter just before it": "That's quarter over quarter. O'Neil's C test goes back a full year, to the same quarter.",
+    "The analysts' estimate": "That tells you beat or miss. The C test measures growth against the same quarter a year ago.",
+    "Last year's full-year EPS": "That's closer to the A test, the annual record. C is one quarter against the same quarter."
+   },
+   "simple": "The same quarter a year earlier. O'Neil wants this quarter's EPS to have jumped against that same quarter last year.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q02",
+   "skill": "fund.growth",
+   "rung": 1,
+   "format": "tf",
+   "q": "O'Neil's A test wants annual EPS growth of about 25% or more over the last three years.",
+   "answer": "True",
+   "why": "True. Investopedia puts O'Neil's A test at annual EPS growth above 25% over the last three to five years. CFI says at least 25% over the past three years, and Disnat gives a 25-50% range. The A test is the yearly record. The C test is the latest quarter against the same quarter a year ago.",
+   "lesson_line": "C is the latest quarter. A is the yearly record, about 25% a year or better.",
+   "facts": [
+    "f07",
+    "f44",
+    "f40",
+    "f06",
+    "f42"
+   ],
+   "simple": "True. O'Neil's A test wants yearly EPS growth of about 25% or more over the last three years.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q03",
+   "skill": "fund.growth",
+   "rung": 2,
+   "format": "fill",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "A growth rate is the change divided by the ___ value.",
+   "bank": [
+    "starting",
+    "ending",
+    "average",
+    "highest"
+   ],
+   "answer": "starting",
+   "why": "Starting. Investopedia's simple growth rate takes the ending value minus the starting value, then divides by the starting value. Nasdaq calls EPS growth the percentage change in earnings per share, the same sum done on EPS. Dividing by the ending, average or highest value is a different sum and gives a different answer.",
+   "lesson_line": "Always divide by where you started, not where you ended.",
+   "facts": [
+    "f28",
+    "f04"
+   ],
+   "simple": "Starting. You divide the change by where you started, because growth is measured from the first value.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q04",
+   "skill": "fund.growth",
+   "rung": 2,
+   "format": "mcq",
+   "term": "accelerating earnings",
+   "q": "On a growth screen, what does \"accelerating earnings\" mean?",
+   "choices": [
+    "The growth rate rises each quarter",
+    "EPS sets a record each quarter",
+    "EPS beats estimates each quarter",
+    "The stock rises after reports"
+   ],
+   "answer": "The growth rate rises each quarter",
+   "why": "The growth rate rises each quarter. Investopedia describes this as growing at an increasing rate. CFI calls accelerating EPS growth a strong positive sign in O'Neil's method. Stockopedia says O'Neil looks for earnings acceleration. It does not mean a new record, a beat of the estimate, or a price jump after the report. Records can come with slowing growth.",
+   "lesson_line": "Accelerating means the growth rate itself is climbing, quarter after quarter.",
+   "facts": [
+    "f29",
+    "f43",
+    "f47",
+    "f53",
+    "f56",
+    "f57"
+   ],
+   "wrong": {
+    "EPS sets a record each quarter": "Records can come with slowing growth. A bigger number each quarter isn't the same as faster growth.",
+    "EPS beats estimates each quarter": "That's a beat streak. It measures results against forecasts, not the growth rate.",
+    "The stock rises after reports": "That's the price reaction. Acceleration is about the earnings numbers themselves."
+   },
+   "simple": "It means the growth rate itself climbs each quarter, not just that earnings keep getting bigger.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q05",
+   "skill": "fund.growth",
+   "rung": 2,
+   "format": "tf",
+   "q": "A low P/E on its own tells you a stock is a bargain.",
+   "answer": "False",
+   "why": "False. Investopedia says the bargain is an illusion if the P/E is low because the business is declining. Disnat sums up O'Neil's view: cheap stocks are usually cheap for a reason. On the other side, Bulkowski's study found stocks with P/Es below the median beat higher-P/E stocks 71% of the time. So a low P/E is a clue to check, not a verdict.",
+   "lesson_line": "A low P/E is a question, not an answer. Ask why it's low.",
+   "facts": [
+    "f13",
+    "f41",
+    "f52"
+   ],
+   "simple": "False. A low price-to-earnings ratio can come from a business in decline, so on its own it does not prove a bargain.",
+   "deeper": {
+    "counter": "Both sides hold at once. In Bulkowski's study, stocks with P/Es below the median beat higher-P/E stocks 71% of the time. But for one stock, the P/E can be low because the business is declining, and then the bargain is an illusion. Ask why the P/E is low before you call it cheap."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the why and deeper quote Bulkowski (f52), whose AI-use notice is part of the held F5 sourcing policy; the key stands on Investopedia and Disnat"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q06",
+   "skill": "fund.growth",
+   "rung": 3,
+   "format": "mcq",
+   "q": "A stock trades at a high P/E. What does that usually tell you?",
+   "choices": [
+    "Buyers expect strong growth",
+    "The company earns a lot per share",
+    "The stock is due to fall",
+    "The share price itself is high"
+   ],
+   "answer": "Buyers expect strong growth",
+   "why": "Buyers expect strong growth. Nasdaq's glossary says a higher multiple means investors expect more future growth and have bid up the price. Investopedia adds that a high P/E could also mean the stock is overvalued. It does not mean the company earns a lot per share, and it does not time a fall. P/E is the price divided by earnings per share, not the price alone.",
+   "lesson_line": "A high P/E is the price of expected growth. Then the growth has to show up.",
+   "facts": [
+    "f03",
+    "f11",
+    "f01"
+   ],
+   "wrong": {
+    "The company earns a lot per share": "It's the other way round. A high P/E means the price is high for each dollar of earnings.",
+    "The stock is due to fall": "A high P/E doesn't time anything. It can mean overvalued, or it can mean high growth expected.",
+    "The share price itself is high": "P/E is the price divided by EPS. A low-priced stock can still have a high P/E if its earnings are tiny."
+   },
+   "simple": "Buyers expect strong growth, so they have bid the price up to many times what the company earns now.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q07",
+   "skill": "fund.growth",
+   "rung": 3,
+   "format": "tf",
+   "q": "When a company is losing money, its P/E shows as N/A.",
+   "answer": "True",
+   "why": "True. P/E divides the price by earnings per share. Investopedia says a company with no earnings, or one losing money, has no P/E. There is nothing to put in the denominator, so it shows as N/A. Fidelity points to price-to-sales in place of the P/E when a company has a net loss. A P/E filter can quietly drop these companies.",
+   "lesson_line": "No earnings, no P/E. A P/E filter can quietly drop companies still losing money.",
+   "facts": [
+    "f12",
+    "f14",
+    "f36"
+   ],
+   "simple": "True. A company losing money has nothing to put under the price, so it has no price-to-earnings ratio to show.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q08",
+   "skill": "fund.growth",
+   "rung": 3,
+   "format": "mcq",
+   "q": "What did O'Neil's study of big stock market winners find before their big price runs?",
+   "choices": [
+    "Sharp quarterly EPS gains",
+    "Unusually low P/E ratios",
+    "Rising dividend payouts",
+    "Slow and steady EPS growth"
+   ],
+   "answer": "Sharp quarterly EPS gains",
+   "why": "Sharp quarterly EPS gains. Disnat reports O'Neil's study of the 500 top performers from 1953 to 1993. Three-quarters showed quarterly earnings gains of at least 70% before the big move. Stockopedia agrees that winning stocks generally showed strong quarterly EPS before their run-ups. Low P/Es, dividends and slow, steady growth are not what the study found.",
+   "lesson_line": "The biggest winners usually showed the earnings first. That's why a growth screen starts there.",
+   "facts": [
+    "f39",
+    "f48",
+    "f49",
+    "f27",
+    "f06"
+   ],
+   "wrong": {
+    "Unusually low P/E ratios": "That's not what O'Neil looks for. In his view, stocks that seem cheap often go even lower.",
+    "Rising dividend payouts": "Growth stocks generally don't pay dividends. The study found earnings gains, not payouts.",
+    "Slow and steady EPS growth": "Three-quarters of the winners showed quarterly gains of at least 70%. That is a jump, not a slow climb."
+   },
+   "simple": "Sharp quarterly EPS gains. Most of O'Neil's top winners showed large earnings gains before their big price runs.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q09",
+   "skill": "fund.growth",
+   "rung": 4,
+   "format": "mcq",
+   "q": "EPS was $0.60 in the June quarter last year. This June quarter it's $0.84. What's the year-over-year EPS growth?",
+   "answer": "40%",
+   "calc": {
+    "fn": "yoy_growth",
+    "args": {
+     "prior": 0.6,
+     "current": 0.84
+    }
+   },
+   "suffix": "%",
+   "why": "40%. Growth is the change divided by the starting value. Take the change from $0.60 to $0.84 and divide it by the starting $0.60. That is 40%. Both numbers are the June quarter, a year apart, which is the same-quarter comparison O'Neil uses.",
+   "lesson_line": "Growth is the change over the starting value. Same quarter, a year apart.",
+   "facts": [
+    "f04",
+    "f28",
+    "f37"
+   ],
+   "simple": "40%. You divide the rise from $0.60 to $0.84 by the starting $0.60.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "tomcq",
+   "choices": [
+    "140%",
+    "29%",
+    "24%",
+    "40%"
+   ],
+   "wrong": {
+    "29%": "You divided the rise by the new $0.84 instead of the starting $0.60.",
+    "24%": "You read the 24-cent rise as 24%.",
+    "140%": "You divided the new EPS by the old and forgot to subtract one."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "fund.growth",
+   "rung": 4,
+   "format": "mcq",
+   "q": "A stock trades at $90. Its EPS over the last 12 months is $3. What's its P/E?",
+   "answer": "30",
+   "calc": {
+    "fn": "pe",
+    "args": {
+     "price": 90,
+     "eps": 3
+    }
+   },
+   "why": "30. P/E is the share price divided by earnings per share over the last 12 months: $90 over $3 is 30. Investopedia reads it this way: at 20x, investors pay $20 for $1 of current earnings. So at 30, buyers pay $30 for each $1 of yearly earnings.",
+   "lesson_line": "P/E is the price over the last 12 months of EPS.",
+   "facts": [
+    "f01",
+    "f02",
+    "f32",
+    "f17"
+   ],
+   "simple": "30. Divide the $90 price by the $3 of yearly EPS, so buyers pay $30 for each $1 of earnings.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "cards-2026-11-15",
+   "choices": [
+    "93",
+    "270",
+    "30",
+    "0.03"
+   ],
+   "wrong": {
+    "270": "You multiplied the price by the EPS instead of dividing.",
+    "93": "You added the price and the EPS instead of dividing.",
+    "0.03": "You flipped it and divided the EPS by the price."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The P/E",
+    "rows": [
+     {
+      "key": "price",
+      "label": "Price",
+      "value": 90,
+      "fmt": "$"
+     },
+     {
+      "key": "eps,_last_12_months",
+      "label": "EPS, last 12 months",
+      "value": 3,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "P/E",
+     "as": "times"
+    }
+   }
+  },
+  {
+   "key": "q11",
+   "skill": "fund.growth",
+   "rung": 4,
+   "format": "scenario",
+   "story": "Four names on a growth screen. Each row shows EPS growth for the last three quarters, oldest first.",
+   "q": "Which one is accelerating?",
+   "choices": [
+    "AXLR: 60%, 45%, 30%",
+    "BVTO: 15%, 22%, 31%",
+    "CRLN: 40%, 40%, 40%",
+    "DYNM: 10%, 55%, 12%"
+   ],
+   "answer": "BVTO: 15%, 22%, 31%",
+   "why": "BVTO. Accelerating means the growth rate itself rises, quarter after quarter: 15%, then 22%, then 31%. CFI calls accelerating EPS growth a strong positive sign in O'Neil's method. AXLR has the biggest numbers, but each is lower than the last, so it is slowing. CRLN is steady, which is strong but not speeding up. DYNM jumped once and fell back, a spike and not a trend.",
+   "lesson_line": "Read the direction of the growth rate, not just its size.",
+   "facts": [
+    "f29",
+    "f43",
+    "f47"
+   ],
+   "wrong": {
+    "AXLR: 60%, 45%, 30%": "Big numbers, but each quarter is slower than the last. That's deceleration.",
+    "CRLN: 40%, 40%, 40%": "Strong and steady, but steady isn't speeding up.",
+    "DYNM: 10%, 55%, 12%": "One big quarter, then back down. That's a spike, not a trend."
+   },
+   "simple": "BVTO, because its growth rate climbs every quarter, from 15% to 22% to 31%.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "review3"
+  },
+  {
+   "key": "q12",
+   "skill": "fund.growth",
+   "rung": 5,
+   "format": "mcq",
+   "q": "A stock is $100 with EPS of $2, a P/E of 50. A year later EPS is $4 and the price is still $100. What's the P/E now?",
+   "answer": "25",
+   "calc": {
+    "fn": "pe",
+    "args": {
+     "price": 100,
+     "eps": 4
+    }
+   },
+   "why": "25. P/E is price divided by EPS: $100 over $4 is 25. The price did not move, but earnings doubled from $2 to $4, so the P/E fell from 50 to 25. That's how a fast grower can grow into a high P/E. Investopedia notes a high P/E can turn out cheap if the company keeps growing fast. It works only if the growth shows up.",
+   "lesson_line": "Fast earnings growth pulls a high P/E down, even when the price stands still.",
+   "facts": [
+    "f23",
+    "f01",
+    "f31"
+   ],
+   "simple": "25. The price stayed at $100 while EPS doubled to $4, so the price-to-earnings ratio fell by half.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "cards-2026-11-15",
+   "choices": [
+    "400",
+    "50",
+    "104",
+    "25"
+   ],
+   "wrong": {
+    "50": "You kept the old EPS of $2, so the P/E never changed.",
+    "104": "You added the price and the new EPS instead of dividing.",
+    "400": "You multiplied the price by the EPS instead of dividing."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The P/E a year later",
+    "rows": [
+     {
+      "key": "price",
+      "label": "Price",
+      "value": 100,
+      "fmt": "$"
+     },
+     {
+      "key": "eps_a_year_ago",
+      "label": "EPS a year ago",
+      "value": 2,
+      "fmt": "$"
+     },
+     {
+      "key": "eps_now",
+      "label": "EPS now",
+      "value": 4,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "P/E now",
+     "as": "times"
+    }
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "fund.growth",
+   "rung": 5,
+   "format": "scenario",
+   "story": "Two stocks on a growth screen both grew EPS 40% from a year ago. KRVT's sales grew 35%. MBLX's sales fell 2%.",
+   "q": "Whose EPS growth looks more solid?",
+   "choices": [
+    "KRVT, real sales growth backs it",
+    "MBLX, it made more profit per share",
+    "Same, a 40% jump is a 40% jump",
+    "Neither, 40% is too low a jump"
+   ],
+   "answer": "KRVT, real sales growth backs it",
+   "why": "KRVT's. Its earnings growth rides on sales growth, so customers are buying more. Fidelity notes sales are much harder to manipulate than earnings. Investopedia notes earnings come from the company itself and could be shaped. O'Neil's method looks for strong sales as well as improving earnings. MBLX grew EPS while its sales fell, so the jump did not come from more demand. Trader's read: check the sales line before you trust an EPS jump.",
+   "lesson_line": "Check the sales line behind every EPS jump. Earnings are easier to shape than sales.",
+   "facts": [
+    "f35",
+    "f18",
+    "f09",
+    "f50",
+    "f26",
+    "f06",
+    "f38",
+    "f42"
+   ],
+   "wrong": {
+    "MBLX, it made more profit per share": "Earning more on shrinking sales says nothing about demand growing. Earnings are easier to shape than sales, and O'Neil's method wants strong sales too.",
+    "Same, a 40% jump is a 40% jump": "EPS can rise without customers buying more. Sales show whether the business itself is growing.",
+    "Neither, 40% is too low a jump": "40% clears every version of O'Neil's quarterly floor, from 18-20% up to 25%. The real question is what backs it."
+   },
+   "simple": "KRVT, because its profit growth is backed by real sales growth, and sales are harder to dress up than earnings.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "review3"
+  },
+  {
+   "key": "q14",
+   "skill": "fund.growth",
+   "rung": 5,
+   "format": "tf",
+   "q": "A stock's trailing P/E is built on analysts' estimates for next year's earnings.",
+   "answer": "False",
+   "why": "False. Investopedia says the trailing P/E divides the share price by the total EPS of the previous 12 months, so it looks back. Nasdaq's glossary uses the past 12 months too. The P/E built on future earnings guidance is the forward, or leading, P/E.",
+   "lesson_line": "Trailing P/E looks back 12 months. Forward P/E leans on forecasts.",
+   "facts": [
+    "f02",
+    "f15",
+    "f16"
+   ],
+   "simple": "False. The trailing ratio uses the last 12 months of actual earnings, and the forward ratio is the one built on forecasts.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q15",
+   "skill": "fund.growth",
+   "rung": 6,
+   "format": "mcq",
+   "q": "A stock's P/E is 30. Its EPS is expected to grow 20% a year. What's its PEG ratio?",
+   "answer": "1.5",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "pe / growth",
+     "pe": 30,
+     "growth": 20
+    }
+   },
+   "why": "1.5. PEG is the P/E divided by the earnings growth rate: 30 over 20 is 1.5. Fidelity says a PEG of 1 or less is typically read as undervalued. Investopedia warns PEG can be unreliable for cyclical stocks and high-growth tech firms. It is a rough check, not a verdict.",
+   "lesson_line": "PEG puts growth back into the P/E. A lower PEG means less paid per point of growth.",
+   "facts": [
+    "f20",
+    "f33",
+    "f34",
+    "f22"
+   ],
+   "simple": "1.5. You divide the price-to-earnings ratio of 30 by the growth rate of 20.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "cards-2026-11-15",
+   "choices": [
+    "1.5",
+    "0.15",
+    "0.30",
+    "0.67"
+   ],
+   "wrong": {
+    "0.67": "You flipped it and divided the growth rate by the P/E.",
+    "0.15": "A decimal slip: you moved the point one place.",
+    "0.30": "You moved the P/E point two places instead of dividing by the growth rate."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The PEG ratio",
+    "rows": [
+     {
+      "key": "p/e",
+      "label": "P/E",
+      "value": 30,
+      "fmt": "count"
+     },
+     {
+      "key": "eps_growth,_a_year",
+      "label": "EPS growth, a year",
+      "value": 20,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "PEG ratio",
+     "as": "num"
+    }
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "fund.growth",
+   "rung": 6,
+   "format": "scenario",
+   "story": "Two made-up stocks. ZBRN trades at 15 times earnings, with EPS growing 5% a year. ZVLT trades at 45 times earnings, with EPS growing 45% a year.",
+   "q": "Measured against its growth, which one is pricier?",
+   "choices": [
+    "ZBRN, the slow grower, PEG 3",
+    "ZVLT, the fast grower, PEG 1",
+    "They cost about the same",
+    "Can't tell without share prices"
+   ],
+   "answer": "ZBRN, the slow grower, PEG 3",
+   "why": "ZBRN. PEG is the P/E divided by the growth rate, so it shows what you pay per point of growth. ZBRN: 15 over 5 is 3. ZVLT: 45 over 45 is 1. Fidelity says a PEG of 1 or less is typically read as undervalued. ZBRN looks cheaper on P/E alone, but its growth is too slow to justify even that, the point Investopedia's own example makes. PEG is a rough check and can mislead on high-growth tech.",
+   "lesson_line": "A low P/E with slow growth can cost more per point of growth than a high P/E.",
+   "facts": [
+    "f21",
+    "f20",
+    "f33",
+    "f34",
+    "f22",
+    "f01"
+   ],
+   "wrong": {
+    "They cost about the same": "Against growth they are far apart: a PEG of 3 for ZBRN, 1 for ZVLT.",
+    "ZVLT, the fast grower, PEG 1": "Its P/E is higher, but so is its growth. Against growth, ZVLT's PEG is 1 and ZBRN's is 3.",
+    "Can't tell without share prices": "PEG needs only the P/E and the growth rate. The share price is already inside the P/E."
+   },
+   "simple": "ZBRN is pricier. Its PEG is 3, against 1 for ZVLT, so you pay more for each point of growth.",
+   "deeper": {
+    "trap": "PEG is only as good as the growth number you feed it. Investopedia warns it can be unreliable for cyclical stocks and high-growth tech firms. ZVLT's PEG of 1 assumes its 45% growth keeps coming. If that forecast is too high, ZVLT is pricier than it looks. Use PEG to compare two stocks, never as a buy signal on its own."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (checker 2026-11-09)"
+    ]
+   },
+   "batch": "cards-2026-11-15",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "pe / growth",
+     "pe": 15,
+     "growth": 5
+    }
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Two PEG ratios",
+    "rows": [
+     {
+      "key": "zbrn,_p/e",
+      "label": "ZBRN, P/E",
+      "value": 15,
+      "fmt": "count"
+     },
+     {
+      "key": "zbrn,_eps_growth",
+      "label": "ZBRN, EPS growth",
+      "value": 5,
+      "fmt": "%"
+     },
+     {
+      "key": "zvlt,_p/e",
+      "label": "ZVLT, P/E",
+      "value": 45,
+      "fmt": "count"
+     },
+     {
+      "key": "zvlt,_eps_growth",
+      "label": "ZVLT, EPS growth",
+      "value": 45,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "ZBRN's PEG",
+     "as": "num"
+    }
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "fund.growth",
+   "rung": 6,
+   "format": "scenario",
+   "story": "Four rows on a growth screen, latest quarter. KLZR: EPS up 12% from a year ago, up 45% from last quarter. MWRN: EPS up 38% from a year ago. TPLX: EPS up 16% from a year ago. YRDN: sales up 40% from a year ago, EPS flat.",
+   "q": "Which one clears O'Neil's quarterly EPS test?",
+   "choices": [
+    "KLZR, up 45% from last quarter",
+    "MWRN, up 38% from a year ago",
+    "TPLX, up 16% from a year ago",
+    "YRDN, sales up 40% from a year ago"
+   ],
+   "answer": "MWRN, up 38% from a year ago",
+   "why": "MWRN. O'Neil's C test compares this quarter's EPS with the same quarter a year ago. The floor depends on the version: Disnat says no less than 18-20%, CFI at least 25%, Investopedia over 25%. MWRN's 38% clears every one. KLZR is up only 12% on a year ago; its 45% is against last quarter. TPLX's 16% is under every version. YRDN's sales grew, but the C test reads EPS, and YRDN's EPS was flat.",
+   "lesson_line": "Measure against the same quarter a year ago, then hold it up to the floor.",
+   "facts": [
+    "f06",
+    "f38",
+    "f42",
+    "f37"
+   ],
+   "wrong": {
+    "KLZR, up 45% from last quarter": "That 45% is against last quarter. Against a year ago KLZR is up only 12%, under the floor.",
+    "TPLX, up 16% from a year ago": "16% is under every version of the floor, from 18-20% up to 25%.",
+    "YRDN, sales up 40% from a year ago": "The C test is about EPS, not sales. YRDN's EPS was flat against a year ago, so it fails."
+   },
+   "simple": "MWRN, because its EPS is up 38% on the same quarter a year ago, which clears every version of O'Neil's floor.",
+   "deeper": {
+    "trap": "Two traps sit in this screen. KLZR's 45% is real, but it is against last quarter, not a year ago, so it is not the C test. YRDN's sales are strong, and sales matter, but the C test reads EPS. A row has to pass on the right number before anything else counts."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "O'Neil's floor differs by edition and source (see conflicts); keyed only where every version agrees"
+    ]
+   },
+   "batch": "review3"
+  },
+  {
+   "key": "q18",
+   "skill": "fund.growth",
+   "rung": 7,
+   "format": "scenario",
+   "story": "NVIDIA's year-over-year revenue growth over its four reports for fiscal 2025: 262%, 122%, 94%, 78%.",
+   "q": "Against the same quarter a year earlier, what did NVIDIA's revenue do in those reports?",
+   "choices": [
+    "It rose every time",
+    "It fell every time",
+    "It rose, then fell",
+    "It doubled every time"
+   ],
+   "answer": "It rose every time",
+   "why": "It rose every time. A year-over-year growth rate above zero means revenue beat the same quarter a year before. All four were far above zero: 262%, 122%, 94% and 78%. The rate fell each report, but the revenue did not. Each was also a record: $26.0 billion, $30.0 billion, $35.1 billion, then $39.3 billion. Slowing growth is not shrinking.",
+   "lesson_line": "Slowing growth isn't shrinking. Read the rate and the dollars.",
+   "facts": [
+    "f53",
+    "f54",
+    "f55",
+    "f56",
+    "f57",
+    "f28"
+   ],
+   "wrong": {
+    "It fell every time": "A smaller growth rate is still growth. Every number here is above zero.",
+    "It rose, then fell": "The rate fell, not the revenue. Even the last report was up 78%.",
+    "It doubled every time": "Not every time. The last two reports were up 94% and 78%, short of a double."
+   },
+   "simple": "It rose every time, because every growth rate was above zero, so each quarter beat the same quarter a year before.",
+   "deeper": {
+    "trap": "The trap is reading the falling rate as falling revenue. From 262% down to 78% looks like a collapse. But 78% growth still means revenue was far above the same quarter a year earlier. The rate tells you the direction of growth. The dollars tell you the size. Here the dollars set a record each time."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q19",
+   "skill": "fund.growth",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Revenue growth, year over year, four reports each. Palantir in 2024: 21%, 27%, 30%, 36%. NVIDIA, fiscal year to January 2025: 262%, 122%, 94%, 78%.",
+   "q": "Which company's growth was accelerating?",
+   "choices": [
+    "Palantir only",
+    "NVIDIA only",
+    "Both of them",
+    "Neither of them"
+   ],
+   "answer": "Palantir only",
+   "why": "Palantir only. Acceleration means the growth rate itself climbs. Palantir's rose every report: 21%, 27%, 30%, then 36%. NVIDIA's numbers were far bigger, but each was smaller than the last, from 262% down to 78%. Revenue rose at both companies. Only one was speeding up.",
+   "lesson_line": "Big growth and speeding-up growth are different things. Read the direction.",
+   "facts": [
+    "f58",
+    "f59",
+    "f60",
+    "f61",
+    "f53",
+    "f54",
+    "f55",
+    "f56",
+    "f43",
+    "f08"
+   ],
+   "wrong": {
+    "NVIDIA only": "Its growth was bigger, but it slowed every report, from 262% to 78%. That's deceleration.",
+    "Both of them": "Revenue rose at both, but acceleration means the growth rate climbs. Only Palantir's did.",
+    "Neither of them": "Palantir's rate rose every report, from 21% to 36%. Smaller numbers can still be speeding up."
+   },
+   "simple": "Palantir only, because its growth rate rose every report while NVIDIA's, though far bigger, fell each time.",
+   "deeper": {
+    "trap": "Big growth and speeding-up growth are different things. NVIDIA's slowest report, 78%, beat Palantir's fastest, 36%. Yet O'Neil's method looks for growth that speeds up. Investopedia warns that any slowing in the growth trajectory can get a CAN SLIM stock punished. Read the direction first, then the size."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q20",
+   "skill": "fund.growth",
+   "rung": 7,
+   "format": "tf",
+   "q": "Once a stock passes O'Neil's earnings tests, the market's direction matters much less.",
+   "answer": "False",
+   "why": "False. CFI reports O'Neil's own point. A stock may satisfy the first six CAN SLIM factors and still sink if the market is on a decline. CFI adds that these stocks typically drop the fastest when the market turns. Investopedia agrees they can fall fast. Strong numbers put a stock on the list. The market still decides.",
+   "lesson_line": "Strong numbers get a stock on the list. They don't promise a move, and the market still decides.",
+   "facts": [
+    "f45",
+    "f46",
+    "f10"
+   ],
+   "simple": "False. A stock can pass O'Neil's tests and still sink when the whole market falls.",
+   "deeper": {
+    "trap": "The trap is thinking great numbers protect a stock. CFI says the stocks that pass CAN SLIM are typically the ones that drop the fastest when market direction shifts. So passing the tests is no shield in a falling market. Check the market's direction before you trust any single stock's numbers."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q21",
+   "skill": "fund.growth",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Palantir's Q2 2024 report: GAAP EPS grew 500% year over year, to $0.06 from $0.01. Net income was $134 million, up from $28 million. Its Q1 report was the sixth straight GAAP-profitable quarter.",
+   "q": "How should a trader read that 500%?",
+   "choices": [
+    "Tiny $0.01 base, but real profit",
+    "It means nothing, it came off one cent",
+    "Sales must have grown just as fast",
+    "It proves growth is speeding up"
+   ],
+   "answer": "Tiny $0.01 base, but real profit",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "current / (1 + growth / 100)",
+     "current": 0.06,
+     "growth": 500
+    }
+   },
+   "why": "Both halves matter. The 500% came off just $0.01 a year earlier, so a gain of a few cents reads as a huge percent. Investopedia notes growth rates ignore the amounts involved. But the profit behind it is real. Net income attributable to common stockholders rose from about $28 million to $134 million, a 20% margin. Palantir's Q1 report was its sixth straight GAAP-profitable quarter, so this is steady profit, not a one-off. Adjusted EPS grew 80% and revenue grew 27% the same quarter, so the story rests on more than one cent.",
+   "lesson_line": "A huge percent off a tiny base is inflated. Real, growing profit is the real news.",
+   "facts": [
+    "f62",
+    "f63",
+    "f64",
+    "f59",
+    "f58",
+    "f67",
+    "f68",
+    "f30",
+    "f29"
+   ],
+   "wrong": {
+    "Sales must have grown just as fast": "Revenue grew 27%. EPS off a tiny base can jump far faster than sales.",
+    "It means nothing, it came off one cent": "The base was tiny, but the profit behind it is real. Net income rose from about $28 million to $134 million.",
+    "It proves growth is speeding up": "One year-over-year number can't show a trend. Acceleration means the growth rate climbs over several quarters."
+   },
+   "simple": "Tiny base, one cent, so the 500% is inflated. But net income rose to $134 million, so the profit is real.",
+   "deeper": {
+    "trap": "Percent growth explodes off a tiny base. Investopedia's own example: earnings growing from $100,000 to $150,000 is 50% growth but only a $50,000 change. Here the base was $0.01, so almost any gain looks huge. Do not stop at the percent, and do not throw it out either. Look at the dollars: a turn from thin profit to steady profit, with sales growing, is what a trader acts on."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key (calc recovers the $0.01 base)"
+    ]
+   },
+   "batch": "review3"
+  },
+  {
+   "key": "q22",
+   "skill": "fund.growth",
+   "rung": 8,
+   "format": "scenario",
+   "story": "A stock trades at 80 times earnings. Its EPS growth over the last three quarters ran 70%, 85%, then 110%. Sales are up 60%.",
+   "q": "A friend says the P/E is too high to touch. What's the best read?",
+   "choices": [
+    "The P/E alone doesn't settle it",
+    "Pass, 80 times earnings is too high",
+    "Skip, growth this fast can't last",
+    "It depends on the share price"
+   ],
+   "answer": "The P/E alone doesn't settle it",
+   "why": "The P/E alone doesn't settle it. Investopedia notes growth stocks often look expensive at a high P/E, but can prove cheap if the company keeps growing fast. Here EPS growth is speeding up, from 70% to 85% to 110%, and sales are up 60%. CFI calls accelerating EPS growth a strong positive sign. The risk is that growth slows, and then the price can fall sharply. So judge the P/E against the growth, and keep watching the growth.",
+   "lesson_line": "Judge a high P/E against the growth behind it, and keep watching that growth.",
+   "facts": [
+    "f23",
+    "f03",
+    "f24",
+    "f43",
+    "f01"
+   ],
+   "wrong": {
+    "Pass, 80 times earnings is too high": "That judges the price without the growth. Fast growers often trade at high P/Es.",
+    "Skip, growth this fast can't last": "Nothing here shows slowing. Growth sped up each quarter. The risk is a slowdown you watch for, not one you assume.",
+    "It depends on the share price": "The share price is already inside the P/E. What a high P/E needs is the growth behind it."
+   },
+   "simple": "The price-to-earnings ratio alone doesn't settle it, because fast growth can make a high price cheap later if it keeps up.",
+   "deeper": {
+    "trap": "A high P/E is a bet that the growth continues. Here the bet looks well backed: EPS growth rose from 70% to 110% and sales grew 60%. The time to worry is when that growth rate starts to fall, because buyers paid for fast growth. Watch the trend of the growth rate, not just the P/E."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q23",
+   "skill": "fund.growth",
+   "rung": 9,
+   "format": "scenario",
+   "story": "You own a growth stock at about 70 times earnings. EPS growth over the last three quarters: 90%, 60%, then 35%.",
+   "q": "How do you read these numbers?",
+   "choices": [
+    "Growth is slowing under a rich price",
+    "Nothing, 35% still clears O'Neil's bar",
+    "EPS is now lower than last year",
+    "The high P/E promises more growth"
+   ],
+   "answer": "Growth is slowing under a rich price",
+   "why": "Growth is slowing under a rich price. EPS is still up 35%, but the rate fell from 90% to 60% to 35%. A high P/E means buyers expect strong growth. Investopedia notes any slowing in the growth trajectory can get a CAN SLIM stock punished. If growth slows, the price can fall sharply. 35% still clears O'Neil's floor, but the floor is not the issue here. The trend is.",
+   "lesson_line": "Slowing growth under a high P/E is a warning, even when the latest number still looks good.",
+   "facts": [
+    "f03",
+    "f08",
+    "f24",
+    "f06"
+   ],
+   "wrong": {
+    "Nothing, 35% still clears O'Neil's bar": "It clears O'Neil's floor, but the trend is down hard. The price was set for faster growth.",
+    "EPS is now lower than last year": "EPS is still growing 35%. It's the growth rate that is falling.",
+    "The high P/E promises more growth": "A high P/E is what buyers expect, not what the company will deliver. If growth slows, the price can fall sharply."
+   },
+   "simple": "Growth is slowing under a rich price, and buyers paid that high multiple for faster growth than this.",
+   "deeper": {
+    "counter": "Slowing growth is a warning, not proof the stock will fall. The sources say a slowing stock can be punished, not that it must be. What changed is the risk: buyers are paying about 70 times earnings while growth ran 90%, then 60%, now 35%. If the next report slows again, the warning gets louder."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the wrong notes lean on O'Neil's floor, which differs by edition (see conflicts)",
+     "fixed before (checker 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q24",
+   "skill": "fund.growth",
+   "rung": 9,
+   "format": "scenario",
+   "story": "You build a stock screen that only keeps stocks with a P/E under 20.",
+   "q": "What kind of future winner can that screen miss?",
+   "choices": [
+    "Fast growers with a high or no P/E",
+    "Only overpriced stocks, no loss",
+    "Companies with falling sales",
+    "Growers under 20 times earnings"
+   ],
+   "answer": "Fast growers with a high or no P/E",
+   "why": "Fast growers with a high or no P/E. Investopedia notes growth stocks may have low or even negative earnings, often making them high P/E stocks. A company losing money has no P/E, so a P/E filter drops it. Nasdaq's glossary says a high multiple reflects buyers' growth hopes, and Fidelity points to price-to-sales when there is a net loss. Bulkowski found P/E almost meaningless for finding 10-baggers, because many were unprofitable.",
+   "lesson_line": "A cheap-P/E filter can screen out tomorrow's leaders. That's why a growth screen starts with growth.",
+   "facts": [
+    "f25",
+    "f12",
+    "f51",
+    "f23",
+    "f03",
+    "f36",
+    "f14",
+    "f13"
+   ],
+   "wrong": {
+    "Only overpriced stocks, no loss": "A high P/E isn't proof of overpricing. Fast growth can make a high P/E cheap later.",
+    "Companies with falling sales": "That screen can let those in. A low P/E can come from a business in decline.",
+    "Growers under 20 times earnings": "A P/E under 20 passes this screen, so those stay in. A filter can only miss what it throws out."
+   },
+   "simple": "Fast growers, because they often trade at high multiples of earnings, and money-losing ones have no price-to-earnings ratio at all.",
+   "deeper": {
+    "trap": "A P/E cap looks like risk control, but it works against a growth hunt. Growth stocks often trade at high P/Es, and the ones still losing money have no P/E. Both kinds fall out of a screen that keeps only P/Es under 20. Lead with growth, then read the P/E as context."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the why quotes Bulkowski (f51), whose AI-use notice is part of the held F5 sourcing policy; the key now also stands on Nasdaq (f03) and Fidelity (f36)"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q25",
+   "skill": "fund.growth",
+   "rung": 3,
+   "format": "mcq",
+   "term": "PEG ratio",
+   "q": "What is a stock's PEG ratio?",
+   "choices": [
+    "The P/E divided by the EPS growth rate",
+    "The share price divided by the EPS",
+    "The EPS growth divided by the P/E",
+    "The P/E times the EPS growth rate"
+   ],
+   "answer": "The P/E divided by the EPS growth rate",
+   "simple": "PEG takes the price-to-earnings ratio and divides it by the earnings growth rate, so growth becomes part of the check.",
+   "why": "The P/E divided by the EPS growth rate. Investopedia and Fidelity both define PEG that way. It puts growth back into the P/E, which on its own ignores future growth. Fidelity notes a PEG of 1 or less is typically read as undervalued. Investopedia warns it can be unreliable for cyclical stocks and high-growth tech firms.",
+   "lesson_line": "PEG is the P/E divided by the growth rate. It is a rough check, never a verdict on its own.",
+   "facts": [
+    "f20",
+    "f33",
+    "f19",
+    "f34",
+    "f22",
+    "f01"
+   ],
+   "wrong": {
+    "The share price divided by the EPS": "That's the P/E itself. PEG takes that P/E and divides it by the growth rate.",
+    "The EPS growth divided by the P/E": "That's upside down. The P/E goes on top, and the growth rate goes underneath.",
+    "The P/E times the EPS growth rate": "PEG divides, it does not multiply. The P/E goes on top, and the growth rate goes underneath."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "new in wave6: teaches the PEG definition that q15 and q16 rely on"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q26",
+   "skill": "fund.growth",
+   "rung": 7,
+   "format": "tf",
+   "house": true,
+   "q": "Under our rule, strong sales and earnings growth can make up for a weak chart.",
+   "answer": "False",
+   "simple": "False. We prefer growing sales and earnings, but the chart comes first, so the numbers never stand in for it.",
+   "why": "False. Our rule is to prefer stocks with growing sales and earnings, but the chart comes first. Strong numbers help you choose. They do not stand in for the chart.",
+   "lesson_line": "Our rule: the chart comes first. Growing sales and earnings are what we prefer behind it.",
+   "facts": [
+    "f66"
+   ],
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "house rule D40 asked as ours; the owner approves the wording"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q91",
+   "skill": "fund.growth",
+   "rung": 4,
+   "format": "mcq",
+   "q": "O'Neil says stocks that seem too high-priced and risky most often do what?",
+   "choices": [
+    "Keep going even higher",
+    "Fall back to a lower price",
+    "Stall, then go sideways",
+    "Split their stock soon"
+   ],
+   "answer": "Keep going even higher",
+   "why": "Keep going even higher. This is one of O'Neil's trading principles, as Stockopedia reports it. Stocks that seem too high-priced and risky most often go even higher, while stocks that seem cheap often go even lower. Disnat's summary agrees that cheap stocks are usually cheap for a reason. Investopedia notes growth stocks often look expensive at a high P/E, yet can prove cheap if growth continues. So do not skip a stock only because its price or P/E looks high. Check the growth behind it. It is a tendency, not a guarantee.",
+   "lesson_line": "O'Neil: what looks too high-priced often goes higher, and what looks cheap often goes lower.",
+   "facts": [
+    "f49",
+    "f41",
+    "f23"
+   ],
+   "wrong": {
+    "Fall back to a lower price": "That's the opposite of what O'Neil says. He says the too-high-priced stocks most often go even higher.",
+    "Stall, then go sideways": "O'Neil's point is about direction. Stocks that seem too high-priced most often go even higher.",
+    "Split their stock soon": "A split is not part of O'Neil's point. He says these stocks most often go even higher."
+   },
+   "simple": "They go even higher. O'Neil says stocks that seem too high-priced most often rise further, and cheap-looking ones often fall further.",
+   "tier": "core",
+   "batch": "review3"
+  }
+ ],
+ "conflicts": [
+  "O'Neil's floor for quarterly EPS growth differs by source: Investopedia (s12) 'over 25%', CFI (s19) 'at least 25%', Disnat (s18) 'no less than 18-20%' (most likely an earlier edition of his book; not verified against the book itself), and Stockopedia (s20) uses '>= 20%' as an illustrative screen and notes the book has had several editions. The file never keys one number: it says 'from 18-20% to 25%, depending on the version' and only asks cases that pass or fail under every version (q17: 38% passes, 16% and 12% fail; q23: 35% clears it).",
+  "P/E: Bulkowski's own P/E study (s22: 178 stocks, Value Line data, base years 1992 to 2006, 1- to 5-year holds, which he calls preliminary) found low-P/E stocks outperformed high-P/E stocks 71% of the time, the classic value finding. O'Neil's view (s18, s20) is that cheap stocks are usually cheap for a reason. The file keys neither 'low P/E wins' nor 'P/E doesn't matter'. It keys only what both sides accept: a P/E alone does not decide (q05, q22), a high P/E reflects growth expectations (Nasdaq, q06), a company with losses has no P/E (q07), and a P/E filter can miss fast growers (q24, which Bulkowski's own 10-bagger study s21 supports). q05's why gives Bulkowski's 71% so the member hears both halves.",
+  "PEG: Fidelity (s17) says a PEG of 1 or less 'is typically taken to indicate' undervalued; Investopedia (s14) warns PEG 'can be unreliable for cyclical stocks and high-growth tech firms'. The file teaches PEG as arithmetic and as a rough comparison (q15, q16) and never keys 'PEG under 1 means buy'.",
+  "Sales: O'Neil's later-edition sales rule (same-quarter sales up more than 25%, or accelerating over the last three quarters) appears only on Stockopedia (s20) among pages a plain client can read (AAII's pages refuse it with a bot check; IBD's are paywalled). The number is not keyed or stated; sales are taught as 'check that sales grew too', which Nasdaq, Investopedia, Fidelity and Stockopedia all support.",
+  "IBD / investors.com (O'Neil's own publisher, Tier 2) was the first choice for the CAN SLIM numbers, but its pages show only a paywalled stub to a plain client (the IBD University 'history' page Investopedia cites redirects to the same stub), so a quote from it could never pass the quote check. The O'Neil numbers come from Investopedia, CFI, Disnat and Stockopedia, each attributing them to O'Neil.",
+  "Calendar vs fiscal quarters: Palantir's four 2024 quarters are calendar Q1 to Q4 2024 (reported May 6, 2024 to Feb 3, 2025); NVIDIA's fiscal 2025 quarters ended April 28, 2024 to January 26, 2025 (reported May 22, 2024 to Feb 26, 2025). They are about one month apart, so q19 says 'fiscal year to January 2025' rather than 'the same quarters'.",
+  "Palantir Q2 2024 (q21): the 500% is cent-rounded EPS ($0.01 to $0.06). Net income attributable to common stockholders in the same table rose from $28,127 thousand to $134,126 thousand, about 377%. Rounding a tiny EPS to the cent inflates the percent further; the file only keys the $0.01 base, which the table shows.",
+  "House rule: no page the contract allows as a Tier 3 source (sizing_rule.md, TRADE_PLANS.md, OWNER_PRINCIPLES.md) records the owner's own growth-screen numbers or a ruling on P/E. So nothing here is asked as 'our rule'. 'Why a growth screen leads with growth, not P/E' is taught from Nasdaq, Investopedia, Fidelity and Bulkowski. If the owner has his own screen thresholds, they can be added as house questions.",
+  "SEC EDGAR refused the plain client (HTTP 403, 'Undeclared Automated Tool') during part of authoring on 2026-11-09 after a run of requests; the Palantir releases (s8-s11) were read in full with the plain client before that, re-confirmed with WebFetch while the block lasted, and the final quote check reached all four. NVIDIA's releases are cited from its own newsroom (company record; NVIDIA also filed each result on EDGAR as an 8-K the same day). Investopedia's PEG page (s14) gave one transient 403 and then served normally.",
+  "Checker, 2026-11-09: O'Neil's 70% finding is worded differently across summaries. Disnat (s18) says three-quarters of the 500 winners showed quarterly gains 'of at least 70%'; other secondary write-ups (Globes; an IBD-style summary) say 'greater than 70%' or '70% or more', and some say the group 'averaged' 70%. The book itself was not checked. q08 and w1 keep Disnat's quoted wording and key only the broad point (big quarterly EPS jumps came before the big runs).",
+  "Checker, 2026-11-09: Bulkowski's 10-bagger page (s21) also shows his 10-baggers were mostly cheap small caps (half with price-to-book under 1.5, 53% with price-to-sales under 1.5). So it supports only the narrow point the file uses (a P/E filter can drop future winners that have no earnings), not 'winners are high-P/E fast growers'. Bulkowski's pages also say the site 'shall not be used to train artificial intelligence (AI) systems'; the contract lists his site as Tier 2 and the file quotes two short lines, but the owner may want to weigh that against the Study corpus being training material."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Fixed: step 1 said 'a growth screen starts with' and step 3 gave the 25% yearly number unattributed; both now credit O'Neil (plan: say O'Neil's rule, never a law). 18-20% (Disnat), over/at least 25% (Investopedia, CFI), 70% winners (Disnat), sales harder to manipulate (Fidelity) all re-read in context.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "NVIDIA FY2025 262/122/94/78% and record revenue $26.0B, $30.0B, $35.1B, $39.3B confirmed on the four newsroom releases; Palantir 2024 21/27/30/36% confirmed on the EDGAR 8-K exhibits. Fixed: step 4 said 'EPS growth' while the examples are revenue; now 'earnings and sales that speed up' (Stockopedia f50 added).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Nasdaq glossary (price over trailing-12-month EPS; higher multiple = growth expected), Investopedia (low P/E from a declining business is an illusory bargain; losses = no P/E; high P/E can be cheap if growth continues) re-read in context. Step 4 is fair reasoning from those.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q02": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer True before reading the key: Investopedia f07 (over 25%, 3-5 years), CFI f44 (at least 25%, past three years), Disnat f40 (25-50%). 'About' fits all three. The why's C-test line is backed by f06/f42. No tell, all numbers in quotes."
+  },
+  "q03": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review3: see the resolver's notes"
+  },
+  "q04": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer: growth rate rises (f29 'growing ... at an increasing rate', f43, f47). The record distractor note is backed by NVIDIA records with falling rates (f53, f56, f57). Choice lengths 34-35, key not longest. The beat and price-reaction notes are definitional contrasts. Not answered by q11 or q19, which apply the idea to cases.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Only deeper.counter changed. 71% is in f52, the declining-business illusion is f13. Sentences are 21 words or fewer. The Bulkowski AI-use point stays the owner's held flag. The key (False) stands on f13 + f41."
+  },
+  "q06": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Statement matches f14 word for word ('expressed as N/A when a company ... is posting losses'), so dropping the hedge is exact. Simple's 'nothing to put under the price' matches f12's denominator line. Minor, not a defect: the lesson_line 'A P/E filter can quietly drop companies still losing money' previews half of q24's key. q24 is a rung-9 application, so it stays."
+  },
+  "q08": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer: big quarterly EPS jumps (f39 three-quarters, at least 70%; f48 Stockopedia agrees). Choices 23-26 chars, key not longest, and the key no longer echoes the stem. The dividend note rests on f27 and the slow-growth note on f39. Optional polish, not required: the low-P/E note says what O'Neil looks for (f49), not what the study found."
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed the calc by hand; answer shows it; every wrong choice is a real, distinct mistake; no tell; why walks the steps."
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "price and trailing EPS; slot '30' from key"
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Tickers replace Stock A-D (learning 7). Solved cold: BVTO, 15/22/31 rises every quarter. AXLR slows, CRLN flat, DYNM spike. Key is not the longest and its numbers are in the choices. O'Neil acceleration line backed by f43 (CFI), already a quote-checked fact. Wrong keys match choice texts exactly. Tickers are made up and I could not confirm any is a real listing in a search, so no known real company is used; note q17 reused these four tickers with different numbers and is changed below."
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "price, EPS a year ago, EPS now; 'P/E now'; slot '25'"
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Tickers KRVT and MBLX replace A and B (learning 7). Solved cold: KRVT, sales growth of 35% backs the 40% EPS rise, MBLX sales fell 2% (f35 sales harder to manipulate, f18 earnings from the company itself, f09). 'Neither' fails because 40% clears every floor (f06, f38, f42). Key 32 chars, not longest (35). Wrong keys match choices exactly. The key now says 'real sales growth', which echoes the story somewhat, but that is the lesson itself, so left."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "P/E and EPS growth; PEG; slot '1.5'"
+  },
+  "q16": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "calc computes only ZBRN's PEG and the label names ZBRN; four rows right; key too long so slot '3'. Mild hint toward ZBRN accepted as the honest name"
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Right answer and math are correct: the 38% row clears every version of the floor (18-20%, 25%, over 25%); the 12%, 16% and flat-EPS rows fail. But q11 uses the very same four tickers (AXLR, BVTO, CRLN, DYNM) with different numbers (AXLR 60/45/30 in q11, up 12% here; BVTO 15/22/31 against 38%). Two questions in one lesson showing the same ticker with unrelated figures is a confusing setup (learning 5). Fix: fresh made-up tickers in q17 (KLZR, MWRN, TPLX, YRDN), all text re-keyed, numbers and logic unchanged. I could not confirm in a search that these are not real listings; they are not any well"
+  },
+  "q18": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review3: see the resolver's notes"
+  },
+  "q19": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
+  },
+  "q20": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Owner note (came off 1 cent, but the flip to profitability is big) is the right target. Fixes: (1) the key 'profit flip is big' was a 'X, but Y' hedge and the unclear word 'flip' (Palantir was already in its 6th straight profitable quarter, so no flip happened in Q2 2024); now 'Tiny $0.01 base, but real profit'. (2) 'A company that used to lose money now earns real profit' was unsupported by any cited fact; replaced with the sourced dollars, net income attributable to common stockholders $28,127 thousand to $134,126 thousand (new fact f68, quoted from the Palantir Q2 2024 8-K table, read via W"
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer: the P/E alone does not decide; weigh it against the speeding-up growth (f23, f03, f43, f24). Two calls and two non-verdict reads, so the key is no longer the lone hedge. Key 31 chars, not longest. The share-price distractor is a real misconception, also handled in q06. Not against the rulebook: section 9 has no P/E rule, and the key leaves the decision open."
+  },
+  "q23": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave6; awaiting cold re-read"
+  },
+  "q24": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Own answer: fast growers with high or no P/E (f25, f12, f14, f36, f03). Key ties for longest (34 chars) with two distractors, so it does not stand out. 'Growers at under 20 times earnings' is a deliberate lure (its 'Growers' competes with the key) and its note teaches the filter's direction. I judge it weak, not silly. The f51 Bulkowski line stays the owner's held flag; the key stands without it.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q25": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review3: see the resolver's notes"
+  },
+  "q26": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "f66 checked word for word against sizing_rule.md section 9 D40 (owner's '40, yes.'), and the repo anchor resolves. False is a fair reading of 'the chart comes first', and B26 (hard 200-day rule) points the same way. 'Never stand in for it' (simple) and 'do not stand in for the chart' (why) go a step beyond D40's words. That stays inside the existing owner flag asking him to approve the wording. Voice is fine: 'our rule', no 'the firm'."
+  },
+  "q91": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Good addition (O'Neil principle, which the owner said are very valuable) and f49 quote is exact on Stockopedia. Three problems fixed. (1) Key 'Go even higher' was the shortest choice at 14 chars against 21-26, so it stood out; now 'Keep going even higher' (22). (2) The why claimed 'Strength tends to attract more buyers', which no cited fact supports; removed. (3) s20 (Stockopedia) is flagged in the file as used only where another publisher agrees, so the why now cites the two that do: Disnat f41 (cheap stocks are cheap for a reason) and Investopedia f23 (growth stocks look expensive yet can pr"
+  }
+ }
+}

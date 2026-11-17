@@ -1,0 +1,1981 @@
+{
+ "unit": "F9.06",
+ "track": "F9",
+ "title": "Open risk after a partial",
+ "teaches": "After every sale or stop move, recompute what is still at risk, in R and across all your trades, knowing a stop at entry protects your capital but not your open profit, and no stop beats a gap.",
+ "skills": [
+  {
+   "id": "risk.partials",
+   "title": "Open risk after a partial"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin (updated August 18, 2026)",
+   "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Stop Orders: Factors to Consider During Volatile Markets (March 26, 2025)",
+   "url": "https://www.finra.org/investors/insights/stop-orders-factors-consider-during-volatile-markets",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Master Position Sizing: Minimize Risk and Boost Investment Returns (updated July 1, 2026)",
+   "url": "https://www.investopedia.com/terms/p/positionsizing.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Trailing Stops: What They Are, How to Use Them in Trading (Henry Hoenig, updated October 29, 2025)",
+   "url": "https://www.investopedia.com/terms/t/trailingstop.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Tharp Think Trading Concepts: Risk and R-multiples",
+   "url": "https://vantharpinstitute.com/tharp-think-trading-concepts/",
+   "accessed": "2026-11-09",
+   "why_reliable": "The institute of Van K. Tharp, PhD, whose book Trade Your Way to Financial Freedom (McGraw-Hill) made the R-multiple a standard way to measure trades. Its worked numbers recompute exactly ($50 - $48 = $2; $2 x 100 = $200; $2,000 / $1,000 = 2R). Cited only for what R means and how total risk is counted."
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "How Traders Can Take Advantage of Volatile Markets (May 11, 2022)",
+   "url": "https://www.schwab.com/learn/story/how-traders-can-take-advantage-volatile-markets",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Help Protect Your Position Using Stop Orders (August 7, 2024)",
+   "url": "https://www.schwab.com/learn/story/help-protect-your-position-using-stop-orders",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "Fidelity",
+   "title": "Exit Strategies (Fidelity Learning Center)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/trading/exit-strategies",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "AAII",
+   "title": "Sell Rules to Build Your Stock Investing Performance (William J. O'Neil, AAII Journal, September 1999)",
+   "url": "https://www.aaii.com/journal/article/sell-rules-to-build-your-stock-investing-performance",
+   "accessed": "2026-11-09",
+   "why_reliable": "Written by William J. O'Neil, founder of Investor's Business Daily and author of How to Make Money in Stocks (one of the trading books the contract names), published by the American Association of Individual Investors. Only his own summary rule is quoted, not the reader comments under it."
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Interactive Brokers",
+   "title": "Exiting Your Trades: What Works Best? (Dave Mabe, IBKR Campus, January 31, 2025)",
+   "url": "https://www.interactivebrokers.com/campus/ibkr-quant-news/exiting-your-trades-what-works-best/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A third-party post on Interactive Brokers' education site by Dave Mabe, a named systematic trader (MabeKit), reposted with permission. Cited only as one practitioner's dissenting view (he never moves stops to breakeven or scales out), never as a rule."
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Incredible Charts",
+   "title": "Alexander Elder's 6 Percent Rule (Colin Twiggs)",
+   "url": "https://www.incrediblecharts.com/trading/6_percent_rule.php",
+   "accessed": "2026-11-09",
+   "why_reliable": "Explains the portfolio rule from Alexander Elder's Come Into My Trading Room (Elder is one of the trading authors the contract names). Written by Colin Twiggs, co-founder of Incredible Charts, a former investment banker with almost 40 years in markets, named on the page. Cited only for how total open risk is added up; the 6% figure is never keyed."
+  },
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Study: the trade plan for every setup (the setup table: the Trail column)",
+   "url": "repo:docs/study/TRADE_PLANS.md#study-the-trade-plan-for-every-setup",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 6: Management (owner quoted, 2026-06-14)",
+   "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h3",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h9",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s1",
+   "quote": "Investors generally use a sell stop order in an attempt to limit a loss or to protect a profit on a stock that they own.",
+   "claim": "A sell stop can limit a loss, or protect a profit on a stock you own."
+  },
+  {
+   "id": "f02",
+   "source": "s1",
+   "quote": "The stop price is not the guaranteed execution price for a stop order. The stop price is a trigger that causes the stop order to become a market order.",
+   "claim": "A stop price is a trigger for a market order, not a guaranteed fill price."
+  },
+  {
+   "id": "f03",
+   "source": "s1",
+   "quote": "As the price of the security moves in a favorable direction the trailing stop price adjusts or “trails” the market price of the security by the specified amount.",
+   "claim": "A trailing stop follows the price by a set amount while the price moves your way."
+  },
+  {
+   "id": "f08",
+   "source": "s2",
+   "quote": "Generally, a sell stop order allows you to limit losses (or preserve gains) in a stock you own by triggering a sale once the stock’s price falls to the specified stop price.",
+   "claim": "A sell stop can limit a loss or preserve a gain on a stock you own."
+  },
+  {
+   "id": "f09",
+   "source": "s2",
+   "quote": "A stop order becomes a market order once the stop price is reached. The price you receive upon execution, though, could be markedly different than your stop price.",
+   "claim": "Once triggered, a stop is a market order and can fill far from the stop price."
+  },
+  {
+   "id": "f10",
+   "source": "s2",
+   "quote": "Rapid price movement during a short period of time could trigger a stop order. Due to market volatility, the stock might later rebound and resume trading at its prior price level.",
+   "claim": "A quick drop can trigger a stop, and then the stock can bounce right back."
+  },
+  {
+   "id": "f11",
+   "source": "s3",
+   "quote": "The investor must then determine where to place their stop-loss order for the specific trade. For stock trades, the trade risk is the dollar difference between the entry price and the stop-loss.",
+   "claim": "Risk per share is the dollar distance from your entry to your stop."
+  },
+  {
+   "id": "f12",
+   "source": "s4",
+   "quote": "Trailing stops protect profits by moving with the market, preventing big wins from turning into small ones or, worse, losses.",
+   "claim": "A trailing stop protects a profit by moving up with the price."
+  },
+  {
+   "id": "f13",
+   "source": "s4",
+   "quote": "A stop that's too tight may result in a trader getting stopped out by the regular ups and downs of the market, while one that's too loose could mean giving back most of a big win.",
+   "claim": "Too tight a stop gets hit by normal swings; too loose a stop gives back most of a big win."
+  },
+  {
+   "id": "f14",
+   "source": "s4",
+   "quote": "The goal is to protect existing profits on the trade. Otherwise, if you leave only your initial stop, or none at all, a once-winning trade could turn into a loser.",
+   "claim": "Leave only your first stop in place and a winning trade can turn into a loser."
+  },
+  {
+   "id": "f15",
+   "source": "s4",
+   "quote": "A close above or below a specific moving average, such as the eight-, 20-, or 50-day trailing stops.",
+   "claim": "One common trail is a close under a moving average."
+  },
+  {
+   "id": "f16",
+   "source": "s4",
+   "quote": "if the market recently found support or resistance during a healthy pullback to a certain price level, a break below or above that level would be a strong exit signal",
+   "claim": "A stop can trail under the low of the last healthy pullback."
+  },
+  {
+   "id": "f46",
+   "source": "s4",
+   "quote": "hypothetically breaks to a new high at $100 and you buy.",
+   "claim": "Investopedia's hypothetical: buy a breakout at $100."
+  },
+  {
+   "id": "f47",
+   "source": "s4",
+   "quote": "You decide you're willing to risk a 5% loss on the initial entry, so you put the first stop at $95.",
+   "claim": "The first stop goes at $95, a 5% risk."
+  },
+  {
+   "id": "f48",
+   "source": "s4",
+   "quote": "When the price reaches $120, the trailing stop is at $108, ensuring at the very least that you'll secure a profit of 8%.",
+   "claim": "At $120 the trailing stop is at $108, above the entry, so at least an 8% gain is locked in."
+  },
+  {
+   "id": "f20",
+   "source": "s6",
+   "quote": "The purpose of the exit point is to help you preserve your trading/investing capital. It defines your initial risk (1R) in a trade.",
+   "claim": "Your exit point (the stop) sets your initial risk, called 1R."
+  },
+  {
+   "id": "f21",
+   "source": "s6",
+   "quote": "You buy the same stock at $50, but decide that you are wrong about the trade if it drops to $48. At $48, you’ll get out.",
+   "claim": "Tharp's example: buy at $50 with the exit at $48."
+  },
+  {
+   "id": "f22",
+   "source": "s6",
+   "quote": "Your initial risk is $2 per share, so 1R is equal to $2.",
+   "claim": "In that example, 1R is $2 a share."
+  },
+  {
+   "id": "f23",
+   "source": "s6",
+   "quote": "your total risk is $2 per share multiplied by 100 shares. In other words, you’ll only be risking $200 of your $5000 investment.",
+   "claim": "Total risk is risk per share times the shares you hold: $2 times 100 shares is $200."
+  },
+  {
+   "id": "f24",
+   "source": "s6",
+   "quote": "R can represent either your risk per unit, which, in the example, is $10 per share, or it can represent your total risk.",
+   "claim": "R can mean the risk per share or the total risk on the position."
+  },
+  {
+   "id": "f25",
+   "source": "s6",
+   "quote": "If you know that your total initial risk on a position is $1,000, you can express all of your profits and losses as a ratio of your initial risk.",
+   "claim": "Every profit or loss can be written as a multiple of your initial risk."
+  },
+  {
+   "id": "f26",
+   "source": "s6",
+   "quote": "For example, if you make a profit of $2,000 (2 x $1000 or $20/share), your profit is 2R.",
+   "claim": "A profit of twice your initial risk is 2R."
+  },
+  {
+   "id": "f27",
+   "source": "s6",
+   "quote": "Perhaps the market gapped down against you. Losses bigger than 1R happen all the time.",
+   "claim": "A gap can make a loss bigger than 1R."
+  },
+  {
+   "id": "f28",
+   "source": "s7",
+   "quote": "Or if your stock is moving sharply higher, consider selling a portion of your position, while letting the remainder ride to capture any further gains.",
+   "claim": "Into a sharp move up, sell part and let the rest ride."
+  },
+  {
+   "id": "f29",
+   "source": "s7",
+   "quote": "In volatile markets, profits can suddenly vanish and turn into losses, so consider ways to lock in more gains when you can.",
+   "claim": "Open profits can vanish and turn into losses, so lock in some of the gain when you can."
+  },
+  {
+   "id": "f30",
+   "source": "s8",
+   "quote": "Stop orders are used most often to help protect an unrealized gain or to limit potential losses on an existing position.",
+   "claim": "Stops protect an open gain as well as limit a loss."
+  },
+  {
+   "id": "f32",
+   "source": "s8",
+   "quote": "A standard sell-stop order is triggered when an execution occurs at or below the stop price.",
+   "claim": "A sell stop triggers when a trade prints at or below the stop price."
+  },
+  {
+   "id": "f33",
+   "source": "s8",
+   "quote": "or when the stock gaps down in the morning (lower than the prior day's closing price), your execution price could be significantly lower than your stop price.",
+   "claim": "After a gap down at the open, a stop can fill well below the stop price."
+  },
+  {
+   "id": "f34",
+   "source": "s8",
+   "quote": "be careful not to place the stop price too close to the current price, or the order might be triggered by regular daily price fluctuations.",
+   "claim": "A stop too close to the price gets hit by normal daily swings."
+  },
+  {
+   "id": "f35",
+   "source": "s9",
+   "quote": "Beware: Stop orders will not protect you from sudden price drops, known as gaps.",
+   "claim": "A stop does not protect you from a gap."
+  },
+  {
+   "id": "f37",
+   "source": "s9",
+   "quote": "Even before you enter a trade, it can be helpful to have a plan for how you might exit the trade.",
+   "claim": "Plan your exit before you enter."
+  },
+  {
+   "id": "f38",
+   "source": "s10",
+   "quote": "If you do not take a worthwhile profit when you have it, do not let a stock fall back below your purchase price. One should sell and avoid the loss.",
+   "claim": "O'Neil: don't let a stock with a good gain fall back below your purchase price."
+  },
+  {
+   "id": "f39",
+   "source": "s11",
+   "quote": "Your stop should be based on some measure of volatility rather than price or percentage. Do I move my stop to breakeven? Never.",
+   "claim": "One systematic trader never moves his stop to breakeven."
+  },
+  {
+   "id": "f40",
+   "source": "s11",
+   "quote": "I don’t scale out of trades (except for certain circumstances) since you end up paying for the privilege with trading profit.",
+   "claim": "The same trader avoids scaling out because it costs profit."
+  },
+  {
+   "id": "f41",
+   "source": "s12",
+   "quote": "It requires traders to use stop losses to restrict the total risk on all open positions to just 6% of their capital",
+   "claim": "Elder's rule caps the total risk on all open positions, not just each trade."
+  },
+  {
+   "id": "f42",
+   "source": "s12",
+   "quote": "Sum the risk exposure for all stocks in your portfolio.",
+   "claim": "Total open risk is the risk on every open position added up."
+  },
+  {
+   "id": "f43",
+   "source": "s12",
+   "quote": "If risk exposure is above 6.0% of month-end value, adjust your stop loss levels to reduce the risk.",
+   "claim": "Raising stops lowers your total open risk."
+  },
+  {
+   "id": "f44",
+   "source": "s12",
+   "quote": "Subtract your stop loss level for each stock from its closing price at the last month-end;",
+   "claim": "Measured from the current price, each stock's risk starts with its price minus its stop."
+  },
+  {
+   "id": "f45",
+   "source": "s12",
+   "quote": "Multiply the risk margin by the number of shares held; and",
+   "claim": "Each position's risk is that distance times the shares you hold."
+  },
+  {
+   "id": "h01",
+   "source": "h3",
+   "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
+  },
+  {
+   "id": "h02",
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
+  },
+  {
+   "id": "h03",
+   "source": "h1",
+   "quote": "under each higher low, or under the 9 EMA | his rulings 2026-11-02; `uct_kicker.py`",
+   "claim": "Kicker row of our setup table: trail under each higher low, or under the 9 EMA."
+  },
+  {
+   "id": "h05",
+   "source": "h1",
+   "quote": "under each higher low | `uct_oops_reversal.py`",
+   "claim": "Oops Reversal row: trail under each higher low."
+  },
+  {
+   "id": "h06",
+   "source": "h1",
+   "quote": "under the 9 EMA, or under each higher low | `uct_slingshot.py`",
+   "claim": "Slingshot row: trail under the 9 EMA, or under each higher low."
+  },
+  {
+   "id": "h07",
+   "source": "h1",
+   "quote": "under the rising 20 EMA, or under each higher low | `uct_launch_pad.py`",
+   "claim": "Launchpad row: trail under the rising 20 EMA, or under each higher low."
+  },
+  {
+   "id": "h04",
+   "source": "h2",
+   "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages.",
+   "claim": "Our rule: sell partials into strength and trail the rest under the rising moving averages."
+  },
+  {
+   "id": "h08",
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
+  },
+  {
+   "id": "h09",
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
+  },
+  {
+   "id": "h10",
+   "source": "h3",
+   "quote": "Total open risk and position size by market condition are guides that vary, not hard caps.",
+   "claim": "Our rulebook treats total open risk as a guide that varies, not a hard cap."
+  },
+  {
+   "id": "r01",
+   "source": "h9",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "Our rule: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r02",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "r03",
+   "source": "h9",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Our rule: selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r04",
+   "source": "h9",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "We use the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "1R, and what a partial leaves",
+   "steps": [
+    "Buy at $50 with the stop at $48. That's $2 of risk a share, and that $2 is 1R.",
+    "Hold 100 shares and $200 is on the line. R can mean that total too.",
+    "Sell some at a profit and fewer shares can reach the stop. The risk left shrinks with them."
+   ],
+   "facts": [
+    "f20",
+    "f21",
+    "f22",
+    "f23",
+    "f24",
+    "f28"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "When the stop passes your entry",
+   "steps": [
+    "Buy at $100 with the first stop at $95. That's a 5% risk.",
+    "The stock runs to $120, and the trailing stop is now at $108.",
+    "A stop-out now sells above your entry. Your capital is safe, and at least an 8% gain is locked in, gaps aside."
+   ],
+   "facts": [
+    "f46",
+    "f47",
+    "f48",
+    "f35"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "A stop at entry, and its catch",
+   "steps": [
+    "Once the stock moves your way, you can raise the stop to your entry price. That's a breakeven stop.",
+    "Filled there, the shares you still hold come out even.",
+    "Two catches. A gap can open below the stop, and a stop that close can catch a normal dip."
+   ],
+   "facts": [
+    "f01",
+    "f38",
+    "f35",
+    "f13",
+    "f39"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "risk.partials",
+   "rung": 1,
+   "format": "mcq",
+   "q": "You bought 300 shares, then sold 100 at a profit and left the stop. Which shares can still lose money at the stop?",
+   "choices": [
+    "The 200 you still hold",
+    "All 300 shares you bought",
+    "None, the sale covered it",
+    "Not while it shows a gain"
+   ],
+   "answer": "The 200 you still hold",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "bought - sold",
+     "bought": 300,
+     "sold": 100
+    }
+   },
+   "why": "The 200 you still hold. Total risk is the risk per share times the shares you hold, so sold shares drop out. The 100 you sold are closed at a profit. The 200 left still lose their full risk per share if the stop is hit, even while the stock shows a gain.",
+   "lesson_line": "Open risk lives in the shares you still hold. Sold shares are done.",
+   "facts": [
+    "f23",
+    "f11",
+    "f28",
+    "f14"
+   ],
+   "wrong": {
+    "None, the sale covered it": "The profit may offset a loss, but the 200 shares still lose money if the stop is hit.",
+    "All 300 shares you bought": "The 100 you sold are gone. They can't be stopped out.",
+    "Not while it shows a gain": "A gain on screen isn't locked in. With the stop still below your entry, a winner can turn into a loser, and the 200 lose money if it's hit."
+   },
+   "simple": "The 200 you still hold, because shares you already sold are out of the trade and can't reach the stop.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key (calc)",
+     "fixed before"
+    ]
+   },
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The position",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Bought",
+      "value": 300,
+      "fmt": "shares"
+     },
+     {
+      "key": "r2",
+      "label": "Sold",
+      "value": 100,
+      "fmt": "shares"
+     }
+    ],
+    "find": {
+     "label": "Shares still at risk",
+     "as": "shares"
+    }
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "risk.partials",
+   "rung": 1,
+   "format": "tf",
+   "q": "A stop can protect a profit, not only limit a loss.",
+   "answer": "True",
+   "why": "True. The SEC, FINRA and Schwab all say a sell stop can limit a loss or protect a profit. Raise it above your entry and, filled there, a stop-out sells above what you paid. It guards the gain but doesn't promise it. A gap can still fill you lower.",
+   "lesson_line": "Stops aren't only for losers. Raised, they help guard your gains.",
+   "facts": [
+    "f01",
+    "f08",
+    "f30",
+    "f35"
+   ],
+   "simple": "True, because a stop set above your buy price can sell for a gain, not just cut a loss.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q03",
+   "skill": "risk.partials",
+   "rung": 2,
+   "format": "mcq",
+   "q": "Which two moves cut what an open trade can lose at its stop?",
+   "choices": [
+    "Sell shares, or raise the stop",
+    "Buy more, or lower the stop",
+    "Lower the stop, or sell some",
+    "Raise the stop, or buy more"
+   ],
+   "answer": "Sell shares, or raise the stop",
+   "why": "Sell shares, or raise the stop. Total risk is the risk per share times the shares you hold. Selling cuts the shares. Raising the stop cuts the risk on each share. Buying more or lowering the stop does the reverse and adds risk.",
+   "lesson_line": "To cut open risk, sell shares or raise the stop.",
+   "facts": [
+    "f23",
+    "f43",
+    "f01",
+    "f28"
+   ],
+   "wrong": {
+    "Buy more, or lower the stop": "Both add risk. More shares or a lower stop means more to lose at the stop.",
+    "Lower the stop, or sell some": "Selling helps, but a lower stop adds risk on every share you keep.",
+    "Raise the stop, or buy more": "Raising helps, but buying more adds shares that can hit the stop."
+   },
+   "simple": "Sell shares or raise the stop, because fewer shares or a smaller drop to the stop both shrink what you can lose.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q04",
+   "skill": "risk.partials",
+   "rung": 2,
+   "format": "fill",
+   "q": "Finish the sentence.",
+   "sentence": "Once your stop is at your entry, the main thing still at risk is your open ___.",
+   "bank": [
+    "profit",
+    "order",
+    "interest",
+    "range"
+   ],
+   "answer": "profit",
+   "why": "Profit. Measured from today's price, a position's risk is its price minus its stop, times the shares. With the stop at your entry, that is the gain since you bought. Your capital comes back if the stop fills at your entry. The open gain does not, unless you raise the stop or sell some.",
+   "lesson_line": "A stop at entry guards your capital, if it fills. A higher stop, or a sale, guards the gain.",
+   "facts": [
+    "f44",
+    "f45",
+    "f13",
+    "f12",
+    "f29"
+   ],
+   "simple": "Profit, because a stop at your entry gets your money back, but the gain since then can still slip away.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q05",
+   "skill": "risk.partials",
+   "rung": 2,
+   "format": "mcq",
+   "q": "Your stock is up, so you raise the stop to your entry price. What is that stop there to prevent?",
+   "choices": [
+    "A winner turning into a loss",
+    "Any pullback after a rally",
+    "A gap down at the open",
+    "Selling early on a dip"
+   ],
+   "answer": "A winner turning into a loss",
+   "why": "A winner turning into a loss. A sell stop can protect a profit as well as limit a loss. Filled at your entry, the shares you hold come out even. That's O'Neil's rule: don't let a good gain fall back below your purchase price. Our rule moves the stop to breakeven at 2R to 5R, ideally. It can't stop a pullback above your entry, or a gap below it.",
+   "lesson_line": "O'Neil's rule: don't let a good gain fall back below your purchase price.",
+   "facts": [
+    "f01",
+    "f08",
+    "f38",
+    "f14",
+    "f09",
+    "f35",
+    "f13",
+    "h08"
+   ],
+   "wrong": {
+    "Any pullback after a rally": "A stop only acts at its price. The stock can still pull back to just above your entry.",
+    "A gap down at the open": "A stop can't stop a gap. It turns into a market order and fills at the next price, which can be below your entry.",
+    "Selling early on a dip": "If anything, it raises that risk. A stop close to the price can sell you on a normal dip."
+   },
+   "simple": "It keeps a winner from turning into a loss, because it sells you out about even if the stock falls back.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q06",
+   "skill": "risk.partials",
+   "rung": 3,
+   "format": "mcq",
+   "term": "Taking a partial",
+   "q": "Our rule for holding winners: take partials into strength. What is a partial?",
+   "choices": [
+    "Selling some of the shares",
+    "Adding shares as it rises",
+    "A partly filled buy order",
+    "Moving your stop halfway up"
+   ],
+   "answer": "Selling some of the shares",
+   "why": "Selling some of the shares. You sell part of the position while the stock moves your way and let the rest ride. Our rule: sell partials into strength and trail the rest under the rising moving averages. It's a sale you choose. It isn't a partial fill on an order, and it isn't a stop move.",
+   "lesson_line": "A partial is a sale of part of the position, into strength. The rest keeps working.",
+   "facts": [
+    "f28",
+    "f29",
+    "h04"
+   ],
+   "wrong": {
+    "Adding shares as it rises": "That's adding to a winner, which is a buy. A partial is a sale.",
+    "A partly filled buy order": "That's a partial fill, a term from the order ticket. Taking a partial means you chose to sell some.",
+    "Moving your stop halfway up": "Moving the stop is a separate step. A partial means selling shares."
+   },
+   "house": true,
+   "simple": "Selling some of the shares as it runs your way, so you bank part of the gain.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rule (h04)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q07",
+   "skill": "risk.partials",
+   "rung": 3,
+   "format": "tf",
+   "house": true,
+   "q": "Our plan fixes the first sell at a third of the position, sold at 3R every time.",
+   "answer": "False",
+   "why": "False. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Plan the price marks before you buy.",
+   "lesson_line": "The first sell is a judgment, not a fixed third. Mark the R prices before you buy.",
+   "facts": [
+    "r01",
+    "r02",
+    "r03",
+    "f37"
+   ],
+   "simple": "False, because the first sell is a judgment call, and we usually wait until day 3 at the earliest.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (B19, E51)",
+     "a rule the owner marks adjustable"
+    ]
+   },
+   "batch": "sweep-2026-11-14"
+  },
+  {
+   "key": "q08",
+   "skill": "risk.partials",
+   "rung": 3,
+   "format": "tf",
+   "q": "If the stock keeps running after you sell part, that sale made you less than holding it all would have.",
+   "answer": "True",
+   "why": "True. If the stock keeps running, the shares you sold miss the rest of the move. Holding the whole position would have made more. That's the price of a partial: you trade some upside for less risk. Dave Mabe avoids scaling out for this reason. It cuts the other way too. If the stock falls back, the partial is what kept part of the gain.",
+   "lesson_line": "A partial buys safety with some of the upside. Know that going in.",
+   "facts": [
+    "f28",
+    "f40",
+    "f29"
+   ],
+   "simple": "True, because the shares you sold miss the rest of the run, so holding them all would have made more.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q09",
+   "skill": "risk.partials",
+   "rung": 4,
+   "format": "mcq",
+   "q": "You buy 300 shares at $50, stop $48. You sell 100 at $54 and leave the stop. If it's hit, what do the rest lose?",
+   "answer": "$400",
+   "prefix": "$",
+   "calc": {
+    "fn": "risk_dollars",
+    "args": {
+     "shares": 200,
+     "entry": 50,
+     "stop": 48
+    }
+   },
+   "why": "$400. Only the 200 shares you kept can reach the stop. Each loses $50 minus $48, which is $2. 200 times $2 is $400.",
+   "lesson_line": "Open risk is the shares you still hold times entry minus stop.",
+   "facts": [
+    "f23",
+    "f22",
+    "f11"
+   ],
+   "simple": "$400, because only the 200 shares you kept can hit the stop, and each one loses $2.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key (calc)"
+    ]
+   },
+   "batch": "cards-2026-11-15",
+   "choices": [
+    "$600",
+    "$200",
+    "$800",
+    "$400"
+   ],
+   "wrong": {
+    "$600": "Counted all 300 shares, not the 200 you kept.",
+    "$200": "Counted the 100 shares you sold.",
+    "$800": "Used the gain from $50 to $54 as the loss per share."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The position",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Bought",
+      "value": 300,
+      "fmt": "shares"
+     },
+     {
+      "key": "r2",
+      "label": "Sold",
+      "value": 100,
+      "fmt": "shares"
+     },
+     {
+      "key": "r3",
+      "label": "Entry",
+      "value": 50,
+      "fmt": "$"
+     },
+     {
+      "key": "r4",
+      "label": "Stop",
+      "value": 48,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "The rest lose",
+     "as": "dollars"
+    }
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "risk.partials",
+   "rung": 4,
+   "format": "mcq",
+   "q": "You bought at $40 with the stop at $38. You've since raised the stop to $45. If it's hit there, what do you lock in, in R?",
+   "answer": "2.5R",
+   "suffix": "R",
+   "calc": {
+    "fn": "r_multiple",
+    "args": {
+     "entry": 40,
+     "stop": 38,
+     "exit": 45
+    }
+   },
+   "why": "2.5R. Your first risk was $40 minus $38, which is $2 a share. A fill at $45 is $5 above your entry. $5 divided by $2 is 2.5R.",
+   "lesson_line": "A stop above your entry turns risk into a locked gain, if it fills.",
+   "facts": [
+    "f25",
+    "f26",
+    "f01",
+    "f08",
+    "f09"
+   ],
+   "simple": "2.5R, because a fill at $45 is two and a half times your first $2 risk above your entry.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key (calc)"
+    ]
+   },
+   "batch": "tomcq",
+   "choices": [
+    "5R",
+    "2.5R",
+    "3.5R",
+    "0.4R"
+   ],
+   "wrong": {
+    "5R": "Used the $5 gain as the R-multiple.",
+    "3.5R": "Measured the gain from the old $38 stop.",
+    "0.4R": "Flipped it: divided the risk by the gain."
+   }
+  },
+  {
+   "key": "q11",
+   "skill": "risk.partials",
+   "rung": 4,
+   "format": "mcq",
+   "q": "You hold 300 shares from $50 with the stop at $48. You raise the stop to $48.50. How much can they lose now, from your entry?",
+   "answer": "$450",
+   "prefix": "$",
+   "calc": {
+    "fn": "risk_dollars",
+    "args": {
+     "shares": 300,
+     "entry": 50,
+     "stop": 48.5
+    }
+   },
+   "why": "$450. The new stop is $48.50, so each share loses the gap from $50 to $48.50. Times 300 shares, that is $450.",
+   "lesson_line": "Raise the stop and the risk per share shrinks, and the total with it.",
+   "facts": [
+    "f23",
+    "f11",
+    "f43"
+   ],
+   "simple": "$450, because the higher stop means each of your 300 shares loses less if it's hit.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key (calc)"
+    ]
+   },
+   "batch": "rank",
+   "choices": [
+    "$600",
+    "$750",
+    "$4,500",
+    "$450"
+   ],
+   "wrong": {
+    "$600": "Used the old $48 stop, not the new $48.50.",
+    "$4,500": "Decimal slip: moved the decimal one place.",
+    "$750": "Added the stop move to the old gap instead of subtracting it."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "risk.partials",
+   "rung": 5,
+   "format": "mcq",
+   "q": "You buy 600 at $20, stop $19. At 3R, $23, you sell 200 and move the stop to $20. The rest stops out there. What did the trade make?",
+   "answer": "$600",
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "sold * (sale - entry) - kept * (entry - stop)",
+     "sold": 200,
+     "sale": 23,
+     "entry": 20,
+     "kept": 400,
+     "stop": 20
+    }
+   },
+   "why": "$600. The 200 shares sold at $23 made $3 each, which is $600. The 400 left went out at $20 for nothing. The total is $600.",
+   "lesson_line": "Sell part, stop to breakeven: the gain is banked, and the rest comes out even if it fills.",
+   "facts": [
+    "f23",
+    "h08",
+    "f02",
+    "f28"
+   ],
+   "simple": "$600, because the 200 shares sold at $23 made $3 each, and the rest came out even at $20.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key (calc)",
+     "rests on the owner's rulebook (B19)"
+    ]
+   },
+   "batch": "cards-2026-11-15",
+   "choices": [
+    "$0",
+    "$200",
+    "$400",
+    "$600"
+   ],
+   "wrong": {
+    "$200": "Assumed the rest stopped at the old $19 stop.",
+    "$0": "Subtracted the full original risk from the profit.",
+    "$400": "Took the gain per share as two dollars."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The scale-out",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Bought",
+      "value": 600,
+      "fmt": "shares"
+     },
+     {
+      "key": "r2",
+      "label": "Entry",
+      "value": 20,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "Sold",
+      "value": 200,
+      "fmt": "shares"
+     },
+     {
+      "key": "r4",
+      "label": "Sale price",
+      "value": 23,
+      "fmt": "$"
+     },
+     {
+      "key": "r5",
+      "label": "New stop",
+      "value": 20,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "What the trade made",
+     "as": "dollars"
+    }
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "risk.partials",
+   "rung": 5,
+   "format": "numeric",
+   "q": "Your stop risks 1% of the account. You sell half and leave the stop where it is. What does it risk now, as a percent?",
+   "answer": 0.5,
+   "suffix": "%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "risk_pct * kept_share",
+     "risk_pct": 1,
+     "kept_share": 0.5
+    }
+   },
+   "why": "0.5%. Half the shares are gone, so half the risk is gone. The stop didn't move, so the risk per share is the same.",
+   "lesson_line": "Same stop, fewer shares, smaller risk, in proportion.",
+   "facts": [
+    "f23",
+    "f28"
+   ]
+  },
+  {
+   "key": "q14",
+   "skill": "risk.partials",
+   "rung": 5,
+   "format": "scenario",
+   "story": "You hold 200 shares bought at $50. The stock is at $56. You move your stop from $48 up to $50.",
+   "q": "If the stop fills at its price, how much of the money you put in is at risk?",
+   "choices": [
+    "$0",
+    "$400",
+    "$1,200",
+    "$10,000"
+   ],
+   "answer": "$0",
+   "calc": {
+    "fn": "risk_dollars",
+    "args": {
+     "shares": 200,
+     "entry": 50,
+     "stop": 50
+    }
+   },
+   "why": "$0. A fill at $50 sells the 200 shares at exactly what you paid. None of the money you put in is lost. That holds only if it fills at $50. A stop is a trigger, not a promised price, and a gap can fill you lower. The open profit from $50 to $56 is still at risk, and that's a different number.",
+   "lesson_line": "A stop at your entry takes your capital off the line, gaps aside.",
+   "facts": [
+    "f01",
+    "f08",
+    "f02",
+    "f38"
+   ],
+   "wrong": {
+    "$400": "That was the risk with the stop at $48. Moving it to $50 took it away.",
+    "$1,200": "That's the open profit you'd give back from $56. It isn't money you put in.",
+    "$10,000": "That's what the shares cost. You'd only lose all of it if the stock went to zero."
+   },
+   "simple": "$0, because shares sold at the price you paid give your money back, though a gap could still fill you lower.",
+   "deeper": {
+    "trap": "Two different things are at risk here. From your entry, the risk is $0. From today's $56 price, a stop-out still gives back the gain from $50 to $56, which is $1,200 on 200 shares. Before you add up risk, ask which of the two a number means."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key (calc)",
+     "fixed before"
+    ]
+   },
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The position",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Shares",
+      "value": 200,
+      "fmt": "shares"
+     },
+     {
+      "key": "r2",
+      "label": "Entry",
+      "value": 50,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "New stop",
+      "value": 50,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Money at risk",
+     "as": "dollars"
+    }
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "risk.partials",
+   "rung": 6,
+   "format": "mcq",
+   "q": "You hold 150 shares bought at $80. The stock is at $92 and your stop is at $80. If it's hit, how much profit do you give back?",
+   "answer": "$1,800",
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "shares * (price - stop)",
+     "shares": 150,
+     "price": 92,
+     "stop": 80
+    }
+   },
+   "why": "$1,800. The gain runs from $80 to $92 on 150 shares. The stop at $80 gives it all back. Multiply 150 shares by that gain to get $1,800.",
+   "lesson_line": "With the stop at entry, your open profit is the risk. Trail it to keep more.",
+   "facts": [
+    "f44",
+    "f45",
+    "f13",
+    "f12"
+   ],
+   "simple": "$1,800, because with the stop at your entry, the whole gain from $80 to $92 is what a stop-out gives back.",
+   "deeper": {
+    "counter": "Counted from your entry, this same position risks nothing, because the stop sits at $80. Both views are right. One measures the money you put in. The other measures the gain you would give back. Say which one you mean."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key (calc)"
+    ]
+   },
+   "batch": "cards-2026-11-15",
+   "choices": [
+    "$13,800",
+    "$0",
+    "$180",
+    "$1,800"
+   ],
+   "wrong": {
+    "$13,800": "Used the whole position value.",
+    "$0": "Thought a stop at your entry gives back nothing.",
+    "$180": "Decimal slip: moved the decimal one place."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The position",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Shares",
+      "value": 150,
+      "fmt": "shares"
+     },
+     {
+      "key": "r2",
+      "label": "Entry",
+      "value": 80,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "Stock now",
+      "value": 92,
+      "fmt": "$"
+     },
+     {
+      "key": "r4",
+      "label": "Stop",
+      "value": 80,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Profit given back",
+     "as": "dollars"
+    }
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "risk.partials",
+   "rung": 6,
+   "format": "scenario",
+   "story": "You have three open trades. If every stop is hit, they lose $500, $400 and $300 from your entries. You raise the first one's stop to its entry.",
+   "q": "Counted from your entries, what's your total open risk now?",
+   "choices": [
+    "$700",
+    "$1,200",
+    "$500",
+    "$0"
+   ],
+   "answer": "$700",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "second + third",
+     "second": 400,
+     "third": 300
+    }
+   },
+   "why": "$700. Total open risk is the risk on every open trade added up. The first trade's stop now sits at its entry, so from your entry it risks nothing. The other two still risk $400 and $300. Counted from today's price, that first trade would still risk its open profit, which the story doesn't give.",
+   "lesson_line": "Add up the risk on every open trade. Raising a stop shrinks the total.",
+   "facts": [
+    "f42",
+    "f45",
+    "f43",
+    "f23"
+   ],
+   "wrong": {
+    "$1,200": "That was the total before you raised the stop.",
+    "$500": "That's the risk you just took off, not what's left.",
+    "$0": "Only one stop moved. The other two trades still have risk on."
+   },
+   "simple": "$700, because the trade with its stop at entry now risks nothing from entry, which leaves the $400 and $300.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key (calc)",
+     "fixed before"
+    ]
+   },
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "Open risk at the stops",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "First, before its raise",
+      "value": 500,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Second trade's risk",
+      "value": 400,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "Third trade's risk",
+      "value": 300,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Open risk now",
+     "as": "dollars"
+    }
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "risk.partials",
+   "rung": 7,
+   "format": "tf",
+   "q": "Once your stop sits at your entry price, the trade can no longer lose money.",
+   "answer": "False",
+   "why": "False. A stop price is a trigger, not a guaranteed fill. Once it's hit, it becomes a market order. If the stock gaps below it, you're sold at the next price, under your entry. Losses bigger than planned happen all the time. Even without a gap, a fast drop can fill it below the stop.",
+   "lesson_line": "A stop at entry guards your capital only if it fills there. A gap can still cost you.",
+   "facts": [
+    "f02",
+    "f09",
+    "f35",
+    "f27"
+   ],
+   "simple": "False, because a gap can open below your stop, and then you're sold at a lower price than your entry.",
+   "deeper": {
+    "trap": "The trap is the word 'no longer'. A stop at entry protects your capital only if it fills there. Fidelity says it plainly: stop orders will not protect you from sudden price drops, known as gaps."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q18",
+   "skill": "risk.partials",
+   "rung": 7,
+   "format": "mcq",
+   "house": true,
+   "q": "Most of our setup plans trail the stop the same way once a trade works. Where does it go?",
+   "choices": [
+    "Under the stock's higher lows",
+    "A fixed amount under the price",
+    "At your entry, left there",
+    "Under the 200-day average"
+   ],
+   "answer": "Under the stock's higher lows",
+   "why": "Under the stock's higher lows. Our Kicker, Oops Reversal, Slingshot and Launchpad plans all trail under each higher low. Our default trail is a close under the 9 EMA for a fast mover, or the 20 EMA for a steadier one. None of our plans uses a fixed amount or the 200-day.",
+   "lesson_line": "Most of our plans trail under each higher low. Our default trail is a close under the 9 or 20 EMA.",
+   "facts": [
+    "h03",
+    "h05",
+    "h06",
+    "h07",
+    "h09",
+    "r04",
+    "f03",
+    "f16",
+    "f15",
+    "f13",
+    "f14"
+   ],
+   "wrong": {
+    "Under the 200-day average": "None of our plans trail there, and a trail that loose can give back most of a big win.",
+    "At your entry, left there": "That protects your capital, but it never moves up to protect the gain.",
+    "A fixed amount under the price": "A trail a fixed amount under the price is a real kind of trailing stop. It isn't how our plans trail. Ours follow higher lows or a moving average."
+   },
+   "simple": "Under the stock's higher lows, because most of our setup plans let the stock's own pullbacks set where the stop goes.",
+   "deeper": {
+    "trap": "A trail a fixed amount under the price is a real kind of trailing stop, so it looks right. Our plans follow the chart instead: each higher low, or a moving average."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "rests on the owner's rulebook and setup table (E52, TRADE_PLANS.md)",
+     "a rule that can change",
+     "fixed before"
+    ]
+   },
+   "batch": "sweep-2026-11-14"
+  },
+  {
+   "key": "q19",
+   "skill": "risk.partials",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You keep your total open risk under $2,000. Right now it's $1,800. Raising one stop to its entry takes $400 off.",
+   "q": "Can you take a new trade that risks $500?",
+   "choices": [
+    "Yes, you have $600 of room",
+    "No, you're at $1,800 already",
+    "Yes, you have $2,000 of room",
+    "No, wait for a trade to close"
+   ],
+   "answer": "Yes, you have $600 of room",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "limit - (open_risk - freed)",
+     "limit": 2000,
+     "open_risk": 1800,
+     "freed": 400
+    }
+   },
+   "why": "Yes, you have $600 of room. Total open risk is the risk on every open position added up, and raising a stop lowers it. Raising that stop took $400 off your $1,800, so $600 is left under your $2,000 limit. The $500 trade fits. The trade you raised stays open, so you don't have to wait for it to close. Our own rulebook treats total open risk as a guide, not a hard cap.",
+   "lesson_line": "Raising a stop frees room under your limit for a new trade.",
+   "facts": [
+    "f41",
+    "f42",
+    "f43",
+    "f45",
+    "h10"
+   ],
+   "wrong": {
+    "No, you're at $1,800 already": "That was before the stop moved. The $400 it freed is room again.",
+    "Yes, you have $2,000 of room": "That's your whole limit. Your other trades still use part of it.",
+    "No, wait for a trade to close": "No need. A stop at entry frees that risk while the trade stays open."
+   },
+   "simple": "Yes, because raising that stop freed $400, which leaves $600 of room, and the $500 trade fits under it.",
+   "deeper": {
+    "example": "A stop at entry frees the risk while the trade stays open. Counted from today's price instead, that trade still risks its open profit. The $400 it freed is the same either way, because the stop moved up by the same amount."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key (calc)",
+     "fixed before"
+    ]
+   },
+   "batch": "cards-2026-11-15",
+   "visual": {
+    "kind": "size",
+    "title": "The limit",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Limit on open risk",
+      "value": 2000,
+      "fmt": "$"
+     },
+     {
+      "key": "r2",
+      "label": "Open risk now",
+      "value": 1800,
+      "fmt": "$"
+     },
+     {
+      "key": "r3",
+      "label": "Taken off by the raise",
+      "value": 400,
+      "fmt": "$"
+     },
+     {
+      "key": "r4",
+      "label": "New trade risks",
+      "value": 500,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Room under the limit now",
+     "as": "dollars"
+    }
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "risk.partials",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Your stock is only a little above your entry. A friend says to move your stop to breakeven right now.",
+   "q": "What's the catch, if any?",
+   "choices": [
+    "A normal dip can shake you out",
+    "It adds risk to the trade",
+    "None, it locks in a profit",
+    "It caps your gain as the stock rises"
+   ],
+   "answer": "A normal dip can shake you out",
+   "why": "A normal dip can shake you out. A stop that close gets hit by regular ups and downs, and the stock can bounce right back without you. Our rule moves the stop to breakeven at 2R to 5R, ideally, not when it's only a little up. Some traders, like Dave Mabe, never move to breakeven at all.",
+   "lesson_line": "Move to breakeven too soon and normal swings can take you out of a good trade.",
+   "facts": [
+    "f13",
+    "f34",
+    "f10",
+    "f39",
+    "f08",
+    "h08"
+   ],
+   "wrong": {
+    "It adds risk to the trade": "It cuts the risk to your capital. The catch is getting stopped out, not added risk.",
+    "None, it locks in a profit": "A stop at entry locks in no profit. At best you get out even, and a normal dip can do it.",
+    "It caps your gain as the stock rises": "A sell stop sits below the price and only fires when the stock falls to it. It puts no ceiling on a rise."
+   },
+   "simple": "A normal dip can shake you out, because a stop that close to the price gets hit by everyday swings.",
+   "deeper": {
+    "trap": "Moving to breakeven feels free, because it takes your capital off the line. The cost is hidden. A stop that close can be hit by normal swings, and the stock can run on without you."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "why teaches the owner's breakeven rule (B19)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q21",
+   "skill": "risk.partials",
+   "rung": 8,
+   "format": "mcq",
+   "q": "Four trades each risk 1% of the account. You sell half of one, stop kept, and raise another's stop to entry. Total open risk from entry now?",
+   "answer": "2.5%",
+   "suffix": "%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "untouched * risk_pct + risk_pct * kept_share",
+     "untouched": 2,
+     "risk_pct": 1,
+     "kept_share": 0.5
+    }
+   },
+   "why": "2.5%. The two untouched trades risk 1% each, which is 2%. The trade you sold half of risks 0.5%. The trade with its stop at entry risks 0%. Total is 2.5%.",
+   "lesson_line": "After every sale or stop move, add your open risk back up.",
+   "facts": [
+    "f42",
+    "f43",
+    "f23"
+   ],
+   "simple": "2.5%, because two trades risk 1% each, the one you sold half of risks 0.5%, and the one at entry, nothing.",
+   "deeper": {
+    "trap": "The easy slip is to apply each change to the whole book. Selling half cuts only that trade's risk. Raising a stop to entry zeroes only that trade, and only counted from your entry. The two you didn't touch still carry their full 1%."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key (calc)",
+     "fixed before"
+    ]
+   },
+   "batch": "cards-2026-11-15",
+   "choices": [
+    "4%",
+    "3.5%",
+    "3%",
+    "2.5%"
+   ],
+   "wrong": {
+    "4%": "Ignored the sale and the stop move.",
+    "3.5%": "Counted the trade with its stop at entry as a full 1%.",
+    "3%": "Counted the half-sold trade as a full 1%."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Open risk",
+    "rows": [
+     {
+      "key": "r1",
+      "label": "Trades before the changes",
+      "value": 4,
+      "fmt": "count"
+     },
+     {
+      "key": "r2",
+      "label": "Risk on each",
+      "value": 1,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Open risk after the changes",
+     "as": "pct"
+    }
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "risk.partials",
+   "rung": 8,
+   "format": "numeric",
+   "q": "You buy 400 at $25, stop $24. You sell 100 at $27, raise the stop to $25, and the rest stops out there. What did you make?",
+   "answer": 200,
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "sold * (sale - entry) + kept * (exit - entry)",
+     "sold": 100,
+     "sale": 27,
+     "entry": 25,
+     "kept": 300,
+     "exit": 25
+    }
+   },
+   "why": "$200. The 100 you sold at $27 made $2 a share, $200. The 300 left stopped out at your $25 entry and came out even. The partial turned a round trip into a small win. That holds only if the stop filled at $25. A gap could fill the rest lower.",
+   "lesson_line": "A partial plus a stop at entry can turn a round trip into a small win.",
+   "facts": [
+    "f28",
+    "f23",
+    "f01",
+    "f35"
+   ],
+   "simple": "$200, because the 100 you sold made $2 each and the 300 left came out even at your $25 entry.",
+   "deeper": {
+    "example": "Take away the partial and all 400 shares come back to $25 for nothing. Take away the stop move and the 300 left ride down to the $24 stop and lose $300. Each step did its own job."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key (calc)",
+     "fixed before"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q23",
+   "skill": "risk.partials",
+   "rung": 9,
+   "format": "mcq",
+   "q": "300 shares at $80, stop $76. You sell 100 at $88, raise the stop to $80, then trail it to $94, where it's hit. Result in R?",
+   "answer": "3R",
+   "suffix": "R",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(sold * (sale - entry) + kept * (exit - entry)) / (shares * (entry - stop))",
+     "sold": 100,
+     "sale": 88,
+     "entry": 80,
+     "kept": 200,
+     "exit": 94,
+     "shares": 300,
+     "stop": 76
+    }
+   },
+   "why": "3R. Add what both pieces made: 100 shares from $80 to $88, and 200 shares from $80 to $94. Divide by what all 300 shares first risked, from $80 down to $76.",
+   "lesson_line": "Judge the whole trade in R: everything it made over what it first risked.",
+   "facts": [
+    "f25",
+    "f23",
+    "f03",
+    "f28"
+   ],
+   "simple": "3R: add what both pieces made, then divide by what all 300 shares risked at the start.",
+   "deeper": {
+    "trap": "Don't divide by the risk on the shares left, or by the risk after the stop moved. R is fixed at the start: what the whole position risked from entry to the first stop. Later stop moves change what you can lose, not what R is."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key (calc)"
+    ]
+   },
+   "batch": "cards-2026-11-15",
+   "choices": [
+    "0.7R",
+    "2.3R",
+    "2.8R",
+    "3R"
+   ],
+   "wrong": {
+    "2.3R": "Left out the profit from the first sale.",
+    "0.7R": "Counted only the first sale.",
+    "2.8R": "Averaged the two pieces' R without weighting by shares."
+   },
+   "visual": {
+    "kind": "ladder",
+    "title": "The trade",
+    "side": "long",
+    "levels": [
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 76
+     },
+     {
+      "key": "entry",
+      "label": "Bought 300 here",
+      "price": 80
+     },
+     {
+      "key": "sold",
+      "label": "Sold 100 here",
+      "price": 88
+     },
+     {
+      "key": "exit",
+      "label": "Trailing stop hit, rest sold",
+      "price": 94
+     }
+    ],
+    "find": {
+     "label": "Result in R",
+     "as": "r"
+    }
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "risk.partials",
+   "rung": 9,
+   "format": "scenario",
+   "story": "You hold 200 shares bought at $50. Your sell stop order sits with your broker at $50. Bad news hits overnight, and the stock opens at $46.",
+   "q": "What happens to your position?",
+   "choices": [
+    "Sold near $46, about $800 lost",
+    "Sold at $50, nothing lost",
+    "Held until it's back at $50",
+    "Held as a $50 limit order"
+   ],
+   "answer": "Sold near $46, about $800 lost",
+   "calc": {
+    "fn": "risk_dollars",
+    "args": {
+     "shares": 200,
+     "entry": 50,
+     "stop": 46
+    }
+   },
+   "why": "Sold near $46, about $800 lost. A sell stop triggers when a trade prints at or below its price. The open at $46 is below your $50 stop, so it fires at once and becomes a market order. It fills at the next price, not at $50. On 200 shares, a fill near $46 loses about $800 from your $50 entry.",
+   "lesson_line": "A stop order is a trigger, not a floor. After a gap, it fills near the open.",
+   "facts": [
+    "f32",
+    "f33",
+    "f02",
+    "f35",
+    "f09"
+   ],
+   "wrong": {
+    "Sold at $50, nothing lost": "That's the breakeven myth. The stop turns into a market order, and after a gap it fills well below your stop.",
+    "Held until it's back at $50": "A sell stop triggers at or below its price. An open at $46 is below it, so it fires right away.",
+    "Held as a $50 limit order": "A plain stop doesn't turn into a limit order. Once its price is reached, it becomes a market order and sells at the next price."
+   },
+   "simple": "Sold near $46 at the open, because a stop becomes a market order once hit, and the gap skips right past $50.",
+   "deeper": {
+    "trap": "The trap is thinking the stop promises $50. It only promises to sell once the price reaches $50 or lower. After a gap down, the first price is the open, well under the stop, and that is roughly where you get filled."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key (calc)",
+     "owner's gap rule (B20) may change how this is taught"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q25",
+   "skill": "risk.partials",
+   "rung": 6,
+   "format": "tf",
+   "house": true,
+   "q": "Our default trail sells a fast mover when it dips under its 9 EMA during the day.",
+   "answer": "False",
+   "simple": "False, because our default trail sells on a close below the average, not on a dip during the day.",
+   "why": "False. Our default trail waits for a close below the average. That's the 9 EMA for fast movers, the 20 EMA for steadier ones. A dip that recovers by the close is not a sell under this rule.",
+   "lesson_line": "Our default trail: a close under the 9 EMA for fast movers, the 20 EMA for steadier ones.",
+   "facts": [
+    "h09",
+    "f15",
+    "r04"
+   ],
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (E52)"
+    ]
+   },
+   "batch": "sweep-2026-11-14"
+  }
+ ],
+ "conflicts": [
+  "Where open risk is measured from. Tharp's R and UCT's own portfolio math measure a position's risk from the ENTRY (entry minus stop, times shares), so a stop at entry counts as zero. Incredible Charts' version of Elder's rule (f44, f45) measures from the CURRENT price (month-end close minus stop), so the same position still carries its open profit as risk. The file states the base in every question: q11, q14, q16 and q21 say 'from your entry' (or 'money you put in'), q19 gives the freed amount as a given (moving a stop changes the risk by the same amount under either base), and q04 / q15 ask the open-profit version by name.",
+  "Breakeven stops. The SEC, FINRA, Schwab, Investopedia and O'Neil all present raising a sell stop as a way to protect a profit, and O'Neil says not to let a stock with a worthwhile profit fall back below the purchase price. Dave Mabe (IBKR Campus) never moves a stop to breakeven, and Bulkowski's thepatternsite.com/ScalingOut.html reports Howard Bandy's Active Trader test where a breakeven stop 'dramatically reduces profit'. The file never keys WHEN to move to breakeven or that you always should; q20 teaches the cost (normal swings shake you out) and q17/q24 the gap risk.",
+  "Bulkowski (thepatternsite.com, a contract Tier 2 source) was read but NOT cited: its footer says the site 'shall not be used to train artificial intelligence (AI) systems', and docs/study/TRAINING_CORPUS.md marks the Study module as training material. Owner to decide whether short attributed quotes from it are acceptable.",
+  "Scaling out. Schwab presents selling part as a way to lock in gains while the rest rides (f28, f29); Mabe (IBKR Campus, f40) says it costs profit when the stock keeps running, and so do Bulkowski and, per the writer, Investopedia's criticism section (not cited, see the checker note below). The file keys both halves (q03 / q08) and does not claim scaling out raises returns.",
+  "UCT's own trim size, settled 2026-11-09: the account rulebook (sizing_rule.md section 9, B19, E51) names it, a third at 3R (the hard rule; the owner mostly waits for 5R in practice), another third at 5R, the last third trails. Until today TRADE_PLANS.md said the detectors 'do not say how much to sell at each'; q07 and q12 now teach the thirds as ours. Questions that sell 'half' elsewhere in the unit state it as a given or as a named author's rule, never as ours.",
+  "The unit row (UNITS-foundations.md F9.06) and docs/study/sizing_rule.md section 6 name 'the 10/20-day for episodic pivots (dossier CORRECTIONS)' as our trail and a 'breakeven rule (dossier M10)'. Both come from the model-drafted dossier, not the owner, so neither is used. The trails asked as ours come only from TRADE_PLANS.md's setup table (q18: the Kicker, Oops Reversal, Slingshot and Launchpad rows all name 'under each higher low'; HVE and Gap Support do not) plus the owner's quoted 'trailing the rising moving averages' (q06).",
+  "Investopedia, terms/t/trailingstop.asp, NVDA example: it writes the first trailing stop as '$99 (110 - (11 x 0.10))'; the arithmetic should be 110 - (110 x 0.10). Not cited. Investopedia articles/trading/08/trailing-stop-loss.asp says a 10% trail from $10.05 gives an 'immediate effective stop-loss value' of $9.85 (10% would be about $9.05); that page is not cited at all.",
+  "Elder's 6% cap (f41, f43) is quoted only to show that total open risk is added up across positions and that raising stops lowers it. The 6% number is never keyed; q19 uses the member's own limit as a given. UCT's heat cap in sizing_rule.md section 5 is marked 'App cap', not an owner answer, and belongs to F9.05.",
+  "Checker, 2026-11-09: Investopedia's Scale Out page (terms/s/scale-out.asp, the writer's s5) refused both the plain client (quote check: unreachable, 403) and WebFetch, so its three quotes (old f17 'Scaling out of a trade means selling portions of shares...', f18 '...reduces overall profit...', f19 '...let an indicator or a trailing stop decide...') could not be confirmed and were removed with the source. Every item that cited them still has confirmed support: q06 is now asked as our rule (owner quote h04 + Schwab f28/f29), q08 rests on Schwab f28 + IBKR/Mabe f40, the rest on Tier 1 facts, Tharp f23 or a calc. Restore them only after a reader confirms the quotes on the live page.",
+  "Track audit 2026-11-09: two corrections to the first note. (1) The app's heat (api/services/portfolio_heat.py) is the sum of |entry - stop| x shares; it treats a stop equal to the entry as a broker placeholder (no confident number) and counts a stop above the entry by its distance, so it does not count a stop at entry as zero. (2) Tharp's R runs from the entry, but V.06 q48 teaches Tharp's 'open risk' from today's price. q16 and q21 now name the entry base in the question itself. q13 is cut as a duplicate of F9.05#q09 (see verify)."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Tharp f20-f24 read in context on vantharpinstitute.com: $50 - $48 = $2 = 1R; $2 x 100 = $200; R can be per share or total. Changed: dropped f17 (Investopedia scale-out page unreadable), cited Schwab f28 for selling part.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Investopedia trailing-stop example (f46-f48) read in context: 10% trail from $120 = $108, 8% over the $100 entry. Changed step 3 'The risk is gone' to 'Your capital is safe', because the unit itself teaches that open profit is still at risk above entry; 'gaps aside' kept (f35).",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f01 (SEC), f38 (O'Neil, AAII), f35 (Fidelity), f13 (Investopedia) read in context. Changed: step 1 now names it 'a breakeven stop' (f39 added), so q20 and q24's word 'breakeven' is taught before it is used.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Bought and sold counts stated; slot reads '200 shares'."
+  },
+  "q02": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
+  },
+  "q03": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q04": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Keep. Distractor 'A gap down at the open' is the stop-fills-on-a-gap-down topic, not GAP-TRIM; breakeven 2R to 5R agrees with D-013."
+  },
+  "q06": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Agrees with D-013: first sell a judgment, day 3 at the earliest, 3/5/7 day push or about 5 to 10R; quotes r01-r03 word for word; styled."
+  },
+  "q08": {
+   "status": "pass",
+   "by": "writer",
+   "fixed": false,
+   "notes": "upgraded wave9; awaiting cold re-read"
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Bought/sold counts and entry/stop right; the $54 sale price rightly omitted; the 200 left is not shown."
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Entry, sale and new stop labelled; the kept 400 and the old $19 stop are not on the card; slot $600 matches key."
+  },
+  "q13": {
+   "status": "cut",
+   "notes": "duplicate of F9.05#q09. Track auditor 2026-11-09: Same fact tested the same way (numeric): at the same stop, risk falls in proportion to the shares held (a quarter of a 1% position risks 0.25% in F9.05; half of it risks 0.5% here). F9.05 teaches it on the starter piece; this unit already drills the same step in dollars (q09) and inside the multi-step total (q21). The question was right as written.",
+   "fixed": false,
+   "by": "auditor"
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Shares, entry and the raised stop clear; $56 and old $48 stop omitted; slot $0."
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Stock now vs stop vs entry clear; 'Profit given back' = shares x (now - stop); slot $1,800."
+  },
+  "q16": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "'First, stop to entry $500' reads as if 500 were the risk now; it is the first trade's risk BEFORE its stop was raised (now zero)."
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "False is robust under any reading (resting order fills below on a gap, f02/f09/f33/f35; under B20 the loss can still exceed the entry). f27 paraphrase fine. q24 applies the idea at rung 9 but its stem is not given away; B20/D41 tension already owner-flagged."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "D-021 rename correct; r04 cited; answer and wrongs hold."
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "'Room for the new trade' reads as the size the new trade can take; the calc is the room under the limit after the raise (the question asks yes/no on a $500 trade)."
+  },
+  "q20": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Answered cold: the catch is being shaken out by a normal dip (f13, f34, f10). The other three are each wrong: the move cuts capital risk rather than adding it, breakeven locks in no profit, and a sell stop sets no ceiling. The longest choice (36 chars) is a wrong one, so there is no tell toward the key. h08 is quoted word for word from B19 with 'ideally' kept. The Mabe line is attributed (f39). The deeper text states only the cost the facts support."
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "The answer is open risk AFTER selling half and raising a stop, but the card shows only the starting 4 trades at 1%; label both so the slot is not read as the plain 4%."
+  },
+  "q22": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave9: see the resolver's notes"
+  },
+  "q23": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Ladder is fine (all prices on one ruler, no r so no R steps). But the '300 shares' note floats under the ruler; tie it to the entry, and say the rest was sold at the trailing stop."
+  },
+  "q24": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Story names a resting broker stop order (D41), so the key is order mechanics: f32 triggers at or below, f02 becomes market order, f33 gap fill far below; calc 200x(50-46)=800. Choices 30-32, two Sold two Held, neither Held choice is B20, so no second answer. B20 teaching stays the existing owner flag.",
+   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+  },
+  "q25": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "D-021 rename correct; answer False holds; close-not-touch rule intact."
+  }
+ }
+}

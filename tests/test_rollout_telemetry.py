@@ -168,3 +168,119 @@ def test_the_REPORT_is_admin_only():
     app.dependency_overrides[get_current_user_with_plan] = lambda: who["user"]
     c = TestClient(app, raise_server_exceptions=False)
     assert c.get("/api/indicator-telemetry/rollout-report").status_code == 403
+
+
+# --- version stamps: what produced the turn (plan section 7, L1) -----------------
+
+def test_every_turn_is_stamped_with_what_produced_it(store, conv, model):
+    from api.services import concept_vocabulary, definition_concierge as dc, user_definitions
+    e = env(1, [{"op": "set_slot", "slot": "value#1", "value": 80}])
+    model([emits(e)])
+    conv.converse("make it 80", user_id="u1", view=view(1, [out("value", RSI_GT_70)]))
+    (_, p), = rows("converse_turn")
+    assert p["prompt_sha"] == conv.prompt_sha() and len(p["prompt_sha"]) == 16
+    assert p["vocab_version"] == concept_vocabulary.version()
+    assert p["model"] == dc.MODEL
+    assert p["engine"] == user_definitions.SCRIPT_ENGINE_VERSION
+
+
+def test_a_refusal_before_the_model_is_stamped_too(store, conv):
+    conv.converse("Plot VIX's RSI 14", user_id="u1", view=empty_view(0),
+                  chart={"sym": "XRPN", "tf": "1D"})
+    (_, p), = rows("converse_turn")
+    assert p["failure_class"] == "preflight_refused" and p["prompt_sha"] == conv.prompt_sha()
+
+
+def test_the_prompt_stamp_moves_when_the_instructions_or_the_tool_move(conv, monkeypatch):
+    conv.prompt_sha.cache_clear()
+    base = conv.prompt_sha()
+    try:
+        monkeypatch.setattr(conv, "CONVERSE_SYSTEM_PROMPT", conv.CONVERSE_SYSTEM_PROMPT + " ")
+        conv.prompt_sha.cache_clear()
+        assert conv.prompt_sha() != base
+        monkeypatch.undo()
+        real_tool = conv.anthropic_tool()
+        monkeypatch.setattr(conv, "anthropic_tool", lambda: dict(real_tool, description="x"))
+        conv.prompt_sha.cache_clear()
+        assert conv.prompt_sha() != base
+        monkeypatch.undo()
+        conv.prompt_sha.cache_clear()
+        assert conv.prompt_sha() == base      # control: unchanged inputs, unchanged stamp
+    finally:
+        conv.prompt_sha.cache_clear()
+
+
+def test_a_stamp_that_cannot_be_read_is_left_out_and_the_turn_is_still_recorded(
+        store, conv, model, monkeypatch):
+    def boom():
+        raise RuntimeError("no prompt")
+    monkeypatch.setattr(conv, "prompt_sha", boom)
+    e = env(1, [{"op": "set_slot", "slot": "value#1", "value": 80}])
+    model([emits(e)])
+    conv.converse("make it 80", user_id="u1", view=view(1, [out("value", RSI_GT_70)]))
+    (_, p), = rows("converse_turn")
+    assert "prompt_sha" not in p and p["failure_class"] == "ok" and "model" in p
+
+
+@pytest.mark.parametrize("key,value", [
+    ("prompt_sha", "make it eighty"),          # words, not a hash
+    ("prompt_sha", "0123456789ABCDEF"),        # not lower-case hex
+    ("vocab_version", "the member said this"),
+    ("model", "Please Build Me A Table"),
+    ("engine", "57"),                          # a string where a number is owed
+    ("engine", True),
+])
+def test_a_stamp_can_never_carry_free_text(key, value):
+    assert tel._prop_violation("converse_turn", key, value) is not None
+
+
+@pytest.mark.parametrize("key,value", [
+    ("prompt_sha", "0123456789abcdef"), ("vocab_version", "2026-11-15.1"),
+    ("model", "claude-opus-5"), ("engine", 57),
+])
+def test_a_well_formed_stamp_is_accepted(key, value):
+    assert tel._prop_violation("converse_turn", key, value) is None
+
+
+# --- was it wanted: the undone signal, and what produced the window (L7) -----------
+
+def test_an_undone_conversation_is_counted_once_and_apart_from_a_discarded_one(store, conv):
+    # `conv` is here for its isolation: the report reads the shared spend pool, and without the
+    # fixture that read opens the real data root (the suite's own guard caught exactly that).
+    for cid, actions in (("auth_dddddddddddd", ("opened", "preview", "undone", "saved")),
+                         ("auth_eeeeeeeeeeee", ("opened", "preview", "undone", "discarded")),
+                         ("auth_ffffffffffff", ("opened", "preview", "saved"))):
+        for action in actions:
+            tel.log_event("m1", "studio_action", import_id=f"{cid}:{action}",
+                          conversation_id=cid, action=action, surface="studio")
+    f = tel.rollout_report(7)["funnel"]
+    assert f["undone"] == 2 and f["saved_after_undo"] == 1
+    assert f["saved"] == 2 and f["discarded"] == 1        # control: the older counts are untouched
+
+
+def test_undone_is_an_action_the_door_accepts_and_a_made_up_one_is_not():
+    assert tel._prop_violation("studio_action", "action", "undone") is None
+    assert tel._prop_violation("studio_action", "action", "regretted") is not None
+
+
+def test_the_report_says_what_produced_the_turns(store, conv, model):
+    from api.services import definition_concierge as dc
+    good = env(1, [{"op": "set_slot", "slot": "value#1", "value": 80}])
+    model([emits(good), emits(good)])
+    conv.converse("make it 80", user_id="m1", view=view(1, [out("value", RSI_GT_70)]))
+    conv.converse("make it 80", user_id="m2", view=view(1, [out("value", RSI_GT_70)]))
+    by = tel.rollout_report(7)["produced_by"]
+    assert by["prompt_sha"] == {conv.prompt_sha(): 2}
+    assert by["model"] == {dc.MODEL: 2}
+    assert set(by) == {"prompt_sha", "vocab_version", "model", "engine"}
+
+
+def test_a_window_spanning_two_instruction_versions_shows_both(store, conv, model, monkeypatch):
+    good = env(1, [{"op": "set_slot", "slot": "value#1", "value": 80}])
+    model([emits(good), emits(good)])
+    conv.converse("make it 80", user_id="m1", view=view(1, [out("value", RSI_GT_70)]))
+    first = conv.prompt_sha()
+    monkeypatch.setattr(conv, "prompt_sha", lambda: "0123456789abcdef")
+    conv.converse("make it 80", user_id="m2", view=view(1, [out("value", RSI_GT_70)]))
+    assert tel.rollout_report(7)["produced_by"]["prompt_sha"] == {first: 1, "0123456789abcdef": 1}
+

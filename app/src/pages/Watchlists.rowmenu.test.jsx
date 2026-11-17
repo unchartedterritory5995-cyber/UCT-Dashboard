@@ -146,7 +146,7 @@ test('the row menu offers Full Research and canonical Ask AI, routed to /researc
   await openRowMenu(user, 'AAPL')
 
   expect(screen.getByRole('button', { name: /full research/i })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: /ask ai about aapl/i })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /ask the uct agent about aapl/i })).toBeInTheDocument()
 
   await user.click(screen.getByRole('button', { name: /full research/i }))
   expect(navigateMock).toHaveBeenCalledWith('/research/AAPL')
@@ -157,7 +157,7 @@ test('the row menu Ask AI action routes to canonical Research Ask AI, not generi
   renderOwned()
 
   await openRowMenu(user, 'AAPL')
-  await user.click(screen.getByRole('button', { name: /ask ai about aapl/i }))
+  await user.click(screen.getByRole('button', { name: /ask the uct agent about aapl/i }))
 
   expect(navigateMock).toHaveBeenCalledWith('/research/AAPL?section=ai')
 })
@@ -169,7 +169,7 @@ test("a community row still offers no menu at all, so Research/Ask AI aren't rea
   await openRowMenu(user, 'TSLA')
 
   expect(screen.queryByRole('button', { name: /full research/i })).not.toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: /ask ai/i })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /ask the uct agent|ask ai/i })).not.toBeInTheDocument()
 })
 
 test('a note opened from the row menu shows what was saved and persists an edit', async () => {

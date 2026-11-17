@@ -162,7 +162,7 @@ describe('🔴 the library lists the member\'s own formulas', () => {
     expect(def.meta.tier).toBe('premium')
     open()
     const row = getResultRow(/20-bar average/)
-    expect(within(row).getByText('Your formula')).toBeTruthy()
+    expect(within(row).getByText('Your indicator')).toBeTruthy()
     expect(within(row).queryByText(/^premium$/i),
       'the tier badge is on the member\'s own row — beside "Your formula", "Premium" reads as "you cannot use this"')
       .toBeNull()
@@ -250,12 +250,12 @@ describe('⭐ it is visually a DIFFERENT KIND OF THING, not a sixteenth indicato
     open()
     const mine = getResultRow(/20-bar average/)
     expect(mine.getAttribute('data-user-defined')).toBe('true')
-    expect(within(mine).getByText('Your formula')).toBeTruthy()
+    expect(within(mine).getByText('Your indicator')).toBeTruthy()
     // ⛔ CONTROL: a shipped row is marked as NOT a member's, and shows no pill.
     // Without this the attribute could be hardcoded 'true' on every row.
     const rsi = getResultRow(/Relative Strength Index/)
     expect(rsi.getAttribute('data-user-defined')).toBe('false')
-    expect(within(rsi).queryByText('Your formula')).toBeNull()
+    expect(within(rsi).queryByText('Your indicator')).toBeNull()
   })
 
   it('is findable by the name the member typed, through the same search box', () => {

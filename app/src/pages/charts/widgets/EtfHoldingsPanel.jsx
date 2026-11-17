@@ -81,8 +81,8 @@ export default function EtfHoldingsPanel({ sym, onClose, centerOn = null, themeV
           className={styles.colorDot}
           style={{ background: COLOR_HEX[panelColor] }}
           onClick={() => setPanelColor((c) => nextGroup(c, extraGroupsOn))}
-          title={`Colour group: ${panelColor === 'N' ? 'not linked' : panelColor} (click to change)`}
-          aria-label="Colour group"
+          title={`Color group: ${panelColor === 'N' ? 'not linked' : panelColor} (click to change)`}
+          aria-label="Color group"
         />
         <div className={styles.headBtns} data-no-drag>
           <button type="button" className={styles.close} onClick={onClose} title="Close" aria-label="Close"><UIcon name="x" size={13} gold={false} /></button>

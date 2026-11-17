@@ -1,0 +1,228 @@
+{
+ "schema": "uct.q-rs4-witnesses/v1",
+ "probe": "tools/visual_conformance/probes/rs-syminfo-industry.pine",
+ "run": "uct-vendor-batch/runs/s10-2026-11-15 (out-of-git store, peer rig)",
+ "how": "the probe's last-bar label text IND=|SEC=|TYPE=, read from objects.texts.labels; capture files receipt-verified by the rig's verify_capture.mjs",
+ "rows": [
+  {
+   "capture": "rs-syminfo-industry-aapl-1d-2026-11-15.json",
+   "sha256": "335e17bdae491a3f2e8a1f588b78a75020a4ca329ea786f269280a8a8db4a990",
+   "receipt": 2690273186,
+   "symbol": "NASDAQ:AAPL",
+   "tvType": "stock",
+   "industry": "Telecommunications Equipment",
+   "sector": "Electronic Technology",
+   "syminfoType": "stock",
+   "capturedAtUTC": "2026-11-15T07:18:46.152Z"
+  },
+  {
+   "capture": "rs-syminfo-industry-amd-1d-2026-11-15.json",
+   "sha256": "4b6579b174b6f1ea5d8ab0626ae29eb9b4db5156edd09fb2ce7543edc0db37d7",
+   "receipt": 2292649254,
+   "symbol": "NASDAQ:AMD",
+   "tvType": "stock",
+   "industry": "Semiconductors",
+   "sector": "Electronic Technology",
+   "syminfoType": "stock",
+   "capturedAtUTC": "2026-11-15T07:20:20.098Z"
+  },
+  {
+   "capture": "rs-syminfo-industry-arkk-1d-2026-11-15.json",
+   "sha256": "b10c774d317fb9c350e860f2d1bff66b6cea1df711386eb88d48d3141eaf2804",
+   "receipt": 3262663809,
+   "symbol": "CBOE:ARKK",
+   "tvType": "fund",
+   "industry": "Investment Trusts/Mutual Funds",
+   "sector": "Miscellaneous",
+   "syminfoType": "fund",
+   "capturedAtUTC": "2026-11-15T07:25:03.453Z"
+  },
+  {
+   "capture": "rs-syminfo-industry-coin-1d-2026-11-15.json",
+   "sha256": "c3d88da561a41e5ab64914f7b80dd8dbd1bfe5411d30b1fa7373a2156c73050a",
+   "receipt": 971358686,
+   "symbol": "NASDAQ:COIN",
+   "tvType": "stock",
+   "industry": "Investment Banks/Brokers",
+   "sector": "Finance",
+   "syminfoType": "stock",
+   "capturedAtUTC": "2026-11-15T07:22:53.068Z"
+  },
+  {
+   "capture": "rs-syminfo-industry-gld-1d-2026-11-15.json",
+   "sha256": "4888e47f3fd9d76d6523f557e35bc6ad2c0cf07bc1d646d826ebdbcbfe303de2",
+   "receipt": 1322692499,
+   "symbol": "AMEX:GLD",
+   "tvType": "fund",
+   "industry": "Investment Trusts/Mutual Funds",
+   "sector": "Miscellaneous",
+   "syminfoType": "fund",
+   "capturedAtUTC": "2026-11-15T07:25:21.397Z"
+  },
+  {
+   "capture": "rs-syminfo-industry-iwm-1d-2026-11-15.json",
+   "sha256": "c6b8ca04b2f4376f03c8f501a7909fc72d7fe2c3159245234651115fa07fc4ac",
+   "receipt": 1005523185,
+   "symbol": "AMEX:IWM",
+   "tvType": "fund",
+   "industry": "Investment Trusts/Mutual Funds",
+   "sector": "Miscellaneous",
+   "syminfoType": "fund",
+   "capturedAtUTC": "2026-11-15T07:23:22.095Z"
+  },
+  {
+   "capture": "rs-syminfo-industry-jpm-1d-2026-11-15.json",
+   "sha256": "4e1e593b48ccd2a6c9a102704721d80a3b5ebfd0a258e92432c8707100b42f19",
+   "receipt": 1215420548,
+   "symbol": "NYSE:JPM",
+   "tvType": "stock",
+   "industry": "Major Banks",
+   "sector": "Finance",
+   "syminfoType": "stock",
+   "capturedAtUTC": "2026-11-15T07:20:48.135Z"
+  },
+  {
+   "capture": "rs-syminfo-industry-ko-1d-2026-11-15.json",
+   "sha256": "cd379ab1c7b74a00ff31493ac9666a68d930f850fcbc47c2c8d8377ae36f92b3",
+   "receipt": 4221057449,
+   "symbol": "NYSE:KO",
+   "tvType": "stock",
+   "industry": "Beverages: Non-Alcoholic",
+   "sector": "Consumer Non-Durables",
+   "syminfoType": "stock",
+   "capturedAtUTC": "2026-11-15T07:22:23.952Z"
+  },
+  {
+   "capture": "rs-syminfo-industry-msft-1d-2026-11-15.json",
+   "sha256": "b4c104ed78c34cdc5140ec8112c98f4710d474ae569cda46eba0c91cac131c59",
+   "receipt": 3293226485,
+   "symbol": "NASDAQ:MSFT",
+   "tvType": "stock",
+   "industry": "Packaged Software",
+   "sector": "Technology Services",
+   "syminfoType": "stock",
+   "capturedAtUTC": "2026-11-15T07:20:04.744Z"
+  },
+  {
+   "capture": "rs-syminfo-industry-nvda-1d-2026-11-15.json",
+   "sha256": "c8e65cc89c1221b1813bdcd8f6cfacff2bad22b9677cad7ebce72ed52ce3fe4f",
+   "receipt": 2064546265,
+   "symbol": "NASDAQ:NVDA",
+   "tvType": "stock",
+   "industry": "Semiconductors",
+   "sector": "Electronic Technology",
+   "syminfoType": "stock",
+   "capturedAtUTC": "2026-11-15T07:18:01.249Z"
+  },
+  {
+   "capture": "rs-syminfo-industry-pltr-1d-2026-11-15.json",
+   "sha256": "6e009c04447517b101b5e8434e68aa042903f4a6ffc4bb7b1e0b3c72218c5c49",
+   "receipt": 130769913,
+   "symbol": "NASDAQ:PLTR",
+   "tvType": "stock",
+   "industry": "Packaged Software",
+   "sector": "Technology Services",
+   "syminfoType": "stock",
+   "capturedAtUTC": "2026-11-15T07:22:37.955Z"
+  },
+  {
+   "capture": "rs-syminfo-industry-qqq-1d-2026-11-15.json",
+   "sha256": "501bec3b4d325aabbdd10b3176a11557b57ffe6b7c731e92aa85a616c581104e",
+   "receipt": 681167794,
+   "symbol": "NASDAQ:QQQ",
+   "tvType": "fund",
+   "industry": "Investment Trusts/Mutual Funds",
+   "sector": "Miscellaneous",
+   "syminfoType": "fund",
+   "capturedAtUTC": "2026-11-15T07:23:07.677Z"
+  },
+  {
+   "capture": "rs-syminfo-industry-rddt-1d-2026-11-15.json",
+   "sha256": "de49cd3254508d3b058066a764665e86b985e3cf07fb9274f51e8adb84d4283e",
+   "receipt": 2798235191,
+   "symbol": "NYSE:RDDT",
+   "tvType": "stock",
+   "industry": "Internet Software/Services",
+   "sector": "Technology Services",
+   "syminfoType": "stock",
+   "capturedAtUTC": "2026-11-15T07:10:39.753Z"
+  },
+  {
+   "capture": "rs-syminfo-industry-smh-1d-2026-11-15.json",
+   "sha256": "76eb4f5cf9b0b6aca680d55d527dc7cb1ce19b97834e292bafc9e5501534f376",
+   "receipt": 639540538,
+   "symbol": "NASDAQ:SMH",
+   "tvType": "fund",
+   "industry": "Investment Trusts/Mutual Funds",
+   "sector": "Miscellaneous",
+   "syminfoType": "fund",
+   "capturedAtUTC": "2026-11-15T07:24:31.573Z"
+  },
+  {
+   "capture": "rs-syminfo-industry-spy-1d-2026-11-15.json",
+   "sha256": "d315e6b76ba2478b7a3a6de5bfc0ed6fa0b7cc229c8ffef771ec5e4e9aea3d8c",
+   "receipt": 1749510699,
+   "symbol": "AMEX:SPY",
+   "tvType": "fund",
+   "industry": "Investment Trusts/Mutual Funds",
+   "sector": "Miscellaneous",
+   "syminfoType": "fund",
+   "capturedAtUTC": "2026-11-15T07:16:29.394Z"
+  },
+  {
+   "capture": "rs-syminfo-industry-tlt-1d-2026-11-15.json",
+   "sha256": "e3270af105d3ae7eec703dd2cad75ff3d80365632235d4bd726cf6e3fc32ccf5",
+   "receipt": 1116161514,
+   "symbol": "NASDAQ:TLT",
+   "tvType": "fund",
+   "industry": "Investment Trusts/Mutual Funds",
+   "sector": "Miscellaneous",
+   "syminfoType": "fund",
+   "capturedAtUTC": "2026-11-15T07:25:35.292Z"
+  },
+  {
+   "capture": "rs-syminfo-industry-tsla-1d-2026-11-15.json",
+   "sha256": "36568731adf3f51c838b4d4b396af9ba0fa92e47c1fcad3dbffdf10fb6a13647",
+   "receipt": 3106896335,
+   "symbol": "NASDAQ:TSLA",
+   "tvType": "stock",
+   "industry": "Motor Vehicles",
+   "sector": "Consumer Durables",
+   "syminfoType": "stock",
+   "capturedAtUTC": "2026-11-15T07:20:35.219Z"
+  },
+  {
+   "capture": "rs-syminfo-industry-unh-1d-2026-11-15.json",
+   "sha256": "80e2074c807f1ef46e854b1b3d215c1fb423e68ed1d4a90f7ff06a46302e1ffc",
+   "receipt": 1987747323,
+   "symbol": "NYSE:UNH",
+   "tvType": "stock",
+   "industry": "Managed Health Care",
+   "sector": "Health Services",
+   "syminfoType": "stock",
+   "capturedAtUTC": "2026-11-15T07:22:10.023Z"
+  },
+  {
+   "capture": "rs-syminfo-industry-xlk-1d-2026-11-15.json",
+   "sha256": "48cea835a3b834c0bd41acbde3aae5a0cada11cddcd29ccede7424435e85f691",
+   "receipt": 2983192521,
+   "symbol": "AMEX:XLK",
+   "tvType": "fund",
+   "industry": "Investment Trusts/Mutual Funds",
+   "sector": "Miscellaneous",
+   "syminfoType": "fund",
+   "capturedAtUTC": "2026-11-15T07:23:35.849Z"
+  },
+  {
+   "capture": "rs-syminfo-industry-xom-1d-2026-11-15.json",
+   "sha256": "de4f0c436137d5134221c8e7bb0827616921b7feb48f9dbde1d86baa047eeeea",
+   "receipt": 604359031,
+   "symbol": "NYSE:XOM",
+   "tvType": "stock",
+   "industry": "Integrated Oil",
+   "sector": "Energy Minerals",
+   "syminfoType": "stock",
+   "capturedAtUTC": "2026-11-15T07:21:56.093Z"
+  }
+ ]
+}

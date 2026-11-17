@@ -257,3 +257,34 @@ def test_RS_and_catalysts_need_BOTH_lists_and_the_master_switch(monkeypatch, nam
         _arm(monkeypatch, kinds=[name], isolated_kinds=name)
         monkeypatch.setenv(env_name, value)                           # drop exactly one of the three
         assert _read(name, turn=f"drop-{env_name}")["status"] == "refused" and ran == [], env_name
+
+
+# ── AUDIT #1271 (non-blocking ask): a kind name is matched EXACTLY — a wrong-case entry arms nothing ─────────
+# (the surviving mutant was a case-folded match in isolated_kinds / enabled_kinds: "RS.Leadership" arming rs.leadership)
+def _wrong_cases(name):
+    return sorted({name.upper(), name.title(), name[0].upper() + name[1:]} - {name})
+
+
+def test_a_WRONG_CASE_isolated_kinds_entry_arms_nothing(monkeypatch):
+    r, ran = _spied()
+    for name in _isolated(r):
+        for wrong in _wrong_cases(name):
+            ran.clear()
+            gw._reset_for_test(r)
+            _arm(monkeypatch, kinds=r.names(), isolated_kinds=wrong)
+            assert not gw.isolated_enabled(name), (name, wrong)
+            out = _read(name, turn=f"case-iso-{name}-{wrong}")
+            assert out["status"] == "refused" and ran == [], (name, wrong)
+
+
+def test_a_WRONG_CASE_data_kinds_entry_arms_nothing(monkeypatch):
+    r, ran = _spied()
+    for name in r.names():
+        iso = r.get(name).model_isolated
+        for wrong in _wrong_cases(name):
+            ran.clear()
+            gw._reset_for_test(r)
+            _arm(monkeypatch, kinds=[wrong], isolated_kinds=name if iso else None)
+            assert not gw.kind_enabled(name), (name, wrong)
+            out = _read(name, turn=f"case-data-{name}-{wrong}")
+            assert out["status"] == "refused" and ran == [], (name, wrong)

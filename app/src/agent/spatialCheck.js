@@ -17,6 +17,7 @@
 // a line or place that is a move's destination, a comparison ("like the top row") or a source states none either.
 import { ordinalChart, chartsNamedBy, relativeChart, selectedChart, chartRefOf } from './deixis'
 import { CLICK_ACT_NP } from './clickRef'
+import { tickerChanged, namedTickers } from './chartRail'
 
 const INERT = /\b(?:fine|alone|already|leave|leaving|left alone|can stay|stays?|stay put|untouched|as (?:it|they) (?:is|are)|don'?t|do not|doesn'?t|not|never|ignore|skip|keep)\b/i
 const CLAUSES = /[,;.!?]|\b(?:and then|but|then|while|also|plus|although|though)\b/i
@@ -502,7 +503,7 @@ const NEG_ANY_RE = new RegExp(String.raw`\b(without|with\s+the\s+exception\s+of)
 const NEG_STAY_RE = new RegExp(String.raw`${NEG_START}()(${NEG_REFS})\s+(?:${NEG_STAY})${NEG_END}`, 'gi')
 // the loose form for the UNPLACED net: a cue and whatever it governs to the clause's end ("leave SPY's neighbour alone")
 const NEG_NET_RE = new RegExp(String.raw`${NEG_START}(${NEG_CUE}|without|with\s+the\s+exception\s+of)\s+([^,;:.!?—–]{1,60}?)${NEG_TAIL}${NEG_END}`, 'gi')
-const LOWER_STOP = /^(?:all|now|one|out|any|are|for|the|and|low|big|key|fun|run|see|has|two|new|top|it|on|be|so|or|go|me|us|we|my|an|a|to|in|at|by|of|up|is|no|do|own|way|day|bar|bars|log|this|that|them|these|those|rest|else|time|week|line|axis|grid|row|rows|both|each|mine|here|there|today|again|weekly|daily|monthly|hourly|chart|charts|ones)$/i
+export const LOWER_STOP = /^(?:all|now|one|out|any|are|for|the|and|low|big|key|fun|run|see|has|two|new|top|it|on|be|so|or|go|me|us|we|my|an|a|to|in|at|by|of|up|is|no|do|own|way|day|bar|bars|log|this|that|them|these|those|rest|else|time|week|line|axis|grid|row|rows|both|each|mine|here|there|today|again|weekly|daily|monthly|hourly|chart|charts|ones)$/i
 /** Each ticker reference a negated-ticker clause governs → [{ phrase, tok, poss, index, input }]. */
 export function negTickerRefs(text, charts = []) {
   const s = String(text || '')
@@ -538,6 +539,14 @@ export function excludedCharts(text, charts = [], sel = null) {
   let adds = 0
   const add = out.add.bind(out)
   out.add = (x) => { adds++; return add(x) }
+  // ⛔ (AUDIT 53) a ticker the words CHANGE is never one they exclude: "AAPL instead of SPY" / "QQQ instead of SPY" name SPY as the
+  // chart to change — no reader below excludes it (nor unplaces it: a linked SPY pair is still the target). The new symbol is a
+  // ticker no chart shows, or a shown one as the relation's direct complement (tickerChanged tight)
+  const shownSyms = new Set(charts.map(c => String(c?.symbol || '').toUpperCase()).filter(Boolean))
+  const namedSyms = namedTickers(text, [...shownSyms])
+  const fresh = namedSyms.filter(t => !shownSyms.has(t)), onBoard = namedSyms.filter(t => shownSyms.has(t))
+  const changed = (sym) => !!sym && (tickerChanged(text, sym, fresh) || tickerChanged(text, sym, onBoard, { tight: true }))
+  const changedIn = (phrase) => namedTickers(phrase, [...shownSyms]).some(t => shownSyms.has(t) && changed(t))
   const negs = [...exceptForm(text).matchAll(NEG_EXCEPT)].filter(m => negNamesAChart(m[1].trim(), charts))
   for (const m of [...exceptMatches(text), ...negs, ...sepButMatches(text), ...tickerPossMatches(text)]) {
     const a0 = adds
@@ -546,6 +555,7 @@ export function excludedCharts(text, charts = [], sel = null) {
   // (hotfix) a NEGATED TICKER clause ("…, but leave NVDA's alone", "…; dont touch NVDA", "Not the NVDA chart though."):
   // each ticker reference placed on the board's symbols (negTickerRefs)
   for (const r of negTickerRefs(text, charts)) {
+    if (changed(r.tok)) { placed.push(normPhrase(r.phrase)); continue }
     const list = charts.filter(c => String(c?.symbol || '').toUpperCase() === r.tok)
     placed.push(normPhrase(r.phrase))
     if (list.length === 1) { out.add(list[0].ref); continue }
@@ -584,12 +594,16 @@ export function excludedCharts(text, charts = [], sel = null) {
     if (sel && relativeChart(k[1], charts, sel)?.hits?.length) continue
     add(UNPLACED)
   }
+  // ⛔ (AUDIT finding 1) a ticker the words CHANGE is never one they exclude: "AAPL instead of SPY" / "AAPL rather than SPY" name
+  // SPY as the chart to change (AAPL its new symbol) — an exclusion reading of it would protect SPY and aim the change elsewhere
+  for (const c of charts) if (c?.ref && out.has(c.ref) && c.symbol && changed(String(c.symbol).toUpperCase())) out.delete(c.ref)
   out.add = add
   // the charts an UNPLACED exception may mean (a ticker on several charts): never offered by a question (`unoffered`)
   Object.defineProperty(out, 'unoffered', { value: unoffered, enumerable: false })
   return out
   function readException(m) {
     const phrase = m[1].trim()
+    if (changedIn(phrase)) return
     const role = clickRole(phrase, tailOf(m))
     if (role === 'click') { if (sel) out.add(sel); return }
     if (role === 'reaimed') { out.add(UNPLACED); return }

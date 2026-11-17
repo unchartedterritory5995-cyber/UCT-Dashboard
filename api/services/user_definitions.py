@@ -283,6 +283,21 @@ CREATE INDEX IF NOT EXISTS idx_definition_listings_owner
   ON definition_listings(user_id, def_id, id DESC);
 CREATE INDEX IF NOT EXISTS idx_definition_listings_feed
   ON definition_listings(id DESC);
+
+-- ⭐ MODERATION (2026-11-16): UCT taking a listing out of the library. APPEND-ONLY like
+-- the listing it overrides; `down` 1 takes it down, 0 lifts that. Keyed by the OWNER of
+-- the listed definition, so it leaves with their account. No admin id is stored (it
+-- would be a second member id this table holds); the admin is in the server log.
+CREATE TABLE IF NOT EXISTS definition_listing_takedowns (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    TEXT    NOT NULL,
+  def_id     TEXT    NOT NULL,
+  down       INTEGER NOT NULL,
+  reason     TEXT    NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_definition_listing_takedowns_owner
+  ON definition_listing_takedowns(user_id, def_id, id DESC);
 """
 
 
@@ -434,6 +449,11 @@ _CANONICAL_KEYS: dict[str, tuple[str, ...]] = {
     # ⛔ without this row the STORE would refuse a document every other door
     # accepts (the trap `offset` documents above).
     "ltf": ("type", "value", "args"),
+    # ⭐⭐ ENGINE 55 — PINE'S MERGED HIGHER-TIMEFRAME READ — `tf_merge(expr, "W")`.
+    # `tf`'s key set and `tf`'s reason. Written by the Pine member door for
+    # `request.security(…, "W"|"M")` with look-ahead off; ⛔ without this row the
+    # STORE would refuse a document every other door accepts.
+    "tf_merge": ("type", "value", "args"),
 }
 NODE_TYPES = tuple(_CANONICAL_KEYS)
 
@@ -2242,6 +2262,116 @@ def read_script_engine_version(path: Any = None) -> Optional[int]:
 #: ask. ⛔ Never a literal here — bump the JS constant and this follows.
 #: ⛔ None (unreadable) FAILS CLOSED: every recorded refusal binds.
 SCRIPT_ENGINE_VERSION = read_script_engine_version()
+
+#: ⭐⭐ COND-TA (coordinator ruling 2026-11-15) — THE PINE-IMPORT HOLD, the server half of
+#: `scriptEngineVersion.js::pineImportHeld`. A Pine import saved by the Builder's Apply door is a
+#: formula document with no script and no engine stamp; before COND-TA the translator that wrote it
+#: served a `ta.*` call that runs only on some bars (and #1326's block-local `x[1]`) as the
+#: every-bar number, and which saved formulas hold that shape cannot be told without the script.
+#: So such a row applied before the fix engine, whose saved trees are a STRUCTURAL CANDIDATE
+#: (`conditional_history_candidate`: a call under a `?:` / `iff` arm, an offset under a `?:` arm), is
+#: WITHHELD BY NAME on every server lane
+#: (`engine_withheld_reason`); re-applying the import stamps `importedFrom.engine` and lifts it.
+#: The number is the browser's declaration, read like `SCRIPT_ENGINE_VERSION` (one authority).
+_PINE_IMPORT_FIX_RE = re.compile(
+    r"^export\s+const\s+PINE_IMPORT_FIX_ENGINE\s*=\s*(\d+)\s*;?\s*(?://.*)?$", re.M)
+
+
+def read_pine_import_fix_engine(path: Any = None) -> Optional[int]:
+    """`PINE_IMPORT_FIX_ENGINE` as declared in `scriptEngineVersion.js`, or None (absent,
+    ambiguous or < 1). ⛔ None FAILS CLOSED: every Pine import with no script is held."""
+    p = path if path is not None else _SCRIPT_ENGINE_JS
+    try:
+        with open(p, encoding="utf-8") as fh:
+            found = _PINE_IMPORT_FIX_RE.findall(fh.read())
+    except OSError:
+        return None
+    if len(found) != 1:
+        return None
+    v = int(found[0])
+    return v if v >= 1 else None
+
+
+PINE_IMPORT_FIX_ENGINE = read_pine_import_fix_engine()
+
+#: What the member reads (the browser's `PINE_IMPORT_HELD_SENTENCE`, word for word).
+PINE_IMPORT_HELD_SENTENCE = ("This script was imported from Pine before a calculation fix. "
+                             "Re-apply the import to update it.")
+
+
+def conditional_history_candidate(definition: Any) -> bool:
+    """⭐ NARROWED (coordinator ruling after the #1326 review, 2026-11-15) — the browser's
+    `conditionalHistoryCandidate`, node for node: do the saved trees (`compute.ast`,
+    `compute.trees`) hold a CALL under an arm of a `?:` or of `iff(c, a, b)`, or an OFFSET under
+    a `?:` arm — the shapes the old screener lane misread? A tree too deep to read fails closed."""
+    from api.services import bar_constant
+    compute = definition.get("compute") if isinstance(definition, Mapping) else None
+    if not isinstance(compute, Mapping):
+        return False
+    trees = compute.get("trees")
+    roots = [compute.get("ast"), *(trees.values() if isinstance(trees, Mapping) else ())]
+
+    def arm(a):
+        return a["value"] if isinstance(a, Mapping) and "value" in a and "type" not in a else a
+
+    def walk(n, in_arm, in_ternary_arm, d):
+        if d > 256:
+            return True
+        if isinstance(n, list):
+            return any(walk(x, in_arm, in_ternary_arm, d + 1) for x in n)
+        if not isinstance(n, Mapping):
+            return False
+        if in_arm and n.get("type") == "call":
+            return True
+        if in_ternary_arm and n.get("type") == "offset":
+            return True
+        args = n.get("args") if isinstance(n.get("args"), list) else None
+        ternary = n.get("type") == "op" and n.get("name") == "?:" and args is not None and len(args) == 3
+        iff = (n.get("type") == "call" and str(n.get("name") or "").lower() == "iff"
+               and args is not None and len(args) == 3)
+        if ternary or iff:
+            if walk(arm(args[0]), in_arm, in_ternary_arm, d + 1):
+                return True
+            # COND-TA -- a test the same on every bar of a binding runs one arm on every bar or
+            # none: its arms are not conditional history (`bar_constant.bar_constant_tree`, the
+            # browser's `barConstantTree`, node for node).
+            constant = bar_constant.bar_constant_tree(arm(args[0]))
+            in_a = in_arm if constant else True
+            sub = in_ternary_arm if constant else (in_ternary_arm or ternary)
+            return walk(arm(args[1]), in_a, sub, d + 1) or walk(arm(args[2]), in_a, sub, d + 1)
+        return any(walk(v, in_arm, in_ternary_arm, d + 1)
+                   for k, v in n.items() if k not in ("tok", "endTok") and isinstance(v, (Mapping, list)))
+
+    return any(walk(r, False, False, 0) for r in roots)
+
+
+def pine_import_stale(row: Any, fix_engine: Any = "default") -> bool:
+    """Is this stored row a Pine import (`meta.importedFrom.dialect == 'pine'`) holding no script,
+    applied before `PINE_IMPORT_FIX_ENGINE`, whose saved trees are a structural candidate
+    (`conditional_history_candidate`)? Reads provenance and the saved trees, never the script."""
+    fix = PINE_IMPORT_FIX_ENGINE if fix_engine == "default" else fix_engine
+    definition = row.get("definition") if isinstance(row, Mapping) else None
+    meta = definition.get("meta") if isinstance(definition, Mapping) else None
+    imp = meta.get("importedFrom") if isinstance(meta, Mapping) else None
+    if not isinstance(imp, Mapping) or str(imp.get("dialect") or "").lower() != PINE_IMPORT_DIALECT:
+        return False
+    if _pine_source_of(row) is not None:
+        return False
+    eng = imp.get("engine")
+    applied_at_fix = (isinstance(eng, int) and not isinstance(eng, bool)
+                      and isinstance(fix, int) and not isinstance(fix, bool) and eng >= fix)
+    if applied_at_fix:
+        return False
+    # a Pine v1 import (door stamp `meta.pineVersion` present and None = no pragma, or 1): a v1
+    # `?:` arm is EAGER (witnessed, cci-coded-obv / trade-archer OBV) and v1 has no `if`
+    if "pineVersion" in meta and (meta.get("pineVersion") is None
+                                  or (isinstance(meta.get("pineVersion"), (int, float))
+                                      and not isinstance(meta.get("pineVersion"), bool)
+                                      and meta.get("pineVersion") <= 1)):
+        return False
+    return conditional_history_candidate(definition)
+
+
 if SCRIPT_ENGINE_VERSION is None:
     _log.error("[user-definitions] script engine version unreadable from %s — every "
                "recorded refusal binds until it is readable", _SCRIPT_ENGINE_JS)
@@ -2676,7 +2806,9 @@ def engine_withheld_reason(row: Any, current: Optional[int] = None) -> Optional[
     never draws what the alerts withhold, or the reverse."""
     st = row.get("engine_status") if isinstance(row, Mapping) else None
     if not isinstance(st, Mapping) or st.get("status") != "refused":
-        return None
+        # ⭐ COND-TA — a Pine import applied before the conditional-call fix, with no script
+        # to re-translate: held by name until it is re-applied (`pine_import_stale`).
+        return f"engine-refused: {PINE_IMPORT_HELD_SENTENCE}" if pine_import_stale(row) else None
     cur = SCRIPT_ENGINE_VERSION if current is None else current
     eng = st.get("engine")
     if cur is None or not isinstance(eng, int) or isinstance(eng, bool) or eng >= cur:
@@ -3076,7 +3208,7 @@ def save(user_id: Any, def_id: str, definition: dict,
     if unsafe_colours:
         raise SaveRefused(
             "presentation",
-            "a drawing colour that is not a colour: "
+            "a drawing color that is not a color: "
             + "; ".join(e["message"] for e in unsafe_colours[:3])
             + ". Nothing was saved.",
             guard="presentation:object-colour",
@@ -3153,7 +3285,7 @@ def save(user_id: Any, def_id: str, definition: dict,
             if refused_c:
                 raise SaveRefused(
                     "presentation",
-                    "a colour that is not a colour: "
+                    "a color that is not a color: "
                     + "; ".join(e["message"] for e in refused_c[:3])
                     + ". Nothing was saved.",
                     guard="presentation:colour",
@@ -3561,7 +3693,7 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
     if unsafe_colours:
         raise SaveRefused(
             "presentation",
-            "a drawing colour that is not a colour: "
+            "a drawing color that is not a color: "
             + "; ".join(e["message"] for e in unsafe_colours[:3])
             + ". Nothing was saved.",
             guard="presentation:object-colour",
@@ -3612,7 +3744,7 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
             if refused_c:
                 raise SaveRefused(
                     "presentation",
-                    "a colour that is not a colour: "
+                    "a color that is not a color: "
                     + "; ".join(e["message"] for e in refused_c[:3])
                     + ". Nothing was saved.",
                     guard="presentation:colour",
@@ -4192,9 +4324,14 @@ def _newest_listing(c: sqlite3.Connection, user_id: Any, def_id: str):
     ).fetchone()
 
 
-def publish(user_id: Any, def_id: str) -> Optional[dict]:
+def publish(user_id: Any, def_id: str, *, role: Any = None) -> Optional[dict]:
     """List one of my definitions in the public library. ``None`` if there is
     nothing live to publish.
+
+    ⭐ MODERATION (2026-11-16). A definition UCT took down cannot be listed again by
+    its owner (``taken-down``), and one member can have at most
+    ``LISTINGS_PER_MEMBER_MAX`` definitions listed at once (``listing-limit``). An
+    admin is exempt from the cap: the house indicators are published from one.
 
     ⭐ IT MINTS THE SHARE IF THERE ISN'T ONE, because a listing nobody can open is
     a broken row. That is not a hidden side effect: publishing to a library IS
@@ -4215,6 +4352,14 @@ def publish(user_id: Any, def_id: str) -> Optional[dict]:
         why = consumer_refusal("listing", row.get("requirements"))
         if why:
             raise ShareRefused("requirements", why)
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        if _taken_down(c, user_id, def_id):
+            raise ShareRefused("taken-down", TAKEN_DOWN_MESSAGE)
+        if str(role or "") != "admin":
+            mine = _listed_def_ids(c, user_id)
+            if def_id not in mine and len(mine) >= LISTINGS_PER_MEMBER_MAX:
+                raise ShareRefused("listing-limit", LISTING_LIMIT_MESSAGE)
     shared = share(user_id, def_id)
     if shared is None:
         return None
@@ -4229,6 +4374,100 @@ def publish(user_id: Any, def_id: str) -> Optional[dict]:
     return {"def_id": def_id, "listed": True, "token": shared["token"],
             "version": shared["version"], "table_version": shared["table_version"],
             "includesSource": shared["includesSource"]}
+
+
+# ═══ moderation ═══════════════════════════════════════════════════════════
+#
+# Cheap before members arrive and costly after (Studio plan, section 8): UCT can take a
+# listing down, a member cannot list without bound, and a script pasted from somewhere
+# else carries the licence its author put on it.
+
+#: How many definitions one member may have LISTED at once. Unlisting frees a slot.
+LISTINGS_PER_MEMBER_MAX = 20
+
+#: The closed set of reasons an admin gives for a takedown (a free-text field would be a
+#: place for member data and for wording a member reads as an accusation).
+TAKEDOWN_REASONS = ("licence", "misleading", "broken", "abuse", "other")
+
+TAKEN_DOWN_MESSAGE = ("UCT took this indicator out of the library, so it cannot be listed "
+                      "again. Your copy and any link you sent still work.")
+LISTING_LIMIT_MESSAGE = ("You already have %d indicators in the library, the most one member "
+                         "can list at once. Take one out to list this one." % LISTINGS_PER_MEMBER_MAX)
+
+
+def _taken_down(c: sqlite3.Connection, user_id: Any, def_id: str) -> bool:
+    """Is UCT's last word on this listing \"down\"?"""
+    row = c.execute(
+        "SELECT down FROM definition_listing_takedowns WHERE user_id=? AND def_id=?"
+        " ORDER BY id DESC LIMIT 1", (str(user_id), def_id)).fetchone()
+    return bool(row is not None and row["down"])
+
+
+def _listed_def_ids(c: sqlite3.Connection, user_id: Any) -> set:
+    """The member's definitions whose newest listing word is \"listed\"."""
+    rows = c.execute(
+        "SELECT l.def_id FROM definition_listings l"
+        " JOIN (SELECT def_id, MAX(id) AS top FROM definition_listings WHERE user_id=?"
+        "        GROUP BY def_id) m ON m.top=l.id WHERE l.listed=1", (str(user_id),)).fetchall()
+    return {r["def_id"] for r in rows}
+
+
+def _owner_of_token(c: sqlite3.Connection, token: str) -> Optional[tuple]:
+    """(owner, def_id) of a share token, revoked or not (a takedown must still be
+    recordable, and liftable, for a link its owner turned off)."""
+    if not isinstance(token, str) or not token.startswith("sh_"):
+        return None
+    row = c.execute("SELECT user_id, def_id FROM definition_shares WHERE token=?"
+                    " ORDER BY id DESC LIMIT 1", (token,)).fetchone()
+    return (row["user_id"], row["def_id"]) if row is not None else None
+
+
+def take_down(token: str, reason: str, *, down: bool = True) -> Optional[dict]:
+    """UCT takes a library entry down (``down=True``) or lifts that (``False``), named
+    by the token the library shows. ``None`` for a token this store never minted.
+
+    ⛔ IT DOES NOT TOUCH THE OWNER'S LISTING ROWS OR THEIR LINK. The library stops
+    showing the entry and the owner cannot list it again; their own copy, the link
+    they sent, and every installed copy are untouched. Lifting it restores exactly
+    what the owner last asked for.
+    """
+    if reason not in TAKEDOWN_REASONS:
+        raise ValueError("reason must be one of: " + ", ".join(TAKEDOWN_REASONS))
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        owner = _owner_of_token(c, token)
+        if owner is None:
+            return None
+        with c:
+            c.execute("INSERT INTO definition_listing_takedowns"
+                      " (user_id, def_id, down, reason, created_at) VALUES (?,?,?,?,?)",
+                      (str(owner[0]), owner[1], 1 if down else 0, reason, int(time.time())))
+    return {"token": token, "taken_down": bool(down), "reason": reason}
+
+
+#: A Pine header's licence line: "... is subject to the terms of the <licence> at <url>".
+_LICENCE_LINE = re.compile(r"subject to the terms of (?:the )?(.{3,90}?)(?:\s+at\s+\S+)?\s*$", re.I)
+
+
+def licence_of(pine_source: Any) -> Optional[str]:
+    """The licence a pasted script's author declared in its header comments, or None.
+
+    ⭐ ONLY WHAT THE AUTHOR WROTE. Read from the comment lines before the first line of
+    code, so a string in the script body cannot pose as a licence; nothing is inferred
+    when the header says nothing.
+    """
+    if not isinstance(pine_source, str):
+        return None
+    for line in pine_source.splitlines()[:40]:
+        s = line.strip()
+        if not s:
+            continue
+        if not s.startswith("//"):
+            break
+        m = _LICENCE_LINE.search(s.lstrip("/").strip())
+        if m:
+            return m.group(1).strip().rstrip(".")
+    return None
 
 
 def unpublish(user_id: Any, def_id: str) -> bool:
@@ -4282,13 +4521,21 @@ def listing_status(user_id: Any, def_id: str) -> dict:
     with contextlib.closing(_connect()) as c:
         _ensure(c)
         row = _newest_listing(c, user_id, def_id)
+        down = _taken_down(c, user_id, def_id)
     asked = bool(row is not None and row["listed"])
     share = share_status(user_id, def_id)
     share_live = share is not None
     # ⛔ THE SAME COMPARISON `public_library` MAKES, against the same helper.
     stale = bool(share_live and int(share["table_version"]) != _current_table_version())
-    return {"def_id": def_id, "listed": asked and share_live and not stale,
-            "requested": asked, "shared": share_live, "stale_grammar": stale}
+    return {"def_id": def_id, "listed": asked and share_live and not stale and not down,
+            "requested": asked, "shared": share_live, "stale_grammar": stale,
+            "taken_down": down, "licence": _licence_of_live(user_id, def_id)}
+
+
+def _licence_of_live(user_id: Any, def_id: str) -> Optional[str]:
+    """The licence the live version's script declares, for the owner's publish panel."""
+    row = get(user_id, def_id, with_source=True)
+    return licence_of(row.get("pine_source")) if row else None
 
 
 #: How many library entries one page returns. ⚠️ A CAP, NOT A DEFAULT A CALLER MAY
@@ -4344,6 +4591,13 @@ def public_library(limit: int = 24, after: Optional[int] = None) -> dict:
             + " ORDER BY l.id DESC LIMIT ?",
             ((cursor, n + 1) if cursor is not None else (n + 1,)),
         ).fetchall()
+        # ⭐ MODERATION: UCT's newest word per listing, read once for the whole page.
+        taken_down = {(r["user_id"], r["def_id"]) for r in c.execute(
+            "SELECT t.user_id, t.def_id FROM definition_listing_takedowns t"
+            " JOIN (SELECT user_id, def_id, MAX(id) AS top FROM definition_listing_takedowns"
+            "        GROUP BY user_id, def_id) m"
+            "   ON m.user_id=t.user_id AND m.def_id=t.def_id AND m.top=t.id"
+            " WHERE t.down=1").fetchall()}
 
     now_version = _current_table_version()
     entries: list[dict] = []
@@ -4355,12 +4609,14 @@ def public_library(limit: int = 24, after: Optional[int] = None) -> dict:
         live = share_status(row["user_id"], row["def_id"])
         if live is None:
             continue
+        if (row["user_id"], row["def_id"]) in taken_down:
+            continue
         if int(live["table_version"]) != now_version:
             continue
         doc = get(row["user_id"], row["def_id"])
         if doc is None or doc.get("deleted_at") is not None:
             continue
-        pinned = get(row["user_id"], row["def_id"], version=live["version"])
+        pinned = get(row["user_id"], row["def_id"], version=live["version"], with_source=True)
         if pinned is None:
             continue
         definition = pinned["definition"]
@@ -4375,6 +4631,8 @@ def public_library(limit: int = 24, after: Optional[int] = None) -> dict:
             "inputs": len(definition.get("inputs") or []),
             "published_at": row["created_at"],
             "ast_hash": live["ast_hash"],
+            # the licence its author declared, when it was pasted as a script (None otherwise)
+            "licence": licence_of(pinned.get("pine_source")),
         })
     # ⛔ THE CURSOR IS THE LAST ROW *EXAMINED*, not the last one returned. Rows
     # drop out for four reasons above, and paging from the last SURVIVOR would

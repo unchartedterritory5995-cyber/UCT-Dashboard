@@ -141,7 +141,7 @@ async function jobWorker({ bundle }) {
     return
   }
   parentPort.on('message', (m) => {
-    parentPort.postMessage({ type: 'result', id: m.id, result: runJob(rt, m.doc, m.job) })
+    parentPort.postMessage({ type: 'result', id: m.id, result: runJob(rt, m.doc, m.job, undefined, m.libraries || null) })
   })
   parentPort.postMessage({ type: 'ready', removed })
 }

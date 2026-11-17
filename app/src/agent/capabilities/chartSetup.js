@@ -13,7 +13,7 @@
 //   chartSetup.favoriteTimeframe the timeframe menu's ★ (ChartPane.toggleTfFav): header.timeframes.
 //   chartSetup.compareDisplay    the Compare panel's per-symbol scale ("Same % scale" / "New price scale"),
 //                                its eye (enabled), and "Group only" (compareHideBase).
-//   chartSetup.saveTemplate      Chart Settings → Templates → Save as Template, from ONE chart's settings
+//   chartSetup.saveTemplate      Chart Settings → Save as chart template, from ONE chart's settings
 //                                (the shared chartTemplatesAfterSave: a same-named template is replaced —
 //                                then it is proposed first). Undo puts the old list back.
 //   chartSetup.deleteTemplate    a template's ✕ (chartTemplatesAfterDelete). Proposed; Undo puts it back.
@@ -172,7 +172,7 @@ export function registerChartSetupCapabilities() {
     ...chartCommon,
     name: 'chartSetup.copyLook',
     risk: 'confirm',
-    summary: 'Make ONE chart look like another chart on the board: it takes the other chart\'s colours, theme, chart type, scale and display settings. Its own indicators, comparisons and timeframe menu stay exactly as they are. Shown as a proposal first; Undo puts the old look back.',
+    summary: 'Make ONE chart look like another chart on the board: it takes the other chart\'s colors, theme, chart type, scale and display settings. Its own indicators, comparisons and timeframe menu stay exactly as they are. Shown as a proposal first; Undo puts the old look back.',
     hints: 'target = the chart that CHANGES; from = the ref of the chart to copy the look FROM. "Make the left chart look like the right one" → target = left, from = right.',
     argRefs: { from: 'chart' },
     args: { type: 'object', properties: { from: { type: 'string' } }, required: ['from'], additionalProperties: false },
@@ -188,7 +188,7 @@ export function registerChartSetupCapabilities() {
       return sameJson(next, st.cs) ? st : { ...st, cs: next }
     },
     describe: (b, a, { from }, env) => (sameJson(b.cs, a.cs) ? null
-      : `Copied the look of ${env?.peer?.(from)?.label || 'the other chart'} — colours, theme, chart type, scale and display settings; this chart's indicators, comparisons and timeframes are unchanged`),
+      : `Copied the look of ${env?.peer?.(from)?.label || 'the other chart'} — colors, theme, chart type, scale and display settings; this chart's indicators, comparisons and timeframes are unchanged`),
     noop: () => 'It already looks exactly like that chart',
   })
 
@@ -452,7 +452,7 @@ export function registerChartSetupCapabilities() {
   registerCapability({
     ...tplCommon,
     name: 'chartSetup.saveTemplate',
-    summary: 'Save ONE chart\'s current settings as one of the member\'s chart templates (Chart Settings → Templates → Save as Template) — its look and its indicators, exactly what the button saves. A template with the same name is replaced (then it is shown first). Undo puts the old list back.',
+    summary: 'Save ONE chart\'s current settings as one of the member\'s chart templates (Chart Settings → Save as chart template) — its look and its indicators, exactly what the button saves. A template with the same name is replaced (then it is shown first). Undo puts the old list back.',
     hints: `target = the ref of the chartTemplateLibrary entry; chart = the ref of the chart to save from; name = exactly as the member said it (at most ${CHART_TEMPLATE_NAME_MAX} characters).`,
     argRefs: { chart: 'chart' },
     args: { type: 'object', properties: { name: { type: 'string' }, chart: { type: 'string' } }, required: ['name', 'chart'], additionalProperties: false },
@@ -478,7 +478,7 @@ export function registerChartSetupCapabilities() {
     ...tplCommon,
     name: 'chartSetup.deleteTemplate',
     risk: 'confirm',
-    summary: 'Delete one of the member\'s saved chart templates (a template\'s ✕ in Chart Settings → Templates). Charts that used it keep their settings. Shown first; Undo puts it back.',
+    summary: 'Delete one of the member\'s saved chart templates (a template\'s ✕ in Chart Settings → Chart templates). Charts that used it keep their settings. Shown first; Undo puts it back.',
     hints: 'target = the ref of the chartTemplateLibrary entry; name = a template name from that entry, exactly.',
     args: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'], additionalProperties: false },
     check(st, { name }) {

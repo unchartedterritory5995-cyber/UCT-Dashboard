@@ -27,6 +27,7 @@ import { getDefinition } from '../nativeRegistry'
 import { legendChips } from '../readout'
 import { createBinder } from '../binder'
 import { IND_TOKENS } from '../../designTokens'
+import { visibleInputs } from '../../indicatorRegistry'
 import { createFakeChart } from './fakeChart'
 
 const UP = '#3cb868'
@@ -234,8 +235,8 @@ describe('UCT RS — one hue on Classic, two on Phase, and a hidden condition pl
     // ⭐ Review finding V3 (unit 7): two identical swatches for one line need to say
     // why, and the second needs to say what it colours — the dialog renders a
     // `tooltip` as visible row text under the control.
-    expect(up.tooltip).toBe('Line colour above its average. Classic uses one colour; keep both swatches the same for a single-colour line')
-    expect(down.tooltip).toBe('Line colour below its average; the Phase preset sets red here')
+    expect(up.tooltip).toBe('Line color above its average. Classic uses one color; keep both swatches the same for a single-color line')
+    expect(down.tooltip).toBe('Line color below its average; the Phase preset sets red here')
   })
 
   // ⭐ Visual review S1 (2026-11-06): seven of thirteen labels truncated to an
@@ -246,7 +247,19 @@ describe('UCT RS — one hue on Classic, two on Phase, and a hidden condition pl
     // 17 = the longest label that rendered whole in the 2026-11-06 recapture
     // ('High before price'); 'Short-history dots' at 18 still cut to 'Short-history d'.
     const MAX = 17
-    for (const inp of d.inputs) {
+    // ⭐ The column holds what the inspector RENDERS (`indicatorRegistry.visibleInputs`, the one filter
+    // every settings surface uses). A `legacy: true` input is "still declared, never rendered"
+    // (defSchema.js): the slim line's second average (d2a99783c2) is declared legacy here so a stored
+    // choice survives a rollback, and its labels never reach this column on this definition.
+    const shown = visibleInputs(d)
+    expect(shown.length).toBeGreaterThan(10)
+    // the four the slim line's second average declares legacy here are hidden (none maps to a successor)
+    const shownKeys = new Set(shown.map((i) => i.key))
+    for (const k of ['showAverage2', 'maLength2', 'maType2', 'ma2Color']) {
+      expect(d.inputs.find((i) => i.key === k), k).toMatchObject({ legacy: true })
+      expect(shownKeys.has(k), k).toBe(false)
+    }
+    for (const inp of shown) {
       expect(inp.label.length, `${inp.key} label "${inp.label}" is ${inp.label.length} chars`).toBeLessThanOrEqual(MAX)
     }
     const byKey = Object.fromEntries(d.inputs.map((i) => [i.key, i]))

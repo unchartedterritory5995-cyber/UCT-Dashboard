@@ -396,6 +396,24 @@ _REALTIME_RX = re.compile(r"(?<![\w.])barstate\s*\.\s*(?!isfirst\b)[A-Za-z_]\w*|
 #: Any data request, the chart's own included (over-declared: the identity request is folded by
 #: the run, but no capture grades the fold), and the pre-v5 bare spellings.
 _REQUEST_RX = re.compile(r"(?<![\w.])(?:request\s*\.\s*[A-Za-z_]\w*|security|financial)\s*\(")
+#: ⭐⭐ U15 -- one capability PER LIBRARY VERSION a script imports (each version is different
+#: code): `library:Author/Library/N`. An open family beside the closed vocabulary; the registry
+#: admits a version on its own evidence (`rollout_gate.pine_capability_admission`), and the
+#: generic `import` capability is met only when every version the script imports is admitted
+#: (`runtime_definitions.capability_admitted`).
+LIBRARY_PREFIX = "library:"
+_LIBRARY_IMPORT_RX = re.compile(r"^import[ \t]+([A-Za-z0-9_]{1,80})[ \t]*/[ \t]*([A-Za-z0-9_]{1,80})[ \t]*/[ \t]*([1-9][0-9]{0,5})\b", re.M)
+_LIBRARY_CAPABILITY_RX = re.compile(r"^library:[A-Za-z0-9_]{1,80}/[A-Za-z0-9_]{1,80}/[1-9][0-9]{0,5}$")
+
+
+def is_library_capability(name) -> bool:
+    """Is `name` a per-version library capability (`library:Author/Library/N`)?"""
+    return isinstance(name, str) and bool(_LIBRARY_CAPABILITY_RX.match(name))
+
+
+def library_capabilities_of(code) -> frozenset:
+    """`library:Author/Library/N` for each top-level import line of comment-stripped `code`."""
+    return frozenset("%s%s/%s/%s" % (LIBRARY_PREFIX, *m.groups()) for m in _LIBRARY_IMPORT_RX.finditer(code or ""))
 
 
 def capabilities_of(source):
@@ -437,6 +455,8 @@ def capabilities_of(source):
         found.add("realtime-state")
     if _REQUEST_RX.search(code):
         found.add("request-other")
+    # ⭐⭐ U15 -- and each library version it imports, by its own id
+    found |= library_capabilities_of(code)
     # ⭐ AND THE REPAINT CLASSIFIER'S OWN READS (derived from its rule table, never a copy): a
     # request is `request-other`, `varip` is `varip`, every other read past the run's own bar
     # (the wall clock, the visible range, `barstate.isnew`, a lookahead flag) is `realtime-state`.
@@ -470,8 +490,10 @@ def capabilities_of(source):
 # CHANGE, and record the new `detector_fingerprint()` beside it: the rail
 # (`tests/test_pine_capabilities.py`) goes red while the fingerprint and the version disagree, so a
 # changed regex can never be served from sets an older detector computed.
-DETECTOR_VERSION = 1
-DETECTOR_FINGERPRINTS = {1: "797670b04011de780dc26555ee667c87098abb697632e422988b96b5681a5bbf"}
+DETECTOR_VERSION = 2
+DETECTOR_FINGERPRINTS = {1: "797670b04011de780dc26555ee667c87098abb697632e422988b96b5681a5bbf",
+                         # U15: one `library:Author/Library/N` capability per imported version
+                         2: "339c2da47bb157266da82837801cc1695ae7a00bcd38ad692d53aefa694039cf"}
 
 
 def detector_fingerprint():

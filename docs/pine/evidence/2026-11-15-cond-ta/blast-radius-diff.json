@@ -1,0 +1,1634 @@
+[
+ {
+  "lane": "lenient",
+  "key": "builtin/smoothed-moving-average__Smoothed1Mov.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:c58b87a646",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "builtin/williams-alligator__Williams_All.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:4cb8b59f01",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "builtin/williams-alligator__Williams_All.pine",
+  "v": 6,
+  "out": 1,
+  "from": "F:d1a7143932",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "builtin/williams-alligator__Williams_All.pine",
+  "v": 6,
+  "out": 2,
+  "from": "F:1c4246893a",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "corpus/committed/advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4.pine",
+  "v": 5,
+  "out": 1,
+  "from": "F:52ac4bce92",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `_ma` c"
+ },
+ {
+  "lane": "lenient",
+  "key": "corpus/committed/advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4.pine",
+  "v": 5,
+  "out": 2,
+  "from": "F:0dab6a3961",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `_ma` c"
+ },
+ {
+  "lane": "lenient",
+  "key": "corpus/committed/advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4.pine",
+  "v": 5,
+  "out": 3,
+  "from": "F:a04ee9977b",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `_ma` c"
+ },
+ {
+  "lane": "lenient",
+  "key": "corpus/committed/advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4.pine",
+  "v": 5,
+  "out": 4,
+  "from": "F:1b52ee6897",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `_ma` c"
+ },
+ {
+  "lane": "lenient",
+  "key": "corpus/committed/advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4.pine",
+  "v": 5,
+  "out": 12,
+  "from": "F:0dab6a3961",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `_ma` c"
+ },
+ {
+  "lane": "lenient",
+  "key": "corpus/committed/macd-with-filter-visual-backtest-module-sample__kuNU8uQsIH.pine",
+  "v": 4,
+  "out": 0,
+  "from": "F:ffd231e6a1",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `maVal`"
+ },
+ {
+  "lane": "lenient",
+  "key": "corpus/committed/pmax-explorer__jN9HBNhynF.pine",
+  "v": 4,
+  "out": 0,
+  "from": "F:7dac9f1a03",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ma` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "corpus/committed/pmax-explorer__jN9HBNhynF.pine",
+  "v": 4,
+  "out": 1,
+  "from": "F:e5e506a851",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ma` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "corpus/committed/pmax-explorer__jN9HBNhynF.pine",
+  "v": 4,
+  "out": 2,
+  "from": "F:5323f1da3d",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ma` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "corpus/committed/pmax-explorer__jN9HBNhynF.pine",
+  "v": 4,
+  "out": 3,
+  "from": "F:12ed95537e",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ma` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "corpus/committed/pmax-explorer__jN9HBNhynF.pine",
+  "v": 4,
+  "out": 4,
+  "from": "F:4f779bffa2",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ma` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "corpus/committed/pmax-explorer__jN9HBNhynF.pine",
+  "v": 4,
+  "out": 5,
+  "from": "F:4dff925c13",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ma` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "corpus/committed/pmax-explorer__jN9HBNhynF.pine",
+  "v": 4,
+  "out": 6,
+  "from": "F:4ce1acec60",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ma` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "corpus/committed/pmax-explorer__jN9HBNhynF.pine",
+  "v": 4,
+  "out": 7,
+  "from": "F:b269f5ea66",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ma` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "corpus/committed/pmax-explorer__jN9HBNhynF.pine",
+  "v": 4,
+  "out": 8,
+  "from": "F:7a9cec8bbc",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ma` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "corpus/committed/pmax-explorer__jN9HBNhynF.pine",
+  "v": 4,
+  "out": 9,
+  "from": "F:257088d906",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ma` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "corpus/committed/pmax-explorer__jN9HBNhynF.pine",
+  "v": 4,
+  "out": 10,
+  "from": "F:fec80cfd65",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ma` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "corpus/committed/pmax-explorer__jN9HBNhynF.pine",
+  "v": 4,
+  "out": 11,
+  "from": "F:fec80cfd65",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ma` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "corpus/committed/smart-money-concepts-by-welotrades__0bff41a2e5.pine",
+  "v": 5,
+  "out": 24,
+  "from": "F:9278872df5",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `high_e"
+ },
+ {
+  "lane": "lenient",
+  "key": "corpus/committed/smart-money-concepts-by-welotrades__0bff41a2e5.pine",
+  "v": 5,
+  "out": 25,
+  "from": "F:93748eec60",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `low_eq"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/fib-pivot-points-alerts__A4zY3dRcsE.pine",
+  "v": 4,
+  "out": 0,
+  "from": "F:120a875734",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ch` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/fib-pivot-points-alerts__A4zY3dRcsE.pine",
+  "v": 4,
+  "out": 1,
+  "from": "F:9deae18093",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ch` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/fib-pivot-points-alerts__A4zY3dRcsE.pine",
+  "v": 4,
+  "out": 2,
+  "from": "F:e295965ca6",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ch` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/fib-pivot-points-alerts__A4zY3dRcsE.pine",
+  "v": 4,
+  "out": 3,
+  "from": "F:d8b870ff0c",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ch` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/fib-pivot-points-alerts__A4zY3dRcsE.pine",
+  "v": 4,
+  "out": 4,
+  "from": "F:c0456653fa",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ch` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/fib-pivot-points-alerts__A4zY3dRcsE.pine",
+  "v": 4,
+  "out": 5,
+  "from": "F:8d8047367c",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ch` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/fib-pivot-points-alerts__A4zY3dRcsE.pine",
+  "v": 4,
+  "out": 6,
+  "from": "F:5007facdf1",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ch` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/fib-pivot-points-alerts__A4zY3dRcsE.pine",
+  "v": 4,
+  "out": 7,
+  "from": "F:8ace869cca",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ch` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/flying-buddha-inside-bars-indicator-v1-by-justunclel__0d9CiLNXGu.pine",
+  "v": 3,
+  "out": 0,
+  "from": "F:eb4e95863a",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `result"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/flying-buddha-inside-bars-indicator-v1-by-justunclel__0d9CiLNXGu.pine",
+  "v": 3,
+  "out": 1,
+  "from": "F:f9905b2c4a",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `result"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/flying-buddha-inside-bars-indicator-v1-by-justunclel__0d9CiLNXGu.pine",
+  "v": 3,
+  "out": 2,
+  "from": "F:77a157eb22",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `result"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/flying-buddha-inside-bars-indicator-v1-by-justunclel__0d9CiLNXGu.pine",
+  "v": 3,
+  "out": 3,
+  "from": "F:03e813ab7a",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `result"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/flying-buddha-inside-bars-indicator-v1-by-justunclel__0d9CiLNXGu.pine",
+  "v": 3,
+  "out": 4,
+  "from": "F:607f69b501",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `result"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/flying-buddha-inside-bars-indicator-v1-by-justunclel__0d9CiLNXGu.pine",
+  "v": 3,
+  "out": 5,
+  "from": "F:72a4219355",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `result"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/flying-buddha-inside-bars-indicator-v1-by-justunclel__0d9CiLNXGu.pine",
+  "v": 3,
+  "out": 6,
+  "from": "F:7e7471d1c9",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `result"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/flying-buddha-inside-bars-indicator-v1-by-justunclel__0d9CiLNXGu.pine",
+  "v": 3,
+  "out": 7,
+  "from": "F:27d8f23fbf",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `result"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": 0,
+  "from": "F:d2d63d8c63",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `swing_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": 1,
+  "from": "F:3469c837c8",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `swing_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": 2,
+  "from": "F:b37bd9e5e0",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `swing_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": 3,
+  "from": "F:5267ad53d3",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `swing_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": 4,
+  "from": "F:bdd4acce1d",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `swing_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": 5,
+  "from": "F:319a33c651",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `swing_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": 6,
+  "from": "F:e0511cf401",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `swing_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": 7,
+  "from": "F:71f59432ac",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `swing_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": 8,
+  "from": "F:fc1de7f61f",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `swing_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": 9,
+  "from": "F:1db8c47e53",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `swing_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": 10,
+  "from": "F:56d3d2af42",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `swing_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": 11,
+  "from": "F:d9a0daff8e",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `swing_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": 12,
+  "from": "F:4cdc140c84",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `swing_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": 13,
+  "from": "F:bcc8528d16",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `swing_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": 14,
+  "from": "F:21f34ebc25",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `swing_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": 15,
+  "from": "F:387aeefb18",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `swing_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": 16,
+  "from": "F:5dcaaa06e4",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `swing_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": 17,
+  "from": "F:b06f36ce18",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `swing_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": 18,
+  "from": "F:6065687a0c",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `swing_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": 19,
+  "from": "F:d2d63d8c63",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `swing_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/qqe-mod-ssl-hybrid-waddah-attar-explosion__6092fcc4e7.pine",
+  "v": 5,
+  "out": 4,
+  "from": "F:b6589fc6ab",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `result"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/qqe-mod-ssl-hybrid-waddah-attar-explosion__6092fcc4e7.pine",
+  "v": 5,
+  "out": 12,
+  "from": "F:7393eca5d6",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `result"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/qqe-mod-ssl-hybrid-waddah-attar-explosion__6092fcc4e7.pine",
+  "v": 5,
+  "out": 20,
+  "from": "F:1eb8417a8a",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `result"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/supply-and-demand-zones-with-enhanced-signals-and-stop-losstake-profit__0c84641326.pine",
+  "v": 5,
+  "out": 0,
+  "from": "F:508e229d89",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `local_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/supply-and-demand-zones-with-enhanced-signals-and-stop-losstake-profit__0c84641326.pine",
+  "v": 5,
+  "out": 1,
+  "from": "F:564221fb59",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `local_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/tradingviews-technical-analysis__oZFVfrvzZI.pine",
+  "v": 4,
+  "out": 0,
+  "from": "F:70919eafe4",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `crossu"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/tradingviews-technical-analysis__oZFVfrvzZI.pine",
+  "v": 4,
+  "out": 2,
+  "from": "F:e714213903",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `crossu"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/tradingviews-technical-analysis__oZFVfrvzZI.pine",
+  "v": 4,
+  "out": 4,
+  "from": "F:fa42c5584c",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `crossu"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/tradingviews-technical-analysis__oZFVfrvzZI.pine",
+  "v": 4,
+  "out": 6,
+  "from": "F:846e54f205",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `crossu"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/tradingviews-technical-analysis__oZFVfrvzZI.pine",
+  "v": 4,
+  "out": 8,
+  "from": "F:5331819904",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `crossu"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/tradingviews-technical-analysis__oZFVfrvzZI.pine",
+  "v": 4,
+  "out": 9,
+  "from": "F:2c72e2df70",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `crossu"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/vumanchu-b-divergences__uA35GeckoT.pine",
+  "v": 4,
+  "out": 12,
+  "from": "F:c1fbab1344",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `f_bot_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/vumanchu-b-divergences__uA35GeckoT.pine",
+  "v": 4,
+  "out": 13,
+  "from": "F:252a385b9b",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `f_bot_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/vumanchu-b-divergences__uA35GeckoT.pine",
+  "v": 4,
+  "out": 16,
+  "from": "F:c62212db90",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `f_bot_"
+ },
+ {
+  "lane": "lenient",
+  "key": "reference/vumanchu-b-divergences__uA35GeckoT.pine",
+  "v": 4,
+  "out": 17,
+  "from": "F:03fa499f0f",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `f_bot_"
+ },
+ {
+  "lane": "lenient",
+  "key": "tests/fixtures/pine/19-strategy-supertrend-atr.pine",
+  "v": 3,
+  "out": 0,
+  "from": "F:e6c7b3850a",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `_close"
+ },
+ {
+  "lane": "lenient",
+  "key": "tests/fixtures/pine_blind/breakout-squeeze-release-breakout.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:3a60036b91",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.bar"
+ },
+ {
+  "lane": "lenient",
+  "key": "tests/fixtures/pine_blind/candles-doji-at-extension.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:aebd034730",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.low"
+ },
+ {
+  "lane": "lenient",
+  "key": "tests/fixtures/pine_blind/momentum-adx-trend-strength.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:50c37c4cda",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.ris"
+ },
+ {
+  "lane": "lenient",
+  "key": "tests/fixtures/pine_blind/momentum-rising-ma-trend-template.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:591b01b6d4",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.ris"
+ },
+ {
+  "lane": "lenient",
+  "key": "tests/fixtures/pine_blind/momentum-rs-leaders-vs-spy.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:df10d68c76",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.ris"
+ },
+ {
+  "lane": "lenient",
+  "key": "tests/fixtures/pine_blind/multifactor-gap-up-continuation-hold.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:4667cc21f3",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.ema"
+ },
+ {
+  "lane": "lenient",
+  "key": "tests/fixtures/pine_blind/multifactor-squeeze-breakout-relative-strength.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:7e332000f4",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tests/fixtures/pine_blind/multifactor-weekly-trend-daily-macd-trigger.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:1b9b04f426",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tests/fixtures/pine_blind/recency-macd-turn-recent.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:54ec33726c",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tests/fixtures/pine_blind/recency-rsi-reclaim-recent.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:52a42e8e6a",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.ris"
+ },
+ {
+  "lane": "lenient",
+  "key": "tests/fixtures/pine_blind/volatility-range-contraction-base.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:339a0940e4",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tests/fixtures/pine_screener/01-oversold-in-uptrend.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:7837b58ee5",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tests/fixtures/pine_screener/11-ema-stack.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:681a4663fb",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.ema"
+ },
+ {
+  "lane": "lenient",
+  "key": "tests/fixtures/pine_screener/14-twenty-day-high-on-volume.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:d5620e1cde",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tests/fixtures/pine_screener/16-pullback-in-uptrend.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:96bafb327c",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.rsi"
+ },
+ {
+  "lane": "lenient",
+  "key": "tests/fixtures/pine_screener/37-weekday-above-ma.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:5438316ea7",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tests/fixtures/pine_screener/38-switch-smoothing-choice.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:e372fcca79",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-andor-history.pine",
+  "v": 6,
+  "out": 4,
+  "from": "F:0a6ba6f6a2",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.cha"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-andor-history.pine",
+  "v": 6,
+  "out": 5,
+  "from": "F:0382e48bdf",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-andor-history.pine",
+  "v": 6,
+  "out": 6,
+  "from": "F:e4e00f9c6d",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.cro"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-andor-history.pine",
+  "v": 6,
+  "out": 7,
+  "from": "F:4830422a83",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.cha"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-andor-history.pine",
+  "v": 6,
+  "out": 8,
+  "from": "F:1ea39a7df5",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.ris"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history-v4.pine",
+  "v": 4,
+  "out": 4,
+  "from": "F:154ddf10da",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `sma` i"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history-v4.pine",
+  "v": 4,
+  "out": 5,
+  "from": "F:12272898c9",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ema` i"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history-v4.pine",
+  "v": 4,
+  "out": 6,
+  "from": "F:cd42cdfced",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `change"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history-v4.pine",
+  "v": 4,
+  "out": 8,
+  "from": "F:c71cda4167",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `sma` i"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history-v4.pine",
+  "v": 4,
+  "out": 9,
+  "from": "F:714cb0a704",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `change"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history-v4.pine",
+  "v": 4,
+  "out": 13,
+  "from": "F:21c5774f35",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `f`, a "
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history-v5.pine",
+  "v": 5,
+  "out": 4,
+  "from": "F:154ddf10da",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history-v5.pine",
+  "v": 5,
+  "out": 5,
+  "from": "F:12272898c9",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.ema"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history-v5.pine",
+  "v": 5,
+  "out": 6,
+  "from": "F:cd42cdfced",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.cha"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history-v5.pine",
+  "v": 5,
+  "out": 7,
+  "from": "F:c71cda4167",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history-v5.pine",
+  "v": 5,
+  "out": 8,
+  "from": "F:714cb0a704",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.cha"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history-v5.pine",
+  "v": 5,
+  "out": 9,
+  "from": "F:21c5774f35",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `f`, a "
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history.pine",
+  "v": 6,
+  "out": 6,
+  "from": "F:fd1ab4c8bb",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.hig"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history.pine",
+  "v": 6,
+  "out": 7,
+  "from": "F:e2c1a28dc5",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.low"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history.pine",
+  "v": 6,
+  "out": 8,
+  "from": "F:154ddf10da",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history.pine",
+  "v": 6,
+  "out": 9,
+  "from": "F:12272898c9",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.ema"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history.pine",
+  "v": 6,
+  "out": 10,
+  "from": "F:cd42cdfced",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.cha"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history.pine",
+  "v": 6,
+  "out": 11,
+  "from": "F:95d8be9246",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.hig"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history.pine",
+  "v": 6,
+  "out": 13,
+  "from": "F:c8f7f5032b",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.hig"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history.pine",
+  "v": 6,
+  "out": 14,
+  "from": "F:c71cda4167",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history.pine",
+  "v": 6,
+  "out": 15,
+  "from": "F:714cb0a704",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.cha"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history.pine",
+  "v": 6,
+  "out": 16,
+  "from": "F:fd1ab4c8bb",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `i_hi` "
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history.pine",
+  "v": 6,
+  "out": 17,
+  "from": "F:966d68e490",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `i_sma`"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history.pine",
+  "v": 6,
+  "out": 18,
+  "from": "F:f48ea658e9",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.hig"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-arm-history.pine",
+  "v": 6,
+  "out": 19,
+  "from": "F:740db21744",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-call-site-history.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:fd1ab4c8bb",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `c_hi` "
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-call-site-history.pine",
+  "v": 6,
+  "out": 1,
+  "from": "F:0490fbf172",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `c_lo` "
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-call-site-history.pine",
+  "v": 6,
+  "out": 2,
+  "from": "F:47892b48e6",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `c_sma`"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-call-site-history.pine",
+  "v": 6,
+  "out": 3,
+  "from": "F:0370427506",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `c_ema`"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-call-site-history.pine",
+  "v": 6,
+  "out": 6,
+  "from": "F:244e04936b",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `a1, a2"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-call-site-history.pine",
+  "v": 6,
+  "out": 7,
+  "from": "F:5203352a1a",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `a1, a2"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-call-site-history.pine",
+  "v": 6,
+  "out": 8,
+  "from": "F:47892b48e6",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `a1, a2"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-call-site-history.pine",
+  "v": 6,
+  "out": 9,
+  "from": "F:3a662efbd2",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `a1, a2"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-call-site-history.pine",
+  "v": 6,
+  "out": 10,
+  "from": "F:64353ea797",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `a1, a2"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-call-site-history.pine",
+  "v": 6,
+  "out": 12,
+  "from": "F:c8f7f5032b",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `d_hi` "
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-call-site-history.pine",
+  "v": 6,
+  "out": 13,
+  "from": "F:c71cda4167",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `d_sma`"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-cond-window-extremes.pine",
+  "v": 6,
+  "out": 1,
+  "from": "F:29f0d64628",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `X01` c"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-cond-window-extremes.pine",
+  "v": 6,
+  "out": 2,
+  "from": "F:6e05292d35",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `X02` c"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-cond-window-extremes.pine",
+  "v": 6,
+  "out": 3,
+  "from": "F:f6daa991b6",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `X03` c"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-cond-window-extremes.pine",
+  "v": 6,
+  "out": 4,
+  "from": "F:8ce5af42ab",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `X04` c"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-cond-window-extremes.pine",
+  "v": 6,
+  "out": 5,
+  "from": "F:5f39d35c0a",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `X05` c"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-cond-window-extremes.pine",
+  "v": 6,
+  "out": 6,
+  "from": "F:dca37512a4",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `X06` c"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-cond-window-extremes.pine",
+  "v": 6,
+  "out": 7,
+  "from": "F:3029d21a54",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `X07` c"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-objcond-ternary-sma-var.pine",
+  "v": 6,
+  "out": 1,
+  "from": "F:90e8052ecc",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-pt-na-guard-and.pine",
+  "v": 6,
+  "out": 3,
+  "from": "F:b2e00ea717",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.cro"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-pt-na-guard-and.pine",
+  "v": 6,
+  "out": 5,
+  "from": "F:de38f14c2f",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.cha"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-pt-na-guard-and.pine",
+  "v": 6,
+  "out": 7,
+  "from": "F:71a2a12aa5",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-pt-request-arm.pine",
+  "v": 6,
+  "out": 5,
+  "from": "F:cf90e05111",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `r_if` "
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-pt-request-arm.pine",
+  "v": 6,
+  "out": 6,
+  "from": "F:7c1de4eea5",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-pt-tr-true.pine",
+  "v": 6,
+  "out": 3,
+  "from": "F:f26af06d4e",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.tr`"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-w3n-draw-block-history-a.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:47892b48e6",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `s` cal"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-w3n-draw-block-history-b.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:0370427506",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `s` cal"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-w3n-draw-block-history-c.pine",
+  "v": 6,
+  "out": 0,
+  "from": "F:f88243aa35",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `s` cal"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-w4-arm-runs.pine",
+  "v": 6,
+  "out": 6,
+  "from": "F:198de15141",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.cha"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-w4-arm-runs.pine",
+  "v": 6,
+  "out": 7,
+  "from": "F:cf1dffbde5",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.cha"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-w4-arm-runs.pine",
+  "v": 6,
+  "out": 8,
+  "from": "F:08c11eaf27",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.rma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-w4-arm-runs.pine",
+  "v": 6,
+  "out": 9,
+  "from": "F:4b22d4e79d",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.rma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-w4-arm-runs.pine",
+  "v": 6,
+  "out": 10,
+  "from": "F:7ef07fcde3",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.sma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-w4-arm-runs.pine",
+  "v": 6,
+  "out": 11,
+  "from": "F:e749c018f8",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.val"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h1-window-runs.pine",
+  "v": 6,
+  "out": 5,
+  "from": "F:9f98e5a431",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `u_stde"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h1-window-runs.pine",
+  "v": 6,
+  "out": 6,
+  "from": "F:ee5d419034",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `u_sum`"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h1-window-runs.pine",
+  "v": 6,
+  "out": 7,
+  "from": "F:aedec46198",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `u_medi"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h1-window-runs.pine",
+  "v": 6,
+  "out": 8,
+  "from": "F:554393be5a",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `v_stde"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h1-window-runs.pine",
+  "v": 6,
+  "out": 9,
+  "from": "F:6f64d86c23",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `v_sum`"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h1-window-runs.pine",
+  "v": 6,
+  "out": 10,
+  "from": "F:d6e73d716c",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `v_medi"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h10-iff-v4.pine",
+  "v": 4,
+  "out": 4,
+  "from": "F:62cd3f5536",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `sma` i"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h2-change-offsets-block.pine",
+  "v": 6,
+  "out": 6,
+  "from": "F:22ac479b68",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `u_chan"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h2-change-offsets-block.pine",
+  "v": 6,
+  "out": 7,
+  "from": "F:3ebb102742",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `u_mom`"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h2-change-offsets-block.pine",
+  "v": 6,
+  "out": 8,
+  "from": "F:a200be06d9",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `u_roc`"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h2-change-offsets-block.pine",
+  "v": 6,
+  "out": 9,
+  "from": "F:058a9db244",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `u_swma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h2-change-offsets-block.pine",
+  "v": 6,
+  "out": 10,
+  "from": "F:714cb0a704",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `v_chan"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h2-change-offsets-block.pine",
+  "v": 6,
+  "out": 11,
+  "from": "F:0f6033f2cc",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `v_mom`"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h2-change-offsets-block.pine",
+  "v": 6,
+  "out": 12,
+  "from": "F:73f6d11fe6",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `v_roc`"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h2-change-offsets-block.pine",
+  "v": 6,
+  "out": 13,
+  "from": "F:53e873c620",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `v_swma"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h3-atr-rsi-block.pine",
+  "v": 6,
+  "out": 4,
+  "from": "F:f59ddc689f",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `u_atr`"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h3-atr-rsi-block.pine",
+  "v": 6,
+  "out": 5,
+  "from": "F:f24096246d",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `u_rsi`"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h3-atr-rsi-block.pine",
+  "v": 6,
+  "out": 6,
+  "from": "F:71c1bbb1ab",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `v_atr`"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h3-atr-rsi-block.pine",
+  "v": 6,
+  "out": 7,
+  "from": "F:924e6e8ec3",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `v_rsi`"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h5-block-extremes-n.pine",
+  "v": 6,
+  "out": 1,
+  "from": "F:c5026538eb",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `l2` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h5-block-extremes-n.pine",
+  "v": 6,
+  "out": 2,
+  "from": "F:6e05292d35",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `l3` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h5-block-extremes-n.pine",
+  "v": 6,
+  "out": 3,
+  "from": "F:6f22b91f8f",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `l4` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h5-block-extremes-n.pine",
+  "v": 6,
+  "out": 4,
+  "from": "F:4390eb188a",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `l5` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h5-block-extremes-n.pine",
+  "v": 6,
+  "out": 5,
+  "from": "F:86ceea4a9b",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `l6` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h5-block-extremes-n.pine",
+  "v": 6,
+  "out": 6,
+  "from": "F:6b8281073a",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `h2` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h5-block-extremes-n.pine",
+  "v": 6,
+  "out": 7,
+  "from": "F:cf551b45f3",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `h3` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h5-block-extremes-n.pine",
+  "v": 6,
+  "out": 8,
+  "from": "F:7ae74436bc",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `h4` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h5-block-extremes-n.pine",
+  "v": 6,
+  "out": 9,
+  "from": "F:87c305ce0a",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `h5` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h5-block-extremes-n.pine",
+  "v": 6,
+  "out": 10,
+  "from": "F:6e94079afa",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `h6` ca"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h7-v6-shortcircuit.pine",
+  "v": 6,
+  "out": 4,
+  "from": "F:1ea39a7df5",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.ris"
+ },
+ {
+  "lane": "lenient",
+  "key": "tools/visual_conformance/probes/vw-wsc-h7-v6-shortcircuit.pine",
+  "v": 6,
+  "out": 5,
+  "from": "F:65e8ba7599",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ta.cro"
+ },
+ {
+  "lane": "strict",
+  "key": "corpus/committed/macd-with-filter-visual-backtest-module-sample__kuNU8uQsIH.pine",
+  "v": 4,
+  "out": 0,
+  "from": "F:ffd231e6a1",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `maVal`"
+ },
+ {
+  "lane": "strict",
+  "key": "corpus/committed/pmax-explorer__jN9HBNhynF.pine",
+  "v": 4,
+  "out": "br",
+  "from": "[]",
+  "to": "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]"
+ },
+ {
+  "lane": "strict",
+  "key": "reference/fib-pivot-points-alerts__A4zY3dRcsE.pine",
+  "v": 4,
+  "out": 0,
+  "from": "F:120a875734",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ch` ca"
+ },
+ {
+  "lane": "strict",
+  "key": "reference/fib-pivot-points-alerts__A4zY3dRcsE.pine",
+  "v": 4,
+  "out": 1,
+  "from": "F:9deae18093",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ch` ca"
+ },
+ {
+  "lane": "strict",
+  "key": "reference/fib-pivot-points-alerts__A4zY3dRcsE.pine",
+  "v": 4,
+  "out": 2,
+  "from": "F:e295965ca6",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ch` ca"
+ },
+ {
+  "lane": "strict",
+  "key": "reference/fib-pivot-points-alerts__A4zY3dRcsE.pine",
+  "v": 4,
+  "out": 3,
+  "from": "F:d8b870ff0c",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ch` ca"
+ },
+ {
+  "lane": "strict",
+  "key": "reference/fib-pivot-points-alerts__A4zY3dRcsE.pine",
+  "v": 4,
+  "out": 4,
+  "from": "F:c0456653fa",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ch` ca"
+ },
+ {
+  "lane": "strict",
+  "key": "reference/fib-pivot-points-alerts__A4zY3dRcsE.pine",
+  "v": 4,
+  "out": 5,
+  "from": "F:8d8047367c",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ch` ca"
+ },
+ {
+  "lane": "strict",
+  "key": "reference/fib-pivot-points-alerts__A4zY3dRcsE.pine",
+  "v": 4,
+  "out": 6,
+  "from": "F:5007facdf1",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ch` ca"
+ },
+ {
+  "lane": "strict",
+  "key": "reference/fib-pivot-points-alerts__A4zY3dRcsE.pine",
+  "v": 4,
+  "out": 7,
+  "from": "F:8ace869cca",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `ch` ca"
+ },
+ {
+  "lane": "strict",
+  "key": "reference/liquidation-screener__jwAtEwngOd.pine",
+  "v": 4,
+  "out": "br",
+  "from": "[]",
+  "to": "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]"
+ },
+ {
+  "lane": "strict",
+  "key": "reference/tradingviews-technical-analysis__oZFVfrvzZI.pine",
+  "v": 4,
+  "out": "br",
+  "from": "[]",
+  "to": "[0, 2, 4, 6, 8, 9]"
+ },
+ {
+  "lane": "strict",
+  "key": "reference/vumanchu-b-divergences__uA35GeckoT.pine",
+  "v": 4,
+  "out": "br",
+  "from": "[]",
+  "to": "[12, 13, 16, 17]"
+ },
+ {
+  "lane": "strict",
+  "key": "tests/fixtures/pine/19-strategy-supertrend-atr.pine",
+  "v": 3,
+  "out": 0,
+  "from": "F:e6c7b3850a",
+  "to": "R:pine:block:a Pine block spans several statements and this engine stores a single expression \u2014 `_close"
+ },
+ {
+  "lane": "strict",
+  "key": "tools/visual_conformance/probes/vw-arm-history-v4.pine",
+  "v": 4,
+  "out": "br",
+  "from": "[]",
+  "to": "[4, 5, 6, 8, 9, 13]"
+ },
+ {
+  "lane": "strict",
+  "key": "tools/visual_conformance/probes/vw-wsc-h10-iff-v4.pine",
+  "v": 4,
+  "out": "br",
+  "from": "[]",
+  "to": "[4]"
+ }
+]

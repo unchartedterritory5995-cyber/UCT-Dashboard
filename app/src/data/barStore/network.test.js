@@ -404,4 +404,53 @@ describe('what is asked', () => {
     expect(res.refused).toBe(true)
     expect(w.registry.getSnapshot(key).bars).toBe(before.bars)
   })
+
+  // 2026-11-15: the server answers a window it is still fetching with what it holds, `filling: true`
+  // and Retry-After 3. Reported as refused it ended a chart's deep history for good (production:
+  // 4 of 10 60m charts stayed at ~470-510 bars).
+  it('a `filling` window with nothing older yet is NOT refused: it says filling and when to ask again', async () => {
+    const key = keyOf({ sym: 'SIM', tf: '5' })
+    const rec = recorder(async (url) => (/to=/.test(url)
+      ? { bars: [], filling: true, series_rev: 1, history_rev: 1, cache_key: 'b1:SIM:5:eth-clock' }
+      : answer(key)))
+    const w = world({ request: rec.fn })
+    w.net.start(key)
+    await vi.advanceTimersByTimeAsync(0)
+    const before = w.registry.getSnapshot(key)
+    const res = await w.net.scrollBack(key)
+    expect(res.filling).toBe(true)
+    expect(res.refused).toBeUndefined()
+    expect(res.added).toBe(0)
+    expect(res.retryAfterMs).toBe(3000)
+    expect(w.registry.getSnapshot(key).bars).toBe(before.bars)
+  })
+
+  it('a `filling` window that DID bring older rows prepends them and still says filling', async () => {
+    const key = keyOf({ sym: 'SIM', tf: '5' })
+    const old = Date.UTC(2026, 10, 9, 20, 55) / 1000
+    const rec = recorder(async (url) => (/to=/.test(url)
+      ? { bars: [{ t: old, o: 1, h: 2, l: 0.5, c: 1.5, v: 3 }], filling: true, series_rev: 1, history_rev: 1, cache_key: 'b1:SIM:5:eth-clock' }
+      : answer(key)))
+    const w = world({ request: rec.fn })
+    w.net.start(key)
+    await vi.advanceTimersByTimeAsync(0)
+    const res = await w.net.scrollBack(key)
+    expect(res.added).toBe(1)
+    expect(res.filling).toBe(true)
+    expect(res.retryAfterMs).toBe(3000)
+    expect(w.registry.getSnapshot(key).bars[0].t).toBe(old)
+  })
+
+  it('control: a window with nothing older and NO filling flag is still refused (exhausted)', async () => {
+    const key = keyOf({ sym: 'SIM', tf: '5' })
+    const rec = recorder(async (url) => (/to=/.test(url)
+      ? { bars: [], series_rev: 1, history_rev: 1, cache_key: 'b1:SIM:5:eth-clock' }
+      : answer(key)))
+    const w = world({ request: rec.fn })
+    w.net.start(key)
+    await vi.advanceTimersByTimeAsync(0)
+    const res = await w.net.scrollBack(key)
+    expect(res.refused).toBe(true)
+    expect(res.filling).toBeUndefined()
+  })
 })

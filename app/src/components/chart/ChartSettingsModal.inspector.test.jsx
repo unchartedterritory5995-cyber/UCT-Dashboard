@@ -186,9 +186,11 @@ describe('THE INSPECTOR HEADER — what this is, and whether it is drawing', () 
     show(inst); openTab(); select(/Relative Strength/)
     const sw = inspector().querySelector('[role="switch"]')
 
-    expect(sw.className, 'the switch is not wearing the shared toggle').toMatch(/toggle/)
+    // ⭐ UCT Signature (owner-approved lab, 11-15): the header's switch is the editor's EYE —
+    // the same icon button the title row's other verbs wear (still `role="switch"`).
+    expect(sw.className, 'the switch is not the shared icon button').toMatch(/iconBtn/)
     expect(sw.className, 'a second toggle system was built').not.toMatch(/insOnOff/)
-    expect(sw.querySelector('[class*="toggleKnob"]'), 'the shared knob is missing').toBeTruthy()
+    expect(sw.querySelector('svg'), 'the eye is missing').toBeTruthy()
     expect(sw.querySelector('[class*="insOnDot"]'), 'the retired status dot is back').toBeNull()
 
     // ⛔ NO VISIBLE WORD — not ON, not OFF, not Visible. A switch that prints its
@@ -306,9 +308,12 @@ describe('THE EDITOR IS SIZED TO ITS VALUES, and the empty state says what is on
     // wrapper between the section and the row, which is what a pairing layer was.
     for (const section of ['core', 'appearance']) {
       const sec = inspector().querySelector(`[data-section="${section}"]`)
+      // ⭐ UCT Signature: a section is a label over ONE card, and every field is a direct child
+      // of that card.
+      const card = sec.querySelector('[class*="card"]')
       for (const f of sec.querySelectorAll('[data-field]')) {
         expect(f.parentElement, `${f.getAttribute('data-field')} is nested in a row wrapper`)
-          .toBe(sec)
+          .toBe(card)
       }
     }
   })
@@ -360,93 +365,80 @@ describe('THE EDITOR IS SIZED TO ITS VALUES, and the empty state says what is on
   // ═════════════════════════════════════════════════════════════════════
   const discovery = () => document.body.querySelector('[data-testid="add-surface"]')
 
-  it('⚰️⚰️⚰️ THE THIRD RIGHT-HAND STATE IS GONE — no selection IS discovery', () => {
-    // ⚰️⚰️⚰️ THIS CASE HAS NOW ARGUED THREE WAYS, WHICH IS WHY IT IS KEPT.
-    //   1. The no-selection state was a lede, a count and an Add button, and this
-    //      asserted it was not a blank rectangle.
-    //   2. It became an INVENTORY of the chart's series, pane by pane, and six
-    //      cases asserted it followed `paneOrder` and `paneSeriesOrder` — until
-    //      the owner pointed out the LEFT column already answers that question.
-    //   3. It became a mark, a sentence and two doors. The owner tested that:
-    //      *"we tested it. It is unnecessary. It creates an extra conceptual state
-    //      and wastes a click."*
-    //
-    // ⭐ SO THE ANSWER WAS THAT THE STATE SHOULD NOT EXIST. A member opening
-    // Indicators with nothing selected is looking for something, and the surface
-    // for that already existed one click away. Two states remain: DISCOVER and
-    // EDIT.
+  // ⭐⭐ UCT SIGNATURE (owner-approved Chart Settings Lab, 2026-11-15) — the section is ONE column:
+  // the list of what is on the chart, or one indicator's editor. Discovery is its OWN window,
+  // opened by "+ Add indicator" and floating over Chart Settings. (⚰️ It was the default right
+  // column; these cases asserted that and are restated for the new design.)
+  it('⭐ NO SELECTION IS THE LIST — and + Add indicator opens the Indicators window', () => {
     const { cs } = withMA(base(), 'close')
     show(cs); openTab()
-    expect(discovery(), 'Indicators did not open into discovery').toBeTruthy()
+    expect(discovery(), 'discovery opened without being asked for').toBeNull()
+    expect(screen.getByTestId('chart-structure').hidden, 'the list is not the view').toBe(false)
+    fireEvent.click(screen.getByTestId('add-enter'))
+    expect(discovery(), 'Add did not open the Indicators window').toBeTruthy()
+    expect(screen.getByRole('dialog', { name: 'Indicators' }).contains(discovery())).toBe(true)
     expect(screen.getByRole('searchbox'), 'the search box is not on screen').toBeTruthy()
     expect(document.body.querySelector('[data-testid="inspector-empty"]'),
       'the deleted orientation screen is back').toBeNull()
   })
 
-  it('⛔⛔ AND IT STILL DOES NOT REPEAT THE LEFT COLUMN', () => {
-    // The rule that killed state 2 outlives it: the right side must not answer
-    // *"what is on my chart"*. Discovery answers *"what can I add"*, so the
-    // member's own series must not be listed there — and a row that IS on the
-    // chart says `Active` rather than being hidden or duplicated.
+  it('⛔⛔ AND THE WINDOW DOES NOT REPEAT THE LIST', () => {
+    // Discovery answers *"what can I add"*; the member's own series are not listed there, and a
+    // row that IS on the chart says `On chart` rather than being hidden or duplicated.
     const { cs } = withMA(base(), 'close')
     show(cs); openTab()
+    fireEvent.click(screen.getByTestId('add-enter'))
     expect(discovery().querySelectorAll('[data-ov-pane], [data-ov-row]')).toHaveLength(0)
     expect(discovery().querySelectorAll('[class*="insRail"]'),
       'discovery grew series micro-rails — those mean a PLOTTED series').toHaveLength(0)
-    // ⚠️ `EMA 9` IS THE MEMBER'S ROW NAME; the catalogue has no such entry, so
-    // finding it on the right would mean the inventory had come back.
-    expect(discovery().textContent, 'discovery is listing the chart\'s own series')
+    expect(discovery().textContent, 'discovery is listing the chart own series')
       .not.toContain('EMA 9')
   })
 
-  it('⭐ NO SELECTION → DISCOVER; A SELECTION → EDIT; AND BACK AGAIN', () => {
+  it('⭐ LIST → A SELECTION OPENS ITS EDITOR → ← All indicators → THE LIST, focus on that row', () => {
     show(base()); openTab()
-    expect(discovery()).toBeTruthy()
-
     select(/^SMA 50$/)
-    expect(discovery(), 'selecting a series left discovery open').toBeNull()
     expect(inspectorName()).toBe('SMA 50')
-
-    // ⛔ `＋ Add Indicator` IS THE ONE DOOR BACK, and it keeps the selection so the
-    // arrow has somewhere to return to.
-    fireEvent.click(screen.getByTestId('add-enter'))
-    expect(discovery()).toBeTruthy()
+    expect(screen.getByTestId('chart-structure').hidden, 'the list still shows beside the editor').toBe(true)
     const back = document.body.querySelector('[class*="insBack"]')
-    expect(back.getAttribute('aria-label'), 'the arrow does not say where it goes')
-      .toBe('Back to SMA 50')
+    expect(back.getAttribute('aria-label'), 'the back link does not say where it goes').toBe('Back to all indicators')
     fireEvent.click(back)
-    expect(inspectorName()).toBe('SMA 50')
+    expect(inspector(), 'the editor did not close').toBeNull()
+    expect(screen.getByTestId('chart-structure').hidden).toBe(false)
+    expect(document.activeElement?.getAttribute('data-row-primary'), 'focus did not return to the row')
+      .toBe(rowFor(/^SMA 50$/).getAttribute('data-row-id'))
   })
 
-  it('⛔⛔ NO DEAD BACK ARROW — it exists exactly when leaving leads somewhere', () => {
-    // ⚰️ IT USED TO RENDER UNCONDITIONALLY, and that was right while discovery was
-    // a place you went FROM the orientation screen. With discovery as the DEFAULT,
-    // an arrow shown on a WIDE layout with nothing selected would return the
-    // member to discovery.
+  it('⛔ THE WINDOW CLOSES ON ✕, ESCAPE AND THE DIM OUTSIDE — and only the window', () => {
     show(base()); openTab()
-    expect(discovery()).toBeTruthy()
-    expect(document.body.querySelector('[class*="insBack"]'),
-      'a back arrow is offered with nothing to go back to').toBeNull()
-    // ⚠️⚠️ AT NARROW IT ALWAYS LEADS SOMEWHERE, and the case for that lives in
-    // the NARROW block below, where the matchMedia stub is.
+    fireEvent.click(screen.getByTestId('add-enter'))
+    fireEvent.click(screen.getByRole('button', { name: 'Close Indicators' }))
+    expect(discovery(), '✕ did not close the window').toBeNull()
+    fireEvent.click(screen.getByTestId('add-enter'))
+    fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'Escape' })
+    expect(discovery(), 'Escape did not close the window').toBeNull()
+    expect(screen.getByRole('dialog', { name: 'Chart settings' }), 'Escape closed Chart Settings too').toBeTruthy()
+    fireEvent.click(screen.getByTestId('add-enter'))
+    const backdrop = screen.getByRole('dialog', { name: 'Indicators' }).parentElement
+    fireEvent.mouseDown(backdrop)
+    expect(discovery(), 'a click outside did not close the window').toBeNull()
   })
 
-  it('⛔ PRESSING ADD WHILE ALREADY DISCOVERING KEEPS ONE SURFACE', () => {
-    // ⛔ NOT A SECOND ADD STATE (owner §8). The button sets the explicit mode —
-    // which is what puts the caret in the box — and renders the same component.
+  it('⛔ PRESSING ADD WHILE THE WINDOW IS OPEN KEEPS ONE SURFACE', () => {
     show(base()); openTab()
+    fireEvent.click(screen.getByTestId('add-enter'))
     const before = discovery()
     fireEvent.click(screen.getByTestId('add-enter'))
-    expect(discovery(), 'discovery was torn down and rebuilt').toBeTruthy()
+    expect(discovery(), 'discovery was torn down and rebuilt').toBe(before)
     expect(document.body.querySelectorAll('[data-testid="add-surface"]'),
       'a second discovery surface was mounted').toHaveLength(1)
-    expect(before).toBeTruthy()
   })
 
-  it('⛔⛔ OPENING THE TAB WITH NOTHING SELECTED WRITES NOTHING', () => {
+  it('⛔⛔ OPENING THE TAB, AND THE WINDOW, WITH NOTHING SELECTED WRITES NOTHING', () => {
     const seen = { cs: null }
     const { cs } = withSeries(base(), 'QQQ')
     show(cs, seen); openTab()
+    fireEvent.click(screen.getByTestId('add-enter'))
     expect(discovery()).toBeTruthy()
     expect(seen.cs, 'opening into discovery wrote to the blob').toBeNull()
   })
@@ -909,9 +901,12 @@ describe('ONE MEMBER-FACING MOVING AVERAGE, over two persistence implementations
   // a legacy overlay cannot be asked are stated instead of omitted.
 
   /** The Inspector's CORE block, as a member reads it: label = value. */
+  // ⭐ UCT Signature: the behavioural rows now sit in four cards, read in order — Inputs (what it
+  // computes) · On the chart (where) · Calculation (which bars) · Show on (which timeframes).
   const coreOf = () => {
-    const sec = inspector().querySelector('[data-section="core"]')
-    return [...sec.querySelectorAll('[data-field]')].map((f) => {
+    const secs = ['core', 'chart', 'calculation', 'showOn']
+      .map((k) => inspector().querySelector(`[data-section="${k}"]`)).filter(Boolean)
+    return secs.flatMap((sec) => [...sec.querySelectorAll('[data-field]')]).map((f) => {
       const label = f.querySelector('[class*="insFieldLabel"]').textContent.trim()
       const sel = f.querySelector('select')
       const num = f.querySelector('input[type="number"]')
@@ -937,14 +932,13 @@ describe('ONE MEMBER-FACING MOVING AVERAGE, over two persistence implementations
     // to match.
     const { cs } = withMA(base(), 'close')
     show(cs); openTab()
-    const CORE = ['Source', 'Period', 'Type', 'Timeframe', 'Display', 'Visibility']
+    const CORE = ['Source', 'Period', 'Type', 'Pane', 'Timeframe', 'Timeframes']
 
     select(/^EMA 9$/)
     expect(coreOf().map((r) => r.split(' = ')[0])).toEqual(CORE)
     expect(coreOf()).toEqual(expect.arrayContaining(['Period = 9', 'Type = EMA', 'Timeframe = Chart']))
-    // ⭐ Visibility is a CORE row under Timeframe/Display (above the fold), not a
-    // section of its own below Appearance.
-    expect(coreOf()).toContain('Visibility = All timeframes')
+    // ⭐ Visibility ("Show on · Timeframes") is read with the other behavioural rows.
+    expect(coreOf()).toContain('Timeframes = All timeframes')
     expect(inspector().querySelector('[data-section="visibility"]')).toBeNull()
 
     select(/^SMA 50$/)
@@ -957,7 +951,7 @@ describe('ONE MEMBER-FACING MOVING AVERAGE, over two persistence implementations
     select(/^EMA 9$/)
     expect(labelsOf('appearance'), 'the default and added averages show different Appearance')
       .toEqual(look)
-    expect(look).toEqual(['Color', 'Overlap candles', 'Line style', 'Line width', 'Offset', 'Plot style'])
+    expect(look).toEqual(['Color', 'Draw above candles', 'Line style', 'Line width', 'Offset', 'Plot style'])
   })
 
   it('⭐ ONE VOCABULARY FOR THE TYPE — never `Exponential` beside `EMA`', () => {
@@ -1051,7 +1045,7 @@ describe('ONE MEMBER-FACING MOVING AVERAGE, over two persistence implementations
     show(cs, seen); openTab()
     select(/^EMA 9$/)
     expect(labelsOf('appearance')).toEqual(expect.arrayContaining(
-      ['Color', 'Overlap candles', 'Line style', 'Line width']))
+      ['Color', 'Draw above candles', 'Line style', 'Line width']))   // UCT Signature wording
 
     fireEvent.change(inspector().querySelector('[data-field="lineWidth"] select'), { target: { value: '3' } })
     const ema9 = seen.cs.indicatorInstances.find((i) => i.instanceId === 'ovl:0')
@@ -1073,7 +1067,7 @@ describe('ONE MEMBER-FACING MOVING AVERAGE, over two persistence implementations
     select(/^SMA 200$/)
     fireEvent.change(inspector().querySelector('[data-field="lineWidth"] select'), { target: { value: '2' } })
     fireEvent.change(inspector().querySelector('[data-field="__timeframe__"] select'), { target: { value: 'W' } })
-    fireEvent.click([...inspector().querySelectorAll('button')].find((b) => b.textContent === 'Duplicate on chart'))   // ⭐ PHASE 4 label
+    fireEvent.click([...inspector().querySelectorAll('button')].find((b) => b.title === 'Duplicate on chart'))   // ⭐ PHASE 4 label (now the title-row icon's tooltip)
     const src = seen.cs.indicatorInstances.find((i) => i.instanceId === 'ovl:3')
     const copy = seen.cs.indicatorInstances.find((i) => i.defId === 'movingAverage'
       && !/^ovl:/.test(i.instanceId) && i.deleted !== true)
@@ -1308,25 +1302,18 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
     .map((e) => e.textContent.trim())
   const type = (q) => fireEvent.change(screen.getByRole('searchbox'), { target: { value: q } })
 
-  it('⚰️⚰️ THE DOOR IS AT THE FOOT OF THE LIST, not in the heading', () => {
-    // ⚰️ A TWO-WORD `＋ Add` SAT BESIDE `Arrange` IN THE HEADING — the same weight
-    // as a MODE SWITCH, at the top of the list it extends. Owner, 2026-09-17:
-    // *"remove the tiny + Add from that location... replace it with a clear
-    // button at the BOTTOM of the left Indicators section."*
+  it('⭐ THE ONE PRIMARY DOOR SITS IN THE WINDOW HEADER, beside the section title (UCT Signature)', () => {
+    // ⚰️ It was a button at the foot of the left column ("＋ Add to Chart"). The approved lab puts
+    // the section's one primary action — a soft, brighter "+ Add indicator" — in the header row,
+    // where it can never scroll away with the list.
     show(base()); openTab()
     const btn = addBtn()
-    // ⚠️ THE GLYPH IS ITS OWN ELEMENT with a flex `gap` between, so `textContent`
-    // carries no space — the space a member SEES is layout, not a character.
-    expect(btn.textContent.replace(/\s+/g, ' ').trim()).toBe('＋Add to Chart')
-    // ⛔ IT IS IN THE LEFT COLUMN AND BELOW THE LIST — both halves matter: in the
-    // heading it read as chrome, and inside the scroller a member with fifteen
-    // indicators would have to scroll to reach it.
-    const left = document.body.querySelector('[data-testid="chart-structure"]')
-    expect(left.contains(btn), 'the Add door left the current-chart column').toBe(true)
-    const list = structureList(left)
+    expect(btn.textContent.replace(/\s+/g, ' ').trim()).toBe('Add indicator')
+    const head = btn.closest('[data-indicators-head]')
+    expect(head, 'the Add door is not in the window header').toBeTruthy()
+    expect(head.parentElement.querySelector('[data-modal-close]'), 'the header slot is not beside the ✕').toBeTruthy()
+    const list = structureList(document.body.querySelector('[data-testid="chart-structure"]'))
     expect(list.contains(btn), 'the Add door scrolls away with the list').toBe(false)
-    expect(list.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING,
-      'the Add door is above the list it is supposed to terminate').toBeTruthy()
   })
 
   it('⭐⭐ THE LEFT CONTEXT SURVIVES BROWSING (owner §19)', () => {
@@ -1340,12 +1327,13 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
     expect(names(), 'the chart structure was replaced by the library').toEqual(before)
   })
 
-  it('⛔ BACK RETURNS TO THE INSPECTOR AND KEEPS THE SELECTION (owner §20)', () => {
+  it('⛔ CLOSING THE WINDOW RETURNS TO THE EDITOR AND KEEPS THE SELECTION (owner §20)', () => {
     show(base()); openTab()
     select(/^SMA 50$/)
     fireEvent.click(addBtn())
     expect(document.body.querySelector('[data-testid="add-surface"]')).toBeTruthy()
-    fireEvent.click(document.body.querySelector('[class*="insBack"]'))
+    // ⭐ UCT Signature: the Indicators window's ✕ is the way back.
+    fireEvent.click(screen.getByRole('button', { name: 'Close Indicators' }))
     expect(document.body.querySelector('[data-testid="add-surface"]')).toBeNull()
     expect(inspectorName(), 'going to look for something destroyed the selection').toBe('SMA 50')
   })
@@ -1365,6 +1353,11 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
     // underneath was deleted to shorten a strip.
     expect(tabs().map((t) => t.textContent.trim())).toEqual([
       'Technical', 'Fundamentals', 'Breadth', 'Symbols', 'Positioning',
+      // 2026-11-16: the published library is shown here too. It is LAST, so the five
+      // catalogue tabs keep their places and the landing tab is unchanged.
+      // 2026-11-16: UCT's house set, just before Members.
+      'UCT',
+      'Members',
     ])
     expect(tabs().map((t) => t.textContent.trim()),
       'Popular is back on the strip').not.toContain('Popular')
@@ -1467,8 +1460,10 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
     expect(css, 'the rule (and so its 12px of margin) survived the sentence')
       .not.toMatch(/^\.insAddLede\s*\{/m)
     // …and what it promised is still promised, where it is actually useful.
+    // ⭐ UCT Signature R2 (owner Option 1): "Search indicators or symbols…" — making a formula is
+    // the "✦ Create indicator" button and the UCT Agent row under a search, not a search result.
     expect(document.body.querySelector('[role="searchbox"]').getAttribute('placeholder'))
-      .toMatch(/indicators, symbols, or formulas/i)
+      .toMatch(/indicators or symbols/i)
   })
 
   it('⚰️ DISCOVERY NAMES ARE MEDIUM, AND THE LEFT COLUMN IS UNTOUCHED', () => {
@@ -1904,8 +1899,8 @@ describe('SEARCH → ADD → SEE IT LAND', () => {
     openAdd()
     fireEvent.change(screen.getByRole('searchbox', { name: /Search indicators/i }),
       { target: { value: 'zzzz no such thing' } })
-    // Nothing to click; leaving takes us back to the same selection.
-    fireEvent.click(document.body.querySelector('[class*="insBack"]'))
+    // Nothing to click; closing the Indicators window takes us back to the same selection.
+    fireEvent.click(screen.getByRole('button', { name: 'Close Indicators' }))
     expect(inspectorName()).toBe(before)
   })
 })
@@ -2014,38 +2009,25 @@ describe('NARROW — one state, rendered two ways', () => {
     })))
   }
 
-  it('⭐⭐ BOTH REGIONS AT DESKTOP WIDTH', () => {
-    narrow(false)
-    show(addInstance(base(), 'rsi', registry)); openTab()
-    expect(screen.getByTestId('chart-structure')).toBeTruthy()
-    expect(screen.getByTestId('inspector')).toBeTruthy()
-  })
+  // ⭐⭐ UCT SIGNATURE: THE SECTION IS ONE COLUMN AT EVERY WIDTH — the list, or one editor — so
+  // the phone and the desktop are the same flow (⚰️ desktop used to be two columns side by side).
+  for (const isNarrow of [false, true]) {
+    it(`⭐⭐ ONE AT A TIME (${isNarrow ? 'narrow' : 'desktop'}): list → tap → editor → ← All indicators`, () => {
+      narrow(isNarrow)
+      show(addInstance(base(), 'rsi', registry)); openTab()
+      expect(screen.getByTestId('chart-structure').hidden).toBe(false)
+      expect(screen.queryByTestId('inspector'), 'an editor rendered with nothing selected').toBeNull()
 
-  it('⭐⭐ ONE AT A TIME WHEN NARROW: list → tap → Inspector → Back', () => {
-    // ⛔ NOT A SECOND ARCHITECTURE. The same `selected`, the same Inspector, the
-    // same read model — rendered sequentially instead of side by side, because
-    // squeezing a 264px column and a form into 360px is how a desktop panel
-    // arrives on a phone looking broken.
-    narrow(true)
-    show(addInstance(base(), 'rsi', registry)); openTab()
+      select(/Relative Strength/)
+      expect(screen.getByTestId('inspector')).toBeTruthy()
+      expect(screen.getByTestId('chart-structure').hidden, 'both views showed after a tap').toBe(true)
+      expect(inspectorName()).toMatch(/Relative Strength Index/)
 
-    // The list has the screen to itself.
-    expect(screen.getByTestId('chart-structure')).toBeTruthy()
-    expect(screen.queryByTestId('inspector'), 'both columns rendered at phone width').toBeNull()
-
-    select(/Relative Strength/)
-    expect(screen.getByTestId('inspector')).toBeTruthy()
-    expect(screen.queryByTestId('chart-structure'), 'both columns rendered after a tap').toBeNull()
-    expect(inspectorName()).toMatch(/Relative Strength Index/)
-
-    // ⭐ AND THERE IS A WAY BACK, which is the whole difference between a
-    // navigation model and a broken panel.
-    fireEvent.click(screen.getByRole('button', { name: /Back to the chart structure/i }))
-    expect(screen.getByTestId('chart-structure')).toBeTruthy()
-    expect(screen.queryByTestId('inspector')).toBeNull()
-    // ⛔ THE SELECTION SURVIVED THE TRIP. Back is navigation, not a deselect.
-    expect(rowIsSelected(rowFor(/Relative Strength/))).toBe(true)
-  })
+      fireEvent.click(screen.getByRole('button', { name: /Back to all indicators/i }))
+      expect(screen.getByTestId('chart-structure').hidden).toBe(false)
+      expect(screen.queryByTestId('inspector')).toBeNull()
+    })
+  }
 
   it('⭐ ARRANGE TAKES THE WHOLE NARROW SURFACE, and Done gives it back', () => {
     narrow(true)
@@ -2057,36 +2039,14 @@ describe('NARROW — one state, rendered two ways', () => {
     expect(screen.getByTestId('chart-structure')).toBeTruthy()
   })
 
-  it('⚠️⚠️ AND AT NARROW THERE IS ALWAYS A WAY OUT OF ADD, selection or not', () => {
-    // ⛔ THE SAME RULE AS THE WIDE CASE, NOT AN EXCEPTION: the arrow exists when
-    // leaving discovery LEADS SOMEWHERE. On a phone the two regions are one at a
-    // time, so the left list is off screen while Add is up and this is the only
-    // way back to it. Measured — gating the arrow on `selectedRow` alone left a
-    // member with nothing selected NO exit from Add on a narrow layout.
-    // ⚠️ AT NARROW THE LIST OWNS THE SCREEN FIRST — that is the accepted narrow
-    // flow (list → surface → Back) and the wide "no selection is discovery"
-    // default does not override it. So Add is reached the way a member reaches it:
-    // the button at the foot of the list.
-    narrow(true)
-    show(base()); openTab()
-    expect(screen.getByTestId('chart-structure'), 'narrow did not open on the list').toBeTruthy()
-    fireEvent.click(screen.getByTestId('add-enter'))
-    expect(screen.getByTestId('add-surface')).toBeTruthy()
-    const back = document.body.querySelector('[class*="insBack"]')
-    expect(back, 'a narrow layout offers no way out of discovery').toBeTruthy()
-    expect(back.getAttribute('aria-label')).toBe('Back to the chart structure')
-    fireEvent.click(back)
-    expect(screen.getByTestId('chart-structure')).toBeTruthy()
-  })
-
-  it('⭐ ADD TAKES THE WHOLE NARROW SURFACE, and Back gives it back', () => {
+  it('⚠️⚠️ AT NARROW THE INDICATORS WINDOW STILL HAS ITS WAY OUT', () => {
     narrow(true)
     show(base()); openTab()
     fireEvent.click(screen.getByTestId('add-enter'))
     expect(screen.getByTestId('add-surface')).toBeTruthy()
-    expect(screen.queryByTestId('chart-structure'), 'the structure shared a phone with Add').toBeNull()
-    fireEvent.click(document.body.querySelector('[class*="insBack"]'))
-    expect(screen.getByTestId('chart-structure')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Close Indicators' }))
+    expect(screen.queryByTestId('add-surface')).toBeNull()
+    expect(screen.getByTestId('chart-structure').hidden).toBe(false)
   })
 })
 

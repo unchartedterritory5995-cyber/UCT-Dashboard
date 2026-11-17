@@ -108,22 +108,26 @@ describe('0H Pine silent drops', () => {
     const text = r.outcome.presentation.map((n) => n.note).join(' ')
     for (const a of ['format', 'precision', 'scale']) expect(text).toContain(`\`${a} =\``)
   })
-  it('DISCLOSED (semantic) — ASKED weekly request lookahead_off; CLAIMED ok, nothing said; DID disclose the one-bar-later step-back (slice inv finding)', () => {
+  // ⭐⭐ ENGINE 55 — FLIPPED DELIBERATELY. The weekly look-ahead-off request was `tf` plus a
+  // disclosed one-bar step-back (`htfLookaheadOffStepBacks`); it is now `tf_merge`,
+  // TradingView's own merge, so there is no difference left to disclose and the channel
+  // is deleted (`closedTable.json::_folds`, `pine.js::securityAsNode`).
+  it('ENGINE 55 — ASKED weekly request lookahead_off; DID `tf_merge` (TradingView’s merge) and NO step-back disclosure', () => {
     const r = inspectSource(H + 'plot(request.security(syminfo.tickerid, "W", close))')
-    expect(r.outcome.verdict).toBe(OUTCOME.DISCLOSED)
-    const n = r.outcome.semantic.find((x) => x.name === 'htfLookaheadOffStepBacks')
-    expect(n && n.note).toMatch(/one bar later than TradingView/)
-    expect(r.outputs[0].htfLookaheadOffStepBacks).toHaveLength(1)
+    expect(r.ok).toBe(true)
+    expect(r.outputs[0].formula).toContain("tf_merge(close, 'W')")
+    expect(r.outcome.semantic.find((x) => x.name === 'htfLookaheadOffStepBacks')).toBeUndefined()
+    expect('htfLookaheadOffStepBacks' in r.outputs[0]).toBe(false)
   })
-  it('PERSISTED — the step-back disclosure rides the saved member-pane definition (meta.disclosures, existing field)', () => {
+  it('ENGINE 55 — the saved member-pane definition carries no step-back disclosure (meta.disclosures)', () => {
     const d = memberPaneDefinition({ source: H + 'plot(request.security(syminfo.tickerid, "W", close))', id: 'u_test', name: 't' })
     expect(d.ok).toBe(true)
     const names = (d.definition.meta.disclosures || []).map((n) => n.name)
-    expect(names).toContain('htfLookaheadOffStepBacks')
+    expect(names).not.toContain('htfLookaheadOffStepBacks')
   })
-  it('the step-back seam does NOT fire for lookahead_on (tf_live)', () => {
+  it('lookahead_on (tf_live) carries no step-back channel either', () => {
     const r = inspectSource(H + 'plot(request.security(syminfo.tickerid, "W", close, lookahead=barmerge.lookahead_on))')
-    expect((r.outputs[0].htfLookaheadOffStepBacks || [])).toHaveLength(0)
+    expect('htfLookaheadOffStepBacks' in r.outputs[0]).toBe(false)
   })
   it('the tree seam exists and is empty by default (a rule with a null note attaches nothing)', () => {
     expect(Array.isArray(TREE_SEMANTIC_RULES)).toBe(true)

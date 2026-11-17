@@ -131,7 +131,7 @@ function lengthIn(q, word) {
 // It never claims a type or a length that was not applied.
 function afterAdding(hit, q) {
   const f = hit.fresh
-  if (!f) return { addedSay: hit.say, addedRow: hit.say, addNext: ' Click it here to change its settings, colours and pane.' }
+  if (!f) return { addedSay: hit.say, addedRow: hit.say, addNext: ' Click it here to change its settings, colors and pane.' }
   const addedSay = `${f.stem} ${f.length}`
   const n = lengthIn(q, hit.word)
   const sets = [
@@ -140,7 +140,7 @@ function afterAdding(hit, q) {
   ]
   return { addedSay, addedRow: addedSay, addNext: sets.length
     ? ` That’s what a new one starts as. Click it here, then set ${sets.join(' and ')}.`
-    : ' Click it here to change its settings, colours and pane.' }
+    : ' Click it here to change its settings, colors and pane.' }
 }
 /** The one catalog indicator the words name → { id, name, say, label, labelName } | null. `say` is what to search for, and
  *  `label` is the one on the chart: "EMA 20" when the words give its length, so the EMA 9 above it is not taken for it. */
@@ -180,18 +180,21 @@ export const HEADER_CONTROLS = [
 ]
 
 // components/chart/chartSettingsDescriptors.js: the product's own table of what Chart Settings holds and where
-const TABS = { 'price style': 'price', canvas: 'canvas', indicators: 'indicators', header: 'header', markers: 'markers' }
+const TABS = { 'price style': 'price', canvas: 'canvas', indicators: 'indicators', 'header & legend': 'header', header: 'header', markers: 'markers' }
 // where a row really sits, in the tab's own words, where the product's table says it differently (a controlled row's
 // sentence names what the member has to do first)
 const ONLY_ON = ' Its controls show beside the switch once the line is on.'
 const SETTING_SPOT = {
   showPriceLabels: { where: 'Price labels' }, showMaLabels: { where: 'Moving average labels' },
-  candleColorMode: { where: 'Color based on' }, 'candles.thinBars': { where: 'Bar thickness', note: ' This shows while the chart type is Bars or HLC.', alt: 'Thin bars shows on this tab only while the chart type is Bars or HLC. Choose Bars under Chart type first, and it appears here.' },
+  candleColorMode: { where: 'Color based on' }, 'candles.thinBars': { where: 'Thin bars', note: ' This shows while the chart type is Bars or HLC.', alt: 'Thin bars shows on this tab only while the chart type is Bars or HLC. Choose Bars under Chart type first, and it appears here.' },
+  countdown: { where: 'Countdown to bar close' },
+  'swingLabels.enabled': { where: 'Swing highs & lows' }, 'swingLabels.sensitivity': { where: 'Swing highs & lows', note: ' Sensitivity shows beside it once the labels are on.' },
+  'darkPool.enabled': { where: 'Dark pool prints' },
   'crosshair.style': { where: 'Crosshair', note: ' Click the Line color swatch below it: the panel has the line style.' },
   'crosshair.width': { where: 'Crosshair', note: ' Click the Line color swatch below it: the panel has the thickness.' },
-  'header.colors.*': { where: 'Title color', note: ' Each info row’s colour is further down this tab.' },
+  'header.colors.*': { where: 'Title color', note: ' Each stat’s color is further down this tab, under Stats beside the ticker.' },
   'markers.earnings': { where: 'Earnings' }, 'markers.splits': { where: 'Splits' }, 'markers.dividends': { where: 'Dividends' }, 'markers.news': { where: 'News' }, 'markers.desk': { where: 'Desk mentions' },
-  'markers.ipo': { where: 'Event markers' }, 'markers.ipoColor': { where: 'Event markers' },
+  'markers.ipo': { where: 'Events' }, 'markers.ipoColor': { where: 'Events' },
 }
 for (const [k, label] of [['high', 'Prev-day high'], ['low', 'Prev-day low'], ['close', 'Prev-day close']]) {
   SETTING_SPOT[`prevDayLevels.${k}.enabled`] = { where: label }

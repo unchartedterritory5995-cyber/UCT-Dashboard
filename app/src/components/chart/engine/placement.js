@@ -308,6 +308,19 @@ export function axisWantedBy(def, instance) {
 export const OWN_SCALE_PREFIX = 'own:'
 export const OWN_SCALE_MARGINS = Object.freeze({ top: 0.62, bottom: 0.04 })
 
+/**
+ * PRICE-SCALE JOIN (2026-11-16): does this definition's price-pane series take part in the
+ * candles' autoscale? Only the exact boolean `true` (`placement.joinPriceScale`), which only
+ * a Pine translation declaring `overlay = true` stamps (`memberPaneDefinition.joinsPriceScale`),
+ * and never together with `ownScale` (that series is on its own scale already).
+ * `resolvePlacement` still answers `'exclude'` for it: the SURFACE decides, because a surface
+ * that fits price to the candles keeps doing so (`eligibility.js::priceScaleJoinLook`).
+ */
+export function joinsPriceScaleOf(def) {
+  const p = def && typeof def === 'object' ? def.placement : null
+  return !!(p && typeof p === 'object' && p.target === 'price' && p.joinPriceScale === true && p.ownScale !== true)
+}
+
 export function ownScaleOf(def) {
   const p = def && typeof def === 'object' ? def.placement : null
   return !!(p && typeof p === 'object' && p.ownScale === true)

@@ -86,6 +86,7 @@ import {
   saveFrozenList, saveStandingAlert, saveToNotebook,
 } from './focusActions'
 import styles from './FocusScreener.module.css'
+import menuStyles from './FocusMenus.module.css'
 import { useScreenerAgentHost } from '../../../agent/hosts/usePageAgentHosts'
 
 // Every column the list, the chart header and the setup line read. Each must be a
@@ -146,7 +147,10 @@ function rememberNamed(item) {
   } catch { /* private mode or full: the name is just not kept */ }
 }
 
-export default function FocusScreener() {
+// `modeTabs`: the page's Stocks | Options switch (Screener.jsx), or null for a member without
+// Options. It is the first thing on the top bar, so the page has ONE bar; Table mode has no top
+// bar of its own, so there it gets a slim bar to itself.
+export default function FocusScreener({ modeTabs = null }) {
   const [mode, setMode] = useState(() => {
     const m = readLS(MODE_KEY, 'list')
     return m === 'table' || m === 'grid' || m === 'map' ? m : 'list'
@@ -155,6 +159,7 @@ export default function FocusScreener() {
   if (mode === 'table') {
     return (
       <div className={styles.page} data-testid="focus-screener" data-mode="table">
+        {modeTabs && <div className={menuStyles.modeBar}>{modeTabs}</div>}
         <div className={styles.tableMode}>
           {/* Screener.jsx hides its own checklist while the Focus layout is on; Table mode keeps it reachable. */}
           <HowToChecklist surface="screener.stocks" />
@@ -166,12 +171,12 @@ export default function FocusScreener() {
       </div>
     )
   }
-  return <FocusList mode={mode} onMode={onMode} />
+  return <FocusList mode={mode} onMode={onMode} modeTabs={modeTabs} />
 }
 
 // `mode` is 'list' (the list and its chart pane), 'grid' (the same results on the chart grid) or
 // 'map' (the same results as a treemap): one screen, one set of rows, three ways to look at them.
-function FocusList({ mode, onMode }) {
+function FocusList({ mode, onMode, modeTabs = null }) {
   const navigate = useNavigate()
   const { meta, error: metaError, retry: retryMeta } = useScreenerMeta()
   const viewColumnsFor = useMemo(() => {
@@ -196,7 +201,7 @@ function FocusList({ mode, onMode }) {
   const [retryNonce, setRetryNonce] = useState(0)
   // ── screen identity (which starter or saved screen is applied). Read BEFORE the scan is built:
   // the columns the list asks for depend on the open starter (RS screens, below).
-  const { saved, starters, rsMarket, rsAlerts, setRsAlert, error: savedError, loaded: savedLoaded, refresh } = useSavedScreens()
+  const { saved, starters, rsMarket, rsPending, rsAlerts, setRsAlert, error: savedError, loaded: savedLoaded, refresh } = useSavedScreens()
   const [current, setCurrent] = useState(() => (arrivedBare.current ? null : readNamed()[normalSpec(s.baseSpec)] || null))
   // ── RS screens (unit U5): what the open screen's STARTER adds to it ──────
   // The starter on view, from the live starters payload by id; it may carry `controls`, `row`
@@ -910,8 +915,17 @@ function FocusList({ mode, onMode }) {
   const [density, setDensity] = useState(() => (readLS(DENSITY_KEY, 'compact') === 'comfortable' ? 'comfortable' : 'compact'))
   const [showCompany, setShowCompany] = useState(() => readLS(COMPANY_KEY, '0') === '1')
 
+  // The first night (the saved-screens payload's `rs_pending`): an RS screen that came back empty
+  // because the lists have not been built yet. It says so in the server's words, and neither the
+  // coverage sentence ("11,176 stocks have no RS Rating") nor the filter pills are shown: both
+  // describe a screen that ran, and this one has nothing to run on yet. Only while it IS empty,
+  // so a page left open over the run shows the list the moment the scan brings one back.
+  // `rsStarter` is ANY open starter; one of the RS screens is a starter that carries the contract's
+  // `controls`, `row` or `empty`, and only those wait on the pass.
+  const rsWaiting = total === 0 && !error && rsStarter && (rsStarter.controls || rsStarter.row || rsStarter.empty)
+    && rsPending && typeof rsPending.text === 'string' && rsPending.text ? rsPending : null
   const drops = []
-  if (coverageHasDrop(listed?.coverage)) {
+  if (!rsWaiting && coverageHasDrop(listed?.coverage)) {
     // Said as the ordinary fact it usually is: on any RS screen thousands of names have no
     // rating to compare, and "could not be checked" read as broken data on the first screen a
     // member opens (member walk, 2026-10-17: 7,765 on the default Leaders screen).
@@ -920,8 +934,24 @@ function FocusList({ mode, onMode }) {
     // RS_RANK_IBD_ENABLED the column is the nightly rating, which covers every stock with
     // enough price history, and neither the scan answer nor /api/auth/me says which of the two
     // this page is showing. So the sentence is the one that is true of both.
+    // 2026-11-15: "no RS Rating" was said of every screen that filters on the rating, whatever
+    // the rows were missing. On UCT RS Leaders (twelve filters) it read "10,811 stocks have no RS
+    // Rating" on a morning when 231 had none. The receipt now names the columns that were blank
+    // (`missing_keys`), and the rating is blamed only when it is the one column that was. An
+    // answer without that map (an older server) keeps the sentence it had.
     const n = fmtN((listed.coverage.dropped || 0) + (listed.coverage.not_computable || 0))
-    drops.push(s.filters?.rs_rank
+    const missing = listed.coverage.missing_keys
+    const blank = missing && typeof missing === 'object' && !Array.isArray(missing)
+      ? Object.keys(missing).filter(k => missing[k] > 0) : null
+    const ratingOnly = blank ? blank.length === 1 && blank[0] === 'rs_rank' : !!s.filters?.rs_rank
+    // `dropped` is the scan's stale gate (query.coverage_for): a stock whose daily bars stopped
+    // more than ten sessions behind the snapshot. When that is every stock the count holds, no
+    // filter was missing a value, and the line says what did happen.
+    // (inside `coverageHasDrop`, so with nothing not-computable the count is all dropped rows)
+    const staleOnly = !(listed.coverage.not_computable > 0)
+    drops.push(staleOnly
+      ? `${n} stocks have no recent price data, so they are not in this list.`
+      : ratingOnly
       ? `${n} stocks have no RS Rating, so they are not in this list.`
       : `${n} stocks have no value for one of these filters, so they are not in this list.`)
   }
@@ -1012,7 +1042,9 @@ function FocusList({ mode, onMode }) {
   } else if (total === 0) {
     // The pills are built from the screen that CAME BACK empty, never the live spec: a filter
     // being edited in the drawer must not grow a pill for a screen nobody has run yet.
-    body = rsEmpty
+    body = rsWaiting
+      ? <>{flagsOutsideList}<RsEmptyState text={rsWaiting.text} pending={pending} /></>
+      : rsEmpty
       ? <>{flagsOutsideList}<RsEmptyState text={rsEmpty.text} actions={rsEmptyActions} pending={pending} /></>
       : <>{flagsOutsideList}<EmptyState filterCount={filterCount} lastChange={lastChange} onUndo={undoLast} onOpenFilters={() => openFilters()}
         pending={pending} spec={answered.shown?.baseSpec || null} meta={meta} coverage={listed?.coverage || null} onRemoveFilter={k => ed.setFilter(k, null)} onRemoveLogic={() => ed.setLogic(null)} /></>
@@ -1058,7 +1090,12 @@ function FocusList({ mode, onMode }) {
   // (`quickChoices`, unit U11: this layout lays a choice named with the open over the screen, applyScreen above)
   useScreenerAgentHost({ rows, total, current, edited: isEdited, filters: Object.keys(s.filters || {}), loading: isLoading, saved, starters, applyScreen: chooseScreen, quickChoices: true, refresh })
   return (
+    // `data-phone-scroll` (RS screens): on a phone the whole page scrolls, not the list alone
+    // (FocusScreener.module.css). Seen on the live site on 2026-11-15 at 390 x 778: the RS
+    // controls, the ratings line, the market line and the "not in this list" line left the list
+    // a 152px window, about one stock, with the floating buttons over it.
     <div ref={pageRef} className={styles.page} data-testid="focus-screener" data-mode="list" data-density={density} onKeyDown={shortcuts.onKeyDown}
+      data-phone-scroll={rsRow && mode !== 'map' && mode !== 'grid' ? '' : undefined}
       onKeyDownCapture={markTouched} onPointerDownCapture={markTouched} onWheelCapture={markTouched} onScrollCapture={markTouched}>
       {/* The page's one h1, for assistive tech; the top bar carries the visible title. */}
       <h1 className="sr-only">Screener</h1>
@@ -1067,6 +1104,7 @@ function FocusList({ mode, onMode }) {
         <a href="#focus-save" className={styles.skipLink} onClick={skipToSave}>Skip to save results</a>
       </SkipLinkPortal>
       <FocusTopBar
+        optionsTab={modeTabs}
         screenMenu={<ScreenMenu apiRef={screenMenuApi} landing={!landed} pool={pool} currentName={current?.name} currentId={current?.id} isEdited={isEdited} count={pending ? null : shownTotal} countPending={pending && !error}
           starters={starters} saved={saved} pinned={effectivePinned} onTogglePin={togglePin} onApply={chooseScreen}
           onSaveChanges={current?.kind === 'saved' && isEdited ? saveChanges : null}
@@ -1092,19 +1130,30 @@ function FocusList({ mode, onMode }) {
           onLibrary={() => setSheet('library')} onGlossary={() => openFilters()} shortcuts={shortcuts}
           onRsHelp={starters.some(x => x && x.row) ? openRsHelp : null} />}
       />
-      {/* RS screens: the quick controls row, only for a starter that declares controls. */}
-      {rsControls.length > 0 && <QuickControls controls={rsControls} filters={s.filters} sort={s.sort} rank={s.rank} onChoose={chooseOption} onReset={resetControls} />}
-      {rsHeadOn && <RsHeaderLine newLine={newLine} showNewLine={newLineShows} asOf={rsAsOf} share={rsShare} pending={pending} alerts={alertToggle} />}
-      {rsMarketOn && <RsMarketLine text={marketLine.text} state={marketLine.state} onHide={hideMarketLine} />}
-      {rsNoteOn && <RsFirstVisit onHow={openRsHelp} onDismiss={() => setPref(RS_NOTE_PREF, '1')} />}
-      {metaError && !meta && (
-        // The list still renders with the current screen; only the filter registry is missing.
-        <div className={styles.metaNote} role="alert">
-          <span>Filters couldn&apos;t be loaded, so the drawer is empty for now.</span>
-          <button type="button" className={styles.btn} onClick={retryMeta}>Retry</button>
+      {/* The context line: the open screen's quick controls (a starter that declares them), then
+          its facts at the far end. One line; nothing is drawn for a screen with neither. */}
+      {(rsControls.length > 0 || rsHeadOn) && (
+        <div className={styles.subBar} data-testid="focus-context">
+          {rsControls.length > 0 && <QuickControls controls={rsControls} filters={s.filters} sort={s.sort} rank={s.rank} onChoose={chooseOption} onReset={resetControls} />}
+          {rsHeadOn && <RsHeaderLine newLine={newLine} showNewLine={newLineShows} asOf={rsAsOf} share={rsShare} pending={pending} alerts={alertToggle} />}
         </div>
       )}
-      {drops.length > 0 && <p className={styles.dropNote} role="status">{drops.join(' ')}</p>}
+      {/* The notices line: everything the page has to say, on one quiet line (never a stack of
+          banners over the list). Nothing is drawn when there is nothing to say. */}
+      {(rsMarketOn || rsNoteOn || (metaError && !meta) || drops.length > 0) && (
+        <div className={styles.notices} data-testid="focus-notices">
+          {rsMarketOn && <RsMarketLine text={marketLine.text} state={marketLine.state} onHide={hideMarketLine} />}
+          {rsNoteOn && <RsFirstVisit onHow={openRsHelp} onDismiss={() => setPref('screener_rs_note_seen', '1')} />}
+          {metaError && !meta && (
+            // The list still renders with the current screen; only the filter registry is missing.
+            <div className={styles.metaNote} role="alert">
+              <span>Filters couldn&apos;t be loaded, so the drawer is empty for now.</span>
+              <button type="button" className={styles.btn} onClick={retryMeta}>Retry</button>
+            </div>
+          )}
+          {drops.length > 0 && <p className={styles.dropNote} role="status">{drops.join(' ')}</p>}
+        </div>
+      )}
       {body}
       <PhoneChartSheet open={phoneSheet && listShowing} onClose={closePhoneSheet} row={selected}
         onPrev={stepPrev} onNext={stepNext} canPrev={sel.index > 0} canNext={sel.index < listRows.length - 1 || listHasMore}>

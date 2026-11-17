@@ -3,7 +3,18 @@
 Branch `feat/pine-w34-d1-drawing-history`. Same procedure as `docs/pine/capture-queue-2026-09-28.md`.
 The breakdown names this row W3N-D1 (four probes `vw-w3n-draw-block-history-{a,b,c,d}.pine`, `NYSE:RDDT 1D` and `AMEX:SPY 1D`).
 
-Served today: nothing. The machinery (the drawing build lowering `ta.sma` / `ta.ema` / `ta.rma` written in a
+**Graded 2026-11-15 (lane L4d, engine 63 placeholder), on the s10 captures
+`vw-w3n-draw-block-history-{a,b,c,d}-{rddt,spy}-1d-2026-11-15` (local only; digests in
+`docs/pine/evidence/2026-11-15-w3n-d1/evidence.json`).** Label `x` in these captures is a RANK into
+TradingView's `graphics()._indexes`; it is read through the run's `xmap/<id>.json` sidecar.
+- W3N-D1a (sma), W3N-D1b (ema), W3N-D1c (rma): MATCH on both symbols (RDDT 316/316 labels from the
+  listing, warm-up `na` included; SPY the newest 501). SERVED in the drawing build.
+- W3N-D1d (a block local's `[1]`): DIVERGE. TradingView reads the previous RUN's value (316/316 on
+  RDDT); master's drawing build read the every-bar column, the previous BAR (first divergence RDDT
+  bar 2: vendor 100.88, ours 92; SPY bar 7580: 808.38 vs 796.54). Now REFUSED by name
+  (`runtime:conditional-history`).
+
+(History, before the grade:) Served: nothing. The machinery (the drawing build lowering `ta.sma` / `ta.ema` / `ta.rma` written in a
 block that runs on some bars through the plot lane's `servedCondCall`) is built and GATED OFF by
 `DRAWING_HISTORY_CAPTURED = false`. The C48 captures pin sma and ema as PLOT values only, and nothing pins
 `ta.rma` inside a block, so no capture shows a DRAWING reading the set. Refused by name

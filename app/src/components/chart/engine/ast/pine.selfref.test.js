@@ -52,11 +52,12 @@ describe('a plain self-referencing assignment', () => {
     expect(row.ast.type).toBe('call')
     expect(row.ast.name).toBe('accum')
     // ⭐ THE ARMS LAND IN THE RIGHT SLOTS, read off the TABLE's own `recurrence`
-    // rather than typed here. The seed is the `na` arm; the body is the other one
-    // with the self-read folded to `self`. Swap them and this goes red.
+    // rather than typed here. The seed is the `na` arm; the body is the whole `?:` with the
+    // self-read folded to `self` (engine 56, A1: the `na(self)` test stays in the step, so an
+    // update that answers `na` re-seeds on the next bar, as Pine does). Swap them and this goes red.
     expect(printFormula(row.ast.args[spec.recurrence.seed])).toBe('close')
     expect(printFormula(row.ast.args[spec.recurrence.body]))
-      .toBe(`(${spec.recurrence.binds} + close) / 2`)
+      .toBe(`na(${spec.recurrence.binds}) ? close : (${spec.recurrence.binds} + close) / 2`)
   })
 
   it('⭐⭐ and the NUMBER is the running recurrence, not the seed and not `close`', () => {

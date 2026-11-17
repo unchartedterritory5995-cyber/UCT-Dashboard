@@ -226,7 +226,7 @@ export async function createPool({
       inflight.set(ownerKey(e), (inflight.get(ownerKey(e)) || 0) + 1)
       s.busy = e
       e.killTimer = setTimeout(() => hardKill(s), killMs)
-      s.w.postMessage({ id: e.id, doc: e.doc, job: e.job })
+      s.w.postMessage({ id: e.id, doc: e.doc, job: e.job, ...(e.libraries ? { libraries: e.libraries } : {}) })
     }
   }
 
@@ -243,8 +243,10 @@ export async function createPool({
     }
     const { profile, owner } = request
     const doc = request.definition.doc
+    // ⭐⭐ U15: the request's verified library entries ride with each of its jobs
+    const libraries = request.definition.libraries || null
     const answers = request.jobs.map((job) => new Promise((resolve) => {
-      const e = { id: (nextId += 1), profile, owner, doc, job, resolve, dispatched: false }
+      const e = { id: (nextId += 1), profile, owner, doc, libraries, job, resolve, dispatched: false }
       e.deadlineTimer = setTimeout(() => {
         // ONE guard: only a job still QUEUED is answered here; a dispatched one answers by its run
         const q = queues.get(profile)

@@ -28,6 +28,7 @@ import { runtimeColumnsFor } from '../../engine/runtime/runtimeColumns'
 import { __permitRuntimePaneForTests, __resetRuntimePanePermission } from '../../engine/runtimePaneGate'
 import {
   __allowEveryRuntimeScriptForTests, setRuntimeAllowList, setRuntimeKillList, runtimeSourceHash,
+  setRuntimeCapabilityAdmission, latchRuntimeAdmission, __resetRuntimeAdmission, RUNTIME_FORMING_GUARD,
 } from '../../engine/runtimeKill'
 import { resetObjectRenderDrops } from '../../engine/objectRenderNotice'
 import AttachedPineDisclosures from '../../pane/AttachedPineDisclosures'
@@ -358,6 +359,25 @@ describe('⭐⭐ the bind draws the run\'s drawings only where every gate passes
     expect(runHalfOf(bind(stamped))).toEqual({ state: 'refused', code: 'pane:not-graded' })
   })
 
+  it('⛔⛔ G6 — admitted by capability for CLOSED-BAR HISTORY only (this fixture reads barstate): refused by name on a forming or untold bar; CONTROL: served on a closed bar', () => {
+    const def = install(door().definition)
+    setRuntimeAllowList([])
+    setRuntimeCapabilityAdmission(true)
+    try {
+      latchRuntimeAdmission(runtimeSourceHash(SRC), { admitted: true, historyOnly: true })
+      expect(runHalfOf(bind(def))).toEqual({ state: 'served', code: null })                 // newestBarIsForming: false
+      expect(runHalfOf(bind(def, undefined, { ...CTX, newestBarIsForming: true }))).toEqual({ state: 'refused', code: RUNTIME_FORMING_GUARD })
+      expect(runHalfOf(bind(def, undefined, { ...CTX, newestBarIsForming: null }))).toEqual({ state: 'refused', code: RUNTIME_FORMING_GUARD })
+      expect(runHalfRefusedSentence(RUNTIME_FORMING_GUARD)).toMatch(/only been checked against TradingView on finished bars/)
+      // CONTROL: admitted without the history-only restriction, a forming bar is served
+      latchRuntimeAdmission(runtimeSourceHash(SRC), { admitted: true })
+      expect(runHalfOf(bind(def, undefined, { ...CTX, newestBarIsForming: true }))).toEqual({ state: 'served', code: null })
+    } finally {
+      __resetRuntimeAdmission()
+      __allowEveryRuntimeScriptForTests()
+    }
+  })
+
   it('⛔ a revoked latch: refused on the next run, and the memo key moves with it', () => {
     const def = install(door().definition)
     const before = registry.computeSignature(def, undefined, CTX)
@@ -373,12 +393,66 @@ describe('⭐⭐ the bind draws the run\'s drawings only where every gate passes
     expect(runHalfOf(bind(def))).toEqual({ state: 'refused', code: 'pane:not-built' })
   })
 
-  it('⛔ the member moved a setting: refused (the run computes the script as written)', () => {
+  // ⭐⭐ SETTINGS PARITY (2c) — the run half at the chart's own settings. It used to be refused the
+  // moment ANY setting moved; now the run is handed the chart's values, and only a moved setting a
+  // DRAWING reads needs evidence of its own (`runHalfSettingsAdmitted`).
+  it('a moved plot width never reaches the run: served (the drawings are the same at any width)', () => {
     const def = install(door().definition)
     const k = (def.inputs || []).find((i) => i.key === 'lineWidth')
     expect(k, 'a declared input').toBeTruthy()
-    expect(runHalfOf(bind(def, { lineWidth: k.default + 2 }))).toEqual({ state: 'refused', code: 'runtime:member-inputs' })
-    expect(runHalfOf(bind(def, { lineWidth: k.default })).state, 'CONTROL: the default').toBe('served')
+    expect(runHalfOf(bind(def, { lineWidth: k.default + 2 })).state).toBe('served')
+  })
+
+  it('a moved length no drawing reads: the run is handed it, the column rail holds, served on the defaults\' evidence', () => {
+    const def = install(door().definition)
+    const len = (def.inputs || []).find((i) => i.fromParam || i.key === 'len')
+    expect(len, 'the length is a setting (a folded param or an input)').toBeTruthy()
+    const cols = bind(def, { [len.key]: 9 })
+    expect(runHalfOf(cols)).toEqual({ state: 'served', code: null })
+    // the host column moved with the setting, and the run's (held by the column rail) with it
+    expect(Array.from(cols.value)).not.toEqual(Array.from(bind(def).value))
+  })
+
+  describe('a setting only the drawings read', () => {
+    const SRC_N = ['//@version=5', 'indicator("run half n", overlay = true)', 'len = input.int(5, "len")',
+      'n = input.int(5, "How many", minval = 1, maxval = 5)',
+      'm = ta.sma(close, len)', 'plot(m, "m")', 'plot(m * 2, "m2")', 'if barstate.islast',
+      '    line.new(bar_index - 1, low, bar_index, high)', '    for i = 0 to n - 1',
+      '        if close[i] > open[i]', '            label.new(bar_index - i, high[i], "up")'].join(LF)
+    const ev = (extra = []) => setRunHalfObjectEvidence([{ sha256: runtimeSourceHash(SRC_N), captures: [
+      { capture: 'a', verdict: 'MATCH', objectsV2: true, runtimeOn: true },
+      { capture: 'b', verdict: 'MATCH', objectsV2: true, runtimeOn: true }, ...extra] }])
+
+    it('is declared on load (`fromRunHalf`), keyed by its Pine name, with the author\'s bounds', () => {
+      ev()
+      const def = install(door(SRC_N).definition)
+      expect(def.inputs.find((i) => i.key === 'n')).toMatchObject({ type: 'int', default: 5, min: 1, max: 5, fromRunHalf: true })
+    })
+
+    it('⛔ moved without evidence for it: refused by name, and the host program draws nothing it folded', () => {
+      ev()
+      const def = install(door(SRC_N).definition)
+      expect(runHalfOf(bind(def, { n: 2 }))).toEqual({ state: 'refused', code: 'runtime:member-inputs' })
+      expect(runHalfOf(bind(def)).state, 'CONTROL: at the default').toBe('served')
+    })
+
+    it('⭐ moved with two counted captures taken at it moved: served, and the run draws what the setting says', () => {
+      ev([{ capture: 'c', verdict: 'MATCH', objectsV2: true, runtimeOn: true, inputs: { n: 2 } },
+        { capture: 'd', verdict: 'MATCH', objectsV2: true, runtimeOn: true, inputs: { n: 3 } }])
+      const def = install(door(SRC_N).definition)
+      const all = runtimeObjectsOf(bind(def)).live.filter((o) => o.family === 'label').length
+      const cols = bind(def, { n: 2 })
+      expect(runHalfOf(cols)).toEqual({ state: 'served', code: null })
+      const two = runtimeObjectsOf(cols).live.filter((o) => o.family === 'label').length
+      expect(two).toBeLessThanOrEqual(2)
+      expect(two).toBeLessThan(all)
+    })
+
+    it('⛔ one counted capture is not evidence', () => {
+      ev([{ capture: 'c', verdict: 'MATCH', objectsV2: true, runtimeOn: true, inputs: { n: 2 } }])
+      const def = install(door(SRC_N).definition)
+      expect(runHalfOf(bind(def, { n: 2 })).code).toBe('runtime:member-inputs')
+    })
   })
 
   it('⛔⛔ THE COLUMN RAIL: a run column that is not the host\'s column refuses the drawings', () => {
@@ -415,6 +489,47 @@ describe('⭐⭐ the bind draws the run\'s drawings only where every gate passes
       registry.registerRuntimeLane(() => ({}))
       expect(runHalfOf(bind(def))).toEqual({ state: 'pending', code: 'runtime:in-flight' })
       expect(runtimeObjectsOf(bind(def))).toBe(null)
+    })
+    // ONE WITHHOLDING, ONE REASON (2026-11-16): seen on production, the note read "the script
+    // reads another symbol or timeframe, which this chart cannot hand that run" for the seconds
+    // the other symbol's bars took to load, then a different reason once they had.
+    const waiting = () => Object.assign(new Error('this script reads another symbol whose bars are still loading'),
+      { guard: 'runtime:request', pending: true })
+    it('pending: a run waiting for another symbol\'s bars is held, and no cause is worded', () => {
+      const def = install(door().definition)
+      registry.registerRuntimeLane(() => { throw waiting() })
+      expect(runHalfOf(bind(def))).toEqual({ state: 'pending', code: registry.RUN_HALF_REQUEST_PENDING })
+      expect(runtimeObjectsOf(bind(def))).toBe(null)
+    })
+    it('the wait RESOLVES: once the run can answer, the answer is the one a chart that never waited gets', () => {
+      const def = install(door().definition)
+      const never = runHalfOf(bind(def))
+      expect(never.state, 'CONTROL: this document is served when nothing waits').toBe('served')
+      registry.registerRuntimeLane(() => { throw waiting() })
+      expect(runHalfOf(bind(def)).state).toBe('pending')
+      // the bars arrive: the same lane as before the wait, asked again
+      registry.registerRuntimeLane(runtimeColumnsFor)
+      expect(runHalfOf(bind(def))).toEqual(never)
+      // and a wait that ends in a refusal ends on that refusal's own sentence, the same one a
+      // chart that never waited reads (one withholding, one reason, on every surface)
+      registry.registerRuntimeLane(() => { throw Object.assign(new Error('refused'), { guard: 'runtime:request' }) })
+      const refused = runHalfOf(bind(def))
+      expect(refused).toEqual({ state: 'refused', code: 'runtime:request' })
+      expect(runHalfRefusedSentence(refused.code)).toMatch(/cannot hand that run/)
+      expect(runHalfRefusedSentence(registry.RUN_HALF_REQUEST_PENDING), 'the pending code is never worded as a cause')
+        .not.toMatch(/cannot hand that run/)
+    })
+    it('pending: the same wait, reached as a withheld payload beside the plain run\'s columns', () => {
+      const def = install(door().definition)
+      registry.registerRuntimeLane(fake({ status: 'WITHHELD', live: [], guard: 'runtime:request', reason: 'x', pending: true }))
+      expect(runHalfOf(bind(def))).toEqual({ state: 'pending', code: registry.RUN_HALF_REQUEST_PENDING })
+    })
+    it('CONTROL: a request the run REFUSES (not a wait) is still refused, with its own code', () => {
+      const def = install(door().definition)
+      registry.registerRuntimeLane(() => { throw Object.assign(new Error('refused'), { guard: 'runtime:request' }) })
+      expect(runHalfOf(bind(def))).toEqual({ state: 'refused', code: 'runtime:request' })
+      registry.registerRuntimeLane(fake({ status: 'WITHHELD', live: [], guard: 'runtime:request', reason: 'x' }))
+      expect(runHalfOf(bind(def))).toEqual({ state: 'refused', code: 'runtime:request' })
     })
     it('⛔ a family the run withholds that the host program draws: refused', () => {
       const def = install(door().definition)
@@ -514,7 +629,7 @@ describe('⭐⭐ the chart: one picture, never both, never host-then-swap', () =
 
 describe('the member\'s sentences', () => {
   it('⛔ no refusal code reaches a sentence as a token', () => {
-    for (const code of ['pane:not-built', 'pane:not-permitted', 'pane:killed', 'pane:not-graded', 'runtime:member-inputs',
+    for (const code of ['pane:not-built', 'pane:not-permitted', 'pane:killed', 'pane:not-graded', 'pane:forming-ungraded', 'runtime:member-inputs',
       'runtime:runtime.error', 'runtime:history-start', 'runtime:warmup-never-converges', 'run-half:column-rail',
       'run-half:family-withheld', 'runtime:not-loaded', 'runtime:load-failed', 'runtime:request', 'runtime:limit',
       'runtime:time-budget', 'runtime:CALL_COUNT', 'interpret:bind-time-text', 'runtime:objects-stopped', 'x:y', '', null]) {

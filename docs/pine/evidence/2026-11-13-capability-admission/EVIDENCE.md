@@ -599,3 +599,13 @@ Sets 1-3 ran at `549deeb910` (38 mutants). Set 4 (S1-S8, serving cost) ran at `f
 - **Pre-existing reds, confirmed on origin/master.** `reachable.test.js` "connected to nothing" and
   the eslint unused `e` at `MemberPane.jsx:266` (line 240 on master) both fail with origin/master's
   copies of this PR's `app/src` files swapped in. Every file was then restored blob-equal.
+
+## Landing train 1 (2026-11-16): seven rows re-taken
+`runs/report.json` records the lane the DOOR answers for each admitted capture, and
+`capabilityEvidenceLane.test.js` asks the door again. Legacy semantics (`n` as the bar index in v1-v3, v1's
+one-argument `barssince`) and engine 56-v2 (the v1-v5 `bool` `na` rules) made the host lane draw seven of our
+own probes it used to refuse, so their rows moved from lane `null` to `host`, with the verdicts the train's
+AFTER harness run measured on the committed fixtures (production / runtime-on): `vw-ternary-arm-legacy-v1`,
+`-v2`, `-v3` MATCH / MATCH; `vw-ternary-arm-legacy-v1-cum`, `vw-cs1-bool-na-v2`, `vw-cs2-bool-na-v1`, `-v3`
+INCONCLUSIVE / INCONCLUSIVE. `populations.capture` moved with them (hostLane 160 -> 167, refused 85 -> 78).
+No row of the runtime lane moved; nothing else in the run was re-measured.

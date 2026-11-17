@@ -140,6 +140,26 @@ export function undo(state) {
   })
 }
 
+/** Go back to an EARLIER applied revision in one step: `history[index]`, exactly (the
+ *  same definition object), dropping it and everything after it from the stack. The
+ *  same rules as `undo`, of which `undo` is the last-index case: the revision moves
+ *  FORWARD. An index that names nothing returns the SAME state. */
+export function undoTo(state, index) {
+  if (!Number.isInteger(index) || index < 0 || index >= state.history.length) return state
+  const prev = state.history[index]
+  return freeze({
+    ...state,
+    revision: state.revision + 1,
+    working: prev.working,
+    intent: prev.intent,
+    requests: prev.requests,
+    assumptions: prev.assumptions,
+    questions: prev.questions,
+    history: state.history.slice(0, index),
+    restoredFrom: prev.revision,
+  })
+}
+
 /** The document as the save door would judge it: without the two stamps a
  *  save writes (`id`, `version`). */
 function savable(def) {

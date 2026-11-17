@@ -24,7 +24,9 @@ exact failure this file is shaped to avoid:
 
 from __future__ import annotations
 
+import json
 import os
+import sys
 
 import pytest
 
@@ -146,3 +148,158 @@ class TestTheSweep:
         assert os.path.isdir(legacy), "the legacy fixture corpus should still exist"
         # The sweep is rooted at corpus/ and cannot reach tests/fixtures/.
         assert not os.path.abspath(legacy).startswith(os.path.abspath(CORPUS) + os.sep)
+
+
+# ═══ THE SECOND DOOR: Pine source EMBEDDED in committed fixtures (2026-11-15) ═══════════════
+#
+# ⚰️ The sweep above walks `corpus/` and nothing else, and that is how a script with NO licence
+# line reached git anyway: inside the `source.text` of a vendor capture
+# (`tests/fixtures/vendor/harness/supertrend-kivancozbilgic-rddt-1d-2026-10-02.json`, admitted in
+# `cce0701fe` by its sha matching a local-only OOS record, with no licence check), and as 22 `.pine`
+# copies of licence-held OOS members in `tools/c0_*_fixtures` (`e855f62cd`). Both are gone; their
+# verdicts are kept per LICENSING.md §2c and the files live in the local capture store
+# (`docs/pine/vendor-harness/licence-held.json`). The scope, the allowances and why the in-house
+# list is hashes and not directories: `tools/pine_survey/fixture_licence.py`.
+
+from tools.pine_survey import fixture_licence as fl  # noqa: E402
+
+HELD_REGISTRY = os.path.join(REPO, "docs", "pine", "vendor-harness", "licence-held.json")
+
+
+class TestEmbeddedSources:
+    def test_no_committed_fixture_embeds_a_non_permitted_source(self):
+        """The rail proper: every committed capture, everything under tests/fixtures/vendor/, every
+        .pine under tools/. Fails BY NAME: file, JSON path, the licence found, the sha."""
+        counts, offenders = fl.sweep(REPO)
+        assert offenders == [], (
+            "These committed fixtures embed a Pine source that is not permitted "
+            "(docs/pine/LICENSING.md section 1: an explicit MPL-2.0 / MIT / Apache-2.0 header; no "
+            "licence line is not permissive). Remove the file, keep its verdict in the evidence "
+            "ledger (section 2c) and the bytes in the capture store, or, for a source written in "
+            "this repo, add a probe file, a UCTPROBE_ title or a hash line in fixture_licence.IN_HOUSE:\n"
+            + "\n".join(f"  {f}  {w}  ({lic}, sha {sha})" for f, w, lic, sha in offenders)
+        )
+        # ⛔ NOT VACUOUS: the scope really holds the captures it exists for. Several hundred
+        # sources are classified, most of them probes and corpus files.
+        assert sum(counts.values()) > 500, counts
+        assert counts.get("probe", 0) > 100 and counts.get("corpus", 0) > 100, counts
+
+    def test_the_sweep_reports_a_held_source_by_name(self, tmp_path):
+        """⭐ THE CONTROL. A tree with one capture of an unlicensed script, one with a permitted
+        header, one probe (by its committed file), one UCTPROBE_ inline probe, an in-house hash, a
+        legacy-format observation and an unlicensed .pine under tools/."""
+        unlicensed = "//@version=5\nindicator('someone else')\nplot(ta.sma(close, 7))\n"
+
+        def cap(name, text, where="tests/fixtures/vendor/harness"):
+            p = tmp_path / where / f"{name}.json"
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(json.dumps({"schema": fl.CAPTURE_SCHEMA, "id": name,
+                                     "source": {"text": text}}), encoding="utf-8")
+            return f"{where}/{name}.json"
+
+        probe_dir = tmp_path / "tools" / "visual_conformance" / "probes"
+        probe_dir.mkdir(parents=True)
+        probe_src = "//@version=6\nindicator('ours')\nplot(close)\n"
+        (probe_dir / "ours.pine").write_bytes(probe_src.encode("utf-8"))
+        house = "//@version=6\nindicator('house')\nplot(open)\n"
+        obs = tmp_path / "tests" / "fixtures" / "vendor" / "observations" / "o.json"
+        obs.parent.mkdir(parents=True)
+        obs.write_text(json.dumps({"script": {"source": unlicensed + "// v2\n"}}), encoding="utf-8")
+        tools_pine = tmp_path / "tools" / "x_fixtures" / "theirs.pine"
+        tools_pine.parent.mkdir(parents=True)
+        tools_pine.write_text(unlicensed, encoding="utf-8")
+        files = [
+            cap("bad", unlicensed),
+            cap("ok", MIT_HEADER),
+            cap("probe", probe_src),
+            cap("inline", "//@version=6\nindicator('UCTPROBE_X')\nplot(close)\n"),
+            cap("house", house),
+            cap("elsewhere", unlicensed, where="docs/somewhere"),
+            "tools/visual_conformance/probes/ours.pine",
+            "tests/fixtures/vendor/observations/o.json",
+            "tools/x_fixtures/theirs.pine",
+        ]
+        counts, offenders = fl.sweep(str(tmp_path), files, in_house={fl.sha256_text(house): "test"})
+        assert [(f, w) for f, w, _lic, _sha in offenders] == [
+            ("docs/somewhere/elsewhere.json", ".source.text"),          # a capture OUTSIDE the vendor tree
+            ("tests/fixtures/vendor/harness/bad.json", ".source.text"),
+            ("tests/fixtures/vendor/observations/o.json", ".script.source"),
+            ("tools/x_fixtures/theirs.pine", "<file>"),
+        ]
+        assert all(lic == NONE_FOUND for _f, _w, lic, _s in offenders)
+        assert counts == {"held": 4, "permitted": 1, "probe": 3, "in-house": 1}, counts
+
+    def test_the_in_house_list_names_only_sources_still_in_the_tree(self):
+        """A stale allowance is an allowance for whatever next hashes the same. Every IN_HOUSE hash
+        must still be a source the sweep finds, and none may be a permitted or probe one."""
+        files = fl.tracked_files(REPO)
+        known = fl.known_shas(REPO, files)
+        seen = {}
+        for f in fl.scope_files(REPO, files):
+            for _w, text in fl.embedded_sources(os.path.join(REPO, f)):
+                seen[fl.sha256_text(text)] = fl.classify(text, known, {})
+        assert sorted(set(fl.IN_HOUSE) - set(seen)) == []
+        assert {sha: seen[sha] for sha in fl.IN_HOUSE if seen[sha] != "held"} == {}
+
+    def test_the_held_registry_carries_hashes_never_source(self):
+        """`licence-held.json` is committed, so it must not become the leak it records."""
+        sys.path.insert(0, os.path.join(REPO, "tools", "vendor_harness"))
+        import licence_held  # noqa: E402
+
+        doc = licence_held.registry()
+        assert doc["schema"] == licence_held.SCHEMA
+        assert len(doc["entries"]) >= 23
+        tracked = set(fl.tracked_files(REPO))
+        for e in doc["entries"]:
+            assert set(e) <= licence_held.ENTRY_FIELDS, sorted(set(e) - licence_held.ENTRY_FIELDS)
+            assert all(not (isinstance(v, str) and "\n" in v) for v in e.values()), e["path"]
+            assert e["path"] not in tracked, f"{e['path']} is registered as held and is committed"
+            assert len(e["fileSha256"]) == 64 and len(e["sourceSha256"]) == 64
+        raw = open(HELD_REGISTRY, encoding="utf-8").read()
+        assert "//@version" not in raw
+
+
+class TestDerivedDocuments:
+    """The third door (2026-11-15): a TRANSLATED definition document of a held script carries no Pine
+    text, so the sweep above cannot see it. `fixture_licence.derived_sweep` flags one by its name."""
+
+    def test_no_committed_document_is_named_after_a_held_script(self):
+        seen, offenders = fl.derived_sweep(REPO)
+        assert offenders == [], (
+            "These committed definition documents are translations of a script whose source may not "
+            "be committed (docs/pine/LICENSING.md section 2d). Remove each, keep it in the capture "
+            "store and register it in docs/pine/vendor-harness/licence-held.json:\n"
+            + "\n".join(f"  {f}  {w}  <- {h} ({why})" for f, w, h, why in offenders)
+        )
+        assert seen >= 20, seen   # ⛔ NOT VACUOUS: the scope finds the documents it exists for
+
+    def test_the_derived_sweep_reports_by_name(self, tmp_path):
+        """⭐ THE CONTROL: a held pine_oos member, a held reference script, a committed one sharing no
+        slug, and a document named after each (one cut to 40 characters, as the save door does)."""
+        def put(rel, obj):
+            p = tmp_path / rel
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(json.dumps(obj), encoding="utf-8")
+            return rel
+
+        held_oos = "high_engagement__99-someone-elses-long-script-name"
+        files = [
+            put(f"tests/fixtures/pine_oos/{held_oos}.json", {"storage": "local-only", "license": "not stated"}),
+            put("tests/fixtures/pine_oos/long_tail__98-ours.json", {"storage": "git", "license": "MPL-2.0"}),
+            put("corpus/reference/held-ref__abc.json", {"verdict": "reference", "licence": "NONE-IN-SOURCE"}),
+            put("corpus/reference/ok-ref__def.json", {"verdict": "commit", "licence": "MIT"}),
+        ]
+        doc = lambda name: {"compute": {"source": "close"}, "meta": {"name": name}}  # noqa: E731
+        files += [
+            put("tests/fixtures/a/cut.json", doc(held_oos[:40])),
+            put("tests/fixtures/a/ref.json", {"docs": [doc("held-ref")]}),
+            put("tests/fixtures/a/fine.json", doc("long_tail__98-ours")),
+            put("tests/fixtures/a/fine2.json", doc("ok-ref")),
+            put("tests/fixtures/a/notadoc.json", {"meta": {"name": held_oos}}),
+        ]
+        seen, offenders = fl.derived_sweep(str(tmp_path), files)
+        assert [(f, w, h) for f, w, h, _why in offenders] == [
+            ("tests/fixtures/a/cut.json", "$", held_oos),
+            ("tests/fixtures/a/ref.json", ".docs[0]", "held-ref"),
+        ]
+        assert seen == 4

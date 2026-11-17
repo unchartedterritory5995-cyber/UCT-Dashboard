@@ -27,6 +27,8 @@ const BY_NAME = () => ({
   layout: ['12', 'Swing', '11'], board: ['Swing board', 'Board 1'], template: ['Dark', 'Momentum'], range: ['3M', '1Y'],
   instance: ['inst:rsi:1', 'ovl:0'], pane: ['inst:rsi:1'], place: ['pane', 'price', 'inst:rsi:1'], from: ['c2', '2026-01-05', 'c1'], to: ['up', 'Renamed', '2026-02-02'],
   date: ['2026-01-05', '2026-03-02'], color: ['red', null], up: ['red'], down: ['blue'], name: ['New one', 'Swing', 'Tech'], text: ['Note'],
+  // newsLibrary.*: the fixture library's one saved headline and its collection
+  headline: ['ev1'], collection: ['Earnings'], note: ['new note'],
   symbol: ['SPY', 'AAPL'], key: ['period', 'scan', 'showLogos'], value: [SCAN, 'red'], chart: ['c1', 'c2'], defId: ['rsi', 'macd'], screen: ['Mine'],
 })
 const NUMS = { point: [1, 2], price: [105], level: [0.618], x: [0, 16], y: [0], w: [4, 8], h: [20, 10] }
@@ -213,12 +215,19 @@ describe('STATE RAIL census — by tool, from the registry', () => {
   })
 })
 
-const NOUN = { alert: 'alert', indicator: 'indicators', drawing: 'drawings', drawingBoard: 'drawing board', watchlist: 'watchlist', widget: 'widget', layout: 'layout', layoutBar: 'layout bar', template: 'template' }
+const NOUN = { alert: 'alert', newsLibrary: 'saved headline', indicator: 'indicators', drawing: 'drawings', drawingBoard: 'drawing board', watchlist: 'watchlist', widget: 'widget', layout: 'layout', layoutBar: 'layout bar', template: 'template' }
 const ADDITIVE_WORDS = ['add AAPL', 'ADD an RSI', 'Add a trendline', 'adding one', 'put a new one on', 'PUT ANOTHER LINE', 'include MSFT', 'another one', 'Another RSI',
   'one more please', 'also MSFT', 'AAPL as well', 'TSLA too', 'a new layout', 'Insert a widget', 'more indicators', 'extra line', 'additional watchlist',
   'add it, don’t remove anything', 'add AAPL without deleting anything', 'put AAPL on — never replace']
 // every capability that can destroy, replace or overwrite existing state, and how (read by stateRail.stateEffects)
 const EXPECTED = {
+  // newsLibrary.* (2026-11-15): a headline out of the library, a non-empty note replaced, a collection renamed / deleted,
+  // a headline out of a collection
+  'newsLibrary.collection': ['newsLibrary:overwrite'],
+  'newsLibrary.deleteCollection': ['newsLibrary:delete'],
+  'newsLibrary.place': ['newsLibrary:remove'],
+  'newsLibrary.save': ['newsLibrary:remove'],
+  'newsLibrary.setNote': ['newsLibrary:overwrite'],
   'chart.applyTemplate': ['indicator:replace'],
   'chartSetup.deleteTemplate': ['template:delete'],
   'chartSetup.saveTemplate': ['template:overwrite'],

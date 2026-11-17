@@ -10,17 +10,19 @@
 //   N01-N04  an na enum value: na(m), m == E.a, which arm a switch on it takes, str.tostring of it
 //   I01      input.enum at its default: the default field (confirms the served shape)
 //   K01      an enum as a map key (put then get)
+// ⛔ READING, run cq1-2026-11-16 (PR #1472): this file did not compile: "The name or title of the {enumName}
+// enum's {firstFieldName} field cannot match the name or title of the {secondFieldName} field. Choose unique
+// names and titles for all the enum's fields." So T03 and E01 are ANSWERED (two fields sharing a title do not
+// compile; the runtime lane refuses them by name since the UDT unit) and the fields `c` / `d` are gone. The rest
+// is unchanged; A00 is the control.
 //@version=6
 indicator("vw-w6-enum", overlay = false)
+plot(bar_index, "A00 bar_index control")
 enum E
     a
     b = "Bee"
-    c = "Same"
-    d = "Same"
 plot(str.length(str.tostring(E.b)), "T01 tostring titled (3 title, 1 name)")
 plot(str.length(str.tostring(E.a)), "T02 tostring untitled")
-plot(str.tostring(E.c) == str.tostring(E.d) ? 1 : 0, "T03 tostring same title equal")
-plot(E.c == E.d ? 1 : 0, "E01 same-title fields ==")
 E m = na
 plot(na(m) ? 1 : 0, "N01 na(m) of an na enum")
 plot(m == E.a ? 1 : 0, "N02 na enum == E.a")

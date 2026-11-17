@@ -1,6 +1,6 @@
 // ── THE LAYOUT BAR: pin, reorder and take layouts off the Layout Dock (C3-037..039) ──
 //
-// The Layout Dock along the bottom of /charts has two parts (pages/charts/LayoutDock.jsx):
+// The Layout Dock (the layout tabs in the /charts top row, beside the layout name) has two parts (pages/charts/LayoutDock.jsx):
 // the LIBRARY (every layout the member has; the only place one can be deleted) and the RAIL
 // or BAR (positional slots that point into the library, for switching fast). This file is
 // the bar only. It reads and writes through the dock's own door (host.layoutDock, agent/host.js
@@ -89,7 +89,7 @@ function targetIndex(to, from, n) {
 // ── the receipt lines ──
 function lineOf(p) {
   if (p.op === 'pin') return `Pinned ${quote(p.name)} to the layout bar (the ${ord(p.index + 1)} spot). It is not opened; say “open ${p.name}” to switch to it.`
-  if (p.op === 'unpin') return `Took ${quote(p.name)} off the layout bar. It is still in your layout library (＋ on the bar).`
+  if (p.op === 'unpin') return `Took ${quote(p.name)} off the layout bar. It is still in your layout library (Layout library… in the layout name’s menu).`
   if (p.op === 'shift') return `Moved ${quote(p.name)} on the layout bar from the ${ord(p.from + 1)} spot to the ${ord(p.to + 1)}.`
   if (p.op === 'restore') return `Put ${quote(p.name)} back on the layout bar in the ${ord(p.index + 1)} spot.`
   return null
@@ -184,7 +184,7 @@ export function registerLayoutBarCapabilities() {
       if (!s) return undefined
       return [{
         ref: refFor('layoutDock', 'layoutDock'),
-        label: 'Layout bar (the layouts along the bottom of Charts; the library holds every layout)',
+        label: 'Layout bar (the layout tabs along the top of Charts; the library holds every layout)',
         ...(s.hidden ? { hidden: true } : {}),
         bar: s.slots.map(x => ({ spot: x.index + 1, layout: x.name, id: String(x.id) })),
       }]
@@ -195,7 +195,7 @@ export function registerLayoutBarCapabilities() {
     name: 'layout.pinToBar',
     target: 'layoutDock',
     surfaces: ['charts'],
-    summary: 'Pin one of the member\'s layouts to the layout bar along the bottom of Charts (the library\'s "add to bar"). The slot goes on the end. Does NOT open the layout and does not change the board.',
+    summary: 'Pin one of the member\'s layouts to the layout bar along the top of Charts (the library\'s "add to bar"). The slot goes on the end. Does NOT open the layout and does not change the board.',
     hints: 'target = the ref of the layoutDock entry; layout = the layout\'s id from the layouts list, or the member\'s own words for it (UCT matches them; several matches are asked about). '
       + 'To also switch to it, that is layout.open, a separate step.',
     args: { type: 'object', properties: { layout: { type: 'string' } }, required: ['layout'], additionalProperties: false },
@@ -232,7 +232,7 @@ export function registerLayoutBarCapabilities() {
     name: 'layout.unpinFromBar',
     target: 'layoutDock',
     surfaces: ['charts'],
-    summary: 'Take one layout off the layout bar along the bottom of Charts (the slot menu\'s "Close"). The layout stays in the library: this NEVER deletes a layout (that is layout.delete).',
+    summary: 'Take one layout off the layout bar along the top of Charts (the slot menu\'s "Close"). The layout stays in the library: this NEVER deletes a layout (that is layout.delete).',
     hints: 'target = the ref of the layoutDock entry; layout = the layout\'s id, or the member\'s words for it. If they did not name one, or it sits on the bar twice, clarify with the real names.',
     args: { type: 'object', properties: { layout: { type: 'string' } }, required: ['layout'], additionalProperties: false },
     fastWhole: true,
@@ -257,7 +257,7 @@ export function registerLayoutBarCapabilities() {
     name: 'layout.moveOnBar',
     target: 'layoutDock',
     surfaces: ['charts'],
-    summary: 'Reorder the layout bar along the bottom of Charts: move one layout left or right one spot (the slot menu\'s Move left / Move right), to the first or last spot, or to a numbered spot.',
+    summary: 'Reorder the layout bar along the top of Charts: move one layout left or right one spot (the slot menu\'s Move left / Move right), to the first or last spot, or to a numbered spot.',
     hints: 'target = the ref of the layoutDock entry; layout = the layout\'s id, or the member\'s words for it; '
       + 'to = "left" or "right" (one spot), "first" or "last", or a spot number counted from 1 on the left (the `spot` in the bar list).',
     args: { type: 'object', properties: { layout: { type: 'string' }, to: { type: 'string' } }, required: ['layout', 'to'], additionalProperties: false },

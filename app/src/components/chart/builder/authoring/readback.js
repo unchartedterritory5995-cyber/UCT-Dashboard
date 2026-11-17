@@ -35,6 +35,7 @@ import { stampSemantics, semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from '../..
 import { INTENTS, intentReadback, NO_PAINT } from '../authoringIntent'
 import { untruncatedLabel } from '../../engine/labelText'
 import { repaintWarningItems } from './repaintWarning'
+import COLOUR_WORDS from './colourWords.json'
 
 /** Rule A of `definitionSemantics.js`, said as what the member sees, for the
  *  semantics the store's rule gives this save (`stampSemantics` mirrors
@@ -48,22 +49,11 @@ const STYLE_WORDS = Object.freeze({ line: 'line', stepline: 'step line', histogr
 
 /** EXACT hex → the palette name a member would use. A hex not listed is shown as
  *  the hex: a guessed name ("goldish") is a claim nobody can check. */
-const COLOUR_NAMES = Object.freeze({
-  '#FFD700': 'gold', '#C9A84C': 'UCT gold', '#FFFFFF': 'white', '#000000': 'black',
-  '#FF0000': 'red', '#F23645': 'red', '#EF5350': 'red', '#FF5252': 'red',
-  '#00FF00': 'bright green', '#089981': 'green', '#4CAF50': 'green', '#22AB94': 'green', '#26A69A': 'teal',
-  '#0000FF': 'blue', '#2962FF': 'blue', '#2196F3': 'blue',
-  '#FFA500': 'orange', '#FF9800': 'orange', '#FFFF00': 'yellow', '#FFEB3B': 'yellow',
-  '#800080': 'purple', '#9C27B0': 'purple', '#808080': 'grey', '#787B86': 'grey',
-  '#00FFFF': 'cyan', '#00BCD4': 'cyan', '#FFC0CB': 'pink', '#E91E63': 'pink',
-  // ⭐ ROLLOUT — EXACT standard names for colours the model picks (P3R: "#D4AF37" for
-  // "gold" is CSS/print metallic gold). Exact matches only: an unlisted colour stays
-  // its hex, never a nearest guess.
-  '#D4AF37': 'gold', '#DAA520': 'goldenrod', '#FFC107': 'amber', '#C0C0C0': 'silver',
-  '#8B0000': 'dark red', '#006400': 'dark green', '#008000': 'green', '#00C853': 'green',
-  '#FF1744': 'red', '#D50000': 'red', '#FF00FF': 'magenta', '#AA00FF': 'purple',
-  '#FF6D00': 'orange', '#ADD8E6': 'light blue', '#90EE90': 'light green', '#A9A9A9': 'dark grey',
-})
+// The names live in `colourWords.json`, the ONE authority this read-back shares with the
+// assistant's instructions: the value it is told to write for "green" is a value this map
+// reads back as "green". Measured 2026-11-14: with no shared map a requested green came back
+// teal (#26A69A), and this read-back said so honestly.
+const COLOUR_NAMES = Object.freeze({ ...COLOUR_WORDS.names })
 
 /** A colour value → its palette name, else the value exactly as stored. */
 export function colourWords(v) {
@@ -330,7 +320,7 @@ export function readback(def, state = {}, gateCtx = {}) {
   const on = (key) => (key && outputs.length > 1 ? ` (on ${nameOf(key)})` : '')
   const assumptions = (state.assumptions || []).map((a) => (a.label !== undefined
     ? `Assumed ${slotWords(a.label)} ${a.value}${on(a.output)}`
-    : (a.source === 'engine' ? `Default: ${a.text}${on(a.output)}` : `UCT Intelligence assumed: "${a.text}"`)))
+    : (a.source === 'engine' ? `Default: ${a.text}${on(a.output)}` : `The UCT Agent assumed: "${a.text}"`)))
   const questions = (state.questions || []).map((q) => `Question: ${q.text}`)
   const needsAck = outputs.filter((o) => o.mode === 'preview-repaints').map((o) => o.key)
   // ⭐ PHASE 5 — a FORMING-period read repaints for a reason a member can name.

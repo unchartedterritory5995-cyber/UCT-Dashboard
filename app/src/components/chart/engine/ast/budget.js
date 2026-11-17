@@ -128,6 +128,12 @@ import { SESSION_MAX_BARS } from './parse.js'
  *  rail says so instead of a reader re-discovering this paragraph
  *  (`lesson_gate_that_cannot_fail` — named here because this is an instance of
  *  it that is being DECLARED, not one that is being denied).
+ *
+ *  ⚰️ NUMBER PENDING (bt, 2026-11-16) — "UNREACHABLE" HELD FOR THE TABLE'S PRICE SERIES ONLY.
+ *  A clock column (`hour`, `dayofweek`, `time`, …), `self` and every member input declared as a
+ *  knob are `series` nodes too, so a member-door tree CAN reach the cap, and did: measured 9 and
+ *  10 against 8 on `session-hilo__WM2g5GtC4h`, refused at install. The door now gives knobs back
+ *  before that (`builder/builderInputs.js::memberInputTranslation`); the cap itself is unchanged.
  */
 /** The nested-recurrence family's warmup — the driver the lookback cap had
  *  BEFORE a session had to fit inside it, kept and named rather than deleted.

@@ -162,13 +162,14 @@ describe('C37 — the reference itself', () => {
     expect(themeColourWithTransparency('#FFFFFF', 10)).toBeNull()
   })
 
-  it('⛔ the PLOT lane does not carry a theme colour: still declared `colorDynamic`, by name', () => {
-    // A plot's colour is a member-editable colour input whose default must be a
-    // concrete colour; a default that follows the chart is a decision this lane
-    // does not take. The line keeps drawing (ruling R-G).
+  it('⭐ the PLOT lane carries a theme colour as a theme reference (engine 58 colours), no longer `colorDynamic`', () => {
+    // ⚰️ Until engine 58 (landing train 1) this was declared `colorDynamic` by name: a plot's colour is a
+    // member-editable input whose default had to be a concrete colour. Engine 58 carries
+    // `chart.fg_color` / `chart.bg_color` on a plot as a THEME REFERENCE, resolved against the chart where
+    // it is drawn (`pool.planBindings`); the harness grades its alpha byte only.
     const t = translatePine(['//@version=6', 'indicator("t")', 'plot(close, color = chart.fg_color)'].join(LF) + LF, {})
-    expect(t.outputs[0].presentation.colorDynamic).toBe(true)
-    expect(t.outputs[0].presentation.color).toBeUndefined()
+    expect(t.outputs[0].presentation.colorDynamic).toBeUndefined()
+    expect(t.outputs[0].presentation.color).toBe('chart.fg_color')
   })
 })
 

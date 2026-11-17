@@ -50,14 +50,18 @@ describe('W6-T10 enum declarations', () => {
     expect(out0(`${D}x = E.b\nplot(x != E.b ? 1 : 0)`)).toEqual(ones(0))
     expect(out0(`${D}plot(E.a == E.c ? 1 : 0)`)).toEqual(ones(0))
   })
-  it('two fields with the SAME title are two members (compared by field, never by title)', () => {
+  // ⭐⭐ UDT unit (2026-11-16) — ⚰️ these two served before TradingView was asked. It does not compile either:
+  // "The name or title of the "E" enum's "c" field cannot match the name or title of the "d" field" (reading of
+  // `vw-w6-enum`, capture queue run cq1-2026-11-16). So both refuse by name, even with nothing reading the enum.
+  it('two fields with the SAME title refuse by name: TradingView does not compile them', () => {
     const src = 'enum T\n    p = "Same"\n    q = "Same"\n'
-    expect(out0(`${src}plot(T.p == T.q ? 1 : 0)`)).toEqual(ones(0))
-    expect(out0(`${src}plot(T.p != T.q ? 1 : 0)`)).toEqual(ones(1))
-    expect(out0(`${src}x = T.q\nplot(x == T.q ? 1 : 0)`)).toEqual(ones(1))
+    refused(`${src}plot(close)`, /fields `p` and `q` share the name or title "Same".*does not compile/)
+    refused(`${src}plot(T.p == T.q ? 1 : 0)`, /share the name or title "Same"/)
   })
-  it('a field whose title is another field name is still its own member', () => {
-    expect(out0('enum T\n    p = "q"\n    q\nplot(T.p == T.q ? 1 : 0)')).toEqual(ones(0))
+  it('a field whose title is another field\'s name refuses by name too', () => {
+    refused('enum T\n    p = "q"\n    q\nplot(close)', /fields `p` and `q` share the name or title "q"/)
+    // CONTROL: distinct names and titles still serve
+    expect(out0('enum T\n    p = "P"\n    q = "Q"\nplot(T.p == T.q ? 1 : 0)')).toEqual(ones(0))
   })
   it('an enum declared after its first use still binds (pre-pass)', () => {
     expect(out0(`x = E.c\nplot(x == E.c ? 1 : 0)\n${D}`)).toEqual(ones(1))

@@ -73,12 +73,26 @@ const req = (sym, tf, look) => `${HEAD}plot(request.security(${sym}, ${tf}, clos
   + (look ? `, lookahead = ${look}` : '') + '))\n'
 
 describe('⭐⭐ a request for this chart, at this chart\'s period', () => {
-  it('⛔⛔ CONTROL — A GENUINELY HIGHER TIMEFRAME IS STILL REFUSED', () => {
-    // ⚰️ THE HALF THAT KEEPS THE GUARD, first. A weekly request off a daily
-    // chart really does need the symbol as text and really does have a realtime
-    // alignment nobody has measured. Nothing here serves it.
+  it('⛔⛔ CONTROL — A GENUINELY HIGHER TIMEFRAME IS A REQUEST, NOT THE IDENTITY', () => {
+    // ⭐⭐ RS RATING L5 — a weekly request off a daily chart now BUILDS as a request (it was
+    // refused here: the symbol was lowered as text this binding does not settle). It is not
+    // folded into the bare expression: it stays a request site carrying the host's reading
+    // (own symbol, code 'W'), and the run's supply serves it by the host's merge
+    // (`requestSupply.js`, `interpret.js::requestAlignment`).
     const r = build(req('syminfo.tickerid', "'W'", null))
-    expect(r.ok).toBe(false)
+    expect(r.ok, r.ok ? '' : r.refusal.message).toBe(true)
+    expect(r.ir.requests).toHaveLength(1)
+    expect(r.ir.requests[0].target).toMatchObject({ own: true, ticker: null, code: 'W', live: false })
+    // ⭐⭐ REQ (coverage unit, 2026-11-16) — and a weekly LOOK-AHEAD request is a request too, never the
+    // identity: it builds as a site whose target says `live`, served by the look-ahead pick the committed
+    // `vw-request-htf-alignment-spy-1d-2026-10-02` witnesses (A01 / A04 / A06,
+    // `vendorHarness.reqLookaheadAlignment`). A look-ahead the host cannot read is still refused.
+    const look = build(req('syminfo.tickerid', "'W'", 'barmerge.lookahead_on'))
+    expect(look.ok, look.ok ? '' : look.refusal.message).toBe(true)
+    expect(look.ir.requests).toHaveLength(1)
+    expect(look.ir.requests[0].target).toMatchObject({ own: true, ticker: null, code: 'W', live: true })
+    const unread = build(`${HEAD}la = input.bool(true)\nplot(request.security(syminfo.tickerid, 'W', close, lookahead = la))\n`)
+    expect(unread.ok).toBe(false)
   })
 
   it('⭐⭐ the identity: it compiles, and IS the bare expression', () => {

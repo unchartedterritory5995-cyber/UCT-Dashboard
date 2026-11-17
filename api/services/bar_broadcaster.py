@@ -846,6 +846,16 @@ def init_broadcaster(*, on_first_subscribe=None, on_last_unsubscribe=None) -> Ba
     return _singleton
 
 
+def install_broadcaster(obj) -> None:
+    """STREAM_FEED_SOURCE=remote: make `obj` (a remote_broadcaster.RemoteBroadcaster, the
+    same interface) THE broadcaster every caller of get_broadcaster() gets. Once, at
+    startup, instead of init_broadcaster."""
+    global _singleton
+    if _singleton is not None:
+        raise RuntimeError("BarBroadcaster already initialized — call once at app startup")
+    _singleton = obj
+
+
 def reset_broadcaster_for_tests() -> None:
     """Test-only: clear the singleton so init_broadcaster can be called again."""
     global _singleton

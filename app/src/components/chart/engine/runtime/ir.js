@@ -388,10 +388,21 @@ export function validateIr(p) {
               + 'history slots. Without it the lowering would have to re-derive which values '
               + 'are history-bearing, and a second answer to that question is a ring nobody fills.')
           }
-          if (e.back > p.history[e.slot].depth) {
-            throw new IrError(
-              `${where}: reads \`${p.history[e.slot].name}\`[${e.back}] but its ring was planned `
-              + `for depth ${p.history[e.slot].depth}`)
+          // ⛔ IN A FUNCTION BODY `slot` IS FRAME-RELATIVE (the HIST_SLOT_DYN case below says so too):
+          // every call site's block holds that function's ring at `historyBase + slot`. ⚰️ This read
+          // `p.history[slot]` — the MAIN table's entry of that index — so two functions with a history
+          // local at the same frame slot and different depths refused with the other one's name
+          // ("`fb` reads `fa.x`[4] but its ring was planned for depth 2"), found by B3.
+          const entries = walkingFn === null
+            ? [p.history[e.slot]]
+            : (p.callSites || []).filter((cs) => cs.fn === walkingFn && Number.isInteger(cs.historyBase))
+              .map((cs) => p.history[cs.historyBase + e.slot])
+          for (const h of entries) {
+            if (!h || e.back > h.depth) {
+              throw new IrError(
+                `${where}: reads \`${h ? h.name : '?'}\`[${e.back}] but its ring was planned `
+                + `for depth ${h ? h.depth : 'none'}`)
+            }
           }
         }
         walkExpr(e.of, `${where}.of`)

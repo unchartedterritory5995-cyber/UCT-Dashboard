@@ -35,7 +35,10 @@ const EXPORTS = [
   'DEFAULT_LIMITS', 'NATIVE_TFS', 'RUNTIME_FAILED_GUARD', 'RUNTIME_FRONTEND_LANGUAGE', 'RUNTIME_FRONTEND_VERSION',
   'RUNTIME_INCREMENTAL_KEY', 'RUNTIME_IR_VERSION', 'RUNTIME_OBJECTS_KEY', 'RUNTIME_PANE_TIME_BUDGET_MS',
   'RUNTIME_TIME_BUDGET_GUARD', 'SCRIPT_ENGINE_VERSION', 'STRATEGY_RECORD_SCHEMA',
-  'bytesToB64', 'columnDigest', 'computeRuntimeColumns', 'decodeColumn', 'encodeColumn', 'resetRuntimeLedgers', 'resetRuntimeSessions',
+  // U15: `clearPineLibraries`, `libraryEntryProblem` and `registerPineLibrary` are how the job registers
+  // exactly the pinned library entries for one run and clears them (services/pine_runtime/job.mjs).
+  'bytesToB64', 'clearPineLibraries', 'columnDigest', 'computeRuntimeColumns', 'decodeColumn', 'encodeColumn',
+  'libraryEntryProblem', 'registerPineLibrary', 'resetRuntimeLedgers', 'resetRuntimeSessions',
   'runtimeStrategyOf', 'runtimeVersionRefusal', 'runtimeWarmupOf', 'strategyRecordShapeErrors',
 ]
 
