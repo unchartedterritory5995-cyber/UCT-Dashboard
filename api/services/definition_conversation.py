@@ -588,6 +588,10 @@ CONVERSE_SYSTEM_PROMPT = (
     "an `otherwise`, or set_color_rule). `barcolor` paints the PRICE candles: only when the "
     "member says candles or price bars, or the indicator draws no bars of its own. "
     "A marker's size and color: set_marker `size` / `color`. "
+    "Plot styles are line, stepline, histogram, area and baseline: there is no dots style, and "
+    "an output drawn as markers cannot also take set_color_states. For dots that change color "
+    "by state (a squeeze on the zero line), draw a thick line on that constant level with "
+    "set_color_states, or use one yes/no output per color, each with its own set_marker color. "
     "A conditional cloud: set_fill with `when` (colorAbove where the first output is "
     "above the second, colorBelow where below). A header value: request_info_value. "
     "An alert: request_alert -- on a yes/no output with triggerPolicy is_true, "
@@ -1377,6 +1381,10 @@ def _check_references(envelope: Mapping[str, Any], view: Any) -> None:
     authored: Dict[str, Any] = {}
     reshaped: set = set()
     tables: List[Tuple[int, Mapping[str, Any]]] = []
+    # the outputs drawn as MARKERS at this point of the patch: the view's own, then op by op
+    marked = {o["key"] for o in view_outputs
+              if isinstance(o.get("key"), str) and isinstance(o.get("presentation"), Mapping)
+              and o["presentation"].get("marker")}
     ops = [o for o in (envelope.get("ops") or []) if isinstance(o, Mapping)]
     for i, o in enumerate(ops):
         name = o.get("op")
@@ -1412,6 +1420,25 @@ def _check_references(envelope: Mapping[str, Any], view: Any) -> None:
             authored[o["output"]] = o["tree"]
         elif name == "remove_output" and isinstance(o.get("output"), str):
             keys.discard(o["output"])
+        if name == "set_marker" and isinstance(o.get("output"), str):
+            marked.add(o["output"])
+        elif name in ("remove_marker", "remove_output") and isinstance(o.get("output"), str):
+            marked.discard(o["output"])
+        elif name == "set_style" and isinstance(o.get("output"), str) and "style" in o:
+            marked.discard(o["output"])       # a new drawing style: the browser's to judge, not ours
+        if name == "set_color_states" and isinstance(o.get("output"), str) and o["output"] in marked:
+            # ⭐ 2026-11-17 -- THE BROWSER'S `color:marker`, HERE TOO. Measured on production: a TTM
+            # squeeze ("dots on the zero line, red while the bands are inside the channels, green
+            # when not") came back as an output with `set_marker` AND `set_color_states`. This door
+            # passed it; the browser refused the whole patch ("is drawn as markers; colour states
+            # need a line or histogram") and the member read a red error for the best-known
+            # squeeze indicator there is. Judged in patch order, exactly as the browser applies it.
+            raise _Refused(
+                "envelope:reference",
+                f"ops[{i}] set_color_states: {o['output']!r} is drawn as markers, and color states "
+                "need a line or histogram. For dots that change color by state, either leave it a "
+                "line (no set_marker; a thick line on a constant level, colored by set_color_states) "
+                "or use one yes/no output per color, each with its own set_marker color.")
         if name == "set_color_states":
             # ⭐ 2026-11-16 -- THE BROWSER'S `color:states-few`, HERE TOO. One state and no
             # `otherwise` (or an `otherwise` alone) is refused by `applyPatch.set_color_states`;
