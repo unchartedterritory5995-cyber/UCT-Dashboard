@@ -41,6 +41,14 @@ describe('the two questions (pure)', () => {
     expect(derivedIsReadable(null)).toBe(false)
   })
 
+  it('arithmetic spelled in words is still a formula; a comparison is a sentence and stays readable', () => {
+    for (const formula of ['Close divided by SPY Close', 'EMA 12 minus EMA 26', 'High plus Low', '2 times ATR 14'])
+      expect(derivedIsReadable(formula), formula).toBe(false)
+    for (const sentence of ['Close above SMA 50', 'EMA 10 crosses above EMA 21', 'Volume below SMA 20'])
+      expect(derivedIsReadable(sentence), sentence).toBe(true)
+    expect(derivedIsReadable('Timestamp')).toBe(true)                      // "times" inside a word is not the operator
+  })
+
   it('a human name is short words: no formula, no sentence, at most two number words', () => {
     for (const ok of ['Distribution Day Count', 'ATR Extension', 'Tight Weekly Closes', 'RS Line vs SPY', '50-Day Volume Ratio',
       // the assistant's own names from the house set, 2026-11-16: a slash, a percent sign, a bracketed number
@@ -210,5 +218,34 @@ describe('a line\'s label, through the turn', () => {
     const a = labelsOf(await labelTurn(st, 'macd', createMacd(), { label: null }))
     const b = labelsOf(await modelTurn(st, () => st, 'macd', { converse: async () => reply(st, createMacd()), keepCreateName: keepAssistantName }))
     expect(b).toEqual(a)
+  })
+})
+
+// ─── a short derived name that is arithmetic in words (2026-11-17) ────────────
+
+describe('a ratio keeps the assistant\'s name', () => {
+  const RS = op('/', s('close'), { type: 'sym', value: 'SPY', args: [s('close')] })
+  const createRs = (name) => [{ op: 'create', name, placement: 'pane', outputs: [{ key: 'rs', label: 'RS vs SPY', tree: RS }] }]
+
+  it('"Relative Strength vs SPY" is kept where the derived name is "Close divided by SPY Close"', async () => {
+    const st = newAuthoringState()
+    const plain = await turn(st, 'relative strength line versus SPY', createRs('Relative Strength vs SPY'), null)
+    expect(nameOf(plain)).toMatch(/divided by/)                            // control: what the window showed
+    const out = await turn(st, 'relative strength line versus SPY', createRs('Relative Strength vs SPY'))
+    expect(nameOf(out)).toBe('Relative Strength vs SPY')
+  })
+
+  it('⛔ a comparison\'s derived name is still kept, and still follows the maths', async () => {
+    const st = newAuthoringState()
+    const above = [{ op: 'create', name: 'Price vs 50 Average', placement: 'price', outputs: [
+      { key: 'value', tree: op('>', s('close'), call('sma', s('close'), num(50))) }] }]
+    const made = await turn(st, 'close above the 50 day average', above)
+    expect(nameOf(made)).not.toBe('Price vs 50 Average')
+    expect(derivedIsReadable(nameOf(made))).toBe(true)
+    const view = made.state
+    const edited = await modelTurn(view, () => view, 'make it 100',
+      { converse: async () => reply(view, [{ op: 'set_output_tree', output: 'value', tree: op('>', s('close'), call('sma', s('close'), num(100))) }]),
+        keepCreateName: keepAssistantName })
+    expect(nameOf(edited)).toMatch(/100/)
   })
 })
