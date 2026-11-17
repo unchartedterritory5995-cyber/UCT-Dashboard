@@ -52,9 +52,48 @@ export const RUNTIME_LISTS_RECHECK_MS = 60000
 let _listsReadAt = 0
 let _listsInFlight = false
 
+// ─── ⭐⭐ THE FIRST READ, AND THE SIGNAL THAT IT LANDED (2026-11-17, RS Rating live) ─────────
+//
+// ⚰️ MEASURED ON PRODUCTION (engine 68): the ONLY reader that latched these lists was
+// `MemberPane`'s mount read, and the recheck below returned at once while `_listsReadAt` was 0.
+// So a tab that never opened the member door — every member who reloads a chart carrying RS
+// Rating, or adds it from "Your indicators" — never read them at all: 0 GETs in 94 s, the
+// allowlist empty, and every run half refused `pane:not-graded` ("hasn't been checked against
+// TradingView") for a script the server had graded. Every rail ran under
+// `__allowEveryRuntimeScriptForTests`, which skips exactly this.
+// ⭐ So the first consult in a page DOES the first read (`ensureRuntimeListsRead`, also called
+// by the chart on mount through `useRuntimeLists`), and every latch — the lists or a capability
+// verdict — bumps `runtimeListsGeneration` and tells subscribers, so a chart asks again once
+// they land: the `useServerColumns` shape (a generation, never the data).
+const _listsListeners = new Set()
+let _listsGeneration = 0
+
+/** Subscribe to "the runtime lists (or a verdict) just latched". Returns the unsubscribe. */
+export function subscribeRuntimeLists(fn) {
+  if (typeof fn !== 'function') return () => {}
+  _listsListeners.add(fn)
+  return () => { _listsListeners.delete(fn) }
+}
+
+/** A number that changes whenever the lists or a verdict latch (the value is meaningless). */
+export function runtimeListsGeneration() { return _listsGeneration }
+
+function notifyRuntimeLists() {
+  _listsGeneration += 1
+  for (const fn of [..._listsListeners]) {
+    try { fn() } catch { /* a subscriber's failure is its own */ }
+  }
+}
+
+/** Read the lists once if this tab never has (a page only; never under the test grant). */
+export function ensureRuntimeListsRead() {
+  if (!_listsReadAt) maybeRefreshRuntimeLists()
+}
+
 function maybeRefreshRuntimeLists() {
-  if (!_listsReadAt || _listsInFlight || _allow === ALLOW_ANY) return
-  if (Date.now() - _listsReadAt < RUNTIME_LISTS_RECHECK_MS) return
+  if (_listsInFlight || _allow === ALLOW_ANY) return
+  // ⭐ never read (0): read NOW — the first read; read once: again when older than the recheck
+  if (_listsReadAt && Date.now() - _listsReadAt < RUNTIME_LISTS_RECHECK_MS) return
   if (typeof window === 'undefined' || typeof fetch !== 'function') return
   _listsInFlight = true
   _listsReadAt = Date.now()            // a failure waits a full interval too
@@ -85,12 +124,13 @@ export function latchRuntimeLists(d) {
   setRuntimeAllowList(d.allow)
   setRuntimeCapabilityAdmission(d.capability_admission)
   setRunHalfObjectEvidence(d.run_half_evidence)
+  notifyRuntimeLists()
 }
 
 /** Diagnostics and rails. */
 export const runtimeListsDebug = () => ({ readAt: _listsReadAt, inFlight: _listsInFlight })
 /** Rails only. */
-export function __resetRuntimeListsRecheck() { _listsReadAt = 0; _listsInFlight = false }
+export function __resetRuntimeListsRecheck() { _listsReadAt = 0; _listsInFlight = false; _listsListeners.clear() }
 
 /** Normalise the server's list: lowercase, trimmed, only well-formed entries. */
 export function normaliseKillList(list) {
@@ -209,6 +249,7 @@ export function latchRuntimeAdmission(hash, verdict) {
   _verdicts.delete(h)
   _verdicts.set(h, { admitted: verdict.admitted, historyOnly: verdict.historyOnly === true, at: Date.now() })
   while (_verdicts.size > RUNTIME_ADMISSION_MAX) _verdicts.delete(_verdicts.keys().next().value)
+  notifyRuntimeLists()          // ⭐ a verdict that lands later changes the answer too
 }
 
 /** The latched verdict for this script (`{admitted, at}`) or null. Touches the LRU. */
