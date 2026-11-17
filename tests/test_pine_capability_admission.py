@@ -1435,11 +1435,24 @@ def test_SERVE_the_detector_version_moves_with_what_it_answers():
     "probe-default-colour-v6-rddt-1d-2026-09-27", "probe-sparse-rows-rddt-1d-2026-09-27",
     "adx-14-2026-09-06", "atr-14-2026-09-06", "ema-close20-2026-09-06", "hma-close20-2026-09-06",
     "rma-close14-2026-09-06", "stoch-k-14-2026-09-06", "vw-library-import-rddt-1d-2026-10-02",
+    # 2026-11-17: the W9 strategy probes (`W9_<ROW>` titles, `w9_probes.py`) are ours, the evidence the
+    # strategy-decl admission was asked of (docs/pine/evidence/2026-11-17-admit-strategy-decl/EVIDENCE.md)
+    "w9-k1-commission-pct-rddt-1d-2026-11-15", "w9-q-s1a-size-v2-rddt-1d-2026-11-15",
+    "w9-d1-margin50-rpt-rddt-1d-2026-11-16", "w9-r1-risk-intraday-range-spy-15-2026-11-15",
 ])
 def test_EVIDENCE_these_captures_are_ours_not_community(capture_id):
     title = _verdicts()[capture_id]["script"]
     family, community = rg.pine_evidence_script(title, capture_id)
     assert community is False, (capture_id, title)
+
+
+def test_EVIDENCE_every_w9_strategy_capture_is_ours():
+    """2026-11-17: every W9 strategy probe capture in the runtime-on run is one of OUR scripts, whatever its
+    title: a `W9_<ROW>` title read as a COMMUNITY script would let a strategy capability admit on probes alone."""
+    w9 = {cid: r for cid, r in _verdicts().items() if cid.startswith("w9-")}
+    assert len(w9) >= 30, "non-vacuity: the W9 Strategy Tester captures are in the runtime-on verdicts"
+    community = sorted(cid for cid, r in w9.items() if rg.pine_evidence_script(r.get("script"), cid)[1])
+    assert community == [], community
 
 
 def test_EVIDENCE_variants_are_one_family_and_community_titles_are_untouched():

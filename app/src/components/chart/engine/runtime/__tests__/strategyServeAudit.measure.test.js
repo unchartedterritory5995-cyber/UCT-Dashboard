@@ -18,7 +18,10 @@
 //               on), prepared per source into the input file beside each path.
 //
 // Env: STRATEGY_SERVE_INPUT (json {lists, rows: [{key, path, admission:{admitted, historyOnly}, armed}]}),
-//      STRATEGY_SERVE_OUT (jsonl, rewritten).
+//      STRATEGY_SERVE_OUT (jsonl, rewritten),
+//      STRATEGY_SERVE_BARS=product (optional, 2026-11-17): the reference bars in the shape a member's DAILY chart hands
+//      the binder (`ourSide.js::toProductBars`: `/api/bars`'s ISO date keys), not the capture's epoch seconds. Unset,
+//      the run is the one #1664 measured (`barsOfCapture`, epoch seconds), unchanged.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -31,6 +34,7 @@ import {
 } from '../../runtimeKill'
 import { loadCapture } from '../../__tests__/vendorHarness/harness.js'
 import { barsOfCapture } from '../../__tests__/vendorHarness/strategyHarness.js'
+import { toProductBars } from '../../__tests__/vendorHarness/ourSide.js'
 import { historyWindowBarsOf } from './strategyArmed.js'
 import { strategyServeOutcome } from './strategyServe.js'
 import StrategyReportPanel from '../../../pane/StrategyReportPanel'
@@ -38,6 +42,7 @@ import StrategyReportPanel from '../../../pane/StrategyReportPanel'
 const INPUT = process.env.STRATEGY_SERVE_INPUT
 const OUT = process.env.STRATEGY_SERVE_OUT
 const RUN = !!(INPUT && OUT)
+const PRODUCT_BARS = process.env.STRATEGY_SERVE_BARS === 'product'
 const WINDOW = historyWindowBarsOf(path.resolve(process.cwd(), '..'))
 const REFERENCE = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness/k-clustering-rddt-1d-2026-09-28.json')
 const SYMBOL = Object.freeze({ ticker: 'RDDT', exchange: 'NYSE' })
@@ -52,7 +57,8 @@ describe.skipIf(!RUN)('strategy serve audit, broker gate on (measurement only)',
     const flags = ['objectsOnlyPaneGate.js', 'runtimePaneGate.js', 'strategyBrokerGate.js']
       .map((f) => flagOf(GATE(`src/components/chart/engine/${f}`)))
     for (const f of flags) expect(f).toMatch(/^VITE_/)
-    const bars = barsOfCapture(loadCapture(REFERENCE).capture)
+    const reference = loadCapture(REFERENCE).capture
+    const bars = PRODUCT_BARS ? toProductBars(reference) : barsOfCapture(reference)
     const ctx = { tf: 'D', symbol: SYMBOL, newestBarIsForming: false, historyFromListing: true, historyWindowBars: WINDOW }
     const input = JSON.parse(fs.readFileSync(INPUT, 'utf8'))
     // ⛔ no request leaves this test: a consult that would re-read the lists or re-ask a verdict gets nothing
@@ -85,7 +91,7 @@ describe.skipIf(!RUN)('strategy serve audit, broker gate on (measurement only)',
       rows.push(row)
     }
     fs.writeFileSync(OUT, rows.map((r) => JSON.stringify(r)).join('\n') + '\n')
-    console.log(`strategy serve audit: ${rows.length} rows -> ${OUT}`)
+    console.log(`strategy serve audit (${PRODUCT_BARS ? 'product daily bars, ISO keys' : 'epoch-second bars'}): ${rows.length} rows -> ${OUT}`)
     expect(rows.length).toBe(input.rows.length)
   }, 3600 * 1000)
 })
