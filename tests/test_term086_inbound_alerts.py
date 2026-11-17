@@ -64,13 +64,16 @@ def env(tmp_path, monkeypatch):
     c.commit()
     c.close()
 
-    def _conn():
-        k = sqlite3.connect(db, timeout=5)
-        k.row_factory = sqlite3.Row
-        return k
-
+    # ⛔⛔ PATCH THE PATH, NEVER `get_connection` ITSELF. This fixture used to replace
+    # `auth_db.get_connection` with a local `_conn` and THEN import `api.main` (below). Every module
+    # that import loaded for the first time ran `from api.services.auth_db import get_connection`
+    # while the patch stood and kept `_conn` -- this test's scratch file, one `users` table -- for
+    # the rest of the session: 34 Notebook tests later in the same process failed with
+    # `no such table` (2026-11-17, run 44122066704). The real `get_connection` reads
+    # `auth_db._DB_PATH` on every call, so pointing that at the scratch file reaches every importer,
+    # and monkeypatch puts it back. tests/conftest.py now fails any test that leaves such a copy.
     import api.services.auth_db as adb
-    monkeypatch.setattr(adb, "get_connection", _conn)
+    monkeypatch.setattr(adb, "_DB_PATH", str(db))
     monkeypatch.delenv(ia.FLAG, raising=False)
     monkeypatch.delenv(ia.RATE_ENV, raising=False)
     monkeypatch.delenv("RATE_LIMIT_POLICY", raising=False)
@@ -464,18 +467,13 @@ def test_the_REAL_delivery_never_reaches_the_admin_discord(env):
     import api.services.auth_db as adb      # … so re-apply only what this test needs
     db = env["db"]
 
-    def _conn():
-        k = sqlite3.connect(db, timeout=5)
-        k.row_factory = sqlite3.Row
-        return k
-
     mp = pytest.MonkeyPatch()
     try:
-        mp.setattr(adb, "get_connection", _conn)
-        # watchlist_alert_service binds get_connection at IMPORT, so the owner's
-        # email lookup needs its own patch (measured: without it the result
-        # depended on which suite ran first).
-        mp.setattr(was, "get_connection", _conn)
+        # The PATH, which every importer's `get_connection` reads -- watchlist_alert_service's
+        # owner-email lookup included. (It needed a patch of its own while the fixture patched the
+        # function: it had bound whichever `get_connection` stood when it was first imported, so
+        # the result depended on which suite ran first. That was the capture, not a quirk of it.)
+        mp.setattr(adb, "_DB_PATH", str(db))
         mp.setattr(ia, "_clock", lambda: T0)
         mp.setattr(iar, "_dispatch", lambda fn, *a: fn(*a))
         mp.setattr(durable, "should_persist", lambda alert: False)
