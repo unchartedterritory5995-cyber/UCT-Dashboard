@@ -57,7 +57,7 @@ export function registerChartShareCapabilities() {
     },
     describe: (b, a, { output }) => {
       const parts = []
-      if (output !== 'link') parts.push(`Downloaded a PNG of the ${a.symbol} chart (as its Share → Download PNG does)`)
+      if (output !== 'link') parts.push(`Started a PNG download of the ${a.symbol} chart (as its Share → Download PNG does; your browser saves it to Downloads)`)
       if (output !== 'image') parts.push(`opened its Share menu — click Copy Share URL there to copy the link (a browser lets only your click copy, so I didn't)`)
       if (!parts.length) return null
       const s = parts.join('; ')
