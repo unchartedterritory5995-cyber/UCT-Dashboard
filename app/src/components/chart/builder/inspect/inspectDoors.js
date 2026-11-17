@@ -40,7 +40,8 @@ export function computeFor({ tf = null, sym = null } = {}) {
       return { lane: (err && err.lane) || null, outputs: null, reason: String((err && err.message) || err) }
     }
     if (out && out.refusal) {
-      return { lane: out.lane || null, outputs: null, reason: out.refusal.message || out.refusal.code || 'it could not be computed' }
+      return { lane: out.lane || null, outputs: null, code: out.refusal.code || null,
+        reason: out.refusal.message || out.refusal.code || 'it could not be computed' }
     }
     return out
   }
