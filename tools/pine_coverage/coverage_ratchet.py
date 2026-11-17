@@ -101,10 +101,21 @@ def corpus_problems(scripts, index=CORPUS_INDEX):
 
 # ─── the predicate (imported) and why a row does not meet it ─────────────────
 
+_KILLED = None
+
+
+def _killed():
+    """The runtime kill list's hashes, read once (`coverage_map.runtime_killed_hashes`, the one reader)."""
+    global _KILLED
+    if _KILLED is None:
+        _KILLED = CM.runtime_killed_hashes()
+    return _KILLED
+
+
 def transfers(lane, row, src):
     usage = CM.order_usage_of(src)
     if lane == RC.LANE_RUNTIME_ON:
-        return CM.runtime_on_transfers(row, CM.places_orders(usage))
+        return CM.runtime_on_transfers(row, CM.places_orders(usage), CM.is_runtime_killed(src, _killed()))
     return CM.transfers_fully(row, usage)
 
 
@@ -116,6 +127,9 @@ def wall_of(lane, row, src):
     if row is None:
         return "no census row"
     st = (row.get("steps") or [{}])[0]
+    if (lane == RC.LANE_RUNTIME_ON and row.get("attached") and st.get("lane") == "runtime"
+            and CM.is_runtime_killed(src, _killed())):
+        return "on the runtime kill list (api/data/pine_runtime_killlist.json): its runtime lane is refused by name"
     if row.get("stuck") == "killed":
         return "killed: %s" % (st.get("threw") or "process died")
     if st.get("threw"):

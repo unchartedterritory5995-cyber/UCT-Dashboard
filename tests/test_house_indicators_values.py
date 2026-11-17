@@ -192,11 +192,10 @@ def references(which: str, bars: list[dict], spy: list[dict]) -> dict:
             a3 = wc[k - 2:k + 1]
             out.append(flag((max(a3) - min(a3)) / min(a3) <= 0.015))
         R["tight"] = out
-    elif which == "gap_up_volume_marker":
+    elif which == "gap_up_on_volume":
         a = sma(v, 50)
-        gap = [ok(c1[i]) and ok(a[i]) and (o[i] - c1[i]) / c1[i] >= 0.04 and v[i] > a[i] for i in range(n)]
-        R["gapUp"] = [flag(gap[i], ok(a[i]) and ok(c1[i])) for i in range(n)]
-        R["gapLow"] = [next((l[i - k] for k in range(20) if i - k >= 0 and gap[i - k]), NAN) for i in range(n)]
+        R["gapUpVol"] = [flag(ok(c1[i]) and ok(a[i]) and (o[i] - c1[i]) / c1[i] * 100 >= 4 and v[i] > a[i],
+                              ok(a[i]) and ok(c1[i])) for i in range(n)]
     elif which == "inside_outside_bars":
         R["insideBar"] = [flag(i >= 1 and h[i] <= h1[i] and l[i] >= l1[i], i >= 1) for i in range(n)]
         R["outsideBar"] = [flag(i >= 1 and h[i] > h1[i] and l[i] < l1[i], i >= 1) for i in range(n)]

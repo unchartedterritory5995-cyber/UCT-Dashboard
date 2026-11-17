@@ -20,6 +20,14 @@ Nothing the serving tier has not acknowledged is dropped: a bucket is pruned onl
 a flush carrying it succeeded. If the tier asks for a RESYNC (it restarted, so it
 cannot vouch for buckets sent to the process before it), a new epoch starts on the
 same socket and the current bucket becomes the new boundary bucket, minutes intact.
+
+**1m** (`BARS_LIVE_1M_ENABLED`, unset = OFF; the serving tier needs the same flag):
+each AM minute is already a complete 1m bar, so the payload also carries `m1`, every
+minute (`[sym, minute_s, o, h, l, c, v]`) of each dirty bucket and of the boundary
+bucket's dirty tickers. `m1` is DERIVED from the same dirty sets as `rows` and
+`minutes`, so a failed flush (requeue) resends it and an acknowledged one does not,
+exactly like them; a repeated minute replaces itself in `_minutes` before it is sent.
+With the flag off the payload is unchanged (no `m1` key).
 """
 from __future__ import annotations
 
@@ -56,10 +64,15 @@ _watermark_ms: int = 0
 _stats = {"events": 0, "flushes": 0, "flush_errors": 0, "rows_sent": 0, "minutes_sent": 0,
           "resyncs": 0, "overflows": 0, "last_flush_ok": None}
 _flush_task: Optional[asyncio.Task] = None
+_m1_stats = {"m1_sent": 0}
 
 
 def enabled() -> bool:
     return os.environ.get("BARS_UNIVERSE_STREAM_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on")
+
+
+def enabled_1m() -> bool:
+    return os.environ.get("BARS_LIVE_1M_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on")
 
 
 def _app_symbol(sym: str) -> str:
@@ -150,7 +163,8 @@ def bucket_row(sym: str, bucket: int) -> Optional[list]:
 
 def take_payload() -> dict:
     rows = []
-    for sym, bucket in list(_dirty):
+    dirty = list(_dirty)
+    for sym, bucket in dirty:
         r = bucket_row(sym, bucket)
         if r is not None:
             rows.append(r)
@@ -158,11 +172,12 @@ def take_payload() -> dict:
     _inflight.update(_dirty)
     _dirty.clear()
     minutes = []
-    for sym in list(_b0_dirty):
+    b0_syms = list(_b0_dirty)
+    for sym in b0_syms:
         for t_ms, (o, h, l, c, v) in sorted((_b0_minutes.get(sym) or {}).items()):
             minutes.append([sym, t_ms // 1000, o, h, l, c, v])
     _b0_dirty.clear()
-    return {
+    payload = {
         "epoch_ms": _epoch_ms,
         "seq": _epoch_flushes + 1,
         "first_full_bucket_ms": None if _first_full_bucket_s is None else _first_full_bucket_s * 1000,
@@ -170,6 +185,24 @@ def take_payload() -> dict:
         "rows": rows,
         "minutes": minutes,
     }
+    if enabled_1m():
+        payload["m1"] = m1_rows(dirty, b0_syms)
+    return payload
+
+
+def m1_rows(dirty, b0_syms) -> list:
+    """Every minute of each dirty bucket (and of each dirty boundary-bucket ticker), as
+    `[sym, minute_s, o, h, l, c, v]`. Re-sending a bucket's earlier minutes costs a few
+    entries and means a minute the tier wrote over (or never received) comes back with
+    the bucket's next minute."""
+    out = []
+    for sym, bucket in dirty:
+        for t_ms, (o, h, l, c, v) in sorted(((_minutes.get(sym) or {}).get(bucket) or {}).items()):
+            out.append([sym, t_ms // 1000, o, h, l, c, v])
+    for sym in b0_syms:
+        for t_ms, (o, h, l, c, v) in sorted((_b0_minutes.get(sym) or {}).items()):
+            out.append([sym, t_ms // 1000, o, h, l, c, v])
+    return out
 
 
 def requeue(payload: dict) -> None:
@@ -193,10 +226,17 @@ def flushed(payload: dict, reply: Optional[dict]) -> None:
     _stats["flushes"] += 1
     _stats["rows_sent"] += len(payload.get("rows") or ())
     _stats["minutes_sent"] += len(payload.get("minutes") or ())
+    if "m1" in payload:
+        _m1_stats["m1_sent"] += len(payload.get("m1") or ())
     _stats["last_flush_ok"] = time.time()
     if isinstance(reply, dict) and reply.get("resync"):
         _log.info("[bars-live-ingest] serving tier asked for a resync; new epoch")
         resync()
+
+
+def _encode_payload(payload: dict) -> bytes:
+    import json
+    return json.dumps(payload, separators=(",", ":")).encode("utf-8")
 
 
 async def _flush_loop() -> None:
@@ -214,7 +254,16 @@ async def _flush_loop() -> None:
                 continue
             payload = take_payload()
             try:
-                r = await client.post(url, json=payload, headers=bars_service_headers())
+                if "m1" in payload:
+                    # ⛔ OFF THE LOOP. With 1m the body after a busy minute is ~2 MB and its
+                    # encode measured 25-45 ms; this loop is the one reading the Massive
+                    # socket (web today, stream-ingest after the cutover), so the encode runs
+                    # on a worker thread. Without 1m the post is exactly as before.
+                    body = await asyncio.to_thread(_encode_payload, payload)
+                    r = await client.post(url, content=body, headers={
+                        **bars_service_headers(), "Content-Type": "application/json"})
+                else:
+                    r = await client.post(url, json=payload, headers=bars_service_headers())
                 r.raise_for_status()
                 try:
                     reply = r.json()
@@ -237,7 +286,7 @@ def start_flusher(loop: asyncio.AbstractEventLoop) -> None:
 
 
 def status() -> dict:
-    return {
+    out = {
         "enabled": enabled(),
         "epoch_ms": _epoch_ms,
         "first_full_bucket_s": _first_full_bucket_s,
@@ -249,6 +298,9 @@ def status() -> dict:
         "epoch_flushes": _epoch_flushes,
         **_stats,
     }
+    if enabled_1m():
+        out.update(m1_enabled=True, **_m1_stats)
+    return out
 
 
 def _reset_for_tests() -> None:
@@ -263,3 +315,4 @@ def _reset_for_tests() -> None:
     _b0_dirty.clear()
     for k in _stats:
         _stats[k] = None if k == "last_flush_ok" else 0
+    _m1_stats["m1_sent"] = 0

@@ -6,6 +6,7 @@ import ErrorBoundary from '../components/ErrorBoundary'
 import UIcon from '../components/ui/UIcon'
 import { useInTerminalPanel } from '../components/terminal'
 import styles from './Screener.module.css'
+import focusMenus from './screener/focus/FocusMenus.module.css'
 import { AuthContext } from '../context/AuthContext'
 import OptionsScreener from './screener/options/OptionsScreener'
 import HowToChecklist from '../components/howTo/HowToChecklist'
@@ -105,10 +106,20 @@ export default function Screener({ embedded = false }) {
 
   const containerCls = `${styles.containerFull} ${embedded ? styles.pageEmbedded : ''}`.trim()
   const showHeading = !embedded && !inPanel && !focusOn
-  // The Focus layout drops the header when it would hold nothing (no Options tab): an empty 60px
-  // strip above its top bar. Everywhere else (old page, embedded widget, terminal panel) the header
-  // renders exactly as before, even when empty: its min-height is part of those layouts.
-  const showHeader = focusOn ? optionsOn : true
+  // 2026-11-16 (UCT Signature): in the Focus layout the Stocks | Options switch is the first thing
+  // on the layout's own top bar (`modeTabs`), so the Stocks tab has ONE bar. The Options tab has
+  // no top bar of its own: there the switch keeps a slim bar to itself.
+  const modeTabs = optionsOn ? (
+    <div role="tablist" aria-label="Screener mode" className={focusMenus.modeTabs}>
+      {[['stocks', 'Stocks'], ['options', 'Options']].map(([k, label]) => (
+        <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => setMode(k)} className={focusMenus.modeTab}>{label}</button>
+      ))}
+    </div>
+  ) : null
+  // So the Focus layout draws no header here at all. Everywhere else (the old page, an embedded
+  // widget, a terminal panel) the header renders as before, even when empty: its min-height is
+  // part of those layouts.
+  const showHeader = !focusOn
 
   return (
     <div className={containerCls}>
@@ -119,25 +130,15 @@ export default function Screener({ embedded = false }) {
             Screener
           </h1>
         )}
-        {optionsOn && (
-          <div role="tablist" aria-label="Screener mode" style={{ display: 'flex', gap: 6 }}>
-            {[['stocks', 'Stocks'], ['options', 'Options']].map(([k, label]) => (
-              <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => setMode(k)}
-                style={{
-                  minHeight: 'var(--tap-min)', padding: '4px 14px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
-                  background: 'var(--bg-surface)', color: 'var(--text)',
-                  border: `1px solid ${mode === k ? 'var(--ut-gold, #c9a84c)' : 'var(--border)'}`,
-                  fontWeight: mode === k ? 600 : 400,
-                }}>{label}</button>
-            ))}
-          </div>
-        )}
+        {optionsOn && modeTabs}
       </div>}
 
       {/* FT-046: renders nothing unless HOW_TO_CHECKLISTS_ENABLED is on AND the owner
           approved this surface's copy (components/howTo). Full page only. The Focus layout
           carries the Stocks checklist under its ? menu ("How to use this screen"), so the
           bar steps aside there; the Options tab keeps it. */}
+      {focusOn && showOptions && <div className={focusMenus.modeBar}>{modeTabs}</div>}
+
       {!embedded && !(focusOn && !showOptions) && (
         <HowToChecklist surface={showOptions ? 'screener.options' : 'screener.stocks'} />
       )}
@@ -150,7 +151,7 @@ export default function Screener({ embedded = false }) {
           fallback={<ScannerShellErrorFallback onRetry={() => setShellKey(k => k + 1)} />}
         >
           <Suspense fallback={<SkeletonTable rows={12} cols={6} />}>
-            {focusOn ? <FocusScreener /> : <ScannerShell embedded={embedded} />}
+            {focusOn ? <FocusScreener modeTabs={modeTabs} /> : <ScannerShell embedded={embedded} />}
           </Suspense>
         </ErrorBoundary>
       )}

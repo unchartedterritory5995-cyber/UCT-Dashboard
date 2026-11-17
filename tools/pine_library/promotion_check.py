@@ -13,11 +13,13 @@ versions that may be copied into the production store, each pinned by the sha256
 that was graded. This tool is the owner's check that a store holds exactly that code:
 
   paths     the `promote` paths on one line (the arguments `fetch_library.py` takes)
-  check     every `promote` row is in the store, served by the store's own rule
-            (`pine_library_store.entry_status`: sha, licence, deny list) and under the allowlist's
+  check     every `promote` row is in the store, valid by the store's own rule
+            (`pine_library_store.stored_status`: sha, licence, deny list) and under the allowlist's
             sha256; every library a promoted library imports is promoted too. Every other entry
-            the store holds is listed by name and status. `--exact`: an entry the store would
-            serve that is not promoted is a failure (use it on a staging folder).
+            the store holds is listed by name and by the status THIS SERVER serves it with
+            (`entry_status`, which reads the committed allowlist: since 2026-11-17 a version that
+            is not promoted is `held` or `unpromoted`, refused by name, never `ok`). `--exact`: a
+            valid entry that is not promoted is a failure (use it on a staging folder).
   install   copy the `promote` rows from a staging store into a store, through the store's own
             `write_entry` (validated, atomic). Without `--apply` it prints the plan and writes
             nothing. It refuses, writing nothing, when the staging store fails `check --exact`,
@@ -84,7 +86,7 @@ def check(root: str, doc: dict, exact: bool = False) -> tuple[list[str], list[st
     if not promote:
         problems.append("the allowlist promotes nothing: there is nothing to check")
     for path, row in sorted(promote.items()):
-        status, got = store.entry_status(path, root=root)
+        status, got = store.stored_status(path, root=root)
         if status != "ok":
             problems.append("%s: %s%s" % (path, status, (" (%s)" % "; ".join(got)) if got else ""))
             lines.append("MISSING   %s  %s" % (path, status))
@@ -100,11 +102,11 @@ def check(root: str, doc: dict, exact: bool = False) -> tuple[list[str], list[st
     for path in stored_paths(root):
         if path in promote:
             continue
-        status, _got = store.entry_status(path, root=root)
+        served, _got = store.entry_status(path, root=root)
         label = ("held out" if path in held else "never promoted" if path in never else "not on the allowlist")
-        lines.append("OTHER     %s  %s, store status %s" % (path, label, status))
-        if exact and status == "ok":
-            problems.append("%s is served by this store and is not promoted (%s)" % (path, label))
+        lines.append("OTHER     %s  %s, store status %s" % (path, label, served))
+        if exact and store.stored_status(path, root=root)[0] == "ok":
+            problems.append("%s is a valid entry in this store and is not promoted (%s)" % (path, label))
     return problems, lines
 
 
@@ -116,7 +118,7 @@ def install(staging: str, target: str, doc: dict, apply: bool) -> tuple[list[str
     plan, copy = [], []
     for row in sorted(doc["promote"], key=lambda r: r["path"]):
         path = row["path"]
-        status, got = store.entry_status(path, root=target)
+        status, got = store.stored_status(path, root=target)
         if status == "ok" and got["sha256"] == row["sha256"]:
             plan.append("KEEP      %s  already held under the pinned sha256" % path)
         elif status == "missing":
@@ -128,7 +130,7 @@ def install(staging: str, target: str, doc: dict, apply: bool) -> tuple[list[str
     if problems or not apply:
         return problems, plan
     for path in copy:
-        entry = store.read_entry(path, root=staging)
+        entry = store.stored_entry(path, root=staging)
         fp = store.write_entry(entry, root=target)
         plan.append("WROTE     %s  -> %s" % (path, fp))
     after, _ = check(target, doc)

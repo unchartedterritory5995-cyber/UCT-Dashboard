@@ -65,6 +65,58 @@ DENIED = "library:denied"
 DENIED_GUARD = "pine:library-denied"
 
 
+#: ⭐⭐ (fail closed, 2026-11-17) -- THE PROMOTION ALLOWLIST IS WHAT IS SERVED. A version is served
+#: only when `tools/pine_library/promotion_allowlist.json` has a `promote` row for it AND the store
+#: holds exactly the code that row pins (its sha256): the code every importing script's captures were
+#: graded MATCH on. Anything else the store holds -- a `heldOut` row, a version on no list, or a
+#: promoted version under other code -- is refused by name with the deny list's member sentence
+#: (409 `library:denied`, guard `pine:library-denied`). ONE authority: the served set is DERIVED from
+#: that file, never retyped. Why: the production store held 42 versions on no list and one held-out
+#: version, every one answered `ok` and linked into a member's chart ungraded
+#: (docs/pine/evidence/2026-11-17-library-store-fail-closed/EVIDENCE.md). The web image ships the
+#: file (`COPY . /app`) and `railway.web.json` watches it, so a change to it redeploys `web`.
+PROMOTION_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                              "tools", "pine_library", "promotion_allowlist.json")
+#: the store statuses of a version the store holds VALIDLY but does not serve (both answer as denied)
+HELD = "held"              # a `heldOut` row of the allowlist
+UNPROMOTED = "unpromoted"  # on no `promote` row, or held under other code than the row pins
+_MEMBER_SENTENCE = "this library version is withheld until its drawing is verified against TradingView"
+
+
+def _promotion_doc() -> Any:
+    """The promotion allowlist, read per call (small), or None when it cannot be read."""
+    try:
+        with open(PROMOTION_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
+
+
+def promoted_versions(doc: Any = None) -> Optional[dict]:
+    """``{path: sha256}`` of the allowlist's `promote` rows (``doc``, else the committed file), or
+    None when it cannot be read as one. ⛔ FAIL CLOSED: None serves NOTHING. One row that names no
+    import path or no sha256, or a path promoted twice, makes the whole list unreadable: dropping that
+    row would decide what is served from a list nobody wrote."""
+    if doc is None:
+        doc = _promotion_doc()
+    rows = doc.get("promote") if isinstance(doc, dict) else None
+    if not isinstance(rows, list):
+        return None
+    out: dict = {}
+    for r in rows:
+        path = r.get("path") if isinstance(r, dict) else None
+        sha = r.get("sha256") if isinstance(r, dict) else None
+        if not (isinstance(path, str) and parse_import_path(path) and isinstance(sha, str) and _SHA256.match(sha)) \
+                or path in out:
+            return None
+        out[path] = sha
+    return out
+
+
+def _member_sentence() -> str:
+    return _deny_doc().get("memberSentence") or _MEMBER_SENTENCE
+
+
 def _deny_doc() -> dict:
     """The deny list, read per call (small). ⛔ FAIL CLOSED: an unreadable list denies EVERY
     version (`*`), because serving a version the list may name is the one wrong answer."""
@@ -87,7 +139,7 @@ def denied(path: str) -> Optional[str]:
     doc = _deny_doc()
     names = {d.get("path") for d in doc["deny"] if isinstance(d, dict)}
     if path in names or "*" in names:
-        return doc.get("memberSentence") or "this library version is withheld until its drawing is verified against TradingView"
+        return doc.get("memberSentence") or _MEMBER_SENTENCE
     return None
 
 
@@ -153,7 +205,29 @@ def validate_entry(entry: Any) -> list[str]:
 
 
 def entry_status(path: str, root: Optional[str] = None) -> tuple:
-    """``("ok", entry)``, ``("missing", None)`` or ``("unservable", reasons)`` for an import path.
+    """WHAT THIS SERVER SERVES for an import path: ``("ok", entry)`` only for a version the
+    promotion allowlist promotes, held under the sha256 that row pins. Otherwise the stored
+    status (`stored_status`: missing, denied, licence, unservable) or, for a valid stored entry
+    that is not promoted, ``(HELD | UNPROMOTED, [the member's sentence])``. Every serving door
+    reads this: the read door, the list, `read_entry`, `pinned_entries` (the server run)."""
+    status, got = stored_status(path, root=root)
+    if status != "ok":
+        return status, got
+    doc = _promotion_doc()
+    promoted = promoted_versions(doc)
+    if promoted is not None and promoted.get(path) == got["sha256"]:
+        return "ok", got
+    held = {r.get("path") for r in (doc.get("heldOut") if isinstance(doc, dict) else None) or ()
+            if isinstance(r, dict)}
+    return (HELD if promoted is not None and path not in promoted and path in held else UNPROMOTED), \
+        [_member_sentence()]
+
+
+def stored_status(path: str, root: Optional[str] = None) -> tuple:
+    """``("ok", entry)``, ``("missing", None)`` or ``("unservable", reasons)`` for an import path:
+    the STORE'S OWN RULE (deny list, licence, sha256, shape), before the promotion allowlist.
+    Only the owner's tools read it (`promotion_check`, `fetch_library`); a serving door reads
+    `entry_status`.
 
     ⭐ U15 -- a version the store HOLDS but will not serve (no verified sha256, or any other
     reason `validate_entry` gives) is told apart from one it does not hold, so the member's
@@ -200,7 +274,8 @@ def pinned_entries(pins, root: Optional[str] = None) -> tuple:
         status, got = entry_status(path, root=root)
         if status == "missing":
             return None, ("runtime:library", "the library %s is not in the library store" % path)
-        if status == "denied":
+        # held out / not promoted: refused under the deny guard, with the deny list's sentence
+        if status in ("denied", HELD, UNPROMOTED):
             return None, (DENIED_GUARD, "the library %s is not served: %s" % (path, "; ".join(got)))
         if status == "licence":
             return None, (LICENCE_GUARD, "the library %s is not served: %s" % (path, "; ".join(got)))
@@ -221,8 +296,17 @@ def read_entry(path: str, root: Optional[str] = None) -> Optional[dict]:
     served): a library whose licence or source cannot be read is not one the
     chart may compile.
     """
-    # ⭐ U15 -- ONE authority over what is served: `entry_status` (denied, licence, sha, shape)
+    # ⭐ U15 -- ONE authority over what is served: `entry_status` (denied, licence, sha, shape,
+    # and since 2026-11-17 the promotion allowlist)
     status, entry = entry_status(path, root=root)
+    return entry if status == "ok" else None
+
+
+def stored_entry(path: str, root: Optional[str] = None) -> Optional[dict]:
+    """The stored entry when it is valid by the store's own rule (`stored_status`), promoted or
+    not. For the owner's tools only (a fetch that must not re-fetch what it holds, an install that
+    copies from a staging store); never a serving door."""
+    status, entry = stored_status(path, root=root)
     return entry if status == "ok" else None
 
 
@@ -243,8 +327,10 @@ def write_entry(entry: dict, root: Optional[str] = None) -> str:
     return fp
 
 
-def list_entries(root: Optional[str] = None) -> list[dict]:
-    """Every servable entry's metadata (no source), sorted by path."""
+def list_entries(root: Optional[str] = None, served: bool = True) -> list[dict]:
+    """Every served entry's metadata (no source), sorted by path. ``served=False`` (the fetch
+    tool's `--list` only) lists every entry valid by the store's own rule, promoted or not."""
+    read = read_entry if served else stored_entry
     base = root or store_root()
     out: list[dict] = []
     if not os.path.isdir(base):
@@ -261,7 +347,7 @@ def list_entries(root: Optional[str] = None) -> list[dict]:
                 m = re.match(r"^([1-9][0-9]{0,5})\.json$", fn)
                 if not m:
                     continue
-                entry = read_entry("%s/%s/%s" % (author, name, m.group(1)), root=base)
+                entry = read("%s/%s/%s" % (author, name, m.group(1)), root=base)
                 if entry:
                     out.append(public_metadata(entry))
     return out
