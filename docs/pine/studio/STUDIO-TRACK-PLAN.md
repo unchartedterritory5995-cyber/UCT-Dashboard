@@ -626,9 +626,22 @@ model.
 Indicator, send), the dock open in 1.7 to 2.9 seconds, the preview 4.2 seconds after send.
 Through the door alone, the house-set requests answered in a median of about 10 seconds; a
 request that needed its repair took up to 26. X1's target for this job is two actions. The
-Indicators window's plain-words box now sends what was typed (#1500), which makes it two:
-"Add to Chart" on the chart header, then type and press Enter. UCT Agent's seeded door
-still never sends. Not yet counted on a phone.
+Indicators window's plain-words box now sends what was typed (#1500). **Counted again on
+production on 2026-11-17: four actions on the Charts page, not two** (settings, Indicators,
+add, then type and Enter), because the Charts header has had no "Add to Chart" button since
+the owner's header decision of 2026-11-11; where a chart shows that button it is two. An
+earlier version of this paragraph claimed two without counting it on Charts. UCT Agent's
+seeded door still never sends. Not yet counted on a phone.
+
+**Checked on production, 2026-11-17 (synthetic accounts, nothing left behind).** The UCT tab
+lists the set at 1500 px, and the UCT indicators sheet lists it at 390 and 820 px with 44 px
+buttons and no sideways scroll. Install saved the member's own copy under a fresh id with
+its name; "Put it on this chart" drew it; the copy was then deleted through the product's
+own door. In the dock, Enter in the plain-words box sent the words; "Distribution Day
+Count" kept the assistant's name while "EMA 20" stayed derived; "What the assistant says
+it built" showed under the engine's lines. From Enter to the read-back: 10.3 seconds for the
+distribution day count, 5.0 for a 20 EMA. One flaw seen: the "added" toast named the copy by
+its id; fixed in #1518 (every member-made indicator had this, not only house ones).
 Only one request was timed in the dock: the synthetic member's daily allowance was spent by
 the day's other checks.
 
@@ -659,10 +672,11 @@ the deploy gate.
 | launch | library moderation (UCT takedown, a 20-listing cap per member, the licence line); spend that cannot be written still counts | merged (#1451, #1452) |
 | tool | a refused turn tells an admin why each attempt was refused | LIVE |
 | H | the house set: thirteen indicators in a UCT tab (window and phone sheet), each held to an independent calculation | value-checked on real bars (section 14b); #1496, #1501, #1507 |
-| N2 | the dock keeps the assistant's name where the derived one is unreadable; "What the assistant says it built" under the engine's lines | #1495 |
+| N2 | the dock keeps the assistant's name where the derived one is unreadable; "What the assistant says it built" under the engine's lines | LIVE (#1495) |
 | door | a one-colour colour-states patch is refused at the door, so the model gets its repair; so is a bars-back count compared across its sign, and the prompt states that convention | #1493, #1499, #1506 |
-| X1 | the plain-words box sends what the member typed: a chart to a preview in two actions | #1500 |
-| spend | the picture door's prompt bound re-measured, so a reservation bounds the prompt again (a member's daily picture share now holds two worst-case reservations, not three; the owner may raise it) | #1509 |
+| X1 | the plain-words box sends what the member typed: four actions on Charts (was five), two where a chart shows "Add to Chart" | LIVE (#1500) |
+| toast | the chart's "added" toast and Undo list name a member's indicator, not its id | #1518 |
+| spend | the picture door's prompt bound re-measured, so a reservation bounds the prompt again (a member's daily picture share now holds two worst-case reservations, not three; the owner may raise it). It turned the master deploy gate red for about 70 minutes: two Agent limit tests held the literal three. They derive the count now | #1509, #1522 |
 
 **The house set, second look (2026-11-16, production).** Of the five that did not draw on
 the first run: both relative-strength requests draw (the marker fix); volume bars coloured
@@ -706,6 +720,12 @@ Not started, and why:
   push once per pull request. (An earlier version of this section said every merge cancels
   the running gate. That was wrong.)
 - Parse-check every file before queueing its test.
+- A pull request's green lanes are not the deploy gate. Before merging a change to a cost
+  constant or a prompt size, search the tests for the constant and run the gate's own list
+  (`tests/test_uct_agent*.py`), not only the door's file. #1509 passed its lanes and held
+  production for every session.
+- A worktree copy of a shared file can be behind master. Committing it as it stands undoes
+  someone else's change. Compare with master and refresh the file before editing it.
 
 **Next, in order:** check each merged change on production once its deploy gate has run (the
 evening's: L4, L6, L7, L8, the allowance line, moderation, Describe it instead, one name slice 2);
