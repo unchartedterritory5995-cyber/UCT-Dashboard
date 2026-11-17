@@ -619,6 +619,17 @@ CONVERSE_SYSTEM_PROMPT = (
     "  A count of bars is never negative here: `highestbars`, `lowestbars` and `barssince` "
     "answer how many bars BACK (0 = this bar, 3 = three bars ago). This is not TradingView's "
     "sign: never negate one, and compare it with numbers of 0 or more.\n"
+    "  SuperTrend and Parabolic SAR are FUNCTIONS, called by name: `supertrend(factor, atrPeriod)` "
+    "with `supertrendDirection` (TradingView's sign: -1 while the trend is UP, 1 while it is "
+    "DOWN), and `sar(step, maxStep)` with `sarDirection` (1 while the dots are under price, -1 "
+    "while they are above). \"SuperTrend 10, 3\" is ATR period 10 and factor "
+    "3: supertrend(3, 10). Nothing else can read its own earlier value: there is no name for "
+    "that, and a window is always a literal whole number, never a computed one (\"since it was "
+    "last hit\" is not a window). A stop or level that ratchets -- it only moves one way until "
+    "price crosses it -- and is not one of those two cannot be written: set disposition "
+    "unsupported, say it needs a line that remembers its own earlier value, and offer what can "
+    "be built instead: SuperTrend, Parabolic SAR, or a line a fixed distance under the highest "
+    "close of a FIXED window.\n"
     "  A `sym` goes OUTSIDE a timeframe read, never under one: SPY's weekly close is "
     "sym(SPY, tf(close, W)). Wrap only what is read from the other symbol: "
     "\"close above SPY's 50 EMA\" compares the chart's close with "
@@ -1169,6 +1180,54 @@ def _inputs_as_constants(tree: Any, inputs: frozenset) -> Any:
     return root
 
 
+def _bound_reads_as_constants(tree: Any) -> Any:
+    """For the SCHEMA BOUNDARY ONLY: the tree with a running value's own name replaced by a
+    constant wherever it is read INSIDE the update it is bound in.
+
+    ⚰️ WHY (found on production, 2026-11-17). The vocabulary offers `supertrend`,
+    `supertrendDirection`, `sar` and `sarDirection`, and `call_expansions` writes each as bounded
+    recurrences: `accum(seed, update, warmup)` whose update reads its own previous value through
+    the name the table declares for that (`functions.accum.recurrence.binds`, "self";
+    `accumN.multiState.binds`, "state1".."state4"). The boundary gate checks every `series` name
+    against the names the MODEL may write, and those bound names are not among them, so the door
+    refused its own expansion of a function it had offered: "SuperTrend 10, 3" cost two model
+    calls and ended in "couldn't produce a valid change", every time.
+
+    ⛔ ONLY INSIDE ITS OWN UPDATE. A bound name anywhere else (a bare `self` the model wrote, or
+    one in a seed or a warm-up) is left as it is and is still refused by name. Which arguments are
+    updates and what they bind is READ from the table (`ast_table.recurrences` / `multi_states`),
+    never typed here. Every other gate below (canonical form, budget, repaint lint, and the
+    engine's own interpreter) sees the real tree and already understands these names.
+    """
+    from api.services import ast_table
+    single, multi = ast_table.recurrences(), ast_table.multi_states()
+
+    def scope_of(node: Mapping[str, Any]):
+        if node.get("type") != "call":
+            return None
+        name = node.get("name")
+        if name in single:
+            return frozenset({single[name]["binds"]}), {single[name]["body"]}
+        if name in multi:
+            return frozenset(multi[name]["binds"]), set(multi[name]["updates"])
+        return None
+
+    def walk(node: Any, bound: frozenset, depth: int) -> Any:
+        if not isinstance(node, dict) or depth > 400:
+            return node
+        if node.get("type") == "series" and node.get("name") in bound:
+            return {"type": "num", "value": 1}
+        args = node.get("args")
+        if isinstance(args, list):
+            scope = scope_of(node)
+            for j, arg in enumerate(args):
+                inner = (bound | scope[0]) if (scope and j in scope[1]) else bound
+                args[j] = walk(arg, inner, depth + 1)
+        return node
+
+    return walk(copy.deepcopy(tree), frozenset(), 0)
+
+
 def _check_tree(where: str, tree: Any, inputs: frozenset = frozenset()) -> None:
     """The concierge's own tree gates, minus evaluation (the engine probes)."""
     # ⭐ BATCH 2 -- a model's linreg / correlation / vwma / roc / mom / Keltner call is
@@ -1183,7 +1242,8 @@ def _check_tree(where: str, tree: Any, inputs: frozenset = frozenset()) -> None:
     tree = _inputs_as_constants(tree, inputs)
     _check_scopes(where, tree)
     try:
-        dc._assert_within_schema(_unscoped(tree))
+        # a running value's own name is legal inside the update that binds it, and only there
+        dc._assert_within_schema(_bound_reads_as_constants(_unscoped(tree)))
     except dc._Refused as exc:
         # the concierge's own gate; its located text is the model's diagnostic
         raise _Refused(exc.gate, f"{exc.reason} ({where})") from exc
