@@ -321,3 +321,31 @@ def test_the_rails_job_runs_every_time_and_runs_the_rails():
     for t in ("tests/test_ci_agent_affected.py", "tests/test_agent_ci_required.py", "tests/test_ci_agent_dep_paths.py",
               "tests/test_ci_cost_rails.py"):
         assert t in run, t
+
+
+# ── not_affected_reason directly (AUDIT 11-17 surviving mutants Q3 / Q6): the skip's reason is read from EXACTLY ONE successful
+#    decision job with EXACTLY ONE "not affected" step — anything else is None (no skip), whatever decide() would add on top ──
+def _reason(run):
+    return acr.not_affected_reason([FRONTEND_FILE], PATHS, run)
+
+
+def test_not_affected_reason_control_one_successful_decision_one_step():
+    assert _reason(_skipped_run()) == "1 app/ file(s) changed, none in the 2282-file closure"
+
+
+@pytest.mark.parametrize("conclusion", ["failure", "cancelled", "skipped", "timed_out", "neutral", None])
+def test_not_affected_reason_none_for_a_decision_job_that_did_not_succeed(conclusion):
+    assert _reason(_skipped_run(decision=_decision(conclusion=conclusion))) is None
+
+
+@pytest.mark.parametrize("second", ["success", "failure", "cancelled"])
+def test_not_affected_reason_none_for_two_decision_jobs(second):
+    jobs = [_decision(), _decision(conclusion=second, reason="0 app/ file(s) changed"), RAILS_OK] + [{"name": n, "conclusion": "skipped"} for n in HEAVY]
+    assert _reason(_run(jobs=jobs)) is None
+
+
+@pytest.mark.parametrize("reasons", [("a", "a"), ("1 app/ file(s) changed, none in the closure", "2 app/ file(s) changed, none in the closure")])
+def test_not_affected_reason_none_for_two_not_affected_steps(reasons):
+    d = _decision()
+    d["steps"] = [d["steps"][0]] + [{"name": acr.NOT_AFFECTED_STEP + r, "conclusion": "success"} for r in reasons]
+    assert _reason(_skipped_run(decision=d)) is None
