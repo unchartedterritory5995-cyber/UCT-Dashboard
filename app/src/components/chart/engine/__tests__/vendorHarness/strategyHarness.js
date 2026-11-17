@@ -26,6 +26,8 @@ import { lowerIrProgram } from '../../runtime/lowerIr.js'
 import { execute } from '../../runtime/vm.js'
 import { strategyRecordOf } from '../../runtime/strategyRecord.js'
 import { strategyReportOf } from '../../runtime/brokerReport.js'
+import { symbolConstants, minContractOf } from '../../ast/bind.js'
+import { storeExchangeOfCapture } from './storeExchange.js'
 import { gradeStrategy, strategyFirstDifference } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { settingsAgreement, propertiesByKey, pineVersionOf, extractReportFields, isStrategyCapture } from '../../../../../../../tools/vendor_harness/strategy_capture.mjs'
 import {
@@ -39,10 +41,15 @@ export const EXPECTED_REFUSAL_GUARDS = Object.freeze(['runtime:strategy-repaint'
 const COUNT_SLOTS = new Set(['totalClosedTrades', 'totalOpenTrades', 'numberWinningTrades', 'numberLosingTrades'])
 const ALL = () => true
 
+/** ⭐⭐ PARITY (2026-11-16) — the symbol AS THE PRODUCT HANDS IT: OUR STORE's exchange spelling
+ *  (`storeExchange.js`, the indicator side's one authority: `NYSE Arca` for AMEX:SPY), never TradingView's alone.
+ *  ⚰️ This handed the run TradingView's spelling, so AMEX:SPY settled no `syminfo.mintick` (the store's tick row is
+ *  `NYSE Arca`) and w9-r1-risk-intraday-range-spy-15 refused at bind on a chart a member's run would have bound. */
 function symbolOf(capture) {
   const s = capture.symbol || {}
   const pro = String(s.pro_name || s.full_name || s.name || '')
-  return { ticker: pro.includes(':') ? pro.split(':').pop() : (s.name || pro), exchange: s.exchange || (pro.includes(':') ? pro.split(':')[0] : null) }
+  const tv = s.exchange || (pro.includes(':') ? pro.split(':')[0] : null)
+  return { ticker: pro.includes(':') ? pro.split(':').pop() : (s.name || pro), exchange: storeExchangeOfCapture(capture, tv) || tv }
 }
 
 /** The capture's bars, oldest first, in the broker's shape (bar times in epoch seconds). */
@@ -129,10 +136,15 @@ export function runOurBroker(capture, { pins = ALL } = {}) {
   // `bars_window.HISTORY_WINDOW_BARS`) is not what TradingView ran on (w9-r1-risk-intraday-range: 6,343 SPY 15m
   // bars), and a run cut to it would start on another bar than TradingView's
   const windowBars = Math.max(5000, bars.length)
+  // ⭐⭐ PARITY (2026-11-16) — the symbol's minimum contract, derived exactly as the member's run derives it
+  // (`runtimeColumns.js`: `minContractOf(symbolConstants(symbol))`, the witnessed `symbolScope.json::min_contract`
+  // row). ⚰️ The harness passed none, so every cash / percent-of-equity size refused Q-S1a here while a member's run
+  // on the same listing sized: the grade judged a program no member runs.
+  const minContract = minContractOf(symbolConstants(symbolOf(capture)))
   let res
   try {
-    res = execute(program, { bars: bars.length, series, columns: program.columns, confirmed, barTimes, historyWindowBars: windowBars },
-      undefined, { brokerPinned: pins })
+    res = execute(program, { bars: bars.length, series, columns: program.columns, confirmed, barTimes, historyWindowBars: windowBars,
+      minContract }, undefined, { brokerPinned: pins })
   } catch (e) {
     const guard = (e && e.guard) || 'runtime:error'
     // ruling D12: a refusal about a SETTING the run would have to assume (`BrokerRefusal.setting`, raised at bind,

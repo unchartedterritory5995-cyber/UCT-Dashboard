@@ -38,6 +38,7 @@
 //   cd app && LANGUAGE_COVERAGE_INPUT=<in.json> LANGUAGE_COVERAGE_OUT=<out.jsonl> \
 //     node node_modules/vitest/vitest.mjs run \
 //       src/components/chart/engine/ast/languageCoverageDoors.measure.test.js --maxWorkers=2
+import { paintsWithheldFromDocument, paintsWithheldByTranslation } from '../../../../../../tools/pine_coverage/paint_predicate.mjs'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -128,7 +129,10 @@ function oneDoor(source) {
     plots: (d.rows || []).length,
     drawsObjects: !!(d.definition && d.definition.objects),
     withheldObjects: !!(d.ok && t.objects && (t.objects.ops || []).length && !(d.definition && d.definition.objects)),
-    withheldPaints: (((t.presentation || {}).paints) || []).filter((p) => p && p.withheld).length,
+    // INSTRUMENT (2026-11-16): a paint counts as withheld only when the DOCUMENT does not draw it
+    // (`tools/pine_coverage/paint_predicate.mjs`); the translation's own count rides beside it.
+    withheldPaints: paintsWithheldFromDocument(t, d.ok ? d.definition : null),
+    withheldPaintsTranslated: paintsWithheldByTranslation(t),
     lane: d.lane || (d.ok ? 'host' : null),
     lossVerdict: loss ? loss.verdict : null,
     droppedOps: diag.droppedOps || 0,

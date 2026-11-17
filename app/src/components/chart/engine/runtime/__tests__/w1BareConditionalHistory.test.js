@@ -24,6 +24,7 @@
 import { describe, it, expect } from 'vitest'
 
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
+import { runGuardOf } from './condHistoryOutcome.js'
 
 const NL = String.fromCharCode(10)
 const R4 = 'runtime:conditional-history'
@@ -33,6 +34,11 @@ const guardOf = (src) => {
   const b = buildRuntimeIr(src, { bars: [], inputs: {}, pane: true })
   return b.ok ? null : b.refusal.guard
 }
+// ⭐ HIST-S3 — an arm this lane does not step per call site is drawn only while it has run on every
+// bar and STOPS by name at the first skip; the test `s > 3` first holds on bar 3, so the run stops
+// there (its history would miss bars 0-2). The build's refusal, else the run's stop, over 20 bars.
+const BARS = Array.from({ length: 20 }, (_, i) => ({ t: 1600000000 + i * 86400, o: 100 + (i % 3), h: 104 + (i % 5), l: 96, c: 100 + ((i * 7) % 5), v: 1000 }))
+const notDrawnOf = (src) => runGuardOf(src, { bars: BARS, extra: { pane: true } })
 // a test that reads a slot (a `var` the script steps), so this lane lowers the `?:`
 const STATE = ['var float s = 0.0', 's := s + 1']
 // [v4 bare spelling, v6 namespaced spelling]
@@ -43,9 +49,9 @@ const CALLS = [
 ]
 
 describe('W1 review 3 — v4 bare barssince / cmo / cog in one arm of `?:` are history, as their ta.* spellings', () => {
-  it.each(CALLS)('%s in an arm is refused by name, exactly as %s is', (bare, ns) => {
-    expect(guardOf(v4(...STATE, `y = s > 3 ? ${bare} : 0.0`, 'plot(y)'))).toBe(R4)
-    expect(guardOf(v6(...STATE, `y = s > 3 ? ${ns} : 0.0`, 'plot(y)'))).toBe(R4)
+  it.each(CALLS)('%s in an arm is never drawn per run (refused, or stopped by name), exactly as %s is', (bare, ns) => {
+    expect(notDrawnOf(v4(...STATE, `y = s > 3 ? ${bare} : 0.0`, 'plot(y)'))).toBe(R4)
+    expect(notDrawnOf(v6(...STATE, `y = s > 3 ? ${ns} : 0.0`, 'plot(y)'))).toBe(R4)
   })
 
   it.each(CALLS)('CONTROL: %s on every bar is served, as %s is', (bare, ns) => {
