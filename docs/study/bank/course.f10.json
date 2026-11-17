@@ -8472,7 +8472,11 @@
       ]
      },
      "fn": "avg_price",
-     "result": 45.0
+     "result": 45.0,
+     "steps": {
+      "cost": 9000.0,
+      "shares": 200.0
+     }
     },
     "given": "You bought 100 shares at $50. It drops to $40 and you buy 100 more. Where's your breakeven now? $50.00 $40.00 $45.00 $90.00"
    },

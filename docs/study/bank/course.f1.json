@@ -2096,7 +2096,11 @@
       ]
      },
      "fn": "avg_price",
-     "result": 30.13
+     "result": 30.13,
+     "steps": {
+      "cost": 30130.0,
+      "shares": 1000.0
+     }
     },
     "given": "You market buy 1,000 shares. The fills come back 400 at $30.10 and 600 at $30.15. What's your real entry? $30.13 $60.25 $15,065 $30,130"
    },

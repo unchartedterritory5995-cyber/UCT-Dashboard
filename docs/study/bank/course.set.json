@@ -71620,7 +71620,10 @@
       "trough": 475.01
      },
      "fn": "drawdown_pct",
-     "result": 1.8
+     "result": 1.8,
+     "steps": {
+      "drop": 8.64
+     }
     },
     "given": "Before you buy, you check the depth. How far under the old low did it go? Last bar: it broke under its old swing low at 483.65, hit 475.01, and closed back above 483.65. 1.8% 8.64% 98.2% 18%"
    },
@@ -75907,7 +75910,10 @@
       "trough": 91.5
      },
      "fn": "drawdown_pct",
-     "result": 8.5
+     "result": 8.5,
+     "steps": {
+      "drop": 8.5
+     }
     },
     "given": "A leader's 20-day high is 100.00. Yesterday it closed at 91.50. How deep is the pullback? 9.3% 8.5% 0.9% 91.5%"
    },
@@ -79708,7 +79714,10 @@
       "trough": 59.04
      },
      "fn": "drawdown_pct",
-     "result": 1.5
+     "result": 1.5,
+     "steps": {
+      "drop": 0.91
+     }
     },
     "given": "Before you size it, check the dip. How far under the level did the low go? The reclaim day. The level is 59.95 and the undercut low is 59.04. 0.9% 15.2% 98.5% 1.5%"
    },

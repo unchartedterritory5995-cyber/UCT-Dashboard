@@ -337,6 +337,32 @@ def calc_steps(calc: dict) -> dict:
             return {"spread": r2(a["ask"] - a["bid"]), "midpoint": r2((a["ask"] + a["bid"]) / 2)}
         if fn == "dollar_volume":
             return {}
+        # the options and account calcs (the F6 checker could not show "112.40 minus 105 is 7.40", 2026-11-17)
+        if fn in ("intrinsic", "extrinsic", "option_payoff"):
+            k, u = a["strike"], a["underlying"]
+            intr = max(0.0, u - k) if a["kind"] == "call" else max(0.0, k - u)
+            out = {"distance": r2(abs(u - k)), "intrinsic": r2(intr)}
+            if fn == "option_payoff":
+                per = intr - a["premium"] if a.get("side", "long") == "long" else a["premium"] - intr
+                out["per_share"] = r2(per)
+            return out
+        if fn == "vertical_payoff":
+            u = a["underlying"]
+            iv = (lambda k: max(0.0, u - k) if a["kind"] == "call" else max(0.0, k - u))
+            return {"long_leg": r2(iv(a["long_strike"])), "short_leg": r2(iv(a["short_strike"])),
+                    "per_share": r2(iv(a["long_strike"]) - iv(a["short_strike"]) - a["net_debit"]),
+                    "width": r2(abs(a["long_strike"] - a["short_strike"]))}
+        if fn == "margin_equity_pct":
+            return {"equity": r2(a["market_value"] - a["loan"])}
+        if fn == "drawdown_pct":
+            return {"drop": r2(a["peak"] - a["trough"])}
+        if fn == "short_pnl":
+            return {"per_share": r2(a["entry"] - a["exit"])}
+        if fn == "avg_price":
+            fills = a.get("fills") or []
+            return {"shares": r2(sum(f[0] for f in fills)), "cost": r2(sum(f[0] * f[1] for f in fills))}
+        if fn == "gain_to_recover":
+            return {"left": r2(100 - a["loss_pct"])}
         if fn == "arith":
             # every part of the expression, worked out ("(25.10 - 24.71) * 3" gives 0.39 and 1.17), so a plain
             # arithmetic question can show its steps too (the SET.22 checker could not: "0.39 and 1.17" were rejected)

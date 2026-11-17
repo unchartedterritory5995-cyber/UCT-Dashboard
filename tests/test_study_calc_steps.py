@@ -37,3 +37,12 @@ def test_plain_arithmetic_shows_every_part():
     # SET.22 q16: how far under the gap-up low (53.03) did the test day dip (52.45)? The steps are 0.58 and 1.09%.
     steps = cl.calc_steps({"fn": "arith", "args": {"expr": "(a - b) / a * 100", "a": 53.03, "b": 52.45}, "round": 2})
     assert 0.58 in steps.values() and 1.09 in steps.values()
+
+
+def test_options_calcs_show_their_steps():
+    # F6.03 q23: a 105 call with the stock at 112.40 is 7.40 in the money; the rest of the premium is time
+    s = cl.calc_steps({"fn": "extrinsic", "args": {"kind": "call", "strike": 105, "underlying": 112.40, "premium": 9.10}})
+    assert s["intrinsic"] == 7.4
+    v = cl.calc_steps({"fn": "vertical_payoff", "args": {"kind": "call", "long_strike": 50, "short_strike": 55,
+                                                         "net_debit": 2.0, "underlying": 57}})
+    assert v["width"] == 5 and v["per_share"] == 3

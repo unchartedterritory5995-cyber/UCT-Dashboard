@@ -3641,7 +3641,10 @@
       "trough": 68
      },
      "fn": "drawdown_pct",
-     "result": 15.0
+     "result": 15.0,
+     "steps": {
+      "drop": 12.0
+     }
     },
     "given": "Your stock topped at $80 and now trades at $68. How far is it off the high? 85.0% 17.6% 12.0% 15.0%"
    },
@@ -20899,7 +20902,10 @@
       "trough": 48
      },
      "fn": "drawdown_pct",
-     "result": 20.0
+     "result": 20.0,
+     "steps": {
+      "drop": 12.0
+     }
     },
     "given": "Where do you stand at $48? You buy at $40. The stock runs to $60, then pulls back to $48. A 20% drawdown, still a profit A 20% loss on the whole trade No drawdown, since you're still up A 12% drawdown from the $60 peak"
    },
@@ -21035,7 +21041,10 @@
       "loss_pct": 20
      },
      "fn": "gain_to_recover",
-     "result": 25.0
+     "result": 25.0,
+     "steps": {
+      "left": 80.0
+     }
     },
     "given": "Your account is down 20% from its high. What gain do you need to get back to that high? 20% 25% 16.7% 80%"
    },
@@ -21266,7 +21275,10 @@
       "trough": 91000
      },
      "fn": "drawdown_pct",
-     "result": 30.0
+     "result": 30.0,
+     "steps": {
+      "drop": 39000.0
+     }
     },
     "given": "What's your maximum drawdown? Your account climbs from $100,000 to $130,000 and falls to $104,000. It bounces to $120,000, drops to $91,000, then makes a new high. 30% 20% 24.2% 9%"
    },
@@ -30277,7 +30289,11 @@
       "underlying": 95
      },
      "fn": "intrinsic",
-     "result": 0.0
+     "result": 0.0,
+     "steps": {
+      "distance": 5.0,
+      "intrinsic": 0.0
+     }
     },
     "given": "A cheap call catches your eye: the 100 strike for $1.20, with the stock at $95. How much intrinsic value are you buying? $1.20 -$5 $0 $5"
    },
@@ -30367,7 +30383,11 @@
       "underlying": 64
      },
      "fn": "extrinsic",
-     "result": 1.1
+     "result": 1.1,
+     "steps": {
+      "distance": 4.0,
+      "intrinsic": 4.0
+     }
     },
     "given": "The stock is at $64. The 60-strike call costs $5.10. How much of that price are you paying for time? $4.00 $1.10 $5.10 $9.10"
    },
