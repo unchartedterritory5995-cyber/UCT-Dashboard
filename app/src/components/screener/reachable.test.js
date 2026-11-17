@@ -756,15 +756,16 @@ const AWAITING_A_DECISION = {
   'app/src/components/chart/engine/runtime/columnDigest.js':
     'Reached ONLY through serverEntry.js (the W5 T3 column codec, JS half; the Python half is '
     + 'api/services/pine_runtime_codec.py). Leaves this register with serverEntry.js.',
-  // HEADLESS (Studio R6, 2026-11-17): the server computes a definition's work itself. A library or
-  // share card that reads the load budget in the browser imports headlessCompute.js, and both entries
-  // leave this register in that commit.
-  'app/src/components/chart/engine/headlessCompute.js':
-    'Reached ONLY through serverEntry.js until the Studio\'s card budget imports it: a saved definition '
-    + 'computed with no chart, its work counted (computeHeadless). Leaves this register with serverEntry.js.',
-  'app/src/components/chart/engine/referenceSeries.js':
-    'Reached ONLY through serverEntry.js: the seeded reference series headlessCompute.js work is measured '
-    + 'over (its digest pinned, both hosts railed by __tests__/headlessCompute.test.js). Leaves with serverEntry.js.',
+  // Studio R5 (Indicators backlog 44), 2026-11-17: an engine export the Studio page's "Inspect a
+  // bar" is built against. ⏳ The decision owed: that page imports it (the entry goes in that
+  // commit), or it leaves this register with serverEntry.js.
+  'app/src/components/chart/engine/runtime/topLevelNames.js':
+    'Reached ONLY through serverEntry.js (Studio R5: a script\'s top-level names with their lines, '
+    + 'read by the engine\'s own lexer and statement splitter; rail __tests__/topLevelNames.test.js). '
+    + 'Its consumer is the Studio "Inspect a bar" page, not built yet.',
+  // ⚰️ `engine/headlessCompute.js` and `engine/referenceSeries.js` stood here until 2026-11-17 (Studio R6):
+  // the share page now imports both to time a formula on the viewer's own device
+  // (`pages/formulas/deviceDrawTime.js`), so they are reachable from the app and need no entry.
   'app/src/components/chart/engine/runtime/brokerPinsLock.js':
     'W9-T2 pin-ledger lock: a pure check its own header says is NOT imported by the bundle; '
     + 'its consumer is the rail __tests__/brokerPinsLock.test.js (docs/pine/W9-STRATEGY-DESIGN.md).',
