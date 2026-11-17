@@ -341,8 +341,10 @@ export function oursOf(record, report) {
     time: o.fillTime,
     side: o.side,
     // the order COMMAND, as TradingView's `e` names it (strategy_reference.mjs FILL_ROLES): an entry is an entry
-    // even when it only closes (allow_entry_in) or reverses; strategy.order is neither
-    role: o.kind === 'entry' ? 'entry' : o.kind === 'order' ? 'order' : 'exit',
+    // even when it only closes (allow_entry_in) or reverses; strategy.order is neither. ⭐ A MARGIN CALL is neither
+    // too: TradingView lists its fill with `e: null`, as it lists strategy.order's (all 13 margin-call fills of
+    // w9-q-s1i-short-v6-rddt-1d-2026-11-16, ids `Margin call 0`..`12`), so it takes the role `e: null` maps to
+    role: o.kind === 'entry' ? 'entry' : (o.kind === 'order' || o.kind === 'margin_call') ? 'order' : 'exit',
     price: o.fillPrice,
     qty: o.fillQty + closedQty(o),
     id: o.id,

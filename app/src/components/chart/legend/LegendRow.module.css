@@ -60,6 +60,33 @@
    * and it is why the box is the ROW and not the whole legend. */
   pointer-events: auto;
   cursor: default;
+  /* For the hit strip below: it is placed against the row and painted behind its text. */
+  position: relative;
+  isolation: isolate;
+}
+/* ⭐⭐ THE ROW'S HIT AREA REACHES HALFWAY INTO THE GAP ON EACH SIDE (owner, 2026-11-16:
+ * the legend "glitches and flickers when I comb over it").
+ *
+ * ⚰️ MEASURED: the stack is 14px rows on a 22px pitch, and the 8px between two rows
+ * belonged to nobody. `.legend` is `pointer-events: none`, so there the pointer was on
+ * the CHART: the crosshair came back and every number in the legend, the bar-info strip
+ * included, flipped to the bar under the cursor, then flipped back to the latest bar on
+ * the next row. Combing down five rows was ten flips.
+ *
+ * ⛔ A HIT AREA ONLY. The strip is transparent and absolutely placed, so the row's box,
+ * the stack's pitch and every value's x are exactly what they were; `z-index: -1` inside
+ * the row's own stacking context keeps it behind the text, so a child's tooltip and the
+ * strip's buttons are still what the pointer meets first.
+ * ⛔ THE STACK SETS THE REACH (`--row-hit-pad`, half its own `row-gap`), never this file:
+ * a row in any other container gets 0 and is the row it always was. */
+.vRow::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(-1 * var(--row-hit-top, var(--row-hit-pad, 0px)));
+  bottom: calc(-1 * var(--row-hit-pad, 0px));
+  z-index: -1;
 }
 
 /* ⛔ THESE CARRY NO `font-size`. `.legendVertical` sets it once for the whole
@@ -115,6 +142,14 @@
   color: var(--row-color, var(--legend-ink-pair, var(--text-muted)));
   /* Owner 11-16 (experiment): the value takes the LABEL's weight — label/value differ only by position + series colour. */
   font-weight: 500;
+}
+/* ⭐ ONE ROW PER NAME — the `+N` after a row's last printed value: how many more of the
+   indicator's plots have a value on this bar. Muted, so it never reads as a value. */
+.valsOver {
+  color: var(--legend-ink-muted, var(--text-muted));
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0.8;
 }
 /* ⚰️ `.rail` STOOD HERE — a 2×9px bar of the line colour before every name.
    Retired with the chip's (owner, 2026-09-14): on a nine-row legend it read as

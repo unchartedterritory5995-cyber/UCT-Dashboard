@@ -565,6 +565,29 @@
   align-items: baseline;
   gap: 6px;
   pointer-events: auto;
+  /* The hit strip below is painted behind the row's text, inside the row's own stacking context. */
+  isolation: isolate;
+}
+/* ⭐ THE ROW'S HIT AREA REACHES HALFWAY INTO THE GAP ON EACH SIDE — the twin of
+   `LegendRow.module.css`'s `.vRow::after`; read that one for the measured flicker it
+   ends. A hit area only: transparent, out of flow, behind the text. The stack sets the
+   reach (`--row-hit-pad`); anywhere else it is 0. */
+.chipGridRow::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(-1 * var(--row-hit-top, var(--row-hit-pad, 0px)));
+  bottom: calc(-1 * var(--row-hit-pad, 0px));
+  z-index: -1;
+}
+/* ⭐ ONE ROW PER NAME — the `+N` after a row's last printed value: how many more of the
+   indicator's plots have a value on this bar. Muted, so it never reads as a value. */
+.chipValsOver {
+  color: var(--legend-ink-muted, var(--text-muted));
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0.8;
 }
 
 /* ⭐⭐ THE MICRO-RAIL. A hairline rule of the series' colour at the head of the

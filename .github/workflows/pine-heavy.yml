@@ -245,7 +245,9 @@ jobs:
       matrix:
         include:
           - { leg: ast-twins,  tests: 'tests/test_ast_*.py' }
-          - { leg: pine-twins, tests: 'tests/test_pine_*.py' }
+          # tests/test_w9_probes.py: the W9 queue doc's rows <-> the generated strategy probes (2026-11-17, #1554:
+          # W9-NB1 reached master red because no leg ran it)
+          - { leg: pine-twins, tests: 'tests/test_pine_*.py tests/test_w9_probes.py' }
     steps:
       - uses: actions/checkout@v4
         with:

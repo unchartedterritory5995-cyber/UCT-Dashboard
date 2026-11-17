@@ -8,20 +8,89 @@
  "symbol": "NYSE:RDDT",
  "timeframe": "1D",
  "gradeMethod": "a",
- "verdict": "DIVERGE",
- "step": 1,
- "reason": "our run refused (runtime:strategy-unsettled) against a TradingView value",
+ "verdict": "MATCH",
+ "step": 8,
+ "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
  "first": null,
  "graded": {
-  "trades": false,
-  "fills": false,
-  "slots": 0,
-  "values": 0,
-  "texts": 0
+  "trades": true,
+  "fills": true,
+  "slots": 9,
+  "values": 38,
+  "texts": 30
  },
  "referenceTrades": 31,
- "rulesExercised": [],
- "ungradedSlots": [],
+ "rulesExercised": [
+  "B-DEFAULTS",
+  "B-DIR",
+  "B-ENTRY-ORDER",
+  "B-FILL",
+  "B-FUNDS-REVERSE",
+  "B-FUNDS-SHORT",
+  "B-MARGIN",
+  "B-MARGIN-CALL",
+  "B-MARGIN-CALL-ALL",
+  "B-MARKET",
+  "B-PYR",
+  "B-QTY",
+  "B-QTY-REVERSE",
+  "B-REVERSE",
+  "B-ROUND",
+  "B-SIG",
+  "B-TXT-ENTRY-CLOSE-ID",
+  "B-TXT-NO-COMMENT",
+  "B-VAL"
+ ],
+ "ungradedSlots": [
+  {
+   "slot": "maxDrawdown",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "maxRunup",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "buyAndHoldReturn",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "percentProfitable",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgWinningTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgLosingTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "largestWinningTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "largestLosingTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgBarsInTrades",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "sharpeRatio",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "sortinoRatio",
+   "why": "ours runtime:strategy-report-unstated"
+  }
+ ],
  "ungradedTexts": [],
  "firstDifference": null,
  "prefixExact": null,

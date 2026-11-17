@@ -130,6 +130,8 @@ export function AuthProvider({ children }) {
   const [screenerFocusLayoutEnabled, setScreenerFocusLayoutEnabled] = useState(false)
   const [screenerNewTodayEnabled, setScreenerNewTodayEnabled] = useState(false)
   const [screenerFocusPhoneEnabled, setScreenerFocusPhoneEnabled] = useState(false)
+  // The Screener as a customizable widget board (SCREENER_SCAN_BOARD_ENABLED; desktop only).
+  const [screenerScanBoardEnabled, setScreenerScanBoardEnabled] = useState(false)
   // TERM-039 — member-facing feature status (the Support strip + the Beta mark).
   // ⛔ DEFAULTS NULL, which every surface renders as "not available" — never as an
   // empty list, because "we could not say" and "nothing is here" are different facts.
@@ -203,6 +205,7 @@ export function AuthProvider({ children }) {
     ['screener_focus_layout_enabled', (d) => d.screener_focus_layout_enabled === true, setScreenerFocusLayoutEnabled],
     ['screener_new_today_enabled', (d) => d.screener_new_today_enabled === true, setScreenerNewTodayEnabled],
     ['screener_focus_phone_enabled', (d) => d.screener_focus_phone_enabled === true, setScreenerFocusPhoneEnabled],
+    ['screener_scan_board_enabled', (d) => d.screener_scan_board_enabled === true, setScreenerScanBoardEnabled],
     ['watchlist_copy_or_link_enabled', (d) => d.watchlist_copy_or_link_enabled === true, setWatchlistCopyOrLinkEnabled],
     ['charts_list_subscribe_enabled', (d) => d.charts_list_subscribe_enabled === true, setChartsListSubscribeEnabled],
     ['charts_extra_groups_enabled', (d) => d.charts_extra_groups_enabled === true, setChartsExtraGroupsEnabled],
@@ -483,7 +486,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, studyEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, wisdomTickerHistoryEnabled, wisdomArchiveEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, memberInterestSurfaces, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, ivHistoryEnabled, optionsStrategyScreensEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, screenerFocusLayoutEnabled, screenerNewTodayEnabled, screenerFocusPhoneEnabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, researchFmpDepthEnabled, autoStructuresEnabled, autoStructuresMembersEnabled, chartIqEnabled, levelsSrEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, studyEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, wisdomTickerHistoryEnabled, wisdomArchiveEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, memberInterestSurfaces, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, ivHistoryEnabled, optionsStrategyScreensEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, screenerFocusLayoutEnabled, screenerNewTodayEnabled, screenerFocusPhoneEnabled, screenerScanBoardEnabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, researchFmpDepthEnabled, autoStructuresEnabled, autoStructuresMembersEnabled, chartIqEnabled, levelsSrEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

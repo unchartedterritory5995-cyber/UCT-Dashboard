@@ -61,6 +61,13 @@ export const HILO_SIDE_WORDS = Object.freeze({
   HIGHS: 'highs', HIGH: 'highs', HI: 'highs', NH: 'highs',
   LOWS: 'lows', LOW: 'lows', LO: 'lows', NL: 'lows',
 })
+export const RS_SCREEN_ARG_WORDS = Object.freeze({
+  LEADERS: 'starter_rs_leaders', LEADER: 'starter_rs_leaders', LDR: 'starter_rs_leaders',
+  TOP: 'starter_rs_top_rating', RATING: 'starter_rs_top_rating',
+  NH: 'starter_rs_new_high', HIGHS: 'starter_rs_new_high',
+  NHBP: 'starter_rs_nh_before_price', BEFORE: 'starter_rs_nh_before_price',
+  EXIT: 'starter_rs_exit_warning_5', WARN: 'starter_rs_exit_warning_5', WARNINGS: 'starter_rs_exit_warning_5',
+})
 export const HILO_GROUP_WORDS = Object.freeze({
   SECTOR: 'sector', SECTORS: 'sector', INDUSTRY: 'industry', INDUSTRIES: 'industry', THEME: 'theme', THEMES: 'theme',
 })
@@ -264,6 +271,14 @@ export const ARG_KINDS = {
     takes: 'SECTOR, INDUSTRY or THEME',
     parse: (tok) => HILO_GROUP_WORDS[String(tok).toUpperCase()] ?? null,
     describe: (v) => `by ${v}`,
+  },
+  // ── data wave 2 (2026-11-17). RSS's screen: one of the five UCT RS screens, by its short word.
+  // The value is the screen's starter id (panels/rsScreensModel.js RS_SCREEN_WORDS owns the words;
+  // args.dataWave2.test.js pins this map to it).
+  rsScreen: {
+    takes: 'LEADERS, TOP, NH, NHBP or EXIT',
+    parse: (tok) => RS_SCREEN_ARG_WORDS[String(tok).toUpperCase()] ?? null,
+    describe: (v) => `screen ${String(v).replace(/^starter_rs_/, '').replace(/_/g, ' ')}`,
   },
 }
 

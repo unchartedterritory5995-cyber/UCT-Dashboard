@@ -132,6 +132,19 @@ describe('P3 UX — closing the sheet with an unsaved conversation asks first', 
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
+  it('CONTROL: a name the MEMBER typed is still unsaved formula work beside the conversation', async () => {
+    const onClose = vi.fn()
+    mountSheet(onClose)
+    fireEvent.change(screen.getByLabelText('Describe it'), { target: { value: 'RSI overbought' } })
+    fireEvent.click(screen.getByTestId('converse-send'))
+    await flush()
+    fireEvent.change(screen.getByPlaceholderText('Name it'), { target: { value: 'My own name' } })
+    cancel()
+    await flush()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByTestId('discard-confirm').textContent).toContain('Discard this formula?')
+  })
+
   it('after the conversation is saved, Cancel closes at once again', async () => {
     const onClose = vi.fn()
     mountSheet(onClose)

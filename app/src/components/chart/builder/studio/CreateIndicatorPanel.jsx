@@ -189,10 +189,18 @@ export const ALLOWANCE_NOTE_BELOW = 0.5
 
 /** The sentence for a share left, or null while there is plenty. No times: the allowance
  *  renews with the market day, which this line does not try to pin to a clock. */
+/** True while the conversation's LAST entry is the spent-allowance refusal: the line above the box
+ *  would say the same thing twice. */
+export function spentJustSaid(transcript, left) {
+  if (!(typeof left === 'number' && left <= 0)) return false
+  const last = Array.isArray(transcript) && transcript.length ? transcript[transcript.length - 1] : null
+  return !!(last && last.kind === 'refusal' && last.gate === 'cost:user')
+}
+
 export function allowanceLine(left) {
   if (typeof left !== 'number' || !(left < ALLOWANCE_NOTE_BELOW)) return null
-  if (left <= 0) return "Today's UCT Intelligence allowance is used up. It renews each day."
-  return `About ${Math.max(5, Math.round(left * 100))}% of today's UCT Intelligence allowance is left.`
+  if (left <= 0) return "Today's UCT Agent allowance is used up. It renews each day."
+  return `About ${Math.max(5, Math.round(left * 100))}% of today's UCT Agent allowance is left.`
 }
 
 export default function CreateIndicatorPanel({
@@ -600,7 +608,10 @@ export default function CreateIndicatorPanel({
         </section>
       )}
 
-      {allowanceLine(conv.allowanceLeft) && (
+      {/* ⭐ SAID ONCE (2026-11-17). When the last thing in the conversation is the spent-allowance
+          answer itself, this line would repeat it directly underneath; it returns as soon as that
+          answer is no longer the last thing said. */}
+      {allowanceLine(conv.allowanceLeft) && !spentJustSaid(transcript, conv.allowanceLeft) && (
         <p className={styles.allowance} data-testid="create-indicator-allowance" role="status">
           {allowanceLine(conv.allowanceLeft)}
         </p>

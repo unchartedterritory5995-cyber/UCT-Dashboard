@@ -108,7 +108,11 @@ describe('no string-built regex lookbehind in app/src/agent (iOS 16 floor)', () 
 })
 
 // Outside the Agent: REPORTED, not fixed here (other teams' files). The same PARSED scan over the rest of app/src.
-const OUTSIDE_AGENT_TODAY = ['components/chart/engine/ast/guardIdText.js:35',
+// ⭐ 2026-11-17: a JS site is keyed by its ORDER in the file (`#site1`), not its line. The line key
+// (`guardIdText.js:35`) went red on the master deploy gate when engine 67 added two lines ABOVE the
+// same literal (35 -> 37) and held production: a file:line is a dated claim. A new or removed site
+// still changes the list; an edit that only moves it does not.
+const OUTSIDE_AGENT_TODAY = ['components/chart/engine/ast/guardIdText.js#site1',
   'components/chart/builder/authoring/preflightRules.json#possessiveTicker', 'components/chart/builder/authoring/preflightRules.json#adjacentTicker',
   'components/chart/builder/authoring/preflightRules.json#tickerToken', 'components/chart/builder/authoring/preflightRules.json#questionShape.clauseSplit']
 function jsonFiles(dir, out = []) {
@@ -123,7 +127,7 @@ describe('string-built lookbehind elsewhere in app/src (reported to its owners; 
     const out = []
     for (const f of productFiles(SRC)) {
       if (f.startsWith(AGENT + path.sep)) continue
-      for (const l of parsedSites(fs.readFileSync(f, 'utf8'))) out.push(`${path.relative(SRC, f).split(path.sep).join('/')}:${l}`)
+      parsedSites(fs.readFileSync(f, 'utf8')).forEach((_line, i) => out.push(`${path.relative(SRC, f).split(path.sep).join('/')}#site${i + 1}`))
     }
     // a pattern can also ship as JSON data compiled with `new RegExp` (the built applyPatch chunk carries these four)
     for (const f of jsonFiles(SRC)) {
