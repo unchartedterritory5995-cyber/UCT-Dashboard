@@ -173,7 +173,7 @@ function Working({ onStop }) {
   return (
     <div className={styles.workingRow}>
       <div className={styles.workingText}>
-        <div className={styles.working} data-testid="create-indicator-working">UCT Intelligence is thinking</div>
+        <div className={styles.working} data-testid="create-indicator-working">The UCT Agent is thinking</div>
         <div className={styles.workingNote} data-testid="create-indicator-working-note" aria-live="off">
           {secs >= LONG_WAIT_S ? `${secs}s. This one is taking longer than usual` : `${secs}s. ${USUAL_WAIT}`}
         </div>
@@ -398,7 +398,7 @@ export default function CreateIndicatorPanel({
           <span className={styles.title}>{panelTitle}</span>
           <span className={styles.identity}>
             <UIcon name="ind-formula" size={11} gold={false} />
-            UCT Intelligence
+            UCT Agent
           </span>
         </div>
         <button type="button" className={styles.close} onClick={askOrClose} aria-label={`Close ${panelTitle} (your draft is kept)`}
@@ -614,7 +614,7 @@ export default function CreateIndicatorPanel({
           disabled={saving || blocked}
           placeholder={editMode ? 'Describe a change — e.g. "make it 21" or "make the line gold"'
             : (state.working ? 'Refine it — e.g. "make it 50"' : 'Describe the indicator you want to build…')}
-          aria-label="Message UCT Intelligence"
+          aria-label="Message the UCT Agent"
           data-testid="create-indicator-input"
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => {

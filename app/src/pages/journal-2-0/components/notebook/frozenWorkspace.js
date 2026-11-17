@@ -58,5 +58,14 @@ export function frozenWorkspaceValue({ symbol = null } = {}) {
     floatNewWidget: () => {},
     applyThemeToAllCharts: () => {},
     applyThemeToAllWidgets: () => {},
+    // Chart Settings "Apply to all charts" (11-16) writes the /charts layout; a frozen
+    // embed has none, so the door is absent (null ⇒ no control offered).
+    countOtherCharts: null,
+    applyAppearanceToOtherCharts: null,
+    // The chart legend's "Open the rotation map" door opens the /charts Compare
+    // Symbols panel (UCT RS 3-09, 954a25ec79), which a note does not mount, so
+    // the door must not be offered inside an embed. Enumerated here, like the
+    // breadth drill's own host (drillWorkspace.js), not left to undefined.
+    canOpenCompare: false,
   }
 }

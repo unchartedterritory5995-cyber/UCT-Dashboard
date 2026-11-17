@@ -40,7 +40,7 @@ export const COV2_HELD_OUT = [
   ['how do I put an arrow on the chart', 'Arrow'],
   ['how do I use an extended line', 'Extended Line'],
   // one drawing's own edits
-  ['how do I make that trendline pink', 'Recolouring a drawing'],
+  ['how do I make that trendline pink', 'Recoloring a drawing'],
   ['how do I hide just that fib', 'Hiding one drawing'],
   ['how do I move one point of a trendline', 'Moving a drawing'],
   // an indicator alert, by its indicator

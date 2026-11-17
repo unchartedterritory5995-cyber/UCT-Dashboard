@@ -56,6 +56,7 @@ vi.mock('../../hooks/useChartLayouts', () => ({
 }))
 
 import ChartsWorkspace, { serializeLayout, uctDefaultChartSettings } from './ChartsWorkspace'
+import { UCT_DEFAULT_OFFERED } from './layoutDockPins'
 import { WORKSPACE_DOC_URL } from './VersionHistory'
 import { BOARD_APPLY_URL } from './boardDocument'
 import { __setWorkspaceDocStampForTests } from '../../lib/workspaceDoc'
@@ -154,7 +155,7 @@ describe('DARK (no X-Workspace-Doc on the preferences read): the per-key writes,
     global.fetch = vi.fn(async () => res(404, {}))
     renderWS()
     openLayoutsMenu()
-    act(() => { fireEvent.click(within(document.querySelector('header')).getByRole('button', { name: 'New layout' })) })
+    act(() => { fireEvent.click(document.querySelector('header [data-guide="workspace.newLayout"]')) })
     expect(boardWrites().map(([k]) => k)).toEqual([
       'charts_workspace_layout', 'charts_workspace_groups', 'chart_settings', 'watchlist_settings',
       'theme_tracker_settings', 'fundamentals_settings', 'breadth_widget_settings', 'charts_theme',
@@ -163,7 +164,8 @@ describe('DARK (no X-Workspace-Doc on the preferences read): the per-key writes,
     expect(boardWrites()[8][1]).toBe('null')
   })
 
-  test('UCT Default: the same writes as before', () => {
+  // Runs only while UCT Default is offered (layoutDockPins UCT_DEFAULT_OFFERED; hidden 11-16).
+  test.runIf(UCT_DEFAULT_OFFERED)('UCT Default: the same writes as before', () => {
     global.fetch = vi.fn(async () => res(404, {}))
     renderWS()
     openLayoutsMenu()
@@ -315,7 +317,7 @@ describe('ARMED: a board change is ONE compare-and-set document write', () => {
     refreshPreferences.mockResolvedValue({})
     renderWS()
     openLayoutsMenu()
-    act(() => { fireEvent.click(within(document.querySelector('header')).getByRole('button', { name: 'New layout' })) })
+    act(() => { fireEvent.click(document.querySelector('header [data-guide="workspace.newLayout"]')) })
     await flush()
     const prefs = JSON.parse(applyPosts()[0][1].body).prefs
     expect(prefs.charts_workspace_groups).toBe(JSON.stringify({ A: null, B: null, C: null, D: null }))

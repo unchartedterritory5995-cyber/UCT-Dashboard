@@ -45,7 +45,7 @@ export default function FirstRunCard({ onTry }) {
       <ul className={styles.firstRunList}>
         <li>Type a ticker, then a function, and press Enter: {tryIt('NVDA GP')} opens a chart, {tryIt('NVDA DES')} the company.</li>
         <li>{tryIt('HELP')} lists every function in plain words. The list on the left does too.</li>
-        <li>Panels of the same colour follow each other: change the ticker in one, or click a name in a list, and the rest of its group changes with it.</li>
+        <li>Panels of the same color follow each other: change the ticker in one, or click a name in a list, and the rest of its group changes with it.</li>
         <li data-testid="terminal-firstrun-new">New: {FIRST_RUN_NEW.map((n, i) => <span key={n.cmd}>{i ? ' · ' : ''}{tryIt(n.cmd)} {n.what}</span>)}.</li>
       </ul>
       <button type="button" className={styles.chip} onClick={dismiss} data-testid="terminal-firstrun-dismiss">Got it, hide this</button>

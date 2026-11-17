@@ -19,6 +19,8 @@
 // works. A failed chunk load is the textarea, not a reload.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
 import { render, screen, cleanup, fireEvent, act, waitFor } from '@testing-library/react'
 
 import PineBox, { ImportBox, PINE_DEBOUNCE_MS, inspectSource } from './PineBox'
@@ -82,6 +84,22 @@ describe('the Pine box mounts the editor that was already built for it', () => {
     expect(area().value).toBe(PINE)
     expect(area().getAttribute('aria-hidden')).toBe('true')
     expect(area().getAttribute('tabindex')).toBe('-1')
+  })
+
+  it('🔴 …and once the editor is up the textarea is VISUALLY hidden too, not just aria-hidden', async () => {
+    // ⚰️ THE BUG THIS PINS (2026-11-16, Direction A): the textarea kept `styles.area`
+    // after the editor mounted, so a sighted member saw an EMPTY SECOND BOX under the
+    // CodeMirror editor. It must take the editor's visually-hidden `model` class —
+    // exactly `FormulaField`'s arrangement — and never the visible `area` box.
+    render(<ImportBox onPick={noop} dialect="auto" />)
+    expect(area().className, 'before the editor loads the textarea IS the box').toMatch(/area/)
+    await type(PINE)
+    await screen.findByTestId('pine-editor', {}, { timeout: 5000 })
+    expect(area().className).toMatch(/model/)
+    expect(area().className).not.toMatch(/area/)
+    // the same class FormulaField's own hidden textarea carries once its editor is up
+    const css = fs.readFileSync(path.resolve(process.cwd(), 'src/components/chart/builder/editor/CodeEditor.module.css'), 'utf8')
+    expect(css).toMatch(/\.model\s*\{[^}]*clip-path:\s*inset\(50%\)/)
   })
 
   it('⭐ one element still answers to the label', async () => {

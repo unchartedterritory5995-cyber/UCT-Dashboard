@@ -70,7 +70,7 @@ describe('the rows come from the schema', () => {
     open('trendline')
     expect(rowLabels()).toEqual([
       'Color', 'Set level…', 'Make horizontal', 'Set alert…',
-      'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete Drawing',
+      'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete drawing',
     ])
   })
 
@@ -100,7 +100,7 @@ describe('the rows come from the schema', () => {
     open('rect')
     expect(rowLabels()).toEqual([
       'Border', 'Fill', 'Show percent change',
-      'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete Drawing',
+      'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete drawing',
     ])
     expect(screen.getByText('Appearance')).toBeTruthy()
     expect(screen.getByText('Label')).toBeTruthy()
@@ -110,7 +110,7 @@ describe('the rows come from the schema', () => {
     open('horizontal')
     expect(rowLabels()).toEqual([
       'Color', 'Show price label', 'Set level…', 'Set alert…',
-      'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete Drawing',
+      'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete drawing',
     ])
   })
 
@@ -119,7 +119,7 @@ describe('the rows come from the schema', () => {
     // The picker is a row with controls in it, not an action row — same shape as
     // the Text Note's font stepper, so it is checked the same way.
     expect(rowLabels()).toEqual([
-      'Color', 'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete Drawing',
+      'Color', 'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete drawing',
     ])
     expect(screen.getByText('Arrow size')).toBeTruthy()
     expect(screen.getAllByRole('radio')).toHaveLength(3)
@@ -130,7 +130,7 @@ describe('the rows come from the schema', () => {
     // has no way to apply.
     open('rect', { props: { onSetProp: null } })
     expect(rowLabels()).toEqual([
-      'Border', 'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete Drawing',
+      'Border', 'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete drawing',
     ])
   })
 
@@ -140,7 +140,7 @@ describe('the rows come from the schema', () => {
     expect(rows).not.toContain('Set alert…')
     expect(rows).not.toContain('Save as default')
     expect(rows).not.toContain('Hide')
-    expect(rows).toContain('Delete Drawing')      // still deletable
+    expect(rows).toContain('Delete drawing')      // still deletable
   })
 
   it('a half-placed sloped line cannot be "made horizontal"', () => {
@@ -157,7 +157,7 @@ describe('the rows come from the schema', () => {
   it('an unknown drawing type still gets a usable menu', () => {
     open('a-tool-from-the-future')
     expect(rowLabels()).toContain('Color')
-    expect(rowLabels()).toContain('Delete Drawing')
+    expect(rowLabels()).toContain('Delete drawing')
   })
 })
 
@@ -166,7 +166,7 @@ describe('the rows do what they say', () => {
     const { h } = open('rect')
     for (const [label, fn] of [
       ['Duplicate', 'onDuplicate'], ['Lock', 'onToggleLock'],
-      ['Hide', 'onToggleHide'], ['Delete Drawing', 'onDelete'],
+      ['Hide', 'onToggleHide'], ['Delete drawing', 'onDelete'],
     ]) {
       fireEvent.click(screen.getByText(label))
       expect(h[fn], label).toHaveBeenCalled()
@@ -253,7 +253,7 @@ describe('the rows do what they say', () => {
 })
 
 describe('the chrome the migration was told not to redesign', () => {
-  const shell = () => screen.getByText('Delete Drawing').closest('div[style*="position"]')
+  const shell = () => screen.getByText('Delete drawing').closest('div[style*="position"]')
 
   it('desktop: a fixed dark popover with the shipped padding and radius', () => {
     open('rect')
@@ -266,7 +266,7 @@ describe('the chrome the migration was told not to redesign', () => {
 
   it('every action row still carries its icon', () => {
     open('trendline')
-    for (const label of ['Set level…', 'Set alert…', 'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete Drawing']) {
+    for (const label of ['Set level…', 'Set alert…', 'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete drawing']) {
       const btn = screen.getByText(label).closest('button')
       expect(btn.querySelector('svg'), `${label} lost its icon`).toBeTruthy()
     }
@@ -278,14 +278,14 @@ describe('the chrome the migration was told not to redesign', () => {
       .filter((b) => (b.style.color || '').includes('danger'))
       // the row's LABEL (its first span) — the faint `Del` shortcut beside it is not part of it
       .map((b) => (b.querySelector('span')?.textContent || b.textContent).trim())
-    expect(danger).toEqual(['Delete Drawing'])
+    expect(danger).toEqual(['Delete drawing'])
   })
 
   it('Delete stays the LAST row — never buried in a submenu', () => {
     for (const type of ['trendline', 'horizontal', 'text', 'rect']) {
       cleanup()
       open(type)
-      expect(rowLabels().at(-1), type).toBe('Delete Drawing')
+      expect(rowLabels().at(-1), type).toBe('Delete drawing')
     }
   })
 })
@@ -293,7 +293,7 @@ describe('the chrome the migration was told not to redesign', () => {
 describe('touch: the bottom sheet', () => {
   it('docks to the bottom behind a dimming backdrop', () => {
     open('rect', { sheet: true })
-    const el = screen.getByText('Delete Drawing').closest('div[style*="position: fixed"]')
+    const el = screen.getByText('Delete drawing').closest('div[style*="position: fixed"]')
     expect(el.style.bottom).toBe('0px')
     expect(el.style.borderTopLeftRadius).toBe('14px')
     const backdrop = el.parentElement
@@ -302,7 +302,7 @@ describe('touch: the bottom sheet', () => {
 
   it('shows a grab handle', () => {
     open('rect', { sheet: true })
-    const el = screen.getByText('Delete Drawing').closest('div[style*="position: fixed"]')
+    const el = screen.getByText('Delete drawing').closest('div[style*="position: fixed"]')
     const grabber = el.firstElementChild.firstElementChild
     expect(grabber.style.width).toBe('40px')
     expect(grabber.style.height).toBe('4px')
@@ -310,13 +310,13 @@ describe('touch: the bottom sheet', () => {
 
   it('uses ≥44px tap targets', () => {
     open('rect', { sheet: true })
-    const btn = screen.getByText('Delete Drawing').closest('button')
+    const btn = screen.getByText('Delete drawing').closest('button')
     expect(parseInt(btn.style.minHeight, 10)).toBeGreaterThanOrEqual(44)
   })
 
   it('tapping the backdrop dismisses', () => {
     const { h } = open('rect', { sheet: true })
-    const el = screen.getByText('Delete Drawing').closest('div[style*="position: fixed"]')
+    const el = screen.getByText('Delete drawing').closest('div[style*="position: fixed"]')
     fireEvent.pointerDown(el.parentElement)
     expect(h.onClose).toHaveBeenCalled()
   })
@@ -411,7 +411,7 @@ describe('⭐ PHASE 4 WIDGETS — two generic ones, no tool-specific branching',
     for (const type of ['horizontal', 'hray', 'rect', 'arrow']) {
       cleanup()
       open(type)
-      expect(rowLabels().at(-1), type).toBe('Delete Drawing')
+      expect(rowLabels().at(-1), type).toBe('Delete drawing')
     }
   })
 })
@@ -422,7 +422,7 @@ describe('⭐ PHASE 5 — the measurement family, in the menu', () => {
     open('measure')
     expect(rowLabels()).toEqual([
       'Color', 'Show dollar change', 'Show percent change', 'Show bars', 'Show time',
-      'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete Drawing',
+      'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete drawing',
     ])
     expect(screen.getByText('Label position')).toBeTruthy()
     expect(screen.getAllByRole('radio').map((r) => r.textContent)).toEqual(['T', 'C', 'B'])
@@ -447,7 +447,7 @@ describe('⭐ PHASE 5 — the measurement family, in the menu', () => {
     open('dateRange')
     expect(rowLabels()).toEqual([
       'Color', 'Show bars', 'Show time',
-      'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete Drawing',
+      'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete drawing',
     ])
     expect(screen.queryByText('Show dollar change')).toBeNull()
     expect(screen.getByText('Label position')).toBeTruthy()
@@ -471,7 +471,7 @@ describe('⭐ PHASE 5 — the measurement family, in the menu', () => {
     open('advance')
     expect(rowLabels()).toEqual([
       'Color', 'Show dollar change', 'Show percent change', 'Adjust anchors…',
-      'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete Drawing',
+      'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete drawing',
     ])
   })
 
@@ -534,7 +534,7 @@ describe('⭐ PHASE 5 — the measurement family, in the menu', () => {
     for (const type of ['measure', 'dateRange', 'advance']) {
       cleanup()
       open(type)
-      expect(rowLabels().at(-1), type).toBe('Delete Drawing')
+      expect(rowLabels().at(-1), type).toBe('Delete drawing')
     }
   })
 })
@@ -547,7 +547,7 @@ describe('⭐ PHASE 6 — the Text Note menu', () => {
     expect(rowLabels()).toEqual([
       'Text color', 'Font', 'Bold', 'Italic',
       'Background', 'Border',
-      'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete Drawing',
+      'Duplicate', 'Lock', 'Hide', 'Save as default', 'Delete drawing',
     ])
     expect(screen.getByText('Text')).toBeTruthy()
     expect(screen.getByText('Appearance')).toBeTruthy()
@@ -647,6 +647,6 @@ describe('⭐ PHASE 6 — the Text Note menu', () => {
 
   it('Delete is still the last row', () => {
     open('text')
-    expect(rowLabels().at(-1)).toBe('Delete Drawing')
+    expect(rowLabels().at(-1)).toBe('Delete drawing')
   })
 })

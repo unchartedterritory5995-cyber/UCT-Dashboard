@@ -31,6 +31,9 @@ function stubFetch(armed, extra = {}) {
     return res(404, {})
   })
 }
+// The library opens from the Layouts menu's "Layout library…" row (owner 11-16): the dock's controlRef.
+const ctl = { current: null }
+const openLibrary = () => act(() => { ctl.current.openLibrary() })
 const openMenu = async (name) => {
   fireEvent.contextMenu(screen.getByRole('button', { name }))
   await flush()
@@ -41,7 +44,7 @@ afterEach(() => { delete global.fetch })
 
 test('dark: no Version history entry on any layout', async () => {
   stubFetch(false)
-  render(<LayoutDock entries={ENTRIES} activeId={1} />)
+  render(<LayoutDock controlRef={ctl} entries={ENTRIES} activeId={1} />)
   await openMenu('Main Trading')
   expect(screen.getByRole('menu', { name: 'Main Trading actions' })).toBeInTheDocument()
   expect(screen.queryByTestId('layout-history-open')).toBeNull()
@@ -49,7 +52,7 @@ test('dark: no Version history entry on any layout', async () => {
 
 test('armed: offered on YOUR layout, never on a prebuilt or UCT Default', async () => {
   stubFetch(true)
-  render(<LayoutDock entries={ENTRIES} activeId={1} />)
+  render(<LayoutDock controlRef={ctl} entries={ENTRIES} activeId={1} />)
   await openMenu('Main Trading')
   expect(screen.getByTestId('layout-history-open')).toBeInTheDocument()
   await openMenu('Prebuilt Swing')
@@ -68,7 +71,7 @@ test('a restore hands the restored row to the workspace', async () => {
     '/api/artifact-versions/layout/1/restore': () => res(200, { appended: true, version: 3, artifact: row }),
   })
   const onRestored = vi.fn()
-  render(<LayoutDock entries={ENTRIES} activeId={1} onRestored={onRestored} />)
+  render(<LayoutDock controlRef={ctl} entries={ENTRIES} activeId={1} onRestored={onRestored} />)
   await openMenu('Main Trading')
   fireEvent.click(screen.getByTestId('layout-history-open'))
   await flush()
@@ -86,8 +89,8 @@ test('library: Recently deleted brings a deleted layout back and hands its row t
     '/api/artifact-versions/layout/9/undelete': () => { deleted = []; return res(200, { version: 4, artifact: row }) },
   })
   const onRestored = vi.fn()
-  render(<LayoutDock entries={ENTRIES} activeId={1} onRestored={onRestored} />)
-  fireEvent.click(screen.getByRole('button', { name: 'Layout library' }))
+  render(<LayoutDock controlRef={ctl} entries={ENTRIES} activeId={1} onRestored={onRestored} />)
+  openLibrary()
   await flush()
   fireEvent.click(screen.getByRole('button', { name: 'Recently deleted (1)' }))
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Bring back Old Swing' })) })
@@ -98,8 +101,8 @@ test('library: Recently deleted brings a deleted layout back and hands its row t
 
 test('library, dark: no Recently deleted', async () => {
   stubFetch(false, { '/api/artifact-versions/layout/deleted': () => res(200, { deleted: [{ artifact_id: 9, label: 'X', head: 1 }] }) })
-  render(<LayoutDock entries={ENTRIES} activeId={1} />)
-  fireEvent.click(screen.getByRole('button', { name: 'Layout library' }))
+  render(<LayoutDock controlRef={ctl} entries={ENTRIES} activeId={1} />)
+  openLibrary()
   await flush()
   expect(screen.getByRole('menu', { name: 'Layout library' })).toBeInTheDocument()
   expect(screen.queryByTestId('recently-deleted-layout')).toBeNull()

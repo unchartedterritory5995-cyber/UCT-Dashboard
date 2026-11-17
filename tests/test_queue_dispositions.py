@@ -182,7 +182,7 @@ def test_the_committed_dispositions_are_exactly_the_reviewed_rows():
     assert got == COMMITTED
     # the real capture questions beside them stay queued as needing a probe (G-f / G-i are queued as captures
     # by PT-GAPS; L2 left this list in PR #937, its capture already queued as vw-pt-request-arm)
-    q = json.loads((REPO / "docs/pine/vendor-harness/capture-queue.json").read_text(encoding="utf-8"))
+    q = ee.build_queue()          # derived; the snapshot is a local view since 2026-11-16, never committed
     needing = {r["key"] for r in q["rowsNeedingProbe"]}
     # the S1 shapes no W9 probe asks (their table's chart, NYSE:RDDT 1D, is stated in the section lead) were
     # CAPTURED 2026-11-16 (capture batch 1) as value witnesses, taken in session without the Strategy Tester
@@ -198,3 +198,31 @@ def test_the_committed_dispositions_are_exactly_the_reviewed_rows():
     assert not any(t.startswith(("w9-p1b-on-close-fills@", "w9-p2-order-fills@")) for t in by)
     for rid in ("G-f", "G-i"):
         assert f"capture-queue-2026-10-31-prod-ternary#{rid}" in needing
+
+
+# ── the snapshot is a LOCAL VIEW (2026-11-16): derived on demand, never committed ─────────────
+# ⚰️ capture-queue.json was committed, and every PR that touched a queue input rewrote it: on 2026-11-16 it
+# was the conflicting file in 5 of the 5 open Pine PRs GitHub could not merge, each conflict costing a merge of
+# master, a regenerate commit and a full pine-heavy re-run. `queue --check` now refuses a tracked snapshot.
+
+def test_the_queue_snapshot_is_not_committed_and_git_ignores_it():
+    assert ee.snapshot_tracked(ee.QUEUE_OUT) is False, "capture-queue.json is tracked again: git rm --cached it"
+    # control: the same question about a file that IS committed answers yes (the helper cannot only say no)
+    assert ee.snapshot_tracked(ee.COVERAGE) is True
+    ignore = (REPO / ".gitignore").read_text(encoding="utf-8").splitlines()
+    assert ee.rel(ee.QUEUE_OUT) in [l.strip() for l in ignore]
+
+
+@pytest.mark.parametrize("tracked,code,word", [(False, 0, "PASS"), (True, 1, "FAIL"), (None, 2, "INCONCLUSIVE")])
+def test_queue_check_passes_only_when_no_snapshot_is_tracked(monkeypatch, capsys, tracked, code, word):
+    monkeypatch.setattr(ee, "snapshot_tracked", lambda _path: tracked)
+    assert ee.main(["queue", "--check"]) == code
+    assert f"VERDICT: {word}" in capsys.readouterr().out
+
+
+def test_queue_check_writes_nothing(monkeypatch, tmp_path):
+    out = tmp_path / "q.json"
+    monkeypatch.setattr(ee, "snapshot_tracked", lambda _path: False)
+    assert ee.main(["queue", "--check", "--out", str(out)]) == 0 and not out.exists()
+    assert ee.main(["queue", "--out", str(out)]) == 0
+    assert json.loads(out.read_text(encoding="utf-8"))["schema"] == ee.QUEUE_SCHEMA
