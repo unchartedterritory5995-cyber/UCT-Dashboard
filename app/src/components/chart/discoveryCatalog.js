@@ -1338,7 +1338,7 @@ export function libraryRowFor(row, settings) {
     name,
     shortName: 'Restore',
     description: what
-      ? `Bring back the ${what} you removed from this chart, with the colour and period you set.`
+      ? `Bring back the ${what} you removed from this chart, with the color and period you set.`
       : 'Bring back the moving average you removed from this chart, with its settings.',
     // ⭐⭐ IT IS AN ADD ROW, NEVER AN "Active" ONE — and that is a statement about
     // the VERB, not a lie about the state. `isRowOn` for the legacy MA row means

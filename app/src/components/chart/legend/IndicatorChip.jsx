@@ -175,6 +175,9 @@ export default function IndicatorChip({
   // without either the row is exactly the one-door row it was. Each is the verb the
   // popover's own row already calls (`handleChipHidden` / `handleChipSettings`).
   onToggleHidden, onSettings,
+  // ⭐ UCT SIGNATURE — this chip's ⋯ menu (or one of its pages) is open: the grid row
+  // holds its hover card + strip (`rowStyles.rowActive`) and the ⋯ reports `aria-expanded`.
+  menuOpen = false,
 }) {
   const interactive = typeof onMenu === 'function'
   const label = typeof name === 'string' && name ? name : chip.label
@@ -299,8 +302,10 @@ export default function IndicatorChip({
   const chipColor = inkCssColour(chip.color)
   // ⭐ A5a — a HIDDEN text chip prints its name in the muted ink, not the line's
   // colour: the line is not drawn, so the colour would name nothing.
-  const ink = chipColor && !(textChip && chip.hidden) ? { color: chipColor } : undefined
-  const valInk = chipColor ? { color: 'inherit' } : undefined
+  // ⭐ Owner 11-16 — a plot chip's NAME takes the legend's shared label ink and its VALUE the line colour
+  // (`.chipVal` reads `--chip-color`, clamped in CSS to the label's lightness band), so both read at one
+  // brightness. A text chip has no line to key, so its name keeps the colour.
+  const ink = chipColor && textChip && !chip.hidden ? { color: chipColor } : undefined
 
   // ⭐ A8 — the last known value, muted, with its date, when the live one is
   // missing. Never on a hidden chip (a number there reads out an undrawn line).
@@ -322,7 +327,7 @@ export default function IndicatorChip({
       <>
         {nameNode}
         {valueText
-          ? <>{' '}<span className={styles.chipVal} style={valInk}>{valueText}</span></>
+          ? <>{' '}<span className={styles.chipVal}>{valueText}</span></>
           : (fallback
             ? <>{' '}<span className={`${styles.chipVal} ${styles.chipValStale}`} data-stale-value="">{fallback.text}</span></>
             : null)}
@@ -330,7 +335,7 @@ export default function IndicatorChip({
     )
   } else {
     body = valueText
-      ? <>{chip.label}{' '}<span className={styles.chipVal} style={valInk}>{valueText}</span></>
+      ? <>{chip.label}{' '}<span className={styles.chipVal}>{valueText}</span></>
       : chip.text
   }
 
@@ -357,7 +362,7 @@ export default function IndicatorChip({
          the alignment this variant exists for — while the row is one continuous
          hover box. */
       <span
-        className={`${styles.chipGridRow} ${secondary ? styles.chipGridSub : ''} ${interactive ? styles.rowLive : ''} ${chip.hidden ? styles.chipHidden : ''} ${hasActs ? rowStyles.rowActs : ''} ${hasActs && chip.hidden ? rowStyles.rowActsHidden : ''} ${className || ''}`}
+        className={`${styles.chipGridRow} ${secondary ? styles.chipGridSub : ''} ${interactive ? styles.rowLive : ''} ${chip.hidden ? styles.chipHidden : ''} ${hasActs ? rowStyles.rowActs : ''} ${hasActs && chip.hidden ? rowStyles.rowActsHidden : ''} ${hasActs && menuOpen ? rowStyles.rowActive : ''} ${className || ''}`}
         /* ⭐ UCT SIGNATURE — the grid row no longer inks its NAME in the plot colour
            (the 3×13 bar does that job); `--chip-color` still rides along for the
            phone's dot tier. */
@@ -404,6 +409,7 @@ export default function IndicatorChip({
             onToggleHidden={typeof onToggleHidden === 'function' ? () => onToggleHidden(chip.instanceId) : undefined}
             onSettings={typeof onSettings === 'function' ? () => onSettings(chip.instanceId) : undefined}
             onMore={openMenu}
+            menuOpen={!!menuOpen}
             actsClass={rowStyles.acts} actClass={rowStyles.act} eyeClass={rowStyles.actEye} />
         ) : null}
       </span>

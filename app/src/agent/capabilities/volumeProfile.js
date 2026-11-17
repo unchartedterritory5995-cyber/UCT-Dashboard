@@ -36,8 +36,8 @@ const BINS = () => volumeProfileFields().find(f => f.key === 'bins')
 export const VP_NOT_HERE = (sym) => `I didn’t turn on Volume Profile on ${sym}: it bins traded volume and ${sym} has no volume data, so nothing would draw. It is still in that chart’s Chart Settings → Indicators if you want it on anyway — nothing was changed.`
 // relative bins ("more bins", "double the bins", "fewer bins"): the product has no step for "more", so it ASKS for a number
 export const VP_RELATIVE_BINS = `How many bins? Volume Profile takes a whole number from 8 to 50 (as in Chart Settings) — say, for example, “set the volume profile bins to 30”. Nothing was changed.`
-const ASK_WHAT = 'Turn Volume Profile on or off, or change its bins or colours? Nothing was changed.'
-const OFF_WITH_SETTINGS = 'Turning Volume Profile off hides it, so its bins and colours would not show. Turn it off, or change its settings? Nothing was changed.'
+const ASK_WHAT = 'Turn Volume Profile on or off, or change its bins or colors? Nothing was changed.'
+const OFF_WITH_SETTINGS = 'Turning Volume Profile off hides it, so its bins and colors would not show. Turn it off, or change its settings? Nothing was changed.'
 
 /** The patch the member asked for, colours said as names normalised to hex (what the picker stores); null args left out. */
 export function vpPatchOf(args = {}) {
@@ -52,8 +52,8 @@ export function vpPatchOf(args = {}) {
 const settingWords = (p) => {
   const out = []
   if ('bins' in p) out.push(`${p.bins} bins`)
-  if ('color' in p) out.push(`colour ${colorName(p.color)}`)
-  if ('pocColor' in p) out.push(`point of control colour ${colorName(p.pocColor)}`)
+  if ('color' in p) out.push(`color ${colorName(p.color)}`)
+  if ('pocColor' in p) out.push(`point of control color ${colorName(p.pocColor)}`)
   return out
 }
 
@@ -66,7 +66,7 @@ function checkVp(st, args = {}) {
   const chk = checkVolumeProfilePatch(p)
   if (!chk.ok) {
     if (chk.key === 'bins') return `Volume Profile’s bins are a whole number from ${BINS().min} to ${BINS().max} (as in Chart Settings) — ${args.bins} isn’t, so nothing was changed. How many bins?`
-    if (chk.key === 'color' || chk.key === 'pocColor') return `“${args[chk.key]}” isn’t a colour I can set for Volume Profile’s ${chk.key === 'pocColor' ? 'point of control' : 'bars'} — use a hex value like #2962ff. Nothing was changed.`
+    if (chk.key === 'color' || chk.key === 'pocColor') return `“${args[chk.key]}” isn’t a color I can set for Volume Profile’s ${chk.key === 'pocColor' ? 'point of control' : 'bars'} — use a hex value like #2962ff. Nothing was changed.`
     return ASK_WHAT
   }
   const settings = settingWords(chk.patch)
@@ -85,7 +85,7 @@ function describeVp(b, a) {
   const words = settingWords(diff)
   const wasOf = (k) => (k === 'bins' ? was.bins : colorName(was[k]))
   if (!was.enabled && now.enabled) return `Turned on Volume Profile${words.length ? ` with ${words.join(' and ')}` : ''}`
-  if (was.enabled && !now.enabled) return 'Turned off Volume Profile (its bins and colours are kept)'
+  if (was.enabled && !now.enabled) return 'Turned off Volume Profile (its bins and colors are kept)'
   if (!words.length) return null
   const parts = Object.keys(diff).map((k) => `${settingWords({ [k]: diff[k] })[0]} (was ${wasOf(k)})`)
   return `Set Volume Profile to ${parts.join(' and ')}`
@@ -141,7 +141,7 @@ export function registerVolumeProfileCapabilities() {
   registerCapability({
     ...chartCommon,
     name: VOLUME_PROFILE_ACTION,
-    summary: 'Turn ONE chart\'s Volume Profile overlay (volume-by-price bins, point of control) on or off, or set its bins / colours, as Chart Settings → Indicators does. Undo restores it exactly.',
+    summary: 'Turn ONE chart\'s Volume Profile overlay (volume-by-price bins, point of control) on or off, or set its bins / colors, as Chart Settings → Indicators does. Undo restores it exactly.',
     hints: 'target = the chart. Pass only what was asked; null for the rest. enabled true/false; bins 8-50 whole; color / pocColor = hex. Volume Profile / VPVR = this (never indicator.add). Volume pane = volume.setState; VWAP = indicator.add.',
     args: { type: 'object', properties: {
       enabled: { type: ['boolean', 'null'] },

@@ -350,20 +350,21 @@ describe("MOB-06′ #1 — the phone can reach every price-scale mode", () => {
     expect(next.percentScale, 'the price-area Log row is still the old inert toggle').toBe(false)
   })
 
-  it('DESKTOP UNCHANGED · the A/L/% chips write the same fact through the same writer', () => {
+  it('DESKTOP · the A/L chips write the same fact through the same writer (owner 11-16: no % chip)', () => {
     // ⭐ THE "NO DUPLICATE STATE" ASSERTION THAT MEANS SOMETHING. Two doors, one
     // state: the chip a desktop user clicks and the menu row a phone user taps
     // must land on identical settings. Anything else is the second-authority
     // defect wearing a device label.
     const view = draw()
-    const chip = view.container.querySelector('[aria-label="Percentage price scale"]')
-    expect(chip, 'the desktop A/L/% chips are gone — this repair was not supposed to touch them').toBeTruthy()
+    expect(view.container.querySelector('[aria-label="Percentage price scale"]'), 'the % chip was removed (owner 11-16)').toBeNull()
+    const chip = view.container.querySelector('[aria-label="Logarithmic price scale"]')
+    expect(chip, 'the desktop A/L chips are gone').toBeTruthy()
     act(() => { fireEvent.click(chip) })
     const viaChip = view.lastSettings()
-    expect(viaChip.percentScale).toBe(true)
-    expect(viaChip.logScale).toBe(false)
+    expect(viaChip.logScale).toBe(true)
+    expect(viaChip.percentScale).toBe(false)
     // …and the menu agrees, because it reads the same resolver.
-    expect(tickedIds(scaleSection())).toEqual(['p-pct'])
+    expect(tickedIds(scaleSection())).toEqual(['p-log'])
   })
 
   it('DESKTOP UNCHANGED · the chips still show the active mode', () => {
@@ -382,11 +383,11 @@ describe("MOB-06′ #1 — the phone can reach every price-scale mode", () => {
     const pressed = () => within(group).getAllByRole('button')
       .map((b) => `${b.getAttribute('aria-label')}=${b.getAttribute('aria-pressed')}`)
     expect(pressed()).toEqual([
-      'Arithmetic price scale=false', 'Logarithmic price scale=true', 'Percentage price scale=false',
+      'Arithmetic price scale=false', 'Logarithmic price scale=true',
     ])
-    act(() => { fireEvent.click(within(group).getByRole('button', { name: 'Percentage price scale' })) })
+    act(() => { fireEvent.click(within(group).getByRole('button', { name: 'Arithmetic price scale' })) })
     expect(pressed()).toEqual([
-      'Arithmetic price scale=false', 'Logarithmic price scale=false', 'Percentage price scale=true',
+      'Arithmetic price scale=true', 'Logarithmic price scale=false',
     ])
   })
 

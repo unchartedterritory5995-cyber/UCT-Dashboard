@@ -195,7 +195,7 @@ function rowAriaLabel(r) {
     const found = r.inText ? `, found in note text` : ''
     return `Note: ${r.title}${found}${where}${badge}. Enter to open.`
   }
-  return `${r.ticker}${r.name ? ` — ${r.name}` : ''}. Enter for Research, Ctrl or Cmd Enter for Ask AI.`
+  return `${r.ticker}${r.name ? ` — ${r.name}` : ''}. Enter for Research, Ctrl or Cmd Enter for Ask the UCT Agent.`
 }
 
 /**
@@ -802,7 +802,7 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
               <ul>
                 <li><kbd>↑</kbd><kbd>↓</kbd> navigate results</li>
                 <li><kbd>↵</kbd> open the selected note, or the selected or typed symbol&apos;s research page</li>
-                <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>↵</kbd> ask AI about the selected or typed symbol</li>
+                <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>↵</kbd> ask the UCT Agent about the selected or typed symbol</li>
                 <li><kbd>Esc</kbd> close</li>
                 <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>K</kbd> reopen this from anywhere in the Terminal</li>
                 {terminalOpen && <li>Terminal commands work here too: <kbd>NVDA GP</kbd>, <kbd>@B AAPL</kbd>, <kbd>ASK why is SMH down</kbd>. <kbd>`</kbd> jumps to the Terminal command line.</li>}
@@ -901,7 +901,7 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
         <div className={styles.dialogFoot}>
           <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
           <span><kbd>↵</kbd> open</span>
-          <span><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>↵</kbd> ask AI</span>
+          <span><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>↵</kbd> ask the UCT Agent</span>
           <span><kbd>Esc</kbd> close</span>
         </div>
       </div>

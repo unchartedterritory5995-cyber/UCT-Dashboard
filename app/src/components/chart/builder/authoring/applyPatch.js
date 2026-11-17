@@ -1069,7 +1069,7 @@ function finalChecks(st, input, gateCtx) {
       const c = g.conflicts[0]
       const what = c.output ? `"${c.output}"` : 'This indicator'
       throw err('authoring:opaque-conflict',
-        `${what} carries ${c.fields[0] === 'legend' ? 'legend settings' : `${c.fields.join('/')} settings`} imported in a form UCT Intelligence can't change yet, so that change was not made. You can still edit it manually.`,
+        `${what} carries ${c.fields[0] === 'legend' ? 'legend settings' : `${c.fields.join('/')} settings`} imported in a form the UCT Agent can't change yet, so that change was not made. You can still edit it manually.`,
         { output: c.output || undefined, paths: g.conflicts.map((x) => x.path) })
     }
     def = orderLike(input, g.doc)

@@ -18,6 +18,11 @@ What must stay true, each a test below:
     path those tools read, DERIVED from the tools' own path constants; both jobs gate the verdict; the
     ratchet's artifacts stay out of the union rail. The two jobs' steps are EXECUTED here with a stub
     wrapper, so "the job fails when X" is a run, not a reading of the YAML.
+  * (2026-11-16) only the legs that run a test reading an OLDER commit fetch the full history (62 s of
+    checkout against 28 s, on every job of a workflow that was half of all runner minutes); the files
+    that read history are DERIVED from the test sources and their importers, never listed
+  * (2026-11-16) `skip_legs` runs the mutant job alone, and the verdict then needs every leg `skipped`
+    AND the mutant job passed: it is never a way to a green run with nothing run (the step is EXECUTED)
 
 Standard library + PyYAML.
 """
@@ -414,3 +419,180 @@ def test_the_ratchet_step_runs_the_lane_it_is_named_for():
     assert '--lane "$LANE"' in line and "ci_offline.sh" in line and '--out "$out"' in line, line
     step = next(s for s in _wf()["jobs"]["coverage-ratchet"]["steps"] if "coverage_ratchet.py" in str(s.get("run")))
     assert step["env"]["LANE"] == "${{ matrix.lane }}"
+
+
+# ── only the legs that read history fetch it (2026-11-16) ─────────────────────
+# ⚰️ Every job fetched the FULL history (1.35 GB of git data) for a need two helpers have: ~62 s of checkout
+# against ~28 s, 20% of every job, in the workflow that was half of all runner minutes on a saturated account.
+
+VITEST_ROOTS = ("app/src/components/chart/engine", "app/src/components/chart/builder")
+#: A call that asks git for something a depth-1 checkout does not hold. `ls-files`, `grep`, `init`, `status`
+#: and `rev-parse HEAD` are answered at any depth and are not here.
+_HISTORY_VERBS = "show|log|rev-list|merge-base|blame|describe|diff|cat-file|worktree|archive"
+_Q = "['\"`]"
+HISTORY_READ = re.compile(
+    r"(?:exec(?:File)?Sync|spawnSync|spawn|execFile|exec)\(\s*" + _Q + "git" + _Q + r"\s*,\s*\[\s*" + _Q
+    + "(?:" + _HISTORY_VERBS + ")" + _Q
+    + r"|(?:execSync|exec)\(\s*" + _Q + r"git\s+(?:" + _HISTORY_VERBS + r")\b")
+_IMPORT = re.compile(r"(?:from\s*|import\s*\(\s*|require\(\s*|import\s+)['\"](\.{1,2}/[^'\"]+)['\"]")
+_SRC_EXT = (".js", ".jsx", ".mjs", ".ts", ".tsx")
+
+
+def _code(text: str) -> str:
+    """The source with comments removed: a rail that hunts a call must not find it in prose."""
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+    return "\n".join(l for l in text.splitlines() if not l.lstrip().startswith("//"))
+
+
+def _resolve(importer: pathlib.Path, spec: str):
+    base = importer.parent / spec
+    for cand in [base] + [base.with_name(base.name + e) for e in _SRC_EXT] + [base / ("index" + e) for e in _SRC_EXT]:
+        if cand.is_file():
+            return cand.resolve()
+    return None
+
+
+def _history_readers() -> dict:
+    """{test file (repo-relative): the history-reading module it reaches}, over the two vitest roots."""
+    files = [f for r in VITEST_ROOTS for f in (ROOT / r).rglob("*") if f.suffix in _SRC_EXT and f.is_file()]
+    code = {f.resolve(): _code(f.read_text(encoding="utf-8", errors="replace")) for f in files}
+    reaches = {f: f for f, c in code.items() if HISTORY_READ.search(c)}          # file -> the reader it reaches
+    imports = {f: {t for t in (_resolve(f, m) for m in _IMPORT.findall(c)) if t} for f, c in code.items()}
+    grew = True
+    while grew:                                                                  # importers, transitively
+        grew = False
+        for f, targets in imports.items():
+            hit = next((reaches[t] for t in targets if t in reaches), None)
+            if hit is not None and f not in reaches:
+                reaches[f] = hit
+                grew = True
+    return {_rel(f): _rel(r) for f, r in reaches.items() if ".test." in f.name}
+
+
+def _vitest_legs_running(test_rel: str) -> list:
+    """The vitest matrix legs whose filter selects this test file (both shards of a split folder do)."""
+    app_rel = test_rel[len("app/"):]
+    engine = "src/components/chart/engine/"
+    out = []
+    for leg in _wf()["jobs"]["vitest"]["strategy"]["matrix"]["include"]:
+        f = leg["filter"]
+        if f == "@top":
+            hit = app_rel.startswith(engine) and ("/" not in app_rel[len(engine):] or app_rel.startswith(engine + "__truth__/"))
+        else:
+            hit = app_rel.startswith(f) and not (leg.get("exclude") and _glob_rx(leg["exclude"]).match(app_rel))
+        if hit:
+            out.append(leg)
+    return out
+
+
+def test_every_test_that_reads_git_history_runs_in_a_full_history_leg():
+    readers = _history_readers()
+    # non-vacuity: the two known readers were found, one direct and one through legendProbe.js
+    assert "app/src/components/chart/engine/__tests__/enumerationSites.test.js" in readers, sorted(readers)
+    assert readers.get("app/src/components/chart/engine/readout.test.js", "").endswith("legendProbe.js"), readers
+    bad = []
+    for test, reader in sorted(readers.items()):
+        legs = _vitest_legs_running(test)
+        if not legs:
+            bad.append(f"{test}: no vitest leg selects it (reads history through {reader})")
+        bad += [f"{test}: leg {l['leg']} is depth 1 but the file reads history through {reader}"
+                for l in legs if l.get("history") != "full"]
+    assert not bad, "add `history: full` to the leg (pine-heavy.yml):\n" + "\n".join(bad)
+    # the runtime-on lane job is depth 1 and picks its files by name: none of them may read history
+    lane = [t for t in readers if "HARNESS_RUNTIME_ENV" in (ROOT / t).read_text(encoding="utf-8", errors="replace")]
+    assert not lane, f"harness-runtime-on is a depth-1 job, and these lane-reading files read history: {lane}"
+
+
+def test_the_history_scan_can_tell_a_history_read_from_prose_and_from_a_depth_free_call():
+    assert HISTORY_READ.search(_code("src = execFileSync('git', ['show', `${sha}:app/x.jsx`], {})"))
+    assert HISTORY_READ.search(_code('const out = execSync("git log -1 --format=%H")'))
+    assert not HISTORY_READ.search(_code("// execFileSync('git', ['show', 'abc:x'])\n/* execSync('git log') */\nconst a = 1"))
+    assert not HISTORY_READ.search(_code("execFileSync('git', ['ls-files'], {})"))
+
+
+def _checkout_depth(job: dict):
+    """The fetch-depth of the job's checkout of the ref UNDER TEST (the $CI_TOOLS checkout has a `path`)."""
+    steps = [s for s in job["steps"] if str(s.get("uses", "")).startswith("actions/checkout") and "path" not in (s.get("with") or {})]
+    assert len(steps) == 1, steps
+    return (steps[0].get("with") or {}).get("fetch-depth", 1)
+
+
+def _gh_and_or(expr: str, history):
+    """What GitHub's expression engine gives for `${{ matrix.history <op> 'full' && A || B }}`. Its `&&` and
+    `||` return an OPERAND, and 0, '', false and null are falsy: `cond && 0 || 1` is 1 whatever `cond` is.
+    ⚰️ That trap shipped once (run 43987501549): the rail then compared the expression as TEXT, the three
+    history legs checked out at depth 1, and their readers threw by name. So the expression is EVALUATED."""
+    m = re.fullmatch(r"\$\{\{ matrix\.history (==|!=) 'full' && (\d+) \|\| (\d+) \}\}", expr)
+    assert m, f"an expression this rail cannot evaluate: {expr!r}"
+    cond = (history == "full") if m.group(1) == "==" else (history != "full")
+    a, b = int(m.group(2)), int(m.group(3))
+    left = a if cond else False            # `cond && a`
+    return left if left else b             # `left || b`: a falsy left (False, or the number 0) yields b
+
+
+def test_the_checkout_depths_are_the_ones_the_history_rail_assumes():
+    jobs = _wf()["jobs"]
+    # the vitest legs: depth follows the leg's own `history` flag, and nothing else. EVALUATED for both values
+    expr = _checkout_depth(jobs["vitest"])
+    assert _gh_and_or(expr, "full") == 0, f"a `history: full` leg does not get the whole history: {expr}"
+    assert _gh_and_or(expr, None) == 1, f"a leg without the flag is not depth 1: {expr}"
+    # control: the evaluator sees the trap (the form that reads right and is 1 for every leg)
+    assert _gh_and_or("${{ matrix.history == 'full' && 0 || 1 }}", "full") == 1
+    full = sorted(l["leg"] for l in jobs["vitest"]["strategy"]["matrix"]["include"] if l.get("history") == "full")
+    assert full == ["engine-tests-1", "engine-tests-2", "engine-top-and-truth"], full
+    # the mutant job may run ANY rail a manifest names, so it keeps the whole history
+    assert _checkout_depth(jobs["mutants"]) == 0
+    for name in ("harness-runtime-on", "pytest", "union", "rails", "derived-evidence", "coverage-ratchet"):
+        assert _checkout_depth(jobs[name]) == 1, name
+
+
+# ── skip_legs: the mutant job alone, never a green run with nothing run (2026-11-16) ──────────
+# ⚰️ A mutant dispatch on a PR branch re-ran every leg the PR's own run had just run on the same commit:
+# three such pairs in three hours on 2026-11-16, ~100 runner-minutes each.
+
+SKIP_EXPR = "github.event_name == 'workflow_dispatch' && inputs.skip_legs"
+LEG_JOBS = ("vitest", "harness-runtime-on", "pytest", "union", "rails", "derived-evidence", "coverage-ratchet")
+
+
+def test_skip_legs_is_an_off_by_default_dispatch_input_and_every_leg_honours_it():
+    inp = _on(_wf())["workflow_dispatch"]["inputs"]["skip_legs"]
+    assert inp["type"] == "boolean" and inp["default"] is False
+    jobs = _wf()["jobs"]
+    assert set(jobs) == set(LEG_JOBS) | {"mutants", "verdict"}, sorted(jobs)     # a new job must pick a side
+    for name in LEG_JOBS:
+        assert f"!({SKIP_EXPR})" in str(jobs[name].get("if", "")), f"{name}: if={jobs[name].get('if')!r}"
+    # a PR run can never skip: the expression is false unless the event is a dispatch
+    assert SKIP_EXPR.startswith("github.event_name == 'workflow_dispatch' &&")
+    assert SKIP_EXPR not in str(jobs["mutants"].get("if", "")) and jobs["verdict"]["if"] == "always()"
+
+
+def _verdict(tmp_path, results: dict, skip: bool, mutants: str) -> int:
+    step = _wf()["jobs"]["verdict"]["steps"][0]
+    assert step["env"]["SKIP_LEGS"] == "${{ " + SKIP_EXPR + " }}" and step["env"]["MUTANTS"] == "${{ needs.mutants.result }}"
+    run = step["run"]
+    for job in LEG_JOBS:
+        assert "${{ needs.%s.result }}" % job in run, job
+        run = run.replace("${{ needs.%s.result }}" % job, results.get(job, "success"))
+    assert "${{" not in run, run
+    return _execute(tmp_path, run, SKIP_LEGS="true" if skip else "false", MUTANTS=mutants)
+
+
+ALL_SKIPPED = {j: "skipped" for j in LEG_JOBS}
+
+
+@pytest.mark.parametrize("results,skip,mutants,green", [
+    ({}, False, "skipped", True),                       # the control: a PR run, every leg passed, no mutant job
+    ({}, False, "success", True),                       # a full dispatch with a manifest
+    ({"pytest": "failure"}, False, "skipped", False),   # one red leg
+    ({"union": "cancelled"}, False, "skipped", False),
+    ({"vitest": "skipped"}, False, "skipped", False),   # ⛔ a leg that did not run is not a pass
+    ({}, False, "failure", False),                      # a surviving mutant
+    (ALL_SKIPPED, True, "success", True),               # skip_legs: the mutant job alone, and it passed
+    (ALL_SKIPPED, True, "skipped", False),              # ⛔ skip_legs with no manifest: nothing ran at all
+    (ALL_SKIPPED, True, "failure", False),
+    (dict(ALL_SKIPPED, pytest="failure"), True, "success", False),
+    (dict(ALL_SKIPPED, rails="cancelled"), True, "success", False),
+])
+def test_the_verdict_is_green_only_when_what_was_asked_for_ran_and_passed(tmp_path, results, skip, mutants, green):
+    rc = _verdict(tmp_path, results, skip, mutants)
+    assert (rc == 0) is green, f"results={results} skip_legs={skip} mutants={mutants}: step exit {rc}"

@@ -55,7 +55,8 @@
      here: every caller passes it through `opaqueColor`, and a colour that is
      still unreadable is one the LINE is unreadable in. This declaration is what
      an uncoloured chip falls back to. */
-  color: var(--chart-panel-text-strong-low, #e2dfd6);
+  /* ⭐ OWNER 11-16 — the name takes the legend's shared label ink (the value wears the line colour). */
+  color: var(--legend-ink-pair, var(--chart-panel-text-strong-low, #e2dfd6));
 }
 
 /* ⚰️ `.chipRail` STOOD HERE — a 2×9px bar of the plot colour before every name.
@@ -73,8 +74,11 @@
    ⛔ IT HOLDS DIGITS ONLY — never the label — so it cannot match a
    label-anchored text predicate and cannot be double-counted. */
 .chipVal {
-  color: var(--chart-panel-text-strong, #f8f7f3);
-  font-weight: 600;
+  /* ⭐ OWNER 11-16 — the line's colour (clamped to the label's lightness band below); no colour → the
+     label's own ink, so label and value read at one brightness. */
+  color: var(--chip-color, var(--legend-ink-pair, var(--chart-panel-text-strong, #f8f7f3)));
+  /* Owner 11-16 (experiment): the value takes the LABEL's weight — label/value differ only by position + series colour. */
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
@@ -486,8 +490,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   font: inherit;
-  /* UCT Signature: the name is grey 600 (the 3×13 bar carries the series colour). */
-  font-weight: 600;
+  /* UCT Signature: the name is grey (the 3×13 bar carries the series colour); owner 11-16: 500 under the value's 600. */
+  font-weight: 500;
   vertical-align: baseline;
   white-space: nowrap;
   /* ⭐ THE SAME STEP `LegendRow`'s `.vLabel` TAKES, and it has to be declared
@@ -498,13 +502,16 @@
   /* ⭐ The same two-level rule `LegendRow`'s `.vLabel` states — series colour on
      the label (inline, from the plot), muted neutral when there is none. Declared
      twice because these are deliberately two components (see `LegendRow.jsx`). */
-  color: var(--legend-ink-muted, var(--text-muted));
+  color: var(--legend-ink-pair, var(--text-muted));
 }
 .chipGridVal {
-  font-weight: 600;
+  /* Owner 11-16 (experiment): the value takes the LABEL's weight — label/value differ only by position + series colour. */
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  color: var(--legend-ink-bright, var(--text-bright));
+  /* EXPERIMENT (owner 11-16): the VALUE wears its line's colour; the name stays neutral. A row with no
+     colour of its own (or a hidden one, below) keeps the bright ink. */
+  color: var(--chip-color, var(--legend-ink-pair, var(--text-muted)));
 }
 /* ⚰️ THE GUTTER CELL HELD A CONTROL AND NOW HOLDS NOTHING. It is still EMITTED
    — `.legendVertical` is ONE grid for the whole legend and fills by ORDER, so a
@@ -592,4 +599,16 @@
      is one declaration, it needs no number, and it cannot drift with the font
      size, the line-height or the label the way a pixel offset does. */
   align-self: center;
+}
+
+/* Owner 11-16 — the contrast floor for a coloured value: clamp the series colour's OKLCH lightness into the band
+   StockChart publishes for its canvas (--legend-val-lmin/-lmax), keeping chroma and hue. Browsers without
+   relative-colour syntax keep the plain series colour above. */
+/* ⭐ OWNER 11-16 — the band is the label ink's lightness ±0.03 (legendInk.js legendValueBand), chroma capped at
+   0.14 so a saturated hue does not out-shine its grey label. Same rule as LegendRow.module.css. */
+@supports (color: oklch(from red l c h)) {
+  .chipGridRow[style*="--chip-color"]:not(.chipHidden) .chipGridVal,
+  .chip[style*="--chip-color"]:not(.chipHidden) .chipVal:not(.chipValStale) {
+    color: oklch(from var(--chip-color) clamp(var(--legend-val-lmin, 0), l, var(--legend-val-lmax, 1)) min(c, 0.14) h / 1);
+  }
 }

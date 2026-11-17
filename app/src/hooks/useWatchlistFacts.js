@@ -14,7 +14,16 @@ const factsFetcher = ([url, tickers, fields]) =>
     body: JSON.stringify({ tickers, fields }),
   }).then((r) => (r.ok ? r.json() : {}))
 
-export default function useWatchlistFacts(tickers = [], fields = []) {
+/** The SWR key for a ticker set + field set (both de-duplicated and sorted). Null when either is empty. */
+export function watchlistFactsKey(tickers = [], fields = []) {
+  const syms = [...new Set(tickers)].sort()
+  const flds = [...new Set(fields)].sort()
+  return syms.length && flds.length ? ['/api/watchlists/column-facts', syms, flds] : null
+}
+
+// `isPaused` (optional): the chart header passes its rest gate (components/chart/restedReaders.js), so a
+// symbol the member is racing past is not asked for. Without it this is an ordinary read.
+export default function useWatchlistFacts(tickers = [], fields = [], isPaused) {
   const syms = useMemo(() => [...new Set(tickers)].sort(), [tickers])
   const flds = useMemo(() => [...new Set(fields)].sort(), [fields])
   const key = syms.length && flds.length ? ['/api/watchlists/column-facts', syms, flds] : null
@@ -22,6 +31,7 @@ export default function useWatchlistFacts(tickers = [], fields = []) {
     revalidateOnFocus: false,
     dedupingInterval: 5 * 60 * 1000,
     keepPreviousData: true,
+    ...(isPaused && { isPaused }),
   })
   return data?.results || {}
 }

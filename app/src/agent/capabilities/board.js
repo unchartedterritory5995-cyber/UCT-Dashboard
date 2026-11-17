@@ -74,7 +74,7 @@ const label = (t) => LABEL[t] || t
 const LINKS = [...BASE_GROUPS, ...EXTRA_GROUPS, NOT_LINKED]
 const LINK_NAME = { A: 'gold', B: 'blue', C: 'green', D: 'purple', E: 'red', F: 'teal', G: 'orange', H: 'pink', N: 'not linked' }
 const extraOff = (env, color) => (isExtraGroup(color) && env?.target?.extraGroups !== true
-  ? `Link colours E–H aren't switched on in UCT for your account — use ${linkGroups(false).join(', ')}.` : null)
+  ? `Link colors E–H aren't switched on in UCT for your account — use ${linkGroups(false).join(', ')}.` : null)
 const SCAN_KEYS = PRESET_SCANS.map(s => s.key)
 const GEOM = ['x', 'y', 'w', 'h']
 const FIELDS = ['x', 'y', 'w', 'h', 'color', 'opts', 'wtabs', 'activeWtab', 'mainTabName']
@@ -875,7 +875,7 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'widget.remove',
-    summary: 'Remove a widget from the board (any type). Undo puts it back exactly — same place, size, link colour and settings. The space it leaves stays empty unless widget.arrange fills it.',
+    summary: 'Remove a widget from the board (any type). Undo puts it back exactly — same place, size, link color and settings. The space it leaves stays empty unless widget.arrange fills it.',
     hints: 'target = the ref of the board entry; widget = the id of the widget from the board entry\'s widgets. If several could be meant, clarify — never guess.',
     args: { type: 'object', properties: { widget: widgetArg }, required: ['widget'], additionalProperties: false },
     // Removing two or more widgets in one request is shown as a proposal first.
@@ -1095,15 +1095,15 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'widget.setLink',
-    summary: 'Set a widget\'s link colour: widgets with the same colour follow the same symbol; N = not linked.',
-    hints: `target = the ref of the board entry; widget = its id; color = ${LINKS.map(c => `${c} (${LINK_NAME[c]})`).join(', ')} — E–H only when the board entry says extraLinkColors: true. "Link these two charts" = give both the same colour (use one already on one of them).`,
+    summary: 'Set a widget\'s link color: widgets with the same color follow the same symbol; N = not linked.',
+    hints: `target = the ref of the board entry; widget = its id; color = ${LINKS.map(c => `${c} (${LINK_NAME[c]})`).join(', ')} — E–H only when the board entry says extraLinkColors: true. "Link these two charts" = give both the same color (use one already on one of them).`,
     args: { type: 'object', properties: { widget: widgetArg, color: { type: 'string', enum: LINKS } }, required: ['widget', 'color'], additionalProperties: false },
     check(st, { widget, color }, env) {
       const t = widgetOf(st, widget)
       if (!t) return notOnBoard(widget)
-      if (!LINKS.includes(color)) return `Link colours are ${LINKS.join(', ')}.`
+      if (!LINKS.includes(color)) return `Link colors are ${LINKS.join(', ')}.`
       if (extraOff(env, color)) return extraOff(env, color)
-      if (Array.isArray(t.wtabs) && t.wtabs.length) return `The ${label(t.type)} has tabs — set the link colour on its tab with the colour dot.`
+      if (Array.isArray(t.wtabs) && t.wtabs.length) return `The ${label(t.type)} has tabs — set the link color on its tab with the color dot.`
       return null
     },
     apply: (st, { widget, color }) => {
@@ -1115,7 +1115,7 @@ export function registerBoardCapabilities() {
       if (!o || !n || o.color === n.color) return null
       return n.color === NOT_LINKED ? `Unlinked the ${nameOf(o, b.board)}` : `Linked the ${nameOf(o, b.board)} to the ${LINK_NAME[n.color]} group (${n.color})`
     },
-    noop: () => 'It already has that link colour',
+    noop: () => 'It already has that link color',
   })
 
   reg({
@@ -1193,7 +1193,7 @@ export function registerBoardCapabilities() {
     // a colour, as the widget's own swatch stores it: #rrggbb (a #rgb is spelled out); a colour name is the planner's to convert
     if (f.type === 'color') {
       const m = /^#?([0-9a-f]{6}|[0-9a-f]{3})$/i.exec(String(raw ?? '').trim())
-      if (!m) return { why: `“${f.key}” is a colour as #rrggbb — not “${raw}”.` }
+      if (!m) return { why: `“${f.key}” is a color as #rrggbb — not “${raw}”.` }
       const h = m[1].toLowerCase()
       return { value: `#${h.length === 3 ? [...h].map(c => c + c).join('') : h}` }
     }
@@ -1482,7 +1482,7 @@ export function registerBoardCapabilities() {
   // that matches nothing (or several) is said with the near names — never picked. Several widgets and none named: asked.
   const SHOW_SOURCES = ['mine', 'prebuilt', 'community', 'flagged', 'picker', 'tag']
   const TAG_ASK = /^(?:please\s+)?(?:(?:colou?r[-\s]?)?tag|mark|give)\s+\$?[a-z]{1,5}\s+(?:with\s+)?(?:an?\s+)?(?:red|blue|green|yellow|orange|purple|pink)(?:\s+tag)?[.!]?$/
-  const TAG_SAY = 'Colour tags can\'t be set from the Charts watchlist widget — tickers are colour-tagged in the Journal (its ticker tags). Nothing changed.'
+  const TAG_SAY = 'Color tags can\'t be set from the Charts watchlist widget — tickers are color-tagged in the Journal (its ticker tags). Nothing changed.'
   const SOURCE_WORD = { mine: 'your list', prebuilt: 'UCT prebuilt list', community: 'community list' }
   const showable = (st, env) => st.board.filter(w => w.type === 'watchlist' && !w.opts?.source && !w.opts?.listSub
     && !(env?.target?.detached || []).includes(String(w.id)))
@@ -1504,7 +1504,7 @@ export function registerBoardCapabilities() {
   function showPick(st, { source, name }, env) {
     if (source === 'picker') return { key: null, name: null }
     if (source === 'flagged') return { key: 'flagged', name: 'Flagged', tab: 'mine' }
-    if (source === 'tag') return { why: 'Colour-tag lists open on the Watchlists page — the Watchlist widget picks a saved, prebuilt, community or Flagged list from its own picker.' }
+    if (source === 'tag') return { why: 'Color-tag lists open on the Watchlists page — the Watchlist widget picks a saved, prebuilt, community or Flagged list from its own picker.' }
     if (!String(name || '').trim()) return { why: 'Which list? Say its name.' }
     if (source === 'mine') {
       const rows = [...(env?.target?.lists || new Map()).entries()].map(([id, n]) => ({ id, name: n }))
@@ -1531,7 +1531,7 @@ export function registerBoardCapabilities() {
     fastWhole: true,
     fast: ({ lower }) => (TAG_ASK.test(String(lower || '').trim()) ? { __say: TAG_SAY } : null),
     summary: 'Make ONE Watchlist widget show a list exactly as its picker does: one of the member\'s lists, a UCT prebuilt or community list, Flagged — or go back to its list picker. Undo puts back what it showed.',
-    hints: 'target = the board entry; widget = the Watchlist widget\'s id, or null when only one; source = mine | prebuilt | community | flagged | picker (tag = a colour tag: refused); name = the list\'s name as said, null for flagged / picker.',
+    hints: 'target = the board entry; widget = the Watchlist widget\'s id, or null when only one; source = mine | prebuilt | community | flagged | picker (tag = a color tag: refused); name = the list\'s name as said, null for flagged / picker.',
     args: { type: 'object', properties: { widget: { type: ['string', 'null'] }, source: { type: 'string', enum: SHOW_SOURCES }, name: { type: ['string', 'null'] } }, required: ['widget', 'source', 'name'], additionalProperties: false },
     async prepare(ops) {
       if (!ops.some(o => ['prebuilt', 'community'].includes(o?.args?.source))) return {}
@@ -1831,8 +1831,8 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'chart.addTab',
-    summary: 'Add a new chart TAB to a chart widget (the tab strip\'s "+"), on the same link colour as the tab showing now, and switch to it.',
-    hints: `target = the ref of the board entry; widget = the chart widget's id; timeframe = ${CHART_TIMEFRAMES.join('|')} or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab). Only when the member asks for a TAB: several CHARTS ("on four charts", "N charts for …") are chartGrid.set or widget.addCharts, never tabs of one chart.`,
+    summary: 'Add a new chart TAB to a chart widget (the tab strip\'s "+"), on the same link color as the tab showing now, and switch to it.',
+    hints: `target = the ref of the board entry; widget = the chart widget's id; timeframe = ${CHART_TIMEFRAMES.join('|')} or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link color is changed (chart.linkTab). Only when the member asks for a TAB: several CHARTS ("on four charts", "N charts for …") are chartGrid.set or widget.addCharts, never tabs of one chart.`,
     args: { type: 'object', properties: { widget: widgetArg, timeframe: { type: ['string', 'null'], enum: [...CHART_TIMEFRAMES, null] }, name: { type: ['string', 'null'] } }, required: ['widget', 'timeframe', 'name'], additionalProperties: false },
     check(st, { widget }) {
       const { t, why } = chartWidget(st, widget)
@@ -1924,14 +1924,14 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'chart.linkTab',
-    summary: 'Set the link colour of one chart TAB (the tab\'s colour dot): tabs and widgets with the same colour follow the same symbol.',
-    hints: `target = the ref of the board entry; widget = the chart widget's id; ${tabHint} color = ${[...BASE_GROUPS, ...EXTRA_GROUPS].map(c => `${c} (${LINK_NAME[c]})`).join(', ')} (E–H only when the board entry says extraLinkColors: true) — a tab is always linked to a colour. "Two tabs with linked symbols" = give both the same colour.`,
+    summary: 'Set the link color of one chart TAB (the tab\'s color dot): tabs and widgets with the same color follow the same symbol.',
+    hints: `target = the ref of the board entry; widget = the chart widget's id; ${tabHint} color = ${[...BASE_GROUPS, ...EXTRA_GROUPS].map(c => `${c} (${LINK_NAME[c]})`).join(', ')} (E–H only when the board entry says extraLinkColors: true) — a tab is always linked to a color. "Two tabs with linked symbols" = give both the same color.`,
     args: { type: 'object', properties: { widget: widgetArg, tab: tabArg, color: { type: 'string', enum: [...BASE_GROUPS, ...EXTRA_GROUPS] } }, required: ['widget', 'tab', 'color'], additionalProperties: false },
     check(st, { widget, tab, color }, env) {
       const { t, why } = chartWidget(st, widget)
       if (why) return why
       if (!findTab(t, tab)) return `That chart has no tab “${tab}”.`
-      if (![...BASE_GROUPS, ...EXTRA_GROUPS].includes(color)) return `Tab colours are ${linkGroups(true).join(', ')}.`
+      if (![...BASE_GROUPS, ...EXTRA_GROUPS].includes(color)) return `Tab colors are ${linkGroups(true).join(', ')}.`
       return extraOff(env, color)
     },
     apply(st, { widget, tab, color }) {
@@ -1945,5 +1945,5 @@ export function registerBoardCapabilities() {
       if (!o || !n || (same(o.opts, n.opts) && o.color === n.color)) return null
       return `Linked the “${findTab(n, tab)?.label || tab}” tab to the ${LINK_NAME[color]} group (${color})`
     },
-    noop: () => 'That tab already has that link colour',
+    noop: () => 'That tab already has that link color',
   })}
