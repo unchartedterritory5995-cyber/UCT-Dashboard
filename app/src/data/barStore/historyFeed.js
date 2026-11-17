@@ -9,17 +9,36 @@
 // a >2% close mismatch at the join refuses the window) can compare the two series. `exhausted`
 // means the lake holds nothing older than `beforeT` for this series.
 //
-// ⛔ OFF unless `localStorage['uct.historyLake'] === '1'` (historyLakeEnabled): until the edge route
-// and its bucket exist, /api/hist answers nothing useful, and asking would only add a request.
+// ⭐ ON BY DEFAULT FOR THE APP'S STORE since 2026-11-17 (index.js getBarStore): the edge route
+// (`uctintelligence.com/api/hist/*` on bars-edge-router), its R2 bucket (`hist/`, 2003-09 to 2026-11-13,
+// 36,676 symbols) and the member's entitlement cookie on Path=/api/hist (#1635) are live. Per browser,
+// `localStorage['uct.historyLake']` = '0' turns it off and '1' forces it on. A store built directly
+// (createBarStore, every suite) keeps the old default, OFF unless '1': a suite asks for the lake by name.
 import { createHistorySource, periodsFor, seriesFor } from '../historyLake/source'
 import { parseKey, isIntradayTf } from './types'
 
 export const HISTORY_LAKE_KEY = 'uct.historyLake'
 
-export function historyLakeEnabled() {
-  try {
-    return typeof localStorage !== 'undefined' && localStorage.getItem(HISTORY_LAKE_KEY) === '1'
-  } catch { return false }
+/** The per-browser switch ('1' on, '0' off) or, when it is unset or unreadable, `byDefault`. */
+export function historyLakeEnabled({ byDefault = false } = {}) {
+  let v = null
+  try { v = typeof localStorage !== 'undefined' ? localStorage.getItem(HISTORY_LAKE_KEY) : null } catch { v = null }
+  if (v === '1') return true
+  if (v === '0') return false
+  return !!byDefault
+}
+
+/** The app's store defaults the lake ON; the test runner's default store does not (`mode` 'test'). */
+export function lakeOnByDefault(mode) {
+  let m = mode
+  if (m === undefined) { try { m = import.meta.env.MODE } catch { m = undefined } }
+  return m !== 'test'
+}
+
+/** The history feed the APP's store is built with (index.js getBarStore): a feed unless this browser
+ *  says '0' (or, in the test runner, unless a suite says '1'); null otherwise. */
+export function appHistoryFeed(mode, make = createHistoryFeed) {
+  return historyLakeEnabled({ byDefault: lakeOnByDefault(mode) }) ? make() : null
 }
 
 /** The lake series of a BarStore key, or null when the lake does not carry it. */
