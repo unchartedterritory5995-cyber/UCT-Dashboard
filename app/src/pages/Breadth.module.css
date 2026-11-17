@@ -11,7 +11,9 @@
    component rules. */
 
 .page {
-  padding: 20px 24px; --page-pad-top: 20px; --page-pad-x: 24px;
+  /* The same 12px outer gutter the Charts workspace keeps between its widgets and the
+     nav / window edges (measured on localhost), so the card sits inset with its corners visible. */
+  padding: 20px 12px 12px; --page-pad-top: 20px; --page-pad-x: 12px;
   display: flex; flex-direction: column; height: 100%; min-height: 0;
   --br-panel: var(--bg-surface);
   --br-card: var(--bg-elevated);
@@ -31,8 +33,8 @@
   --br-down: var(--loss);
   /* Shade strength, the two steps of "unusually strong / weak". Readings near
      normal (the old mild g1 / r1 and the caution step) get no fill at all. */
-  --br-tint-1: 9%;
-  --br-tint-2: 18%;
+  --br-tint-1: 18%;
+  --br-tint-2: 32%;
   font-family: var(--font-sans);
 }
 /* Inside a UCT Terminal panel the shell insets the body (--panel-inset). */
@@ -54,7 +56,7 @@
   row-gap: 8px;
   min-height: 56px;
   /* Right inset clears the app's fixed help "?" in the top-right corner. */
-  padding: 10px 56px 10px 22px;
+  padding: 10px 56px 10px 14px;
   background: var(--bg);
   border-bottom: 1px solid var(--br-line);
   box-shadow: none;
@@ -66,7 +68,7 @@
 .pageCot { padding: 0; --page-pad-top: 0px; --page-pad-x: 0px; }
 
 .cotTabHeader { padding: 20px 24px 0; margin-bottom: 0; }
-.page .sigHeader.cotTabHeader { padding: 10px 56px 10px 22px; margin: 0 0 14px; }
+.page .sigHeader.cotTabHeader { padding: 10px 56px 10px 14px; margin: 0 0 14px; }
 
 /* View tabs — plain text, the current one bright with a 2px gold underline (the only
    gold on the page besides the left nav's current item, spec §2b.1). */
@@ -147,7 +149,32 @@
      content area) doesn't force expensive relayout/repaint of the whole table
      every animation frame — containment scopes the work. */
   contain: layout paint;
+}
+
+/* Quiet scrollbars (no shared app class exists; tokens.css only has a global 5px
+   WebKit bar on the page ground). Thin and translucent, built from the theme's
+   brightest text so they blend on dark and light alike. */
+.tableWrap,
+.analoguesWrap {
   scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text-bright) 18%, transparent) transparent;
+}
+.tableWrap::-webkit-scrollbar,
+.analoguesWrap::-webkit-scrollbar { width: 8px; height: 8px; background: transparent; }
+.tableWrap::-webkit-scrollbar-track,
+.analoguesWrap::-webkit-scrollbar-track,
+.tableWrap::-webkit-scrollbar-corner { background: transparent; }
+.tableWrap::-webkit-scrollbar-thumb,
+.analoguesWrap::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-bright) 18%, transparent);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.tableWrap::-webkit-scrollbar-thumb:hover,
+.analoguesWrap::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text-bright) 32%, transparent);
+  background-clip: padding-box;
 }
 
 /* ── Table ─────────────────────────────────────────────────────────────────── */
@@ -169,21 +196,26 @@
   z-index: 3;
 }
 
-/* ── Header cells: sentence-case grey labels, no grid lines ─────────────────── */
+/* ── Header cells: one compact line (32px), sentence-case labels in the theme's
+   normal text at 600 — one step below the bright numbers. No grid lines. */
 .th {
-  padding: 11px 12px 9px;
+  height: 32px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  line-height: 16px;
   text-align: right;
   font-size: 11.5px;
   font-weight: 600;
-  color: var(--br-rest);
+  color: var(--br-text);
   background: var(--br-panel);
   border-bottom: 1px solid var(--br-line);
-  vertical-align: bottom;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
 .colLabel {
   font-size: 11.5px;
-  color: var(--br-rest);
+  color: var(--br-text);
 }
 
 /* A little extra air on each metric family's first column — the families stay
@@ -198,6 +230,7 @@
   background: var(--br-panel);
   text-align: left;
   min-width: 90px;
+  padding-left: 16px;
 }
 
 /* ── Body cells ──────────────────────────────────────────────────────────────── */
@@ -219,9 +252,10 @@
   position: sticky;
   left: 0;
   background: var(--br-panel);
-  color: var(--br-rest);
+  color: var(--br-text);
   font-weight: 500;
   text-align: left;
+  padding-left: 16px;
   z-index: 1;
 }
 
@@ -239,8 +273,9 @@
 /* ── Signature shading ───────────────────────────────────────────────────────
    Only where a reading is unusually strong (up) or weak (down), from the same
    scoring as before (COLS colorFn / rowColorFn tiers): g3/r3 = the stronger
-   tint, g2/r2 = the lighter one, g1 · caution · r1 = no fill. A low-alpha tint
-   of the THEME's own up / down colour, so it follows the member's app theme. */
+   tint (32%), g2/r2 = the lighter one (18%), g1 · caution · r1 = no fill. A
+   tint of the THEME's own up / down colour, so it follows the member's app
+   theme; numbers on the strongest tint switch to the bright text token. */
 .shUp1 { background: color-mix(in srgb, var(--br-up) var(--br-tint-1), transparent); }
 .shUp2 { background: color-mix(in srgb, var(--br-up) var(--br-tint-2), transparent); color: var(--br-bright); }
 .shDn1 { background: color-mix(in srgb, var(--br-down) var(--br-tint-1), transparent); }
@@ -259,12 +294,14 @@
 .bgR3 { background: rgba(223,  70,  70, 0.62); }
 
 /* ── Individual column collapse ──────────────────────────────────────────────── */
+/* The SPY / QQQ MA periods ride on the label's own line, smaller, so the header
+   row stays one line tall. */
 .colSubLabel {
-  font-size: 10.5px;
-  color: var(--br-faint);
-  margin-top: 2px;
+  font-size: 10px;
+  color: var(--br-rest);
+  margin-left: 6px;
   font-weight: 500;
-  word-spacing: 2px;
+  word-spacing: 1px;
 }
 
 .colLabelClickable {
@@ -513,7 +550,7 @@ tbody tr { cursor: pointer; }
      viewport by the 14px difference on both edges. Measured in real Chromium
      (throwaway harness): 700x900 and 800x900 both showed a 14px/side
      `documentElement.scrollWidth` overflow before this line existed. */
-  .page { padding: 14px 10px; overflow: visible; height: auto; --page-pad-top: 14px; --page-pad-x: 10px; }
+  .page { padding: 14px 12px 12px; overflow: visible; height: auto; --page-pad-top: 14px; --page-pad-x: 12px; }
   .tableWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
 
@@ -569,7 +606,7 @@ tbody tr { cursor: pointer; }
   }
   .th {
     font-size: 11px;
-    padding: 8px 8px 7px;
+    padding: 0 8px;
   }
   .td {
     font-size: 11.5px;

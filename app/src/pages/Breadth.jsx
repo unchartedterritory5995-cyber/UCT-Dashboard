@@ -1291,7 +1291,7 @@ export default function Breadth() {
                       {isColCollapsed
                         ? <span className={styles.colCollapsedLabel}>{col.label}</span>
                         : col.subLabels
-                          ? <><div>{col.label}</div><div className={styles.colSubLabel}>{col.subLabels}</div></>
+                          ? <>{col.label}<span className={styles.colSubLabel}>{col.subLabels}</span></>
                           : col.label
                       }
                     </th>
