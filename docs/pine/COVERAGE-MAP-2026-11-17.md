@@ -6,18 +6,57 @@ in this commit by `tools/pine_coverage/coverage_map.py`. Previous measurement:
 [`COVERAGE-MAP-2026-11-16.md`](COVERAGE-MAP-2026-11-16.md) (`890b6d165c`, engine 60). The prose in
 [`COVERAGE-MAP.md`](COVERAGE-MAP.md) keeps the definitions and the re-run procedure.
 
-> **220 of 679 sampled open-source scripts (32.4%) transfer fully today** (215, 31.7%, on 11-16).
-> 6 newly transfer; 1 stopped, refused by name because its committed capture grades DIVERGE.
-> **Under the 11-16 rule the count is 221 (32.5%): +6 from the engine, none lost.** The 11-16 rule
-> is the earlier paint rule with no host known-divergence list.
-> **209 of the 220 are also clean on one bind** (`transferBound`; 204 on 11-16).
-> **Runtime-on lane: 285 of 679 (42.0%)** (267, 39.3%, on 11-16); 287 under the 11-16 rule.
-> **0 of 70 strategies transfer** (unchanged).
+> **Member-facing: the runtime-on lane, 285 of 679 (42.0%)** (267, 39.3%, on 11-16; 287 under the
+> 11-16 rule). Production runs the runtime pane ARMED (section 1), so this lane, with the kill list
+> and capability admission, is what members get. The census grants every script, so 285 is a
+> ceiling. Apply the server's own admission policy statically to the 65 scripts only the runtime
+> lane draws, and **275 (40.5%)** are admitted today (section 1).
+> **Host-only baseline (the census's "production" lane, runtime gate closed): 220 of 679 (32.4%)**
+> (215, 31.7%, on 11-16). This is kept for comparability with every earlier map. 6 newly transfer;
+> 1 stopped, refused by name because its committed capture grades DIVERGE. **Under the 11-16 rule
+> the count is 221 (32.5%): +6 from the engine, none lost.** The 11-16 rule is the earlier paint
+> rule with no host known-divergence list. 209 of the 220 are also clean on one bind
+> (`transferBound`; 204 on 11-16).
+> **0 of 70 strategies transfer** (unchanged). The strategy broker is unset, so dark, in production.
+> The owner has since ruled to serve witnessed strategies; that work is in progress.
 
-These are door verdicts, not parity verdicts.
+These are door verdicts, not parity verdicts. ⚠️ **Amended before merge (coordinator, 2026-11-17):**
+the first version of this page led with the host-only baseline as the headline. Members get the
+runtime-on lane. No number was re-measured for the amendment. The admission figure is a static
+reading of the committed registry over the same census rows.
 
 ## 1. Same sample and predicate; two lists added since 11-16
 
+- **Which lane members get.** Production `web` runs the runtime pane armed. The coordinator read
+  these from Railway on 2026-11-17:
+  - `VITE_PINE_RUNTIME_PANE_ENABLED=1` and `VITE_PINE_MEMBER_PANE_ENABLED=1`;
+  - `PINE_RUNTIME_STAGE=all`;
+  - `PINE_RUNTIME_CAPABILITY_ADMISSION=on`;
+  - `VITE_PINE_STRATEGY_BROKER_ENABLED` unset, so the broker is dark.
+
+  So the census's **runtime-on** lane is the member-facing one. Its "production" lane (gate CLOSED)
+  is the **host-only baseline**: the same door with the runtime pane off, kept because every map
+  since 10-30 states it.
+
+  Members get the runtime-on lane through two server gates:
+  - **The kill list.** The predicate applies it.
+  - **The starter allowlist or capability admission** (`runtime_definitions.not_graded`). The
+    census does NOT apply this: it grants every script (`__allowEveryRuntimeScriptForTests`), so
+    285 is a ceiling.
+
+  **Static admission check** (not a re-measure). Over the 65 scripts only the runtime lane draws
+  (`runtimeOn.added`), the server's own policy gives:
+  - **55 admitted**: 1 on the graded allowlist and 54 by capability. 11 of the 54 use
+    `realtime-state`, admitted for closed-bar history only, so they are drawn bar by bar only on a
+    chart whose newest bar is closed.
+  - **10 declined `runtime:not-yet-graded`**, each for a capability not admitted: `obj:linefill`
+    4, `collections:matrix` 2, and one each of `request-other`, `varip`, `method-def` and
+    `calc-bars`.
+
+  The policy is `graded_allow_list`, plus `pine_capabilities.capabilities_of` against
+  `admitted_capabilities()`. `PINE_RUNTIME_CAPABILITY_DENY` is assumed unset. So members get
+  **220 + 55 = 275 (40.5%)** on this census; the 11-16 map has no admission-applied figure to
+  compare with.
 - **Sample**: the same 679 scripts (266 committed, 271 reference, 142 built-in). All 679 keys match
   the 11-16 map, and **every script's source sha256 is identical** (0 differ). Pine version,
   declaration and `placesOrders` are identical for all 679. `sample_manifest.json` is byte-identical
@@ -52,11 +91,12 @@ These are door verdicts, not parity verdicts.
 
 | | 2026-11-16 (`890b6d165c`, e60) | 2026-11-17, 11-16 rule | 2026-11-17 (`1df860c1e8`, e71) | delta, engine | delta, as published |
 |---|---:|---:|---:|---:|---:|
-| **transfers fully (headline)** | **215 (31.7%)** | **221 (32.5%)** | **220 (32.4%)** | **+6** | **+5** |
+| **runtime-on lane (member-facing; census grants every script)** | **267 (39.3%)** | **287 (42.3%)** | **285 (42.0%)** | **+20** | **+18** |
+| runtime-on lane with the server's admission applied (static, section 1) | not computed | | 275 (40.5%) | | |
+| **transfers fully, host-only baseline (`headline.transfer`)** | **215 (31.7%)** | **221 (32.5%)** | **220 (32.4%)** | **+6** | **+5** |
 | transfers fully AND clean on one bind (`transferBound`) | 204 (30.0%) | 210 | 209 (30.8%) | +6 | +5 |
 | attached, any form | 287 (42.3%) | 292 (43.0%) | 292 (43.0%) | +5 | +5 |
 | runtime counterfactual (headline field, production census; applies no list) | 267 (39.3%) | 287 (42.3%) | 287 (42.3%) | +20 | +20 |
-| **runtime-on lane** | **267 (39.3%)** | **287 (42.3%)** | **285 (42.0%)** | **+20** | **+18** |
 | runtime-on: attached on the runtime lane | 55 | 70 | 70 | +15 | +15 |
 | runtime-on: added over production / lost | 52 / 0 | 66 / 0 | 65 / 0 | | |
 | strategies transferring | 0 of 70 | 0 | 0 of 70 | 0 | 0 |
@@ -89,6 +129,14 @@ one and not the other. Every gain beyond the snapshot is in the reference and bu
 which the ratchet does not cover. This PR does not touch the snapshot.
 
 ## 3. Blockers (top 15 of this map, against 11-16)
+
+These are the **host-only baseline's** blockers (`blockers` in the JSON, the list every map has
+ranked), so a member is not stopped by all of them. Some scripts walled here are drawn by the
+armed runtime lane: 19 of `[imperative]`'s 40 sole scripts, 4 of `[compute-budget]`'s 9 and 1 of
+`[user-functions]`'s 9 (section 8). The member-facing wall list is the runtime-on lane's
+(`runtimeOn.walls`): 394 scripts do not transfer there. Their first walls are attached-dirty 77,
+`runtime:library` 58, `runtime:request-with-state` 28, `pine:request` 27, `pine:builtin` 21,
+`pine:function` 20 and `runtime:no-output` 20.
 
 | blocker | scriptsBlocked 11-16 | 11-17 | soleBlockerOf 11-16 | 11-17 |
 |---|---:|---:|---:|---:|
@@ -200,7 +248,8 @@ Runtime-on lane (20 counted; 21 under the 11-16 rule, including the kill-listed
 - **Wall labels**: `[compute-budget]`, `[known-divergence]` and DRAW-1's named drop heads are new
   (section 3). Per-wall counts moved partly by relabelling.
 - **The two lists** change what the headline counts (section 1). The "11-16 rule" column is the
-  comparable figure. The published 220 / 285 is what a member is served today.
+  comparable figure. What a member is served today is the runtime-on lane with both lists: 285 at
+  most, 275 with the server's admission applied.
 
 ## 7. How it was measured
 
@@ -263,14 +312,21 @@ firm part.
 production (host) lane cannot keep as one expression per output: `var` state carried across bars
 (`pine:state`, 18 of the 40), `:=` reassignment (`pine:reassign`, 13), `if` / `for` / `while`
 blocks (`pine:block`, 7) and dependency cycles (`pine:cycle`, 4). The host lane stores one
-expression per output by design, so the honest version is the per-bar runtime lane, and it
-already builds 19 of the 40: those transfer on the runtime-on lane today. They need no engine unit.
-They need the runtime pane armed (the owner's act, ruling D6, per W2 stage) and, per script, a
-capture that witnesses the runtime run. 5 of the 19 have committed captures grading runtime-on
-MATCH (`adx-and-di-for-v4`, `fvg-trend`, `inside-bar-range-mother-candle…`,
-`one-sided-gaussian-support-resistance-rate-loxx`, `trend-targets-algoalpha`). 2 are INCONCLUSIVE
-and 12 have none, so they need a capture before they could be served. The other 21 stop on the
-runtime lane at named walls, each needing its own witness:
+expression per output by design, so the honest version is the per-bar runtime lane. It already
+builds 19 of the 40: those transfer on the runtime-on lane, which production runs armed
+(section 1). **They need no arming and no engine unit.**
+- **16 of the 19 serve members today**: 1 is on the graded allowlist and 15 are capability-admitted
+  (static check, section 1). Captures for these only strengthen the parity record. 5 of the 19 have
+  committed captures grading runtime-on MATCH (`adx-and-di-for-v4`, `fvg-trend`,
+  `inside-bar-range-mother-candle…`, `one-sided-gaussian-support-resistance-rate-loxx`,
+  `trend-targets-algoalpha`), 2 are INCONCLUSIVE and 12 have none.
+- **3 are declined `runtime:not-yet-graded`**, because a capability they use is not admitted:
+  `inside-bar-boxes` (`varip`), `one-sided-gaussian-support-resistance-rate-loxx`
+  (`collections:matrix`) and `trend-targets-algoalpha` (`obj:linefill`). The last two already have
+  runtime-on MATCH captures. What they need is that capability's admission evidence in the
+  registry, not engine work.
+
+The other 21 stop on the runtime lane at named walls, each needing its own witness:
 - `runtime:conditional-history` (4): per-call-site history beyond `ta.sma`/`ema`/`rma`; C48
   `vw-call-site-history` states the rule, and each kernel needs a capture.
 - `runtime:request-with-state` (3): Q-REQ4, a capture grading a bare v1-v4 `security` over state
@@ -279,14 +335,16 @@ runtime lane at named walls, each needing its own witness:
   `runtime:history-dynamic-offset` (2).
 - one each of block value, function, colour, lower timeframe, withheld-all and loop.
 
-**Size: large** (several engine units for the 21), and the 19 wait on a decision, not on code.
+**Size: large** for the 21 (several engine units). The 19 are already the member's: 16 served and
+3 waiting on capability admission.
 
 **2. `[strategy]`: sole 37 (fully enumerated 14); blocks 70. OWNER-GATED: serving strategy
 backtests is an owner product decision, pending.** The construct is `strategy()` order simulation:
 fills, positions, the trade list and the tester report. The predicate counts no order-placing
-strategy, whatever the door draws. The broker exists and is dark
-(`VITE_PINE_STRATEGY_BROKER_ENABLED`). If arming were decided, the armed column measures what would
-serve today: 5 of these 37 (7 of all 70). The other 32 stop at named broker questions:
+strategy, whatever the door draws. The broker exists and is dark: `VITE_PINE_STRATEGY_BROKER_ENABLED`
+is unset in production. The owner has since ruled to serve witnessed strategies, and that work is
+in progress. The armed column measures what arming would serve today: 5 of these 37 (7 of all 70).
+The other 32 stop at named broker questions:
 - Q-S1a, a percent-of-equity STOP entry or an entry while trades are open (9);
 - Q-S1i, funds at the next open (6);
 - a broker-build refusal kept as a host document (6);
@@ -340,9 +398,9 @@ runtime lane is a separate unit. **Size: large.**
 
 **5. `[user-functions]`: sole 9 (fully enumerated 5); blocks 63.** The construct is user-defined
 functions whose bodies the host lane cannot fold. 4 of the 9 are a multi-line body ending in no
-value the host can read (`pine:function-def`). The runtime lane runs function bodies: one of the
-four transfers on the runtime-on lane, and three stop at `runtime:request-with-state` (Q-REQ4) or
-`runtime:history-dynamic-offset`. 4 are `time()` calls reached through a function:
+value the host can read (`pine:function-def`). The runtime lane runs function bodies. One of the
+four transfers on the runtime-on lane and is capability-admitted, so it serves members today. The
+other three stop at `runtime:request-with-state` (Q-REQ4) or `runtime:history-dynamic-offset`. 4 are `time()` calls reached through a function:
 - 2 are a Pine v2 session with no day list, whose default days no reference text states. This needs
   a CAPTURE of a v2 `time(period, "HHMM-HHMM")`.
 - 2 are `time(<timeframe>)` forms the session clock does not yet serve. They need a capture of the
@@ -360,7 +418,8 @@ lane's compute caps at the install door:
 - distinct series 8 (2 need 9 and 10);
 - formula nodes 128 (1 needs 334).
 
-4 of the 9 already transfer on the runtime-on lane, which takes the host refusal. A REFERENCE
+4 of the 9 already serve members: the armed runtime lane takes the host refusal, and all 4 are
+capability-admitted (static check, section 1). The cap stops 5 for members. A REFERENCE
 sentence exists for the look-back cap and says it is ours, not TradingView's: the Pine User Manual,
 "Limitations", allows history references of up to 5000 bars for most series and 10,000 for
 `open/high/low/close/time` (quoted in `docs/pine/evidence/2026-11-16-door-robustness/EVIDENCE.md`

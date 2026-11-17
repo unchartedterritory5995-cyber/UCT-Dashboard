@@ -3,9 +3,13 @@
 Measured 2026-10-30 on `origin/master` @ `dadccbc98d`. Machine-readable twin:
 [`coverage-map.json`](coverage-map.json). Re-run: [How to re-run](#how-to-re-run).
 
-> **Newest measurement: [`COVERAGE-MAP-2026-11-17.md`](COVERAGE-MAP-2026-11-17.md)**: 220 of 679
-> (32.4%) transfer fully on `origin/master` @ `1df860c1e8`, engine 71 (221 under the 11-16 rule,
-> before the host known-divergence list). `coverage-map.json` holds that measurement. Previous:
+> **Newest measurement: [`COVERAGE-MAP-2026-11-17.md`](COVERAGE-MAP-2026-11-17.md)** on
+> `origin/master` @ `1df860c1e8`, engine 71.
+> - Member-facing: the runtime-on lane (production runs the runtime pane armed), 285 of 679
+>   (42.0%) at most, and 275 with the server's capability admission applied.
+> - Host-only baseline, kept for comparability: 220 (32.4%), or 221 under the 11-16 rule.
+>
+> `coverage-map.json` holds that measurement. Previous:
 > [`COVERAGE-MAP-2026-11-16.md`](COVERAGE-MAP-2026-11-16.md) (215, engine 60). The numbers on this
 > page below are the 2026-10-30 ones (185 of 679); the definitions and the re-run procedure here
 > still apply.
