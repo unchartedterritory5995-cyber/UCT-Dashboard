@@ -41,10 +41,19 @@ describe('a plain input with a colour default is a colour setting', () => {
     expect(specOf("c = input(#2962FF, title = 'C')").specs[0]).toMatchObject({ type: 'color', default: '#2962FF' })
   })
 
+  it('an opaque `color.new(<fixed colour>, 0)` is that colour', () => {
+    expect(specOf("c = input(color.new(#b2b5be, 0), title = 'Line Color')").specs[0])
+      .toMatchObject({ key: 'c', type: 'color', default: '#B2B5BE', label: 'Line Color' })
+    expect(specOf("c = input(color.new(color.orange, 0), title = 'C')").specs[0])
+      .toMatchObject({ type: 'color', default: '#FF9800' })
+  })
+
   it('⛔ a see-through default is skipped by name (the picker sets an opaque colour)', () => {
-    const r = specOf("c = input(color.rgb(121, 213, 242, 62), title = 'C')")
-    expect(r.specs).toEqual([])
-    expect(r.skipped[0].reason).toMatch(/see-through/)
+    for (const d of ['color.rgb(121, 213, 242, 62)', 'color.new(#b2b5be, 40)']) {
+      const r = specOf(`c = input(${d}, title = 'C')`)
+      expect(r.specs, d).toEqual([])
+      expect(r.skipped[0].reason, d).toMatch(/see-through/)
+    }
   })
 
   it('CONTROL: a number and a switch are still a number and a switch', () => {

@@ -106,6 +106,23 @@ function colourDefaultOf(def, version) {
       return { hex: `#${h(r)}${h(g)}${h(b)}` }
     }
   }
+  // `color.new(<fixed colour>, 0)`: a fixed colour at NO transparency is that exact opaque colour
+  // (`input(color.new(#b2b5be, 0))`); a transparency other than a literal 0 is skipped as see-through
+  if (def && def.type === 'call' && def.name === 'color.new' && Array.isArray(def.args)) {
+    const pos = def.args.filter((a) => a && !a.name).map((a) => a.value)
+    const named = (n) => { const a = def.args.find((x) => x && x.name === n); return a ? a.value : undefined }
+    const base = named('color') !== undefined ? named('color') : pos[0]
+    const tr = named('transp') !== undefined ? named('transp') : pos[1]
+    if (base && (base.type === 'colour' || base.type === 'name') && def.args.length === 2) {
+      const inner = colourDefaultOf(base, version)
+      if (inner.skip) return inner
+      if (literalNumber(tr) !== 0) {
+        return { skip: 'its default is see-through, and the colour picker sets an opaque colour — the '
+          + "author's transparency would be dropped" }
+      }
+      return { hex: inner.hex }
+    }
+  }
   return { skip: 'its default is not a fixed colour (a #RRGGBB or a Pine colour name)' }
 }
 
