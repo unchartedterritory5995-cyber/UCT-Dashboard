@@ -3680,7 +3680,7 @@ export default function BuilderSheet({
           )}
           {/* ⛔ the sheet's own inputs editor describes ITS formula (empty until "Use this formula"),
               not this script's settings: hidden, never unmounted, while the door's script stands */}
-          <div hidden={!!doorDoc} data-testid="builder-inputs">
+          <div className={styles.panelBody} hidden={!!doorDoc} data-testid="builder-inputs">
           {/* ⭐⭐ TRACK F (DEC-006) — a Pine import's own adjustable parameters.
               `applyParamEdit` operates on `compute.ast`/`compute.paramManifest`
               directly (never on Pine, never on a second parser — see
@@ -3796,7 +3796,7 @@ export default function BuilderSheet({
               {`This script draws ${doorPlots === 1 ? '1 plot' : `${doorPlots} plots`}. You change how they look on the chart, after you add it: open its settings from its name at the top of the chart.`}
             </p>
           )}
-          <div hidden={!!doorDoc} data-testid="builder-plots">
+          <div className={styles.panelBody} hidden={!!doorDoc} data-testid="builder-plots">
           {/* ── THE PLOTS (W1b.5) ────────────────────────────────────────────
               ⭐ WHERE A MULTI-PLOT INDICATOR IS ACTUALLY AUTHORED, and until now
               a member could only ever write ONE line: `buildDefinition` hard-coded

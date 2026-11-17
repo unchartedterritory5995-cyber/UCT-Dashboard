@@ -107,3 +107,36 @@ describe('⛔ CONTROL — once the sheet takes the formula ("Use this formula"),
     expect(screen.getByTestId('builder-plots').hidden).toBe(false)
   })
 })
+
+// ⛔⛔ THE WRAPPERS LAY OUT AS THE PANEL DOES (patrick-0b's review of #1632). `.panel` is a flex column
+// with a 12 px gap; a plain wrapper div around its children stacked them with NO gap, on every Inputs and
+// Plots panel, for every member. jsdom does no layout, so this reads the STYLESHEET itself (fs, not
+// `?raw`) and the sheet's SOURCE (comments stripped): both rules exist, and both wrappers carry the class.
+describe('⛔ the wrappers carry the panel\'s layout (a rule jsdom cannot measure)', () => {
+  const CSS = fs.readFileSync(path.join(process.cwd(), 'src/components/chart/builder/BuilderSheet.module.css'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+  const JSX = fs.readFileSync(path.join(process.cwd(), 'src/components/chart/builder/BuilderSheet.jsx'), 'utf8')
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, '').split(/\r?\n/).filter((l) => !l.trim().startsWith('//')).join('\n')
+  // a rule's body by its exact selector (string search, no regex escaping to get wrong)
+  const rule = (sel) => {
+    for (const line of CSS.split('\n')) {
+      const t = line.trim()
+      if (t.startsWith(sel + ' {') && t.endsWith('}')) return t.slice(sel.length + 2, -1).trim()
+    }
+    return null
+  }
+  it('.panelBody lays out like .panel (flex column, 12 px gap), and .panelBody[hidden] hides it', () => {
+    expect(rule('.panel')).toBe('display: flex; flex-direction: column; gap: 12px;')
+    expect(rule('.panelBody')).toBe(rule('.panel'))
+    expect(rule('.panelBody[hidden]')).toBe('display: none;')
+  })
+  it('both wrappers carry it', () => {
+    for (const id of ['builder-inputs', 'builder-plots']) {
+      expect(JSX).toContain(`<div className={styles.panelBody} hidden={!!doorDoc} data-testid="${id}">`)
+    }
+  })
+  it('⭐ CONTROL — the reader sees a real rule and a real element', () => {
+    expect(rule('.panel[hidden], .describe[hidden]')).toBe('display: none;')
+    expect(JSX).toContain('data-testid="panel-inputs"')
+  })
+})
