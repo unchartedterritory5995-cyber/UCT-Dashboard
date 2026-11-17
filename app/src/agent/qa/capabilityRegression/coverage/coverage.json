@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 222,
+  "all": 227,
   "withProductionKinds": 205,
-  "darkGated": 17
+  "darkGated": 22
  },
  "totals": {
-  "capabilities": 222,
-  "withAnyRegressionCase": 170,
+  "capabilities": 227,
+  "withAnyRegressionCase": 175,
   "perProtection": {
    "nl": {
-    "covered": 167,
-    "applicable": 222
+    "covered": 172,
+    "applicable": 227
    },
    "routing": {
-    "covered": 164,
-    "applicable": 222
+    "covered": 169,
+    "applicable": 227
    },
    "args": {
-    "covered": 170,
-    "applicable": 222
+    "covered": 175,
+    "applicable": 227
    },
    "execution": {
-    "covered": 167,
-    "applicable": 222
+    "covered": 172,
+    "applicable": 227
    },
    "receipt": {
-    "covered": 139,
-    "applicable": 222
+    "covered": 144,
+    "applicable": 227
    },
    "refusal": {
     "covered": 35,
-    "applicable": 222
+    "applicable": 227
    },
    "permission": {
-    "covered": 215,
-    "applicable": 222
+    "covered": 220,
+    "applicable": 227
    },
    "undo": {
     "covered": 84,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 222
+    "applicable": 227
    },
    "phrasings": {
-    "covered": 163,
-    "applicable": 222
+    "covered": 168,
+    "applicable": 227
    }
   }
  },
@@ -9355,6 +9355,60 @@
     "phrasings": []
    }
   },
+  "stock.callSearch": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.callSearch: \"which companies mentioned tariffs on their earnings call\"",
+     "stock.callSearch: \"search earnings calls for tariffs\"",
+     "stock.callSearch: \"who talked about tariffs on their earnings call\"",
+     "stock.callSearch: \"find mentions of tariffs in earnings call transcripts\""
+    ],
+    "routing": [
+     "stock.callSearch: \"which companies mentioned tariffs on their earnings call\"",
+     "stock.callSearch: \"search earnings calls for tariffs\"",
+     "stock.callSearch: \"who talked about tariffs on their earnings call\"",
+     "stock.callSearch: \"find mentions of tariffs in earnings call transcripts\""
+    ],
+    "args": [
+     "corpus stock.callSearch"
+    ],
+    "execution": [
+     "stock.callSearch (c)"
+    ],
+    "receipt": [
+     "stock.callSearch (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.compare": {
    "domain": "stock",
    "group": "data",
@@ -9401,6 +9455,60 @@
     ],
     "receipt": [
      "stock.compare (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.confluenceBoard": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.confluenceBoard: \"what is bullish on the confluence board\"",
+     "stock.confluenceBoard: \"show me the bullish confluence names\"",
+     "stock.confluenceBoard: \"bullish names on the confluence board\"",
+     "stock.confluenceBoard: \"which stocks are bullish on the confluence radar\""
+    ],
+    "routing": [
+     "stock.confluenceBoard: \"what is bullish on the confluence board\"",
+     "stock.confluenceBoard: \"show me the bullish confluence names\"",
+     "stock.confluenceBoard: \"bullish names on the confluence board\"",
+     "stock.confluenceBoard: \"which stocks are bullish on the confluence radar\""
+    ],
+    "args": [
+     "corpus stock.confluenceBoard"
+    ],
+    "execution": [
+     "stock.confluenceBoard (c)"
+    ],
+    "receipt": [
+     "stock.confluenceBoard (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -9590,6 +9698,60 @@
     "refusal": [
      "GW-17.live-earnings-next"
     ],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.expectedMove": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.expectedMove: \"expected move for NVDA earnings\"",
+     "stock.expectedMove: \"what is the implied move on NVDA\"",
+     "stock.expectedMove: \"NVDA expected move\"",
+     "stock.expectedMove: \"how much is NVDA expected to move on earnings\""
+    ],
+    "routing": [
+     "stock.expectedMove: \"expected move for NVDA earnings\"",
+     "stock.expectedMove: \"what is the implied move on NVDA\"",
+     "stock.expectedMove: \"NVDA expected move\"",
+     "stock.expectedMove: \"how much is NVDA expected to move on earnings\""
+    ],
+    "args": [
+     "corpus stock.expectedMove"
+    ],
+    "execution": [
+     "stock.expectedMove (c)"
+    ],
+    "receipt": [
+     "stock.expectedMove (c)"
+    ],
+    "refusal": [],
     "permission": [],
     "undo": [],
     "multiStep": [],
@@ -9873,6 +10035,60 @@
     "phrasings": []
    }
   },
+  "stock.themeRotation": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.themeRotation: \"which themes are rotating in\"",
+     "stock.themeRotation: \"show me the themes rotating in\"",
+     "stock.themeRotation: \"what themes is money rotating into\"",
+     "stock.themeRotation: \"list the themes that are rotating in\""
+    ],
+    "routing": [
+     "stock.themeRotation: \"which themes are rotating in\"",
+     "stock.themeRotation: \"show me the themes rotating in\"",
+     "stock.themeRotation: \"what themes is money rotating into\"",
+     "stock.themeRotation: \"list the themes that are rotating in\""
+    ],
+    "args": [
+     "corpus stock.themeRotation"
+    ],
+    "execution": [
+     "stock.themeRotation (c)"
+    ],
+    "receipt": [
+     "stock.themeRotation (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.themes": {
    "domain": "stock",
    "group": "data",
@@ -9904,6 +10120,60 @@
     "args": [],
     "execution": [],
     "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.yearlyHighsLows": {
+   "domain": "stock",
+   "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.yearlyHighsLows: \"which stocks made new 52-week highs\"",
+     "stock.yearlyHighsLows: \"which stocks are at new 52-week highs\"",
+     "stock.yearlyHighsLows: \"what is making new 52 week highs\"",
+     "stock.yearlyHighsLows: \"what stocks hit a new 52-week high\""
+    ],
+    "routing": [
+     "stock.yearlyHighsLows: \"which stocks made new 52-week highs\"",
+     "stock.yearlyHighsLows: \"which stocks are at new 52-week highs\"",
+     "stock.yearlyHighsLows: \"what is making new 52 week highs\"",
+     "stock.yearlyHighsLows: \"what stocks hit a new 52-week high\""
+    ],
+    "args": [
+     "corpus stock.yearlyHighsLows"
+    ],
+    "execution": [
+     "stock.yearlyHighsLows (c)"
+    ],
+    "receipt": [
+     "stock.yearlyHighsLows (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],

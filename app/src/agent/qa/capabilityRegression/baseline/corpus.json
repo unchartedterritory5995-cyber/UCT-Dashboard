@@ -13152,6 +13152,234 @@
         "show me the dark pool levels for NVDA",
         "big dark pool prints in NVDA"
       ]
+    },
+    {
+      "id": "stock.yearlyHighsLows",
+      "source": "Terminal data wave 2 (11-17): the Agent half of the H52 / TROT / CONFL / EXMV / TSRC terminal panels, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.yearlyHighsLows"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.yearlyHighsLows"
+      ],
+      "ownWords": [
+        "data"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.yearlyHighsLows",
+            "target": "$stockData",
+            "args": {
+              "side": "highs",
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*highsLows\\.yearly.*\"params\":\\{\"side\":\"highs\",\"limit\":25\\}"
+        ],
+        "says": [
+          "New 52-week highs and lows in the session of",
+          "not highs and lows of the day"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "which stocks made new 52-week highs",
+        "which stocks are at new 52-week highs",
+        "what is making new 52 week highs",
+        "what stocks hit a new 52-week high"
+      ]
+    },
+    {
+      "id": "stock.themeRotation",
+      "source": "Terminal data wave 2 (11-17): the Agent half of the H52 / TROT / CONFL / EXMV / TSRC terminal panels, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.themeRotation"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.themeRotation"
+      ],
+      "ownWords": [
+        "data"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.themeRotation",
+            "target": "$stockData",
+            "args": {
+              "side": "in",
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*themes\\.rotation.*\"params\":\\{\"side\":\"in\",\"limit\":20\\}"
+        ],
+        "says": [
+          "UCT theme rotation",
+          "Worked out by UCT at",
+          "Descriptive only"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "which themes are rotating in",
+        "show me the themes rotating in",
+        "what themes is money rotating into",
+        "list the themes that are rotating in"
+      ]
+    },
+    {
+      "id": "stock.confluenceBoard",
+      "source": "Terminal data wave 2 (11-17): the Agent half of the H52 / TROT / CONFL / EXMV / TSRC terminal panels, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.confluenceBoard"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.confluenceBoard"
+      ],
+      "ownWords": [
+        "data"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.confluenceBoard",
+            "target": "$stockData",
+            "args": {
+              "direction": "bullish",
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*confluence\\.board.*\"params\":\\{\"direction\":\"bull\",\"limit\":20\\}"
+        ],
+        "says": [
+          "UCT confluence board, dark pool window",
+          "not a recommendation"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "what is bullish on the confluence board",
+        "show me the bullish confluence names",
+        "bullish names on the confluence board",
+        "which stocks are bullish on the confluence radar"
+      ]
+    },
+    {
+      "id": "stock.expectedMove",
+      "source": "Terminal data wave 2 (11-17): the Agent half of the H52 / TROT / CONFL / EXMV / TSRC terminal panels, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.expectedMove"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.expectedMove"
+      ],
+      "ownWords": [
+        "data"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.expectedMove",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "report_date": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*earnings\\.expectedMove.*\"params\":\\{\"symbol\":\"NVDA\"\\}"
+        ],
+        "says": [
+          "NVDA expected move:",
+          "not a forecast"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "expected move for NVDA earnings",
+        "what is the implied move on NVDA",
+        "NVDA expected move",
+        "how much is NVDA expected to move on earnings"
+      ]
+    },
+    {
+      "id": "stock.callSearch",
+      "source": "Terminal data wave 2 (11-17): the Agent half of the H52 / TROT / CONFL / EXMV / TSRC terminal panels, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.callSearch"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.callSearch"
+      ],
+      "ownWords": [
+        "data"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.callSearch",
+            "target": "$stockData",
+            "args": {
+              "q": "tariffs",
+              "symbol": null,
+              "since": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*earnings\\.callSearch.*\"params\":\\{\"q\":\"tariffs\",\"limit\":10\\}"
+        ],
+        "says": [
+          "Earnings calls mentioning \"tariffs\"",
+          "third-party transcript text"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "which companies mentioned tariffs on their earnings call",
+        "search earnings calls for tariffs",
+        "who talked about tariffs on their earnings call",
+        "find mentions of tariffs in earnings call transcripts"
+      ]
     }
   ],
   "refusals": [

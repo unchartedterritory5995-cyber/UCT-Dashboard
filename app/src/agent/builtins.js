@@ -50,6 +50,7 @@ import { registerHistoryCapability } from './capabilities/history'
 import { registerRsCapability } from './capabilities/rsLeadership'
 import { registerTerminalDataCapability } from './capabilities/terminalData'
 import { registerTerminalLocalCapabilities } from './capabilities/terminalDataLocal'
+import { registerTerminalWave2Capabilities } from './capabilities/terminalDataWave2'
 import { registerChartDescribeCapability } from './capabilities/chartDescribe'
 import { registerMultiChartCapabilities } from './capabilities/multiChart'
 // ⭐ W2-C1 (multi-page host): the pages' own capabilities — offered only on their surface (AgentProvider)
@@ -132,4 +133,5 @@ export function registerServerGatedBuiltins() {
   registerRsCapability()                 // Phase 2: rs.compare while the server serves `rs.leadership`
   registerTerminalDataCapability()       // Terminal data wave 1: stock.sectorPerformance while the server serves `sectors.performance`
   registerTerminalLocalCapabilities()    // Terminal data wave 1: four local-only answers, each while the server serves its own isolated kind
+  registerTerminalWave2Capabilities()    // Terminal data wave 2: five local-only answers, each while the server serves its own isolated kind
 }

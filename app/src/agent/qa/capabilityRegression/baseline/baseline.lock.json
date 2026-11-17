@@ -5297,6 +5297,131 @@
      "modes": {}
     }
    }
+  },
+  "stock.yearlyHighsLows": {
+   "digest": "52ebd1f125ddce75",
+   "phrasings": {
+    "which stocks made new 52-week highs": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which stocks are at new 52-week highs": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what is making new 52 week highs": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what stocks hit a new 52-week high": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.themeRotation": {
+   "digest": "c9c99f4fe3c41c9c",
+   "phrasings": {
+    "which themes are rotating in": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the themes rotating in": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what themes is money rotating into": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "list the themes that are rotating in": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.confluenceBoard": {
+   "digest": "246d947974d87541",
+   "phrasings": {
+    "what is bullish on the confluence board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the bullish confluence names": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "bullish names on the confluence board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which stocks are bullish on the confluence radar": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.expectedMove": {
+   "digest": "c65734e994f3b9e6",
+   "phrasings": {
+    "expected move for NVDA earnings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what is the implied move on NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "NVDA expected move": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how much is NVDA expected to move on earnings": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.callSearch": {
+   "digest": "3d204c89ddd7b91c",
+   "phrasings": {
+    "which companies mentioned tariffs on their earnings call": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "search earnings calls for tariffs": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "who talked about tariffs on their earnings call": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "find mentions of tariffs in earnings call transcripts": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {
