@@ -59,7 +59,7 @@ import {
 // resolves because every cross-module use is inside a function body and
 // `export function` bindings are hoisted; `budget.js`'s header states the whole
 // contract and `budget.test.js` proves it from a graph whose ENTRY is that file.
-import { assertBudget } from './budget.js'
+import { assertBudget, REFUSALS as BUDGET_REFUSALS } from './budget.js'
 import { barIndexVerdict, thresholdUnknown, readsBarIndex, readsRunningTotal, FIRST_BAR_TEST } from './barIndexShift.js'
 
 // ⭐⭐ THE LANE'S ONE ANSWER TO "DOES THIS TREE YIELD A YES/NO", IMPORTED RATHER
@@ -646,6 +646,24 @@ function refuse(guard, detail) {
  *  intent and this one. This guard has never been what bounds that lane; its own
  *  bar cap is. Measured cost is recorded in the derivation test. */
 export const MAX_RECURRENCE_STEPS = 12000000
+
+/** ⭐⭐ HEADLESS (Studio R6) — THE FORMULA LANE'S WHOLE-RUN EVALUATION CEILING, in the unit the
+ *  evaluation counter counts (`opts.workSink`, at `evalNode` below: one node evaluated into its value),
+ *  and the denominator a load budget on this lane is a fraction of. The runtime lane's twin is
+ *  `runtime/limits.js::DEFAULT_LIMITS.TOTAL_INSTRUCTIONS`.
+ *
+ *  ⭐ DERIVED, NOT CHOSEN: `budget.js::DEFAULT_BUDGET.maxNodes` (128, the per-tree cap, clamped
+ *  downward only, so no stored budget raises it) × 64 (TradingView's limit on a script's plot
+ *  outputs) × 2 (each plot may carry one helper tree beside it, a colour state). A document the
+ *  member door can mint therefore evaluates at most about this many nodes; RS Rating, the heaviest
+ *  measured, evaluates 191 over the reference series. `__tests__/headlessCompute.test.js` holds the
+ *  product to this literal.
+ *
+ *  ⛔ ENFORCED WHERE IT IS COUNTED: a run handed a work sink (the headless export) that evaluates more
+ *  is refused BY NAME, `budget:nodes`, the cap whose unit it is. The chart's own run carries no sink
+ *  and is bounded per tree, as before. Keep it `export const MAX_EVALUATION_UNITS = <n>` on one line:
+ *  the server reads this declaration, never a copy. */
+export const MAX_EVALUATION_UNITS = 16384
 
 /** How far back a running value may read its OWN past — `self[k]`.
  *
@@ -8483,7 +8501,13 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     }
     const special = chartClockValue(n)
     const value = special !== undefined ? special : evalNodeRaw(n)
-    if (workSink !== null) workSink.units += 1
+    if (workSink !== null) {
+      workSink.units += 1
+      if (workSink.units > MAX_EVALUATION_UNITS) {
+        throw new TableRefusal('budget:nodes', `${BUDGET_REFUSALS['budget:nodes']} — this definition evaluated `
+          + `${workSink.units} nodes over the whole run and the ceiling is ${MAX_EVALUATION_UNITS}`)
+      }
+    }
     if (id !== undefined) {
       memo.set(id, value)
       if (crossMemo !== null) crossMemo.set(n, value)

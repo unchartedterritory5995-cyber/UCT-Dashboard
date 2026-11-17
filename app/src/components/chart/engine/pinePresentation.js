@@ -89,13 +89,19 @@ const _plotTitleMemo = new WeakMap()
 const refOf = (p, field) => (p && p.$refs && typeof p.$refs[field] === 'string' ? p.$refs[field]
   : p && typeof p[field] === 'string' && p[field].startsWith('$') ? p[field].slice(1) : null)
 
-/** ONE plot's name: its own title (never a column key `outN`, never the import's stand-in, below), else
- *  the group of the script colour it draws in, else TradingView's `Plot`. */
+/** ONE plot's OWN title: its label, never a column key `outN`, never the import's stand-in (below); else
+ *  null, an untitled plot. */
+function ownTitleOfPlot(p, standIn = null) {
+  return p && typeof p.label === 'string' && p.label && !COLUMN_LABEL.test(p.label)
+    && !(standIn && standIn(p.label)) ? p.label : null
+}
+
+/** ONE plot's name: its own title (`ownTitleOfPlot`), else the group of the script colour it draws in,
+ *  else TradingView's `Plot`. */
 function titleOfPlot(p, links, byName, standIn = null) {
   const colourKey = refOf(p, 'color')
   const linked = colourKey && links[colourKey] ? byName.get(links[colourKey]) : null
-  const own = p && typeof p.label === 'string' && p.label && !COLUMN_LABEL.test(p.label)
-    && !(standIn && standIn(p.label)) ? p.label : null
+  const own = ownTitleOfPlot(p, standIn)
   return own || (linked && linked.group) || 'Plot'
 }
 
@@ -143,6 +149,23 @@ export function plotTitlesOf(def) {
     if (isObj(p) && typeof p.key === 'string') out.set(p.key, titleOfPlot(p, links, byName, standIn))
   }
   _plotTitleMemo.set(def, out)
+  return out
+}
+
+/**
+ * ⭐ HEADLESS (Studio R6) — each plot's OWN title, plot key -> title or null, by the same rule
+ * `plotTitlesOf` names a titled plot by (`ownTitleOfPlot`): what a headless output carries as its
+ * `title` (`headlessCompute.js`), where an untitled plot is `null`, never the form's stand-in (a
+ * colour group, or `Plot`). ⚠️ A Pine import that kept no script cannot tell the import's stand-in from
+ * a title equal to its name (`importStandIn`), so that label is kept, as the form keeps it.
+ */
+export function plotOwnTitlesOf(def) {
+  const out = new Map()
+  if (!isObj(def)) return out
+  const standIn = importStandIn(def)
+  for (const p of (Array.isArray(def.plots) ? def.plots : [])) {
+    if (isObj(p) && typeof p.key === 'string') out.set(p.key, ownTitleOfPlot(p, standIn))
+  }
   return out
 }
 

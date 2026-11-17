@@ -31,6 +31,8 @@ import * as registry from '../nativeRegistry'
 import { runtimeColumnsFor, setRuntimeDoorClock } from '../runtime/runtimeColumns'
 import { runtimeInputSpecsOf } from '../runtime/runtimeInputs.js'
 import { DEFAULT_LIMITS } from '../runtime/limits'
+import { MAX_EVALUATION_UNITS } from '../ast/interpret'
+import { DEFAULT_BUDGET } from '../ast/budget'
 import { fetchableOtherSymbols } from '../otherSymbols'
 import {
   referenceBars, referenceBenchmarkBars, referenceDigest, referenceOptions, REFERENCE_BARS_SHA256,
@@ -58,18 +60,22 @@ const stored = (d) => JSON.parse(JSON.stringify(d))
 
 const RS_SOURCE = fs.readFileSync(path.join(REPO, 'docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine'), 'utf8')
 /** RS Rating through the member door, as production mints it (the runtime pane on: its run half rides). */
-function rsRatingDoc() {
-  // a permitted member with the script graded, as `src/test-setup.js` sets per test (this runs in `beforeAll`)
+function withRuntimePane(fn) {
+  // a permitted member with the script graded, as `src/test-setup.js` sets per test (this also runs in
+  // `beforeAll`), on a build whose runtime pane is on, as production's is
   __permitRuntimePaneForTests()
   __allowEveryRuntimeScriptForTests()
   vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
   try {
-    const r = memberPaneDefinition({ source: RS_SOURCE, id: 'u_rsrating', name: 'RS Rating' })
-    expect(r.ok, r.reason).toBe(true)
-    return stored(r.definition)
+    return fn()
   } finally {
     vi.unstubAllEnvs()
   }
+}
+function rsRatingDoc() {
+  const r = withRuntimePane(() => memberPaneDefinition({ source: RS_SOURCE, id: 'u_rsrating', name: 'RS Rating' }))
+  expect(r.ok, r.reason).toBe(true)
+  return stored(r.definition)
 }
 
 /** The run half's own runtime document, as `nativeRegistry::runHalfDefOf` builds it for the chart (a
@@ -114,16 +120,17 @@ afterEach(() => {
   setRuntimeDoorClock(null)
 })
 
-/** sha256 of each output column's Float64 bytes, by key (a plain array is read as Float64 too). */
-function outputDigests(outputs) {
-  const out = {}
-  for (const k of Object.keys(outputs).sort()) {
-    const col = outputs[k] instanceof Float64Array ? outputs[k] : Float64Array.from(outputs[k])
-    out[k] = createHash('sha256').update(new Uint8Array(col.buffer, col.byteOffset, col.byteLength)).digest('hex')
-  }
-  return out
+/** sha256 of a series' Float64 bytes (a plain array is read as Float64, `NaN` kept). */
+function digestOf(values) {
+  const col = values instanceof Float64Array ? values : Float64Array.from(values)
+  return createHash('sha256').update(new Uint8Array(col.buffer, col.byteOffset, col.byteLength)).digest('hex')
 }
-const brief = (r) => (r.refusal ? { lane: r.lane, refusal: r.refusal.code } : { lane: r.lane, work: r.work, outputs: outputDigests(r.outputs) })
+/** The drawn outputs with each series reduced to its digest: key, title, order and withholdings kept. */
+const entriesBrief = (entries) => entries.map((e) => ({ key: e.key, title: e.title, values: digestOf(e.values),
+  ...(e.withheld ? { withheld: e.withheld } : {}) }))
+const brief = (r) => (r.refusal ? { lane: r.lane, refusal: r.refusal.code } : { lane: r.lane, work: r.work, outputs: entriesBrief(r.outputs) })
+/** The plots the chart draws, in plot order (no `hidden` helper, no `hlines` guide). */
+const drawnPlots = (def) => (def.plots || []).filter((p) => p && typeof p.key === 'string' && p.style !== 'hlines' && p.hidden !== true)
 
 // ─── 1. determinism ───────────────────────────────────────────────────────────────────────────────
 
@@ -212,8 +219,88 @@ describe('2. the lane is the chart router\'s, and the outputs are the chart\'s c
       }
       const chart = registry.computeFor(def, BARS, {}, ctx)
       const headless = computeHeadless(def, BARS, OPTS)
-      expect(outputDigests(headless.outputs), name).toEqual(outputDigests(chart))
+      expect(headless.outputs.map((e) => e.key), name).toEqual(drawnPlots(def).map((p) => p.key))
+      for (const e of headless.outputs) expect(digestOf(e.values), `${name}: ${e.key}`).toBe(digestOf(chart[e.key]))
     }
+  })
+})
+
+describe('2b. outputs: one entry per drawn plot, by key, titled as the chart titles it', () => {
+  it('in plot order; hidden helpers and guides are not drawn; values are a plain number[] per bar', () => {
+    for (const { name, def } of CORPUS) {
+      const r = computeHeadless(def, BARS, OPTS)
+      expect(r.outputs.map((e) => e.key), name).toEqual(drawnPlots(def).map((p) => p.key))
+      for (const e of r.outputs) expect(Array.isArray(e.values) && e.values.length === BARS.length, `${name}: ${e.key}`).toBe(true)
+    }
+    // ATR Extension draws `ext`; its colour-rule helper `ext_cs` (hidden) and its `levels` guide are not drawn
+    expect(computeHeadless(house('atr_extension'), BARS, OPTS).outputs.map((e) => [e.key, e.title]))
+      .toEqual([['ext', 'ATR Extensio']])
+  })
+
+  it('an untitled plot is null; two plots sharing a title stay two entries, apart by key and position', () => {
+    // the member door's reading of a script: untitled, titled twice the same, untitled again
+    const src = lines('//@version=5', 'indicator("titles")', 'plot(close)', 'plot(open, title="A")', 'plot(high, "A")',
+      'x = ta.sma(close, 5)', 'plot(x)')
+    const door = memberPaneDefinition({ source: src, id: 'u_titles', name: 'titles' })
+    expect(door.ok, door.reason).toBe(true)
+    const r = computeHeadless(stored(door.definition), BARS, OPTS)
+    expect(r.outputs.map((e) => e.key)).toEqual(['value', 'out2', 'out3', 'out4'])
+    // ⚠️ `value`: the door labels an untitled FIRST plot with the indicator's name; a host document that
+    // kept no script cannot tell that stand-in from a title, so the chart's form (and this) reads it
+    expect(r.outputs.map((e) => e.title)).toEqual(['titles', 'A', 'A', null])
+    expect(digestOf(r.outputs[1].values)).toBe(digestOf(BARS.map((b) => b.o)))
+    expect(digestOf(r.outputs[2].values)).toBe(digestOf(BARS.map((b) => b.h)))
+    // with its script kept (a runtime document), the untitled first plot is null too
+    const rt = computeHeadless(rtDoc('u_untitled'), BARS, OPTS)
+    expect(rt.outputs.map((e) => [e.key, e.title])).toEqual([['value', null], ['m', null]])
+    // a script only the per-bar lane can run (two `var`s that read each other), minted by the door as a runtime
+    // document with its script kept, untitled first plot and a title used twice
+    const runtimeDoor = withRuntimePane(() => memberPaneDefinition({ source: lines('//@version=5', 'indicator("rt titles")',
+      'var float s = 0.0', 'var float q = 0.0', 'q := s', 's := q + close', 'plot(s)', 'plot(q, "Q")', 'plot(q * 2, "Q")'),
+    id: 'u_rt_titles', name: 'rt titles' }))
+    expect(runtimeDoor.ok, runtimeDoor.reason).toBe(true)
+    expect(runtimeDoor.definition.compute.kind).toBe('runtime')
+    const r2 = computeHeadless(stored(runtimeDoor.definition), BARS, OPTS)
+    expect(r2.refusal, JSON.stringify(r2.refusal)).toBeUndefined()
+    expect(r2.outputs.map((e) => e.title)).toEqual([null, 'Q', 'Q'])
+    expect(new Set(r2.outputs.map((e) => e.key)).size).toBe(3)
+    expect(digestOf(r2.outputs[2].values)).not.toBe(digestOf(r2.outputs[1].values))
+  })
+})
+
+describe("2c. each lane's work has a hard ceiling, read from the module that counts it", () => {
+  it("the formula lane's ceiling is derived: the per-tree node cap x TradingView's 64 plots x a helper each", () => {
+    expect(MAX_EVALUATION_UNITS).toBe(DEFAULT_BUDGET.maxNodes * 64 * 2)
+    for (const { name, def } of CORPUS) {
+      const r = computeHeadless(def, BARS, OPTS)
+      const ceiling = r.lane === COMPUTE_LANE.AST ? MAX_EVALUATION_UNITS : DEFAULT_LIMITS.TOTAL_INSTRUCTIONS
+      expect(r.work, name).toBeLessThan(ceiling)
+    }
+  })
+
+  it('past it, a counted run is refused by name (budget:nodes); the chart, which counts nothing, draws it', () => {
+    // 170 trees of 101 nodes each: every tree inside the per-tree cap, the whole run past the ceiling
+    const trees = {}
+    const plots = []
+    for (let i = 0; i < 170; i += 1) {
+      let node = { type: 'series', name: 'close' }
+      for (let j = 0; j < 50; j += 1) node = { type: 'op', name: '+', args: [node, { type: 'num', value: i * 1000 + j + 1 }] }
+      trees[`p${i}`] = node
+      plots.push({ key: `p${i}`, style: 'line' })
+    }
+    const wide = stored({ id: 'u_wide', version: 1, compute: { kind: 'ast', fn: 'sha256:wide', ast: trees.p0, trees },
+      plots, inputs: [], meta: { name: 'wide' } })
+    const bars = BARS.slice(0, 300)
+    const r = computeHeadless(wide, bars, OPTS)
+    expect(r.refusal && r.refusal.code, JSON.stringify(r.refusal || { work: r.work })).toBe('budget:nodes')
+    expect(r.refusal.message).toContain(String(MAX_EVALUATION_UNITS))
+    const chart = registry.computeFor(wide, bars, {}, { tf: 'D' })
+    expect(registry.columnErrors(chart)).toEqual({})
+    expect(Object.keys(chart)).toHaveLength(170)
+    // ⛔ the control: under the ceiling, the same shape computes and counts every node
+    const narrow = stored({ ...wide, compute: { ...wide.compute, trees: Object.fromEntries(Object.entries(trees).slice(0, 100)) },
+      plots: plots.slice(0, 100) })
+    expect(computeHeadless(narrow, bars, OPTS).work).toBe(100 * 101)
   })
 })
 
@@ -330,7 +417,8 @@ describe('5. the server bundle carries the export and the generator, and compute
       "import { readFileSync } from 'node:fs'",
       "import * as m from './pine-runtime.mjs'",
       "const corpus = JSON.parse(readFileSync(new URL('./corpus.json', import.meta.url), 'utf8'))",
-      'const digests = (o) => Object.fromEntries(Object.keys(o).sort().map((k) => { const c = o[k] instanceof Float64Array ? o[k] : Float64Array.from(o[k]); return [k, createHash(\'sha256\').update(new Uint8Array(c.buffer, c.byteOffset, c.byteLength)).digest(\'hex\')] }))',
+      'const digestOf = (v) => { const c = Float64Array.from(v); return createHash(\'sha256\').update(new Uint8Array(c.buffer, c.byteOffset, c.byteLength)).digest(\'hex\') }',
+      'const digests = (entries) => entries.map((e) => ({ key: e.key, title: e.title, values: digestOf(e.values), ...(e.withheld ? { withheld: e.withheld } : {}) }))',
       'const bars = m.referenceBars()',
       'const results = corpus.map(({ name, def }) => { const r = m.computeHeadless(def, bars, m.referenceOptions()); return [name, r.refusal ? { lane: r.lane, refusal: r.refusal.code } : { lane: r.lane, work: r.work, outputs: digests(r.outputs) }] })',
       'console.log(JSON.stringify({ bars: m.referenceDigest(bars), benchmark: m.referenceDigest(m.referenceBenchmarkBars()), results }))',

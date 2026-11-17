@@ -11,8 +11,18 @@
 //
 //   · LANE — `computeLane.js::computeLaneOf`, the router `nativeRegistry.computeFor` dispatches on.
 //     Never a second router: the answer IS the chart's.
-//   · OUTPUTS — the column map the lane's compute returns, in its own shape (`Float64Array`s from the
-//     host lane, plain arrays from the runtime lane), with every by-name record it carries.
+//   · OUTPUTS — what the lane's compute returns for each DRAWN output, as an ordered array
+//     `[{key, title, values}]`, one entry per plot the chart draws, in the definition's plot order
+//     (`def.plots`; a `hidden` helper column and an `hlines` guide are not drawn, so not listed):
+//       key     the definition's stable plot key (the column's own name; unique, never merged)
+//       title   the plot's own title as the chart names it (`pinePresentation.js::plotOwnTitlesOf`,
+//               the rule the settings form titles a plot by), or `null` for an untitled plot (the
+//               form's stand-ins `Plot` / a colour group, a column key `outN` and the import's
+//               indicator-name stand-in are not titles). Two plots may share a title: they stay two
+//               entries, told apart by `key` and by position.
+//       values  the per-bar series, a plain `number[]` (`NaN` where nothing is drawn)
+//       withheld  (only when some bars are withheld BY NAME) `[{code, bars}]`, the engine's own records
+//     Computed by:
 //       'ast'     → `astColumns.js::astLaneColumns`, the host lane's values (moved there from the
 //                   registry so this bundle can reach them), with NONE of the run-read parts
 //       'runtime' → `runtime/runtimeColumns.js::computeRuntimeColumns`, the ONE run both the chart's
@@ -69,13 +79,17 @@
 //                       keyed as the chart fetches them (`otherSymbols.js::fetchableOtherSymbols`)
 import { computeLaneOf, COMPUTE_LANE } from './computeLane.js'
 import {
-  astLaneColumns, astPlotKey, columnErrors, otherSymbolReport, lowerTfReport, chartClockReport, RUNTIME_ERROR_GUARD,
+  astLaneColumns, astPlotKey, columnErrors, otherSymbolReport, lowerTfReport, chartClockReport, withheldBarsReport,
+  RUNTIME_ERROR_GUARD,
 } from './astColumns.js'
-import { computeRuntimeColumns } from './runtime/runtimeColumns.js'
+import {
+  computeRuntimeColumns, runtimeWarmupOf, RUNTIME_REQUEST_WITHHELD_KEY, RUNTIME_HISTORY_GUARD,
+} from './runtime/runtimeColumns.js'
 import { runtimeInputValues } from './runtime/runtimeInputs.js'
 import { fetchableOtherSymbols } from './otherSymbols.js'
 import { instanceDocumentForFetch } from './symbolInputs.js'
 import { HOST_KNOWN_DIVERGENCE_GUARD, HOST_KNOWN_DIVERGENCE_STAMP } from './hostKnownDivergence.js'
+import { plotOwnTitlesOf } from './pinePresentation.js'
 import { ENGINE_ERROR } from './ast/parse.js'
 
 /** The clock the runtime lane is handed: it never moves, so no wall-clock stop decides anything. */
@@ -123,6 +137,41 @@ function contextOf(def, opts) {
   return ctx
 }
 
+// ─── the outputs: one entry per drawn plot ────────────────────────────────────────────────────────
+
+/** How many bars a 0/1 withholding mask covers. */
+function countOnes(mask) {
+  let n = 0
+  for (let i = 0; i < mask.length; i += 1) if (mask[i] === 1) n += 1
+  return n
+}
+
+/** The column map a lane returned, as the ordered drawn outputs `[{key, title, values, withheld?}]`. */
+function drawnOutputs(def, out) {
+  const titles = plotOwnTitlesOf(def)
+  // the bars a column carries withheld BY NAME: the host lane's per-plot witness masks, the runtime
+  // lane's warm-up curtain (a history off the listing) and its newest bar a request cannot know yet
+  const perPlot = withheldBarsReport(out) || {}
+  const warm = runtimeWarmupOf(out)
+  const newest = out[RUNTIME_REQUEST_WITHHELD_KEY] || null
+  const entries = []
+  for (const p of (Array.isArray(def.plots) ? def.plots : [])) {
+    if (!p || typeof p.key !== 'string' || p.style === 'hlines' || p.hidden === true) continue
+    const col = out[p.key]
+    if (!(col && typeof col.length === 'number')) continue
+    const withheld = []
+    for (const [code, mask] of Object.entries(perPlot[p.key] || {})) {
+      const bars = countOnes(mask)
+      if (bars) withheld.push({ code, bars })
+    }
+    if (warm && warm.withheldBars > 0) withheld.push({ code: RUNTIME_HISTORY_GUARD, bars: warm.withheldBars })
+    if (newest) for (const code of newest.codes || []) withheld.push({ code, bars: 1 })
+    entries.push({ key: p.key, title: titles.has(p.key) ? titles.get(p.key) : null, values: Array.from(col),
+      ...(withheld.length ? { withheld } : {}) })
+  }
+  return entries
+}
+
 // ─── the runtime lane ─────────────────────────────────────────────────────────────────────────────
 
 function runtimeLane(def, rows, opts) {
@@ -153,7 +202,7 @@ function runtimeLane(def, rows, opts) {
   if (missing.length) {
     return refused(lane, ENGINE_ERROR, `the run computed no column for ${missing.join(', ')}`, { plots: missing })
   }
-  return { lane, outputs: out, work }
+  return { lane, outputs: drawnOutputs(def, out), work }
 }
 
 // ─── the host (formula) lane ──────────────────────────────────────────────────────────────────────
@@ -215,7 +264,7 @@ function hostLane(def, rows, opts) {
   if (why) return refused(lane, why.code, why.message, why.plots ? { plots: why.plots } : {})
   const compute = def.compute || {}
   const runParts = ['runtimeColours', 'runtimeObjects'].filter((k) => compute[k])
-  return { lane, outputs: out, work: sink.units, ...(runParts.length ? { runParts } : {}) }
+  return { lane, outputs: drawnOutputs(def, out), work: sink.units, ...(runParts.length ? { runParts } : {}) }
 }
 
 /**
@@ -224,7 +273,8 @@ function hostLane(def, rows, opts) {
  * @param {object} definition a saved definition (`compute.kind` 'ast' or 'runtime')
  * @param {object[]} bars `{t, o, h, l, c, v}` rows, oldest first
  * @param {object} [opts] see the module header
- * @returns {{lane: string, outputs: object, work: number, runParts?: string[]}
+ * @returns {{lane: string, outputs: {key: string, title: string|null, values: number[], withheld?: object[]}[],
+ *     work: number, runParts?: string[]}
  *   | {lane: string, outputs: null, work: null, refusal: {code: string, message: string, plots?: object, limit?: string}}}
  * @throws for a definition on a lane with no work counter ('native', 'server')
  */
