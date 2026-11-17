@@ -559,6 +559,42 @@ def todays_index_daily_bar(ticker: str, now: Optional[float] = None) -> Optional
             "l": min(r[3] for r in rows), "c": rows[-1][4], "v": sum(r[5] for r in rows)}
 
 
+def _previous_session(today):
+    """The NYSE session before `today` (weekends and holidays skipped), or None."""
+    import datetime as _dt
+    from api.services.bars_fetch import _is_trading_day_ymd
+    d = today - _dt.timedelta(days=1)
+    for _ in range(10):
+        if _is_trading_day_ymd(d):
+            return d
+        d -= _dt.timedelta(days=1)
+    return None
+
+
+def _runs_through_previous_session(ticker: str, bars: list, today_key: int, now: float) -> bool:
+    """Does the daily series reach the session before today? Read from the served rows; an empty
+    `since` delta carries none, so then from the stored series (`_peek_entry`, the entry
+    `fetch_index_bars` just read). An unreadable answer is "no" (fail closed)."""
+    rows = bars if bars else ((_peek_entry((ticker or "").upper().strip(), "D", now) or {}).get("series") or [])
+    before = [b["t"] for b in rows if isinstance(b, dict) and isinstance(b.get("t"), (int, float))
+              and not isinstance(b.get("t"), bool) and b["t"] < today_key]
+    today, _open, _close = _session_of(now)
+    prev = _previous_session(today)
+    if not before or prev is None:
+        return False
+    if max(before) < _utc_midnight(prev):
+        logger.info(f"[index_bars] {(ticker or '').upper()}: the daily series ends "
+                    f"{_dt_iso(max(before))}, before the previous session {prev}; today's bar is not "
+                    f"appended across that gap")
+        return False
+    return True
+
+
+def _dt_iso(t) -> str:
+    import datetime as _dt
+    return _dt.datetime.fromtimestamp(int(t), _dt.timezone.utc).date().isoformat()
+
+
 def with_todays_session(ticker: str, bars: list, now: Optional[float] = None) -> Optional[list]:
     """The served daily `bars` with TODAY's session bar as their tail, or None to leave them
     as they are. The equity serve's rule (`bars._augment_daily_with_today`), for an index:
@@ -567,7 +603,11 @@ def with_todays_session(ticker: str, bars: list, now: Optional[float] = None) ->
       - the tail IS today: it stands when the store read it at least `SETTLED_AFTER_CLOSE_S`
         after the close (the settled bar); otherwise it is a snapshot of an unfinished
         session and the bar built from the 5m series replaces it;
-      - otherwise (yesterday's tail, or an empty `since` delta) → today's bar is appended."""
+      - otherwise (yesterday's tail, or an empty `since` delta) → today's bar is appended.
+    ⛔ NEVER ACROSS A GAP: the newest row before today (in the served rows, or for an empty
+    `since` delta in the stored series) must be the PREVIOUS session. A daily store that stopped
+    refreshing (measured 2026-11-17 19:30Z: RUT, DJX, XSP at 10-22, XND at 10-28) would otherwise
+    have today's bar drawn beside a weeks-old one, hiding the gap a chart ending at 10-22 shows."""
     if not isinstance(bars, list):
         return None
     now = float(now if now is not None else time.time())
@@ -579,6 +619,8 @@ def with_todays_session(ticker: str, bars: list, now: Optional[float] = None) ->
     if tail is not None and (not isinstance(tail_t, (int, float)) or isinstance(tail_t, bool)):
         return None                      # a tail this module did not write: never touch it
     if tail_t is not None and tail_t > built["t"]:
+        return None
+    if not _runs_through_previous_session(ticker, bars, built["t"], now):
         return None
     if tail_t == built["t"]:
         _today, _open, close_ts = _session_of(now)
