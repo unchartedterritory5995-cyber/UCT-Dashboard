@@ -177,7 +177,14 @@ export function strategyReportOf(rec, opts = {}) {
   // script does not declare it, so every value that reads a profit (its SIGN included) rests on it.
   // ⭐ W9-T5: a non-zero commission rests on its type's rule instead (ONE authority: `commissionRulesOf`)
   const commission = rec.settings.commission
-  const rulesFor = (kind) => [...fillRules, 'B-VAL', ...(kind === 'count' ? [] : commissionRulesOf(commission))]
+  // ⭐⭐ SERVE AUDIT (2026-11-17) — a PERCENT of the initial capital rests on the capital too: when the script does not
+  // state `initial_capital` the value is the version's default (B-DEFAULTS, Q-S1b), and the run asks that rule only
+  // where IT reads the capital (`broker.js` capital()). A run sized by a fixed quantity, at a declared margin and a
+  // declared non-zero commission type, never does, so this metric would rest on a default no rule it asked covers.
+  const capitalRules = Array.isArray(rec.settings.defaulted) && rec.settings.defaulted.includes('initialCapital')
+    ? ['B-DEFAULTS'] : []
+  const rulesFor = (kind) => [...fillRules, 'B-VAL', ...(kind === 'count' ? [] : commissionRulesOf(commission)),
+    ...(kind === 'percent' ? capitalRules : [])]
   // W9-T5: with a commission every money figure is net of the trade's fees (the broker's `netOf`); with none,
   // the pre-W9-T5 expressions exactly
   const costOn = commission.value > 0

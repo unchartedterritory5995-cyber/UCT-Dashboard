@@ -156,6 +156,11 @@ export function probeRuntimeProgram(source, { objectsInRun = false } = {}) {
     // `buildRuntimeIr` retries into broker mode only then), so the member door stamps the
     // document `STRATEGY_WINDOW_HISTORY`.
     broker: !!program.broker,
+    // ⭐ SERVE OR REFUSE BY NAME (2026-11-17) — with the broker gate on, a strategy whose broker build refused and whose
+    // plain build stands (`buildRuntimeIr` `brokerDeclined`): the member door names it on the pane. Absent otherwise,
+    // so every other probe answers exactly as before.
+    ...(built.brokerDeclined ? { brokerDeclined: { guard: built.brokerDeclined.guard || null,
+      message: String(built.brokerDeclined.message || '').slice(0, 400) } } : {}),
     // ⭐⭐ U15 — the library versions the build linked, each by the sha256 of the code it
     // compiled (`pineLibraries.js`): the member door pins them on the document. Absent unless
     // the script imports one, so every other probe answers exactly as before.
