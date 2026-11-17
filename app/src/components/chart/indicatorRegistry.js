@@ -123,6 +123,7 @@ import { isOverlayRemoved, isVolumeRemoved } from './chartDefaults'
 import { instanceLabel } from './engine/sourceRef'
 import { disambiguateLabels } from './engine/readout'
 import { namesItselfSemantically } from './engine/semanticName'
+import { pineFieldPresentation, inPineOrder } from './engine/pinePresentation.js'
 
 /** The two moving averages a member can pick, in the words a trader uses.
  *
@@ -529,7 +530,18 @@ export function visiblePresets(def, declared = null) {
  *  ⭐ 3-01: through `visibleInputs`, so a legacy input never gets a field and a
  *  gated one gets one only when `opts.declared` declares it. */
 export function fieldsFromDefinition(def, opts = {}) {
-  return visibleInputs(def, opts && opts.declared).map(fieldFromInput).filter(Boolean)
+  const fields = visibleInputs(def, opts && opts.declared).map(fieldFromInput).filter(Boolean)
+  // ⭐ A PINE DOCUMENT'S SETTINGS AS TRADINGVIEW LAYS THEM OUT (`engine/pinePresentation.js`, read off the
+  // installed document, never stored): the script's source order, its titles where ours are column keys,
+  // and a 0/1 number that is a Pine `bool` as a switch reading and writing 1 / 0
+  const pres = pineFieldPresentation(def)
+  if (!pres.order.size && !pres.extra.size) return fields
+  return inPineOrder(fields.map((f) => {
+    const x = pres.extra.get(f.key)
+    let out = x && x.label ? { ...f, label: x.label } : f
+    if (pres.switches.has(f.key) && out.type === 'number') out = { ...out, type: 'toggle', numeric: true }
+    return out
+  }), pres)
 }
 
 // ─── THE PER-INSTANCE FORM MODEL (spec §6's settings dialog) ────────────────
@@ -659,8 +671,10 @@ export function fieldsForInstance(def, instance, opts = {}) {
     if (Object.prototype.hasOwnProperty.call(stored, d.key)) values[d.key] = stored[d.key]
   }
 
+  const pres = pineFieldPresentation(def)
   const all = fieldsFromDefinition(def, { declared: opts && opts.declared }).map((f) => {
     const d = byKey.get(f.key) || {}
+    const x = pres.extra.get(f.key) || {}
     return {
       ...f,
       inputType: d.type,
@@ -669,9 +683,10 @@ export function fieldsForInstance(def, instance, opts = {}) {
       // write `setInstanceInput` silently declines — the generated field's `step`
       // alone cannot tell the two apart once an author declares `step: 1` on a float.
       isInt: d.type === 'int',
-      group: typeof d.group === 'string' ? d.group : null,
-      inline: typeof d.inline === 'string' ? d.inline : null,
-      tooltip: typeof d.tooltip === 'string' ? d.tooltip : null,
+      // a setting's own presentation wins; a Pine document's script states the rest (`pinePresentation.js`)
+      group: typeof d.group === 'string' ? d.group : (typeof x.group === 'string' ? x.group : null),
+      inline: typeof d.inline === 'string' ? d.inline : (typeof x.inline === 'string' ? x.inline : null),
+      tooltip: typeof d.tooltip === 'string' ? d.tooltip : (typeof x.tooltip === 'string' ? x.tooltip : null),
       activeWhen: d.activeWhen || null,
     }
   })
@@ -697,6 +712,9 @@ export function fieldsForInstance(def, instance, opts = {}) {
   }
 
   const styleKeys = styleInputKeys(def)
+  // ⭐ a plot colour that IS the script's own colour input is shown on the Inputs tab, where TradingView
+  // shows it (`engine/pinePresentation.js`)
+  for (const k of pres.onInputs) styleKeys.delete(k)
   return {
     defId: def?.id,
     instanceId: instance?.instanceId,
@@ -1140,7 +1158,12 @@ export function listIndicators(settings, opts = {}) {
       ? VOLUME_FIELDS.map(f => (f.key === 'separatePane' ? { ...f, disabled: opts.volumePaneFixed } : f))
       : VOLUME_FIELDS,
     path: { kind: 'section', key: 'volume' },
-    values: settings?.volume || {},
+    // ⭐ A HOST THAT DEFAULTS VOLUME TO ITS OWN PANE (/charts, `volumePaneByDefault`)
+    // reads the member's `displayIn`, not `separatePane` — so the toggle shows THAT
+    // answer (absent ⇒ ON), and `patchFor` writes both keys. See volumePresentation.js.
+    values: opts.volumePaneByDefault
+      ? { ...(settings?.volume || {}), separatePane: settings?.volume?.displayIn !== 'price' }
+      : (settings?.volume || {}),
     canToggle: true,
     enabledKey: 'visible',   // volume uses `visible`, overlays use `enabled`
   })
@@ -1298,6 +1321,12 @@ export function patchFor(row, patch, settings) {
         [row.path.key]: { ...(settings.indicators?.[row.path.key] || {}), ...patch },
       },
     }
+  }
+  // ⭐ Volume's Separate pane toggle is a Display in choice: write `displayIn` beside
+  // `separatePane`, exactly as `legend/volumeChip.withVolumeDisplay` does, so a host
+  // that defaults volume to a pane (/charts) sees the choice. See volumePresentation.js.
+  if (row.path.key === 'volume' && patch && typeof patch.separatePane === 'boolean') {
+    patch = { ...patch, displayIn: patch.separatePane ? 'pane' : 'price' }
   }
   return { [row.path.key]: { ...(settings[row.path.key] || {}), ...patch } }
 }

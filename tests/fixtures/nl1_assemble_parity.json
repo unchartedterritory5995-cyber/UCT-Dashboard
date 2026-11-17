@@ -207,7 +207,7 @@
  "groups": [
   {
    "id": "charts",
-   "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+   "title": "Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume"
   },
   {
    "id": "chartSetup",
@@ -223,7 +223,7 @@
   },
   {
    "id": "chartMenu",
-   "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+   "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
   },
   {
    "id": "chartFeatures",
@@ -259,7 +259,7 @@
   },
   {
    "id": "indicatorSetup",
-   "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+   "title": "Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
   },
   {
    "id": "indicatorCalc",
@@ -271,7 +271,7 @@
   },
   {
    "id": "volumeProfile",
-   "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+   "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
   },
   {
    "id": "drawingOps",
@@ -418,7 +418,7 @@
     "groups": [
      {
       "id": "charts",
-      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+      "title": "Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume"
      },
      {
       "id": "chartSetup",
@@ -434,7 +434,7 @@
      },
      {
       "id": "chartMenu",
-      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+      "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartFeatures",
@@ -470,7 +470,7 @@
      },
      {
       "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+      "title": "Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
       "id": "indicatorCalc",
@@ -482,7 +482,7 @@
      },
      {
       "id": "volumeProfile",
-      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
       "id": "drawingOps",
@@ -647,7 +647,7 @@
     "groups": [
      {
       "id": "charts",
-      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+      "title": "Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume"
      },
      {
       "id": "chartSetup",
@@ -663,7 +663,7 @@
      },
      {
       "id": "chartMenu",
-      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+      "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartFeatures",
@@ -699,7 +699,7 @@
      },
      {
       "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+      "title": "Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
       "id": "indicatorCalc",
@@ -711,7 +711,7 @@
      },
      {
       "id": "volumeProfile",
-      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
       "id": "drawingOps",
@@ -890,7 +890,7 @@
     "groups": [
      {
       "id": "charts",
-      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+      "title": "Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume"
      },
      {
       "id": "chartSetup",
@@ -906,7 +906,7 @@
      },
      {
       "id": "chartMenu",
-      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+      "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartFeatures",
@@ -942,7 +942,7 @@
      },
      {
       "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+      "title": "Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
       "id": "indicatorCalc",
@@ -954,7 +954,7 @@
      },
      {
       "id": "volumeProfile",
-      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
       "id": "drawingOps",
@@ -1143,7 +1143,7 @@
     "groups": [
      {
       "id": "charts",
-      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+      "title": "Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume"
      },
      {
       "id": "chartSetup",
@@ -1159,7 +1159,7 @@
      },
      {
       "id": "chartMenu",
-      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+      "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartFeatures",
@@ -1195,7 +1195,7 @@
      },
      {
       "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+      "title": "Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
       "id": "indicatorCalc",
@@ -1207,7 +1207,7 @@
      },
      {
       "id": "volumeProfile",
-      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
       "id": "drawingOps",
@@ -1368,7 +1368,7 @@
     "groups": [
      {
       "id": "charts",
-      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+      "title": "Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume"
      },
      {
       "id": "chartSetup",
@@ -1384,7 +1384,7 @@
      },
      {
       "id": "chartMenu",
-      "title": "A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position"
+      "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
       "id": "chartFeatures",
@@ -1420,7 +1420,7 @@
      },
      {
       "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+      "title": "Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
      },
      {
       "id": "indicatorCalc",
@@ -1432,7 +1432,7 @@
      },
      {
       "id": "volumeProfile",
-      "title": "A chart’s Volume Profile overlay: on / off, bins, colours"
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
       "id": "drawingOps",

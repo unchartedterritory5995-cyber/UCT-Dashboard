@@ -562,21 +562,23 @@ CONVERSE_SYSTEM_PROMPT = (
     "the chart\" is placement \"pane\"; on the price chart, an overlay or \"on the "
     "candles\" is placement \"price\". A ratio, percentage or difference that is not "
     "in price units belongs in \"pane\" unless the member says otherwise.\n"
-    "  * Presentation: set_style (colour, width, style, hidden, lineStyle "
-    "solid/dashed/dotted/largeDashed), set_marker / remove_marker, set_paint / "
+    "  * Presentation: set_style (color, width, style, hidden, lineStyle "
+    "solid/dashed/dotted/largeDashed, breaks true where a line has no value on some bars by "
+    "design -- a level kept N bars after an event -- so it is not joined across them), "
+    "set_marker / remove_marker, set_paint / "
     "remove_paint (markers, paints and alerts need a yes/no output, type \"condition\"), "
     "set_levels (horizontal lines at fixed values; [] removes them), set_fill / "
     "remove_fill (shade between two NUMBER outputs), "
-    "set_placement. Per-bar colour of a line or histogram: set_color_rule (rule "
-    "sign = up colour at or above zero, down below; rising = up when higher than the "
-    "bar before; condition = up when a yes/no output is true; none = one colour). "
-    "SEVERAL colours by state (up to four, counting `otherwise`) -- a histogram bright green "
+    "set_placement. Per-bar color of a line or histogram: set_color_rule (rule "
+    "sign = up color at or above zero, down below; rising = up when higher than the "
+    "bar before; condition = up when a yes/no output is true; none = one color). "
+    "SEVERAL colors by state (up to four, counting `otherwise`) -- a histogram bright green "
     "above zero and rising, dark green above zero and falling, red below zero and falling, "
     "orange below zero and rising; candles green in an uptrend, yellow in consolidation, red in "
     "a downtrend: set_color_states (`output` for a line / histogram, whose states may name a "
     "`relation` of that output; or `channel` barcolor / bgcolor for the candles / background, "
     "whose states are yes/no `when` trees). The first true state wins; re-send the WHOLE list "
-    "to change one state. A marker's size and colour: set_marker `size` / `color`. "
+    "to change one state. A marker's size and color: set_marker `size` / `color`. "
     "A conditional cloud: set_fill with `when` (colorAbove where the first output is "
     "above the second, colorBelow where below). A header value: request_info_value. "
     "An alert: request_alert -- on a yes/no output with triggerPolicy is_true, "
@@ -585,7 +587,7 @@ CONVERSE_SYSTEM_PROMPT = (
     "another (higher) timeframe than the chart's: set_calculation_timeframe (\"a daily "
     "EMA on my 5-minute chart\"). A TABLE drawn on the chart: set_table (a position and cells; a "
     "cell is fixed text or the latest value of an output -- put values that belong only in the "
-    "table in HIDDEN outputs and point cells at them; a cell's text or background colour may "
+    "table in HIDDEN outputs and point cells at them; a cell's text or background color may "
     "follow a yes/no output -- colorWhen / backgroundWhen, e.g. green where bullish, red where "
     "not -- a yes/no cell may show its own `labels`, `size` sets text size and `span` merges a "
     "title across columns); remove_table removes it. Formula functions linreg, correlation, "
@@ -614,6 +616,9 @@ CONVERSE_SYSTEM_PROMPT = (
     "or month\n"
     "  Windows are plain whole-number nodes; negation is the unary-minus operator; a "
     "condition is a 0/1 column; never read a later bar.\n"
+    "  A count of bars is never negative here: `highestbars`, `lowestbars` and `barssince` "
+    "answer how many bars BACK (0 = this bar, 3 = three bars ago). This is not TradingView's "
+    "sign: never negate one, and compare it with numbers of 0 or more.\n"
     "  A `sym` goes OUTSIDE a timeframe read, never under one: SPY's weekly close is "
     "sym(SPY, tf(close, W)). Wrap only what is read from the other symbol: "
     "\"close above SPY's 50 EMA\" compares the chart's close with "
@@ -736,7 +741,9 @@ def _matched_term(t: Mapping[str, Any]) -> Dict[str, Any]:
     if twin is not None:
         out["chart_formula"] = dc.formula_for(twin)
         out["rule"] = ("the firm's meaning of this term on a chart: use this formula and "
-                       "disclose its numbers in `assumptions`")
+                       "disclose its numbers in `assumptions`. If the member gave their own "
+                       "number for it (a different length or window), keep this formula's shape "
+                       "with the member's number")
     return out
 
 
@@ -900,6 +907,83 @@ def _refuse_unsupported_nodes(trees: List[Tuple[str, Any]]) -> None:
                 raise _Refused("unsupported:node",
                                f"{where}: {why.format(value=node.get('value'))}",
                                member=member.format(value=_member_value(node.get("value"))))
+
+
+#: Functions that answer a count of bars BACK: 0 on this bar, never negative here.
+#: (TradingView's ``ta.highestbars`` / ``ta.lowestbars`` answer a NON-POSITIVE offset; the
+#: translator negates it for a pasted script. A model that knows Pine writes the negative form.)
+_BARS_BACK_CALLS = frozenset({"highestbars", "lowestbars", "barssince"})
+_COMPARISONS = frozenset({"<", "<=", ">", ">=", "==", "!="})
+
+
+def _literal_sign(node: Any) -> int:
+    """+1 / -1 for a non-zero number literal (a plain one, or unary minus over one); 0 otherwise."""
+    if not isinstance(node, Mapping):
+        return 0
+    flip = 1
+    if node.get("type") == "op" and node.get("name") == "u-":
+        args = node.get("args")
+        if not (isinstance(args, list) and len(args) == 1 and isinstance(args[0], Mapping)):
+            return 0
+        node, flip = args[0], -1
+    if node.get("type") != "num":
+        return 0
+    v = node.get("value")
+    if not isinstance(v, (int, float)) or isinstance(v, bool) or v == 0:
+        return 0
+    return flip * (1 if v > 0 else -1)
+
+
+def _bars_back_sign(node: Any) -> Tuple[int, Optional[str]]:
+    """(+1, name) for a bars-back count, (-1, name) for one under unary minus, (0, None) otherwise."""
+    if not isinstance(node, Mapping):
+        return 0, None
+    if node.get("type") == "call" and node.get("name") in _BARS_BACK_CALLS:
+        return 1, node.get("name")
+    if node.get("type") == "op" and node.get("name") == "u-":
+        args = node.get("args")
+        if isinstance(args, list) and len(args) == 1:
+            sign, name = _bars_back_sign(args[0])
+            if sign == 1:
+                return -1, name
+    return 0, None
+
+
+def _refuse_negative_bars_back(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-16 -- A BARS-BACK COUNT COMPARED ACROSS ITS SIGN.
+
+    Found by the house set's value check, twice in one evening. Asked for a follow-through
+    day "from day 4 through day 12 after the lowest low of the last 50 sessions", the model
+    wrote ``lowestbars(low, 50) >= -11 && lowestbars(low, 50) <= -3`` (TradingView's
+    convention). Asked again with "made 3 to 11 bars ago", it wrote
+    ``-lowestbars(low, 50) >= 3 && -lowestbars(low, 50) <= 11``: the same belief, negated.
+    Here the count is 0 or more, so both built, read back plausibly, and could not fire on
+    any bar (0 of 700 on two symbols, where a plain calculation marks 1 and 8).
+
+    The rule is the SIGN, not the minus: a count (0 or more) against a negative number, or a
+    negated count (0 or less) against a positive one, is a comparison that never changes its
+    answer. ``-lowestbars(...) <= -3`` is consistent (it is what a pasted TradingView script
+    translates to) and passes.
+    """
+    for where, tree in trees:
+        for node in _walk(tree):
+            if node.get("type") != "op" or node.get("name") not in _COMPARISONS:
+                continue
+            args = node.get("args")
+            if not isinstance(args, list) or len(args) != 2:
+                continue
+            for count, other in ((args[0], args[1]), (args[1], args[0])):
+                sign, name = _bars_back_sign(count)
+                lit = _literal_sign(other)
+                if sign and lit and sign != lit:
+                    how = ("is compared with a negative number" if sign > 0
+                           else "is negated and compared with a positive number")
+                    raise _Refused(
+                        "envelope:reference",
+                        f"{where}: `{name}` {how}. Here `{name}` answers a count of bars BACK: "
+                        "0 on this bar, 1 one bar ago, never negative (unlike TradingView's "
+                        "`ta.highestbars` / `ta.lowestbars`). Use the count itself, not negated, "
+                        "with numbers of 0 or more: \"3 to 11 bars ago\" is `>= 3` and `<= 11`.")
 
 
 def _refuse_scalars(trees: List[Tuple[str, Any]]) -> None:
@@ -1405,6 +1489,7 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
     if not isinstance(envelope, Mapping):
         raise _Refused("model:no-tool", "no patch in the answer")
     _refuse_unsupported_nodes(_trees_of(envelope))
+    _refuse_negative_bars_back(_trees_of(envelope))
     _refuse_scalars(_trees_of(envelope))
     errors = _schema_errors(envelope)
     if errors:
@@ -1484,6 +1569,18 @@ def _chart_lexicon(base: Mapping[str, Any]) -> Dict[str, Any]:
         words = dc._form_tokens(phrase)
         stems, cost = dc._stem_key(words)
         index[stems] = [{"kind": dc.TABLE_ENTRY, "key": key, "section": "functions",
+                         "words": words, "cost": cost}]
+    # ⭐ L4 (2026-11-17) -- THE WORDS MEMBERS USE FOR A HOUSE TERM (`chart_twins.SPOKEN`): "relative
+    # volume", "distance from the 52 week high". Each joins as a term of the column it names, so
+    # `_matched_term` hands the assistant the Screener's own formula for it. ⛔ ADDED, NEVER REPLACED:
+    # a phrase whose words already resolve to something in the shared lexicon is left alone.
+    from api.services import ast_table
+    for phrase, column in chart_twins.spoken_phrases():
+        words = dc._form_tokens(phrase)
+        stems, cost = dc._stem_key(words)
+        if stems in index:
+            continue
+        index[stems] = [{"kind": dc.TABLE_ENTRY, "key": column, "section": ast_table.SCALARS_SECTION,
                          "words": words, "cost": cost}]
     return {"index": index, "max_words": max((len(k) for k in index), default=1),
             "collisions": {k: v for k, v in (base.get("collisions") or {}).items() if k in index
@@ -1690,7 +1787,8 @@ def reset_conversation_usage() -> None:
 def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
              outcome: str, admin: bool, cap_usd: float,
              repair_gate: Optional[str] = None,
-             input_wrapper: Optional[str] = None) -> Dict[str, Any]:
+             input_wrapper: Optional[str] = None,
+             examples: Optional[int] = None) -> Dict[str, Any]:
     """The turn's cost record: returned to the caller as ``usage`` and logged.
 
     ⛔ SHAPE ONLY. Model id, token counts, call count, dollars, the outcome code
@@ -1710,6 +1808,8 @@ def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
         "repair_gate": repair_gate,
         # ⭐ P3S: the argument wrapper unwrapped this turn (None = the input arrived bare)
         "input_wrapper": input_wrapper,
+        # ⭐ L5: how many worked examples rode along (None = the turn carried none)
+        "examples": examples,
         "conversation": None,
     }
     key = conversation_key(conversation_id)
@@ -1734,7 +1834,7 @@ def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
 
 def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
              snippets: Any = None, chart: Any = None, admin: bool = False,
-             conversation_id: Any = None) -> Dict[str, Any]:
+             conversation_id: Any = None, examples: Any = False) -> Dict[str, Any]:
     """One conversational turn. NEVER raises.
 
     ``{ok: True, disposition: 'change'|'answer'|'clarify'|'unsupported', reply,
@@ -1767,7 +1867,7 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
         if free:
             result = _converse_turn(message, user_id=user_id, view=view, authoring=authoring,
                                     snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls,
-                                    trace=trace)
+                                    trace=trace, admin=admin, examples=examples is True)
         else:
             result = {"ok": False, "gate": "rate:busy", "reason": dc.REFUSALS["rate:busy"]}
     latency_ms = int((time.monotonic() - started) * 1000)
@@ -1776,7 +1876,8 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
         result["usage"] = _account(user_id, conversation_id, calls, outcome=str(outcome),
                                    admin=admin, cap_usd=cap_usd,
                                    repair_gate=trace.get("repair_gate"),
-                                   input_wrapper=trace.get("input_wrapper"))
+                                   input_wrapper=trace.get("input_wrapper"),
+                                   examples=trace.get("examples"))
     except Exception:                              # noqa: BLE001 -- telemetry never breaks a turn
         logger.exception("[converse] usage accounting failed")
     _record_turn(user_id, conversation_id, result, admin=admin, message=message,
@@ -1789,7 +1890,11 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
             result["allowance_left"] = left
     except Exception:                              # noqa: BLE001
         logger.exception("[converse] allowance read failed")
-    if admin and not result.get("ok") and trace.get("refusals"):
+    # ⭐ 2026-11-17 -- AND ON A TURN THAT WAS REPAIRED INTO A CHANGE. Measured on production:
+    # about one built turn in four pays a second model call, nearly always at one gate
+    # (`envelope:reference`), and the gate code alone does not say which name. A repair doubles
+    # the member's wait, so its cause has to be readable to be fixed.
+    if admin and trace.get("refusals"):
         # WHY EACH ATTEMPT WAS REFUSED, FOR THE BUILDERS ONLY (2026-11-16). The house set
         # found requests that fail twice at a name or reference check, and nothing outside
         # a DEBUG log said WHICH name: the failure could be counted and never fixed. An
@@ -1810,6 +1915,8 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
 _BUDGET_GATES = {"cost:user": "budget_user", "cost:global": "budget_global",
                  "rate:busy": "rate_limited"}
 _PLATFORM_GATES = {"model:transport"}
+#: ⭐ O7 -- the provider refused OUR ACCOUNT. Its own class: an outage heals, this needs a person.
+_ACCOUNT_GATES = {"model:unavailable"}
 _INTERNAL_GATES = {"internal:error"}
 _MODEL_GATE_PREFIXES = ("envelope:", "model:", "schema:", "lint:", "budget:", "converse:")
 
@@ -1865,6 +1972,8 @@ def failure_class(result: Mapping[str, Any]) -> str:
         return "backstop_refused"
     if gate in _BUDGET_GATES:
         return _BUDGET_GATES[gate]
+    if gate in _ACCOUNT_GATES:
+        return "provider_account"
     if gate in _PLATFORM_GATES:
         return "platform"
     if gate in _INTERNAL_GATES:
@@ -1930,6 +2039,7 @@ def _record_turn(user_id: Any, conversation_id: Any, result: Mapping[str, Any], 
             calls=usage.get("calls"),
             repair_gate=usage.get("repair_gate"),
             input_wrapper=usage.get("input_wrapper"),
+            examples=usage.get("examples"),
             usd=usage.get("usd"),
             input_tokens=usage.get("input_tokens"),
             output_tokens=usage.get("output_tokens"),
@@ -2020,7 +2130,8 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
 def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
                    snippets: Any, chart: Any, cap_usd: float,
                    calls: List[Dict[str, Any]],
-                   trace: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+                   trace: Optional[Dict[str, Any]] = None,
+                   admin: bool = False, examples: bool = False) -> Dict[str, Any]:
     trace = trace if trace is not None else {}
     try:
         message, view, state, turns = _bounded_inputs(message, view, authoring, snippets)
@@ -2040,7 +2151,19 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     discussed = understood_turn["discussed"]
     not_understood = understood_turn["not_understood"]
     unavailable = understood_turn["unavailable"]
-    content = user_turn(request_text, notes, view, state, turns)
+    # ⭐ L5 -- WORKED EXAMPLES (`worked_examples.py`): for a NEW indicator, the nearest one or two of
+    # UCT's own checked builds ride along INSIDE <uct_language_notes> (data, by the instructions' own
+    # rule; the cached instruction block is untouched). Dark for members; an admin turn can ask.
+    # ⛔ They never cost a turn: if they would push it over the size cap, the turn goes without.
+    from api.services import worked_examples
+    carried = worked_examples.for_turn(message, view, admin=admin, asked=examples)
+    content = user_turn(request_text, {**notes, "worked_examples": carried} if carried else notes,
+                        view, state, turns)
+    if carried and len(content) > MAX_INPUT_CHARS:
+        carried = []
+        content = user_turn(request_text, notes, view, state, turns)
+    if carried:
+        trace["examples"] = len(carried)
     if len(content) > MAX_INPUT_CHARS:
         return _refusal("converse:too-large", f"turn {len(content)} > {MAX_INPUT_CHARS}",
                         member="the turn as a whole is too large to send")
@@ -2052,6 +2175,10 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     attempts = 0
     last: Optional[_Refused] = None
     refusals: List[Dict[str, Any]] = []
+    # what each attempt was refused for: the outer door decides who may read it. Set here, not at
+    # the refused exit alone, so a turn REPAIRED into a change carries its first attempt's reason.
+    if isinstance(trace, dict):
+        trace["refusals"] = refusals
     extra = {"not_understood": not_understood, "unavailable": unavailable}
 
     while attempts < MAX_MODEL_CALLS:
@@ -2065,9 +2192,14 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         try:
             msg, in_tokens, out_tokens = _call_model(messages)
         except Exception as exc:                   # noqa: BLE001 -- never raises out
-            logger.warning("[converse] model call failed: %s", exc)
+            gate = dc.model_failure_gate(exc)
+            if gate == "model:unavailable":
+                # ERROR, not WARNING: this does not heal by itself (O7)
+                logger.error("[converse] the provider refused the account: %s", type(exc).__name__)
+            else:
+                logger.warning("[converse] model call failed: %s", exc)
             dc.charge_unreported(exc, user_id, market_date, dc.MODEL, dc.MAX_TOKENS, _request_for(messages))
-            return _refusal("model:transport", **extra)
+            return _refusal(gate, **extra)
 
         # ⭐ P3S -- with the cache breakpoint, `input_tokens` is only the UNCACHED part;
         # the cached prefix arrives as these two fields and must be charged too, or the

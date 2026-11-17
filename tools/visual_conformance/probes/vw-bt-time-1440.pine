@@ -1,0 +1,27 @@
+//@version=6
+indicator("UCTPROBE_VW_BT_TIME_1440", overlay = false)
+
+// bt unit (2026-11-16). IS THE TIMEFRAME "1440" THE SAME AS "D"?
+//
+// `time("1440", ...)` stays refused by name (`pine.js::sessionClockOf`, "it is read here on the
+// chart's OWN timeframe"): nothing this engine holds says a 1440-minute bar is the daily bar.
+// Two corpus scripts wait on it: `vp-period` (`time("1440", session.regular)`) and
+// `bb-custom-indicator-tradingview-version` (`time("1440", "0000-0930")`).
+//
+// Grade, per bar, R1 against R2 and R3 against R4. If R1 == R2 and R3 == R4 on every bar of BOTH
+// charts, "1440" may be read as "D" in the session clock; any difference is the rule to build
+// instead. R5/R6 are `time(tf)` without a session (the period-open anchor), the same question.
+//
+// ⛔ CAPTURE: AMEX:SPY 60 (>= 300 bars, extended hours OFF) and AMEX:SPY 1D (>= 300 bars).
+// Inputs at defaults.
+
+secs(t) => na(t) ? -1.0 : (t - time) / 1000.0
+
+plot(bar_index, "R0_bar_index_CONTROL")
+plot(secs(time("1440", "0930-1600")), "R1_secs_1440_rth")
+plot(secs(time("D", "0930-1600")), "R2_secs_D_rth")
+plot(secs(time("1440", "0000-0930")), "R3_secs_1440_premarket")
+plot(secs(time("D", "0000-0930")), "R4_secs_D_premarket")
+plot(secs(time("1440")), "R5_secs_1440_anchor")
+plot(secs(time("D")), "R6_secs_D_anchor")
+plot(timeframe.in_seconds("1440"), "R7_in_seconds_1440")

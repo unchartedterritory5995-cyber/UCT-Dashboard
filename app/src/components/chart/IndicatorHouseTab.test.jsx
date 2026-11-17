@@ -8,7 +8,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, act, within } from '@testing-library/react'
 import HOUSE from './house/houseIndicators.json'
 import * as registry from './engine/nativeRegistry'
-import IndicatorHouseTab, { freshDefId, houseMatches } from './IndicatorHouseTab'
+import IndicatorHouseTab, { mintDefId, houseMatches, ownCopyId } from './IndicatorHouseTab'
 
 const styles = new Proxy({}, { get: (_t, k) => String(k) })
 const ITEMS = HOUSE.indicators
@@ -25,7 +25,7 @@ describe('the set', () => {
   })
 
   it.each(ITEMS.map((i) => [i.name, i]))('%s passes the registry\'s own validation and installs', (_n, item) => {
-    const doc = { ...item.definition, id: freshDefId() }
+    const doc = { ...item.definition, id: mintDefId() }
     const { defs, errors } = registry.validateUserDefinitions([doc])
     expect(errors).toEqual([])
     expect(defs).toHaveLength(1)
@@ -63,31 +63,80 @@ describe('the tab', () => {
     expect(screen.getByTestId('house-no-match').textContent).toMatch(/matches “zzzz”/)
   })
 
-  it('install saves a COPY under a fresh id of the store\'s shape, never the house id', async () => {
+  it('ONE PRESS: Add to chart saves a COPY under a fresh id and puts it on the chart once the chart knows it', async () => {
     const saves = []
     const save = async (doc, defId) => { saves.push({ doc, defId }); return { ok: true, row: { def_id: doc.id, version: 1 } } }
     const put = vi.fn(() => true)
-    let offered = false
-    const view = (o) => <IndicatorHouseTab styles={styles} load={load} save={save} isOnOffer={() => o} onPutOnChart={put} />
-    const { rerender } = render(view(offered))
+    const view = (offered) => <IndicatorHouseTab styles={styles} load={load} save={save} isOnOffer={() => offered} onPutOnChart={put} />
+    const { rerender } = render(view(false))
     await flush()
     const row = () => screen.getAllByTestId('house-entry')[0]
+    expect(within(row()).getByTestId('house-install').textContent).toBe('Add to chart')
     await act(async () => { fireEvent.click(within(row()).getByTestId('house-install')) })
     expect(saves).toHaveLength(1)
     expect(saves[0].defId).toBeNull()                                         // a create, not an edit
     expect(saves[0].doc.id).toMatch(/^u_[0-9a-f]{12}$/)
     expect(saves[0].doc.id).not.toBe(ITEMS[0].definition.id)
     expect(saves[0].doc.meta.name).toBe(ITEMS[0].name)
-    expect(within(row()).getByTestId('house-installed-note').textContent).toMatch(/Your indicators/)
-    // the chart button waits for the copy to reach the registry
-    expect(within(row()).getByTestId('house-put-on-chart').disabled).toBe(true)
-    offered = true
-    rerender(view(offered))
-    fireEvent.click(within(row()).getByTestId('house-put-on-chart'))
+    // the chart does not know the copy yet: nothing is put, the button says so and cannot be pressed twice
+    expect(put).not.toHaveBeenCalled()
+    expect(within(row()).getByTestId('house-install').textContent).toBe('Adding…')
+    expect(within(row()).getByTestId('house-install').disabled).toBe(true)
+    // the chart learns of it: on the chart with no second press
+    await act(async () => { rerender(view(true)) })
+    expect(put).toHaveBeenCalledTimes(1)
     expect(put).toHaveBeenCalledWith(saves[0].doc.id)
+    expect(within(row()).getByTestId('house-added-note').textContent).toMatch(/Added to this chart/)
   })
 
-  it('two installs of the same indicator are two different copies', async () => {
+  it('a copy that does not reach the chart in time is still SAVED, and the row offers the button', async () => {
+    const save = async (doc) => ({ ok: true, row: { def_id: doc.id, version: 1 } })
+    const put = vi.fn(() => true)
+    const view = (offered) => <IndicatorHouseTab styles={styles} load={load} save={save} isOnOffer={() => offered} onPutOnChart={put} addWaitMs={60} />
+    const { rerender } = render(view(false))
+    await flush()
+    const row = () => screen.getAllByTestId('house-entry')[0]
+    await act(async () => { fireEvent.click(within(row()).getByTestId('house-install')) })
+    await act(async () => { await new Promise((r) => setTimeout(r, 140)) })
+    expect(put).not.toHaveBeenCalled()
+    expect(within(row()).getByTestId('house-installed-note').textContent).toMatch(/Your indicators/)
+    expect(within(row()).getByTestId('house-put-on-chart').disabled).toBe(true)
+    await act(async () => { rerender(view(true)) })
+    expect(put).not.toHaveBeenCalled()                                        // late is not automatic: the member presses
+    fireEvent.click(within(row()).getByTestId('house-put-on-chart'))
+    expect(put).toHaveBeenCalledTimes(1)
+  })
+
+  it('a member who already holds an UNCHANGED copy gets that copy: nothing is saved again', async () => {
+    const save = vi.fn(async () => ({ ok: true }))
+    const put = vi.fn(() => true)
+    const own = [{ id: 'u_aaaaaaaaaaaa', compute: { fn: ITEMS[0].definition.compute.fn } }]
+    render(<IndicatorHouseTab styles={styles} load={load} save={save} listOwn={() => own} isOnOffer={() => true} onPutOnChart={put} />)
+    await flush()
+    const row = screen.getAllByTestId('house-entry')[0]
+    expect(within(row).getByTestId('house-have-note').textContent).toMatch(/You have this one/)
+    await act(async () => { fireEvent.click(within(row).getByTestId('house-install')) })
+    expect(save).not.toHaveBeenCalled()
+    expect(put).toHaveBeenCalledWith('u_aaaaaaaaaaaa')
+    expect(within(row).getByTestId('house-added-note')).toBeInTheDocument()
+    // control: another row, which the member does not hold, has no such note
+    expect(within(screen.getAllByTestId('house-entry')[1]).queryByTestId('house-have-note')).toBeNull()
+  })
+
+  it('a copy the member has CHANGED is their own indicator: adding makes a fresh copy', async () => {
+    const saves = []
+    const save = async (doc) => { saves.push(doc.id); return { ok: true, row: { def_id: doc.id, version: 1 } } }
+    const own = [{ id: 'u_bbbbbbbbbbbb', compute: { fn: 'sha256:something-else' } }]
+    render(<IndicatorHouseTab styles={styles} load={load} save={save} listOwn={() => own} isOnOffer={() => true} onPutOnChart={() => true} />)
+    await flush()
+    const row = screen.getAllByTestId('house-entry')[0]
+    expect(within(row).queryByTestId('house-have-note')).toBeNull()
+    await act(async () => { fireEvent.click(within(row).getByTestId('house-install')) })
+    expect(saves).toHaveLength(1)
+    expect(saves[0]).not.toBe('u_bbbbbbbbbbbb')
+  })
+
+  it('two adds of an indicator the member does not hold are two different copies', async () => {
     const ids = []
     const save = async (doc) => { ids.push(doc.id); return { ok: false, error: 'x' } }
     render(<IndicatorHouseTab styles={styles} load={load} save={save} />)
@@ -99,14 +148,28 @@ describe('the tab', () => {
     expect(ids[0]).not.toBe(ids[1])
   })
 
-  it('a refused save says why and can be tried again', async () => {
+  it('a refused save says why and can be tried again; nothing is put on the chart', async () => {
     const save = async () => ({ ok: false, error: 'You have reached the number of indicators your plan stores.' })
-    render(<IndicatorHouseTab styles={styles} load={load} save={save} />)
+    const put = vi.fn(() => true)
+    render(<IndicatorHouseTab styles={styles} load={load} save={save} isOnOffer={() => true} onPutOnChart={put} />)
     await flush()
     const row = screen.getAllByTestId('house-entry')[0]
     await act(async () => { fireEvent.click(within(row).getByTestId('house-install')) })
     expect(within(row).getByTestId('house-install-error').textContent).toMatch(/reached the number of indicators/)
     expect(within(row).getByTestId('house-install').disabled).toBe(false)
+    expect(put).not.toHaveBeenCalled()
+  })
+
+  it('a chart that will not take it leaves the copy saved and the button there', async () => {
+    const save = async (doc) => ({ ok: true, row: { def_id: doc.id, version: 1 } })
+    render(<IndicatorHouseTab styles={styles} load={load} save={save} isOnOffer={() => true} onPutOnChart={() => false} />)
+    await flush()
+    const row = screen.getAllByTestId('house-entry')[0]
+    await act(async () => { fireEvent.click(within(row).getByTestId('house-install')) })
+    await flush()
+    expect(within(row).queryByTestId('house-added-note')).toBeNull()
+    expect(within(row).getByTestId('house-installed-note')).toBeInTheDocument()
+    expect(within(row).getByTestId('house-put-on-chart').disabled).toBe(false)
   })
 
   it('a set that cannot be loaded says so instead of showing an empty list', async () => {
@@ -118,10 +181,18 @@ describe('the tab', () => {
 })
 
 describe('the pieces', () => {
-  it('freshDefId is the store\'s shape and differs each time', () => {
-    const a = freshDefId(); const b = freshDefId()
+  it('mintDefId is the store\'s shape and differs each time', () => {
+    const a = mintDefId(); const b = mintDefId()
     expect(a).toMatch(/^u_[0-9a-f]{12}$/)
     expect(a).not.toBe(b)
+  })
+  it('ownCopyId finds the member\'s unchanged copy by its maths, and nothing else', () => {
+    const fn = ITEMS[0].definition.compute.fn
+    expect(ownCopyId(ITEMS[0], [{ id: 'u_1', compute: { fn } }])).toBe('u_1')
+    expect(ownCopyId(ITEMS[0], [{ id: 'u_2', compute: { fn: 'sha256:other' } }])).toBeNull()
+    expect(ownCopyId(ITEMS[1], [{ id: 'u_1', compute: { fn } }])).toBeNull()
+    for (const own of [null, undefined, [], [null], [{ id: 'u_3' }]]) expect(ownCopyId(ITEMS[0], own)).toBeNull()
+    expect(ownCopyId({ definition: { compute: {} } }, [{ id: 'u_4', compute: {} }])).toBeNull()   // no fingerprint, no match
   })
   it('houseMatches reads the name and the summary, any case', () => {
     expect(houseMatches(ITEMS[0], 'DISTRIBUTION')).toBe(true)

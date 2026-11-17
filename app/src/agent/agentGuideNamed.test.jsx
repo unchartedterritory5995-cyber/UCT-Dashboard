@@ -467,15 +467,15 @@ describe('the instance the words name', () => {
     expect(getCapability('guide.show').fast({ raw: 'how do I make a 45-minute chart', host: { surface: 'charts' } })?.feature).toBe('timeframeCustom')
   })
   it('asking for exactly the default has nothing left to set', () => {
-    expect(lastStep('how do I add a 5 SMA').text).toBe('SMA 5 is on the chart. Click it here to change its settings, colours and pane.')
-    expect(lastStep('how do I add a moving average').text).toBe('SMA 5 is on the chart. Click it here to change its settings, colours and pane.')
+    expect(lastStep('how do I add a 5 SMA').text).toBe('SMA 5 is on the chart. Click it here to change its settings, colors and pane.')
+    expect(lastStep('how do I add a moving average').text).toBe('SMA 5 is on the chart. Click it here to change its settings, colors and pane.')
   })
   it('the row it rings is the row a new one really shows', () => {
     expect(JSON.stringify(lastStep('how do I add a 20 EMA').target)).toMatch(/"named":"SMA 5"/)
     expect(JSON.stringify(lastStep('how do I add a 20 EMA').target)).not.toMatch(/EMA/)
   })
   it('an indicator with no such defaults is still named as asked', () => {
-    expect(lastStep('how do I add RSI').text).toBe('RSI is on the chart. Click it here to change its settings, colours and pane.')
+    expect(lastStep('how do I add RSI').text).toBe('RSI is on the chart. Click it here to change its settings, colors and pane.')
   })
   it('adding one with a length waits for the add itself', () => {
     const steps = stepsFor(guideFeature('indicators'), 'how do I add a 20 SMA')

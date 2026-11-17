@@ -42,12 +42,23 @@ def test_a_member_never_reads_it(conv, clean_env, model):
     assert "delete_everything" not in json.dumps(r)
 
 
-def test_a_turn_repaired_into_a_change_carries_none(conv, clean_env, model):
-    """A repaired turn SUCCEEDED: the first attempt's refusal is not attached to it."""
+def test_a_turn_repaired_into_a_change_tells_a_builder_what_the_repair_was_for(conv, clean_env, model):
+    """2026-11-17: a repaired turn SUCCEEDED and still cost a second call. A builder reads what
+    the first attempt was refused for; a member's repaired turn carries nothing."""
     model([BAD(), GOOD()])
     r = conv.converse("make it 80", user_id="a1", view=VIEW(), admin=True)
     assert r["ok"] is True and r["attempts"] == 2
-    assert "diagnostic" not in r
+    assert [x["attempt"] for x in r["diagnostic"]] == [1]
+    assert r["diagnostic"][0]["gate"] == "envelope:schema" and "ops" in r["diagnostic"][0]["detail"]
+    model([BAD(), GOOD()])
+    m = conv.converse("make it 80", user_id="u1", view=VIEW())
+    assert m["ok"] is True and m["attempts"] == 2 and "diagnostic" not in m
+
+
+def test_CONTROL_a_turn_that_needed_no_repair_carries_none(conv, clean_env, model):
+    model([GOOD()])
+    r = conv.converse("make it 80", user_id="a1", view=VIEW(), admin=True)
+    assert r["ok"] is True and r["attempts"] == 1 and "diagnostic" not in r
 
 
 def test_the_detail_is_bounded(conv, clean_env, model, monkeypatch):

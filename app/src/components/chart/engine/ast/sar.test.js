@@ -23,8 +23,8 @@ import { describeTree } from '../../builder/authoring/expansionWords.js'
 import { evaluateFormula } from '../../builder/FormulaField'
 import { BUILDER_INPUT_SCOPE } from '../../builder/builderInputs'
 import {
-  sarTrees, SAR_WARMUP, SAR_MIN_STEP, SAR_MIN_MAX_STEP, SAR_NOTE, expandCall, expansionProblem,
-  recogniseExpansion, collapseExpansions,
+  sarTrees, SAR_WARMUP, SAR_LEGACY_WARMUPS, SAR_MIN_STEP, SAR_MIN_MAX_STEP, SAR_NOTE, expandCall, expansionProblem,
+  recogniseExpansion, collapseExpansions, sarLegacyNote,
 } from './callExpansions.js'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
@@ -51,10 +51,13 @@ const ast = (s) => {
 }
 const run = (s, bars) => Array.from(interpret(ast(s), bars, {}))
 
-/** Bars where the formula publishes a value, and how many of those disagree. */
-function grade(bars, step, max) {
-  const value = run(`sar(${step}, ${max})`, bars)
-  const dir = run(`sarDirection(${step}, ${max})`, bars)
+/** Bars where the formula publishes a value, and how many of those disagree. `warmup` grades a
+ *  window other than SAR_WARMUP (the 200-bar window earlier engines saved), built by `sarTrees`. */
+function grade(bars, step, max, warmup = null) {
+  const num = (v) => ({ type: 'num', value: v })
+  const legacy = warmup === null ? null : sarTrees(num(step), num(max), warmup)
+  const value = legacy ? Array.from(interpret(legacy.value, bars, {})) : run(`sar(${step}, ${max})`, bars)
+  const dir = legacy ? Array.from(interpret(legacy.direction, bars, {})) : run(`sarDirection(${step}, ${max})`, bars)
   const full = computeParabolicSAR(bars, step, max)
   let published = 0
   let bad = 0
@@ -99,19 +102,15 @@ function realSeries() {
   return out
 }
 
-// ⛔⛔ KNOWN DIVERGENCE (2026-11-16) — THE FIX FLIPS IT, NOTHING ELSE MAY DROP IT.
-// The `sar()` expansion's 200-bar window (`SAR_WARMUP`) does not converge on
-// vw-lower-tf-bars-rddt-15-2026-11-16 (NYSE:RDDT 15m, 20,886 bars): 43 published bars
-// (5167-5246) disagree with the chart's full-history `computeParabolicSAR`, 17 of them in
-// value AND direction (60 counted). Native SAR is correct: the full-history loop started
-// 200 bars before bar 5167 gives the expansion's answer (205.86 UP vs 208.52 DOWN) and
-// rejoins only at 5247, 280 bars on; started 400+ bars back it rejoins within 28-87 bars.
-// So "inside the measured domain it equals full-history SAR on every bar" is false here:
-// a fixed 200-bar SAR window does not always converge. Engine gap, not a capture
-// question: `docs/pine/capture-queue-2026-11-16-sar-window.md`. The series is graded by
-// its own `it.fails` below and its divergence is pinned by name in a control; every
-// other series still asserts 0 in the rail.
-const KNOWN_SAR_WINDOW = 'vw-lower-tf-bars-rddt-15-2026-11-16.json'
+// ⭐⭐ THE SERIES THAT BROKE THE 200-BAR WINDOW (2026-11-16), NOW GRADED LIKE EVERY OTHER.
+// vw-lower-tf-bars-rddt-15-2026-11-16 (NYSE:RDDT 15m, 20,886 bars) put 43 published bars
+// (5167-5246) of the old 200-bar window off the chart's full-history `computeParabolicSAR`,
+// 17 of them in value AND direction (60 counted): a SAR seeded at bar 4967 needs 280 bars to
+// rejoin the full history. `SAR_WARMUP` is now 400, chosen by measurement over 342 series
+// (`docs/pine/evidence/2026-11-16-sar-window/EVIDENCE.md`). The KNOWN `it.fails` that held the
+// series is flipped: it asserts 0 in the rail below. A control pins the old window's divergence
+// by name, so the series stays a witness that 200 was not enough.
+const SAR_WINDOW_WITNESS = 'vw-lower-tf-bars-rddt-15-2026-11-16.json'
 
 describe('the chart\'s own Parabolic SAR, bar for bar', () => {
   const SETTINGS = [[0.02, 0.2], [0.03, 0.3], [0.02, 0.4], [0.1, 0.5]]
@@ -122,7 +121,7 @@ describe('the chart\'s own Parabolic SAR, bar for bar', () => {
     for (const [step, max] of SETTINGS) {
       for (const [r, opts] of regimes.entries()) {
         for (let s = 1; s <= 4; s++) {
-          const g = grade(walk(900, s * 7919 + r, opts), step, max)
+          const g = grade(walk(1000, s * 7919 + r, opts), step, max)
           expect(g.bad, `step ${step} max ${max} regime ${r} seed ${s}`).toBe(0)
           published += g.published
         }
@@ -135,11 +134,10 @@ describe('the chart\'s own Parabolic SAR, bar for bar', () => {
     const series = realSeries()
     // ⛔ NON-VACUITY — the harness must actually be there.
     expect(series.length).toBeGreaterThan(20)
-    // the known series is graded by its own `it.fails` below, never silently dropped
-    expect(fs.existsSync(path.join(HARNESS, KNOWN_SAR_WINDOW)), KNOWN_SAR_WINDOW).toBe(true)
+    // the series that broke the 200-bar window is graded here like every other (never skipped)
+    expect(series.some((b) => b.file === SAR_WINDOW_WITNESS), SAR_WINDOW_WITNESS).toBe(true)
     let published = 0
     for (const bars of series) {
-      if (bars.file === KNOWN_SAR_WINDOW) continue
       const g = grade(bars, 0.02, 0.2)
       expect(g.bad, bars.source).toBe(0)
       published += g.published
@@ -147,16 +145,19 @@ describe('the chart\'s own Parabolic SAR, bar for bar', () => {
     expect(published).toBeGreaterThan(5000)
   }, 120000)
 
-  it.fails('KNOWN (sar() window, 2026-11-16): vw-lower-tf-bars-rddt-15 equals the full-history SAR on every published bar; the fix flips this', () => {
-    const bars = seriesOf(KNOWN_SAR_WINDOW)
-    expect(grade(bars, 0.02, 0.2).bad, bars.source).toBe(0)
+  it('FLIPPED (sar() window, 2026-11-16): vw-lower-tf-bars-rddt-15 equals the full-history SAR on every published bar', () => {
+    const bars = seriesOf(SAR_WINDOW_WITNESS)
+    const g = grade(bars, 0.02, 0.2)
+    expect(g.bad, bars.source).toBe(0)
+    expect(g.published).toBe(bars.length - SAR_WARMUP - 1)
   }, 120000)
 
-  it('control: that divergence BY NAME, so the it.fails cannot pass because something else broke: 43 bars, 5167-5246, 17 value and direction', () => {
-    const bars = seriesOf(KNOWN_SAR_WINDOW)
+  it('control: the OLD 200-bar window on that series, BY NAME: 43 bars, 5167-5246, 17 value and direction', () => {
+    const bars = seriesOf(SAR_WINDOW_WITNESS)
     expect(bars.length).toBe(20886)
-    const g = grade(bars, 0.02, 0.2)
-    expect(g.published).toBe(bars.length - SAR_WARMUP - 1)
+    expect(SAR_LEGACY_WARMUPS).toContain(200)
+    const g = grade(bars, 0.02, 0.2, 200)
+    expect(g.published).toBe(bars.length - 200 - 1)
     expect(g.wrong.length).toBe(43)
     expect(g.wrong[0][0]).toBe(5167)
     expect(g.wrong[g.wrong.length - 1][0]).toBe(5246)
@@ -193,14 +194,15 @@ describe('bounded, honest about its left edge, and window-independent', () => {
   })
 
   it('a missing low withholds the windows that contain it, and the value comes back', () => {
-    const b = walk(700, 9, { nanAt: [400] })
+    const hole = SAR_WARMUP + 200
+    const b = walk(hole + SAR_WARMUP + 100, 9, { nanAt: [hole] })
     const v = run('sar(0.02, 0.2)', b)
-    expect(Number.isFinite(v[399])).toBe(true)
-    expect(Number.isFinite(v[400])).toBe(false)
-    expect(Number.isFinite(v[400 + SAR_WARMUP + 3])).toBe(true)
+    expect(Number.isFinite(v[hole - 1])).toBe(true)
+    expect(Number.isFinite(v[hole])).toBe(false)
+    expect(Number.isFinite(v[hole + SAR_WARMUP + 3])).toBe(true)
   })
 
-  it('reads 202 bars back, never ahead, and fits the default budget', () => {
+  it('reads SAR_WARMUP + 2 bars back (402), never ahead, and fits the default budget', () => {
     const a = ast('sar(0.02, 0.2)')
     expect(astReach(a)).toMatchObject({ back: SAR_WARMUP + 2, forward: 0 })
     expect(checkBudget(a).ok).toBe(true)
@@ -256,6 +258,28 @@ describe('a saved definition carries only the expansion, and it round-trips', ()
   it('discloses its vendor note wherever notes are read', () => {
     const notes = vendorNotesForTree(ast('sar(0.02, 0.2) > close'))
     expect(JSON.stringify(notes)).toContain(SAR_NOTE.slice(0, 40))
+  })
+
+  it('a tree SAVED with the old 200-bar window reads back as the call the member wrote, says so, and re-expands at the current window on save', () => {
+    const num = (v) => ({ type: 'num', value: v })
+    const old = sarTrees(num(0.02), num(0.2), 200)
+    expect(recogniseExpansion(old.value)).toEqual({ name: 'sar', args: [num(0.02), num(0.2)], legacyWarmup: 200 })
+    expect(recogniseExpansion(old.direction)).toEqual({ name: 'sarDirection', args: [num(0.02), num(0.2)], legacyWarmup: 200 })
+    // its note is the legacy one, naming the window it was saved with and the current one
+    const stored = { type: 'op', name: '>', args: [old.value, { type: 'series', name: 'close' }] }
+    const notes = JSON.stringify(vendorNotesForTree(stored))
+    expect(notes).toContain(sarLegacyNote(200).slice(0, 60))
+    expect(notes).not.toContain(SAR_NOTE.slice(0, 60))
+    // a save collapses it to the call and the parser expands it at SAR_WARMUP: the stored tree moves on
+    const collapsed = collapseExpansions(stored)
+    expect(collapsed.args[0]).toEqual({ type: 'call', name: 'sar', args: [num(0.02), num(0.2)] })
+    const resaved = expandCall(collapsed.args[0])
+    expect(astHash(resaved)).toBe(astHash(ast('sar(0.02, 0.2)')))
+    expect(astHash(resaved)).not.toBe(astHash(old.value))
+    // CONTROL: a window nobody saved is not recognised (the legacy list is not "any window")
+    expect(recogniseExpansion(sarTrees(num(0.02), num(0.2), 300).value)).toBe(null)
+    // the current tree carries no legacy mark
+    expect(recogniseExpansion(ast('sar(0.02, 0.2)'))).toEqual({ name: 'sar', args: [num(0.02), num(0.2)] })
   })
 })
 

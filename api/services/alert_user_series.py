@@ -385,7 +385,13 @@ def _inputs_for(definition: Mapping[str, Any], params: Optional[Mapping]) -> dic
     # a bool) -> the DEFAULT's index; a default not among the options -> index 0
     # (Pine refuses such a script, so the door never mints one).
     enum_options: dict[str, list] = {}
-    for spec in (definition.get("inputs") or []):
+    # ⭐ SETTINGS PARITY (2a) - a folded Pine parameter is a setting too (`param<N>`,
+    # `api/services/param_inputs.py`): declared here exactly as the chart declares it on load, so
+    # an alert's label names the length its chart set ("My Script(80, 30)"), and two alerts one
+    # setting apart never read alike. Its value reaches the tree as the specialised literal
+    # (`tree_for`); the evaluation scope also carries it, unread.
+    from api.services import param_inputs as _param_inputs
+    for spec in [*(definition.get("inputs") or []), *_param_inputs.param_input_specs(definition)]:
         if not isinstance(spec, dict):
             continue
         key, default = spec.get("key"), spec.get("default")
@@ -688,6 +694,53 @@ def _make_value_fn(def_id: str, plot_key: str,
         tree = compute.get("ast")
     budget = compute.get("budget")
     address = f"{def_id}.{plot_key}"
+    # ⭐⭐ SETTINGS PARITY (2a) - THE INSTANCE'S PARAMETER SETTINGS. A folded Pine length is a
+    # chart setting (`param<N>`, `api/services/param_inputs.py`); the alert row's `params_json`
+    # holds the value the member set on the chart. The plot is evaluated with that value written
+    # into its literals, the tree the chart computes, so the alert and the chart answer one
+    # question. A value the bounds refuse is withheld by name (`withheld`), never evaluated.
+    from api.services import param_inputs as _param_inputs
+    param_specs = _param_inputs.param_input_specs(definition)
+    plot_tree_key = plot_key if (isinstance(trees, Mapping) and plot_key in trees) else None
+    _special_trees: dict = {}
+
+    # ⭐ SETTINGS PARITY (symbol) -- a symbol the script reads through an input (``meta.symbolInputs``,
+    # ``engine/symbolInputs.js``): the chart fetches and computes the member's choice; this lane computes
+    # the AUTHOR'S symbol only, so an alert at another symbol is withheld by name, never computed at the
+    # wrong instrument.
+    symbol_inputs = [r for r in ((definition.get("meta") or {}).get("symbolInputs") or [])
+                     if isinstance(r, Mapping) and isinstance(r.get("input"), str) and isinstance(r.get("default"), str)]
+
+    def symbol_moved(params: Optional[Mapping]) -> Optional[str]:
+        for r in symbol_inputs:
+            v = (params or {}).get(r["input"])
+            if isinstance(v, str) and v.strip().upper() != r["default"].strip().upper():
+                return (f"{r.get('title') or r['input']} is set to {v.strip()}: an alert computes this indicator "
+                        f"against its author's symbol ({r['default']}) only, so it is not armed at another")
+        return None
+
+    def tree_for(params: Optional[Mapping]) -> tuple:
+        """``(tree, None)`` for the instance's parameter settings, or ``(None, sentence)``."""
+        sym_why = symbol_moved(params)
+        if sym_why:
+            return None, sym_why
+        if not param_specs:
+            return tree, None
+        sig = tuple((s["key"], (params or {}).get(s["key"])) for s in param_specs)
+        if sig in _special_trees:
+            return _special_trees[sig]
+        special, why = _param_inputs.specialize(definition, params)
+        if why:
+            got = (None, f"{why}: the chart does not compute a setting the indicator's own bounds refuse")
+        elif special is definition:
+            got = (tree, None)
+        else:
+            sc = special["compute"]
+            got = (sc["trees"][plot_tree_key] if plot_tree_key is not None else sc.get("ast"), None)
+        if len(_special_trees) > 32:
+            _special_trees.clear()
+        _special_trees[sig] = got
+        return got
     # ⭐⭐ C45 — WHAT THE LANE ADDS FOR THIS DOCUMENT, DECIDED ONCE. A Pine
     # translation's `barindex` is TradingView's `bar_index`, and this lane's bars
     # are a window whose start it cannot place — so a value that depends on the
@@ -804,6 +857,10 @@ def _make_value_fn(def_id: str, plot_key: str,
         so all three answer one question the same way. ⚰️ The arm path asked with
         ``params = {}`` and the lane's bare opts, so an alert armed with a member's
         own inputs was proven on a plot it would never evaluate."""
+        # ⭐ SETTINGS PARITY (2a): a parameter setting the bounds refuse is withheld by name.
+        _t, param_why = tree_for(params)
+        if param_why:
+            return param_why
         if not gates:
             return None
         run_opts = run_opts_for(bars, tf)
@@ -821,7 +878,11 @@ def _make_value_fn(def_id: str, plot_key: str,
         # ask. The honest answer is that there is no number yet, and `None` is
         # this lane's word for that (see `_last_finite`). Asked BEFORE evaluating,
         # exactly as `unresolved_scalars` is asked before a scan evaluates.
-        short = ast_interpret.unresolved_lookback(tree, bars)
+        # ⭐ SETTINGS PARITY (2a): the tree for THIS alert's parameter settings.
+        run_tree, param_why = tree_for(params)
+        if param_why:
+            return [None] * len(bars)
+        short = ast_interpret.unresolved_lookback(run_tree, bars)
         if short:
             return [None] * len(bars)
         # ⛔ NO TIMEFRAME, NO OTHER SYMBOL: its bars cannot be read at the alert's
@@ -830,7 +891,7 @@ def _make_value_fn(def_id: str, plot_key: str,
         run_opts = run_opts_for(bars, tf)
         if run_opts is None:
             return [None] * len(bars)
-        out = ast_interpret.interpret(tree, bars,
+        out = ast_interpret.interpret(run_tree, bars,
                                       inputs=_inputs_for(definition, params),
                                       budget=budget, opts=run_opts)
         if len(out) != len(bars):

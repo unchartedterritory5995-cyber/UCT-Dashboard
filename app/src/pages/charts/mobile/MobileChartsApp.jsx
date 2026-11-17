@@ -1,7 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import useHistoryUserId from '../../../components/chart/useHistoryUserId'
 import { recordIndicatorChange } from '../../../components/chart/indicatorHistoryStore'
-import { labelFor as indicatorLabelFor } from '../../../components/chart/indicatorCatalog'
+import { anyLabelFor as indicatorLabelFor } from '../../../components/chart/indicatorCatalog'
 import ChartPane from '../../../components/chart/pane/ChartPane'
 import { ChartHostOverlayContext } from '../widgets/chartHostOverlay'
 import useChartSurfaceSettings from '../../../components/chart/pane/useChartSurfaceSettings'

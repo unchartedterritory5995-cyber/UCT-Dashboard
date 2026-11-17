@@ -521,7 +521,13 @@ const OPS = {
       st.changes.push({ op: i, kind: 'paint-removed', output: row.key, text: `Its own candle/background colours went with it.` })
     }
     m.paints = kept.length ? kept : null
-    if (m.scanKey === row.key) m.scanKey = m.rows[0].key
+    // ⭐ 2026-11-17 (backlog 7) — THE SCANNED LINE MOVES, AND IT SAYS SO. Removing the line a
+    // run over a list reads used to hand the scan to the first remaining line in silence: the
+    // next run answered a different question and nothing on screen had said it would.
+    if (m.scanKey === row.key) {
+      m.scanKey = m.rows[0].key
+      st.changes.push({ op: i, kind: 'scan-moved', output: m.rows[0].key, from: row.key })
+    }
     if (st.intent && st.intent.output === row.key) {
       st.intent = null
       st.changes.push({ op: i, kind: 'intent-cleared', output: row.key })
@@ -643,8 +649,15 @@ const OPS = {
         throw err('style:line-style-inert', `"${row.key}" is drawn as ${drawn === 'markers' ? 'markers' : `a ${drawn}`}, which has no line to make ${op.lineStyle}.`, { output: row.key })
       }
     }
+    // ⭐ ROW 42 — `breaks` is a LINE's choice: a histogram or markers have no join.
+    if (op.breaks !== undefined) {
+      const drawn = op.style !== undefined ? op.style : row.style
+      if (!LINE_DRAWN_STYLES.includes(drawn)) {
+        throw err('style:breaks-inert', `"${row.key}" is drawn as ${drawn === 'markers' ? 'markers' : `a ${drawn}`}, which has no line to break.`, { output: row.key })
+      }
+    }
     const look = () => ({ color: row.color, width: row.width, style: row.style, hidden: row.hidden,
-      lineStyle: row.lineStyle || 'solid' })
+      lineStyle: row.lineStyle || 'solid', ...(row.sparse === true ? { breaks: true } : {}) })
     const from = look()
     for (const f of ['color', 'width', 'style', 'hidden']) if (op[f] !== undefined) row[f] = op[f]
     if (op.hidden !== undefined) st.hiddenSet.add(row.key)
@@ -652,6 +665,10 @@ const OPS = {
     // plot stays byte-identical to one that never had a line style.
     if (op.lineStyle === 'solid') delete row.lineStyle
     else if (op.lineStyle !== undefined) row.lineStyle = op.lineStyle
+    // ⭐ ROW 42 — joined is the default and is written as NO field (`plots[].sparse`
+    // absent), the same rule: a line that never asked for breaks stays byte-identical.
+    if (op.breaks === true) row.sparse = true
+    else if (op.breaks === false) delete row.sparse
     st.touched.add(row.key)
     st.changes.push({ op: i, kind: 'style-set', output: row.key, from, to: look() })
   },
@@ -1069,7 +1086,7 @@ function finalChecks(st, input, gateCtx) {
       const c = g.conflicts[0]
       const what = c.output ? `"${c.output}"` : 'This indicator'
       throw err('authoring:opaque-conflict',
-        `${what} carries ${c.fields[0] === 'legend' ? 'legend settings' : `${c.fields.join('/')} settings`} imported in a form UCT Intelligence can't change yet, so that change was not made. You can still edit it manually.`,
+        `${what} carries ${c.fields[0] === 'legend' ? 'legend settings' : `${c.fields.join('/')} settings`} imported in a form the UCT Agent can't change yet, so that change was not made. You can still edit it manually.`,
         { output: c.output || undefined, paths: g.conflicts.map((x) => x.path) })
     }
     def = orderLike(input, g.doc)

@@ -45,6 +45,9 @@ import PineEditorStatus, { usePineEditorStatus } from './PineEditorStatus'
 import { editorStatusEnabled } from './editorStatusGate'
 import { lineMarks as toLineMarks } from './editorStatus'
 import styles from './PineBox.module.css'
+// The CodeMirror chunk's own visually-hidden class for the value-carrier textarea —
+// the same arrangement `FormulaField` uses once its editor has mounted.
+import editorStyles from './editor/CodeEditor.module.css'
 
 /** The same 250 ms `FormulaField` settles on, and for the same reason: a paste is
  *  one event but an edit is a keystroke, and translating on every one runs a
@@ -1116,7 +1119,13 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
 
       <textarea
         ref={areaRef}
-        className={styles.area}
+        // ⚰️ FIXED 2026-11-16 (Direction A): this kept `styles.area` after the editor
+        // mounted, so `aria-hidden` hid it from a screen reader and NOTHING hid it from
+        // the eye — an empty second box sat under the CodeMirror editor. Once `Editor`
+        // has loaded the textarea is only the value carrier, so it takes the editor's
+        // visually-hidden class instead — exactly `FormulaField`'s arrangement, and
+        // standalone (never combined with `styles.area`) for the reason that one gives.
+        className={Editor ? editorStyles.model : styles.area}
         // A phone keyboard that capitalises `Close` produces a name Pine does not
         // declare either — same reasoning as `FormulaField`.
         spellCheck={false}

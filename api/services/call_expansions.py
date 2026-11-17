@@ -219,7 +219,12 @@ def _supertrend_part(part: str) -> Callable[[List[Any]], Optional[Dict[str, Any]
 #: ``callExpansions.js::SAR_WARMUP`` / ``SAR_MIN_STEP`` / ``SAR_MIN_MAX_STEP`` -- the
 #: window Parabolic SAR re-seeds over and the MEASURED domain it is exact on. Same
 #: numbers in both lanes (the parity test pins the trees).
-SAR_WARMUP = 200
+#: (2026-11-16) 200 -> 400: the 200-bar window put 43 bars of a captured RDDT 15m series
+#: off the full-history SAR. 400 measured 0 wrong of 1,039,563 bars over 342 series
+#: (``docs/pine/evidence/2026-11-16-sar-window/EVIDENCE.md``; the reasoning is at
+#: ``callExpansions.js::SAR_WARMUP``). A tree saved at 200 still evaluates as stored: the
+#: tree carries its own window.
+SAR_WARMUP = 400
 SAR_MIN_STEP = 0.02
 SAR_MIN_MAX_STEP = 0.2
 
@@ -343,7 +348,7 @@ def expansion_problem(name: str, n_args: int) -> str:
         return (f"{name} needs a step of at least {SAR_MIN_STEP} and a maximum of at least "
                 f"{SAR_MIN_MAX_STEP} (and no more than 1), both written as numbers, the maximum "
                 f"at least the step -- {sig}. Slower settings are not offered because a value "
-                f"computed from the last {SAR_WARMUP} bars was measured to drift from the "
+                f"computed from a bounded window of recent bars was measured to drift from the "
                 f"full-history SAR there; the chart's Parabolic SAR indicator runs from the "
                 f"first bar and takes any setting")
     tail = " of at least 2" if name in ("linreg", "correlation") else ""

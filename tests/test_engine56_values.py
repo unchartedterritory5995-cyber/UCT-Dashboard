@@ -129,6 +129,14 @@ def test_bool_na_marker_is_its_operand_and_withholds_where_flagged():
 def test_is_bar_price_tree_matches_the_js_shapes():
     assert ast_interpret.is_bar_price_tree(s("low"))
     assert ast_interpret.is_bar_price_tree(op("/", op("+", op("+", s("high"), s("low")), s("close")), num(3)))
+    # hlcc4 as pine.js builds it since it took TradingView's arithmetic, (high + low + 2 * close) / 4,
+    # and a hand-written four-term sum, which stays a bar price
+    assert ast_interpret.is_bar_price_tree(
+        op("/", op("+", op("+", s("high"), s("low")), op("*", num(2), s("close"))), num(4)))
+    assert ast_interpret.is_bar_price_tree(
+        op("/", op("+", op("+", op("+", s("high"), s("low")), s("close")), s("close")), num(4)))
+    assert not ast_interpret.is_bar_price_tree(
+        op("/", op("+", op("+", s("high"), s("low")), op("*", num(3), s("close"))), num(4)))
     assert not ast_interpret.is_bar_price_tree(s("volume"))
     assert not ast_interpret.is_bar_price_tree(op("/", op("+", s("low"), s("high")), num(2)))
 

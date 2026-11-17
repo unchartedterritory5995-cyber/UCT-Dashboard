@@ -32,3 +32,62 @@ def test_a_firm_concept_still_takes_its_chart_form_from_the_same_registry():
     notes = conv._language_notes({"concepts": [{"word": "overbought"}]})
     (c,) = [c for c in notes["firm_concepts"] if c["word"] == "overbought"]
     assert c["chart_formula"] == "(rsi(close, 14) >= 70)"
+
+
+# ═══ 2026-11-17 — the words members use for a house term ══════════════════════════════════════
+
+def _terms(message):
+    return [t["name"] for t in dc.plan(message, dc.INDICATOR_KIND, lexicon=conv.CHART_LEXICON).get("terms") or []]
+
+
+def test_every_spoken_phrase_reaches_its_column_and_every_column_has_a_twin():
+    """ASKED: "relative volume", "distance from the 52 week high". Each phrase, inside a sentence,
+    is read as the ONE column it names; and a phrase is only ever listed for a column with a twin."""
+    pairs = chart_twins.spoken_phrases()
+    assert len(pairs) > 100 and set(chart_twins.SPOKEN) <= set(chart_twins.TWINS)
+    assert len({p for p, _ in pairs}) == len(pairs), "one phrase names two columns"
+    missed = [(p, c) for p, c in pairs if c not in _terms(f"Plot the {p} in a lower pane")]
+    assert not missed, missed[:5]
+
+
+def test_a_spoken_house_term_is_handed_its_house_formula():
+    understanding = dc.plan("Show relative volume and the distance from the 52 week high",
+                            dc.INDICATOR_KIND, lexicon=conv.CHART_LEXICON)
+    by = {t["entry"]: t for t in conv._language_notes(understanding)["matched_terms"]}
+    assert by["vol_ratio"]["chart_formula"] == dc.formula_for(chart_twins.TWINS["vol_ratio"])
+    assert "30" in by["vol_ratio"]["chart_formula"]
+    assert "252" in by["dist_52w_high_pct"]["chart_formula"]
+    assert "the member gave their own number" in by["vol_ratio"]["rule"]
+
+
+def test_CONTROL_words_that_only_look_like_a_house_term_match_none():
+    """A new 52-week high is not a distance; an ATR extension from the member's OWN average is
+    the member's measure, not the firm's 50-day one."""
+    for message in ("Mark when the RS line makes a new 52 week high while price is below its own 52 week high",
+                    "ATR extension from the 21 EMA",
+                    "volume above its 50 day average"):
+        assert not (set(_terms(message)) & set(chart_twins.SPOKEN)), message
+
+
+def test_CONTROL_the_screeners_own_planner_is_unchanged():
+    """The phrases join the chart door's lexicon only: a screen's plain-words box reads them as before."""
+    names = [t["name"] for t in dc.plan("distance from the 52 week high", dc.INDICATOR_KIND).get("terms") or []]
+    assert "dist_52w_high_pct" not in names
+    new = 0
+    for phrase, column in chart_twins.spoken_phrases():
+        stems, _cost = dc._stem_key(dc._form_tokens(phrase))
+        rows = dc.LEXICON["index"].get(stems)
+        if rows is None:
+            new += 1                      # this door's own addition
+        else:                             # the firm's own label already says it ("Dist from 52W High")
+            assert {r["key"] for r in rows} == {column}, phrase
+    assert new > 600
+
+
+def test_a_phrase_never_replaces_what_the_shared_lexicon_already_reads():
+    """ADDED, NEVER REPLACED: every bucket the shared lexicon holds is the same bucket here unless a
+    chart function word replaced it (that rule is older and has its own test)."""
+    function_stems = {dc._stem_key(dc._form_tokens(p))[0] for p, _ in conv.EXPANSION_PHRASES}
+    for stems, rows in dc.LEXICON["index"].items():
+        if stems not in function_stems:
+            assert conv.CHART_LEXICON["index"][stems] is rows, stems

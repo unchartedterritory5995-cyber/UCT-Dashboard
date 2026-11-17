@@ -11,6 +11,7 @@
       "tools/notebook_excerpt_anchor_audit.py",
       "tools/ast_conformance.py",
       "tools/note_import_repair.py",
+      "tools/pine_library/promotion_allowlist.json",
       "app/package-lock.json",
       "app/package.json",
       "app/public/Darkpool-data.csv",

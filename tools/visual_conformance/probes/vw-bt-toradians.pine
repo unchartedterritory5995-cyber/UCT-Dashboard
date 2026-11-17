@@ -1,0 +1,29 @@
+//@version=6
+indicator("UCTPROBE_VW_BT_TORADIANS", overlay = false)
+
+// bt unit (2026-11-16). WHICH ARITHMETIC IS `math.toradians` (AND `math.todegrees`)?
+//
+// The reference says only "Returns an approximately equivalent angle in radians from an angle
+// measured in degrees". `x * pi / 180`, `x / 180 * pi` and `x * (pi / 180)` differ in the last bit
+// on many inputs, and a script that feeds the result to `math.sin` (builtin:moon-phases does, over
+// a 150-year ephemeris) carries that bit forward. `math.toradians` stays refused by name until the
+// row whose difference is 0 on every bar is known.
+//
+// Grade, per bar: D1..D3 are the three candidate differences in units of 1e-18 (0 on every bar
+// picks that spelling); E1..E3 the same for `math.todegrees`. X is the input angle, varied per bar
+// so the last-bit cases occur.
+//
+// ⛔ CAPTURE: AMEX:SPY 1D (>= 300 bars). Inputs at defaults.
+
+x = close * 7.3 + bar_index * 13.17
+r = math.toradians(x)
+d = math.todegrees(x / 57.0)
+
+plot(bar_index, "D0_bar_index_CONTROL")
+plot(x, "X_degrees")
+plot((r - x * math.pi / 180) * 1e18, "D1_minus_x_pi_over_180")
+plot((r - x / 180 * math.pi) * 1e18, "D2_minus_x_over_180_pi")
+plot((r - x * (math.pi / 180)) * 1e18, "D3_minus_x_times_pi_180")
+plot((d - (x / 57.0) * 180 / math.pi) * 1e15, "E1_minus_y_180_over_pi")
+plot((d - (x / 57.0) / math.pi * 180) * 1e15, "E2_minus_y_over_pi_180")
+plot((d - (x / 57.0) * (180 / math.pi)) * 1e15, "E3_minus_y_times_180_pi")

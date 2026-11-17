@@ -104,7 +104,7 @@ export function registerDrawingExtras() {
   }
   const saysOf = (payload) => {
     const out = []
-    if (payload.color) out.push(`colour ${colorName(payload.color)}`)
+    if (payload.color) out.push(`color ${colorName(payload.color)}`)
     if (payload.width) out.push(`width ${payload.width}`)
     if (payload.style) out.push(`${payload.style} line`)
     if (payload.fontSize) out.push(`text size ${payload.fontSize}`)
@@ -115,7 +115,7 @@ export function registerDrawingExtras() {
   registerCapability({
     ...chartCommon,
     name: 'drawing.saveDefaults',
-    summary: 'Make ONE drawing\'s style the default for new drawings on ONE chart (the drawing menu\'s "Save as default"): its colour, width, line style, text size and that tool\'s own settings become the chart\'s drawing defaults. Drawings already on the chart do not change. Undo puts the previous defaults back.',
+    summary: 'Make ONE drawing\'s style the default for new drawings on ONE chart (the drawing menu\'s "Save as default"): its color, width, line style, text size and that tool\'s own settings become the chart\'s drawing defaults. Drawings already on the chart do not change. Undo puts the previous defaults back.',
     hints: 'target = the chart the member means (the one showing the drawing); drawing = the id from that symbol\'s drawings entry (the recent one for "this line"). To restyle a drawing itself use drawing.style; to change the defaults by name use chart.setSetting.',
     args: { type: 'object', properties: { drawing: { type: 'string' } }, required: ['drawing'], additionalProperties: false },
     check(st, args) { return defaultsPlan(st, args).why || null },

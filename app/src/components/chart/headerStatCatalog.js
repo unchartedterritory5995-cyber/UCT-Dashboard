@@ -1,0 +1,191 @@
+// The chart header's info-row STAT CATALOG (owner 11-16, Release 1: "the header stats, stat rename/picker").
+//
+// ONE list, shared with the Watchlist column library (UCT Signature §3 "Picker": "the chart header's stat picker and
+// the watchlist column menu offer the same list"). Three sources, each with the value path the Watchlist already uses:
+//   • 'header' — the 22 original info-row fields (headerFields.js), resolved exactly as before;
+//   • 'live'   — LIVE_COLUMNS (Gap %, Day Range, Days to Earnings), computed from the live quote / the snapshot;
+//   • 'fact'   — FACT_COLUMNS, the nightly screener snapshot (POST /api/watchlists/column-facts), re-based on the live
+//                price where the stat is price-relative and formatted with the Screener's own formatters.
+// The Watchlist-only columns (ATR %, ATR from 50SMA, Attention, RS Exit) are not offered: their values are computed
+// inside the Watchlist page and have no single-symbol source the chart can ask for.
+//
+// STORAGE (both under `header`, both absent by default, so an untouched chart is today's exact row):
+//   header.fields     — the chosen stat keys, in left-to-right order (the key the info row has always used).
+//   header.statLabels — { [statKey]: 'short custom label' } — a member's rename; absent / empty = the stat's own name.
+// Both are SANITISED ON READ here (known keys only, no duplicates, trimmed, capped) — the same discipline as
+// `headerFieldKeys`, so a hand-edited or stale blob can never put an unknown stat or a long label on the chart.
+
+import { HEADER_FIELDS, headerFieldKeys, resolveHeaderField, SIGN_POS, SIGN_NEG } from './headerFields'
+import {
+  COLUMN_GROUPS, LIVE_COLUMNS, FACT_COLUMNS, EXISTING_PLACEMENT, factFieldsFor, factValue, factText,
+} from '../../pages/watchlist/watchlistColumnCatalog'
+
+export const STAT_LABEL_MAX = 16
+
+const HEADER_STAT_LIST = [
+  ...HEADER_FIELDS.map((f) => ({
+    key: f.key, label: f.label, short: f.short || f.label, group: EXISTING_PLACEMENT[f.key]?.[0] || 'price',
+    desc: EXISTING_PLACEMENT[f.key]?.[1] || '', source: 'header', signed: !!f.signed, colorKey: f.colorKey, dflt: f.dflt ?? null,
+    title: f.title,
+  })),
+  ...Object.entries(LIVE_COLUMNS).map(([key, c]) => ({
+    key, label: c.label, short: c.short || c.label, group: c.group, desc: c.desc || '', source: 'live',
+    signed: !!c.signed, colorKey: key, dflt: null,
+  })),
+  ...Object.entries(FACT_COLUMNS).map(([key, c]) => ({
+    key, label: c.label, short: c.short || c.label, group: c.group, desc: c.desc || '', source: 'fact',
+    signed: !!c.signed, colorKey: key, dflt: null,
+  })),
+]
+
+/** Every stat the picker offers, grouped in the Watchlist library's group order (stable within a group). */
+export const HEADER_STAT_GROUPS = COLUMN_GROUPS
+  .map((g) => ({ key: g.key, label: g.label, stats: HEADER_STAT_LIST.filter((s) => s.group === g.key) }))
+  .filter((g) => g.stats.length)
+export const HEADER_STATS = HEADER_STAT_GROUPS.flatMap((g) => g.stats)
+// null prototype: a stored key such as '__proto__' or 'constructor' is never mistaken for a stat
+export const HEADER_STAT_BY_KEY = Object.assign(Object.create(null), Object.fromEntries(HEADER_STATS.map((s) => [s.key, s])))
+
+// Stats with no meaning for an ETF / index / breadth series (no company behind them): '—', like Market Cap today.
+const COMPANY_ONLY_GROUPS = new Set(['fund', 'own', 'analyst'])
+const COMPANY_ONLY_KEYS = new Set(['epsg', 'revg', 'epsny', 'dte'])
+const companyOnly = (s) => s.source !== 'header' && (COMPANY_ONLY_GROUPS.has(s.group) || COMPANY_ONLY_KEYS.has(s.key))
+
+/** The chosen stat keys, in order — known keys only, first occurrence wins. A blob with no `fields` reads as
+ *  today's row (the legacy show* migration in `headerFieldKeys`: Market Cap · Next Earnings · UCT Rating). */
+export function headerStatKeys(header) {
+  if (!Array.isArray(header?.fields)) return headerFieldKeys(header)
+  const seen = new Set()
+  const out = []
+  for (const k of header.fields) {
+    if (typeof k !== 'string' || !HEADER_STAT_BY_KEY[k] || seen.has(k)) continue
+    seen.add(k)
+    out.push(k)
+  }
+  return out
+}
+
+/** One label, cleaned: a string, whitespace collapsed, trimmed, at most STAT_LABEL_MAX characters. '' = none. */
+export function cleanStatLabel(v) {
+  if (typeof v !== 'string') return ''
+  return v.replace(/\s+/g, ' ').trim().slice(0, STAT_LABEL_MAX).trim()
+}
+
+/** The member's renames — known stat keys only, each label cleaned; empties dropped. Always a fresh object. */
+export function statLabelsOf(header) {
+  const raw = header?.statLabels
+  const out = {}
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out
+  for (const [k, v] of Object.entries(raw)) {
+    if (!HEADER_STAT_BY_KEY[k]) continue
+    const l = cleanStatLabel(v)
+    if (l) out[k] = l
+  }
+  return out
+}
+
+/** The `statLabels` map after renaming one stat. An empty label, or the stat's own full name, removes the rename. */
+export function withStatLabel(header, key, label) {
+  const next = statLabelsOf(header)
+  const l = cleanStatLabel(label)
+  const s = HEADER_STAT_BY_KEY[key]
+  if (!s) return next
+  if (!l || l === s.label) delete next[key]
+  else next[key] = l
+  return next
+}
+
+/** The `header` patch for toggling one stat: a pick is appended, an unpick is removed (with its rename). */
+export function headerStatTogglePatch(header, key) {
+  if (!HEADER_STAT_BY_KEY[key]) return {}
+  const cur = headerStatKeys(header)
+  if (!cur.includes(key)) return { fields: [...cur, key] }
+  const labels = statLabelsOf(header)
+  delete labels[key]
+  return { fields: cur.filter((k) => k !== key), statLabels: labels }
+}
+
+/** The `header.fields` after moving one chosen stat from index `from` to index `to` (clamped). */
+export function movedHeaderStats(header, from, to) {
+  const cur = headerStatKeys(header)
+  if (from < 0 || from >= cur.length) return cur
+  const t = Math.max(0, Math.min(cur.length - 1, to))
+  if (t === from) return cur
+  const next = cur.slice()
+  const [k] = next.splice(from, 1)
+  next.splice(t, 0, k)
+  return next
+}
+
+// ── data needs (so ChartPane asks only for what a chosen stat reads) ──
+const QUOTE_LIVE = new Set(['gap', 'dayrange'])
+/** True when a chosen stat reads the live quote (the 'header' quote fields are QUOTE_HEADER_KEYS in headerFields). */
+export const statNeedsQuote = (key) => {
+  const s = HEADER_STAT_BY_KEY[key]
+  if (!s) return false
+  if (s.source === 'live') return QUOTE_LIVE.has(key)
+  if (s.source === 'fact') return FACT_COLUMNS[key]?.kind !== 'static'   // re-based on the live price
+  return false
+}
+/** The snapshot fields the chosen 'fact' stats need ([] = no column-facts request at all). */
+export const statFactFields = (keys) => factFieldsFor((keys || []).filter((k) => HEADER_STAT_BY_KEY[k]?.source === 'fact'))
+
+const num = (v) => typeof v === 'number' && Number.isFinite(v)
+const signOf = (v) => (num(v) ? (v >= 0 ? 'pos' : 'neg') : null)
+
+/** Resolve one stat → { value, color, sign }. `value` null = unknown / not applicable (the row prints '—').
+ *  ctx = ChartPane's header context plus `facts` (this symbol's column-facts row). Never throws. */
+export function resolveHeaderStat(key, ctx) {
+  const s = HEADER_STAT_BY_KEY[key]
+  if (!s) return { value: null }
+  try {
+    if (s.source === 'header') return resolveHeaderField(key, ctx)
+    if (ctx?.isFundLike && companyOnly(s)) return { value: null }
+    const q = ctx?.quote || {}
+    if (s.source === 'live') {
+      const c = LIVE_COLUMNS[key]
+      const meta = { ...(ctx?.meta || {}), next_earnings: ctx?.meta?.next_earnings || ctx?.fund?.next_earnings || null }
+      const v = c.value(q, meta)
+      if (v == null) return { value: null }
+      const text = c.fmt(v)
+      if (!s.signed) return { value: text }
+      return { value: text, color: num(v) ? (v >= 0 ? SIGN_POS : SIGN_NEG) : null, sign: signOf(v) }
+    }
+    const v = factValue(key, ctx?.facts || null, q)
+    if (v == null) return { value: null }
+    const text = factText(key, v)
+    if (text == null || text === '—' || text === '') return { value: null }
+    if (!s.signed) return { value: String(text) }
+    return { value: String(text), color: num(v) ? (v >= 0 ? SIGN_POS : SIGN_NEG) : null, sign: signOf(v) }
+  } catch {
+    return { value: null }
+  }
+}
+
+/** The info row's items for the chosen stats, in order → ChartMetaRow. Colour: a signed stat takes the member's
+ *  `<colorKey>:pos|neg` override by the value's sign, else the green / red tint; any other stat takes its override,
+ *  else its own default (null = the row's white). A rename replaces the full AND the narrow label, and the hover
+ *  then names the stat it stands for. Unknown keys are skipped; a missing value is left null (the row prints '—'). */
+export function headerStatItems(keys, labels, colors, ctx) {
+  const own = labels || {}
+  const ov = colors || {}
+  const out = []
+  for (const key of keys || []) {
+    const f = HEADER_STAT_BY_KEY[key]
+    if (!f) continue
+    const { value, color, sign } = resolveHeaderStat(key, ctx)
+    let finalColor
+    if (f.signed) {
+      const s = sign || 'pos'
+      finalColor = ov[`${f.colorKey}:${s}`] || color || (s === 'neg' ? SIGN_NEG : SIGN_POS)
+    } else {
+      finalColor = (f.colorKey ? ov[f.colorKey] : null) || color || f.dflt || null
+    }
+    const name = own[key]
+    out.push({
+      key, label: name || f.label, short: name || f.short || f.label, title: name ? f.label : f.title,
+      value: value ?? null, color: finalColor, sign: f.signed ? (sign || 'pos') : null,
+    })
+  }
+  return out
+}

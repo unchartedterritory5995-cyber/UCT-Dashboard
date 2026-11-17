@@ -265,7 +265,7 @@ export default function WatchlistPanel({ list: pick = null, onRun, onRows }) {
 
       <p className={styles.muted} data-testid="terminal-watchlist-method">
         {current.flagged ? 'Your flagged names' : `Your list ${current.name}`}: {syms.length} name{syms.length === 1 ? '' : 's'}.
-        Prices from the live feed; 1W and 1M from daily closes. A sign (+/−) marks every change, so the colour is never the
+        Prices from the live feed; 1W and 1M from daily closes. A sign (+/−) marks every change, so the color is never the
         only signal. Click a row, or type its number, to load it into the linked panels.
         {asOf ? ` Lists as of ${formatTimeEt(asOf, { zoneSuffix: 'ET', absent: '' })}.` : ''}
       </p>

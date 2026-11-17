@@ -94,6 +94,17 @@ export const PANEL_IMPORTERS = {
   Regime: () => import('./panels/RegimePanel'),
   InsiderBuys: () => import('./panels/InsiderPanel'),
   RsLeaders: () => import('./panels/RsLeadersPanel'),
+  // data wave 1 (2026-11-17): data the app already served that had no Terminal panel
+  Upgrades: () => import('./panels/UpgradesPanel'),
+  HighsLows: () => import('./panels/HighsLowsPanel'),
+  Sectors: () => import('./panels/SectorsPanel'),
+  LongRun: () => import('./panels/LongRunPanel'),
+  EarningsScoreboard: () => import('./panels/EarningsReactionsPanel'),
+  Levels: () => import('./panels/LevelsPanel'),
+  // data wave 2 (2026-11-17)
+  Highs52: () => import('./panels/Highs52Panel'),
+  RsScreens: () => import('./panels/RsScreensPanel'),
+  Learn: () => import('./panels/LearnPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),
   // wave 8, lane E: market reads (SENT)
   Sentiment: () => import('./panels/SentimentPanel'),

@@ -3,8 +3,9 @@ import {
 } from 'react'
 import useHistoryUserId from '../useHistoryUserId'
 import { recordIndicatorChange } from '../indicatorHistoryStore'
-import { labelFor as indicatorLabelFor } from '../indicatorCatalog'
+import { anyLabelFor as indicatorLabelFor } from '../indicatorCatalog'
 import StockChart from '../../StockChart'
+import { sendSeedFrom, agentOpenOpts } from '../builder/agentSeams'
 import isModalOpen from '../../../utils/modalOpen'
 import ChartMetaRow from './ChartMetaRow'
 import ChartIdentityRow from './ChartIdentityRow'
@@ -16,6 +17,7 @@ import ChartTfBar from './ChartTfBar'
 import { trimTimeframes } from './headerFit'
 import useChartSurfaceSettings from './useChartSurfaceSettings'
 import { paneLookProps } from './paneLook'
+import { headerColors } from './headerDefaultColors'
 import ChartSettingsModal from '../ChartSettingsModal'
 import AttachedPineDisclosures from './AttachedPineDisclosures'
 // W9-T13b: the strategy report panel, DARK behind VITE_PINE_STRATEGY_BROKER_ENABLED (read inside)
@@ -32,11 +34,15 @@ import useHeaderSnapshot from './useHeaderSnapshot'
 import useHeaderExtrasWarm from './useHeaderExtrasWarm'
 import { useChartPerformance as useWatchlistPerformance, useChartMeta as useWatchlistMeta } from '../restedReaders'
 import { useChartVolumeCurve as useVolumeCurve, useChartThemes as useWatchlistThemes } from '../restedReaders'
+import { useChartColumnFacts } from '../restedReaders'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import {
-  HEADER_FIELD_BY_KEY, PERF_HEADER_KEYS, QUOTE_HEADER_KEYS, META_HEADER_KEYS,
-  THEME_HEADER_KEYS, CURVE_HEADER_KEYS, headerFieldKeys, resolveHeaderField, SIGN_POS, SIGN_NEG,
+  PERF_HEADER_KEYS, QUOTE_HEADER_KEYS, META_HEADER_KEYS,
+  THEME_HEADER_KEYS, CURVE_HEADER_KEYS,
 } from '../headerFields'
+import {
+  headerStatKeys, statLabelsOf, statNeedsQuote, statFactFields, headerStatItems,
+} from '../headerStatCatalog'
 import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
 import useBreadthSymbols from '../../../hooks/useBreadthSymbols'
@@ -158,6 +164,9 @@ function ChartPane({
   onApplyThemeAll = null,
   // Workspace-supplied: apply a theme to EVERY widget in the layout ("All widgets").
   onApplyThemeAllWidgets = null,
+  // Workspace-supplied: Chart Settings' "Apply to all charts" door, `{ count(), apply() }` (ChartWidget builds it;
+  // chartAppearance.js says what is copied). Absent ⇒ the settings modal shows no such control.
+  applyToAllCharts = null,
   // Adjustable watermark: the settings modal's "Move watermark" / "Reset to center"
   // shortcuts (the per-chart position itself lives in the widget's opts).
   onAdjustWatermark = null,
@@ -565,17 +574,23 @@ function ChartPane({
   // Per-item header color overrides (Chart Settings → Header → Show). Absent = the
   // item keeps its built-in color (see chartDefaults header.colors).
   const hdrColors = hdr.colors || {}
+  // Built-in header inks when nothing is saved (owner 11-16): white title, the chart's own candle up / down colours
+  // for the day change (headerDefaultColors.js; the Chart Settings swatches read the same authority).
+  const _hdrInk = headerColors(chartCs, resolvedTheme)
 
   // Info Row — the fields the user picked (migrates a legacy show* blob). Each extra data
   // source (live quote / perf / rvol+ipo meta / theme) is fetched for THIS one symbol ONLY
   // when a field that needs it is actually shown.
   // An economic series has no market cap, earnings, quote or theme — no info row.
-  const infoFieldKeys = useMemo(() => (isEcon ? [] : headerFieldKeys(hdr)), [hdr, isEcon])
+  // (owner 11-16) the stat library: `header.fields` may hold any catalog stat (headerStatCatalog.js), in the
+  // member's order, each with an optional short rename in `header.statLabels`. Absent = today's exact row.
+  const infoFieldKeys = useMemo(() => (isEcon ? [] : headerStatKeys(hdr)), [hdr, isEcon])
+  const statLabels = useMemo(() => statLabelsOf(hdr), [hdr])
   const infoGate = !compact && !mini && showTfBar
   // A delisted ticker has no live feed, so never open the live-quote poll for one
   // (it would return nothing and render a broken 0.00%). Its Info-Row quote fields
   // simply don't show — every other (static) field still resolves.
-  const wantsQuote = infoGate && !isDelisted && infoFieldKeys.some((k) => QUOTE_HEADER_KEYS.has(k))
+  const wantsQuote = infoGate && !isDelisted && infoFieldKeys.some((k) => QUOTE_HEADER_KEYS.has(k) || statNeedsQuote(k))
   const wantsMeta = infoGate && infoFieldKeys.some((k) => META_HEADER_KEYS.has(k))
   const wantsTheme = infoGate && infoFieldKeys.some((k) => THEME_HEADER_KEYS.has(k))
   const wantsPerf = infoGate && infoFieldKeys.some((k) => PERF_HEADER_KEYS.has(k))
@@ -586,28 +601,23 @@ function ChartPane({
   const { perfData } = useWatchlistPerformance(wantsPerf ? [sym] : [])
   // One request per chart symbol (its own curve rides the market one), never per tick.
   const volCurve = useVolumeCurve(wantsCurve, wantsCurve ? [sym] : [])
+  // The library stats from the nightly snapshot: asked for only while one is shown, only the fields it needs.
+  const factFields = useMemo(() => (infoGate && !isEcon ? statFactFields(infoFieldKeys) : []), [infoGate, isEcon, infoFieldKeys])
+  const hdrFacts = useChartColumnFacts(factFields.length ? [sym] : [], factFields)
+  const factsRow = factFields.length ? (hdrFacts?.[sym] || null) : null   // a stable row (the hook's `{}` is new each render)
   // The rows a member is about to reach have these same reads asked for ahead, each only
   // while this header makes it (the delisted check: for every real ticker, on a pane whose
   // info row can show, as with the snapshot: a compact or mini pane asks for no row).
   useHeaderExtrasWarm({ perf: wantsPerf, theme: wantsTheme, meta: wantsMeta, curve: wantsCurve, delisted: infoGate && !(synthDailyOnly || exhibit) })
   const metaItems = useMemo(() => {
-    const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym], name: companyName, isFundLike, volCurve, sym }
-    return infoFieldKeys.map((key) => {
-      const f = HEADER_FIELD_BY_KEY[key]
-      if (!f) return null
-      const { value, color, sign } = resolveHeaderField(key, ctx)
-      // Signed fields (% change, $ change, N-day…): pick the pos/neg override by the value's
-      // sign, falling back to the green/red default tint. Non-signed: user override → default.
-      let finalColor
-      if (f.signed) {
-        const s = sign || 'pos'
-        finalColor = hdrColors[`${f.colorKey}:${s}`] || color || (s === 'neg' ? SIGN_NEG : SIGN_POS)
-      } else {
-        finalColor = (f.colorKey ? hdrColors[f.colorKey] : null) || color || f.dflt || null
-      }
-      return { key, label: f.label, short: f.short || f.label, title: f.title, value, color: finalColor, sign: f.signed ? (sign || 'pos') : null }
-    }).filter(Boolean)
-  }, [infoFieldKeys, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, sym, companyName, isFundLike, volCurve])
+    const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym], name: companyName, isFundLike, facts: factsRow, volCurve, sym }
+    // one pure builder (headerStatCatalog.js): value, colour override / sign tint, and the member's rename
+    return headerStatItems(infoFieldKeys, statLabels, hdrColors, ctx)
+  }, [infoFieldKeys, statLabels, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, factsRow, sym, companyName, isFundLike, volCurve])
+  // The SAME next-earnings date the header's "Next Earnings" field shows, handed to the chart's "E" marker so the two
+  // always agree (owner test 11-16: the header read 12/9 while /api/chart/markers had no upcoming row → no E).
+  const nextEarningsHint = (fund?.next_earnings || hdrMeta?.[sym]?.next_earnings || null)
+  const nextEarningsHintDate = typeof nextEarningsHint === 'string' ? nextEarningsHint.slice(0, 10) : null
 
   // ── Wrap-fit measurement (drives tfCap / infoForceAbbrev declared above) ──
   // A signature of what occupies the row besides the timeframe buttons: the info
@@ -754,9 +764,17 @@ function ChartPane({
    *  same hazard, and the same answer, as the library dialog closing itself
    *  before it opens the builder. The builder is a full authoring surface with
    *  seven tabs; it wants the room anyway. */
-  const openFormulaBuilder = useCallback(() => {
+  // ⭐ UCT SIGNATURE R2 — `opts.description` (Indicators → "Build “…” with the UCT Agent") is
+  // pre-filled into the builder's start view, never sent.
+  const openFormulaBuilder = useCallback((opts = null) => {
     setSettingsOpen(false)
-    try { paneToolbarApi.current?.openFormulaBuilder?.() } catch { /* noop */ }
+    try { paneToolbarApi.current?.openFormulaBuilder?.(opts && typeof opts.description === 'string' ? { description: opts.description } : undefined) } catch { /* noop */ }
+  }, [])
+  /** Chart Settings → Indicators → "Or  Paste a TradingView script · Start from a picture · Write a
+   *  formula": the builder opened on that door ('pine' | 'image' | 'formula'). The modal closes first. */
+  const openBuilderDoor = useCallback((door) => {
+    setSettingsOpen(false)
+    try { paneToolbarApi.current?.openIndicatorDoor?.(door) } catch { /* noop */ }
   }, [])
   /** Chart Settings → Indicators → "+ Create Indicator" (P2 Track B). The modal
    *  closes first — the studio docks beside the chart, and two surfaces holding
@@ -764,18 +782,14 @@ function ChartPane({
   const openCreateIndicator = useCallback((opts = null) => {
     setSettingsOpen(false)
     // The Indicators window's plain-words box hands over what was typed: it opens the studio
-    // with the request PREFILLED (the Agent's seeded door), never sent.
+    // with the request PREFILLED. ⭐ 2026-11-16: when the member submitted the box itself (Enter,
+    // or one of its examples) the words are SENT as the first turn; a search's words handed over
+    // by "Describe it instead" are only placed in the box.
     const seed = opts && typeof opts.seed === 'string' ? opts.seed : ''
     try {
-      if (seed) paneToolbarApi.current?.openCreateIndicatorFor?.({ seed })
+      if (seed) paneToolbarApi.current?.openCreateIndicatorFor?.(sendSeedFrom(opts) ? { seed, send: true } : { seed })
       else paneToolbarApi.current?.openCreateIndicator?.()
     } catch { /* noop */ }
-  }, [])
-  /** The Indicators window's other three ways to start one: the builder on a named door
-   *  ('pine' | 'image' | 'formula'). The modal closes first, as for every door above. */
-  const openBuilderDoor = useCallback((door) => {
-    setSettingsOpen(false)
-    try { paneToolbarApi.current?.openIndicatorDoor?.(door) } catch { /* noop */ }
   }, [])
   /** ⭐ PHASE 4 — THE DEFINITION'S OWN DOORS for Chart Settings → Indicators: the
    *  same toolbar calls the legend menu makes. The modal closes first (one surface
@@ -993,7 +1007,8 @@ function ChartPane({
     openCreateIndicatorFor: (opts = null) => {
       const no = { ok: false, reason: 'unavailable', prefilled: false, draft: false, editing: false }
       let res = no
-      try { res = paneToolbarApi.current?.openCreateIndicatorFor?.(opts) ?? no } catch { res = no }
+      // ⛔ UCT Agent's seed is never sent: `send` cannot pass this door (`agentOpenOpts`)
+      try { res = paneToolbarApi.current?.openCreateIndicatorFor?.(agentOpenOpts(opts)) ?? no } catch { res = no }
       // ⭐ only an open that HAPPENED closes Chart Settings (Agent team finding, 10-09):
       // a refused one ('access' / 'readonly' / 'unknown-definition') leaves the screen as it was
       if (res && res.ok) setSettingsOpen(false)
@@ -1139,6 +1154,7 @@ function ChartPane({
           sym={sym}
           displayLabel={effHeaderLabel}
           labelColor={hdrColors.title || null}
+          defaultLabelColor={_hdrInk.title}
           logoSym={(_themeViewLabel || synthDailyOnly || exhibit) ? null : sym}
           brandLogo={themeIdx.isIndex || isBreadthLike}
           boundsRef={focusableRef}
@@ -1150,8 +1166,8 @@ function ChartPane({
           dayGain={themeIdx.isIndex ? idxGain : null}
           delistedDate={isDelisted ? delistedInfo.delisted_date : null}
           dayGainColors={{
-            up: hdrColors.dayChangeUp || (resolvedTheme === 'sunrise' ? '#0a5c22' : '#1ae51a'),
-            down: hdrColors.dayChangeDown || (resolvedTheme === 'sunrise' ? '#7d1620' : '#ff3b47'),
+            up: _hdrInk.dayChangeUp,
+            down: _hdrInk.dayChangeDown,
           }}
           session={rowHideSession ? null : sessionCfg}
           middleSlot={oneRowHeader ? tfBarEl : null}
@@ -1199,6 +1215,7 @@ function ChartPane({
       >
         <StockChart
           sym={sym}
+          nextEarningsHint={nextEarningsHintDate}
           studioDockHost={studioDockHost}
           onStudioDockChange={setStudioOpen}
           tf={effectiveTf}
@@ -1362,17 +1379,18 @@ function ChartPane({
         scrollTo={settingsOpen ? settingsTarget : null}
         settings={isBreadthLike ? { ...chartCs, chartType: breadthChartType } : chartCs}
         /* ⭐ THE SAME VOLUME TRUTH THE CHART GETS. This pane passes
-           `volumeSeparatePane` to `StockChart` unconditionally, so on the main
-           chart the renderer allocates a real volume pane; without these inputs
-           Chart Data asked the settings-only question, answered BAND, and listed
-           Volume inside PRICE while the chart drew it below — which also left
-           `movePane` resolving an order with no `volume` key to cross. */
-        volumeOpts={{ volumeSeparatePane: true, blankVolume: false }}
+           `volumePaneByDefault` to `StockChart` (paneLook.js): Volume is in its own
+           pane unless the member chose Overlay on price (`cs.volume.displayIn`).
+           Without these inputs Chart Data asked the settings-only question, which
+           reads the long-inert `separatePane: false`, answered BAND, and listed
+           Volume inside PRICE while the chart drew it below. */
+        volumeOpts={{ volumeSeparatePane: stockChartProps?.volumeSeparatePane === true, volumePaneByDefault: true, blankVolume: false }}
         onChange={updateFromSettingsModal}
         historyKey={indicatorHistoryKey}
         historyUserId={historyUserId}
         onApplyThemeAll={onApplyThemeAll}
         onApplyThemeAllWidgets={onApplyThemeAllWidgets}
+        applyToAllCharts={applyToAllCharts}
         onAdjustWatermark={onAdjustWatermark ? () => { onAdjustWatermark(); setSettingsOpen(false) } : null}
         onResetWatermark={onResetWatermark}
         watermarkCustomized={watermarkCustomized}
@@ -1380,11 +1398,10 @@ function ChartPane({
         onSaveColor={saveColor}
         onDeleteColor={deleteColor}
         themeVars={menuVars}
-        /* The pane passes volumeSeparatePane + volumePaneHeightPct above, and
-           StockChart lets those props WIN over volume.separatePane /
-           volume.paneHeightPct. Tell the modal so those two settings render inert
-           here instead of looking live and doing nothing. */
-        volumePaneFixed={VOLUME_PANE_SURFACE_FIXED}
+        /* Volume's placement is the MEMBER'S choice here (owner 11-16 — Display in:
+           Own pane / Overlay on price), so the Separate pane toggle is live. Only a
+           host that forces the pane through stockChartProps fixes it. */
+        volumePaneFixed={stockChartProps?.volumeSeparatePane === true ? VOLUME_PANE_SURFACE_FIXED : null}
         /* ⭐ THE AUTHORING DOOR, ON THE ONE SURFACE A CHARTING MEMBER LIVES ON.
            The Indicators tab renders "+ New Formula" only when it is handed one
            (absent prop ⇒ absent door), and this is the handler that reaches the

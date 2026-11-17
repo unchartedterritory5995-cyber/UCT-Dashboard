@@ -19,7 +19,7 @@ const handlers = (extra = {}) => ({
   onSettings: vi.fn(), onToggleHidden: vi.fn(), onMove: vi.fn(), onDuplicate: vi.fn(),
   onAlerts: vi.fn(), onAbout: vi.fn(), onRemove: vi.fn(), ...extra,
 })
-const keys = (rows) => rows.filter((r) => !r.separator).map((r) => r.key)
+const keys = (rows) => rows.filter((r) => !r.separator && r.groupLabel == null).map((r) => r.key)
 
 describe('the row is shown only when there is something to reset', () => {
   it('⭐ shown: a stored size on the host pane and a wired handler', () => {

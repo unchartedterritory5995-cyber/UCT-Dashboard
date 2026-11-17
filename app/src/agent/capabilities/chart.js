@@ -34,7 +34,10 @@ import { mergeChartSettings, CHART_TYPE_OPTIONS } from '../../components/chart/c
 import { NATIVE_TFS, tfLabel as productTfLabel } from '../../components/chart/timeframes'
 import { TF_ORDER } from '../../components/chart/keyboardShortcuts'
 import { paneVolumePct } from '../../components/chart/pane/paneLook'
-import { HEADER_FIELDS, headerFieldKeys } from '../../components/chart/headerFields'
+import { HEADER_FIELDS } from '../../components/chart/headerFields'
+// the stored list may hold any library stat a member picked in Chart Settings (headerStatCatalog.js); the Agent adds and
+// removes only the HEADER_FIELDS members below, and never drops a member's other picks or their order
+import { headerStatKeys } from '../../components/chart/headerStatCatalog'
 import { BAR_INFO_FIELDS, barInfoFieldsOf, withBarInfoField } from '../../components/chart/barInfoFields'
 import { ELIGIBLE_SETTINGS, settingDescriptor, coerceSettingValue, settingUnavailable, withSetting, settingValue, canvasLock, settingHiddenNote } from '../../components/chart/chartSettingsDescriptors'
 import { CHART_DEFAULTS } from '../../components/chart/chartDefaults'
@@ -180,8 +183,8 @@ function writeSetting(st, d, v) {
 // value = "+member" or "-member", by key or by the label Chart Settings shows. Read back through the same resolver.
 const LIST_SETTINGS = [
   { id: 'header.fields', label: 'Info row', members: HEADER_FIELDS.map(f => ({ value: f.key, label: f.label })),
-    read: (cs) => headerFieldKeys(cs?.header),
-    write: (cs, key, on) => { const cur = headerFieldKeys(cs?.header); return { ...cs, header: { ...(cs?.header || {}), fields: on ? [...cur, key] : cur.filter(k => k !== key) }, preset: 'custom' } } },
+    read: (cs) => headerStatKeys(cs?.header),
+    write: (cs, key, on) => { const cur = headerStatKeys(cs?.header); return { ...cs, header: { ...(cs?.header || {}), fields: on ? [...cur, key] : cur.filter(k => k !== key) }, preset: 'custom' } } },
   { id: 'header.barInfo', label: 'Bar info', members: BAR_INFO_FIELDS.map(f => ({ value: f.id, label: f.label })),
     read: (cs) => barInfoFieldsOf(cs),
     write: (cs, id, on) => ({ ...cs, header: { ...(cs?.header || {}), barInfo: withBarInfoField(cs, id, on) }, preset: 'custom' }) },
@@ -199,12 +202,24 @@ function listMember(l, raw) {
   return { member: near[0], on: m[1] === '+' }
 }
 const listWord = (l, keys) => (keys.length ? keys.map(k => l.members.find(x => x.value === k)?.label || k).join(', ') : 'none')
-const settingWord = (d, v) => (d.type === 'bool' ? (v ? 'on' : 'off')
+const settingWord = (d, v) => (d.word ? d.word(v) : d.type === 'bool' ? (v ? 'on' : 'off')
   : d.labels ? (Object.entries(d.labels).find(([, x]) => x === v)?.[0] ?? String(v)) : String(v))
+// R2 (owner 11-16): the view options promoted from "Soon" carry their values in the capability's `shape`, not the hints —
+// the hints already sit at the manifest's 1000-char cap; the shape is a second budget (≤ 600). Values read from the rows.
+const SHAPE_HINTED = new Set(['grid.lines', 'scaleTime.rightMargin', 'scaleTime.priceDecimals', 'scaleTime.timeFormat', 'scaleTime.timeZone'])
+const hintedInHints = (d) => !SHAPE_HINTED.has(d.id)
+const _sv = (id) => {
+  const d = ELIGIBLE_SETTINGS.find(x => x.id === id)
+  if (d.type === 'number') return `${d.min}–${d.max}`
+  const n = d.options.filter(o => typeof o === 'number')   // a run of whole numbers is written as a range ("auto|0–4")
+  return n.length > 2 ? [...d.options.filter(o => typeof o !== 'number'), `${Math.min(...n)}–${Math.max(...n)}`].join('|') : d.options.join('|')
+}
+const SETTING_SHAPE_VALUES = `grid.lines ${_sv('grid.lines')}; scaleTime.{rightMargin ${_sv('scaleTime.rightMargin')},`
+  + `priceDecimals ${_sv('scaleTime.priceDecimals')},timeFormat ${_sv('scaleTime.timeFormat')},timeZone ${_sv('scaleTime.timeZone')}}`
 const SETTING_HINTS = (() => {
   // Settings that share one option list are written once ("prevDayLevels.high|low|close.style: …").
   const groups = new Map()
-  for (const d of ELIGIBLE_SETTINGS.filter(x => x.type === 'enum')) {
+  for (const d of ELIGIBLE_SETTINGS.filter(x => x.type === 'enum' && hintedInHints(x))) {
     const key = d.labels ? Object.keys(d.labels).join('|') : d.options.join('|')
     groups.set(key, [...(groups.get(key) || []), d.id])
   }
@@ -227,13 +242,13 @@ const SETTING_HINTS = (() => {
   const enums = [...groups.entries()].map(([opts, ids]) => `${short(ids)}: ${opts}`)
   // W1-B: number settings, grouped by range ("watermark.opacity|x|y: 0–1")
   const ranges = new Map()
-  for (const d of ELIGIBLE_SETTINGS.filter(x => x.type === 'number')) {
+  for (const d of ELIGIBLE_SETTINGS.filter(x => x.type === 'number' && hintedInHints(x))) {
     const key = `${d.min}–${d.max}${d.integer ? ' (whole)' : ''}`
     ranges.set(key, [...(ranges.get(key) || []), d.id])
   }
   const nums = [...ranges.entries()].map(([r, ids]) => `${short(ids)}: ${r}`)
   // (kept under the manifest's 1000-char hints cap — agentContracts.test.js; the exact arg SHAPE is the capability's `shape`)
-  return 'value = true/false for on/off settings (crosshair.mode, header.legendMode and bgMode too); a hex color (#2962ff) for colors; a number in range. '
+  return 'value = true/false for on/off (crosshair.mode, header.legendMode, bgMode too); a hex color (#2962ff); a number in range. '
     + `Allowed — ${enums.join('; ')}; ${nums.join('; ')}. `
     + 'header.fields|barInfo: +/-field ("+Market Cap"). '
     + 'Anything else: no op — say where it lives in Chart Settings.'
@@ -930,7 +945,7 @@ const CAPABILITIES = [
     // read back, and undoable like every other chart change. A UI prerequisite (thin bars only
     // on Bars/HLC) refuses exactly where the dialog hides the control.
     name: 'chart.setSetting',
-    summary: 'Change one chart display setting from UCT\'s approved list (grid, crosshair, scale text, legend, watermark, labels, event/IPO markers, dark-pool levels, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale, gradient background, Volume pane look, Heikin Ashi, Chart IQ, position calculator, Info row / Bar info fields).',
+    summary: 'Change one chart display setting from UCT\'s list (grid, crosshair, scale text/time, legend, watermark, labels, event/IPO/earnings markers, dark pool, swing labels, prev-day/pre-market lines, session breaks, countdown, title, color mode, candle parts, price line, thin bars, inverted scale, gradient, Volume look, Heikin Ashi, Chart IQ, position calculator, alerts, my trades, Info row/Bar info).',
     hints: SETTING_HINTS,
     args: { type: 'object', properties: {
       setting: { type: 'string', enum: [...ELIGIBLE_SETTINGS.map(d => d.id), ...LIST_SETTINGS.map(l => l.id)] },
@@ -942,7 +957,8 @@ const CAPABILITIES = [
     argAliases: { setting: ['key', 'id', 'name', 'option', 'settingId', 'setting_id', 'path', 'property'] },
     shape: 'args {"setting": <one id from the list>, "value": …} — "turn the gradient off" = {"setting":"bgMode","value":"solid"}, '
       + '"gradient on" = {"setting":"bgMode","value":"gradient"}, "hide the grid" = {"setting":"grid.visible","value":false}. Never invent '
-      + 'a setting id (no "bgGradient.enabled", no "background.gradient"): an on/off wish for a setting not listed is unsupported.',
+      + 'a setting id (no "bgGradient.enabled", no "background.gradient"): an on/off wish for a setting not listed is unsupported. '
+      + `${SETTING_SHAPE_VALUES}; header.statLabels "stat=name"`,
     check(st, { setting, value }) {
       const l = listSetting(setting)
       if (l) return listMember(l, value).why || null
@@ -995,7 +1011,7 @@ const CAPABILITIES = [
     // Undo restores the chart exactly as it was, indicators included.
     name: 'chart.applyTemplate',
     risk: 'confirm',
-    summary: "Apply one of the member's saved chart templates to ONE chart, exactly as clicking it does (Chart Settings → Templates, or right-click → Chart template): the chart takes the template's whole saved setup, its indicators included.",
+    summary: "Apply one of the member's saved chart templates to ONE chart, exactly as clicking it does (Chart Settings → Chart templates, or right-click → Chart template): the chart takes the template's whole saved setup, its indicators included.",
     hints: 'template = a name from chartTemplates, exactly. For several charts ("all my charts"), one op per chart.',
     args: { type: 'object', properties: { template: { type: 'string' } }, required: ['template'], additionalProperties: false },
     // NL N2: a template name that is not exact but close ("swing setp") is HIGH-IMPACT (it replaces the
@@ -1019,7 +1035,7 @@ const CAPABILITIES = [
     // CHART_DEFAULTS), EXCEPT the indicator-owned keys, which stay exactly as the chart has them ──
     name: 'chart.resetDefaults',
     risk: 'confirm',
-    summary: "Restore ONE chart's look to UCT's defaults (Chart Settings → Restore defaults): colours, markers, header, watermark and display settings. The chart's indicators are kept exactly as they are.",
+    summary: "Restore ONE chart's look to UCT's defaults (Chart Settings → Restore defaults): colors, markers, header, watermark and display settings. The chart's indicators are kept exactly as they are.",
     hints: 'target = the chart. Always shown as a proposal first.',
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
     check: () => null,

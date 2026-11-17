@@ -5,7 +5,7 @@ import CompanyLogo from '../../../../components/CompanyLogo'
 import { PANE_LOOK } from '../../../../components/chart/pane/paneLook'
 import { mergeChartSettings, mergeSettingsOverride } from '../../../../components/chart/chartDefaults'
 import usePreferences from '../../../../hooks/usePreferences'
-import { prefetchListDeep } from '../../../../utils/prefetchBars'
+import { prefetchListDeep } from '../../../../utils/barsWarm'
 import { fmtPct } from './scanDeckModel'
 import { GRID_SORTS, sortGridRows } from './gridSort'
 import { DRILL_POPOVER_ATTR } from './scanFacets'
@@ -40,7 +40,9 @@ const PAD = 10
 const OVERSCAN_ROWS = 2   // rows kept alive above and below the screen
 const WARM_AHEAD_ROWS = 3 // rows whose bars are warmed past the bottom of the screen
 
-const chartLook = { ...PANE_LOOK }
+// ⛔ Breadth scan cells FIX volume to its own pane (the volumeOpts below say so):
+// the member's /charts Display in choice is not theirs to follow.
+const chartLook = { ...PANE_LOOK, volumeSeparatePane: true }
 
 // The full Chart Settings window, for the enlarged chart's gear. Loaded on first
 // open only.

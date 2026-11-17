@@ -37,7 +37,7 @@ const EQUAL_SIZE = /\b(same|equal|even|identical) (size|sizes|sized|width|height
 
 /** Action groups, keyed by capability DOMAIN (the name prefix). Titles are shown to the model. */
 export const GROUPS = [
-  { id: 'charts', title: 'Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume', domains: ['chart', 'volume'],
+  { id: 'charts', title: 'Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume', domains: ['chart', 'volume'],
     // Gate B vocabulary (soft): an overlay or a symbol swap said without "compare" / "chart"
     vocab: [/\b(next to (this|it)|on top of (this|it)|swap \$?[a-z]{1,5} (for|with)|instead of \$?[a-z]{1,5})\b/],
     words: [/\bcharts?\b/, /\b(timeframe|daily|weekly|monthly|hourly|intraday|\d+ ?(min|minute|hour|hr)s?|1h|4h)\b/, /\b(candles?|candlesticks?|hollow|bars|hlc|line chart|area chart|heikin)\b/,
@@ -107,7 +107,7 @@ export const GROUPS = [
   // their OWN words-only group (as compareGroups): never a filler, so no existing group and no unrecognised request changes.
   // "ask" / "watermark" are used elsewhere, so each needs its context: Ask AI with about / on / for or a chart word; the
   // watermark with a reset / back / default word (either order). No lookbehind (src/noRegexLookbehind.test.js).
-  { id: 'chartMenu', title: 'A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position', domains: ['chartMenu'], fillLast: true, wordsOnly: true,
+  { id: 'chartMenu', title: 'A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position', domains: ['chartMenu'], fillLast: true, wordsOnly: true,
     words: [
       /\b(?:ask|open|pull up|bring up|launch|use)\s+(?:the\s+)?ai\s+(?:about|on|for|regarding)\b|\bask\s+(?:the\s+)?ai\b.*\b(?:chart|stock|symbol|ticker|this one|name)\b/,
       /\bwatermark\b.*\b(?:reset|back|default|original|re-?cent(?:er|re)|where it was)\b|\b(?:reset|re-?cent(?:er|re)|restore|undrag)\b.*\bwatermark\b/] },
@@ -217,7 +217,7 @@ export const GROUPS = [
       /\b(preview|draft)\b/] },
   // ⭐ INDICATORS P2 (AGENT-CONTRACT-P2, 2026-10-27): how an indicator looks and where it draws, pane order and
   // size, duplicating and copying across charts — their own group, so the NL-1 core keeps its size.
-  { id: 'indicatorSetup', title: 'Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts', domains: ['indicatorStyle', 'indicatorCopy', 'pane'], fillLast: true,
+  { id: 'indicatorSetup', title: 'Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts', domains: ['indicatorStyle', 'indicatorCopy', 'pane'], fillLast: true,
     words: [/\b(thick|thicker|thin|thinner|width|dashed|dotted|solid|histogram|columns|plot style|line style)\b/, /\bpanes?\b/, /\b(above|below) (the )?(price|volume)\b/,
       /\b(own|separate|new) pane\b|\b(overlay|put|move)\b.*\b(on|onto) (the )?(price|volume)\b/, /\b(duplicate|copy|copies|clone)\b.*\b(indicators?|studies|rsi|macd|ema|sma)\b/, /\b(same|these|my) indicators\b/,
       /\b(make|turn|colou?r|paint)\b.*\bthe \d{1,3}\b.*\b(red|green|blue|white|black|orange|yellow|purple|pink|teal|gr[ae]y)\b/,
@@ -244,7 +244,7 @@ export const GROUPS = [
   // never a filler, so no existing group and no unrecognised request changes. The words name the PROFILE itself (volume
   // profile / VPVR / visible range volume); "VP" only beside an on / off verb or a bins word. A bare "volume" (the Volume
   // pane), "VWAP" and volume alerts are not its words.
-  { id: 'volumeProfile', title: 'A chart’s Volume Profile overlay: on / off, bins, colours', domains: ['volumeProfile'], fillLast: true, wordsOnly: true,
+  { id: 'volumeProfile', title: 'A chart’s Volume Profile overlay: on / off, bins, colors', domains: ['volumeProfile'], fillLast: true, wordsOnly: true,
     words: [
       /\bvolume[\s-]?profiles?\b|\bvol profile\b|\bvpvr\b|\bvisible range volume\b/,
       /\b(?:add|show|hide|remove|turn on|turn off|enable|disable|switch on|switch off|toggle)\s+(?:the\s+|my\s+)?vp\b|\bvp\s+(?:on|off|bins?)\b/] },
