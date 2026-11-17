@@ -102,10 +102,13 @@ describe('⭐⭐ the Inspector\'s Inputs ARE the model\'s Inputs (TradingView\'s
     const { def, inst } = showRS()
     const model = fieldsForInstance(def, inst)
     const look = fieldsIn(section('appearance'))
-    // ⛔ THE ONE DIFFERENCE, NAMED: the Inspector does not offer a style input only an UNDRAWN plot
-    // reads (`hiddenPlotOnlyInputKeys`, Batch 2: a box with no effect). The dialog still lists them.
+    // ⛔ THE ONE DIFFERENCE, NAMED, AND A RECORDED DECISION (coordinator ruling 2026-11-17), NOT DRIFT:
+    // the Inspector does not offer a style input only an UNDRAWN plot reads (`hiddenPlotOnlyInputKeys`,
+    // Batch 2: a box with no effect), which is our own UX deviation. The dialog keeps listing them,
+    // because for a Pine script the reference is TradingView's form, which lists a setting whether or
+    // not a drawn plot reads it. On RS Rating: `out5Color` / `out5Width`.
     const inert = hiddenPlotOnlyInputKeys(def)
-    expect(inert.size, 'RS Rating has an undrawn plot with its own colour / width').toBeGreaterThan(0)
+    expect([...inert].sort(), 'RS Rating\'s undrawn plot\'s own colour / width, by name').toEqual(['out5Color', 'out5Width'])
     expect(look.map((f) => f.key)).toEqual(model.style.map((f) => f.key).filter((k) => !inert.has(k)))
     expect(model.inputs.some((f) => inert.has(f.key)), 'the difference never reaches Inputs').toBe(false)
     expect(look.map((f) => f.label)).toEqual(expect.arrayContaining(['RS Line width', '1st MA on RS Line width', '2nd MA on RS Line width']))
