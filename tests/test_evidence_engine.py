@@ -919,7 +919,7 @@ def test_the_committed_live_rows_are_exactly_the_session_rows():
         rows = ee.parse_doc(world, REPO / "docs" / "pine" / f"{stem}.md")["rows"]
         got[(stem, rid)] = next(r["needsLive"] for r in rows if r["key"] == f"{stem}#{rid}")
     assert got == LIVE_ROWS
-    q = json.loads((REPO / "docs/pine/vendor-harness/capture-queue.json").read_text(encoding="utf-8"))
+    q = ee.build_queue()          # derived; the snapshot is a local view since 2026-11-16, never committed
     by = {t["id"]: t["status"] for t in q["targets"]}
     # a row that needs no live session is capturable on a closed market: QUEUED until its capture is
     # committed, CAPTURED after (the two U14 strategy captures of 2026-11-15, #1370), never NEEDS_LIVE
