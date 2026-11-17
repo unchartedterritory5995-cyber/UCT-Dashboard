@@ -119,8 +119,12 @@ const whole = (v) => { const n = num(v); return n === null ? null : Math.round(n
 /**
  * Pure: the Cream of the Crop answer as rows, bullish first then bearish, each in the server's
  * own order (grade, then premium).
- *   state     'ok' (rows, possibly none: nothing has qualified for that date) | 'failed' (not a
+ *   state     'ok' (rows, possibly none: nothing has qualified for that date) | 'computing' (the
+ *             server holds no list for that date yet and is building one) | 'failed' (not a
  *             Cream of the Crop answer at all)
+ *   builtAt   when the server built the list being read, as an ISO instant, or null (an older
+ *             server does not say)
+ *   stale     true when the server is rebuilding and this is the list it held meanwhile
  *   date      the session as `YYYY-MM-DD`, or null
  *   rows      { key, order, sym, direction ('bullish' | 'bearish'), unconfirmed, side, strike,
  *               expiry, daysLeft, premium, contracts, openInterest, volToOi, newStrike, grade, tier }
@@ -133,7 +137,10 @@ export function creamRead(body) {
   const none = {
     state: 'failed', date: null, rows: [], counts: { all: 0, bullish: 0, bearish: 0 }, net: null, twoSided: [],
     rules: { perSide: null, perStock: null, minDays: null, noWeeklies: null, noBlockOnly: null, minGrade: null },
+    builtAt: null, stale: false,
   }
+  // The server's "still building" answer carries no lists at all, so it can never read as an empty day.
+  if (isObj(body) && body.status === 'computing') return { ...none, state: 'computing', date: isoDay(body.date) }
   if (!isObj(body) || !Array.isArray(body.bull) || !Array.isArray(body.bear)) return none
   const rows = []
   for (const [bucket, direction] of [['bull', 'bullish'], ['bear', 'bearish']]) {
@@ -166,6 +173,8 @@ export function creamRead(body) {
   return {
     state: 'ok',
     date: isoDay(body.date),
+    builtAt: num(body.built_at) !== null && num(body.built_at) > 0 ? new Date(num(body.built_at) * 1000).toISOString() : null,
+    stale: body.stale === true,
     rows,
     counts: { all: rows.length, bullish: rows.filter((r) => r.direction === 'bullish').length, bearish: rows.filter((r) => r.direction === 'bearish').length },
     net: isObj(body.net) && num(body.net.bull) !== null && num(body.net.bear) !== null ? { bull: num(body.net.bull), bear: num(body.net.bear) } : null,
