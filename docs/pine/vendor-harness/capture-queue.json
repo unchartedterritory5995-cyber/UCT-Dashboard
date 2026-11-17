@@ -66,8 +66,8 @@
   ],
   "coverageMeasuredOn": "2026-11-16",
   "coverageMasterSha": "890b6d165c",
-  "fixtures": 804,
-  "ledgerRows": 935
+  "fixtures": 806,
+  "ledgerRows": 937
  },
  "definitions": {
   "priority": "|firm ∪ named ∪ direct| — firm: non-transferring sample scripts whose every host wall is a guard the target's rows name; named: non-transferring scripts the rows name; direct: the target IS a transferring, never-MATCHed sample script (its capture verifies it)",

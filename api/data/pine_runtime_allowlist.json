@@ -160,7 +160,17 @@
          "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
          "objectsV2Substituted": ["syminfo.industry"],
          "inputs": {"hideRSRat": true, "SpxValue": 5000, "plotNewHigh": false, "plotNewLow": true, "rsNewLow": "Historical RS New Lows  Before Price", "lookback2": 200, "sizeLabLow": "Large", "boolMa": true, "fillMa": true, "lenMa2": 40},
-         "graded": "settings branch feat/pine-param-settings 1e18dc7f8c (settings parity 2c), the corpus harness runtime-on, 2026-11-16, the capture graded at its own moved settings (captureInputs.js): capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED (both sides hold the same objects; no field of a paired record graded); supply: the owner's FMP ^GSPC record 2026-11-16T23:13:34Z and the seed replay 2026-11-16T22:57:15Z"}
+         "graded": "settings branch feat/pine-param-settings 1e18dc7f8c (settings parity 2c), the corpus harness runtime-on, 2026-11-16, the capture graded at its own moved settings (captureInputs.js): capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED (both sides hold the same objects; no field of a paired record graded); supply: the owner's FMP ^GSPC record 2026-11-16T23:13:34Z and the seed replay 2026-11-16T22:57:15Z"},
+        {"id": "rs-rating-fred6724-setc-rddt-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "inputs": {"colorRS": "rgba(255,0,0,1)", "boolMa": true, "colMa": "#00BCD4"},
+         "graded": "colours branch feat/pine-param-colours fd1435beb2 (settings parity 2c, colours), the corpus harness runtime-on, 2026-11-16, the capture graded at its own moved settings (captureInputs.js, the line colour reaching the run as colorRS through hostColourLinks): capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar and on colour), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED (18 graded fields agree; x: 2 graded, 0 differing, exact bar; the rating label's text colour agrees on 4 paired slots); the capture's live palette holds every moved plot colour (inputs set one per call, run rssetc6); supply: the owner's FMP ^GSPC record 2026-11-16T23:13:34Z and the seed replay 2026-11-16T22:57:15Z"},
+        {"id": "rs-rating-fred6724-setc-alab-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "inputs": {"colorRS": "rgba(255,0,0,1)", "boolMa": true, "colMa": "#00BCD4"},
+         "graded": "colours branch feat/pine-param-colours fd1435beb2 (settings parity 2c, colours), the corpus harness runtime-on, 2026-11-16, the capture graded at its own moved settings (captureInputs.js, the line colour reaching the run as colorRS through hostColourLinks): capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar and on colour), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED (18 graded fields agree; x: 2 graded, 0 differing, exact bar; the rating label's text colour agrees on 4 paired slots); the capture's live palette holds every moved plot colour (inputs set one per call, run rssetc6); supply: the owner's FMP ^GSPC record 2026-11-16T23:13:34Z and the seed replay 2026-11-16T22:57:15Z"}
       ]
     }
   ],

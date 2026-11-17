@@ -177628,6 +177628,34 @@
    "ourNotes": []
   },
   {
+   "file": "tests/fixtures/vendor/harness/rs-rating-fred6724-setc-alab-1d-2026-11-16.json",
+   "format": "harness-v1",
+   "id": "rs-rating-fred6724-setc-alab-1d-2026-11-16",
+   "script": "RS Rating",
+   "symbol": "NASDAQ:ALAB",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [],
+   "verdict": "INCONCLUSIVE",
+   "reason": "the vendor study ran with non-default inputs (Color=\"rgba(255,0,0,1)\" vs default \"rgba(0,0,255,1)\", Display MA 1 on RS Line=true vs default false, Color=\"#00BCD4\" vs default \"#FF9800\"); v1 compares at default inputs only — re-capture at defaults",
+   "ourNotes": []
+  },
+  {
+   "file": "tests/fixtures/vendor/harness/rs-rating-fred6724-setc-rddt-1d-2026-11-16.json",
+   "format": "harness-v1",
+   "id": "rs-rating-fred6724-setc-rddt-1d-2026-11-16",
+   "script": "RS Rating",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [],
+   "verdict": "INCONCLUSIVE",
+   "reason": "the vendor study ran with non-default inputs (Color=\"rgba(255,0,0,1)\" vs default \"rgba(0,0,255,1)\", Display MA 1 on RS Line=true vs default false, Color=\"#00BCD4\" vs default \"#FF9800\"); v1 compares at default inputs only — re-capture at defaults",
+   "ourNotes": []
+  },
+  {
    "file": "tests/fixtures/vendor/harness/rs-seed-rsrating-pm-alab-1d-2026-11-16.json",
    "format": "harness-v1",
    "id": "rs-seed-rsrating-pm-alab-1d-2026-11-16",
