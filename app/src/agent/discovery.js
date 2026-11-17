@@ -116,6 +116,15 @@ export const TOPICS = [
     planned: null,
   },
   {
+    // Charts family (2026-11-17): the chart's Leverage / Inverse control (capabilities/leveragedEtf.js)
+    id: 'leveragedEtfs', title: 'A stock’s leveraged and inverse ETFs',
+    words: [/\b(?:leveraged|levered|inverse)\s+(?:etfs?|funds?)\b|\b(?:bull|bear)(?:ish)?\s+etfs?\b|\b\d(?:\.\d)?\s?x\s+(?:bull|bear|long|short|inverse)\b/],
+    caps: ['leveragedEtf.switch', 'leveragedEtf.addChart'], productHas: true,
+    canDo: 'switch a chart to a stock’s leveraged or inverse single-stock ETF (2x or 3x, bull or bear — from UCT’s own list, as the chart’s Leverage / Inverse control does; Undo puts the previous symbol back), or open one on a new chart (nothing existing changes)',
+    known: () => [],
+    planned: null,
+  },
+  {
     id: 'chartSettings', title: 'Chart appearance and settings',
     words: [/\b(chart )?settings?\b/, /\b(theme|colou?rs?|background|candles?|grid|crosshair|legend|watermark|labels?|markers?|countdown|swing)\b/, /\b(volume ?profile|vpvr)\b/],
     caps: ['chart.setSetting', 'chart.applyTheme', 'chart.applyThemeAll', 'chart.applyTemplate', 'chartSetup.saveTemplate', 'chartSetup.deleteTemplate', 'chartSetup.copyLook', 'chart.resetDefaults', 'chart.setBackground', 'chart.setCandleColors', 'volume.setState', 'volumeProfile.set', 'chartSetup.openSettings', 'chartMenu.resetWatermark'], productHas: true,

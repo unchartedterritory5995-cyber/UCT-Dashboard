@@ -2465,6 +2465,196 @@
       ]
     },
     {
+      "id": "leveragedEtf.switch",
+      "source": "Charts family 11-17: the chart's Leverage / Inverse control (LeverageInverseControl onSelect -> ChartWidget's symbol change); the funds from its own GET /api/single-stock-etfs/{sym}",
+      "capabilities": [
+        "leveragedEtf.switch"
+      ],
+      "board": "ONE",
+      "needs": [
+        "leveragedEtf.switch"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "leveragedEtf.switch",
+            "args": {
+              "underlying": null,
+              "leverage": 3,
+              "direction": "bull",
+              "ticker": null
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "leveragedEtf.switch",
+            "target": "$charts[0]",
+            "args": {
+              "underlying": null,
+              "leverage": 3,
+              "direction": "bull",
+              "ticker": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 1,
+          "symbols": [
+            "NVU3"
+          ]
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "switch this chart to the 3x bull ETF",
+          "det": "required"
+        },
+        "change this chart to the 3x long ETF",
+        "flip this chart to the 3x bullish fund"
+      ]
+    },
+    {
+      "id": "leveragedEtf.switch.named",
+      "source": "Charts family 11-17: the stock named ('the 3x bull ETF of NVDA') on the chart showing it",
+      "capabilities": [
+        "leveragedEtf.switch"
+      ],
+      "board": "ONE",
+      "needs": [
+        "leveragedEtf.switch"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "leveragedEtf.switch",
+            "args": {
+              "underlying": "NVDA",
+              "leverage": 3,
+              "direction": "bull",
+              "ticker": null
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "leveragedEtf.switch",
+            "target": "$charts[0]",
+            "args": {
+              "underlying": "NVDA",
+              "leverage": 3,
+              "direction": "bull",
+              "ticker": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 1,
+          "symbols": [
+            "NVU3"
+          ]
+        },
+        "receipt": true,
+        "undoable": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "show me the 3x bull ETF of NVDA",
+          "det": "required"
+        },
+        "switch this chart to the 3x long ETF of NVDA"
+      ]
+    },
+    {
+      "id": "leveragedEtf.addChart",
+      "source": "Charts family 11-17: add = a NEW chart born unlinked on the fund (workspace create); no existing chart changes",
+      "capabilities": [
+        "leveragedEtf.addChart"
+      ],
+      "board": "HALF",
+      "needs": [
+        "leveragedEtf.addChart"
+      ],
+      "deterministic": {
+        "plan": [
+          {
+            "action": "leveragedEtf.addChart",
+            "args": {
+              "underlying": "NVDA",
+              "leverage": 3,
+              "direction": "bull",
+              "ticker": null
+            }
+          }
+        ]
+      },
+      "model": {
+        "ops": [
+          {
+            "action": "leveragedEtf.addChart",
+            "target": "$workspace",
+            "args": {
+              "underlying": "NVDA",
+              "leverage": 3,
+              "direction": "bull",
+              "ticker": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "charts": {
+          "count": 2,
+          "symbolSet": [
+            "NVDA",
+            "NVU3"
+          ],
+          "keepsIds": [
+            "c1"
+          ]
+        },
+        "receipt": true,
+        "refusal": false
+      },
+      "undo": {
+        "say": "undo",
+        "expect": {
+          "restored": true
+        }
+      },
+      "phrasings": [
+        {
+          "text": "add a new chart of the 3x bull ETF of NVDA",
+          "det": "required"
+        },
+        "open a new chart with the 3x long ETF of NVDA"
+      ]
+    },
+    {
       "id": "board.swap",
       "source": "Batch C4 (11-04): widgets (open charts for tickers, swap, duplicate), watchlist remove / create",
       "capabilities": [

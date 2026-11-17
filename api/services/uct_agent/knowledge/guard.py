@@ -39,7 +39,9 @@ _INJECTION = re.compile(
     # chartReplay (the bar replay's playback): chartReplay.playback as a bare name; stricter only
     # Phase 2 COT research: the cot domain (cot.positioning as a bare name; verb "position" is already withheld); stricter only
     # Phase 2 history: the history domain (history.afterEvent as a bare name; verb "after"); stricter only
-    r"|chartFeatures|chartReplay|cot|history|rs)"
+    # Charts family (2026-11-17): the leveragedEtf domain (leveragedEtf.switch / addChart as bare names; verb "add" is
+    # already withheld, "switch" joins below); stricter only
+    r"|chartFeatures|chartReplay|cot|history|rs|leveragedEtf)"
     r"\.(add|remove|delete|create|clear|rename|open|set|run|save|apply|show|hide|update|move|resize|toggle|swap|duplicate"
     # #1030 ratchet: master actions added by #1077/#1073/#1027 (chartSetup.stepBars/autoScale/compareGroup,
     # watchlist.arrangeColumns/exportList): their verbs join the withheld set (stricter only)
@@ -54,7 +56,8 @@ _INJECTION = re.compile(
     # chartReplay: verbs playback (chartReplay.playback) and replay (also withholds the older chart.replay bare name, which
     # leaves GUARD_KNOWN_UNWITHHELD — stricter, and that set may only shrink)
     # Phase 2 history: verbs after (history.afterEvent) and daily (stock.dailyBars); stricter only
-    r"|company|earnings|playback|replay|after|daily)[A-Za-z]*\b"
+    # leveragedEtf: verb switch (leveragedEtf.switch); stricter only
+    r"|company|earnings|playback|replay|after|daily|switch)[A-Za-z]*\b"
     r"|\bnew\s+instructions?\b|\bsystem\s*prompt\b|\bjailbreak\b"
     r"|<\s*/?\s*(system|assistant|user|tool|instructions?)\b|\[\s*(system|inst)\s*\]|<\|[a-z_]+\|>"
     # Charts family (2026-11-12): the UCT Intelligence chart indicator (uctIntelligence.set as a bare name), on its own line; stricter only

@@ -120,6 +120,12 @@ export const GROUPS = [
       /\bcompany\s+(?:info(?:rmation)?|panel|profile\s+panel|intelligence|sidebar|side\s*panel)\b|\b(?:profile|info|fundamentals?)\s+(?:side\s*)?panel\b/,
       /\b(?:earnings|fundamentals?|eps)\s+strip\b|\bstrip\s+(?:under|below|beneath|at the bottom of)\s+(?:the\s+|this\s+|my\s+|that\s+)?chart\b/,
       /\b(?:financials|ownership|valuation)\s+tab\b|\b(?:overview|earnings|news|financials|ownership)\s+tab\s+(?:of|on|in)\s+(?:the\s+)?(?:company|side|profile|info)\b/] },
+  // Charts family (2026-11-17): a stock's leveraged / inverse single-stock ETFs (the chart's Leverage / Inverse control) in
+  // their OWN words-only group (as chartFeatures): never a filler, so no existing group and no unrecognised request changes.
+  // The words name an ETF / fund AND what kind (leveraged, inverse, bull, bear, a factor like 3x); never holdings or a screen.
+  { id: 'leveragedEtf', title: 'A stock’s leveraged or inverse single-stock ETF (the chart’s Leverage / Inverse control): switch a chart to one, or open one on a new chart', domains: ['leveragedEtf'], fillLast: true, wordsOnly: true,
+    words: [
+      /^(?!.*\b(?:holdings?|constituents?|screen|scan)\b).*(?:\b(?:leveraged|levered|inverse|bull(?:ish)?|bear(?:ish)?|\d(?:\.\d{1,2})?\s?x|double|triple)\b.*\b(?:etfs?|funds?)\b|\b(?:etfs?|funds?)\b.*\b(?:leveraged|levered|inverse|bull(?:ish)?|bear(?:ish)?)\b)/] },
   // ⭐ live test 2026-10-28: N tickers as N equal charts (reuse, add, re-tile — one change, one Undo) — its OWN group
   // (one action), so neither the NL-1 core nor the workspace group grows: core + workspace is exactly the budget.
   { id: 'chartGrid', title: 'Several charts for named tickers at once: reuse the charts there, add the rest, re-tile them into equal cells', domains: ['chartGrid'], fillLast: true,

@@ -1317,6 +1317,56 @@
     }
    }
   },
+  "leveragedEtf.switch": {
+   "digest": "99d44b0cb4a7c21d",
+   "phrasings": {
+    "switch this chart to the 3x bull ETF": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "change this chart to the 3x long ETF": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "flip this chart to the 3x bullish fund": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "leveragedEtf.switch.named": {
+   "digest": "6a1489756e1622bb",
+   "phrasings": {
+    "show me the 3x bull ETF of NVDA": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "switch this chart to the 3x long ETF of NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "leveragedEtf.addChart": {
+   "digest": "2510db6b6e547fd8",
+   "phrasings": {
+    "add a new chart of the 3x bull ETF of NVDA": {
+     "digest": "dcd51037b21b1b84",
+     "gaps": [],
+     "modes": {}
+    },
+    "open a new chart with the 3x long ETF of NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "board.swap": {
    "digest": "3f1ddf67e5cb4b9b",
    "phrasings": {
