@@ -71,7 +71,7 @@ import { fillOpacityOf, fillPaint, staticFillOf } from './fillPaint'
 import { opaqueOf } from '../designTokens'
 import { createBackgroundPrimitive, isNaColour, staticPaintColour } from './paintPrimitive'
 import { markersFor, createMarkerLayer } from './markerPrimitive'
-import { semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from './definitionSemantics'
+import { semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES, isPineImport } from './definitionSemantics'
 // ⭐⭐ C3B — the object lifecycle, on the chart. Same injection discipline as the
 // marker layer above it: the capability is handed in, and a host that does not
 // provide one simply draws no objects.
@@ -624,12 +624,21 @@ function splitFor(points) {
   return sp
 }
 
-/** Is output `key` of `def` a yes/no (`outputType` CONDITION)? Memoised per
- *  definition object: the binder asks on every sync and the answer is a pure
- *  function of the document. */
+/** Is output `key` of `def` an AUTHORED yes/no (`outputType` CONDITION, in a
+ *  house / member definition)? Memoised per definition object: the binder asks on
+ *  every sync and the answer is a pure function of the document.
+ *
+ *  ⛔⛔ NEVER A PINE IMPORT (coordinator ruling on #1550, 2026-11-17). For a Pine
+ *  `plotshape` / `plotchar` the reference treats the series as boolean "for all
+ *  location values except location.absolute": at `location.absolute` (our `inBar`)
+ *  TradingView reads the value as the y, a yes/no included, so an imported glyph
+ *  keeps value-as-y on both lanes until a capture shows TradingView's own picture
+ *  (queue row Q-MK1, `vw-mk1-bool-absolute.pine`). `isPineImport` is the one
+ *  authority for "Pine-translated maths by any door". */
 const conditionMemo = new WeakMap()
 function isConditionOutput(def, key) {
   if (!def || typeof def !== 'object') return false
+  if (isPineImport(def)) return false
   let m = conditionMemo.get(def)
   if (!m) { m = new Map(); conditionMemo.set(def, m) }
   if (!m.has(key)) {

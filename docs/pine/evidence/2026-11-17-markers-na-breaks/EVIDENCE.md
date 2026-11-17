@@ -51,7 +51,11 @@ series per valued run (`gapRuns.js`), because lightweight-charts 5.2 joins white
 ## Markers and the scale (renderer only)
 
 `pool.markerIsEvent`: a glyph at `aboveBar` / `belowBar` (Pine abovebar, belowbar, top, bottom)
-has no y of its own, and neither has a glyph at `inBar` on a yes/no output (its 1 is "true").
+has no y of its own, and neither has a glyph at `inBar` on an AUTHORED (house / member) yes/no
+output (its 1 is "true"). Coordinator ruling on #1550: a Pine import is never "authored" here
+(`binder.isConditionOutput` answers false for every `isPineImport` document), because at
+`location.absolute` TradingView reads the value as the y; a Pine bool at absolute keeps value-as-y
+on both lanes until queue row Q-MK1 (`vw-mk1-bool-absolute.pine`) shows TradingView's own picture.
 Such a glyph rides a host on its scale (`binder.eventGlyphHosts`: the price series on pane 0, as
 an above / below glyph already did; the first visible line of the same instance on the same pane
 and scale elsewhere) and its own 0/1 series leaves the autoscale walk. An `inBar` glyph on a
@@ -61,7 +65,9 @@ pane of markers only keeps today's walk (nothing else frames it).
 Not TradingView's picture, stated: in a separate pane TradingView puts the bar's PRICE into the
 scale for an above / below shape (the manual sentence above); this renderer puts nothing in and
 draws the glyph above / below the pane's own line. The 0/1 value it put in before was not
-TradingView's either.
+TradingView's either. Queued as an engine gap for Pine imports (documented deviation, not fixed
+now): `docs/pine/capture-queue-2026-11-17-markers-na-breaks.md`, "abovebar / belowbar in a separate
+pane". `plot.style_steplinebr` stays not carried and disclosed (same doc, a ruling).
 
 ## Authored definitions
 

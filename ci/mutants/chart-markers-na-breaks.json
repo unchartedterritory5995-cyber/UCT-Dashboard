@@ -99,6 +99,15 @@
    "to": "        if (false && p && Number.isFinite(p.value)) byTime.set(String(p.time), p)",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.capRound4.test.js",
    "expectRed": "pa-zigzag"
+  },
+  {
+   "id": "MK6",
+   "mutant": "a Pine import's yes/no at location.absolute is read as an authored event again (rides the host, leaves the walk)",
+   "file": "app/src/components/chart/engine/binder.js",
+   "from": "  if (isPineImport(def)) return false",
+   "to": "  if (false && isPineImport(def)) return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/markerScaleAndNaBreaks.test.js",
+   "expectRed": "Pine absolute bool keeps its y"
   }
  ]
 }

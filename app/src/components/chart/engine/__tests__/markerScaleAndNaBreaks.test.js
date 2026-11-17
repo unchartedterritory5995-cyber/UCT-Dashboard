@@ -27,6 +27,7 @@ import { seriesOptionsForPlot, markerIsEvent, AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAU
 import { translatePine } from '../ast/pine'
 import { applyPatch } from '../../builder/authoring/applyPatch'
 import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
+import { isPineImport } from '../definitionSemantics'
 
 // ─── jsdom needs a 2D context and a non-zero layout (as autoscaleOnARealScale) ──
 beforeAll(() => {
@@ -79,7 +80,6 @@ function rsDef({ marker, flagTree = BOOL_TREE, withLines = true } = {}) {
   return { id: 'rs_def', schemaVersion: 1, version: 1, label: 'RS', inputs: [], compute: { kind: 'ast', ast: NUM_TREE, trees }, plots }
 }
 
-const inst = { instanceId: 'inst:rs_def:1', defId: 'rs_def', inputs: {} }
 
 /** Drive the REAL binder on a REAL chart: candles on pane 0 first (an empty time
  *  scale reads every range `null`, autoscaleOnARealScale.test.js), the definition in
@@ -95,7 +95,7 @@ function realPane(def, columns) {
   const binder = createBinder({ chart, LWC })
   binder.sync({
     enabled: true,
-    instances: [inst],
+    instances: [{ instanceId: `inst:${def.id}:1`, defId: def.id, inputs: {} }],
     registry: {
       getDefinition: (id) => (id === def.id ? def : null),
       computeFor: () => columns,
@@ -158,6 +158,55 @@ describe('row 41 — an event glyph in a pane does not move the pane\'s scale (r
     expect(got.layers).toHaveLength(1)
     expect(got.layers[0].series).toBe(got.inPane[0])
     expect(got.range.to).toBeGreaterThanOrEqual(1)
+  })
+})
+
+// ⭐⭐ COORDINATOR RULING ON #1550 (2026-11-17): FOR A PINE IMPORT, TRADINGVIEW'S SEMANTICS
+// WIN. The reference treats plotshape's series as boolean "for all location values except
+// location.absolute", so at location.absolute (our `inBar`) TradingView reads the value as the y,
+// a yes/no included. The "yes/no inBar glyph is an event that rides the host" rule is for
+// AUTHORED (house / member) definitions only. The SAME document, once with its Pine stamps and
+// once without, is the pair: only the stamps differ.
+describe('ruling on #1550 — Pine absolute bool keeps its y; authored inBar yes/no rides the host', () => {
+  const PINE_ABS = '//@version=5
+indicator("x")
+r = close / 1000
+plot(r, "r")
+'
+    + 'plotshape(close > open, "f", shape.circle, location.absolute)
+'
+  const pineDoc = () => {
+    const r = memberPaneDefinition({ id: 'u_pine_abs_bool', name: 'x', source: PINE_ABS })
+    expect(r.ok, r.reason).toBe(true)
+    return r.definition
+  }
+  const keysOf = (def) => ({
+    line: def.plots.find((p) => p.style === 'line').key,
+    mark: def.plots.find((p) => p.style === 'markers').key,
+  })
+
+  it('⭐ Pine absolute bool keeps its y: the glyph stays on its own series and its 0/1 widens the range (unchanged from before #1550)', () => {
+    const def = pineDoc()
+    const k = keysOf(def)
+    expect(isPineImport(def)).toBe(true)
+    expect(def.plots.find((p) => p.key === k.mark).marker.position).toBe('inBar')
+    const got = realPane(def, { [k.line]: RS, [k.mark]: FLAG })
+    expect(got.layers).toHaveLength(1)
+    expect(got.layers[0].series).not.toBe(got.inPane[0])
+    expect(got.range.to).toBeGreaterThanOrEqual(1)
+  })
+
+  it('⭐ authored inBar yes/no rides the host: the same document without its Pine stamps leaves the range in the line's band', () => {
+    const def = pineDoc()
+    const k = keysOf(def)
+    const authored = { ...def, meta: { ...(def.meta || {}) } }
+    delete authored.meta.recurrenceOrigin
+    delete authored.meta.importedFrom
+    expect(isPineImport(authored)).toBe(false)
+    const got = realPane(authored, { [k.line]: RS, [k.mark]: FLAG })
+    expect(got.layers).toHaveLength(1)
+    expect(got.layers[0].series).toBe(got.inPane[0])
+    expect(got.range.to).toBeLessThan(0.2)
   })
 })
 
