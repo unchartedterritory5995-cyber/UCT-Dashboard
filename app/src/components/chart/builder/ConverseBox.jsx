@@ -41,7 +41,7 @@ import { storeConversation, attachConversation, armConversationAlerts } from './
 import PreviewPane from './editor/PreviewPane'
 import { CONVERSE_PREVIEW_DEF_ID } from './editor/previewDefinition'
 import { stampSemantics } from '../engine/definitionSemantics'
-import { memberError, memberSaveError, conversationEditability, memberRefusal } from './authoring/memberWords'
+import { memberError, memberSaveError, conversationEditability, memberRefusal, chartRefusalWords } from './authoring/memberWords'
 import { logStudioAction, definitionKinds, clientFailureOf } from './authoring/studioTelemetry'
 import { outputNamer } from './authoring/readback'
 import { nameFromAssistant } from './authoring/authoringSession'
@@ -78,7 +78,7 @@ const dim = (style, disabled) => (disabled ? { ...style, opacity: 0.45, cursor: 
 function changeLine(c) {
   switch (c.kind) {
     case 'type-changed': return `${c.output} is now ${c.to} (was ${c.from}).`
-    case 'refused-on-chart': return `${c.output} cannot be drawn here: ${withoutGuardIds(c.text)}`
+    case 'refused-on-chart': return `${c.output} cannot be drawn here: ${chartRefusalWords(c.guard, c.text) || withoutGuardIds(c.text)}`
     case 'foreign-source-replaced': return `${c.output}'s imported ${c.dialect || ''} text is replaced by the canonical formula (the original is kept aside).`
     case 'requests-cleared': return `Requests on ${c.output} were cancelled with it.`
     case 'intent-cleared': return `The signal choice on ${c.output} was cleared with it.`
