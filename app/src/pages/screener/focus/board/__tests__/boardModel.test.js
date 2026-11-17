@@ -4,7 +4,7 @@ import { describe, expect, test } from 'vitest'
 import {
   COLS, ROWS, WIDGETS, PRESETS, ROW_STYLES, MAX_MINE, DEFAULT_STATE,
   sanitize, serialize, cleanWidgets, pickLayout, addWidget, removeWidget, acceptArrangement, saveMine, updateMine, deleteMine,
-  setRows, rowsOf, setOption, missingWidgets, currentLayout, fillGaps, settleDrop,
+  setRows, rowsOf, setOption, missingWidgets, currentLayout, fillGaps, settleDrop, shareable, freeName, adoptLayout, MAX_NAME, keyboardTarget, KEY_DIRS,
 } from '../boardModel'
 
 const area = ws => ws.reduce((n, w) => n + w.w * w.h, 0)
@@ -241,5 +241,100 @@ describe('layouts of your own', () => {
     expect(setOption(s0, 'screens', 'sideways')).toBe(s0)
     expect(setOption(s0, 'widgets', [])).toBe(s0)
     expect(setRows(s0, 'wide')).toBe(s0)
+  })
+})
+
+describe('sharing a layout, and taking one another member shared', () => {
+  test('what is shared is the arrangement and the row style, and nothing else the board holds', () => {
+    const s = { ...setRows(saveMine(fresh(), 'Private name', 'm-a'), 'cards'), logos: true, group: true, screens: 'menu' }
+    const out = shareable(s)
+    expect(Object.keys(out)).toEqual(['widgets'])
+    expect(out.widgets).toEqual(s.widgets)
+    expect(out.widgets.find(w => w.type === 'results').opts).toEqual({ rows: 'cards' })
+    expect(JSON.stringify(out)).not.toMatch(/Private name|logos|group|screens"|mine|layoutId/)
+    // a board that somehow cannot be drawn shares the first preset, never garbage
+    expect(shareable({ widgets: 'nope' })).toEqual({ widgets: PRESETS[0].widgets })
+  })
+  test('a taken layout becomes one of your own, picked, as a copy', () => {
+    const theirs = [{ id: 'chart', type: 'chart', x: 0, y: 0, w: 24, h: 12 }, { id: 'results', type: 'results', x: 0, y: 12, w: 24, h: 8, opts: { rows: 'chips' } }]
+    const s = adoptLayout(fresh(), '  Chart over chips  ', theirs, 'm-z')
+    expect(s.mine).toEqual([{ id: 'm-z', name: 'Chart over chips', widgets: theirs }])
+    expect([s.layoutId, s.changed, rowsOf(s)]).toEqual(['m-z', false, 'chips'])
+    expect(s.widgets).toEqual(theirs)
+    expect(s.widgets).not.toBe(s.mine[0].widgets) // editing the board never edits the saved copy
+    expect(sanitize(serialize(s)).mine).toEqual(s.mine) // and it survives the preferences
+  })
+  test('a name already on the menu gets a number; a layout that cannot be drawn, a blank name and a full list change nothing', () => {
+    let s = adoptLayout(fresh(), 'Board', PRESETS[1].widgets, 'm-1')
+    expect(s.mine[0].name).toBe('Board (2)')
+    s = adoptLayout(s, 'board', PRESETS[1].widgets, 'm-2')
+    expect(s.mine[1].name).toBe('board (3)')
+    expect(freeName(fresh(), 'x'.repeat(60))).toHaveLength(MAX_NAME)
+    const long = adoptLayout(fresh(), 'y'.repeat(MAX_NAME), PRESETS[0].widgets, 'm-a')
+    expect(freeName(long, 'y'.repeat(MAX_NAME))).toBe(`${'y'.repeat(MAX_NAME - 4)} (2)`)
+    const s0 = fresh()
+    const pile = [{ type: 'chart', x: 0, y: 0, w: 12, h: 12 }, { type: 'results', x: 4, y: 4, w: 8, h: 8 }]
+    expect(adoptLayout(s0, 'Overlapping', pile, 'm-a')).toBe(s0)
+    expect(adoptLayout(s0, 'Unknown widgets', [{ type: 'heatmap', x: 0, y: 0, w: 24, h: 20 }], 'm-a')).toBe(s0)
+    expect(adoptLayout(s0, '   ', PRESETS[0].widgets, 'm-a')).toBe(s0)
+    let full = s0
+    for (let i = 0; i < MAX_MINE; i++) full = saveMine(full, `L${i}`, `m-${i}`)
+    expect(adoptLayout(full, 'One more', PRESETS[0].widgets, 'm-x')).toBe(full)
+  })
+})
+
+describe('Customize by keyboard: the box an arrow key asks for', () => {
+  const board = PRESETS[0].widgets   // chart 0,0 17x20 | results 17,0 7x12 | details 17,12 7x8
+  test('an arrow moves the widget onto the neighbour it touches on that side, lined up with the far edge of that neighbour', () => {
+    expect(keyboardTarget(board, 'chart', 'right')).toEqual({ x: 7, y: 0, w: 17, h: 20 })
+    expect(keyboardTarget(board, 'results', 'left')).toEqual({ x: 0, y: 0, w: 7, h: 12 })
+    expect(keyboardTarget(board, 'results', 'down')).toEqual({ x: 17, y: 8, w: 7, h: 12 })
+    expect(keyboardTarget(board, 'details', 'up')).toEqual({ x: 17, y: 0, w: 7, h: 8 })
+  })
+  test('with nothing on that side there is nothing to do', () => {
+    expect(keyboardTarget(board, 'chart', 'left')).toBeNull()
+    expect(keyboardTarget(board, 'chart', 'up')).toBeNull()
+    expect(keyboardTarget(board, 'results', 'right')).toBeNull()
+    expect(keyboardTarget(board, 'details', 'down')).toBeNull()
+    expect(keyboardTarget(board, 'nope', 'left')).toBeNull()
+    expect(keyboardTarget(board, 'chart', 'sideways')).toBeNull()
+  })
+  test('touching several, it trades places with the biggest', () => {
+    const three = PRESETS[1].widgets // screens | results | chart over news
+    expect(keyboardTarget(three, 'results', 'right')).toEqual({ x: 17, y: 0, w: 7, h: 20 }) // over the chart (13x15), not the news (13x5)
+    // neighbours of different widths: the big one (results, 16 wide) decides where the chart lands, not the small one (news, 6 wide)
+    const mixed = [{ id: 'chart', type: 'chart', x: 0, y: 0, w: 8, h: 20 }, { id: 'results', type: 'results', x: 8, y: 0, w: 16, h: 12 },
+      { id: 'news', type: 'news', x: 8, y: 12, w: 6, h: 8 }, { id: 'details', type: 'details', x: 14, y: 12, w: 10, h: 8 }]
+    expect(keyboardTarget(mixed, 'chart', 'right')).toEqual({ x: 16, y: 0, w: 8, h: 20 })
+  })
+  test('Shift resizes by one cell, moving the side that faces into the board', () => {
+    expect(keyboardTarget(board, 'chart', 'right', true)).toEqual({ x: 0, y: 0, w: 18, h: 20 })
+    expect(keyboardTarget(board, 'chart', 'left', true)).toEqual({ x: 0, y: 0, w: 16, h: 20 })
+    // results sits on the right edge: wider and narrower move its LEFT side
+    expect(keyboardTarget(board, 'results', 'right', true)).toEqual({ x: 16, y: 0, w: 8, h: 12 })
+    expect(keyboardTarget(board, 'results', 'left', true)).toEqual({ x: 18, y: 0, w: 6, h: 12 })
+    expect(keyboardTarget(board, 'results', 'down', true)).toEqual({ x: 17, y: 0, w: 7, h: 13 })
+    // details sits on the bottom edge: taller and shorter move its TOP side
+    expect(keyboardTarget(board, 'details', 'down', true)).toEqual({ x: 17, y: 11, w: 7, h: 9 })
+    expect(keyboardTarget(board, 'details', 'up', true)).toEqual({ x: 17, y: 13, w: 7, h: 7 })
+  })
+  test('never below the minimum size of a widget, never past the grid', () => {
+    expect(keyboardTarget(board, 'chart', 'down', true)).toBeNull() // already the full height
+    const small = [{ id: 'chart', type: 'chart', x: 0, y: 0, w: 8, h: 8 }, { id: 'results', type: 'results', x: 8, y: 0, w: 16, h: 20 }]
+    expect(keyboardTarget(small, 'chart', 'left', true)).toBeNull()
+    expect(keyboardTarget(small, 'chart', 'up', true)).toBeNull()
+    expect(keyboardTarget([{ id: 'chart', type: 'chart', x: 0, y: 0, w: 24, h: 20 }], 'chart', 'right', true)).toBeNull()
+    expect(Object.values(KEY_DIRS)).toEqual(['left', 'right', 'up', 'down'])
+  })
+  test('every box an arrow asks for on a preset is inside the grid and at least the minimum size', () => {
+    let asked = 0
+    for (const p of PRESETS) for (const w of p.widgets) for (const dir of ['left', 'right', 'up', 'down']) for (const resize of [false, true]) {
+      const rect = keyboardTarget(p.widgets, w.id, dir, resize)
+      if (!rect) continue
+      asked += 1
+      expect(rect.x >= 0 && rect.y >= 0 && rect.x + rect.w <= COLS && rect.y + rect.h <= ROWS).toBe(true)
+      expect(rect.w >= WIDGETS[w.type].minW && rect.h >= WIDGETS[w.type].minH).toBe(true)
+    }
+    expect(asked).toBeGreaterThan(30)
   })
 })
