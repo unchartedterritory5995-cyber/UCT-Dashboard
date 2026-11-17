@@ -30,10 +30,11 @@ describe('FlowScoreboard states', () => {
     expect(screen.getByTestId('scoreboard-asof').textContent).toBe('Scores as of Oct 5, 4:12 PM ET.')
   })
 
-  // The picks come from our flow tape, but every result is computed from daily Schwab option
-  // snapshots (api/top_flow_tracker.py::snapshot_prices). The header said only "our options flow
-  // tape" until 2026-11-17.
-  it('the panel source line names both sources: the flow tape for picks, Schwab for results', async () => {
+  // The picks come from our flow tape; every result is computed from the daily option prices and
+  // open interest recorded from Massive, with Schwab as backup
+  // (api/top_flow_tracker.py::snapshot_prices). The header said only "our options flow tape"
+  // until 2026-11-17.
+  it('the panel source line names its sources: the flow tape for picks, Massive then Schwab for results', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, status: 200, json: async () => ({ picks_tracked: 0, generated_at: '2026-10-05T20:12:00+00:00' }) })))
     const reports = []
     render(
@@ -45,6 +46,7 @@ describe('FlowScoreboard states', () => {
     const { source } = reports.at(-1)
     expect(source).toBe(FREC_SOURCE)
     expect(source).toMatch(/picks from our options flow tape/)
-    expect(source).toMatch(/results from daily Schwab option prices and open interest/)
+    expect(source).toMatch(/results from daily option prices and open interest from Massive, with Schwab as backup/)
+    expect(source).not.toMatch(/daily Schwab option prices/)
   })
 })

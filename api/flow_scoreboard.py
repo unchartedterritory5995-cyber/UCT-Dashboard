@@ -10,9 +10,14 @@ GET /api/flow-scoreboard  (also /api/flow-scoreboard/)
 Where the numbers come from (two sources, both named on the page):
   * The picks and their entry prices come from UCT's options flow tape (saved by
     the Options Flow page through POST /api/top-flow/save).
-  * Every daily price and open-interest snapshot — so every gain, win rate and
-    OI confirmation — is read from Schwab (api.top_flow_tracker.snapshot_prices
-    → api.schwab_service.get_batch_option_quotes).
+  * Every gain, win rate and OI confirmation is computed from the daily option
+    price and open interest recorded each weekday after the close by
+    api.top_flow_tracker.snapshot_prices: from Massive
+    (api.massive_oi_snapshots._fetch_fields_all_async), with Schwab
+    (api.schwab_service.get_batch_option_quotes) as the backup for a contract
+    Massive has no price for (owner ruling 2026-11-17). Results recorded before
+    that change came from Schwab and stay as recorded: each history entry
+    written since carries `src`, and an entry without one is Schwab.
 
 Honesty rules (LOCKED — this is a trust asset):
   * Losers are NEVER excluded from aggregate stats.
@@ -62,9 +67,10 @@ CACHE_TTL_SECONDS = 300           # 5 min
 
 METHODOLOGY = (
     "Every Top Flow pick is saved the day it is flagged on UCT's options flow tape "
-    "and tracked with daily end-of-day snapshots of the option contract's price and "
-    "open interest, read from Schwab, until expiration. Entry = the contract's price "
-    "when the pick was flagged. All gains "
+    "and tracked until expiration with the option contract's price and open interest, "
+    "recorded each weekday after the close from Massive, with Schwab as backup. "
+    "Results recorded before the move to Massive in November 2026 came from Schwab. Entry = the contract's "
+    "price when the pick was flagged. All gains "
     "are contract-price gains (the option's price, not the underlying stock's move). "
     "Peak gain = the best daily closing price since the flag versus entry; current "
     "gain = the latest snapshot versus entry. A pick counts as OI-confirmed when its "

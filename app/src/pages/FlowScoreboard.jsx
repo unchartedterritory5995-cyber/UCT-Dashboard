@@ -10,7 +10,9 @@
 // gate in api/main.py, family `paid`; see api/flow_scoreboard.py for what that gate does).
 // Two sources, and the label below names both: the picks and their entry prices come from our
 // options flow tape; every result (gains, win rates, open-interest confirmation) is computed from
-// daily option price and open-interest snapshots read from Schwab (api/top_flow_tracker.py).
+// the daily option prices and open interest recorded each weekday after the close from Massive,
+// with Schwab as backup (api/top_flow_tracker.py). Results recorded before that change (November
+// 2026) came from Schwab.
 import { useState } from 'react'
 import useSWR from 'swr'
 import PanelTicker from '../components/terminal/PanelTicker'
@@ -27,10 +29,11 @@ import jsonFetcher from '../utils/jsonFetcher'
 // as a young tracker (quality pass 2026-10-05).
 const fetcher = (url) => jsonFetcher(url, { credentials: 'include' })
 
-// The panel header's source line. Picks and entry prices: our options flow tape. Results: daily
-// Schwab snapshots of each contract's price and open interest. It said only "our options flow
-// tape" until 2026-11-17, which named half of where the numbers come from.
-export const FREC_SOURCE = 'UCT flow record (picks from our options flow tape; results from daily Schwab option prices and open interest)'
+// The panel header's source line. Picks and entry prices: our options flow tape. Results: each
+// contract's price and open interest, recorded each weekday after the close from Massive, with
+// Schwab as backup. Results recorded before that change (November 2026) came from Schwab, which
+// the method text on the page says. It said only "our options flow tape" until 2026-11-17.
+export const FREC_SOURCE = 'UCT flow record (picks from our options flow tape; results from daily option prices and open interest from Massive, with Schwab as backup)'
 
 /** "Oct 5, 4:12 PM ET" from the payload's generated_at, or null. */
 export function asOfText(iso) {

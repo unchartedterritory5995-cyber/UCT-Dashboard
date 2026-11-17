@@ -17,6 +17,11 @@ not licensed for member display; api/services/provider_licensing_class.py had no
 still showed the pre-answer class; and the Flow Scoreboard rows (T-27, X-12) named the OPRA
 tape as the source of gains that are computed from Schwab snapshots.
 
+THEN, THE SAME DAY, the owner ruled (verbatim) "Move Flow Record to Massive": the daily price
+recording behind the Flow Record reads Massive first and keeps Schwab only as the backup for a
+contract Massive has no price for; past results stay as recorded. That ruling moved one job and
+nothing else here. The T-27 / X-12 rail below holds the rows to the order the code runs.
+
 Stdlib only, no network, no app import beyond the licensing table (which imports nothing).
 """
 from __future__ import annotations
@@ -103,21 +108,55 @@ def test_x09_no_longer_calls_schwab_unknown_or_prescribes_the_retired_remedy():
     assert len(retired) == 1 and "RETIRED 2026-09-19: ESC-10 answered" in retired[0]
 
 
-def test_the_flow_scoreboard_rows_name_the_source_the_code_reads():
-    """T-27 / X-12 said the gains come "from the OPRA tape". The tracker fills every pick's
-    daily price and open interest from Schwab; read it from the code, then from the rows."""
+def _tracker_fn(tree: ast.AST, name: str) -> ast.AsyncFunctionDef:
+    return next(n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef) and n.name == name)
+
+
+def _named_calls(fn: ast.AST) -> list[tuple[int, str]]:
+    return [(n.lineno, n.func.id) for n in ast.walk(fn) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)]
+
+
+def test_the_flow_scoreboard_rows_name_the_sources_in_the_order_the_code_reads_them():
+    """T-27 / X-12 said the gains come "from the OPRA tape"; then, from the code, from Schwab;
+    then the owner ruled "Move Flow Record to Massive" (2026-11-17). The tracker now fills each
+    pick's daily price and open interest from Massive first and from Schwab only as the backup.
+    Read that order from the code, then from the rows. (The behaviour itself is driven with both
+    vendors faked in tests/test_top_flow_snapshot_source.py.)"""
     tree = ast.parse((REPO / "api" / "top_flow_tracker.py").read_text(encoding="utf-8"))
-    fn = next(n for n in ast.walk(tree) if isinstance(n, ast.AsyncFunctionDef) and n.name == "snapshot_prices")
-    imports = {(n.module, a.name) for n in ast.walk(fn) if isinstance(n, ast.ImportFrom) for a in n.names}
+    # the declared default is Massive first; Schwab only is the other value (the rollback)
+    table = next(n.value for n in tree.body if isinstance(n, ast.Assign)
+                 and any(getattr(t, "id", "") == "TOP_FLOW_MODE_FLAGS" for t in n.targets))
+    assert ast.literal_eval(table) == {"TOP_FLOW_SNAPSHOT_SOURCE": ("massive", ("massive", "schwab"))}
+    # the sweep asks Massive before it asks Schwab ...
+    sweep = _tracker_fn(tree, "_snapshot_prices")
+    calls = _named_calls(sweep)
+    massive_at = min(line for line, name in calls if name == "_massive_entries")
+    schwab_at = min(line for line, name in calls if name == "get_batch_option_quotes")
+    assert massive_at < schwab_at
+    # ... through the two readers the rows name
+    massive_fn = _tracker_fn(tree, "_massive_entries")
+    imports = {(n.module, a.name) for fn in (sweep, massive_fn) for n in ast.walk(fn)
+               if isinstance(n, ast.ImportFrom) for a in n.names}
+    assert ("api.massive_oi_snapshots", "_fetch_fields_all_async") in imports
     assert ("api.schwab_service", "get_batch_option_quotes") in imports
-    calls = {n.func.id for n in ast.walk(fn) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
-    assert "get_batch_option_quotes" in calls
+    assert "_fetch_fields_all_async" in {name for _, name in _named_calls(massive_fn)}
+    assert "get_batch_option_quotes" not in {name for _, name in _named_calls(massive_fn)}
     for rid, header, what, provider in (("T-27", T_HEADER, "Use", "Provider · data class"),
                                         ("X-12", X3B_HEADER, "What leaves", "Provider · data")):
         row = _row(rid, header)
         assert "Massive OPRA" in row[provider] and "Schwab" in row[provider], rid
-        assert "api.schwab_service.get_batch_option_quotes" in row[what], rid
-        assert 'was "contract-price gains from the OPRA tape"' in row[what], rid     # history kept
+        assert "Massive `/v3/snapshot/options` (the T-28 data class) first, with Schwab as the backup" in row[provider], rid
+        assert "results recorded before the change are Schwab" in row[provider], rid
+        use = row[what]
+        assert 'owner ruling, verbatim: "Move Flow Record to Massive"' in use, rid
+        first = use.index("reads Massive first (`api.massive_oi_snapshots._fetch_fields_all_async`)")
+        backup = use.index("(`api.schwab_service.get_batch_option_quotes`) only for a contract Massive has no price for")
+        assert first < backup, rid
+        assert "`TOP_FLOW_SNAPSHOT_SOURCE=schwab` is the rollback" in use, rid
+        # history kept: the OPRA wording, and the note that said Schwab (true of results up to the change)
+        assert 'was "contract-price gains from the OPRA tape"' in use, rid
+        assert "read from Schwab (`api/top_flow_tracker.py::snapshot_prices`" in use, rid
+        assert "those stay as recorded" in use, rid
 
 
 # ── the licensing table states the register's class, and switches nothing on ──

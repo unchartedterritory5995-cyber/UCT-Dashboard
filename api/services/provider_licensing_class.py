@@ -109,7 +109,7 @@ _TABLE: dict[tuple[str, str], LicensingClassEntry] = {
         "LA", "Option chains + Greeks + open interest (marketdata/v1/chains) shown to members as GEX, gamma walls, zero-gamma and dealer positioning — T-77, ANSWERED BY THE OWNER 2026-09-19 (Commercial/Redistribution tier with display to non-account-holders): LA. Member surfaces only; public recordings are the T-79 row below.", "T-77",
     ),
     ("schwab", "option_quotes"): LicensingClassEntry(
-        "LA", "One contract's price, volume and open interest read out of the same /chains response (schwab_service.get_option_quote / get_batch_option_quotes: the Flow Record's daily snapshots, /api/schwab/options-quotes) — the T-77 data class: LA for member display. A public or unauthenticated surface is its own row (T-27).", "T-77",
+        "LA", "One contract's price, volume and open interest read out of the same /chains response (schwab_service.get_option_quote / get_batch_option_quotes: the Flow Record's daily snapshots (the only source until 2026-11-17, the backup behind Massive since), /api/schwab/options-quotes) — the T-77 data class: LA for member display. A public or unauthenticated surface is its own row (T-27).", "T-77",
     ),
     ("schwab", "open_interest"): LicensingClassEntry(
         "LA", "Stored Schwab open-interest snapshots for day-over-day OI attribution — T-78, ANSWERED (see T-77): LA.", "T-78",
