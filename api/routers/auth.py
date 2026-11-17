@@ -3642,17 +3642,20 @@ def _set_chart_edge_cookie(response: Response, user: dict, plan: str):
         # sign-in.
         token = None
 
+    # One cookie per Worker route that enforces the entitlement (/api/bars, /api/hist): the same
+    # token under each path, and the revocation clears every one of them (chart_edge_token.COOKIE_PATHS).
     if not token:
-        response.delete_cookie(chart_edge_token.COOKIE_NAME,
-                               path=chart_edge_token.COOKIE_PATH)
+        for path in chart_edge_token.COOKIE_PATHS:
+            response.delete_cookie(chart_edge_token.COOKIE_NAME, path=path)
         return
 
-    response.set_cookie(
-        key=chart_edge_token.COOKIE_NAME,
-        value=token,
-        httponly=True,          # the edge reads it; page scripts never do
-        secure=COOKIE_SECURE,
-        samesite="lax",         # same-site XHR from the app; matches the session cookie
-        path=chart_edge_token.COOKIE_PATH,   # /api/bars only — see the module docstring
-        max_age=chart_edge_token.ttl_seconds(),
-    )
+    for path in chart_edge_token.COOKIE_PATHS:
+        response.set_cookie(
+            key=chart_edge_token.COOKIE_NAME,
+            value=token,
+            httponly=True,          # the edge reads it; page scripts never do
+            secure=COOKIE_SECURE,
+            samesite="lax",         # same-site XHR from the app; matches the session cookie
+            path=path,              # one Worker route each, nothing wider — see the module docstring
+            max_age=chart_edge_token.ttl_seconds(),
+        )
