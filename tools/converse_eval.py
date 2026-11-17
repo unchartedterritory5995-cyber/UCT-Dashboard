@@ -266,7 +266,7 @@ ASSET_LOADERS = {ext: "empty" for ext in (
     ".woff", ".woff2", ".ttf", ".otf", ".mp3", ".mp4", ".webm", ".wav")}
 CODE_LOADERS = {".js": "jsx", ".jsx": "jsx"}
 
-_BUILD = r"""
+_BUILD_TEMPLATE = r"""
 import { pathToFileURL } from 'node:url'
 const [esbuildPath, entry, outfile, appDir] = process.argv.slice(2)
 const esbuild = await import(pathToFileURL(esbuildPath).href)
@@ -279,7 +279,9 @@ await esbuild.build({
   banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" },
 })
 """
-_BUILD = _BUILD.replace("__LOADERS__", json.dumps({**CODE_LOADERS, **ASSET_LOADERS}))
+# ONE binding of the name the bundler reads (`tests/test_no_shadowed_definitions.py`): the template
+# above has its own name, and this is the script with the loader map written in.
+_BUILD = _BUILD_TEMPLATE.replace("__LOADERS__", json.dumps({**CODE_LOADERS, **ASSET_LOADERS}))
 
 
 def _node() -> str:
