@@ -143,7 +143,7 @@ export default function CommunityLayouts({ board, api, isAdmin = false, reloadKe
                   <h3 className={s.cmHeading}>Shared by you</h3>
                   <ul className={s.cmGrid}>
                     {mine.map(item => (
-                      <Card key={item.id} item={item} sub={`${STATUS[item.status] || item.status}${item.status === 'approved' ? ` · ${usedLine(item.uses || 0)}` : ''}`}>
+                      <Card key={item.id} item={item} sub={item.hidden ? 'Hidden by UCT' : `${STATUS[item.status] || item.status}${item.status === 'approved' ? ` · ${usedLine(item.uses || 0)}` : ''}`}>
                         <button type="button" className={focus.btn} disabled={busy === item.id} onClick={() => stop(item)}>Stop sharing</button>
                       </Card>
                     ))}

@@ -49,6 +49,13 @@ describe('the Layout menu', () => {
     fireEvent.click(within(openLayout()).getByRole('menuitem', { name: 'Share this layout…' }))
     expect([onCommunity.mock.calls.length, onShare.mock.calls.length]).toEqual([1, 1])
   })
+  test('an admin with layouts to review sees the count on the Community entry; with none, nothing is added', () => {
+    const first = render(<BoardMenu board={boardOf()} api={api()} onSaveAs={vi.fn()} onCommunity={vi.fn()} onShare={vi.fn()} reviewCount={3} />)
+    expect(itemNames(openLayout())).toContain('Community layouts…3 to review')
+    first.unmount()
+    render(<BoardMenu board={boardOf()} api={api()} onSaveAs={vi.fn()} onCommunity={vi.fn()} onShare={vi.fn()} />)
+    expect(itemNames(openLayout())).toContain('Community layouts…')
+  })
   test('each item calls the board with what it names', () => {
     const a = api()
     const onSaveAs = vi.fn()

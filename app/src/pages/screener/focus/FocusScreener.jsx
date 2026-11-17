@@ -72,7 +72,7 @@ import { RS_CONTROLS_PREF, RS_NOTE_PREF, RS_LEADERS_ID, RS_SCREENS_COLUMNS, cont
 import { rowConfigOf, rowColumns, ratingsAsOf, sectorShare, rowFacts, setupWords } from './rsRows'
 import useScanBoard from './board/useScanBoard'
 import { hasWidget, rowsOf, shareable, MAX_NAME } from './board/boardModel'
-import { publishLayout } from './board/communityApi'
+import { publishLayout, listCommunity, toReview } from './board/communityApi'
 import { BoardMenu, BoardEditBar } from './board/BoardMenu'
 import { ScreenTabs, ScreenSidebar } from './board/ScreenNav'
 import DetailsCard from './board/DetailsCard'
@@ -206,6 +206,16 @@ function FocusList({ mode, onMode, modeTabs = null }) {
   const galleryOn = useContext(AuthContext)?.screenerLayoutGalleryEnabled === true && boardOn
   const isAdmin = useContext(AuthContext)?.user?.role === 'admin'
   const [community, setCommunity] = useState({ open: false, reload: 0 })
+  // An admin reviews shared layouts before they are listed: the Layout menu says how many wait.
+  // Read when the page opens and again each time the community window closes. Admins only.
+  const [reviewCount, setReviewCount] = useState(0)
+  const watchReview = galleryOn && isAdmin && !community.open
+  useEffect(() => {
+    if (!watchReview) return undefined
+    let alive = true
+    listCommunity().then(out => { if (alive && out.ok) setReviewCount(toReview(out.data.queue)) })
+    return () => { alive = false }
+  }, [watchReview])
   const [newsEl, setNewsEl] = useState(null)
   const navigate = useNavigate()
   const { meta, error: metaError, retry: retryMeta } = useScreenerMeta()
@@ -1196,7 +1206,7 @@ function FocusList({ mode, onMode, modeTabs = null }) {
       </SkipLinkPortal>
       <FocusTopBar
         modesOnly={board ? [...new Set([...BOARD_MODES, mode])] : null}
-        layoutMenu={board && mode === 'list' ? <BoardMenu board={board} api={boardApi} onSaveAs={saveBoardLayout} onCommunity={galleryOn ? () => setCommunity(c => ({ ...c, open: true })) : null} onShare={galleryOn ? shareBoardLayout : null} /> : null}
+        layoutMenu={board && mode === 'list' ? <BoardMenu board={board} api={boardApi} onSaveAs={saveBoardLayout} onCommunity={galleryOn ? () => setCommunity(c => ({ ...c, open: true })) : null} onShare={galleryOn ? shareBoardLayout : null} reviewCount={reviewCount} /> : null}
         optionsTab={modeTabs}
         screenMenu={<>
           {board && board.screens === 'tabs' && landed && (

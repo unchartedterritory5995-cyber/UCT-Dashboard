@@ -12,7 +12,7 @@ import s from './Board.module.css'
 // The chosen option carries the tick (UCT Signature 2b, mark 3); everything else is plain.
 const Tick = () => <span className={menuStyles.smTick} aria-hidden="true"> ✓</span>
 
-export function BoardMenu({ board, api, onSaveAs, onCommunity = null, onShare = null }) {
+export function BoardMenu({ board, api, onSaveAs, onCommunity = null, onShare = null, reviewCount = 0 }) {
   const cur = currentLayout(board)
   const mineCur = board.mine.find(m => m.id === board.layoutId) || null
   const rows = rowsOf(board)
@@ -37,7 +37,7 @@ export function BoardMenu({ board, api, onSaveAs, onCommunity = null, onShare = 
       {mineCur && <MenuItem danger onSelect={() => api.deleteMine(mineCur.id)}>Delete “{mineCur.name}”</MenuItem>}
       {!cur && <MenuItem onSelect={() => api.pickLayout(PRESETS[0].id)}>Back to the {PRESETS[0].name} preset</MenuItem>}
       {(onCommunity || onShare) && <MenuDivider />}
-      {onCommunity && <MenuItem onSelect={onCommunity}>Community layouts…</MenuItem>}
+      {onCommunity && <MenuItem onSelect={onCommunity} hint={reviewCount > 0 ? `${reviewCount} to review` : undefined}>Community layouts…</MenuItem>}
       {onShare && <MenuItem onSelect={onShare}>Share this layout…</MenuItem>}
       {hasWidget(board, 'results') && (
         <>

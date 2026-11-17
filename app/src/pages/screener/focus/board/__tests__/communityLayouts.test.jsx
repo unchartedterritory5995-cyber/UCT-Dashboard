@@ -6,6 +6,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { vi, beforeEach, expect, test } from 'vitest'
 import CommunityLayouts, { LayoutThumb } from '../CommunityLayouts'
 import { sanitize, saveMine, PRESETS, MAX_MINE } from '../boardModel'
+import { toReview } from '../communityApi'
 
 const BASE = '/api/screener/layout-gallery'
 const item = (id, name, patch = {}) => ({ id, name, author: 'Dana K', layout: { widgets: PRESETS[1].widgets }, uses: 3, mine: false, status: 'approved', reported: false, createdAt: '2026-11-17T12:00:00Z', ...patch })
@@ -151,4 +152,18 @@ test('the list still arrives when React mounts the window twice (development)', 
   render(<StrictMode><CommunityLayouts {...props} /></StrictMode>)
   await waitFor(() => expect(card('g1')).toBeInTheDocument())
   expect(screen.queryByRole('status')).toBeNull()
+})
+
+test('the author is told when a layout of theirs was hidden, instead of reading "Shared"', async () => {
+  answer.mine = [item('m1', 'Taken down', { mine: true, hidden: true, uses: 9 })]
+  draw()
+  await waitFor(() => expect(card('m1')).toBeInTheDocument())
+  expect(words(card('m1'))).toBe('Taken downHidden by UCTStop sharing')
+})
+
+test('what an admin still has to review: layouts waiting, and listed layouts with open reports', () => {
+  expect(toReview([item('a', 'A', { status: 'pending' }), item('b', 'B', { reports: 2 }), item('c', 'C', { reports: 0 }),
+    item('d', 'D', { hidden: true, reports: 3 }), item('e', 'E', { status: 'declined', reports: 0 }), null])).toBe(2)
+  expect(toReview(undefined)).toBe(0)
+  expect(toReview('nope')).toBe(0)
 })

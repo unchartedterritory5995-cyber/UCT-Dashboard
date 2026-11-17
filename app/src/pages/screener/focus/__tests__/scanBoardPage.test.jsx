@@ -206,3 +206,22 @@ test('the community flag alone, without the board, changes nothing', async () =>
   expect(screen.queryByRole('button', { name: 'Layout' })).toBeNull()
   expect(galleryCalls()).toEqual([])
 })
+
+test('an admin is told on the Layout menu how many shared layouts wait for review; a member is never asked', async () => {
+  const base = globalThis.fetch
+  const waiting = { id: 'q1', name: 'New', author: 'Dana', layout: { widgets: PRESETS[0].widgets }, uses: 0, mine: false, status: 'pending', reported: false, hidden: false, reports: 0 }
+  globalThis.fetch = vi.fn(async (u, o) => (String(u) === '/api/screener/layout-gallery' && (!o?.method || o.method === 'GET')
+    ? { ok: true, json: async () => ({ items: [], mine: [], queue: [waiting, { ...waiting, id: 'q2', status: 'approved', reports: 1 }, { ...waiting, id: 'q3', status: 'approved', hidden: true }] }) }
+    : base(u, o)))
+  const member = draw(true, { screenerLayoutGalleryEnabled: true, user: { id: 'u1', role: 'member' } })
+  await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
+  fireEvent.click(screen.getByRole('button', { name: 'Layout' }))
+  expect(within(screen.getByRole('menu', { name: 'Layout' })).getByRole('menuitem', { name: /Community layouts/ }).textContent).toBe('Community layouts…')
+  expect(galleryCalls()).toEqual([])
+  member.unmount()
+  draw(true, { screenerLayoutGalleryEnabled: true, user: { id: 'u0', role: 'admin' } })
+  await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
+  await waitFor(() => expect(galleryCalls()).toEqual([['GET', '/api/screener/layout-gallery', undefined]]))
+  fireEvent.click(screen.getByRole('button', { name: 'Layout' }))
+  await waitFor(() => expect(within(screen.getByRole('menu', { name: 'Layout' })).getByRole('menuitem', { name: /Community layouts/ }).textContent).toBe('Community layouts…2 to review'))
+})

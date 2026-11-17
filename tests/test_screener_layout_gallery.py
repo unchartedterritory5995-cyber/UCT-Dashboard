@@ -392,7 +392,9 @@ def test_a_publish_is_pending_until_an_admin_approves_it(app, client):
     item = r.json()["item"]
     assert (item["status"], item["mine"], item["name"], item["author"], item["uses"], item["reported"]) == (
         "pending", True, "Big chart left", "Alice Trader", 0, False)
-    assert set(item) == {"id", "name", "author", "layout", "uses", "mine", "status", "reported", "createdAt"}
+    # the author also learns whether it is hidden; the report count stays the admin's
+    assert set(item) == {"id", "name", "author", "layout", "uses", "mine", "status", "reported", "createdAt", "hidden"}
+    assert item["hidden"] is False
     assert item["layout"] == BOARD
 
     other = listed(app, client, B)
@@ -545,7 +547,8 @@ def test_hide_takes_it_off_the_list_and_the_author_still_has_it(app, client):
     assert (out["hidden"], out["status"], out["reports"]) == (True, "approved", 0)     # status left alone
     assert listed(app, client, B)["items"] == []
     mine = listed(app, client, A)["mine"]
-    assert [(i["id"], i["status"]) for i in mine] == [(gid, "approved")] and "hidden" not in mine[0]
+    # the author is told it was hidden, and is never shown how many reports it drew
+    assert [(i["id"], i["status"], i["hidden"]) for i in mine] == [(gid, "approved", True)] and "reports" not in mine[0]
     assert [(i["id"], i["hidden"]) for i in listed(app, client, ADMIN)["queue"]] == [(gid, True)]
     assert _count("screener_layout_gallery", "id = ?", gid) == 1                       # not a delete
 

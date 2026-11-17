@@ -293,8 +293,11 @@ def _item(row: sqlite3.Row, viewer_id: str, is_admin: bool) -> dict[str, Any]:
         "reported": bool(row["reported"]),
         "createdAt": row["created_at"],
     }
-    if is_admin:
+    # The author is told when their own layout was hidden (it would otherwise read "Shared"
+    # while no one can see it). No one else learns it, and report counts stay the admin's.
+    if is_admin or out["mine"]:
         out["hidden"] = bool(row["hidden"])
+    if is_admin:
         out["reports"] = int(row["open_reports"] or 0)
     return out
 

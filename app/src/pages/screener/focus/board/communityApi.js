@@ -29,3 +29,6 @@ export const reportLayout = (id, reason) => call(`/${encodeURIComponent(id)}/rep
 export const adminAct = (id, action) => call(`/admin/${encodeURIComponent(id)}`, 'PATCH', { action })
 
 export const REPORT_REASONS = [['name', 'The name is not OK'], ['broken', 'It does not work'], ['other', 'Something else']]
+
+// What an admin still has to look at: layouts waiting for review and listed layouts with open reports.
+export const toReview = queue => (Array.isArray(queue) ? queue.filter(i => i && !i.hidden && (i.status === 'pending' || i.reports > 0)).length : 0)
