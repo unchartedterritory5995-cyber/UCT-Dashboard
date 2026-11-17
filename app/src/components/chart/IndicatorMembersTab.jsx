@@ -22,6 +22,7 @@ import { fetchDefinitionLibrary, installSharedDefinition, moderateListing } from
 import { AuthContext } from '../../context/AuthContext'
 import { WHAT_TO_DO } from '../../pages/formulas/shareRefusal'
 import { sharedVerdict } from '../../pages/formulas/sharedVerdict'
+import { loadLine } from '../../pages/formulas/loadWords'
 import ownStyles from './IndicatorMembersTab.module.css'
 
 /** The engine's three repaint verdicts in a chooser's words (the page's own map). */
@@ -188,6 +189,10 @@ export default function IndicatorMembersTab({
                   {/* ⭐ R4: the author's verdict for the listed version, when the listing carries it */}
                   {sharedVerdict(e) ? (
                     <span className={styles.resMeta} data-testid="members-entry-verdict">{sharedVerdict(e).sentence}</span>
+                  ) : null}
+                  {/* ⭐ R6: how heavy the listed version is to draw, as the server measured it */}
+                  {loadLine(e.load) ? (
+                    <span className={styles.resMeta} data-testid="members-entry-load" data-load={loadLine(e.load).code}>{loadLine(e.load).text}</span>
                   ) : null}
                   {e.licence ? (
                     <span className={styles.resMeta} data-testid="members-entry-licence">

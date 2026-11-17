@@ -31,6 +31,7 @@ import {
 import { sharedFormulaPath } from './formulaShareLink'
 import { WHAT_TO_DO } from './shareRefusal'
 import { sharedVerdict } from './sharedVerdict'
+import { loadLine } from './loadWords'
 import { AuthContext } from '../../context/AuthContext'
 import { TakedownControl } from '../../components/chart/IndicatorMembersTab'
 import styles from './FormulaLibrary.module.css'
@@ -119,6 +120,10 @@ export default function FormulaLibrary() {
                 {/* ⭐ R4: the author's verdict for the listed version, when the listing carries it */}
                 {sharedVerdict(e) ? (
                   <p className={styles.desc} data-testid={`library-verdict-${e.token}`}>{sharedVerdict(e).sentence}</p>
+                ) : null}
+                {/* ⭐ R6: how heavy the listed version is to draw, as the server measured it */}
+                {loadLine(e.load) ? (
+                  <p className={styles.desc} data-testid={`library-load-${e.token}`} data-load={loadLine(e.load).code}>{loadLine(e.load).text}</p>
                 ) : null}
                 <div className={styles.facts}>
                   {e.repaint ? (

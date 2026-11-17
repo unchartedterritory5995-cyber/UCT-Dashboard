@@ -49,6 +49,9 @@
   line-height: 1.45;
 }
 .verdictChecked { color: var(--text-muted, #8a857a); }
+/* R6: how heavy it is to draw, directly under the verdict (or under the name when there is no
+   verdict). Two lines read as one block: the second takes back the first's bottom gap. */
+.verdict + .load { margin-top: -18px; }
 
 .sectionHdr {
   margin: 0 0 10px;
