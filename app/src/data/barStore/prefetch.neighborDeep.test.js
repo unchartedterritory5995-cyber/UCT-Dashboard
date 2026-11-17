@@ -78,6 +78,22 @@ describe('the neighbor hold deepens the next rows once the member rests', () => 
     expect(t.scrolls.some(([key]) => key === t.k('CCC'))).toBe(false) // only the rows named in `deep`
   })
 
+  it('where the lake carries the row, its target is the lake\'s: it goes on past the server target', async () => {
+    const { LAKE_PREFETCH_TARGET_BARS } = await import('../../utils/historyPrepend')
+    const t = await boot()
+    t.store.lakeCarries = () => true
+    t.seed('AAA', '5', HISTORY_PREFETCH_TARGET_BARS)                 // at the SERVER target already
+    const hold = t.pf.createNeighborHold()
+    hold.set(['AAA'], '5', { deep: ['AAA'] })
+    await t.fire()
+    expect(t.scrolls.length).toBe(PREFETCH_WINDOWS)                   // still deepened toward the lake's
+    t.snaps.set(t.k('AAA'), t.answered(t.k('AAA'), LAKE_PREFETCH_TARGET_BARS))
+    t.scrolls.length = 0
+    hold.set(['AAA'], '5', { deep: ['AAA'] })
+    await t.fire()
+    expect(t.scrolls).toEqual([])                                     // at the lake target: done
+  })
+
   it('never asks a row already at the chart\'s target', async () => {
     const t = await boot()
     t.seed('AAA', '5', HISTORY_PREFETCH_TARGET_BARS)

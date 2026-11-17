@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRegistry } from './registry'
 import { createNetwork } from './network'
 import { keyOf } from './types'
+import { LAKE_WINDOW_BARS } from '../../utils/historyPrepend'
 import { bucketStartUnix } from '../../components/chart/barTime'
 import { bucketEndUnix } from '../../components/chart/liveBuckets'
 
@@ -69,7 +70,7 @@ describe('BarStore scroll-back from the history lake', () => {
     expect(lakeAsks(w)).toEqual([`lake:${key}<${OPEN}`])
     expect(serverWindows(w)).toEqual([])
     expect(w.registry.getSnapshot(key).bars[0].t).toBe(OPEN - 900)
-    expect(w.history.olderBars.mock.calls[0][2].bars).toBe(2000)
+    expect(w.history.olderBars.mock.calls[0][2].bars).toBe(LAKE_WINDOW_BARS)   // a lake window is a piece's size
   })
 
   it('a lake with nothing older hands over to the server window, and is not asked again while the chart holds the key', async () => {

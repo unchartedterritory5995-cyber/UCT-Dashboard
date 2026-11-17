@@ -167,6 +167,8 @@ export function createBarStore(o = {}) {
       return n
     },
     scrollBack: (key, opts) => network.scrollBack(key, opts),
+    /** Does the history lake carry `key`'s scroll-back (network.lakeCarries)? */
+    lakeCarries: (key) => !!network.lakeCarries?.(key),
     applyLive: (key, frame) => live.applyFrame(key, frame),
     flush: () => persist.flush(),
     dispose() {
