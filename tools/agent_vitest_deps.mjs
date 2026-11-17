@@ -27,9 +27,14 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createRequire } from 'node:module'
 
-const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+// --repo DIR: the tree whose import GRAPH is walked (default: this script's checkout). agent-ci's `affected` job runs the
+//   BASE branch's copy of this script against the PR's tree (tools/agent_ci_affected.py), so the two can differ.
+// --modules DIR: where acorn / acorn-jsx resolve from (DIR/node_modules; default: <repo>/app).
+// --filters a,b,c: the AGENT_VITEST_PATHS filters (default: read from <repo>/.github/workflows/agent-ci.yml).
+const argOf = (flag) => { const k = process.argv.indexOf(flag); return k > 0 ? process.argv[k + 1] : undefined }
+const REPO = path.resolve(argOf('--repo') || path.join(path.dirname(fileURLToPath(import.meta.url)), '..'))
 const APP = path.join(REPO, 'app')
-const appRequire = createRequire(pathToFileURL(path.join(APP, 'package.json')))
+const appRequire = createRequire(pathToFileURL(path.join(path.resolve(argOf('--modules') || APP), 'noop.js')))
 const { Parser } = appRequire('acorn')
 const jsx = appRequire('acorn-jsx')
 const P = Parser.extend(jsx())
@@ -178,5 +183,6 @@ function closureFromEdges(edgesPath, filters = workflowFilters()) {
 const i = process.argv.indexOf('--closure-from-edges')
 if (i > 0) process.stdout.write(JSON.stringify(closureFromEdges(process.argv[i + 1])))
 else if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
-  process.stdout.write(JSON.stringify(closure()))
+  const f = argOf('--filters')
+  process.stdout.write(JSON.stringify(f ? closure(f.split(',').filter(Boolean)) : closure()))
 }

@@ -414,7 +414,8 @@ def test_agent_ci_runs_the_capability_regression_suite():
     assert "capability-regression" in y and "src/agent/qa/capabilityRegression" in y
     # the suite runs at BOTH pinned market-clock instants (testing/clock.js; the 2026-11-04 09:30 ET red gate)
     assert "clock: [post, rth]" in y and "CAPREG_CLOCK: ${{ matrix.clock }}" in y
-    assert "needs: capability-regression-clock" in y          # one aggregate result for both legs
+    # one aggregate result for both legs (2026-11-17, design A: it also needs the affected decision)
+    assert "needs: [affected, capability-regression-clock]" in y
     assert "test_uct_agent_capreg" in y or "tests/test_uct_agent*.py" in y
     for paid in ("agent_eval_run", "ANTHROPIC_API_KEY", "agent_live_batch"):
         assert paid not in y, f"the Agent CI must never run a paid live-model eval ({paid})"
