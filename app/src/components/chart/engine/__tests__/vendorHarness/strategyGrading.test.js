@@ -224,6 +224,24 @@ const STRATEGY_CAPTURE_ROWS = Object.freeze({
   'w9-g1-v3-properties-rddt-1d-2026-11-15': 'W9-G1',
   // s27, method (b) on AMEX:SPY 15
   'w9-r1-risk-intraday-range-spy-15-2026-11-15': 'W9-R1i',
+  // capture night 2026-11-16, closed bar, method (a) with the Strategy Tester report: the S1 shapes and
+  // W9-D1 / W9-V-D11 / W9-MK1 re-taken under their own ids (-rpt: the morning captures, forming bar and
+  // no report, are committed and evidence is appended, never replaced), Q-S1i (ac8). ⛔ HELD 2026-11-16 (the
+  // coordinator's ruling A): W9-V-D11 -rpt and both W9-MK1 captures graded DIVERGE (a value series of ours has
+  // 667 bars against TradingView's 666, first at the listing bar, rule B-VAL) and are carried, with their
+  // DIVERGE verdicts, by the off-by-one PR; the queue rows W9-V-D11 and W9-MK1 name them
+  'vw-s1-q-s1d-close-reverse-rpt-rddt-1d-2026-11-16': 'Q-S1d',
+  'vw-s1-q-s1d-two-entries-rpt-rddt-1d-2026-11-16': 'Q-S1d',
+  'vw-s1-q-s1d-two-stops-rpt-rddt-1d-2026-11-16': 'Q-S1d',
+  'vw-s1-q-s1e-stop-past-rpt-rddt-1d-2026-11-16': 'Q-S1e',
+  'vw-s1-q-s1g-blocked-stop-entry-rpt-rddt-1d-2026-11-16': 'Q-S1g',
+  'vw-s1-q-s1h-fifo-exit-rpt-rddt-1d-2026-11-16': 'Q-S1h',
+  'vw-s1-q-s1j-stop-limit-rpt-rddt-1d-2026-11-16': 'Q-S1j',
+  'vw-s1-q-s1k-fractional-profit-rpt-rddt-1d-2026-11-16': 'Q-S1k',
+  'vw-s1-q-s1k-na-modify-rpt-rddt-1d-2026-11-16': 'Q-S1k',
+  'vw-s1-q-s1k-profit-and-limit-rpt-rddt-1d-2026-11-16': 'Q-S1k',
+  'w9-d1-margin50-rpt-rddt-1d-2026-11-16': 'W9-D1',
+  'w9-q-s1i-short-v6-rddt-1d-2026-11-16': 'Q-S1i',
 })
 
 function committedReportCaptures() {
