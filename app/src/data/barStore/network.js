@@ -492,7 +492,11 @@ export function createNetwork({
       r.sessions.set(session, (r.sessions.get(session) || 0) + 1)
       r.priority = _best(r.priority, priority)
       r.depth = Math.max(r.depth, depth || 0)
-      if (r.refs === 1) _schedule(r, 0)
+      if (r.refs === 1) {
+        _schedule(r, 0)
+        // the lake's first window, fetched IN PARALLEL with this first request (historyFeed `prime`)
+        if (history?.prime && _lakeCarries(r)) { try { history.prime(key) } catch { /* a warm only */ } }
+      }
       let done = false
       return () => {
         if (done) return
