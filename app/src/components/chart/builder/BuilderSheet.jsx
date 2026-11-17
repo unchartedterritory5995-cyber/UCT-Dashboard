@@ -74,7 +74,7 @@
 // must not brick a working indicator.
 
 import { withoutGuardIds } from '../engine/ast/guardIdText'
-import { Component, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { Component, Suspense, lazy, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../../../context/AuthContext'
 import { useCreateIndicatorAccess } from './studio/createIndicatorFlag'
 import Sheet from '../../mobile/Sheet'
@@ -126,6 +126,9 @@ import { applyParamEdit } from './paramEdit'
 // forgets it the moment the draft stops evaluating or the sheet closes.
 import PreviewPane from './editor/PreviewPane'
 import MemberPane from './memberPane/MemberPane'
+// ⭐ STUDIO R5 — Inspect a bar. Loaded on demand: it brings the engine's headless export, which
+// this window's own first open does not need.
+const InspectBarPanel = lazy(() => import('./inspect/InspectBarPanel'))
 import { PREVIEW_DEF_ID } from './editor/previewDefinition'
 import ConciergeBox from './ConciergeBox'
 import ConverseBox from './ConverseBox'
@@ -1157,6 +1160,9 @@ export default function BuilderSheet({
   // ⭐ STUDIO R4 — the status panel's sentence for the text in the script box (`PineBox` reports
   // it), and the versions it has already been put on record for in this window.
   const [statusHeadline, setStatusHeadline] = useState(null)
+  // ⭐ STUDIO R5 — the script box's own "go to line", for Inspect a bar's `line N` (`PineBox`
+  // fills it while mounted)
+  const scriptLineJump = useRef(null)
   const headlinesSent = useRef(new Set())
   /** Put the panel's sentence on record for a saved version of THIS text. Never awaited. */
   const postStatusHeadline = useCallback((defId, version, savedText, said) => {
@@ -3157,6 +3163,8 @@ export default function BuilderSheet({
               disabled={saving}
               // ⭐ STUDIO R4 — the status panel's sentence and the text it is about
               onStatusHeadline={setStatusHeadline}
+              // ⭐ STUDIO R5 — Inspect a bar's `line N` uses this box's own line jump
+              lineJumpRef={scriptLineJump}
               // ⚠️ AN INITIAL VALUE, NOT A CONTROLLED ONE. `initialSource` seeds
               // `PasteBox`'s own state on mount — and seeds `report`,
               // `authorKnobs` and `lastTextRef` with it, which is why restoring
@@ -3712,6 +3720,16 @@ export default function BuilderSheet({
               onAttachCopy: attachPineCopy, copyLabel: 'Save as a new indicator',
             } : {})}
           />
+          {/* ⭐ STUDIO R5 — INSPECT A BAR: each named variable's value on one bar of the chart this
+              window was opened over, and why an empty one is empty. Closed until opened; nothing
+              is read before that. Only where there is a script and bars to read it on (the
+              Screener's mount has no chart, so no bars). */}
+          {pineText.trim() && Array.isArray(bars) && bars.length > 0 ? (
+            <Suspense fallback={null}>
+              <InspectBarPanel source={pineText} bars={bars} tf={tf} sym={sym}
+                onGoToLine={(n) => { if (scriptLineJump.current) scriptLineJump.current(n) }} />
+            </Suspense>
+          ) : null}
                 </div>
 
                 <div className={styles.panel} data-panel="Inputs" hidden={buildMode !== 'inputs'}
