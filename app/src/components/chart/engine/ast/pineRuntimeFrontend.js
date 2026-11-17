@@ -1639,14 +1639,22 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const colourDefault = call.name === 'input' && !legacy && !!dv && (dv.type === 'colour'
       || (dv.type === 'name' && typeof dv.name === 'string' && dv.name.startsWith('color.'))
       || (dv.type === 'call' && (dv.name === 'color.rgb' || dv.name === 'color.new')))
+    // ⭐ SETTINGS PARITY (symbol) — a TEXT input (`input.string`, `input.symbol`, or a plain `input(…)` whose
+    // default is a string): the member's text replaces the default node (`runtimeBuildInputs`)
+    const stringDefault = !!dv && dv.type === 'string' && !legacy
+      && (call.name === 'input' || call.name === 'input.string' || call.name === 'input.symbol')
     const kind = call.name === 'input.color' || legacy === 'input.color' || colourDefault ? 'color'
-      : call.name === 'input.source' || legacy === 'input.source' ? 'source' : null
+      : call.name === 'input.source' || legacy === 'input.source' ? 'source'
+        : stringDefault ? 'string' : null
     if (!kind) {
       throw new RuntimeRefusal('runtime:statement',
         '`' + name + '` was given a colour or a source, and it is not a colour or source input', at)
     }
     let node
-    if (kind === 'color') {
+    if (kind === 'string') {
+      if (typeof given !== 'string') throw new RuntimeRefusal('runtime:statement', '`' + name + '` was given a value that is not text', at)
+      node = { type: 'string', value: given }
+    } else if (kind === 'color') {
       const m = typeof given === 'string' ? /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(given) : null
       if (!m) throw new RuntimeRefusal('runtime:statement', '`' + name + '` was given a value that is not a colour', at)
       const hex = m[1].length === 3 ? m[1].split('').map((c) => c + c).join('') : m[1]

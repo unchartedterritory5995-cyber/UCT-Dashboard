@@ -691,6 +691,10 @@ export function runtimeBuildInputs(def, values) {
     const spec = byKey.get(k)
     if (spec && (spec.type === 'color' || spec.source === true)) inputDefaults[k] = v
     else inputs[k] = v
+    // ⭐ SETTINGS PARITY (symbol) — a TEXT setting's value is ALSO its input's default node, so every reader
+    // that reads the call statically sees the member's text: `request.security(lineTicker, …)` resolves its
+    // symbol from it (`Resolver.otherSymbolOf`), as the resolver's value serves every comparison
+    if (spec && spec.type === 'string' && typeof v === 'string') inputDefaults[k] = v
   }
   return { inputs, inputDefaults }
 }
