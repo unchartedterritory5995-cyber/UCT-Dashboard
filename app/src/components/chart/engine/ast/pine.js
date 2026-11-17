@@ -30890,6 +30890,12 @@ const PINE_PLOT_STYLES = Object.freeze({
   'plot.style_circles': 'markers',
 })
 
+/** The plot styles whose `na` bars are a BREAK, not a bridge (User Manual, `plot()`
+ *  `style`): `linebr` and `areabr`. `plot.style_steplinebr` is not mapped at all
+ *  (its na handling is stated nowhere beyond its name, presentation spec U8), so it
+ *  stays `styleUncarried`. */
+const PINE_BREAKING_STYLES = Object.freeze(new Set(['plot.style_linebr', 'plot.style_areabr']))
+
 // ⭐ BOTH SPELLINGS, ONE ANSWER. A bare `red` is only a colour when nothing in
 // the script has bound that name to something else — a member's own variable
 // called `green` must not silently become a colour. The bound-name check is the
@@ -33570,8 +33576,19 @@ function outputPresentation(args, ctx) {
       pres.style = 'markers'
     }
   } else if (st && st.value && st.value.type === 'name') {
-    if (Object.hasOwn(PINE_PLOT_STYLES, st.value.name)) pres.style = PINE_PLOT_STYLES[st.value.name]
-    else pres.styleUncarried = st.value.name
+    if (Object.hasOwn(PINE_PLOT_STYLES, st.value.name)) {
+      pres.style = PINE_PLOT_STYLES[st.value.name]
+      // ⭐⭐ 2026-11-17 (backlog row 42) — THE TWO "WITH BREAKS" STYLES BREAK. The
+      // User Manual: `plot.style_linebr` *"Allows the plotting of discontinuous lines
+      // by not plotting on na values, and not joining such gaps."*; `plot.style_areabr`
+      // *"is similar to plot.style_area but it doesn't bridge over na values."* —
+      // against `plot.style_line`, which *"does draw a line through them by joining
+      // the most recent non-na value to the next non-na value."* Both mapped to the
+      // bridging style and drew joined. `sparse` is the document's own "blank by
+      // design" (`binder.js`: one render series per valued run, because
+      // lightweight-charts 5.2 joins whitespace).
+      if (PINE_BREAKING_STYLES.has(st.value.name)) pres.sparse = true
+    } else pres.styleUncarried = st.value.name
   }
 
   const trArg = arg('transp')

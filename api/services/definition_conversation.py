@@ -563,7 +563,9 @@ CONVERSE_SYSTEM_PROMPT = (
     "candles\" is placement \"price\". A ratio, percentage or difference that is not "
     "in price units belongs in \"pane\" unless the member says otherwise.\n"
     "  * Presentation: set_style (color, width, style, hidden, lineStyle "
-    "solid/dashed/dotted/largeDashed), set_marker / remove_marker, set_paint / "
+    "solid/dashed/dotted/largeDashed, breaks true where a line has no value on some bars by "
+    "design -- a level kept N bars after an event -- so it is not joined across them), "
+    "set_marker / remove_marker, set_paint / "
     "remove_paint (markers, paints and alerts need a yes/no output, type \"condition\"), "
     "set_levels (horizontal lines at fixed values; [] removes them), set_fill / "
     "remove_fill (shade between two NUMBER outputs), "
@@ -1573,6 +1575,13 @@ def _chart_lexicon(base: Mapping[str, Any]) -> Dict[str, Any]:
     # `_matched_term` hands the assistant the Screener's own formula for it. ⛔ ADDED, NEVER REPLACED:
     # a phrase whose words already resolve to something in the shared lexicon is left alone.
     from api.services import ast_table
+    # ⭐ backlog 47 (2026-11-17) -- A COLUMN THE TABLE LEAVES OUT AND A CHART COMPUTES EXACTLY
+    # (`chart_twins.CHART_ONLY`) is a TERM here, with its house formula, not "unavailable": the
+    # Screener's own label for it was answered "not available" beside an indicator the chart could
+    # draw. Only a bucket that holds nothing else is converted, so no other reading is displaced.
+    for stems, rows in list(index.items()):
+        if rows and all(r.get("kind") == dc.EXCLUDED_ENTRY and r.get("key") in chart_twins.CHART_ONLY for r in rows):
+            index[stems] = [{**r, "kind": dc.TABLE_ENTRY, "section": ast_table.SCALARS_SECTION} for r in rows]
     for phrase, column in chart_twins.spoken_phrases():
         words = dc._form_tokens(phrase)
         stems, cost = dc._stem_key(words)

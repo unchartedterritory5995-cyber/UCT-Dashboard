@@ -168,6 +168,11 @@ COMMITTED = {
     # CLOSED the same day by fix/pine-sar-warmup (SAR_WARMUP 200 -> 400, measured; the it.fails is an it), which
     # added the load-time rewrite of a formula document's stored 200-bar SAR tree as an engine gap
     "capture-queue-2026-11-16-sar-window": {"sar() window": "closed", "sar() saved-tree upgrade": "engine-gap"},
+    # #1550 (fix/chart-markers-scale-and-na-breaks, coordinator ruling 2026-11-17): an above / below shape in a
+    # separate pane brings the bar PRICE into the scale on TradingView (User Manual), a documented deviation for
+    # Pine imports, not fixed now; plot.style_steplinebr stays not carried and disclosed (spec U8)
+    "capture-queue-2026-11-17-markers-na-breaks": {
+        "abovebar / belowbar in a separate pane": "engine-gap", "plot.style_steplinebr": "ruling"},
 }
 
 

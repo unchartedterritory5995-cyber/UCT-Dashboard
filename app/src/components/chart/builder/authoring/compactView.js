@@ -118,6 +118,9 @@ const CAPABILITIES = Object.freeze({
   styles: ['line', 'stepline', 'histogram', 'area', 'baseline'],
   // ⭐ P3 — set_style.lineStyle, set_levels, set_fill / remove_fill.
   lineStyles: PLOT_LINE_STYLES,
+  // ⭐ ROW 42 — set_style.breaks: a line may break where its output has no value.
+  // Joined is the default (no field), so every existing document draws as it did.
+  lineBreaks: true,
   maxLevels: PATCH_LIMITS.maxLevels,
   triggerPolicies: Object.values(TRIGGER_POLICIES),
   // ⭐ PHASE 5 — cross-context and expressive outputs.
