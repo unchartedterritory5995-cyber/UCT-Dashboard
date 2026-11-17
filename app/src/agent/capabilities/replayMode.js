@@ -57,14 +57,21 @@ export function replayStatus(host) {
 const NUM = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }
 export const STATUS_WORDS = /^(?:(?:is|are) (?:the |a )?(?:replay|replay mode|bar replay|time machine)(?: mode)? (?:on|active|running|enabled)|am i in (?:a )?(?:replay|replay mode|bar replay)|which replay(?: mode)?(?: is (?:on|active|running))?|what(?:'s| is) the replay (?:status|date|at)|replay (?:mode )?status|where is the replay(?: at)?|what date is (?:the )?replay(?: mode)? (?:at|on|set to))\??$/
 const STEP_WORDS = /^(?:(?:step|move|go|advance|jump)(?: the)?(?: replay mode| replay)? )?(forward|ahead|back|backward|backwards)(?: by)?(?: (\d{1,3}|a|an|one|two|three|four|five|six|seven|eight|nine|ten))?(?: (?:bars?|candles?))?$|^(next|previous|prev) (bar|candle)$/
+// "advance two bars" / "jump 3 bars": the verb alone implies FORWARD, but only with a count AND a bar word (bare
+// "advance" / "jump" stays unread, as before; "jump back 2 bars" is STEP_WORDS' own back step)
+const FORWARD_VERB_STEP = /^(?:advance|jump)(?: the)?(?: replay)?(?: by)? (\d{1,3}|a|an|one|two|three|four|five|six|seven|eight|nine|ten) (?:bars?|candles?)$/
 const NAMES_REPLAY_MODE = /\breplay mode\b/
 const PLAYBACK_WORDS = /^(?:(?:play|pause|resume|unpause|stop playing)(?: (?:it|the replay|replay mode|the chart))?|play(?: it)? at \d+ ?x|(?:\d+ ?x|double|triple)(?: speed)?|speed(?: it| the replay)? up|slow(?: it| the replay)? down|faster|slower|play(?: the replay)? (?:faster|slower))$/
 /** The bare step sentence → { direction, bars } (null when it is not one). */
 export function parseStep(lower) {
   const t = String(lower || '').trim().replace(/\s+/g, ' ')
   const named = NAMES_REPLAY_MODE.test(t)
-  const m = STEP_WORDS.exec(t.replace(/\breplay mode\b ?/, '').replace(/\s+/g, ' ').trim())
-  if (!m) return null
+  const core = t.replace(/\breplay mode\b ?/, '').replace(/\s+/g, ' ').trim()
+  const m = STEP_WORDS.exec(core)
+  if (!m) {
+    const f = FORWARD_VERB_STEP.exec(core)
+    return f ? { direction: 'forward', bars: NUM[f[1]] || Number(f[1]), named } : null
+  }
   if (m[3]) return { direction: /^(next)$/.test(m[3]) ? 'forward' : 'back', bars: 1, named }
   const n = m[2] == null ? 1 : (NUM[m[2]] || Number(m[2]))
   return { direction: /^(forward|ahead)$/.test(m[1]) ? 'forward' : 'back', bars: n, named }
