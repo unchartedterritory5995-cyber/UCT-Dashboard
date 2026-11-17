@@ -47,6 +47,7 @@
     "app/src/pages/screener/shell/ScannerShell.jsx",
     "app/src/pages/terminal/TerminalShell.jsx",
     "app/src/pages/terminal/panels/BreakoutPanel.jsx",
+    "app/src/pages/terminal/panels/LongRunPanel.jsx",
     "app/src/pages/terminal/panels/MoversPanel.jsx"
   ],
   "coverage_line_exempt": {
