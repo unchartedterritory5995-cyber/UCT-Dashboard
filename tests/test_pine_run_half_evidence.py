@@ -62,6 +62,8 @@ def test_E1_by_default_nothing_is_served_and_the_kill_read_keeps_its_keys(tmp_pa
 
 RS_SHA = "caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0"
 RS_RECAPTURES = [f"rs-rating-fred6724-{s}-1d-2026-11-16" for s in ("rddt", "alab", "crwv")]
+# SETTINGS PARITY (2c): RS Rating taken with settings moved (set A / set B), graded at those settings
+RS_SETTINGS = [f"rs-rating-fred6724-{v}-{s}-1d-2026-11-16" for v in ("seta", "setb") for s in ("rddt", "alab")]
 
 
 def test_E1b_the_committed_list_serves_RS_Ratings_run_half_evidence_and_only_that():
@@ -76,13 +78,24 @@ def test_E1b_the_committed_list_serves_RS_Ratings_run_half_evidence_and_only_tha
     doc = json.loads(pathlib.Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
     rs = next(s for s in doc["scripts"] if s["slug"] == "rs-rating-fred6724")
     assert rs["sha256"] == RS_SHA
-    assert [c["id"] for c in rs["captures"]] == RS_RECAPTURES
-    assert [c["objectsV2"] for c in rs["captures"]] == ["MATCH_SUBSTITUTED"] * 3
+    assert [c["id"] for c in rs["captures"]] == RS_RECAPTURES + RS_SETTINGS
+    assert [c["objectsV2"] for c in rs["captures"]] == ["MATCH_SUBSTITUTED"] * 7
     assert all(c["objectsV2Substituted"] == ["syminfo.industry"] == c["substituted"] for c in rs["captures"])
+    # the three defaults captures carry no moved setting; each settings capture names its own
+    assert [bool(c.get("inputs")) for c in rs["captures"]] == [False] * 3 + [True] * 4
     ev = rt.run_half_evidence()
     assert [e["sha256"] for e in ev] == [RS_SHA], "exactly this script, and no other record"
-    assert [c["capture"] for c in ev[0]["captures"]] == RS_RECAPTURES
+    assert [c["capture"] for c in ev[0]["captures"]] == RS_RECAPTURES + RS_SETTINGS
     assert rt.run_half_entry_admits(ev[0]) is True
+    # ⭐ SETTINGS PARITY (2c): each set's settings are admitted on its two captures (RDDT + ALAB);
+    # a setting no capture moved (the line colour) is not
+    for cap in ev[0]["captures"][3:]:
+        assert rt.run_half_settings_admits(ev[0], list(cap["inputs"])) == (True, []), cap["capture"]
+    assert rt.run_half_settings_admits(ev[0], ["colorRS"]) == (False, ["colorRS"])
+    rows_all = {r["id"]: r for r in json.loads(VERDICTS.read_text(encoding="utf-8"))["results"]}
+    for cid in RS_SETTINGS:
+        assert rows_all[cid]["verdict"] == "MATCH_SUBSTITUTED", cid
+        assert rows_all[cid]["objectsV2"]["verdict"] == "MATCH_SUBSTITUTED", cid
     assert _kill_read()["run_half_evidence"] == ev
     # every one of the three is a real runtime-on grade with x witnessed
     rows = {r["id"]: r for r in json.loads(VERDICTS.read_text(encoding="utf-8"))["results"]}

@@ -65,8 +65,8 @@
   ],
   "coverageMeasuredOn": "2026-11-16",
   "coverageMasterSha": "890b6d165c",
-  "fixtures": 735,
-  "ledgerRows": 884
+  "fixtures": 747,
+  "ledgerRows": 896
  },
  "definitions": {
   "priority": "|firm ∪ named ∪ direct| — firm: non-transferring sample scripts whose every host wall is a guard the target's rows name; named: non-transferring scripts the rows name; direct: the target IS a transferring, never-MATCHed sample script (its capture verifies it)",
@@ -14653,6 +14653,7 @@
    "id": "rs-seed-rsrating@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
+    "tests/fixtures/vendor/harness/rs-seed-rsrating-pm-rddt-1d-2026-11-16.json",
     "tests/fixtures/vendor/harness/rs-seed-rsrating-rddt-1d-2026-11-15.json"
    ],
    "source": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
@@ -14668,6 +14669,7 @@
    "chartSource": "row",
    "unparsedCharts": [],
    "capturedOn": [
+    "NASDAQ:ALAB D",
     "NYSE:RDDT D"
    ],
    "licence": "probe",
@@ -14715,6 +14717,7 @@
    "unparsedCharts": [],
    "capturedOn": [
     "AMEX:SPY D",
+    "NASDAQ:ALAB D",
     "NYSE:RDDT D"
    ],
    "licence": "probe",
@@ -14746,6 +14749,7 @@
    "id": "rs-spx-daily@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
+    "tests/fixtures/vendor/harness/rs-spx-daily-pm-rddt-1d-2026-11-16.json",
     "tests/fixtures/vendor/harness/rs-spx-daily-rddt-1d-2026-11-15.json"
    ],
    "source": "tools/visual_conformance/probes/rs-spx-daily.pine",
@@ -14762,6 +14766,7 @@
    "unparsedCharts": [],
    "capturedOn": [
     "AMEX:SPY D",
+    "NASDAQ:ALAB D",
     "NYSE:RDDT D"
    ],
    "licence": "probe",
@@ -14807,6 +14812,7 @@
    "unparsedCharts": [],
    "capturedOn": [
     "AMEX:SPY D",
+    "NASDAQ:ALAB D",
     "NYSE:RDDT D"
    ],
    "licence": "probe",
@@ -15039,6 +15045,7 @@
    "id": "rs-syminfo-industry@NYSE:RDDT@D",
    "status": "CAPTURED",
    "evidence": [
+    "tests/fixtures/vendor/harness/rs-syminfo-industry-pm-rddt-1d-2026-11-16.json",
     "tests/fixtures/vendor/harness/rs-syminfo-industry-rddt-1d-2026-11-15.json",
     "tests/fixtures/vendor/harness/rs-syminfo-industry-rddt-1d-2026-11-16.json"
    ],

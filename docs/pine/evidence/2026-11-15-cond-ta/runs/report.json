@@ -1,11 +1,11 @@
 {
  "populations": {
   "capture": {
-   "scripts": 749,
-   "admitted": 335,
+   "scripts": 761,
+   "admitted": 337,
    "runtimeLane": 43,
    "hostLane": 200,
-   "refused": 92,
+   "refused": 94,
    "coreOnly": 35
   },
   "committed": {
@@ -4275,6 +4275,32 @@
   },
   {
    "capture": "rs-syminfo-industry-crwv-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-pm-alab-1d-2026-11-16",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
+   "caps": [
+    "core",
+    "if-block",
+    "obj:label",
+    "realtime-state",
+    "ternary"
+   ]
+  },
+  {
+   "capture": "rs-syminfo-industry-pm-rddt-1d-2026-11-16",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
