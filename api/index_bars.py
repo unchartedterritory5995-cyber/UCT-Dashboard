@@ -24,9 +24,20 @@ WHY THIS EXISTS
   when we already have data. The proxy ratio is cached (it drifts ~quarterly), so the
   intraday proxy no longer pays 2 extra downloads per request.
 
-  A web-side warm loop (`start_index_warm`) keeps all 7 indices hot in the disk store
-  so even the first request after a deploy is a cache hit. Only 7 symbols, so warming
-  on the web pod is negligible (unlike the full equity universe, which is worker-only).
+  A warm loop (`start_index_warm`) keeps all 7 indices hot in the disk store so even the
+  first request after a deploy is a cache hit. Only 7 symbols, so warming is negligible
+  (unlike the full equity universe, which is worker-only).
+
+  ⛔ IT RUNS ON BOTH POD TYPES THAT SERVE THIS MODULE, BECAUSE EACH HAS ITS OWN STORE.
+  `<DATA_DIR>/index_bars_cache` is per volume. The web pod warms every timeframe; the
+  bars-api tier, which is where the Cloudflare Worker sends a member's `/api/bars/<sym>`
+  (edge/bars-edge-router), warms `SERVING_TIER_WARM_TFS`. ⚰️ Until 2026-11-17 only web ran
+  the loop: the tier's daily copies were refreshed only when a read kicked them, so RUT,
+  DJX and XSP answered a 2026-10-22 tail and XND a 10-28 one (smoke@, 19:30Z) while web's
+  own store was fresh and its warm passes logged `failed: 0`.
+  A refresh that gets nothing leaves the stored copy in place (never deleted), is logged
+  by name (`refresh FAILED <SYM> <tf>`), and every answer says how current it is:
+  `refreshed_at` and `refresh_state` (`fetch_index_bars`).
 
 Output shape is unchanged: {"ticker", "tf", "bars":[{t,o,h,l,c,v}...]} with t = unix
 seconds for ALL timeframes (the client's _dateToMs handles numeric t).
@@ -367,18 +378,59 @@ def _save_disk(sym: str, tf: str, series: list, proxy: Optional[bool] = None) ->
         logger.warning(f"[index_bars] disk save failed {sym} {tf}: {e}")
 
 
+#: "SYM_tf" -> unix s of the newest refresh attempt that got no series from any vendor.
+#: The next refresh that gets one drops it. Per process, like the store it describes.
+_refresh_failed_at: Dict[str, float] = {}
+
+
+def _held_saved_at(sym: str, tf: str) -> Optional[float]:
+    """When the copy this process holds for (sym, tf) was stored (memory, then disk), or None."""
+    from api.services.cache import cache
+    entry = cache.get(f"idxbars_{sym}_{tf}") or _load_disk(sym, tf)
+    if entry and entry.get("series"):
+        try:
+            return float(entry.get("saved_at") or 0) or None
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def _note_refresh_failed(sym: str, tf: str, at: float, why: str) -> None:
+    """A refresh got nothing: remember it (the answer says `refresh_state: "failed"`) and log
+    it BY NAME, with the age of the copy that stays in place. Never deletes that copy."""
+    import datetime as _dt
+    _refresh_failed_at[f"{sym}_{tf}"] = at
+    held = _held_saved_at(sym, tf)
+    if held:
+        when = _dt.datetime.fromtimestamp(held, _dt.timezone.utc).isoformat(timespec="minutes")
+        logger.warning(f"[index_bars] refresh FAILED {sym} {tf}: {why}; the stored copy from "
+                       f"{when} ({(at - held) / 86400:.1f} d old) stays and is served as "
+                       f"refresh_state=failed")
+    else:
+        logger.warning(f"[index_bars] refresh FAILED {sym} {tf}: {why}; nothing is stored")
+
+
 def _refresh(sym: str, tf: str) -> list:
     """Cold/background fetch → write mem + disk. Returns the fresh series ([] on fail).
     The entry records whether the series is the ETF proxy (`proxy`), so a reader can
-    tell the index's own bars from a scaled ETF's."""
+    tell the index's own bars from a scaled ETF's. A refresh that gets nothing (or raises)
+    is recorded and logged by name (`_note_refresh_failed`); the stored copy stays."""
     from api.services.cache import cache
     info: dict = {}
-    series = _fetch_full_series(sym, tf, info)
+    asked = time.time()
+    try:
+        series = _fetch_full_series(sym, tf, info)
+    except Exception as e:
+        _note_refresh_failed(sym, tf, asked, f"{type(e).__name__}: {e}")
+        raise
     if series:
         proxy = bool(info.get("proxy"))
         cache.set(f"idxbars_{sym}_{tf}", {"saved_at": time.time(), "series": series, "proxy": proxy},
                   ttl=max(_TTL.get(tf, 300), 60))
         _save_disk(sym, tf, series, proxy)
+        _refresh_failed_at.pop(f"{sym}_{tf}", None)
+    else:
+        _note_refresh_failed(sym, tf, asked, "no vendor answered")
     return series
 
 
@@ -404,16 +456,21 @@ def _kick_bg_refresh(sym: str, tf: str) -> None:
             _bg_inflight.discard(key)
 
 
-def _cached_series(sym: str, tf: str):
+def _cached_series(sym: str, tf: str, info: Optional[dict] = None):
     """Return (series, tier). Never blocks on yfinance when ANY cached data exists —
-    stale data is served immediately and a background refresh is kicked."""
+    stale data is served immediately and a background refresh is kicked. `info`, when
+    given, is told when the served copy was stored (`info["saved_at"]`, None if none)."""
     from api.services.cache import cache
     ttl = _TTL.get(tf, 300)
     now = time.time()
     mkey = f"idxbars_{sym}_{tf}"
+    if info is None:
+        info = {}
+    info["saved_at"] = None
 
     mem = cache.get(mkey)
     if mem and mem.get("series"):
+        info["saved_at"] = mem.get("saved_at")
         if now - mem.get("saved_at", 0) <= ttl:
             return mem["series"], "index-mem"
         _kick_bg_refresh(sym, tf)          # stale but usable → serve + revalidate
@@ -421,6 +478,7 @@ def _cached_series(sym: str, tf: str):
 
     disk = _load_disk(sym, tf)
     if disk and disk.get("series"):
+        info["saved_at"] = disk.get("saved_at")
         cache.set(mkey, disk, ttl=max(ttl, 60))
         if now - disk.get("saved_at", 0) <= ttl:
             return disk["series"], "index-disk"
@@ -428,7 +486,35 @@ def _cached_series(sym: str, tf: str):
         return disk["series"], "index-disk-stale"
 
     # Truly cold: no cache anywhere — the ONE slow request (then warm forever).
-    return _refresh(sym, tf), "index-yf"
+    series = _refresh(sym, tf)
+    if series:
+        info["saved_at"] = (cache.get(mkey) or {}).get("saved_at")
+    return series, "index-yf"
+
+
+def _freshness(sym: str, tf: str, tier: str, saved_at) -> dict:
+    """How current an index answer is, stated in the answer (additive fields):
+      refreshed_at   unix s the vendor last answered for the series served (None: no copy);
+      refresh_state  "failed": the newest refresh got nothing from any vendor after the
+                               served copy was stored (or nothing is stored), so the rows
+                               are as old as `refreshed_at`;
+                     "stale":  served past its TTL (`_TTL`), a background refresh kicked;
+                     "fresh":  served within its TTL.
+    ⛔ Not `verified_through`: a client reads that as proof the buckets up to it are EMPTY
+    (`barStore/reducer.liveGapStart`) and as authority over the developing bar's extremes,
+    and neither holds here (yfinance intraday lags; today's daily bar comes from 5m)."""
+    try:
+        saved = float(saved_at) if saved_at else None
+    except (TypeError, ValueError):
+        saved = None
+    failed = _refresh_failed_at.get(f"{sym}_{tf}")
+    if (failed is not None and (saved is None or failed >= saved)) or tier == "index-error":
+        state = "failed"
+    elif tier.endswith("-stale"):
+        state = "stale"
+    else:
+        state = "fresh"
+    return {"refreshed_at": saved, "refresh_state": state}
 
 
 # ── Public serve ─────────────────────────────────────────────────────────────
@@ -444,8 +530,9 @@ def fetch_index_bars(ticker: str, tf: str = "D", bars: int = 600,
         logger.warning(f"[index_bars] unknown tf={tf!r} for {ticker}")
         return {"ticker": ticker, "tf": tf, "bars": []}
 
+    info: dict = {}
     try:
-        series, tier = _cached_series(sym, tf)
+        series, tier = _cached_series(sym, tf, info)
     except Exception as e:
         logger.error(f"[index_bars] serve failed {sym} {tf}: {e}")
         series, tier = [], "index-error"
@@ -460,7 +547,8 @@ def fetch_index_bars(ticker: str, tf: str = "D", bars: int = 600,
         out = [b for b in out if b["t"] > since]
     if len(out) > bars:
         out = out[-bars:]
-    return {"ticker": ticker, "tf": tf, "bars": out}
+    return {"ticker": ticker, "tf": tf, "bars": out,
+            **_freshness(sym, tf, tier, info.get("saved_at"))}
 
 
 # ── ⭐ RS RATING L10 — TODAY'S SESSION AS A DAILY BAR ────────────────────────────
@@ -589,40 +677,64 @@ def with_todays_session(ticker: str, bars: list, now: Optional[float] = None) ->
     return bars + [built]
 
 
-# ── Web-side warm loop (keeps all 7 indices hot in the disk store) ────────────
+# ── Warm loop (keeps all 7 indices hot in THIS process's disk store) ──────────
+#: The web pod's set: every timeframe an index chart reads.
 _WARM_TFS = ("D", "W", "M", "60", "15", "5", "1")
+#: The bars-api tier's set (`api/bars_api_main.py`): the date series, and the 5-minute series
+#: today's daily bar is built from (`DEVELOPING_SOURCE_TF`), so a member's daily answer is
+#: current on its FIRST read. The tier's other intraday series stay refreshed by the read
+#: itself (an open intraday chart polls every 30 s against a 300 s TTL); warming them too
+#: would cost 21 more Yahoo downloads every pass on top of web's.
+SERVING_TIER_WARM_TFS = ("D", "W", "M", DEVELOPING_SOURCE_TF)
+#: Seconds between two vendor reads in one pass (politeness; the pass is sequential).
+_WARM_PACE_S = 0.3
 
 
-def warm_indices() -> dict:
-    """Refresh every index × timeframe whose cache is missing/stale into the disk
-    store, so the first request after a deploy is a cache hit. Spaced to stay polite
-    to yfinance. Returns a small stats dict."""
+def warm_indices(tfs=None) -> dict:
+    """Refresh every index × timeframe in `tfs` (default `_WARM_TFS`) whose cache is
+    missing/stale into the disk store, so the first request after a deploy is a cache hit.
+    Sequential and spaced to stay polite to the vendors. A series that fails does not stop
+    the pass; each one is logged by name (`_refresh`) and named in the pass summary.
+    Returns a small stats dict."""
     from api.services.cache import cache
+    tfs = tuple(tfs or _WARM_TFS)
     stats = {"fetched": 0, "fresh": 0, "failed": 0}
+    failed: List[str] = []
     now = time.time()
     for sym in index_symbols():
-        for tf in _WARM_TFS:
+        for tf in tfs:
             ttl = _TTL.get(tf, 300)
             mem = cache.get(f"idxbars_{sym}_{tf}")
             disk = mem or _load_disk(sym, tf)
             if disk and disk.get("series") and now - disk.get("saved_at", 0) <= ttl:
                 stats["fresh"] += 1
                 continue
-            series = _refresh(sym, tf)
-            stats["fetched" if series else "failed"] += 1
-            time.sleep(0.3)   # polite pacing
-    logger.info(f"[index_bars] warm pass done: {stats}")
+            try:
+                series = _refresh(sym, tf)
+            except Exception:              # noqa: BLE001 — already logged by name in _refresh
+                series = []
+            if series:
+                stats["fetched"] += 1
+            else:
+                stats["failed"] += 1
+                failed.append(f"{sym} {tf}")
+            time.sleep(_WARM_PACE_S)   # polite pacing
+    if failed:
+        logger.warning(f"[index_bars] warm pass done: {stats}; FAILED: {', '.join(failed)}")
+    else:
+        logger.info(f"[index_bars] warm pass done: {stats}")
     return stats
 
 
-def start_index_warm(interval_seconds: int = 300) -> None:
-    """Boot warm + periodic refresh on a daemon thread. Only 7 symbols, so this is
-    cheap enough to run on the web pod (no worker/R2 dependency for indices)."""
+def start_index_warm(interval_seconds: int = 300, tfs=None) -> None:
+    """Boot warm + periodic refresh on a daemon thread, over `tfs` (default `_WARM_TFS`).
+    Only 7 symbols, so this is cheap enough to run on the web pod and on the bars-api tier
+    (no worker/R2 dependency for indices)."""
     def _loop():
         time.sleep(15)   # let boot settle
         while True:
             try:
-                warm_indices()
+                warm_indices(tfs)
             except Exception:
                 logger.exception("[index_bars] warm loop error")
             time.sleep(interval_seconds)
