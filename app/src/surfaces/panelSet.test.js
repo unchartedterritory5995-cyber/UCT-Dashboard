@@ -72,11 +72,38 @@ function literalObject(obj) {
   return out
 }
 
+/** ⭐ 2026-11-17: manifest.js writes each row as a call, `r(path, element, kind, order, pathKind)`
+ *  (compact rows that build the same objects; its header says why). The row helper's parameter NAMES
+ *  and DEFAULTS are read from `r`'s own definition in the same source, never restated here, so a
+ *  change to `r` moves this reader with it. An object-literal row (the planted rows below) still reads. */
+function rowHelperFrom(ast) {
+  let fn = null
+  walk(ast, (n) => {
+    if (n.type === 'VariableDeclarator' && n.id?.name === 'r' && n.init?.type === 'ArrowFunctionExpression') fn = n.init
+  })
+  if (!fn) return null
+  return fn.params.map((p) => (p.type === 'AssignmentPattern'
+    ? { name: p.left.name, dflt: p.right.type === 'Literal' ? p.right.value : undefined, has: true }
+    : { name: p.name, has: false }))
+}
+
+function rowFromCall(call, params) {
+  const out = {}
+  params.forEach((p, i) => {
+    const a = call.arguments[i]
+    if (a && a.type === 'Literal') out[p.name] = a.value
+    else if (!a && p.has) out[p.name] = p.dflt
+  })
+  return out
+}
+
 /** MANIFEST rows, read from a manifest.js SOURCE STRING (so a planted string can be read too). */
 function manifestRowsFrom(src) {
-  return exportedArray(parse(src), 'MANIFEST').elements
-    .filter((e) => e?.type === 'ObjectExpression')
-    .map(literalObject)
+  const ast = parse(src)
+  const params = rowHelperFrom(ast)
+  return exportedArray(ast, 'MANIFEST').elements
+    .filter((e) => e?.type === 'ObjectExpression' || (params && e?.type === 'CallExpression' && e.callee?.name === 'r'))
+    .map((e) => (e.type === 'ObjectExpression' ? literalObject(e) : rowFromCall(e, params)))
 }
 
 const navItemsFrom = (src) =>
