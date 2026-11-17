@@ -4044,6 +4044,7 @@ export default function ChartSettingsIndicators({
           <IndicatorHouseTab
             styles={styles}
             query={query}
+            listOwn={() => (generation >= 0 && registry?.listUserDefinitions?.()) || []}
             isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
             onPutOnChart={putInstalledOnChart}
           />
