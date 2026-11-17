@@ -185,6 +185,22 @@
    "title": "Our rules, in our words (2026-11-14)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
    "accessed": "2026-11-14"
+  },
+  {
+   "id": "d2",
+   "tier": 3,
+   "publisher": "UCT setup research (the app's own Wedge Drop events, measured on our bars)",
+   "title": "Wedge Drop dossier, section 4.3: the app's Wedge Drops traded as a short (internal, survivors only)",
+   "url": "repo:docs/study/setups/research/16-wedge-drop.md#43-my-measurement-the-apps-own-wedge-drop-traded-as-a-short-under-our-rules-internal-not-published",
+   "accessed": "2026-11-16"
+  },
+  {
+   "id": "h3",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 6: management",
+   "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle",
+   "accessed": "2026-11-16"
   }
  ],
  "facts": [
@@ -1141,6 +1157,78 @@
    "source": "h2",
    "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
    "claim": "D-021: the course uses the 9 and 20 EMA, with the 50 and 200 SMA."
+  },
+  {
+   "id": "n01",
+   "source": "h1",
+   "quote": "A tight stop never justifies a bigger position than that: a gap can jump the stop.",
+   "claim": "A7: a gap can jump the stop, so a tight stop never licenses a bigger position."
+  },
+  {
+   "id": "n02",
+   "source": "d2",
+   "quote": "The app's mechanical rule (a close under both averages after a run over them) has no edge by itself.",
+   "claim": "Our scan: the app's plain Wedge Drop rule had no edge by itself."
+  },
+  {
+   "id": "n03",
+   "source": "d2",
+   "quote": "The only place it separates from the base rate is the one our rulebook already points to: a stock under its 200-day, in a market under its 50-day.",
+   "claim": "Our scan: the drop separated from the base rate only for a stock under its 200-day in a market under its 50-day."
+  },
+  {
+   "id": "n04",
+   "source": "d2",
+   "quote": "38.2% closed back above both averages within 3 sessions; 54.5% within 5.",
+   "claim": "Our scan: 38.2% of the app's Wedge Drops closed back above both averages within 3 sessions."
+  },
+  {
+   "id": "n05",
+   "source": "d2",
+   "quote": "Heavy volume (1.5x or more) raised the win rate (34% against 29%) but not the average R (-0.08R against -0.09R).",
+   "claim": "Our scan: heavy volume on the drop day raised the win rate but not the average R."
+  },
+  {
+   "id": "n08",
+   "source": "h3",
+   "quote": "Breakeven rule: the point after which a trade must never again become a loser",
+   "claim": "Breakeven is the point after which a trade must never again become a loser."
+  },
+  {
+   "id": "n09",
+   "source": "h3",
+   "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages.",
+   "claim": "Our rule (2026-06-14): sell partials into strength and trail the rising averages."
+  },
+  {
+   "id": "n10",
+   "source": "hw",
+   "quote": "Shorting is recommended only for traders who have already made $1 million trading.",
+   "claim": "D-001: shorting is recommended only for traders who have already made $1 million trading."
+  },
+  {
+   "id": "n11",
+   "source": "hw",
+   "quote": "Volume raises the grade; it is not a requirement, except where volume is the setup.",
+   "claim": "D-006: volume raises the grade and is not a requirement."
+  },
+  {
+   "id": "n13",
+   "source": "hw",
+   "quote": "The low of day is the primary stop; the pattern's low or a line minus a cushion are acceptable too.",
+   "claim": "D-008: the low of day is the primary stop; the pattern's low or a line minus a cushion are acceptable too."
+  },
+  {
+   "id": "n15",
+   "source": "s13",
+   "quote": "Something with a clear invalidation spot and likely sellers.",
+   "claim": "Our shorts want a clear invalidation spot and likely sellers."
+  },
+  {
+   "id": "n16",
+   "source": "h1",
+   "quote": "Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink",
+   "claim": "C28: chasing costs size, not risk; the stop stays put, so the distance grows and the shares shrink."
   }
  ],
  "walkthroughs": [
@@ -1226,12 +1314,13 @@
     "A close up through the averages"
    ],
    "answer": "A close down through the averages",
-   "why": "A close down through the averages. TraderLion: the Wedge Drop happens when the market trades back below the moving averages after a strong rally. Kell: the drop is price falling through the averages with an influx of sellers. Deepvue says sellers push the stock below key averages. The 200-day is a separate gate for shorts. The chart is META, a close down through both averages that TraderLion marked.",
+   "why": "A close down through the averages. Kell: the drop confirms the reversal when price falls through the moving averages with an influx of sellers. Before it, price rested tight on them because there were fewer new buyers. So the fall through them shows sellers have taken over. The 200-day is a separate gate for shorts. The chart is META.",
    "lesson_line": "A rally, a rest on the averages, then the close through them. That is the drop.",
    "facts": [
     "t01",
     "v01",
     "v02",
+    "y01",
     "y02",
     "y03",
     "c02",
@@ -1243,7 +1332,7 @@
     "A close up through the averages": "That is the mirror, the Wedge Pop: a close up through the averages from under them. The drop closes down through them.",
     "A retest of the averages after a drop": "That is the downside EMA Crossback, a retest met with resistance after the drop. The drop is the close down through the averages."
    },
-   "simple": "A Wedge Drop is a close back down through the moving averages after a rally and a short rest.",
+   "simple": "A Wedge Drop is a close down through the moving averages. It shows sellers have taken over from the buyers who held price up.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1251,8 +1340,8 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "visuals-2",
-   "story": "The trigger day is the last bar.",
+   "batch": "owner-review-7-2026-11-16",
+   "story": "The chart ends on the day in question. Compare where the last bar closes with the two fast averages.",
    "chart": {
     "sym": "META",
     "asof": "2021-09-17",
@@ -1268,15 +1357,17 @@
    "criterion": "wd.below_200",
    "q": "For us a Wedge Drop above the 200-day is a sell signal for a long, never a short.",
    "answer": "True",
-   "why": "True. Above the 200-day, a Wedge Drop is only a sell signal for a long. We short only below the 200-day simple moving average, unless it is a parabolic short, which is a different setup. Below the 200-day it is a short only if the other gates also pass.",
+   "why": "True. Our rule is shorts only below the 200-day, never above it unless it is a parabolic short. In our scan a plain Wedge Drop had no edge by itself. It separated from the base rate only for a stock under its 200-day, in a market under its 50-day. Above the 200-day the drop still tells a long holder to sell.",
    "lesson_line": "Above the 200-day it tells you to sell. Below it, and only below it, it can be shorted.",
    "facts": [
     "c01",
     "c02",
-    "h10"
+    "h10",
+    "n02",
+    "n03"
    ],
    "house": true,
-   "simple": "True. Above the 200-day, a Wedge Drop only tells a long holder to sell, and we never short it there.",
+   "simple": "True. Our scan found an edge only under the 200-day in a weak market, so above it a Wedge Drop only means sell a long.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1284,15 +1375,15 @@
      "+2 rests on the owner's rulebook (B26, a hard rule)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q03",
    "skill": "setup.wedge_drop",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wd.top",
-   "q": "In Kell's cycle, what comes right before the Wedge Drop?",
+   "q": "On this chart, what came right before the drop?",
    "choices": [
     "An extension, then a tight stall",
     "A base of many months, then a pop",
@@ -1300,28 +1391,34 @@
     "A gap up out of a flat base"
    ],
    "answer": "An extension, then a tight stall",
-   "why": "An extension, then a tight stall. After an Exhaustion Extension, prices often trade in a tight range as the averages catch up. Kell: price trades tight into the moving averages as there are fewer new buyers. A big extension is not always there: sometimes the price only trades sideways and loses momentum. It does not come out of a base of months or a steady slide.",
+   "why": "An extension, then a tight stall. After an Exhaustion Extension, prices often trade in a tight range as moving averages catch up. Kell: price trades tight into the averages because there are fewer new buyers, and then the drop confirms the sellers. A big extension is not always there: sometimes price only trades sideways and loses momentum. The chart is AAPL.",
    "lesson_line": "The top, then the rest on the averages, then the drop. Learn the order.",
    "facts": [
     "t01",
     "t02",
     "t03",
     "v01",
-    "y01",
-    "c08"
+    "y01"
    ],
    "wrong": {
     "A base of many months, then a pop": "That is a base for a long. The stall before a drop is days, not months.",
     "A steady slide with no pause": "After the extension price rests in a tight range while the averages catch up. The drop follows a rest, not a slide.",
     "A gap up out of a flat base": "That is a breakout. The drop follows a top, not a breakout."
    },
-   "simple": "First a rally stretches out, then price rests tight on its averages for a few days. The drop comes after that.",
+   "simple": "Price stretches out on a rally, then rests tight on its averages because few new buyers are left. The drop comes next.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16",
+   "story": "The chart ends on the day price closed under both averages. Look at the days before it.",
+   "chart": {
+    "sym": "AAPL",
+    "asof": "2023-08-03",
+    "window": 120,
+    "forward": 15
+   }
   },
   {
    "key": "q04",
@@ -1365,14 +1462,15 @@
    "criterion": "wd.inv_reclaim",
    "q": "Once a Wedge Drop short is closed out, one new close under both averages is enough for a second short.",
    "answer": "False",
-   "why": "False. A second short needs a new stall and a new close under both averages. The drop is a one-day event that the next day confirms or cancels. Like any re-entry, it is a new trade with its own stop and every rule.",
+   "why": "False. A second short needs a new stall and a new close under both averages. The stall is the rest that shows buyers have run out, because there are fewer new buyers (Kell). A failed drop has just shown buyers can take the averages back. One more close under them proves little. Like any re-entry, it is a new trade with its own stop and every rule.",
    "lesson_line": "The drop is a one-day event. Once it fails, the next short needs a new setup.",
    "facts": [
     "d33",
-    "h25"
+    "h25",
+    "y01"
    ],
    "house": true,
-   "simple": "False. A second short needs a new stall as well as a new close under both averages.",
+   "simple": "False. A failed drop shows buyers can win back the averages, so a second short needs a new stall first.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1380,7 +1478,7 @@
      "rests on a proposed card criterion awaiting owner review"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q06",
@@ -1396,7 +1494,7 @@
     "Exactly on the trigger day's high"
    ],
    "answer": "A few cents over the trigger day's high",
-   "why": "A few cents over the trigger day's high. Stop first. A short loses when price rises, so the stop sits above the entry. The high of the day is the main stop, the mirror of the low of day on a long. It goes a few cents past the high, not exactly on it. TraderLion also puts it just above the recent high. The card also allows a few cents over the higher of the trigger day and the day before. We prefer stops 1 to 3% away, and up to 5% is acceptable. Past 5%, we mostly wait for a tighter trigger.",
+   "why": "A few cents over the trigger day's high. A short loses when price rises, so the stop goes above the entry. The high of the day that confirmed the drop is the nearest place the idea is wrong. A stop there keeps the loss small. It sits a few cents past the high, not on it. We want a clear invalidation spot. We prefer stops 1 to 3% away and accept up to 5%. Past 5%, we mostly wait for a tighter trigger.",
    "lesson_line": "Stop first: a few cents over the trigger day's high, not exactly on it.",
    "facts": [
     "h01",
@@ -1406,7 +1504,8 @@
     "t05",
     "r51",
     "r52",
-    "r53"
+    "r53",
+    "n15"
    ],
    "house": true,
    "wrong": {
@@ -1414,7 +1513,7 @@
     "A few cents over the 200-day line": "The 200-day is the gate for taking the short, not the place for its stop. The stop goes over the trigger day's high.",
     "Exactly on the trigger day's high": "Our rule is a few cents past the day's extreme, not exactly on it."
    },
-   "simple": "A short loses when the price rises, so the stop goes a few cents over the trigger day's high.",
+   "simple": "A short loses when price rises, so the stop sits a few cents over the trigger day's high, where the idea fails.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1422,8 +1521,8 @@
      "+2 rests on the owner's rulebook and a held decision (D-008, where the stop goes)"
     ]
    },
-   "batch": "visuals-2",
-   "story": "The trigger day is the last bar.",
+   "batch": "owner-review-7-2026-11-16",
+   "story": "The chart ends on the trigger day, the day you short.",
    "chart": {
     "sym": "CAT",
     "asof": "2018-10-09",
@@ -1616,14 +1715,14 @@
    "criterion": "wd.liquidity",
    "q": "A Wedge Drop short in a $6 stock trading $3 million a day is fine if the chart is clean.",
    "answer": "False",
-   "why": "False. We trade only stocks at $10 or more that trade at least $20 million a day. This stock fails both tests, at $6 and $3 million. A clean chart does not fix that.",
+   "why": "False. We trade only stocks at $10 or more that trade at least $20 million a day. This one is $6 and $3 million, so it fails both. A trader needs a stock that trades enough to get in and out. A thin one can jump on small orders and be hard to cover, and a clean chart does not change that.",
    "lesson_line": "Price and liquidity come before the chart. Under $10 or under $20 million a day, pass.",
    "facts": [
     "h09",
     "c49"
    ],
    "house": true,
-   "simple": "False. We trade only stocks at $10 or more that trade at least $20 million a day, so this one fails twice.",
+   "simple": "False. A stock this thin is hard to get out of, and we trade only $10 stocks with $20 million a day.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1631,7 +1730,7 @@
      "+2 rests on the owner's rulebook (B23)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q13",
@@ -1647,7 +1746,7 @@
     "A close under the 200-day"
    ],
    "answer": "The Wedge Drop signal",
-   "why": "The Wedge Drop. Kell: if you did not sell the second extension, the wedge drop should take you out of the trade. TraderLion agrees: use it as a signal to protect profits and reduce exposure. Our card calls it the last exit, and holding a long through it is a named mistake. A drop reclaimed within a few sessions was only a shakeout. Buy again on a new setup.",
+   "why": "The Wedge Drop. Kell: if you did not sell the second extension, let the Wedge Drop protect you and take you out of the trade. TraderLion agrees: use it as a signal to protect profits and reduce exposure. Holding a long through a real drop gives the gains back. If it was only a shakeout, we buy again on a new setup.",
    "lesson_line": "The drop is the last exit for a long. Not a reason to hope.",
    "facts": [
     "k09",
@@ -1666,13 +1765,13 @@
     "The Wedge Pop breakout": "A pop is a close up through the averages, the mirror setup. It is a buy setup, not an exit.",
     "A close under the 200-day": "Kell names the drop as the backstop. The 200-day is where longs stop being allowed, not his exit signal."
    },
-   "simple": "The Wedge Drop. It is the last exit for a long holder, so you sell when it comes.",
+   "simple": "The Wedge Drop. It protects the gains you made, and if it was a shakeout we simply buy again on a new setup.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q14",
@@ -1682,14 +1781,15 @@
    "criterion": "wd.earnings",
    "q": "No new Wedge Drop short in the 3 sessions before an earnings report.",
    "answer": "True",
-   "why": "True. We take no new trades in the 3 days before a report, and the card counts them as sessions. A short you already hold stays through a report only if it is up 5R.",
+   "why": "True. We take no new trades in the 3 days before a report, and the same goes for a short. A report can gap the stock past your stop overnight, and a tight stop cannot catch a gap. A short you already hold stays through a report only if it is up 5R.",
    "lesson_line": "No new short in the 3 sessions before a report.",
    "facts": [
     "h08",
-    "c24"
+    "c24",
+    "n01"
    ],
    "house": true,
-   "simple": "True. We open no new short in the 3 sessions before an earnings report.",
+   "simple": "True. A report can gap the stock past your stop overnight, so we open no new short in the 3 days before it.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1697,7 +1797,7 @@
      "+2 rests on the owner's rulebook (B22)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q15",
@@ -1744,7 +1844,7 @@
    "rung": 3,
    "format": "scenario",
    "criterion": "wd.top_lower_high",
-   "story": "The day before the trigger. In a bear market the stock bounces into its falling 50-day and turns down, under the high of the last 60 sessions. Then it stalls four days.",
+   "story": "In a bear market the stock bounces into its falling 50-day, turns down under its earlier high, then stalls four days. The chart ends the day before the drop.",
    "q": "What kind of top is that?",
    "choices": [
     "A lower high, the bear-market form",
@@ -1753,7 +1853,7 @@
     "No top yet; it is only a pause"
    ],
    "answer": "A lower high, the bear-market form",
-   "why": "A lower high. The bounce peaks under the highest high of the 60 sessions before it. Kell's bear-market diagram: a fast rally puts in a lower high, then drops. Our own shorts are often a decent pop back up, rejected at the 50-day or 20-day EMA, below the 200-day. The card accepts three tops: an extension, a lower high, or a failed push past the prior day's high.",
+   "why": "A lower high. The bounce peaked under the earlier high and was turned back at a falling average. We want shorts on a decent pop back up that is rejected at the 50-day or 20-day, below the 200-day. Kell's bear-market diagram is the same: a fast rally puts in a lower high, then drops. A rally that cannot clear its old high shows buyers are weakening, and a stop just over the top is close.",
    "lesson_line": "A pop into the falling 50-day that fails is the picture we want.",
    "facts": [
     "c07",
@@ -1761,15 +1861,16 @@
     "k01",
     "u01",
     "d07",
-    "d08"
+    "d08",
+    "n15"
    ],
    "house": true,
    "wrong": {
     "An extension top over the 20-day": "An extension is a close far above the 20-day EMA. This bounce died at a falling average.",
-    "A failed push past the prior day's high": "That is a day that fails to clear the prior day's high. This bounce peaked under the high of the last 60 sessions.",
+    "A failed push past the prior day's high": "That is one day failing to clear the prior day's high. This bounce peaked well under the earlier high.",
     "No top yet; it is only a pause": "A bounce that turns under the prior high and stalls is the top. The drop then confirms it."
    },
-   "simple": "The bounce peaked under the highest high of the last 60 sessions, which makes it a lower high.",
+   "simple": "The bounce peaked under the earlier high and was rejected at a falling average, which shows buyers are weakening.",
    "deeper": {
     "example": "WHR in a bear market was this picture. A bear-market bounce made a lower high at the falling 50-day, a four-day stall followed, and the close under both averages came the next day. The averages then led it down."
    },
@@ -1780,7 +1881,7 @@
      "rests on a proposed card criterion awaiting owner review"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "WHR",
     "asof": "2002-08-28",
@@ -1794,16 +1895,17 @@
    "rung": 3,
    "format": "tf",
    "criterion": "wd.stall_no_new_high",
-   "q": "A stall that makes a new high in its last 3 sessions is still a valid Wedge Drop setup.",
+   "q": "A close under both averages, after a bounce still making new highs, is already a Wedge Drop.",
    "answer": "False",
-   "why": "False. The card wants no new high in the last 3 sessions of the stall. A new high there ends the setup before the trigger. A stall that is still making highs has not rested, so the averages have not caught up to price. Wait for quiet days and a fresh stall.",
+   "why": "False. A stall is a rest on the averages, and a bounce still making new highs has not rested. Kell: price trades tight into the averages because there are fewer new buyers. New highs mean buyers are still in charge. Shorting a leader at its highs is a named mistake, and the stop over the high is taken at once. Wait for quiet days and a fresh stall.",
    "lesson_line": "A stall that keeps making highs is not stalling. Wait for the quiet days.",
    "facts": [
-    "c10",
-    "c44"
+    "y01",
+    "c32",
+    "c45"
    ],
    "house": true,
-   "simple": "False. If the stall makes a new high in its last 3 sessions, it is not resting and the setup is off.",
+   "simple": "False. While price still makes new highs, buyers are in charge, so there is no stall yet and no drop to short.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1811,7 +1913,7 @@
      "rests on a proposed card criterion awaiting owner review"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q18",
@@ -1828,21 +1930,22 @@
     "Short at half size, same stop"
    ],
    "answer": "Pass; over 10% under the 9 EMA",
-   "why": "Pass. We skip a short more than 10% under its 9 EMA, checked at the open on a gap down. This one opens 12% under, so it fails, even with the stall and averages in order. The long rule is 10% above the 9 EMA. The short is its mirror.",
+   "why": "Pass. We skip a long more than 10% above its 9 EMA, and the short is the same rule reversed. This one opens 12% under, so most of the quick move is done and a short here is a chase. It is our too-stretched rule for longs, reversed.",
    "lesson_line": "A drop that is already stretched is a chase with a different name.",
    "facts": [
     "h12",
     "c50",
     "h16",
-    "r60"
+    "r60",
+    "u04"
    ],
    "house": true,
    "wrong": {
     "Pass; the stall was too short": "The story says the stall checked out. The reason to pass is the stretch under the 9 EMA.",
-    "Short; gap confirms the top": "A gap down can look like confirmation. The rule checks the stretch at the open, and it says skip.",
+    "Short; gap confirms the top": "A gap down can look like confirmation. The stretch rule still says skip.",
     "Short at half size, same stop": "Size does not fix a stretched entry. The rule is skip."
    },
-   "simple": "Pass. The open is more than 10% under the 9 EMA, so the drop is already stretched and we skip it.",
+   "simple": "Pass. A stock this far under its 9 EMA has made most of its move, so a short here is a chase.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1850,7 +1953,7 @@
      "+2 rests on the owner's rulebook (C29, mirrored by D47)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q19",
@@ -1866,13 +1969,14 @@
     "Never; hold it all to the end"
    ],
    "answer": "Day 3 at the earliest, or later",
-   "why": "Day 3 at the earliest, and often later. The first cover is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. A short is a long setup reversed, so the same holds. The short on this chart, EXP, was up 3R by day 3 and did not stop there.",
+   "why": "Day 3 at the earliest, and often later. The first cover is a judgment, not a fixed third at 3R. We sell into strength, and that comes on a push of several days, not on day 1. We very rarely sell on day 1 of the buy. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. The short on this chart, EXP, was up 3R by day 3 and did not stop there.",
    "lesson_line": "Rarely cover on day 1. Day 3 at the earliest, often into a longer move.",
    "facts": [
     "r54",
     "r55",
     "r56",
-    "h16"
+    "h16",
+    "n09"
    ],
    "house": true,
    "wrong": {
@@ -1880,7 +1984,7 @@
     "At exactly 3R, whatever the day": "The first sell is a judgment, not a fixed third at 3R.",
     "Never; hold it all to the end": "We do cover. The first cover is a judgment, often into a 3, 5 or 7 day move."
    },
-   "simple": "We rarely cover on day 1. We usually wait until day 3 at the earliest, often into a longer move.",
+   "simple": "We rarely cover on day 1. We sell into strength, which usually comes on a push of several days, so day 3 at the earliest.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1889,7 +1993,7 @@
      "the short side mirrors the long side (D47)"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "story": "Shorted on the trigger day.",
    "chart": {
     "sym": "EXP",
@@ -1915,16 +2019,17 @@
     },
     "round": 2
    },
-   "why": "2.03%. The stop minus the fill, over the fill: (56.28 - 55.16) / 55.16 x 100 = 2.03%. That fits inside the 3% a stop usually sits within, and it is a loss on the position, not the account. It was WHR's stop in August 2002.",
+   "why": "2.03%. The stop minus the fill, over the fill: (56.28 - 55.16) / 55.16 x 100 = 2.03%. That sits inside the 1 to 3% we prefer. The distance matters because the stop sets the size: the closer the stop, the more shares the same risk buys. It was WHR's stop in August 2002.",
    "lesson_line": "Stop first, distance second, size last. Measure the distance before the size.",
    "facts": [
     "h04",
     "c16",
-    "d01"
+    "d01",
+    "r52"
    ],
    "house": true,
    "suffix": "",
-   "simple": "The stop is 2.03% above the fill. That is the gap between them divided by the fill, and it fits inside 3%.",
+   "simple": "The stop is 2.03% above the fill, inside the 1 to 3% we prefer. A closer stop buys more shares for the same risk.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1933,7 +2038,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "choices": [
     "1.12%",
     "98.0%",
@@ -1965,8 +2070,8 @@
    "rung": 3,
    "format": "scenario",
    "criterion": "wd.inv_reclaim",
-   "story": "You shorted the close under both averages at 24.74, stop 25.26. Two days later it closes back above both averages. Your stop has not been hit.",
-   "q": "On our card, what now?",
+   "story": "You are short from 24.74 with the stop at 25.26. Two days later it closes back above both averages. Your stop has not been hit.",
+   "q": "By TraderLion's rule, what now?",
    "choices": [
     "Cover; the reclaim is the exit",
     "Hold; your stop is still above it",
@@ -1974,7 +2079,7 @@
     "Move the stop to breakeven"
    ],
    "answer": "Cover; the reclaim is the exit",
-   "why": "Cover. TraderLion: if the stock regains its moving averages and pushes higher, exit the short. Our card says a close back above both averages is the cover. DIS did this on day 2, yet its stop was not hit until its earnings day, so a cover on day 2 cost less than the stop. A second short needs a new stall and a new close under both.",
+   "why": "Cover. TraderLion: if the stock regains its moving averages and pushes higher, exit the short. A close back above both averages means buyers took the averages back, so the reason for the short is gone. DIS did this on day 2. Its stop was not hit until its earnings day, so a cover on day 2 cost less than the stop. A second short needs a new stall and a new close under both.",
    "lesson_line": "The reclaim cancels the drop. Cover, and wait for a new stall.",
    "facts": [
     "t06",
@@ -1986,11 +2091,11 @@
    ],
    "house": true,
    "wrong": {
-    "Hold; your stop is still above it": "The stop is the last line. On our card the reclaim is the setup's own exit, and it came first.",
+    "Hold; your stop is still above it": "The stop is the last line. TraderLion's exit for the short is a close back above its averages, and that came first.",
     "Add; it is now a better price": "Full size at one price with one stop. A reclaimed drop is a cancelled setup, not a second entry.",
-    "Move the stop to breakeven": "Breakeven comes between 2R and 5R, once the trade has paid. A reclaim says cover, not trail."
+    "Move the stop to breakeven": "Breakeven comes between 2R and 5R, or at the first sell, once the trade has paid. A reclaim says cover."
    },
-   "simple": "Cover the short. A close back above both averages cancels the drop, so you exit and wait for a new stall.",
+   "simple": "Cover. A close back above both averages means buyers have won them back, so the short has lost its reason.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1999,7 +2104,7 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "DIS",
     "asof": "2006-01-26",
@@ -2056,26 +2161,27 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "wd.trim_1",
-   "q": "Shorted at 45.96 with the stop at 46.89. Where is 3R?",
-   "answer": "$43.17",
+   "q": "Shorted at 45.96, stop 46.89. The stop may move to breakeven from 2R. At what price is 2R?",
+   "answer": "$44.10",
    "calc": {
     "fn": "arith",
     "args": {
-     "expr": "a - 3 * (b - a)",
+     "expr": "a - 2 * (b - a)",
      "a": 45.96,
      "b": 46.89
     },
     "round": 2
    },
-   "why": "$43.17. One R is the stop minus the fill: 46.89 - 45.96. Three R below the fill is 45.96 - 3 x (46.89 - 45.96) = 43.17. It is a measuring stick, not a cover order. PCG reached 3R on day 10.",
-   "lesson_line": "Know your 3R before the open. It is a yardstick, not a cover order.",
+   "why": "$44.10. One R is the stop minus the fill: 46.89 - 45.96. Two R below the fill is 45.96 - 2 x (46.89 - 45.96) = 44.10. The stop may move to breakeven anywhere from 2R to 5R, or at the first sell. Breakeven is the point after which a trade can no longer become a loser. PCG reached 3R on day 10.",
+   "lesson_line": "Know your 2R before the open. It is the earliest moment the stop can move to breakeven.",
    "facts": [
     "d03",
-    "r54"
+    "h05",
+    "n08"
    ],
    "house": true,
    "prefix": "",
-   "simple": "3R is the fill minus three times the stop distance, so 43.17. It is a measuring stick, not a cover order.",
+   "simple": "Two R is 44.10, the fill minus twice the stop distance. Moving the stop to breakeven there means the trade cannot become a loser.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -2084,20 +2190,21 @@
      "the first cover is the owner's D-013 judgment, not a fixed 3R cover"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "choices": [
-    "$43.17",
-    "$48.75",
     "$44.10",
-    "$45.03"
+    "$43.17",
+    "$45.03",
+    "$47.82"
    ],
    "wrong": {
-    "$48.75": "Added the 3R to the fill. On a short, 3R is below the fill.",
-    "$44.10": "Counted 3R down from the stop, which is only two R below the fill.",
-    "$45.03": "Went down one R, not three."
+    "$44.10": "Right: two stop distances below the fill.",
+    "$45.03": "That is a single stop distance below the fill, not two.",
+    "$43.17": "That is three stop distances below the fill. Two is the first moment for breakeven.",
+    "$47.82": "Added two stop distances above the fill. On a short, profit is below the fill."
    },
    "suffix": "",
-   "story": "Shorted on the trigger day.",
+   "story": "Shorted on the trigger day. One R is the distance from your fill to your stop.",
    "chart": {
     "sym": "PCG",
     "asof": "2007-12-14",
@@ -2116,7 +2223,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "wd.market",
-   "story": "A textbook stall breaks under both averages in a stock under its 200-day. The index is in an uptrend and our reading is Green.",
+   "story": "A textbook stall breaks under both averages in a stock under its 200-day. The app's market filter reads Green: the index is in an uptrend and the account trades longs at full risk.",
    "q": "What is your call?",
    "choices": [
     "No short; Green is for longs",
@@ -2125,22 +2232,22 @@
     "Short, but at half size only"
    ],
    "answer": "No short; Green is for longs",
-   "why": "No short. Green is full risk for longs, and the card marks a Green or Yellow reading as a no-trade row for this short. In a Red market we hold mostly cash plus shorts below the 200-day. Being under the 200-day is one gate, not the only one. For a long holder this is still a sell signal.",
+   "why": "No short. Green means the account trades at full risk, and that is a long's market. The reading is a guide, but our shorts are the weak market's trade. In Red we hold mostly cash plus shorts below the 200-day. Being under the 200-day is one gate, not the only one. In our scan the drop separated from the base rate only in a market under its 50-day. For a long holder this is still a sell signal.",
    "lesson_line": "Read the market before the stock. A short in a Green market is a fight you picked.",
    "facts": [
     "h24",
     "h15",
-    "c39",
     "h10",
+    "n03",
     "c27"
    ],
    "house": true,
    "wrong": {
     "Short; the stock is under its 200": "The 200-day is the stock's gate. The market reading is another, and Green fails it.",
     "Buy the dip; the market is Green": "No longs below the 200-day, and a Wedge Drop tells a long holder to sell.",
-    "Short, but at half size only": "Size does not fix the market. The card's no-trade row covers the short at any size."
+    "Short, but at half size only": "Size does not fix the market. In a Green market a short is still a fight against the filter."
    },
-   "simple": "No short. Green is for longs, and the card marks a Green or Yellow reading as a no-trade row for this short.",
+   "simple": "No short. Green is a long's market, and our shorts come in a weak market, not a strong one.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -2149,7 +2256,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q25",
@@ -2314,13 +2421,14 @@
     "Cover; the gap is past 2R"
    ],
    "answer": "37.55, the first 30-minute high",
-   "why": "37.55. A gap through the stop hands it to the first 30 minutes of that day. For a short, the high of the first 30-minute bar becomes the new stop. This is the one exception to never moving a stop wider. The ceiling is 2R: if the first 30 minutes take the loss past 2R, you get out. Here it has not.",
+   "why": "37.55. A stop cannot catch an overnight gap, so the old stop at 37.22 is already gone. The first 30 minutes show where price settles. For a short, the high of that first 30-minute bar becomes the new stop. This is the one time a stop may move wider. If the first 30 minutes take the loss past 2R, you get out. Here they have not.",
    "lesson_line": "A gap through the stop is the one exception. The first 30 minutes decide.",
    "facts": [
     "h06",
     "h07",
     "c52",
-    "d05"
+    "d05",
+    "n01"
    ],
    "house": true,
    "wrong": {
@@ -2328,7 +2436,7 @@
     "37.05, the first 30-minute low": "That is the long's rule, mirrored the wrong way. A short's risk is above, so the high is the stop.",
     "37.40, the price at the open": "The gap rule gives the decision to the first 30 minutes. The open is not the stop."
    },
-   "simple": "The gap hands the stop to the first 30-minute bar, so the new stop is its high, 37.55.",
+   "simple": "A gap jumps the old stop, so the first 30 minutes decide. The new stop is the high of that bar, 37.55.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2336,7 +2444,7 @@
      "+2 rests on the owner's rulebook (B20, mirrored for a short)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q29",
@@ -2346,7 +2454,7 @@
    "criterion": "wd.no_add",
    "q": "At the rally back into the falling averages you may add to the short, since Kell's page says so.",
    "answer": "False",
-   "why": "False. Kell's page does offer the EMA Crossback as a place to add to a short started at the Wedge Drop. Our rule is full size at one price with one stop, and no adding. The crossback can only be its own new trade with its own stop.",
+   "why": "False. Kell's page does offer the EMA Crossback as a place to add to a short started at the Wedge Drop. Our rule is full size at one price with one stop. We pick the size from the stop before we enter. An add after the stock has moved makes the position bigger than that plan, so the loss at the stop grows. The crossback can only be its own new trade with its own stop.",
    "lesson_line": "One price, one stop. The crossback is a new trade or nothing.",
    "facts": [
     "x03",
@@ -2355,7 +2463,7 @@
     "c35"
    ],
    "house": true,
-   "simple": "False. Kell's page allows an add, but our rule is one price, one stop, and no adding.",
+   "simple": "False. Adding makes the position bigger than the stop allowed, so we take full size once, with one stop.",
    "deeper": {
     "counter": "Kell says the crossback gives a clear area to set a stop against. We take that as the stop for a new trade, sized from that stop. It is not a place to add to the old one."
    },
@@ -2366,7 +2474,7 @@
      "+2 rests on the owner's rulebook (A5, over a web view)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q30",
@@ -2374,29 +2482,31 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "wd.order",
-   "story": "At 3:50 pm the stock sits well under both averages, near its low of the day. The stall checked out.",
+   "story": "Mid-morning the stock trades down through both averages and through its stall low. The stall checked out.",
    "q": "How do you enter?",
    "choices": [
-    "Market order now, or next open",
+    "Short at market as it trades through",
     "A limit order well above the market",
-    "Wait three days, then short",
+    "Wait for the close, then short",
     "Short in the after-hours session"
    ],
-   "answer": "Market order now, or next open",
-   "why": "Market order now, or at the next open. Our entries are market orders. The card says to place it in the last 15 minutes once the close is clear, or at the next open. We take no new entries outside regular trading hours.",
-   "lesson_line": "Let the close decide, then enter at market. No limit entries, no after-hours.",
+   "answer": "Short at market as it trades through",
+   "why": "Short at market as it trades through the trigger. Every setup, long or short, enters as price trades through its trigger during the day, never at the close. Our entries are market orders, and we take no new entries outside regular hours. Waiting for the close lets the stock run away from the trigger. Chasing costs size, not risk: the stop stays over the high, so the distance grows and the shares shrink.",
+   "lesson_line": "Short as price trades through the trigger. Never wait for the close, never enter after hours.",
    "facts": [
-    "c14",
+    "g1",
     "h20",
-    "h21"
+    "h21",
+    "h11",
+    "n16"
    ],
    "house": true,
    "wrong": {
-    "Short in the after-hours session": "No new entries outside regular trading hours.",
-    "A limit order well above the market": "A limit above the market may never fill on the day that matters. Entries are market orders.",
-    "Wait three days, then short": "The trigger is the daily close. Waiting gives away the drop."
+    "Short in the after-hours session": "We take no new entries outside regular trading hours.",
+    "A limit order well above the market": "A limit above the market may never fill on the day that matters. Our entries are market orders.",
+    "Wait for the close, then short": "Every setup enters as price trades through its trigger, never at the close. Waiting lets the stock run away from the trigger."
    },
-   "simple": "Use a market order now, in the last 15 minutes, or at the next open. We enter at market and never after hours.",
+   "simple": "Short at market as price trades through the trigger. Waiting for the close lets the stock run away and costs size.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2404,7 +2514,7 @@
      "+2 rests on the owner's rulebook (E57 and E58)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q31",
@@ -2421,20 +2531,20 @@
     "Yes, but cover before the report"
    ],
    "answer": "No; a report inside 3 sessions",
-   "why": "No. We take no new short in the 3 sessions before a report. A Monday trigger with a report after Tuesday's close falls inside that window. Wait for the report to pass, then look for a new trigger.",
+   "why": "No. We take no new short in the 3 sessions before a report. A Monday trigger with a report after Tuesday's close falls inside that window. A report can gap the stock past your stop overnight, and a stop cannot catch a gap. Wait for the report to pass, then look for a new trigger.",
    "lesson_line": "A report inside 3 sessions is a no. Let it pass, then look for a new trigger.",
    "facts": [
     "h08",
     "c24",
-    "c08"
+    "n01"
    ],
    "house": true,
    "wrong": {
-    "No; the stall is too short": "Five days is inside the 3 to 10 the card allows. The reason to pass is the report.",
+    "No; the stall is too short": "Five days of rest is fine for a stall. The reason to pass is the report.",
     "Yes, at half the usual size": "Size does not fix a report risk. Smaller is still in.",
     "Yes, but cover before the report": "The rule bars the new entry itself in the 3 sessions before a report. Planning to cover early does not change that."
    },
-   "simple": "No. The report comes inside 3 sessions, and we open no new short that close to earnings.",
+   "simple": "No. A report can gap the stock past your stop, so we open no new short that close to earnings.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2442,7 +2552,7 @@
      "+2 rests on the owner's rulebook (B22, 3 days against 3 sessions)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q32",
@@ -2452,24 +2562,26 @@
    "criterion": "wd.breakeven",
    "q": "When does the stop move to breakeven on a Wedge Drop short?",
    "choices": [
-    "Between 2R and 5R, at first cover",
+    "From 2R to 5R, or at the first sell",
     "The day after entry, to be safe",
     "Never; a short's stop stays where set",
     "At 1R, once it has paid a bit"
    ],
-   "answer": "Between 2R and 5R, at first cover",
-   "why": "Between 2R and 5R, and by default at the first cover. A stop may move in your favour. It is never moved wider.",
-   "lesson_line": "Breakeven comes between 2R and 5R, by default at the first cover.",
+   "answer": "From 2R to 5R, or at the first sell",
+   "why": "From 2R to 5R, or at the first sell, as a judgment. Breakeven is the point after which a trade can no longer turn into a loser. A stop may move in your favour, never wider. Move it too early and ordinary swings can stop you out of a trade that was working.",
+   "lesson_line": "Breakeven comes between 2R and 5R, or at the first sell. A judgment, not a fixed day.",
    "facts": [
-    "c53"
+    "h05",
+    "n08",
+    "h02"
    ],
    "house": true,
    "wrong": {
-    "The day after entry, to be safe": "Too early. Our rule starts at 2R of profit.",
+    "The day after entry, to be safe": "Too early. The trade has not paid yet, and ordinary swings would stop you out. Our window starts at 2R.",
     "Never; a short's stop stays where set": "A stop may move in your favour. Only a wider stop is banned.",
-    "At 1R, once it has paid a bit": "Too early. Our rule starts at 2R."
+    "At 1R, once it has paid a bit": "Too early. Our window starts at 2R."
    },
-   "simple": "The stop moves to breakeven somewhere between 2R and 5R, and by default at the first cover.",
+   "simple": "Between 2R and 5R, or at the first sell. By then the trade has paid, so it should never turn into a loser.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2477,7 +2589,7 @@
      "the breakeven range comes from the card"
     ]
    },
-   "batch": "rulings2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q33",
@@ -2566,13 +2678,14 @@
     "Add more; the gap confirms it"
    ],
    "answer": "Judge it; 3R is not a cover order",
-   "why": "Judge it. The first cover is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. A 3.5R open is a reason to look hard, not an order to cover. A gap in your favour is not a place to add. It is full size at one price.",
+   "why": "Judge it. The first cover is a judgment, not a fixed third at 3R. Selling part into a big gap is an optional choice, never a rule. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. We sell into strength, and a gap is strength, so selling some can be fair. A fixed order would cut a winner that keeps running. A gap in your favour is not a place to add.",
    "lesson_line": "A gap past 3R is not a cover order. Judge the first cover.",
    "facts": [
     "r54",
     "r55",
     "h16",
-    "h26"
+    "h26",
+    "n09"
    ],
    "house": true,
    "wrong": {
@@ -2580,7 +2693,7 @@
     "Cover the whole position now": "Nothing says a gap means covering it all. The first cover is a judgment.",
     "Cover a third at the open": "The first cover is a judgment, not a fixed third at 3R."
    },
-   "simple": "Judge it. A gap past 3R is not an automatic cover, and we rarely act on day 1.",
+   "simple": "Judge it. A gap is strength, so selling some can be fair, but no rule says to, and we do not add.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2589,7 +2702,7 @@
      "the short side mirrors the long side (D47)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q36",
@@ -2597,30 +2710,32 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "wd.wide_loose",
-   "story": "The trigger day is the last bar. An 8-day stall 9.6% wide breaks under both averages. The stop over the day's high is 2.4% away.",
-   "q": "How does our card treat that stall?",
+   "story": "The chart ends on the trigger day. An 8-day stall 9.6% wide breaks under both averages. The stop over the day's high is 2.4% away. Our grade is our judgment of how clean a setup is, and it sets the size.",
+   "q": "How does a wide, loose stall like that change the trade?",
    "choices": [
-    "Take it, graded down for the stall",
-    "Skip it; loose stall is no setup",
-    "Skip it; a 2.4% stop is too wide",
-    "Take it full grade; tight stop"
+    "It grades lower, and the size follows",
+    "It cancels the trade; wide is a no",
+    "Full grade; a 2.4% stop is tight",
+    "It raises the grade; more room to fall"
    ],
-   "answer": "Take it, graded down for the stall",
-   "why": "Take it, graded down. Wide, loose action before the drop is graded down, not excluded. The stall here is 9.6% wide over 8 days, and a tight stop does not repair that. DXCM 2022-04-18 was this setup: an 8-day stall 9.6% wide, stopped at 0R by a 124.00 high. The stock then fell hard.",
+   "answer": "It grades lower, and the size follows",
+   "why": "It grades lower, and the size follows the grade. Kell: price rests tight on the averages because there are fewer new buyers. A wide, loose stall is a messier rest than that, so the setup is less clean. We grade by judgment, and the grade sets the size, so a messier setup tends to get less. It is not a no-trade, and a tight stop does not repair it. DXCM in April 2022 had this stall, and the short was stopped at 0R by one more push up.",
    "lesson_line": "A wide, loose stall grades the trade down. A tight stop does not fix it.",
    "facts": [
     "c12",
     "d27",
     "d28",
-    "h04"
+    "h04",
+    "t11",
+    "y01"
    ],
    "house": true,
    "wrong": {
-    "Skip it; loose stall is no setup": "The card grades wide, loose action down, not out. It is still a trade, at a lower grade.",
-    "Skip it; a 2.4% stop is too wide": "The stop is inside the 3% line. The wide stall is what grades it down, not the stop.",
-    "Take it full grade; tight stop": "A tight stop does not fix a loose stall. The 9.6% wide stall is what grades it down."
+    "It cancels the trade; wide is a no": "A wide stall lowers the grade. It does not cancel the trade.",
+    "Full grade; a 2.4% stop is tight": "A tight stop does not fix a loose stall. The 9.6% wide stall is what lowers the grade.",
+    "It raises the grade; more room to fall": "Loose action is less clean, not better. More room to fall is not a grade."
    },
-   "simple": "It is taken, but graded down, because a wide, loose stall lowers the grade rather than ruling the trade out.",
+   "simple": "A wide, loose stall is a less clean rest, so the grade drops and the size tends to follow. It is not a no-trade.",
    "deeper": {
     "trap": "Do not read a 2.4% stop as proof of quality. DXCM's stop sat inside the 3% line and was still taken at 0R. The stock then fell hard, so the stop was hit and the direction was right."
    },
@@ -2632,7 +2747,7 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "DXCM",
     "asof": "2022-04-18",
@@ -2688,7 +2803,7 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "wd.trigger_volume",
-   "story": "Same stall, two drops. Drop A closes mid-range on light volume. Drop B gaps down, closes at its low, on heavy volume.",
+   "story": "Same stall, two drops. Drop A closes mid-range on light volume. Drop B gaps down, closes at its low, on heavy volume. Our grade is our judgment of how clean a setup is, and it sets the size.",
    "q": "Which gets the higher grade?",
    "choices": [
     "Drop B; sellers were in control",
@@ -2697,21 +2812,23 @@
     "Drop A; more room to fall"
    ],
    "answer": "Drop B; sellers were in control",
-   "why": "Drop B, the gap down closing at its low. It is the stronger drop: Kell calls the drop an influx of sellers, and TraderLion adds increased selling pressure. The card wants a wide red bar or a gap down closing near its low, in the lower 40%. A mid-range close is the weaker day. Grading stays a judgment call.",
-   "lesson_line": "A close at the low, on sellers, grades the day up. A mid-range close grades it down.",
+   "why": "Drop B. Kell calls the drop an influx of sellers, and TraderLion adds increased selling pressure. A gap down that closes at its low shows sellers in control all day, a cleaner confirmation than a mid-range close. Volume only raises the grade and is not a requirement. In our scan, heavy volume raised the win rate but not the average R. Grading stays a judgment call.",
+   "lesson_line": "A close at the low, on heavy volume, shows sellers in control and lifts the grade. Grading stays judgment.",
    "facts": [
     "c42",
     "c13",
     "y02",
-    "t05"
+    "t05",
+    "n05",
+    "n11"
    ],
    "house": true,
    "wrong": {
     "Drop A; quiet is better": "Quiet is for the stall. The drop wants sellers.",
-    "Equal; only averages matter": "The averages are the trigger. The close in the day's range is part of the grade.",
-    "Drop A; more room to fall": "The card wants the close in the lower 40% of the range. A mid-range close is the weaker day."
+    "Equal; only averages matter": "The averages are the trigger. Where the day closes and who sold also color the grade.",
+    "Drop A; more room to fall": "A mid-range close is the weaker day. Nothing says a light drop leaves more room."
    },
-   "simple": "Drop B, the gap down that closes at its low. It shows sellers in control, and our card wants the close in the lower 40%.",
+   "simple": "Drop B, because a gap down closing at its low shows sellers in control all day. Volume only lifts the grade.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2719,7 +2836,7 @@
      "+2 rests on the owner's rulebook and a held decision (D-006, trigger volume)"
     ]
    },
-   "batch": "rulings"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q39",
@@ -2766,7 +2883,7 @@
     },
     "round": 0
    },
-   "why": "140 shares. Risk is 50,000 x 1%. Risk per share is the stop minus the fill: 134.79 - 131.23. Divide the first by the second and round down to 140. The stop sets the size, never the other way round.",
+   "why": "140 shares. Risk is 50,000 x 1%. Risk per share is the stop minus the fill: 134.79 - 131.23. Divide the first by the second and round down to 140. The stop comes first and the size follows, so a stop-out costs the 1% you planned. Pick a size first and fit a stop to it, and losses grow past the plan.",
    "lesson_line": "Risk sets the size. Divide the dollars you risk by the distance to the stop.",
    "facts": [
     "h03",
@@ -2775,7 +2892,7 @@
    ],
    "house": true,
    "suffix": "",
-   "simple": "Divide the 1% risk by the distance to the stop, then round down. That gives 140 shares.",
+   "simple": "Risk dollars divided by the distance to the stop, rounded down, give 140 shares. A stop-out then costs just the 1%.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2783,7 +2900,7 @@
      "+2 a computed key"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "choices": [
     "381 shares",
     "184 shares",
@@ -2824,7 +2941,7 @@
     "Stopped; you may re-short at once"
    ],
    "answer": "Stopped at 53.70; a planned loss",
-   "why": "Stopped at 53.70, a planned loss. The stop is the exit, and it is never moved wider. The price traded up through 53.70 the next session, so the trade ended there. The close at 54.33 is where you would be with no stop. GOOGL 2019-01-14 did this: stopped on day 1. A new short needs a new trigger.",
+   "why": "Stopped at 53.70, a planned loss. The stop is the exit, a real order with the broker, and it is never moved wider. Price traded up through 53.70 the next session, so the trade ended there. The close at 54.33 is where you would be with no stop, a bigger loss. GOOGL on 2019-01-14 did this, a few weeks after the December 2018 low. A new short needs a new trigger.",
    "lesson_line": "A close above the trigger day's high means the stop already went. The stop is the exit.",
    "facts": [
     "h02",
@@ -2840,7 +2957,7 @@
     "Covered at the close, 54.33": "The stop went at 53.70 during the day. The close is where you would be if you had no stop.",
     "Stopped; you may re-short at once": "After a stop-out a new short needs a new trigger, as a new trade with its own stop."
    },
-   "simple": "The stop at 53.70 was the exit, so the trade ended there as a planned loss, not at the 54.33 close.",
+   "simple": "The stop at 53.70 was the exit, so the loss was planned and capped. The 54.33 close is where you would be without a stop.",
    "deeper": {
     "trap": "The close at 54.33 is not your exit price. Waiting for a close back under 53.70 turns a planned loss into a larger one. The stop is the exit."
    },
@@ -2851,7 +2968,7 @@
      "+2 rests on the owner's rulebook (A4)"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "GOOGL",
     "asof": "2019-01-14",
@@ -2870,16 +2987,16 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "wd.crossback_hold",
-   "story": "You are short and have already covered part of it. Now the stock rallies into its falling 9 and 20 EMAs and stalls under them.",
-   "q": "What is that?",
+   "story": "The chart is an index fund with its name hidden. A Wedge Drop happened a few days earlier. The chart ends on the day price rallied back to the falling averages and stalled under them.",
+   "q": "What is that rally?",
    "choices": [
-    "A crossback; hold, trail decides",
-    "The setup is failing; cover it now",
-    "A place to add to the short",
-    "A Wedge Pop; buy the rally"
+    "A crossback, a retest of the averages",
+    "A new Wedge Drop, a second short",
+    "A Wedge Pop, a buy signal",
+    "A reclaim; the drop has failed"
    ],
-   "answer": "A crossback; hold, trail decides",
-   "why": "A crossback. Kell: a downside EMA Crossback retests the moving averages and is met with more resistance, pushing the stock lower. A rally that stalls under the falling averages is a place to hold, not to panic. The trail still covers on a close back above the 9 or 20 EMA. It is not a place to add: that would be a new trade with its own stop.",
+   "answer": "A crossback, a retest of the averages",
+   "why": "A crossback. Kell: a downside EMA Crossback retests the moving averages but is now met with more resistance, pushing the stock lower. His own QQQ sequence ran an extension, then the Wedge Drop, then the EMA Crossback. If you are short, a rally that stalls under the falling averages is a place to hold. The trail still covers on a close back above them. It is not a place to add: that would be a new trade with its own stop.",
    "lesson_line": "The first rally into the falling averages is expected. Hold it, and let the trail speak.",
    "facts": [
     "y04",
@@ -2891,11 +3008,11 @@
    ],
    "house": true,
    "wrong": {
-    "The setup is failing; cover it now": "Failing is a close back above both averages. A stall under them is the next stage, not a failure.",
-    "A place to add to the short": "No adding. One price, one stop; the crossback can be a new trade.",
-    "A Wedge Pop; buy the rally": "A pop closes up through both averages. This rally stalled under them."
+    "A new Wedge Drop, a second short": "A second drop needs a new stall and a new close under both. This is a rally back up to the averages.",
+    "A Wedge Pop, a buy signal": "A pop closes up through both averages out of a coil. This rally stalled under them.",
+    "A reclaim; the drop has failed": "Failed means a close back above both averages. This rally stalled under them."
    },
-   "simple": "This is a rally back into the falling averages. Kell expects it to meet resistance, so we hold and let the trail decide.",
+   "simple": "It is a downside crossback, a retest that meets resistance at the falling averages, so a short holds and does not add.",
    "deeper": {
     "trap": "A crossback is not a failure. The setup fails on a close back above both averages. Adding at the crossback is the common slip, and Kell's own page offers it. Our rule says no: one price and one stop, and a crossback is a new trade or nothing."
    },
@@ -2907,7 +3024,13 @@
      "tied to a held decision (D-002)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "owner-review-7-2026-11-16",
+   "chart": {
+    "sym": "QQQ",
+    "asof": "2023-02-23",
+    "window": 80,
+    "forward": 10
+   }
   },
   {
    "key": "q43",
@@ -2915,7 +3038,7 @@
    "rung": 6,
    "format": "mcq",
    "criterion": "wd.borrow",
-   "q": "The stock is hard to borrow with a high fee. The chart is an A+ Wedge Drop. Your call?",
+   "q": "The chart grades A+, our cleanest. But the stock is hard to borrow, with a high fee. Your call?",
    "choices": [
     "Skip it; the borrow comes first",
     "Skip it; chart is stretched",
@@ -2923,7 +3046,7 @@
     "Short it; the A+ chart wins"
    ],
    "answer": "Skip it; the borrow comes first",
-   "why": "Skip it. We skip a short when the stock is hard to borrow or the borrow fee is high, however good the chart is. The card wants a stock that is easy to borrow at a fair fee. Half size does not help, because the stock fails the rule before size comes up.",
+   "why": "Skip it. We skip a short when the stock is hard to borrow or the borrow fee is high, however good the chart is. You pay the fee for every day you stay short. A hard-to-borrow stock may not be there to short or to keep. Half size does not help, because the stock fails the rule before size comes up.",
    "lesson_line": "A short you cannot borrow cleanly is not a short. Skip it.",
    "facts": [
     "h17",
@@ -2933,9 +3056,9 @@
    "wrong": {
     "Skip it; chart is stretched": "The chart is an A+ Wedge Drop, so it is not the problem. The reason to skip is the borrow.",
     "Short it at half size": "Half of a hard borrow is still a hard borrow. The rule is skip.",
-    "Short it; the A+ chart wins": "The borrow comes before the chart. The rule skips a hard-to-borrow short, however good it looks."
+    "Short it; the A+ chart wins": "The borrow comes before the chart. A+ is our judgment of how clean the chart is, and it cannot fix a hard borrow."
    },
-   "simple": "Skip it. We pass on any short that is hard to borrow or carries a high fee, even with an A+ chart.",
+   "simple": "Skip it. A hard-to-borrow stock costs a fee every day and may not stay available, so the chart cannot save it.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2943,7 +3066,7 @@
      "+2 rests on the owner's rulebook (D48)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q44",
@@ -3061,26 +3184,27 @@
    "story": "The trigger day is the last bar. In the stall the up days averaged 2.84 times the volume of the down days. Then a close under both averages.",
    "q": "What was the stall?",
    "choices": [
-    "Accumulation; pass on the short",
-    "A clean stall; short it at once",
-    "Distribution; sellers are in charge",
-    "Accumulation; short with a wide stop"
+    "Accumulation; buyers had not run out",
+    "A clean stall; the up days were quiet",
+    "Distribution; sellers were in charge",
+    "Exhaustion; the buyers were all spent"
    ],
-   "answer": "Accumulation; pass on the short",
-   "why": "Accumulation. A clean stall has the up days on lighter volume than the down days. Here the up days averaged 2.84 times the volume of the down days, which is buyers stepping in. VZ 2010-06-30 did this, and the short was stopped as the stock rallied through the averages.",
-   "lesson_line": "Heavy up days in the stall mean someone is buying. Do not short them.",
+   "answer": "Accumulation; buyers had not run out",
+   "why": "Accumulation; buyers had not run out. In a clean stall the volume dries up on the up days, because there are fewer new buyers. Here the up days ran 2.84 times the volume of the down days. So buyers were stepping in and the rest was not over, which makes this a weak short. VZ in June 2010 did this, and the short was stopped as the stock rallied through the averages.",
+   "lesson_line": "Heavy up days in the stall mean someone is buying. That is a weak short.",
    "facts": [
     "c11",
     "d32",
+    "y01",
     "h02"
    ],
    "house": true,
    "wrong": {
-    "A clean stall; short it at once": "The averages were lost, but the volume told the other story. The stall gate fails.",
-    "Distribution; sellers are in charge": "Heavy up days mean buyers, not sellers. Distribution is the reverse: heavier selling volume.",
-    "Accumulation; short with a wide stop": "A stop never goes wider to fit a trade. The stall's volume gate failed, so we pass."
+    "A clean stall; the up days were quiet": "The story says the up days ran 2.84 times the volume of the down days. That is not quiet, and volume dries up in a clean stall.",
+    "Distribution; sellers were in charge": "Heavy up days mean buyers, not sellers. Distribution is the reverse: heavier selling volume.",
+    "Exhaustion; the buyers were all spent": "Heavy volume on the up days means buyers were still stepping in. Spent buyers would show quiet up days."
    },
-   "simple": "Heavy volume on the up days means buyers were stepping in, so the stall was accumulation and we pass on the short.",
+   "simple": "Heavy volume on the up days means buyers were stepping in, so the rest was not over and the short is weak.",
    "deeper": {
     "trap": "The close under both averages is only one gate. The stall's volume is another, and here it failed. VZ looked like a Wedge Drop on the chart, ran 0.54R, then was stopped as the stock rallied through the averages."
    },
@@ -3091,7 +3215,7 @@
      "rests on a proposed card criterion awaiting owner review"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "VZ",
     "asof": "2010-06-30",
@@ -3105,7 +3229,7 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "wd.parabolic_exception",
-   "story": "The stock is 25% over its 9-day EMA on the fifth straight up day. It gaps up, then closes red.",
+   "story": "The stock is 25% over its 9 EMA on the fifth straight up day. It gaps up, then closes red.",
    "q": "Which setup is that?",
    "choices": [
     "The Parabolic Short, climax day",
@@ -3114,7 +3238,7 @@
     "A downside crossback, a retest"
    ],
    "answer": "The Parabolic Short, climax day",
-   "why": "The Parabolic Short. It is shorted on the climax day of a 3 to 5 day burst, 10% or more over the 9-day EMA. Here the stock is 25% over it on the fifth straight up day. A Wedge Drop comes days later, after a stall within 1 ATR of the 9 EMA. Bracco's target for a parabolic short is the 9-day EMA, which acts as a magnet for mean reversion.",
+   "why": "The Parabolic Short. It is shorted on the climax day of a burst of up days, with price far above its 9 EMA. Here the stock is 25% over it on the fifth straight up day. A Wedge Drop comes days later, after price has rested on its averages. Bracco's target for a parabolic short is the 9-day EMA, which acts as a magnet for mean reversion. The two setups have different plans, so name the setup before you plan the trade.",
    "lesson_line": "Measure the distance to the averages. Far above them on the climax day is the other setup.",
    "facts": [
     "c29",
@@ -3129,9 +3253,9 @@
     "A Wedge Pop, out of a tight coil": "A pop is a close up through the averages out of a coil. This is a blow-off far above them.",
     "A downside crossback, a retest": "A crossback is a rally back into the averages after a drop. Nothing has dropped yet."
    },
-   "simple": "A stock far above its 9-day average after a short burst is a Parabolic Short, taken on its climax day.",
+   "simple": "Far above its 9 EMA on a climax day is a Parabolic Short. Its target is the 9 EMA, which acts as a magnet.",
    "deeper": {
-    "trap": "Distance is the tell. A Wedge Drop stalls within 1 ATR of the 9 EMA. A Parabolic Short sits 10% or more over the 9-day EMA after a burst of 3 to 5 days. The same red close can show up in both, one at the averages and the other far above them."
+    "trap": "Distance is the tell. A Wedge Drop stalls on its averages. A Parabolic Short sits far above its 9 EMA after a burst of up days. The same red close can show up in both, one at the averages and the other far above them."
    },
    "tier": "extended",
    "risk": {
@@ -3141,7 +3265,7 @@
      "tied to a held decision (D-040)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q49",
@@ -3158,7 +3282,7 @@
     "An upside crossback, a test"
    ],
    "answer": "A Wedge Pop, the mirror setup",
-   "why": "A Wedge Pop. Look at where price sat before the day and which way it closed. A Wedge Pop coils under the 10 and 20-day EMAs and closes up through both. A Wedge Drop stalls on or just above them and closes down through both. Kell adds that the pop is not simply a cross of the averages: price bars and volume matter too.",
+   "why": "A Wedge Pop. Look at where price sat before the day and which way it closed. A Wedge Pop coils under the two fast averages and closes up through both. A Wedge Drop rests on or just above them and closes down through both. Kell: many traders wrongly think the pop is simply a cross of the averages. Price bars and volume matter too, so where price rested is what tells the two apart.",
    "lesson_line": "Same averages, opposite sides. Which side it came from and which way it closed is the whole tell.",
    "facts": [
     "c28",
@@ -3170,7 +3294,7 @@
     "A downside crossback, a test": "A downside crossback is a rally that stalls under falling averages and is met with resistance. This closed up through them.",
     "An upside crossback, a test": "A crossback is a retest of the averages. This is the first close up through both."
    },
-   "simple": "Price coiled under both averages and then closed up through them. That is a Wedge Pop and not a drop.",
+   "simple": "Price coiled under both averages and then closed up through them, so it is a Wedge Pop. Where price rested tells them apart.",
    "deeper": {
     "trap": "A close through the averages is not enough to name the setup. Which side price came from decides it. Coiled under and closed up through both is the Pop. Stalled on or above and closed down through both is the Drop. Kell also warns the pop is not simply a cross, since price bars and volume matter."
    },
@@ -3184,7 +3308,7 @@
    "depends_on": [
     "D-078"
    ],
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q50",
@@ -3327,13 +3451,14 @@
     "Wait a few days, then buy it back"
    ],
    "answer": "Nothing; buy only on a new setup",
-   "why": "Nothing yet. A Wedge Drop reclaimed within a few sessions was a shakeout. Buy again only on a new setup, as a new trade with its own stop. Selling was still right: the drop is the last exit. Kell: once a stock tops, step aside and let the cycle reset before jumping back in.",
+   "why": "Nothing yet. A Wedge Drop reclaimed within a few sessions was a shakeout. Selling was still right, because the drop is the last exit for a long. In our scan, 38.2% of drops closed back above both averages within 3 sessions, so some shakeouts are normal. Kell: once a stock tops, step aside and let the cycle reset before jumping back in. Buy again only on a new setup, as a new trade with its own stop.",
    "lesson_line": "A shakeout is not a buy signal. The next setup is.",
    "facts": [
     "c22",
     "h25",
     "k09",
-    "y05"
+    "y05",
+    "n04"
    ],
    "house": true,
    "wrong": {
@@ -3341,7 +3466,7 @@
     "Short it; it will fail again": "It just reclaimed both averages. Shorting a reclaim is fighting strength with no setup.",
     "Wait a few days, then buy it back": "A clock is not a trigger. Buy again only when the setup triggers again, as a new trade with its own stop."
    },
-   "simple": "Do nothing yet. A reclaimed drop was a shakeout, but we buy again only on a new setup with its own stop.",
+   "simple": "Do nothing yet. Selling was right, and we buy again only when a new setup triggers, with its own stop.",
    "deeper": {
     "trap": "The hindsight trap is feeling that selling was a mistake because it reclaimed and ran. The rule did not change. Selling at the drop was the plan, and getting back in is a new decision with a new stop. Shorting the reclaim is the opposite error, fighting a stock that just took back both averages."
    },
@@ -3352,7 +3477,7 @@
      "a card rule built on the settled re-entry rule"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q54",
@@ -3363,29 +3488,31 @@
    "story": "The trigger day is the last bar. The stall breaks on a gap down and every other rule checks out. The fill is 90.85 and the stop over the high is 93.53, 3.0% away.",
    "q": "Take it?",
    "choices": [
-    "Yes; the stop fits the 3% line",
+    "Yes; 3.0% is a fair stop distance",
     "No; never short a gap down",
     "Yes, but pull the stop to 2%",
-    "No; 3.0% is not under 3%"
+    "No; any stop past 2% is a pass"
    ],
-   "answer": "Yes; the stop fits the 3% line",
-   "why": "Yes. The stop usually sits within about 3% of the fill, and this one sits right at it. Skip or size down only when the stop is more than about 3% away. Never pull it in. TSM 2022-06-09 was this trade: it opened under the prior low and closed under the stall low. It reached 6.4R at best, with 3R on day 9.",
-   "lesson_line": "Right at 3% is inside the line. Past it, size down or skip; never pull it in.",
+   "answer": "Yes; 3.0% is a fair stop distance",
+   "why": "Yes. We prefer stops 1 to 3% away, 3.5% is good, and up to 5% is acceptable, so 3.0% is fine. The stop sets the size: with the same risk, a wider stop buys fewer shares. Never pull the stop in to fit, because it then sits inside the day's range, where one more push up takes it. TSM on 2022-06-09 was this trade: it opened under the prior low and closed under the stall low. It reached 6.4R at best, with 3R on day 9.",
+   "lesson_line": "A 3% stop is fine. Up to 5% is acceptable, and never pull a stop in to fit.",
    "facts": [
     "h04",
     "c16",
     "d13",
-    "d14"
+    "d14",
+    "r52",
+    "r53"
    ],
    "house": true,
    "wrong": {
     "No; never short a gap down": "A gap down closing near its low is a fine trigger day. The question is only the stop's distance.",
     "Yes, but pull the stop to 2%": "Never pull the stop in to fit. It sits over the high or the trade is skipped.",
-    "No; 3.0% is not under 3%": "The line is about 3%, and skip applies only when the stop is more than about 3% away. This one is at the line, not past it."
+    "No; any stop past 2% is a pass": "Our preferred stop is 1 to 3% and up to 5% is acceptable, so 3.0% is not a pass."
    },
-   "simple": "Take it. The stop is about 3 percent away, which is right at the line and not past it.",
+   "simple": "Take it. 3.0% is inside the 5% we accept, and the stop sets the size, so a wider stop just means fewer shares.",
    "deeper": {
-    "trap": "The trap is the fix. If the stop were past the line, the answer would be to skip or size down. Never pull the stop in to make it fit. Here nothing needs fixing: the stop sits right at 3.0%, and about 3% is the line."
+    "trap": "The trap is the fix. If the stop were past 5%, we would mostly wait for a tighter trigger. We never pull the stop in to make it fit. Here nothing needs fixing: 3.0% is inside the 1 to 3% we prefer."
    },
    "tier": "expert",
    "risk": {
@@ -3394,7 +3521,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "TSM",
     "asof": "2022-06-09",
@@ -3422,7 +3549,7 @@
     "Add on a pop to the averages"
    ],
    "answer": "Hold; it is past the 1R bar",
-   "why": "Hold. The time stop closes a trade still under 1R after 10 trading days. This one is up 1.4R, so the time stop does not apply. The stop, the covers and the trail still run the trade.",
+   "why": "Hold. The time stop sells a trade still under 1R after 10 trading days, freeing the money for something better. This one is up 1.4R, so it has done something and the time stop does not apply. The stop, the covers and the trail still run the trade.",
    "lesson_line": "Under 1R after ten days, out. Past 1R, the other rules run the trade.",
    "facts": [
     "h14",
@@ -3435,7 +3562,7 @@
     "Cover; it has stopped moving": "Drifting alone is not the rule. Under 1R after 10 sessions is.",
     "Add on a pop to the averages": "No adding. Full size at one price with one stop."
    },
-   "simple": "Hold. The time stop is only for a trade still under 1R after 10 sessions, and this one is past 1R.",
+   "simple": "Hold. The time stop frees money from trades that have done nothing, and this one is up 1.4R.",
    "deeper": {
     "trap": "Reading the rule as 'ten days and out' is the slip. The bar is 1R of profit, and 1.4R clears it."
    },
@@ -3446,7 +3573,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q56",
@@ -3463,11 +3590,12 @@
     "No; earnings only blocks longs"
    ],
    "answer": "No; the reaction day is allowed",
-   "why": "No. The rule is no new short in the 3 sessions BEFORE a report. A Wedge Drop that is the earnings reaction itself is allowed, after the report. The report here came last night, so the sessions before it are over.",
+   "why": "No. The rule is no new short in the 3 sessions before a report. The reason is the overnight gap, which a stop cannot catch. Once the report is out that risk is over, so a Wedge Drop that is the earnings reaction itself is allowed. The report here came last night, so the sessions before it are over.",
    "lesson_line": "Before the report, wait. The reaction day can be the drop.",
    "facts": [
     "c24",
-    "h08"
+    "h08",
+    "n01"
    ],
    "house": true,
    "wrong": {
@@ -3475,7 +3603,7 @@
     "Yes; wait 3 sessions post-report": "There is no waiting period after a report. The gap through the averages is the trigger.",
     "No; earnings only blocks longs": "The 3-session rule covers new shorts too. It is the report being over that frees this one."
    },
-   "simple": "No. The rule only bars new shorts in the 3 sessions before a report, and this drop is the reaction day after it.",
+   "simple": "No. The rule guards against the gap before a report, and this report is already out.",
    "deeper": {
     "trap": "There are two ways to get this wrong. One is shorting in the 3 sessions before the report, which the rule bars. The other is treating the reaction day as blocked too. The rule counts the 3 sessions before a report, not the days after it. The other gates still apply, so the drop still needs its stall and its close under both averages."
    },
@@ -3486,7 +3614,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q57",
@@ -3494,7 +3622,7 @@
    "rung": 8,
    "format": "mcq",
    "criterion": "wd.weak_group",
-   "q": "By our card, which RS rating fits a Wedge Drop short?",
+   "q": "By our rules, which RS rating fits a Wedge Drop short?",
    "choices": [
     "20 or less, in a weak group",
     "80 or more, strong group",
@@ -3502,13 +3630,15 @@
     "50 or less, weak group"
    ],
    "answer": "20 or less, in a weak group",
-   "why": "20 or less, in a weak group. Shorts are the mirror of buying leaders: the weakest stocks, an RS rating of 20 or less, in the weakest groups. The card asks the same: RS rating 20 or less, in a weak group. In our own words, we are extremely picky with shorts.",
+   "why": "20 or less, in a weak group. Shorts are the mirror of buying leaders: the weakest stocks, an RS rating of 20 or less, in the weakest groups. An RS rating of 20 or less means the stock lags the market. Shorting a leader at its highs is a named mistake, because strong stocks keep going and the stop is taken. In our own words, we are extremely picky with shorts.",
    "lesson_line": "Short the weakest in the weakest groups. The mirror of buying leaders.",
    "facts": [
     "h13",
     "c46",
     "u02",
-    "h10"
+    "h10",
+    "c32",
+    "c45"
    ],
    "house": true,
    "wrong": {
@@ -3516,7 +3646,7 @@
     "Any rating; chart decides": "The chart is one gate. Weakness is another.",
     "50 or less, weak group": "The line is 20 or less, not 50."
    },
-   "simple": "We short the weakest stocks, an RS rating of 20 or less, in the weakest groups. It is the mirror of buying leaders.",
+   "simple": "Shorts mirror buying leaders: the weakest stocks in the weakest groups, because strong stocks keep going and take the stop.",
    "deeper": {
     "trap": "RS of 20 or less is a gate, not a trigger. The stock also needs the 200-day, the market reading, the stall and the close through the averages. We are extremely picky: one or two shorts per cycle."
    },
@@ -3527,7 +3657,7 @@
      "+2 rests on the owner's rulebook (C31, the short mirror)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q58",
@@ -3535,7 +3665,7 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "wd.no_chase",
-   "story": "The trigger level was 64.63. You missed the close. Next morning the stock opens at 61.50.",
+   "story": "The trigger level was 64.63. You were away from the screen when it broke. Next morning the stock opens at 61.50.",
    "q": "Short at the open?",
    "choices": [
     "No; over 4% under the trigger",
@@ -3544,24 +3674,24 @@
     "No; never short at the open"
    ],
    "answer": "No; over 4% under the trigger",
-   "why": "No. 61.50 is more than 4% under 64.63, and no short goes more than 4% under the trigger level. Chasing costs size: the stop stays over the high, so the distance grows and the shares shrink.",
-   "lesson_line": "Four percent under the trigger and I am done. The next stall will come.",
+   "why": "No. 61.50 is more than 4% under 64.63, and we do not chase a short that far past the trigger. Chasing costs size, not risk: the stop stays over the high, so the distance grows and the shares shrink. Wait for the next setup.",
+   "lesson_line": "More than 4% under the trigger, we do not chase the open. Wait for the next setup.",
    "facts": [
     "c56",
     "h11",
     "h16",
     "h03",
-    "c14"
+    "n16"
    ],
    "house": true,
    "wrong": {
     "Yes; the drop is now confirmed": "Confirmed and too far away are both true. The chase line is 4%.",
     "Yes, at half the usual size": "Half of a chased entry is still a chased entry.",
-    "No; never short at the open": "The card allows a market order at the next open. The 4% line is what blocks this one."
+    "No; never short at the open": "Opening under the trigger is still trading through it, so the open is allowed. The 4% line is what blocks this one."
    },
-   "simple": "No. The open is already more than 4 percent under the trigger level, so we do not chase it.",
+   "simple": "No. The open is already more than 4 percent under the trigger, so a short chases the move and shrinks the size.",
    "deeper": {
-    "trap": "The 4% line is measured from the trigger level, not from where you wish you had filled. Missing the close does not open a wider window. A later short needs a new stall and a new close under both averages."
+    "trap": "The 4% line is measured from the trigger level, not from where you wish you had filled. Being away from the screen does not open a wider window. A later short needs a new stall and a new close under both averages."
    },
    "tier": "expert",
    "risk": {
@@ -3571,7 +3701,7 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q59",
@@ -3579,17 +3709,17 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "wd.market",
-   "story": "The reading is Red. A stock under its falling 200-day bounces into its 50-day, makes a lower high, stalls five days and closes under both averages.",
+   "story": "The app's market filter reads Red, its weakest reading. We hold mostly cash plus shorts below the 200-day. A stock under its falling 200-day bounces into its 50-day, makes a lower high, stalls five days and closes under both averages.",
    "q": "What is it by our rules?",
    "choices": [
-    "A candidate; the gates come next",
+    "A candidate; more checks come next",
     "A short now; Red means shorts",
     "A candidate, but Red blocks it",
     "A sell signal for longs, no short"
    ],
-   "answer": "A candidate; the gates come next",
-   "why": "A short candidate. The reading is Red, which is mostly cash plus shorts below the 200-day. The stock is under a falling 200-day, bounced into the 50-day and made a lower high. That is the top the card grades highest. Our own frame is a decent pop back up, rejected at the 50-day or 20-day EMA. The stall is five days, inside 3 to 10.",
-   "lesson_line": "Red market, under the 200-day, a pop that fails at the 50-day: a short candidate. Then check the gates.",
+   "answer": "A candidate; more checks come next",
+   "why": "A short candidate. The filter reads Red, which is mostly cash plus shorts below the 200-day. The stock is under a falling 200-day, bounced into the 50-day and made a lower high. That is our own frame: a decent pop back up, rejected at the 50-day or 20-day. In our scan this was the one place the drop separated from the base rate. A candidate is not a trade: the stop, the borrow, the report window and the RS rating still have to pass.",
+   "lesson_line": "Red market, under the 200-day, a pop that fails at the 50-day: a short candidate. Then run the other checks.",
    "facts": [
     "h15",
     "u01",
@@ -3599,17 +3729,17 @@
     "c24",
     "c46",
     "h17",
-    "c08"
+    "n03"
    ],
    "house": true,
    "wrong": {
     "A sell signal for longs, no short": "Above the 200-day it would be. Under a falling 200-day in a Red market it can be the short.",
-    "A short now; Red means shorts": "Red and the 200-day are two gates. The stop, the borrow, the report window and the RS rating still have to pass.",
+    "A short now; Red means shorts": "Red and the 200-day are two checks. The stop, the borrow, the report window and the RS rating still have to pass.",
     "A candidate, but Red blocks it": "Red does not block it. Red is mostly cash, plus shorts below the 200-day, and this stock is under it."
    },
-   "simple": "It is a short candidate. The market is Red, the stock is under its 200-day, and the bounce failed at the 50-day.",
+   "simple": "A candidate. Red and a stock under its 200-day allow shorts, but the stop, borrow and report checks come next.",
    "deeper": {
-    "trap": "A candidate is not a trade yet. The stop must fit within about 3%. The stock must be easy to borrow. No report may fall in the next 3 sessions, and the RS rating should be 20 or less. Fail one, and it is a skip."
+    "trap": "A candidate is not a trade yet. The stop must be close enough to fit our stop rules. The stock must be easy to borrow. No report may fall in the next 3 sessions, and the RS rating should be 20 or less. Fail one, and it is a skip."
    },
    "tier": "expert",
    "risk": {
@@ -3619,7 +3749,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q60",
@@ -3636,7 +3766,7 @@
     "Through trigger; stop 133.00; day 3+"
    ],
    "answer": "Through trigger; stop 134.79; day 3+",
-   "why": "Short as price trades through the trigger, stop 134.79, first cover on day 3 or later. Shorts enter like buys, never at the close. The stop is a few cents over the day's high of 134.76, about 2.7% from 131.23, inside the 3%. We very rarely sell on day 1 and usually wait until day 3 at the earliest. Measured from the 131.23 close, GS reached 3R on day 4.",
+   "why": "Short as price trades through the trigger, stop 134.79, first cover on day 3 or later. Shorts enter like buys, never at the close. The stop is a few cents over the day's high of 134.76, the nearest place the idea is wrong. It is about 2.7% from 131.23, inside the 3% we prefer. We very rarely sell on day 1 and usually wait until day 3, selling into strength. Measured from the 131.23 close, GS reached 3R on day 4.",
    "lesson_line": "Entry, stop, cover, trail. Write it before it triggers; execute it without a debate.",
    "facts": [
     "g1",
@@ -3647,7 +3777,8 @@
     "c47",
     "c16",
     "r54",
-    "r55"
+    "r55",
+    "n09"
    ],
    "house": true,
    "wrong": {
@@ -3655,7 +3786,7 @@
     "At the close; stop 134.79; day 3+": "Shorts enter like buys, as price trades through the trigger. Never at the close.",
     "Through trigger; stop 133.00; day 3+": "A stop at 133.00 sits inside the day's range, under the high of 134.76."
    },
-   "simple": "Short through the trigger, stop a few cents over the day's high, first cover on day 3 or later.",
+   "simple": "Short through the trigger, stop a few cents over the day's high where the idea fails, first cover into strength from day 3.",
    "deeper": {
     "example": "GS, 2011-08-02: the bounce died at the falling 50-day, then a four-day stall, then a close at 131.23. The stop at 134.79 was about 2.7% away. Measured from that close, 3R came on day 4. At best it reached 13.2R, a high-water mark on a fixed stop, not a result to bank."
    },
@@ -3667,7 +3798,7 @@
      "the short entry on the close is not covered by D-003"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "GS",
     "asof": "2011-08-02",
@@ -3681,16 +3812,16 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "wd.index_signal",
-   "story": "Hidden index fund, the trigger day is the last bar, a Friday. The Nasdaq closed under both its averages, the big AI names leading it lower. You hold six longs.",
+   "story": "The chart is an index fund with its name hidden. The trigger day is the last bar, a Friday. The Nasdaq closed under both its averages, the big AI names leading it lower. You hold six longs.",
    "q": "What does the index's Wedge Drop tell you?",
    "choices": [
-    "Cut longs; the market is weak",
+    "Get defensive; trim some longs",
     "Buy the dip in the big leaders",
     "Nothing; only single stocks matter",
     "Hold; wait for the 200-day to break"
    ],
-   "answer": "Cut longs; the market is weak",
-   "why": "Cut long exposure. The index's own Wedge Drop is a reason to cut exposure in any market. It is a warning that the market as a whole is weakening. Kell: ideally any long positions have been closed at the Wedge Drop. Bracco called the Nasdaq's drop the start of another leg down. On this chart the index was back over both averages within a week, so the warning was short. The rule is about cutting exposure, not about calling the next leg.",
+   "answer": "Get defensive; trim some longs",
+   "why": "Get defensive and trim longs. TraderLion: when an index forms a Wedge Drop, it is a warning that the market as a whole is weakening. Kell: ideally any long positions have been closed at the Wedge Drop. A weak market is a headwind for every long you hold. The job is to cut exposure, not to call the next leg.",
    "lesson_line": "When the index wedge drops, your longs are on notice. Reduce first, ask later.",
    "facts": [
     "c26",
@@ -3703,12 +3834,12 @@
    "house": true,
    "wrong": {
     "Buy the dip in the big leaders": "Leaders falling through their averages is a sign to get defensive, not to buy.",
-    "Nothing; only single stocks matter": "Kell names the S&P 500 and the Nasdaq. The index's drop is the warning for every long.",
-    "Hold; wait for the 200-day to break": "The card cuts long exposure on the index's own drop, in any market. It does not wait for the 200-day."
+    "Nothing; only single stocks matter": "TraderLion names the S&P 500 and the Nasdaq. The index's drop is the warning for every long.",
+    "Hold; wait for the 200-day to break": "The index's own drop is the warning. The 200-day is a separate gate for shorts."
    },
-   "simple": "Cut long exposure. An index Wedge Drop warns that the whole market is weakening, whatever your stocks look like.",
+   "simple": "Get defensive. An index drop warns that the whole market is weakening, and every long you hold feels that.",
    "deeper": {
-    "trap": "Buying the dip treats the drop as a pullback inside a trend. Kell read an index drop as confirmation of a deeper pullback. Waiting for the 200-day treats it as a stock rule. The card cuts on the index's own drop, in any market."
+    "trap": "Buying the dip treats the drop as a pullback inside a trend. Kell read an index drop as confirmation of a deeper pullback. Waiting for the 200-day treats it as a stock rule. TraderLion reads an index drop as a warning for the whole market."
    },
    "tier": "expert",
    "risk": {
@@ -3717,7 +3848,7 @@
      "a card rule, proposed"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "QQQ",
     "asof": "2025-12-12",
@@ -3784,13 +3915,14 @@
     "Yes; a close under the 50-day is enough"
    ],
    "answer": "Yes; the close is under the 200-day",
-   "why": "Yes. On the 200-day test alone, a short is allowed because the trigger-day close is under the 200-day. DXCM on 2026-03-05 closed 3.9% under it. The bounce topped where the 50-day meets the flat 200-day, then a seven-day stall. The stop sat right at the 3% limit. It ran 6.7R at best, with 3R on day 6. The other gates still have to pass.",
+   "why": "Yes. On the 200-day test alone, a short is allowed because the trigger-day close is under the 200-day. DXCM on 2026-03-05 closed 3.9% under it. We short only under the 200-day. Our scan found an edge only for a stock under its 200-day in a market under its 50-day. The bounce topped where the 50-day meets the flat 200-day, then a seven-day stall. The stop sat right at 3.0%. It ran 6.7R at best, with 3R on day 6. The other gates still have to pass.",
    "lesson_line": "Under the 200-day, a pop that failed at the 50-day, a tight stall: the short is allowed. Then check the rest.",
    "facts": [
     "c02",
     "h10",
     "d19",
-    "d20"
+    "d20",
+    "n03"
    ],
    "house": true,
    "wrong": {
@@ -3804,7 +3936,7 @@
     "window": 120,
     "forward": 40
    },
-   "simple": "Yes. The close is under the 200-day, so a short passes that test, but the other rules still apply.",
+   "simple": "Yes. We short only under the 200-day, where the bigger trend points down, and this close is under it.",
    "deeper": {
     "example": "DXCM, 2026-03-05: short 70.69, stop 72.79, which is 3.0% away. 3R came on day 6 and it reached 6.7R at best. That is a high-water mark on a fixed stop, not a result to bank."
    },
@@ -3816,7 +3948,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "visuals-2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q64",
@@ -3829,23 +3961,23 @@
     "Pass; it sits above the 200-day",
     "Take it; both averages are lost",
     "Take it, but at half the size",
-    "Pass; a stall must run 10 sessions"
+    "Pass; the drop needs heavy volume"
    ],
    "answer": "Pass; it sits above the 200-day",
-   "why": "Pass. The close is 8.3% above the 200-day, and shorts are only taken below it. Above it the same event is a sell signal for a long in an uptrend, not a short. The short here ran 0.93R and was stopped. Check the 200-day before the averages.",
+   "why": "Pass. The close is 8.3% above the 200-day, and we short only below it. Above it, the same event is a sell signal for a long, not a short. Shorting above the 200-day fights the bigger trend. The short here ran 0.93R and was stopped. Check the 200-day before the averages.",
    "lesson_line": "The averages said drop; the 200-day said no short. The 200-day wins.",
    "facts": [
     "c02",
     "c01",
     "d29",
     "h10",
-    "c08"
+    "n03"
    ],
    "house": true,
    "wrong": {
     "Take it; both averages are lost": "The close through the averages is the event. The 200-day is the gate, and the close is above it.",
     "Take it, but at half the size": "Size does not fix a failed gate. Above the 200-day this is a sell signal for a long, not a short.",
-    "Pass; a stall must run 10 sessions": "The card's stall is 3 to 10 sessions, not a fixed 10. The reason to pass here is the 200-day."
+    "Pass; the drop needs heavy volume": "Volume only raises the grade and is not a requirement. The reason to pass here is the 200-day."
    },
    "chart": {
     "sym": "V",
@@ -3853,7 +3985,7 @@
     "window": 120,
     "forward": 30
    },
-   "simple": "Pass. The close is above the 200-day, so this is a sell signal for a long holder and not a short.",
+   "simple": "Pass. Shorting above the 200-day fights the bigger trend, so here the drop only tells a long holder to sell.",
    "deeper": {
     "trap": "The averages are the event and the 200-day is the gate. A clean stall and a close under both averages look the same, above the 200-day or under it. One line tells them apart."
    },
@@ -3864,7 +3996,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "visuals-2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q65",
@@ -3872,22 +4004,24 @@
    "rung": 9,
    "format": "tf",
    "criterion": "wd.stop_not_wide_level",
-   "q": "A stop at the top of a wide stall is acceptable when it sits within about 3% of the entry.",
+   "q": "A stop over the top of a wide stall is acceptable if it sits within about 5% of the entry.",
    "answer": "True",
-   "why": "True. The card's stop is a few cents over the trigger day's high. It is not the top of a wide stall, unless that fits about 3%. A stop more than about 3% away means skip or take the smaller size the rules give. Never pull it in. TraderLion's page asks for tight stops on this short.",
-   "lesson_line": "The stall top is a level, not the default stop. It works only inside the 3% line.",
+   "why": "True. The day's high is the main stop for a short. The pattern's high or a line plus a cushion are acceptable too. We prefer 1 to 3% away and accept up to 5%. The distance matters because the stop sets the size: a wider stop buys fewer shares for the same risk. Past 5%, we mostly wait for a tighter trigger. TraderLion's page asks for tight stops on this short.",
+   "lesson_line": "The stall top is an acceptable stop only inside our stop distance. Past 5%, wait for a tighter trigger.",
    "facts": [
     "c17",
     "c16",
     "c47",
     "h04",
     "t11",
-    "c12"
+    "r52",
+    "r53",
+    "n13"
    ],
    "house": true,
-   "simple": "True. The top of a wide stall works as the stop only when it sits within about 3% of the entry.",
+   "simple": "True. A stop over the stall top is fine if it stays within about 5%, because a wider stop just buys fewer shares.",
    "deeper": {
-    "counter": "A wide stall is not a ban. The card grades wide, loose action down, not out. But the stop is a separate test. A stall top more than about 3% away fails it, so the trade is skipped or sized down."
+    "counter": "A wide stall is not a ban. Wide, loose action grades lower, not out. But the stop is a separate test. A stall top more than 5% away is past what we accept, so we mostly wait for a tighter trigger."
    },
    "tier": "expert",
    "risk": {
@@ -3896,7 +4030,7 @@
      "rests on the owner's rulebook"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q66",
@@ -3906,16 +4040,15 @@
    "criterion": "wd.stall_length",
    "q": "A Wedge Drop usually takes months to form, like the classical rising wedge.",
    "answer": "False",
-   "why": "False. ChartSchool says the classical rising wedge usually forms over a three to six month period. Our Wedge Drop is a stall of 3 to 10 sessions tight into the moving averages, then one close down through them. They share a name, not a time scale.",
+   "why": "False. ChartSchool says the classical rising wedge usually forms over a three to six month period. Our Wedge Drop is different: price rests a few days tight on its moving averages, then falls through them. They share a name, not a time scale, so a search for rising wedge patterns will show you the wrong setup.",
    "lesson_line": "Same name, different time scale. Ours is days on the averages, not months of trendlines.",
    "facts": [
     "r01",
     "r02",
-    "c08",
     "y01"
    ],
    "house": true,
-   "simple": "False. The classical rising wedge takes months, while a Wedge Drop is a few days resting on the averages, then one close.",
+   "simple": "False. The classical rising wedge takes months, while a Wedge Drop is a few quiet days on the averages and then a fall.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -3923,7 +4056,7 @@
      "the stall length is a proposed card number"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q67",
@@ -3931,27 +4064,28 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "wd.market",
-   "q": "Which market reading means mostly cash, plus shorts?",
+   "q": "The app's market filter reads Red. What does that let the account do?",
    "choices": [
-    "Red",
-    "Orange",
-    "Yellow",
-    "Green"
+    "Mostly cash, plus shorts below the 200",
+    "Full risk and up to 10 longs",
+    "Smaller size and fewer positions",
+    "Only A+ setups, nothing lower"
    ],
-   "answer": "Red",
-   "why": "Red. In a Red market we hold mostly cash, plus shorts below the 200-day. Green is full risk, up to 10 positions. Yellow is smaller and fewer. Orange is only A+ setups.",
+   "answer": "Mostly cash, plus shorts below the 200",
+   "why": "Mostly cash, plus shorts below the 200-day. The market filter is the app's reading of the market, Green, Yellow, Orange or Red. It is a guide for how much the account trades. Green is full risk and up to 10 positions. Yellow is smaller and fewer. Orange is only A+ setups. Red is mostly cash plus shorts. In our scan of Wedge Drop shorts, the edge showed up only in a market under its 50-day.",
    "lesson_line": "Green is full risk, Yellow smaller, Orange only A+, Red mostly cash and shorts.",
    "facts": [
     "h24",
-    "h15"
+    "h15",
+    "n03"
    ],
    "house": true,
    "wrong": {
-    "Orange": "Orange is only A+ setups, not mostly cash.",
-    "Yellow": "Yellow is smaller size and fewer positions.",
-    "Green": "Green is full risk and up to 10 positions."
+    "Full risk and up to 10 longs": "That is Green: full risk per grade and up to 10 positions.",
+    "Smaller size and fewer positions": "That is Yellow: smaller and fewer.",
+    "Only A+ setups, nothing lower": "That is Orange: only A+ setups, our top grade, the cleanest in our judgment."
    },
-   "simple": "Red is mostly cash, plus shorts below the 200-day. Green is full risk, Yellow smaller and fewer, Orange only A+.",
+   "simple": "Red means mostly cash, plus shorts below the 200-day. The filter makes the account trade less when the market is weak.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -3959,7 +4093,7 @@
      "+2 rests on the owner's rulebook (F65 and D46)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q68",
@@ -3967,17 +4101,18 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "wd.not_new_bull",
-   "q": "Which of these does our card say not to short?",
+   "q": "Which of these shorts does TraderLion's Kell page warn against?",
    "choices": [
     "A stock early in a new bull market",
     "A stock under a falling 200-day",
     "A bounce that fails at the 50-day",
-    "A weak stock in a Red market"
+    "A weak stock when the filter reads Red"
    ],
    "answer": "A stock early in a new bull market",
-   "why": "A stock early in a new bull market. The card says not to short early in a new bull market, in a strongly uptrending stock, or late in the fall. The bounce keeps going and the stop over the high is taken at once. A falling 200-day, a lower-high top and a Red market are what the card likes.",
+   "why": "A stock early in a new bull market. TraderLion: it is best to avoid shorting early in new bull markets or strong uptrending stocks. The bounce keeps going and the stop over the high is taken at once. A stock under a falling 200-day, a lower-high top and a weak market are what we look for.",
    "lesson_line": "Do not short early in a new bull market. The bounce keeps going and the stop is taken at once.",
    "facts": [
+    "t07",
     "c23",
     "c45",
     "c03",
@@ -3986,11 +4121,11 @@
    ],
    "house": true,
    "wrong": {
-    "A stock under a falling 200-day": "The card prefers a falling 200-day. That is a point for the short.",
-    "A bounce that fails at the 50-day": "That is the lower-high top the card grades highest.",
-    "A weak stock in a Red market": "Red is mostly cash, plus shorts below the 200-day."
+    "A stock under a falling 200-day": "That fits our frame for shorts: below the 200-day.",
+    "A bounce that fails at the 50-day": "That is the pop and rejection we want for a short.",
+    "A weak stock when the filter reads Red": "Red is mostly cash plus shorts below the 200-day. A weak stock fits."
    },
-   "simple": "The card says not to short early in a new bull market. The bounce keeps going and the stop is taken at once.",
+   "simple": "Avoid shorting early in a new bull market, because the bounce keeps going and the stop is taken at once.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3998,7 +4133,7 @@
      "+2 rests on the card's proposed criteria (wd.not_new_bull, not yet settled)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q75",
@@ -4015,7 +4150,7 @@
     "Skip it; a post is no source of ideas"
    ],
    "answer": "A lead; my own entry, stop and size",
-   "why": "A lead, not a plan. Our rule: never take a trade from an alert, a post or a video. You need your own entry, stop and size by these rules first. Kell hedged his own post: it might just be an avoid. On this chart the short lost its stop and the stock ran up over the following weeks.",
+   "why": "A lead, not a plan. Our rule: never take a trade from an alert, a post or a video without your own entry, stop and size. A post cannot know your stop, and the size comes from your stop. Kell hedged his own post: it might just be an avoid. On this chart the short lost its stop and the stock ran up over the following weeks.",
    "lesson_line": "A post is a lead, never a plan. Your own entry, stop and size come first.",
    "facts": [
     "k06",
@@ -4028,7 +4163,7 @@
     "A plan; short it first, set a stop": "Stop first: the stop is set before the trade and the size comes from the stop, not after.",
     "Skip it; a post is no source of ideas": "A post can start your look. The rule is only that the trade needs your own entry, stop and size first."
    },
-   "simple": "Treat the post as a lead only. Build your own entry, stop and size by our rules before any trade.",
+   "simple": "A post is only a lead. The size comes from your own stop, and a post cannot give you that.",
    "deeper": {
     "trap": "A price level in a post is one line of a plan. Even the writer hedged it. The stop and the size are still yours to work out, and the stop comes first."
    },
@@ -4040,7 +4175,7 @@
      "replaces the cut q62"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "TSLA",
     "asof": "2023-05-12",
@@ -4062,7 +4197,7 @@
     "Yes, a poke shows buyers are back"
    ],
    "answer": "No, the close under it keeps you in",
-   "why": "No. The trail is the 9 EMA for a fast mover or the 20 EMA for a steadier one. We cover what is left on a close back above it, not on a touch. Here the stock closed under the line, so the short stays on. A rally that stalls under the falling averages is a place to hold.",
+   "why": "No. The trail is the 9 EMA for a fast mover or the 20 EMA for a steadier one. We cover what is left on a close back above it, not on a touch. A poke that fades by the close is noise, and reacting to every poke would shake you out of a working short. Here the stock closed under the line, so the short stays on.",
    "lesson_line": "Cover on the close back above the line, not on the poke.",
    "facts": [
     "h19",
@@ -4076,7 +4211,7 @@
     "Yes, cover half and trail the rest": "What is left comes off in one piece on a close back above the line. A poke that fades by the close changes nothing.",
     "Yes, a poke shows buyers are back": "A poke is not buyers taking over. A rally that stalls under the falling averages is a place to hold."
    },
-   "simple": "No. We cover what is left only on a close back above the trail line, not on an intraday poke.",
+   "simple": "No. We cover only on a close back above the trail line, because a poke that fades is noise.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -4085,7 +4220,106 @@
     ]
    },
    "house": true,
-   "batch": "sweep-2026-11-14"
+   "batch": "owner-review-7-2026-11-16"
+  },
+  {
+   "skill": "setup.wedge_drop",
+   "tier": "core",
+   "key": "q98",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "wd.role",
+   "q": "We recommend short setups only to traders who have already made $1 million trading.",
+   "answer": "True",
+   "why": "True. Shorts need tight stops and carry rising volatility as a stock falls. TraderLion calls the Wedge Drop short a play for more aggressive traders. Kell hedged his own short post: it might just be an avoid. So we recommend shorting only to traders who have already made $1 million trading. Everyone else can use the Wedge Drop as the sell signal for a long.",
+   "lesson_line": "Shorting is for traders who have already made $1 million. Everyone can use the drop as a sell signal.",
+   "simple": "True. Shorts are riskier and need tight stops, so we recommend them only to traders who have already made $1 million.",
+   "facts": [
+    "t10",
+    "t11",
+    "k06",
+    "n10"
+   ],
+   "batch": "owner-review-7-2026-11-16"
+  },
+  {
+   "skill": "setup.wedge_drop",
+   "tier": "extended",
+   "key": "q99",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "wd.trigger_close",
+   "q": "What do we do now?",
+   "story": "The chart ends on a quiet day in a six-day rest on the averages. Price has not fallen through them yet.",
+   "chart": {
+    "sym": "EXP",
+    "asof": "2015-09-17",
+    "window": 120,
+    "forward": 15
+   },
+   "choices": [
+    "Wait until it falls through them",
+    "Short now; the top is already in",
+    "Short now, stop over the stall high",
+    "Buy it; a quiet rest means strength"
+   ],
+   "answer": "Wait until it falls through them",
+   "why": "Wait until it falls through them. Kell: the Wedge Drop confirms the reversal when price falls through the moving averages with an influx of sellers. Until then it is only a rest. Shorting inside the rest is early, and one more push up can take the stop. We short as price trades down through the trigger, never before it. The chart is EXP, a six-day rest with the averages flattening.",
+   "lesson_line": "A rest is only a rest. Short as price falls through the averages, not before.",
+   "simple": "Wait until it falls through the averages. A rest is only a rest, and the fall is what shows sellers have taken over.",
+   "wrong": {
+    "Short now; the top is already in": "A rest is not a drop. Shorting inside the rest is early, and one more push up takes the stop.",
+    "Short now, stop over the stall high": "Same mistake with a stop. Until price falls through the averages, buyers have not given up.",
+    "Buy it; a quiet rest means strength": "A quiet rest is not strength. Kell: price trades tight into the averages because there are fewer new buyers. We buy on a trigger, not a pause."
+   },
+   "facts": [
+    "y02",
+    "v02",
+    "g1",
+    "d10",
+    "y01"
+   ],
+   "batch": "owner-review-7-2026-11-16"
+  },
+  {
+   "skill": "setup.wedge_drop",
+   "tier": "extended",
+   "key": "q100",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "wd.trigger_volume",
+   "q": "Does the light volume void the setup?",
+   "story": "The chart ends on the drop day. The stall was tight, and the drop came on light holiday volume, 0.4 times the usual. Everything else checks out. Our grade is our judgment of how clean a setup is, and it sets the size.",
+   "chart": {
+    "sym": "GEN",
+    "asof": "2025-12-31",
+    "window": 120,
+    "forward": 20
+   },
+   "choices": [
+    "No; heavy volume only adds to the grade",
+    "Yes; a drop needs heavy volume to count",
+    "Yes; light volume means no sellers came",
+    "No; but we halve the size"
+   ],
+   "answer": "No; heavy volume only adds to the grade",
+   "why": "No. Volume raises the grade, but it is not a requirement for the setup to count. Kell calls the drop an influx of sellers, and the fall under both averages and the stall low is what shows it. In our scan, heavy volume raised the win rate but not the average R. GEN dropped on 0.4 times the usual volume in a holiday week and went on to reach 18.0R at best.",
+   "lesson_line": "Heavy volume lifts the grade. A drop on light volume still counts.",
+   "simple": "No. Heavy volume only adds to the grade, so a drop on light volume still counts as a Wedge Drop.",
+   "wrong": {
+    "Yes; a drop needs heavy volume to count": "Volume raises the grade. It is not a requirement for the setup to count.",
+    "Yes; light volume means no sellers came": "The fall under both averages and the stall low is what shows sellers took over. Volume raises the grade, but it is not a requirement.",
+    "No; but we halve the size": "We have no halving rule for light volume. Volume only raises the grade, so a light drop just earns no lift."
+   },
+   "facts": [
+    "t05",
+    "v02",
+    "n11",
+    "n05",
+    "d17",
+    "d18"
+   ],
+   "batch": "owner-review-7-2026-11-16"
   }
  ],
  "conflicts": [
@@ -4110,19 +4344,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "META 2021-09-17 (dossier 8.11 A#1, TraderLion). Bars: close 364.72 under 9 EMA 373.36 and 20 EMA 372.09, prior close 373.06 was over the 20 EMA; trigger day is last bar; close well over the 200 SMA (311.77) so the 200-day choice is visibly false. No numbers in text; ticker only in why."
+   "notes": "META 2021-09-17 verified (close 364.72 under 10 EMA 373.48 and 20 EMA 372.09). Label, reason and wrong notes ok."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "True per c01, c02, h10 and B26. 'Never a short' is fine because a Wedge Drop is not the parabolic exception. Why adds the other gates."
+   "fixed": true,
+   "notes": "Simple line said the scan found an edge 'only under the 200-day'; n03 adds a market under its 50-day. Corrected."
   },
   "q03": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from y01/t02; t03 caveat is in the why; no second answer."
+   "notes": "AAPL 2023-08-03 is in the dossier table (row 2) and closes under both EMAs (191.17 vs 193.46 and 192.38) after a July sideways rest. Shape shown. ok."
   },
   "q04": {
    "status": "cut",
@@ -4134,25 +4368,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False rests on d33 (second short needs a new stall and a new close under both) and h25 (new trigger, new trade). Does not hand over q21 on the stem; q21's why repeats it only after answering."
+   "notes": "Reason given (a failed drop shows buyers can win the averages back); d33, B21. ok."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "CAT 2018-10-09 (card winners #6, dossier 13 row 6). Bars: close 149.46 under 9 EMA 153.07 and 20 EMA 151.24, prior close over both. Default stop (a few cents over the trigger day's high) is the key; the dossier's 153.69 uses the 2-day high which the why already allows. No numbers in text."
+   "notes": "CAT 2018-10-09 closes under both EMAs and the 200-day. Stop band D-005/D-008 quoted. ok."
   },
   "q07": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q08": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "QQQ 2022-06-09 (dossier 8.11 C#12). Bars: close 299.40 under 9 EMA 304.83 and 20 EMA 305.24, prior close 307.64 over both; QQQ -17% under 200 SMA; forward lows reach 269.28 (6/16), well under the trigger close, as the why says (lower high at 6/2 then drop). No numbers in text."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q09": {
    "status": "cut",
@@ -4161,10 +4395,10 @@
    "notes": "cut in fills: see the resolver's notes"
   },
   "q10": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "c04 gives 8 of 10; fixed-order ladder, key not an extreme; card number stated as the card's proposal."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q11": {
    "status": "cut",
@@ -4174,63 +4408,63 @@
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "B23, example is the spotting-the-rule kind. ok."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "k09/x01/t04/c27 support; distractors are Kell's own terms; no second answer."
+   "notes": "Kell k09, TraderLion t04; reason given. ok."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True per h08 and c24. Why discloses days versus sessions; owner flag stands. Does not pre-teach the reaction-day exception."
+   "notes": "B22 mirrored; reaction day is allowed per card c24 (settled). ok."
   },
   "q15": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "agrees with rulings"
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "WHR 2002-08-28 is the right day (day before the 08-29 trigger) and the example fits. But the writer's 'bounces into its FALLING 20 EMA' is false on the bars: the 20 EMA was rising on 8/22 (55.67) and 8/28 (56.04) after turning up in mid-August. What IS true: the bounce top 59.10 (8/22) sat just under the falling 50 SMA (59.39, down from 72 in June) and under the 60-session high 70.70. Restored the original 'falling 50-day' wording in story and deeper. The four-day stall 8/23-8/28 and the close under both averages on 8/29 check."
+   "fixed": false,
+   "notes": "WHR 2002-08-28 is the day before the 08-29 trigger; bounce into the falling 50-day, lower high. u01 quoted. ok."
   },
   "q17": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Blind answer False: a Wedge Drop needs the tight rest on the averages first (Kell y01, TraderLion t02); a bounce still making highs has not rested. No number tested, so rule 22 ok. Reason given (buyers still in charge). Stem is a little thin on timing, but a second answer True needs a close under both averages with no rest, which the sources call an extension break, not the drop."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "agrees with rulings"
+   "fixed": true,
+   "notes": "House fidelity: the why borrowed Bracco's 9 EMA magnet (a claim about the parabolic short, a stock stretched ABOVE the average, u04) to say a stock far UNDER it bounces back, which the source does not say; and the wrong note said 'the rule checks the stretch at the open', a card line (c50). Reworded to the C29 mirror (D47) and the chase reason."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "EXP 2015-09-18 buy-day chart, no trade drawn. Bars with the dossier entry 78.94 / stop 80.77: R=1.83, 3R (73.45) first reached day 3 (9/23 low 73.28), best 9.8R in the replay, 11.0R by dossier. 'Up 3R by day 3 and did not stop there' is true. The chart draws no trade so the member cannot see the 3R mark; acceptable because the text names no entry or stop."
+   "notes": "EXP 2015-09-18 trigger day; d09 says 3R on day 3. r54-r56 quoted. ok."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "WHR 2002-08-29 trade 55.16/56.28. Bars: close 55.16, high 56.25 (stop 3 cents over = 56.28), 2.03% math right. 3R day 9, best 14.2R, never stopped, matching dossier row 1. Story has no numbers. Forward 30 reaches 3R and 5R (day 13)."
+   "notes": "Blind: (56.28-55.16)/55.16 = 2.03%. 1.12 is the dollar gap, 98.0 is fill over stop, 20.3 a decimal slip. The percent drives the stop-distance decision (D-005 band) and the size (A5), so rule 23 ok. Why gives the size reason, not a restatement."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "DIS 2006-01-26 trade 24.74/25.26. Bars: close 24.74 under 9 EMA 25.11 and 20 EMA 24.91, high 25.23 (stop = high+0.03). Day 2 (1/30) close 25.12 is back over 9 EMA 25.05 and 20 EMA 24.91; stop (25.26) not hit until day 8 (2/7); a day-2 cover at 25.12 loses 0.38 versus 0.52 at the stop, so 'cost less than the stop' is true. Story numbers match the dossier (sec 14 row 1). Forward 30 reaches day 8."
+   "fixed": true,
+   "notes": "House fidelity: 'On our card' presents the card's proposed reclaim exit (wd.inv_reclaim, proposed) as ours, while the rulebook says the stop is the exit (A4, wd.inv_stop). The only support is TraderLion t06, so the question now names TraderLion's rule. Owner call still open: whether a close back above both averages makes us cover before the stop."
   },
   "q22": {
    "status": "cut",
@@ -4242,61 +4476,61 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "PCG 2007-12-14 trade 45.96/46.89. Bars: close 45.96 (low of day), high 46.85 (stop 46.89 matches dossier row 2 and the question). 3R (43.17) first reached day 10, matches the why. Forward 30 covers it. Story has no numbers."
+   "notes": "Blind: 2R below 45.96 with R 0.93 = 44.10; 43.17 is 3R, 45.03 is 1R, 47.82 is above. Breakeven window 2R to 5R or at the first sell matches B19 and 'rulings in our words'. The number drives when the stop moves, so not a ratio drill. Breakeven is defined in the why."
   },
   "q24": {
-   "status": "pass",
+   "status": "cut",
    "by": "checker",
    "fixed": false,
-   "notes": "Key rests on the card's no-trade row (c39) and is labelled as the card's in why, simple and wrong notes; the rulebook (F65, D46) does not itself forbid a Green-market short, so it stays tied to D-023. B26 covers the buy-the-dip note. q67 teaches the readings first."
+   "notes": "House fidelity: keys 'No short; Green is for longs', the card's pending-owner wd.market no-trade row. His agreed D-023 default says no setup adds its own index filter, the reading is a guide (A10), and he rejected a per-setup index rule; F65 does not bar shorts in Green. The story also defined Green as 'the index is in an uptrend', which the rulebook does not say. Cut."
   },
   "q25": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "LOW 2007-09-07 near miss. Bars: close 29.43 under 9 EMA 29.93 and 20 EMA 29.47; (29.43-28.60)/(30.07-28.60)=56%. Trigger day is last bar. Story and why match the card (wd.close_position). Shorted at the close, next day high 30.12 reaches the 2-day-high stop 30.10 (stopped 0R) as the dossier says."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q26": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "c11 and c57 key it; y01 (fewer new buyers) is used only as the gloss, no number or volume claim beyond the card. Mirror choice is the standard wrong. No tell."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q27": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "EXP 2015-09-18 trade 78.94/80.77. Bars: close 78.94, high 80.74 (+0.03 = 80.77). 69.79 is exactly 5.0R and is reached day 6 (5R day 6, low 69.25); 3R day 3 matches the why. Forward 30 covers it. Story has no numbers."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q28": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Mirror of B20 via c52: new stop is the first 30-minute high, 37.55. Loss there is 0.90/0.57 = 1.6R, under the 2R ceiling, so 'has not been hit' is true. Numbers come from the story."
+   "notes": "B20 mirrored; loss at 37.55 is 1.6R, under the 2R ceiling. ok."
   },
   "q29": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False per h26, c19, c35 against x03. Deeper counter is a fair reading of x03 plus c19."
+   "notes": "A5 reason given; Kell's page offers the add, we do not. ok."
   },
   "q30": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Market order now or next open per c14, h20, h21. 3:50 pm is inside the last 15 minutes. Limit choice is the longest, key is not."
+   "notes": "Blind: short at market as it trades through. Matches D-003, SHORT-ENTRY, E57 and E58; no close entry. The card's c14 last-15-minutes order is not keyed. The limit-order strawman is not defensible, so the key is safe."
   },
   "q31": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Monday trigger with a report after Tuesday's close is inside 3 sessions whether days or sessions. Two No, two Yes. Does not pre-teach q56."
+   "notes": "B22 reason (gap past the stop). ok."
   },
   "q32": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013; keep/edit judged correct"
+   "notes": "2R to 5R or at the first sell, as judgment (B19, hw). ok."
   },
   "q33": {
    "status": "cut",
@@ -4314,56 +4548,55 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with rulings"
+   "notes": "GAP-TRIM ruling (optional, judgment) respected. ok."
   },
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "DXCM 2022-04-18 (card failures wd.wide_loose). Bars: close 120.16 under 9 EMA 123.85 and 20 EMA 122.03; stop 123.03 (high 123.00+0.03) = 2.4% from the close; next day high 124.00 stops it at 0R and the stock falls to 105.88 by day 6. Story's 8-day stall 9.6% wide and 2.4% are the dossier numbers. No trade drawn: fine, the words give no entry."
+   "fixed": true,
+   "notes": "Key said a lower grade means we size it down, but D38/E49 size A and B alike and only B- or lower down, so 'grade lower, so size down' overclaims; reworded so the size follows the grade without a fixed step. The DXCM closing line said the stock then fell 32.5%, which does not support a lower grade and pulls the other way; replaced by the stop-out at 0R (d28). Wide-and-loose grading is a card proposal (wd.wide_loose, proposed), kept only as the judgment it is."
   },
   "q37": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Kell's own 10-day note kept with 'we use the 9 and 20 EMA'; question names Kell's note"
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q38": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "keep agrees with ruling"
+   "fixed": true,
+   "notes": "Lesson line said a mid-range close 'grades it down' and a close at the low 'grades the day up', presenting the card's proposed close-position row (wd.close_position) as the grade rule; E50 says grading is judgment with no checklist. Key stands on Kell's sellers and D-006 (heavy volume raises the grade). Line reworded."
   },
   "q39": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q40": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "GS 2011-08-02 trade 131.23/134.79. Bars: close 131.23, high 134.76 (+0.03 = 134.79), R=3.56; 50,000 x 1% / 3.56 = 140.4 -> 140 shares, key right. 3R day 4, best 13.2R on day 44, never stopped; forward 20 is fine for the question (no outcome named). Story has no numbers."
+   "notes": "500 / 3.56 = 140.45, rounds down to 140; distractors check (381, 184, 1,404). GS verified. ok."
   },
   "q41": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "GOOGL 2019-01-14 trade 52.58/53.70. Bars: close 52.58, 2-day high 53.67 (+0.03 = 53.70; dossier sec 14). Next session (1/15) opens 52.90, high 54.41 (through 53.70), close 54.33: story exact. Stopped day 1, matches the why. Forward 20 shows it."
+   "notes": "GOOGL 2019-01-15 trades 52.72 to 54.41 from an open of 52.90 (no gap), close 54.33. Stop fills at 53.70. ok."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "agrees with rulings"
+   "fixed": true,
+   "notes": "Story opened with the fragment 'Hidden index fund.'; reworded. Key unchanged."
   },
   "q43": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Skip per h17 and c55. Two Skip, two Short, lengths 27 to 31.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "A+ defined in the question; D48 borrow rule; reason given. ok."
   },
   "q44": {
    "status": "cut",
@@ -4378,41 +4611,40 @@
    "by": "checker"
   },
   "q46": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "WFC 2016-09-09 is the card near miss, trigger day is last bar, close 48.72 under 9 EMA 49.62 and 20 EMA 49.30. BUT the 1.42 ATR is the dossier's distance from the 10-day EMA (bars: 9/2 close 50.55 = 1.42 ATR from the 10 EMA, only 1.28 ATR from the 9 EMA that is on the chart; D-021). Saying '1.42 ATR from the 9 EMA' is wrong. Replaced the exact number by 'more than 1 ATR' (true on both bases) and re-keyed the choice, wrong notes and why; the answer is unchanged."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q47": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "VZ 2010-06-30 near miss. Bars: close 26.28 under 9 EMA 26.85 and 20 EMA 26.78. Reproduced the 2.84: the 4-day stall 6/24-6/29, up (close over open) days vs down days volume = 2.84x. Number is the dossier's. Answer (accumulation, pass) is right."
+   "fixed": true,
+   "notes": "House fidelity: key said 'pass on the short' from the card's proposed stall-volume gate (wd.stall_volume, proposed); his D-006 and HEAVY-DOWN rulings treat volume as a grade cue, never a void. Reworked so the key is what the volume shows (buyers stepping in, a weak short) and no pass rule is asserted. 'We pass' removed from the simple line."
   },
   "q48": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with rulings"
+   "notes": "Blind: Parabolic Short on the climax day (25% over the 9 EMA, fifth up day, gap up). Matches B26/D47 and Bracco's 9-day target (u04). Card numbers (3 to 5 day, 10%, 1 ATR) already removed. Lookalike choices are real setups, none defensible."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Deeper trap is supported by c28 and p01; split into short sentences.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Words describe the pop shape fully, so no chart needed; Kell p01. ok."
   },
   "q50": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "c15/y06/c33/d33 support the why and the reworded deeper."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q51": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "agrees with rulings"
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q52": {
    "status": "cut",
@@ -4422,58 +4654,57 @@
   },
   "q53": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "c22, k09, y05; 38.2% is a scan fact, not a cutoff. ok."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "TSM 2022-06-09 trade 90.85/93.53 checks: close 90.85, high 93.50 (+0.03), 2.95% -> 3.0%; 3R day 9, best 6.4R. But the why says 'a gap down through the stall low': the bars show the open 93.00 (under the prior low 93.14 only), ABOVE the stall low 91.77; the stock traded down through it intraday. Reworded the why to what the chart shows. Story's 'gap down' is a small real gap (open under the prior low) and is the dossier's own wording, left."
+   "fixed": false,
+   "notes": "Blind: yes, 3.0% sits in the 1-3% preferred band (D-005, up to 5% ok); pulling the stop in is banned (A3, D-005). Wrong notes cite the ruling words. 3.0% is the dossier's rounding of 2.95%, harmless inside the band."
   },
   "q55": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h14/c48: under 1R after 10 sessions; 1.4R clears it."
+   "notes": "C33 quoted; 1.4R is past the 1R bar. ok."
   },
   "q56": {
-   "status": "pass",
+   "status": "cut",
    "by": "checker",
    "fixed": false,
-   "notes": "c24 verbatim; wrong notes now match the rule; overlap with q14/q31 is post-answer teaching only."
+   "notes": "House fidelity: keys that a Wedge Drop on the earnings reaction day is allowed (card c24). His agreed D-025 default says the report day itself belongs to the catalyst-gap units (EP, PEG): if it is earnings, it is just earnings. So calling the reaction-day gap a Wedge Drop short is the card's proposal against his ruling. The 3-sessions-before rule is already tested by q14 and q31. Cut."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "20 or less per h13 and c46. Strong-RS B- versus RS 20 gate stays an owner flag; key uses the settled gate only.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "House fidelity: 'By our card' presented the card as the authority; the RS 20 line is the rulebook's C31 short mirror (D47), so the question now says our rules."
   },
   "q58": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "(64.63-61.50)/64.63 = 4.8%, past c56's 4%; c14 allows the next open."
+   "fixed": true,
+   "notes": "Key is right (61.50 is 4.84% under 64.63; C28 mirrored by D47). Two fixes. The why said 'we never short more than 4% under the trigger', but D-022 lets a gap past the trigger by more than 4% be entered later on a flush and curl, so 'never' overstates the house rule. The lesson line said 'I am done', first person, and 'the next stall will come' is a promise; reworded to 'we' and no promise."
   },
   "q59": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Red plus under the 200-day (h15, D46), lower high (c40), five-day stall inside 3 to 10 (c08). Story gives nothing on stop, borrow, report, RS, so 'candidate, gates next' is the only decidable answer. 'Red blocks it' refuted by h15. No tell."
+   "fixed": true,
+   "notes": "Key right (F65, D46, u01). 'Gates' was our jargon with no meaning where the member meets it (rule 19), and the story defined Red as 'the index is in a down cycle', which the rulebook does not say (B18/F65 only say what the reading lets the account do). Reworded."
   },
   "q60": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "GS 2011-08-02, no trade drawn (plan enters on the trade-through). Bars: close 131.23 under both averages, low 131.18 under the stall low 133.13, high 134.76 (stop 134.79); 4-day stall 7/27-8/1; 3R day 4 and 13.2R best on day 44, stop never hit, forward 50 covers the why and deeper. Left the dossier's 'bounce dies at the falling 50-day' (the 50 SMA is falling, 134.17, though the 7/26 top 139.25 pushed above it first). Ticker not in the story."
+   "notes": "Blind: through the trigger, stop a few cents over the 134.76 high = 134.79, first cover day 3 or later (D-013, F62, SHORT-ENTRY). 134.79 is 2.7% from 131.23, inside D-005. Stop 133.00 sits under the day's high, so it is not defensible. Reason for day 3 is selling into a push, per D-013."
   },
   "q61": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "QQQ 2025-12-12, a Friday. Bars: close 613.62 under 9 EMA 620.84 and 20 EMA 617.69 on 75M volume; prior close over both. 12/19 close 617.05 is back over both (9 EMA 613.82, 20 EMA 614.67), 5 sessions later, as the why says. Cut-longs key is the rule. No ticker; 'Nasdaq' is the index name, not the ticker."
+   "fixed": true,
+   "notes": "Key right (TraderLion t08, t09, Kell x01). Fixes: the story opened with the fragment 'Hidden index fund'; the why claimed the index was back over both averages within a week, a read off the picture with no cited fact or calc (README: chart facts come from quotes or calc), and it undercut the lesson; the wrong note said Kell names the indexes, but that line is TraderLion's text."
   },
   "q62": {
    "status": "cut",
@@ -4484,26 +4715,26 @@
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "DXCM 2026-03-05, forward raised to 40. Bars: close 70.69 (3.9% under the 200 SMA 73.59), stop 72.79 = high 72.76+0.03; 3R day 6, 5R day 37, best 6.65R (6.7R) on day 38, so 40 bars play it. Answer right."
+   "fixed": true,
+   "notes": "Key right (B26, D-009; DXCM close 3.9% under the 200-day). The simple line said we found an edge 'only under the 200-day', but n03 says only for a stock under its 200-day in a market under its 50-day; replaced with the trend reason that is true."
   },
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "V 2021-05-10, forward 20. Bars: close 225.97 is 8.3% over the 200 SMA 208.58. Shorted at the close with the trigger-day-high stop 232.03: best 0.93R and stopped day 16 (6/2), inside the 20 forward bars. Matches the why."
+   "fixed": true,
+   "notes": "Key right (B26). The why said the short was stopped 'as the stock made new highs'; d29 says only that it ran 0.93R and was stopped, so that clause is ungrounded and removed. The simple line overstated the scan finding (n03 needs the market under its 50-day too); replaced with the trend reason."
   },
   "q65": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c17/c16/c47/h04 support the True; distinct from q34 (which tests pulling a stop in)."
+   "notes": "Blind: True under D-005 (up to 5% acceptable, past 5% wait) and D-008 (pattern high acceptable). The card's old 3% line (c16, c17) is a proposal that his ruling replaced; the why and lesson line follow the ruling and give the size reason. No number is a scanner cutoff."
   },
   "q66": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "r02 against c08; fair False."
+   "notes": "ChartSchool r01, r02 quoted; no shape needed. ok."
   },
   "w1": {
    "status": "pass",
@@ -4527,25 +4758,43 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Red per h24 and h15. One-word choices, no tell, notes true to F65. Comes before q24 and q59, so it teaches the readings first."
+   "notes": "Filter and its four readings defined; F65 wording. ok."
   },
   "q68": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key is c23 (not early in a new bull market). Decoys are card likes (c03, c40, h15). Odd-one-out polarity is inherent to the stem; criterion is still the card's proposal (labelled so)."
+   "notes": "Now framed as TraderLion's warning (t07), not our rule. ok."
   },
   "q75": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "TSLA 2023-05-12, day before the 05-15 trigger. Bars: 5/15 close 166.35 is under 166.50; stop 169.79 hit 5/17 (high 174.50), stock 188.87 by 5/22; matches 'lost its stop and ran up'. Note: with the 9 EMA on the chart the 5/12 close (167.98) already sits a cent under it (167.99); the dossier measures the 10 EMA. The story makes no claim about the averages, so no conflict. Right answer is a rule, true."
+   "notes": "TSLA 2023-05-12 is the day before the 05-15 trigger; d37 (-1.0R, +55.5%) and k06 quoted. F66. ok."
   },
   "q97": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with rulings"
+   "notes": "h19 (9 EMA fast, 20 EMA steady, close not touch). ok."
+  },
+  "q98": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "D-001 quoted word for word; true. Reason (tight stops, rising volatility, Kell hedging his own short) is from t10, t11, k06."
+  },
+  "q99": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Blind: wait; the drop is the close down through the averages and shorts enter through the trigger (Kell y02, SHORT-ENTRY). Short-now choices are the named mistake c33. Six-day rest and the flattening averages are from d09/d10. Chart ends before the drop."
+  },
+  "q100": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key right (D-006, n11). Two wrong choices were silly strawmen ('holiday sessions never count', 'light volume is the best sign'), which hand the member a free elimination. Replaced with the real traps: light volume means no sellers came, and an invented halving rule. Two Yes, two No kept."
   }
  }
 }

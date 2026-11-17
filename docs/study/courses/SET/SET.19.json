@@ -123,6 +123,22 @@
    "title": "Our rules, in our words (2026-11-14)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
    "accessed": "2026-11-14"
+  },
+  {
+   "id": "h3",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, sections 2 and 6 (docs/study/sizing_rule.md)",
+   "url": "repo:docs/study/sizing_rule.md#2-stop-first",
+   "accessed": "2026-11-16"
+  },
+  {
+   "id": "d2",
+   "tier": 3,
+   "publisher": "UCT setup research (the owner's published Sunday Scans, quoted in the dossier)",
+   "title": "Power Earnings Gap dossier, section 6.2: the owner in Sunday Scans, market timing (2025-11-23)",
+   "url": "repo:docs/study/setups/research/21-power-earnings-gap.md#62-the-owner-in-sunday-scans-tsdr-section",
+   "accessed": "2026-11-16"
   }
  ],
  "facts": [
@@ -911,6 +927,96 @@
    "source": "d1",
    "quote": "ASML 2024-01-24 | owner, \"Again, just a PEG\" | 6.2%* | +8.9%* | 7.6x* | 0.55*",
    "claim": "ASML 2024-01-24: gap 6.2%, volume 7.6x, close 0.55 of range; the owner called it just a PEG."
+  },
+  {
+   "id": "n01",
+   "source": "hw",
+   "quote": "Stop distance: 1-3% is preferred, 3.5% is good, and up to 5% is acceptable; past 5%, we mostly wait for a tighter trigger.",
+   "claim": "Stops: 1-3% preferred, 3.5% good, up to 5% acceptable; past 5%, we mostly wait for a tighter trigger."
+  },
+  {
+   "id": "n02",
+   "source": "hw",
+   "quote": "Every setup, long or short, enters as price trades through its trigger during the day, never at the close.",
+   "claim": "Every setup enters as price trades through its trigger during the day, never at the close."
+  },
+  {
+   "id": "n03",
+   "source": "hw",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "n04",
+   "source": "h1",
+   "quote": "A market filter decides when the account trades: the app's market reading (Green, Yellow, Orange, Red).",
+   "claim": "B18: the app's market reading (Green, Yellow, Orange, Red) is the filter that decides when the account trades."
+  },
+  {
+   "id": "n05",
+   "source": "h1",
+   "quote": "Risk by grade: A+ 1% to 1.5%; A and B 0.5% to 1%; B- or lower 0.25% to 0.5%.",
+   "claim": "E49: risk by grade; A+ 1% to 1.5%, A and B 0.5% to 1%, B- or lower 0.25% to 0.5%."
+  },
+  {
+   "id": "n06",
+   "source": "h1",
+   "quote": "Grading a setup (A+, A, B, B-) is discretionary and hard to define; no fixed checklist is taught as ours.",
+   "claim": "E50: grading a setup is discretionary; there is no fixed checklist."
+  },
+  {
+   "id": "n07",
+   "source": "h1",
+   "quote": "Sell some into strength and trail the rest under the rising averages.",
+   "claim": "A11: sell some into strength and trail the rest under the rising averages."
+  },
+  {
+   "id": "n08",
+   "source": "h3",
+   "quote": "Sequence is law: stop first, distance second, size last. You never pick a size and back-fit a stop inside the noise.",
+   "claim": "Stop first, distance second, size last; never back-fit a stop to a size."
+  },
+  {
+   "id": "n09",
+   "source": "h3",
+   "quote": "If the honest stop does not fit the risk budget: skip. Never tighten the stop.",
+   "claim": "If the honest stop does not fit the risk budget, skip the trade; never tighten the stop."
+  },
+  {
+   "id": "n10",
+   "source": "h3",
+   "quote": "A stop cannot catch an overnight gap: a tight stop never licenses a monster position.",
+   "claim": "A stop cannot catch an overnight gap."
+  },
+  {
+   "id": "n11",
+   "source": "h3",
+   "quote": "Breakeven rule: the point after which a trade must never again become a loser",
+   "claim": "Breakeven is the point after which a trade must never again become a loser."
+  },
+  {
+   "id": "n12",
+   "source": "d2",
+   "quote": "often coming out of corrections it is the recent ER gappers that have stellar performance on the other side.",
+   "claim": "Coming out of corrections, the recent earnings gappers often have stellar performance."
+  },
+  {
+   "id": "k1",
+   "source": "s6",
+   "quote": "You should sell 1/3 to 1/2 of the position after 3-5 days, and then move the stop to break even.",
+   "claim": "Kullamagi, on a breakout: sell a third to a half after 3 to 5 days, then move the stop to breakeven."
+  },
+  {
+   "id": "st6",
+   "source": "s2",
+   "quote": "If the trend starts to break down consider booking some of the gain while riding a partial position.",
+   "claim": "Stewie: book some of the gain and ride a partial position."
+  },
+  {
+   "id": "n13",
+   "source": "h1",
+   "quote": "No setup, no trade: never force a trade to have something on; cash is a position.",
+   "claim": "D44: no setup, no trade; cash is a position."
   }
  ],
  "walkthroughs": [
@@ -989,32 +1095,33 @@
    "key": "q01",
    "skill": "setup.power_earnings_gap",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "peg.catalyst",
-   "q": "In one line, what is a Power Earnings Gap?",
+   "q": "Which line describes the last day on this chart?",
    "choices": [
     "An earnings gap with a strong close",
-    "A gap on a news headline, no report",
+    "A news gap with no report behind it",
     "An earnings gap that fades by the close",
-    "An earnings gap on light volume"
+    "A pullback to the 20 EMA after earnings"
    ],
    "answer": "An earnings gap with a strong close",
-   "why": "An earnings gap with a strong close. Stewie defines a Power Earnings Gap as a stock that gaps up after strong earnings. It closes the day by printing a very strong candle. The PEG day is the first regular session after the report. A gap on a headline with no report is a News Gapper, not a PEG.",
+   "why": "An earnings gap with a strong close. The report is the catalyst, and the strong close shows buyers still wanted the stock at the end of the day. Stewie defines a Power Earnings Gap this way. He does not want a gap that reverses and closes red. A gap with no report is a News Gapper, which is a different setup.",
    "lesson_line": "A PEG is an earnings gap that closes strong.",
    "facts": [
     "st1",
-    "c01",
     "st3",
+    "c01",
     "c33",
-    "c37"
+    "d01",
+    "d02"
    ],
    "wrong": {
-    "A gap on a news headline, no report": "It needs a report. A headline gap with no report belongs to the News Gapper.",
-    "An earnings gap that fades by the close": "A gap that fades is the opposite of a strong close; the setup is off.",
-    "An earnings gap on light volume": "A fade into the close, a red close or light volume is not a PEG."
+    "An earnings gap that fades by the close": "A gap that gives the day back by the close is not a PEG. This day closed near its high.",
+    "A news gap with no report behind it": "The gap needs a report. A headline gap with no report belongs to the News Gapper.",
+    "A pullback to the 20 EMA after earnings": "A pullback comes days after the gap, in the pause. This chart ends on the gap day itself."
    },
    "house": true,
-   "simple": "It is a stock that gaps up on earnings and then closes the day strong.",
+   "simple": "A PEG is an earnings gap that closes strong, because a strong close shows buyers held the gap all day.",
    "deeper": {
     "trap": "The trap is stopping at 'earnings gap'. Some earnings gaps fade by the close. Stewie says a gap that reverses and closes in the red is not a PEG candidate. The strong close is part of the definition."
    },
@@ -1025,7 +1132,14 @@
      "a plain definition: Stewie's wording plus our card agree"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16",
+   "story": "A company reported after the close the day before. The chart ends on the next session, which opened far above the prior close.",
+   "chart": {
+    "sym": "AMZN",
+    "asof": "2017-10-27",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q02",
@@ -1120,7 +1234,7 @@
    "criterion": "peg.regular_hours",
    "q": "Stewie's gap-and-go usually starts in the after-hours session. We buy PEGs the same way.",
    "answer": "False",
-   "why": "False. Stewie's gap-and-go usually starts in the after-hours session, but we do not buy that way. We buy at market in regular hours only. There are no pre-market and no after-hours buys.",
+   "why": "False. Stewie's gap-and-go often starts after hours, but we buy only in regular hours, at market. The regular session shows what the stock does: does the gap hold, and where does the day close. After-hours trading cannot show that.",
    "lesson_line": "Regular hours only. The gap-and-go is not ours.",
    "facts": [
     "c19",
@@ -1128,7 +1242,7 @@
     "st5"
    ],
    "house": true,
-   "simple": "False. Stewie's gap-and-go usually starts after hours, but we only buy at market during regular hours.",
+   "simple": "False. We buy only in regular hours, because the regular session shows whether the gap holds and how the day closes.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1136,7 +1250,7 @@
      "rests on the owner's rulebook E57 and E58"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q06",
@@ -1144,7 +1258,7 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "peg.market_reading",
-   "q": "Which market readings do we want for a PEG?",
+   "q": "The app's market filter sets how much the account trades: Green, Yellow, Orange or Red. Which readings suit a PEG?",
    "choices": [
     "Green or Yellow",
     "Green only",
@@ -1152,11 +1266,13 @@
     "Orange or Red"
    ],
    "answer": "Green or Yellow",
-   "why": "Green or Yellow. Green allows full risk and Yellow means smaller and fewer. Orange allows A+ setups only, and Red is mostly cash and shorts. The first earnings season after a correction is an especially good fit.",
+   "why": "Green or Yellow. The market filter tells us how hard to trade. Green allows full risk, and Yellow means smaller and fewer positions. Orange allows A+ setups only, the cleanest by our judgment, and Red is mostly cash and shorts. Coming out of a correction it is often the recent earnings gappers that perform best, so those weeks suit this setup.",
    "lesson_line": "Read the market first: Green or Yellow for PEGs.",
    "facts": [
     "c28",
-    "h26"
+    "h26",
+    "n04",
+    "n12"
    ],
    "wrong": {
     "Orange or Red": "Orange is for A+ setups only, and Red is mostly cash and shorts.",
@@ -1164,7 +1280,7 @@
     "Yellow or Orange": "Orange allows A+ setups only, so it is not a general go-ahead."
    },
    "house": true,
-   "simple": "A PEG wants a Green or Yellow market, because Orange allows only A+ setups and Red is mostly cash.",
+   "simple": "Green or Yellow, because those readings let the account take new longs, while Orange and Red cut risk back hard.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1172,7 +1288,7 @@
      "rests on the owner's rulebook F65 market readings"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q07",
@@ -1234,14 +1350,14 @@
    "criterion": "peg.undercut_is_gap_support",
    "q": "Before you buy, a slight undercut of the PEG-day low that closes back over it ends the PEG setup.",
    "answer": "False",
-   "why": "False. A slight undercut of the PEG-day low that closes back over it is not an invalidation, so the setup stays on. Gap Support is a different thing: the later test of the gap-up low, days or weeks on.",
+   "why": "False. A dip under the PEG-day low that closes back over it means sellers tried and buyers took the stock back. Only a close under the low shows it has given way. So a slight undercut does not end the setup. Gap Support is a different thing: the later test of the gap-up low, days or weeks on.",
    "lesson_line": "A slight undercut that reclaims is not a failure.",
    "facts": [
     "c23",
     "c35"
    ],
    "house": true,
-   "simple": "No. Before you buy, a small dip under the low that closes back above it does not end the setup.",
+   "simple": "No. A dip that closes back above the low shows buyers defended it, so the setup stays on.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1249,7 +1365,7 @@
      "rests on our card alone, no web source"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q10",
@@ -1338,7 +1454,7 @@
    "format": "scenario",
    "criterion": "peg.catalyst",
    "q": "Which session is the PEG day?",
-   "story": "And the last bar is Tuesday's close. The company reports after that close. You check the earnings calendar that evening.",
+   "story": "The last bar on the chart is Tuesday's close. The company reports after that close. You check the earnings calendar that evening.",
    "choices": [
     "Wednesday, next session",
     "Tuesday, report day",
@@ -1346,7 +1462,7 @@
     "Friday, a pause forms"
    ],
    "answer": "Wednesday, next session",
-   "why": "Wednesday. A report after the close belongs to the next regular session, so Wednesday is the PEG day. Only a report before the open makes the report day itself the PEG day. Check the report time first.",
+   "why": "Wednesday. A report after the close cannot be traded until the next session, so Wednesday is the market's first real reaction and the PEG day. Only a report before the open makes the report day itself the PEG day. Check the report time first.",
    "lesson_line": "After the close, the next session is the PEG day.",
    "facts": [
     "c01",
@@ -1362,7 +1478,7 @@
     "Friday, a pause forms": "The pause comes after the PEG day, not before."
    },
    "house": true,
-   "simple": "The PEG day is the first regular session after the report, so a report after Tuesday's close makes Wednesday the PEG day.",
+   "simple": "A report after Tuesday's close is first traded on Wednesday, so Wednesday is the PEG day.",
    "deeper": {
     "example": "AMZN reported on 2017-10-26 after the close, so its PEG day was 2017-10-27. BURL reported on 2016-05-26 before the open, so its PEG day was the report day, 2016-05-26. The report time decides which session counts."
    },
@@ -1373,7 +1489,7 @@
      "rests on our setup card and dossier only"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "BIDU",
     "asof": "2010-02-09",
@@ -1389,14 +1505,15 @@
    "criterion": "peg.fundamentals",
    "q": "Growing sales and earnings, a beat and a raise make a PEG stronger, but the chart still comes first.",
    "answer": "True",
-   "why": "True. Growing sales and earnings, a beat and ideally a raise are a grade cue, not a gate. The chart comes first. The app cannot check the fundamentals for you.",
-   "lesson_line": "Fundamentals are a cue. The chart decides.",
+   "why": "True. Growing sales and earnings, a beat and ideally a raise make the gap more believable, so they raise the grade. A grade is our judgment of how clean the setup is, and it sets the size. The chart still comes first, because it shows what buyers actually do. The app cannot check the numbers for you.",
+   "lesson_line": "Strong numbers help the grade. The chart decides.",
    "facts": [
     "c14",
-    "h17"
+    "h17",
+    "h30"
    ],
    "house": true,
-   "simple": "True. Strong sales and earnings help, but the chart decides first.",
+   "simple": "True. Strong numbers make the gap more believable, but the chart shows what buyers do, so it decides first.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1404,7 +1521,7 @@
      "rests on the owner's rulebook D40"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q15",
@@ -1414,14 +1531,14 @@
    "criterion": "peg.no_adding",
    "q": "On a PEG you may add shares later if volume climbs after the buy.",
    "answer": "False",
-   "why": "False. A PEG is one buy at one price with one stop. We do not add when volume comes in, and there is no starter position.",
+   "why": "False. We size the shares from one price and one stop. An add changes both, so the risk is no longer what the plan set. A PEG is one buy at one price with one stop, with no adding and no starter position.",
    "lesson_line": "One buy, one price, one stop. No adding.",
    "facts": [
     "c15",
     "h31"
    ],
    "house": true,
-   "simple": "False. We make one buy at one price with one stop and never add later.",
+   "simple": "False. The size is set from one price and one stop, and an add would break the risk the plan set.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1429,7 +1546,7 @@
      "rests on the owner's rulebook A5"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q16",
@@ -1553,11 +1670,11 @@
    "choices": [
     "A few cents under the pause low",
     "At the prior close, the gap-fill price",
-    "Exactly on the PEG-day low",
+    "Exactly on the pause low, no cushion",
     "A fixed 5% under the fill"
    ],
    "answer": "A few cents under the pause low",
-   "why": "A few cents under the pause low, or under the trigger day's low, whichever the plan names. It is never wider than under the PEG-day low. The stop sits under a real low, not exactly on it.",
+   "why": "A few cents under the pause low, or under the trigger day's low. That low is the nearest spot where the buy is clearly wrong, so the loss stays small. It is never wider than under the PEG-day low, because a close under that low ends the setup. The stop sits a few cents under a real low, not exactly on it.",
    "lesson_line": "A few cents under a real low, never wider than the gap-day low.",
    "facts": [
     "c16",
@@ -1568,11 +1685,11 @@
    ],
    "wrong": {
     "At the prior close, the gap-fill price": "The prior close is far below the pause. That is a much wider stop than the rule allows.",
-    "Exactly on the PEG-day low": "The PEG-day low is the outer limit, and the stop sits a few cents under a low, not on it.",
-    "A fixed 5% under the fill": "A fixed percentage ignores the chart. The stop sits under a real low."
+    "A fixed 5% under the fill": "A fixed percentage ignores the chart. The stop sits under a real low.",
+    "Exactly on the pause low, no cushion": "The stop sits a few cents under the low, not exactly on it."
    },
    "house": true,
-   "simple": "The stop goes a few cents under the pause low, never wider than the PEG-day low.",
+   "simple": "A few cents under the pause low, because that is the nearest price where the buy is clearly wrong.",
    "deeper": {
     "example": "AMZN: the buy went in over the pause high at 56.14, and the stop went in at 55.39. The size then came from the distance between those two prices."
    },
@@ -1583,7 +1700,7 @@
      "rests on the owner's rulebook A3 and F62"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q19",
@@ -1608,7 +1725,7 @@
    "format": "scenario",
    "criterion": "peg.market_reading",
    "q": "What can you buy?",
-   "story": "The market reading turns Orange. You grade one PEG an A+ and the other a B-.",
+   "story": "The app's market filter turns Orange, which allows only A+ setups. You grade one PEG an A+ and the other a B-. A grade is our judgment of how clean the setup is.",
    "choices": [
     "Only the A+ one; pass on the B-",
     "Both, with the B- at half size",
@@ -1616,7 +1733,7 @@
     "Both, with a wider stop on the B-"
    ],
    "answer": "Only the A+ one; pass on the B-",
-   "why": "Only the A+ one. In an Orange market we take A+ setups only. Grading is a judgment call, so grade the setup honestly before you buy.",
+   "why": "Only the A+ one. In an Orange market the filter allows A+ setups only, so the account stays out of trouble when the market is shaky. Only the cleanest setups get risk. Grading is a judgment call, so grade the setup honestly before you buy.",
    "lesson_line": "Orange: A+ setups only.",
    "facts": [
     "c28",
@@ -1628,7 +1745,7 @@
     "Both, with a wider stop on the B-": "A wider stop does not make a B- an A+."
    },
    "house": true,
-   "simple": "In an Orange market we take only A+ setups, so only the one you grade A+ can be bought.",
+   "simple": "In Orange only the cleanest setups get risk, so only the one you grade A+ can be bought.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1636,7 +1753,7 @@
      "rests on the owner's rulebook F65 Orange reading"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q21",
@@ -1652,7 +1769,7 @@
     "Selling at a fixed 10R target"
    ],
    "answer": "A close under the 9 or 20 EMA",
-   "why": "Sell on a close under the 9 EMA for a fast mover or under the 20 EMA for a steadier one. That is the default trail for what is left. It takes a close, not a touch.",
+   "why": "Sell on a close under the 9 EMA for a fast mover, or under the 20 EMA for a steadier one. An EMA is an average of recent closes that rises with the trend, so a close under it is the first sign the run has slowed. It takes a close, not a touch, so one poke does not shake us out of a winner.",
    "lesson_line": "Trail what is left under the 9 or 20 EMA.",
    "facts": [
     "h21",
@@ -1667,7 +1784,7 @@
     "A single touch of the 50-day line": "The default trail is the 9 or 20 EMA, and it sells on a close, not a touch."
    },
    "house": true,
-   "simple": "We sell what is left on a close under the 9 or 20 EMA, not on a touch.",
+   "simple": "We sell what is left on a close under the 9 or 20 EMA, because that is the first sign the run has slowed.",
    "deeper": {
     "example": "BIDU, 2010: after a four-month flat shelf and two tight days, the stock ran ten weeks along its fast EMA."
    },
@@ -1678,7 +1795,7 @@
      "rests on the owner's rulebook E52; the trail choice is held under D-024"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q22",
@@ -1793,7 +1910,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "peg.stop_pause",
-   "q": "Fill 90.25, stop 88.19. How far is the stop from the fill, in percent?",
+   "q": "Fill 90.25, stop 88.19. How far is the stop below the fill, in percent?",
    "answer": "2.3%",
    "calc": {
     "fn": "arith",
@@ -1804,17 +1921,18 @@
     },
     "round": 1
    },
-   "why": "2.3%. The stop's distance is the gap over the fill: (90.25 - 88.19) / 90.25 x 100 = 2.3%. We prefer a stop 1 to 3% away, and up to 5% is acceptable. This is inside that range. These are LULU's levels.",
+   "why": "2.3%. The distance is the gap over the fill: (90.25 - 88.19) / 90.25 x 100 = 2.3%. We prefer a stop 1 to 3% away and accept up to 5%. A close stop keeps the loss small, and the same risk buys more shares. Past 5% we mostly wait for a tighter trigger. These are LULU's levels.",
    "lesson_line": "Stop distance is the fill minus the stop, over the fill.",
    "facts": [
     "h04",
     "d07",
     "d08",
-    "r01"
+    "r01",
+    "n01"
    ],
    "house": true,
    "suffix": "",
-   "simple": "The stop sits 2.3 percent under the 90.25 fill, which is inside the range we prefer.",
+   "simple": "The stop sits 2.3 percent under the fill, inside the range we prefer, so the loss stays small.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1823,7 +1941,7 @@
      "the stop range is the owner's ruling D-005"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "choices": [
     "2.3%",
     "97.7%",
@@ -1863,7 +1981,7 @@
     "64.80"
    ],
    "answer": "62.40",
-   "why": "62.40. We never buy more than 4% above the buy point, and 4% over 60.00 is 62.40. At 62.80 the stock is past it, so we pass. Chasing costs size, not risk: the stop stays put and the shares shrink.",
+   "why": "62.40. We never buy more than 4% above the buy point, and 4% over 60.00 is 62.40. At 62.80 the stock is past it, so we pass. Chasing costs size, not risk: the stop stays where it was, so the distance grows and the shares shrink.",
    "lesson_line": "Miss it rather than chase it. Four percent and done.",
    "facts": [
     "c18",
@@ -1876,7 +1994,7 @@
     "64.80": "64.80 is far past the 4% line."
    },
    "house": true,
-   "simple": "We never pay more than 4% over the buy point. Here that is 62.40, so at 62.80 we pass.",
+   "simple": "We never pay more than 4% over the buy point, because paying more stretches the distance to the stop and shrinks the size.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1892,7 +2010,7 @@
     },
     "round": 2
    },
-   "batch": "cards-2026-11-15",
+   "batch": "owner-review-7-2026-11-16",
    "visual": {
     "kind": "ladder",
     "side": "long",
@@ -1959,7 +2077,7 @@
     "On; the gap has not filled yet"
    ],
    "answer": "Off; the low gave way on a close",
-   "why": "Off. A daily close under the PEG-day low before a buy ends the PEG setup. The gap-day low has given way on a close, so there is nothing to buy. A slight undercut that closes back over the low is different and does not end it. The gap filling, or the pause drifting into lower highs and lows, are the other ways it fails.",
+   "why": "Off. The PEG-day low is the line buyers have to defend, and a daily close under it means they gave it up. That ends the setup before a buy, so there is nothing to buy. A slight undercut that closes back over the low is different and does not end it.",
    "lesson_line": "A close under the gap-day low means no PEG.",
    "facts": [
     "c21",
@@ -1968,12 +2086,12 @@
     "c22"
    ],
    "wrong": {
-    "Off; the pause has become a drift": "A drift is lower highs and lower lows for 5 sessions or more, and the story is only four days in. The close under the low is what ends it.",
+    "Off; the pause has become a drift": "A drift is a run of lower highs and lower lows. The story does not describe one, and the close under the low is what ends it.",
     "On; a dip under the low is a pause": "A slight undercut that closes back over the low is allowed. This one closed under it, so the setup is off.",
     "On; the gap has not filled yet": "Not filling is not enough. A daily close under the PEG-day low ends the setup before a buy."
    },
    "house": true,
-   "simple": "Off. The stock closed under the PEG-day low before you bought, so there is no PEG to buy.",
+   "simple": "Off. A close under the PEG-day low means buyers gave up the line, so there is no PEG to buy.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1981,7 +2099,7 @@
      "rests on our card alone; the close-under-low invalidation is proposed"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q29",
@@ -1998,7 +2116,7 @@
     "28.80, two R under the fill"
    ],
    "answer": "28.95, first 30-minute low",
-   "why": "28.95. On a gap through the stop, the first 30-minute low is the new stop. You are out only if that loss is past 2R. The 28.95 low is inside 2R, since 2R under the fill is 28.80.",
+   "why": "28.95. On a gap through the stop, the first 30-minute low is the new stop. The open of a gap is the noisiest print, and the first half hour shows where buyers and sellers settle. You are out only if that loss is past 2R. Here 2R under the 30.00 fill is 28.80, so 28.95 is inside it.",
    "lesson_line": "A gap through the stop: the first 30-minute low decides.",
    "facts": [
     "c25",
@@ -2010,7 +2128,7 @@
     "28.80, two R under the fill": "Two R is the ceiling, not a stop to place."
    },
    "house": true,
-   "simple": "The first 30-minute low of 28.95 becomes the new stop, because the loss from there is still inside 2R.",
+   "simple": "The first 30-minute low of 28.95 is the new stop, because the open is noisy and the loss from there is inside 2R.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -2019,7 +2137,7 @@
      "the key is worked out from the story prices"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q30",
@@ -2029,14 +2147,15 @@
    "criterion": "peg.breakeven",
    "q": "On a PEG the stop moves to breakeven as soon as the buy fills.",
    "answer": "False",
-   "why": "False. The stop moves to breakeven between 2R and 5R, and by default at the first trim. Until then it stays a few cents under the low.",
-   "lesson_line": "First trim, then the stop to breakeven.",
+   "why": "False. Breakeven is the point after which a trade must never again become a loser, so a trade has to earn it first. The stop moves to breakeven between 2R and 5R, or at the first sell. Until then it stays a few cents under the low.",
+   "lesson_line": "Breakeven comes later, between 2R and 5R or at the first sell.",
    "facts": [
     "c24",
-    "h05"
+    "h05",
+    "n11"
    ],
    "house": true,
-   "simple": "False. We move the stop to breakeven later, by default at the first sell.",
+   "simple": "False. A trade has to earn breakeven first, so the stop moves up later, after the trade has worked.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2044,7 +2163,7 @@
      "rests on the owner's rulebook B19"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q31",
@@ -2061,7 +2180,7 @@
     "Skip it; the gap is too old now"
    ],
    "answer": "Buy at market; stop under the low",
-   "why": "Buy at market. The trigger is a market buy as price trades over the pause high, with the stop a few cents under the low. The low is holding, so nothing here says skip.",
+   "why": "Buy at market. The quiet days show sellers ran out of steam while the low held. A trade over the pause high shows buyers are back, so that is the trigger. The stop goes a few cents under the low. Nothing here says skip.",
    "lesson_line": "Buy as price trades over the pause high.",
    "facts": [
     "c03",
@@ -2079,7 +2198,7 @@
     "Skip it; the gap is too old now": "The low is holding and nothing says skip."
    },
    "house": true,
-   "simple": "Buy at market as price trades over the pause high, and put the stop a few cents under the low.",
+   "simple": "Buy at market as price trades over the pause high, because that shows buyers are back after the quiet days.",
    "deeper": {
     "example": "LOGI, 2023: the PEG day was 2023-10-24. Four flat days made a pause 2.4% deep. The buy came on 2023-10-31 over the pause high at 78.20, with the stop at 77.34."
    },
@@ -2093,7 +2212,7 @@
    "depends_on": [
     "D-085"
    ],
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "LOGI",
     "asof": "2023-10-30",
@@ -2136,7 +2255,7 @@
    "format": "scenario",
    "criterion": "peg.not_hve",
    "q": "PEG or High Volume Edge?",
-   "story": "The gap day is the last bar. A well-known company reports and gaps up 6.2%. Volume is 7.6x its average, its biggest in a year, and the day closes at 0.55 of its range.",
+   "story": "The gap day is the last bar. A well-known company reports and gaps up 6.2%. Volume is 7.6x its average, its biggest in a year, and the day closes at 0.55 of its range. A High Volume Edge is a setup where record volume is the whole signal.",
    "choices": [
     "A PEG; earnings on a known name",
     "A High Volume Edge; a record",
@@ -2144,7 +2263,7 @@
     "A News Gapper; gapped on news"
    ],
    "answer": "A PEG; earnings on a known name",
-   "why": "A PEG. An earnings spike on an established name stays a PEG even at a one-year volume record. A High Volume Edge is a record that dwarfs every prior day, usually on a lesser-known name. ASML at 7.6x was still just a PEG.",
+   "why": "A PEG. A report on an established name is the catalyst, so this stays a PEG even at a one-year volume record. Volume raises the grade. It is the setup itself only in a High Volume Edge, a record that dwarfs every prior day, usually on a lesser-known name. ASML at 7.6x was still just a PEG.",
    "lesson_line": "Earnings on a known name stays a PEG, even on record volume.",
    "facts": [
     "c13",
@@ -2159,7 +2278,7 @@
     "A News Gapper; gapped on news": "A News Gapper's gap comes on a headline that is not a report. This gap came with a report."
    },
    "house": true,
-   "simple": "It is a PEG. A report on a well-known name stays a PEG, even when volume is a one-year record.",
+   "simple": "It is a PEG. The report is the catalyst, and volume only raises the grade unless volume itself is the setup.",
    "deeper": {
     "counter": "Volume alone does not make an HVE. An HVE is usually a lesser-known name. ASML at 7.6x was still a PEG, because the catalyst was a report on an established name. A record that dwarfs every prior day on a lesser-known name is the HVE case."
    },
@@ -2171,7 +2290,7 @@
      "the split depends on the name, a judgment call"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "ASML",
     "asof": "2024-01-24",
@@ -2233,8 +2352,8 @@
     "A News Gapper; the gap is the news"
    ],
    "answer": "An Episodic Pivot; a neglected name",
-   "why": "An Episodic Pivot. A PEG is an established leader in a base or a quiet uptrend. An EP is a neglected name, flat or down for six months, often under its averages. The months before the report decide it, not the size of the gap.",
-   "lesson_line": "Look at the six months before the report.",
+   "why": "An Episodic Pivot. A PEG is an established leader already working in a base or a quiet uptrend. An EP is a neglected name, flat or down for six months. That history is how we tell them apart, so the months before the report decide it, not the size of the gap.",
+   "lesson_line": "The six months before the report tell a PEG from an EP.",
    "facts": [
     "c32",
     "c33"
@@ -2245,7 +2364,7 @@
     "A News Gapper; the gap is the news": "A News Gapper's gap comes on a headline that is not a report. This gap came with a report."
    },
    "house": true,
-   "simple": "It is an Episodic Pivot. The stock was neglected and down for six months, which marks an EP and not a PEG.",
+   "simple": "It is an Episodic Pivot, because a neglected name that fell for six months is not an established leader.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2254,7 +2373,7 @@
      "SET.18 teaches the same split"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q36",
@@ -2376,11 +2495,12 @@
     "Sell half, since it gapped up"
    ],
    "answer": "Hold it all; judge it from day 3",
-   "why": "Hold it all. We very rarely sell on day 1 and usually wait until day 3 at the earliest. The first sell is a judgment, not a fixed third at 3R. Here the open of 43.60 is past 3R at 43.00, but it is only day 2.",
+   "why": "Hold it all. We very rarely sell on day 1 and usually wait until day 3 at the earliest. The first sell is a judgment, not a fixed third at 3R. Here the open of 43.60 is past 3R at 43.00, but it is only day 2. The measured edge comes from the few big runs, so selling too soon cuts the part that pays.",
    "lesson_line": "Past 3R on day 2 is not a sell signal. Day 3 at the earliest.",
    "facts": [
     "r02",
-    "r03"
+    "r03",
+    "c46"
    ],
    "wrong": {
     "Sell a third at the close": "Selling at the close on day 2 is still early. We usually wait until day 3 at the earliest.",
@@ -2388,7 +2508,7 @@
     "Sell a third at the open, 43.60": "A fixed third at 3R is not our rule. The first sell is a judgment, and we usually wait until day 3."
    },
    "house": true,
-   "simple": "Hold. The first sell is a judgment, and we usually wait until day 3 at the earliest, even past 43.00.",
+   "simple": "Hold. The first sell is a judgment, and selling too soon cuts the big runs that pay for the plan.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2396,7 +2516,7 @@
      "rests on the owner's rulebook (F63 and the 3R trim)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q40",
@@ -2416,7 +2536,7 @@
     },
     "round": 0
    },
-   "why": "121 shares. Dollars at risk are 50,000 x 0.5%. Risk per share is the fill minus the stop: 90.25 - 88.19. Divide the first by the second and round down to 121. The position cap can only make it smaller.",
+   "why": "121 shares. Dollars at risk are 50,000 x 0.5%. Risk per share is the fill minus the stop: 90.25 - 88.19. Divide the first by the second and round down to 121. Sizing from the stop means a stop-out costs the planned amount whatever the price. The position cap can only make it smaller.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -2425,7 +2545,7 @@
    ],
    "house": true,
    "suffix": "",
-   "simple": "The dollars we risk, divided by how far the stop sits under the fill, gives 121 shares.",
+   "simple": "The risk dollars divided by the distance to the stop gives 121 shares, so a stop-out costs only the planned amount.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -2435,7 +2555,7 @@
      "fixed before: risk cut to 0.5% to stay under the cap"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "choices": [
     "109 shares",
     "554 shares",
@@ -2466,7 +2586,7 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "peg.stop_width",
-   "q": "What do you do?",
+   "q": "Keep the stop or tighten it for size?",
    "story": "The pause high is 61.00 and the pause low is 59.30. The honest stop, a few cents under the low, is about 2.9% from the fill. A friend says to put the stop at 60.10 so the size can be bigger.",
    "choices": [
     "Keep the stop; let it set the size",
@@ -2475,14 +2595,16 @@
     "Split the buy in two to cut risk"
    ],
    "answer": "Keep the stop; let it set the size",
-   "why": "Keep the stop and let it set the size. The stop goes first, a few cents under the pause low, and the size comes from the stop. Here the honest stop is about 2.9% from the fill, so the formula gives fewer shares than a stop at 60.10 would. If the honest stop does not fit the risk at all, skip the trade. Moving the stop to 60.10 to get more shares does not fix it.",
+   "why": "Keep the stop and let it set the size. The stop goes first, a few cents under the pause low, and the size comes from it. You never pick a size and then back-fit a stop inside the noise. Here the honest stop is about 2.9% from the fill. If it does not fit the risk budget, skip the trade rather than tighten the stop.",
    "lesson_line": "If the honest stop does not fit, size down or skip.",
    "facts": [
     "h01",
     "h03",
     "c05",
     "c15",
-    "h04"
+    "h04",
+    "n08",
+    "n09"
    ],
    "wrong": {
     "Split the buy in two to cut risk": "A PEG is one buy at one price with one stop. No adding and no starter position.",
@@ -2490,7 +2612,7 @@
     "Buy the bigger size, same stop": "A bigger size on this stop risks more than the plan allows."
    },
    "house": true,
-   "simple": "Keep the stop and let it set the size. Do not pull the stop in just to get more shares.",
+   "simple": "Keep the stop, because the stop marks where the buy is wrong and the size comes from it, never the other way round.",
    "deeper": {
     "trap": "The trap is working backward: pick the size you want, then move the stop to fit. The order is stop first, then size. Here the honest stop is wider than the friend's tight stop, so the formula gives fewer shares. If even that does not fit the risk, skip the trade."
    },
@@ -2502,7 +2624,7 @@
      "stop width kept inside the usual 3% so the open stop-cap decision (D-005) does not touch the key"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q42",
@@ -2519,13 +2641,14 @@
     "Hold; the stop protects you"
    ],
    "answer": "Sell it before the report",
-   "why": "Sell before the report. We hold through the next report only when the trade is up 5R. At 3.5R it is under that line, so it comes off first. A stop does not cover a gap through it, which is the risk of a report. Holding through the next report under 5R is a named mistake.",
+   "why": "Sell before the report. We hold through a report only when the trade is up 5R, and 3.5R is under that line. A stop cannot catch an overnight gap, so a report can take the stock far past it. A trade has to build a cushion before it can carry that risk.",
    "lesson_line": "Under 5R going into a report, sell first.",
    "facts": [
     "c26",
     "h08",
     "c45",
-    "h06"
+    "h06",
+    "n10"
    ],
    "wrong": {
     "Hold; last report was a winner": "The last report says nothing about the next one.",
@@ -2533,7 +2656,7 @@
     "Hold; the stop protects you": "A stop does not protect against a gap through it."
    },
    "house": true,
-   "simple": "Sell before the report. A trade is held through earnings only when it is up 5R, and this one is up 3.5R.",
+   "simple": "Sell before the report, because a stop cannot catch an overnight gap and this trade has not built the cushion yet.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2541,7 +2664,7 @@
      "rests on the owner's rulebook (B22)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q43",
@@ -2558,7 +2681,7 @@
     "Move the stop to breakeven and wait"
    ],
    "answer": "Sell it all and free the money",
-   "why": "Sell. A trade still under 1R after 10 trading days is sold, even though the stop has not been hit. At 0.4R this one has not earned its place, and selling frees the money. Breakeven comes between 2R and 5R, not at 0.4R.",
+   "why": "Sell. A trade still under 1R after 10 trading days is sold, even though the stop has not been hit. At 0.4R it is tying up money a better trade could use, and selling frees it. Breakeven comes between 2R and 5R, not at 0.4R.",
    "lesson_line": "A slow PEG under 1R gets sold on day ten.",
    "facts": [
     "c27",
@@ -2571,7 +2694,7 @@
     "Sell half and keep half running": "The time stop sells the trade. Half held is still a trade under 1R after 10 days."
    },
    "house": true,
-   "simple": "Sell. After 10 trading days the trade is still under 1R, so the time stop says to exit.",
+   "simple": "Sell. A trade this slow ties up money a better trade could use, so the time stop frees it.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2579,7 +2702,7 @@
      "rests on the owner's rulebook (C33)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q44",
@@ -2588,19 +2711,20 @@
    "format": "scenario",
    "criterion": "peg.market_reading",
    "q": "How do you start?",
-   "story": "A correction just ended and the market reading turned Green. It is earnings season, and six leaders gapped on reports this week.",
+   "story": "A correction just ended and the app's market filter turned Green, which allows full risk. It is earnings season, and six leaders gapped on reports this week.",
    "choices": [
-    "A few positions; add as they work",
+    "A few positions; more as they work",
     "Three now, three more tomorrow",
     "All six; Green means full risk",
     "None; wait for a second Green week"
    ],
-   "answer": "A few positions; add as they work",
-   "why": "A few positions, adding more as the first ones work. After a correction, when the reading turns Green again, we start small and add only as they work. The first earnings season after a correction is one this setup favors.",
-   "lesson_line": "After a correction, start small and add as they work.",
+   "answer": "A few positions; more as they work",
+   "why": "A few positions, adding more positions as the first ones work. A turn to Green can still be a false start, and six new positions at once would put six stops at risk together. A few that work show the turn is real. This is also the season where the recent earnings gappers often lead.",
+   "lesson_line": "After a correction, start with a few positions and add more as they work.",
    "facts": [
     "h27",
-    "c28"
+    "c28",
+    "n12"
    ],
    "wrong": {
     "None; wait for a second Green week": "Waiting gives up the first earnings season after a correction, which this setup favors.",
@@ -2608,7 +2732,7 @@
     "All six; Green means full risk": "Start with a few and add only as the first ones work."
    },
    "house": true,
-   "simple": "After a correction we start with a few positions and add more only as the first ones work.",
+   "simple": "Start with a few positions, because if the turn fails you lose on fewer, and add more as the first ones work.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2617,7 +2741,7 @@
      "fixed before: the best-time overclaim was softened"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q45",
@@ -2634,21 +2758,20 @@
     "Yes, but only at half the size"
    ],
    "answer": "No; under $20 million a day",
-   "why": "No. We trade only stocks at $10 or more that trade at least $20 million a day. The $24 price passes, but about $12 million a day fails the floor. The test is the usual dollar volume before the gap, so one huge gap day does not count. A 14% gap is above the 10% A-grade cue, but it never overrides the liquidity rule.",
+   "why": "No. We trade only stocks at $10 or more that trade at least $20 million a day. That floor lets us get in and out without pushing the price. The $24 price passes, but about $12 million a day fails. One huge gap day does not count, because the test is the usual dollar volume before the gap.",
    "lesson_line": "Liquidity first: $10 and $20 million a day.",
    "facts": [
     "h09",
     "c31",
-    "c10",
     "h11"
    ],
    "wrong": {
     "Yes; the gap day's volume is huge": "The rule is about the usual dollar volume before the gap, not one big day.",
-    "No; a 14% gap is too big to chase": "The no-chase rule is about the buy point: never buy more than 4% above it. A big gap is an A-grade cue, not a ban.",
+    "No; a 14% gap is too big to chase": "The no-chase rule is about the buy point: never buy more than 4% above it. A big gap is not a ban.",
     "Yes, but only at half the size": "Half size does not fix a liquidity failure."
    },
    "house": true,
-   "simple": "No. The stock trades about $12 million a day, below our $20 million floor, so a perfect chart does not change it.",
+   "simple": "No. About $12 million a day is under our $20 million floor, so we could not get in and out cleanly.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2656,7 +2779,7 @@
      "rests on the owner's rulebook (B23)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q46",
@@ -2664,15 +2787,15 @@
    "rung": 6,
    "format": "tf",
    "criterion": "peg.earnings_season",
-   "q": "The PEG comes in about four earnings-season windows a year.",
+   "q": "PEGs bunch into four earnings seasons a year, one for each quarterly report.",
    "answer": "True",
-   "why": "True. The setup comes in four earnings-season windows a year. Our setup card says to keep a PEG list each quarter.",
+   "why": "True. Companies report every quarter, and most report in the same few weeks, so PEG chances bunch into four earnings seasons a year. A list of leaders kept for each season has the names ready when they report.",
    "lesson_line": "Four earnings seasons a year, so four windows for the setup.",
    "facts": [
     "c29"
    ],
    "house": true,
-   "simple": "True. PEGs cluster in the four earnings seasons each year.",
+   "simple": "True. Companies report each quarter in a few busy weeks, so PEGs bunch into four seasons and a list has the names ready.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2680,7 +2803,7 @@
      "one cited fact only, from our own setup card"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q47",
@@ -2688,7 +2811,7 @@
    "rung": 6,
    "format": "mcq",
    "criterion": "peg.position_adv",
-   "q": "The stock's average daily volume is 400,000 shares. What is the most you should own?",
+   "q": "A $60 stock averages 400,000 shares a day. What is the most you should own?",
    "answer": "4,000 shares",
    "calc": {
     "fn": "arith",
@@ -2698,7 +2821,7 @@
     },
     "round": 0
    },
-   "why": "4,000 shares. We never own more than 1% of a stock's average daily volume, and 400,000 / 100 = 4,000. This is a ceiling, and the risk-based size may be smaller.",
+   "why": "4,000 shares. We never own more than 1% of a stock's average daily volume, and 400,000 / 100 = 4,000. A bigger position cannot be sold quickly without pushing the price. This is a ceiling, and the risk-based size may be smaller.",
    "lesson_line": "Never more than one percent of a day's average volume.",
    "facts": [
     "c30",
@@ -2706,7 +2829,7 @@
    ],
    "house": true,
    "suffix": "",
-   "simple": "One percent of 400,000 shares a day is 4,000 shares, the most we hold.",
+   "simple": "One percent of 400,000 shares a day is 4,000, the most we hold, so we can sell out without moving the price.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2715,7 +2838,7 @@
      "rests on the owner's rulebook D42"
     ]
    },
-   "batch": "rank",
+   "batch": "owner-review-7-2026-11-16",
    "choices": [
     "4,000 shares",
     "40,000 shares",
@@ -2766,7 +2889,7 @@
    "format": "scenario",
    "criterion": "peg.inv_drift",
    "q": "What was that loss?",
-   "story": "A 10.6% earnings gap on 7.5x volume closed at 0.61. After the pause you bought the break at 45.07 with the stop at 43.78, 2.9% away. It went straight to the stop.",
+   "story": "A 10.6% earnings gap on 7.5x volume closed 61% of the way up its range, where 100% is the high. After the pause you bought the break at 45.07 with the stop at 43.78, 2.9% away. It went straight to the stop.",
    "choices": [
     "A weaker setup the stop capped",
     "A mistake; the stop was too tight",
@@ -2774,34 +2897,33 @@
     "Bad luck; nothing in the chart"
    ],
    "answer": "A weaker setup the stop capped",
-   "why": "A weaker setup that the stop capped. The gap day closed at 0.61 of its range. That is only just inside the top half, short of the A grade, a close in the top quarter. The 2.9% stop sits inside the usual 3%, so it was not too tight. Heavy volume at 7.5x is not the flaw. The stop did its job and the loss stayed small.",
-   "lesson_line": "A mid-range close makes a weaker trade. The stop paid for it.",
+   "why": "A weaker setup the stop capped. The gap day closed 61% of the way up its range. Stewie calls a close at or near the highs the ideal PEG candle, so this close was weaker than ideal and the setup less clean. The 2.9% stop is inside our 1 to 3% preference, so it was not too tight. Heavy volume is not the flaw. The stop did its job and the loss stayed small.",
+   "lesson_line": "A close short of the high makes a weaker trade. The stop capped the loss.",
    "facts": [
     "d18v",
-    "d19v",
-    "c09",
-    "h04",
-    "c37"
+    "st2",
+    "r01",
+    "h04"
    ],
    "wrong": {
-    "A mistake; the stop was too tight": "A 2.9% stop is inside the usual 3%. It was not too tight.",
-    "A mistake; the volume was too heavy": "Light volume is what fails a PEG. 7.5x is not light.",
-    "Bad luck; nothing in the chart": "The chart gave a warning: the close at 0.61 was only just strong."
+    "A mistake; the stop was too tight": "A 2.9% stop is inside our 1 to 3% preference. It was not too tight.",
+    "A mistake; the volume was too heavy": "Volume raises the grade. Heavy volume is not a flaw, and 7.5x is not the problem.",
+    "Bad luck; nothing in the chart": "The close at 61% of the range was weaker than the near-the-high close Stewie wants, so the chart did show something."
    },
    "house": true,
-   "simple": "A weaker setup that the stop capped. The close was only just strong.",
+   "simple": "A weaker setup that the stop capped. The close was well short of the high, so the setup was less clean.",
    "deeper": {
-    "trap": "The trap is hunting for blame in a stopped trade. CELH had one warning before the buy: a close of only 0.61. The stop still kept the loss small, which is what stop first is for."
+    "trap": "The trap is hunting for blame in a stopped trade. CELH had one small warning before the buy: a close only 61% of the way up its range. The stop still kept the loss small, which is what stop first is for."
    },
    "tier": "extended",
    "risk": {
-    "score": 4,
+    "score": 3,
     "reasons": [
      "the example is read off our own bars, not a published source",
-     "a pause that drifts for 5 sessions or more takes the setup off before a buy (c22), so the buy itself may break a rule"
+     "the weak-close reading rests on Stewie's ideal-candle line, not a rule"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "CELH",
     "asof": "2023-05-18",
@@ -2828,7 +2950,7 @@
     "A mistake; buy on day one instead"
    ],
    "answer": "A planned loss; the stop worked",
-   "why": "No. A textbook gap and a textbook pause still lost. The plan sizes by the stop, so a loss at the stop is about 1R and the system keeps working. In our scan of past PEGs, 31.0% reached 3R and 20.0% reached 5R before the stop. So most hits did not get to 3R before the stop.",
+   "why": "No. A textbook gap and a textbook pause still lost. We size by the stop, so a loss at the stop is about 1R and the plan keeps working. In our scan of past PEGs, 31.0% reached 3R before the stop and 20.0% reached 5R. A trade can pass every test and still lose, so we judge the plan across many trades.",
    "lesson_line": "Every gate can pass and the stop can still go.",
    "facts": [
     "d20v",
@@ -2855,7 +2977,7 @@
      "rests on the dossier alone for the example"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "ELF",
     "asof": "2023-06-06",
@@ -2873,8 +2995,8 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "peg.fundamentals",
-   "q": "How does the catalyst side grade?",
-   "story": "A mega-cap that dozens of analysts follow. It gaps 5.4% on earnings on 3.8x volume and closes at 0.89 of its range. Two quiet days then hold above the gap-day low.",
+   "q": "How does this PEG grade?",
+   "story": "A mega-cap that dozens of analysts follow. It gaps 5.4% on earnings on 3.8x volume and closes at 0.89 of its range. Two quiet days then hold above the gap-day low. A grade is our judgment of how clean the setup is.",
    "choices": [
     "B-; many analysts follow it",
     "A+; a clean pause beats it",
@@ -2882,8 +3004,8 @@
     "No trade; too well known"
    ],
    "answer": "B-; many analysts follow it",
-   "why": "B-. A mega-cap with many analysts is a B- cue on the catalyst side. Bonde: earnings breakouts on companies with significant analyst coverage do not do as well as the first kinds. A clean pause helps, but it does not lift the catalyst grade. A mega-cap can still be a PEG; it just grades lower.",
-   "lesson_line": "A widely covered mega-cap is a B- cue.",
+   "why": "B-. Bonde found that earnings breakouts on companies with significant analyst coverage do not do as well. A clean pause helps, but it does not lift the grade past that. A mega-cap can still be a PEG; it just grades lower. Grading is a judgment call.",
+   "lesson_line": "A widely covered mega-cap grades lower.",
    "facts": [
     "c39",
     "bo2",
@@ -2891,14 +3013,14 @@
     "d94"
    ],
    "wrong": {
-    "A+; a clean pause beats it": "The pause is one cue. A mega-cap with many analysts is a separate B- cue on the catalyst side.",
+    "A+; a clean pause beats it": "A clean pause helps, but a mega-cap with many analysts still grades lower. The pause does not lift it.",
     "A; large names hold up": "Bonde: earnings breakouts on companies with significant analyst coverage do not do as well.",
     "No trade; too well known": "A mega-cap can still be a PEG; it just grades lower."
    },
    "house": true,
-   "simple": "It grades B-. Names that many analysts follow tend not to do as well after earnings.",
+   "simple": "It grades B-, because Bonde found earnings breakouts on widely covered companies do not do as well.",
    "deeper": {
-    "counter": "Not every big name is a pass. The card grades a covered mega-cap B- on the catalyst side, not 'no trade'. Bonde says earnings breakouts on companies with significant analyst coverage do not do as well as the first kinds. So the grade drops, not the label."
+    "counter": "Not every big name is a pass. A covered mega-cap grades lower, but it is not a no trade. Bonde says earnings breakouts on companies with significant analyst coverage do not do as well as the first kinds. So the grade drops, not the label."
    },
    "tier": "extended",
    "risk": {
@@ -2908,7 +3030,7 @@
      "Bonde's line is general, not about PEGs by name"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "MSFT",
     "asof": "2015-04-28",
@@ -2986,7 +3108,7 @@
    "format": "scenario",
    "criterion": "peg.market_reading",
    "q": "Do you buy the break, and why?",
-   "story": "The market reading is Red. A leader gaps 12% on earnings on 5x volume, closes at the high, and sets up a tight pause.",
+   "story": "The app's market filter reads Red. A leader gaps 12% on earnings on 5x volume, closes at the high, and sets up a tight pause.",
    "choices": [
     "No; Red is mostly cash and shorts",
     "No; a 12% gap is far too big to chase",
@@ -2994,21 +3116,21 @@
     "Yes, but only at a smaller size"
    ],
    "answer": "No; Red is mostly cash and shorts",
-   "why": "No. At a Red market reading we are mostly in cash and short, so a new PEG long waits. Only Orange allows A+ setups, and Yellow means smaller and fewer. A perfect gap and a tight pause do not override the reading. Wait for the reading to turn Green or Yellow.",
+   "why": "No. At a Red reading we are mostly in cash and short, so a new PEG long waits. The filter is a guide that keeps the account out of longs when the market is against them, and cash is a position. A perfect gap and a tight pause do not override it. Wait for the reading to turn Green or Yellow.",
    "lesson_line": "Red market: mostly cash and shorts, so the PEG waits.",
    "facts": [
     "h26",
     "c28",
     "h11",
-    "c10"
+    "n13"
    ],
    "wrong": {
-    "No; a 12% gap is far too big to chase": "The no-chase rule is about the buy point: never buy more than 4% above it. A gap of 10% or more is an A-grade cue, not a ban.",
+    "No; a 12% gap is far too big to chase": "The no-chase rule is about the buy point: never buy more than 4% above it. A big gap is not a ban.",
     "Yes; a leader beats the market": "The reading is a guide for every long, leaders included.",
     "Yes, but only at a smaller size": "Smaller and fewer is the Yellow reading. Red is mostly cash and shorts."
    },
    "house": true,
-   "simple": "No. In a Red market we are mostly in cash and short, so even a perfect PEG waits.",
+   "simple": "No. In Red the filter says mostly cash, because even a great leader can fall with the market.",
    "deeper": {
     "trap": "The trap is 'great stocks ignore the market'. The reading is a guide for every long, leaders included. In Red the plan is mostly cash and shorts. At Orange only an A+ setup qualifies, and at Yellow the size is smaller and fewer."
    },
@@ -3019,7 +3141,7 @@
      "rests on the owner's rulebook (F65)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q54",
@@ -3093,7 +3215,7 @@
     "A Gap Support; buy the close"
    ],
    "answer": "The gap filled; the setup is off",
-   "why": "The gap filled; the setup is off. Before a buy, a trade at or under the prior close means the gap filled. That holds even if the stock recovers and closes above the PEG-day low. Morpheus: any stock that fills the opening gap should be avoided.",
+   "why": "The gap filled; the setup is off. Before a buy, a trade at or under the prior close means the whole gap has been erased. That holds even if the stock recovers and closes above the PEG-day low. Morpheus says any stock that fills the opening gap should be avoided.",
    "lesson_line": "A trade back to the prior close fills the gap, even if it recovers.",
    "facts": [
     "c20",
@@ -3104,11 +3226,11 @@
    ],
    "wrong": {
     "A Gap Support; buy the close": "Gap Support is the later test of the gap-up low. A trade all the way back to the prior close is a fill, not a test.",
-    "Off; the pause is drifting lower": "A drift is lower highs and lower lows for 5 sessions or more. This is day four, and the stock rallied.",
+    "Off; the pause is drifting lower": "A drift is a run of lower highs and lower lows. This is day four and the stock rallied.",
     "Still on; the close is what counts": "The fill test is a trade at or under the prior close, not a close."
    },
    "house": true,
-   "simple": "The gap filled, so the setup is off. A trade back to the prior close counts even if the day closes strong.",
+   "simple": "The gap filled, so the setup is off, because the whole move of the gap was erased even though the day closed strong.",
    "deeper": {
     "trap": "The trap is the close. A daily-close check misses an intraday fill. The test is any trade at or under the prior close before you buy. A close back above the PEG-day low does not undo it."
    },
@@ -3120,7 +3242,7 @@
      "'even if it recovers by the close' is our reading of a trade at or under the prior close"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q57",
@@ -3137,7 +3259,7 @@
     "Buy more to lower your cost"
    ],
    "answer": "Leave the stop where it is",
-   "why": "Leave the stop where it is. The stop is the exit, and it only moves up, never down or wider. The one exception is the gap rule: a gap through the stop makes the first 30-minute low the new stop. Widening the stop to the gap-day low after buying the pause breaks the stop rule.",
+   "why": "Leave the stop where it is. The stop is the exit, and it only moves up, never down or wider. A stop that moves down turns a planned small loss into an open-ended one. The one exception is a gap through the stop, when the first 30-minute low becomes the new stop.",
    "lesson_line": "The stop never moves down or wider.",
    "facts": [
     "c17",
@@ -3152,7 +3274,7 @@
     "Buy more to lower your cost": "A PEG is one buy at one price with one stop. No adding."
    },
    "house": true,
-   "simple": "Leave the stop where it is, because a stop only moves up and never down or wider.",
+   "simple": "Leave it, because a stop that moves down turns the small loss we planned into an open-ended one.",
    "deeper": {
     "trap": "The trap is 'room'. A stop that moves down turns a planned small loss into an open-ended one. The only exception is a gap through the stop. Even then the first 30-minute low is the new stop, with a ceiling: if that takes the loss past 2R, get out."
    },
@@ -3163,7 +3285,7 @@
      "rests on the owner's rulebook (A4)"
     ]
    },
-   "batch": "polish"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q58",
@@ -3180,7 +3302,7 @@
     "No; the gap filled by close"
    ],
    "answer": "No; it faded into a weak close",
-   "why": "No. The gap held, but the day faded and closed at 0.23 of its range, in the bottom quarter. A faded PEG day is not a PEG. It can become a delayed-reaction watch, but it is not a buy. The gap did not fill, because the low stayed above the prior close of 116.78. So the fill is not what failed it.",
+   "why": "No. The gap held, since the low stayed above the prior close of 116.78, but the day faded and closed at 0.23 of its range. A close near the low means sellers took back the day, and Stewie does not want a gap that reverses. A faded day is not a PEG. It can become a delayed-reaction watch, but it is not a buy.",
    "lesson_line": "A gap that fades is a watch, not a buy.",
    "facts": [
     "d24v",
@@ -3194,7 +3316,7 @@
     "No; the gap filled by close": "The low stayed above the prior close, so the gap did not fill."
    },
    "house": true,
-   "simple": "No. The gap stayed open, but the day closed near its low, so it faded and is not a PEG.",
+   "simple": "No. The gap stayed open, but the day closed near its low, so sellers won the day and it is not a PEG.",
    "deeper": {
     "trap": "The trap is reading 'gap still open' as strength. This stock kept its gap, with the low above the prior close, yet closed at 0.23 of its range. Buyers did not hold the move. A PEG needs the gap to hold and the close to be strong."
    },
@@ -3208,7 +3330,7 @@
    "depends_on": [
     "D-039"
    ],
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "AMD",
     "asof": "2022-02-02",
@@ -3231,7 +3353,7 @@
     "Yes, on day one at the open"
    ],
    "answer": "No; it is an exhaustion gap",
-   "why": "No. Treating an exhaustion gap after a huge run as a PEG is a named mistake. Bonde: when the grandma in Timbuktu gets excited about it, it is an exhaustion gap. The months before the report decide it, not the gap day.",
+   "why": "No. Treating an exhaustion gap after a huge run as a PEG is a named mistake. Bonde says that when the grandma in Timbuktu gets excited about it, it is an exhaustion gap. By then the news is widely known. The months before the report decide it, not the gap day.",
    "lesson_line": "A gap after a huge run, with everyone talking about it, is not a PEG.",
    "facts": [
     "c38",
@@ -3239,14 +3361,14 @@
     "c37"
    ],
    "wrong": {
-    "No; the volume is too heavy": "Light volume, not heavy volume, is what fails a PEG. The problem is the huge run before the gap.",
+    "No; the volume is too heavy": "Volume raises the grade; it does not fail a setup. The problem is the huge run before the gap.",
     "Yes; an A+ given the huge volume": "Huge volume does not offset a late gap after a huge run.",
     "Yes, on day one at the open": "This is an exhaustion gap, not a PEG, so there is no PEG buy on any day."
    },
    "house": true,
-   "simple": "No. A stock everyone is talking about after a 120% run is an exhaustion gap, not a PEG.",
+   "simple": "No. A stock everyone is talking about after a 120% run is an exhaustion gap, because the news is already widely known.",
    "deeper": {
-    "trap": "The trap is that the day looks perfect: a gap, a close at the high, huge volume. The months before it decide. A 120% run that everyone talks about is Bonde's exhaustion gap. A quiet base before the gap is the A cue."
+    "trap": "The trap is that the day looks perfect: a gap, a close at the high, huge volume. The months before it decide. A 120% run that everyone talks about is Bonde's exhaustion gap. A quiet base before the gap is the better setup."
    },
    "tier": "expert",
    "risk": {
@@ -3256,7 +3378,7 @@
      "Bonde's line is a metaphor, backed by our card"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q60",
@@ -3273,7 +3395,7 @@
     "Sell half now and keep half"
    ],
    "answer": "Get out; the loss is past 2R",
-   "why": "Get out. On a gap through the stop, the first 30-minute low is the new stop. But if that puts the loss past 2R, you are out. Here 47.20 is past 2R under the 50.00 fill.",
+   "why": "Get out. On a gap through the stop, the first 30-minute low is the new stop. But if that puts the loss past 2R, you are out. Here 47.20 is past 2R under the 50.00 fill. A planned loss is only the risk we sized for, so this is already far worse, and waiting only risks more.",
    "lesson_line": "Past 2R in the first half hour, get out.",
    "facts": [
     "c25",
@@ -3286,7 +3408,7 @@
     "Sell half now and keep half": "Past 2R the rule says out, not half."
    },
    "house": true,
-   "simple": "Get out, because the first 30-minute low of 47.20 puts the loss past 2R.",
+   "simple": "Get out, because the first 30-minute low of 47.20 puts the loss past 2R, far worse than the loss we planned.",
    "deeper": {
     "trap": "Do not wait for a bounce to the old 49.00 stop. A gap through the stop cancels that level. The first half hour sets the new stop, and past 2R we are out, not hoping."
    },
@@ -3298,7 +3420,7 @@
      "the key is worked out from the story prices"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q61",
@@ -3379,30 +3501,29 @@
    "format": "scenario",
    "criterion": "peg.entry_pause",
    "q": "Which one gets the bigger size?",
-   "story": "Yellow market. Gap A: 12%, 5x volume, a high close, out of a six-month base, tight pause. Gap B: up 35% in three months, mid-range close, loose pause that undercuts the low.",
+   "story": "The app's market filter reads Yellow, which means smaller and fewer positions. You grade one PEG an A and the other a B-. A grade is our judgment of how clean the setup is, and it sets the size.",
    "choices": [
-    "A; B is weaker, so less size",
-    "B; late gaps run the furthest",
-    "Both the same; Yellow caps size",
+    "The A; the B- is sized down",
+    "The B-; it has more room to run",
+    "Both the same; Yellow sets the size",
     "Neither; Yellow means all cash"
    ],
-   "answer": "A; B is weaker, so less size",
-   "why": "A gets the bigger size. A is stronger on every cue. B has three weak ones: a late gap after a 35% run, a mid-range close and a loose pause that undercuts the low. We size down a B- or lower, and Yellow already means smaller and fewer. Grading is a judgment call.",
+   "answer": "The A; the B- is sized down",
+   "why": "The A gets the bigger size. The grade sets the size: an A gets normal size, and a B- or lower is sized down, risking 0.25% to 0.5% against 0.5% to 1% for an A. The setup we trust least risks least. Yellow already means smaller and fewer. Grading is a judgment call.",
    "lesson_line": "Match size to the grade. A weaker setup gets smaller size.",
    "facts": [
     "h30",
-    "c40",
-    "c41",
-    "c42",
-    "c44"
+    "h26",
+    "n05",
+    "n06"
    ],
    "wrong": {
-    "B; late gaps run the furthest": "A late gap after a big run is a weak cue, not a plus.",
-    "Neither; Yellow means all cash": "Yellow means smaller and fewer, not all cash.",
-    "Both the same; Yellow caps size": "Yellow cuts size for both, and the grade sizes the weaker one down further."
+    "Neither; Yellow means all cash": "Yellow means smaller and fewer, not all cash. Red is the mostly-cash reading.",
+    "The B-; it has more room to run": "A weaker setup is the one we trust least, so it risks less, not more.",
+    "Both the same; Yellow sets the size": "Yellow cuts the size for both, and the grade then sizes the weaker one down further."
    },
    "house": true,
-   "simple": "Gap A gets the bigger size because gap B is weaker and weaker setups are sized down.",
+   "simple": "The A gets the bigger size, because the setup we trust least risks the least.",
    "deeper": {
     "trap": "Do not read Yellow as all cash. Yellow means smaller and fewer, so a strong PEG is still taken, only smaller than in Green. Within that, the grade sets the size: A and B normal, A+ sized up, B- or lower sized down."
    },
@@ -3414,15 +3535,15 @@
      "fixed before: full size in Yellow was corrected"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q64",
    "skill": "setup.power_earnings_gap",
    "rung": 9,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "peg.above_200",
-   "q": "An earnings gap day is the last bar. Take the pause break once it triggers, or pass?",
+   "q": "Take the pause break once it triggers, or pass?",
    "choices": [
     "Pass; it is under the 200-day",
     "Take it; it fell far and looks cheap",
@@ -3430,7 +3551,7 @@
     "Pass; the gap day closed weak"
    ],
    "answer": "Pass; it is under the 200-day",
-   "why": "Pass. The gap-day close was under the 200-day, so this is a bear-market relief gap and there is no long. The close was 205.73 against a 200-day of 302.98, after a 42% fall over 65 sessions. We take no longs below the 200-day simple moving average. The gap was big and the close strong, but neither lifts a stock over that line.",
+   "why": "Pass. The gap-day close was under the 200-day, so this is a bear-market relief gap and there is no long. The close was 205.73 against a 200-day of 302.98, after a 42% fall over 65 sessions. Morales wants buyable gaps in an uptrend or a constructive base, not a downtrend. A big gap and a strong close do not lift a stock over that line.",
    "lesson_line": "Under the 200-day, there is no long to buy.",
    "facts": [
     "d26v",
@@ -3450,7 +3571,7 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Pass. The gap day closed under the 200-day, and we take no longs below it.",
+   "simple": "Pass, because a stock under its 200-day is in a downtrend and a one-day gap does not change that.",
    "deeper": {
     "counter": "The candle was textbook and the trend was not. The gap was 16.0% on 3.1x volume and closed at 0.82 of its range. But the stock had fallen 42% over 65 sessions and sat far under its 200-day. The line decides before the candle does."
    },
@@ -3466,15 +3587,16 @@
    "depends_on": [
     "D-020"
    ],
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16",
+   "story": "The chart ends on an earnings gap day. Check where the close sits against the 200-day line, the average of the last 200 closes."
   },
   {
    "key": "q65",
    "skill": "setup.power_earnings_gap",
    "rung": 9,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "peg.entry_pause",
-   "q": "Five sessions after an earnings gap. What is the call on this pause?",
+   "q": "What is the call on this pause?",
    "choices": [
     "Take it over the pause high",
     "Take it now, before any break",
@@ -3482,7 +3604,7 @@
     "Pass; the pause is drifting lower"
    ],
    "answer": "Take it over the pause high",
-   "why": "Take it, on the break over the pause high. An 8.8% gap on 5.5x volume closed at 0.92 of its range. Five flat days held the gap-day low and stayed 1.7% deep, and the gap never filled. The trigger is a market buy as price trades over the pause high, 56.14 here, which came on 2017-11-06. A filled gap, a close under the gap-day low, or lower highs and lower lows would have taken it off.",
+   "why": "Take it, on the break over the pause high. The gap held, because price never traded back to the prior close, and five quiet days stayed above the gap-day low. Sellers could not push it down. The trigger is a market buy as price trades over the pause high, 56.14 here, which came on 2017-11-06. A filled gap, a close under the gap-day low, or lower highs and lows would have taken it off.",
    "lesson_line": "A gap that holds and a quiet pause are the setup.",
    "facts": [
     "d01",
@@ -3504,7 +3626,7 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Take it, but only when price trades over the pause high. The gap held and the pause is quiet.",
+   "simple": "Take it, but only as price trades over the pause high, because that shows buyers are back after the quiet days.",
    "deeper": {
     "example": "AMZN, October 2017: a report after the close on 2017-10-26 made 2017-10-27 the PEG day. Five flat days later the buy came over the pause high at 56.14 with the stop at 55.39. It reached 3R in 13 sessions, and our scan's best run on this trade was 24.7R."
    },
@@ -3519,7 +3641,8 @@
    "depends_on": [
     "D-085"
    ],
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16",
+   "story": "The chart ends five sessions after an earnings gap. Check whether price held the gap-day low and whether the gap has filled."
   },
   {
    "key": "q66",
@@ -3553,7 +3676,7 @@
     "No; wait a week after a stop-out"
    ],
    "answer": "Yes; a new trigger is a new trade",
-   "why": "Yes, on a new trigger. After a stop-out we buy again only if the setup triggers again, as a new trade with its own stop and every rule. The limit is 3 tries a week and 6 a month on one stock.",
+   "why": "Yes, on a new trigger. A stop-out says that entry failed, not that the setup is dead. If it triggers again, it is a new trade with its own stop and every rule. The limit is 3 tries a week and 6 a month on one stock. Doubling the size to win it back would break the sizing rule.",
    "lesson_line": "After a stop-out, buy again only on a new trigger.",
    "facts": [
     "h28",
@@ -3566,7 +3689,7 @@
     "No; wait a week after a stop-out": "The rule asks for a new trigger, not a waiting period."
    },
    "house": true,
-   "simple": "Yes, a new trigger is a new trade with its own stop, within 3 tries a week and 6 a month.",
+   "simple": "Yes, because a stop-out ends one entry, not the setup, and a new trigger is a new trade with its own stop.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -3575,7 +3698,7 @@
      "fixed before: the revenge-trade wording was removed"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q68",
@@ -3597,7 +3720,7 @@
     "Fixed 5% under the 85.60 fill": "A fixed percentage ignores the chart. The stop sits under a real low."
    },
    "answer": "A few cents under the 83.60 low",
-   "why": "A few cents under 83.60, the gap day's low so far. On the gap day itself the stop goes a few cents under that low, never exactly on it. It is not under the 84.80 open, because the day dipped lower.",
+   "why": "A few cents under 83.60, the gap day's low so far. That low is the nearest price where this buy has clearly failed, so the stop goes just under it, never exactly on it. It is not under the 84.80 open, because the day already traded lower than that open.",
    "lesson_line": "Day one: the stop sits a few cents under the low so far.",
    "facts": [
     "c05",
@@ -3605,7 +3728,7 @@
     "mo2"
    ],
    "house": true,
-   "simple": "The stop goes a few cents under the day's low so far, which is 83.60, not under the open.",
+   "simple": "The stop goes a few cents under the day's low so far, 83.60, because that low is where this buy proves wrong.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -3614,7 +3737,7 @@
      "fixed before: the day-one buy was made a conditional"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q69",
@@ -3624,7 +3747,7 @@
    "criterion": "peg.stop_day1",
    "q": "Gil Morales says a buyable gap-up should hold above the intraday low of the gap-up day.",
    "answer": "True",
-   "why": "True. Morales: a buyable gap-up should hold above the intraday low of the gap-up day, so that low is the selling guide. On day one our stop goes a few cents under the gap day's low so far. On a pause buy it goes a few cents under the pause or trigger-day low, never wider than under the gap-day low.",
+   "why": "True. Morales says a buyable gap-up should hold above the intraday low of the gap-up day, so that low is the selling guide. A gap that gives up its own low has shown sellers can overpower buyers. On day one our stop goes a few cents under the gap day's low so far. On a pause buy it goes a few cents under the pause or trigger-day low, never wider than under the gap-day low.",
    "lesson_line": "The gap day's low is the line. A pause stop is never wider than a few cents under it.",
    "facts": [
     "mo2",
@@ -3632,7 +3755,7 @@
     "h24"
    ],
    "house": true,
-   "simple": "Yes. The gap day's low is the line the stock should hold, and it guides where the stop goes.",
+   "simple": "Yes. The gap day's low is the line the stock should hold, because losing it shows sellers have taken over.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -3641,7 +3764,179 @@
      "the day-one stop wording is tied to the open day-one buy question"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
+  },
+  {
+   "skill": "setup.power_earnings_gap",
+   "tier": "extended",
+   "batch": "owner-review-7-2026-11-16",
+   "key": "q70",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "peg.not_extended",
+   "q": "What was the stock doing before this report?",
+   "story": "The chart ends on the gap day after the report. Check the four months before it.",
+   "chart": {
+    "sym": "BIDU",
+    "asof": "2010-02-10",
+    "window": 120,
+    "forward": 20
+   },
+   "choices": [
+    "Moving sideways in a flat shelf",
+    "Running up 40% in three months",
+    "Sliding under its 200-day line",
+    "Falling steadily lower for months"
+   ],
+   "answer": "Moving sideways in a flat shelf",
+   "why": "Moving sideways in a flat shelf. The stock sat in a four-month flat shelf, and the gap cleared it. Bonde wants stocks that have not rallied in anticipation of earnings. A quiet stock has not used up its move, so the gap is its first big step. A stock that already ran before the report is a late gap.",
+   "lesson_line": "A quiet base before the gap is the best setup. The gap is the first move.",
+   "facts": [
+    "d04",
+    "d06",
+    "bo1",
+    "mo1"
+   ],
+   "wrong": {
+    "Running up 40% in three months": "This stock was quiet, not running. A big run before the report makes the gap late.",
+    "Sliding under its 200-day line": "A slide under the 200-day would rule out a long. This stock sat in a flat shelf.",
+    "Falling steadily lower for months": "The stock held its level for months. It was not in a steady fall."
+   },
+   "simple": "A flat shelf. A stock that has not run before the report gets its first big move in the gap.",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "plain reading of our rulebook and the dossier's real example"
+    ]
+   }
+  },
+  {
+   "skill": "setup.power_earnings_gap",
+   "tier": "extended",
+   "batch": "owner-review-7-2026-11-16",
+   "key": "q71",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "peg.entry_pause",
+   "q": "Which line describes the pause on this chart?",
+   "story": "The chart ends three sessions after an earnings gap day that closed in the upper part of its range. Check where the pause sits against the gap-day close and low.",
+   "chart": {
+    "sym": "ILMN",
+    "asof": "2013-04-26",
+    "window": 120,
+    "forward": 20
+   },
+   "choices": [
+    "Tight days that hold the gap-day close",
+    "Drifting days under the gap-day low",
+    "A fill back to the prior close",
+    "A swing that undercuts the gap-day low"
+   ],
+   "answer": "Tight days that hold the gap-day close",
+   "why": "Tight days that hold the gap-day close. The three days after the gap each closed above the gap-day close, in a narrow band, and stayed well above the gap-day low. Sellers could not push it down, so the buy over the pause high comes with a close stop. A drift, a gap fill or an undercut would each have taken the setup off or weakened it.",
+   "lesson_line": "A tight pause that holds the gap-day close shows sellers could not push it down.",
+   "facts": [
+    "d12",
+    "d13",
+    "c06",
+    "c23",
+    "st4",
+    "mo2",
+    "mp1"
+   ],
+   "wrong": {
+    "Drifting days under the gap-day low": "The pause stayed above the gap-day low. A drift would be lower highs and lows.",
+    "A fill back to the prior close": "Price never traded back to the prior close. The gap stayed open.",
+    "A swing that undercuts the gap-day low": "The pause stayed well above the gap-day low."
+   },
+   "simple": "Tight days that hold the gap-day close show sellers could not push the stock down, so the stop can sit close.",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "plain reading of our rulebook and the dossier's real example"
+    ]
+   }
+  },
+  {
+   "skill": "setup.power_earnings_gap",
+   "tier": "extended",
+   "batch": "owner-review-7-2026-11-16",
+   "key": "q72",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "peg.entry_pause",
+   "q": "Buy the close, wait for a pause or skip it?",
+   "story": "A leader gaps up on earnings and closes strong at 90.00. The day's low was 82.00. A friend says to buy the close with the stop under 82.00. That stop is almost 9% away.",
+   "choices": [
+    "Wait for a pause; buy over its high",
+    "Buy the close; the setup is strong",
+    "Buy the close with a tighter 3% stop",
+    "Skip it; gaps this big never work"
+   ],
+   "answer": "Wait for a pause; buy over its high",
+   "why": "Wait for a pause and buy over its high. We buy as price trades through a trigger during the day, never at the close. Buying the close puts the stop under the gap-day low, almost 9% away. We accept stops up to 5% and mostly wait for a tighter trigger past that. A pause brings the trigger and its low closer together. Never tighten the stop to fit.",
+   "lesson_line": "Do not buy the gap-day close. Wait for the pause and its trigger.",
+   "facts": [
+    "n01",
+    "n02",
+    "n09",
+    "c03",
+    "c05",
+    "st4",
+    "mo2"
+   ],
+   "wrong": {
+    "Buy the close; the setup is strong": "A strong setup still needs a stop that fits. The close is the far end of the stop.",
+    "Buy the close with a tighter 3% stop": "A stop pulled in to fit the size is not a real stop. It goes under a real low.",
+    "Skip it; gaps this big never work": "The setup is fine. It just needs a trigger closer to its own low."
+   },
+   "simple": "Wait for a pause, because buying the close puts the stop far away and a pause brings it close.",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "plain reading of our rulebook and the dossier's real example"
+    ]
+   }
+  },
+  {
+   "skill": "setup.power_earnings_gap",
+   "tier": "extended",
+   "batch": "owner-review-7-2026-11-16",
+   "key": "q73",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "peg.trim_1",
+   "q": "Sell, add or hold?",
+   "story": "You bought a PEG pause break at 40.00 with the stop at 39.00. On day 5 the stock has pushed up four days in a row and is up 6R, at 46.00.",
+   "choices": [
+    "Sell part into the push; trail the rest",
+    "Sell all of it; 6R is plenty",
+    "Sell part, then add back on a dip",
+    "Sell nothing; wait for the next report"
+   ],
+   "answer": "Sell part into the push; trail the rest",
+   "why": "Sell part into the push and trail the rest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. Kullamagi tells breakout traders to sell a third to a half after 3 to 5 days. A fast push is when buyers are plentiful, so part of the trade is banked. The rest stays, because the measured edge comes from the few big runs. We trail it under the 9 or 20 EMA.",
+   "lesson_line": "Sell some into the push, trail the rest.",
+   "facts": [
+    "n03",
+    "n07",
+    "c46",
+    "h21",
+    "k1",
+    "st6"
+   ],
+   "wrong": {
+    "Sell all of it; 6R is plenty": "The plan pays on the few big runs, so we keep part for the trail.",
+    "Sell nothing; wait for the next report": "We sell some into strength and trail the rest. Waiting for a report is not an exit plan.",
+    "Sell part, then add back on a dip": "A PEG is one buy at one price with one stop. We never add, even after selling part."
+   },
+   "simple": "Sell part into the strength and trail the rest, so you bank some and still keep the big runs.",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "plain reading of our rulebook and the dossier's real example"
+    ]
+   }
   }
  ],
  "conflicts": [
@@ -3767,38 +4062,37 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer from st1/c33: an earnings gap with a strong close. Wrong notes are supported (c33, st3, c37). No tell; lengths within 40."
+   "notes": "AMZN asof 2017-10-27 is the PEG day in the bars: gap 8.8%, close 0.92 of range; matches d01/d02. Chart shows the shape (rule 24); light-volume choice gone (D-006). Pass."
   },
   "q03": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Only the 0.20 close fails the top-quarter / faded-day rule (c08, c09, st2); the other three close at 0.80 or higher under any proposed threshold. Overlaps in concept with q58 (AMD, rung 8) but at a different rung and form.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key False is right: st5 and c19/h23. No tell."
+   "fixed": true,
+   "notes": "Task 2. 'Our test is what the stock does in the regular session' is a card-style test stated as ours; his rulebook only says no buys outside regular hours (E58) and entries are market orders (E57). Reworded to say what the regular session shows without calling it our test."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Green or Yellow rests on c28/h26; distractors are real near-misses; notes grounded."
+   "fixed": true,
+   "notes": "Cold answer: Green or Yellow (F65, c28). No second defensible choice: Green only drops Yellow, Yellow or Orange drops Green, Orange or Red is the cash side. Defect: the stem named the app's market filter but not what the colors do (rule 19). Stem now says the filter sets how much the account trades; key, why and wrong notes unchanged and correct."
   },
   "q07": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "True rests on st2 verbatim; the top-quarter A grade is c09. Stem does not give away any other item (q08 is cut)."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False follows c23; Gap Support line follows c35. Stem says before you buy, so it does not collide with the close-under-low rule in q28. q37 grades the same undercut as a B- cue, which is consistent."
+   "notes": "c23 verbatim; reason given. Pass."
   },
   "q11": {
    "status": "cut",
@@ -3810,49 +4104,49 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "BIDU: card winners_list 2010-02-10; dossier s12 row 1 report 2010-02-09 after close, PEG day 2010-02-10 (Wednesday). asof 2010-02-09 is a Tuesday, the report-day close; replay shows the PEG day. No numbers; ticker absent; answer true."
+   "notes": "Cold answer: Wednesday. Report after Tuesday's close (BIDU chart ends 2010-02-09, a Tuesday); the first regular session after is the PEG day (c01, d01, d04). Why gives the reason (a report after the close cannot trade until the next session). No tell, no card number, no house claim; each wrong choice has a plain refutation."
   },
   "q14": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "c14 says the app cannot check the numbers; D38 grade defined; chart-first from D40. Pass."
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "A5/h31 verbatim; reason given. Pass."
   },
   "q16": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "COCO 2026-05-08 (dossier s12 row 10: buy over 69.58, stop 68.27, report 2026-04-29 before open, buy day 2026-05-08); trade matches text; 3R = 73.51 correct; distractors 70.89/72.20/72.58 correct. Only issue: the right answer was the largest of the four values. Fix swaps the 1R distractor for a 4R one (74.82 = 69.58 + 4 x 1.31) so the answer sits mid-range."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q17": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Matches c16/c05/h24. Prior close is below the PEG-day low on an open gap so it is wider than the limit; exact-on-the-low fails the few-cents rule. No second defensible answer among the choices."
+   "notes": "c16/h24 verbatim; D-008 respected (the exactly-on-low wrong choice is F62); reason given. Pass."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Orange allows only A+ (h26/c28); story gives the grades; every wrong choice noted."
+   "notes": "F65 Orange = A+ only; grade defined as judgment (E50); no checklist. Pass."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
+   "notes": "h21 and D-021: 9 and 20 EMA, close not touch; reason given. Pass."
   },
   "q22": {
    "status": "cut",
@@ -3861,52 +4155,52 @@
    "notes": "cut in fills: see the resolver's notes"
   },
   "q23": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Calc 11.2 ok. The 1.1% note said 'read the ratio as a percent', which would give 0.1%."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "LULU 2018-04-05 (Thursday) is the buy day (dossier s12 row 5: PEG 2018-03-28, buy over 90.25, stop 88.19, 2.3%; hits.json pivot 90.25). Trade matches the words; 2.3% correct. First use of LULU."
+   "notes": "LULU asof 2018-04-05: entry 90.25 is the 04-02 pause high, buy-day low 88.24, stop 88.19 five cents under it; trade sits inside the bars. (90.25-88.19)/90.25 = 2.28%. The number drives the accept-or-wait stop decision (D-005), so it is not a ratio drill. Pass."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Not a pivot-only card: Pause high 60.00 and 'Trades at 10:15' 62.80 are both drawn, so the member sees the price is above the cap. Percent not shown. Keep."
+   "fixed": true,
+   "notes": "Task 2 wording. 'The stop stays under the pause high' is wrong: the stop sits under the pause low. C28's point is that the stop stays where it was, so the distance grows and the shares shrink. Corrected."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Close under the PEG-day low before a buy is off (c21). Drift choice is wrong by c22 (four days, under 5 sessions). The key restates the story, which is the nature of a rule-application item. q10 is cut, so nothing answers it."
+   "notes": "Cold answer: off, because the close under the PEG-day low gave the line up (c21, c06). The wrong 'Off; the pause has become a drift' shares the verdict but the story gives no lower highs and lows, and the wrong note says so; the two 'On' choices contradict the story. Why gives the reason (buyers gave up the line they had to defend) and allows the slight undercut that closes back over. A card invalidation, not an owner ruling, but it contradicts none of his rulings and no 'we' claim is made."
   },
   "q29": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
+   "notes": "B20: 1R = 0.60, loss to 28.95 = 1.75R under 2R; 2R under the fill = 28.80. Pass."
   },
   "q30": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
+   "notes": "Cold answer: False. Breakeven is 2R to 5R or at the first sell (B19, hw line), never at the fill. Why gives the reason (a trade has to earn breakeven; breakeven is the point after which it must never again be a loser) and states the rule correctly. No second defensible reading."
   },
   "q31": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "LOGI asof 2023-10-30 (Monday), the day before the 2023-10-31 trigger. PEG day 2023-10-24 is a Tuesday; four pause days (25,26,27,30) match dossier pause 4 days; hits.json pause_low 75.49 over gap_low 74.0 so 'held above the PEG-day low' is true; close 0.95 = strong; pivot 78.20, stop 77.34. Deeper example matches d91/d92. Answer true."
+   "notes": "LOGI asof 2023-10-30: PEG day 10-24 (Tuesday, strong close), four pause days 10-25 to 10-30 all above the gap-day low 74.00, pause high 78.20 on 10-25, buy day 10-31 trades 78.84. Story matches. Pass."
   },
   "q33": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ASML 2024-01-24 Wednesday gap day (dossier 6.7 row 1, owner 'Again, just a PEG'; 6.2%, 7.6x, close 0.55; card source: 2.7x its biggest day of the prior year). Story numbers match; d95 quote is a verbatim substring of the table row. Answer PEG correct."
+   "notes": "ASML 2024-01-24 in the bars: open 826.86 over 778.39 = 6.2%, volume 7.75M, close 0.55 of range. HVE defined in the story (rule 19). Pass."
   },
   "q34": {
    "status": "cut",
@@ -3918,19 +4212,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c32: neglected name down for six months is an EP, not a PEG. Wrong notes supported. 20%, 15%, 5x are in the story."
+   "notes": "c32 verbatim; no number tested; reason given. Pass."
   },
   "q36": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q37": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "c41 (A+ cue) and c42 (B- cue) decide it; the story gives loose plus undercut, no lower highs and lows, so c22 does not turn it into a drift. Same E50 note as q36."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q38": {
    "status": "cut",
@@ -3942,158 +4236,181 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
+   "notes": "Day 2, open 43.60 is past 3R 43.00; D-013 usually wait until day 3; GAP-TRIM optional so the 'sell a third' wrong note says only that a fixed third is not our rule. Pass."
   },
   "q40": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Same LULU buy day and levels, second use (allowed). Window 150. Account 50,000 and 0.5% risk are the lesson's own sizing inputs, not example numbers; 121 shares correct."
+   "notes": "LULU same levels as q25. 50,000 x 0.5% = 250; 250/2.06 = 121.4 rounds to 121 shares, 21.8% of the account, under the 40% cap. Wrong 109, 554, 1,213 each recompute from a real mistake. Pass."
   },
   "q41": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The 5.2% stop makes the key depend on the open 3% stop cap (D-005): under a hard cap the right answer would be skip, which is not offered, and the card's entry_pause wants a stop within about 3%. Use a stop of about 2.9% so 'stop first, size from the stop' holds under every option; 'shrink' becomes 'let it set the size'. Drop the D-005 dependency."
+   "notes": "Task 3. Stem opened 'What do you do?'. Renamed to the decision; the choices still answer it. Content correct (n08, n09, A3)."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit: story no longer presupposes a third taken at 3R; the 5R hold-through rule is unchanged"
+   "notes": "B22: hold through a report only if up 5R; n10 verbatim. Pass."
   },
   "q43": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit: time stop kept; the breakeven wrong note no longer says 'at the first trim by default'"
+   "notes": "C33 time stop; breakeven wrong note matches B19. Pass."
   },
   "q44": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "h27 supports key; calendar-add distractor wrong on the add rule; c28 supports the favored-season note."
+   "fixed": true,
+   "notes": "Task 2 clarity. 'Add as they work' reads as adding to one trade, which A5 forbids (q15, q57 teach no adding); F68 means more positions in the book. Choice, why and lines now say more positions."
   },
   "q45": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h09/c31: $10 and $20 million a day; $12 million fails. The 14% gap choice is killed by h11 and c10. $20 million is in h09. Two No, two Yes."
+   "notes": "B23 verbatim; $12 million a day fails the $20 million floor. Pass."
   },
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "c29 says four windows a year; why attributes the PEG list to the card."
+   "fixed": true,
+   "notes": "Task 2 defect. 'We keep a PEG list each quarter' presents a card line (c29) as our practice; his rulebook has no quarterly PEG list (F64 is a daily focus list). The 'because' clause also bundled two claims. Restated as a plain true calendar fact with no 'we'; the why gives the reason for a list without claiming a rule and avoids 'few leaders gap between seasons' (LULU, ELF, NVDA report off-cycle). Stays true/false (the tf share is at its floor)."
   },
   "q47": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
+   "notes": "Cold answer: 4,000 shares (1% of 400,000; D42, c30; calc a/100). 8,000 is 2%, 40,000 is 10%, 400,000 is all of it, and each wrong note names the slip. The $60 price gives about $24 million a day, so it also passes B23. The number drives a decision (the position ceiling; risk size may be smaller), so it is not a ratio drill. Why gives the reason (cannot sell out without moving the price). No tell: the right answer is neither smallest-in-order nor longest."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "CELH 2023-05-18 (Thursday) buy day: hits.json entry 45.07, stop 43.78, 2.9%, stopped 2023-05-19 day 1, best 0.0R; gap 10.6%, 7.5x, close 0.61 match dossier s13 row 2. The 'seven days' count was dropped (dossier is ambiguous: 5-session pause, triggered day 7). Forward 20 covers the stop-out. Key stays true."
+   "fixed": true,
+   "notes": "Defects: (1) the story said 'closed at 0.61' without saying what 0.61 means (rule 19 / label); (2) the key and why leaned on 'the pause took seven days to trigger', which the story did not give, and the bars (CELH: PEG day 2023-05-10, break on 2023-05-18, five quiet days with rising lows) do not show a drift, so 'slow pause' is not a safe warning; (3) with only '0.61' on the page, 'bad luck' was as defensible as 'weaker setup'. Fix: the story states the close as 61% of the way up the range; the why rests on Stewie's 'at or near the highs is ideal' (st2), the 2.9% stop inside the 1-3% preferenc"
   },
   "q50": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ELF 2023-06-06 (Tuesday) buy day: hits.json entry 107.16, stop 104.36 (2.61%, matches dossier 2.6%), pause day 8, best 0.0R, stopped. Gap 10.7%, 4.6x, close 0.98 match dossier. Stop price is not printed in the dossier but is verified in final/hits.json."
+   "notes": "ELF asof 2023-06-06: entry 107.16 is the 05-30 pause high, buy-day low 104.41, stop 104.36, 2.6%. Base-rate numbers are cited from d22 as evidence, not a threshold. Pass."
   },
   "q51": {
-   "status": "pass",
+   "status": "cut",
    "by": "checker",
    "fixed": false,
-   "notes": "MSFT asof 2015-04-28 (Tuesday), day before the 2015-04-29 trigger; PEG day 2015-04-24, two-session pause; gap 5.4%, 3.8x, close 0.89 match dossier s13 row 4; hits.json pause_low 47.22 over gap_low 45.65 so 'hold above the gap-day low' true. d93/d94 quotes verbatim. Answer B- consistent with the card."
+   "notes": "Cut. (1) The key is the card's B- cue (c39, proposed) plus Bonde's general line about analyst coverage; his rulebook says grading is discretionary with no checklist (E50), so 'B-' as the one right grade invents a checklist item. (2) The story defines a grade as 'our judgment of how clean the setup is', and coverage is not about cleanliness, so 'No grade change' is defensible. (3) The rework put the 5.4% gap back in the story, against the unit's own note that mega-cap near-misses stay free of a gap size while D-033 (gap floor) is pending. Not fixable without a rule he has not made."
   },
   "q52": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "ILMN 2013-04-29 (Monday) buy day (dossier s12 row 2: buy over 61.35, stop 60.21, 1.9%, 17.0R, 3R in 5 sessions; hits.json best 17.05R and never stopped). 67.05 = 5R is a hypothetical sale; the stock reached 17R inside 60 sessions without hitting the stop so 5R is certain to be reached, and forward 40 covers it. Answer 5.0R correct."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Red is mostly cash and shorts (h26, F65, D46), so no new PEG long. Gap-size choice killed by h11/c10, smaller-size choice by F65 (that is Yellow). Two No, two Yes. Rests on the rulebook, which speaks, and it is a guide (A10) not a cap; 'mostly' leaves no stronger reading in the story."
+   "notes": "F65: Red is mostly cash and shorts, stated as a guide; D44 for the reason. Pass."
   },
   "q56": {
-   "status": "pass",
+   "status": "cut",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold read of final text against D-013, D-021, D-003, GAP-TRIM, D-005, D-031, D-033: agrees; answer right, wrongs wrong, quotes verbatim, style ok."
+   "notes": "Cut. The key (a trade back to the prior close ends the setup even if the day recovers) rests on the card's c20 and on Morpheus's line about the OPENING gap, which is a different case from day four of a pause. 'Still on; the close is what counts' is defensible: c23 lets a slight undercut that closes back over the PEG-day low stand, and his D-022 ruling likes a flush that curls back up. A card proposal cannot decide it; his rulings do not. Removing it also lifts the true/false share over the floor."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key checked cold: A4 (h02, sizing_rule.md line 105) and c17 (card line 735) both say the stop only moves up and is not widened to the gap low after the pause buy. Defects: the new q 'Which move do you make with the stop?' makes 'Buy more to lower your cost' an off-topic choice that is easy to drop, and calls 'leave it' a move. Reworded so all four choices answer it. 'simple' was two sentences; rewritten as one, 17 words."
+   "fixed": false,
+   "notes": "h02 verbatim; reason given. Pass."
   },
   "q58": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "AMD 2022-02-02 (Wednesday) gap day; report 2022-02-01 after close; 11.2%, 2.7x, close 0.23, low 120.64 over prior close 116.78 all from dossier s13 near-miss 3. Answer 'No; it faded' correct."
+   "notes": "AMD asof 2022-02-02 in the bars: open 129.89 over 116.78 = 11.2%, low 120.64, close 0.23 of range. Pass."
   },
   "q59": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c38 and bo3: exhaustion gap after a huge run that everyone is excited about is not a PEG; the story carries Bonde's cue. Heavy volume wrong by c37. Two No, two Yes. 120% and 9% are in the story."
+   "notes": "bo3 verbatim; no threshold tested (120% is far past any card number). Pass."
   },
   "q60": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "2R under 50.00 with a 49.00 stop is 48.00; 47.20 is 2.8R, past the ceiling, so out (B20, c25, h06, h07). Same rule as q29 but the opposite side of the 2R line, so it is a contrast pair, not a duplicate."
+   "notes": "1R = 1.00; 47.20 is 2.8R under the fill, past the 2R ceiling (B20). Pass."
   },
   "q61": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit: base-rate answer kept; why/deeper no longer say the trims are not pulled earlier; 5R-third fact dropped"
+   "notes": "Not in the upgrade (kept). The 31.0% and 20.0% figures are cited evidence from d22, not a rule we test; the reason (small losses, a few big runs) is c46. Pass."
   },
   "q63": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "A has A+ cues (c41, c43), B has B- cues (c40, c42); h30 sizes B- down; key sound."
+   "notes": "D38, E49 and E50 respected; Yellow and grade defined in the story; numbers come from n05. Pass."
   },
   "q64": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "h10/mo1/d26v/d27v: close 205.73 under the 200-day 302.98 after a 42% fall, so no long. Strong close (0.82) kills the weak-close choice; 'looks cheap' is killed by h10. Depends on the member's chart showing the 200-day; chart import is the pilot's design."
+   "notes": "META asof 2022-04-28 in the bars: close 205.73, gap 16.0%, close 0.82 of range; the 200-day figure 302.98 is from d26v. B26 and D-009 (a stock, no exception). Pass."
   },
   "q65": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c03/d28/d01/d02/d03: AMZN, five flat days 1.7% deep, gap open, buy as price trades over the pause high 56.14 (2017-11-06). Two Take, two Pass. Overlaps in subject with q31 (the same trigger on a story); keep them apart in the lesson order."
+   "notes": "AMZN asof 2017-11-03 is the fifth pause day (10-30 to 11-03); pause high 56.14 on 10-30, buy 11-06 trades 56.27; gap-day low 52.53 never lost; prior close 48.62 never retested. Pass."
   },
   "q67": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Story only says first try this week; the rule (E56, h29) also caps 6 a month, and the why cites it. Make the story say first try this month so the month cap cannot be in doubt. Key is right (B21, h28)."
+   "fixed": false,
+   "notes": "B21 and E56 verbatim. Pass."
   },
   "q68": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Day-one stop under the low so far (c05); 83.60 correct; notes match the choices.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "F62 and D-003: stop a few cents under the low so far (83.60). Pass."
   },
   "q69": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "mo2 verbatim, True. The house stop lines are c05 and h24 and match the card. Not a repeat of another item."
+   "notes": "mo2 verbatim. Pass."
+  },
+  "q70": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold answer: a flat shelf. Checked on our bars: BIDU to 2010-02-10 trades 35 to 47 over the prior four months, ends well above its 200-day (36.1 against a close of 48.2), and is not up 40% in three months (42.6 to 48.2 over 64 sessions), so each wrong choice is false on the chart. Matches d06 and the Bonde line (bo1). The chart shows the shape (rule 24). Wrong notes cite B26 for the 200-day only as a ruled-out long. No scanner number tested."
+  },
+  "q71": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold answer: tight days that hold the gap-day close. Checked on our bars (ILMN, PEG day 2013-04-23 closed 60.74; the next three closes were 60.95, 60.84 and 60.90, all above it; lows 60.11 to 60.61 against a gap-day low of 58.36; prior close 53.62 never touched). Every wrong choice is false on the chart. Story and chart both show the shape (rule 24); the why gives the reason (sellers could not push it down). No house claim."
+  },
+  "q72": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Cold answer: wait for a pause and buy over its high (D-003 no close entry, D-005 past 5% wait for a tighter trigger, n09 never tighten). Almost 9% is right (8 / 90 = 8.9%). Only defect: the stem opened 'What do you do?' (Task 3, the lesson is at 13% against a 10% limit). Stem now names the decision, and the choices still fit it; why and wrong notes are correct."
+  },
+  "q73": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Cold answer: sell part into the push and trail the rest (D-013, A11; 6R = (46 - 40) / 1). Defects: (1) the note on 'Sell nothing; wait for the next report' said a trade is held through a report only when up 5R, but this trade is up 6R, so the note half-endorsed the choice; (2) the choices had two extremes and one middle answer, a tell. Fix: the note now says waiting for a report is not an exit plan; the 'add shares' choice becomes 'sell part, then add back on a dip', which shares the key's first half and breaks A5; stem renamed for Task 3."
   }
  }
 }
