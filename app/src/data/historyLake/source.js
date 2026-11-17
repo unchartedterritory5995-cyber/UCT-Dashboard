@@ -105,12 +105,17 @@ export function createHistorySource(o = {}) {
 
   function refreshIndex(sym) { indexes.delete(lakeSymbol(sym)) }
 
+  /** THE one piece URL (its cache key): `warmPieces` and `loadPiece` must never name a piece two ways. */
+  const pieceUrl = (symbol, series, entry) =>
+    `${base}/v1/${series}/${encodeSymbol(symbol)}/${entry.period}.ubh?c=${entry.crc}&o=${entry.off}&n=${entry.bytes}`
+  const placed = (entry) => Number.isSafeInteger(entry.off) && entry.off >= 0 && Number.isSafeInteger(entry.bytes) && entry.bytes > 0
+
   async function loadPiece(symbol, series, entry, signal) {
     // the piece is one ranged read of its pack: offset `off`, length `bytes` (edge history.js)
-    if (!Number.isSafeInteger(entry.off) || entry.off < 0 || !Number.isSafeInteger(entry.bytes) || entry.bytes <= 0) {
+    if (!placed(entry)) {
       throw new HistoryError(`${symbol} ${series}/${entry.period}: the index gives no place for the piece`, { stale: true })
     }
-    const url = `${base}/v1/${series}/${encodeSymbol(symbol)}/${entry.period}.ubh?c=${entry.crc}&o=${entry.off}&n=${entry.bytes}`
+    const url = pieceUrl(symbol, series, entry)
     const res = await get(url, signal)
     if (res.status === 409 || res.status === 404) {
       throw new HistoryError(`${symbol} ${series}/${entry.period}: the index is out of date`, { status: res.status, stale: true })
@@ -157,7 +162,19 @@ export function createHistorySource(o = {}) {
     }
   }
 
-  return { loadIndex, refreshIndex, loadBars }
+  /**
+   * Fetch pieces into the browser's HTTP cache (they are answered `immutable` for a year) without
+   * decoding them: the read that follows (`loadPiece`, the same URL) is then answered from the cache.
+   * Never rejects; a piece without a place is skipped.
+   */
+  async function warmPieces(sym, series, entries) {
+    const symbol = lakeSymbol(sym)
+    await mapLimit((entries || []).filter(placed), maxParallel, async (e) => {
+      try { const res = await get(pieceUrl(symbol, series, e)); if (res.ok) await res.arrayBuffer() } catch { /* a warm only */ }
+    })
+  }
+
+  return { loadIndex, refreshIndex, loadBars, warmPieces }
 }
 
 function emptyResult(symbol, series) {

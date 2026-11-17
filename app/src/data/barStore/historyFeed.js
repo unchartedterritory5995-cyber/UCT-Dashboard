@@ -52,6 +52,25 @@ export function lakeSeriesOfKey(key) {
  * @param {{ source?: ReturnType<typeof createHistorySource> }} o
  */
 export function createHistoryFeed({ source = createHistorySource() } = {}) {
+  // ⭐ PRIMED AT OPEN (2026-11-17). The first lake window of a chart is asked when its first server
+  // answer lands (network `_noteAnswered`: it needs the oldest bar's time), so on a symbol this page
+  // had not opened the deep history arrived a whole edge round trip after the first paint (index, then
+  // pieces: ~150-400 ms). `prime` starts that round trip AT the open, in parallel with the server's:
+  // the index (kept for the page's life) and the series' newest pieces into the browser's HTTP cache,
+  // the very URLs the window then reads. Once per key per page; a few hundred keys at most.
+  const primed = new Set()
+  function prime(key, { pieces = PRIME_PIECES } = {}) {
+    const ls = lakeSeriesOfKey(key)
+    if (!ls || !ls.series || primed.has(key)) return
+    primed.add(key)
+    if (primed.size > PRIME_MAX_KEYS) primed.delete(primed.values().next().value)
+    Promise.resolve().then(() => source.loadIndex(ls.sym)).then((index) => {
+      if (!index || !source.warmPieces) return undefined
+      const newest = periodsFor(index, ls.series, {}).slice(-pieces)
+      return source.warmPieces(ls.sym, ls.series, newest)
+    }).catch(() => {})
+  }
+
   async function olderBars(key, beforeT, { bars: want = 2000, signal } = {}) {
     const ls = lakeSeriesOfKey(key)
     if (!ls || !ls.series || !Number.isFinite(beforeT)) return { bars: [], exhausted: true }
@@ -82,5 +101,11 @@ export function createHistoryFeed({ source = createHistorySource() } = {}) {
     for (let i = start; i < end; i++) rows.push({ t: t[i], o: o[i], h: h[i], l: l[i], c: c[i], v: v[i] })
     return { bars: rows, exhausted: false }
   }
-  return { olderBars }
+  return { olderBars, prime }
 }
+
+/** Pieces `prime` warms per key: the newest two hold the first lake window of every series (a month
+ *  of 1m, a quarter of 5m, a year of 15-60m each, against a ~6,000-bar window). */
+export const PRIME_PIECES = 2
+/** Keys `prime` remembers (a page that opens more starts forgetting the oldest). */
+export const PRIME_MAX_KEYS = 500
