@@ -96,6 +96,14 @@
    "title": "Our rules, in our words (2026-11-14)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
    "accessed": "2026-11-14"
+  },
+  {
+   "id": "hs",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 6 (docs/study/sizing_rule.md)",
+   "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle",
+   "accessed": "2026-11-16"
   }
  ],
  "facts": [
@@ -800,6 +808,144 @@
    "source": "h2",
    "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
    "claim": "D-021: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
+  },
+  {
+   "id": "v12",
+   "source": "m1",
+   "quote": "The volatility, measured from high to low, will be greatest when sellers rush to take profits. When sellers become scarcer, the price correction will not be as dramatic, and volatility will decrease.",
+   "claim": "Minervini: swings are biggest when sellers rush to take profits and shrink as sellers become scarcer."
+  },
+  {
+   "id": "v13",
+   "source": "m1",
+   "quote": "The main role that VCP plays is establishing a precise entry point at the line of least resistance.",
+   "claim": "Minervini: the VCP gives a precise entry at the line of least resistance."
+  },
+  {
+   "id": "cm6",
+   "source": "cm",
+   "quote": "On the next decline there are fewer sellers left, so the pullback is shallower. On the third, shallower still.",
+   "claim": "ChartMill: each decline meets fewer sellers, so each pullback is shallower."
+  },
+  {
+   "id": "cm7",
+   "source": "cm",
+   "quote": "Each contraction shakes out the last weak hands, and the drying-up volume confirms that there is simply no one left who wants to sell at these prices.",
+   "claim": "ChartMill: each contraction shakes out weak hands, and drying-up volume shows no one is left who wants to sell."
+  },
+  {
+   "id": "cm8",
+   "source": "cm",
+   "quote": "At that point, a limited amount of new demand is enough to push the price through the pivot. There is no supply left in the way.",
+   "claim": "ChartMill: after the last contraction, a little new demand pushes price through the pivot because no supply is left in the way."
+  },
+  {
+   "id": "cm9",
+   "source": "cm",
+   "quote": "A fourth base after two years of gains fails more often than a first or second.",
+   "claim": "ChartMill: a fourth base after two years of gains fails more often than a first or second."
+  },
+  {
+   "id": "cm10",
+   "source": "cm",
+   "quote": "Heavy-volume days on falling prices in the last weeks of the base mean there are still big sellers around. The pattern may look tight, but the volume tells a different story.",
+   "claim": "ChartMill: heavy-volume down days late in the base mean big sellers are still around."
+  },
+  {
+   "id": "cm11",
+   "source": "cm",
+   "quote": "not during the first pullback, when supply is still heavy, and not three weeks after the breakout, when the price is already 20% higher.",
+   "claim": "ChartMill: do not buy in the first pullback, when supply is heavy, or three weeks after the breakout, when the price is already 20% higher."
+  },
+  {
+   "id": "cm12",
+   "source": "cm",
+   "quote": "If the price drops below that low, the final contraction has failed to hold and the premise of the trade is gone.",
+   "claim": "ChartMill: a drop below the final contraction's low means it failed to hold and the premise is gone."
+  },
+  {
+   "id": "cm13",
+   "source": "cm",
+   "quote": "a failed breakout costs you little, because the stop is close to the entry, and a successful breakout delivers a multiple of that risk.",
+   "claim": "ChartMill: a failed breakout costs little because the stop is close, and a winner pays a multiple of the risk."
+  },
+  {
+   "id": "cm14",
+   "source": "cm",
+   "quote": "you turn an initial 1R loss into a 3R loss, and then the math no longer works.",
+   "claim": "ChartMill: moving the stop on a failed breakout turns a 1R loss into a 3R loss."
+  },
+  {
+   "id": "cm15",
+   "source": "cm",
+   "quote": "To lock it in or protect it, position management takes over: raising the stop, taking partial profits, and the rule that a winner must never turn into a loser.",
+   "claim": "ChartMill: management takes over with a rising stop, partial profits, and a winner must never turn into a loser."
+  },
+  {
+   "id": "cm16",
+   "source": "cm",
+   "quote": "Real charts rarely stick to the rule of thumb. What matters is that the pullbacks contract and that the final contraction is tight.",
+   "claim": "ChartMill: real charts rarely match the halving rule; what matters is that pullbacks contract and the last one is tight."
+  },
+  {
+   "id": "cm17",
+   "source": "cm",
+   "quote": "you take every small loss without argument, so you are still around when the 8R winner shows up.",
+   "claim": "ChartMill: take every small loss without argument so you are still around when the big winner shows up."
+  },
+  {
+   "id": "k2",
+   "source": "kq",
+   "quote": "You should sell 1/3 to 1/2 of the position after 3-5 days, and then move the stop to break even.",
+   "claim": "Kullamagi sells a third to a half after 3 to 5 days and then moves the stop to breakeven."
+  },
+  {
+   "id": "k3",
+   "source": "kq",
+   "quote": "In a bullish market it is very common to get moves that are 10-20x+ your initial risk if you are good at setup selection.",
+   "claim": "Kullamagi: in a bullish market moves of 10 to 20 times the initial risk are common."
+  },
+  {
+   "id": "hn1",
+   "source": "hw",
+   "quote": "Stop distance: 1-3% is preferred, 3.5% is good, and up to 5% is acceptable; past 5%, we mostly wait for a tighter trigger.",
+   "claim": "Our stop distance: 1 to 3% preferred, 3.5% good, up to 5% acceptable."
+  },
+  {
+   "id": "hn3",
+   "source": "hs",
+   "quote": "Breakeven rule: the point after which a trade must never again become a loser",
+   "claim": "Our breakeven rule: the point after which a trade must never again become a loser."
+  },
+  {
+   "id": "hn4",
+   "source": "h1",
+   "quote": "A tight stop never justifies a bigger position than that: a gap can jump the stop.",
+   "claim": "A7: a tight stop never justifies a bigger position, because a gap can jump the stop."
+  },
+  {
+   "id": "hn5",
+   "source": "c1",
+   "quote": "Minervini: only about half of purchases are right.",
+   "claim": "Minervini: only about half of purchases are right."
+  },
+  {
+   "id": "hn2",
+   "source": "d1",
+   "quote": "A stock hitting a new high has no overhead supply to contend with.",
+   "claim": "Minervini (2014 post, quoted in the dossier): a stock at a new high has no overhead supply."
+  },
+  {
+   "id": "hn6",
+   "source": "d1",
+   "quote": "Often volume comes in a day or two later.",
+   "claim": "Minervini (2013 Q&A, quoted in the dossier): often volume comes in a day or two later."
+  },
+  {
+   "id": "hn7",
+   "source": "d1",
+   "quote": "If the stock's price and volume don't quiet down on the right side of the consolidation, supply most likely is still coming to market, making the trade too risky and prone to failure.",
+   "claim": "Minervini (as quoted in the repo's file 03): if price and volume do not quiet down on the right side, supply is likely still coming."
   }
  ],
  "walkthroughs": [
@@ -901,17 +1047,19 @@
    "rung": 1,
    "format": "tf",
    "criterion": "vcp.ratio",
-   "q": "In a VCP, the price swings get smaller from the left side of the base to the right side.",
+   "q": "In this chart, the pullbacks inside the base get smaller from the left side to the right.",
    "answer": "True",
-   "why": "True. Minervini wants greater volatility on the left side of the price base and lesser volatility on the right. Falling volume at points signals a finished base. Swings that do not shrink are not a VCP: calling any sideways wiggle a VCP is a named mistake.",
-   "lesson_line": "Left side wide, right side tight. The swings contract.",
+   "why": "True. Each dip meets fewer sellers, so each pullback is smaller. Minervini says swings are biggest when sellers rush to take profits and shrink as sellers become scarcer. That is why a tightening base is ready, and swings that do not shrink are not a VCP.",
+   "lesson_line": "Each dip meets fewer sellers, so the swings shrink from left to right.",
    "facts": [
     "v01",
-    "v03",
-    "c27"
+    "v12",
+    "cm6",
+    "c27",
+    "v03"
    ],
    "house": true,
-   "simple": "True, because a VCP base moves from wide, loose swings on the left to small, tight swings on the right.",
+   "simple": "True. Each dip meets fewer sellers, so each pullback is smaller, and that makes the base ready.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -919,7 +1067,13 @@
      "Minervini page is an archive capture that could not be reopened in this pass"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16",
+   "chart": {
+    "sym": "ON",
+    "asof": "2017-08-29",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q03",
@@ -958,11 +1112,12 @@
     "The highest price in the base"
    ],
    "answer": "The high of the final contraction",
-   "why": "The high of the final contraction. ChartMill: the pivot is the top of the final contraction, not the highest price of the entire base, but the level the final tight consolidation keeps running into. Our rule agrees: it may sit below the base's left-side high. On this chart the last swing's high sits under the base's highest price, and that lower level is the pivot.",
+   "why": "The high of the final contraction. It is the level the last tight swing keeps running into, so trading through it means buyers have cleared the last supply. It is not the highest price of the whole base: on this chart the last swing's high sits under that peak.",
    "lesson_line": "The pivot is the top of the last, tightest swing.",
    "facts": [
     "c01",
-    "cm0"
+    "cm0",
+    "cm8"
    ],
    "wrong": {
     "The highest price in the base": "The pivot may sit below the base's high. The last swing's high is the level to clear.",
@@ -970,7 +1125,7 @@
     "The close before the breakout": "The pivot is a price level set by the base, the high of the final contraction, not one day's close."
    },
    "house": true,
-   "simple": "The pivot is the high of the final, tightest swing, not the highest price in the whole base.",
+   "simple": "The pivot is the high of the final, tightest swing. Trading through it means the last supply is cleared.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -978,7 +1133,7 @@
      "the pivot is a proposed card criterion, not an owner ruling"
     ]
    },
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "story": "The day before a breakout.",
    "chart": {
     "sym": "JOYY",
@@ -1020,16 +1175,17 @@
    "criterion": "vcp.trigger",
    "q": "The buy is a market order, placed once price trades through the pivot in regular hours.",
    "answer": "True",
-   "why": "True. Entries are market orders, and the trigger is price trading through the pivot, the high of the final contraction. We place no new buys outside regular trading hours. A resting limit order is not our entry.",
+   "why": "True. We buy at market as price trades through the pivot, and only in regular hours. A resting limit order can sit unfilled while the stock runs, and then you chase it past our 4% limit. At market you get the trade.",
    "lesson_line": "Trade through the pivot, regular hours, market order.",
    "facts": [
     "h22",
     "h23",
+    "h11",
     "c01",
     "cm5"
    ],
    "house": true,
-   "simple": "True. We buy at market once price trades through the pivot, and only in regular trading hours.",
+   "simple": "True. We buy at market once price trades through the pivot, in regular hours, because a resting limit can miss the move.",
    "deeper": {
     "counter": "Some guides tell you to place a buy stop-limit order just above the pivot with your broker. Our rulebook says something different: entries are market orders, placed in regular hours once price trades through the pivot."
    },
@@ -1040,7 +1196,7 @@
      "+2 rests on the owner's rulebook (E57 market orders, E58 regular hours)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q07",
@@ -1056,7 +1212,7 @@
     "A few cents under the day's low"
    ],
    "answer": "A few cents under the day's low",
-   "why": "A few cents under the day's low is the primary stop. The stop comes first, and the share size comes from the stop. It sits under the low, not exactly on it. The pattern's low and a line minus a cushion are acceptable alternatives. The prior day's low also works.",
+   "why": "A few cents under the day's low. If price comes back through the day's low, the breakout has failed, and the loss is known before the buy. The stop sits a few cents under it, not exactly on it, and the size comes from this stop. The pattern's low and a line minus a cushion are acceptable alternatives.",
    "lesson_line": "Stop first: a few cents under the day's low, then size from the stop.",
    "facts": [
     "h01",
@@ -1070,7 +1226,7 @@
     "Exactly on the day's low": "Our rule is a few cents under the low, not exactly on it."
    },
    "house": true,
-   "simple": "Put the stop a few cents under the day's low. Set it first, then size the trade from it.",
+   "simple": "Put the stop a few cents under the day's low. The loss is then known before you buy, and the size comes from it.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1078,7 +1234,7 @@
      "+2 rests on the owner's rulebook (A3, F62) and the held decision D-008 on which low"
     ]
    },
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "story": "Bought on the breakout today. Look at today's bar and the bars before it.",
    "chart": {
     "sym": "ALGN",
@@ -1093,17 +1249,18 @@
    "rung": 2,
    "format": "tf",
    "criterion": "vcp.base_count",
-   "q": "A VCP is a pause inside a prior uptrend, not a base in a downtrend.",
-   "answer": "True",
-   "why": "True. Minervini looks for consolidations that are pauses within the context of a prior uptrend, and he says he never goes against the long-term trend. A base in a downtrend is not a VCP. A close under the 200-day also ends our setup before the buy.",
+   "q": "A tight base in a downtrend can still be a VCP.",
+   "answer": "False",
+   "why": "False. A VCP is a pause inside an uptrend. Minervini goes long only in a Stage 2 uptrend and never goes against the long-term trend. A base in a downtrend is just a stock that is still falling. A close under the 200-day also ends our setup before the buy.",
    "lesson_line": "The base sits inside an uptrend. A tight base in a downtrend does not qualify.",
    "facts": [
     "v09",
     "v07",
-    "c24"
+    "c24",
+    "h10"
    ],
    "house": true,
-   "simple": "True. A VCP is a pause inside an uptrend, and Minervini never goes against the long-term trend.",
+   "simple": "False. A VCP is a rest inside an uptrend, and a base in a downtrend is just a stock still falling.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1115,7 +1272,7 @@
    "depends_on": [
     "D-060"
    ],
-   "batch": "wave2"
+   "batch": "owner-review-7-style-2026-11-16"
   },
   {
    "key": "q09",
@@ -1148,17 +1305,18 @@
    "rung": 2,
    "format": "tf",
    "criterion": "vcp.market_reading",
-   "q": "A perfect VCP in a Red market is still a buy.",
+   "q": "The app's market filter (Green to Red, most open to most cautious) reads Red. A perfect VCP breakout is still a buy.",
    "answer": "False",
-   "why": "False. Our card says Red: no VCP buys. The rulebook's Red reading is mostly cash, plus shorts below the 200-day. ChartMill agrees: in a negative market even perfect VCPs fail en masse, because there are not enough buyers to carry breakouts through.",
-   "lesson_line": "Red market: no VCP buys. Even perfect bases fail when buyers are missing.",
+   "why": "False. The market filter has four colors, Green to Red, and each says what the account may do. Red is the most cautious: we are mostly in cash, so we pass on VCP buys. ChartMill: in a negative market even perfect VCPs fail en masse, because there are not enough buyers to carry breakouts through.",
+   "lesson_line": "Red market: mostly cash, so we pass on VCP buys. Even perfect bases fail when buyers are missing.",
    "facts": [
     "c25",
     "cm4",
-    "h30"
+    "h30",
+    "h26"
    ],
    "house": true,
-   "simple": "False. In a Red market we do not buy VCPs, because even perfect ones fail when too few buyers are around.",
+   "simple": "False. Red means mostly cash, and even perfect VCPs fail when too few buyers are around.",
    "deeper": {
     "counter": "Red does not say the pattern is bad. It says the market cannot carry it. ChartMill: in a negative market, even perfect VCPs fail en masse. There are not enough buyers to carry breakouts through."
    },
@@ -1169,7 +1327,7 @@
      "+2 rests on the owner's rulebook (D46) and the card's market reading line"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q11",
@@ -1185,11 +1343,12 @@
     "60 or more"
    ],
    "answer": "80 or more",
-   "why": "80 or more, in one of the strongest groups. UCT buys leaders, except parabolic and mean-reversion trades. Minervini's own floor is 70, preferably in the 90s, and our line is stricter than his floor. Both tests apply: the RS rating and a strong group.",
+   "why": "80 or more, in one of the strongest groups. The RS rating ranks a stock's strength against all other stocks. We buy leaders because a breakout needs buyers to carry it, and leaders have them. Minervini's own floor is 70, preferably in the 90s, and our line is stricter.",
    "lesson_line": "We buy leaders: RS 80 or more in a strong group.",
    "facts": [
     "c19",
-    "h14"
+    "h14",
+    "cm4"
    ],
    "wrong": {
     "70 or more": "That is Minervini's floor. Our line is higher.",
@@ -1197,7 +1356,7 @@
     "60 or more": "Too low for a leader. Our line is 80 or more, in a strong group."
    },
    "house": true,
-   "simple": "We want an RS rating of 80 or more in a strong group. That is stricter than Minervini's floor of 70.",
+   "simple": "We buy leaders, stocks with an RS rating of 80 or more in a strong group. A breakout needs buyers behind it.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1205,7 +1364,7 @@
      "+2 rests on the owner's rulebook (C31), which beats Minervini's floor of 70"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q12",
@@ -1408,15 +1567,17 @@
     },
     "round": 1
    },
-   "why": "The gap is the fill minus the stop, divided by the fill: (170.00 minus 165.39) divided by 170.00 is 2.7%. Always divide by the fill, not by the stop.",
+   "why": "The gap is the fill minus the stop, divided by the fill: (170.00 minus 165.39) divided by 170.00 is 2.7%. Always divide by the fill, not by the stop. That sits inside our preferred 1-3% range. We check it first because the size comes from the stop: the wider the stop, the fewer the shares.",
    "lesson_line": "Measure the stop in percent before you size the trade.",
    "facts": [
     "h04",
-    "d04"
+    "d04",
+    "hn1",
+    "h03"
    ],
    "house": true,
    "suffix": "%",
-   "simple": "The stop is 2.7 percent under the fill. Divide the gap in price by the fill price.",
+   "simple": "The stop is 2.7 percent under the fill. That is inside our usual range, and the size comes from the stop.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1425,7 +1586,7 @@
      "+2 sits beside the held decision D-005 on stop width"
     ]
    },
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "choices": [
     "4.6%",
     "27.1%",
@@ -1455,26 +1616,28 @@
    "rung": 3,
    "format": "scenario",
    "criterion": "vcp.trim_1",
-   "q": "One R is the gap between them. Where is 3R?",
-   "answer": "$19.75",
+   "q": "One R is the gap between them. At what price does the 2R mark sit?",
+   "answer": "$18.96",
    "calc": {
     "fn": "arith",
     "args": {
-     "expr": "a + 3 * (a - b)",
+     "expr": "a + 2 * (a - b)",
      "a": 17.38,
      "b": 16.59
     },
     "round": 2
    },
-   "why": "One R is the fill minus the stop, 17.38 minus 16.59. Add three of those to the fill: 17.38 plus 3 times (17.38 minus 16.59) is 19.75. 3R is a yardstick, not a fixed sale point.",
-   "lesson_line": "Know your 3R before the open. It is a yardstick, and the first sell is a judgment.",
+   "why": "One R is the fill minus the stop. Add two of those to the fill: 17.38 plus 2 times (17.38 minus 16.59) is 18.96. Our stop may move up to breakeven between 2R and 5R. Breakeven is the point after which a trade must never again become a loser.",
+   "lesson_line": "Know your 2R before the open. It is where the breakeven move can start.",
    "facts": [
     "d03",
+    "h05",
+    "hn3",
     "r03"
    ],
    "house": true,
    "prefix": "$",
-   "simple": "One R is the fill minus the stop. Add three of those to 17.38 to get 19.75.",
+   "simple": "Two R is two gaps above the fill. There the stop may move to breakeven, so a winner cannot turn into a loser.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1483,17 +1646,18 @@
      "+2 rests on the owner's rulebook (B19, the hard rule of a third at 3R)"
     ]
    },
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "choices": [
-    "$20.54",
+    "$19.38",
     "$18.17",
-    "$18.96",
-    "$19.75"
+    "$19.75",
+    "$18.96"
    ],
    "wrong": {
-    "$18.17": "That adds one R, not three.",
-    "$18.96": "That counts 3R up from the stop, not from the fill.",
-    "$20.54": "That adds four R. Three R is three gaps, not four."
+    "$18.17": "That counts two R up from the stop, not from the fill.",
+    "$18.96": "This is the 2R mark: the fill plus two R.",
+    "$19.38": "That adds 2 dollars, not two R.",
+    "$19.75": "That is 3R. The question asks for 2R."
    },
    "story": "Bought on the breakout at 17.38 with the stop at 16.59.",
    "chart": {
@@ -1523,18 +1687,19 @@
     },
     "round": 2
    },
-   "why": "The chase limit is the pivot plus 4%. Multiply the pivot by 1.04: 16.47 times 1.04 is 17.13 to the nearest cent. We never buy more than 4% above the buy point. Past that, the stop stays put, the distance grows and the shares shrink.",
+   "why": "The chase limit is the pivot plus 4%. Multiply the pivot by 1.04: 16.47 times 1.04 is 17.13 to the nearest cent. Past it, the stop stays put, the distance grows and the shares shrink. ChartMill: buy at the line of least resistance, not three weeks after the breakout, when the price is already 20% higher.",
    "lesson_line": "Know the chase limit before the open: 4% over the pivot.",
    "facts": [
     "c15",
     "h11",
     "h12",
+    "cm11",
     "d01",
     "h13"
    ],
    "house": true,
    "prefix": "$",
-   "simple": "Add 4 percent to the pivot. 16.47 times 1.04 is about 17.13, the chase limit.",
+   "simple": "Add 4 percent to the pivot to get 17.13. Past that the stop stays put, so the shares shrink and you are chasing.",
    "deeper": {
     "trap": "Do not mix up two limits. The chase limit is 4% above the buy point. The stretch limit is separate: skip a long more than 10% above its 9 EMA. A buy has to pass both."
    },
@@ -1546,7 +1711,7 @@
      "+2 rests on the owner's rulebook (C28)"
     ]
    },
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "choices": [
     "$20.47",
     "$16.54",
@@ -1580,7 +1745,7 @@
     "Buy fewer shares; the risk is the same"
    ],
    "answer": "Pass; more than 4% past the pivot",
-   "why": "Pass. 26.10 is more than 4% above the 24.80 pivot, and we never buy more than 4% above the buy point. A stock found already past that is a skip. Heavy volume does not lift the limit, and we do not scale in.",
+   "why": "Pass. 26.10 is more than 4% above the 24.80 pivot, so we would be chasing. Chasing costs size, not risk: the stop stays under the base, the distance grows and the shares shrink. Heavy volume does not lift the limit, and we do not scale in.",
    "lesson_line": "Past 4% over the pivot you are chasing. Wait for the next setup.",
    "facts": [
     "c15",
@@ -1595,7 +1760,7 @@
    },
    "house": true,
    "story": "A VCP's pivot is 24.80. You find the stock trading at 26.10 on heavy volume.",
-   "simple": "Pass. The stock is already more than 4 percent past the pivot, and we never chase past that.",
+   "simple": "Pass. More than 4 percent past the pivot is chasing, and the stop stays put, so the shares shrink.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1603,7 +1768,7 @@
      "+2 rests on the owner's rulebook (C28)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q21",
@@ -1611,18 +1776,17 @@
    "rung": 3,
    "format": "tf",
    "criterion": "vcp.final_t",
-   "q": "In a VCP the final contraction should be the tightest swing of the base.",
+   "q": "On this chart, the last swing of the base is its tightest.",
    "answer": "True",
-   "why": "True. Contractions shrink from left to right, so the final one is the smallest. ChartMill calls it the most important contraction: ideally under 10%, best at 3% to 6%. Our rule allows 10% or less.",
+   "why": "True. The final swing meets the fewest sellers, so it is the smallest. ChartMill calls it the most important contraction and says it has to be tight. A tight last swing also keeps the stop close under the pivot, so the risk is small.",
    "lesson_line": "The last swing is the tightest, and it sets the pivot.",
    "facts": [
     "cm1",
-    "c03",
-    "c11",
-    "v01"
+    "v01",
+    "v12"
    ],
    "house": true,
-   "simple": "True, because the swings shrink toward the right, so the last one is the tightest and should be 10% or less.",
+   "simple": "True. The last swing meets the fewest sellers, so it is the smallest and keeps the stop close.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1630,7 +1794,13 @@
      "final contraction at most 10% is a proposed card criterion"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16",
+   "chart": {
+    "sym": "TRV",
+    "asof": "2000-07-24",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q22",
@@ -1640,26 +1810,26 @@
    "criterion": "vcp.volume_dry",
    "q": "How should volume look in the final contraction?",
    "choices": [
+    "Drying up as the price tightens",
     "Spiking on a wide, heavy down day",
-    "Drying up, below the 50-day average",
-    "Rising, above the 50-day average",
-    "About the same as in the first swing"
+    "Rising above its usual level",
+    "The same as in the first swing"
    ],
-   "answer": "Drying up, below the 50-day average",
-   "why": "Drying up, below the 50-day average. The 50-day average volume is the shares traded per day, averaged over the last 50 sessions. In the final, tightest swing the sellers run out, so volume shrinks. Our rule wants that swing's average volume below the first swing's and below the 50-day average, with one day at or under half of it. In this PHM base the volume dried up into the pivot. This tests the last swing, not the breakout day.",
+   "answer": "Drying up as the price tightens",
+   "why": "Volume dries up. In the final, tightest swing the sellers have run out, so few shares trade. ChartMill: the drying-up volume confirms there is no one left who wants to sell at these prices. Minervini ties shrinking swings to falling volume. On this chart the quiet days pile up into the pivot.",
    "lesson_line": "Quiet price, quiet volume. Volume dries up into the tight final swing.",
    "facts": [
-    "c05",
+    "cm7",
     "v03",
-    "d05"
+    "cm8"
    ],
    "wrong": {
-    "Rising, above the 50-day average": "Volume above the 50-day average is not a dry-up. Our rule wants it below.",
-    "Spiking on a wide, heavy down day": "That is the opposite of a dry-up. A heavy down day is a warning to note, and it is not a quiet last swing.",
-    "About the same as in the first swing": "The final swing's volume should be below the first swing's, not equal to it."
+    "Spiking on a wide, heavy down day": "That is the opposite of a dry-up. A heavy down day is a warning to note.",
+    "Rising above its usual level": "Busy trading is not a dry-up. Quiet days are what show the sellers have gone.",
+    "The same as in the first swing": "The first swing had the most selling. The last should be quieter."
    },
    "house": true,
-   "simple": "Volume should dry up below the 50-day average in the last swing, a sign that selling has faded.",
+   "simple": "Volume dries up as the price tightens, a sign the sellers have run out.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1668,7 +1838,7 @@
      "volume_dry is a proposed criterion"
     ]
    },
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "story": "The day before a breakout. Look at the volume bars in the last swing.",
    "chart": {
     "sym": "PHM",
@@ -1683,29 +1853,30 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "vcp.inv_wide_loose",
-   "q": "Our rule wants each pullback at most 0.75 times the last. Is this a VCP?",
+   "q": "Is this base tightening the way a VCP should?",
    "choices": [
-    "No; 0.79 is over the 0.75 limit",
-    "Yes; the second pullback is smaller",
-    "Yes; two pullbacks are enough",
-    "No; the first pullback is too shallow"
+    "No; the second swing barely shrank",
+    "Yes; the second swing is smaller",
+    "Yes; two swings are enough",
+    "No; the first swing is too shallow"
    ],
-   "answer": "No; 0.79 is over the 0.75 limit",
-   "why": "No. Our rule wants each pullback at most 0.75 times the one before. Here the second is 0.79 times the first, 9.0% against 11.5%. Two pullbacks of almost the same size make a wide, loose base, not a contraction.",
-   "lesson_line": "Pullbacks of nearly the same size make a loose base. Each must be at most 0.75 times the last.",
+   "answer": "No; the second swing barely shrank",
+   "why": "No. Minervini likes each contraction to be about half the one before. Here 9.0% is most of 11.5%, so the sellers have not thinned out. ChartMill: what matters is that the pullbacks contract. This base stayed wide and loose.",
+   "lesson_line": "Swings that barely shrink make a loose base, not a VCP.",
    "facts": [
-    "c11",
+    "v02",
+    "cm16",
     "c27",
-    "c02"
+    "c11"
    ],
    "wrong": {
-    "Yes; the second pullback is smaller": "It is smaller, but not enough. Each step has to be at most 0.75 times the last.",
-    "Yes; two pullbacks are enough": "Two pullbacks can count, but only when the second is at most 0.75 times the first.",
-    "No; the first pullback is too shallow": "An 11.5% first pullback clears the card's minimum. The ratio is the problem."
+    "Yes; the second swing is smaller": "It is smaller, but barely. A VCP needs each swing clearly smaller than the last.",
+    "Yes; two swings are enough": "Two swings can make a VCP, but only when the second is clearly smaller.",
+    "No; the first swing is too shallow": "11.5% is a normal first swing. The trouble is that the second barely shrank."
    },
    "house": true,
-   "story": "The day before it trades through its pivot. Two pullbacks, 11.5% then 9.0%, the second 0.79 times the first.",
-   "simple": "No. The second pullback is 0.79 times the first, and our rule needs it to be 0.75 times or less.",
+   "story": "The day before it trades through its pivot. The base has two pullbacks, 11.5% then 9.0%.",
+   "simple": "No. The second swing is nearly as big as the first, so the sellers have not thinned out.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1717,7 +1888,7 @@
    "depends_on": [
     "D-059"
    ],
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "CAT",
     "asof": "2010-01-08",
@@ -1820,7 +1991,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "vcp.stop_structure_check",
-   "q": "By our card, buy or pass?",
+   "q": "Buy or pass?",
    "choices": [
     "Buy with a wider stop",
     "Pass; the base has broken",
@@ -1828,22 +1999,22 @@
     "Wait a day and buy at the open"
    ],
    "answer": "Pass; the base has broken",
-   "why": "Pass. The entry day's low is already below the final contraction's low. By the card, the base has broken and there is no trade. Clearing the pivot is not enough. Widening the stop to make room is a named mistake.",
+   "why": "Pass. The entry day's low is already under the final contraction's low, so the base has broken and there is no trade. ChartMill: if price drops below that low, the final contraction has failed to hold and the premise of the trade is gone. Clearing the pivot is not enough, and a wider stop does not fix a broken base.",
    "lesson_line": "The structure comes first. If the day's low breaks the last swing's low, there is no trade.",
    "facts": [
     "c18",
+    "cm12",
     "c04",
-    "c29",
-    "c13"
+    "c29"
    ],
    "wrong": {
     "Buy; it cleared the pivot": "Clearing the pivot is only half the test. The final low must hold.",
     "Buy with a wider stop": "Widening the stop is a named mistake. The structure failed.",
-    "Wait a day and buy at the open": "Waiting a day does not repair a broken base. The card says there is no trade."
+    "Wait a day and buy at the open": "Waiting a day does not repair a broken base. By our rule there is no trade."
    },
    "house": true,
    "story": "Price trades through the pivot at 11:00. The day's low so far is already under the final contraction's low.",
-   "simple": "Pass. The day's low is already under the last swing's low, so the base has broken and there is no trade.",
+   "simple": "Pass. The day's low is under the last swing's low, so the base has broken and a wider stop will not fix it.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1851,7 +2022,7 @@
      "+2 keys a proposed card check (vcp.stop_structure_check) beside the held decision D-008"
     ]
    },
-   "batch": "rulings"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q27",
@@ -1867,7 +2038,7 @@
     "Widen the stop to give it room"
    ],
    "answer": "Hold; the stop is the exit",
-   "why": "Hold. A breakout day that closes back inside the base is the squat. It is a warning, not an exit by itself. The stop is the exit, and it only moves up, never wider. Do not add either, since the plan is one full buy. In the real ALGN case the next day's low took the stop, a planned loss.",
+   "why": "Hold. A breakout day that closes back inside the base is the squat: sellers pushed the stock back, which is a warning. A warning is not proof, so the stop is still the exit, and it only moves up. We do not add either, since the plan is one full buy. In the real ALGN case the next day's low took the stop, a planned loss.",
    "lesson_line": "A squat is a warning. The stop decides the exit.",
    "facts": [
     "c16",
@@ -1882,9 +2053,9 @@
    },
    "house": true,
    "story": "Bought the breakout at 28.65 with the stop at 27.70. It closes at 28.14, back inside the base, still above your stop.",
-   "simple": "Hold. A close back inside the base is a warning, not a sell signal, so the stop stays the exit.",
+   "simple": "Hold. A close back inside the base is a warning, but only the stop proves the trade wrong.",
    "deeper": {
-    "counter": "A warning is not a shrug. In our scan, a close above the pivot on the buy day reached 3R 36.9% of the time. A close back inside the base reached it 18.9% of the time. So the squat is a real warning, but the stop still decides the exit."
+    "counter": "A warning is not a shrug. In our scan of past VCP buys, a close back inside the base reached 3R about half as often as a close above the pivot. So the squat is a real warning, but the stop still decides the exit."
    },
    "tier": "core",
    "risk": {
@@ -1893,7 +2064,7 @@
      "+2 rests on the owner's rulebook (A4, the stop is the exit) and a proposed card warning"
     ]
    },
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "ALGN",
     "asof": "2007-10-17",
@@ -1919,10 +2090,11 @@
     "No; drop it from the list for good"
    ],
    "answer": "No; wait until after the report",
-   "why": "No. The rulebook bars new buys in the 3 days before an earnings report, and this report is due tomorrow. A perfect setup does not lift the rule, and a smaller size does not either. Wait until after the report. Holding through one is allowed only for a trade already up 5R.",
+   "why": "No. We take no new buys in the 3 days before a report, and this report is due tomorrow. A report can gap the stock past any stop, because a gap can jump the stop. A perfect setup and a smaller size do not lift the rule. Holding through a report is allowed only for a trade already up 5R.",
    "lesson_line": "Check the report date before every buy. Inside 3 days, wait.",
    "facts": [
-    "h08"
+    "h08",
+    "hn4"
    ],
    "wrong": {
     "Yes; the setup is a perfect one": "A perfect setup does not lift the rule. No new buys in the 3 days before a report.",
@@ -1931,7 +2103,7 @@
    },
    "house": true,
    "story": "The final contraction is perfect and price trades through the pivot. The report is due tomorrow.",
-   "simple": "No. A new buy is barred in the 3 days before a report, and this report is due tomorrow.",
+   "simple": "No. A report can gap the stock right through the stop, so we open no new buy in the 3 days before it.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1940,7 +2112,7 @@
      "+2 rests on the owner's rulebook (B22)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q29",
@@ -1950,7 +2122,7 @@
    "criterion": "vcp.warning_signs",
    "q": "A close under the 20-day average soon after the breakout is a warning, not an exit.",
    "answer": "True",
-   "why": "True. The card lists a close under the 20-day soon after the breakout as a warning. So are three lower lows on rising volume. Minervini says the close cuts the odds about in half. A warning is not an exit. Before the first sell, the stop decides. After it, the trail sells what is left: a close under the 9 EMA, or the 20 EMA for a steadier mover.",
+   "why": "True. A close under the 20-day soon after the breakout is a warning, and so are three lower lows on rising volume. Minervini says the close cuts the odds about in half. A warning is not an exit: the stop already caps the loss, and selling on a warning would cut winners that recover. After the first sell, the trail sells what is left.",
    "lesson_line": "Warnings tell you to watch. The stop, not a warning, decides the exit.",
    "facts": [
     "c17",
@@ -1960,7 +2132,7 @@
     "r07"
    ],
    "house": true,
-   "simple": "True. A close under the 20-day is a warning to watch, but the stop decides the exit.",
+   "simple": "True. A close under the 20-day is a warning to watch, and the stop already caps the loss.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1968,7 +2140,7 @@
      "+2 rests on the owner's rulebook (A4) and a proposed card warning"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q30",
@@ -1976,7 +2148,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "vcp.higher_lows",
-   "q": "By our rule, what do higher lows mean in a VCP?",
+   "q": "On this chart, what do the higher lows mean?",
    "choices": [
     "It drifts under the first low",
     "Each high is below the last",
@@ -1984,11 +2156,12 @@
     "Each pullback ends at one low"
    ],
    "answer": "The last low is above the base low",
-   "why": "The last low is above the base low. Our rule: the final contraction's low is above the lowest low of the base. Kullamagi, who never uses the word VCP, describes a similar orderly look in his breakout setup: higher lows and a tightening range.",
+   "why": "The last low is above the base low. Each dip ends at a higher price, so buyers step in sooner. Kullamagi, who never uses the word VCP, describes the same orderly look in his breakout setup: higher lows and a tightening range.",
    "lesson_line": "The final low should sit above the base's lowest low.",
    "facts": [
     "c04",
-    "kq1"
+    "kq1",
+    "cm6"
    ],
    "wrong": {
     "Each high is below the last": "That describes lower highs, not higher lows.",
@@ -1996,7 +2169,7 @@
     "Each pullback ends at one low": "Equal lows are a flat floor. The final low must sit above the base's lowest low."
    },
    "house": true,
-   "simple": "Higher lows mean the final pullback bottoms above the base's lowest low, a sign of an orderly, tightening base.",
+   "simple": "Higher lows mean each dip ends higher, so the last low sits above the base's lowest low. Buyers step in sooner.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -2006,8 +2179,8 @@
      "higher_lows is a proposed criterion"
     ]
    },
-   "batch": "visuals-1",
-   "story": "The day before a breakout. Look at the low of each swing.",
+   "batch": "owner-review-7-2026-11-16",
+   "story": "The day before a breakout. Compare the low of each swing.",
    "chart": {
     "sym": "GXO",
     "asof": "2023-05-09",
@@ -2176,12 +2349,12 @@
     "Buy it, but with a wider stop"
    ],
    "answer": "Buy it, and note the heavy day",
-   "why": "Buy it, and note the heavy day. A heavy-volume down day is a day the stock fell on 1.5 times its 50-day average volume or more. Here 3.2 million divided by 2 million is 1.6 times. In the right half it is a distribution day, meaning sellers were active. Be mindful of it and grade the setup lower. It does not end the setup, and most of the time it does not matter. Compare that day's volume bar with the 50-day average line on the chart. Several such days are a bigger worry, and ChartMill says you may be too early.",
+   "why": "Buy it, and note the heavy day. A heavy-volume down day means sellers were active, so it is a distribution day to be mindful of: a warning and a lower grade, not a veto. Our grade is a judgment of how clean a setup is, and it sets the size. Most of the time one such day does not matter. Several are the bigger worry: ChartMill says there are still big sellers around.",
    "lesson_line": "A heavy down day on the right side is a warning to note, not a reason to pass.",
    "facts": [
     "c35",
     "c36",
-    "cm2",
+    "cm10",
     "h24"
    ],
    "wrong": {
@@ -2190,8 +2363,8 @@
     "Buy it, but with a wider stop": "The stop never widens for a worry. It stays a few cents under the entry day's low."
    },
    "house": true,
-   "story": "A VCP trades through its pivot in regular hours. Its three swings shrink and the base is tight. In the right half, one down day traded 3.2 million shares, 1.6 times its 50-day average of 2 million.",
-   "simple": "Buy it and note the heavy day. It is a warning and a lower grade, but it does not end the setup.",
+   "story": "A VCP trades through its pivot in regular hours. Its swings shrink and the base is tight. In the right half, one down day came on heavy volume, well above its 50-day average.",
+   "simple": "Buy it and note the heavy day. One day of selling is a warning and a lower grade, not a reason to pass.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2200,7 +2373,7 @@
      "ChartMill's 'several days' is a caution, not a gate"
     ]
    },
-   "batch": "review4"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q36",
@@ -2210,14 +2383,16 @@
    "criterion": "vcp.breakout_volume",
    "q": "This VCP broke out today on light volume, 0.7 times the average. It should be sold the same day.",
    "answer": "False",
-   "why": "False. Minervini says lack of volume does raise a red flag, and volume would need to come in soon after. He adds: maintain your stop regardless. Light volume is a warning to watch, not a sell signal. The stop is the exit. NKE broke out on 0.7 times the average volume and it still worked.",
+   "why": "False. Light volume is a red flag, and Minervini wants volume to come in soon after. But he says to maintain your stop regardless, and often volume comes in a day or two later. Volume raises the grade; it is not a requirement. The stop decides the exit. NKE broke out on 0.7 times the average volume and it still worked.",
    "lesson_line": "Light volume is a red flag. The stop is still the exit.",
    "facts": [
     "v11",
-    "h02"
+    "hn6",
+    "h02",
+    "d09"
    ],
    "house": true,
-   "simple": "False. Light volume is a red flag to watch, but the stop is what decides when you sell.",
+   "simple": "False. Light volume is a red flag and lowers the grade, but the stop decides when you sell.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2226,7 +2401,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "NKE",
     "asof": "2018-05-15",
@@ -2248,20 +2423,22 @@
     "Between 8R and 10R"
    ],
    "answer": "Between 2R and 5R",
-   "why": "Between 2R and 5R. That is the window where our rule moves the stop to breakeven, ideally. The stop only moves up, never down or wider.",
+   "why": "Between 2R and 5R. Breakeven is the point after which a trade must never again become a loser, so we do it once the trade has earned it. ChartMill: management takes over with a rising stop and partial profits, and a winner must never turn into a loser. The stop only moves up.",
    "lesson_line": "Breakeven stop, ideally between 2R and 5R. The stop only moves up.",
    "facts": [
     "h05",
-    "h02"
+    "h02",
+    "hn3",
+    "cm15"
    ],
    "wrong": {
     "Between 1R and 2R": "Under 2R the window has not opened yet.",
-    "Between 5R and 8R": "The window ends at 5R. By then the stop should already be up.",
-    "Between 8R and 10R": "The window ends at 5R, well before this."
+    "Between 5R and 8R": "Ideally the move comes between 2R and 5R. Past 5R a stop still under the entry gives back too much.",
+    "Between 8R and 10R": "Ideally the move comes between 2R and 5R, far earlier than this."
    },
    "house": true,
    "story": "You bought a VCP breakout. Your stop is still under the entry day's low. It has run up 3R.",
-   "simple": "Between 2R and 5R. That is where our rule ideally moves the stop up to breakeven.",
+   "simple": "Between 2R and 5R. Breakeven means a winner can no longer turn into a loser, and the stop only moves up.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2270,7 +2447,7 @@
      "the old key said 'by default at the first trim', which no quoted line states"
     ]
    },
-   "batch": "rulings2",
+   "batch": "owner-review-7-2026-11-16",
    "order": "fixed"
   },
   {
@@ -2279,28 +2456,29 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "vcp.count_a_plus",
-   "q": "Which base grades higher on its contractions?",
+   "q": "Which base is the cleaner VCP, the likelier A+?",
    "choices": [
-    "Base A grades higher",
-    "Base B rates higher",
-    "Both grade the same",
-    "Neither; both B-"
+    "Base A; it keeps tightening",
+    "Base B; it has fewer swings",
+    "Both are about equally clean",
+    "Neither; both are B- setups"
    ],
-   "answer": "Base A grades higher",
-   "why": "Base A. Three or four clean contractions, each about half the last, is the A+ picture on the card. Base A has four, from 24% down to 3%, each half the last. Base B has two, so it grades lower.",
-   "lesson_line": "A staircase of halves is the A+ picture. Fewer steps grade lower.",
+   "answer": "Base A; it keeps tightening",
+   "why": "Base A. Each of its swings is about half the last, so the sellers keep thinning out. Base B's second swing is still most of its first, so it stays wide and loose. A cleaner base earns a higher grade and a bigger size, though grading stays a judgment.",
+   "lesson_line": "The cleaner base keeps tightening. A cleaner base earns a higher grade.",
    "facts": [
-    "c10",
+    "v02",
+    "cm16",
     "d02"
    ],
    "wrong": {
-    "Base B rates higher": "Fewer, looser steps are the lower-grade picture. Two contractions is B- on the card.",
-    "Both grade the same": "Both shrink, but only a clean run of three or four halves is the A+ picture.",
-    "Neither; both B-": "Base A has four clean contractions, each about half the last. That is the A+ picture."
+    "Base B; it has fewer swings": "Fewer swings is not cleaner here. Its second swing is still most of its first.",
+    "Both are about equally clean": "Both shrink, but Base B's second swing is still most of its first.",
+    "Neither; both are B- setups": "Base A shrinks steadily from 24% to 3%. That is a clean run."
    },
    "house": true,
-   "story": "Base A has four contractions: 24%, 12%, 6% and 3%. Base B has two contractions: 24% and 17%.",
-   "simple": "Base A grades higher. The card wants three or four clean contractions, each about half the last, and Base B has only two.",
+   "story": "Base A has four pullbacks: 24%, 12%, 6% and 3%. Base B has two: 24% and 17%. A grade is our judgment of how clean a setup is, and the grade sets the size.",
+   "simple": "Base A. Its swings keep shrinking, while Base B's second swing is nearly as big as its first.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2313,7 +2491,7 @@
     "D-058",
     "D-059"
    ],
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q39",
@@ -2321,7 +2499,7 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "vcp.breakeven",
-   "q": "Where should the stop have been?",
+   "q": "Our stop may move to breakeven between 2R and 5R. Where should this stop have been?",
    "choices": [
     "Moved up to breakeven",
     "Under the 20-day average",
@@ -2329,13 +2507,14 @@
     "Raised after the breakout"
    ],
    "answer": "Still at the original stop",
-   "why": "Still at the original stop. Our rule moves the stop to breakeven at 2R to 5R, and META's best was 1.18R, so the breakeven move had not applied. META was stopped five sessions later at a low of 494.23, against a stop of 505.97 that sat 3.2% under the 522.89 buy.",
+   "why": "Still at the original stop. META only reached 1.18R, short of the 2R where our stop may move to breakeven. Moving it up sooner would put it inside a normal pullback and could shake out a trade that is still working. The original stop of 505.97, 3.2% under the 522.89 buy, caps the loss at the plan. It was hit five sessions later, low 494.23. ChartMill: a failed breakout costs little because the stop is close.",
    "lesson_line": "No breakeven before the plan says so. Until then the original stop is the exit.",
    "facts": [
     "d15",
     "d16",
     "h05",
-    "c17"
+    "hn3",
+    "cm13"
    ],
    "wrong": {
     "Under the 20-day average": "A close under the 20-day is a warning, not our stop.",
@@ -2344,7 +2523,7 @@
    },
    "house": true,
    "story": "Bought on the breakout at 522.89 with the stop at 505.97. It reached 1.18R, then faded for five sessions and hit the stop.",
-   "simple": "The stop should still have been at the original stop, because the breakeven move waits for 2R and META only reached 1.18R.",
+   "simple": "Still at the original stop. It had not reached 2R, and that stop caps the loss at the plan.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2353,7 +2532,7 @@
      "the META numbers come from our own scan, not reviewed by the owner"
     ]
    },
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "META",
     "asof": "2024-07-05",
@@ -2379,23 +2558,23 @@
     "The contractions were too shallow"
    ],
    "answer": "Nothing; a clean setup can fail",
-   "why": "Nothing was wrong with the setup. CMG showed two shrinking contractions, 14.2% then 4.6%, on 2.0x volume, and closed above the pivot. It reached only 0.87R, then fell to the stop. Our scan lists it as a failure with nothing wrong in the setup. That is why the stop, not an opinion, is the exit.",
+   "why": "Nothing was wrong with the setup. CMG showed two shrinking contractions, 14.2% then 4.6%, on 2.0x volume, and closed above the pivot. It reached only 0.87R, then fell to the stop. ChartMill: a failed breakout costs little because the stop is close, and a winner pays a multiple of that risk. Minervini: only about half of purchases are right. That is why the stop, not an opinion, is the exit.",
    "lesson_line": "A clean setup can still lose. The stop is the cost of finding out.",
    "facts": [
     "d12",
     "d13",
     "d14",
-    "c02",
-    "c03"
+    "cm13",
+    "hn5"
    ],
    "wrong": {
     "The base was loose": "Two shrinking contractions, 14.2% then 4.6%, are not loose.",
     "Volume was too light on the breakout": "2.0x volume is heavy, not light.",
-    "The contractions were too shallow": "14.2% and 4.6% sit inside the card's ranges."
+    "The contractions were too shallow": "14.2% and 4.6% are a normal tightening, not too shallow."
    },
    "house": true,
    "story": "Bought on the breakout at 27.60 with the stop at 26.32. Two shrinking pullbacks, 14.2% then 4.6%, on 2.0x volume, and a close above the pivot. It reached 0.87R, then fell to the stop.",
-   "simple": "Nothing was wrong with the setup. A clean setup can still fail, and the stop, not an opinion, is the exit.",
+   "simple": "Nothing was wrong. A clean setup can still fail, and a failed breakout costs little because the stop is close.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2404,7 +2583,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "CMG",
     "asof": "2020-12-16",
@@ -2422,7 +2601,7 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "vcp.stop_width",
-   "q": "Account 100,000, risk 0.5%. Before any cap, how many shares?",
+   "q": "Account $100,000, risk 0.5% a trade. How many shares?",
    "answer": "201 shares",
    "calc": {
     "fn": "shares_from_risk",
@@ -2434,14 +2613,14 @@
     },
     "round": 0
    },
-   "why": "Risk dollars are 0.5% of 100,000, which is 500. Risk per share is the gap between 125.23 and 122.75. Divide 500 by that, then round down to 201. The size comes from the stop, then it is capped.",
+   "why": "Risk dollars are 0.5% of 100,000, which is 500. Risk per share is the gap between 125.23 and 122.75. Divide 500 by that gap and round down to 201. Sizing from the stop means a loss at the stop costs the same 500 dollars, whether the stop is tight or wide.",
    "lesson_line": "Shares come from the stop: risk in dollars divided by risk per share, rounded down.",
    "facts": [
     "h03",
     "h01"
    ],
    "house": true,
-   "simple": "Divide the dollars you risk by the risk per share, then round down. Here that gives 201 shares.",
+   "simple": "Divide the dollars you risk by the risk per share, then round down, so a loss at the stop always costs the same.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2450,7 +2629,7 @@
      "+2 rests on the owner's rulebook (A5, shares rounded down then capped)"
     ]
    },
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "choices": [
     "201 shares",
     "100 shares",
@@ -2482,7 +2661,7 @@
    "criterion": "vcp.one_buy",
    "q": "We can build a VCP position in steps as it works.",
    "answer": "False",
-   "why": "False. Our plan is one full buy at one price with one stop: no pilot buys and no adding. The size comes from the stop, so the full size is set before the buy.",
+   "why": "False. We make one full buy at one price with one stop: no pilot buys and no adding. One stop protects one entry, and every add comes at a different price, so it changes the risk. The size comes from the stop, so the full size is set before the buy.",
    "lesson_line": "One full buy, one stop. We do not build in steps.",
    "facts": [
     "c21",
@@ -2490,7 +2669,7 @@
     "h01"
    ],
    "house": true,
-   "simple": "False. We make one full buy at one price with one stop, and we do not add as it works.",
+   "simple": "False. We make one full buy with one stop, because each add changes the price and the risk.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2498,7 +2677,7 @@
      "rests on the rulebook (A5)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q43",
@@ -2514,7 +2693,7 @@
     "The 20 EMA"
    ],
    "answer": "The 9 EMA",
-   "why": "The 9 EMA for a fast mover. Our default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones. We sell on a close below it. The trail covers what is left after the first sell, which is a judgment.",
+   "why": "The 9 EMA for a fast mover. A fast mover stays close to its 9 EMA, so a close below it says the run has changed. A steadier mover gets more room from the 20 EMA. We sell what is left on a close below the trail. The first sell comes earlier and is a judgment.",
    "lesson_line": "Fast mover: trail the 9 EMA. Steadier: trail the 20 EMA.",
    "facts": [
     "h21",
@@ -2528,7 +2707,7 @@
     "The 20 EMA": "The 20 EMA is the default for steadier movers. A fast mover trails the 9 EMA."
    },
    "house": true,
-   "simple": "Trail the 9 EMA on a fast mover. We sell on a close below it.",
+   "simple": "Trail a fast mover with the 9 EMA. A close below it says the run has changed, so we sell what is left.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2536,7 +2715,7 @@
      "+2 rests on the owner's rulebook (E52)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q44",
@@ -2552,7 +2731,7 @@
     "Move the stop to breakeven, hold"
    ],
    "answer": "Sell it and free the money",
-   "why": "Sell it. A trade still under 1R after 10 trading days is sold, freeing the money. This one is up only 0.5R at day 10, so the time stop applies however good the base looked.",
+   "why": "Sell it. A trade still under 1R after 10 trading days is sold, freeing the money. Money stuck in a trade that does nothing cannot work on a fresh setup. This one is up only 0.5R at day 10, so the time stop applies however good the base looked.",
    "lesson_line": "A trade that does nothing for 10 days is sold.",
    "facts": [
     "h15",
@@ -2565,7 +2744,7 @@
    },
    "house": true,
    "story": "You bought a VCP breakout 10 trading days ago. It has drifted sideways and is up only 0.5R.",
-   "simple": "Sell it. A trade still under 1R after 10 trading days is sold so the money is free for something else.",
+   "simple": "Sell it. A trade that does nothing for 10 days ties up money that could be working on a fresh setup.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2573,7 +2752,7 @@
      "+2 rests on the owner's rulebook (C33)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q45",
@@ -2589,12 +2768,13 @@
     "Widen the stop to give the stock room"
    ],
    "answer": "First 30-minute low; out past 2R",
-   "why": "The first 30-minute low. On a gap through the stop, that low is the new stop, and past 2R we get out. In the AXON case the next day traded as low as 592.76, far through a stop only 0.3% under the 694.02 fill.",
+   "why": "The first 30-minute low. A gap can jump the stop, so on a gap through it the low of the first 30-minute bar becomes the new stop, and past 2R we get out. In the AXON case the next day traded as low as 592.76, far through a stop only 0.3% under the 694.02 fill.",
    "lesson_line": "A gap through the stop gets the 30-minute rule. Past 2R, get out.",
    "facts": [
     "d21",
     "h06",
-    "h07"
+    "h07",
+    "hn4"
    ],
    "wrong": {
     "Wait for a recovery of the gap": "The gap rule does not wait. It sets a new stop.",
@@ -2603,7 +2783,7 @@
    },
    "house": true,
    "story": "The fill was 694.02 and the day's low 691.86, so the stop sat 0.3% under. The next day opened lower, then fell hard and traded as low as 592.76, far through it.",
-   "simple": "Use the gap rule: the first 30-minute low becomes the new stop, and you get out if the loss passes 2R.",
+   "simple": "Use the gap rule. A gap can jump the stop, so the first 30-minute low is the new stop, and past 2R you get out.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2612,7 +2792,7 @@
      "the AXON numbers come from our own scan"
     ]
    },
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "AXON",
     "asof": "2025-02-18",
@@ -2735,22 +2915,23 @@
     "No change; it is noise"
    ],
    "answer": "It raises it; a grade cue",
-   "why": "It raises the grade. Our rule lists a last contraction that undercuts a nearby low and recovers, then makes a higher low, as a grade cue. No shakeout, or a lower low, is B-. It does not void the setup, and it is not noise.",
+   "why": "It raises the grade. The dip under the low shakes out weak holders, and the same-day recovery shows buyers took the supply, so fewer sellers are left for the breakout. A recovered undercut and then a higher low is a plus in our judgment. A lower low, or no shakeout, is a weaker look.",
    "lesson_line": "A shakeout that recovers, then a higher low, is a good sign.",
    "facts": [
     "c09",
-    "c04"
+    "c04",
+    "cm7"
    ],
    "wrong": {
     "It voids the setup": "An undercut that recovers is a cue, not a failure.",
-    "It lowers it; low broke": "A lower low would lower it. This one recovered, then made a higher low.",
+    "It lowers it; low broke": "A lower low would weaken the look. This one recovered, then made a higher low.",
     "No change; it is noise": "Our rule treats an undercut that recovers, then a higher low, as a grade cue. It is not noise."
    },
    "house": true,
-   "story": "The last contraction dips under an earlier swing's low, closes back above it the same day, and then forms a higher low.",
-   "simple": "It raises the grade, because an undercut that recovers and then forms a higher low is a grade cue on our card.",
+   "story": "A grade is our judgment of how clean a setup is, and the grade sets the size. The last contraction dips under an earlier swing's low, closes back above it the same day, then forms a higher low.",
+   "simple": "It raises the grade. A dip that recovers shakes out weak holders, and the higher low after it shows buyers are in.",
    "deeper": {
-    "trap": "Do not read every undercut as a good sign. The cue is an undercut that recovers and then makes a higher low. If the next low is lower, or there is no shakeout, the grade is B-."
+    "trap": "Do not read every undercut as a good sign. The plus is an undercut that recovers and then makes a higher low. If the next low is lower, or there is no shakeout, the look is weaker."
    },
    "tier": "extended",
    "risk": {
@@ -2760,7 +2941,7 @@
      "shakeout is a proposed criterion"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q50",
@@ -2803,23 +2984,24 @@
     "It matters only when volume is light"
    ],
    "answer": "Worse odds than an earlier base",
-   "why": "Worse odds. ChartMill: a first or second base after the start of a new uptrend has better odds than a third or fourth. Minervini calls a late-stage base obvious to everyone and prone to failure. Our rule calls a third or fourth base late in a long run a mistake.",
+   "why": "Worse odds. ChartMill: a first or second base after the start of a new uptrend has better odds than a third or fourth, and a fourth base after two years of gains fails more often. Minervini calls a late-stage base obvious to everyone and prone to failure, so a clean shape is not enough.",
    "lesson_line": "A late base has worse odds. The first or second base is the better bet.",
    "facts": [
     "c20",
     "v08",
-    "cm3"
+    "cm3",
+    "cm9"
    ],
    "wrong": {
-    "Nothing; a clean shape is clean": "A clean shape does not fix a late stage. Our rule calls it a mistake.",
+    "Nothing; a clean shape is clean": "A clean shape does not fix a late stage. ChartMill: a fourth base after two years of gains fails more often than a first or second.",
     "Better odds; the trend is proven": "A long run makes the base obvious to everyone. That is the risk.",
     "It matters only when volume is light": "The base number is its own check: a first or second base has better odds than a third or fourth."
    },
    "house": true,
    "story": "A stock is on the fourth base of a two-year run. The pattern looks clean.",
-   "simple": "The odds are worse, because a first or second base has better odds than a late third or fourth base.",
+   "simple": "Worse odds. A late base is obvious to everyone and prone to failure, so a clean shape is not enough.",
    "deeper": {
-    "trap": "A clean shape on a late base is the lure. Minervini warns that a late-stage base is obvious to everyone and prone to failure, and our rule calls a third or fourth base late in a long run a mistake."
+    "trap": "A clean shape on a late base is the lure. Minervini warns that a late-stage base is obvious to everyone and prone to failure, and ChartMill gives a third or fourth base worse odds than a first or second."
    },
    "tier": "extended",
    "risk": {
@@ -2830,7 +3012,7 @@
      "Minervini page is an archive capture that could not be reopened in this pass"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q52",
@@ -2902,7 +3084,7 @@
     "Buy; the 10% rule is for chases"
    ],
    "answer": "Pass; it is too stretched",
-   "why": "Pass. UCT skips a long that is more than 10% above its 9 EMA, and this stock is 12% above it. The rule is separate from the 4% chase limit, which is measured from the pivot. It applies to every long, even a clean breakout. Wait for a new setup.",
+   "why": "Pass. We skip a long that is more than 10% above its 9 EMA, and this stock is 12% above it. A stock this far above its average is stretched and often pulls back to the line, so you would own the stretch. The rule is separate from the 4% chase limit, which is measured from the pivot. Wait for a new setup.",
    "lesson_line": "Stretched above the 9 EMA is a skip, even at the pivot.",
    "facts": [
     "h13",
@@ -2916,7 +3098,7 @@
    },
    "house": true,
    "story": "A VCP breaks out cleanly. But the stock is 12% above its 9 EMA when you find it.",
-   "simple": "Pass. The stock is 12 percent above its 9 EMA, and we skip a long more than 10 percent above it.",
+   "simple": "Pass. The stock is 12 percent above its 9 EMA, so it is stretched, and stretched stocks often pull back to the line.",
    "deeper": {
     "trap": "The trap is the clean breakout. The pivot, the volume and the base can all pass. The trade is still a skip, because the stretch is measured from the 9 EMA, not the pivot."
    },
@@ -2927,7 +3109,7 @@
      "+2 rests on the owner's rulebook (C29)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q55",
@@ -2943,7 +3125,7 @@
     "Pass; the price must be above $20"
    ],
    "answer": "Pass; too thin and too cheap",
-   "why": "Pass. We trade only stocks at $10 or more that trade at least $20 million a day. An 8 dollar stock trading about 5 million dollars a day fails both tests, however clean the pattern. Thin names are not even watched: we never own more than 1% of a stock's average daily volume.",
+   "why": "Pass. We trade only stocks at $10 or more that trade at least $20 million a day. An 8 dollar stock at about 5 million dollars a day fails both tests. A thin stock cannot take our size: we could not get out at the stop without moving the price. Thin names are not even watched, and we never own more than 1% of a stock's average daily volume.",
    "lesson_line": "The chart comes after the floor.",
    "facts": [
     "h09",
@@ -2956,7 +3138,7 @@
    },
    "house": true,
    "story": "A tight VCP breaks out on an 8 dollar stock that trades about 5 million dollars a day.",
-   "simple": "Pass, because we trade only stocks priced at $10 or more that trade at least $20 million a day, and this one fails both.",
+   "simple": "Pass. We trade only stocks at $10 or more and $20 million a day, so we can exit at our stop.",
    "deeper": {
     "trap": "The two numbers are separate tests. A stock can clear $10 and still fail the $20 million a day test, or the other way round. A clean pattern is the lure, and the floor comes first."
    },
@@ -2967,7 +3149,7 @@
      "rests on the rulebook (B23, D42)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q56",
@@ -2983,22 +3165,23 @@
     "The A+ and the best B grade"
    ],
    "answer": "Only A+ setups, no B grades",
-   "why": "Only A+ setups. In Orange we take A+ setups only, so the one A+ is taken and the two B grades wait. Yellow means smaller and fewer, Green is normal, and Red means no VCP buys.",
-   "lesson_line": "Orange: A+ only. Yellow: smaller and fewer. Red: none.",
+   "why": "Only the A+. Orange lets the account take only A+ setups, because with fewer buyers around, only the cleanest setups have enough behind them. Yellow means smaller and fewer, Green is normal, and Red means mostly cash. ChartMill: in a negative market even perfect VCPs fail en masse.",
+   "lesson_line": "Orange: A+ only. Yellow: smaller and fewer. Red: mostly cash.",
    "facts": [
     "c25",
-    "h26"
+    "h26",
+    "cm4"
    ],
    "wrong": {
     "All three, at smaller size": "Smaller and fewer is Yellow. Orange is A+ only.",
-    "None; wait for a Green market": "Red is no VCP buys. Orange still allows A+ setups.",
+    "None; wait for a Green market": "Red is mostly cash. Orange still allows A+ setups.",
     "The A+ and the best B grade": "Orange allows A+ only. A B grade waits, even the best one."
    },
    "house": true,
-   "story": "Your market reading turns Orange. Three VCPs set up. One is A+, two are B grade.",
-   "simple": "Only A+ setups, because Orange allows A+ only, while Yellow is the one that means smaller and fewer.",
+   "story": "The app's market filter (Green, Yellow, Orange, Red, from most open to most cautious) turns Orange. Three VCPs set up: one A+, two B grade. A grade is our judgment of how clean a setup is.",
+   "simple": "Only the A+. Orange lets the account take only A+ setups, since fewer buyers are around to carry a breakout.",
    "deeper": {
-    "trap": "Yellow and Orange are different cuts. Yellow means smaller and fewer. Orange means A+ only, so both B grades wait. Red means no VCP buys."
+    "trap": "Yellow and Orange are different cuts. Yellow means smaller and fewer. Orange means A+ only, so both B grades wait. Red means mostly cash."
    },
    "tier": "expert",
    "risk": {
@@ -3007,7 +3190,7 @@
      "rests on the rulebook market reading (A10, F65)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q57",
@@ -3023,20 +3206,21 @@
     "Pass; the RS rating must be 90 or more"
    ],
    "answer": "Pass; it is not a leader by our rule",
-   "why": "Pass. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. This stock has an RS of 72 in a weak group, so it fails both parts. Minervini's floor is 70, preferably in the 90s, but our rule is stricter than his floor, and a clean chart does not make up for it.",
+   "why": "Pass. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. This stock has 72 in a weak group, so it fails both parts. A breakout needs buyers to carry it, and leaders have them. Minervini's floor is 70, preferably in the 90s, and our rule is stricter. A clean chart does not make up for it.",
    "lesson_line": "Buy leaders. A tight chart on a laggard waits.",
    "facts": [
     "c19",
-    "h14"
+    "h14",
+    "cm4"
    ],
    "wrong": {
-    "Take it; Minervini's floor is 70": "The house rule is stricter than his floor.",
+    "Take it; Minervini's floor is 70": "Our rule is stricter than his floor.",
     "Take it at half size, weak group": "Size does not fix a leadership gap.",
     "Pass; the RS rating must be 90 or more": "Our line is an RS rating of 80 or more in a strong group. 90 is not the line."
    },
    "house": true,
-   "story": "A clean VCP sets up in a stock in a weak group. Its RS rating is 72.",
-   "simple": "Pass, because we want an RS rating of 80 or more in a strong group, and this stock has 72 in a weak one.",
+   "story": "A clean VCP sets up in a stock in a weak group. Its RS rating, our strength rank against all other stocks, is 72.",
+   "simple": "Pass. We buy leaders, with an RS rating of 80 or more in a strong group, and this one has 72 in a weak group.",
    "deeper": {
     "counter": "Minervini's floor is 70, preferably in the 90s. Ours is 80 or more in one of the strongest groups. A stock that clears his floor can still fail ours, and on our desk his number is the floor, not our rule."
    },
@@ -3047,7 +3231,7 @@
      "rests on the rulebook leader rule (C31)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q58",
@@ -3063,12 +3247,13 @@
     "It is off, only on heavy volume"
    ],
    "answer": "It is off; the trend test failed",
-   "why": "It is off. A close under the 200-day ends the setup before the buy. We take no longs below the 200-day simple moving average, unless it is a parabolic long. A tight base does not outrank the trend check.",
+   "why": "It is off. A close under the 200-day ends the setup before the buy, because below the 200-day is a hard no for stocks. Below it the stock is in a downtrend, and Minervini never goes against the long-term trend. A tight base does not outrank the trend check.",
    "lesson_line": "Lose the trend and the base is off. Check the trend again before the buy.",
    "facts": [
     "c24",
     "h10",
-    "c23"
+    "c23",
+    "v07"
    ],
    "wrong": {
     "It is fine; the base is tight": "The trend check outranks the box.",
@@ -3077,9 +3262,9 @@
    },
    "house": true,
    "story": "A base is forming nicely. Then the stock closes below its 200-day average.",
-   "simple": "The setup is off, because a close under the 200-day ends it before the buy.",
+   "simple": "The setup is off. A close under the 200-day means a downtrend, and we do not buy longs there.",
    "deeper": {
-    "trap": "A tight base is not a trend. The base can look perfect while the trend test fails. The 200-day check comes first, and the only exception to the no-longs-below rule is a parabolic long."
+    "trap": "A tight base is not a trend. The base can look perfect while the trend test fails. The 200-day check comes first, and for a stock there is no way around it. Only indexes and leveraged ETFs may be bought under it, on a reversal extension or a parabolic long."
    },
    "tier": "expert",
    "risk": {
@@ -3091,7 +3276,7 @@
    "depends_on": [
     "D-060"
    ],
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q59",
@@ -3107,11 +3292,12 @@
     "The stock is banned for good"
    ],
    "answer": "It is void; wait for a new one",
-   "why": "It is void. A close below the final contraction's low ends that pivot. The count starts over, and a new tight contraction makes a new pivot. The stock is not banned, but you cannot buy the old pivot.",
+   "why": "It is void. A close below the final contraction's low shows buyers failed to hold the last swing, so the old pivot means little. The count starts over, and a new tight contraction makes a new pivot. The stock is not banned, but you cannot buy the old pivot.",
    "lesson_line": "Close under the last low and the count restarts.",
    "facts": [
     "c13",
-    "c01"
+    "c01",
+    "cm12"
    ],
    "wrong": {
     "It still stands; buy through it": "The structure broke. The old pivot is gone.",
@@ -3120,7 +3306,7 @@
    },
    "house": true,
    "story": "Before you buy, the stock closes below the low of its final contraction.",
-   "simple": "The old pivot is void. A close under the last swing's low ends it, and a new tight swing makes a new one.",
+   "simple": "The old pivot is void. A close under the last swing's low means buyers failed, so wait for a new tight swing.",
    "deeper": {
     "trap": "The trap is waiting for the old pivot to come back. After a close under the final low, that pivot no longer matters. Watch for a new tight swing, then use its high as the new pivot."
    },
@@ -3131,7 +3317,7 @@
      "+2 rests on a proposed card line (c13) and the owner's rulebook (A4 stop only moves up)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q60",
@@ -3139,18 +3325,19 @@
    "rung": 8,
    "format": "tf",
    "criterion": "vcp.inv_first_t_deep",
-   "q": "A base whose first pullback was 55% can still be a VCP.",
+   "q": "A stock down 70% from its high can still form a good VCP base.",
    "answer": "False",
-   "why": "False. Our rule says the first contraction is 10% to 40%, never a base that fell 60% or more, and a first contraction over 40% ends the setup before the buy. A 55% first pullback is over 40%, so it fails even though it is under 60%.",
-   "lesson_line": "A first pullback over 40% ends the VCP idea.",
+   "why": "False. A VCP is a pause inside a prior uptrend, not a repair job. A stock down 70% has been in a downtrend, not resting, and we buy leaders. Minervini calls a VCP a pause within the context of a prior uptrend.",
+   "lesson_line": "A stock that has fallen far is damaged, not resting. A VCP is a pause in an uptrend.",
    "facts": [
-    "c12",
-    "c02"
+    "v09",
+    "v07",
+    "h14"
    ],
    "house": true,
-   "simple": "False. A first pullback over 40%, or any fall of 60% or more, ends the VCP idea, so 55% is out.",
+   "simple": "False. A VCP is a pause in an uptrend, and a stock that has fallen that far is damaged, not resting.",
    "deeper": {
-    "trap": "The 60% line is not the only one. The first contraction has its own ceiling of 40%. A 55% first pullback is under 60% and still fails, which is why the trap catches people who remember only the larger number."
+    "trap": "The trap is a cheap-looking chart. A big fall can leave a tight-looking base, but the stock is no longer a leader pausing. The trend check and the leader rule usually catch it too."
    },
    "tier": "expert",
    "risk": {
@@ -3159,7 +3346,7 @@
      "first-contraction limits are proposed card criteria"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q61",
@@ -3175,11 +3362,12 @@
     "1% of the account"
    ],
    "answer": "40% of the account",
-   "why": "40% of the account. Shares are account times risk percent divided by the stop distance, then capped. The size is the smaller of the risk-based size and the cap. A 1% risk on a 2% stop asks for 50% of the account, and the 40% cap trims it to 40%.",
+   "why": "40% of the account. A 1% risk on a 2% stop asks for 50% of the account, and the 40% cap trims it. The size is the smaller of the risk-based size and the cap. We cap it because a tight stop never justifies a bigger position: a gap can jump the stop.",
    "lesson_line": "A tight stop can ask for a huge size. The cap holds it at 40%.",
    "facts": [
     "c22",
-    "h03"
+    "h03",
+    "hn4"
    ],
    "wrong": {
     "50% of the account": "The size is the smaller of the risk-based size and the cap.",
@@ -3187,8 +3375,8 @@
     "1% of the account": "1% is the risk, not the position size. The size is the risk divided by the stop distance, then capped."
    },
    "house": true,
-   "story": "Account 100,000. You risk 1% on a stop 2% under the entry. The risk-based size is 50% of the account. The position cap is 40%.",
-   "simple": "Size is the smaller of the risk-based 50% and the 40% cap, so the position is 40% of the account.",
+   "story": "Account $100,000. You risk 1% on a stop 2% under the entry. The risk-based size is 50% of the account. The position cap is 40%.",
+   "simple": "The size is the smaller of the risk-based 50 percent and the 40 percent cap, because a gap can jump a tight stop.",
    "deeper": {
     "example": "The cap, not the risk rule, sets the size here. A 1% risk on a 2% stop asks for 50% of the account, and the cap trims it to 40%. Check the volume cap too: the position is also at most 1% of average daily volume."
    },
@@ -3200,7 +3388,7 @@
      "rests on the rulebook sizing and cap (A5, A7), the 40% cap quoted only through the card line (c22)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q62",
@@ -3210,24 +3398,24 @@
    "criterion": "vcp.ratio",
    "q": "The day before a breakout. Which description fits the base?",
    "choices": [
-    "Shrinking pullbacks, drying volume",
-    "Equal pullbacks on steady volume",
-    "Widening pullbacks on rising volume",
+    "Shrinking swings, volume dries up",
+    "Equal swings, steady volume",
+    "Widening swings, rising volume",
     "One deep drop and a short handle"
    ],
-   "answer": "Shrinking pullbacks, drying volume",
-   "why": "Shrinking pullbacks, drying volume. RNG's contractions were 16.6%, 11.0% and 3.5%, and the final swing was quiet, on volume 0.46x the average. It broke out the next day on 2.4x volume.",
+   "answer": "Shrinking swings, volume dries up",
+   "why": "Shrinking swings, and volume that dries up. RNG's contractions were 16.6%, 11.0% and 3.5%, and the final swing was quiet, on volume 0.46x the average. Few sellers were left, and it broke out the next day on 2.4x volume.",
    "lesson_line": "Count the swings and check the volume before you look at the breakout.",
    "facts": [
     "d04",
     "d05",
-    "c05",
+    "cm7",
     "c33"
    ],
    "wrong": {
-    "Equal pullbacks on steady volume": "They shrink: the last is far smaller than the first.",
-    "Widening pullbacks on rising volume": "The last pullback is far smaller than the first, and the final swing is quiet.",
-    "One deep drop and a short handle": "A cup is one rounded decline and one handle. This base has three pullbacks."
+    "One deep drop and a short handle": "A cup is one rounded decline and one handle. This base has three pullbacks.",
+    "Equal swings, steady volume": "They shrink: the last is far smaller than the first.",
+    "Widening swings, rising volume": "The last swing is far smaller than the first, and it was quiet."
    },
    "house": true,
    "chart": {
@@ -3236,7 +3424,7 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "The pullbacks shrink from 16.6% to 11.0% to 3.5% and the last swing's volume is quiet at 0.46x the average.",
+   "simple": "Shrinking swings and volume that dries up. The pullbacks fall from 16.6% to 3.5% as the sellers run out.",
    "deeper": {
     "example": "On the buy day the pivot was 169.99 and the stop 165.39, 2.7% under it. In our scan the trade reached 3R in 5 days."
    },
@@ -3252,7 +3440,7 @@
    "depends_on": [
     "D-059"
    ],
-   "batch": "sweep-2026-11-14"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q63",
@@ -3260,27 +3448,26 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "vcp.volume_dry",
-   "q": "Pullbacks are 14%, then 4%. The last leg's volume is 0.89 times the first leg's; its quietest day 0.81 times the 50-day. Take it?",
+   "q": "Pullbacks shrink, 14% then 4%, but the last leg's volume stayed above average. What does that tell you?",
    "choices": [
-    "Pass; no day fell to half the average",
-    "Take it; volume is below the first leg's",
-    "Take it; the quietest day is under 1x",
-    "Pass; the first swing is too shallow"
+    "Supply may still be coming",
+    "Volume does not matter in a VCP",
+    "The base is done; buy at the pivot",
+    "The 4% leg is too deep"
    ],
-   "answer": "Pass; no day fell to half the average",
-   "why": "Pass. The last leg's volume is below the first leg's, which is good. But its quietest day was 0.81 times the 50-day, and the rule needs at least one day at or under half of it.",
-   "lesson_line": "Shrinking price is not enough. The last swing needs at least one day at half the average volume or less.",
+   "answer": "Supply may still be coming",
+   "why": "Supply may still be coming. Minervini ties shrinking swings to falling volume, and says that if volume does not quiet down on the right side, supply is likely still coming to market. Volume raises the grade rather than gating the setup. Our grade is a judgment of how clean a setup is. Here the final leg ran at 1.13x the 50-day average.",
+   "lesson_line": "Shrinking price is not enough. Volume should dry up in the last leg too.",
    "facts": [
     "d24",
     "d25",
-    "c05",
-    "c02",
-    "v03"
+    "v03",
+    "hn7"
    ],
    "wrong": {
-    "Pass; the first swing is too shallow": "A 14% first swing is inside the 10% to 40% range. Only a first swing under 10% is too shallow.",
-    "Take it; volume is below the first leg's": "That is one of three tests. The rule also needs a day at or under half the 50-day average.",
-    "Take it; the quietest day is under 1x": "0.81 times is below average, but the rule needs a day at half the average or less."
+    "Volume does not matter in a VCP": "It matters. Falling volume shows the sellers are gone, and busy volume lowers the grade.",
+    "The base is done; buy at the pivot": "A busy last leg is not a finished base. It shows less than a clean VCP does.",
+    "The 4% leg is too deep": "4% is a tight last swing. The trouble is the volume."
    },
    "house": true,
    "chart": {
@@ -3289,7 +3476,7 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Pass, because no day in the last leg fell to half the 50-day average, so volume did not dry up enough.",
+   "simple": "Shrinking swings without falling volume are half a VCP. Busy trading means supply may still be coming, so grade it lower.",
    "deeper": {
     "trap": "Shrinking price alone is the trap. Swings of 14% then 4% look textbook, but Minervini ties the shrinking to a reduction in volume at particular points, and here the last leg shows none."
    },
@@ -3302,7 +3489,7 @@
      "the bars were not checked by the writer"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q64",
@@ -3318,7 +3505,7 @@
     "Wait for a second video to agree"
    ],
    "answer": "Check it, then set your own plan",
-   "why": "Set your own plan. Never take a trade from an alert, a post or a video without your own entry, stop and size by these rules. Every planned buy has its entry, stop and size written down before the market opens.",
+   "why": "Check it, then set your own plan. A video does not know your account, your risk or your stop, and the size comes from your stop. So we never take a trade from an alert, a post or a video without our own entry, stop and size. Every planned buy has them written down before the market opens.",
    "lesson_line": "Someone else's alert is not a plan. Build your own entry, stop and size.",
    "facts": [
     "h36",
@@ -3334,7 +3521,7 @@
    },
    "house": true,
    "story": "A video shows a VCP breakout with its entry, stop and size. The chart looks strong.",
-   "simple": "Build your own entry, stop and size first, because we never take a trade from a video without our own plan.",
+   "simple": "Build your own entry, stop and size first. A video does not know your account, so its size is not yours.",
    "deeper": {
     "trap": "A strong chart in someone else's post is the pull. Copying their entry, stop and size feels safe, but it is their plan, not yours. Every position also needs a real stop order with the broker."
    },
@@ -3345,7 +3532,7 @@
      "rests on the rulebook (F66, D39)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q65",
@@ -3407,34 +3594,33 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "vcp.pivot_location",
-   "q": "Same shape. Which setup grades higher on pivot location?",
+   "q": "Base B's pivot sits well below its old high. What does Base B face that Base A does not?",
    "choices": [
-    "Same grade; no location cue",
-    "Base A; no overhead supply above",
-    "Base B; more room to run",
-    "Base A; too extended to buy"
+    "Overhead supply from old-high holders",
+    "A tighter chase limit above the pivot",
+    "A looser stop on the entry day",
+    "Nothing; only the shape counts"
    ],
-   "answer": "Base A; no overhead supply above",
-   "why": "Base A. A pivot at or near a 52-week or all-time high, with no overhead supply, is the A+ picture. A pivot well below the left-side high is B-.",
-   "lesson_line": "No overhead supply is the best location.",
+   "answer": "Overhead supply from old-high holders",
+   "why": "Overhead supply. A stock at a new high has no overhead supply to contend with, while holders who bought near the old high may sell into a rally back to it. It is not a ban: JOYY's pivot at 51.22 sat below its left-side high of 56.75, as Minervini allows, and it reached 3R in 1 day.",
+   "lesson_line": "A pivot at a new high has no overhead supply. A lower pivot faces holders at the old high.",
    "facts": [
-    "c08",
-    "c01",
-    "h13",
+    "hn2",
     "d06",
     "d07",
-    "r07"
+    "c31",
+    "h11"
    ],
    "wrong": {
-    "Same grade; no location cue": "Location is one of our grade cues.",
-    "Base B; more room to run": "Overhead supply sits above Base B's pivot. That is not room to run.",
-    "Base A; too extended to buy": "A pivot at an all-time high has no overhead supply. Stretch is a separate check against the 9 EMA."
+    "A tighter chase limit above the pivot": "The chase limit is 4% for every VCP. Location does not change it.",
+    "A looser stop on the entry day": "The stop sits under the day's low whatever the location.",
+    "Nothing; only the shape counts": "Location matters: sellers waiting at the old high can cap the move."
    },
    "house": true,
    "story": "Two VCPs have the same shape. Base A's pivot sits at an all-time high. Base B's pivot sits well below its left-side high.",
-   "simple": "Base A grades higher, because a pivot near an all-time high has no overhead supply above it.",
+   "simple": "Overhead supply. Holders near the old high may sell into the rally, while a stock at a new high has none above it.",
    "deeper": {
-    "counter": "Our own examples push back on this cue. JOYY's pivot at 51.22 sat below its left-side high of 56.75, exactly as Minervini allows, and it still reached 3R in 1 day. The cue is a proposed grade, not a ban."
+    "counter": "Our own examples push back on this. JOYY's pivot at 51.22 sat below its left-side high of 56.75, as Minervini allows, and it reached 3R in 1 day. Overhead supply is a risk to weigh, not a ban."
    },
    "tier": "expert",
    "risk": {
@@ -3445,7 +3631,7 @@
      "our own examples contradict the cue: the ten winners had pivots under the base high"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q68",
@@ -3488,14 +3674,15 @@
     "Use a mental stop you can adjust"
    ],
    "answer": "Keep the stop and size to it",
-   "why": "Keep the honest stop and size to it. The size comes from the stop, so a wider stop means fewer shares. If the honest stop does not fit the risk, skip the trade. Widening the stop to give the stock more room is a named mistake. Pulling it in to fit a bigger size breaks the same rule.",
+   "why": "Keep the honest stop and size to it. The size comes from the stop, so a wider stop means fewer shares, and if the honest stop does not fit the risk we skip. ChartMill: moving the stop on a failed breakout can turn an initial 1R loss into a 3R loss. Pulling it in to fit a bigger size breaks the same rule.",
    "lesson_line": "The stop does not bend to fit the size. The size bends to the stop.",
    "facts": [
     "h01",
     "h02",
     "c29",
     "h03",
-    "h41"
+    "h41",
+    "cm14"
    ],
    "wrong": {
     "Widen the stop to give it room": "Widening the stop to give the stock more room is a named mistake. The size comes from the stop.",
@@ -3516,7 +3703,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q70",
@@ -3526,13 +3713,13 @@
    "criterion": "vcp.fundamentals",
    "q": "For a VCP we prefer growing sales and earnings, but the chart comes first.",
    "answer": "True",
-   "why": "True. UCT prefers stocks with growing sales and earnings, but the chart comes first. Growth is a preference, not a requirement, and it does not replace the base rules.",
+   "why": "True. We prefer stocks with growing sales and earnings, but the chart comes first. Growth explains why buyers might come, while the chart shows whether they are coming now. Growth is a preference, not a requirement, and it does not replace the base rules.",
    "lesson_line": "Fundamentals are a plus. The chart comes first.",
    "facts": [
     "h40"
    ],
    "house": true,
-   "simple": "True. We prefer growing sales and earnings, but a good chart comes first.",
+   "simple": "True. Growth helps, but the chart shows what buyers are doing now, so the chart comes first.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -3541,7 +3728,7 @@
      "+2 rests on the owner's rulebook (D40)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q71",
@@ -3952,7 +4139,7 @@
     "Your call: sell part or hold on"
    ],
    "answer": "Your call: sell part or hold on",
-   "why": "It is your call. Your 5R level is 21.40, and the stock opens at 22.10, above it. A gap past a level is not an automatic sell. Selling part is one choice. Holding and trailing is another.",
+   "why": "It is your call. Your 5R level is 21.40, and the stock opens at 22.10, above it. A gap past a level is not an automatic sell. Selling part locks in a big gain, and holding lets a strong move keep running, so we leave it to judgment, never a rule.",
    "lesson_line": "When a stock gaps over a trim level, selling part is your call, not a rule.",
    "facts": [
     "g1",
@@ -3965,7 +4152,7 @@
    },
    "house": true,
    "story": "Your VCP long is past day 3 and you have sold part already. The next planned sell level is 5R, which is 21.40. The stock gaps up and opens at 22.10.",
-   "simple": "A gap over 5R is not an automatic sell. Selling part at the open is allowed, and so is holding.",
+   "simple": "Your call. Selling part banks a big gain, while holding lets a strong move run, so we leave it to judgment.",
    "deeper": {
     "trap": "The trap is treating the gap as an order. The level is behind you, and selling part is one choice. It is never a rule."
    },
@@ -3977,7 +4164,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "rulings3"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q82",
@@ -3993,7 +4180,7 @@
     "Sell a small part, then hold"
    ],
    "answer": "Sell a big part into the strength",
-   "why": "Sell a big part into the strength. On a climax run in your own long, we sell a big part into it, and how much is a judgment call. Adding is the opposite of our plan, which is one full buy with no adding. Holding everything for the trail ignores the climax rule.",
+   "why": "Sell a big part into the strength. A climax run packs a lot of gain into a few days, so it is the moment the position is worth the most. We sell a big part into it and trail the rest; how much is a judgment call. Adding is the opposite of our plan, which is one full buy with no adding.",
    "lesson_line": "Into a climax run, sell a big part. How much is your call.",
    "facts": [
     "h43",
@@ -4001,14 +4188,14 @@
    ],
    "wrong": {
     "Add, since the leg is strong": "No adds. A climax is where we sell, not where we buy more.",
-    "Hold it all until trail breaks": "The rule is to sell a big part into a climax, not to wait for the trail.",
-    "Sell a small part, then hold": "The rule is a big part into a climax. A token trim leaves most of the position exposed."
+    "Hold it all until trail breaks": "Our plan is to sell a big part into a climax, not to wait for the trail.",
+    "Sell a small part, then hold": "A climax calls for a big part. How much is a judgment call, but a token trim leaves most of the position exposed."
    },
    "house": true,
    "story": "Your VCP winner is in a climax run: three gaps up in five days on rising volume, and a huge range today.",
-   "simple": "Sell a big part into the strength, because a climax run is where we sell, and how much is a judgment call.",
+   "simple": "Sell a big part into the strength. A climax run packs a lot of gain into a few days, so we bank much of it.",
    "deeper": {
-    "trap": "A strong leg feels like proof, so the pull is to add or to sit tight. The rule for a climax run on your own long is to sell a big part into it; how much is your call."
+    "trap": "A strong leg feels like proof, so the pull is to add or to sit tight. Our plan for a climax run on your own long is to sell a big part into it; how much is your call."
    },
    "tier": "expert",
    "risk": {
@@ -4017,7 +4204,7 @@
      "rests on the rulebook climax rule (C34), which leaves the size to judgment"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q83",
@@ -4026,7 +4213,7 @@
    "format": "scenario",
    "criterion": "vcp.trigger",
    "q": "What is your move?",
-   "story": "A leader has RS 90, sits in a strong group and is above its 200-day. The market is Green. The final contraction is 4% deep. At 10:30 price trades through the 31.20 pivot, now 31.45. It is 3% above its 9 EMA, and the report is 12 days away.",
+   "story": "A leader has RS 90, sits in a strong group and is above its 200-day. The app's market filter reads Green, which allows full risk. The final contraction is 4% deep. At 10:30 price trades through the 31.20 pivot, now 31.45, with the stop 2% under. It is 3% above its 9 EMA, and the report is 12 days away.",
    "choices": [
     "Buy at market; stop under the low",
     "Buy half now and half on a dip",
@@ -4034,8 +4221,8 @@
     "Pass; the report is too close"
    ],
    "answer": "Buy at market; stop under the low",
-   "simple": "Buy at market, with the stop a few cents under the day's low. Nothing in the story breaks a rule.",
-   "why": "Buy at market. Nothing in the story breaks a rule: RS 90 is over the 80 line, price is over the 200-day, and the report is 12 days away, outside the 3-day window. Entries are market orders, and the stop goes a few cents under the day's low. We do not scale in.",
+   "simple": "Buy at market, since a resting limit can miss the move, and put the stop a few cents under the day's low.",
+   "why": "Buy at market. Nothing in the story breaks a rule. RS 90 is over the 80 line, price is over the 200-day, and the stop is 2%, inside our 1-3% range. The report is 12 days away, outside the 3-day window. The stock is 3% above its 9 EMA, under the 10% skip line. Entries are market orders, because a resting limit can miss a breakout, and the stop goes a few cents under the day's low. We do not scale in.",
    "lesson_line": "A clean setup is a market order with the stop a few cents under the low.",
    "facts": [
     "h22",
@@ -4044,7 +4231,10 @@
     "h03b",
     "h14",
     "h10",
-    "r07"
+    "r07",
+    "h26",
+    "hn1",
+    "h13"
    ],
    "wrong": {
     "Buy half now and half on a dip": "We do not scale in. One full buy, one stop.",
@@ -4059,7 +4249,7 @@
      "+2 rests on the owner's rulebook (E57 market orders, A3 stop, B22 earnings window)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q84",
@@ -4076,11 +4266,11 @@
     "Buy half size until it clears the line"
    ],
    "answer": "Pass; it is under the 200-day line",
-   "why": "Pass. Below the 200-day is a hard no for stocks, so a clean pattern does not rescue the buy. The 200-day sits at 43.00 and the stock trades at 42.15, under it. Our card wants price above the 200-day at the buy. The exception is narrow: an index or a levered ETF, on a reversal extension or a parabolic long.",
+   "why": "Pass. Below the 200-day is a hard no for stocks, so a clean pattern does not rescue the buy. The 200-day sits at 43.00 and the stock trades at 42.15, under it. A stock under its 200-day is not in an uptrend, and Minervini never goes against the long-term trend. The exception is narrow: an index or a levered ETF, on a reversal extension or a parabolic long.",
    "lesson_line": "A clean pattern under the 200-day is still a pass. Wait for the line to be reclaimed.",
-   "simple": "Pass. A stock under its 200-day average is a hard no, however clean the pattern looks.",
+   "simple": "Pass. Under its 200-day a stock is not in an uptrend, so we do not buy it, however clean the pattern looks.",
    "wrong": {
-    "Pass; the final contraction is too wide": "The final contraction is 5%, inside the 10% limit. The pattern is fine. The 200-day is what fails.",
+    "Pass; the final contraction is too wide": "The story calls it a textbook VCP with a tight 5% final contraction. The 200-day is what fails.",
     "Buy; it is only a hair under the line": "The rule is above the line at the buy. There is no allowance for being close.",
     "Buy half size until it clears the line": "The 200-day is a gate, not a size cue. Below it, we do not buy the stock at all."
    },
@@ -4088,12 +4278,168 @@
     "h10",
     "c23",
     "c24",
-    "c03",
-    "r06"
+    "r06",
+    "v07"
    ],
    "house": true,
    "tier": "core",
-   "batch": "cover"
+   "batch": "owner-review-7-2026-11-16"
+  },
+  {
+   "key": "q85",
+   "skill": "setup.vcp",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "vcp.trim_1",
+   "q": "What do we usually do about the first sell?",
+   "story": "You bought a VCP breakout and the stop sits under the day's low. By the second day it is up 3R.",
+   "choices": [
+    "Wait; day 3 or later, into a push",
+    "Sell a third now; 3R is the rule",
+    "Sell it all and bank the gain",
+    "Sell half now and add on a dip"
+   ],
+   "answer": "Wait; day 3 or later, into a push",
+   "why": "Wait. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3 at the earliest, selling into a 3, 5 or 7 day push. Kullamagi sells a third to a half after 3-5 days, and says moves of 10-20x the risk are common in a bullish market. Winners pay for the small stopped losses, so we let them work.",
+   "lesson_line": "The first sell is a judgment. We usually wait until day 3 and sell into a push.",
+   "facts": [
+    "r03",
+    "r04",
+    "r05",
+    "k2",
+    "k3",
+    "cm13"
+   ],
+   "wrong": {
+    "Sell a third now; 3R is the rule": "The first sell is a judgment, not a fixed third at 3R, and we very rarely sell on day 1.",
+    "Sell it all and bank the gain": "That gives up the big winners that pay for the small losses. We sell part and trail the rest.",
+    "Sell half now and add on a dip": "We do not add. One full buy, one stop."
+   },
+   "simple": "Wait. Big winners pay for the small losses, so we rarely sell on day 1 and usually sell into a push from day 3.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "D-013 (the first sell is a judgment, day 3 at the earliest, a 3, 5 or 7 day push); Kullamagi's 3-5 days and 10-20x risk quoted from his page"
+    ]
+   },
+   "batch": "owner-review-7-2026-11-16"
+  },
+  {
+   "key": "q86",
+   "skill": "setup.vcp",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "vcp.ratio",
+   "q": "Why does each smaller swing in a VCP matter?",
+   "choices": [
+    "Fewer sellers are left each time",
+    "Buyers have lost interest",
+    "Volume is rising on each dip",
+    "The stock nears its 200-day"
+   ],
+   "answer": "Fewer sellers are left each time",
+   "why": "Fewer sellers are left each time. Minervini: swings are biggest when sellers rush to take profits and shrink as sellers become scarcer. ChartMill says the same: each decline meets fewer sellers, so the pullback is shallower. That is why a tightening base is ready to break out.",
+   "lesson_line": "Each smaller swing means fewer sellers are left.",
+   "facts": [
+    "v12",
+    "cm6",
+    "v01"
+   ],
+   "wrong": {
+    "Buyers have lost interest": "Smaller dips come when selling dries up, not when buyers leave.",
+    "Volume is rising on each dip": "Volume dries up as the swings shrink.",
+    "The stock nears its 200-day": "The swings say nothing about the 200-day. They show how much selling is left."
+   },
+   "simple": "Each smaller dip means fewer sellers are left. That is why a tightening base is ready to move.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "Minervini (his 2013 book, on his blog) and ChartMill's guide both give the sellers-scarcer reason, quoted word for word"
+    ]
+   },
+   "batch": "owner-review-7-2026-11-16"
+  },
+  {
+   "key": "q87",
+   "skill": "setup.vcp",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "vcp.trigger",
+   "q": "Do you buy it now?",
+   "story": "A leader is in the first big pullback of a base that may become a VCP, down 8% from its high. The chart looks cheap.",
+   "choices": [
+    "No; wait for the pivot to trade",
+    "Yes; the first dip is the best price",
+    "Yes, but at half the size",
+    "No; the base needs two more months"
+   ],
+   "answer": "No; wait for the pivot to trade",
+   "why": "No. The pivot is the line of least resistance, the place to get in. During the first pullback supply is still heavy, and ChartMill says not to buy then, nor three weeks after the breakout. For a VCP we buy as price trades through the pivot, not in the middle of the base.",
+   "lesson_line": "Do not buy mid-base. Buy as price trades through the pivot.",
+   "facts": [
+    "v13",
+    "cm11",
+    "c28"
+   ],
+   "wrong": {
+    "Yes; the first dip is the best price": "A cheap-looking price mid-base is a guess. Supply is still heavy, and the pivot has not shown buyers are back.",
+    "Yes, but at half the size": "We do not scale in. One full buy at the trigger, with one stop.",
+    "No; the base needs two more months": "The wait is for the pivot to trade, not for a set number of months."
+   },
+   "simple": "No. Mid-base the supply is still heavy, so we buy as price trades through the pivot, the line of least resistance.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "Minervini's line of least resistance and ChartMill's not during the first pullback, both quoted word for word; the card names buying mid-base as a mistake"
+    ]
+   },
+   "batch": "owner-review-7-2026-11-16"
+  },
+  {
+   "key": "q88",
+   "skill": "setup.vcp",
+   "rung": 6,
+   "format": "mcq",
+   "criterion": "vcp.after_entry_stop",
+   "q": "Ten VCP buys at 0.5% risk. Seven stop out at -1R, one makes 8R, two make 2R each. What is the net?",
+   "choices": [
+    "+12R",
+    "+3R",
+    "-7R",
+    "+5R"
+   ],
+   "answer": "+5R",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "-7 + 8 + 2 * 2"
+    },
+    "round": 0
+   },
+   "why": "Seven stopped losses of 1R each are -7R. The 8R winner and two 2R winners add +12R. Net, -7 plus 12 is +5R, even though most of the buys failed. ChartMill: a failed breakout costs little because the stop is close, and a winner pays a multiple of that risk. Kullamagi says moves of 10-20x the risk are common in a bullish market.",
+   "lesson_line": "A few big winners pay for many small stopped losses.",
+   "facts": [
+    "cm13",
+    "k3",
+    "cm17"
+   ],
+   "wrong": {
+    "+12R": "That counts only the winners and forgets the seven losses.",
+    "+3R": "That counts one 2R winner and the 8R winner against the losses, and misses the second 2R winner.",
+    "-7R": "That counts only the losers."
+   },
+   "simple": "Add the winners and take off the losers. The small stopped losses are paid for by the few big winners.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "ChartMill's worked example (its numbers) and Kullamagi's 10-20x quoted word for word; the arithmetic decides whether to accept small losses"
+    ]
+   },
+   "batch": "owner-review-7-2026-11-16"
   }
  ],
  "conflicts": [
@@ -4131,17 +4477,16 @@
    "by": "checker"
   },
   "q01": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "cm5 quote verified verbatim in the ChartMill PDF (pdftotext). Name key grounded.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q02": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q03": {
    "status": "cut",
@@ -4153,7 +4498,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "JOYY winners_list 2014-01-02; asof 2013-12-31 is the last session before (01-01 holiday). Bars: final-T high 51.22 (12-27) is the pivot, base high 56.75 sits above it, so the keyed answer is true on this chart. No numbers in text; ticker only in the chart."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q05": {
    "status": "cut",
@@ -4165,19 +4510,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key agrees (E57, E58 and the card trigger). Fine."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "REGN's dossier stop 133.96 is 5 cents under the PRIOR day's low (134.01), not the buy day's low (137.88), so the real example shows the alternative, not the keyed primary stop. Swapped to ALGN 2007-10-17 (winner-free failure row, second use in this lesson): buy-day low 27.75, dossier stop 27.70 = 5 cents under that day's low, so the example matches the key. No trade drawn, no numbers in the text."
+   "fixed": false,
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q08": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Polarity flip of the cold-checked q08 (same facts v09 v07 c24 h10, same why after True/False) for the true/false balance."
   },
   "q09": {
    "status": "cut",
@@ -4188,14 +4533,14 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key False is right (card c25, rulebook D46, ChartMill). No second answer, no tell."
+   "fixed": true,
+   "notes": "Key False stands (Red = mostly cash, F65/D46, ChartMill). But 'we do not buy VCPs' and 'Red: no VCP buys' are the card's c25 line stated as our hard rule; his rule is a guide, 'mostly cash' (A10, F65). Reworded to mostly cash."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q12": {
    "status": "cut",
@@ -4210,118 +4555,118 @@
    "by": "checker"
   },
   "q14": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q15": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q16": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Calc recomputed and shown by the answer; every wrong choice recomputed as the stated mistake and none is near the answer; no length, unit or slot tell; why walks the steps."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "RNG row 3: pivot 169.99, fill 170.00 (also the open), stop 165.39 (5c under prior low 165.44), 2.7% = (170-165.39)/170. Trade matches text and dossier; asof is the buy day. Distractors check (4.6, 27.1, 97.3)."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "PHM row 2: pivot 17.37, fill 17.38, stop 16.59 (5c under prior low 16.64), 3R = 17.38+3*0.79 = 19.75, 3R reached in 16 days per dossier; distractors check; asof = buy day."
+   "fixed": true,
+   "notes": "Answer 18.96 is right (17.38 + 2 x 0.79). Defect: the wrong-notes carried a note on the CORRECT choice ('counts 3R up from the stop') that would mislead; replaced with a true note. Distractors 18.17 = 2R from the stop, 19.38 = +2 dollars, 19.75 = 3R all check."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ON row 1: pivot 16.47 matches the question; asof 2017-08-29 is the day before the 08-30 buy; arithmetic 16.47*1.04 = 17.13 unchanged and true. | 2026-11-14: stretch line read through D-021 as the 9 EMA, as in the other 44 live questions."
+   "notes": "16.47 x 1.04 = 17.13 (17.1288). 20.47 = +4 dollars, 16.54 = decimal slip, 15.81 = minus 4%. Chase limit is C28 (never more than 4% above the buy point); reason given (stop stays put, distance grows, shares shrink, C28 note). Label defined in the stem. No second answer."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "notes": "26.10 / 24.80 = 5.2% past the pivot, over C28's 4%. 'Buy fewer shares' is the only tempting rival, and C28 says never past 4%, which the wrong note states. Only the key is a Pass (mild odd-one-out, accepted: three buys against one pass is the natural shape of this decision)."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Mild overlap with q02 (rung 1) but this adds the final-swing and 10% angle; keep."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "PHM row 2 'volume dries into the pivot'; scan record final-T volume 0.83x the 50-day average, so the keyed answer is true (a milder dry-up than ON/JOYY/REGN at 0.6x, noted not blocking). asof 2003-09-30 is the day before the buy; the RNG 0.46 figure was dropped from the why, no new numbers."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q23": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "CAT near_misses 2010-01-11 vcp.ratio; asof 2010-01-08 is the Friday before; 11.5% / 9.0% / 0.79 / 0.75 all match card and dossier (9.0/11.5 rounds to 0.78 but the scan's unrounded ratio is 0.79, so kept). Fix: lesson_line still said 'equal swings are a box' from the old three-14% story; re-keyed to the ratio test."
-  },
-  "q24": {
-   "status": "pass",
+   "status": "cut",
    "by": "checker",
    "fixed": false,
-   "notes": "keep right: HTF distractor is wrong for pole size, not a variant distinction (mild risk: HTF as separate setup name)"
+   "notes": "CAT 11.5% then 9.0% is the scanner's 0.79 vs 0.75 gate miss; 'Yes, the second swing is smaller' is also defensible, and the why's ChartMill quote says pullbacks contract while a 9% last swing is under ChartMill's own 10% tight line. Rules 22 and 3: cut. q02, q21, q62, q86 cover shrinking swings."
+  },
+  "q24": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q25": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Base A (a cup with a handle) is arguably a 2-contraction shrinking VCP by the card (vcp.count allows 2 to 6, D-058 default 2), so 'Base B only' is not safe; the 'flat box' choice is also silly. Rebuilt so Base A has a single pullback, which fails under any count."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q26": {
-   "status": "pass",
+   "status": "cut",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep right: day low under last swing low is a structure break | mechanical: depends_on left empty, restored to the ruling id(s)"
+   "fixed": false,
+   "notes": "Cut. The key rests on the card's c18 proposal (entry-day low under the final contraction's low = no trade), not on any ruling, and the story is an intraday undercut that then trades through the pivot by 11:00: an undercut-and-reclaim, which his D-036 (depth and speed a judgment call), D-103 (U&R at obvious levels) and D-008 (pattern low is only one acceptable stop) leave to judgment. 'By our rule there is no trade' presents a card proposal as our rule, and the story gives no stop distance, so Pass is not decidable from it. q59 (a CLOSE under the final low) covers the sound version."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ALGN failure 1: fill 28.65, stop 27.70 (5c under the buy-day low 27.75), close 28.14 (bars confirm), stopped next day at low 27.64; asof = buy day; Hold stays right, why names the real stop-out."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q29": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Writer edit fine but the why had a 28-word sentence and a warning-vs-trail tension; clarified by timing (before the first sell the stop decides)."
+   "fixed": false,
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q30": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "GXO row 7; asof 2023-05-09 is the day before the 05-10 buy. The scan gate requires the final low above the base low and GXO passed it. Words use no numbers. Definition question, the chart illustrates it."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q31": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Key is right on the card's definition, but the key 'A high tight flag pause' repeats the story's word 'pauses' (tell), and the 90%/8 weeks/5-30 sessions/25% numbers sit under held decisions D-048 to D-050 so the why should say they are our card's. Shortened key; why now says 'on our card'."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q32": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "BIIB near_misses 2014-05-28 (depths 24.2 and 11.5 in the scan record); asof 2014-05-27 is the day before. Story and choices are right. Fix: the why still said 'a 12% second leg', a number no longer in the story; changed to 11.5%."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q33": {
    "status": "cut",
@@ -4339,74 +4684,73 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep ok: matches HEAVY-DOWN and VCP-HEAVY."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q36": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "NKE row 8: breakout volume 0.7x (scan 0.68), B grade, 3R in 13 days; asof = buy day (bar trades through the 69.42 pivot); tf with no story and no trade; False stays right and the why says it still worked."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q37": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "edit ok, agrees with D-013"
+   "fixed": true,
+   "notes": "House-rule fidelity: the 5R-8R and 8R-10R wrong notes say 'The window ends at 5R. By then the stop should already be up', but his rule is 2R to 5R or at the first sell, which can be a day-3 to 10R judgment (hw, D-013). Notes reworded to the ideal window without claiming a hard end."
   },
   "q38": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Base A (24, 12, 6, 3: each about half) is the cleaner VCP; Base B (24, 17) ends wide at 17%, over what a tight last swing is (cm1/c03 quoted only qualitatively, no cutoff keyed). No pending number is keyed. Grade defined in the story (E50 discretionary, D38 sizes). Fewer-swings distractor is a real trap. No second answer."
   },
   "q39": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "META failure 4: fill 522.89 (pivot 522.88), stop 505.97 (5c under prior low 506.02), 3.2% under, close 539.91, best 1.18R, stopped 2024-07-12 low 494.23. asof = buy day, trade matches text and dossier."
+   "fixed": true,
+   "notes": "Key stays (1.18R < 2R, d16, h05). Two defects: (1) the why restated the rule instead of giving the reason a trader waits for 2R (rule 20); (2) the stem invites hindsight (a breakeven stop would have saved the loss), so 'Moved up to breakeven' reads as a second answer. The stem now states the 2R-5R window, and the why adds the reason."
   },
   "q40": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "CMG failure 2: fill 27.60 (the open), stop 26.32 (5c under prior low 26.37), 14.2% then 4.6%, 2.0x, 0.87R, stopped 2021-01-04. asof = buy day; text matches card and dossier."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q41": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "SHOP row 10: pivot 125.22, fill 125.23, stop 122.75 (5c under prior low 122.80). 500/2.48 = 201.6, floor 201; distractors 403 (double) and 100 (half) and 500 check. asof = buy day."
+   "notes": "Risk $500 / (125.23 - 122.75 = 2.48) = 201.6, rounded down 201; position 25% of the account, under the 40% cap (A5, A7). 403 = 1% risk, 100 = 0.25%, 500 = dollars read as shares. Numbers all come from the question; why gives the reason (the loss at the stop costs the same). No second answer. (Dossier lists the SHOP fill as 125.22; the question's own figures stand, since the key is computed from them.)"
   },
   "q42": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q43": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D-021 rename fine."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q44": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q45": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "AXON failure: fill 694.02 (the open) and stop 691.86 (the day low) match the dossier and the text. But the real next-day bar OPENED at 700.00, above the stop (prior close 710.01), then fell to 592.76: it did not gap through the stop. 'Gapped down' contradicts the chart replay. Fix: story now says it opened lower then fell hard through the stop (no new numbers). The key (B20 first 30-minute low) is the house rule for a gap-down day and is kept, but the example is really a crash through a 0.3% stop; flag for the owner."
+   "fixed": false,
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q46": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "keep: scan stat on breakout-day close"
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q47": {
    "status": "cut",
@@ -4421,10 +4765,10 @@
    "by": "checker"
   },
   "q49": {
-   "status": "pass",
+   "status": "cut",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep is right: recovering undercut shakeout is a grade cue; no heavy pullback volume content."
+   "notes": "A grade-cue checklist item (undercut, recover, higher low raises the grade) with no real chart; the same kind as the cut q74/q75 (E50, rule 24)."
   },
   "q50": {
    "status": "cut",
@@ -4435,8 +4779,8 @@
   "q51": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found."
+   "fixed": true,
+   "notes": "Key (worse odds) is right (cm3, cm9, v08). Defect: the wrong note and the deeper trap say 'our rule calls a third or fourth base late in a long run a mistake', which is the card's c20 proposal presented as our rule (not in the rulebook or his rulings). Reattributed to ChartMill and Minervini."
   },
   "q52": {
    "status": "cut",
@@ -4454,68 +4798,67 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D-021 rename in invented scenario; fine."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q55": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found."
+   "fixed": true,
+   "notes": "House-rule fidelity: 'Red means no VCP buys' is the card's c25 line presented as our rule; his rule for Red is mostly cash plus shorts, a guide (F65, D46, A10). Reworded to mostly cash in the why, lesson line, trap and wrong note."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found."
+   "notes": "RS 72 in a weak group fails C31 (RS 80 or more in one of the strongest groups, a ruled rule, 'yes unless parabolic or mean reversion') on both parts; Minervini's 70 is only a floor. RS rating defined in the stem; reason given (a breakout needs buyers to carry it, cm4). The two Pass choices differ on the number (90) and are clearly wrong. No second answer."
   },
   "q58": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "House-rule fidelity: the why and trap give 'unless it is a parabolic long' as the exception to no longs under the 200-day. For a stock that is B26's original wording; his later ruling D-009 makes it a hard no for stocks, with the exception only for indexes and leveraged ETFs. The story is a stock."
   },
   "q59": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q60": {
-   "status": "pass",
+   "status": "cut",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found."
+   "notes": "Cut. 'A stock down 70% ... can still form a good VCP base' is a 'can' statement, so a careful reader can defend True (a stock far off its high can rebuild an uptrend). The 60% line it came from is the card's scanner cutoff (rule 22), already removed from the why; what is left duplicates q08, q58 and q84 (a VCP is a pause in an uptrend, no longs under the 200-day) with a weaker key."
   },
   "q61": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found."
+   "notes": "1% / 2% = 50%, capped at 40% (A5 smaller of risk size and cap, A7 40%, hn4 a gap can jump the stop). 'Position cap' defined in the stem; the why gives the reason. 2% and 1% distractors carry correct 'mistake' notes. No second answer."
   },
   "q62": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Measured RNG claim dropped; fine."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Duplicate of q33 (same AMZN case: 14% then 4%, 1.13x, no quiet day, answer 'dry-up'); q33's stem and key give this one away, and the stem's volume numbers make the only volume choice a tell. Reframed on a different datum from d24 (0.89x the first leg, quietest day 0.81x) with a second volume decoy. Consider cutting q33 or q63 if fewer dry-up items are wanted."
+   "fixed": false,
+   "notes": "AMZN: shrinking pullbacks but a final leg above average volume (d24, d25) means supply may still be coming (hn7). Volume framed as raising/lowering the grade, not a gate (D-006), and 'Volume does not matter' is wrong for that reason. Chart present (rule 24). 1.13x is in d24. No second answer."
   },
   "q64": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q65": {
    "status": "cut",
@@ -4533,7 +4876,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D-021 rename fine."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q68": {
    "status": "cut",
@@ -4545,13 +4888,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q70": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "notes": "Rules 19-24 and 1-18 met; claims, numbers and chart match the dossier/rulebook/quotes."
   },
   "q71": {
    "status": "cut",
@@ -4560,53 +4903,52 @@
    "notes": "cut in wave2: see the resolver's notes"
   },
   "q72": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Keep ok: 3.3/2.2=1.5, warning and lower grade not a veto."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q73": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Keep ok: false, does not void the setup."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q74": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Rulebook E50: grading is discretionary, no fixed checklist taught as ours; 'Our rule lists... grade cue' and 'Neither, equal grade' collide with it, and c07 is a proposed card cue. Reworded as the card's cue and noted grading is a judgment call."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q75": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q76": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Untouched; gives a reason, no label or scanner number."
   },
   "q77": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key re-derived cold from the cited quotes and agrees; wrong notes true; numbers grounded; no tell found; no rulebook conflict."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q78": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Roles, find label, slot format and ladder checked; ok."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q79": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Still presumes \"another third\"; re-keyed to \"the same number as before\" (answer unchanged)."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q80": {
    "status": "cut",
@@ -4618,26 +4960,49 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep ok: gap past a level is optional judgment."
+   "notes": "GAP-TRIM: a gap past a planned sell level is not an automatic sell; selling part is optional judgment, never a rule. Key 'Your call' is right; both 'The rule says' rivals are wrong exactly because there is no rule. Numbers (21.40, 22.10) are the question's own. Odd-one-out as the lone non-rule choice is inherent to a judgment ruling; accepted."
   },
   "q82": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Right answer re-derived from the cited quotes and matches the key; no second defensible answer, tell or ungrounded number found.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "House-rule fidelity: two wrong notes and the trap call a big part 'the rule', but C34 is a judgment call ('yes but depends'); the why itself says how much is a judgment call. Reworded to 'our plan' with the judgment kept."
   },
   "q83": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "D-021 rename in invented scenario; fine."
+   "fixed": true,
+   "notes": "Key (buy at market) is right on rulebook items, but the story gives no stop distance, so a trader cannot tell the buy fits his stop rule (A3, D-005) and 'stop under the low' is unverifiable; the 10% stretch limit is checked in the story but not in the why. Added the stop distance (2%, inside 1-3%) and the stretch check."
   },
   "q84": {
    "status": "pass",
    "by": "checker",
+   "fixed": false,
+   "notes": "Stock trades 42.15 under its 200-day at 43.00: below the 200-day is a hard no for stocks (D-009, B26). Textbook pattern is stated, so the 200-day is the only failing test; half-size and 'hair under' rivals are named wrong. Exception stated per D-009 (index or leveraged ETF). No second answer."
+  },
+  "q85": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "D-013: first sell is a judgment, very rarely day 1, usually day 3 at the earliest, into a 3, 5 or 7 day push. 'By the second day' is day 2, so wait. The 'third at 3R is the rule' rival is the superseded B19 and is marked as such. Reason given (winners pay for the small losses). No second answer."
+  },
+  "q86": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "cm6 and v12 quoted exactly: each decline meets fewer sellers. The rivals (buyers lost interest, rising volume, 200-day) are wrong and noted. A concept question, but it is the reason behind the whole pattern."
+  },
+  "q87": {
+   "status": "pass",
+   "by": "checker",
    "fixed": true,
-   "notes": "Applies vcp.above_200 with a near miss (42.15 vs a 200-day at 43.00), framed by D-009; r06 quote is verbatim from RULINGS D-009 reading. Distractors clearly wrong (5% final contraction is within c03's 10%; no near-miss allowance; 200-day is a gate not a size cue per h10). Not a duplicate of q58 (close under 200 while a base forms). Fixed why: 'a fast ETF' was not the ruling's wording; now a levered ETF, avoiding the banned word leverage."
+   "notes": "Key right (v13, cm11, c28). Defect: 'We buy as price trades through the pivot, never in the middle of the base' states the card's named mistake as an absolute house rule; he buys in a variety of ways (D-003) and a cheat entry is a pending decision (D-027). Scoped to the VCP and softened."
+  },
+  "q88": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "-7 + 8 + 2 x 2 = +5R, matches the calc. +12R = winners only, +3R = one 2R winner missing, -7R = losers only; notes correct. The R figures are the question's own; it teaches that a loss at the stop is the system working and the net is decided by the winners (E59 reads results in R). Not a pure ratio drill."
   }
  }
 }

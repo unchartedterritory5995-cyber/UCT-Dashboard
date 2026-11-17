@@ -579,6 +579,18 @@ Ordered by how many setups each touches, biggest first.
 
 **Our default (a recommendation, not a ruling).** The normal grade table (D38, E49), no setup cap; the lesson says most capitulations grade B or lower. Reason: the grade already carries the risk; a setup cap doubles it.
 
+### D-042. The flat base first-week test (within 3% of the left-side high)
+
+**Setups touched:** the flat base card (01) and every base card that counts from the left-side high (setups/GLOSSARY.md `left_side_high`).
+
+**The question.** The owner, 2026-11-16, on a question teaching it: "oh please that is far too strict, bad question and bad answer bad bad bad". The test comes from our scanner code (`base_catalog.py`), not from his rulebook, and the glossary's left-side high definition carries it. The course no longer teaches it (REVIEW_LEARNINGS rule 22). Should the scanner and the glossary loosen it, or drop it?
+
+**Options.** (a) drop the first-week test and find the left-side high by the 100-session high alone; (b) keep a looser number (he names it); (c) keep it in the scanner only, as a way to find candidates, never taught.
+
+**Evidence.** MarketSmith names the left-side high; the 3% first-week test is ours ([UCT code: `base_catalog.py`], dossier 01).
+
+**Our default (a recommendation, not a ruling).** (c) until he rules: the course does not teach it, and the scanner is left unchanged (a product change is his call).
+
 ---
 
 ## Part B: setup-specific decisions

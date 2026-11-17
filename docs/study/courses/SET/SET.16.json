@@ -1076,6 +1076,18 @@
    "source": "d1",
    "quote": "A 12-day base after an 18% dip with a 1.4x pop, but only 7 of the 15 closes before it were under the 20 EMA.",
    "claim": "DECK 2024-05-14: a 12-day base after an 18% dip, but only 7 of the 15 closes before the pop were under the 20 EMA."
+  },
+  {
+   "id": "n01",
+   "source": "hw",
+   "quote": "Stop distance: 1-3% is preferred, 3.5% is good, and up to 5% is acceptable; past 5%, we mostly wait for a tighter trigger.",
+   "claim": "Stops: 1-3% preferred, 3.5% good, up to 5% acceptable; past 5%, we mostly wait for a tighter trigger."
+  },
+  {
+   "id": "n02",
+   "source": "h1",
+   "quote": "After a market correction, when the reading turns Green again, start with a few positions and add more only as the first ones work",
+   "claim": "F68: after a correction, when the reading turns Green, start with a few positions and add more only as the first ones work."
   }
  ],
  "walkthroughs": [
@@ -1148,9 +1160,9 @@
    "key": "q01",
    "skill": "setup.wedge_pop",
    "rung": 1,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wp.pivot",
-   "q": "In one line, what is a Wedge Pop?",
+   "q": "Which line describes a Wedge Pop, as on this chart?",
    "choices": [
     "A break up from a base under the EMAs",
     "A bounce off a crash low itself",
@@ -1158,7 +1170,7 @@
     "A cross back over the EMAs with no base"
    ],
    "answer": "A break up from a base under the EMAs",
-   "why": "A break up from a base under the EMAs, the short exponential averages. After a sharp rebound off the low, the stock rests under them. The pop is the first rally back through them, and Deepvue says the same. A bare cross is not enough: it needs the tight base and the pivot.",
+   "why": "A break up from a base under the EMAs. After a sharp rebound, the stock rests under its short averages in smaller bars. The rest is the test: the stock tried the averages, backed off and held. The pop is the first rally back through them, and a bare cross is not enough. It needs the tight base and the pivot first.",
    "lesson_line": "A stock rests under its averages, the bars get small, then it pops back through them.",
    "facts": [
     "y01",
@@ -1169,11 +1181,11 @@
     "c17"
    ],
    "wrong": {
-    "A bounce off a crash low itself": "The bounce is the Reversal Extension, which comes before. The pop comes after the stock rests under its short averages and clears them.",
+    "A bounce off a crash low itself": "The bounce off the crash low comes before. The pop comes after the stock rests under its short averages and clears them.",
     "A pole that doubles in a few weeks": "The pop is not about a fast doubling. It comes after a rebound and a tight base under the averages.",
-    "A cross back over the EMAs with no base": "A cross alone is not a pop. It needs the tight base and the pivot."
+    "A cross back over the EMAs with no base": "A cross alone is not a pop. It needs the tight rest and the pivot first."
    },
-   "simple": "A Wedge Pop is a stock rising back through its short averages after resting in a tight base under them.",
+   "simple": "A Wedge Pop breaks up through the averages after a tight rest under them, because the rest shows sellers have run out.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1181,7 +1193,14 @@
      "a stable definition on two agreeing Tier 2 publishers"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16",
+   "story": "The chart ends on the day it broke out. Look at the two weeks before it, and at where it closes.",
+   "chart": {
+    "sym": "TGT",
+    "asof": "2021-03-19",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q02",
@@ -1191,7 +1210,7 @@
    "criterion": "wp.stop",
    "q": "On a Wedge Pop the stop goes a few cents under the pop day's low.",
    "answer": "True",
-   "why": "True. The stop sits a few cents under the pop day's low, not exactly on it. We set the stop first and size the trade from it. Kell did the same on CAVA, with a stop set under the day's low.",
+   "why": "True. The stop goes a few cents under the pop day's low, not on it. That low is the nearest place where the buy has clearly failed, so a stop there keeps the loss small. We set the stop first and size the shares from it. Kell set his under the day's low on CAVA.",
    "lesson_line": "Stop first: a few cents under the pop day's low.",
    "facts": [
     "c18",
@@ -1200,7 +1219,7 @@
     "v01"
    ],
    "house": true,
-   "simple": "True. The stop goes a few cents under the pop day's low, not exactly on it, and the share size comes from it.",
+   "simple": "True. That low is the nearest spot where the buy has clearly failed, so the loss stays small and the size comes from it.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1209,7 +1228,7 @@
      "the card keeps the pop day's low as the default under D-008"
     ]
    },
-   "batch": "rulings"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q03",
@@ -1293,7 +1312,7 @@
    "criterion": "wp.cross_alone",
    "q": "A close back above the averages is enough to call a Wedge Pop.",
    "answer": "False",
-   "why": "False. Many traders mistakenly believe the Wedge Pop is simply about crossing the moving averages. Kell says to focus on price bars and volume instead. A cross alone is not a pop: it needs the tight base and the pivot.",
+   "why": "False. A cross alone is not a pop. A wide, loose rebound can cross the averages with nothing behind it. The pop needs the tight rest first, then a trade through the base's high. Kell says many traders wrongly think it is only a cross, and to focus on price bars and volume instead.",
    "lesson_line": "A cross is not a pop. First the tight base, then the trade through its high.",
    "facts": [
     "k08",
@@ -1301,7 +1320,7 @@
     "d14"
    ],
    "house": true,
-   "simple": "False. Crossing back above the averages is not enough, because a real pop also needs a tight base and a trade through its high.",
+   "simple": "False. A loose rebound can cross the averages with nothing behind it, so a pop needs a tight base and a trade through its high.",
    "deeper": {
     "trap": "Trap: buying the cross. A wide, loose rebound through the averages with no tight base is a remount, not a Wedge Pop."
    },
@@ -1312,7 +1331,7 @@
      "rests on the criteria card (house)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q06",
@@ -1323,12 +1342,12 @@
    "q": "On a Wedge Pop, what is the pivot?",
    "choices": [
     "The highest high of the base",
-    "The low of the Reversal Extension",
+    "The low of the crash before it",
     "The 200-day moving average",
     "The pop day's closing price"
    ],
    "answer": "The highest high of the base",
-   "why": "The highest high of the base, the short-term resistance. A tight price range near short-term resistance makes the tradable pivot, and the Wedge Pop is the trade through it. The pivot is not the Reversal Extension's low, not the 200-day line, and not the pop day's closing price.",
+   "why": "The highest high of the base. It is the short-term resistance, the price where sellers stepped in before. A tight range just under it is a standoff, and a trade through it shows buyers took the sellers' shares. The pivot is not the low of the crash, the 200-day line or the pop day's close.",
    "lesson_line": "Mark the base's high before the open. That is the line it must trade through.",
    "facts": [
     "c08",
@@ -1337,12 +1356,12 @@
     "c10"
    ],
    "wrong": {
-    "The 200-day moving average": "The 200-day is a line the stock must be above. It is not the buy point.",
-    "The low of the Reversal Extension": "That low marks the bottom. The pivot is the top of the base that forms after it.",
-    "The pop day's closing price": "The close comes after the buy. The pivot is set before the pop day."
+    "The 200-day moving average": "The 200-day is a line a stock must be above. It is not the buy point.",
+    "The pop day's closing price": "The close comes after the buy. The pivot is set before the pop day.",
+    "The low of the crash before it": "That low marks the bottom. The pivot is the top of the base that forms after it."
    },
    "house": true,
-   "simple": "The pivot is the highest price of the base, the line the stock must trade through for the pop to start.",
+   "simple": "The pivot is the base's highest price. Trading through it shows buyers have taken the sellers' shares.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1350,8 +1369,8 @@
      "a stable definition with three agreeing facts"
     ]
    },
-   "batch": "visuals-2",
-   "story": "The day before the pop.",
+   "batch": "owner-review-7-2026-11-16",
+   "story": "The chart ends the day before the pop. Look at the tight days under the averages.",
    "chart": {
     "sym": "DHI",
     "asof": "2023-10-31",
@@ -1367,7 +1386,7 @@
    "criterion": "wp.market_order",
    "q": "We buy a Wedge Pop with a market order as it trades through the pivot, in regular hours.",
    "answer": "True",
-   "why": "True. The buy is a market order as the stock trades through the pivot, in regular hours only. Entries are market orders, and we make no new buys outside regular trading hours.",
+   "why": "True. A market order fills at once as the stock trades through the pivot, so a fast breakout is not missed while we wait for a price. We buy in regular hours only, because outside them trading is thin and prices jump. Entries are market orders, and we make no new buys outside regular trading hours.",
    "lesson_line": "Set the alert at the pivot. When it trades through, buy at market.",
    "facts": [
     "c12",
@@ -1375,7 +1394,7 @@
     "h23"
    ],
    "house": true,
-   "simple": "True. We buy at market the moment it trades through the pivot, and only in regular hours.",
+   "simple": "True. A market order fills as it trades through, so a fast breakout is not missed, and regular hours are when trading is deep.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1384,7 +1403,7 @@
      "the intraday trigger 'as it trades through the pivot' is a held decision, D-003"
     ]
    },
-   "batch": "rulings"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q08",
@@ -1394,7 +1413,7 @@
    "criterion": "wp.no_adds",
    "q": "Once the pop works, we add more shares at each new range.",
    "answer": "False",
-   "why": "False. We put the full size on at one price with one stop, with no adding on the way up. Kell adds as each new range breaks, but that is his method, not ours.",
+   "why": "False. We put the full size on at one price with one stop. One stop means one known loss. Adding at higher prices raises our average price while the stop stays far below, so the risk grows. Kell adds as each new range breaks, but that is his method, not ours.",
    "lesson_line": "One entry, one stop. The size goes on once.",
    "facts": [
     "h30",
@@ -1402,7 +1421,7 @@
     "a01"
    ],
    "house": true,
-   "simple": "False. We buy the full size once, at one price with one stop, even though Kell adds at new ranges.",
+   "simple": "False. One buy and one stop keep the loss known up front, even though Kell adds at new ranges.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1410,7 +1429,7 @@
      "rests on the owner's rulebook A5 and differs from Kell"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q09",
@@ -1426,7 +1445,7 @@
     "A gap it must fill"
    ],
    "answer": "A bottom and a new uptrend",
-   "why": "A bottom and a new uptrend. Kell's page says the Wedge Pop signals that a stock has bottomed and is starting a new uptrend. His QQQ pop confirmed the low that way. It signals the turn. It does not promise how far the move runs.",
+   "why": "A bottom and a new uptrend. Kell's page says the Wedge Pop signals that a stock has bottomed and is starting a new uptrend. The pop is the first pivot to break, the first sign that buyers have taken over. That is why we wait for it instead of buying the low. It signals the turn. It does not promise how far the move runs.",
    "lesson_line": "Kell reads a Wedge Pop as a stock that has bottomed and is starting a new uptrend.",
    "facts": [
     "k01",
@@ -1439,7 +1458,7 @@
     "A pause in a downtrend": "A pause under the averages is the base that comes before the pop. The pop is the break out of it, and Kell says it signals a bottom.",
     "A gap it must fill": "The pop signals a turn, not a gap to fill. Kell says most powerful pops start with gaps."
    },
-   "simple": "Kell says a Wedge Pop signals that a stock has bottomed and is starting a new uptrend.",
+   "simple": "Kell says a Wedge Pop signals a bottom and a new uptrend, so we wait for the first break instead of buying the low.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1450,7 +1469,7 @@
    "depends_on": [
     "D-077"
    ],
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q10",
@@ -1491,16 +1510,16 @@
    "rung": 2,
    "format": "tf",
    "criterion": "wp.base_volume_dry",
-   "q": "Volume drying up through the base counts in the setup's favor.",
+   "q": "When volume dries up through the base, it counts in the setup's favor.",
    "answer": "True",
-   "why": "True. Volume drying up through the base is a strong cue on our card: distribution volume decreasing before accumulation picks up. Kell's first two QQQ pops failed with no increase in accumulation and consistent distribution volume. A quiet base helps. The trigger is still the trade through the pivot.",
-   "lesson_line": "Quiet volume in the base, loud volume on the pop. That is the picture.",
+   "why": "True. When volume dries up in the base, sellers are running out before buyers step in. It is a plus for the grade, not a requirement. A grade is our judgment of how clean the setup is, and it sets the size. Kell's first two QQQ pops failed with no rise in buying volume. The trigger is still the trade through the pivot.",
+   "lesson_line": "Volume dries up in the base, picks up on the pop. That is the picture.",
    "facts": [
     "c07",
     "k12"
    ],
    "house": true,
-   "simple": "Yes, quiet volume in the base is a strong cue because selling is fading before buyers step in.",
+   "simple": "True. A base where volume dries up shows sellers fading, which is a plus for the grade but not a requirement.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1508,7 +1527,7 @@
      "rests on the proposed card's A+ cue"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q12",
@@ -1524,7 +1543,7 @@
     "Nothing; gaps are only noise here"
    ],
    "answer": "Strength; it backs the pop",
-   "why": "Strength. Kell: most Wedge Pops that lead to new, powerful trends start with gaps. Our card calls a gap up through the pivot and the averages the A+ pop, and a gap up to 4% past the pivot is still a buy. RCL in 2009 was a gap open under the 4% chase line. In our scan a gap open of 1% or more did better, not worse.",
+   "why": "Strength. Kell says most Wedge Pops that lead to new, powerful trends start with gaps. A gap means buyers were so eager they paid more than sellers wanted. We weigh a gap through the pivot and both averages toward an A+, our judgment that the setup is very clean. Here the open is 1.8% over the pivot, inside the 4% we allow, so it is still a buy. In our scan of past pops, a gap open of 1% or more did better, not worse.",
    "lesson_line": "A gap through the averages is strength, not a reason to wait.",
    "facts": [
     "k11",
@@ -1536,12 +1555,12 @@
     "d04"
    ],
    "wrong": {
-    "Weakness; the gap will soon fill in": "Waiting for a fill is a guess. In our scan a gap open of 1% or more did better, not worse.",
-    "Strength, but too late to buy now": "A gap up to 4% past the pivot is still inside the chase line, so it is not too late.",
-    "Nothing; gaps are only noise here": "It matters: our card calls a gap up through the pivot and the averages the A+ pop."
+    "Weakness; the gap will soon fill in": "Waiting for a fill is a guess. In our scan of past pops, a gap open of 1% or more did better, not worse.",
+    "Strength, but too late to buy now": "At 1.8% over the pivot, the open is inside the 4% chase line, so it is not too late.",
+    "Nothing; gaps are only noise here": "It matters: a gap up through the pivot and the averages is a cue we weigh toward an A+."
    },
    "house": true,
-   "simple": "A gap up through the pivot shows strength, so we buy the open unless it is more than 4% past the pivot.",
+   "simple": "A gap up through the pivot shows buyers in a hurry, so we buy the open unless it is more than 4% past the pivot.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1550,8 +1569,8 @@
      "the gap row is on the proposed card"
     ]
    },
-   "batch": "visuals-2",
-   "story": "The day before the pop.",
+   "batch": "owner-review-7-2026-11-16",
+   "story": "The pivot is 12.95. On the pop day the stock opens at 13.18, through both averages. That is 1.8% over the pivot.",
    "chart": {
     "sym": "RCL",
     "asof": "2009-07-14",
@@ -1567,14 +1586,14 @@
    "criterion": "wp.crossback_separate",
    "q": "The first pullback into the rising averages after the pop is a separate setup, the EMA Crossback.",
    "answer": "True",
-   "why": "True. The first pullback into the rising averages after the pop is the EMA Crossback. It is a separate setup and a new trade, not an add. Kell names a pop first, then a Crossback taking place after it.",
+   "why": "True. The first pullback into rising averages after the pop is the EMA Crossback, a separate setup. It has its own trigger and its own stop, so it is a new trade, not an add to the pop. We never add to a trade: one price, one stop. Kell names a pop first, then a Crossback taking place after it.",
    "lesson_line": "Pop first, crossback second. Two setups, two trades.",
    "facts": [
     "c14",
     "w03"
    ],
    "house": true,
-   "simple": "True. The first pullback after the pop is the EMA Crossback, which is its own setup and a new trade.",
+   "simple": "True. The crossback has its own trigger and stop, so it is a new trade, never an add to the pop.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1582,7 +1601,7 @@
      "rests on the criteria card (house)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q14",
@@ -1598,7 +1617,7 @@
     "A close under the pop day's open"
    ],
    "answer": "A close under the pop day's low",
-   "why": "A close under the pop day's low. Our card says that close means the pop failed. The stop sits just under that low anyway. Kell: if it fails, cut losses quickly. The 200-day line decides whether we buy at all, not whether the pop failed.",
+   "why": "A close under the pop day's low. That low is where buyers were proved wrong, and our stop sits just under it. Kell: if it fails, cut losses quickly. The 200-day line decides whether we buy at all, not whether the pop failed.",
    "lesson_line": "The pop day's low is the line. Under it, the pop is done.",
    "facts": [
     "c20",
@@ -1611,7 +1630,7 @@
     "A close under the pop day's open": "A close under the open can still sit above the pop day's low. The failure line is the low."
    },
    "house": true,
-   "simple": "The pop failed if it closes under the pop day's low, which is where our stop already sits, just below.",
+   "simple": "The pop failed if it closes under the pop day's low, because that is where buyers were proved wrong and our stop sits.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1620,7 +1639,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q15",
@@ -1630,14 +1649,14 @@
    "criterion": "wp.liquidity",
    "q": "A $12 stock that trades $15 million a day passes our liquidity rule.",
    "answer": "False",
-   "why": "False. We trade only stocks at $10 or more that trade at least $20 million a day, on the 50-day average. This stock clears the price test at $12 but misses the dollar test at $15 million.",
+   "why": "False. We trade only stocks at $10 or more that trade at least $20 million a day, on the 50-day average. This one clears the price test at $12 but misses the dollar test at $15 million. The floor keeps us in stocks we can get in and out of without moving the price.",
    "lesson_line": "Ten dollars and twenty million a day, or it is not on the list.",
    "facts": [
     "h09",
     "c39"
    ],
    "house": true,
-   "simple": "False. The stock passes on price, but it trades only $15 million a day and we need at least $20 million.",
+   "simple": "False. At $15 million a day it misses our $20 million floor, which keeps us in stocks we can get in and out of.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1645,7 +1664,7 @@
      "rests on the owner's rulebook B23"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q16",
@@ -1839,7 +1858,7 @@
     "Never; hold it all to the end"
    ],
    "answer": "Day 3 at the earliest, or later",
-   "why": "Day 3 at the earliest, and often later. We very rarely sell on day 1 of the buy. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. FNV was up 3R the next session, and that is still rarely the day to sell. The first sell is a judgment, not a fixed third at 3R.",
+   "why": "Day 3 at the earliest, and often later. We very rarely sell on day 1 of the buy. A stop-out costs only a small planned loss, so the winners have to run to pay for the losers. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. FNV was up 3R the next session, and that is still rarely the day to sell.",
    "lesson_line": "Rarely sell on day 1. Day 3 at the earliest, often into a 3, 5 or 7 day push.",
    "facts": [
     "r57",
@@ -1854,7 +1873,7 @@
     "Never; hold it all to the end": "We do sell. The first sell is a judgment, often into a 3, 5 or 7 day push."
    },
    "house": true,
-   "simple": "We rarely sell on day 1. We usually wait until day 3 at the earliest, often into a longer push.",
+   "simple": "We rarely sell on day 1, because the winners that run pay for the small losses. We usually wait until day 3 at the earliest.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1862,7 +1881,7 @@
      "rests on the owner's ruling D-013 (the first sell is a judgment)"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "story": "Bought on the pop at 45.53 with the stop at 44.77. By the next session it is already up 3R.",
    "chart": {
     "sym": "FNV",
@@ -1883,15 +1902,16 @@
    "criterion": "wp.breakeven",
    "q": "By our default, the stop moves to breakeven as soon as the trade is up 1R.",
    "answer": "False",
-   "why": "False. Breakeven comes between 2R and 5R, so the stop does not move at 1R. It only ever moves up.",
+   "why": "False. Breakeven comes between 2R and 5R, or at the first sell, not at 1R. At 1R the trade has barely moved, and normal swings would knock us out for nothing before the push. By 2R it has room, and a stop at breakeven means a winner cannot turn into a loser. The stop only ever moves up.",
    "lesson_line": "Breakeven comes between 2R and 5R. Then a stop-out costs about nothing.",
    "facts": [
-    "c43"
+    "c43",
+    "h05"
    ],
    "house": true,
-   "simple": "False. Breakeven starts at 2R, not at 1R.",
+   "simple": "False. Breakeven comes between 2R and 5R, or at the first sell, because at 1R normal swings could knock us out before the push.",
    "deeper": {
-    "trap": "Trap: moving the stop to breakeven at the first sign of profit. The card starts breakeven at 2R, not sooner."
+    "trap": "Trap: moving the stop to breakeven at the first sign of profit. We wait for the window: 2R to 5R, or the first sell."
    },
    "tier": "core",
    "risk": {
@@ -1900,7 +1920,7 @@
      "the breakeven range comes from the card"
     ]
    },
-   "batch": "rulings2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q21",
@@ -1916,7 +1936,7 @@
     "A fixed 8% under the high"
    ],
    "answer": "A close under the 9 EMA",
-   "why": "A close under the 9 EMA. We trail the 9 EMA for fast movers and the 20 EMA for steadier ones. We sell what is left on a close below it.",
+   "why": "A close under the 9 EMA. A fast mover rides close to its 9 EMA, so a close under it is the first sign the run is over. A steadier stock gets the 20 EMA, so ordinary dips do not shake it out. We sell what is left on a close below the line.",
    "lesson_line": "Fast movers ride the 9 EMA. Steady ones get the 20 EMA.",
    "facts": [
     "h21",
@@ -1928,7 +1948,7 @@
     "A close under the 20 EMA": "That is the trail for steadier movers. Fast movers get the 9 EMA."
    },
    "house": true,
-   "simple": "A close under the 9 EMA, because the rule gives fast movers the 9 EMA trail and we sell on a close below it.",
+   "simple": "A close under the 9 EMA, because a fast mover rides it and a close below is the first sign the run is over.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1936,7 +1956,7 @@
      "rests on the owner's rulebook E52"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q22",
@@ -1946,7 +1966,7 @@
    "criterion": "wp.time_stop",
    "q": "A pop still under 1R is given 20 trading days before it is sold.",
    "answer": "False",
-   "why": "False. A trade still under 1R after 10 trading days is sold, freeing the money. It is not given 20. In our scan the median winner reached 3R in 3 sessions, far faster than 10 days.",
+   "why": "False. A trade still under 1R after 10 trading days is sold, not given 20. A stock that has not moved ties up money that a better setup could use. In our scan of past pops the median winner reached 3R in 3 sessions, far faster than 10 days.",
    "lesson_line": "Good pops move fast. Ten days and nothing, the money goes elsewhere.",
    "facts": [
     "h15",
@@ -1954,9 +1974,9 @@
     "d08"
    ],
    "house": true,
-   "simple": "False. We sell a trade still under 1R after 10 trading days, not 20, so the money can go elsewhere.",
+   "simple": "False. After 10 trading days under 1R we sell, because a stuck stock ties up money a better setup could use.",
    "deeper": {
-    "trap": "Trap: waiting for a slow one to come good. The rule frees the money after 10 days. The median winner in our scan took 3 sessions to reach 3R. The slowest of our ten examples took seven, CROX."
+    "trap": "Trap: waiting for a slow one to come good. The rule frees the money after 10 days. The median winner in our scan of past pops took 3 sessions to reach 3R. The slowest of the ten pops we studied took seven, CROX."
    },
    "tier": "core",
    "risk": {
@@ -1965,7 +1985,7 @@
      "rests on the owner's rulebook C33"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q23",
@@ -2013,7 +2033,7 @@
    "criterion": "wp.not_stretched",
    "q": "Your fill would be 55.40. The 9 EMA is 50.00. How far above it, in percent?",
    "answer": "10.8%",
-   "why": "10.8%. The fill is above the average by (55.40 - 50.00) / 50.00 = 10.8%. We skip a long that is more than 10% above its 9 EMA. It is too stretched to buy.",
+   "why": "10.8%. The fill is above the average by (55.40 - 50.00) / 50.00 = 10.8%. We skip a long that is more than 10% above its 9 EMA. Far above its average, a stock has run hard, and a drop back toward the line can cost a lot. It is too stretched to buy.",
    "lesson_line": "Read the stretch in percent before you buy. Past 10% over the 9 EMA, I pass.",
    "facts": [
     "h13",
@@ -2030,7 +2050,7 @@
     "round": 1
    },
    "suffix": "",
-   "simple": "10.8%, which is past the 10% limit above the 9 EMA, so the stock is too stretched and we skip it.",
+   "simple": "10.8%, past the 10% limit, so we skip it. A stock that far above its 9 EMA can give back a lot on a dip.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -2039,7 +2059,7 @@
      "rests on the owner's rulebook C29"
     ]
    },
-   "batch": "sweep-2026-11-14",
+   "batch": "owner-review-7-2026-11-16",
    "choices": [
     "9.7%",
     "5.4%",
@@ -2061,11 +2081,12 @@
    "criterion": "wp.stop_width",
    "q": "Fill 24.58, stop 23.68. How far below the fill is the stop, in percent?",
    "answer": "3.66%",
-   "why": "3.66%. The stop's distance is the gap over the fill: (24.58 - 23.68) / 24.58 x 100 = 3.66%. Our stop usually sits within about 3%. Wider than that, the card says a smaller position or a pass, never a tighter stop to fit. This is CROX in 2007, the widest stop of our ten.",
+   "why": "3.66%. The stop's distance is the gap over the fill: (24.58 - 23.68) / 24.58 x 100 = 3.66%. We prefer stops of 1-3%, call 3.5% good, and accept up to 5%, so this one is fine. A wider stop just means fewer shares, because the size comes from the stop. This is CROX in 2007, the widest stop of the ten pops we studied.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h04",
-    "c19",
+    "r56",
+    "n01",
     "d07",
     "d08"
    ],
@@ -2080,9 +2101,9 @@
     "round": 2
    },
    "suffix": "",
-   "simple": "3.66%, a bit wider than our usual 3%. The card then says a smaller size or a pass, never a tighter stop.",
+   "simple": "3.66%, a little past our preferred 3% but inside the 5% we accept. A wider stop just means fewer shares.",
    "deeper": {
-    "trap": "Trap: tightening the stop so the trade fits. The card says never. A stop that has to be 8% or more away is B- at best."
+    "trap": "Trap: tightening the stop so the trade fits. We never do that. Past 5%, we mostly wait for a tighter trigger instead."
    },
    "tier": "core",
    "risk": {
@@ -2092,7 +2113,7 @@
      "rests on the owner's rulebook A13"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "choices": [
     "36.6%",
     "3.80%",
@@ -2125,7 +2146,7 @@
    "criterion": "wp.stop",
    "q": "Account 200,000. Risk 0.25%. Fill 181.80, stop 179.58. How many shares?",
    "answer": "225 shares",
-   "why": "225 shares. Dollars at risk are 200,000 x 0.25%. Risk per share is the fill minus the stop: 181.80 - 179.58. Divide the first by the second and round down to 225. The position cap can still shrink it. A risk of 0.25% is the low end for B- or lower setups.",
+   "why": "225 shares. Dollars at risk are 200,000 x 0.25%. Risk per share is the fill minus the stop. Divide the first by the second and round down to 225. Sizing from the stop means a stop-out costs only the planned amount. A risk of 0.25% is the low end, used for B- or lower, our judgment of a setup that is less clean.",
    "lesson_line": "Dollars at risk, divided by the distance to the stop, rounded down, is the share count.",
    "facts": [
     "h03",
@@ -2145,7 +2166,7 @@
     "round": 0
    },
    "suffix": "",
-   "simple": "225 shares, because the dollars at risk divided by the gap between the fill and the stop give 225 after rounding down.",
+   "simple": "225 shares, because we size from the stop so a stop-out costs only the planned amount, rounded down.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -2154,7 +2175,7 @@
      "rests on the owner's rulebook A5"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "choices": [
     "2,252 shares",
     "1,100 shares",
@@ -2193,7 +2214,7 @@
     "No, it needs a gap up"
    ],
    "answer": "No, a report is too close",
-   "why": "No. We take no new buy in the 3 days before an earnings report, and this one comes out tonight. The chart is not the question. MU in March 2022 popped, reported that evening, and the next day's low of 78.60 went through the 79.21 stop.",
+   "why": "No. We take no new buy in the 3 days before an earnings report, and this one comes out tonight. A report can gap the stock right through the stop, and a stop cannot catch an overnight gap. MU in March 2022 popped, reported that evening, and the next day's low of 78.60 went through the 79.21 stop.",
    "lesson_line": "Check the calendar before the chart. A report inside three days and I wait.",
    "facts": [
     "h08",
@@ -2210,7 +2231,7 @@
    },
    "house": true,
    "story": "The chart ends the day before. Today the stock trades through its pivot, 81.20, on 1.8 times the 50-day volume, above both averages. The company's earnings come out after today's close.",
-   "simple": "No, because we take no new buy in the three days before an earnings report, however good the chart looks.",
+   "simple": "No, because a report can gap the stock through the stop overnight, so we take no new buy in the 3 days before one.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2218,7 +2239,7 @@
      "the 3-day window is the owner's rulebook (B22)"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "MU",
     "asof": "2022-03-28",
@@ -2240,8 +2261,8 @@
     "Buy half now, half on a dip"
    ],
    "answer": "Buy the open at market",
-   "why": "Buy the open at market. If a stock opens above the pivot, we buy at the open when the gap is no more than 4% above it. 13.18 is inside that line. A gap up through the pivot and the averages is the A+ pop. The stop still goes a few cents under the day's low.",
-   "lesson_line": "A gap through the pivot inside the chase line is the A+ pop. Buy it.",
+   "why": "Buy the open at market. If a stock opens above the pivot, we buy at the open when the gap is no more than 4% above it. 13.18 is inside that line. A gap through the pivot and both averages is a cue toward an A+ grade, our judgment that the setup is very clean. The stop still goes a few cents under the day's low.",
+   "lesson_line": "A gap through the pivot inside the chase line is a pop to buy.",
    "facts": [
     "c11",
     "h11",
@@ -2252,13 +2273,13 @@
     "h30"
    ],
    "wrong": {
-    "Pass, gaps tend to fill": "Kell says most of the powerful pops start with gaps. On our card a gap up through the pivot is the A+ pop.",
+    "Pass, gaps tend to fill": "Kell says most powerful pops start with gaps. A gap up through the pivot is a cue for our top grade.",
     "Buy half now, half on a dip": "We put the full size on at one price with one stop. No adding.",
     "Wait for a dip to 12.95": "The rule is to buy the open when the gap is within 4% of the pivot. Waiting for a pullback is for a pop that runs past 4%."
    },
    "house": true,
    "story": "The chart ends the day before. The base's high, the pivot, is 12.95. On the pop day the stock opens at 13.18, above both averages.",
-   "simple": "Buy the open at market, because 13.18 is a gap within 4% of the 12.95 pivot.",
+   "simple": "Buy the open at market, because 13.18 is a gap within 4% of the 12.95 pivot, and a gap shows buyers in a hurry.",
    "deeper": {
     "example": "RCL, pop 2009-07-15: it gapped open above the 12.95 pivot, under the 4% chase line. We buy the open at 13.18. The stop sits a few cents under the day's low, at 12.97, above the pivot."
    },
@@ -2269,7 +2290,7 @@
      "rests on the owner's rulebook C28 and E57"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "RCL",
     "asof": "2009-07-14",
@@ -2291,7 +2312,7 @@
     "Under the 200-day moving average"
    ],
    "answer": "A few cents under the day's low",
-   "why": "A few cents under the day's low, not exactly on it. The low of day is the primary stop. The pattern's low or a line minus a cushion can also work, but they are not the main stop. On a gap the day's low can sit above the pivot, as it did for RCL in 2009. The stop follows that low. The 200-day line decides whether we buy at all.",
+   "why": "A few cents under the day's low, not exactly on it. The low of day is the nearest line where the buy has failed, so it is the primary stop. The pattern's low or a line minus a cushion can also work. On a gap, the day's low can sit above the pivot, and the stop follows it. The 200-day line decides whether we buy at all.",
    "lesson_line": "The stop follows the day's low, wherever the gap puts it.",
    "facts": [
     "h24",
@@ -2307,7 +2328,7 @@
     "At the open price, right at the entry": "A stop on the entry price gives the trade no room. Breakeven comes later, after the trade has worked."
    },
    "house": true,
-   "simple": "Put the stop a few cents under the day's low, even after a gap, because the stop follows that low.",
+   "simple": "Put the stop a few cents under the day's low, even after a gap, because that low is where the buy has failed.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2316,7 +2337,7 @@
      "the base-low option is held (D-008)"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "story": "The chart ends the day before the pop.",
    "chart": {
     "sym": "NET",
@@ -2339,7 +2360,7 @@
     "30,000 shares"
    ],
    "answer": "15,000 shares",
-   "why": "15,000 shares. We never own more than 1% of a stock's average daily volume, and 1% of 1,500,000 is 15,000. The ceiling holds whatever the stop is. Illiquid stocks are not even watched.",
+   "why": "15,000 shares. We never own more than 1% of a stock's average daily volume, and 1% of 1,500,000 is 15,000. A bigger position is a large share of the day's trading, so selling it would move the price against us. The ceiling holds whatever the stop is.",
    "lesson_line": "One percent of the daily volume, and not a share more.",
    "facts": [
     "h19"
@@ -2358,7 +2379,7 @@
     },
     "round": 0
    },
-   "simple": "15,000 shares is 1% of the 1,500,000 average daily volume, which is the most we ever own.",
+   "simple": "15,000 shares is 1% of the 1,500,000 average daily volume, the most we own, so our own selling cannot move the price.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -2367,7 +2388,7 @@
      "rests on the owner's rulebook D42"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q31",
@@ -2383,7 +2404,7 @@
     "A remount setup"
    ],
    "answer": "EMA Crossback",
-   "why": "An EMA Crossback. A crossback is the first pullback into averages the stock already rides, within 20 sessions after a pop. A Wedge Pop comes after a correction spent mostly under the averages. This stock has held above the 20 EMA since its pop. DECK was a near-miss of this kind: a pullback inside an uptrend.",
+   "why": "An EMA Crossback. A crossback is the first pullback into averages the stock already rides, after a pop. A Wedge Pop is a turn: the stock rests under its averages, then breaks up through them. This stock has held above the 20 EMA since its pop, so this dip is a pullback in an uptrend, with its own trigger and stop.",
    "lesson_line": "Ask where the stock came from. Up from under the averages is a pop; down into them is a crossback.",
    "facts": [
     "c01",
@@ -2394,11 +2415,11 @@
    "wrong": {
     "Wedge Pop": "A pop is the push up through the averages from under them. This stock has been riding above them.",
     "A flat base breakout": "The story shows no flat box under a flat top. The stock already popped and is dipping back to its average.",
-    "A remount setup": "A remount retakes a line lost for 5 or more closes with one wide candle. This stock has held its 20 EMA every close since the pop."
+    "A remount setup": "A remount retakes a lost line with one wide candle. This stock never lost its 20 EMA after the pop."
    },
    "house": true,
    "story": "Fourteen sessions ago the stock popped back over its averages. Every close since held above the 20 EMA. Today it dips to the average for the first time and holds.",
-   "simple": "It is a crossback, because the stock already rides above its averages and is dipping into them, not rising from under them.",
+   "simple": "It is a crossback, because the stock already rides above its averages and is dipping into them, not turning up from under them.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2409,7 +2430,7 @@
    "depends_on": [
     "D-077"
    ],
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q32",
@@ -2451,7 +2472,7 @@
     "Pass, the base is too short"
    ],
    "answer": "Pass, it is under the 200-day",
-   "why": "Pass. For a stock, no longs below the 200-day simple moving average. The one exception is indexes and ETFs built to magnify an index's moves, on a reversal extension or a parabolic long. This is a stock. That January 2019 pop closed 7.3% under the 200-day, and the stock went higher without us. A clean base or a smaller size does not change a hard rule.",
+   "why": "Pass. For a stock, no longs below the 200-day simple moving average. That line marks the long-term trend, and under it a pop is often a bounce inside a downtrend. The one narrow exception: indexes and index-magnifying ETFs, at a reversal extension or on a parabolic long. A reversal extension is a sharp capitulation low. This is a stock. That January 2019 pop closed 7.3% under the 200-day, and the stock went higher without us. A hard rule costs some winners, and keeps us out of downtrends.",
    "lesson_line": "A pop that works is not always our pop. Under the 200-day, I pass.",
    "facts": [
     "c27",
@@ -2463,11 +2484,11 @@
    "wrong": {
     "Take it, the base is clean": "A clean base under the 200-day is still under the 200-day. That rule is hard.",
     "Take it, but at half size": "A hard rule has no half size. Under the 200-day there is no long.",
-    "Pass, the base is too short": "A 6-day base is longer than the 3-session minimum on our card. The base was fine. The 200-day line is the problem."
+    "Pass, the base is too short": "The base is not the problem. The 200-day line is."
    },
    "house": true,
    "story": "The chart ends the day before the pop. A January 2019 chart: a 36% decline, a 6-day base, and a pop on 1.1x the base's volume. The pop day closed 7.3% under the 200-day.",
-   "simple": "Pass, because our hard rule bars stock longs below the 200-day line, even when the base is clean and the pop works.",
+   "simple": "Pass, because the 200-day marks the long-term trend, and our hard rule bars stock longs under it even when the base is clean.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2476,7 +2497,7 @@
      "the index and ETF option is held (D-009)"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "AMZN",
     "asof": "2019-01-03",
@@ -2490,29 +2511,29 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "wp.inv_no_volume",
-   "q": "Is this a Wedge Pop by our card?",
+   "q": "Is this a Wedge Pop, and does the weak volume change how we treat it?",
    "choices": [
-    "Yes, but light volume lowers the grade",
-    "No, light volume ends it right there",
-    "No, a 6-day base is too short to count",
+    "Yes, but weak volume lowers the grade",
+    "No, weak volume ends it right there",
+    "No, it closed above both averages",
     "Yes, and it is a top grade A+ pop"
    ],
-   "answer": "Yes, but light volume lowers the grade",
-   "why": "Yes, it is still a Wedge Pop. Volume raises the grade, but it is not a requirement for the setup to count. This one closed above both averages out of a tight base, on 0.88 times the base days' volume, so it grades lower. Kell's first two QQQ pops failed with no increase in accumulation, so a light pop is a weaker picture.",
-   "lesson_line": "Volume raises the grade. A light pop is weaker, not ruled out.",
+   "answer": "Yes, but weak volume lowers the grade",
+   "why": "Yes, it is still a Wedge Pop. Volume raises the grade; it is not a requirement for the setup to count. A grade is our judgment of how clean the setup is, and it sets the size, so weak volume may mean a smaller size, not no trade. Kell's first two QQQ pops failed with no rise in buying volume, so a pop on weak volume is a weaker picture.",
+   "lesson_line": "Volume raises the grade. A pop on weak volume is weaker, not ruled out.",
    "facts": [
     "c05",
     "k12",
     "r55"
    ],
    "wrong": {
-    "No, light volume ends it right there": "Light volume does not end it. Volume raises the grade; it is not a requirement for the setup to count. This one grades lower.",
-    "No, a 6-day base is too short to count": "The story gives a 6-day base, past the 3-session minimum. The base was fine.",
-    "Yes, and it is a top grade A+ pop": "The strongest pop comes on clearly more volume than the base days. This light volume holds the grade back."
+    "Yes, and it is a top grade A+ pop": "The strongest pop comes on clearly more volume than the base days. This weak volume holds the grade back.",
+    "No, weak volume ends it right there": "Weak volume does not end it. Volume raises the grade; it is not a requirement for the setup to count.",
+    "No, it closed above both averages": "Closing above both averages is part of a pop, not a flaw."
    },
    "house": true,
-   "story": "An 18% decline, then a 6-day tight base. It trades through the pivot and closes above both averages, on 0.88x the base days' volume.",
-   "simple": "Yes, it still counts as a pop, because volume only raises the grade, and this light volume lowers it.",
+   "story": "An 18% decline, then a 6-day tight base. On the last day it trades through the pivot and closes above both averages, with weak volume: 0.88 times the base days'.",
+   "simple": "Yes, it still counts as a pop, because volume only raises the grade, and this weak volume lowers it.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2521,7 +2542,13 @@
      "volume rules are a held decision (D-006)"
     ]
    },
-   "batch": "rulings"
+   "batch": "owner-review-7-2026-11-16",
+   "chart": {
+    "sym": "CSCO",
+    "asof": "2026-07-27",
+    "window": 120,
+    "forward": 20
+   }
   },
   {
    "key": "q35",
@@ -2537,7 +2564,7 @@
     "The one with the wider range"
    ],
    "answer": "The close near the high",
-   "why": "The close near the high. Our card wants the pop day to close above both averages and the pivot, in the top 40% of its range. In our scan a close back under the pivot on the pop day did far worse. The share reaching three R fell to 23.1%, against 46.5% for a close above it. That was the strongest single cut. The close is known only at the close, so it can only confirm the pop afterwards.",
+   "why": "The close near the high. A pop that closes near its high shows buyers held the break to the bell. A close back under the pivot shows sellers pushed it back into the base. In our scan of past pops, 23.1% reached three R after a close back under the pivot. After a close above it, 46.5% did. The close is known only at the close, so it confirms the pop afterwards.",
    "lesson_line": "A pop that closes near its high is stronger than one that fades back under the pivot.",
    "facts": [
     "d27",
@@ -2546,14 +2573,14 @@
     "d26"
    ],
    "wrong": {
-    "The close under the pivot": "A close back under the pivot did much worse in our scan.",
+    "The close under the pivot": "A close back under the pivot did much worse in our scan of past pops.",
     "They are equally strong": "They are not equal. A close back under the pivot cut the share reaching three R to 23.1% from 46.5%.",
-    "The one with the wider range": "A wide bar is not the test. Where it closes counts: above both averages and the pivot, in the top 40% of its range."
+    "The one with the wider range": "A wide bar is not the test. Where it closes counts: above both averages and the pivot."
    },
    "house": true,
-   "simple": "The close near the high is stronger, since a close back under the pivot did much worse in our scan.",
+   "simple": "The close near the high is stronger, because buyers held the break, and a close back under the pivot did far worse.",
    "deeper": {
-    "counter": "A strong close does not guarantee a winner. In our examples four pops were stopped out, and all four pop days closed at or near the high and above both averages. Nothing on the pop day's candle separated them from the winners. The close helps us read the pop; the stop protects us when it still fails."
+    "counter": "A strong close does not guarantee a winner. Among the pops we studied, four were stopped out. All four pop days closed at or near the high and above both averages. Nothing on the pop day's candle separated them from the winners. The close helps us read the pop; the stop protects us when it still fails."
    },
    "tier": "extended",
    "risk": {
@@ -2563,7 +2590,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q36",
@@ -2571,16 +2598,16 @@
    "rung": 5,
    "format": "tf",
    "criterion": "wp.inv_back_in_base",
-   "q": "A close back under both averages and inside the base, within 5 sessions of the pop, invalidates it.",
+   "q": "A pop that closes back under both averages and inside the base, within days, has failed.",
    "answer": "True",
-   "why": "True. A close back under both averages and back inside the base within 5 sessions ends it. That is the failure mode. The pop fades back under the pivot or both averages within days. It is usually on no rise in volume, and the next session takes the stop.",
+   "why": "True. A pop that closes back under both averages and inside the base has failed, because buyers could not hold the break. That is the failure mode of this setup, usually on no rise in volume, and the next session takes the stop. We do not wait and hope.",
    "lesson_line": "A real pop holds its ground. Back in the base means the pop is gone.",
    "facts": [
     "c21",
     "c03"
    ],
    "house": true,
-   "simple": "True, because a close back under both averages and inside the base within five sessions means the pop has faded.",
+   "simple": "True. A close back under both averages and inside the base means buyers could not hold the break.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2589,7 +2616,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q37",
@@ -2636,7 +2663,7 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "wp.stop_width",
-   "q": "What changes?",
+   "q": "The stop is wider than we usually like. What changes?",
    "choices": [
     "The size, not the stop",
     "Pull the stop in to 3%",
@@ -2644,24 +2671,26 @@
     "Move the stop to the pivot"
    ],
    "answer": "The size, not the stop",
-   "why": "The size, not the stop. The honest stop is 3.66% away, wider than about 3%. Then take a smaller position or skip. Never tighten the stop to fit. The size comes from the stop. CROX had the widest stop of our ten winners and still worked.",
+   "why": "The size, not the stop. The honest stop is 3.66% away, a little past our preferred 1-3% but inside the 5% we accept. Never tighten the stop to fit, because a stop the stock's normal swings can reach is just a surer loss. The size comes from the stop, so a wider stop means fewer shares. CROX had the widest stop of the ten pops we studied and still worked.",
    "lesson_line": "Never shrink the stop to fit the size. Shrink the size to fit the stop.",
    "facts": [
     "c19",
     "h01",
     "h04",
+    "r56",
+    "n01",
     "c18",
     "d07",
     "d08"
    ],
    "wrong": {
     "Pull the stop in to 3%": "The stop never gets tighter to fit. It sits a few cents under the day's low.",
-    "Nothing, size as normal": "A stop wider than about 3% means a smaller position or a pass.",
+    "Nothing, size as normal": "A wider stop means fewer shares, because the size comes from the stop.",
     "Move the stop to the pivot": "The stop sits a few cents under the day's low. Moving it to fit is the mistake."
    },
    "house": true,
-   "story": "Bought on the pop at 24.58. The stop sits a few cents under the pop day's low, at 23.68, which is 3.66% away.",
-   "simple": "Make the position smaller, because the stop is 3.66% away, wider than about 3%, and we never tighten a stop to fit.",
+   "story": "The pop trades through the pivot and you are buying at 24.58. The stop goes a few cents under the pop day's low, at 23.68, which is 3.66% away. We prefer a stop of 1 to 3%.",
+   "simple": "Make the position smaller, because a wider stop means fewer shares, and we never tighten a stop to make a trade fit.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2669,7 +2698,7 @@
      "the 3% line is the owner's rulebook (A13)"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "CROX",
     "asof": "2007-04-04",
@@ -2695,8 +2724,8 @@
     "Neither, it is a chase"
    ],
    "answer": "The gap up on 2.5 times",
-   "why": "The gap up on 2.5 times. The strongest pop gaps up through the averages and the pivot on clearly more volume than the base days. STLD popped on only 1.2 times the base's volume, the lightest of our ten, and still worked. A light pop can work, but it is the weaker picture.",
-   "lesson_line": "More volume and a gap make a stronger pop. Light volume makes it weaker.",
+   "why": "The gap up on 2.5 times. A gap through the averages and the pivot on clearly more volume than the base shows big buyers stepping in. That is a cue toward an A+ grade, our judgment that the setup is very clean. STLD popped on only 1.2 times the base's volume and still worked. Volume raises the grade; it is not a requirement.",
+   "lesson_line": "More volume and a gap make a stronger pop. Weak volume makes it weaker.",
    "facts": [
     "c36",
     "c11",
@@ -2709,9 +2738,9 @@
     "Neither, it is a chase": "A gap is not a chase by itself. We buy the open when the gap is no more than 4% above the pivot."
    },
    "house": true,
-   "simple": "The gap on 2.5 times volume is stronger, because the best pop gaps through the pivot on more volume than the base.",
+   "simple": "The gap on 2.5 times volume is stronger, because it shows big buyers stepping in. Volume raises the grade.",
    "deeper": {
-    "example": "STLD in March 2026 is the light-volume case: a 7-day base, a pop on 1.2 times the base's volume, buy 175.52, stop 171.31. The first 3R took six sessions, then it ran from 175 to 280 in ten weeks. Light volume made it the weaker picture. It did not stop it working."
+    "example": "STLD in March 2026 is the weak-volume case: a 7-day base, a pop on 1.2 times the base's volume, buy 175.52, stop 171.31. The first 3R took six sessions, then it ran from 175 to 280 in ten weeks. Weak volume made it the weaker picture. It did not stop it working."
    },
    "tier": "extended",
    "risk": {
@@ -2721,7 +2750,7 @@
      "volume rules are a held decision (D-006)"
     ]
    },
-   "batch": "rulings"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q40",
@@ -2729,7 +2758,7 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "wp.early_cycle",
-   "q": "By our card, which is the stronger pop?",
+   "q": "Which is the stronger pop?",
    "choices": [
     "Pop A, early in the cycle",
     "Pop B, the trend is proven",
@@ -2737,21 +2766,23 @@
     "Pop B, it has more bases behind it"
    ],
    "answer": "Pop A, early in the cycle",
-   "why": "Pop A. Early in a new cycle beats the fourth base of an old one. A late-cycle base counts against the pop. DHI popped three sessions after SPY's 2023 low.",
+   "why": "Pop A. A pop three sessions after the index's own low is early in a new cycle, with the whole new advance ahead of it. A fourth base of an old trend is late, so there is less left and more can go wrong. Early beats late, and a late base grades lower. DHI popped three sessions after SPY's 2023 low.",
    "lesson_line": "Early pops in a new cycle are the best ones. Late bases in old trends are tired.",
    "facts": [
     "c24",
     "c37",
-    "d11"
+    "d11",
+    "r03",
+    "p04"
    ],
    "wrong": {
-    "Pop B, the trend is proven": "Our card wants early in a new cycle, not the fourth base of an old one. A late-cycle base counts against the pop.",
+    "Pop B, the trend is proven": "We want early in a new cycle, not the fourth base of an old one. A late-cycle base counts against the pop.",
     "They are about equally strong": "They are not equal. Early in a new cycle beats the fourth base of an old one.",
     "Pop B, it has more bases behind it": "More bases is not more proof. The fourth base of an old trend is late in the cycle, and that counts against the pop."
    },
    "house": true,
-   "story": "Pop A comes three sessions after the index's own low. Pop B comes in the index's fourth month up, on the stock's fourth base.",
-   "simple": "Pop A is stronger, because a pop early in a new cycle beats the fourth base of an old trend.",
+   "story": "Two clean pops look alike. Pop A comes three sessions after the index's own low. Pop B comes in the index's fourth month up, on the stock's fourth base.",
+   "simple": "Pop A is stronger, because early in a new cycle there is the most room left, and a fourth base is late.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2763,7 +2794,7 @@
    "depends_on": [
     "D-018"
    ],
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q41",
@@ -2779,7 +2810,7 @@
     "Same: only the pivot break counts"
    ],
    "answer": "Weaker: sellers sit overhead",
-   "why": "Weaker. Overhead supply right above the pivot is a weak cue on our card. An unfilled gap down or a falling 50-day just over it are examples. Reclaiming the 50-day too makes it stronger. Kell's TSLA rejected at its gap resistance the day after its pop, and he played defense.",
+   "why": "Weaker. An unfilled gap down or a falling 50-day just over the pivot is overhead supply: holders who bought higher want out near their price, so they sell into the pop and cap it. Reclaiming the 50-day too makes it stronger. Kell's TSLA rejected at its gap resistance the day after its pop, and he played defense.",
    "lesson_line": "Look up before you buy. Sellers waiting just overhead cap the pop.",
    "facts": [
     "c26",
@@ -2787,12 +2818,12 @@
    ],
    "wrong": {
     "Stronger: it cleared the pivot": "Clearing the pivot is only the start. Sellers just overhead cap the move.",
-    "Stronger: the gap will fill up": "Our card reads an unfilled gap down right above the pivot as overhead supply, a weak cue. It is a ceiling to clear, not a lift.",
-    "Same: only the pivot break counts": "Our card treats overhead supply right above the pivot as a weak cue, so the break alone is not the whole read."
+    "Stronger: the gap will fill up": "We read an unfilled gap down right above the pivot as overhead supply, a weak cue. It is a ceiling to clear, not a lift.",
+    "Same: only the pivot break counts": "We treat overhead supply right above the pivot as a weak cue, so the break alone is not the whole read."
    },
    "house": true,
    "story": "The pop clears the pivot. Right above it sits an unfilled gap down, and the 50-day is falling just overhead.",
-   "simple": "It reads weaker, because an unfilled gap down and a falling 50-day sit right overhead and sellers there cap the pop.",
+   "simple": "It reads weaker, because holders stuck at the higher prices sell into the pop and cap it.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2800,15 +2831,15 @@
      "rests on the proposed card's grade row"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q42",
    "skill": "setup.wedge_pop",
    "rung": 6,
-   "format": "mcq",
+   "format": "scenario",
    "criterion": "wp.market_reading",
-   "q": "The market reading is Orange. A clean B pop and an A+ gap pop set up. What do we buy?",
+   "q": "What do we buy?",
    "choices": [
     "Just the A+ pop, not the B",
     "Both, each at full size",
@@ -2816,7 +2847,7 @@
     "Neither; Orange bans all buys"
    ],
    "answer": "Just the A+ pop, not the B",
-   "why": "Just the A+ gap pop. Orange takes only A+ setups, so the B pop waits for a better market. The reading is a guide.",
+   "why": "Just the A+ gap pop. Orange is a weak market, and it lets the account trade only A+ setups, our judgment of the cleanest ones. In a weak market only the cleanest setups have enough going for them to risk money, so the B pop waits. The reading is a guide.",
    "lesson_line": "The market sets how many pops I take, and which ones.",
    "facts": [
     "h26",
@@ -2829,7 +2860,7 @@
     "Neither; Orange bans all buys": "Orange is not a ban on buying. It takes A+ setups, so the A+ gap pop is fine and the B pop waits."
    },
    "house": true,
-   "simple": "Buy only the A+ gap pop, because an Orange market takes only A+ setups and the B pop waits.",
+   "simple": "Buy only the A+ gap pop, because in a weak Orange market only the cleanest setups earn the risk and the B pop waits.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2837,7 +2868,8 @@
      "the market reading is the owner's rulebook (F65)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16",
+   "story": "The app's market filter reads Orange, one of four colors (Green, Yellow, Orange, Red) that set how much the account trades. A grade is our judgment of how clean a setup is. A clean B pop and an A+ gap pop both set up."
   },
   {
    "key": "q43",
@@ -2853,7 +2885,7 @@
     "Raise the stop to breakeven"
    ],
    "answer": "The stop stays; it is the exit",
-   "why": "The stop stays. A close back under the pop day's low means the pop failed. The stop is just under that low anyway, so it is already doing its job. Breakeven comes later, between 2R and 5R, at the first trim.",
+   "why": "The stop stays. A close under the pop day's low means the pop failed, and the stop sits just under that low already, so it is doing its job. Lowering it turns a planned small loss into a bigger one. Breakeven is a later move, between 2R and 5R or at the first sell.",
    "lesson_line": "When the pop fails, the stop is already where it needs to be. Leave it.",
    "facts": [
     "c20",
@@ -2865,11 +2897,11 @@
    "wrong": {
     "Lower the stop for more room": "Our stop is the exit. It only moves up, never down or wider.",
     "Buy more near the stop": "No adding. We take the full size at one price with one stop.",
-    "Raise the stop to breakeven": "Our default moves the stop to breakeven between 2R and 5R, at the first trim. A stop at 40.00 sits above today's close of 39.15 and would fire at once."
+    "Raise the stop to breakeven": "The stop may move to breakeven between 2R and 5R or at the first sell. A stop at 40.00 sits above today's close of 39.15 and would fire at once."
    },
    "house": true,
    "story": "You bought a pop at 40.00, stop 39.10. Two days later it closes at 39.15, under the pop day's low and five cents over your stop.",
-   "simple": "Leave the stop where it is, because it sits just under the pop day's low and only ever moves up.",
+   "simple": "Leave the stop where it is, because lowering it would turn a small planned loss into a big one.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2877,7 +2909,7 @@
      "the stop rule is the owner's rulebook (A4)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q44",
@@ -2887,7 +2919,7 @@
    "criterion": "wp.liquidity",
    "q": "A $14 stock averages 1,600,000 shares a day over 50 days. How many dollars a day is that, in millions?",
    "answer": "$22.4 million",
-   "why": "$22.4 million. Dollars a day are price times shares: 14 x 1,600,000 / 1,000,000 = 22.4 million. We need $10 or more and at least $20 million a day on the 50-day average. This stock clears both tests, so it is on the list.",
+   "why": "$22.4 million. Dollars a day are price times shares: 14 x 1,600,000 / 1,000,000 = 22.4 million. We need $10 or more and at least $20 million a day on the 50-day average, so we can get in and out without moving the price. This stock clears both tests, so it is on the list.",
    "lesson_line": "Price times shares is the dollars. Twenty million a day or it is not on the list.",
    "facts": [
     "h09",
@@ -2905,7 +2937,7 @@
    },
    "prefix": "",
    "suffix": "",
-   "simple": "$22.4 million, which is price times shares and clears the $20 million a day we need.",
+   "simple": "$22.4 million, which is price times shares, and it clears the $20 million a day that lets us get in and out.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2914,7 +2946,7 @@
      "rests on the owner's rulebook B23"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "owner-review-7-2026-11-16",
    "choices": [
     "$224 million",
     "$0.11 million",
@@ -2963,7 +2995,7 @@
     "Proof the setup does not work"
    ],
    "answer": "A planned loss, the plan working",
-   "why": "A planned loss. The honest stop was 4.7% below the fill. That is past the 3.5% we call good, but inside the 5% we accept, so you took it smaller. The pop closed near its high on 1.24 times the base days' volume. The stop did its job.",
+   "why": "A planned loss. The honest stop was 4.7% below the fill, past the 3.5% we call good but inside the 5% we accept, so you took it smaller. A stop-out is the cost of this setup, and the size kept the loss small. The pop closed near its high on 1.24 times the base days' volume, and nothing on the candle warned of the fade.",
    "lesson_line": "A wide stop is a reason for a small size. The loss stays small too.",
    "facts": [
     "d20",
@@ -2979,9 +3011,9 @@
    },
    "house": true,
    "story": "Bought on the pop at 209.81 with the stop at 199.95. A 13-day base after a 41% decline. The pop closes near the high, on 1.24x the base days' volume. The honest stop is 4.7% below your fill. You took it smaller. Day 2 takes the stop.",
-   "simple": "A planned loss, because the wide stop was still acceptable, you sized down, and the stop did its job.",
+   "simple": "A planned loss, because the wide stop was still acceptable, the size was smaller, and the stop did its job.",
    "deeper": {
-    "trap": "Trap: calling the loss a mistake because it came on day 2. COIN, 2024-08-23, closed near the high with a 4.7% stop and was stopped on day 2. All four failed pops in our table closed strong, so the candle could not have warned you."
+    "trap": "Trap: calling the loss a mistake because it came on day 2. COIN, 2024-08-23, closed near the high with a 4.7% stop and was stopped on day 2. All four failed pops we studied closed strong, so the candle could not have warned you."
    },
    "tier": "extended",
    "risk": {
@@ -2991,7 +3023,7 @@
      "the cold check held it as a fix on D-006"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "COIN",
     "asof": "2024-08-23",
@@ -3017,7 +3049,7 @@
     "Avoid this stock for a month"
    ],
    "answer": "Take the loss; wait for a trigger",
-   "why": "Take the loss and wait for a new trigger. A valid pop that failed; the stop did its job. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. No buying it back at once, no wider stop next time, and no ban on the stock.",
+   "why": "Take the loss and wait for a new trigger. A valid pop that failed; the stop did its job. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop. Buying it right back is hope, not a plan, and a wider stop only makes the next loss bigger.",
    "lesson_line": "Some good pops fail. The stop keeps the cost small, and the next trigger is a new trade.",
    "facts": [
     "d22",
@@ -3034,9 +3066,9 @@
    },
    "house": true,
    "story": "A 29% decline, an 11-day base, then a gap open at 184.95 on 1.86x the base days' volume, closing high in its range. You bought the open with the stop at 182.70. The next session's low takes it.",
-   "simple": "Take the loss and wait, because we buy this stock again only when the setup triggers again as a fresh trade.",
+   "simple": "Take the loss and wait, because buying it right back is hope, and we buy again only on a fresh trigger.",
    "deeper": {
-    "example": "PLTR, 2025-12-10: buy 184.95, stop 182.70. The next session's low of 180.21 took the stop. A valid pop that failed, and the stop did its job. All four pop days in our failed examples closed strong, so the candle gave no warning. The loss was the size we planned."
+    "example": "PLTR, 2025-12-10: buy 184.95, stop 182.70. The next session's low of 180.21 took the stop. A valid pop that failed, and the stop did its job. All four pop days in the failed pops we studied closed strong, so the candle gave no warning. The loss was the size we planned."
    },
    "tier": "extended",
    "risk": {
@@ -3046,7 +3078,7 @@
      "the stop default is held (D-008)"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "PLTR",
     "asof": "2025-12-10",
@@ -3064,29 +3096,32 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "wp.breakeven",
-   "q": "By our default rules, what happened?",
+   "q": "What does the breakeven move do here?",
    "choices": [
-    "Stopped at 83.15, as planned",
-    "Stopped at breakeven, 84.88",
-    "Stopped at 81.50, the low",
-    "Sold a third at 1.5R, held"
+    "Saves the 1R loss: out at about 84.88",
+    "Costs 1R: stopped at 83.15 anyway",
+    "Nothing: the day's low 81.50 is the exit",
+    "Locks in a 2.5R gain at the high"
    ],
-   "answer": "Stopped at 83.15, as planned",
-   "why": "Stopped at 83.15, a planned loss. Breakeven comes between 2R and 5R. At 1.5R the stop had not moved. On day 3 the low of 81.50 went through 83.15.",
-   "lesson_line": "The stop is the plan. A loss at the stop is the plan working.",
+   "answer": "Saves the 1R loss: out at about 84.88",
+   "why": "It turns a full 1R loss into about nothing. Once a trade is up 2.5R, a stop at the entry price means a winner can no longer turn into a loser. Without the move, the stop at 83.15 would have cost 1R when day 3 hit 81.50. Breakeven is allowed anywhere from 2R to 5R, or at the first sell, as a judgment.",
+   "lesson_line": "Once it is up big, breakeven means a winner cannot turn into a loser.",
    "facts": [
-    "c43"
+    "d24",
+    "d25",
+    "c43",
+    "h05"
    ],
    "wrong": {
-    "Stopped at breakeven, 84.88": "Breakeven comes between 2R and 5R. At 1.5R the stop had not moved.",
-    "Stopped at 81.50, the low": "The stop sat at 83.15, so that was the planned exit. The day's low is only how far price ran after it.",
-    "Sold a third at 1.5R, held": "We very rarely sell this early. The first sell is a judgment, not a fixed third."
+    "Costs 1R: stopped at 83.15 anyway": "The stop had moved to the entry price, so 83.15 was no longer the exit.",
+    "Nothing: the day's low 81.50 is the exit": "The stop sat at 84.88, so that was the exit. The day's low only shows how far price ran after it.",
+    "Locks in a 2.5R gain at the high": "A breakeven stop locks in no gain. It only stops a winner from becoming a loser."
    },
    "house": true,
-   "story": "Bought the pop at 84.88, stop 83.15. It reaches 1.5R in two sessions, before any trim. On day 3 it trades down through the stop, to 81.50.",
-   "simple": "It was stopped at 83.15 as planned, because breakeven only starts at 2R and the trade got to 1.5R.",
+   "story": "Bought the pop at 84.88, stop 83.15. It reaches 2.5R in two sessions, and you move the stop to breakeven. On day 3 it trades down to 81.50. Assume it fills at the stop.",
+   "simple": "It saves the loss, because a stop at the entry price means a trade that was up big cannot end as a loser.",
    "deeper": {
-    "trap": "The tempting move is to raise the stop once the trade is up. The card allows breakeven anywhere from 2R to 5R. At 1.5R it is too early. A gap through the stop would bring in the gap rule instead."
+    "trap": "The tempting move is to raise the stop at the first sign of profit. We allow breakeven from 2R to 5R, or at the first sell. A gap through the stop would bring in the gap rule instead."
    },
    "tier": "extended",
    "risk": {
@@ -3096,7 +3131,7 @@
      "the dossier and the card differ on breakeven here"
     ]
    },
-   "batch": "rulings2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q48",
@@ -3106,7 +3141,7 @@
    "criterion": "wp.stop_gap",
    "q": "Bought at 60.00, stop 59.00. It gaps down; the first 30-minute low is 57.30. How many R would a stop there lose?",
    "answer": "2.7R",
-   "why": "2.7R. One R is the buy minus the stop: 60.00 - 59.00. The loss at a stop of 57.30 is 60.00 - 57.30. So (60.00 - 57.30) / (60.00 - 59.00) = 2.7R. On a gap through the stop, the first 30-minute low is the new stop. There is a ceiling: if that takes the loss past 2R, get out.",
+   "why": "2.7R. One R is the buy minus the stop: 60.00 - 59.00. The loss at a stop of 57.30 is 60.00 - 57.30. So (60.00 - 57.30) / (60.00 - 59.00) = 2.7R. On a gap through the stop, the first 30-minute low is the new stop, but past 2R we get out. That is far more than the one R we planned to risk.",
    "lesson_line": "On a gap, the first 30 minutes decide. Past 2R, I am out.",
    "facts": [
     "h06",
@@ -3124,7 +3159,7 @@
     "round": 1
    },
    "suffix": "",
-   "simple": "2.7R, which is past the 2R ceiling, so we get out.",
+   "simple": "2.7R, past the 2R ceiling, so we get out instead of risking far more than the one R we planned.",
    "deeper": {
     "trap": "Trap: treating the first 30-minute low as a safe new stop. It is the new stop only while the loss stays within 2R. Here it would be 2.7R, so the answer is to get out, not to wait."
    },
@@ -3136,7 +3171,7 @@
      "rests on the owner's rulebook B20"
     ]
    },
-   "batch": "rank",
+   "batch": "owner-review-7-2026-11-16",
    "choices": [
     "2.7R",
     "1.7R",
@@ -3191,7 +3226,7 @@
     "Hold it; the trail decides"
    ],
    "answer": "Sell a big part into the run",
-   "why": "Sell a big part into the run. A climax run on your own long is where we sell a big part, and it is a judgment call. Our card calls it an Exhaustion Extension, a climax run far above the averages. The trail stays on for the rest.",
+   "why": "Sell a big part into the run. A climax run on your own long is where we sell a big part, a judgment call. A stock far above its averages is stretched, and the averages need time to catch up, so we take profit into the strength. Kell calls it an Exhaustion Extension. The trail stays on for the rest.",
    "lesson_line": "Sell into the climax. The averages need time to catch up.",
    "facts": [
     "h31",
@@ -3201,12 +3236,12 @@
     "r60"
    ],
    "wrong": {
-    "Sell it all at first sign": "Our rule is a big part, not all. The rest stays on the trail.",
+    "Sell it all at first sign": "We sell a big part, not all, by judgment. The rest stays on the trail.",
     "Add more, it is strong now": "No adding. We take the full size at one price with one stop.",
     "Hold it; the trail decides": "The trail sells on a close under the 9 EMA or 20 EMA. In a climax the stock sits far above it, so the trail would act only after the top."
    },
    "house": true,
-   "simple": "Sell a big part into the climax, because a run far above the averages is where we take profits by hand.",
+   "simple": "Sell a big part into the climax, because a stock far above its averages is stretched and strength is the time to take profit.",
    "deeper": {
     "trap": "Why not let the trail decide? The trail is a close under the 9 EMA for fast movers, or the 20 EMA for steadier ones. In a climax the stock sits far above that average, so the trail would act only well after the top. We sell a big part by hand into the strength, then let the trail handle the rest."
    },
@@ -3217,7 +3252,7 @@
      "the climax sale is the owner's rulebook (C34), a judgment call"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q51",
@@ -3233,7 +3268,7 @@
     "Sell the whole position"
    ],
    "answer": "Judge it; 3R is not a sell order",
-   "why": "Judge it. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Trading through 3R is a reason to look, not a sell order.",
+   "why": "Judge it. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Trading through 3R is a reason to look, not a sell order. The bigger gains come from a multi-day push, and a quick spike can give them away.",
    "lesson_line": "Trading through 3R is not a sell order. Judge the first sell.",
    "facts": [
     "r57",
@@ -3248,7 +3283,7 @@
    },
    "house": true,
    "story": "Bought on the pop at 36.50 with the stop at 35.59, so 3R is 39.23. On day 2 the stock trades up through 3R.",
-   "simple": "Judge it. Trading through 3R is not an automatic sell, and we rarely sell this early.",
+   "simple": "Judge it. Trading through 3R is not an automatic sell, because the bigger gains come from a multi-day push.",
    "deeper": {
     "trap": "Trap: treating 3R as a sell trigger. The first sell depends on a variety of factors, such as how many days the push has run."
    },
@@ -3259,7 +3294,7 @@
      "rests on the owner's ruling D-013 (the first sell is a judgment)"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "NET",
     "asof": "2020-09-18",
@@ -3277,9 +3312,9 @@
    "rung": 7,
    "format": "tf",
    "criterion": "wp.market_timing",
-   "q": "Kell says to stay defensive in stocks when the index makes a Reversal Extension.",
+   "q": "Kell says to stay defensive in stocks when the index makes a Reversal Extension, a sharp capitulation low.",
    "answer": "False",
-   "why": "False. Kell says to get aggressive trading individual stocks when you see a Reversal Extension on the index. Deepvue says the same of him: at market turning points he trades more aggressively and holds positions longer. For us, the market reading still guides how much risk we take.",
+   "why": "False. Kell says to get aggressive trading individual stocks when you see a Reversal Extension on the index. A turn is when new leaders start, and they have the most room. Deepvue says the same of him: at market turning points he trades more aggressively. For us, the app's market filter still sets how much risk we take.",
    "lesson_line": "Kell watches the index first. When it shows a Reversal Extension, he gets aggressive in stocks.",
    "facts": [
     "r03",
@@ -3287,7 +3322,7 @@
     "w05",
     "h26"
    ],
-   "simple": "False. Kell gets aggressive in stocks when the index makes a Reversal Extension, because that marks a market turning point.",
+   "simple": "False. Kell gets aggressive in stocks at an index turn, because that is when new leaders start with the most room.",
    "deeper": {
     "counter": "The same Kell sat out when no turn had come. On another occasion he wrote that he was avoiding long swings until he saw a major capitulation reversal extension in the QQQ or a switch to a buy signal."
    },
@@ -3301,7 +3336,7 @@
    "depends_on": [
     "D-018"
    ],
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q53",
@@ -3358,7 +3393,7 @@
     "A limit buy resting at 30.24"
    ],
    "answer": "As it traded through 30.24",
-   "why": "As it traded through 30.24. We buy with a market order as price trades through the pivot. The close at 31.72 was 4.9% over the pivot, past the 4% chase line, so at the close it was a chase. SLB in January 2022 is the card's example of a pop buyable only as it traded through.",
+   "why": "As it traded through 30.24. We buy with a market order as price trades through the pivot. The close at 31.72 was 4.9% over the pivot, past the 4% chase line, and the close is known only at the bell. Waiting for it would leave only a chase: the stop stays put, so the distance grows and the shares shrink.",
    "lesson_line": "Have the alert at the pivot. The buy is the trade through, not the close.",
    "facts": [
     "d09",
@@ -3375,7 +3410,7 @@
    },
    "house": true,
    "story": "The chart ends the day before. One wide bar runs from inside the base through the pivot, 30.24, and both averages. It closes at 31.72, 4.9% over the pivot.",
-   "simple": "Buy with a market order as it trades through 30.24, because the close at 31.72 was past the 4% chase line.",
+   "simple": "Buy with a market order as it trades through 30.24, because by the close it was a chase, past the 4% line.",
    "deeper": {
     "trap": "Why not wait for the close to be sure? The close is known only at the close, and a wide bar can run well past the chase line by then. Here it closed 4.9% over the pivot. So the buy is the trade through the pivot, set up with an alert at the pivot, not a decision at the bell."
    },
@@ -3387,7 +3422,7 @@
      "trigger timing is a held decision (D-003)"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "SLB",
     "asof": "2021-12-31",
@@ -3409,7 +3444,7 @@
     "No, buy after the first green day"
    ],
    "answer": "No, that is bottom fishing",
-   "why": "No. Buying the Reversal Extension low itself is bottom fishing, a named mistake. Kell says trading it is often best avoided. Wait for the price to consolidate under the averages as it forms a tradable pivot. The pop gives a clear pivot and a tighter stop.",
+   "why": "No. Buying the low of a crash itself is bottom fishing, a named mistake. Kell says trading the Reversal Extension, the sharp capitulation low, is often best avoided. There is no base yet, so no clear pivot and no honest stop. Wait for the price to settle under the averages. The pop then gives a clear pivot and a tighter stop.",
    "lesson_line": "Let the low form, then let the base form. The pop is the buy, not the panic.",
    "facts": [
     "c33",
@@ -3422,7 +3457,7 @@
     "No, buy after the first green day": "One up day is still the window between the low and the pop, the hardest period to trade. Wait for the base and the pivot."
    },
    "house": true,
-   "simple": "No. A stock still falling hard has no base or pivot yet, so buying now is bottom fishing.",
+   "simple": "No. A stock still falling hard has no base, pivot or honest stop yet, so buying now is bottom fishing.",
    "deeper": {
     "trap": "Trap: the panic feels like the best price. Kell's split is this: use the Reversal Extension to spot the bottom, then wait. The Wedge Pop is the better place to add exposure. The hardest period to trade is the window between the two."
    },
@@ -3436,7 +3471,7 @@
    "depends_on": [
     "D-077"
    ],
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q56",
@@ -3515,14 +3550,14 @@
    "criterion": "wp.after_entry_stop",
    "q": "After three stop-outs on one stock this week, a fourth try is still allowed this week.",
    "answer": "False",
-   "why": "False. At most 3 tries in a week and 6 in a month on one stock. After three, the week is done for that name. Each try is a new trade with its own stop and every rule.",
+   "why": "False. At most 3 tries in a week and 6 in a month on one stock. Three stop-outs in a week say the setup is not working on that name right now, and a fourth try is hope, not a plan. Each try is a new trade with its own trigger, stop and every rule.",
    "lesson_line": "Three tries a week on one name. Each one is a new trade with every rule.",
    "facts": [
     "h29",
     "h28"
    ],
    "house": true,
-   "simple": "False, because we allow at most three tries a week on one stock, so after three stop-outs the week is done.",
+   "simple": "False. Three stop-outs in a week say it is not working, so after three tries the week is done for that name.",
    "deeper": {
     "trap": "Three is the most, not a goal. Each try needs its own fresh trigger, its own stop and every rule. The month has a cap too: 6 tries on the same stock."
    },
@@ -3533,7 +3568,7 @@
      "the try limits are the owner's rulebook (E56)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q59",
@@ -3549,7 +3584,7 @@
     "Take it, smaller and fewer"
    ],
    "answer": "Pass; leave the money in cash",
-   "why": "Pass and leave the money in cash. Red means mostly cash, plus shorts below the 200-day. This stock is above its 200-day, so a short is out too, and the clean pop waits. The reading is a guide.",
+   "why": "Pass and leave the money in cash. Red means mostly cash, plus shorts below the 200-day. In a weak market even clean longs often fail, so waiting protects the account. This stock is above its 200-day, so a short is out too. The reading is a guide.",
    "lesson_line": "In a Red market the best trade is usually no trade.",
    "facts": [
     "h26",
@@ -3563,8 +3598,8 @@
     "Take it, smaller and fewer": "Smaller and fewer is Yellow. Red is mostly cash."
    },
    "house": true,
-   "story": "The market reading is Red. A clean pop sets up in a stock above its 200-day.",
-   "simple": "Pass and stay in cash, because a Red market means mostly cash, so even a clean pop waits.",
+   "story": "The app's market filter reads Red, the weakest of four colors that set how much the account trades. A clean pop sets up in a stock above its 200-day.",
+   "simple": "Pass and stay in cash, because in a Red market even clean longs often fail, so waiting protects the account.",
    "deeper": {
     "trap": "The reading is a guide, not a hard cap. Red leans hard toward cash, plus shorts below the 200-day, so a clean long still waits. Green allows full risk and up to 10 positions; Yellow means smaller and fewer."
    },
@@ -3575,7 +3610,7 @@
      "the market reading is the owner's rulebook (F65, D46)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q60",
@@ -3591,7 +3626,7 @@
     "A remount of its averages"
    ],
    "answer": "An undercut and rally",
-   "why": "An undercut and rally. A U&R reclaims one prior low and can fire from under the averages. This stock dipped under last week's low and closed back over it the same day. It is still under both averages, with no tight base. A Wedge Pop needs a tight base and a close above both averages.",
+   "why": "An undercut and rally. A U&R reclaims one prior low and can fire from under the averages. This stock dipped under last week's low and closed back over it the same day, still under both averages, with no tight base. A Wedge Pop first rests in a tight base and then closes above both averages. Ask what the stock just did and where it sits.",
    "lesson_line": "Under the averages and back over a low is a U&R. Over the averages out of a base is a pop.",
    "facts": [
     "c30",
@@ -3618,7 +3653,7 @@
      "rests on the proposed card's lookalike lines"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q61",
@@ -3630,11 +3665,11 @@
    "choices": [
     "A Wedge Drop at the averages",
     "A Wedge Pop that has failed",
-    "An EMA Crossback that failed",
+    "An EMA Crossback to buy",
     "A shakeout before the real pop"
    ],
    "answer": "A Wedge Drop at the averages",
-   "why": "A Wedge Drop. Kell's Wedge Drop is a tight range up into the averages, then a break down through them. It follows an Exhaustion Extension, or sometimes a stall without one. A Wedge Pop coils under the averages and pops up through them.",
+   "why": "A Wedge Drop. Kell's Wedge Drop is a tight range up into the averages, then a break down through them. It is the pop's mirror. A Wedge Pop coils under the averages and pops up through them. A close down through both shows sellers took control, so for a long it is a sell signal, not a buy.",
    "lesson_line": "Same coil, opposite door. Where it closes tells you which.",
    "facts": [
     "c35",
@@ -3645,15 +3680,15 @@
     "c38"
    ],
    "wrong": {
-    "An EMA Crossback that failed": "A crossback is a pullback that holds rising averages. This one sits under falling averages and broke down.",
-    "A Wedge Pop that has failed": "A failed pop first closes up through the averages, then falls back. This stock only rose up to them, then closed down through them.",
-    "A shakeout before the real pop": "A shakeout undercuts a prior low and still closes up. This stock closed down through both averages."
+    "A Wedge Pop that has failed": "A failed pop first closes up through the averages from under them, then falls back. This stock stalled near its averages, then closed down through both.",
+    "A shakeout before the real pop": "A shakeout undercuts a prior low and still closes up. This stock closed down through both averages.",
+    "An EMA Crossback to buy": "A crossback is a pullback that holds its averages, and it is bought as it turns up. This one closed down through both of them, so it did not hold."
    },
    "house": true,
-   "story": "After a climax top and a drop, the stock coils up into its falling averages for a few tight days. Then it closes down through both of them.",
-   "simple": "A Wedge Drop. The stock coiled up into its falling averages and then broke down through them, the reverse of a pop.",
+   "story": "The stock has stalled near its rising averages for about two weeks. The chart's last bar is the day it closes down through both.",
+   "simple": "A Wedge Drop. The stock coiled up into its averages and then broke down through them, the reverse of a pop.",
    "deeper": {
-    "trap": "Trap: the same tight coil can end either way. Under the averages and then up through them is a Wedge Pop. Up into falling averages and then down through them is the Drop. Into an Exhaustion Extension we sell a big part of a long."
+    "trap": "Trap: the same stall near the averages can end either way. Out of a base under them and up through them is a Wedge Pop. Stalling at them and then down through them is the Drop."
    },
    "tier": "expert",
    "risk": {
@@ -3662,7 +3697,13 @@
      "rests on the criteria card (house)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16",
+   "chart": {
+    "sym": "META",
+    "asof": "2021-09-17",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q62",
@@ -3672,31 +3713,30 @@
    "criterion": "wp.prior_decline",
    "q": "Is this a Wedge Pop?",
    "choices": [
-    "No; too few closes under the 20 EMA",
-    "Yes; the 12-day base is long enough",
-    "Yes; an 18% dip is deep enough",
+    "No; a pullback in an uptrend it rides",
+    "Yes; any 18% dip then breakout counts",
+    "Yes; a 12-day base is long enough",
     "No; a 12-day base is too long"
    ],
-   "answer": "No; too few closes under the 20 EMA",
-   "why": "No. A Wedge Pop comes from a correction that spent most of three weeks under the 20 EMA: our card wants at least 8 of the 15 closes before the pop under it. This stock had 7. It is a pullback inside an uptrend it already rides, not a rally back up through the averages from under them.",
-   "lesson_line": "Count the closes under the 20 EMA before the pop. Too few, and it is a pullback, not a pop.",
+   "answer": "No; a pullback in an uptrend it rides",
+   "why": "No. A Wedge Pop signals that a stock has bottomed and is starting a new uptrend. This stock dipped 18% but did not spend most of three weeks under its 20 EMA. It pulled back inside an uptrend it already rides, so it is a pullback, not a rally back up through the averages from under them.",
+   "lesson_line": "A pop turns up from under the averages. A dip inside an uptrend is a pullback.",
    "facts": [
+    "k01",
     "c01",
     "y01",
-    "v04",
-    "v05",
     "d12"
    ],
    "wrong": {
-    "Yes; the 12-day base is long enough": "Base length is not the gate here. The count of closes under the 20 EMA before the pop is, and it falls one short.",
-    "Yes; an 18% dip is deep enough": "Depth is not what the card counts. It counts closes under the 20 EMA, and there were too few.",
-    "No; a 12-day base is too long": "The card sets a minimum base, not a maximum. The base is not the problem."
+    "No; a 12-day base is too long": "A longer base is not a fault. The problem is that the stock was pulling back in an uptrend.",
+    "Yes; any 18% dip then breakout counts": "Depth alone is not the test. A pop needs the stock to have been under its averages first.",
+    "Yes; a 12-day base is long enough": "Base length is not the problem. The stock did not spend most of three weeks under its averages."
    },
    "house": true,
-   "story": "The day before a possible pop. An 18% dip into a 12-day base. Only 7 of the 15 closes before the pop sat under the 20 EMA.",
-   "simple": "No, because only 7 of the 15 closes before it sat under the 20 EMA, so this is a pullback in an uptrend.",
+   "story": "An 18% dip into a 12-day base, inside an uptrend the stock already rides. Look at where the stock sat against its 20 EMA.",
+   "simple": "No, because a pop is a turn up from under the averages, and this stock was only pulling back inside an uptrend.",
    "deeper": {
-    "trap": "Trap: calling it a pop because the dip and the base look right. The count of closes under the 20 EMA is the test, and this stock fell one short, so it was a pullback in an uptrend."
+    "trap": "Trap: calling it a pop because the dip and the base look right. Ask where the stock came from. A pop comes up from under the averages. This one only pulled back."
    },
    "tier": "expert",
    "risk": {
@@ -3708,7 +3748,7 @@
    "depends_on": [
     "D-077"
    ],
-   "batch": "visuals-2",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "DECK",
     "asof": "2024-05-13",
@@ -3722,7 +3762,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "wp.catalyst",
-   "q": "Two clean pops look alike. One follows real company news; the other has none. On our card, which grades higher?",
+   "q": "Two clean pops look alike. One follows real company news; the other has none. Which do we grade higher?",
    "choices": [
     "The one with news behind it",
     "The one with no news at all",
@@ -3730,19 +3770,19 @@
     "Neither, only the chart grades it"
    ],
    "answer": "The one with news behind it",
-   "why": "The one with the news behind it. Our card counts a catalyst behind the pop, real news, as an A+ cue. Grading is a judgment, so the cue tips the grade and does not decide it. The chart still comes first, and the other cues still count.",
+   "why": "The one with the news behind it. A real reason behind the move gives buyers a story to keep buying, so the pop is cleaner. Grading is our judgment of how clean the setup is, never a checklist, so news tips the grade and does not decide it. The chart still comes first.",
    "lesson_line": "A reason behind the move adds to the grade. The chart still comes first.",
    "facts": [
     "c25",
     "c17"
    ],
    "wrong": {
-    "The one with no news at all": "The card lists a real catalyst as an A+ cue. The pop without one has no such cue.",
-    "They tie, since news is priced in": "A catalyst is a grade cue on our card. It lifts the pop that has one.",
-    "Neither, only the chart grades it": "The chart comes first, but the card counts a real catalyst as an A+ cue, so the chart is not the only thing that grades a pop."
+    "The one with no news at all": "A real reason behind the move tips the grade up. The pop without one has no such help.",
+    "They tie, since news is priced in": "News is a plus in our judgment. It lifts the pop that has it.",
+    "Neither, only the chart grades it": "The chart comes first, but real news also tips our judgment of how clean the pop is."
    },
    "house": true,
-   "simple": "The pop with news behind it grades higher on our card, because a real reason behind the move is an A+ cue.",
+   "simple": "The pop with news behind it usually grades higher, because a real reason gives buyers a story to keep buying.",
    "deeper": {
     "trap": "Trap: a catalyst is a plus, not a free pass. The pop still needs the tight base and the pivot, and the other cues still count."
    },
@@ -3753,7 +3793,7 @@
      "rests on the criteria card (house)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q64",
@@ -3769,7 +3809,7 @@
     "0.5%, sized down"
    ],
    "answer": "1.5%, sized up for A+",
-   "why": "1.5%, sized up for A+. An A+ setup risks 1% to 1.5%, and a Green market allows full risk per grade. 1.5% is the most any grade uses, and 2% is the absolute ceiling. The position cap can still shrink the shares.",
+   "why": "1.5%, sized up for A+. An A+ setup risks 1% to 1.5%, because our cleanest setups earn the most risk, and a Green market allows full risk per grade. 1.5% is the most any grade uses, and 2% is the absolute ceiling. The position cap can still shrink the shares.",
    "lesson_line": "Grade sets the size. A+ in a Green market is where I lean in, inside the ceiling.",
    "facts": [
     "h32",
@@ -3784,8 +3824,8 @@
     "0.5%, sized down": "Sizing down is for B- or lower. This one is A+."
    },
    "house": true,
-   "story": "An A+ pop in a Green market: a gap through the pivot after the index's own low, on heavy volume.",
-   "simple": "An A+ pop in a Green market can risk up to 1.5% and is sized up. Two percent is the ceiling for any trade.",
+   "story": "The app's market filter reads Green, which allows full risk per grade. An A+ pop, our judgment that the setup is very clean: a gap through the pivot after the index's own low, on heavy volume.",
+   "simple": "An A+ pop in a Green market can risk up to 1.5%, because the cleanest setups earn the most. Two percent is the ceiling.",
    "deeper": {
     "trap": "Trap: reading 1.5% as the number to use. The risk is a band by grade, and under 1% is normal. The share count is the smaller of the risk-based size and the position cap."
    },
@@ -3797,7 +3837,7 @@
      "fixed at the cold check"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q65",
@@ -3805,7 +3845,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "wp.base_tight",
-   "q": "The day before a possible pop. Is this a Wedge Pop base to watch?",
+   "q": "The chart ends the day before a possible pop. Judge the last bars: is this a base to watch?",
    "choices": [
     "Watch it; the bars are tightening",
     "Skip it; the base looks loose",
@@ -3813,7 +3853,7 @@
     "Buy it now, ahead of the pop"
    ],
    "answer": "Watch it; the bars are tightening",
-   "why": "Watch it; the bars are tightening. This base ran two weeks of shrinking bars under both averages, a contraction of 0.44, the tightest of our ten examples. The card's line is under 0.85. The next day it popped above the pivot and both averages.",
+   "why": "Watch it; the bars are tightening. This base ran two weeks of small bars, at and under the averages, the coil before a pop. Tight bars mean selling pressure has eased, and they let the stop sit close. The next day it popped above the pivot and both averages. A watch is not a buy: we buy only as it trades through the pivot.",
    "lesson_line": "Small bars under the averages are the coil. The pop is the release.",
    "facts": [
     "c06",
@@ -3823,8 +3863,8 @@
     "c12"
    ],
    "wrong": {
-    "Skip it; the base looks loose": "The ranges shrank to 0.44 times the 10 before, the tightest of our ten examples. That is not loose.",
-    "Skip it; it sits above the averages": "This base sat under both averages for two weeks, which is where a pop comes from.",
+    "Skip it; the base looks loose": "The last two weeks' bars are far smaller than the sell-off bars before them. That is not loose.",
+    "Skip it; it sits above the averages": "This base sat at and under the averages for two weeks, which is where a pop comes from.",
     "Buy it now, ahead of the pop": "Buying inside the wedge before the pop is a named mistake. We buy as it trades through the pivot."
    },
    "house": true,
@@ -3834,9 +3874,9 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Watch it, because the bars shrink into the right edge under both averages, which is the coil before a pop.",
+   "simple": "Watch it, because the last two weeks' bars are much smaller than the sell-off bars before them, which is the coil before a pop.",
    "deeper": {
-    "example": "The tight test on our card: the last 5 sessions' average range under 0.85 times the 10 before them. This base measured 0.44, so the bars shrank hard into the pivot. Smaller is tighter. A watch is not a buy: the buy comes only as it trades through the pivot."
+    "example": "The tight look: the last two weeks' bars are clearly smaller than the sell-off bars before them. A watch is not a buy: the buy comes only as it trades through the pivot."
    },
    "tier": "expert",
    "risk": {
@@ -3845,7 +3885,7 @@
      "rests on the proposed card's tight test"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q66",
@@ -3853,15 +3893,15 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "wp.base_tight",
-   "q": "The day before a possible pop. Is this a Wedge Pop base to watch?",
+   "q": "The chart ends the day before a possible pop. Judge the last bars: is this a base to watch?",
    "choices": [
     "Skip it; the bars are not tight",
-    "Watch it; it sits under its averages",
+    "Watch it; it sits near its averages",
     "Watch it; wide bars show strength",
     "Buy it now, ahead of the pop"
    ],
    "answer": "Skip it; the bars are not tight",
-   "why": "Skip it. The last 5 sessions' ranges were 1.11 times the 10 before them, and the card wants under 0.85 times. A wide, loose rebound through the averages is a remount, not a Wedge Pop.",
+   "why": "Skip it. The recent bars were no smaller than the ones before them, so nothing tightened. A wide, loose rebound through the averages is a remount, not a Wedge Pop, because sellers were never tested by a quiet rest first.",
    "lesson_line": "A rebound with big bars is not a coil. No tightening, no pop.",
    "facts": [
     "c06",
@@ -3871,9 +3911,9 @@
     "c32"
    ],
    "wrong": {
-    "Watch it; it sits under its averages": "Being under the averages is only part of it. The base must also tighten, and the card wants under 0.85 times.",
     "Watch it; wide bars show strength": "Wide bars are a loose rebound, not a coil. A rebound like this is a remount, not a Wedge Pop.",
-    "Buy it now, ahead of the pop": "Buying inside the base before the pop is a named mistake. We buy as it trades through the pivot."
+    "Buy it now, ahead of the pop": "Buying inside the base before the pop is a named mistake. We buy as it trades through the pivot.",
+    "Watch it; it sits near its averages": "Being near the averages is only part of it. The base must also tighten."
    },
    "house": true,
    "chart": {
@@ -3884,7 +3924,7 @@
    },
    "simple": "Skip it, because the recent bars were not smaller than the earlier ones, so this is a loose rebound, not a coil.",
    "deeper": {
-    "counter": "A place under the averages is only one of the tests. The base must also tighten, with ranges shrinking. A rebound on wide bars through the averages is a remount, a separate setup that needs no tight base. In our example it reached 2.68R at best and was stopped."
+    "counter": "Sitting near the averages is only one of the tests. The base must also tighten. A rebound on wide bars through the averages is a remount, a separate setup that needs no tight base. In the example here it reached 2.68R at best and was stopped."
    },
    "tier": "expert",
    "risk": {
@@ -3893,7 +3933,7 @@
      "rests on the proposed card's tight test"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q67",
@@ -3910,7 +3950,7 @@
     "Place it after the meeting ends"
    ],
    "answer": "A real stop order with the broker",
-   "why": "A real stop order with the broker. Every position has one, not a stop kept in your head. The order goes in when you buy, so the meeting leaves nothing unprotected. The stop sits a few cents under 48.80 and only moves up.",
+   "why": "A real stop order with the broker. Every position has one, not a stop kept in your head, because an order sells for you while you cannot watch. An alert or a promise cannot. The order goes in when you buy, so the meeting leaves nothing unprotected. The stop sits a few cents under 48.80 and only moves up.",
    "lesson_line": "No stop order, no position. The stop lives with the broker.",
    "facts": [
     "h18",
@@ -3930,7 +3970,7 @@
      "rests on the owner's rulebook D41"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q68",
@@ -3940,14 +3980,14 @@
    "criterion": "wp.stop_broker",
    "q": "Weak first days after the pop are no reason to lower the stop.",
    "answer": "True",
-   "why": "True. The stop is a real order with the broker that only moves up, never down, when the first days are weak. Weak first days are exactly what the stop is there for.",
+   "why": "True. The stop is a real order that only moves up, never down. Lowering it when the first days are weak turns a planned small loss into a larger unplanned one. Weak first days are exactly what the stop is there for.",
    "lesson_line": "A stop moves up or stays. A weak start never moves it down.",
    "facts": [
     "c41",
     "h02"
    ],
    "house": true,
-   "simple": "True, because a weak start is exactly why the stop exists, and it only ever moves up.",
+   "simple": "True, because a weak start is exactly why the stop exists, and lowering it turns a small planned loss into a big one.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -3955,7 +3995,7 @@
      "the stop rule is the owner's rulebook (A4, D41)"
     ]
    },
-   "batch": "wave2"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q69",
@@ -3963,9 +4003,9 @@
    "rung": 3,
    "format": "tf",
    "criterion": "wp.above_200",
-   "q": "A Wedge Pop long on a stock needs the pop day to close above the 200-day simple moving average.",
+   "q": "We buy a Wedge Pop long on a stock only when it trades above its 200-day simple moving average.",
    "answer": "True",
-   "why": "True. For a stock, we take no longs below the 200-day simple moving average. The one exception is indexes and ETFs built to magnify an index's moves, on a reversal extension or a parabolic long. About half of all pops come under it and are not ours.",
+   "why": "True. For a stock, we take no longs below the 200-day simple moving average. That line marks the long-term trend, and under it a pop is often a bounce inside a downtrend. The one narrow exception: indexes and index-magnifying ETFs, at a reversal extension or on a parabolic long. A reversal extension is a sharp capitulation low. About half of all pops come under it and are not ours.",
    "lesson_line": "Above the 200-day or it is not our pop, however clean the base.",
    "facts": [
     "c27",
@@ -3973,7 +4013,7 @@
     "r54"
    ],
    "house": true,
-   "simple": "True, because our hard rule bars stock longs below the 200-day line.",
+   "simple": "True, because the 200-day marks the long-term trend, and our hard rule bars stock longs below it.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -3981,7 +4021,7 @@
      "the 200-day rule is the owner's settled rulebook line (B26)"
     ]
    },
-   "batch": "rulings"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q70",
@@ -3989,27 +4029,27 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "wp.inv_index_falling",
-   "q": "Our card checks the index before a Wedge Pop buy. Which index reading fails that check?",
+   "q": "A trader checks the index before a Wedge Pop buy. Which reading says it is still falling, so the pop can fail?",
    "choices": [
-    "Falling EMAs and a new 20-session low",
+    "Lower lows with the averages falling",
     "The index closing under its 200-day",
-    "Rising EMAs off a fresh 20-session low",
-    "One down day on volume above average"
+    "Higher lows with the averages rising",
+    "One down day on above-average volume"
    ],
-   "answer": "Falling EMAs and a new 20-session low",
-   "why": "Falling EMAs and a new 20-session low. Our card compares the index's short averages with 5 sessions ago. It also looks for a new 20-session low in the last 5 sessions. Both together mean the index is still making lower lows with its averages falling.",
-   "lesson_line": "Before the buy, check the index: falling short averages plus a fresh 20-session low means it is still falling.",
+   "answer": "Lower lows with the averages falling",
+   "why": "Lower lows with the averages falling. A pop in an index that is still making lower lows swims against the tide. Kell avoids long swings until the index capitulates or gives a buy signal. Higher lows with rising averages pass the check, and one down day is only noise.",
+   "lesson_line": "Before the buy, check the index: still making lower lows with falling averages means it is still falling.",
    "facts": [
     "c23",
-    "c46"
+    "w05"
    ],
    "wrong": {
-    "The index closing under its 200-day": "The card's index test does not use the 200-day. It reads the short averages and a new 20-session low.",
-    "Rising EMAs off a fresh 20-session low": "Rising averages pass the check. The card flags the index only when its averages fall and a new low prints.",
-    "One down day on volume above average": "One heavy down day is not the test. The card compares the averages with 5 sessions ago and looks for a 20-session low."
+    "The index closing under its 200-day": "A close under the 200-day is a long-term signal. This check asks whether the index is still making lower lows.",
+    "Higher lows with the averages rising": "Higher lows with rising averages is an index turning up. That passes the check.",
+    "One down day on above-average volume": "One down day is noise. The check is a run of lower lows with the averages falling."
    },
    "house": true,
-   "simple": "Our card calls the index still falling when its short averages fell over 5 sessions and it hit a new 20-session low in that span.",
+   "simple": "Lower lows with falling averages mean the index is still falling, and a pop against that tide is more likely to fail.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -4018,7 +4058,7 @@
      "the card lists a falling index both as a no-buy invalidation and as a B- cue, so this item keys only the test, never the outcome"
     ]
    },
-   "batch": "polish"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q98",
@@ -4054,6 +4094,45 @@
    "house": true,
    "tier": "core",
    "batch": "cover"
+  },
+  {
+   "skill": "setup.wedge_pop",
+   "tier": "extended",
+   "batch": "owner-review-7-2026-11-16",
+   "key": "q99",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "wp.market_reading",
+   "q": "Six clean Wedge Pops sit at their pivots. How many do we buy first?",
+   "story": "The app's market filter has just turned Green after a market correction. Green allows full risk per grade.",
+   "choices": [
+    "A few, then more as they work",
+    "All six at full size at once",
+    "All six, each at half size",
+    "None, wait a full month first"
+   ],
+   "answer": "A few, then more as they work",
+   "why": "A few first, and more only as they work. A turn to Green can still be a false start: Kell's first two QQQ pops failed with no rise in buying volume. Buying all six at once puts every stop at risk together if the turn fails. A few that work show the turn is real, and then we add positions, never shares to one trade.",
+   "lesson_line": "After a correction, start with a few positions. Add more as the first ones work.",
+   "facts": [
+    "n02",
+    "k12",
+    "w05",
+    "h30",
+    "h26"
+   ],
+   "wrong": {
+    "All six at full size at once": "If the turn fails, six stops are hit together. We start with a few and add as they work.",
+    "None, wait a full month first": "Green says we may trade. Waiting a month throws away the early leaders. We start small instead.",
+    "All six, each at half size": "Half size on all six still puts six stops in play at once. The rule counts positions: start with a few."
+   },
+   "simple": "Start with a few, because a turn can fail, and a few that work show it is real before we add more.",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "the rulebook's F68 and Kell's own QQQ example"
+    ]
+   }
   }
  ],
  "conflicts": [
@@ -4080,25 +4159,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "agrees with D-013; keep/edit judged correct"
+   "fixed": true,
+   "notes": "The deeper line said 'we start breakeven at 2R at the earliest', which contradicts 'or at the first sell' (B19 with D-013, 'rulings in our words'): a first sell is a judgment and need not wait for 2R. The simple line repeated 'starts at 2R'. Both now state the window as ruled: 2R to 5R, or at the first sell."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "RCL asof 2009-07-14. Pivot 12.95 (07-09 high), open 13.18 over both averages, 1.8% over the pivot so inside the 4% line. Choices and wrong text re-keyed to 12.95 correctly; answer unchanged and true. Deeper already carries the RCL numbers."
+   "notes": "Cold answer: buy the open at market. RCL pivot 12.95, open 13.18 is 1.8% over it, inside the 4% line (C28, c11); matches E57/D-003 and the D-022 reading (a flush entry is only for gaps past 4%). Wrong choices fail on the rulebook (no adding, market orders). Why gives the reason; grade defined as our judgment."
   },
   "q31": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided crossback before the key. 14 sessions is inside the 20-session window of c29, every close held the 20 EMA, first dip: unambiguous; remount and pop each have a clear refuting line. Quotes verified. Note q13 and q49 (not checked) state the Crossback definition in their stems, so q31 is recall plus application, not discovery."
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q32": {
    "status": "cut",
@@ -4109,14 +4188,14 @@
   "q35": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pass, thin but sound: 23.1% vs 46.5% are the 3R rates in d27 (first figure of each pair). A pop day closing under the pivot is barely a pop by c09, so the question is easy; accepted at rung 5."
+   "fixed": true,
+   "notes": "Undefined labels ('our scan', 'our examples') and a 24-word sentence."
   },
   "q36": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q37": {
    "status": "cut",
@@ -4128,13 +4207,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "Cold answer: weaker, sellers overhead. The story names the unfilled gap down and the falling 50-day just over the pivot; the why gives the reason (holders who bought higher sell into the pop) and cites Kell's TSLA rejection (w02). Treated as a cue to weigh, not a fixed rule (E50). No second defensible choice."
   },
   "q45": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "COIN buy day 2024-08-23 (failure 2): entry 209.81 = pivot 209.80 + 0.01, stop 199.95 = low 200.00 - 0.05, 4.70% wide; day 1 low 202.68 holds, day 2 low 194.10 takes it, so 'Day 2 takes the stop' is true. Story/why fine ('near the high': close 211.40, high 211.92). Fix: deeper still said 'closed at the high', now 'near the high' so it agrees with the story."
+   "notes": "Undefined label: 'our table'."
   },
   "q49": {
    "status": "cut",
@@ -4146,13 +4225,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "r03 and p04 (two publishers) support False; h26 line keeps our market reading. D-018 dependency recorded. Pass."
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q55": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q57": {
    "status": "cut",
@@ -4164,104 +4243,103 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (c35, Kell's Wedge Drop; y01 verified on the archived cycle page). Facts do not cover everything stated: wrong notes use the crossback (c29) and shakeout (c44) definitions and the deeper trap says we sell a big part into an Exhaustion Extension (c38). Added c29, c44, c38."
+   "notes": "Second defensible answer: on the real META chart (closes above rising averages for weeks, a stall, then a close down through both) 'An EMA Crossback that failed' fits, and its wrong note ('a pullback that holds') conceded that. The choice is now 'An EMA Crossback to buy', which a close down through both averages is not. Story now describes the stall near rising averages (checked against the bars). 'Same tight coil' dropped (META's recent ranges were not contracting) and the stray Exhaustion Extension sentence, stated flatly as 'we sell', removed."
   },
   "q64": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "E49 and A1 (h33/h34): A+ is 1% to 1.5%, 1.5% is the most any grade uses, 2% the ceiling. Pass.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q16": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Roles, find label, slot format and ladder checked; ok."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q17": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "calc recomputed, answer matches, wrong choices distinct and real, steps correct."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q18": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "STLD buy day 2026-03-31 (row 10): buy 175.52 = pivot 175.51 + 0.01, stop 171.31 = low 171.36 - 0.05; trade matches the question. 3R 188.15: bars 04-08 high 187.84 (under), 04-09 high 190.32 = day 6 (Good Friday closed), matches 'six sessions' and forward 20. Arithmetic key unchanged and right."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "Untouched and fine: 42.00 vs 40.00 pivot is 5%, past the 4% chase line (C28); why gives the reason (chasing costs size); no label or scanner number."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with rulings"
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "CROX buy day 2007-04-04 (row 1): buy 24.58, stop 23.68 (low 23.73 - 0.05), matches the question. (24.58-23.68)/24.58 = 3.66%. Key unchanged. Used twice (q25, q38)."
+   "fixed": true,
+   "notes": "Undefined label: 'the widest stop of our ten'."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "TGT buy day 2021-03-19 (row 6): buy 181.80 = pivot 181.79 + 0.01, stop 179.58 (low 179.63 - 0.05), same as the question. Shares key unchanged. TGT now used twice (q65 day before, q26 buy day), within the limit."
+   "fixed": true,
+   "notes": "House-rule sweep: 'every stop-out costs the same planned amount' is true only at one risk percent; our risk varies by grade (A1, E49, taught in q64). Reworded to 'only the planned amount'."
   },
   "q30": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1% of 1,500,000 = 15,000 (D42/h19). Wrong notes are true. Pass."
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q38": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "CROX buy day 2007-04-04: entry 24.58, stop 23.68 match the dossier row and the text; (24.58-23.68)/24.58 = 3.66%. Replaced the invented 50.00/48.15/3.7%. Answer (size, not the stop) true; 'widest stop of our ten' is in the dossier row. Second use of CROX."
+   "fixed": true,
+   "notes": "Story said 'Bought on the pop' while the question asks what changes (the size cannot change after the buy) and never said why the stop is wide. Now: about to buy, stop 3.66% away, and the preferred 1 to 3% (D-005) is stated so 'wider than we usually like' is defined. 'our ten' was an undefined label."
   },
   "q43": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "breakeven between 2R and 5R at the first sell: agrees"
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q44": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Roles, find label, slot format and ladder checked; ok."
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "PLTR buy day 2025-12-10 (failure 3): open 184.95 over the pivot, stop 182.70 = low 182.75 - 0.05, matches the text; next session (12-11) low 180.21 takes it, forward 20 plays it. 29% decline, 11-day base, 1.86x all from the dossier row. Answer true."
+   "fixed": true,
+   "notes": "Undefined label: 'our failed examples'."
   },
   "q47": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with D-013; keep/edit judged correct"
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q48": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q51": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "NET buy day 2020-09-18 (row 5): entry 36.50 (the open), stop 35.59 (low 35.64 - 0.05); 3R = 36.50 + 3 x 0.91 = 39.23. Bars: day 1 high 38.97 under 3R, day 2 (09-22) high 39.97 over it, matching '3R on day 2' (v03 quotes row 5). Answer true; why consistent with day 2. Second use of NET (q29 + q51)."
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q53": {
    "status": "cut",
@@ -4273,79 +4351,79 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "SLB pop 2022-01-03 (row 7); asof 2021-12-31 the day before. Bars: pivot 30.24 (12-28 high), 01-03 bar from 29.98 to 31.97, close 31.72 = 4.9% over the pivot. Undated '50R at best' dropped. Answer true."
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q65": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pass. TGT asof 2021-03-18 is the day before the 2021-03-19 pop (d01); 0.44 and 0.85 are d02/c06. q65/q66 are guessable as a pair (one Watch, one Skip); accepted, no third chart."
+   "fixed": true,
+   "notes": "Checked against the TGT bars: the last close (179.61) is just above the 10 EMA and under the 20 EMA, and the last bar (4.47 range) is wider than its neighbours, so 'shrinking into the right edge' and 'under both averages' were not exact. Now 'at and under the averages' and 'smaller than the sell-off bars before them' (true: 21, 8, 8 range then 1.8 to 4.5). 'our examples' dropped."
   },
   "q66": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pass. Checked the dossier measure: the ratio is the 5 sessions before t over the 10 before those, so the 2023-11-13 chart end matches d13 for pop day 2023-11-14; the owner flag on this can be closed."
+   "fixed": true,
+   "notes": "Checked against the TSLA bars: the last bar (2023-11-13) closes 223.71, ABOVE both the 9/10 and 20 EMA (about 217 and 221), so the choice 'Watch it; it sits under its averages' was false on the picture and its wrong note conceded the stock is under them. Replaced with 'it sits near its averages' (true), same lesson. 'our example' made plain."
   },
   "q33": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "AMZN near-miss 2019-01-04; asof 2019-01-03 the day before. Bars: 01-04 close 78.77 vs 200-day 85.00 = 7.3% under; 36% decline, 6-day base, 1.1x from the dossier; 250 window shows the 200 SMA. Catch: 'it kept rising for weeks' is not what the bars show (it chopped 80-84 for about seven weeks before breaking out, 75 to 90.7 over the 60-bar replay). Reworded to 'went higher without us', true over the replay."
+   "notes": "The exception sentence said 'indexes and ETFs that magnify them, at a capitulation low or in a parabolic run'. His ruling (D-009, r54) is indexes and leveraged ETFs (the importer bans the word, so 'index-magnifying ETFs'), on a reversal extension or a parabolic long. Reworded to the ruled wording with the term explained."
   },
   "q34": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "edit verified against rulings, quotes word for word"
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q39": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep agrees with ruling"
+   "notes": "Cold answer: the gap up on 2.5 times. Volume raises the grade and is not a requirement (D-006); the why says so and uses STLD (1.2x, still worked) as the counter. 1.2x and 2.5x are in the question, not applied as cut-offs. A grade is explained. No second defensible choice."
   },
   "q40": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right by c24/c37 and r03. Problems: the choice 'Pop B, a fourth base is tighter' invents a claim not in the story and its wrong note ('Tighter does not matter here') contradicts the setup, where tightening ranges is core. Grade comparison should be anchored to the card (E50: grading is discretionary). Replaced the silly choice and anchored the stem."
+   "notes": "The story's last line, 'We grade a pop by how clean it looks', made 'They are about equally strong' defensible (nothing says either pop is less clean) and has nothing to do with the key, which rests on cycle position. Replaced with 'Two clean pops look alike.' Added Kell's turning-point facts (r03, p04) as support for early beating late."
   },
   "q58": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q59": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (F65, D46, B26; a long in Red waits, a short above the 200-day is out). Tell: 'mostly' is the only hedge among the four choices, copied from the rule. Reworded the key to remove the hedge; the why keeps the rulebook's 'mostly cash'."
+   "notes": "Rule 19: the story named the reading but not what the colors are or that they set how much the account trades (B18, F65)."
   },
   "q60": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "DECK near-miss 2024-05-14 (wp.prior_decline); asof 05-13. Bars recount: exactly 7 of the 15 closes up to 05-13 under the 20 EMA (141.78 vs 141.32 on the last bar); 12-day base and 18% dip are the dossier's words. Answer true, wrong reasons true (card: minimum 3 base sessions, no maximum, no depth gate). Fixes: (1) the old deeper still said it 'never fell under the averages ... five weeks above' which contradicts the new story, rewritten; (2) lesson_line still about a breakout above the averages, rewritten; (3) story said 'the day before a pop' which gives the answer a hint, now 'a possible pop"
+   "fixed": false,
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q01": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches y01/p01/c02. Key is not the longest. Near-miss 'cross with no base' overlaps q05 slightly (c17) but q01 is the definition; acceptable."
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep agrees with ruling"
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q03": {
    "status": "cut",
@@ -4354,41 +4432,40 @@
    "notes": "cut in fills: see the resolver's notes"
   },
   "q04": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "explicitly Kell's pair; why now says we use the 9 and 20 EMA"
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q05": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False from k08/c17; deeper from d14. Pass."
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "DHI pop 2023-11-01 (winners_list); asof 2023-10-31 is the day before. Bars: base high 104.78 = 10-31 high, buy 104.79 per dossier row 8; close 104.40 over 9 EMA 102.58 and 20 EMA 103.88. Pivot answer true; no numbers in text; ticker hidden."
+   "notes": "Cold answer: the base's highest high. Story and DHI chart (ends 2023-10-31, tight days under the averages) show the base; the why gives the reason (resistance, a standoff, buyers taking the sellers' shares); no second defensible choice; no label or scanner number tested."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep agrees with ruling"
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "A5 (h30) beats Kell's adds (a01); named as his method. Pass."
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "k01/w04 support key; wrong notes cited (c35, k11). D-077 dependency recorded. Pass.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q10": {
    "status": "cut",
@@ -4400,79 +4477,79 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "RCL pop 2009-07-15 (row 2); asof 07-14 is the day before. Bars: base high 12.95 (07-09), open 13.18 over 9 EMA 12.77 and 20 EMA 13.11; 13.18 is 1.8% over the pivot, under the 4% line (dossier: 3.9% gap vs prior close, still under 4%). Invented 3% removed. Answer true; RCL named only in why. Used twice (q12, q28)."
+   "fixed": true,
+   "notes": "(1) The story gave no gap size, so 'Strength, but too late to buy now' was defensible for a gap past 4% and its wrong note assumed a size the question never gave. (2) 'pops that opened with a gap did better' overstated d28 (a gap open of 1% or more). (3) 'our scan' was never said to mean the scan of past pops. Story now gives RCL's numbers (12.95 pivot, 13.18 open, 1.8% over)."
   },
   "q13": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "FNV buy day 2016-02-03 (row 3): buy 45.53, stop 44.77 (low 44.82 - 0.05). 3R 47.81: pop-day high 47.63 under it, next-day high 49.52 over it, so 'up 3R the next session' is true and forward 30 plays it. New facts v01/v02 quote the dossier row word for word. Answer (day 3 at the earliest) true."
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with rulings"
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "agrees with D-013; keep/edit judged correct"
+   "fixed": true,
+   "notes": "Undefined labels: 'our scan' and 'our ten examples' (the research scan and the ten studied pops) are never explained to the member."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "MU pop 2022-03-29 (failure 1); asof 03-28 is the day before. Pivot 81.20 and 1.8x the 50-day volume are in the dossier; bars: 03-29 open 82.10 over both EMAs, report that evening, 03-30 low 78.60 through the 79.21 stop; forward 20 plays it. Answer (no, a report is too close) true."
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q29": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "NET pop 2020-09-18 (row 5); asof 09-17 the day before. Bars: open 36.50 over the 36.33 pivot, day low 35.64, stop 35.59 a few cents under the low. Answer true. No numbers in the story. The why's aside about RCL's low above the pivot is a general contrast and stays true."
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Decided A+ only before the key. F65 and c28 verified: Orange takes only A+ setups; the A10 guide wording is carried by 'The reading is a guide'. Half-size and full-size both contradict F65; 'bans all buys' is refuted. Key is not the longest and has no lone hedge. No cross-leak with q59/q64."
+   "fixed": true,
+   "notes": "Rule 19: the story named the market filter's color but not what the colors are or that the color sets how much the account trades (B18, F65). Added, without giving the answer away."
   },
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "agrees with rulings"
+   "fixed": true,
+   "notes": "House-rule sweep: 'Our rule is a big part, not all' calls C34 a rule; his rulebook says a judgment call (C34, 'depends'). Reworded."
   },
   "q56": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Checked cold: key derived from the cited quotes first, matches; no second defensible answer, tell, ungrounded number or rulebook conflict found."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right under the card (c25 is an A+ cue). Problems: the why states the cue as fact though the owner's E50 says grading is discretionary with no fixed checklist taught as ours, and wp.catalyst is only 'proposed' on the card; stem should say 'on our card' and the why should say grading is a judgment. Key is also the longest choice and repeats the stem's 'real'. Reworded."
+   "fixed": false,
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "w1": {
    "status": "pass",
@@ -4494,33 +4571,39 @@
   },
   "q67": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q68": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave2; awaiting cold re-read"
+   "notes": "Checked cold against the rulebook, the rulings and the dossier: answer right, wrong choices clearly wrong, label explained, a real reason in why and simple, our words, no scanner cutoff tested, claims match cited facts."
   },
   "q69": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "agrees with rulings"
+   "fixed": true,
+   "notes": "The statement tested the pop DAY'S CLOSE, which is known only at the close (c10) while we buy intraday as it trades through the pivot; the rule is B26/D-009: no stock longs below the 200-day. Restated as the rule. The exception also said 'ETFs that magnify them, at a capitulation low or in a parabolic run'; now the ruled wording (indexes and ETFs that magnify an index, reversal extension or parabolic long; the word 'leveraged' is a banned voice word in the importer)."
   },
   "q70": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "agrees with rulings"
+   "fixed": true,
+   "notes": "House-rule sweep: 'Before a Wedge Pop buy we check the index' presents the card's index invalidation (c23, proposed) as our rule; the rulebook's rule is the app's market filter (B18, F65). Now a trader's habit, not our rule."
   },
   "q98": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
+  },
+  "q99": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "wp.base_sessions: 2 base sessions (Tue, Wed) after a Monday low fails the 3-session floor (c05, c02) while the gap tempts an A+ read; no ruling touches it; not a duplicate of q32 (cross alone). Fixed: \"their high\" in the story was ambiguous (averages or sessions); wrong-answer text overclaimed (\"closing above both grades the pop\", \"RCL 4-day base was the shortest the rule allows\", which clashes with a 3-session floor); the \"Kell\" credit is TraderLion per fact k05; added c11, c17, k02 so every claim is cited."
+   "notes": "The wrong choices were all extremes (six, none, one) so the middle answer stood out, and 'One, and no more until it hits 5R' brought in a 5R number from nowhere (it reads like B19/E51). Replaced with 'All six, each at half size', a plausible mistake: F68 counts positions, not size."
   }
  }
 }

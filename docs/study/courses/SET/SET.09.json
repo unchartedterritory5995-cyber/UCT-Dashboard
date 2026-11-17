@@ -1162,6 +1162,42 @@
    "source": "h2",
    "quote": "Below the 200-day is a hard no for stocks. The one exception: indexes and leveraged ETFs may be bought under their 200-day on a reversal extension or a parabolic long.",
    "claim": "D-009: below the 200-day is a hard no for stocks; only indexes and leveraged ETFs have an exception."
+  },
+  {
+   "id": "n01",
+   "source": "s17",
+   "quote": "As the stock comes up to test the old highs, the stock will incur selling pressure",
+   "claim": "Zanger: as the stock comes back up to the old highs, it meets selling pressure."
+  },
+  {
+   "id": "n02",
+   "source": "s9",
+   "quote": "Most successful handles also feature a shakeout, where prior lows in the handle are undercut.",
+   "claim": "IBD: most successful handles have a shakeout that undercuts earlier handle lows."
+  },
+  {
+   "id": "n03",
+   "source": "s9",
+   "quote": "This serves to scare out weak hands, i.e. shareholders who lack conviction",
+   "claim": "IBD: the handle's shakeout scares out weak hands, shareholders who lack conviction."
+  },
+  {
+   "id": "n04",
+   "source": "h1",
+   "quote": "A stop cannot catch an overnight gap: a tight stop never licenses a monster position.",
+   "claim": "A stop cannot catch an overnight gap, so a tight stop never licenses a huge position."
+  },
+  {
+   "id": "n05",
+   "source": "h1",
+   "quote": "Breakeven rule: the point after which a trade must never again become a loser",
+   "claim": "The breakeven rule: the point after which a trade must never again become a loser."
+  },
+  {
+   "id": "n06",
+   "source": "h1",
+   "quote": "You never pick a size and back-fit a stop inside the noise.",
+   "claim": "Stop first: never pick a size and then fit a stop inside the noise."
   }
  ],
  "walkthroughs": [
@@ -1238,7 +1274,7 @@
    "rung": 1,
    "format": "scenario",
    "criterion": "ch.shape_u",
-   "q": "In one line, what is a cup with handle?",
+   "q": "In one line, what is a cup with handle, as this chart shows?",
    "choices": [
     "A tight box under a flat ceiling",
     "A rounded U, then a dip near the top",
@@ -1251,16 +1287,17 @@
     "A pause with no rounded decline": "That is a high tight flag, which pauses with no rounded decline. A cup rounds down first, then dips into a handle."
    },
    "answer": "A rounded U, then a dip near the top",
-   "why": "A rounded U, then a dip near the top. IBD: cup-with-handle patterns are shaped like the silhouette of a tea cup viewed from the side. Zanger: the cup is the rest after a powerful advance. Our card adds one handle at the rim after the rounded decline. It is not a flat box, a run of shrinking pullbacks, or a pause with no rounded decline.",
-   "lesson_line": "A cup is a leader's rounded rest, and the handle is the last quiet dip before the breakout.",
+   "why": "A rounded U, then a dip near the top. The cup is the rest after a powerful advance. The handle is the last small dip that scares out weak holders before the break. IBD: cup-with-handle patterns are shaped like the silhouette of a tea cup viewed from the side.",
+   "lesson_line": "A cup is a leader's rounded rest, and the handle is the last small dip before the breakout.",
    "facts": [
     "i01",
     "z01",
+    "n03",
     "c28",
     "c29",
     "c30"
    ],
-   "simple": "A cup with handle is a rounded U after a strong run, then one small dip near the top.",
+   "simple": "A cup with handle is a rounded U after a strong run, then one small dip that shakes out weak holders.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1268,7 +1305,7 @@
      "+1 fixed before (variety rewrite)"
     ]
    },
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "story": "The day before the trigger.",
    "chart": {
     "sym": "GWW",
@@ -1283,20 +1320,20 @@
    "rung": 1,
    "format": "scenario",
    "criterion": "ch.pivot",
-   "q": "On our card, which level does price have to trade through to trigger the buy?",
+   "q": "On this chart, which level must price trade through to trigger our buy?",
    "choices": [
-    "The cup's lowest low",
+    "The cup's lowest low in the base",
     "The highest price in the handle",
-    "The low of the handle's dip",
+    "The low of the handle's last dip",
     "The old high before the cup"
    ],
    "wrong": {
-    "The cup's lowest low": "That is the bottom of the cup, the base's floor. The buy is at the top.",
-    "The low of the handle's dip": "The handle low is the floor of the last dip, the outer limit for the stop.",
-    "The old high before the cup": "Zanger buys as it emerges into new highs at the top of the handle, not at the old high point set some 8 to 12 weeks ago."
+    "The old high before the cup": "Zanger buys as it emerges into new highs at the top of the handle, not at the old high set weeks before.",
+    "The cup's lowest low in the base": "That is the bottom of the cup, the base's floor. The buy is at the top.",
+    "The low of the handle's last dip": "The handle low is the floor of the last dip. The buy is at the top of the handle, not the bottom."
    },
    "answer": "The highest price in the handle",
-   "why": "The highest price in the handle. That level is the pivot. We buy as price trades above it in regular hours, at market. IBD adds 10 cents to it, but with a market order the 10 cents does not matter. Zanger buys at the top of the handle, not at the old high point.",
+   "why": "The highest price in the handle is the pivot. We buy as price trades through it in regular hours, at market. That trade-through is the breakout itself. Before it the stock is still resting and may keep falling, so an earlier buy is a guess. Zanger buys at the top of the handle, not at the old high set weeks before.",
    "lesson_line": "Mark the handle high before the open. That is the pivot.",
    "facts": [
     "c01",
@@ -1306,7 +1343,7 @@
     "c03"
    ],
    "house": true,
-   "simple": "We buy when price trades through the highest price in the handle. That level is the pivot.",
+   "simple": "Price must trade through the highest price in the handle. Before that the stock is still resting, so an earlier buy is a guess.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1315,7 +1352,7 @@
      "+1 fixed before (variety rewrite)"
     ]
    },
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "story": "The day before the trigger.",
    "chart": {
     "sym": "EFX",
@@ -1332,7 +1369,7 @@
    "criterion": "ch.stop",
    "q": "On a cup breakout, the stop sits a few cents under the cup's lowest low.",
    "answer": "False",
-   "why": "False. The stop sits a few cents under the buy day's low or the prior day's low, not exactly on it. Stop first, then the size comes from the stop. The cup's lowest low is far wider than that, and if the honest stop does not fit the risk, we skip the trade.",
+   "why": "False. The stop sits a few cents under the buy day's low or the prior day's low. Stop first, and the size comes from the stop. A stop at the cup's lowest low is far from the buy. The same risk then buys very few shares, or the loss grows. If the honest stop does not fit the risk, we skip the trade.",
    "lesson_line": "Stop first: a few cents under the day's low.",
    "facts": [
     "c15",
@@ -1340,7 +1377,7 @@
     "h01"
    ],
    "house": true,
-   "simple": "False. The stop goes a few cents under the day's low, not the cup's low, which is far too wide.",
+   "simple": "False. The stop goes under the day's low, because one at the cup's low means few shares or a big loss.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1349,7 +1386,7 @@
      "+1 fixed before (variety rewrite)"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q04",
@@ -1421,7 +1458,7 @@
    "rung": 1,
    "format": "scenario",
    "criterion": "ch.handle_position",
-   "q": "Where in the base should the handle form?",
+   "q": "Look at the handle on the chart. Where should a handle sit in the base?",
    "choices": [
     "In the upper half of the whole base",
     "Near the cup's lowest low in the base",
@@ -1430,21 +1467,20 @@
    ],
    "wrong": {
     "Near the cup's lowest low in the base": "That is the lower half of the cup, and the handle should not extend there. Handles that form too low fail more often.",
-    "Centered right on the cup's midpoint": "Half of it would sit in the lower half. The handle's midpoint has to sit above the cup's midpoint, not on it.",
+    "Centered right on the cup's midpoint": "Half of it would sit in the lower half. IBD wants the handle in the upper half of the base.",
     "Just below the 50-day average line": "A handle generally forms above the 50-day line, not under it."
    },
    "answer": "In the upper half of the whole base",
-   "why": "In the upper half of the base. IBD: a proper handle forms in the upper half of a base and drifts slightly downward along its price lows. Bulkowski says the same, and AAII says the handle should not extend into the lower half of the cup. Our card tests it with midpoints: the handle's midpoint must sit above the cup's midpoint. IBD adds that handles that form too low present added risk of failure.",
+   "why": "In the upper half of the whole base. A handle high in the base shows buyers held the stock near its highs while it rested. IBD: handles that form too low present added risk of failure during breakouts. Zanger calls a handle any lower a defective stock with higher risk for failure. Bulkowski and AAII agree.",
    "lesson_line": "The handle forms high in the base, in its upper half.",
    "facts": [
     "i14",
     "b03",
     "a01",
-    "c10",
     "i16",
-    "i17"
+    "z05"
    ],
-   "simple": "The handle forms in the upper half of the base. A handle that forms too low fails more often.",
+   "simple": "The handle sits in the upper half because buyers held the price near the highs. Low handles fail more often.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1452,7 +1488,7 @@
      "IBD, Bulkowski and AAII agree"
     ]
    },
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "story": "The day before the trigger.",
    "chart": {
     "sym": "RRC",
@@ -1467,18 +1503,18 @@
    "rung": 2,
    "format": "tf",
    "criterion": "ch.handle_volume",
-   "q": "On our card, the handle's average daily volume runs below the cup's average daily volume.",
+   "q": "Look at the volume bars in the handle. Does volume dry up there compared with the cup?",
    "answer": "True",
-   "why": "True. The handle's average daily volume is below the cup's average daily volume. IBD: volume should dry up, evidence that the weak holders are just about gone, and it should mostly ease until the breakout. Quiet trading in the handle suggests few holders are still selling. Volume that rises through the handle ends the setup before the buy.",
-   "lesson_line": "Quiet in the handle is a sign the sellers are running out.",
+   "why": "True. In a good handle volume dries up. IBD: that is evidence the weak holders are just about gone, so fewer sellers are left to hold back a breakout. On this chart the handle ran 19 days at 0.77x the cup's volume.",
+   "lesson_line": "Volume dries up in the handle. That is the sellers running out.",
    "facts": [
-    "c12",
     "i25",
     "i24",
-    "c22"
+    "d04",
+    "c12"
    ],
    "house": true,
-   "simple": "True. Handle trading is quieter than the cup's, a sign the sellers are running out.",
+   "simple": "True. Volume dries up in a good handle because the weak holders are gone, so fewer sellers are left.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1486,7 +1522,13 @@
      "IBD and the card agree"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16",
+   "chart": {
+    "sym": "MCO",
+    "asof": "2012-09-05",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q08",
@@ -1507,7 +1549,7 @@
     "At the handle low, before the breakout": "That is before the breakout. Our breakout rule waits for price to trade through the handle high."
    },
    "answer": "On a regular-hours trade over the pivot",
-   "why": "On a regular-hours trade through the pivot, at market. Our trigger is the trade through the pivot, the handle's highest price. Bulkowski waits for a close above the right cup rim, a later entry that we do not use. No new buys outside regular hours, so a premarket gap does not count. Buying at the handle low comes before the breakout.",
+   "why": "On a regular-hours trade through the pivot, at market. That trade-through is the breakout. Buying at once keeps the buy close to the pivot and the stop close to the buy. Waiting for a close means paying more with the same stop, so fewer shares. Bulkowski waits for a close above the right rim, a later entry that we do not use. No new buys outside regular hours.",
    "lesson_line": "The trigger is the trade through the handle high. Market order, regular hours.",
    "facts": [
     "c03",
@@ -1518,7 +1560,7 @@
     "z06"
    ],
    "house": true,
-   "simple": "We buy as price trades through the pivot in regular hours, with a market order, not on a close or in premarket.",
+   "simple": "We buy as price trades through the pivot in regular hours. Waiting for a close costs a higher price and fewer shares.",
    "deeper": {
     "counter": "Two published entries differ. Bulkowski buys when price closes above the right cup rim. Zanger buys as it emerges into new highs at the top of the handle, not at the old high point. We use the second kind of entry: the trade through the handle high, at market, in regular hours."
    },
@@ -1530,7 +1572,7 @@
      "+1 fixed before (variety rewrite)"
     ]
    },
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "story": "The day before the trigger. The pivot is the top of the handle.",
    "chart": {
     "sym": "WPM",
@@ -1579,17 +1621,18 @@
    "rung": 2,
    "format": "tf",
    "criterion": "ch.prior_trend",
-   "q": "IBD wants a run up of no more than 30% before the stock turns down into the cup.",
-   "answer": "False",
-   "why": "False. IBD: the pattern's basic requirements start with a run up of at least 30% before the stock turns down into a consolidation. AAII also asks for at least 30% from the last intermediate low. Our card measures the rise from the lowest low of the prior 6 months, 120 sessions, to the left-side high.",
-   "lesson_line": "No run, no cup. Measure the advance before the rest.",
+   "q": "A cup is the rest after a strong run. A dip in a stock that never ran is not a cup.",
+   "answer": "True",
+   "why": "True. Zanger: the cup is the corrective action after a powerful stock advance. A rest only means something when the stock had a strong run to rest from. IBD looks for a run of at least 30% first. With no run there is no leader to buy.",
+   "lesson_line": "No run, no cup. The rest follows a strong advance.",
    "facts": [
     "i06",
+    "z01",
     "a03",
     "c04"
    ],
    "house": true,
-   "simple": "False. IBD wants a run up of at least 30% first, not at most, so no strong run means no cup.",
+   "simple": "True. A cup is a rest after a strong run, so with no run first there is nothing to rest from.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1597,7 +1640,7 @@
      "+1 fixed before (variety rewrite)"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q11",
@@ -1645,17 +1688,17 @@
    "rung": 2,
    "format": "tf",
    "criterion": "ch.inv_close_under_50",
-   "q": "On our card, one daily close under the 50-day during the handle ends the setup.",
+   "q": "IBD says a good handle generally forms above the 50-day line.",
    "answer": "True",
-   "why": "True. A close below the 50-day during the handle ends the setup on our card: the handle holds above the 50-day with no daily close below it. IBD is looser, saying a handle should generally form above the 50-day. The one-close test is our card's line.",
-   "lesson_line": "The handle holds the 50-day on every close. One close under it and the cup is off.",
+   "why": "True. IBD: a handle should generally form above the 50-day or 10-week moving averages. A handle is a small pause near the highs. A dip that cuts down through the 50-day is a bigger break in the trend, not a pause.",
+   "lesson_line": "A handle holds above the 50-day. Falling through it is a break, not a pause.",
    "facts": [
-    "c23",
+    "i17",
     "c13",
-    "i17"
+    "c23"
    ],
    "house": true,
-   "simple": "True. On our card, one close under the 50-day during the handle ends the setup.",
+   "simple": "True. A handle is a small pause, and falling through the 50-day line is a bigger break in the trend.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1663,7 +1706,7 @@
      "+2 the one-close test is a proposed card line, listed in the lesson conflicts"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q13",
@@ -1710,14 +1753,14 @@
    "criterion": "ch.throwback",
    "q": "In Bulkowski's bull-market results, few cup breakouts come back to the breakout price.",
    "answer": "False",
-   "why": "False. In Bulkowski's bull-market results, the throwback rate is 62%: most cup breakouts come back to the breakout price. A retest is the usual case, not the rare one.",
+   "why": "False. In Bulkowski's bull-market results, the throwback rate is 62%: most cup breakouts come back to the breakout price. That is normal, so a retest is no reason to widen the stop. Widening it turns a small planned loss into a bigger one.",
    "lesson_line": "Expect the retest. Most cup breakouts come back to the breakout price.",
    "facts": [
     "c17",
     "b07"
    ],
    "house": true,
-   "simple": "False. In Bulkowski's bull-market results, 62% of cup breakouts come back to the breakout price.",
+   "simple": "False. Most cup breakouts come back to the breakout price, and that is normal, so we keep the stop where it is.",
    "deeper": {
     "counter": "A pullback to the pivot is not a failure. In Bulkowski's bull-market results, 62% of cup breakouts come back to the breakout price. Do not read the scare as a verdict. The stop decides whether the trade is over."
    },
@@ -1730,7 +1773,7 @@
      "+1 fixed before (variety rewrite)"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q15",
@@ -1783,17 +1826,19 @@
    "rung": 3,
    "format": "tf",
    "criterion": "ch.base_count",
-   "q": "On our card, a third or later base since the last real correction is graded down.",
+   "q": "A grade is our judgment of how clean a setup is, and it sets size. A third or later base usually grades lower.",
    "answer": "True",
-   "why": "True. Our card takes a first or second base since the last real correction and grades a third or later one down. IBD: it's usually best to buy a first-stage or second-stage base, and breakouts from late-stage bases will often blow up. Graded down does not mean banned.",
-   "lesson_line": "Count the bases. A late one gets a lower grade.",
+   "why": "True. IBD: breakouts from late-stage bases will often blow up, so we usually judge a late base less clean and grade it lower. The grade sets the size, so a lower grade can mean a smaller position. Graded down does not mean banned.",
+   "lesson_line": "Count the bases. A late one blows up more often, so it usually grades lower.",
    "facts": [
     "c19",
     "i31",
-    "i32"
+    "i32",
+    "h30",
+    "h34"
    ],
    "house": true,
-   "simple": "True. Our card grades a third or later base down, because late-stage breakouts often blow up.",
+   "simple": "True. Late bases often blow up, so we usually judge them less clean, and the grade sets the size.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1801,7 +1846,7 @@
      "+2 rests on a proposed card line that conflicts with the SET.07 pilot (lesson conflicts)"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q17",
@@ -1848,7 +1893,7 @@
    "criterion": "ch.trim_1",
    "q": "One R is the fill minus the stop. Where is 3R?",
    "answer": "$43.17",
-   "why": "43.17, the 3R level. One R is the fill minus the stop: 40.98 minus 40.25. Add three of those to the fill, 40.98, and you get 43.17. The first sell is a judgment, not a fixed third at 3R. Often it comes into a 3, 5 or 7 day push, or at about 5 to 10R.",
+   "why": "43.17. R is the risk per share, the fill minus the stop: 40.98 minus 40.25. We count gains in R so every trade is measured against what it risked. Add three R to the fill, 40.98, and you get 43.17. The first sell is a judgment, not a fixed third at 3R. Often it comes into a 3, 5 or 7 day push, or at about 5 to 10R.",
    "lesson_line": "Know your 3R before the open. It is a mark on the ruler, not an automatic sell.",
    "facts": [
     "r02",
@@ -1865,7 +1910,7 @@
    },
    "house": true,
    "prefix": "$",
-   "simple": "The 3R level is the fill plus three times the gap down to the stop, which is 43.17.",
+   "simple": "Add three times the gap between fill and stop to the fill, giving 43.17. R measures each gain against what the trade risked.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1875,7 +1920,7 @@
      "the stem says hard rule because the owner's practice is to wait longer"
     ]
    },
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "choices": [
     "$38.79",
     "$42.44",
@@ -2022,7 +2067,7 @@
    "format": "scenario",
    "criterion": "ch.earnings_window",
    "q": "Buy the breakout today?",
-   "story": "The handle is tight and quiet. The pivot trades through this morning. Earnings come out after tomorrow's close.",
+   "story": "The handle is tight and its volume has dried up. The pivot trades through this morning. Earnings come out after tomorrow's close.",
    "choices": [
     "Buy it; the pivot just triggered",
     "Buy half size and keep the stop",
@@ -2035,13 +2080,14 @@
     "Pass; buy at tomorrow's close instead": "Tomorrow's close is still before the report. That buy lands inside the 3 days, so the rule still says no."
    },
    "answer": "Pass; earnings are inside 3 days",
-   "why": "Skip it. No new buys in the 3 days before an earnings report, and this report comes after tomorrow's close. The trigger firing does not override the calendar, and a smaller size does not either. Waiting for tomorrow's close does not help, because that buy still lands before the report.",
+   "why": "Skip it. No new buys in the 3 days before an earnings report, and this report comes after tomorrow's close. A report can gap the stock overnight, and a stop cannot catch an overnight gap. The trigger firing does not change that, and neither does a smaller size. Waiting for tomorrow's close does not help: that buy still lands before the report.",
    "lesson_line": "No new buys in the 3 days before earnings. The calendar beats the trigger.",
    "facts": [
-    "h08"
+    "h08",
+    "n04"
    ],
    "house": true,
-   "simple": "Skip it. We take no new buys in the 3 days before an earnings report, even when the pivot triggers.",
+   "simple": "Skip it. A report can gap the stock past your stop overnight, so we take no new buys in the 3 days before one.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -2050,7 +2096,7 @@
      "+1 fixed before (variety rewrite)"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q24",
@@ -2211,22 +2257,20 @@
    ],
    "wrong": {
     "Take it; the handle is long enough": "Length is one test. Position is another, and it fails.",
-    "Take it; the right side made it back": "The right side did. Then the handle fell too far.",
-    "Wait for the handle to recover": "The handle's low of 45.00 already sits under the halfway point between 60.00 and 44.00, in the cup's lower half. AAII: the handle should not extend into the lower half, and a rally cannot undo that low."
+    "Take it; the right side made it back": "The right side did. Then the handle fell almost to the cup's low.",
+    "Wait for the handle to recover": "The handle's low of 45.00 is almost the cup's low of 44.00. A bounce later cannot undo a handle that sank this far. AAII: the handle should not extend into the lower half of the cup."
    },
    "answer": "Pass; the handle sits too low",
-   "why": "Pass. The handle's midpoint, halfway between 57.00 and 45.00, sits under the cup's midpoint, halfway between 60.00 and 44.00. A handle in that spot ends the setup before the buy. IBD: handles that form too low present added risk of failure during breakouts. AAII agrees: the handle should not extend into the lower half of the cup. The right side did climb back near the old high, but that is a separate test.",
+   "why": "Pass. The handle runs from 57.00 down to 45.00, almost back to the cup's low of 44.00. That is the lower half of the base, not a small pause near the highs. IBD: handles that form too low present added risk of failure during breakouts. AAII: the handle should not extend into the lower half of the cup.",
    "lesson_line": "Check the handle's midpoint against the cup's. Too low and I pass.",
    "facts": [
     "c10",
     "i15",
     "i16",
-    "a01",
-    "c49",
-    "c08"
+    "a01"
    ],
    "house": true,
-   "simple": "Pass. The handle's midpoint sits below the cup's midpoint, so the handle formed too low.",
+   "simple": "Pass. This handle fell almost to the cup's low, so it is no small pause, and low handles fail more often.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2234,7 +2278,7 @@
      "+2 computed key (the two midpoints)"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q28",
@@ -2244,11 +2288,12 @@
    "criterion": "ch.stop",
    "q": "Fill 56.61, stop 55.27. How far below the fill is the stop, in percent, to two decimals?",
    "answer": "2.37%",
-   "why": "2.37%. The gap between the fill and the stop is 56.61 minus 55.27, which is 1.34. Divide it by the fill: 1.34 over 56.61 is 2.37%. Our stop usually sits within about 3% of the buy, so this fits. These are GWW's numbers from 2004-09-29, where the stop was 2.4%.",
+   "why": "2.37%. The gap between the fill and the stop is 56.61 minus 55.27, which is 1.34. Divide it by the fill: 1.34 over 56.61 is 2.37%. That distance sets the size: the wider the stop, the fewer the shares for the same risk. We almost never take a loss over 3% on a position. So the stop usually sits within about 3% of the buy, and this one fits. These are GWW's numbers from 2004-09-29.",
    "lesson_line": "Measure the stop in percent of the fill. About 3% or less is our usual.",
    "facts": [
     "h04",
-    "d10"
+    "d10",
+    "h03"
    ],
    "calc": {
     "fn": "arith",
@@ -2261,7 +2306,7 @@
    },
    "house": true,
    "suffix": "%",
-   "simple": "The stop is 2.37% below the fill, found by dividing the gap to the stop by the fill, inside the usual 3%.",
+   "simple": "The stop is 2.37% below the fill, inside the usual 3%. That distance sets the size, so a wider stop means fewer shares.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -2273,7 +2318,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "choices": [
     "97.63%",
     "1.34%",
@@ -2317,7 +2362,7 @@
     "$64.00": "That adds 4 dollars, not 4 percent."
    },
    "answer": "$62.40",
-   "why": "62.40. We never buy more than 4% above the buy point, and 4% over the 60.00 handle high is 62.40. At 62.70 the stock is past that line, so we pass. Chasing also costs size: the stop stays put, so the distance grows and the shares shrink.",
+   "why": "62.40. We never buy more than 4% above the buy point. Chasing costs size: the stop stays put, so the distance grows and the shares shrink. 4% over the 60.00 handle high is 62.40. At 62.70 the stock is past that line, so we pass.",
    "lesson_line": "I would rather miss it than chase it. Four percent and done.",
    "facts": [
     "h11",
@@ -2335,7 +2380,7 @@
     "round": 2
    },
    "house": true,
-   "simple": "The most we may pay is 4% over the 60.00 handle high, which is 62.40. The stock is at 62.70, so we pass.",
+   "simple": "The most we may pay is 62.40, 4% over the handle high. Paying more means a longer gap to the same stop and fewer shares.",
    "deeper": {
     "trap": "The 4% line is measured from the buy point, here the handle high of 60.00. At 62.70 the stock is already past it, so we pass. A late entry keeps the same stop, so the distance grows and the shares shrink."
    },
@@ -2347,7 +2392,7 @@
      "rests on the owner's rulebook C28: the 4% chase line, stated in the story"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "owner-review-7-2026-11-16",
    "visual": {
     "kind": "ladder",
     "side": "long",
@@ -2426,27 +2471,28 @@
    "q": "What now?",
    "story": "You bought the breakout at 91.20 with the stop at 89.10. The handle low is 88.40. It closes at 89.60, back inside the handle.",
    "choices": [
-    "Sell at the close; it failed",
+    "Sell at the close; it has failed",
     "Hold; the stop is still the exit",
     "Lower the stop to handle low",
-    "Add; the price is cheaper"
+    "Add more; the price is cheaper"
    ],
    "wrong": {
     "Lower the stop to handle low": "The stop only moves up, never down.",
-    "Sell at the close; it failed": "That close is a warning, not an exit by itself. The stop decides.",
-    "Add; the price is cheaper": "Full size at one price with one stop. No adding."
+    "Sell at the close; it has failed": "That close is a warning, not an exit by itself. The stop decides.",
+    "Add more; the price is cheaper": "Full size at one price with one stop. No adding."
    },
    "answer": "Hold; the stop is still the exit",
-   "why": "Hold it. A close back into the handle is a warning, not an exit by itself. The stop is the exit, and it was set before the buy at 89.10. It only moves up, never down. The close at 89.60 is above the stop, so the plan is still on. Adding is out too: it is the full size at one price with one stop.",
+   "why": "Hold. The stop at 89.10 is where the trade is proven wrong, and a close at 89.60 is still above it. A close back in the handle is only a warning. Pullbacks to the breakout level are common, so selling by feel throws away trades the plan would keep. Adding is out too: it is the full size at one price with one stop.",
    "lesson_line": "A weak close is a warning. The stop is the decision.",
    "facts": [
     "c18",
     "h02",
     "h42",
-    "h28"
+    "h28",
+    "c17"
    ],
    "house": true,
-   "simple": "Hold. A close back inside the handle is a warning, not an exit, and the stop you set before the buy decides.",
+   "simple": "Hold. The stop sets the exit, and a close back inside the handle is only a warning, since pullbacks are common.",
    "deeper": {
     "trap": "Two reflexes follow a weak close: selling by feel and adding because it is cheaper. The plan has no rule for either. Wait for the stop. If it fills, take the loss and move on, and buy again only if the setup triggers again, as a new trade with its own stop."
    },
@@ -2458,7 +2504,7 @@
      "+1 fixed before (variety rewrite)"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q32",
@@ -2480,7 +2526,7 @@
     "Sell at the open, at 52.40": "The gap rule gives it the first 30 minutes. The 30-minute low decides."
    },
    "answer": "52.10, the first 30-minute low",
-   "why": "52.10, the first 30-minute bar's low. A gap through the stop is the one exception to a stop that only moves up. The first 30 minutes of the gap-down day decide, and that bar's low is the new stop. The ceiling is 2R: if the first 30 minutes take the loss past 2R, get out. Here the loss at 52.10 stays inside 2R, so the ceiling is not hit.",
+   "why": "52.10, the first 30-minute bar's low. A gap through the stop is the one exception to a stop that only moves up. The first 30 minutes of the gap-down day decide. That lets the day show its real low instead of selling at the first print. The ceiling is 2R, twice what you risked, the fill minus the stop. If those 30 minutes take the loss past 2R, get out. That way a gap cannot cost more. Here the loss at 52.10 stays inside 2R.",
    "lesson_line": "A gap through the stop is the one exception. The first 30 minutes decide.",
    "facts": [
     "h06",
@@ -2488,7 +2534,7 @@
     "h02"
    ],
    "house": true,
-   "simple": "On a gap through the stop, the first 30-minute bar's low is the new stop. This loss stays inside 2R.",
+   "simple": "The first 30-minute low is the new stop, so one gap print does not decide. Past 2R we get out.",
    "deeper": {
     "trap": "The gap rule is the only time a stop may move down. It is not 'no stop' and it is not 'sell at the open'. Wait for the first 30-minute bar and use its low as the new stop. Get out at once only if those 30 minutes take the loss past 2R."
    },
@@ -2500,7 +2546,7 @@
      "the 'inside 2R' test is computed from the story (loss 2.47 against one R of 1.63)"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q33",
@@ -2562,7 +2608,7 @@
    "criterion": "ch.stop",
    "q": "Account 40,000. Risk 0.75%. Fill 40.76, stop 39.73. How many shares, before any cap?",
    "answer": "291 shares",
-   "why": "291. Risk dollars are the account times the risk percent. Divide them by the fill minus the stop and round down to 291. The cap comes after, and the smaller number wins. The stop sets the size, never the other way round.",
+   "why": "291. Risk dollars are the account times the risk percent. Divide them by the fill minus the stop and round down to 291. We size from the stop, so a stop-out costs the 0.75% we chose, however wide the stop is. Rounding down keeps it from going over. The cap comes after, and the smaller number wins.",
    "lesson_line": "The stop sets the size. Round down.",
    "facts": [
     "h03",
@@ -2581,7 +2627,7 @@
    },
    "house": true,
    "suffix": " shares",
-   "simple": "Dividing the risk dollars by the gap between fill and stop, then rounding down, gives 291 shares.",
+   "simple": "Risk dollars divided by the gap between fill and stop, rounded down, give 291 shares. That keeps a stop-out at 0.75% of the account.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2590,7 +2636,7 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "choices": [
     "291 shares",
     "582 shares",
@@ -2698,7 +2744,7 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "ch.cup_depth",
-   "q": "What is it?",
+   "q": "What base does this chart show?",
    "story": "The day before the trigger. An 8.4-week rest that dips only 6.6% from the high. Then a 9-day handle.",
    "choices": [
     "A flat base with a late dip",
@@ -2709,10 +2755,10 @@
    "wrong": {
     "A VCP of shrinking dips": "A VCP shows two or more separate shrinking pullbacks. This is one shallow shelf.",
     "A shallow cup and handle": "A cup is a deeper rounded U. A 6.6% dip is only a shelf.",
-    "Not a base; no real dip": "A flat base falls 15% or less, and a shelf this shallow fits that. It is a base, just a shallow one."
+    "Not a base; no real dip": "A shallow shelf near the highs is still a base, a flat one. It is not nothing."
    },
    "answer": "A flat base with a late dip",
-   "why": "A flat base. A flat base falls 15% or less, and a 6.6% dip sits well inside that. A cup is a deeper rounded U followed by a handle. This reads as a flat base, not a cup, even though it ends in a 9-day dip.",
+   "why": "A flat base with a late dip. A cup is a deeper rounded U followed by a handle. This one rested 8.4 weeks and dipped only 6.6%, a shallow shelf near the highs. Name the base by its shape first, because each base has its own buy point and plan.",
    "lesson_line": "Measure the depth first. A shallow shelf is a flat base, whatever the dip at the end looks like.",
    "facts": [
     "c28",
@@ -2720,7 +2766,7 @@
     "d28b"
    ],
    "house": true,
-   "simple": "A dip of only 6.6% is a shallow shelf, so it reads as a flat base, not a cup.",
+   "simple": "A dip of only 6.6% is a shallow shelf, so it is a flat base, not a cup. Each base has its own buy point.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2732,7 +2778,7 @@
     "D-007",
     "D-052"
    ],
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "PEP",
     "asof": "2009-10-01",
@@ -2746,7 +2792,7 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "ch.shape_u",
-   "q": "Take it as a cup with handle?",
+   "q": "On this chart, do you take it as a cup with handle?",
    "story": "The day before the trigger. An 11-week cup falls 22% in a straight line and climbs straight back to the high. Then a 5-day handle.",
    "choices": [
     "Take it; 22% is a normal depth",
@@ -2757,23 +2803,21 @@
    "wrong": {
     "Take it; 22% is a normal depth": "The depth passes. The shape fails.",
     "Take it; the handle is 5 days": "The handle is long enough, but it sits on a V.",
-    "Pass; 22% is too deep for a cup": "IBD puts a cup's decline between 12% and 33%, so 22% is a normal depth. The shape is what fails."
+    "Pass; 22% is too deep for a cup": "A 22% fall is a normal depth for a cup. The shape is what fails."
    },
    "answer": "Pass; the cup is a V, not a U",
-   "why": "Pass. That is a V, not a U. Only 12% of the cup's bars had lows in the bottom quarter, and the card needs 30%. The 22% depth and the 5-day handle both pass, but they cannot fix the shape. IBD: V-shaped patterns are less reliable.",
+   "why": "Pass. That is a V, not a U: it drops, turns and climbs straight back, so it never rests. IBD: V-shaped patterns are less reliable. StockCharts: a V-shaped bottom is too sharp of a reversal to qualify. The 22% depth and the 5-day handle both pass, but they cannot fix a shape that never rested.",
    "lesson_line": "A cup spends time at the bottom. A straight drop and a straight climb is a V.",
    "facts": [
-    "c06",
-    "d32",
-    "d31",
     "i05",
-    "i11",
-    "sc01"
+    "sc01",
+    "d31",
+    "c06"
    ],
    "house": true,
-   "simple": "A cup should round out at the bottom, but this one fell and climbed straight back, which makes it a V.",
+   "simple": "Pass. A V drops and climbs straight back so it never rests, and IBD says V shapes are less reliable.",
    "deeper": {
-    "trap": "Depth and handle length both pass here, so it is easy to wave it through. The shape is a separate test: at least 30% of the cup's bars with lows in the bottom quarter. This cup had 12%. StockCharts agrees that a V-shaped bottom is too sharp a reversal to qualify."
+    "trap": "Depth and handle length both pass here, so it is easy to wave it through. The shape is a separate test, and this one never rested at the bottom. StockCharts agrees that a V-shaped bottom is too sharp a reversal to qualify."
    },
    "tier": "extended",
    "risk": {
@@ -2786,7 +2830,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "META",
     "asof": "2024-06-25",
@@ -2841,30 +2885,32 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "ch.handle_volume",
-   "q": "Which handle grades higher?",
-   "story": "Two cups, both clean. In one, handle volume shrinks to a fraction of the cup's. In the other, it runs 0.97x the cup's average.",
+   "q": "Which cup earns the higher grade? Our grade is a judgment of how clean the setup is, and it sets the size.",
+   "story": "Two clean cups. In one, handle volume dries up sharply. In the other, it runs 0.97x the cup's average.",
    "choices": [
-    "The cup with the quieter handle",
+    "The cup whose handle dries up sharply",
     "The cup with the 0.97x handle",
-    "Equal; both are below the cup",
-    "Neither; both fail the volume gate"
+    "Equal; both are below the cup's volume",
+    "Neither; both fail on volume"
    ],
    "wrong": {
-    "Equal; both are below the cup": "Both pass the gate. Grading is about how quiet.",
-    "The cup with the 0.97x handle": "It passes, but only just. It is the weakest acceptable.",
-    "Neither; both fail the volume gate": "The gate is only that the handle averages below the cup's volume. A 0.97x handle is below it, so both pass."
+    "The cup with the 0.97x handle": "It is a little below the cup's volume, so it is acceptable, but it dries up the least. The sharper dry-up grades higher.",
+    "Equal; both are below the cup's volume": "Both are acceptable, but the grade still rewards a sharper dry-up.",
+    "Neither; both fail on volume": "Volume only raises the grade. It is not a requirement, so neither fails."
    },
-   "answer": "The cup with the quieter handle",
-   "why": "The quieter one. Both handles average below the cup's volume, so both pass the gate. Our card reads a sharp dry-up as the A+ cue, and a 0.97x handle as the weakest acceptable. Grading stays a judgment call: the card gives cues, not a fixed checklist.",
-   "lesson_line": "Quiet passes. Very quiet grades up.",
+   "answer": "The cup whose handle dries up sharply",
+   "why": "The cup whose handle dries up sharply. IBD: volume should dry up, evidence that the weak holders are just about gone. The sharper the dry-up, the fewer sellers are left, so the setup is cleaner and grades higher. The grade sets the size. Grading stays our judgment: volume is a cue, not a checklist or a requirement.",
+   "lesson_line": "A handle that dries up passes. One that dries up sharply grades higher.",
    "facts": [
+    "i25",
     "c33",
     "c12",
     "d13",
-    "h34"
+    "h34",
+    "h30"
    ],
    "house": true,
-   "simple": "Both pass because both trade quieter than the cup, but the handle that dries up sharply shows the sellers are running out.",
+   "simple": "The handle that dries up sharply. Fewer sellers are left, so the setup is cleaner and grades higher.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2873,7 +2919,7 @@
      "the grade cue is a proposed card row, not a ruling"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q41",
@@ -2926,7 +2972,7 @@
    "format": "scenario",
    "criterion": "ch.market_reading",
    "q": "By our guide, what do you take?",
-   "story": "Our market reading is Orange. Three cups trigger the same morning. You grade them A+, A and B.",
+   "story": "The app's market filter reads Orange, and its color says how much we trade. Three cups trigger the same morning. We grade them A+, A and B: a grade is our judgment of how clean the setup is.",
    "choices": [
     "Only the A+ cup; skip the others",
     "The A+ and A cups; skip the B",
@@ -2939,13 +2985,13 @@
     "None of them; stay in cash": "Mostly cash is the Red guide. Orange still allows A+ setups."
    },
    "answer": "Only the A+ cup; skip the others",
-   "why": "Only the A+ cup. Our guide for an Orange reading is A+ setups only, so the A and B cups wait. Green is full risk per grade and up to 10 positions, Yellow is smaller and fewer, and Red is mostly cash and shorts. It is a guide.",
+   "why": "Only the A+ cup. Orange means the market filter says the market is shaky, so we risk money only on the cleanest ideas, the A+ setups. The A and B cups wait. Green is full risk and up to 10 positions. Yellow is smaller and fewer, and Red is mostly cash and shorts. It is a guide.",
    "lesson_line": "Read the market before the cup. In Orange our guide takes A+ setups only.",
    "facts": [
     "h26"
    ],
    "house": true,
-   "simple": "In an Orange market our guide takes only A+ setups, so the A+ cup is in and the other two wait.",
+   "simple": "Orange says the market is shaky, so only the cleanest setups, the A+ ones, get money. The A and B cups wait.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -2954,7 +3000,7 @@
      "rests on the owner's rulebook, read as a guide (F65 under A10)"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q43",
@@ -2976,7 +3022,7 @@
     "Skip; a 3% gap is already chasing": "The no-chase line is 4% above the buy point, and 3% is inside it. The stretch from the 9 EMA is what fails."
    },
    "answer": "Skip; too far over the 9 EMA",
-   "why": "Skip it. A long more than 10% above its 9 EMA is too stretched to buy, even inside the 4% chase line. The fill is only 3% over the pivot, so the first check passes. Both checks must pass, and this one fails the second.",
+   "why": "Skip it. A long more than 10% above its 9 EMA is too stretched to buy, even inside the 4% chase line. A stock that far above its average has run away from it and has more room to fall back toward it. The fill is only 3% over the pivot, so the first check passes, but both checks must pass and this one fails.",
    "lesson_line": "Two checks at the fill: distance from the pivot and distance from the 9 EMA.",
    "facts": [
     "h13",
@@ -2984,7 +3030,7 @@
     "r05"
    ],
    "house": true,
-   "simple": "Skip it, since the stock is more than 10% above its 9 EMA, even though it is inside the 4% chase limit.",
+   "simple": "Skip it. At 12% over its 9 EMA the stock has run far from its average and has more room to fall back.",
    "deeper": {
     "trap": "These are two separate checks. One: never buy more than 4% above the buy point. Two: skip a long that is more than 10% above its 9 EMA. Passing the first never excuses failing the second."
    },
@@ -2995,7 +3041,7 @@
      "rests on the owner's rulebook (C28 and C29, both settled)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q44",
@@ -3067,30 +3113,32 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "ch.handle_upper_third",
-   "q": "Which handle grades higher?",
-   "story": "Two handles, both above the cup's midpoint. One sits within 5% of the old high. The other sits just above the midpoint.",
+   "q": "Which handle is cleaner, so it grades higher? A grade is our judgment of how clean the setup is.",
+   "story": "Two clean cups. Both handles sit in the upper half of the base. One is within 5% of the old high. The other sits just above the middle.",
    "choices": [
     "The handle nearer the old high",
-    "The handle just above the midpoint",
-    "Equal; both pass the midpoint",
+    "The handle just above the middle",
+    "Equal; both sit in the upper half",
     "Neither; both handles sit too low"
    ],
    "wrong": {
-    "Equal; both pass the midpoint": "Both pass. The grade still prefers the higher handle.",
-    "The handle just above the midpoint": "It passes the gate, but it is a B- cue.",
-    "Neither; both handles sit too low": "Both sit above the cup's midpoint, and one is within 5% of the old high. Zanger puts a good handle about there."
+    "Neither; both handles sit too low": "Both sit in the upper half of the base, and one is within 5% of the old high. Zanger puts a good handle about there.",
+    "The handle just above the middle": "It still passes, but it sits lower in the base, which carries more risk of failure.",
+    "Equal; both sit in the upper half": "Both are handles, but the grade still prefers the higher one."
    },
    "answer": "The handle nearer the old high",
-   "why": "The handle nearer the old high. Both pass the midpoint test, so both are handles. A handle in the upper third, within about 5% of the old high, is better. One just above the midpoint is a B- cue. Zanger: the handle is generally about 5% below the old high, and a lower one is riskier.",
-   "lesson_line": "Higher in the base is better. Just above halfway passes, and only just.",
+   "why": "The handle nearer the old high. Both sit in the upper half, so both are handles. Zanger: the handle is generally about 5% below the old high, and a handle any lower contains higher risk for failure. The higher one shows buyers held the stock closer to its highs, so we judge it cleaner. It grades higher, and the grade sets the size.",
+   "lesson_line": "Higher in the base is cleaner. A handle held near the highs grades higher.",
    "facts": [
     "c36",
     "c45",
     "z05",
-    "i16"
+    "i16",
+    "h34",
+    "h30"
    ],
    "house": true,
-   "simple": "Both pass the midpoint test. The handle nearer the old high grades higher, and the one just above the midpoint grades lower.",
+   "simple": "The handle nearer the old high is cleaner because buyers held the stock closer to its highs. It grades higher.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -3098,7 +3146,7 @@
      "the grade cues are proposed card rows, and the E50 rulebook line says grading is a judgment"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q47",
@@ -3106,8 +3154,8 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "ch.cup_depth",
-   "q": "Which base is this?",
-   "story": "A leader falls 21% in a rounded U over 14 weeks. It climbs back within 4% of the high. Then it drifts 6% lower for eight days.",
+   "q": "Going by the depth and the shape on this chart, which base is it?",
+   "story": "A leader ran 72%, then fell 20.2% in a rounded U over 16.6 weeks. It climbed back near its high, then drifted down 4.9% for 5 days.",
    "choices": [
     "A cup with a handle at the rim",
     "A flat base ending in a dip",
@@ -3117,21 +3165,22 @@
    "wrong": {
     "A flat base ending in a dip": "Too deep and too rounded for a box.",
     "A VCP of shrinking dips": "One rounded decline and one handle, not a series of shrinking pullbacks.",
-    "A high tight flag": "A high tight flag pauses 5 to 30 sessions with no rounded decline. This one rounded down over 14 weeks."
+    "A high tight flag": "A high tight flag pauses with no rounded decline. This one rounded down over about four months."
    },
    "answer": "A cup with a handle at the rim",
-   "why": "A cup with a handle. A flat base falls 15% or less and stays boxy. This leader rounded down 21% over 14 weeks, climbed back within 4% of the high, then dipped into one handle. A VCP shows two or more separate pullbacks, and a high tight flag has no rounded decline.",
+   "why": "A cup with a handle. This leader ran 72%, rounded down 20.2% over 16.6 weeks, climbed back near its high, then dipped into one handle. A flat base is a shallow box, and a high tight flag has no rounded decline. A VCP shows two or more separate pullbacks, each smaller than the last. Naming it right tells you what to wait for: the trade through the handle high.",
    "lesson_line": "Measure the depth and the shape. A deep rounded rest with a dip at the rim is a cup.",
    "facts": [
     "c28",
     "i01",
     "c29",
-    "c30"
+    "c30",
+    "d06"
    ],
    "house": true,
-   "simple": "A flat base falls 15% or less. This one fell 21% in a rounded U and then made one handle.",
+   "simple": "A deep rounded U with one dip at the rim is a cup with a handle. We wait for the trade through its high.",
    "deeper": {
-    "trap": "Two numbers sort most look-alikes. Depth: a flat base falls 15% or less, and a cup falls deeper. Pullbacks: a cup is one rounded decline and one handle, and a VCP is two or more that shrink. Check both before you name the base."
+    "trap": "Two clues sort most look-alikes. Depth and shape: a box is shallow, and a cup is a deeper rounded U. Pullbacks: a cup is one rounded decline and one handle, and a VCP is two or more that shrink. Check both before you name the base."
    },
    "tier": "extended",
    "risk": {
@@ -3143,7 +3192,13 @@
    "depends_on": [
     "D-052"
    ],
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16",
+   "chart": {
+    "sym": "AX",
+    "asof": "2026-01-02",
+    "window": 150,
+    "forward": 20
+   }
   },
   {
    "key": "q48",
@@ -3200,12 +3255,12 @@
     "A VCP of shrinking pullbacks"
    ],
    "wrong": {
-    "A cup with a handle at the rim": "A cup takes at least 7 weeks to round out and handle. This stock paused only sixteen sessions, far too few.",
-    "A flat base with a flat ceiling": "A flat base needs at least five weeks. This paused sixteen sessions, well short of that, after a huge run.",
+    "A cup with a handle at the rim": "A cup takes many weeks to round out. This stock paused only sixteen sessions.",
+    "A flat base with a flat ceiling": "A flat base is a longer, calmer box. This stock paused only sixteen sessions after a huge run.",
     "A VCP of shrinking pullbacks": "A VCP shows two or more separate pullbacks, each smaller than the last. This shows one pause."
    },
    "answer": "A high tight flag after a run",
-   "why": "A high tight flag. The stock rose 120% in 7 weeks, then paused sixteen sessions. A high tight flag pauses 5 to 30 sessions with no rounded decline. A cup follows a 30% run and takes at least 7 weeks to round out and handle, and this pause is far shorter.",
+   "why": "A high tight flag. The stock rose 120% in seven weeks, then paused sixteen sessions. A cup is a long rounded rest after a strong run, and a pause this short has no time to round out. It is a flag, the pause after a big run.",
    "lesson_line": "A big run and a short pause is a flag. A long rounded rest is a cup.",
    "facts": [
     "c30",
@@ -3213,9 +3268,9 @@
     "c29"
    ],
    "house": true,
-   "simple": "A big run, then a short pause of sixteen sessions, is a high tight flag. A cup needs at least 7 weeks.",
+   "simple": "A big run and a short pause is a flag. A cup takes many weeks to round out.",
    "deeper": {
-    "trap": "A cup follows a run of at least 30%, and this run is far bigger. Do not stop at the run. A cup also needs at least 7 weeks to round out and handle. A sixteen-session pause has no time to build one. Ask whether it rounded, or only paused."
+    "trap": "A cup follows a strong run, and this run is far bigger. Do not stop at the run. A cup also takes many weeks to round out, and a sixteen-session pause has no time to build one. Ask whether it rounded, or only paused."
    },
    "tier": "extended",
    "risk": {
@@ -3225,7 +3280,7 @@
      "two card rows (the cup and the high tight flag) separate the cases"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q50",
@@ -3237,17 +3292,17 @@
    "story": "A 16-week, 19% cup after a 76% run, an 8-day handle. You followed every rule: bought 260.96, stop 257.75. It closed mid-range and faded four days to your stop.",
    "choices": [
     "No; the stop simply did its job",
-    "Yes; the stop needed room",
-    "Yes; sell mid-range closes",
+    "Yes; the stop needed more room",
+    "Yes; sell on mid-range closes",
     "No; buy back to recover it"
    ],
    "wrong": {
-    "Yes; the stop needed room": "The stop only moves up. More room is a bigger loss, not a fix.",
-    "Yes; sell mid-range closes": "The stop is the exit. A weak close is a first warning sign, not a sell order.",
-    "No; buy back to recover it": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule."
+    "No; buy back to recover it": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.",
+    "Yes; the stop needed more room": "The stop only moves up. More room is a bigger loss, not a fix.",
+    "Yes; sell on mid-range closes": "The stop is the exit. A weak close is a first warning sign, not a sell order."
    },
    "answer": "No; the stop simply did its job",
-   "why": "No. The stop is the exit, and the loss was the plan. The breakout closed mid-range and faded four days to the stop. A weak close is the first sign the trade is not working, not an exit by itself. Buy again only on a new trigger.",
+   "why": "No. A stop caps a loss you planned before the buy, here about 1.23% of the buy price, and it did that. A loss at the stop is the plan working, so judge the decision, not the outcome. The weak close was a warning, not an exit by itself. Buy again only on a new trigger.",
    "lesson_line": "A loss at the stop is the system working. Judge the decision, not the outcome.",
    "facts": [
     "h02",
@@ -3257,9 +3312,9 @@
     "d33"
    ],
    "house": true,
-   "simple": "A loss at the stop is the plan working, not a mistake, and a weak close is only a warning.",
+   "simple": "No. A stop caps a loss you planned before the buy, and it did, so the loss was the plan working.",
    "deeper": {
-    "trap": "A stop-out does not prove the setup was bad, and a winner does not prove it was good. Judge the decision. Was it a real trigger, an honest stop, and a size that fits the grade? After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop."
+    "trap": "A stop-out does not prove the setup was bad, and a winner does not prove it was good. Judge the decision. Was it a real trigger, an honest stop, and a size that fits the risk? After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop."
    },
    "tier": "extended",
    "risk": {
@@ -3272,7 +3327,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "ULTA",
     "asof": "2016-12-16",
@@ -3304,7 +3359,7 @@
     "Add shares while it is strong": "Moving the stop to breakeven protects the trade. It does not call for more shares."
    },
    "answer": "Move the stop to breakeven",
-   "why": "Move the stop to breakeven. Our rule puts that move between 2R and 5R, ideally, and 2.37R is inside it. It is a choice, not a must. The stop only moves up, never wider. A tight stop is cheap but fragile, and the answer is breakeven, not a wider stop. In BX one dip took the 1.2% stop after 2.37R, and a breakeven stop would have saved the loss.",
+   "why": "Move the stop to breakeven. Our rule puts that move between 2R and 5R, ideally, and 2.37R is inside it. Breakeven is the point after which a trade must never again become a loser, so a winner cannot turn into a loss. It is a choice, not a must, and the stop only moves up. In BX one dip took the 1.2% stop after 2.37R, and a breakeven stop would have turned a loss into a scratch.",
    "lesson_line": "A tight stop is cheap but fragile. From 2R, breakeven protects it; a wider stop never does.",
    "facts": [
     "c39",
@@ -3312,10 +3367,11 @@
     "d23",
     "h02",
     "r02",
-    "r03"
+    "r03",
+    "n05"
    ],
    "house": true,
-   "simple": "Our rule lets the stop move to breakeven once the trade is up 2R to 5R. It never lets the stop get wider.",
+   "simple": "Breakeven is the point where a trade must never again become a loser, so from 2R we may move the stop there.",
    "deeper": {
     "trap": "A tight stop gets hit by normal noise, and the urge is to widen it. The answer runs the other way. The stop may move up to breakeven from 2R, and it never moves wider. In BX the trade reached 2.37R on its second session. Then one dip took out the 1.2% stop, and the stock went on without us."
    },
@@ -3330,7 +3386,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "BX",
     "asof": "2019-11-26",
@@ -3391,7 +3447,7 @@
     "No; anything under 10% is fine": "The chase line is 4% above the buy point. The 10% line is measured from the 9 EMA, a different test."
    },
    "answer": "No; the fill was inside 4%",
-   "why": "No. A fill 2.7% over the pivot is inside the 4% chase line, and the stop was the exit. Gap-open fills are not banned. A gap it cannot build on is the first sign the answer is no. That is a warning, not a broken rule.",
+   "why": "No. The 4% chase line exists because paying more with the same stop costs size. This fill was 2.7% over the pivot, inside it. Gap-open fills are not banned. The stop was the exit and the loss was the plan. A gap that cannot build is a warning, not a broken rule.",
    "lesson_line": "A fill inside 4% is allowed. A gap that cannot build is the warning.",
    "facts": [
     "h11",
@@ -3403,7 +3459,7 @@
     "r05"
    ],
    "house": true,
-   "simple": "No rule was broken, since the fill was inside the 4% chase limit and the stop did its job.",
+   "simple": "No rule was broken. A fill inside 4% costs little size, and the stop capped the loss as planned.",
    "deeper": {
     "trap": "SCHW gapped over the 72.58 pivot at the open and filled 2.7% above it. It closed near its high, then fell through the stop the next day without ever trading above the fill. The fill was inside the 4% line and the stop was honored, so the loss was the plan."
    },
@@ -3418,7 +3474,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "SCHW",
     "asof": "2024-11-06",
@@ -3438,7 +3494,7 @@
    "criterion": "ch.stop_outer_limit",
    "q": "IBD's 7% to 8% loss limit is the stop we use on a cup breakout.",
    "answer": "False",
-   "why": "False. IBD's 7% to 8% is its general loss limit, a reference and not ours. Our stop sits a few cents under the buy day's or prior day's low, usually within about 3% of the buy. It is never wider than a few cents under the handle low.",
+   "why": "False. IBD's 7% to 8% is its general loss limit, a reference and not ours. We almost never take a loss over 3% on a position. So our stop sits a few cents under the buy day's or prior day's low. That is usually within about 3% of the buy. A 7% to 8% loss would be far bigger.",
    "lesson_line": "Our loss is the day's range, not a fixed percent of the price.",
    "facts": [
     "c16",
@@ -3449,7 +3505,7 @@
     "c42"
    ],
    "house": true,
-   "simple": "False. Our stop sits a few cents under the day's low, usually within about 3% of the buy, not 7% to 8%.",
+   "simple": "False. We almost never take a loss over 3%, so our stop sits under the day's low, not at 7% to 8%.",
    "deeper": {
     "trap": "A flat percent loss limit is a different system. Ours starts from the chart. Stop first, a few cents under the day's low, then the size comes from the stop. If the honest stop does not fit the risk, skip the trade. Never move the stop closer to make it fit."
    },
@@ -3460,7 +3516,7 @@
      "rests on the owner's rulebook (A3 and A13, the stop and its usual width)"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q55",
@@ -3479,10 +3535,10 @@
    "wrong": {
     "Held; the stop is at breakeven": "Breakeven guards the trade. The trail sells what is left.",
     "Held until a close under the pivot": "The trail is the rising average, not the pivot.",
-    "Bought more on the dip back down": "The plan only sells from here. After 5R what is left trails the average."
+    "Bought more on the dip back down": "The plan only sells from here. What is left trails the average."
    },
    "answer": "Sold it, as the trail line broke",
-   "why": "Sold on that close. After the earlier sells, what is left trails a rising average: the 9 EMA for fast movers, the 20 EMA for steadier ones. We sell on a close below it. AX reached 5R in about 7 weeks, then rolled over below the pivot, the kind of move a trail line is for.",
+   "why": "Sold on that close. What is left after the earlier sells trails a rising average. That is the 9 EMA for fast movers and the 20 EMA for steadier ones. We sell on a close below it. A trail lets a winner keep running but sells when the trend breaks. A roll-over does not give back the whole gain. AX reached 5R in about 7 weeks, then rolled over below the pivot.",
    "lesson_line": "Part sold into strength, the rest on the trail. The close under the line is the exit.",
    "facts": [
     "r05",
@@ -3491,7 +3547,7 @@
     "r04"
    ],
    "house": true,
-   "simple": "What is left trails the 20 EMA, so a close under it is the signal to sell what is left.",
+   "simple": "What is left trails the 20 EMA. A close under it sells, so a roll-over does not give back the whole gain.",
    "deeper": {
     "example": "AX was bought at 89.22 with a stop at 86.95. It reached 5R in about 7 weeks, then rolled over below the pivot. That is the kind of case a trail is for. A faster mover would trail the 9 EMA instead. The first sell is a judgment."
    },
@@ -3506,7 +3562,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "AX",
     "asof": "2026-01-05",
@@ -3525,20 +3581,20 @@
    "format": "scenario",
    "criterion": "ch.stop",
    "q": "Where are the stop and the first trim?",
-   "story": "A quiet 7-day handle. Price clears the handle high and you fill at 64.30. The lower of that day's and the prior day's low is 63.78.",
+   "story": "A 7-day handle. Price clears the handle high and you fill at 64.30. The lower of that day's and the prior day's low is 63.78.",
    "choices": [
     "Just under 63.78; sell into a push",
-    "On 63.78; a third at 2R",
-    "Handle-low stop; out at 5R",
-    "7% under fill; half at 3R"
+    "On 63.78; sell a third at 2R",
+    "Handle-low stop; sell out at 5R",
+    "7% under the fill; half at 3R"
    ],
    "wrong": {
-    "On 63.78; a third at 2R": "The stop sits a few cents under the low, not on it, and the first sell is a judgment, not 2R.",
-    "Handle-low stop; out at 5R": "The first sell is a judgment, into a push, not a fixed 5R. The handle low is only the outer limit for the stop.",
-    "7% under fill; half at 3R": "IBD's 7% to 8% is a reference, not ours. Our stop sits a few cents under the day's low, and the first sell is a judgment."
+    "On 63.78; sell a third at 2R": "The stop sits a few cents under the low, not on it, and the first sell is a judgment, not 2R.",
+    "Handle-low stop; sell out at 5R": "The first sell is a judgment, into a push, not a fixed 5R. The day's low is our primary stop, closer than the handle low.",
+    "7% under the fill; half at 3R": "IBD's 7% to 8% is a reference, not ours. Our stop sits a few cents under the day's low, and the first sell is a judgment."
    },
    "answer": "Just under 63.78; sell into a push",
-   "why": "The stop goes just under 63.78, the lower of that day's and the prior day's low, by a few cents. The first sell is a judgment, day 3 at the earliest, into a push. The handle low is the outer limit for the stop.",
+   "why": "The stop goes just under 63.78, the lower of that day's and the prior day's low. That low is where the buy idea is proven wrong. The first sell is a judgment, usually day 3 or later, into a push. We sell into strength, not at a fixed R mark. Gains often come in a 3, 5 or 7 day push.",
    "lesson_line": "Entry, stop, trim, trail. Write it before the open.",
    "facts": [
     "c15",
@@ -3551,7 +3607,7 @@
     "r04"
    ],
    "house": true,
-   "simple": "The stop goes a few cents under the lower low, and the first sell is a judgment into a push.",
+   "simple": "The stop goes a few cents under the lower low, where the idea fails. The first sell is a judgment into a push.",
    "deeper": {
     "example": "The stop is set first, and the sell levels follow from it. If a stock opens above a level where you planned to sell, selling part at the open is a judgment, never a rule."
    },
@@ -3567,7 +3623,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "sweep-2026-11-14"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q57",
@@ -3575,9 +3631,9 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "ch.handle_position",
-   "q": "The day before the breakout. Judge the handle. Take it or pass.",
+   "q": "Look at the handle in the chart, the day before the breakout. Take it or pass?",
    "choices": [
-    "Take it; a high, quiet handle",
+    "Take it; a high handle that dries up",
     "Pass; the handle sits too low",
     "Pass; the handle wedges up",
     "Take it; heavy volume shows demand"
@@ -3585,11 +3641,11 @@
    "wrong": {
     "Pass; the handle sits too low": "It sits above the cup's midpoint.",
     "Pass; the handle wedges up": "Its lows do not rise.",
-    "Take it; heavy volume shows demand": "A handle should be quiet, and rising volume through it ends the setup. This one ran at 0.74x the cup's volume."
+    "Take it; heavy volume shows demand": "A handle should dry up. Rising volume is a warning. This one ran at 0.74x the cup's volume."
    },
-   "answer": "Take it; a high, quiet handle",
-   "why": "Take it. The handle sits high in the base, above the cup's midpoint, and its lows do not rise. Volume is light. FFIV's handle ran 7 days, 4.2% deep, at 0.74x the cup's volume. The next session it cleared the handle high on 2.71x volume. A good picture is not a promise, so the stop still decides.",
-   "lesson_line": "Check the handle's place in the base before anything else. High and quiet is the picture.",
+   "answer": "Take it; a high handle that dries up",
+   "why": "Take it. The handle sits high in the base, its lows do not rise, and volume dries up. Buyers held the stock near its highs while the sellers ran out. FFIV's handle ran 7 days, 4.2% deep, at 0.74x the cup's volume. The next session it cleared the handle high on 2.71x volume. A good picture is not a promise, so the stop still decides.",
+   "lesson_line": "High in the base, volume dried up: that is the picture. The stop still decides.",
    "facts": [
     "c10",
     "c11",
@@ -3605,9 +3661,9 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "The handle sits high in the base, its lows do not rise, and volume is light. That is the picture we want.",
+   "simple": "The handle sits high, its lows do not rise, and volume dries up. Buyers held and the sellers ran out.",
    "deeper": {
-    "trap": "Judge the setup the day before, not the breakout day. By then the handle already showed what mattered: high in the base, above the cup's midpoint, lows not rising, with light volume. FFIV's handle ran at 0.74x the cup's volume. Rising volume through a handle ends the setup."
+    "trap": "Judge the setup the day before, not the breakout day. By then the handle already showed what mattered: high in the base, lows not rising, with volume dried up. FFIV's handle ran at 0.74x the cup's volume. Rising volume through a handle is a warning."
    },
    "tier": "expert",
    "risk": {
@@ -3620,7 +3676,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q58",
@@ -3628,7 +3684,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "ch.handle_drift",
-   "q": "The day before it trades through the handle high. Judge the handle. Take it or pass.",
+   "q": "The day before it trades through the handle high. Look at the handle's lows. Take it or pass?",
    "choices": [
     "Take it; the cup is 20% deep",
     "Pass; the handle's lows rise",
@@ -3638,18 +3694,18 @@
    "wrong": {
     "Take it; the cup is 20% deep": "The cup is fine. The handle wedges up.",
     "Take it; it is near the highs": "Near the highs is the place. The wedge is the problem.",
-    "Pass; the cup is too short": "A cup spans at least 7 weeks, and 13 weeks is plenty. The handle is the problem."
+    "Pass; the cup is too short": "The cup is fine at 13 weeks. The handle is the problem."
    },
    "answer": "Pass; the handle's lows rise",
-   "why": "Pass. Six days of rising lows into the pivot is a wedging handle with no shakeout, and rising lows are not a handle. IBD: a wedging handle with no shakeouts is a sign to steer clear. A sound 13-week, 20% cup cannot rescue it. The scan stopped this one at a best of 0.0R.",
+   "why": "Pass. Six days of rising lows into the pivot make a wedging handle with no shakeout. IBD: wedging handles have a higher failure rate, and a shakeout is what scares out weak hands before a move. A sound 13-week, 20% cup cannot rescue it. It was stopped at a best of 0.0R.",
    "lesson_line": "The cup can be fine and the handle still wrong. Rising lows, I pass.",
    "facts": [
     "c24",
     "d30",
     "i23",
     "i22",
-    "i07",
-    "c05"
+    "i21",
+    "n02"
    ],
    "house": true,
    "chart": {
@@ -3658,7 +3714,7 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Rising lows into the pivot make a wedging handle, and a wedging handle with no shakeout tends to fail.",
+   "simple": "Rising lows into the pivot make a wedge with no shakeout, so weak holders were never scared out. Wedges tend to fail.",
    "deeper": {
     "counter": "The cup can be textbook and the handle still wrong. AAPL had a 13-week, 20% cup, then six days of rising lows into the pivot with no shakeout. A handle should drift sideways to down. IBD: handles that drift lower foreshadow assertive action, and overeager ones that wedge upward tend to fail."
    },
@@ -3673,7 +3729,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q59",
@@ -3682,7 +3738,7 @@
    "format": "scenario",
    "criterion": "ch.inv_market_red",
    "q": "What do you do with the breakout?",
-   "story": "Your best cup sits a few cents under the pivot, above its 200-day. Overnight the market reading turns Red.",
+   "story": "Our market reading is the app's market filter: Green, Yellow, Orange or Red. Your best cup is an A+, our top grade for how clean a setup is. It sits a few cents under the pivot, above its 200-day. Overnight the reading turns Red.",
    "choices": [
     "Buy it; A+ cups trade anywhere",
     "No new long; stay mostly in cash",
@@ -3695,7 +3751,7 @@
     "Skip the cup; short the stock": "Our Red shorts are below the 200-day, and this cup sits above it. Red means mostly cash."
    },
    "answer": "No new long; stay mostly in cash",
-   "why": "No new long. A Red reading before the buy ends the setup. In a Red market we hold mostly cash, plus shorts below the 200-day. Even the best cup waits. The reading is a guide, and Red is its most defensive setting.",
+   "why": "No new long. A Red reading means the filter says the market is not supportive, so we hold mostly cash, plus shorts below the 200-day. Even the best cup waits, because a long breakout fighting the market is the risk the filter exists to avoid. The reading is a guide, and Red is its most defensive setting.",
    "lesson_line": "A Red reading ends the cup, however good it looks. Sit on your hands.",
    "facts": [
     "c41",
@@ -3703,7 +3759,7 @@
     "h26"
    ],
    "house": true,
-   "simple": "Red means mostly cash, so even the best cup is off the list and we buy nothing new.",
+   "simple": "Red means the filter says stay mostly in cash, because even a clean breakout is fighting the market.",
    "deeper": {
     "trap": "The trap is the A+ exemption. In Orange only A+ setups trade, so a great cup feels like an exception in Red. It is not. Green is full risk, Yellow smaller and fewer, Orange only A+, and Red mostly cash and shorts."
    },
@@ -3714,7 +3770,7 @@
      "rests on the owner's rulebook (D46 and F65, the market reading as a guide)"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q60",
@@ -3723,7 +3779,7 @@
    "format": "scenario",
    "criterion": "ch.new_uptrend",
    "q": "How many do you buy on day one?",
-   "story": "A correction just ended and the reading turned Green. Six leaders in one group show cups at their pivots.",
+   "story": "A market correction just ended and the app's market filter turned Green: full risk, up to 10 positions. Six leaders in one group show cups at their pivots.",
    "choices": [
     "Most of them; Green is full risk",
     "A few; add more as they work",
@@ -3736,7 +3792,7 @@
     "Six; each at half the usual size": "The rule is about how many positions, not how big. Half size on all six is still six positions on day one."
    },
    "answer": "A few; add more as they work",
-   "why": "A few, adding more only as the first ones work. After a market correction, when the reading turns Green again, we start with a few positions. We add more only as the first ones work. Zanger: the best cups come at the beginning of a market move after a good correction. The setups are good, and the pacing is the discipline.",
+   "why": "A few, adding more only as the first ones work. After a correction the new uptrend is unproven. Starting with a few keeps the damage small if it fails, and the first winners show it is real before you add. Zanger: the best cups come at the beginning of a market move after a good correction. The setups are good, and the pacing is the discipline.",
    "lesson_line": "Green after a correction: a few positions first. Let the winners earn the next ones.",
    "facts": [
     "h27",
@@ -3745,9 +3801,9 @@
     "h26"
    ],
    "house": true,
-   "simple": "After a correction, start with a few positions and add more only as the first ones work. Green still allows full risk.",
+   "simple": "Start with a few, because a new uptrend is unproven. Add more only as the first ones work.",
    "deeper": {
-    "trap": "Green allows full risk per grade, and it still does not mean six at once. We start with a few positions and add more only as the first ones work. Zanger finds the best cups at the start of a market move, so the setups are good. The pacing is the discipline."
+    "trap": "Green allows full risk, and it still does not mean six at once. We start with a few positions and add more only as the first ones work. Zanger finds the best cups at the start of a market move, so the setups are good. The pacing is the discipline."
    },
    "tier": "expert",
    "risk": {
@@ -3756,7 +3812,7 @@
      "rests on the owner's rulebook (F68, a few positions first after a correction)"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q61",
@@ -3778,13 +3834,14 @@
     "No; it needs a far bigger gain": "The line is 5R, and this trade is past it."
    },
    "answer": "Yes; it is above the hold line",
-   "why": "Yes, you may hold. The rule lets a trade ride through a report only if it is up 5R. The gain here is more than five times the risk per share, so it qualifies. The same rule bars new buys in the 3 days before a report, so you hold what you have and do not add.",
+   "why": "Yes, you may hold. The rule lets a trade ride through a report only if it is up 5R. Risk per share is 50.00 minus 48.00. The gain is 61.20 minus 50.00, more than five times that risk. That much cushion means a gap against you leaves much of the gain. A smaller gain has too little cushion, and a stop cannot catch an overnight gap. The same rule bars new buys in the 3 days before a report, so hold what you have and do not add.",
    "lesson_line": "Up 5R or more, you may hold through a report. Below it, you do not.",
    "facts": [
-    "h08"
+    "h08",
+    "n04"
    ],
    "house": true,
-   "simple": "Yes, because the gain here is over five times the risk, and our rule needs a trade up 5R to hold through a report.",
+   "simple": "Yes. The gain is over five times the risk, enough cushion to hold through a report, but do not add.",
    "deeper": {
     "trap": "The 5R line is about a trade already open. It does not let you add. Earnings are tomorrow, so we are inside the 3 days before a report and no new buys are allowed, even with this gain. Hold what you have; do not add to it."
    },
@@ -3796,7 +3853,7 @@
      "rests on the owner's rulebook B22 (hold only if up 5R), which the story states because no earlier item teaches it"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q62",
@@ -3804,20 +3861,20 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "ch.trim_2",
-   "q": "How do we take profits on a cup winner?",
+   "q": "How do we take profits on a cup winner like this one?",
    "choices": [
-    "At the cup's measured-move target",
-    "Most of it at a 20% to 25% gain",
+    "At the cup's measured-move price target",
+    "Most of it at a gain of 20% to 25%",
     "Into a 3, 5 or 7 day push, then trail",
-    "Sell it all at the old high"
+    "Sell it all back at the old high"
    ],
    "wrong": {
-    "At the cup's measured-move target": "Treating the target as a sure thing is a named mistake.",
-    "Most of it at a 20% to 25% gain": "That is IBD's general rule, not ours. Our first sell is a judgment into a push.",
-    "Sell it all at the old high": "The old high sits near the pivot. That is where the trade starts, not where it ends."
+    "At the cup's measured-move price target": "Treating the target as a sure thing is a named mistake.",
+    "Most of it at a gain of 20% to 25%": "That is IBD's general rule, not ours. Our first sell is a judgment into a push.",
+    "Sell it all back at the old high": "The old high sits near the pivot. That is where the trade starts, not where it ends."
    },
    "answer": "Into a 3, 5 or 7 day push, then trail",
-   "why": "Into a push, then trail. The first sell is a judgment, not a fixed third at 3R. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. IBD takes most profits at 20% to 25%, a fixed percent that is not ours. Bulkowski's measured-move target is no sure thing: only 61% reach it.",
+   "why": "Into a push, then trail. The first sell is a judgment, not a fixed third at 3R. Gains often come in a 3, 5 or 7 day push, so selling into strength banks them. The trail keeps the rest running. IBD takes most profits at 20% to 25%, a fixed percent that is not ours. Bulkowski's measured-move target is no sure thing: only 61% reach it.",
    "lesson_line": "Sell partials into strength. Targets are guesses; the first sell is a judgment.",
    "facts": [
     "r02",
@@ -3827,7 +3884,7 @@
     "r05"
    ],
    "house": true,
-   "simple": "We sell the first piece into a strong push of a few days, then trail the rest.",
+   "simple": "We sell the first piece into a strong push of a few days, then trail the rest to let the winner run.",
    "deeper": {
     "counter": "IBD says take most profits at 20% to 25%. Bulkowski's measured-move target is a guess, and only 61% of cups reach it. Our first sell is a judgment, often into a 3, 5 or 7 day push. What is left trails the 9 EMA or the 20 EMA."
    },
@@ -3839,7 +3896,7 @@
      "the 20% to 25% and 61% figures are web numbers that can change"
     ]
    },
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "story": "The day before the trigger. You are planning the exits.",
    "chart": {
     "sym": "WB",
@@ -3987,7 +4044,7 @@
     "Sell a small slice, hold the rest": "Our rule says a big part, not a small slice. How big is a judgment call."
    },
    "answer": "Sell a big part into the run",
-   "why": "Sell a big part into the run. For a climax run on your own long, our rule is to sell a big part. How much is a judgment call. That is Bracco's parabolic burst, a 3 to 5 day final leg. It shows as up days, gap ups, range expansion and rising volume.",
+   "why": "Sell a big part into the run. For a climax run on your own long, our rule is to sell a big part. A parabolic burst is a short final leg of 3 to 5 days. A final leg is where a long run ends, so we sell into the strength. How much is a judgment call. It shows as up days, gap ups, range expansion and rising volume.",
    "lesson_line": "A climax run is a gift. Sell a big part into it.",
    "facts": [
     "h32",
@@ -3995,7 +4052,7 @@
     "h21"
    ],
    "house": true,
-   "simple": "When a winner runs up in a burst of gap ups and rising volume, we sell a big part into it.",
+   "simple": "Sell a big part into a burst, because a burst is a short final leg of the run.",
    "deeper": {
     "trap": "Not every strong run is a climax. The burst is a short final leg of 3 to 5 days with several boxes checked: up days, overnight gap ups, range expansion and rising volume. One big day is not it. Even then the share to sell is a judgment call, with no formula."
    },
@@ -4007,7 +4064,7 @@
      "how big a 'big part' is stays the owner's judgment"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q67",
@@ -4063,14 +4120,14 @@
     "Neither; skip both cups today": "The 92 cup is a leader in a strong group, so it passes the leader test. Nothing in the story fails it."
    },
    "answer": "The 92 cup in the strong group",
-   "why": "The 92 cup. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. The 55 stock in a weak group fails that test, even with a clean chart.",
+   "why": "The 92 cup. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. A high RS rating means the stock has been beating most of the market, and a strong group lifts its members. The 55 stock in a weak group is a laggard, so a clean chart does not make it a leader.",
    "lesson_line": "A clean chart on a laggard is still a laggard. Buy the leader.",
    "facts": [
     "h35",
     "c50"
    ],
    "house": true,
-   "simple": "Take the 92 cup. We buy leaders with an RS rating of 80 or more, and 55 in a weak group is a laggard.",
+   "simple": "Take the 92 cup. A leader beats most of the market, and a 55 in a weak group is a laggard.",
    "deeper": {
     "trap": "The trap is letting a clean chart override the leader test. Both cups look clean, so shape cannot separate them. The leader test can. The only exceptions in the rulebook are parabolic and mean-reversion trades, and neither is a cup."
    },
@@ -4081,7 +4138,7 @@
      "rests on the owner's rulebook C31"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q69",
@@ -4103,7 +4160,7 @@
     "Pass; the handle is too short": "A 5-day dip meets the 5-session handle minimum. The V cup is what fails."
    },
    "answer": "Pass; the chart comes first",
-   "why": "Pass; the chart comes first. We prefer growing sales and earnings, but the chart decides first. On our card a cup that is a V ends the setup before the buy, and IBD says V-shaped patterns are less reliable. Strong growth does not rescue the shape.",
+   "why": "Pass; the chart comes first. We prefer growing sales and earnings, but the chart shows what buyers are doing now, so it decides first. A cup that is a V is not a good rest: IBD says V-shaped patterns are less reliable. Strong growth does not rescue the shape.",
    "lesson_line": "Growth is a plus. The chart decides first.",
    "facts": [
     "h36",
@@ -4113,7 +4170,7 @@
     "c09"
    ],
    "house": true,
-   "simple": "Pass. We like growth, but the chart comes first, and a sharp V cup fails the chart.",
+   "simple": "Pass. Growth is a plus, but the chart shows what buyers do now, and a V cup fails the chart.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -4121,7 +4178,7 @@
      "rests on the owner's rulebook D40"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q70",
@@ -4131,14 +4188,14 @@
    "criterion": "ch.above_200",
    "q": "A clean cup breakout is fine to buy even when price sits under its 200-day average.",
    "answer": "False",
-   "why": "False. Our rule is no longs below the 200-day simple moving average, unless it is a parabolic long. A cup with a handle is not a parabolic long, so a clean shape does not change it. The card also tests that price is above the 200-day at the buy.",
+   "why": "False. Below the 200-day is a hard no for stocks, and a cup is a stock setup. A stock under its 200-day trades below its average of the last 200 sessions, so its long trend is not up. A clean shape does not change that.",
    "lesson_line": "No long under the 200-day. A tidy cup does not change that.",
    "facts": [
-    "h37",
+    "r06",
     "c51"
    ],
    "house": true,
-   "simple": "False. We do not buy a long under its 200-day average, and a clean cup is not a parabolic long.",
+   "simple": "False. Under its 200-day average the long trend is not up, so a stock is a hard no, however clean the cup.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -4146,7 +4203,7 @@
      "rests on the owner's rulebook B26"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q71",
@@ -4167,7 +4224,7 @@
     "Skip longs over 10% above the 9 EMA": "The story gives no 9 EMA and price is at the pivot. The 200-day average decides this one."
    },
    "answer": "No longs under the 200-day average",
-   "why": "No longs under the 200-day average. Price trades through the 31.40 pivot, but the 200-day is 33.10, so price is under it. Below the 200-day is a hard no for a stock, and a cup is a stock setup. The pivot test never gets a vote.",
+   "why": "No longs under the 200-day average. Price trades through the 31.40 pivot, but the 200-day is 33.10. So price is under it and the long trend is not up. Below the 200-day is a hard no for a stock, and a cup is a stock setup. The pivot test never gets a vote.",
    "lesson_line": "Check the 200-day before the pivot. Under it, no long.",
    "facts": [
     "r06",
@@ -4178,7 +4235,7 @@
     "r05"
    ],
    "house": true,
-   "simple": "Price is under its 200-day average, and we do not buy longs under that line.",
+   "simple": "Price is under its 200-day average, so the long trend is not up and we buy no long.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -4186,7 +4243,7 @@
      "rests on the owner's rulebook B26"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q72",
@@ -4196,7 +4253,7 @@
    "criterion": "ch.liquidity",
    "q": "A cup stock averages 600,000 shares a day at $28. How many millions of dollars does it trade a day?",
    "answer": "$16.8 million",
-   "why": "16.8 million dollars a day. Dollars traded is price times shares: $28 times 600,000. Our floor is a price of $10 or more and at least $20 million traded a day. This stock clears the price but not the dollar floor, so we skip it, however clean the cup.",
+   "why": "16.8 million dollars a day. Dollars traded is price times shares: $28 times 600,000. We want a stock liquid enough to get in and out. So our floor is a price of $10 or more and at least $20 million traded a day. This stock clears the price but not the dollar floor, so we skip it, however clean the cup.",
    "lesson_line": "Price times shares is dollars traded. We need $20 million a day.",
    "facts": [
     "h38",
@@ -4214,7 +4271,7 @@
    "house": true,
    "prefix": "$",
    "suffix": " million",
-   "simple": "It trades 16.8 million dollars a day, which is under the 20 million we need, so we skip it.",
+   "simple": "It trades 16.8 million dollars a day, under the 20 million floor, so getting in and out would be hard.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -4223,7 +4280,7 @@
      "rests on the owner's rulebook (B23)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "owner-review-7-2026-11-16",
    "choices": [
     "$1.7 million",
     "$0.6 million",
@@ -4266,14 +4323,14 @@
    "criterion": "ch.liquidity",
    "q": "A $7 stock that trades $40 million a day passes our liquidity floor.",
    "answer": "False",
-   "why": "False. We trade only stocks at $10 or more that trade at least $20 million a day. Both tests must pass. At $7 the stock fails the price test, even though $40 million a day clears the dollar-volume test.",
+   "why": "False. We trade only stocks at $10 or more that trade at least $20 million a day. That lets us get in and out. Both tests must pass. At $7 the stock fails the price test, even though $40 million a day clears the dollar-volume test.",
    "lesson_line": "Both tests count: $10 a share and $20 million a day.",
    "facts": [
     "h38",
     "c53"
    ],
    "house": true,
-   "simple": "False. Both tests must pass, and a $7 stock fails the $10 price minimum even with big dollar volume.",
+   "simple": "False. Both tests must pass so we can get in and out, and a $7 stock fails the $10 minimum.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -4281,7 +4338,7 @@
      "rests on the owner's rulebook B23"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q74",
@@ -4291,7 +4348,7 @@
    "criterion": "ch.position_adv",
    "q": "We never own more than 1% of a stock's average daily volume. A stock averages 250,000 shares a day. What is the most we may own?",
    "answer": "2,500 shares",
-   "why": "2,500 shares. We never own more than 1% of a stock's average daily volume. One percent of 250,000 is 2,500. It is a ceiling on what we own, and it applies to every stock.",
+   "why": "2,500 shares. We never own more than 1% of a stock's average daily volume. That way we can still get out without moving the price against us. One percent of 250,000 is 2,500. It is a ceiling on what we own, and it applies to every stock.",
    "lesson_line": "Cap every position at 1% of average daily volume.",
    "facts": [
     "h39",
@@ -4307,7 +4364,7 @@
    },
    "house": true,
    "suffix": " shares",
-   "simple": "We may own at most 1% of average daily volume, and 1% of 250,000 shares is 2,500.",
+   "simple": "We may own at most 1% of average daily volume, 2,500 shares, so we can still get out.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -4316,7 +4373,7 @@
      "rests on the owner's rulebook (D42)"
     ]
    },
-   "batch": "rank",
+   "batch": "owner-review-7-2026-11-16",
    "choices": [
     "2,500 shares",
     "25,000 shares",
@@ -4349,7 +4406,7 @@
     "220 shares": "Decimal slip: a tenth of the cap."
    },
    "answer": "2,200 shares",
-   "why": "2,200 shares. The risk math allows 5,000, but we never own more than 1% of a stock's average daily volume. One percent of 220,000 is 2,200, the lower limit, so the volume cap sets the most you may buy.",
+   "why": "2,200 shares. The risk math allows 5,000. But we never own more than 1% of a stock's average daily volume, so we can get out cleanly. One percent of 220,000 is 2,200, the lower limit, so the volume cap sets the most you may buy.",
    "lesson_line": "Never own more than 1% of average daily volume, whatever the risk math allows.",
    "facts": [
     "h39",
@@ -4364,7 +4421,7 @@
     "round": 0
    },
    "house": true,
-   "simple": "Buy at most 2,200 shares, because 1% of 220,000 is 2,200 and that is below the 5,000 the risk math allows.",
+   "simple": "Buy at most 2,200 shares. That is 1% of average volume, so we can still get out cleanly.",
    "deeper": {
     "trap": "The cap counts what you own, not one order. Buying the cap now and the same again later leaves double the cap held. Averaging the two limits gives 3,600, still over the cap."
    },
@@ -4376,7 +4433,7 @@
      "rests on the owner's rulebook D42; the story says the risk math and the position cap allow 5,000, so the volume cap is the only extra limit"
     ]
    },
-   "batch": "rank"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q76",
@@ -4410,28 +4467,29 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "ch.shape_symmetry",
-   "q": "A cup has 8 down weeks on its left side and 2 up weeks on its right. What does the symmetry cue say?",
+   "q": "A cup has 8 down weeks on its left, 2 up weeks on its right. A grade is our judgment of how clean the setup is. How does it grade?",
    "choices": [
     "Lopsided, so it grades lower",
     "Lopsided, but it grades the same",
     "Strong, a fast climb back is best",
-    "Fine, if the handle is quiet"
+    "Fine, if the handle dries up"
    ],
    "wrong": {
-    "Fine, if the handle is quiet": "A quiet handle is a separate cue. It does not fix a lopsided cup.",
-    "Lopsided, but it grades the same": "Lopsided is right, but the card does not grade it the same. A lopsided cup grades down.",
-    "Strong, a fast climb back is best": "A fast climb back is not the goal. IBD wants the up weeks on the right to roughly match the down weeks on the left."
+    "Lopsided, but it grades the same": "Lopsided is right, but it does not grade the same. A lopsided cup is less clean, so it grades lower.",
+    "Strong, a fast climb back is best": "A fast climb back is not the goal. IBD wants the up weeks on the right to roughly match the down weeks on the left.",
+    "Fine, if the handle dries up": "A handle that dries up is a separate cue. It does not fix a lopsided cup."
    },
    "answer": "Lopsided, so it grades lower",
-   "why": "Lopsided, so it grades lower. IBD wants the down weeks on the left to roughly match the up weeks on the right. 8 against 2 is far apart. Our card grades a lopsided cup down.",
+   "why": "Lopsided, so it grades lower. IBD wants the down weeks on the left to roughly match the up weeks on the right. Here it is 8 down weeks against 2 up weeks, a slow slide and a quick snap back, not a rounded U. A lopsided cup is less clean, so we grade it lower.",
    "lesson_line": "Count the weeks down and the weeks up. They should roughly match.",
    "facts": [
     "i36",
     "c46",
-    "c37"
+    "c37",
+    "i05"
    ],
    "house": true,
-   "simple": "A cup with 8 down weeks and only 2 up weeks is lopsided, so it grades lower.",
+   "simple": "A slow slide and a quick snap back is lopsided, not rounded, so the cup is less clean and grades lower.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -4439,7 +4497,7 @@
      "the symmetry cue is a card cue with IBD as the main source"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q78",
@@ -4654,7 +4712,7 @@
     "Set a price alert and sell by hand": "An alert is a reminder, not an order. Every position has a real stop order."
    },
    "answer": "Enter the stop as a real order",
-   "why": "Enter the stop as a real order. Our rule is that every position has a real stop order with the broker, not a stop kept in your head. Watching the screen depends on you being there at the right moment, and a price alert is only a reminder. The stop at 52.94 also only moves up.",
+   "why": "Enter the stop as a real order. Our rule is that every position has a real stop order with the broker, not a stop kept in your head. Watching the screen only works if you are there at the right moment, and a price alert is only a reminder. A real order protects the trade even when you are away or slow to act. The stop at 52.94 also only moves up.",
    "lesson_line": "A stop in your head is not a stop. Put the order in.",
    "facts": [
     "h40",
@@ -4662,7 +4720,7 @@
     "h02"
    ],
    "house": true,
-   "simple": "Enter the stop as a real order with the broker, because a stop kept in your head is not a stop.",
+   "simple": "Enter the stop as a real order, because a stop in your head only works if you are watching.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -4670,7 +4728,7 @@
      "rests on the owner's rulebook D41"
     ]
    },
-   "batch": "visuals-1",
+   "batch": "owner-review-7-2026-11-16",
    "chart": {
     "sym": "CNC",
     "asof": "2018-04-16",
@@ -4690,14 +4748,14 @@
    "criterion": "ch.stop_broker",
    "q": "Apart from the gap rule, our stop only ever moves up, never down or wider.",
    "answer": "True",
-   "why": "True. The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule. After a gap through the stop, the low of the first 30-minute bar becomes the new stop.",
+   "why": "True. The stop is the exit, and it only moves up, never down or wider. Moving it away would turn the planned small loss into a bigger one. The one exception is the gap rule. After a gap through the stop, the low of the first 30-minute bar becomes the new stop.",
    "lesson_line": "The stop only moves up. The gap rule is the one exception.",
    "facts": [
     "h02",
     "h06"
    ],
    "house": true,
-   "simple": "True. The stop only moves up, and the gap rule is the one exception.",
+   "simple": "True. A wider stop turns a small planned loss into a bigger one, and the gap rule is the one exception.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -4705,7 +4763,7 @@
      "rests on the owner's rulebook A4 and D41"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q85",
@@ -4727,7 +4785,7 @@
     "Sell two thirds at the open": "Too much at once. If you sell, sell part and keep the rest on the plan."
    },
    "answer": "Your call: sell part or hold on",
-   "why": "It is your call. It is day 4, past the day 3 earliest mark, and the stock gapped above 3R. A gap past 3R is not an automatic sell. Selling part at the open is one choice you may make. Holding is another.",
+   "why": "It is your call. It is day 4, past the day 3 earliest mark, and the stock gapped above 3R. A gap past 3R is not an automatic sell. Selling part at the open banks strength, and holding keeps a winner running. Both are fair, so it is judgment, never a rule.",
    "lesson_line": "A gap past your planned sell level is not an automatic sell. It is your call.",
    "facts": [
     "g1",
@@ -4735,7 +4793,7 @@
     "r04"
    ],
    "house": true,
-   "simple": "A gap past 3R is not an automatic sell. Selling part at the open is allowed, and so is holding.",
+   "simple": "A gap past 3R is not an automatic sell. Selling part banks strength and holding keeps it running, so it is your call.",
    "deeper": {
     "trap": "Do not read the gap as an order to sell. 93.15 is a mark, not a trigger. The gap lets you sell part by judgment. It does not make you."
    },
@@ -4746,7 +4804,7 @@
      "rests on the owner's rulebook B19 and F63"
     ]
    },
-   "batch": "rulings3"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q86",
@@ -4805,34 +4863,35 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "ch.inv_wedge_or_short",
-   "q": "Before the buy, what do those lows make of the handle?",
-   "story": "A clean cup, then a 6-session handle. Its lows run 47.0, 47.2, 47.4, 47.6, 47.9 and 48.3. Volume is quiet.",
+   "q": "Before the buy, what kind of handle do those lows show?",
+   "story": "A clean cup, then a 6-session handle. Its lows run 47.0, 47.2, 47.4, 47.6, 47.9 and 48.3. Volume dries up.",
    "choices": [
     "A wedging handle; it often fails",
-    "A tight handle; grades best",
-    "A short handle; not counted",
-    "A flat handle; it passes"
+    "A tight handle; the best kind",
+    "A short handle; it is not counted",
+    "A flat handle; it passes the test"
    ],
    "wrong": {
-    "A tight handle; grades best": "Tight closes are a separate cue. These lows climb, so the line trends up.",
-    "A short handle; not counted": "Six sessions clears the 5-session minimum. The rising lows are what fail.",
-    "A flat handle; it passes": "Flat lows would pass, but these climb from 47.0 to 48.3. A line through them slopes up."
+    "A tight handle; the best kind": "Tight closes are a separate cue. These lows climb, so this is a wedge.",
+    "A short handle; it is not counted": "Six sessions is not the problem. The rising lows are.",
+    "A flat handle; it passes the test": "Flat lows would pass, but these climb from 47.0 to 48.3."
    },
    "answer": "A wedging handle; it often fails",
-   "why": "A wedging handle; it often fails. A straight line through those six lows slopes up, and the card wants it flat or down. Rising lows end the setup before the buy. IBD says wedging handles have a higher failure rate, and a wedging handle with no shakeouts is a sign to steer clear. Quiet volume does not fix it.",
-   "lesson_line": "Fit a line through the handle's lows. It must slope flat or down.",
+   "why": "A wedging handle; it often fails. The lows climb from 47.0 to 48.3, so they slope up, and a handle should drift flat or down. IBD says wedging handles have a higher failure rate. A wedging handle with no shakeouts is a sign to steer clear, because no weak holders were scared out. Volume that dries up does not fix it.",
+   "lesson_line": "Look at the handle's lows. Rising lows are a wedge, and wedges fail more often.",
    "facts": [
     "c11",
     "c24",
     "c09",
     "i21",
     "i23",
-    "i22"
+    "i22",
+    "n02"
    ],
    "house": true,
-   "simple": "The lows climb every session, which makes a wedge, and wedging handles fail more often.",
+   "simple": "The lows climb every session, a wedge with no shakeout, and wedging handles fail more often.",
    "deeper": {
-    "trap": "Quiet volume is not proof of a good handle. Volume is one test and the slope of the lows is another, and both must pass. IBD says handles that drift lower foreshadow assertive action, while rising lows with no shakeout are a wedge to steer clear of."
+    "trap": "Dried-up volume is not proof of a good handle. Volume is one cue and the slope of the lows is another. IBD says handles that drift lower foreshadow assertive action, while rising lows with no shakeout are a wedge to steer clear of."
    },
    "tier": "extended",
    "risk": {
@@ -4841,7 +4900,7 @@
      "the slope test is a card proposal with IBD behind it"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q89",
@@ -4915,7 +4974,7 @@
    "criterion": "ch.stop_gap",
    "q": "On a gap down through our stop, we get out at once if the first 30 minutes take the loss past 2R.",
    "answer": "True",
-   "why": "True. On a gap through the stop, the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop, with a ceiling: past 2R, get out.",
+   "why": "True. On a gap through the stop, the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop, with a ceiling. Past 2R, get out at once, so a gap cannot cost more than that.",
    "lesson_line": "A gap through the stop has a ceiling: past 2R in the first 30 minutes, get out.",
    "facts": [
     "h06",
@@ -4923,7 +4982,7 @@
     "h02"
    ],
    "house": true,
-   "simple": "On a gap through the stop, the first 30 minutes decide. If they take the loss past 2R, get out.",
+   "simple": "True. If the first 30 minutes take the loss past 2R, we get out, so a gap cannot cost more.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -4932,7 +4991,7 @@
      "added so the gap rule and its ceiling are taught before q32 applies them"
     ]
    },
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "story": "A cup breakout triggers at 48.60. The buy day's low is 46.40, so the honest stop goes a few cents under it. At that stop your size comes out smaller than you hoped.",
@@ -4949,8 +5008,8 @@
     "Keep the usual size and risk more": "Shares come from account times risk percent, divided by entry minus stop. The stop sets the size; you do not stretch the risk.",
     "Keep the stop; round the size up": "The share count is rounded down, never up."
    },
-   "simple": "Never move the stop closer to make the size fit. The stop comes first and the size follows from it.",
-   "why": "Keep the stop and let it set the size. Stop first, a few cents under the day's low. Never move the stop closer to make it fit. If the honest stop does not fit the risk, skip the trade.",
+   "simple": "Keep the stop and let it set the size. A stop pulled in gets hit by normal noise.",
+   "why": "Keep the stop and let it set the size. Stop first, a few cents under the day's low. You never pick a size and back-fit a stop inside the noise. A stop pulled in sits where normal moves take it out. If the honest stop does not fit the risk, skip the trade.",
    "lesson_line": "You never pick a size and back-fit a stop. The stop comes first.",
    "deeper": {
     "trap": "The trap is pulling the stop in to get the size you wanted. Start from the honest stop, a few cents under the day's low, and take the size it gives. If that size does not fit the risk, skip the trade."
@@ -4959,7 +5018,8 @@
     "h01",
     "c42",
     "h03",
-    "h24"
+    "h24",
+    "n06"
    ],
    "risk": {
     "score": 2,
@@ -4975,7 +5035,7 @@
    "criterion": "ch.after_entry_stop",
    "house": true,
    "tier": "extended",
-   "batch": "wave1"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q93",
@@ -4983,29 +5043,29 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "ch.inv_volume_rises",
-   "q": "On our card, what is your call on this handle?",
+   "q": "A grade is our judgment of how clean the setup is. What is your call on this handle?",
    "story": "A rounded 10-week cup falls 20%, then a handle forms in its upper half. The handle drifts down for eight sessions above the 50-day. Volume rises every session, and the handle's average tops the cup's.",
    "choices": [
-    "Pass; a loud handle ends the setup",
+    "A warning; it grades lower",
+    "Pass; a loud handle voids the setup",
     "Buy; rising volume shows demand",
-    "Buy the pivot; the lows drift down fine",
     "Pass; eight sessions is too short"
    ],
-   "answer": "Pass; a loud handle ends the setup",
+   "answer": "A warning; it grades lower",
    "wrong": {
-    "Buy; rising volume shows demand": "A handle should go quiet. On our card, volume rising through the handle ends the setup.",
-    "Buy the pivot; the lows drift down fine": "The drift passes, but volume is a separate test. Rising volume ends the setup on its own.",
-    "Pass; eight sessions is too short": "A handle needs at least 5 sessions, so eight clears it. The volume is what fails."
+    "Buy; rising volume shows demand": "A handle should dry up. Rising volume is a warning that sellers are still active, not a sign of demand.",
+    "Pass; eight sessions is too short": "Eight sessions is long enough. The shape and the 50-day hold are fine.",
+    "Pass; a loud handle voids the setup": "Volume raises or lowers the grade; it does not void a setup. A heavy-volume day in a pullback is a warning, never an invalidation."
    },
-   "why": "Pass. On our card, volume that rises through the handle ends the setup before the buy. The handle should also average below the cup's volume, and this one averages above it. IBD says volume should dry up, evidence that the weak holders are just about gone. Here it climbs instead, so the drift and the 50-day do not save it.",
-   "lesson_line": "A handle should go quiet. Volume that climbs through it ends the setup.",
-   "simple": "A loud handle ends the setup on our card, so you pass even though its shape and the 50-day look fine.",
+   "why": "A warning; it grades lower. IBD says volume should dry up in a handle, evidence that the weak holders are just about gone. Here it climbs, so sellers may still be active, and a less clean setup earns a lower grade. A grade is our judgment of how clean the setup is, and the grade sets the size. Volume raises or lowers the grade; it does not void a setup.",
+   "lesson_line": "A handle should dry up. Volume that climbs through it is a warning and a lower grade.",
+   "simple": "Rising volume is a warning that sellers are still active, so the handle grades lower. It does not void the setup.",
    "facts": [
-    "c22",
     "c12",
     "i25",
     "i24",
-    "c09"
+    "h34",
+    "h30"
    ],
    "house": true,
    "tier": "extended",
@@ -5017,7 +5077,7 @@
      "the story fails both readings of the row: a rising trend and an average above the cup's"
     ]
    },
-   "batch": "polish"
+   "batch": "owner-review-7-2026-11-16"
   },
   {
    "key": "q94",
@@ -5089,6 +5149,89 @@
    "house": true,
    "tier": "extended",
    "batch": "sweep-2026-11-14"
+  },
+  {
+   "key": "q96",
+   "skill": "setup.cup_handle",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "ch.handle_length_typical",
+   "q": "Is a handle this long still fine, judging by its lows and its volume?",
+   "story": "A leader ran 40%, then built a 21.6-week, 21.3% deep cup. The handle has now run 19 days and is 6.7% deep. Its lows drift down and its volume is 0.77x the cup's.",
+   "choices": [
+    "Yes; lows drift down, volume dries up",
+    "No; a handle must be under two weeks",
+    "No; this long means a stale base",
+    "Yes; a longer handle is a stronger one"
+   ],
+   "answer": "Yes; lows drift down, volume dries up",
+   "wrong": {
+    "No; a handle must be under two weeks": "There is no such limit. StockCharts: a handle can last from one week to many weeks.",
+    "No; this long means a stale base": "Stale means a handle that keeps running with no breakout. This one still drifts down and dries up, which is what a good handle does.",
+    "Yes; a longer handle is a stronger one": "Longer is not better. A handle is a short pause, and this one works because of how it behaves, not its length."
+   },
+   "why": "Yes. A handle is judged by how it behaves more than by how long it runs. This one's lows drift down and volume dries up, which IBD says is evidence the weak holders are just about gone. StockCharts: a handle can last from one week to many weeks and is ideally completed within one to four weeks. This one ran 19 days, inside that.",
+   "lesson_line": "Judge a handle by how it behaves, not only by how long it runs.",
+   "facts": [
+    "sc02",
+    "i25",
+    "i22",
+    "d04",
+    "d05"
+   ],
+   "simple": "A long handle still works when its lows drift down and volume dries up. How it behaves matters more than how long it runs.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "new in review7 (replaces the cut handle-length items)"
+    ]
+   },
+   "chart": {
+    "sym": "MCO",
+    "asof": "2012-09-05",
+    "window": 150,
+    "forward": 20
+   },
+   "batch": "owner-review-7-2026-11-16"
+  },
+  {
+   "key": "q97",
+   "skill": "setup.cup_handle",
+   "rung": 4,
+   "format": "mcq",
+   "criterion": "ch.handle_position",
+   "q": "A cup climbs back to its old high, then dips into a handle. What is going on in that dip?",
+   "choices": [
+    "Holders near the old high are selling",
+    "The stock is failing and rolling over",
+    "Funds have finished buying the stock",
+    "The cup's low is being retested"
+   ],
+   "answer": "Holders near the old high are selling",
+   "wrong": {
+    "The stock is failing and rolling over": "A handle that holds in the upper half is a pause, not a failure. The selling is being worked off.",
+    "Funds have finished buying the stock": "Nothing in the pattern says that. The dip is the old-high selling being worked off.",
+    "The cup's low is being retested": "A handle forms in the upper half of the base. A fall back to the cup's low is a deeper decline, not a handle."
+   },
+   "why": "Holders near the old high are selling. Zanger: as the stock comes up to test the old highs, it incurs selling pressure. The handle is where that selling plays out, and IBD says a shakeout there scares out weak hands, shareholders who lack conviction. Once those holders are gone, less is left to stop a breakout. That is why we wait for the trade through the handle high.",
+   "lesson_line": "The handle is the old-high selling being worked off. Wait for the trade through its high.",
+   "facts": [
+    "n01",
+    "n03",
+    "n02",
+    "i14",
+    "z06"
+   ],
+   "simple": "The dip is selling from holders near the old high. It scares out weak hands, so less is left to stop the breakout.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "new in review7 (the why of the handle, from Zanger and IBD)"
+    ]
+   },
+   "batch": "owner-review-7-2026-11-16"
   }
  ],
  "conflicts": [
@@ -5134,26 +5277,26 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "GWW card winner 2004-09-29; asof day before; no numbers; chart shows cup+handle for the definition."
+   "fixed": true,
+   "notes": "Stem opened 'Look at the chart' (TASK 3). Reworded; the chart is still named."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "EFX winners_list 2007-05-04; asof 05-03 is prior trading day; no numbers."
+   "fixed": true,
+   "notes": "Stem opened 'Look at the chart' (TASK 3). Reworded."
   },
   "q03": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
-  },
-  "q04": {
-   "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "concept (V vs U); not keyed on the number against a neighbour (D-029)"
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
+  },
+  "q04": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q05": {
    "status": "cut",
@@ -5165,19 +5308,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "RRC winners_list 2013-02-05; dossier row 4 handle under the rim in upper third; asof prior day."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c12 plus i25, i24, c22; stem scoped to our card; q40 grades how quiet, so no overlap."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "WPM 2025-12-10 row 9; invented 48.20 removed; choices/answer/wrong re-keyed consistently, lengths ok."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q09": {
    "status": "cut",
@@ -5189,68 +5332,67 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "tests direction (at least, not at most) (D-029)"
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q11": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Choice 'A cup without a handle' is a second defensible answer: the card says rising lows (a wedge) 'is not a handle' (c11), and the wrong note says the opposite. Replace with a choice the story itself rules out (no shakeout)."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q13": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Stem lacks 'On our card'. From IBD's upper-half rule or Zanger's 5%, a right side up to 20% below can be defended, so 'about 20%' becomes a second answer. The 10% is the card's number (c08). Name the card.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Bulkowski page heading is Important Bull Market Results; throwback rate 62% (b07), defined as return to breakout price within 30 days. 62% is most, so False holds."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q15": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Card c19 states it directly; IBD i31/i32 support the reason. Graded down not banned is stated."
+   "fixed": true,
+   "notes": "Cold answer: True. But the card's 'a third or later base is graded down' is a proposed card line, and E50 says grading is discretionary with no fixed checklist as ours; 'grades lower' stated flat read as a checklist item. Softened to 'usually' in q, why, simple and lesson_line; the key and the IBD support (i32) stay."
   },
   "q17": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "c07 gives the ceiling of two (card says ceiling is the maximum, not the grade); plain ladder, 11-13 chars; wrong notes grounded."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "EFX row 2: buy 40.98 stop 40.25; R 0.73; 3R 43.17; wrong 38.79/42.44/41.71 verified; asof = signal date."
+   "notes": "Cold answer 43.17: R = 40.98-40.25 = 0.73, 3R = 2.19 above the fill. Distractors are real slips (38.79 subtracts, 42.44 is 2R, 41.71 is 1R). Why says the first sell is a judgment (D-013), so 3R is a mark, not a sell rule; the question defines R. Price math that sets the breakeven window (2R to 5R), not a ratio drill."
   },
   "q19": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q20": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q21": {
    "status": "cut",
@@ -5259,52 +5401,52 @@
    "notes": "cut in wave1: see the resolver's notes"
   },
   "q22": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "i09 plus c37; 'a bit over a year' for 65 weeks is accurate; all choices 17-19 chars."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Report after tomorrow's close is inside the 3-day window (h08). Every distractor fails the rule; none is defensible."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q24": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "arithmetic; 35.0% against far distractors; 30% is stated as what IBD and AAII ask"
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q25": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Math right (22/80=27.5; 22/58=37.9; 72.5; 22). 22% was the lone whole number among one-decimal choices; one decimal on all. Why lacked the 22.00 step."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q26": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Math right (53; 18; 9; 106). TELL: the answer was the only choice inside the 44-62 price range. Replaced $9.00 with $71.00, a real direction slip (half the height above the high)."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cup midpoint 52, handle midpoint 51, handle low 45 in the lower half: c10, c49, a01 all give Pass. Distractors grounded. Numbers come from the story."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "GWW row 1: 56.61/55.27 in question; 2.37% correct; asof = signal date."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q29": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Handle high and 10:30 trade drawn; 4% is stated in the words. Keep."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q30": {
    "status": "cut",
@@ -5316,26 +5458,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c18, h02, h42 (verified in sizing_rule A5 across a line break), h28 support the key; all four story numbers are in the story; choices 30-33 chars.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Cold answer: hold. Stop 89.10, close 89.60 is above it; a close back in the handle is a warning (c18); pullbacks are common (c17); stop only moves up (A4); no adding (A5). Handle low 88.40 sits under the stop, stop is 2.3% from the fill, so the story is consistent. No second defensible answer."
   },
   "q32": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "gap DOWN through the stop (B20), numbers check: 52.10 is about 1.5R, inside 2R"
+   "fixed": true,
+   "notes": "Cold answer 52.10 (B20): R = 54.57-52.94 = 1.63, loss at the 30-minute low 2.47 = 1.5R, inside the 2R ceiling; the gap print is 1.33R. Keys and wrong notes hold. Defect: R and 2R were used without saying what R is. The why now defines it (no new number)."
   },
   "q33": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Math right (0.80; 2.00; 2.5; 3.5 from stop; 0.4). Why walks the steps."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q34": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "MCO row 3: 40.76/39.73 in question; 291 shares verified; asof = signal date."
+   "fixed": true,
+   "notes": "House-rule misstatement. The why said a stop-out costs 'about the same 0.75% of the account every time', which reads as flat-risk sizing presented as the house rule; A1/A2/E49 make risk vary by grade and flat risk is only one allowed way. Now says it is the chosen 0.75%, whatever the stop distance."
   },
   "q35": {
    "status": "cut",
@@ -5344,35 +5485,34 @@
    "by": "checker"
   },
   "q36": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "MPWR near-miss 2023-06-28: 4.0 wk cup, 64% run, 7-day handle all on card/dossier; asof day before."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q37": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "PEP near-miss 2009-10-02: 8.4 wk, 6.6%, 9-day handle on dossier; asof day before; heavy-volume clause rightly dropped."
+   "fixed": true,
+   "notes": "Cold answer: flat base (a 6.6% dip is under every cup-depth option; a flat base is 15% or less; PEP near-miss d28/d28b). Key holds. Only change: the stem opened 'Look at the chart', reworded for the library audit (TASK 3); the plain instruction (what base the chart shows) is kept."
   },
   "q38": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "META near-miss 2024-06-26: 11-wk, 22%, 5-day handle, V shape on dossier; asof day before."
+   "fixed": true,
+   "notes": "Stem opened 'Look at the chart' (TASK 3). Reworded."
   },
   "q39": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Three-session dip is under the 5-session floor (c09, i19, c31); nine weeks clears 7. Not yet is right. Overlaps q05/q89 only in the fact, in other formats.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q40": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Both pass c12; sharp dry-up is the A+ cue (c33), 0.97x the weakest acceptable (d13). Why states grading is discretionary (h34). Owner flag on 'grades higher' stands. Lengths 29-34."
+   "notes": "Cold answer: the sharply drying-up handle. D-006 (volume raises the grade, not a requirement) honored; both handles pass the gate, 0.97x is the weakest acceptable (d13); the stem defines grade; the why gives the reason (fewer sellers left, i25). 'Equal' and 'neither' tempt but the grade rewards a sharper dry-up. No tell beyond the natural echo."
   },
   "q41": {
    "status": "cut",
@@ -5383,14 +5523,14 @@
   "q42": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "F65 verbatim: Orange, only A+ setups. Stem says 'By our guide', matching A10. Wrong notes true; no tell."
+   "fixed": true,
+   "notes": "Cold answer: only the A+ cup (F65, Orange = only A+, a guide per A10). Defect: the story names the app's market filter but not what its color does (rule 19, the wording he rejected on SET.07). The story now says the color says how much we trade, without giving the key away."
   },
   "q43": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with the rulings it touches"
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q44": {
    "status": "cut",
@@ -5399,47 +5539,46 @@
    "notes": "cut in wave1: see the resolver's notes"
   },
   "q45": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q46": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c36 vs c45 ordering holds; four distinct ideas, lengths 29-34; Zanger z05 supports the Neither note. Owner flag on cue-ordering stands."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q47": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "21% is over a flat base's 15% and inside 12-33% (c28); one rounded decline with a 4% climb-back and one handle matches c29, which separates it from a VCP. Choices 28-31.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Stem opened 'Look at the chart' (TASK 3). Reworded."
   },
   "q48": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Key and story fine (c29). Cited fact c48 (handle depth 8% or 5%) supports nothing in this question. Remove it."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q49": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keyed on time and a huge run, not on 30%"
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q50": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ULTA failure: 16-wk 19% cup, 76% run, 8-day handle, 260.96/257.75, stopped 4 sessions later; asof = signal date."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q51": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "BX failure: 10-wk 18% cup, 5-day handle, 4.9x, 53.11/52.49, 2.37R day two; asof = signal date."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q52": {
    "status": "cut",
@@ -5451,75 +5590,73 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "SCHW failure: pivot 72.58, fill 74.57, stop 73.36, next-day stop-out; 2.7% over pivot verified; asof = signal date."
+   "notes": "Cold answer: no rule broken. 72.58 x 1.04 = 75.48, the fill 74.57 is 2.7% over; gap-open fills are allowed (D-003, D-031); 4% is rulebook C28, not a card number; 10% is the 9 EMA test (C29). Numbers are in d26/d27. Stop 1.6% from the fill. No second defensible answer."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Simple's longest sentence is 21 words; claims match c16, h04, h24."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q55": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "AX row 10: 89.22/86.95; 5R in ~7 weeks then rolled over; forward 60 covers it; asof = signal date."
+   "fixed": true,
+   "notes": "House-rule misstatement. A wrong note said 'After 5R what is left trails the average', which presents the superseded 5R step (E51) as our plan. D-013: later sells are a judgment, then trail what is left. The note now says what is left trails the average."
   },
   "q56": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "why and one wrong text say the handle low is 'never the stop itself' and 'not the stop', which contradicts D-008 (the pattern's low is an acceptable alternative). Keep the answer; fix the explanations so the first sell is what separates the choices"
+   "notes": "Cold answer: just under 63.78, first sell a judgment into a push (F62, D-008, D-013). Key holds. Defect: the why said 'day 3 at the earliest' as an absolute; D-013 says 'usually wait until day 3 at the earliest'. Now 'usually day 3 or later'."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "FFIV chart day before 2014-01-13 trigger; d02 'quiet handle', d01 0.74x. Midpoint/lows claims rest on the dossier scan gates (section 12) which all hits pass. Heavy-volume option is clearly wrong."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q58": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "AAPL 2021-04-29 trigger so 2021-04-28 is the day before; d30 gives six rising-lows days, 13 weeks, 20%. Stem no longer points. Same case as text q35 (13-week, 20%, rising lows), so keep them apart in the order. Chart unviewed; owner flag stands."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q59": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Red ends the setup before the buy (c41, h31, h26); shorts only under the 200-day (h31) and the story puts it above. Owner flag on 'guide' vs hard stop stands. Lengths 31-33.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q60": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "F68 (h27): start with a few, add as they work; Green full risk (h26). Two vague and two exact choices, lengths 28-32."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q61": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "R = 2.00, gain 11.20 = 5.6R, past the 5R hold line (B22 verbatim). Story states the rule. Add-before-report option fails on the 3-day no-buy rule."
+   "notes": "Cold answer: yes, hold. R = 2.00, gain 11.20 = 5.6R, past the 5R hold (B22). Adding is barred by the 3-day no-buy window. The story states the rule; the why shows the arithmetic. No second defensible answer."
   },
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "WB winners_list 2017-05-08; asof Friday before; plain wording; WB gapped higher, consistent with push-then-trail."
+   "fixed": true,
+   "notes": "Stem opened 'Look at the chart' (TASK 3). Reworded; the story already says you are planning the exits."
   },
   "q63": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "False is right: 12 sessions is far short of the c21 line (past about 30). No second answer; the 5-session note is accurate."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q64": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "42% in a rising market fails c20 under every D-052 option; 50% bear-only is supported by i12/c25; handle (8 sessions) clears c09. Two Pass/two Take, lengths 33-35, no tell.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q65": {
    "status": "cut",
@@ -5531,7 +5668,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story checks every B26 box (three up days, two gap ups incl. the last day, range expansion on two, volume up on two); C34 says sell a big part."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q67": {
    "status": "cut",
@@ -5543,86 +5680,85 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "92 in a top group vs 55 in a weak group is determinate by h35/c50. Wrong notes rest on h35 only. RS rating undefined in lesson is already an owner flag. No tell."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q69": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Chart-first (h36/c52) with a V cup (c20/i05). The 5-day dip meets c09, so 'handle too short' is properly refuted. Two Pass/two Buy."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q70": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "House-rule misstatement. The why said 'Our rule is no longs below the 200-day, unless it is a parabolic long' (B26). D-009 (RULINGS) and 'The rulings in our words' say below the 200-day is a hard no for STOCKS; the parabolic or reversal-extension exception is for indexes and leveraged ETFs only. Now matches q71."
   },
   "q71": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D-009 clean: stock hard no, exception dropped; 9 EMA rename ok"
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q72": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Slot uses the key '$16.8 million' (result is in millions). Keep."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q73": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
+   "notes": "Cold answer: False. $7 fails the $10 price floor even though $40 million clears the dollar floor (B23). Reason given (get in and out). True/False balance in the live set is 6 True / 5 False."
   },
   "q74": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q75": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
+   "notes": "Cold answer: 2,200 (D42, 1% of 220,000), smaller than the risk-based 5,000. Distractors are real slips (3,600 averages the two limits). Calc matches. No second answer."
   },
   "q76": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "True is supported by i36 and c46; 'rough, not exact' is faithful to both."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q77": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "8 down weeks against 2 up is lopsided; c37 grades lopsided cups down, so 'grades the same' is refuted. Two Lopsided/two not, no length tell."
+   "notes": "Cold answer: lopsided, grades lower. Rests on IBD's symmetry idea (i36); the why says 'less clean'; grading stays discretionary (E50). Note for the owner: a shape question without a chart (rule 24); the week counts carry the shape and no picture card is built for it."
   },
   "q78": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "True on a04, sc02 and c47; stated as the claim, no source-name give-away. AAII's longer-handle view is not taught as ours."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q79": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "24 sessions is over the 22 grade-down line (c47) and under the 30 stale line (c21). Key is not the longest. No second answer."
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q80": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Rank ok. The 1.3% choice had no real mistake behind it (halving gives 2.5%); replaced with dividing by high plus low."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q81": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "c48 gives 8% or less better and about 5% best, so 5% grades highest; 11% shown as lower, not as a fail, so D-053 is not leaned on.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q82": {
    "status": "cut",
@@ -5634,19 +5770,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "CNC row 7: 54.57/52.94 match text; asof = signal date 2018-04-16."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q84": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True on h02 with the gap rule (h06) as the stated exception. Easy but sound; not a duplicate of q83."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q85": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "GAP-TRIM compliant: answer is the judgment, 'it is the rule' options are wrong"
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q86": {
    "status": "cut",
@@ -5655,23 +5791,22 @@
    "notes": "cut in wave1: see the resolver's notes"
   },
   "q87": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q88": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Lows 47.0 to 48.3 rise every session; 6 sessions clears the 5 minimum; wedge per c11/c24, IBD i21/i23. Same idea as q35 but different angle (numbers, line fit, short-handle distractor).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Cold answer: wedging handle, often fails (rising lows, i21/i23, the owner's ANET note). Key holds. Defect: the stem 'what do those lows make of the handle?' is awkward and needs a second read (rule 5). Reworded."
   },
   "q89": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave1; awaiting cold re-read"
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
   },
   "q91": {
    "status": "cut",
@@ -5683,19 +5818,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "B20 ceiling (h06, h07) stated correctly; True, balanced by the lesson's False items. Taught before q32 applies it; its why shows the 30-minute-low rule but q32 is the later application, so acceptable."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q90": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stop first, size follows (h01, c42, h03, h24); no percent keyed so D-008 is not leaned on. 'Round up' is refuted by h03, 'risk more' by the formula. Key not the longest. q65 is cut so no duplicate."
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q93": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right: c22 says rising handle volume ends the setup, and every other story fact clears its row (c09 5-session minimum, i14 upper half, c13 50-day, c11 drift). Fixed two defects. (1) The keyed choice \"Pass; it ends the setup before the buy\" has no antecedent for \"it\" and echoes the card row wording rather than naming a reason, while the rival Pass names one. Now \"Pass; a loud handle ends the setup\" (34 chars, not the lone longest; \"loud\" is the lesson's own word from q21, not the story's). (2) \"ends above the cup's average\" was ambiguous (last day or handle average). The story now says t"
+   "fixed": false,
+   "notes": "Checked against the rulebook, the rulings, the dossier and rules 19-24: right answer right, wrong ones clearly wrong, why gives a reason, quotes and numbers supported, chart (if any) matches the dossier row and shows the day before the trigger."
   },
   "q94": {
    "status": "cut",
@@ -5704,10 +5839,22 @@
    "notes": "Cut: duplicates q36, a choice question that already tests the 7-week cup minimum, and its right answer says 'under our 7-week minimum', which hands the rule to the learner. Do not replace q09."
   },
   "q95": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in owner-review-7-2026-11-16: see the resolver's notes"
+  },
+  "q96": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Cold answer: yes, a 19-day handle with drifting lows and dried-up volume is fine (StockCharts 1 to 4 weeks, MCO d05). Key holds. Changes: the stem opened 'Look at the handle's lows' (TASK 3); and 'a long handle is always best' was an 'always' tell, now a plain wrong claim."
+  },
+  "q97": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with the rulings it touches"
+   "notes": "Cold answer: holders near the old high are selling (Zanger n01, IBD n03). The why gives the reason and links it to the trigger. The other three are false or unsupported. No second defensible answer."
   }
  }
 }
