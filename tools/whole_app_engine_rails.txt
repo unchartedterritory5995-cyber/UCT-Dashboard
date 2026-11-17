@@ -7,8 +7,9 @@
 # saw reading outside its triggers (tools/ci_whole_app_rails.py --check, over every leg's read capture). To update
 # it, read the error, or download the `pine-heavy-whole-app-reads` artifact of the run. App-relative, one per line.
 # First derived 2026-11-17 from two read-capture runs over all 1,137 engine test files: 311 read outside the
-# engine; 240 only Pine fixtures/docs/tools outputs (now pine heavy triggers); 71 read the app, and two
-# engine tests merged since (strategyLane, computeCapRuling) read api/services/bars_window.py.
+# engine; 240 only Pine fixtures/docs/tools outputs (now pine heavy triggers); 71 read the app. The first PR
+# run (#1690) then found the corpus harness reading api/services/bars_window.py (merged the same day); that file
+# (HISTORY_WINDOW_BARS, Pine's history window) became a pine heavy trigger, which leaves these 68.
 src/components/chart/engine/__tests__/bindSymbolFields.rail.test.js
 src/components/chart/engine/__tests__/controlDoorCensus.test.js
 src/components/chart/engine/__tests__/dataSourcesRevalidate.test.jsx
@@ -39,7 +40,6 @@ src/components/chart/engine/__tests__/settingsBlobMigration.test.js
 src/components/chart/engine/__tests__/singleWriterIndex.test.js
 src/components/chart/engine/__tests__/storeIntradayAgreement.test.js
 src/components/chart/engine/__tests__/suiteCoverage.test.js
-src/components/chart/engine/__tests__/vendorHarness/strategyLane.test.js
 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.c45BarIndex.test.js
 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.l8RecordedSupply.test.js
 src/components/chart/engine/__tests__/volumeNumericPane.test.js
@@ -48,7 +48,6 @@ src/components/chart/engine/__tests__/vwapUtcBucketing.test.js
 src/components/chart/engine/__tests__/w9T11F1ChartWindow.test.jsx
 src/components/chart/engine/__truth__/p0.pineack.truth.test.js
 src/components/chart/engine/ast/budget.test.js
-src/components/chart/engine/ast/computeCapRuling.test.js
 src/components/chart/engine/ast/freshness.test.js
 src/components/chart/engine/ast/interpret.test.js
 src/components/chart/engine/ast/lint.test.js
@@ -73,9 +72,6 @@ src/components/chart/engine/runtime/__tests__/minContractLock.test.js
 src/components/chart/engine/runtime/__tests__/runtimeDoorBudget.rail.test.js
 src/components/chart/engine/runtime/__tests__/runtimeInputKinds.test.js
 src/components/chart/engine/runtime/__tests__/serverBundle.rail.test.js
-src/components/chart/engine/runtime/__tests__/strategyArmedCensus.measure.test.js
-src/components/chart/engine/runtime/__tests__/strategyServeAudit.measure.test.js
-src/components/chart/engine/runtime/__tests__/strategyServeCensus.test.js
 src/components/chart/engine/runtime/__tests__/w9T11Record.test.js
 src/components/chart/engine/runtime/__tests__/w9T1Broker.test.js
 src/components/chart/engine/runtime/__tests__/w9T4Sizing.test.js

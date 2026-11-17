@@ -12,9 +12,9 @@
 # ⭐ MEASURED, NOT GUESSED (2026-11-17): a read capture over all 1,137 engine test files found 311 that read outside
 # the engine. 240 read only Pine fixtures, Pine docs and Pine tool outputs: those paths became pine heavy TRIGGERS
 # (a Pine fixture change is Pine work). The other 71 read the app (and, for the walkers, api/, services/, tools/
-# and tests/fixtures/): they are this job's list (73 with two engine tests merged the same day that read
-# api/services/bars_window.py), and every path they read is in `paths:` below. So this job triggers on most PRs;
-# it is the cheap one (~73 files, ~2 min of tests on 2 workers).
+# and tests/fixtures/): they are this job's list (68 after api/services/bars_window.py, read by the strategy lane,
+# became a pine heavy trigger), and every path they read is in `paths:` below. So this job triggers on most PRs;
+# it is the cheap one (~68 files, ~100 s of tests on 2 workers, ~3 min of job).
 #
 # ⛔ THE LIST IS DERIVED, NOT HAND-KEPT ALONE: tools/whole_app_engine_rails.txt. Every pine heavy run records
 # which files each engine test file reads (app/src/test-read-capture.cjs) and `union` fails when a test that reads

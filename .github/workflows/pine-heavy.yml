@@ -121,6 +121,8 @@ on:
       - 'docs/pine/target-scripts.json'
       - 'docs/formulas/GRAMMAR.md'
       - 'api/data/pine_runtime_*.json'
+      # HISTORY_WINDOW_BARS, the Pine history window: the strategy lane and the corpus harness read it
+      - 'api/services/bars_window.py'
       # the read capture and the whole-app list it keeps honest (`union` runs the check)
       - 'app/src/test-read-capture*'
       - 'tools/ci_whole_app_rails.py'
