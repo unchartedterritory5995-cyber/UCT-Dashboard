@@ -88,6 +88,47 @@ describe('generated: source × destination naming × verbs × board shapes — e
   })
 })
 
+// ⛔ AUDIT mutant T3: ONE clause with TWO destination phrases ("move the news widget into the watchlist tabs into the calendar
+// tabs") says no single destination — every plan is refused, whichever widget the second phrase names (another one, the
+// source itself, the first destination again), in every destination form, either order
+const TWO_DEST = []
+for (const [shape, W] of Object.entries(BOARDS)) {
+  for (const s of W) for (const d of W) {
+    if (s.id === d.id) continue
+    const sn = namings(s, W).find(n => n.unique), dn = namings(d, W).find(n => n.unique)
+    if (!sn || !dn) continue
+    for (const o of W) {
+      const on = namings(o, W).find(n => n.unique)
+      if (!on) continue
+      for (const [f1, dest1] of DEST_FORMS) for (const [f2, dest2] of DEST_FORMS) {
+        const verb = VERBS[TWO_DEST.length % VERBS.length]
+        TWO_DEST.push({ shape, W, words: `${verb} ${sn.np} ${dest1(dn)} ${dest2(on)}`, why: `${f1} + ${f2}${o.id === s.id ? ' · the source again' : o.id === d.id ? ' · the destination again' : ''}` })
+        TWO_DEST.push({ shape, W, words: `${verb} ${sn.np} ${dest1(on)} ${dest2(dn)}`, why: `${f1} + ${f2} (swapped)${o.id === s.id ? ' · the source again' : o.id === d.id ? ' · the destination again' : ''}` })
+      }
+    }
+  }
+}
+describe('generated: TWO destination phrases in one clause — no plan is licensed', () => {
+  it('the generator covers a third widget, the source again and the destination again as the second phrase', () => {
+    expect(TWO_DEST.length).toBeGreaterThan(300)
+    expect(TWO_DEST.some(c => / · the source again$/.test(c.why))).toBe(true)
+    expect(TWO_DEST.some(c => / · the destination again$/.test(c.why))).toBe(true)
+    expect(TWO_DEST.some(c => !/ again$/.test(c.why))).toBe(true)
+  })
+  it.each([
+    'move the news widget into the watchlist tabs into the calendar tabs',
+    'put the news into the tabs of the watchlist into the calendar’s tabs',
+    'move the news widget into the watchlist tabs into the news tabs',
+    'move the news widget into the tabs of the watchlist into the tabs of the news widget',
+  ])('the AUDIT wording "%s": every plan refused', (words) => {
+    const W = BOARDS['three widgets (the AUDIT board)']
+    for (const a of W) for (const b of W) if (a.id !== b.id) expect(licensed(W, a.id, b.id, words)).toBe(false)
+  })
+  it.each(TWO_DEST.map(c => [c.shape, c.words, c.why, c]))('%s · "%s" (%s): every plan refused', (_s, words, _w, c) => {
+    for (const a of c.W) for (const b of c.W) if (a.id !== b.id) expect(licensed(c.W, a.id, b.id, words)).toBe(false)
+  })
+})
+
 describe('the AUDIT probes (3 widgets: news, watchlist, calendar)', () => {
   const W = BOARDS['three widgets (the AUDIT board)']
   it('"tuck the news widget into the watchlist tabs" with a plan moving the CALENDAR: refused', () => {
@@ -168,6 +209,10 @@ describe('through the panel (the AUDIT board + a chart)', () => {
     ['reversed', 'put the watchlist into the news tabs', { widget: 'news', into: 'wl' }],
     ['wrong destination', 'move the news widget into the watchlist tabs', { widget: 'news', into: 'cal' }],
     ['no source named', 'move it into the watchlist tabs', { widget: 'news', into: 'wl' }],
+    ['two destinations (T3)', 'move the news widget into the watchlist tabs into the calendar tabs', { widget: 'news', into: 'wl' }],
+    ['two destinations (T3)', 'move the news widget into the watchlist tabs into the calendar tabs', { widget: 'news', into: 'cal' }],
+    ['two destinations, the source again (T3)', 'move the news widget into the watchlist tabs into the news tabs', { widget: 'news', into: 'wl' }],
+    ['two destinations (T3)', 'put the news into the tabs of the watchlist into the calendar’s tabs', { widget: 'news', into: 'wl' }],
   ])('%s: "%s" → refused, nothing written, no card', async (_n, t, args) => {
     const { say, board: b } = mount()
     const was = widgetsJson(b)
