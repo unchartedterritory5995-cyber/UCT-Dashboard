@@ -95,6 +95,20 @@ export const ROTATION_SIDE_ARG_WORDS = Object.freeze({
   IN: 'in', INTO: 'in', UP: 'in', RISING: 'in', LEADERS: 'in', GAINING: 'in',
   OUT: 'out', DOWN: 'out', FADING: 'out', FALLING: 'out', LAGGARDS: 'out', LOSING: 'out',
 })
+export const TOP_FLOW_STATUS_WORDS = Object.freeze({
+  OPEN: 'open', ACTIVE: 'open', LIVE: 'open',
+  EXPIRED: 'expired', ARCHIVED: 'expired', PAST: 'expired', CLOSED: 'expired',
+})
+export const TOP_FLOW_DIRECTION_WORDS = Object.freeze({
+  BULL: 'bullish', BULLS: 'bullish', BULLISH: 'bullish',
+  BEAR: 'bearish', BEARS: 'bearish', BEARISH: 'bearish',
+})
+export const TOP_FLOW_SORT_WORDS = Object.freeze({
+  GAIN: 'gain', GAINERS: 'gain', WINNERS: 'gain', BEST: 'gain',
+  LOSS: 'loss', LOSERS: 'loss', WORST: 'loss',
+  PEAK: 'peak', HIGH: 'peak',
+  NEW: 'newest', NEWEST: 'newest', LATEST: 'newest', RECENT: 'newest',
+})
 export const RS_SCREEN_ARG_WORDS = Object.freeze({
   LEADERS: 'starter_rs_leaders', LEADER: 'starter_rs_leaders', LDR: 'starter_rs_leaders',
   TOP: 'starter_rs_top_rating', RATING: 'starter_rs_top_rating',
@@ -400,6 +414,25 @@ export const ARG_KINDS = {
     takes: 'IN or OUT',
     parse: (tok) => ROTATION_SIDE_ARG_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
     describe: (v) => (v === 'out' ? 'themes rotating out' : 'themes rotating in'),
+  },
+  // ── data wave 6 (2026-11-17) ──
+  /** TOPF's three picks (panels/topFlowModel.js; pinned by args.dataWave6.test.js): which picks,
+   *  which direction, and the order. No word sits in two of the maps, so `TOPF EXPIRED BEAR PEAK`
+   *  reads the same in any order. */
+  topFlowStatus: {
+    takes: 'OPEN or EXPIRED',
+    parse: (tok) => TOP_FLOW_STATUS_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => `${v} picks`,
+  },
+  topFlowDirection: {
+    takes: 'BULL or BEAR',
+    parse: (tok) => TOP_FLOW_DIRECTION_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => `${v} picks`,
+  },
+  topFlowSort: {
+    takes: 'an order (GAIN, LOSERS, PEAK, NEW)',
+    parse: (tok) => TOP_FLOW_SORT_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => ({ gain: 'biggest gain first', loss: 'biggest loss first', peak: 'biggest peak gain first', newest: 'newest pick first' })[v] || v,
   },
 }
 
