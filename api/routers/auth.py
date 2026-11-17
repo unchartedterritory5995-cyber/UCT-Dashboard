@@ -3062,6 +3062,11 @@ _PREFERENCE_KEYS = {
     # RS screens (unit U5): "1" once the member dismissed the first-visit line above an RS
     # screen's list (`focus/rsScreens.js` RS_NOTE_PREF). Added in the same commit as its writer.
     "screener_rs_note_seen": _PREF_OPAQUE,
+    # The scan board (2026-11-17, SCREENER_SCAN_BOARD_ENABLED): the member's board, its saved layouts
+    # and its switches, one JSON document (`focus/board/boardModel.js` BOARD_PREF, written by
+    # `useScanBoard`). Widget ids and grid boxes only; the client cleans it on every read. Added in
+    # the same change as its writer, so a saved layout never answers 400.
+    "screener_scan_board": _PREF_OPAQUE,
     # Written server-side by `ticker_tag_service.set_shared_tag_colors`, not
     # through this endpoint — listed so a client that ever writes it directly
     # is not refused for a key the product already owns.

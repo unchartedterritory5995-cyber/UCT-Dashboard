@@ -5,12 +5,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import usePreferences from '../../../../hooks/usePreferences'
 import * as model from './boardModel'
+// Imported by name (not through `model`) so the server's preference-key rail can read which key
+// this file writes (tests/test_preference_key_validation.py).
+import { BOARD_PREF } from './boardModel'
 
 const SAVE_MS = 500
 
 export default function useScanBoard(enabled) {
   const { prefs, setPref, loading, readFailed } = usePreferences()
-  const stored = prefs?.[model.BOARD_PREF]
+  const stored = prefs?.[BOARD_PREF]
   // When the preferences have already answered (the usual case: the app read them at sign-in), the
   // board opens straight on the stored layout, with no first frame on the default preset.
   const [ready] = useState(() => !!enabled && !loading && !readFailed)
@@ -27,7 +30,7 @@ export default function useScanBoard(enabled) {
     writeRef.current = () => {
       if (!dirty.current || !hydrated.current || readFailed) return
       dirty.current = false
-      setPref(model.BOARD_PREF, model.serialize(stateRef.current))
+      setPref(BOARD_PREF, model.serialize(stateRef.current))
     }
   })
   useEffect(() => {
