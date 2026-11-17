@@ -322,14 +322,14 @@ describe('WS-E 4 — a run-owned drawing the chart cannot place reaches the draw
     const m = mount(SRC('time + 3 * 86400000 + 9000000'))
     const drawn = m.layers.filter(Boolean).pop()
     expect(drawn && drawn.labels.map((l) => l.text)).toEqual([String(Math.round(rddtAcc()))])
-    expect(objectRenderDropsFor(m.id)).toEqual({ dropped: 1, held: 2 })
+    expect(objectRenderDropsFor(m.id)).toEqual({ dropped: 1, held: 2, servedByRun: true })   // a run's serve is recorded (servedByRun, 2026-11-17)
     m.binder.teardown()
   })
 
   it('⛔ CONTROL — both labels placeable ⇒ nothing counted', () => {
     const m = mount(SRC('time'))
     expect(m.layers.filter(Boolean).pop().labels).toHaveLength(2)
-    expect(objectRenderDropsFor(m.id)).toBe(null)
+    expect(objectRenderDropsFor(m.id)).toEqual({ dropped: 0, held: 2, servedByRun: true })   // a run's serve is recorded (servedByRun, 2026-11-17); nothing is counted
     m.binder.teardown()
   })
 })

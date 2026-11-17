@@ -1213,15 +1213,18 @@ export function createBinder({ chart, LWC, scope = '' }) {
   // ⭐ DIV-3 r2 — `why`: family → the member's sentence, for a family the HOST run
   // withheld whole by a named guard of its own (`objectRuntime.js`, `withheldWhy`:
   // a `table.cell` on a merged head cell). Said in the same note, never a silent drop.
-  const publishDrops = (instanceId, state, { families = null, familiesAll = null, why = null } = {}) => {
+  // ⭐ `servedByRun` (2026-11-17): the drawings on this chart ARE the run half's. The pane reads THIS
+  // (the binder's own decision) to leave out the host lane's withheld-drawings note, never a second
+  // evaluation of the gates.
+  const publishDrops = (instanceId, state, { families = null, familiesAll = null, why = null, servedByRun = false } = {}) => {
     const n = state ? renderDroppedCount(state) : 0
     const fams = Array.isArray(families) ? families : []
     const all = Array.isArray(familiesAll) ? familiesAll : []
     const whyN = why && typeof why === 'object' ? Object.keys(why).length : 0
-    if (!n && !fams.length && !all.length && !whyN && !dropsPublished.has(instanceId)) return
+    if (!n && !fams.length && !all.length && !whyN && !servedByRun && !dropsPublished.has(instanceId)) return
     attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0, noticeScope,
-      { families: fams, familiesAll: all, why }))
-    if (n || fams.length || all.length || whyN) dropsPublished.add(instanceId)
+      { families: fams, familiesAll: all, why, servedByRun }))
+    if (n || fams.length || all.length || whyN || servedByRun) dropsPublished.add(instanceId)
     else dropsPublished.delete(instanceId)
   }
   // ⭐⭐ W9-T12 — the marker outcome per instance (served, or the refusal's sentence), for the
@@ -1326,8 +1329,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
         const rStop = payload.status && payload.status !== 'ok' && objPayload
           ? stoppedRunSentence(payload.reason, 'unmeasured', { fromListing: ctx.historyFromListing === true }) : null
         const rWhy = runtimeWithheldWhy(payload.withheld)
+        // ⭐ the run half drew this instance's drawings on this chart: say so (`servedByRun`)
         publishDrops(inst.instanceId, rstate,
-          { why: rStop || rWhy ? { ...(rStop ? { [STOPPED_KEY]: rStop } : {}), ...(rWhy || {}) } : null })
+          { why: rStop || rWhy ? { ...(rStop ? { [STOPPED_KEY]: rStop } : {}), ...(rWhy || {}) } : null, servedByRun: true })
         const rsig = `rt:${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${(payload.stats || {}).nextId}:${theme.fg || ''}/${theme.bg || ''}`
           + markSig
         const rset = attempt(() => rlayer.set(rstate, rsig, {
