@@ -526,6 +526,9 @@ EMAIL_FOOTER_DEFAULT = "Manage your alerts from the chart toolbar."
 EMAIL_FOOTERS = {
     "rs_screen_alert": ("To stop this message, open the screen in the Screener and switch off "
                         '"Tell me what joins and leaves".'),
+    "transcript_keyword": ("To stop this message, remove the word from your earnings call alerts: "
+                           "search it in the UCT Terminal with TSRC, or open a company's earnings "
+                           "call transcript and use SEARCH ALL TRANSCRIPTS."),
 }
 
 

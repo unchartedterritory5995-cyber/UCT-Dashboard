@@ -17,6 +17,9 @@
 // ⛔ THE QUOTE IS THE SERVER'S OWN SHORT EXCERPT, shown as text (never as HTML) and never longer.
 // The index does not record who was speaking, so no speaker is shown.
 //
+// CALL ALERTS: on a result the member can save the search as a keyword alert (CallAlertSave.jsx
+// over the existing `/api/earnings/keyword-alerts` routes), and is told how an alert reaches them.
+//
 // The reads go through marketRead.js (the terminal's one bare-SWR reader). Nothing here polls.
 import { useId, useMemo, useState } from 'react'
 import Input from '../../../components/ui/Input'
@@ -27,6 +30,7 @@ import {
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'
+import CallAlertSave, { CallAlertNotes } from './CallAlertSave'
 import {
   CALL_SEARCH_CODE, MAX_QUERY, MIN_MONTH_CALLS, TREND_WORDS, callQuery, callSearchCommandArgs, callSearchUrl, callTrendUrl,
   monthLabel, quarterText, searchRead, trendRead, trendVerdict,
@@ -145,6 +149,10 @@ function Results({ q, code }) {
   let results
   // The month by month block is left out where it could only repeat the problem (a query the server cannot read).
   let withTrend = true
+  // Saving the search as a call alert is offered only on a search the index read and answered:
+  // above the quotes when there are some, under the finding when no call said it yet.
+  let withAlert = false
+  const alertSave = <CallAlertSave q={q} />
   if ((searchQ.error && !searchQ.body) || view.state === 'failed' || view.state === 'unavailable') {
     const err = searchQ.body ? null : searchQ.error
     const locked = err ? !canRetry(err) : false
@@ -173,6 +181,7 @@ function Results({ q, code }) {
       </PanelState>
     )
   } else if (!view.hits.length) {
+    withAlert = !indexEmpty
     results = indexEmpty ? (
       <PanelState kind="error" role="status" testId="terminal-tsrc-index-empty" title="The call index holds no calls right now."
         action={<button type="button" className={styles.chip} onClick={() => { searchQ.retry(); trendQ.retry() }}>Check again</button>}>
@@ -186,6 +195,7 @@ function Results({ q, code }) {
       </PanelState>
     )
   } else {
+    withAlert = true
     results = (
       <>
         {searchQ.error && <p className={styles.note} role="status">{failureText(searchQ.error, 'The call search')} Showing the last read.</p>}
@@ -200,6 +210,7 @@ function Results({ q, code }) {
             call dwells on the words, so the calls left out are the weakest matches, not the oldest.
           </p>
         ) : null}
+        {alertSave}
         <div className={styles.tableBox}>
           <table className={styles.table} data-testid="terminal-tsrc-table"
             aria-label={`Earnings calls that mention ${q}, best match first, ${view.hits.length} of ${view.total}`}>
@@ -246,6 +257,7 @@ function Results({ q, code }) {
   return (
     <>
       {results}
+      {withAlert && !listed.length ? alertSave : null}
       {withTrend ? trendBlock : null}
       <p className={styles.muted} data-testid="terminal-tsrc-method">
         One row per earnings call, best match first. The quote is the index&apos;s own short excerpt around the match,
@@ -255,6 +267,7 @@ function Results({ q, code }) {
         a row number to do the same.
         {searchQ.receivedAt ? ` Read at ${clock(searchQ.receivedAt)}.` : ''}
       </p>
+      {withAlert ? <CallAlertNotes /> : null}
     </>
   )
 }

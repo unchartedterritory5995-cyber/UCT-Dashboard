@@ -589,3 +589,27 @@ def test_the_RS_last_line_names_the_switch_by_the_label_the_page_draws():
     from api.services.screener import rs_screen_alerts
     assert rs_screen_alerts.SOURCE in wls.EMAIL_FOOTERS, (
         "the RS message's source no longer has its own last line")
+
+
+def test_a_call_keyword_alert_says_where_ITS_list_is():
+    """An earnings call keyword alert is saved and removed in the call search, not on a
+    chart. Its email ended with the default "Manage your alerts from the chart toolbar",
+    a place that does not hold it (found 2026-11-17 while the Terminal's TSRC panel gained
+    a save control)."""
+    import pathlib
+    footer = wls.email_footer("transcript_keyword")
+    assert footer != wls.EMAIL_FOOTER_DEFAULT
+    assert "chart toolbar" not in footer
+    root = pathlib.Path(__file__).resolve().parents[1]
+    # ONE FACT IN THREE FILES, each read rather than retyped: the alert's source string,
+    # the Terminal code that manages it, and the older list's heading.
+    scan = (root / "api" / "services" / "transcript_keyword_alerts.py").read_text(encoding="utf-8")
+    assert 'source="transcript_keyword"' in scan, "the scan no longer delivers under this source"
+    registry = (root / "app" / "src" / "pages" / "terminal" / "functions.js").read_text(encoding="utf-8")
+    assert "code: 'TSRC'" in registry, "TSRC is no longer a Terminal code: fix the footer"
+    assert "TSRC" in footer
+    import re
+    page = (root / "app" / "src" / "components" / "calendar" / "TranscriptSearchAll.jsx").read_text(encoding="utf-8")
+    m = re.search(r"<span className=\{styles\.label\}>([^<]+)</span>", page)
+    assert m, "the transcript search no longer has a plain heading"
+    assert m.group(1) in footer, "the heading the footer names was renamed: " + m.group(1)
