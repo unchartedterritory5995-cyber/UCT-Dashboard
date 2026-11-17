@@ -76,38 +76,44 @@ const TIMEFRAME_SKIP = 'a timeframe setting changes which bars the script reads,
 const SYMBOL_SKIP = 'a symbol setting changes which instrument the script reads, and this pane is handed only '
   + "the chart's own — another symbol's bars are not made up; its default stays"
 
-/** The author's colour default as `#RRGGBB`, or `{ skip }`. */
+/** `#RRGGBB` at a Pine TRANSPARENCY (0 = opaque, 100 = invisible): itself when opaque, else `#RRGGBBAA` with
+ *  the alpha byte `round((1 - t / 100) * 255)` (TradingView's `rgba(r, g, b, a)`, `a = 1 - t / 100`). */
+function atTransparency(hex6, t) {
+  if (t === 0) return hex6
+  const byte = Math.round((1 - t / 100) * 255)
+  return `${hex6}${byte.toString(16).padStart(2, '0').toUpperCase()}`
+}
+const isTransparency = (t) => typeof t === 'number' && Number.isFinite(t) && t >= 0 && t <= 100
+
+/** The author's colour default as `#RRGGBB`, or `#RRGGBBAA` when it is see-through (the colour picker sets a
+ *  colour AND its opacity, as TradingView's does), or `{ skip }`.
+ *  ⭐ SETTINGS PARITY (see-through colours, 2026-11-17): a see-through default was skipped ("the picker sets
+ *  an opaque colour") after the picker had learnt opacity, so RS Rating's dot and area colours were missing
+ *  from its settings while TradingView offers all four. */
 function colourDefaultOf(def, version) {
   if (def && def.type === 'colour' && typeof def.value === 'string') {
     const m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(def.value)
     if (!m) return { skip: 'its default is not a colour written as #RRGGBB' }
-    if (m[2] && m[2].toUpperCase() !== 'FF') {
-      return { skip: 'its default is see-through, and the colour picker sets an opaque colour — the '
-        + "author's transparency would be dropped" }
-    }
-    return { hex: `#${m[1].toUpperCase()}` }
+    const hex6 = `#${m[1].toUpperCase()}`
+    return { hex: m[2] && m[2].toUpperCase() !== 'FF' ? `${hex6}${m[2].toUpperCase()}` : hex6 }
   }
   if (def && def.type === 'name' && typeof def.name === 'string') {
     const hex = pineColourHex(def.name, version)
     if (hex) return { hex: hex.toUpperCase() }
   }
-  // ⭐ SETTINGS PARITY (2c, colours) — `color.rgb(r, g, b)` / `color.rgb(r, g, b, 0)`: literal channels
-  // and NO transparency are an exact opaque colour (RS Rating's `color.rgb(0, 0, 255, 0)`)
+  // ⭐ SETTINGS PARITY (2c, colours) — `color.rgb(r, g, b[, t])`: literal channels and a literal transparency
+  // are an exact colour (RS Rating's line `color.rgb(0, 0, 255, 0)`, its dots `color.rgb(121, 213, 242, 62)`)
   if (def && def.type === 'call' && def.name === 'color.rgb' && Array.isArray(def.args)) {
     const pos = def.args.filter((a) => a && !a.name).map((a) => literalNumber(a.value))
     const [r, g, b, t] = pos
     const channel = (v) => Number.isInteger(v) && v >= 0 && v <= 255
     if (pos.length >= 3 && pos.length <= 4 && channel(r) && channel(g) && channel(b)) {
-      if (pos.length === 4 && t !== 0) {
-        return { skip: 'its default is see-through, and the colour picker sets an opaque colour — the '
-          + "author's transparency would be dropped" }
-      }
+      if (pos.length === 4 && !isTransparency(t)) return { skip: 'its transparency is not a literal 0 to 100' }
       const h = (v) => v.toString(16).padStart(2, '0').toUpperCase()
-      return { hex: `#${h(r)}${h(g)}${h(b)}` }
+      return { hex: atTransparency(`#${h(r)}${h(g)}${h(b)}`, pos.length === 4 ? t : 0) }
     }
   }
-  // `color.new(<fixed colour>, 0)`: a fixed colour at NO transparency is that exact opaque colour
-  // (`input(color.new(#b2b5be, 0))`); a transparency other than a literal 0 is skipped as see-through
+  // `color.new(<fixed colour>, t)`: a fixed colour at a literal transparency (`input(color.new(#b2b5be, 0))`)
   if (def && def.type === 'call' && def.name === 'color.new' && Array.isArray(def.args)) {
     const pos = def.args.filter((a) => a && !a.name).map((a) => a.value)
     const named = (n) => { const a = def.args.find((x) => x && x.name === n); return a ? a.value : undefined }
@@ -116,11 +122,9 @@ function colourDefaultOf(def, version) {
     if (base && (base.type === 'colour' || base.type === 'name') && def.args.length === 2) {
       const inner = colourDefaultOf(base, version)
       if (inner.skip) return inner
-      if (literalNumber(tr) !== 0) {
-        return { skip: 'its default is see-through, and the colour picker sets an opaque colour — the '
-          + "author's transparency would be dropped" }
-      }
-      return { hex: inner.hex }
+      const t = literalNumber(tr)
+      if (!isTransparency(t)) return { skip: 'its transparency is not a literal 0 to 100' }
+      return { hex: atTransparency(inner.hex.slice(0, 7), t) }
     }
   }
   return { skip: 'its default is not a fixed colour (a #RRGGBB or a Pine colour name)' }
