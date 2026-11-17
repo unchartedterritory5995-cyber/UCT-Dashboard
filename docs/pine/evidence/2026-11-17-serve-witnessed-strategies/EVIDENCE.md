@@ -221,11 +221,21 @@ production serves 0 (admission), so `served` stays false and the wording is unch
 
 ## 5. Arming
 
-- `Dockerfile.web`: `ARG VITE_PINE_STRATEGY_BROKER_ENABLED=1`. A production build whose Railway variable is unset
-  bakes `"1"`; a set variable is passed as the build arg and wins (`0` holds the gate off). Local and test builds have
-  no Docker ARG and keep the gate's dark default. Precedent for a production default ON that Railway overrides:
-  `VITE_SAVED_SCRIPT_UPGRADE` (default ON in its reader). The reader here keeps the repo's `=== '1'` convention, so no
-  suite changes polarity; the default lives in the build.
+- `Dockerfile.web`: `ARG VITE_PINE_STRATEGY_BROKER_ENABLED=1`. A production build whose Railway variable is ABSENT
+  bakes `"1"`; a set variable is passed as the build arg and wins (`0` holds the gate off, and so does an empty value).
+  Local and test builds have no Docker ARG and keep the gate's dark default. Precedent for a production default ON
+  that Railway overrides: `VITE_SAVED_SCRIPT_UPGRADE` (default ON in its reader). The reader here keeps the repo's
+  `=== '1'` convention, so no suite changes polarity; the default lives in the build.
+- **Which bundle members load.** Two services build `Dockerfile.web`, each from its OWN Railway variables: `web`
+  (`railway.web.json`) and `web-front` (`front/service.json`, the front door that serves `/assets` and the app shell,
+  `front/README.md`). Members load `web-front`'s bundle (measured 2026-11-17 by the Studio session: a `VITE_*` set on
+  `web` alone changed nothing members load). Both watch `Dockerfile.web`, so this PR rebuilds both and the default
+  reaches both, provided the variable is absent on `web-front`. `front/README.md` says its `VITE_*` are Railway
+  references to `web`'s (`${{web.VITE_X}}`): a reference to a variable `web` does not have would pass an empty value
+  and bake the gate OFF in the members' bundle. Railway is not read from here, so the owner's check below comes first.
+  Rails: `test_every_service_that_builds_the_members_bundle_builds_this_dockerfile`,
+  `test_no_other_config_builds_the_frontend_from_this_dockerfile`,
+  `test_each_frontend_service_bakes_the_gate_from_its_own_variable`.
 - `docs/feature_flags.json`: the row is `armed`, with today's ruling, the mechanism and the override.
 - Production-shaped build, measured locally (same flags as production web: member pane, objects-only, runtime pane;
   `html2canvas` and `three` externalised in both builds because the shared `node_modules` predates them):
@@ -240,8 +250,18 @@ production serves 0 (admission), so `served` stays false and the wording is unch
 - What the gate reaches in production on the first deploy: no member (the runtime pane is admins-only); for admins, no
   strategy reaches the broker (admission), so every strategy draws as before and, where the armed route declined, its
   pane now names the decline. No report is shown to anyone until `strategy-decl` is admitted.
-- **The owner's step, if the default is not wanted**: `railway variables --set VITE_PINE_STRATEGY_BROKER_ENABLED=0
-  --service web` holds it off (a build constant: it rebuilds web). No Railway step is needed to arm it.
+- **The owner's steps** (Railway is the owner's; nothing here touches it):
+  1. Before the deploy, check the variable is ABSENT on both services (read only):
+     `railway variables --service web-front --kv` and `railway variables --service web --kv`, looking for
+     `VITE_PINE_STRATEGY_BROKER_ENABLED`. Absent on both: nothing to do, the default arms both bundles.
+  2. If `web-front` (or `web`) carries it, as a value or a `${{web.VITE_PINE_STRATEGY_BROKER_ENABLED}}` reference,
+     either delete it there (`railway variable delete VITE_PINE_STRATEGY_BROKER_ENABLED --service web-front`, then
+     `railway redeploy --service web-front --yes`: a delete does not rebuild) or set it to the literal on both
+     (`railway variables --set VITE_PINE_STRATEGY_BROKER_ENABLED=1 --service web-front`, the same for `web`).
+  3. To hold it off, on both (a build constant, so each rebuilds):
+     `railway variables --set VITE_PINE_STRATEGY_BROKER_ENABLED=0 --service web-front` and the same for `web`.
+  4. After the deploy, read the members' bundle, not `web`'s: the served `/assets/index-*.js` through
+     uctintelligence.com must carry `VITE_PINE_STRATEGY_BROKER_ENABLED:"1"`.
 
 ## 6. Engine number
 
@@ -268,3 +288,6 @@ number re-translates it.
 | | give `VITE_REALTIME_BARS` a default | RED (only-one-default) |
 | | ledger row back to `dark` | RED (ledger) |
 | | the detector stops naming `strategy-decl` | RED (server admits no strategy) |
+| | `front/service.json` builds another Dockerfile | RED (members' bundle; no other config) |
+| | `web-front` stops watching `Dockerfile.web` | RED (members' bundle) |
+| | the ledger row's `where` drops `web-front` | RED (ledger) |

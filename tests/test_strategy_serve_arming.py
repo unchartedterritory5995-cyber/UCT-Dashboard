@@ -18,8 +18,14 @@ server admits NO strategy: ``strategy-decl`` has no row in the capability regist
 (``strategyServeCensus.test.js``) latches exactly that verdict for its production state; the last rail here holds the
 verdict to the server, so the day ``strategy-decl`` is admitted this file goes red BY NAME and the census is re-measured.
 
+WHICH BUNDLE. Members load the bundle ``web-front`` builds and serves (``front/README.md``), not ``web``'s. Both build
+``Dockerfile.web`` (``front/service.json``, ``railway.web.json``), each from its OWN Railway variables, so the default
+reaches the members' bundle only while the variable is ABSENT on web-front (an empty value, or a reference to a variable
+``web`` does not have, bakes it OFF there).
+
 Mutation proofs (run by hand, each restored from a saved copy; recorded in the EVIDENCE file):
     1. drop the ``=1`` from the Dockerfile ARG                        -> default / production-shaped RED
+    1b. point ``front/service.json`` at another Dockerfile            -> members' bundle RED
     2. give another VITE_* ARG a default                              -> only-one-default RED
     3. set the ledger row's status to "dark"                          -> ledger RED
     4. stop the capability detector naming ``strategy-decl``           -> server-admits-no-strategy RED
@@ -92,6 +98,49 @@ def test_a_production_shaped_build_bakes_the_gate(railway, expect_on):
     assert (_baked(railway) == on) is expect_on, (railway, _baked(railway))
 
 
+#: The services whose image carries the BUILT frontend, by their config-as-code file. `web-front` (front/README.md) is
+#: the one members load: it serves `/assets` and the app shell; `web` keeps its own copy of the build.
+FRONTEND_SERVICES = {"web": ROOT / "railway.web.json", "web-front": ROOT / "front" / "service.json"}
+
+
+@pytest.mark.parametrize("service", sorted(FRONTEND_SERVICES))
+def test_every_service_that_builds_the_members_bundle_builds_this_dockerfile(service):
+    """The default reaches the bundle members load only because BOTH frontend services build `Dockerfile.web`, and a
+    change to it rebuilds both. (Measured 2026-11-17 by the Studio session: a VITE_* set on `web` alone changed nothing
+    members load; `web-front` builds and serves its own bundle.)"""
+    cfg = json.loads(FRONTEND_SERVICES[service].read_text(encoding="utf-8"))
+    build = cfg.get("build") or {}
+    assert build.get("builder") == "DOCKERFILE" and build.get("dockerfilePath") == DOCKERFILE.name, (
+        f"{service} no longer builds {DOCKERFILE.name}: the strategy broker's default does not reach its bundle")
+    watch = build.get("watchPatterns")
+    assert watch is None or DOCKERFILE.name in watch, (
+        f"{service} does not rebuild when {DOCKERFILE.name} changes, so the default would not reach its bundle")
+
+
+def test_no_other_config_builds_the_frontend_from_this_dockerfile():
+    """A third service building `Dockerfile.web` would bake the default too: it must be named above, on purpose."""
+    found = set()
+    for p in list(ROOT.glob("railway*.json")) + list(ROOT.glob("*/service.json")) + list(ROOT.glob("services/*/railway.json")):
+        cfg = json.loads(p.read_text(encoding="utf-8"))
+        if ((cfg.get("build") or {}).get("dockerfilePath")) == DOCKERFILE.name:
+            found.add(p.resolve())
+    assert found == {p.resolve() for p in FRONTEND_SERVICES.values()}, sorted(str(p) for p in found)
+
+
+@pytest.mark.parametrize("service", sorted(FRONTEND_SERVICES))
+@pytest.mark.parametrize("railway, expect_on", [
+    (None, True),   # absent on the service: the ARG default
+    ("", False),    # PRESENT but empty, e.g. web-front's `${{web.VITE_...}}` reference to a variable web does not have
+    ("0", False),   # the hold
+    ("1", True),
+])
+def test_each_frontend_service_bakes_the_gate_from_its_own_variable(service, railway, expect_on):
+    """Each service passes its OWN variable as the build arg (web-front keeps its own copies or references), so the
+    gate is ON in the members' bundle only when the variable is absent on web-front, or the literal 1 there."""
+    _, on = _gate()
+    assert (_baked(railway) == on) is expect_on, (service, railway)
+
+
 def test_only_the_strategy_broker_arg_carries_a_default():
     """A default arms a flag without a Railway step. Only the ruled one may have one: any other default would arm a
     feature nobody ruled on, silently, at the next build."""
@@ -104,6 +153,7 @@ def test_the_ledger_row_records_the_ruling():
     name, on = _gate()
     row = json.loads(LEDGER.read_text(encoding="utf-8"))["build_flags"][name]
     assert row["status"] == "armed", "the Dockerfile default arms the flag; the ledger must say so"
+    assert sorted(row["where"]) == sorted(FRONTEND_SERVICES), "both services that build the bundle carry the variable"
     assert "2026-11-17" in row["owner_decision"]
     assert f"ARG {name}={on}" in row["note"], "the ledger names the mechanism that arms it"
     assert "0" in row["note"] and "override" in row["note"]
