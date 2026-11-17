@@ -20,6 +20,7 @@ import {
   COLUMN_GROUPS, LIVE_COLUMNS, FACT_COLUMNS, EXISTING_PLACEMENT, factFieldsFor, factValue, factText,
 } from '../../pages/watchlist/watchlistColumnCatalog'
 import { isCustomStatKey, customStatsOf, customStatKey, customStatFor, customStatsWithout } from './headerCustomStats'
+import { statStylesOf, withStatStyle, statStylesWithout } from './headerStatStyle'
 
 export const STAT_LABEL_MAX = 16
 
@@ -108,6 +109,7 @@ export function headerStatTogglePatch(header, key) {
     const labels = statLabelsOf(header)
     delete labels[key]
     const patch = { fields: headerStatKeys(header).filter((k) => k !== key), statLabels: labels, customStats: customStatsWithout(header, key) }
+    if (header?.statStyle) patch.statStyle = statStylesWithout(header, key, isHeaderStatKeyOf(header))
     const colors = header?.colors && typeof header.colors === 'object' ? header.colors : null
     if (colors && [key, `${key}:pos`, `${key}:neg`].some((k) => k in colors)) {
       const c = { ...colors }
@@ -121,8 +123,23 @@ export function headerStatTogglePatch(header, key) {
   if (!cur.includes(key)) return { fields: [...cur, key] }
   const labels = statLabelsOf(header)
   delete labels[key]
-  return { fields: cur.filter((k) => k !== key), statLabels: labels }
+  const patch = { fields: cur.filter((k) => k !== key), statLabels: labels }
+  // its look (label color, box, size) goes with it, like its rename; the value color stays (`header.colors`, as before)
+  if (header?.statStyle) patch.statStyle = statStylesWithout(header, key, isHeaderStatKeyOf(header))
+  return patch
 }
+
+/** `(key) => boolean`: is `key` a stat this header can carry (a catalog stat, or one of ITS custom stats)? */
+export function isHeaderStatKeyOf(header) {
+  const custom = new Set(customStatsOf(header).map((c) => customStatKey(c.id)))
+  return (k) => !!HEADER_STAT_BY_KEY[k] || custom.has(k)
+}
+
+/** The member's per-stat looks (headerStatStyle.js), known stats only. */
+export const statStylesFor = (header) => statStylesOf(header, isHeaderStatKeyOf(header))
+
+/** The `header.statStyle` map after patching one stat's look (`{labelColor, box, boxColor, size}`; null = default). */
+export const withHeaderStatStyle = (header, key, patch) => withStatStyle(header, key, patch, isHeaderStatKeyOf(header))
 
 /** The `header.fields` after moving one chosen stat from index `from` to index `to` (clamped). */
 export function movedHeaderStats(header, from, to) {
@@ -189,9 +206,13 @@ export function headerStatItems(keys, labels, colors, ctx) {
   const own = labels || {}
   const ov = colors || {}
   const out = []
+  // per-stat looks (owner 11-17): absent = no `style` on the item at all, so the row renders exactly as before
+  const looks = ctx && ctx.header ? statStylesFor(ctx.header) : {}
   for (const key of keys || []) {
     if (isCustomStatKey(key)) {
-      out.push(customStatItem(key, own[key], ov, ctx))
+      const ci = customStatItem(key, own[key], ov, ctx)
+      if (looks[key]) ci.style = looks[key]
+      out.push(ci)
       continue
     }
     const f = HEADER_STAT_BY_KEY[key]
@@ -205,10 +226,12 @@ export function headerStatItems(keys, labels, colors, ctx) {
       finalColor = (f.colorKey ? ov[f.colorKey] : null) || color || f.dflt || null
     }
     const name = own[key]
-    out.push({
+    const item = {
       key, label: name || f.label, short: name || f.short || f.label, title: name ? f.label : f.title,
       value: value ?? null, color: finalColor, sign: f.signed ? (sign || 'pos') : null,
-    })
+    }
+    if (looks[key]) item.style = looks[key]
+    out.push(item)
   }
   return out
 }

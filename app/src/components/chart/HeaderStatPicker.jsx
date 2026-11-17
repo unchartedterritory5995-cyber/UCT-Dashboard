@@ -19,11 +19,13 @@ const CustomStatBuilder = lazy(() => import('./CustomStatBuilder'))
 const shownWord = (n) => `${n} shown`
 
 /** The chosen stats, in order, each renameable and movable. */
-export function HeaderStatList({ styles, keys, labels, onRename, onMove, onRemove, renderColors, metaOf }) {
+export function HeaderStatList({ styles, keys, labels, onRename, onMove, onRemove, renderColors, metaOf, renderStyle, styledKeys }) {
   // `metaOf(key)` describes a custom stat too (headerStatCatalog.headerStatMetaOf); the catalog alone otherwise
   const statOf = (key) => (typeof metaOf === 'function' ? metaOf(key) : HEADER_STAT_BY_KEY[key]) || null
   const [dragFrom, setDragFrom] = useState(null)
   const [over, setOver] = useState(null)
+  // the stat's look (owner 11-17): label color, shaded box, size — the same keys its header menu edits
+  const [styling, setStyling] = useState(null)
   if (!keys.length) {
     return <div className={styles.statEmpty}>No stats: the header shows just the title.</div>
   }
@@ -77,6 +79,13 @@ export function HeaderStatList({ styles, keys, labels, onRename, onMove, onRemov
             <div className={styles.hdrRowCtl}>
               {renderColors(s)}
               <span className={styles.statActs}>
+                {typeof renderStyle === 'function' && (
+                  <button type="button" className={`${styles.statIconBtn} ${styledKeys && styledKeys.has(key) ? styles.statIconBtnSet : ''}`}
+                    aria-expanded={styling === key} onClick={() => setStyling((k) => (k === key ? null : key))}
+                    aria-label={`Style ${name}`} title="Label color, box and size">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 12.5L6 3.5l3.5 9M3.8 9.5h4.4M11 12.5V7.5M9.5 9h3" /></svg>
+                  </button>
+                )}
                 <button type="button" className={styles.statIconBtn} disabled={i === 0} onClick={() => onMove(i, i - 1)} aria-label={`Move ${name} up`} title="Move up (left on the header)">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 10l4-4 4 4" /></svg>
                 </button>
@@ -88,6 +97,9 @@ export function HeaderStatList({ styles, keys, labels, onRename, onMove, onRemov
                 </button>
               </span>
             </div>
+            {styling === key && typeof renderStyle === 'function' && (
+              <div className={styles.statStyleLine} role="group" aria-label={`${name} style`}>{renderStyle(s)}</div>
+            )}
           </div>
         )
       })}
@@ -96,10 +108,10 @@ export function HeaderStatList({ styles, keys, labels, onRename, onMove, onRemov
 }
 
 /** The inline "choose from many" page: the whole catalog, grouped, searchable, a soft square per stat. */
-export function HeaderStatPicker({ styles, keys, onToggle, onReset, onDone, metaOf, onAddCustom, customAddRefusal }) {
+export function HeaderStatPicker({ styles, keys, onToggle, onReset, onDone, metaOf, onAddCustom, customAddRefusal, startBuilding = false }) {
   const [q, setQ] = useState('')
   const [hover, setHover] = useState(null)
-  const [building, setBuilding] = useState(false)
+  const [building, setBuilding] = useState(!!startBuilding)
   const searchRef = useRef(null)
   const on = useMemo(() => new Set(keys), [keys])
   const statOf = (key) => (typeof metaOf === 'function' ? metaOf(key) : HEADER_STAT_BY_KEY[key]) || null

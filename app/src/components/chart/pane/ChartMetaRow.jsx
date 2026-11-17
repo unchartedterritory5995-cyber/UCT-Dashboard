@@ -7,18 +7,55 @@
 // (MARKET CAP → MC) once the row would collide with the timeframe bar. The full
 // label is kept in `title` so a hover still reads it (or the field's own `title` when it
 // has one, e.g. RVOL's "Volume vs usual by this time of day"). Values are never abbreviated.
+//
+// CLICKABLE STATS (owner 11-17): with `onItemClick`, each stat is a control like the timeframes beside it — a click
+// (or Enter / Space) opens its quick-edit menu (HeaderStatMenu.jsx). Per-stat looks ride `item.style`
+// (headerStatStyle.js): a label color, a shaded box, a size. An item with no `style` renders exactly as before.
 import { safeCssColour } from '../engine/objectColour'
+import { STAT_SIZE_SCALE, DEFAULT_BOX_COLOR } from '../headerStatStyle'
+
+// The item's own inline style for its look, or undefined (no attribute at all) when it has none.
+function itemLook(st) {
+  if (!st) return undefined
+  const out = {}
+  if (st.box) {
+    out.background = safeCssColour(st.boxColor) || DEFAULT_BOX_COLOR
+    out.padding = '2px 7px'
+    out.borderRadius = 5
+  }
+  const k = st.size ? STAT_SIZE_SCALE[st.size] : null
+  if (k && k !== 1) out.zoom = k
+  return Object.keys(out).length ? out : undefined
+}
 
 // ⛔ a colour reaches CSS only through `safeCssColour` — a shared layout may carry anything.
-export default function ChartMetaRow({ items = [], abbrev = false, tight = false, styles }) {
+export default function ChartMetaRow({ items = [], abbrev = false, tight = false, styles, onItemClick = null, openKey = null }) {
   if (!items.length) return null
+  const clickable = typeof onItemClick === 'function'
   return (
     <div className={`${styles.chartMeta} ${tight ? styles.chartMetaTight : ''}`}>
       {items.map((it) => {
         const label = abbrev ? (it.short || it.label) : it.label
+        const st = it.style || null
+        const labelInk = st ? safeCssColour(st.labelColor) : null
+        const ctl = clickable ? {
+          role: 'button',
+          tabIndex: 0,
+          'aria-haspopup': 'dialog',
+          'aria-expanded': openKey === it.key,
+          'data-stat-item': it.key,
+          title: `${it.title || it.label}: click to edit`,
+          onClick: (e) => onItemClick(it.key, e.currentTarget),
+          onKeyDown: (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onItemClick(it.key, e.currentTarget) }
+          },
+        } : {}
         return (
-          <span key={it.key} className={styles.chartMetaItem}>
-            <span className={styles.chartMetaLabel} title={it.title || it.label}>{label}</span>
+          <span key={it.key}
+            className={`${styles.chartMetaItem}${clickable ? ' ' + (styles.chartMetaItemBtn || '') + ' charts-no-drag' : ''}${openKey === it.key ? ' ' + (styles.chartMetaItemOpen || '') : ''}`}
+            style={itemLook(st)} data-stat-size={st?.size || undefined} data-stat-box={st?.box ? '' : undefined} {...ctl}>
+            <span className={styles.chartMetaLabel} title={clickable ? undefined : (it.title || it.label)}
+              style={labelInk ? { color: labelInk } : undefined}>{label}</span>
             {/* `data-meta-key` + `data-sign` (signed fields only) let a host on an APP surface re-ink the value by its
                 meaning -- the TickerPopup header, ChartsWorkspace.module.css -- without reading colours. */}
             <span className={styles.chartMetaVal} data-meta-key={it.key} data-sign={it.sign || undefined} style={safeCssColour(it.color) ? { color: safeCssColour(it.color) } : undefined}>

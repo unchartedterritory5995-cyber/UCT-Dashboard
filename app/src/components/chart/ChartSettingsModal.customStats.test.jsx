@@ -91,4 +91,24 @@ describe('custom header stats', () => {
     expect('customStats' in next).toBe(false)
     expect(next.colors && next.colors['cx:c1']).toBeUndefined()
   })
+
+  it('a stat row Aa button edits the same look the header menu edits: size, box', () => {
+    const spy = vi.fn()
+    render(<Host initial={mergeChartSettings(JSON.stringify({ header: { fields: ['mcap', 'earn'] } }))} spy={spy} />)
+    openHeader()
+    fireEvent.click(screen.getByRole('button', { name: 'Style Market Cap' }))
+    const line = screen.getByRole('group', { name: 'Market Cap style' })
+    fireEvent.click(within(line).getByRole('button', { name: 'Market Cap size L' }))
+    expect(spy.mock.lastCall[0].header.statStyle).toEqual({ mcap: { size: 'l' } })
+    fireEvent.click(within(line).getByRole('switch', { name: 'Market Cap shaded box' }))
+    expect(spy.mock.lastCall[0].header.statStyle).toEqual({ mcap: { size: 'l', box: true } })
+    fireEvent.click(within(line).getByRole('button', { name: 'Market Cap size M' }))
+    expect(spy.mock.lastCall[0].header.statStyle).toEqual({ mcap: { box: true } })
+  })
+
+  it('opened from a header stat menu (Add an indicator value): Header & legend, on the custom-stat page', async () => {
+    render(<ChartSettingsModal open settings={mergeChartSettings(null)} onChange={() => {}} scrollTo="header:custom" />)
+    expect(await screen.findByRole('textbox', { name: 'Find an indicator' })).toBeTruthy()
+  })
 })
+

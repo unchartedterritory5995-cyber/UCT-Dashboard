@@ -1,7 +1,7 @@
 // Custom header stats (owner 11-16), MOUNTED: the real ChartPane around the real StockChart (lightweight-charts and the
 // live feeds stubbed). A stored custom stat (SMA 5 of Close) is computed by StockChart over the bars it draws from and
 // printed in the header's info row by ChartPane. Synthetic bars only.
-import { render, cleanup } from '@testing-library/react'
+import { render, cleanup, fireEvent, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 vi.mock('lightweight-charts', async (importOriginal) => {
@@ -73,5 +73,17 @@ describe('a custom stat in the mounted chart header', () => {
     }, { timeout: 8000 })
     const label = container.querySelector('[data-meta-key="cx:c1"]').previousSibling
     expect(label.textContent).toBe('SMA 5')
+  })
+
+  it('a header stat is clickable: its menu writes the look into header.statStyle through the pane writer', async () => {
+    const stored = { header: { fields: ['mcap', 'cx:c1'], customStats: [{ id: 'c1', defId: 'rsi', plotKey: 'rsi', inputs: { period: 14 }, name: 'RSI 14' }] } }
+    const onStore = vi.fn()
+    const { container } = render(<ChartPane sym="AAPL" tf="D" onTfChange={() => {}} stored={stored} onStore={onStore} />)
+    await vi.waitFor(() => expect(container.querySelector('[data-stat-item="cx:c1"]')).toBeTruthy(), { timeout: 8000 })
+    fireEvent.click(container.querySelector('[data-stat-item="cx:c1"]'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Size XL' }, { timeout: 8000 }))
+    const next = onStore.mock.lastCall[0]
+    expect(next.header.statStyle).toEqual({ 'cx:c1': { size: 'xl' } })
+    expect(next.header.fields).toEqual(['mcap', 'cx:c1'])
   })
 })

@@ -1,5 +1,5 @@
 import {
-  forwardRef, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState,
+  forwardRef, lazy, Suspense, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState,
 } from 'react'
 import useHistoryUserId from '../useHistoryUserId'
 import { recordIndicatorChange } from '../indicatorHistoryStore'
@@ -38,12 +38,15 @@ import { useChartColumnFacts } from '../restedReaders'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import {
   PERF_HEADER_KEYS, QUOTE_HEADER_KEYS, META_HEADER_KEYS,
-  THEME_HEADER_KEYS, CURVE_HEADER_KEYS,
+  THEME_HEADER_KEYS, CURVE_HEADER_KEYS, SIGN_POS, SIGN_NEG,
 } from '../headerFields'
 import {
   headerStatKeys, statLabelsOf, statNeedsQuote, statFactFields, headerStatItems,
+  HEADER_STAT_BY_KEY, withStatLabel, headerStatTogglePatch, statStylesFor, withHeaderStatStyle,
 } from '../headerStatCatalog'
-import { customStatsOf, customStatKey } from '../headerCustomStats'
+import { customStatsOf, customStatKey, customStatFor, isCustomStatKey } from '../headerCustomStats'
+// The header stat quick-edit menu (owner 11-17) loads on the first click of a stat.
+const HeaderStatMenu = lazy(() => import('./HeaderStatMenu'))
 import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
 import useBreadthSymbols from '../../../hooks/useBreadthSymbols'
@@ -638,7 +641,8 @@ function ChartPane({
   // NOT depend on infoAbbrev/tfCap: those are OUR outputs, and keying the reset on
   // them would oscillate (abbreviate → narrower → reset → un-abbreviate → …).
   const infoSig = useMemo(
-    () => metaItems.map((i) => `${i.label.length}:${String(i.value ?? '').length}`).join(','),
+    // a stat's size / box changes its width too (headerStatStyle.js), so it is part of the fit signature
+    () => metaItems.map((i) => `${i.label.length}:${String(i.value ?? '').length}${i.style ? `:${i.style.size || ''}${i.style.box ? 'b' : ''}` : ''}`).join(','),
     [metaItems],
   )
   useLayoutEffect(() => { setTfCap(99); setInfoForceAbbrev(false) }, [paneWidth, infoSig])
@@ -709,6 +713,54 @@ function ChartPane({
     setSettingsTarget(typeof target === 'string' ? target : null)
     setSettingsOpen(true)
   }, [])
+
+  // ── Clickable header stats (owner 11-17) ─────────────────────────────────────────────────────────────────────────
+  // A click on a stat opens HeaderStatMenu: rename, value / label color, shaded box, size, remove, "+ Add a stat…",
+  // "Header settings…". Every write goes through `patchHeader` into the SAME keys Chart Settings → Header & legend
+  // edits (statLabels, colors, statStyle, fields). Only where this pane's settings are editable (the gear's rule).
+  const statsEditable = !mini && !compact && !isOwnChartSurface && !isEcon
+  const [statMenu, setStatMenu] = useState(null)   // { key, el }
+  const closeStatMenu = useCallback(() => setStatMenu(null), [])
+  const onStatClick = useCallback((key, el) => setStatMenu((m) => (m && m.key === key ? null : { key, el })), [])
+  const statMenuStat = useMemo(() => {
+    if (!statMenu) return null
+    const it = metaItems.find((i) => i.key === statMenu.key)
+    if (!it) return null
+    const cat = HEADER_STAT_BY_KEY[statMenu.key]
+    const custom = isCustomStatKey(statMenu.key)
+    const own = custom ? ((customValues && customValues[statMenu.key]?.label) || customStatFor(hdr, statMenu.key)?.name || 'Custom stat') : cat?.label
+    const signed = custom ? !!customValues?.[statMenu.key]?.signed : !!cat?.signed
+    const colorKey = custom ? statMenu.key : (cat?.colorKey || statMenu.key)
+    const colors = hdr.colors || {}
+    return {
+      key: statMenu.key, label: own || it.label, rename: statLabels[statMenu.key] || null, value: it.value,
+      signed, colorKey,
+      valueColor: colors[colorKey] || null, defaultColor: (cat && cat.dflt) || it.color || null,
+      valueColors: { pos: colors[`${colorKey}:pos`] || null, neg: colors[`${colorKey}:neg`] || null },
+      defaultColors: { pos: SIGN_POS, neg: SIGN_NEG },
+    }
+  }, [statMenu, metaItems, customValues, hdr, statLabels])
+  const statMenuLook = useMemo(() => (statMenu ? (statStylesFor(hdr)[statMenu.key] || {}) : {}), [statMenu, hdr])
+  const statMenuKey = statMenu?.key
+  const renameStat = useCallback((label) => {
+    if (!statMenuKey) return
+    patchHeader({ statLabels: withStatLabel(hdr, statMenuKey, label) })
+  }, [statMenuKey, hdr, patchHeader])
+  const colorStat = useCallback((colorKey, hex) => {
+    const next = { ...(hdr.colors || {}) }
+    if (hex) next[colorKey] = hex
+    else delete next[colorKey]
+    patchHeader({ colors: next })
+  }, [hdr, patchHeader])
+  const styleStat = useCallback((patch) => {
+    if (!statMenuKey) return
+    patchHeader({ statStyle: withHeaderStatStyle(hdr, statMenuKey, patch) })
+  }, [statMenuKey, hdr, patchHeader])
+  const removeStat = useCallback(() => {
+    if (!statMenuKey) return
+    const patch = headerStatTogglePatch(hdr, statMenuKey)
+    if (Object.keys(patch).length) patchHeader(patch)
+  }, [statMenuKey, hdr, patchHeader])
   // ⭐ UCT Agent (C1-127): read through refs by the imperative handle, so the Agent's door never goes stale:
   // is the dialog open NOW (the read-back), and does this pane show the gear at all (not mini, not the own-chart surface)
   const settingsOpenRef = useRef(false)
@@ -1095,7 +1147,8 @@ function ChartPane({
       {!compact && !mini && !rowHideMeta && (
         /* tight: when the Time Navigator sits before the fields, drop the wide
            left margin so MARKET CAP hugs the box's divider (matches its left gap). */
-        <ChartMetaRow items={metaItems} abbrev={infoAbbrev} tight={!!slots?.tfBarAfterTf} styles={styles} />
+        <ChartMetaRow items={metaItems} abbrev={infoAbbrev} tight={!!slots?.tfBarAfterTf} styles={styles}
+          onItemClick={statsEditable ? onStatClick : null} openKey={statMenu?.key || null} />
       )}
       <div className={styles.tfBarRight}>
         {/* Breadth-only Line/Candles quick-toggle. Flips JUST the breadth view
@@ -1382,6 +1435,22 @@ function ChartPane({
       {/* ⭐ W9-T13b — a drawn strategy's report. null unless the broker gate is on AND a run
           published a record; the gate is read INSIDE (one reader, strategyBrokerGate.js). */}
       <AttachedStrategyReports settings={chartCs} noticeScope={noticeScope} />
+      {statsEditable && statMenu && statMenuStat && (
+        <Suspense fallback={null}>
+          <HeaderStatMenu
+            anchor={statMenu.el}
+            stat={statMenuStat}
+            look={statMenuLook}
+            onRename={renameStat}
+            onValueColor={colorStat}
+            onStyle={styleStat}
+            onRemove={removeStat}
+            onAddStat={(what) => openSettings(what === 'custom' ? 'header:custom' : 'header:add')}
+            onOpenSettings={() => openSettings('header')}
+            onClose={closeStatMenu}
+          />
+        </Suspense>
+      )}
       <ChartSettingsModal
         open={settingsOpen}
         chartTf={effectiveTf}

@@ -3962,3 +3962,20 @@
 .csNum[aria-invalid='true'] { border-color: var(--danger-ink, #f0525a); }
 .csHint { font-size: 11px; color: var(--menu-text-faint, #93939a); }
 .statPickFoot .addFieldBtn:disabled { opacity: 0.4; cursor: default; }
+
+/* Per-stat look (owner 11-17): the row's "Aa" opens a second line — label color, shaded box, size — the same keys the
+   header stat's own menu edits (header.statStyle). Grey/white, no gold. */
+.statRow { flex-wrap: wrap; }
+.statIconBtnSet { opacity: 1 !important; color: var(--menu-text, #ededed); }
+.statStyleLine {
+  flex: 1 0 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; padding: 2px 0 8px 20px;
+  font-size: 12px; color: var(--menu-text-dim, #a9a59b);
+}
+.statStyleItem { display: inline-flex; align-items: center; gap: 8px; }
+.statStyleReset { border: 0; background: none; padding: 2px 4px; border-radius: 4px; font: inherit; font-size: 11px; color: var(--menu-text-faint, #93939a); cursor: pointer; }
+.statStyleReset:hover { color: var(--menu-text, #ededed); background: rgba(248, 247, 243, 0.07); }
+.statSizes { display: inline-flex; gap: 2px; padding: 2px; border-radius: 7px; background: rgba(248, 247, 243, 0.05); }
+.statSize { min-width: 26px; height: 22px; padding: 0 6px; border: 0; border-radius: 5px; background: none; font: inherit; font-size: 11.5px; font-weight: 600; color: var(--menu-text-dim, #a9a59b); cursor: pointer; }
+.statSize:hover { color: var(--menu-text, #ededed); background: rgba(248, 247, 243, 0.07); }
+.statSizeOn, .statSizeOn:hover { color: var(--menu-text-bright, #f8f7f3); background: rgba(248, 247, 243, 0.14); }
+.statSize:focus-visible, .statStyleReset:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
