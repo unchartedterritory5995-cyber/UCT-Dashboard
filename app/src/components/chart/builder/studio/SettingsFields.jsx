@@ -47,10 +47,10 @@ function Row({ setting, onSet, disabled }) {
         aria-describedby={problem ? `${fieldId}-problem` : undefined}
         onChange={(e) => { setDraft(e.target.value); if (problem) setProblem(null) }}
         onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') { e.preventDefault(); commit() }
-          if (e.key === 'Escape') { e.stopPropagation(); setDraft(null); setProblem(null) }
-        }}
+        // ⛔ Enter only. Escape is the window's: the sheet these fields sit in listens for it on the
+        // document in the capture phase, so a field cannot keep it. A field that "reverted" on Escape
+        // also raised the window's close prompt (seen on production, 2026-11-17).
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit() } }}
       />
       {problem && <span id={`${fieldId}-problem`} className={styles.settingProblem} role="alert">{problem}</span>}
     </div>
