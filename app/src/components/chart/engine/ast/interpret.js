@@ -547,6 +547,28 @@ function isoWeekKey(iso) {
   return `${year}-W${week}`
 }
 
+/** ⭐⭐ RS RATING L11 (Q-RS7) — THE DAY OF AN ISO DAY'S MONDAY-TO-SUNDAY WEEK at `weekday`
+ *  (Mon=1 … Sun=7), as `YYYY-MM-DD`; null for a day it cannot read. Friday (5) is the day the
+ *  product keys a weekly bar by (`bars_fetch._resample_weekly_iso`, holiday Fridays included;
+ *  the harness mirrors it, `ourSide.js::productPeriodKey`), Monday (1) the week's first
+ *  calendar day. Integer arithmetic only, as `isoWeekKey`. */
+export function isoWeekDayOf(iso, weekday) {
+  if (typeof iso !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null
+  const [y, m, d] = iso.split('-').map(Number)
+  const z = daysFromCivil(y, m, d)
+  const dow = (((z + 3) % 7) + 7) % 7 + 1
+  const [yy, mm, dd] = civilFromDays(z + (weekday - dow))
+  return `${String(yy).padStart(4, '0')}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
+}
+
+/** ⭐ RS RATING L11 — an ISO day moved by whole calendar days, as `YYYY-MM-DD` (null when unreadable). */
+export function isoDayPlus(iso, days) {
+  if (typeof iso !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null
+  const [y, m, d] = iso.split('-').map(Number)
+  const [yy, mm, dd] = civilFromDays(daysFromCivil(y, m, d) + days)
+  return `${String(yy).padStart(4, '0')}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
+}
+
 /** The higher-timeframe bucket key for an ISO day. Mirrors `_tf_bucket`. */
 export function tfBucket(iso, code) {
   if (code === 'W') return isoWeekKey(iso)

@@ -42,7 +42,7 @@ import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/run
 import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CODE, interpret as interpretTree } from '../../ast/interpret'
 import { setRuntimeDoorClock } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
-import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf } from '../../otherSymbols'
+import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf, heldFetchOf } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
 import { storeExchangeOfCapture } from './storeExchange.js'
 import { createFakeChart } from '../fakeChart'
@@ -365,8 +365,9 @@ function recordedClassificationOf(capture) {
 }
 
 /** The secondary supply a capture's script asks for, and the notes naming what
- *  could not be supplied. */
-function otherSymbolSupply(def, capture) {
+ *  could not be supplied. (Exported for RS RATING L11's rail, which grades a probe's daily reads
+ *  below a weekly chart on the runtime lane with this same supply.) */
+export function otherSymbolSupply(def, capture) {
   const requests = otherSymbolRequestsOf(def)
   if (!requests.length) return { secondary: null, exchangeOf: null, notes: [] }
   const tf = tfCodeOf(capture.timeframe)
@@ -382,22 +383,28 @@ function otherSymbolSupply(def, capture) {
     // `SEED_FRED6725_RS_RATING:RSRATING`), else our store's ticker (`fetchableOtherSymbols`)
     const row = (spellings || []).map((v) => witnessRowOf(v, ticker)).find(Boolean)
     const storeKey = row ? row.store : storeTickerOf(ticker)
+    // ⭐ RS RATING L11 — a spelling this capture's timeframe HOLDS at another one (SP:SPX and the seed on
+    // a weekly chart: their DAILY rows, `heldFetchOf`) is filed under the key the chart files it under
+    // (`SPX@D`); the record keeps it under its store key, as the server serves it
+    const held = row ? heldFetchOf(storeKey, tf) : null
+    const cacheKey = held ? held.key : storeKey
     const rec = recorded && recorded.other ? recorded.other[storeKey] : null
     if (rec) {
       if (Array.isArray(rec.bars)) {
         // SUPPLY-ATTRIBUTED (2026-11-17): the counterfactual run (`runOurSideWithSupply`) replaces these
         // bars for ONE run; every graded run reads the recorded supply as served
         const over = _supplyOverride && Array.isArray(_supplyOverride[storeKey]) ? _supplyOverride[storeKey] : null
-        secondary.set(storeKey, { bars: over || rec.bars, status: 'available' })
+        secondary.set(cacheKey, { bars: over || rec.bars, status: 'available' })
         notes.push(`other symbol ${ticker}: the bars our server serves, recorded beside the capture `
           + `(${rec.servedBy}; ${rec.source})`
+          + (held ? `; held at ${held.tf} on this ${tf} chart` : '')
           + (rec.rows ? `; kept out of git, read from the local supply store as ${rec.rows.file} (sha256 ${rec.rows.sha256.slice(0, 12)})` : ''))
       } else if (rec.notOnThisMachine) {
-        secondary.set(storeKey, { bars: [], status: 'no_data' })
+        secondary.set(cacheKey, { bars: [], status: 'no_data' })
         notes.push(`other symbol ${ticker}: not supplied: ${rec.notOnThisMachine}`)
         unrecorded.push(`other symbol ${ticker}: ${rec.notOnThisMachine}`)
       } else {
-        secondary.set(storeKey, { bars: [], status: 'no_data' })
+        secondary.set(cacheKey, { bars: [], status: 'no_data' })
         notes.push(`other symbol ${ticker}: not supplied: ${rec.notRecorded}`)
         unrecorded.push(`other symbol ${ticker}: ${rec.notRecorded}`)
       }

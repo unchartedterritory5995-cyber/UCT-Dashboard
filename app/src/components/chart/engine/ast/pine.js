@@ -14105,6 +14105,16 @@ export class Resolver {
         return built ? lowerTfRefusal({ code, base: this.basePeriod, session: built }) : null
       })()
       const lowerWhy = lower ? ` Below the chart's own timeframe: ${lower.why}.` : ''
+      // ⭐ RS RATING L11 (Q-RS7 R3) — this chart's own symbol read at "D" on a weekly chart is served for a
+      // bare `close` only (`dailyOnWeeklyTargetOf`); anything else is named here, not as a resample.
+      if (code === 'D' && this.basePeriod === 'W' && this.ownSymbolNameOf(positional[0]) !== null) {
+        return {
+          why: 'on a weekly chart a daily read of this chart’s own symbol is served for a bare `close` only '
+            + '(a week’s last daily close is its weekly close: witnessed on NYSE:RDDT 1W, capture-queue row '
+            + 'Q-RS7); this one reads another expression or looks ahead, which needs the symbol’s daily bars, '
+            + 'and a weekly chart holds none beside its own weekly bars.',
+        }
+      }
       if (code && !TF_RESAMPLABLE.includes(code)) {
         // ⚰️ A SECOND, WORSE COPY OF `servableTimeframesText` LIVED HERE, and it
         // was only ever correct by accident: `.join(' and ')` reads right for the
@@ -14567,7 +14577,11 @@ export class Resolver {
     // period's last bar (`htfLookaheadOffStepBacks`, deleted): 213 wrong bars on the
     // two `support-and-resistance-multi-time-frame` captures. Formula `tf` keeps its
     // own meaning; only this door writes `tf_merge`.
-    if (code) out = { type: live ? 'tf_live' : 'tf_merge', value: code, args: [out] }
+    // ⭐⭐ RS RATING L11 — a daily read of ANOTHER symbol on a weekly chart (`dailyOnWeeklyTargetOf`) is
+    // no merge: its `sym` keeps the DAILY base's gate below, so on this chart the host lane withholds it
+    // whole by name (`request:other-timeframe`) and only the run, handed the held series per request
+    // (`requestSupply.js`), reads it.
+    if (code && target.below !== true) out = { type: live ? 'tf_live' : 'tf_merge', value: code, args: [out] }
     // ⭐⭐ C49 — A REQUEST FOR ANOTHER TIMEFRAME CARRIES THE GATE OF THE BASE IT
     // WAS TRANSLATED FOR, ON A CHART PANE. The pane translates once (for a daily
     // base) and its tree is bound on every chart; on any chart but the base's the
@@ -14580,7 +14594,8 @@ export class Resolver {
     // ⭐ ANOTHER SYMBOL TOO, and the gate goes OUTSIDE its `sym`: the merge is a
     // property of the request, not of the instrument, and `sym` hands the other
     // listing's bars at the CHART's timeframe — its 5-minute bars on a 5-minute chart.
-    const gateBase = this.strict ? (target.folded || (code ? this.basePeriod : null)) : null
+    const gateBase = target.below === true ? 'D'
+      : this.strict ? (target.folded || (code ? this.basePeriod : null)) : null
     if (gateBase && !other) out = requestBaseNode(gateBase, out)
     if (other) {
       out = { type: 'sym', value: other, args: [out] }
@@ -14809,6 +14824,11 @@ export class Resolver {
         })
         folded = code
         code = null
+      } else if (code === 'D' && this.basePeriod === 'W') {
+        // ⭐⭐ RS RATING L11 (Q-RS7) — A DAILY READ ON A WEEKLY CHART (`dailyOnWeeklyTargetOf`):
+        // this chart's own `close` (R3), or another symbol's daily series held and sampled per
+        // week by the supply (R2 / R4); anything else declines as it always did.
+        return this.dailyOnWeeklyTargetOf(node, args, placed, positional, own, other, venue)
       } else if (isLowerTfRequest(code, this.basePeriod)) {
         // ⭐⭐ C41 — A TIMEFRAME BELOW THE CHART'S OWN. Whether it is served is
         // `lowerTf.js`'s answer alone (`lowerTfDeclineOf` — the ONE reader, also
@@ -14847,6 +14867,37 @@ export class Resolver {
     if (live && !code) live = false
 
     return { own, other, venue, code, live, positional, folded }
+  }
+
+  /** ⭐⭐ RS RATING L11 (Q-RS7, `rs-weekly-2026-11-17`) — A DAILY READ ON A WEEKLY CHART, look-ahead
+   *  off. Asked only where this resolver's base IS weekly (the runtime lane, which translates per chart;
+   *  the member door translates for a daily base, where `"D"` is the identity and carries the daily gate,
+   *  C49), so no daily chart's translation moves.
+   *    * THIS CHART'S OWN SYMBOL (R3): served for a bare `close` only, as the identity. TradingView's
+   *      weekly close is its week's last daily close (139 of 139 settled NYSE:RDDT weeks, the weekly
+   *      capture against the committed daily one), and on the forming week both are the latest price.
+   *      Any other expression needs the symbol's daily bars, which a weekly chart does not hold: it
+   *      declines (null) and is refused by name (`securityDeclineReason`, `requestSupply.js`).
+   *    * ANOTHER SYMBOL (R2 / R4): `{…, code: 'D', below: true}`. The supply serves it only where a
+   *      witness row's weekly block names a daily read (`otherSymbols.js::witnessReadOf`), evaluating the
+   *      expression on the HELD daily series and sampling each week (`weekSampleOf`); every other symbol
+   *      is refused there by name. The host lane never draws it (`securityAsNode`: the daily gate). */
+  dailyOnWeeklyTargetOf(node, args, placed, positional, own, other, venue) {
+    if (this.requestLookaheadOf(args, placed) !== false) return null
+    if (own !== null) {
+      const v = positional[2]
+      const bareClose = !!v && v.type === 'name' && v.name === 'close' && !(this.env && this.env.has('close'))
+      if (!bareClose) return null
+      this.baseFolds.set(`${node.tok ? node.tok.line : '?'}:D`, {
+        line: node.tok ? node.tok.line : null,
+        column: node.tok ? node.tok.column : null,
+        requested: 'D',
+        base: this.basePeriod,
+        foldedTo: 'the chart’s own close (a week’s last daily close is its weekly close)',
+      })
+      return { own, other: null, venue: null, code: null, live: false, positional, folded: this.basePeriod }
+    }
+    return { own: null, other, venue, code: 'D', live: false, positional, folded: null, below: true }
   }
 
   /** ⭐ C47 — is this the one quarter request this door serves? The timeframe is
