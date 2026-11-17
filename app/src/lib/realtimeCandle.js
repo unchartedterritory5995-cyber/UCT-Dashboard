@@ -1,7 +1,7 @@
 // Single global registry. All chart instances subscribe here for live state.
 // Replaces per-component liveBarRef + series.update logic; multi-chart sync is automatic.
 
-import { LIVE_UI_CADENCE_MS, liveCandleCadenceMs } from '../utils/streamStatus';
+import { LIVE_CANDLE_CADENCE_MS, liveCandleCadenceMs } from '../utils/streamStatus';
 
 const _state = new Map(); // sym -> { tf -> {o,h,l,c,v,t} }
 const _subscribers = new Map(); // sym -> Set<callback>
@@ -18,8 +18,8 @@ function _notify(sym) {
   subs.forEach(cb => { try { cb(); } catch {} });
 }
 
-// Coalesce the candle repaint to the shared live-UI cadence (in lockstep with
-// priceStreamManager's PUBLISH_THROTTLE_MS). The o/h/l/c/v state is ALWAYS updated
+// Coalesce the candle repaint to the live CANDLE cadence (LIVE_CANDLE_CADENCE_MS, 250 ms since
+// 2026-11-17; the numeric readouts keep priceStreamManager's 1 s). The o/h/l/c/v state is ALWAYS updated
 // immediately (getCandle stays current for a freshly-mounting chart); only the
 // subscriber repaint is throttled per-symbol: leading edge fires at once, then at
 // most once per window, with a trailing flush so the final tick of a burst always
@@ -34,7 +34,7 @@ function _notifyTickThrottled(sym) {
   _tickThrottleTimers.set(sym, setTimeout(() => {
     _tickThrottleTimers.delete(sym);
     if (_tickPending.get(sym)) { _tickPending.delete(sym); _notify(sym); }
-  }, liveCandleCadenceMs(LIVE_UI_CADENCE_MS)));
+  }, liveCandleCadenceMs(LIVE_CANDLE_CADENCE_MS)));
 }
 
 function _notifyCorrection(sym) {
