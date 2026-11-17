@@ -32,6 +32,38 @@
    "from": "  let e = _entries.get(sha256Hex(source))",
    "to": "  let e = undefined",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/hostKnownDivergence.test.js"
+  },
+  {
+   "id": "HK-J5",
+   "mutant": "supply attribution ignores the window: a windowed plot can be attributed",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "  if (lookback !== 0 || !Array.isArray(divergent)",
+   "to": "  if (!Array.isArray(divergent)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.supplyAttributed.test.js"
+  },
+  {
+   "id": "HK-J6",
+   "mutant": "supply attribution needs only SOME divergences on differing dates",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "  return divergent.every((d) => d.kind === 'value' && diffDays.has(dayOf(d.time)))",
+   "to": "  return divergent.some((d) => d.kind === 'value' && diffDays.has(dayOf(d.time)))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.supplyAttributed.test.js"
+  },
+  {
+   "id": "HK-J7",
+   "mutant": "the counterfactual run is not asked (rule 3 dropped)",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "      if (cr && cr.steady.divergent === 0 && cr.steady.compared > 0) {",
+   "to": "      if (true) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.supplyAttributed.test.js"
+  },
+  {
+   "id": "HK-J8",
+   "mutant": "differing dates are counted outside the chart's window",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/supplyAttribution.js",
+   "from": "      if (!day || !chartDays.has(day) || !w.byDay.has(day)) continue",
+   "to": "      if (!day || !w.byDay.has(day)) continue",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.supplyAttributed.test.js"
   }
  ]
 }

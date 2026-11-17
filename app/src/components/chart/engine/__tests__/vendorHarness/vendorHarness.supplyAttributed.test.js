@@ -83,4 +83,17 @@ describe('RS Rating NVDA 1D (real capture, real supply, real witness)', () => {
     expect(p.verdict).toBe('DIVERGE')
     expect(p.supplyAttributed).toBeUndefined()
   })
+
+  it('CONTROL (rule 3): a difference on a differing date that the witness values do not explain keeps it DIVERGE', () => {
+    const cap = load(NVDA)
+    const id = cap.study.plots.find((x) => x.title === 'RS Line').id
+    const col = cap.plotValues.fields.indexOf(id)
+    // 1999-01-28 (bar 4, the RS line's first divergence): FMP 1243.17, TradingView 1243.19 (already differs)
+    const row = cap.plotValues.rows.find((r) => r[0] === 917533800)
+    expect(row && typeof row[col] === 'number').toBe(true)
+    row[col] = row[col] * 1.01
+    const p = rsLineOf(gradeCapture(sealCapture(cap)).verdict)
+    expect(p.verdict).toBe('DIVERGE')
+    expect(p.supplyAttributed).toBeUndefined()
+  })
 })
