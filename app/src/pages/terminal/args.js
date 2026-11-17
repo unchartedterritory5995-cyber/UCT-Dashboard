@@ -61,6 +61,10 @@ export const HILO_SIDE_WORDS = Object.freeze({
   HIGHS: 'highs', HIGH: 'highs', HI: 'highs', NH: 'highs',
   LOWS: 'lows', LOW: 'lows', LO: 'lows', NL: 'lows',
 })
+export const FLOW_LIST_ARG_WORDS = Object.freeze({
+  CREAM: 'cream', CROP: 'cream', TOP: 'cream',
+  OPEN: 'open', BOARD: 'open', OPENFLOW: 'open',
+})
 export const RS_SCREEN_ARG_WORDS = Object.freeze({
   LEADERS: 'starter_rs_leaders', LEADER: 'starter_rs_leaders', LDR: 'starter_rs_leaders',
   TOP: 'starter_rs_top_rating', RATING: 'starter_rs_top_rating',
@@ -279,6 +283,25 @@ export const ARG_KINDS = {
     takes: 'LEADERS, TOP, NH, NHBP or EXIT',
     parse: (tok) => RS_SCREEN_ARG_WORDS[String(tok).toUpperCase()] ?? null,
     describe: (v) => `screen ${String(v).replace(/^starter_rs_/, '').replace(/_/g, ' ')}`,
+  },
+  // ── data wave 3 (2026-11-17) ──
+  /** PERF's account: `ALL`, or the account's place in the Journal's own list (`2` is the second).
+   *  Never an id, so a command, a link and the history carry nothing personal. The reader is
+   *  panels/performanceModel.js parsePerformanceAccount (pinned by args.dataWave3.test.js). */
+  journalAccount: {
+    takes: 'ALL, or an account number (1, 2, 3)',
+    parse: (tok) => {
+      const t = String(tok ?? '').trim().toUpperCase()
+      if (t === 'ALL') return 'all'
+      return /^\d{1,2}$/.test(t) && Number(t) >= 1 ? Number(t) : null
+    },
+    describe: (v) => (v === 'all' ? 'all accounts' : `account ${v}`),
+  },
+  /** FLWL's list: Cream of the Crop or the open flow board (panels/flowListsModel.js LIST_WORDS). */
+  flowList: {
+    takes: 'CREAM or OPEN',
+    parse: (tok) => FLOW_LIST_ARG_WORDS[String(tok).toUpperCase()] ?? null,
+    describe: (v) => (v === 'open' ? 'the open flow board' : 'Cream of the Crop'),
   },
 }
 
