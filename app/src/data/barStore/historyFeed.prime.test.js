@@ -70,6 +70,40 @@ describe('historyLake source.warmPieces', () => {
   })
 })
 
+describe('primeLake: ahead of the open (a typed ticker, a row the pointer rests on)', () => {
+  it('network.primeLake primes intraday lake keys only, and only with a lake', () => {
+    const prime = vi.fn()
+    const net = createNetwork({ registry: createRegistry(), history: { olderBars: vi.fn(), prime }, request: vi.fn(() => new Promise(() => {})), isHidden: () => false, onVisible: () => () => {} })
+    net.primeLake(keyOf({ sym: 'AAA', tf: '5' }))
+    net.primeLake(keyOf({ sym: 'AAA', tf: 'D' }))
+    expect(prime.mock.calls.map((c) => c[0])).toEqual([keyOf({ sym: 'AAA', tf: '5' })])
+    const none = createNetwork({ registry: createRegistry(), history: null, request: vi.fn(), isHidden: () => false, onVisible: () => () => {} })
+    expect(() => none.primeLake(keyOf({ sym: 'AAA', tf: '5' }))).not.toThrow()
+  })
+
+  it('the typed warm and the pointer intent prime the key they warm', async () => {
+    const { createPrefetch } = await import('./prefetch')
+    const primed = []
+    const snaps = new Map()
+    const store = {
+      registry: { acquire() {}, release() {} },
+      persist: { hydrate: () => Promise.resolve(), hydrateMem() {} },
+      peek: (k) => snaps.get(k) || null,
+      ensure: vi.fn(async (k) => { const s = { key: k, restSeen: true, status: 'current', bars: [{ t: 1 }], depth: 500 }; snaps.set(k, s); return s }),
+      primeLake: (k) => primed.push(k),
+    }
+    const timers = []
+    const pf = createPrefetch({ store, tickerMeta: () => {}, packIngesting: () => true, extended: () => false,
+      setTimer: (fn, ms) => { timers.push(fn); return timers.length }, clearTimer: () => {} })
+    const typed = pf.warmTypedSymbol('TYP', '5')
+    for (let i = 0; i < 5; i++) { await Promise.resolve(); timers.splice(0).forEach((f) => f()) }
+    await typed
+    pf.prefetchBarOnIntent('HOV', '5')
+    timers.splice(0).forEach((f) => f())
+    expect(primed).toEqual([pf.keyFor('TYP', '5'), pf.keyFor('HOV', '5')])
+  })
+})
+
 describe('network.start primes the lake at the open', () => {
   const make = (history) => createNetwork({
     registry: createRegistry(), history, request: vi.fn(() => new Promise(() => {})),

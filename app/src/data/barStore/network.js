@@ -291,6 +291,13 @@ export function createNetwork({
     })
   }
 
+  /** Does the lake carry `key` (intraday, not a replay window, the lake on, not exhausted for it)? */
+  function lakeCarriesKey(key) {
+    if (!history) return false
+    const p = parseKey(key)
+    return !!p && !p.window && isIntradayTf(p.tf) && !keys.get(key)?.lakeDone
+  }
+
   const _lakeCarries = (r) => {
     const p = parseKey(r.key)
     return !!p && !p.window && isIntradayTf(p.tf) && !r.lakeDone
@@ -519,13 +526,15 @@ export function createNetwork({
       _noteBudget(key, spent, false)
     },
     setPriority(key, priority) { const r = keys.get(key); if (r) r.priority = priority },
+    /** Prime the lake for `key` now (historyFeed `prime`: index + newest pieces into the HTTP cache),
+     *  ahead of its open: a typed ticker or a row the pointer rests on. No-op where it does not carry. */
+    primeLake(key) {
+      if (!history?.prime || !lakeCarriesKey(key)) return
+      try { history.prime(key) } catch { /* a warm only */ }
+    },
     /** Would a scroll-back of `key` ask the history lake (intraday, not a replay window, the lake on
      *  and not found exhausted for this key)? Sets the background depth target (historyPrepend). */
-    lakeCarries(key) {
-      if (!history) return false
-      const p = parseKey(key)
-      return !!p && !p.window && isIntradayTf(p.tf) && !keys.get(key)?.lakeDone
-    },
+    lakeCarries(key) { return lakeCarriesKey(key) },
     /** Poll `key` now. `abort`: drop the request in flight first (invalidate). */
     kick(key, { abort = false } = {}) {
       const r = keys.get(key)
