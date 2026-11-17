@@ -196,7 +196,9 @@ describe('TradeExchangeNewsWidget', () => {
     expect(screen.queryByText(/graphic-only hidden/)).toBeNull()                 // never in the footer
     fireEvent.click(screen.getByTitle(/Click for feed health/))
     const health = await screen.findByRole('dialog', { name: 'Feed health' })
-    expect(health.querySelector('[data-key="graphic"]').textContent).toMatch(/2 hidden/)
+    // the hidden count is the day's server answer (day.hidden), rendered a task later: wait for it,
+    // as the footer test below does (same race; it went red here when the answer was made late)
+    await waitFor(() => expect(health.querySelector('[data-key="graphic"]').textContent).toMatch(/2 hidden/))
     unmount()
     render(<TradeExchangeNewsWidget color="A" opts={{ settings: { graphicPlaceholders: 'show' } }} onOptsChange={vi.fn()} />)
     act(() => feed.set({ status: 'live', items, lastSeq: 5, lastHeadlineAt: NOW }))
