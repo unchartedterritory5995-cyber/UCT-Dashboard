@@ -48,6 +48,7 @@ import { runtimeOwnObjectsOf, valueBuildDefersToDrawing } from './runtimeObjects
 import { pairRunRows } from './runRowPairing'
 import { runtimeInputSpecsOf, plotColourInputAt } from '../../engine/runtime/runtimeInputs'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
+import { hostKnownDivergenceOf } from '../../engine/hostKnownDivergence'
 import { objectLossNote, RUN_HALF_DRAWING_SENTENCE } from '../../engine/ast/objectLoss'
 // ⭐ ENGINE 53 — the run half's door reads the store's cap as the save door counts it.
 import { DOCUMENT_BYTE_BUDGET } from '../../engine/ast/graphDocument'
@@ -297,6 +298,21 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   if (t && t.version === null) {
     const form = modernPineSyntaxIn(source)
     if (form) return no(noVersionSentence(form), NO_VERSION_GUARD, t)
+  }
+
+  // ⭐⭐ HOST KNOWN-DIVERGENCE (owner decision 2026-11-17) — A SCRIPT WITH A COMMITTED TRADINGVIEW
+  // CAPTURE THAT GRADES DIVERGE ON THE HOST LANE IS NOT DRAWN BY IT: refused by name
+  // (`pine:known-divergence`, `engine/hostKnownDivergence.js`), the host lane's twin of the runtime
+  // kill list. As for every host refusal, the runtime lane is offered it while that lane is on, and its
+  // own kill list, allowlist and admission decide; any decline leaves the member this sentence.
+  const hostListed = hostKnownDivergenceOf(source)
+  if (hostListed) {
+    if (runtimePaneEnabled()) {
+      return runtimeLaneDefinition({
+        source, id, name, t, hostReason: hostListed.reason, hostGuard: hostListed.guard, routed: false, no,
+      })
+    }
+    return no(hostListed.reason, hostListed.guard, t)
   }
 
   // ⭐ THE FLAG IS READ HERE, ONCE. `paneGate` is a pure decision and stays one;
