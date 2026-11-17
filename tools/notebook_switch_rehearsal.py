@@ -561,7 +561,17 @@ def verify_run(base: str, expect: str, email: str, pw: str, table: dict[str, boo
     if payload_envs is None:
         payload_envs = set(capability_table()[0])
     c = _Client(base)
-    s, _ = c.call("POST", "/api/auth/login", {"email": email, "password": pw})
+    # tools/synthetic_session.py signs this session OUT when the run ends, however it ends.
+    try:
+        from tools import synthetic_session as S  # noqa: PLC0415 — package import
+    except ImportError:
+        import synthetic_session as S  # noqa: PLC0415 — script import (tools/ on sys.path)
+    try:
+        s = S.sign_in_urllib(c.op, c.base, credentials=(email, pw), timeout=20).status
+    except urllib.error.HTTPError as e:
+        s = e.code
+    except Exception:  # noqa: BLE001 -- unreachable or the wrong account: "not measured", never a status
+        s = None
     if s != 200:
         return "INCONCLUSIVE", [f"VERIFY {expect.upper()}: INCONCLUSIVE -- sign-in answered {s}"]
     _s, health = c.call("GET", "/api/health")
