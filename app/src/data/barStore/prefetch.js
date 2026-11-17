@@ -66,6 +66,7 @@ import { fullBarsFor, firstPaintBarsFor } from '../../utils/barsBackfill'
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
 import { isCacheCurrentForView } from '../../utils/marketSession'
+import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
 import {
   _packStillIngesting, URGENT_MAX_PER_CALL, GRID_WARM_TFS, listPrewarmDisabled, _typedCachePaints,
@@ -278,9 +279,12 @@ export function createPrefetch(o = {}) {
     return Promise.all((keys || []).filter(Boolean).map(async (key) => {
       const s0 = await _hydrate(key)
       const full = _shortWant(key, s0)            // a short series is not warm (see SHORT_FULL_TTL_MS)
-      if (!full && _satisfied(s0, DISPLAYABLE, depth)) return s0
+      const flip = _flipPaints(key, s0)
+      if (!full && _satisfied(s0, DISPLAYABLE, depth) && flip) return s0
       if (preparing.get(key) || _cooling(key, s0)) return S().peek(key) ?? s0   // s0: the LRU may have evicted it since
-      return ensure(key, { until: DISPLAYABLE, depth: Math.max(depth, full), priority, signal, warm, front, _s0: s0 })
+      // A local copy the flip would refuse never satisfies the warm: only a server answer does
+      // (`local: false`, exactly as prepareForDisplay asks).
+      return ensure(key, { until: DISPLAYABLE, depth: Math.max(depth, full), priority, signal, warm, front, local: flip, _s0: s0 })
     }))
   }
 
@@ -352,6 +356,25 @@ export function createPrefetch(o = {}) {
     // The server answered for this exact key and has nothing newer: the held tail IS the
     // frontier for this symbol (a halt, an illiquid name). D/W/M: the server's set paints.
     return date ? 'current' : 'authoritative'
+  }
+
+  /**
+   * ⭐ A WARM IS WARM ONLY IF THE FLIP WILL PAINT IT (2026-11-17). The skip above reads the
+   * store's status, where a LOCAL intraday copy is `context` by the data rule
+   * (`status.deriveStatus`); the handoff (`prepareForDisplay`) paints a local copy only by the
+   * view's paint rule (`_localPaints`). Where the two disagree the warm skipped a row the flip
+   * then refused, and the chart waited on its own request (production 2026-11-16, 60m: FNGD,
+   * SSG first candles 118 / 126 ms against ~35 ms for warmed rows). So a local intraday copy
+   * counts as warm only when `_localPaints` accepts it; otherwise the server is asked now, and
+   * its answer (held, `restSeen`) is what the flip paints at once. A server answer, a D/W/M
+   * set and a windowed (replay) key keep the status rule.
+   */
+  function _flipPaints(key, s) {
+    if (!s || s.restSeen) return true
+    const pk = parseKey(key)
+    if (!pk || pk.window || !isIntradayTf(pk.tf)) return true
+    const ext = pk.session ? pk.session === 'eth' : extOf(undefined)
+    return _localPaints(s, pk.tf, ext)
   }
 
   /** Legacy `_paintCurrent`: would the chart paint this LOCAL copy as current for the view? */
@@ -603,3 +626,15 @@ export function prefetchListDeep(tickers, opts = {}) { return _f().prefetchListD
 export function prefetchReplayTimeframes(sym, cutoffIso, opts = {}) { return _f().prefetchReplayTimeframes(sym, cutoffIso, opts) }
 export function prefetchBarOnIntent(sym, tf = 'D', opts = {}) { return _f().prefetchBarOnIntent(sym, tf, opts) }
 export function warmTypedSymbol(sym, tf = 'D') { return _f().warmTypedSymbol(sym, tf) }
+
+// ⭐ THE WARMERS' REGISTRY (2026-11-17, utils/barsWarm.js). Under BARSTORE the store's warmers
+// stand in for the legacy ones on every list that warms through `barsWarm`, so a list's warm
+// lands in the store the flip reads. Registered, not imported by them: an import edge from the
+// page chunks split this module out of the chart chunk (first-open bytes, see barsWarm.js).
+// The key is barsWarm's STORE_WARMERS_KEY (a test pins the two equal).
+export const STORE_WARMERS = Object.freeze({
+  prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
+  prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
+  prefetchBarOnIntent,
+})
+if (BARSTORE && typeof globalThis !== 'undefined') globalThis.__uctStoreWarmers = STORE_WARMERS

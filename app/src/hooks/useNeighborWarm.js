@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import { warmMemFromIDB, prefetchBarsToIDB } from '../utils/prefetchBars'
+import { warmMemFromIDB, prefetchBarsToIDB } from '../utils/barsWarm'
 import { registerTickers } from './livePriceStore'
 
 // ── Shared "instant scan" neighbor-warm ──────────────────────────────────────

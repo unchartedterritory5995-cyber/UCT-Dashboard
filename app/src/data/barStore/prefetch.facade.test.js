@@ -28,22 +28,23 @@ function* files(dir) {
   }
 }
 
-/** { name → [importer, …] } of every named import from utils/prefetchBars. */
+/** { name → [importer, …] } of every named import from utils/prefetchBars — and from
+ *  utils/barsWarm, the warmers' door (2026-11-17), which forwards each name to one of the two. */
 function legacyImports() {
   const out = {}
-  const target = path.join(SRC, 'utils', 'prefetchBars')
+  const targets = new Set([path.join(SRC, 'utils', 'prefetchBars'), path.join(SRC, 'utils', 'barsWarm')])
   for (const f of files(SRC)) {
     const rel = path.relative(SRC, f).split(path.sep).join('/')
     if (rel.startsWith('data/barStore/') || /(^|\/)(testing|__mocks__|__fixtures__)\//.test(rel)) continue
     const src = fs.readFileSync(f, 'utf8')
-    if (!src.includes('prefetchBars')) continue
+    if (!src.includes('prefetchBars') && !src.includes('barsWarm')) continue
     let ast
     try { ast = parse(src) } catch { continue }
     for (const n of ast.body) {
       if (n.type !== 'ImportDeclaration') continue
       const spec = n.source.value
       if (!spec.startsWith('.')) continue
-      if (path.resolve(path.dirname(f), spec).replace(/\.js$/, '') !== target) continue
+      if (!targets.has(path.resolve(path.dirname(f), spec).replace(/\.js$/, ''))) continue
       for (const s of n.specifiers) {
         const name = s.type === 'ImportSpecifier' ? s.imported.name : null
         if (name) (out[name] ||= []).push(rel)
@@ -70,6 +71,16 @@ describe('prefetch facade — same names and signatures as utils/prefetchBars', 
         bad.push(`${name}: arity ${facade[name].length} vs ${legacy[name].length}`)
       }
     }
+    expect(bad).toEqual([])
+  })
+
+  it('every warmer the barsWarm door forwards exists in BOTH modules', async () => {
+    const door = await import('../../utils/barsWarm')
+    const legacy = await import('../../utils/prefetchBars')
+    const facade = await import('./prefetch')
+    const names = door.WARMER_NAMES
+    expect(names.length).toBeGreaterThanOrEqual(11)
+    const bad = names.filter((n) => typeof legacy[n] !== 'function' || typeof facade[n] !== 'function')
     expect(bad).toEqual([])
   })
 
