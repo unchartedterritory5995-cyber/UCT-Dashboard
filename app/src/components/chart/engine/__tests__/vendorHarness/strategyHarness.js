@@ -53,6 +53,28 @@ export function barsOfCapture(capture) {
 }
 
 /**
+ * ⭐ THE BARS TRADINGVIEW'S STRATEGY RAN ON. A strategy (no `calc_on_every_tick`) runs a bar once TradingView
+ * CONFIRMS it, and a chart can hold a newest bar its strategy has not run yet: after the session, before
+ * TradingView confirms the daily bar. ⚰️ 2026-11-16: every strategy capture of the night (22:09-23:18 UTC) held
+ * 667 bars and 666 value rows, the 11-16 bar missing; our run took all 667 as confirmed, and the grade read the
+ * extra bar as "667 bars of ours against 666" (W9-V-D11 -rpt and both W9-MK1 captures DIVERGE, 13 broker pins
+ * un-pinned), while every indicator capture of the same session held its newest bar.
+ * When the capture's value rows are EXACTLY its bars but the newest, time for time, our run is handed those bars
+ * and the newest is named as not run (`unrun`, its time). ⛔ Any other difference between the two is left to the
+ * grade, which calls a bar of ours TradingView does not have DIVERGE.
+ * @returns {{bars: (object[]|null), unrun: (number|null)}}
+ */
+export function barsTradingViewRan(capture) {
+  const bars = barsOfCapture(capture)
+  const rows = capture && capture.plotValues && Array.isArray(capture.plotValues.rows) ? capture.plotValues.rows : null
+  if (!bars || !rows || bars.length < 2 || rows.length !== bars.length - 1) return { bars, unrun: null }
+  for (let i = 0; i < rows.length; i += 1) {
+    if (!Array.isArray(rows[i]) || rows[i][0] !== bars[i].t) return { bars, unrun: null }
+  }
+  return { bars: bars.slice(0, -1), unrun: bars[bars.length - 1].t }
+}
+
+/**
  * ⭐ THE BUILD, AS THE MEMBER DOOR MAKES IT (`builder/memberPane/runtimeObjectsDoor.js::runtimeOwnObjectsOf`). A
  * script that draws is built WITH its drawings (`objectsInRun`: the run executes every `label.new` and holds
  * what it makes), which is the build that reads the `strategy.*` texts a label prints. When that build lowers no
@@ -90,7 +112,7 @@ function buildAsTheDoorDoes(capture, bars) {
  *   `{status:'ungraded', reason}` (the drawing build refused, or the store withheld the labels).
  */
 export function runOurBroker(capture, { pins = ALL } = {}) {
-  const bars = barsOfCapture(capture)
+  const { bars } = barsTradingViewRan(capture)
   if (!bars) return { ok: false, refusal: { rule: 'harness:bars', guard: 'harness:bars', expected: false, message: 'the capture has no unix-s bars' } }
   const made = buildAsTheDoorDoes(capture, bars)
   if (!made.ok) {
@@ -395,8 +417,12 @@ export function gradeStrategyCapture(capture, { slotMap = null, run = runOurBrok
       return unreadDependedOn(agreement.unread, readers)
     },
   }
-  const refBars = capture.bars.rows.map(([time, open, high, low, close, volume]) => ({ time, open, high, low, close, volume }))
-  const ourBarsOf = () => barsOfCapture(capture).map((b) => ({ time: b.t, open: b.o, high: b.h, low: b.l, close: b.c, volume: b.v }))
+  // ⭐ the bars TradingView's strategy RAN, on both sides (`barsTradingViewRan`): a newest bar it had not run is
+  // neither side's evidence, and is named in the verdict (`newestBarNotRun`)
+  const ranOn = barsTradingViewRan(capture)
+  const ranCount = ranOn.bars ? ranOn.bars.length : capture.bars.rows.length
+  const refBars = capture.bars.rows.slice(0, ranCount).map(([time, open, high, low, close, volume]) => ({ time, open, high, low, close, volume }))
+  const ourBarsOf = () => ranOn.bars.map((b) => ({ time: b.t, open: b.o, high: b.h, low: b.l, close: b.c, volume: b.v }))
   const g = {
     reference, method, tick, refBars, span, graded,
     // functions: read at step 3 only (our run is never read before the floor; a getter would be read when
@@ -435,6 +461,7 @@ export function gradeStrategyCapture(capture, { slotMap = null, run = runOurBrok
     ...(scope || {}),
     referenceTrades: reference.trades.length,
     rulesExercised: r && r.ok ? [...r.record.rulesUsed].sort() : [],
+    ...(ranOn.unrun !== null ? { newestBarNotRun: ranOn.unrun } : {}),
   }
 }
 
@@ -467,6 +494,8 @@ export function strategyVerdictOf(capture, { captureSha256, queueTargetId, slotM
     prefixExact: v.prefixExact ?? null,
     culprit: v.culprit ?? null,
     afterDifference: v.afterDifference ?? null,
+    // the newest bar TradingView's strategy had not run (`barsTradingViewRan`): graded through the bar before it
+    ...(v.newestBarNotRun !== undefined ? { newestBarNotRun: v.newestBarNotRun } : {}),
     provenance: { strategySettings: { properties: props.map((p) => ({ name: p.name, value: p.value })) } },
   }
 }
