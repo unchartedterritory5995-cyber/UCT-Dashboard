@@ -803,6 +803,11 @@
      the eye ran them together. §11's rule still holds — the air goes BETWEEN the
      rows and the container's own padding is unchanged. */
   row-gap: 8px;
+  /* ⭐ HALF THE `row-gap`: how far each row's hit area reaches into the gap above and
+     below it (`LegendRow.module.css` `.vRow::after`), so two neighbouring rows meet and
+     the pointer never falls through to the chart between them. ⛔ Keep it at exactly
+     half: `legendHoverContinuity.test.js` re-derives it from the `row-gap` above. */
+  --row-hit-pad: 4px;
   align-content: start;
   /* The `+N more` disclosure's height, declared HERE so the fold reads it off the stack it
      budgets (`studyDisclosureRows` in StockChart.jsx): a touch surface that raises it to
@@ -857,7 +862,7 @@
    would become a lie the moment pane semantics put Volume anywhere but last.
    ⛔ AND IT IS SCOPED TO THE STACK, so the volume STRIP on the volume pane (a
    different surface, deliberately left alone) is untouched. */
-.studyStack [data-legend-row="volume"] { margin-top: 3px; }
+.studyStack [data-legend-row="volume"] { margin-top: 3px; --row-hit-top: 7px; }
 
 .studyMore {
   grid-column: 1 / -1;
