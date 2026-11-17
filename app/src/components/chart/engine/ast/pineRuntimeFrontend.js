@@ -1630,7 +1630,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // v4's type rides NAMED or as the THIRD positional argument (`input(close, "Src", input.source)`)
     const typeArg = args.find((a) => a && a.name === 'type') || args.filter((a) => a && !a.name)[2]
     const legacy = call.name === 'input' && typeArg && typeArg.value ? typeArg.value.name : null
-    const kind = call.name === 'input.color' || legacy === 'input.color' ? 'color'
+    // ⭐ SETTINGS PARITY (2c, colours) — a plain `input(…)` whose DEFAULT is a colour is a colour
+    // input (Pine infers an input's type from its default): `input(color.orange)`,
+    // `input(color.rgb(0, 0, 255, 0))`, `input(#2962FF)` (`runtimeInputs.js` reads the same three)
+    const firstPos = args.filter((a) => a && !a.name)[0]
+    const defArg = args.find((a) => a && a.name === 'defval') || firstPos
+    const dv = defArg && defArg.value
+    const colourDefault = call.name === 'input' && !legacy && !!dv && (dv.type === 'colour'
+      || (dv.type === 'name' && typeof dv.name === 'string' && dv.name.startsWith('color.'))
+      || (dv.type === 'call' && (dv.name === 'color.rgb' || dv.name === 'color.new')))
+    const kind = call.name === 'input.color' || legacy === 'input.color' || colourDefault ? 'color'
       : call.name === 'input.source' || legacy === 'input.source' ? 'source' : null
     if (!kind) {
       throw new RuntimeRefusal('runtime:statement',
@@ -2630,7 +2639,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
   //  setting, and a frozen fold that read `pivothigh` as the house column while
   //  the live one read Pine's would put two meanings on one name inside a
   //  single script (`lesson_rail_the_mirror_not_just_the_lane`).
-  const makeFrozenResolver = () => new Resolver(env, TABLE, new Map(), resolverOpts)
+  //  ⚰️⚰️ RETIRED 2026-11-16 (SETTINGS PARITY 2c). The frozen fold kept the column
+  //  and the runtime agreeing while BOTH froze a length: since 2a the column lane computes
+  //  the member's own length and offset (`paramInputs.specializeParams` writes the value
+  //  into every literal the translator folded), so a runtime that kept the author's default
+  //  became the divergence this rule existed to prevent. Measured on RS Rating: `rsMA =
+  //  ta.sma(rs, lenMa)` over another symbol's series kept 21 while the member and the
+  //  column had 30, and the run half's column rail refused the drawings. This lane REBUILDS
+  //  the program from the source on every run, so the member's value is the literal the
+  //  author would have typed, sized before bar 0 like any literal: every fold that used
+  //  the frozen resolver (a size, a loop bound, a history offset, a call's window) now
+  //  uses `makeResolver`, which sees the member's values and the author's bounds. The owner's
+  //  2026-11-16 ruling ("every TradingView setting changeable ... essentially a direct
+  //  copy") supersedes the 2026-08-11 decision to freeze lengths at their defaults.
 
   // ─── ⭐⭐ THE BIND-TIME FOLD, ON THE SAME ASSEMBLY THE OTHER TWO LANES USE ──
   //
@@ -7408,10 +7429,20 @@ function buildRuntimeIrLinked(source, opts, holder) {
     simpleShapes.set(name, shape)
     return shape
   }
-  /** The value of one expression's tokens if it folds before bar 0, else `null`. */
-  const simpleFoldToks = (toks, depth) => {
+  /** The value of one expression's tokens if it folds before bar 0, else `null`. `boundName`:
+   *  the name a declaration binds those tokens to, so an `input.*(…)` declaration keeps the
+   *  binding the resolver applies a member's value by (`node.boundName`, `pine.js`). */
+  const simpleFoldToks = (toks, depth, boundName = null) => {
     let e
     try { e = parseWholeExpression(toks) } catch { return null }
+    // ⭐ SETTINGS PARITY (2c) — the right side is parsed OUT of its declaration here, so the
+    // input call lost the bound name the resolver keys a member's value by, and a reassigned
+    // input folded at the author's default (measured: RS Rating's `lookback2`, reassigned under
+    // `if lookback2 == 250 and timeframe.isweekly`, kept a 250-bar window at a member's 200)
+    if (boundName && e && e.type === 'call' && typeof e.name === 'string'
+      && (e.name === 'input' || e.name.startsWith('input.')) && typeof e.boundName !== 'string') {
+      e = { ...e, boundName }
+    }
     let bad = false
     const sub = (x, d) => {
       if (bad || !x || typeof x !== 'object' || d > 64) return x
@@ -7432,7 +7463,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const n = sub(e, 0)
     if (bad) return null
     let canonical
-    try { canonical = makeFrozenResolver().resolve(n) } catch { return null }
+    try { canonical = makeResolver().resolve(n) } catch { return null }
     if (!foldsExactly(canonical)) return null
     try {
       const v = foldScalar(canonical, bindConsts)
@@ -7462,7 +7493,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // (a statement after the read is a write or an `if`, each stopped below)
         if (st === shape.decl) {
           const eq = findTop(h, (t) => isPunct(t, '='))
-          cur = simpleFoldToks(h.slice(eq + 1), depth)
+          cur = simpleFoldToks(h.slice(eq + 1), depth, name)
           if (cur === null) return false
           continue
         }
@@ -7584,7 +7615,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     n = simpleValueOf(n, scope)   // ⭐ W4-T2
     let canonical
-    try { canonical = makeFrozenResolver().resolve(n) } catch { return null }
+    try { canonical = makeResolver().resolve(n) } catch { return null }
     if (!canonical) return null
     if (canonical.type === 'num') return Number.isFinite(canonical.value) ? { value: canonical.value } : null
     try {
@@ -7727,11 +7758,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // `num` node is a compile-time constant BY CONSTRUCTION; no data can fake it.
     let canonical
     try {
-      // ⛔ THE FROZEN RESOLVER — see `makeFrozenResolver`. An offset and a
-      // length are sized before bar 0 and are baked into a saved definition,
-      // so they fold the AUTHOR'S default even though every ordinary value
-      // follows the member's setting.
-      canonical = makeFrozenResolver().resolve(e)
+      // ⭐ THE MEMBER'S OFFSET (settings parity 2c: the frozen resolver is retired, see
+      // where `makeResolver` is defined). The program is rebuilt per run, so the member's
+      // value is sized before bar 0 exactly as the author's literal would be.
+      canonical = makeResolver().resolve(e)
     } catch (err) {
       // ⛔ A REFUSAL FROM THE VALUE LANE KEEPS ITS OWN NAME — `columnOf`'s rule,
       // and for the same reason: re-dressing a `pine:undefined` as a dynamic
@@ -15233,7 +15263,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const fromCount = (n && n.type === 'name' && scope && scope.lookup(n.name) !== null) ? null : fromLiteralSizeOf(n)
     if (fromCount !== null) return { value: fromCount }
     let canonical
-    try { canonical = makeFrozenResolver().resolve(n) } catch { return { value: null } }
+    try { canonical = makeResolver().resolve(n) } catch { return { value: null } }
     if (canonical && canonical.type === 'num') return { value: Number.isFinite(canonical.value) ? canonical.value : null }
     // ⭐⭐ H4 — CONSTANT ARITHMETIC OVER WHAT RESOLVED, as `constValueOf` already
     // folds it for a loop bound and an offset: `pine_wma(v, vl1 + vl2)` with both

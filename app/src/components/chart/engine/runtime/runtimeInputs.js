@@ -91,7 +91,47 @@ function colourDefaultOf(def, version) {
     const hex = pineColourHex(def.name, version)
     if (hex) return { hex: hex.toUpperCase() }
   }
+  // ⭐ SETTINGS PARITY (2c, colours) — `color.rgb(r, g, b)` / `color.rgb(r, g, b, 0)`: literal channels
+  // and NO transparency are an exact opaque colour (RS Rating's `color.rgb(0, 0, 255, 0)`)
+  if (def && def.type === 'call' && def.name === 'color.rgb' && Array.isArray(def.args)) {
+    const pos = def.args.filter((a) => a && !a.name).map((a) => literalNumber(a.value))
+    const [r, g, b, t] = pos
+    const channel = (v) => Number.isInteger(v) && v >= 0 && v <= 255
+    if (pos.length >= 3 && pos.length <= 4 && channel(r) && channel(g) && channel(b)) {
+      if (pos.length === 4 && t !== 0) {
+        return { skip: 'its default is see-through, and the colour picker sets an opaque colour — the '
+          + "author's transparency would be dropped" }
+      }
+      const h = (v) => v.toString(16).padStart(2, '0').toUpperCase()
+      return { hex: `#${h(r)}${h(g)}${h(b)}` }
+    }
+  }
+  // `color.new(<fixed colour>, 0)`: a fixed colour at NO transparency is that exact opaque colour
+  // (`input(color.new(#b2b5be, 0))`); a transparency other than a literal 0 is skipped as see-through
+  if (def && def.type === 'call' && def.name === 'color.new' && Array.isArray(def.args)) {
+    const pos = def.args.filter((a) => a && !a.name).map((a) => a.value)
+    const named = (n) => { const a = def.args.find((x) => x && x.name === n); return a ? a.value : undefined }
+    const base = named('color') !== undefined ? named('color') : pos[0]
+    const tr = named('transp') !== undefined ? named('transp') : pos[1]
+    if (base && (base.type === 'colour' || base.type === 'name') && def.args.length === 2) {
+      const inner = colourDefaultOf(base, version)
+      if (inner.skip) return inner
+      if (literalNumber(tr) !== 0) {
+        return { skip: 'its default is see-through, and the colour picker sets an opaque colour — the '
+          + "author's transparency would be dropped" }
+      }
+      return { hex: inner.hex }
+    }
+  }
   return { skip: 'its default is not a fixed colour (a #RRGGBB or a Pine colour name)' }
+}
+
+/** Is an input's default node a colour (so a plain `input(…)` is a colour input)? */
+function isColourDefaultNode(def, version) {
+  if (!def) return false
+  if (def.type === 'colour') return true
+  if (def.type === 'name' && typeof def.name === 'string') return !!pineColourHex(def.name, version)
+  return def.type === 'call' && (def.name === 'color.rgb' || def.name === 'color.new')
 }
 
 /** The author's source default (a bar series), or `{ skip }`. */
@@ -499,6 +539,11 @@ function specOf(name, node, rhsToks, version, lookup) {
     return { spec: { key: name, type: 'enum', default: s.name, options, label, source: true } }
   }
   let value
+  // ⭐ SETTINGS PARITY (2c, colours) — a plain `input(…)` with a colour default is a colour input
+  if (call === 'input' && !legacy && isColourDefaultNode(def, version)) {
+    const c = colourDefaultOf(def, version)
+    return c.skip ? { skip: c.skip } : { spec: { key: name, type: 'color', default: c.hex, label: titleOf() } }
+  }
   if (call === 'input') {
     const word = firstArgWord(rhsToks)
     if (word) { type = 'bool'; value = word === 'true' }
