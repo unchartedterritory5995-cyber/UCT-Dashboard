@@ -49,9 +49,7 @@ import { evaluateFormula } from '../chart/builder/FormulaField'
 // be scaffolding that asserts nothing. The navigation itself — that entering a
 // review publishes the session and lands on the chart — is owned by
 // `pages/charts/review/reviewEntry.test.jsx`, where it is the subject.
-// No <Router> is rendered here, so the router context is absent, as `useInRouterContext` reports it.
-// ScreensManager asks since eb0689c961 (the scan hint leaves the address through the router).
-vi.mock('react-router-dom', () => ({ useNavigate: () => () => {}, useInRouterContext: () => false }))
+vi.mock('react-router-dom', () => ({ useNavigate: () => () => {} }))
 
 vi.mock('../chart/pane/ChartPane', () => ({
   default: ({ sym, tf }) => <div data-testid={`pane-inner-${sym}-${tf}`}>pane</div>,
