@@ -194,7 +194,7 @@ def stats() -> Dict[str, Any]:
     """For `/api/health`: the knobs in force and, per sweep, items run, busy and paused seconds, and
     when (seconds after boot) its first and latest item ran. Counters only."""
     with _stats_lock:
-        per = {k: {**v, "busy_s": round(v["busy_s"], 1), "paused_s": round(v["paused_s"], 1),
+        per = {k: {**v, "busy_s": round(v["busy_s"], 3), "paused_s": round(v["paused_s"], 3),
                    "settle_wait_s": round(v["settle_wait_s"], 1)} for k, v in _stats.items()}
     return {"enabled": enabled(), "settle_s": settle_s(), "duty": duty(),
             "settle_remaining_s": round(settle_remaining(), 1), "sweeps": per}

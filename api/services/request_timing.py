@@ -438,7 +438,8 @@ def summary(hours: int = 24, top: int = 60, now: float | None = None) -> dict[st
         merge_sampler(phase["s"], row.get("s") or new_sampler())
         phase["minutes"] += 1
         if row.get("up") is not None:
-            band = bands[[name for lo, name in UPTIME_BANDS if row["up"] >= lo][-1]]
+            # the first minute after a boot starts before the process did: its `up` is negative
+            band = bands[[name for lo, name in UPTIME_BANDS if max(0, row["up"]) >= lo][-1]]
             merge(band["g"], row["g"])
             merge_sampler(band["s"], row.get("s") or new_sampler())
             band["minutes"] += 1

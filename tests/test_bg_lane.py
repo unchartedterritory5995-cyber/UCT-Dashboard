@@ -8,6 +8,7 @@ any process that did not activate it.
 """
 from __future__ import annotations
 
+import importlib
 import pathlib
 import threading
 import time
@@ -35,7 +36,8 @@ def lane(monkeypatch):
 def test_inert_until_the_web_lifespan_activates_it(monkeypatch):
     """The worker runs the weekly purge SYNCHRONOUSLY and its R2 uploader waits for it: in any
     process that never called activate(), a turn must neither wait nor pace."""
-    bg_lane._reset_for_tests(active=False)
+    importlib.reload(bg_lane)                           # the import-time default, not a test helper's
+    assert bg_lane._active is False and bg_lane.enabled() is False
     monkeypatch.setenv(bg_lane.ENV_SETTLE, "3600")
     t = time.perf_counter()
     for _ in range(5):
@@ -127,7 +129,7 @@ def test_a_nested_turn_on_one_thread_does_not_deadlock(lane):
             with lane.turn("inner"):
                 done.append(1)
 
-    th = threading.Thread(target=run)
+    th = threading.Thread(target=run, daemon=True)     # a deadlock must fail the test, not hang the run
     th.start()
     th.join(5)
     assert done == [1] and not th.is_alive()
@@ -140,6 +142,9 @@ def test_only_the_web_lifespan_activates_the_lane():
             if "bg_lane.activate(" in p.read_text(encoding="utf-8", errors="replace")]
     assert hits == ["api/main.py"], hits
     main = (ROOT / "api" / "main.py").read_text(encoding="utf-8")
+    # once, and inside the web lifespan: the worker / bars-api / flow-worker mains run their OWN
+    # lifespans and import api.main without running this one, so the lane stays off there
+    assert main.count("bg_lane.activate(") == 1
     life = main[main.index("async def lifespan(app: FastAPI):"):]
     at = life.index("bg_lane.activate(_BOOT_T0)")
     # before anything that takes a turn is started
@@ -204,6 +209,24 @@ def test_a_background_audit_takes_one_turn_per_ticker_and_an_admin_audit_none(tu
     turns.clear()
     bars_audit.audit_universe(["A", "B"], scope="priority")
     assert turns == []
+
+
+def test_a_lane_audit_uses_one_worker_so_it_does_not_crowd_the_repairs(lane, monkeypatch, tmp_path):
+    """Four workers queueing for a one-at-a-time lane took four turns in six from the weekly purge
+    and the off-grid repair. With the lane active a lane audit runs on one worker."""
+    from api.services import bars_audit
+    monkeypatch.setenv(bg_lane.ENV_DUTY, "1.0")
+    monkeypatch.setattr(bars_audit, "_DB_PATH", str(tmp_path / "audit.db"))
+    monkeypatch.setattr(bars_audit, "_AUDIT_DIR", str(tmp_path / "audits"))
+    names = set()
+
+    def fake(t, tfs, counts):
+        names.add(threading.current_thread().name)
+        time.sleep(0.01)
+        return {"bars_scanned": 1, "issues": []}
+    monkeypatch.setattr(bars_audit, "audit_ticker", fake)
+    bars_audit.audit_universe(["A", "B", "C", "D", "E", "F", "G", "H"], scope="s", lane="s")
+    assert len(names) == 1, names
 
 
 def test_the_background_audit_callers_name_a_lane():

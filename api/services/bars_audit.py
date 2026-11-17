@@ -203,6 +203,10 @@ def audit_universe(
         def _one(t, tfs_, counts_):
             with bg_lane.turn(lane):
                 return audit_ticker(t, tfs_, counts_)
+        if bg_lane.enabled():
+            # One worker: the lane runs one item at a time anyway, and four workers queueing for it
+            # took four turns in six from the weekly purge and the off-grid repair (measured locally).
+            parallelism = 1
     else:
         _one = audit_ticker
     with ThreadPoolExecutor(max_workers=parallelism) as ex:

@@ -442,7 +442,34 @@ def test_a_touched_object_or_a_new_publication_is_proven_again(world, monkeypatc
     r = world["sync"]()
     assert r["ok"] and r["result"] == "same" and calls == [1]
     world["append"](LIVE[2])
-    world["publish"]()
+    world["publish"]()                         # the publisher proves the set itself: not counted
+    calls.clear()
     r = world["sync"]()
-    assert r["ok"] and r["result"] == "installed" and calls == [1, 1]
+    assert r["ok"] and r["result"] == "installed" and calls == [1]
     assert max(_closes()) == "2026-09-29"
+
+
+def test_a_current_changed_underneath_is_proven_and_restored(world, monkeypatch):
+    """The published pointer has not moved, but the replica's CURRENT now names another set (an
+    operator's hand, a second writer): the proof covered CURRENT too, so this sync must prove and
+    re-install the published pointer exactly as it did before the memo existed."""
+    for d in LIVE[:2]:
+        world["append"](d)
+    world["publish"]()
+    world["sync"]()
+    world["append"](LIVE[2])
+    world["publish"]()
+    world["sync"]()
+    cur = os.path.join(world["replica"], "CURRENT.json")
+    with open(os.path.join(world["replica"], "PREVIOUS.json"), "rb") as f:
+        older = f.read()
+    with open(cur, "rb") as f:
+        published = f.read()
+    assert older != published
+    with open(cur, "wb") as f:
+        f.write(older)
+    calls = _count_verifies(monkeypatch)
+    r = world["sync"]()
+    assert r["ok"] and r["result"] == "installed" and calls == [1]
+    with open(cur, "rb") as f:
+        assert f.read() == published
