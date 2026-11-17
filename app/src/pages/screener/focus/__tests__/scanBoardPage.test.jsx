@@ -7,7 +7,7 @@ import { SWRConfig } from 'swr'
 import { vi, afterEach, beforeEach, expect, test } from 'vitest'
 vi.mock('../../../../components/StockChart', () => ({ default: p => <div data-testid="stockchart" data-sym={p.sym} /> }))
 vi.mock('../ScreenerChartWidget', () => ({ default: p => <div data-testid="chart-widget" data-sym={p.sym} data-news={p.newsMode} /> }))
-vi.mock('../../shell/ScannerShell', () => ({ default: () => <div data-testid="table-mode" /> }))
+vi.mock('../../shell/ScannerShell', () => ({ default: p => <div data-testid="table-mode">{p.toolbarLead}</div> }))
 vi.mock('../../../../hooks/useRealtimePrices', () => ({ default: () => ({ prices: {} }) }))
 vi.mock('../../../../hooks/useNeighborWarm', () => ({ useNeighborWarm: () => {} }))
 vi.mock('../../../../utils/prefetchBars', () => ({ prefetchBars: () => {}, prefetchBarsToIDB: () => {}, warmMemFromIDB: () => {}, prewarmVisibleList: () => {} }))
@@ -133,4 +133,35 @@ test('picking a preset changes the board and writes the layout to the preference
   const text = JSON.stringify(prefWrites().filter(w => JSON.stringify(w).includes(BOARD_PREF)).at(-1))
   expect(text).toContain('\\"layoutId\\":\\"three\\"')
   expect(text).not.toContain('edit')
+})
+
+// Found on the live site 2026-11-17: the owner's last-used view was Table, so the page opened on
+// the old Table page and the board never showed.
+test('a Table or Map view remembered from an earlier visit does not decide where the board page opens', async () => {
+  for (const was of ['table', 'map']) {
+    localStorage.setItem('uct.screener.layout', was)
+    const drawn = draw()
+    await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
+    expect(page()).toHaveAttribute('data-board', '')
+    expect(screen.queryByTestId('table-mode')).toBeNull()
+    expect(within(screen.getByRole('group', { name: 'View' })).getAllByRole('button').map(b => b.textContent)).toEqual(['List', 'Charts'])
+    drawn.unmount()
+  }
+})
+
+test('Table view still opens from the More menu for that visit, and its switch offers no Map', async () => {
+  localStorage.setItem('uct.screener.layout', 'table')
+  draw()
+  await waitFor(() => expect(screen.getByTestId('focus-row-MU')).toBeInTheDocument())
+  fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+  fireEvent.click(within(screen.getByRole('menu', { name: 'More actions' })).getByRole('menuitem', { name: 'Table view' }))
+  const table = await screen.findByTestId('table-mode')
+  expect(within(table).getAllByRole('button').map(b => b.textContent)).toEqual(['List', 'Charts', 'Table'])
+})
+
+test('without the flag a remembered Table view opens as it always did, with the full switch', async () => {
+  localStorage.setItem('uct.screener.layout', 'table')
+  draw(false)
+  const table = await screen.findByTestId('table-mode')
+  expect(within(table).getAllByRole('button').map(b => b.textContent)).toEqual(['List', 'Charts', 'Map', 'Table'])
 })
