@@ -2,6 +2,7 @@
   "version": 1,
   "about": "ROUTE REACHABILITY (routeReachability.test.js): one plain member phrasing for each registered capability that the corpus, the golden workflows and the open NL eval sets give no phrasing of, so the reachability rail can measure EVERY registered action. Routing only: these entries assert nothing about plans, state or receipts. `surface` = the page the member is on (default charts); `board` = a capability-regression fixture board (default ONE).",
   "phrasings": {
+    "boardDetach.float": [{ "text": "float the news widget", "board": "DETACH" }],
     "breadth.page": [{ "text": "what is the breadth page showing right now", "surface": "breadth" }],
     "calendar.day": [{ "text": "who reports earnings on thursday" }],
     "calendar.nextReport": [{ "text": "when does nvda report earnings", "surface": "calendar" }],

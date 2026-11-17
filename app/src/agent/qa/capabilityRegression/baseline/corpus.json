@@ -12930,48 +12930,6 @@
       ]
     },
     {
-      "id": "boardDetach.float",
-      "source": "Charts family 11-15: the widget header float (ChartsWorkspace handleFloatWidget); floating until reload",
-      "capabilities": [
-        "boardDetach.float"
-      ],
-      "board": "DETACH",
-      "needs": [
-        "boardDetach.float"
-      ],
-      "model": {
-        "ops": [
-          {
-            "action": "boardDetach.float",
-            "target": "$board",
-            "args": {
-              "widget": "news1"
-            }
-          }
-        ]
-      },
-      "expect": {
-        "detach": {
-          "floating": [
-            "news1"
-          ]
-        },
-        "receipt": true,
-        "refusal": false
-      },
-      "undo": {
-        "say": "undo",
-        "expect": {
-          "restored": true
-        }
-      },
-      "phrasings": [
-        "float the news widget",
-        "float my news panel over the board",
-        "detach the news widget"
-      ]
-    },
-    {
       "id": "boardDetach.dock",
       "source": "Charts family 11-15: the floating panel Dock (handleDockFloatWidget)",
       "capabilities": [
@@ -14936,6 +14894,94 @@
       ],
       "refuses": [
         "multiChart.cell"
+      ]
+    },
+    {
+      "id": "refuse.boardDetach.float.switched-off",
+      "source": "Charts family 11-15 / #1304 (owner 11-14): the widget header Float button is switched off (pages/charts/floatButton.js FLOAT_BUTTON_ON); the Agent floats nothing either — said honestly (dock / move into tabs / merge instead), nothing written, no card, no model turn",
+      "capabilities": [
+        "boardDetach.float"
+      ],
+      "refuses": [
+        "boardDetach.float"
+      ],
+      "board": "DETACH",
+      "steps": [
+        {
+          "say": "float the news widget",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "refusal": true,
+            "refusedAction": "boardDetach.float",
+            "detach": {
+              "floating": []
+            },
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "float my news panel over the board",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "refusal": true,
+            "refusedAction": "boardDetach.float",
+            "detach": {
+              "floating": []
+            },
+            "modelTurns": 0
+          }
+        },
+        {
+          "say": "detach the news widget",
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "refusal": true,
+            "refusedAction": "boardDetach.float",
+            "detach": {
+              "floating": []
+            },
+            "modelTurns": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "refuse.boardDetach.float.switched-off.model",
+      "source": "Charts family 11-15 / #1304 (owner 11-14): a model plan of boardDetach.float while the Float switch is off is refused by its own check — nothing written, no card",
+      "capabilities": [
+        "boardDetach.float"
+      ],
+      "refuses": [
+        "boardDetach.float"
+      ],
+      "board": "DETACH",
+      "steps": [
+        {
+          "say": "could you put the news widget on top of the board for me",
+          "model": {
+            "ops": [
+              {
+                "action": "boardDetach.float",
+                "target": "$board",
+                "args": {
+                  "widget": "news1"
+                }
+              }
+            ]
+          },
+          "expect": {
+            "unchanged": true,
+            "receipt": false,
+            "refusal": true,
+            "refusedAction": "boardDetach.float",
+            "detach": {
+              "floating": []
+            }
+          }
+        }
       ]
     }
   ]

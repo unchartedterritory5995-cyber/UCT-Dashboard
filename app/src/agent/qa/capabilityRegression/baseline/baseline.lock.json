@@ -5173,26 +5173,6 @@
     }
    }
   },
-  "boardDetach.float": {
-   "digest": "9bf8001c776952d0",
-   "phrasings": {
-    "float the news widget": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    },
-    "float my news panel over the board": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    },
-    "detach the news widget": {
-     "digest": "44136fa355b3678a",
-     "gaps": [],
-     "modes": {}
-    }
-   }
-  },
   "boardDetach.dock": {
    "digest": "6c22fc70cabd7a68",
    "phrasings": {
@@ -5472,6 +5452,16 @@
   },
   "refuse.multiChart.cell-grid-closed": {
    "digest": "0638b246c841cc2a",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.boardDetach.float.switched-off": {
+   "digest": "ef86388d650446cd",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.boardDetach.float.switched-off.model": {
+   "digest": "c619348b12fe13bb",
    "gap": false,
    "mode": null
   }

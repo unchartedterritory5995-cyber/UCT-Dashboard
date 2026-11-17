@@ -10,11 +10,11 @@
   "withAnyRegressionCase": 169,
   "perProtection": {
    "nl": {
-    "covered": 166,
+    "covered": 165,
     "applicable": 221
    },
    "routing": {
-    "covered": 163,
+    "covered": 162,
     "applicable": 221
    },
    "args": {
@@ -22,15 +22,15 @@
     "applicable": 221
    },
    "execution": {
-    "covered": 166,
+    "covered": 165,
     "applicable": 221
    },
    "receipt": {
-    "covered": 138,
+    "covered": 137,
     "applicable": 221
    },
    "refusal": {
-    "covered": 35,
+    "covered": 36,
     "applicable": 221
    },
    "permission": {
@@ -38,7 +38,7 @@
     "applicable": 221
    },
    "undo": {
-    "covered": 87,
+    "covered": 86,
     "applicable": 147
    },
    "multiStep": {
@@ -46,7 +46,7 @@
     "applicable": 221
    },
    "phrasings": {
-    "covered": 162,
+    "covered": 161,
     "applicable": 221
    }
   }
@@ -629,43 +629,32 @@
    ],
    "fast": true,
    "protections": {
-    "nl": true,
-    "routing": true,
+    "nl": false,
+    "routing": false,
     "args": true,
-    "execution": true,
-    "receipt": true,
-    "refusal": false,
+    "execution": false,
+    "receipt": false,
+    "refusal": true,
     "permission": true,
-    "undo": true,
+    "undo": false,
     "multiStep": false,
-    "phrasings": true
+    "phrasings": false
    },
-   "phrasings": 3,
+   "phrasings": 0,
    "evidence": {
-    "nl": [
-     "boardDetach.float: \"float the news widget\"",
-     "boardDetach.float: \"float my news panel over the board\"",
-     "boardDetach.float: \"detach the news widget\""
-    ],
-    "routing": [
-     "boardDetach.float: \"float the news widget\"",
-     "boardDetach.float: \"float my news panel over the board\"",
-     "boardDetach.float: \"detach the news widget\""
-    ],
+    "nl": [],
+    "routing": [],
     "args": [
-     "corpus boardDetach.float"
+     "refuse.boardDetach.float.switched-off.model"
     ],
-    "execution": [
-     "boardDetach.float (c)"
+    "execution": [],
+    "receipt": [],
+    "refusal": [
+     "refuse.boardDetach.float.switched-off",
+     "refuse.boardDetach.float.switched-off.model"
     ],
-    "receipt": [
-     "boardDetach.float (c)"
-    ],
-    "refusal": [],
     "permission": [],
-    "undo": [
-     "boardDetach.float: undo restores"
-    ],
+    "undo": [],
     "multiStep": [],
     "phrasings": []
    }

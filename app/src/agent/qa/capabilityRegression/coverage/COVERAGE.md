@@ -7,16 +7,16 @@ Catalog: **221** capabilities (every server-gated kind on; 209 with production's
 
 | protection | covered / applicable |
 |---|---|
-| nl | 166 / 221 |
-| routing | 163 / 221 |
+| nl | 165 / 221 |
+| routing | 162 / 221 |
 | args | 169 / 221 |
-| execution | 166 / 221 |
-| receipt | 138 / 221 |
-| refusal | 35 / 221 |
+| execution | 165 / 221 |
+| receipt | 137 / 221 |
+| refusal | 36 / 221 |
 | permission | 214 / 221 |
-| undo | 87 / 147 |
+| undo | 86 / 147 |
 | multiStep | 40 / 221 |
-| phrasings | 162 / 221 |
+| phrasings | 161 / 221 |
 
 ## Known gaps (6)
 
@@ -44,7 +44,7 @@ Catalog: **221** capabilities (every server-gated kind on; 209 with production's
 | board.duplicateChart | boardEdit | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | board.swap | boardEdit | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | boardDetach.dock | boardDetach | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
-| boardDetach.float | boardDetach | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
+| boardDetach.float | boardDetach | local | exact | ✗ | ✗ | ✓ | ✗ | ✗ | ✓ | ✓ | ✗ | ✗ | ✗ |
 | boardDetach.intoTabs | boardDetach | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✓ |
 | boardDetach.setMerged | boardDetach | local | exact | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✓ |
 | breadth.history | breadth | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
