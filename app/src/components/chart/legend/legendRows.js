@@ -10,7 +10,9 @@
 // all read "Uncharted Clouds" (owner, 2026-11-16: "need that to just be ONE").
 //
 // THE RULE, for the chips of one instance that print the same name:
-//   - they are ONE row, led by the first plot that is drawn;
+//   - they are ONE row, led by the first plot that is drawn (and, among those, the
+//     first that computed a value: a row led by an all-blank plot would wear that
+//     plot's "no value on these bars" notice while its sibling prints a number);
 //   - the other drawn plots ride on that row as extra values (`more`);
 //   - a plot that is hidden while a sibling is drawn gets nothing: it is the
 //     author's scaffolding (a `display.none` fill anchor, a colour-rule column),
@@ -50,6 +52,7 @@ export function legendRows(chips) {
     if (members.length === 1) return { chip: members[0], more: NO_MORE }
     const drawn = members.filter((m) => m.hidden !== true)
     if (!drawn.length) return { chip: members[0], more: NO_MORE }
-    return { chip: drawn[0], more: drawn.length > 1 ? drawn.slice(1) : NO_MORE }
+    const lead = drawn.find((m) => m.computed !== false) || drawn[0]
+    return { chip: lead, more: drawn.length > 1 ? drawn.filter((m) => m !== lead) : NO_MORE }
   })
 }

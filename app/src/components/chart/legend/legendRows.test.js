@@ -54,6 +54,22 @@ describe('legendRows', () => {
     expect(rows[0].more).toEqual([])
   })
 
+  it('a drawn plot that computed nothing does not lead the row while a sibling has a value', () => {
+    const rows = legendRows([
+      chip('x', 'a', 'Script', { value: null, computed: false }),
+      chip('x', 'b', 'Script', { value: 5, computed: true }),
+    ])
+    expect(rows).toHaveLength(1)
+    expect(rows[0].chip.plotKey).toBe('b')
+    expect(rows[0].more.map((c) => c.plotKey)).toEqual(['a'])
+    // …and when NONE computed, the first drawn plot leads and says so
+    const none = legendRows([
+      chip('x', 'a', 'Script', { value: null, computed: false }),
+      chip('x', 'b', 'Script', { value: null, computed: false }),
+    ])
+    expect(none[0].chip.plotKey).toBe('a')
+  })
+
   it('plots that print DIFFERENT names stay separate rows (MACD and its signal)', () => {
     const input = [chip('m', 'macd', 'MACD'), chip('m', 'signal', 'SIG')]
     const rows = legendRows(input)
