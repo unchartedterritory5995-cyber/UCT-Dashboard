@@ -45,6 +45,8 @@ import {
 
 // Re-exported for existing importers (the functions moved with the pipeline).
 export { typeWord, replyLines } from '../authoring/authoringSession'
+import { settingTurn } from '../authoring/authoringSession'
+import { settingsOf } from '../authoring/derivedSettings'
 
 /**
  * @param {object} p
@@ -198,6 +200,18 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     return true
   }, [busy, saving, commit, gateCtx, say])
 
+  /** ⭐ SETTINGS (2026-11-17) — the tunable numbers of the working indicator, re-derived from its
+   *  own formula on every change and stored nowhere (`authoring/derivedSettings.js`). */
+  const settings = useMemo(() => settingsOf(state.working), [state.working])
+  /** One number set from its field: the ordinary slot edit, no model call, one Undo step. */
+  const setNumber = useCallback((setting, value) => {
+    const cur = stateRef.current
+    if (busy || saving || !cur.working) return { ok: false }
+    const out = settingTurn(cur, setting, value, { gateCtx })
+    if (out.ok) take(out)
+    return out
+  }, [busy, saving, gateCtx, take])
+
   /** The earlier steps, oldest first (`historySteps`). */
   const steps = useMemo(() => historySteps(state, gateCtx), [state, gateCtx])
 
@@ -262,7 +276,7 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
   return {
     state, transcript, rb, busy, saving, acked, setAcked, needsAck, questions, changeSeq,
     previewDefinition, send, stop, undo, goBackTo, steps, save, discard, dirty, restored, recovered, dropped, editing,
-    allowanceLeft,
+    allowanceLeft, settings, setNumber,
     canUndo: state.history.length > 0 && !busy && !saving,
     canSave: dirty && !busy && !saving && (!needsAck.length || acked),
   }
