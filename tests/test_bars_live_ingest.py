@@ -203,3 +203,71 @@ def test_holding_too_many_unflushed_buckets_starts_a_new_epoch():
         _am("AAA", T0 + 300 * k, 1, 1, 1, 1, 1)
     assert ing.status()["overflows"] >= 1
     assert ing.take_payload()["epoch_ms"] != e0
+
+
+def _run_one_flush(monkeypatch):
+    """Drive `_flush_loop` through exactly one flush; return (post kwargs, to_thread calls)."""
+    import asyncio
+    import httpx
+    posts, threads = [], []
+    sleeps = {"n": 0}
+
+    async def fake_sleep(_s):
+        sleeps["n"] += 1
+        if sleeps["n"] > 1:
+            raise asyncio.CancelledError()      # end the loop after one flush
+
+    real_to_thread = asyncio.to_thread
+
+    async def spy_to_thread(fn, *a, **k):
+        threads.append(fn)
+        return await real_to_thread(fn, *a, **k)
+
+    class FakeResp:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"accepted": 1}
+
+    class FakeClient:
+        def __init__(self, *a, **k):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def post(self, url, **kw):
+            posts.append(kw)
+            return FakeResp()
+
+    monkeypatch.setenv("BARS_ORIGIN_URL", "http://bars-api.test:8080")
+    monkeypatch.setattr(ing.asyncio, "sleep", fake_sleep)
+    monkeypatch.setattr(ing.asyncio, "to_thread", spy_to_thread)
+    monkeypatch.setattr(httpx, "AsyncClient", FakeClient)
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(ing._flush_loop())
+    return posts, threads
+
+
+def test_with_1m_the_flush_body_is_encoded_off_the_event_loop(monkeypatch):
+    monkeypatch.setenv("BARS_LIVE_1M_ENABLED", "1")
+    _session()
+    posts, threads = _run_one_flush(monkeypatch)
+    assert len(posts) == 1 and "json" not in posts[0]
+    assert threads == [ing._encode_payload]                       # the ~2 MB encode ran on a thread
+    body = json.loads(posts[0]["content"])
+    assert body["m1"] and body["rows"]
+    assert posts[0]["headers"]["Content-Type"] == "application/json"
+
+
+def test_without_1m_the_flush_posts_exactly_as_before(monkeypatch):
+    monkeypatch.delenv("BARS_LIVE_1M_ENABLED", raising=False)
+    _session()
+    posts, threads = _run_one_flush(monkeypatch)
+    assert len(posts) == 1 and "json" in posts[0] and "content" not in posts[0]
+    assert threads == []
+    assert "m1" not in posts[0]["json"]

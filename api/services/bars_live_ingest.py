@@ -234,6 +234,11 @@ def flushed(payload: dict, reply: Optional[dict]) -> None:
         resync()
 
 
+def _encode_payload(payload: dict) -> bytes:
+    import json
+    return json.dumps(payload, separators=(",", ":")).encode("utf-8")
+
+
 async def _flush_loop() -> None:
     import httpx
     from api.bars_auth import bars_service_headers
@@ -249,7 +254,16 @@ async def _flush_loop() -> None:
                 continue
             payload = take_payload()
             try:
-                r = await client.post(url, json=payload, headers=bars_service_headers())
+                if "m1" in payload:
+                    # ⛔ OFF THE LOOP. With 1m the body after a busy minute is ~2 MB and its
+                    # encode measured 25-45 ms; this loop is the one reading the Massive
+                    # socket (web today, stream-ingest after the cutover), so the encode runs
+                    # on a worker thread. Without 1m the post is exactly as before.
+                    body = await asyncio.to_thread(_encode_payload, payload)
+                    r = await client.post(url, content=body, headers={
+                        **bars_service_headers(), "Content-Type": "application/json"})
+                else:
+                    r = await client.post(url, json=payload, headers=bars_service_headers())
                 r.raise_for_status()
                 try:
                     reply = r.json()
