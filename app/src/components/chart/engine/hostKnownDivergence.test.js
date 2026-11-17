@@ -9,6 +9,7 @@ import { memberPaneDefinition } from '../builder/memberPane/memberPaneDefinition
 import { validateUserDefinitions } from './nativeRegistry'
 import { runtimeSourceHash } from './runtimeKill'
 import LIST from './hostKnownDivergence.json'
+import { familyOf } from '../builder/editorStatus'
 import {
   HOST_KNOWN_DIVERGENCE_GUARD, HOST_KNOWN_DIVERGENCE_STAMP, hostKnownDivergenceOf, hostKnownDivergenceList,
   hostKnownDivergenceActive, __resetHostKnownDivergence, __ignoreHostKnownDivergenceForTests,
@@ -64,14 +65,16 @@ describe('the list', () => {
 })
 
 describe('the member preview door', () => {
-  it('refuses a listed script BY NAME, with what we know and that it is being fixed', () => {
+  it('refuses a listed script BY NAME, naming the capture and what differs, withheld until fixed', () => {
     const r = memberPaneDefinition({ source: LISTED, id: 'u_111111111111', name: 'listed' })
     expect(r.ok).toBe(false)
     expect(r.definition).toBe(null)
     expect(r.guard).toBe(HOST_KNOWN_DIVERGENCE_GUARD)
-    expect(r.reason).toMatch(/does not yet draw exactly as TradingView does/)
+    expect(r.reason).toMatch(/draws something that differs from TradingView/)
+    expect(r.reason).toMatch(/capture contraction-box-doji-lines-spy-1d-2026-10-03/)   // names the capture
     expect(r.reason).toMatch(/204/)                                       // the diverging item, from the list
-    expect(r.reason).toMatch(/being fixed/)
+    expect(r.reason).toMatch(/withheld until that is fixed/)
+    expect(r.reason).not.toMatch(/\u2014/)
   })
 
   it('CONTROL: the same script draws when the list is not consulted, so the refusal is the list and nothing else', () => {
@@ -91,6 +94,15 @@ describe('the member preview door', () => {
     const r = memberPaneDefinition({ source: CONTROL, id: 'u_222222222222', name: 'control' })
     expect(r.guard).toBe(HOST_KNOWN_DIVERGENCE_GUARD)
     expect(r.reason).toMatch(/SYNTHETIC/)
+  })
+})
+
+describe('the editor status panel', () => {
+  it('names the family: a drawn difference on a captured chart, withheld until fixed', () => {
+    const f = familyOf(HOST_KNOWN_DIVERGENCE_GUARD)
+    expect(f.id).toBe('divergence')
+    expect(f.why).toMatch(/differs from TradingView/)
+    expect(f.why).toMatch(/withheld until/)
   })
 })
 

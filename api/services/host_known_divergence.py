@@ -79,10 +79,10 @@ def committed() -> dict:
 
 
 def sentence(entry: dict) -> str:
-    """What a member reads: the stable code, what we know, and that it is being fixed."""
-    return (f"{GUARD}: this script is not drawn yet, because it does not yet draw exactly as TradingView does: "
-            f"{entry.get('reason')}. The difference is being fixed; it comes back once a new comparison "
-            "against TradingView matches.")
+    """What a member reads: the stable code, what differs on which captured chart, and that it is withheld
+    until that is fixed (`engine/hostKnownDivergence.js::hostKnownDivergenceSentence`, the same words)."""
+    return (f"{GUARD}: this script is not drawn: {entry.get('reason')}. It is withheld until that is fixed, "
+            "and comes back once a new comparison against TradingView matches.")
 
 
 def refused(source: Any) -> Optional[str]:

@@ -41,7 +41,9 @@ def test_the_committed_list_is_the_derivation_and_the_queue_doc_is_its_rendering
     derived = hd.derive()
     assert len(derived) >= 1
     assert hd.disagreements(hd.committed(), derived) == []
-    assert hd.QUEUE_DOC.read_text(encoding="utf-8") == hd.render_queue(derived)
+    every = hd.derive_all()
+    assert set(derived) < set(every)                                    # withheld-only scripts: rows, not listed
+    assert hd.QUEUE_DOC.read_text(encoding="utf-8") == hd.render_queue(every)
     # every entry is held to its evidence: its source file hashes to it, and each named capture is a
     # committed production DIVERGE of THAT source
     v = {r["id"]: r for r in json.loads(hd.VERDICTS.read_text(encoding="utf-8"))["results"]}
@@ -65,12 +67,16 @@ def test_the_rail_fails_when_the_list_holds_a_script_no_capture_witnesses():
     committed["f" * 64] = {"slug": "synthetic-stale", "sha256": "f" * 64}
     probs = hd.disagreements(committed, hd.derive())
     assert probs == [f"STALE: synthetic-stale ({'f' * 12}) is listed but no committed capture of it grades DIVERGE "
-                     "on the production lane (its liftWhen is met: --write drops it)"]
+                     "with a drawn difference on the production lane (its liftWhen is met: --write drops it)"]
+
+
+def _drawn_plot_divergence():
+    return {"id": "plot_x", "title": "SYNTHETIC", "verdict": "DIVERGE", "reason": "1 steady-state bars disagree"}
 
 
 def test_CONTROL_the_scan_sees_a_DIVERGE_and_lifts_on_a_regrade(tmp_path):
-    """A MATCH script's capture re-graded DIVERGE is named; a listed script's only DIVERGE re-graded MATCH is
-    dropped (its liftWhen). Proves the scan reads the verdicts, not a constant."""
+    """A MATCH script's capture re-graded DIVERGE (a drawn plot) is named; a listed script's only DIVERGE
+    re-graded MATCH is dropped (its liftWhen). Proves the scan reads the verdicts, not a constant."""
     doc = json.loads(hd.VERDICTS.read_text(encoding="utf-8"))
     control_sha = hd.source_hash(CONTROL)
     assert control_sha not in hd.derive()
@@ -78,25 +84,53 @@ def test_CONTROL_the_scan_sees_a_DIVERGE_and_lifts_on_a_regrade(tmp_path):
     for r in moved["results"]:
         if r["id"] == "atr-bands-spy-1d-2026-10-03":
             r["verdict"] = "DIVERGE"
-        if r["id"] == "sonarlab-order-blocks-aapl-1d-2026-10-02":
+            r["plots"] = list(r.get("plots") or []) + [_drawn_plot_divergence()]
+        if r["id"] == "vw-fmt-tie-readings-rddt-1d-2026-11-15":
             r["verdict"] = "MATCH"
     f = tmp_path / "verdicts.json"
     f.write_text(json.dumps(moved), encoding="utf-8")
     d = hd.derive(f)
     assert control_sha in d and d[control_sha]["slug"] == "atr-bands"
-    sonar = hd.source_hash((ROOT / "corpus" / "committed" / "sonarlab-order-blocks__0df0d45ee6.pine")
-                           .read_text(encoding="utf-8"))
-    assert sonar in hd.derive() and sonar not in d
+    tie = hd.source_hash((ROOT / "tools" / "visual_conformance" / "probes" / "vw-fmt-tie-readings.pine")
+                         .read_text(encoding="utf-8"))
+    assert tie in hd.derive() and tie not in d
     probs = hd.disagreements(hd.committed(), d)
     assert any(p.startswith("NOT LISTED: atr-bands") for p in probs)
-    assert any(p.startswith("STALE: sonarlab-order-blocks") for p in probs)
+    assert any(p.startswith("STALE: vw-fmt-tie-readings") for p in probs)
+
+
+SONARLAB = (ROOT / "corpus" / "committed" / "sonarlab-order-blocks__0df0d45ee6.pine").read_text(encoding="utf-8")
+
+
+def test_a_WITHHELD_ONLY_divergence_is_not_listed_and_one_drawn_difference_lists_it(tmp_path):
+    """Coordinator ruling on #1541: a capture whose only difference is objects this lane already withholds BY
+    NAME (sonarlab-order-blocks on AAPL: 17 boxes withheld off the listing, plots not shown to differ) does not
+    list its script; it keeps its queue row, marked. CONTROL: the SAME capture with one drawn difference lists it."""
+    sha = hd.source_hash(SONARLAB)
+    every = hd.derive_all()
+    assert sha in every and [c["kind"] for c in every[sha]["evidence"]["diverge"]] == ["withheld"]
+    assert not hd.is_listed(every[sha]) and sha not in hd.derive() and sha not in hd.committed()
+    assert hkd.refused(SONARLAB) is None
+    row = next(x for x in hd.QUEUE_DOC.read_text(encoding="utf-8").splitlines()
+               if x.startswith(f"| {hd.queue_row_id('sonarlab-order-blocks')} | engine-gap |"))
+    assert "withheld by name, not listed" in row
+    moved = json.loads(hd.VERDICTS.read_text(encoding="utf-8"))
+    for r in moved["results"]:
+        if r["id"] == "sonarlab-order-blocks-aapl-1d-2026-10-02":
+            r["plots"] = list(r.get("plots") or []) + [_drawn_plot_divergence()]
+    f = tmp_path / "verdicts.json"
+    f.write_text(json.dumps(moved), encoding="utf-8")
+    d = hd.derive(f)
+    assert sha in d and hd.is_listed(d[sha])
+    assert any(c["kind"] == "drawn" for c in d[sha]["evidence"]["diverge"])
 
 
 # ═══ the server doors ════════════════════════════════════════════════════════════
 
 def test_the_reader_names_a_listed_script_and_not_an_unlisted_one():
     why = hkd.refused(LISTED)
-    assert why and why.startswith(hkd.GUARD + ":") and "204" in why and "being fixed" in why
+    assert why and why.startswith(hkd.GUARD + ":") and "204" in why and "withheld until that is fixed" in why
+    assert "capture contraction-box-doji-lines-spy-1d-2026-10-03" in why and "\u2014" not in why
     assert hkd.refused(LISTED.replace("\n", "\r\n"))                    # the CRLF form is the same script
     assert hkd.refused(CONTROL) is None
     assert hkd.LIST_PATH == str(hd.LIST)                                # ONE authority: the file the browser imports

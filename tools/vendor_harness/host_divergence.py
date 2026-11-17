@@ -101,8 +101,27 @@ def _first_diverging(r: dict) -> tuple:
     return "drawn", str(r.get("reason"))
 
 
+def is_listed(entry: dict) -> bool:
+    """⭐ THE PREDICATE (coordinator ruling on #1541, 2026-11-17): a script is listed when at least one of its
+    committed production DIVERGE captures shows a DRAWN difference (our side drew something that differs). A
+    capture whose only difference is objects our side already withholds BY NAME is incompleteness that is
+    already refused by name, not a wrong drawing, and its plots were not shown to differ: it keeps its
+    engine-gap queue row as work, marked "withheld by name, not listed", and the script is not listed for it."""
+    return any(c.get("kind") == "drawn" for c in (entry.get("evidence") or {}).get("diverge") or [])
+
+
 def derive(verdicts_path=VERDICTS, root=ROOT) -> dict:
-    """{sha256: entry} for every script with a committed production capture grading DIVERGE."""
+    """{sha256: entry} for every LISTED script (`is_listed`): the committed list's derivation."""
+    return {sha: e for sha, e in derive_all(verdicts_path, root).items() if is_listed(e)}
+
+
+def _member_text(text) -> str:
+    """A member-facing rendering of a grader sentence: no em dash, one line."""
+    return " ".join(str(text).replace(" — ", "; ").replace("—", "-").split())
+
+
+def derive_all(verdicts_path=VERDICTS, root=ROOT) -> dict:
+    """{sha256: entry} for every script with a committed production capture grading DIVERGE, listed or not."""
     doc = json.loads(pathlib.Path(verdicts_path).read_text(encoding="utf-8"))
     if doc.get("lane") != "production":
         raise SystemExit(f"{verdicts_path}: lane {doc.get('lane')!r}, not the production lane")
@@ -143,10 +162,11 @@ def derive(verdicts_path=VERDICTS, root=ROOT) -> dict:
             "sha256": sha,
             "title": e["title"],
             "source": src or (pathlib.Path(str(next(r["file"] for r in doc["results"] if r["id"] == d0["capture"]))).as_posix()),
-            "reason": (f"a TradingView capture of it grades DIVERGE on this lane ({named['symbol']} {named['timeframe']}): {what}"
+            "reason": (f"on a captured {named['symbol']} {named['timeframe']} chart (capture {named['capture']}) it draws "
+                       f"something that differs from TradingView: {_member_text(what)}"
                        if drawn else
-                       f"a TradingView capture of it grades DIVERGE on this lane ({named['symbol']} {named['timeframe']}): "
-                       f"TradingView draws objects this lane withholds ({what})"),
+                       f"on a captured {named['symbol']} {named['timeframe']} chart (capture {named['capture']}) TradingView "
+                       f"draws objects this lane already withholds by name ({_member_text(what)})"),
             "evidence": {
                 "diverge": e["diverge"],
                 "match": sorted(c["capture"] for c in e["match"]),
@@ -168,11 +188,12 @@ def disagreements(committed_list: dict, derived: dict) -> list:
     """Every way the committed list and the derivation disagree, each naming the script."""
     out = []
     for sha in sorted(set(derived) - set(committed_list)):
-        out.append(f"NOT LISTED: {derived[sha]['slug']} ({sha[:12]}) has a committed DIVERGE capture "
-                   f"({', '.join(c['capture'] for c in derived[sha]['evidence']['diverge'])}) and is not on the list")
+        out.append(f"NOT LISTED: {derived[sha]['slug']} ({sha[:12]}) has a committed DIVERGE capture with a drawn "
+                   f"difference ({', '.join(c['capture'] for c in derived[sha]['evidence']['diverge'] if c['kind'] == 'drawn')}) "
+                   "and is not on the list")
     for sha in sorted(set(committed_list) - set(derived)):
         out.append(f"STALE: {committed_list[sha].get('slug')} ({sha[:12]}) is listed but no committed capture of it "
-                   "grades DIVERGE on the production lane (its liftWhen is met: --write drops it)")
+                   "grades DIVERGE with a drawn difference on the production lane (its liftWhen is met: --write drops it)")
     for sha in sorted(set(committed_list) & set(derived)):
         if committed_list[sha] != derived[sha]:
             out.append(f"DRIFTED: {derived[sha]['slug']} ({sha[:12]}): its entry is not the derivation's (--write)")
@@ -193,19 +214,25 @@ def _cell(text) -> str:
     return " ".join(str(text).replace("|", "/").split())
 
 
-def render_queue(derived: dict) -> str:
-    """The queue doc: one row per listed script and its `engine-gap` disposition, naming the capture and
-    the first diverging item. Regenerated with the list (`--write`); `--check` holds it to the list too."""
+def render_queue(derived_all: dict) -> str:
+    """The queue doc: one row per script with a committed production DIVERGE (`derive_all`) and its
+    `engine-gap` disposition, naming the capture and the first diverging item. A listed script's row says
+    it is refused by name; a withheld-only one says "withheld by name, not listed" (its gap is still work).
+    Regenerated with the list (`--write`); `--check` holds it to the derivation too."""
     rows, disp = [], []
-    for e in derived.values():
+    for e in derived_all.values():
+        listed = is_listed(e)
         drawn = [c for c in e["evidence"]["diverge"] if c["kind"] == "drawn"]
         c = (drawn or e["evidence"]["diverge"])[0]
         rid = queue_row_id(e["slug"])
+        kept = (f"`{GUARD}`: the whole script is refused by name on the host lane" if listed else
+                "withheld by name, not listed: only objects this lane already withholds by name differ; its plots are served")
         rows.append(f"| {rid} | none: engine gap (the capture `{c['capture']}` is in the harness) "
-                    f"| `{c['symbol']} {c['timeframe']}` | `{GUARD}`: the whole script is refused by name on the host lane "
+                    f"| `{c['symbol']} {c['timeframe']}` | {kept} "
                     f"| a production re-grade leaving none of its {len(e['evidence']['diverge'])} DIVERGE capture(s) DIVERGE "
                     f"| engine |")
-        disp.append(f"| {rid} | engine-gap | `{c['capture']}` grades DIVERGE on the host lane; first diverging item "
+        disp.append(f"| {rid} | engine-gap | {'listed' if listed else 'withheld by name, not listed'}: "
+                    f"`{c['capture']}` grades DIVERGE on the host lane; first diverging item "
                     f"({c['kind']}): {_cell(c['firstDiverging'])}. What closes it is an engine fix and a re-grade, "
                     f"not a TradingView reading |")
     return "\n".join([
@@ -213,11 +240,11 @@ def render_queue(derived: dict) -> str:
         "",
         "GENERATED by `python tools/vendor_harness/host_divergence.py --write` with",
         "`app/src/components/chart/engine/hostKnownDivergence.json` (owner decision 2026-11-17: the host lane gets the",
-        "runtime lane's kill-list protection). Each listed script has a committed TradingView capture grading DIVERGE on",
-        "the production (host) lane, so every host door refuses it by name (`pine:known-divergence`). Each row is the gap",
-        "that lifts it: an engine fix to the first diverging item named below, then a production re-grade. `drawn` means our",
-        "side drew something that differs; `withheld` means TradingView draws objects our side already withholds by name",
-        "(the plots may match). Never hand-edit: regenerate, and update `tests/test_queue_dispositions.py` COMMITTED.",
+        "runtime lane's kill-list protection). One row per script with a committed TradingView capture grading DIVERGE on",
+        "the production (host) lane. A script with a DRAWN difference (our side drew something that differs) is LISTED and",
+        "every host door refuses it by name (`pine:known-divergence`). A script whose only difference is objects our side",
+        "already withholds by name is NOT listed (coordinator ruling on #1541): its row stays here as work. Each row is the gap:",
+        "an engine fix to the first diverging item named below, then a production re-grade. Never hand-edit: regenerate.",
         "",
         "| id | probe | symbol / tf | refusal kept | unblocks | owner |",
         "|---|---|---|---|---|---|",
@@ -242,25 +269,28 @@ def main(argv=None) -> int:
     g.add_argument("--write", action="store_true")
     g.add_argument("--table", action="store_true", help="print what members lose, per script and symbol")
     a = p.parse_args(argv)
-    d = derive()
+    every = derive_all()
+    d = {sha: e for sha, e in every.items() if is_listed(e)}
     if a.write:
         tmp = LIST.with_suffix(".json.tmp")
         tmp.write_text(render(d), encoding="utf-8", newline="\n")
         tmp.replace(LIST)
         tmp = QUEUE_DOC.with_suffix(".md.tmp")
-        tmp.write_text(render_queue(d), encoding="utf-8", newline="\n")
+        tmp.write_text(render_queue(every), encoding="utf-8", newline="\n")
         tmp.replace(QUEUE_DOC)
-        print(f"wrote {LIST.relative_to(ROOT)} and {QUEUE_DOC.relative_to(ROOT)}: {len(d)} scripts")
+        print(f"wrote {LIST.relative_to(ROOT)} ({len(d)} listed) and {QUEUE_DOC.relative_to(ROOT)} "
+              f"({len(every)} rows, {len(every) - len(d)} withheld by name, not listed)")
         return 0
     if a.table:
-        for e in d.values():
+        for e in every.values():
             ev = e["evidence"]
-            print(f"{e['slug']} | DIVERGE: " + "; ".join(f"{c['symbol']} {c['capture']} [{c['kind']}]" for c in ev["diverge"])
+            print(f"{'LISTED    ' if is_listed(e) else 'not listed'} {e['slug']} | DIVERGE: "
+                  + "; ".join(f"{c['symbol']} {c['capture']} [{c['kind']}]" for c in ev["diverge"])
                   + f" | MATCH: {', '.join(ev['match']) or '-'}")
         return 0
     probs = disagreements(committed(), d)
     try:
-        if QUEUE_DOC.read_text(encoding="utf-8") != render_queue(d):
+        if QUEUE_DOC.read_text(encoding="utf-8") != render_queue(every):
             probs.append(f"QUEUE: {QUEUE_DOC.relative_to(ROOT)} is not the derivation's (--write)")
     except OSError:
         probs.append(f"QUEUE: {QUEUE_DOC.relative_to(ROOT)} is missing (--write)")

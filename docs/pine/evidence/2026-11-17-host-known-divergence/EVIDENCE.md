@@ -40,17 +40,33 @@ This unit gives the host lane the same protection: refused BY NAME, `pine:known-
 - REACH (`capability_admission.py report`): a host-drawn DIVERGE of a listed script is reported under
   `refusedByName`, not `hostDiverge`.
 - Coverage ratchet, written from the CI census rows of PR #1533's run 44007547152 (`--rows ... --write`): production
-  60 -> 58, runtime-on 92 -> 90; both lose `contraction-box-doji-lines` and `sonarlab-order-blocks`, wall "on the host
-  known-divergence list".
+  60 -> 59, runtime-on 92 -> 91; both lose `contraction-box-doji-lines` (SPY: 205 lines drawn where TradingView holds 204),
+  wall "on the host known-divergence list". `sonarlab-order-blocks` stays (withheld-only, not listed).
 
-## What members lose (30 scripts at this number)
+## The predicate (coordinator ruling on #1541)
 
-`python tools/vendor_harness/host_divergence.py --table` prints it. 19 have a capture where our side drew something
-that differs; 11 (atr-trailing-stop-by-ceyhun, auto-trendline-dojiemoji, dual-view-htf-candlestick-patterns-theultimator5,
-multicator-table, pmax-explorer, sonarlab-order-blocks, trend-lines-supports-and-resistances, vw-w3n-draw-block-history-a..d)
-are DIVERGE only because TradingView draws objects our side already withholds by name, so their served plots were not
-shown to differ. The owner's rule lists both; a narrower rule (drawn differences only) is one predicate in
-`host_divergence.derive` and is an owner decision.
+`host_divergence.is_listed`: a script is LISTED when at least one of its committed production DIVERGE captures shows a
+DRAWN difference (our side drew something that differs). A capture whose only difference is objects this lane already
+withholds BY NAME is incompleteness that is already refused by name, not a wrong drawing, and its plots were not shown
+to differ: the script is not listed for it, and its engine-gap queue row stays as work, marked "withheld by name, not
+listed". Rail: `test_a_WITHHELD_ONLY_divergence_is_not_listed_and_one_drawn_difference_lists_it` (sonarlab AAPL; the
+same capture with one drawn difference lists it).
+
+## What members lose (19 scripts at this number)
+
+`python tools/vendor_harness/host_divergence.py --table` prints all 30 scripts with a production DIVERGE and which are
+listed. Listed (19): artemis-oscillator-pro, average-day-range-adr-pivots, contraction-box-doji-lines,
+ema-ribbon-trend-filter-strixedge, heat-map-seasons, htf-candle-footprint-cartel-console, htf-liquidity-dashboard-tfo
+(RDDT drawn), position-size-calc, rs-rating-fred6724 (NVDA drawn), vold-market-breadth, and the probes
+request-realtime-alignment, vw-fmt-tie-readings, vw-int-cast, vw-nvi-pvi, vw-object-gc-a/b/c, vw-other-symbol, vw-time-tf.
+Not listed, rows kept as work (11): atr-trailing-stop-by-ceyhun, auto-trendline-dojiemoji,
+dual-view-htf-candlestick-patterns-theultimator5, multicator-table, pmax-explorer, sonarlab-order-blocks,
+trend-lines-supports-and-resistances, vw-w3n-draw-block-history-a..d.
+
+The member reads: "this script is not drawn: on a captured <symbol> <tf> chart (capture <id>) it draws something that
+differs from TradingView: <item>. It is withheld until that is fixed, and comes back once a new comparison against
+TradingView matches." The editor status panel files `pine:known-divergence` under its own family, `divergence`
+("Differs from TradingView on a captured chart"; spec section 4).
 
 Rails: `tests/test_pine_host_known_divergence.py`, `app/src/components/chart/engine/hostKnownDivergence.test.js`,
-`tests/test_queue_dispositions.py` (the doc's 30 engine-gap rows).
+`tests/test_queue_dispositions.py` (the doc's 30 engine-gap rows), `editorStatus.families.test.js` (spec = FAMILIES).

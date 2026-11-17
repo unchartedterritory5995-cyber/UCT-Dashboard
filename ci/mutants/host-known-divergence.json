@@ -18,6 +18,14 @@
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/hostKnownDivergence.test.js"
   },
   {
+   "id": "HK-J4",
+   "mutant": "the editor status panel files pine:known-divergence under no family",
+   "file": "app/src/components/chart/builder/editorStatus.js",
+   "from": "    exact: ['pine:known-divergence'],",
+   "to": "    exact: [],",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/hostKnownDivergence.test.js"
+  },
+  {
    "id": "HK-J3",
    "mutant": "the browser reader matches no source (a list that names nothing)",
    "file": "app/src/components/chart/engine/hostKnownDivergence.js",

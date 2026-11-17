@@ -51,11 +51,11 @@ export function hostKnownDivergenceList() {
   return [..._entries.keys()]
 }
 
-/** What a member reads: what we know, and that it is being fixed (the server's `sentence`). */
+/** What a member reads: what differs on which captured chart, and that it is withheld until that is fixed
+ *  (the server's `host_known_divergence.sentence`, the same words without the code prefix). */
 export function hostKnownDivergenceSentence(entry) {
-  return 'this script is not drawn yet, because it does not yet draw exactly as TradingView does: '
-    + `${entry.reason}. The difference is being fixed; it comes back once a new comparison against `
-    + 'TradingView matches.'
+  return `this script is not drawn: ${entry.reason}. It is withheld until that is fixed, and comes back `
+    + 'once a new comparison against TradingView matches.'
 }
 
 /** Why this Pine source is refused on the host lane, `{guard, reason, slug}`, or null.
