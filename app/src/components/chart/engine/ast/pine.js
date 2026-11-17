@@ -868,6 +868,22 @@ export function notePeriodRead(name, version) { recordPeriodRead(name, version) 
  *  shadowing CONTROL, not by review — for the second time. */
 export const OWN_TF_NAMES = new Set(['timeframe.period', 'period'])
 
+/** ⭐⭐ NUMBER PENDING (bt) — BARE `period` IS PINE v1–v3's, AND ONLY THEIRS. TradingView's v4 compiler
+ *  refuses it — "Compilation error: Undeclared identifier 'period';" (capture-session reading
+ *  2026-11-16, recorded in the header of the captured `vw-w4-session-default-days-v4` source) — and
+ *  neither the v4 nor the v5 reference holds a bare `period` (only `timeframe.period`). Reading it as
+ *  the chart's timeframe in v4+ was an over-acceptance; an UNBOUND `period` in v4+ now refuses by this
+ *  name on every lane (the host's `stringValueOf` / `ownTimeframeOf` / `resolveName`, the runtime
+ *  lane's own readers). A script's OWN `period` (`period = "60"`, a parameter) is untouched: a
+ *  binding is consulted first everywhere this is asked. */
+export const LEGACY_PERIOD_SENTENCE = '`period` is the chart\'s timeframe in Pine v1–v3 only. From v4 on '
+  + 'TradingView reads it as an undeclared identifier (its compiler: "Undeclared identifier \'period\'") '
+  + 'and names the chart\'s timeframe `timeframe.period`; write that.'
+export const legacyPeriodUndeclared = (name, version) => name === 'period'
+  && version !== null && version !== undefined && version >= 4
+export const legacyPeriodRefusal = (tok) => new PineRefusal('pine:builtin',
+  `${REFUSALS['pine:builtin']} — ${LEGACY_PERIOD_SENTENCE}`, tok ? locate(tok) : null)
+
 /** ⭐⭐ C33 / C48 — THE TEXT AN `input.timeframe` DEFAULT PRINTS: THE DEFAULT, VERBATIM.
  *
  *  `input.timeframe` has no knob in this product (it is not a numeric kind, so
@@ -2772,6 +2788,43 @@ const BUILTIN_RULED = Object.freeze({
   // copy here would have been a SECOND AUTHORITY over one member-facing sentence:
   // two places to edit, one of which somebody would miss. This map keeps the
   // names that are not symbol-scoped.
+})
+
+/** ⭐ NUMBER PENDING (bt) — `chart.*` names ruled BY NAME, beside `BUILTIN_RULED`. The refusal ENDS with the
+ *  name (`… — \`chart.bg_color\``), the shape the object lane's subject reader takes (`noteGuardRefusal`,
+ *  `REFUSED_SUBJECT`), so a dropped drawing op still names what stopped it. */
+const CHART_RULED = Object.freeze({
+  // ⭐ NUMBER PENDING (bt) — THE FOUR `chart.*` NAMES THE CORPUS READS, RULED. The two visible-bar
+  // times are the VIEWPORT: TradingView's user manual (Time, "Visible bar times"): "Each time the
+  // visible window changes, the script re-executes automatically to update the variables' values
+  // on all available bars." This engine computes an indicator once for the bars, not once per
+  // scroll position, so no value it could hold is the one TradingView would draw.
+  'chart.left_visible_bar_time':
+    'It is the opening time of the leftmost bar VISIBLE on the chart, and TradingView re-runs the '
+    + 'whole script every time the member scrolls or zooms ("Each time the visible window changes, the '
+    + 'script re-executes", user manual). This engine computes an indicator once for its bars, not once '
+    + 'per view, so any value served here would be a different chart window than the one on screen.',
+  'chart.right_visible_bar_time':
+    'It is the opening time of the rightmost bar VISIBLE on the chart, and TradingView re-runs the '
+    + 'whole script every time the member scrolls or zooms ("Each time the visible window changes, the '
+    + 'script re-executes", user manual). This engine computes an indicator once for its bars, not once '
+    + 'per view, so any value served here would be a different chart window than the one on screen.',
+  // ⛔ The two theme colours are the MEMBER'S chart settings (TradingView: "the chart's background "
+  // color, as defined by the "Background" inputs"; `chart.fg_color` is #dbdbdb on a dark background
+  // and #0f0f0f on a light one). As a colour something is PAINTED with they are already carried as
+  // a theme reference and drawn in this chart's own colours (engine 58, `withThemeColour`); these
+  // sentences are for the reads that are not a paint (a comparison, a stored value, arithmetic),
+  // where the theme would have to be a number the computation holds, and it is not.
+  'chart.bg_color':
+    'It is the background colour of the member\'s own chart settings. Painted with, it is carried as '
+    + 'the chart\'s theme and drawn in this chart\'s colour; read as a value (compared, stored or '
+    + 'computed with), it would need the theme inside the computation, which does not hold it, so it is '
+    + 'not guessed.',
+  'chart.fg_color':
+    'It is the high-contrast colour for the member\'s own chart background (#dbdbdb on a dark one, '
+    + '#0f0f0f on a light one, per the user manual). Painted with, it is carried as the chart\'s theme '
+    + 'and drawn in this chart\'s colour; read as a value (compared, stored or computed with), it would '
+    + 'need the theme inside the computation, which does not hold it, so it is not guessed.',
 })
 
 // ⭐ RE-EXPORTED, NOT REDEFINED. The predicate is pure manifest logic and it
@@ -10006,6 +10059,7 @@ export class Resolver {
       // "which spellings mean the chart's own timeframe" would let this door and
       // `securityAsNode` disagree about one script.
       // ⭐ C29 — as TEXT, in the script's own Pine version (`periodTextOf`).
+      if (legacyPeriodUndeclared(node.name, this.pineVersion)) throw legacyPeriodRefusal(node.tok)
       if (OWN_TF_NAMES.has(node.name)) {
         const text = periodTextOf(this.periodInForce(node.name, node.tok), this.pineVersion)
         if (!this.periodCodeRead) recordPeriodRead('timeframe.period', this.pineVersion)
@@ -12352,6 +12406,11 @@ export class Resolver {
           `${REFUSALS['pine:builtin']} — \`${name}\`. ${BUILTIN_RULED[name]}`,
           locate(node.tok))
       }
+      if (own(CHART_RULED, name)) {
+        throw new PineRefusal('pine:builtin',
+          `${REFUSALS['pine:builtin']}: ${CHART_RULED[name]} — \`${name}\``,
+          locate(node.tok))
+      }
       // ⭐⭐ WAVE 2 (a) — AND THE SAME READ ON THIS PATH. A call arrives here as
       // well as at the site further down, and a hook on only one of them is a
       // capability that works in some expressions and not others. Measured:
@@ -12439,6 +12498,7 @@ export class Resolver {
       }
       return clockLeaf(clockKey)
     }
+    if (legacyPeriodUndeclared(name, this.pineVersion)) throw legacyPeriodRefusal(node.tok)
     if (PINE_KNOWN_BUILTINS.has(name)) {
       throw new PineRefusal('pine:builtin',
         `${REFUSALS['pine:builtin']} — \`${name}\``, locate(node.tok))
@@ -12588,7 +12648,19 @@ export class Resolver {
           `${REFUSALS['pine:named-argument']} — on \`${name}\``, locate(node.tok))
       }
       if (name === 'na' && arity === 1) {
-        const x = this.resolve(node.args[0].value)
+        // ⭐ NUMBER PENDING (bt) — `na(time(tf, <wrapping session>))` READS MEMBERSHIP ONLY, so the
+        // session clock hands back its membership tree (`?:(inside, 1, na)`) instead of the value tree:
+        // the same `na` on every bar, with fewer series references (no `time`, no `periodseconds`).
+        // Measured: `session-hilo`'s background paint reads two wrapping sessions and their `[1]`
+        // history; with the value tree it measured 10 series references against the install cap of
+        // 8 (`budget:series`) and the whole script stopped installing. Only a call WRITTEN directly
+        // inside `na(…)` is told, never one reached through a binding.
+        const arg0 = node.args[0].value
+        const prevMembership = this.sessionMembershipTok
+        this.sessionMembershipTok = arg0 && arg0.type === 'call' && arg0.name === 'time' && arg0.tok
+          ? arg0.tok : null
+        let x
+        try { x = this.resolve(arg0) } finally { this.sessionMembershipTok = prevMembership }
         // ⭐ ENGINE 56 (A3) — `na(b)` of a v1-v5 `bool` that is `na` is true (S1: `na(c > na_s)`);
         // a WRITTEN `and` / `or` / `not` never is (`rt3-na-logic`: `na(w or false)` is false), and
         // the identity fold may have reduced it to its operand, so it is read off the source
@@ -13468,7 +13540,12 @@ export class Resolver {
     if (!tfNode || !sessNode) throw no('it needs both a timeframe and a session')
 
     // ── 1. THE TIMEFRAME: the chart's own, and only that. ────────────────────
-    const isOwnTf = this.ownTimeframeOf(tfNode) !== null
+    // ⭐ NUMBER PENDING (bt) — `""` IS THE CHART'S OWN TIMEFRAME. The reference (`time`, argument
+    // `timeframe`): "If the value is an empty string, the function uses the script's main
+    // timeframe." The runtime lane already reads it so (W4 T3, `rebuiltSessionClockCall`); this
+    // lane refused it as "another timeframe", so a script asking `time("", sess)` was answered on
+    // one lane and refused on the other.
+    const isOwnTf = this.ownTimeframeOf(tfNode) !== null || this.timeframeLiteralOf(tfNode) === ''
     const lit = isOwnTf ? null : this.timeframeLiteralOf(tfNode)
     const code = lit === null ? null : PINE_TF_SPELLING[String(lit).trim().toUpperCase()]
     if (!isOwnTf && code !== this.basePeriod) {
@@ -13515,22 +13592,52 @@ export class Resolver {
     const [sh, sm, eh, em] = m.slice(1, 5).map(Number)
     if (sh > 23 || eh > 23 || sm > 59 || em > 59) throw no(`\`"${spec}"\` names a time that does not exist`)
     const start = sh * 60 + sm
-    const end = eh * 60 + em
-    if (end <= start) {
-      throw no(`\`"${spec}"\` wraps past midnight (or spans the whole day). The capture `
-        + 'read `"2000-0000"` as `na` on every bar it holds, but none of those bars '
-        + 'opens after 20:00, so it cannot say whether such a window is empty or '
-        + 'runs to midnight — and the two answer differently on a 24-hour symbol.')
-    }
+    let end = eh * 60 + em
     let days = null
     if (m[5]) {
       days = [...new Set(m[5].split('').map(Number))].sort()
+    } else if (this.pineVersion === 4) {
+      // ⭐ NUMBER PENDING (bt) — A v4 SESSION WITH NO DAY LIST IS MONDAY TO FRIDAY, and two texts
+      // say so exactly: the v4 reference (`time`): "If the days aren't specified, the session is
+      // considered to have been set from Monday to Friday (Saturday and Sunday are excluded as the
+      // weekend days)", and the v4→v5 migration guide: "The default set of days for `session`
+      // strings used in the time() and time_close() functions … has changed from "23456" (Monday
+      // to Friday) to "1234567" (Sunday to Saturday)". And TradingView answered it so on every bar
+      // of `vw-w4-session-default-days-v4-btcusd-60-2026-11-16` (N1 "0000-2359": in Monday to
+      // Friday, out Saturday and Sunday). ⛔ v1–v3 keep the refusal: no reference text for them is
+      // held (TradingView's reference bundle serves v4–v6 only) and no v1–v3 probe is captured.
+      days = [2, 3, 4, 5, 6]
     } else if (this.pineVersion === null || this.pineVersion < 5) {
-      throw no(`\`"${spec}"\` has no day list, and in Pine v${this.pineVersion || '1–4'} the `
-        + 'default days are not the ones measured. Add `:1234567` (every day) or '
-        + '`:23456` (Monday–Friday) to say which you mean.')
+      throw no(`\`"${spec}"\` has no day list, and in Pine v${this.pineVersion || '1–3'} the `
+        + 'default days are not stated by any reference text this engine holds (the v4 reference '
+        + 'states v4\'s: Monday to Friday). Add `:1234567` (every day) or `:23456` '
+        + '(Monday–Friday) to say which you mean.')
     }
     if (days && days.length === 7) days = null
+    // ⭐⭐ NUMBER PENDING (bt) — A WINDOW WHOSE END IS NOT AFTER ITS START, as TradingView answered
+    // it on BITSTAMP:BTCUSD (a symbol with a bar every hour of every day) and as the user manual's
+    // session table states it ("0000-0000:1234567 — a 7-day, 24-hour session beginning at midnight";
+    // "0000-0000:23456 — a 24-hour session beginning at midnight, but only Monday to Friday";
+    // "1700-1700:23456 — An overnight session. The Monday session starts Sunday at 17:00 and ends
+    // Monday at 17:00"). The captures (probes under `tools/visual_conformance/probes/`):
+    //   · "HHMM-0000" runs to MIDNIGHT of its own day: `vw-w4-session-overnight-btcusd-60-2026-11-16`
+    //     O3 "2000-0000:1234567" is in at 20:00–23:00 every day, and
+    //     `vw-bt-session-to-midnight-daymask-btcusd-60-2026-11-16` M1 "2000-0000:23456" at
+    //     20:00–23:00 Monday to Friday — the day list is asked of the bar's own day.
+    //   · "0000-0000" is the WHOLE DAY of the bar's own date: O4 in on every bar.
+    //   · any other end at or before the start WRAPS: O1 "1800-0200:1234567" is in at 18:00–23:00
+    //     and 00:00–01:00 every day, and the part after midnight belongs to the session that ENDS
+    //     that day — O2 "1800-0200:23456" is in from Sunday 18:00 to Friday 01:00, never Friday
+    //     18:00 or later, never Saturday.
+    //   · the VALUE inside a wrapping session is the measured grid rule below (reading 2), the grid
+    //     anchored at the session start CONTINUING across midnight:
+    //     `vw-bt-session-overnight-value-btcusd-60-2026-11-16` V1 "1930-0230" answers −1800 s on
+    //     every in-session hourly bar, 00:00–02:00 included, V2–V4 0; and the 1D capture
+    //     `vw-bt-session-overnight-value-btcusd-1d-2026-11-16` answers the session's start the
+    //     evening before (V1 −16200, V2 −21600, V3 "1700-1700" −25200, V4 "2000-1630" −14400 s on
+    //     a 00:00 UTC daily bar).
+    const wraps = end <= start && end !== 0
+    if (end === 0) end = 1440
 
     // ── 3. THE ZONE. ─────────────────────────────────────────────────────────
     let offset = null // null = the exchange clock (America/New_York here)
@@ -13539,13 +13646,22 @@ export class Resolver {
       if (tz === SESSION_EXCHANGE_TZ || tz === 'America/New_York') {
         offset = null
       } else {
-        const g = typeof tz === 'string' ? /^GMT([+-])(\d{1,2})$/.exec(tz.trim()) : null
-        if (!g || Number(g[2]) > 14) {
+        // ⭐ NUMBER PENDING (bt) — "UTC" IS THE SAME NOTATION AS "GMT", and the minutes form too.
+        // The user manual (Time, "Time zone strings"): "UTC (or GMT) offset notation, e.g.,
+        // "UTC-5", "UTC+05:30", "GMT+0100"". The fixed-offset ARITHMETIC is the one measured on
+        // "GMT-4" / "GMT-5" (S11, S12); only the spelling widens. `UTC+530` (three digits) is no
+        // form the manual shows and stays refused.
+        const g = typeof tz === 'string'
+          ? /^(?:GMT|UTC)([+-])(?:(\d{1,2})|(\d{2}):?(\d{2}))$/.exec(tz.trim()) : null
+        const hh = g ? Number(g[2] !== undefined ? g[2] : g[3]) : NaN
+        const mm = g && g[4] !== undefined ? Number(g[4]) : 0
+        if (!g || hh > 14 || mm > 59 || hh * 60 + mm > 14 * 60) {
           throw no(`the zone ${tz === null ? 'is not text this translation can read' : `\`"${tz}"\``} `
             + 'is not one this engine reads. It takes `"America/New_York"`, '
-            + '`syminfo.timezone`, or a fixed `"GMT±H"` — the forms the vendor was measured on.')
+            + '`syminfo.timezone`, or a fixed UTC/GMT offset (`"GMT-4"`, `"UTC+1"`, `"UTC+05:30"`, '
+            + '`"GMT+0100"`) — the forms the vendor was measured on and the manual spells.')
         }
-        offset = (g[1] === '-' ? -1 : 1) * Number(g[2])
+        offset = (g[1] === '-' ? -1 : 1) * (hh * 60 + mm) // minutes east of UTC
       }
     }
 
@@ -13557,21 +13673,42 @@ export class Resolver {
       dow = clockLeaf('dayofweek')
     } else {
       // ⭐ A FIXED ZONE IS ARITHMETIC ON THE INSTANT, NOT ON THE NEW YORK CLOCK:
-      // local minutes since 1970 = floor(time / 60) + offset × 60. 1970-01-01
+      // local minutes since 1970 = floor(time / 60) + the offset in minutes. 1970-01-01
       // was a Thursday, Pine's day 5, hence the `+ 4` before the `mod 7`.
-      const local = cOp('+', [cCall('floor', [cOp('/', [cSeries('time'), cNum(60)])]), cNum(offset * 60)])
+      const local = cOp('+', [cCall('floor', [cOp('/', [cSeries('time'), cNum(60)])]), cNum(offset)])
       minuteOfDay = cCall('mod', [local, cNum(1440)])
       dow = cOp('+', [cCall('mod', [cOp('+', [cCall('floor', [cOp('/', [local, cNum(1440)])]), cNum(4)]), cNum(7)]), cNum(1)])
     }
-    let inside = cOp('&&', [cOp('>=', [minuteOfDay, cNum(start)]), cOp('<', [minuteOfDay, cNum(end)])])
-    if (days) {
-      const anyDay = days.map((d) => cOp('==', [dow, cNum(d)]))
-        .reduce((acc, t) => (acc ? cOp('||', [acc, t]) : t), null)
-      inside = cOp('&&', [inside, anyDay])
+    const onDays = (d) => (days
+      ? days.map((k) => cOp('==', [d, cNum(k)])).reduce((acc, t) => (acc ? cOp('||', [acc, t]) : t), null)
+      : null)
+    let inside
+    if (wraps) {
+      // the part from the start to midnight belongs to TOMORROW's session (O2), the part from
+      // midnight to the end to today's; a day list is asked of the session's own day.
+      const tomorrow = cOp('+', [cCall('mod', [dow, cNum(7)]), cNum(1)])
+      const late = cOp('>=', [minuteOfDay, cNum(start)])
+      const early = cOp('<', [minuteOfDay, cNum(end)])
+      inside = days
+        ? cOp('||', [cOp('&&', [late, onDays(tomorrow)]), cOp('&&', [early, onDays(dow)])])
+        : cOp('||', [late, early])
+    } else {
+      inside = cOp('&&', [cOp('>=', [minuteOfDay, cNum(start)]), cOp('<', [minuteOfDay, cNum(end)])])
+      if (days) inside = cOp('&&', [inside, onDays(dow)])
     }
     if (onItsOwnChart) inside = cOp('&&', [inside, onItsOwnChart])
+    // ⭐ membership only (`na(time(…))`, see `resolveCall`): any finite value inside, `na` outside —
+    // the same `na` as the value tree on every bar, without its series references.
+    if (wraps && this.sessionMembershipTok === tok) {
+      return cOp('?:', [inside, cNum(1), cOp('/', [cNum(0), cNum(0)])])
+    }
+    // the minutes since the session's start: same day, or — for a wrapping session read after
+    // midnight — since yesterday's start (`(m − start + 1440) mod 1440`, never negative)
+    const sinceStart = wraps
+      ? cCall('mod', [cOp('+', [cOp('-', [minuteOfDay, cNum(start)]), cNum(1440)]), cNum(1440)])
+      : cOp('-', [minuteOfDay, cNum(start)])
     const secs = cOp('-', [cSeries('time'),
-      cCall('mod', [cOp('*', [cOp('-', [minuteOfDay, cNum(start)]), cNum(60)]), gridSecs])])
+      cCall('mod', [cOp('*', [sinceStart, cNum(60)]), gridSecs])])
     // Pine's `time` is milliseconds for a versioned script — the same gate the
     // bare name and `time("D")` use (`clockTransformFor`).
     const value = this.pineVersion !== null ? cOp('*', [secs, cNum(1000)]) : secs
@@ -13632,6 +13769,7 @@ export class Resolver {
       if (bound) {
         return bound.kind === 'expr' ? this.ownTimeframeOf(bound.node, depth + 1) : null
       }
+      if (legacyPeriodUndeclared(node.name, this.pineVersion)) throw legacyPeriodRefusal(node.tok)
       if (OWN_TF_NAMES.has(node.name)) return node.name
     }
     return null

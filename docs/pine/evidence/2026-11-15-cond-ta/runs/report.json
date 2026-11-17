@@ -1845,7 +1845,7 @@
   },
   {
    "capture": "sessions-rddt-1d-2026-11-14",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -3820,7 +3820,7 @@
   },
   {
    "capture": "vw-time-session-spy-1d-2026-09-28",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -3831,7 +3831,7 @@
   },
   {
    "capture": "vw-time-session-spy-60-ext-2026-09-28",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -3842,7 +3842,7 @@
   },
   {
    "capture": "vw-time-session-spy-60-rth-2026-09-28",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -4423,7 +4423,7 @@
   },
   {
    "capture": "vw-time-session-spy-1d-2026-09-27",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [

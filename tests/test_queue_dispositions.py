@@ -154,6 +154,14 @@ COMMITTED = {
         "a branch of a function body decided by a parameter the call ": "engine-gap",
         "a block local's or a drawing handle's [1] in the DRAWING bui": "engine-gap",
         "a helper parameter that bounds an offset (for i = 1 to lengt": "engine-gap"},
+    # bt (feat/pine-coverage-builtins-time): Q-BT1/4/5 closed by the captures that answered them, the v4+ bare
+    # `period` closed by TradingView's compiler reading; the rest are the unit's still-refused shapes, each with
+    # its reason and what would settle it in the doc
+    "capture-queue-2026-11-16-bt-builtins-time": {
+        "Q-BT1": "closed", "Q-BT4": "closed", "Q-BT5": "closed", "bare period from v4 on": "closed",
+        "visible bar times": "by-design", "theme colours read as a value": "engine-gap",
+        "v1-v3 sessions with no day list": "engine-gap", "symbol fields not held": "engine-gap",
+        "sar, dmi, kc with a computed flag": "engine-gap", "legacy correlation over runtime state": "engine-gap"},
     # 2026-11-16 (coordinator ruling on #1472): the `sar()` expansion's 200-bar window does not converge on
     # vw-lower-tf-bars-rddt-15-2026-11-16; the capture is in the harness, the fix is a build that flips the KNOWN
     # `it.fails` in sar.test.js (its control pins 43 bars / 5167-5246 / 17 by name)
