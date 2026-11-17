@@ -733,17 +733,27 @@ export function otherSymbolRefusalOfTree(tree, decision) {
 }
 
 /** A stable signature of what `resolveOtherSymbols` would supply — for a
- *  compute memo that must recompute when a secondary series lands. */
+ *  compute memo that must recompute when a secondary series lands.
+ *
+ *  ⭐⭐ RS RATING L10 — EVERY SERIES THE DOCUMENT READS, NOT ONLY THE ONES ITS PLOT TREES READ
+ *  (`otherSymbolRequestsOf`: the trees' `sym` reads AND the translation's recorded
+ *  `meta.otherSymbols`, which carry the run half's own reads). ⚰️ 2026-11-17, production, in
+ *  session: RS Rating added from "Your indicators" stayed refused `runtime:request` for minutes on
+ *  some loads. Its trees read only SPX; its rating label reads the seed (`request.seed` → RSRATING)
+ *  in the run half alone, so the signature was `SPX:…` only. When SPX landed before the seed (whose
+ *  fetch was waiting on a retry), the run refused, and the seed landing did not move the signature:
+ *  the binder's memo never recomputed. When both landed together, or the door's preview had
+ *  fetched both first, it drew. */
 export function otherSymbolsSignature(def, secondary) {
-  const tickers = symTickersOf(def)
-  if (!tickers.length) return ''
+  const requests = otherSymbolRequestsOf(def)
+  if (!requests.length) return ''
   // ⭐ RS RATING L6b — a witnessed spelling's series is held under its row's store key
-  const recorded = new Map(otherSymbolRequestsOf(def).map((r) => [r.ticker, r.spellings]))
+  const recorded = new Map(requests.map((r) => [r.ticker, r.spellings]))
   const keyOf = (t) => {
     const row = (recorded.get(t) || []).map((v) => witnessRowOf(v, t)).find(Boolean)
     return row ? row.store : storeTickerOf(t)
   }
-  return tickers.map((t) => {
+  return requests.map(({ ticker: t }) => {
     const e = secondary && typeof secondary.get === 'function' ? secondary.get(keyOf(t)) : null
     const bars = e && Array.isArray(e.bars) ? e.bars : null
     const last = bars && bars.length ? bars[bars.length - 1] : null
