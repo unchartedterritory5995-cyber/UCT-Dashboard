@@ -30,6 +30,7 @@ import { classifyIntradayTail, isCacheCurrentForView, expectedFormingBar, isDail
 import { createTailPollState, nextTailPollMs, tailRetriesExhausted, intradayDedupMs } from '../../utils/intradayTailPoll'
 import { resample, resampleForSpec } from '../../utils/resampleBars'
 import { FIRST_PAINT_BARS, firstPaintBarsFor, spliceDeepLeftOfFresh } from '../../utils/barsBackfill'
+import { barsHistoryUrl } from '../../data/barStore/network'
 
 // Cold-start first-paint safety valve: the longest the FIRST chart paint may wait on
 // the local IndexedDB read before falling through to a full server fetch. A fresh
@@ -612,7 +613,7 @@ export function useLegacyChartBars({
     }
   }
   const histUrl = _histFire
-    ? `/api/bars-history/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_fullTarget}${_histSealedDate ? `&d=${_histSealedDate}` : ''}`
+    ? barsHistoryUrl(sym, resolvedTf, _histSealedDate)   // THE history URL (data/barStore/network.js; = bars=_fullTarget)
     : null
   // ── THE INTRADAY TAIL KEY (2026-11-10) ─────────────────────────────────────────
   // ⛔⛔ `since` IS NOT PART OF THE KEY ANY MORE. With `&since=<tail>` in the URL, every

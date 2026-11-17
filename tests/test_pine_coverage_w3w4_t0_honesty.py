@@ -103,3 +103,15 @@ def test_parse_drop_heads_keeps_a_drifted_format_visible():
     assert got[1]["token"] == "x" and got[2]["op"] is None
     assert cm.drop_guard_of("guard:create <- unrecorded") is None
     assert cm.object_program_split({}) is None
+
+
+def test_a_door_budget_refusal_over_a_clean_translation_is_its_own_wall():
+    # DOOR-ROBUSTNESS: the door refuses by the budget's guard, with no refusal row
+    st = {"attached": False, "installed": None, "refusals": [], "guard": "budget:lookback"}
+    assert _walls(_row(st)) == {("bucket", "compute-budget")}
+    assert _walls(_row(dict(st, guard="pine:install"))) == {("bucket", "translator-robustness")}
+
+
+def test_control_a_step_guard_the_door_does_not_own_names_no_wall():
+    st = {"attached": False, "installed": None, "refusals": [], "guard": "pine:paint-pane"}
+    assert _walls(_row(st)) == set()

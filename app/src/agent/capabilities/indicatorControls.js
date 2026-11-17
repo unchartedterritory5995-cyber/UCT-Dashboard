@@ -145,7 +145,7 @@ export function styleRequest(st, { instance, property, value, output }) {
     return { req: { op: 'setPlotStyle', instanceId: id, style: lc(value), ...(pick ? { plotKey: pick.plotKey } : {}) }, name: t.name }
   }
   const color = colorValueOf(value)
-  if (!color) return { why: `“${value}” isn't a colour I know — use a name like green or a #hex.` }
+  if (!color) return { why: `“${value}” isn't a color I know — use a name like green or a #hex.` }
   if (property === 'upColor' || property === 'downColor') {
     const signs = (opts.colors || []).filter(c => c.target === (property === 'upColor' ? 'sign:up' : 'sign:down'))
     const pick = output ? signs.find(c => lc(c.plotKey) === lc(output) || lc(c.label).includes(lc(output))) : signs[0]
@@ -153,7 +153,7 @@ export function styleRequest(st, { instance, property, value, output }) {
   }
   const tgt = colorTargetOf(opts, output)
   if (tgt.ask) {
-    return { why: tgt.ask.length ? `${t.name} has more than one colour — which one: ${tgt.ask.map(c => c.label).join(', ')}?` : `${t.name} has no colour setting I can change.` }
+    return { why: tgt.ask.length ? `${t.name} has more than one color — which one: ${tgt.ask.map(c => c.label).join(', ')}?` : `${t.name} has no color setting I can change.` }
   }
   return { req: { op: 'setColor', instanceId: id, target: tgt.target, color }, name: t.name }
 }
@@ -304,8 +304,8 @@ export function registerIndicatorControlCapabilities() {
     ...common,
     name: 'indicatorStyle.set',
     fanOut: true,
-    summary: 'Change how ONE indicator on ONE chart looks — its colour (or a histogram\'s up / down colours), line width, line style, plot style, dot size (on an indicator that draws dots), or which chart timeframes it shows on — exactly what its settings / Inspector offer. One change per op; Undo puts it back.',
-    hints: 'target = the ref of that chart\'s indicatorEdits entry; instance = the indicator\'s id from that chart\'s indicators list (or "#20" for the one of length 20, "#20:ema"). property = color | upColor | downColor | lineWidth (1–4, or "thicker" / "thinner") | lineStyle (solid | dashed | dotted) | plotStyle (line, histogram, area… as offered) | overlap | showOn (which chart timeframes it draws on: value = "daily", "weekly", "daily and weekly", "intraday", "daily and above" or "all" — "only show it on the daily" = showOn daily) | dotSize (small | medium | large — "medium" is the default; only an indicator that draws dots, e.g. "make the RS dots large" = dotSize large). value = the member\'s value (a colour name or #hex for colours). output = which line, colour or dot output when the indicator has several (its label), else null. "Make the 9 green and the 20 red and dashed" = three ops.',
+    summary: 'Change how ONE indicator on ONE chart looks — its color (or a histogram\'s up / down colors), line width, line style, plot style, dot size (on an indicator that draws dots), or which chart timeframes it shows on — exactly what its settings / Inspector offer. One change per op; Undo puts it back.',
+    hints: 'target = the ref of that chart\'s indicatorEdits entry; instance = the indicator\'s id from that chart\'s indicators list (or "#20" for the one of length 20, "#20:ema"). property = color | upColor | downColor | lineWidth (1–4, or "thicker" / "thinner") | lineStyle (solid | dashed | dotted) | plotStyle (line, histogram, area… as offered) | overlap | showOn (which chart timeframes it draws on: value = "daily", "weekly", "daily and weekly", "intraday", "daily and above" or "all" — "only show it on the daily" = showOn daily) | dotSize (small | medium | large — "medium" is the default; only an indicator that draws dots, e.g. "make the RS dots large" = dotSize large). value = the member\'s value (a color name or #hex for colors). output = which line, color or dot output when the indicator has several (its label), else null. "Make the 9 green and the 20 red and dashed" = three ops.',
     args: { type: 'object', properties: { instance: instanceArg, property: { type: 'string', enum: PROPERTIES }, value: { type: ['string', 'number', 'boolean'] }, output: { type: ['string', 'null'] } }, required: ['instance', 'property', 'value', 'output'], additionalProperties: false },
     fast: ({ lower }) => fastStyle(lower),
     check: (st, args) => checkBuilt(st, styleRequest(st, args)),
@@ -409,7 +409,7 @@ export function registerIndicatorControlCapabilities() {
     name: 'indicatorCopy.copyTo',
     addsIndicators: true,
     fanOut: true,
-    summary: 'Copy indicators from one chart onto ANOTHER chart, exactly as configured (colours, settings, panes and links between them — the Indicator templates copy). One op per destination chart; an indicator already there is skipped and said. Undo removes what was added.',
+    summary: 'Copy indicators from one chart onto ANOTHER chart, exactly as configured (colors, settings, panes and links between them — the Indicator templates copy). One op per destination chart; an indicator already there is skipped and said. Undo removes what was added.',
     hints: 'target = the DESTINATION chart\'s indicatorEdits entry; from = the ref of the chart to copy FROM; instances = the indicators to copy (ids or names from that chart), or [] for all of them. "Copy these indicators to all my charts" = one op per other chart.',
     argRefs: { from: ['chart', 'indicators', 'indicatorEdits'] },
     args: { type: 'object', properties: { from: { type: 'string' }, instances: { type: 'array', items: { type: 'string' } } }, required: ['from', 'instances'], additionalProperties: false },

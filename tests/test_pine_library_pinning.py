@@ -38,6 +38,26 @@ def entry(path="tester/pinlib/1", source=LIB, **kw):
     return e
 
 
+#: the committed allowlist, read before any test points the store elsewhere
+COMMITTED_PROMOTION = store.PROMOTION_FILE
+
+
+def write_promotion(path, doc):
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(doc, f)
+    return str(path)
+
+
+@pytest.fixture(autouse=True)
+def fixture_promotion(tmp_path_factory, monkeypatch):
+    """Since 2026-11-17 the store serves only what the promotion allowlist promotes, at its sha.
+    Every test here runs against an allowlist promoting the fixture versions it serves
+    (`tester/pinlib/1..3` at sha(LIB)); the fail-closed rails below choose their own."""
+    allow = tmp_path_factory.mktemp("promotion") / "promotion_allowlist.json"
+    monkeypatch.setattr(store, "PROMOTION_FILE", write_promotion(allow, {
+        "promote": [{"path": "tester/pinlib/%d" % v, "sha256": sha(LIB)} for v in (1, 2, 3)]}))
+
+
 @pytest.fixture
 def root(tmp_path, monkeypatch):
     monkeypatch.setenv("PINE_LIBRARY_DIR", str(tmp_path))
@@ -379,7 +399,8 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 #: file -> why a library declaration may stand in it. Fixtures only, each written for its rail.
 LIBRARY_DECLARATIONS_ALLOWED = {
-    "tests/test_pine_library_pinning.py": "this file's fixtures (pinlib, a stand-in under a denied path, the scan's own cases)",
+    "tests/test_pine_library_pinning.py": "this file's fixtures (pinlib, stand-ins under a denied, a held-out and an "
+                                          "unlisted path, the scan's own cases)",
     "tests/test_pine_library_store.py": "the store rail's fixture library and the declaration parser's cases",
     "tools/pine_library/fetch_library.py": "the owner's fetch tool: it names the declaration it looks for, and holds no source",
     "docs/pine/vendor-harness/objects-triage-2026-09-28.md": "prose that quotes the declaration's shape, no source",
@@ -447,6 +468,7 @@ JS_LIBRARY_FIXTURE_FILES = {
     "app/src/components/chart/engine/ast/pineLibraries.test.js": "the linker rail's fixture libraries",
     "app/src/components/chart/engine/ast/pineLibraryPinning.test.js": "the pinning rail's fixture libraries",
     "app/src/components/chart/engine/ast/pineLibraryValueFnName.test.js": "a fixture library",
+    "app/src/components/chart/engine/ast/pineLibraryVersion.test.js": "the cross-version rail's fixture libraries (U15 Phase B)",
     "app/src/components/chart/engine/__tests__/libraryLinkParity.test.js": "the splice check's fixture library",
     "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.capRound4.test.js":
         "a stand-in written for the rail; the real version is read from the out-of-git store, opt-in",
@@ -532,6 +554,14 @@ def promotion_problems(doc, deny_paths):
             out.append("%s is on the deny list" % p)
         if p in never or p in held:
             out.append("%s is also listed as held out or never promoted" % p)
+        # ⭐ U15 Phase B (2026-11-16): a promoted version is linked with what IT imports, so every one of
+        # those must be promoted too, or the importing script is refused at the nested import line
+        imports = row.get("imports")
+        promoted = {r.get("path") for r in doc.get("promote") or []}
+        if not isinstance(imports, list):
+            out.append("%s does not record what it imports" % p)
+        else:
+            out.extend("%s imports %s, which is not promoted" % (p, dep) for dep in imports if dep not in promoted)
         graded = row.get("hostOnly")
         if not isinstance(graded, dict) or not graded:
             out.append("%s has no host-only grade" % p)
@@ -552,7 +582,8 @@ def test_every_promoted_library_is_pinned_licensed_undenied_and_match_host_only(
 
 
 def test_the_promotion_rule_refuses_each_way_a_row_can_be_wrong():
-    good = {"path": "tester/pinlib/1", "sha256": "a" * 64, "licence": "MPL-2.0", "hostOnly": {"cap-1": "MATCH"}}
+    good = {"path": "tester/pinlib/1", "sha256": "a" * 64, "licence": "MPL-2.0", "hostOnly": {"cap-1": "MATCH"},
+            "imports": []}
 
     def problems(**change):
         return promotion_problems({"promote": [dict(good, **change)]}, {"tester/denied/1"})
@@ -570,3 +601,281 @@ def test_the_promotion_rule_refuses_each_way_a_row_can_be_wrong():
     assert problems(hostOnly={"cap-1": "DIVERGE"}) != []
     assert promotion_problems({"promote": [good], "heldOut": [{"path": "tester/pinlib/1"}]}, set()) != []
     assert promotion_problems({"promote": [good], "neverPromoted": {"paths": ["tester/pinlib/1"]}}, set()) != []
+    assert problems(imports=None) != []
+    assert problems(imports=["tester/other/1"]) != []
+    dep = dict(good, path="tester/other/1")
+    assert promotion_problems({"promote": [dict(good, imports=["tester/other/1"]), dep]}, set()) == []
+
+
+# ── U15 Phase B: the cross-version admission table (coordinator ruling 2026-11-16) ─────────────────
+# A v5 library is linked into a v6 script only for a version this table names; a version is named only
+# when it is promoted AND every capture of every newly attaching v6 importer grades MATCH host-only.
+
+CROSS_VERSION = os.path.join(REPO, "app", "src", "components", "chart", "engine", "ast", "pineLibraryCrossVersion.json")
+
+
+def cross_version_problems(doc, promotion):
+    """Why the admission table breaks its rule, one sentence per problem ([] = it holds)."""
+    out = []
+    rows = doc.get("admit")
+    if not isinstance(rows, list):
+        return ["the table has no `admit` list"]
+    promoted = {r.get("path") for r in promotion.get("promote") or []}
+    for row in rows:
+        p = row.get("path") if isinstance(row, dict) else None
+        if not isinstance(p, str) or not store.parse_import_path(p):
+            out.append("%r is not a library version" % (p,))
+            continue
+        if p not in promoted:
+            out.append("%s is not a promoted version" % p)
+        graded = row.get("v6Importers")
+        if not isinstance(graded, dict) or not graded:
+            out.append("%s names no graded v6 importer" % p)
+        elif any(v != "MATCH" for v in graded.values()):
+            out.append("%s has a v6 importer that is not MATCH host-only: %r" % (p, graded))
+    return out
+
+
+def test_every_cross_version_admission_is_promoted_and_match_in_v6_scripts():
+    doc = json.load(open(CROSS_VERSION, encoding="utf-8"))
+    assert cross_version_problems(doc, json.load(open(PROMOTION, encoding="utf-8"))) == []
+    assert "fail closed" in " ".join(doc["_"]).lower()
+
+
+def test_the_cross_version_rule_refuses_each_way_a_row_can_be_wrong():
+    promotion = {"promote": [{"path": "tester/pinlib/1"}]}
+    good = {"path": "tester/pinlib/1", "v6Importers": {"cap-1": "MATCH"}}
+    assert cross_version_problems({"admit": [good]}, promotion) == []
+    assert cross_version_problems({"admit": [dict(good, path="tester/other/1")]}, promotion) != []
+    assert cross_version_problems({"admit": [dict(good, v6Importers={})]}, promotion) != []
+    assert cross_version_problems({"admit": [dict(good, v6Importers={"cap-1": "MATCH", "cap-2": "INCONCLUSIVE"})]}, promotion) != []
+    assert cross_version_problems({"admit": [dict(good, path="not a path")]}, promotion) != []
+    assert cross_version_problems({}, promotion) != []
+
+
+# ── the owner's promotion check and install (tools/pine_library/promotion_check.py) ───────────────
+
+def _promotion_check():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "promotion_check", os.path.join(REPO, "tools", "pine_library", "promotion_check.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+OUTER = "//@version=5\nlibrary(\"outer\")\nimport tester/pinlib/1 as p\nexport f(float x) => p.twice(x)\n"
+
+
+def _doc(*rows):
+    return {"promote": [{"path": e["path"], "sha256": e["sha256"], "licence": "MPL-2.0", "imports": [],
+                         "hostOnly": {"cap": "MATCH"}} for e in rows],
+            "heldOut": [{"path": "tester/held/1"}], "neverPromoted": {"paths": []}}
+
+
+def test_the_promotion_check_passes_only_on_the_pinned_code(tmp_path):
+    pc_ = _promotion_check()
+    stage = str(tmp_path / "stage")
+    e = entry()
+    store.write_entry(e, root=stage)
+    assert pc_.check(stage, _doc(e))[0] == []
+    # a different sha under the same path
+    other = entry(source=LIB_V2)
+    assert any("allowlist pins" in p for p in pc_.check(stage, _doc(other))[0])
+    # missing
+    assert any("missing" in p for p in pc_.check(str(tmp_path / "empty"), _doc(e))[0])
+    # a promoted library whose own import is not promoted
+    outer = entry(path="tester/outer/1", source=OUTER)
+    store.write_entry(outer, root=stage)
+    assert any("imports tester/pinlib/1, which is not promoted" in p for p in pc_.check(stage, _doc(outer))[0])
+    assert pc_.check(stage, _doc(outer, e))[0] == []
+    # --exact: a served entry that is not promoted fails; a held-out one is named
+    held = entry(path="tester/held/1")
+    store.write_entry(held, root=stage)
+    problems, lines = pc_.check(stage, _doc(outer, e), exact=True)
+    assert any("tester/held/1 is a valid entry in this store and is not promoted (held out)" in p for p in problems)
+    assert any(l.startswith("OTHER") and "tester/held/1" in l for l in lines)
+    assert pc_.check(stage, _doc(outer, e), exact=False)[0] == []
+    # an empty allowlist is never a pass
+    assert pc_.check(stage, {"promote": []})[0] != []
+
+
+def test_the_promotion_install_plans_then_copies_and_never_overwrites(tmp_path):
+    pc_ = _promotion_check()
+    stage, target = str(tmp_path / "stage"), str(tmp_path / "target")
+    e = entry()
+    store.write_entry(e, root=stage)
+    problems, plan = pc_.install(stage, target, _doc(e), apply=False)
+    assert problems == [] and any(l.startswith("COPY") for l in plan)
+    assert not os.path.exists(target), "a plan wrote something"
+    problems, plan = pc_.install(stage, target, _doc(e), apply=True)
+    assert problems == [] and store.entry_status("tester/pinlib/1", root=target)[1]["sha256"] == e["sha256"]
+    # again: kept, not rewritten
+    assert any(l.startswith("KEEP") for l in pc_.install(stage, target, _doc(e), apply=True)[1])
+    # the target holds OTHER code under the path: refused, nothing written
+    target2 = str(tmp_path / "target2")
+    store.write_entry(entry(source=LIB_V2), root=target2)
+    problems, _ = pc_.install(stage, target2, _doc(e), apply=True)
+    assert any("refusing to overwrite" in p for p in problems)
+    assert store.stored_status("tester/pinlib/1", root=target2)[1]["sha256"] == sha(LIB_V2)
+    # a staging store that fails `check --exact` installs nothing
+    store.write_entry(entry(path="tester/held/1"), root=stage)
+    target3 = str(tmp_path / "target3")
+    problems, _ = pc_.install(stage, target3, _doc(e), apply=True)
+    assert problems and not os.path.exists(target3)
+
+
+def test_the_promotion_check_defaults_to_this_servers_store(root, capsys):
+    pc_ = _promotion_check()
+    assert pc_.main(["check", "--allowlist", PROMOTION]) == 1
+    assert "store: %s" % root in capsys.readouterr().out
+
+
+# ── the store FAILS CLOSED: it serves only what the promotion allowlist promotes (2026-11-17) ─────
+# Production held 42 versions on no list and one held-out version, each answered `ok` and linked into a
+# member's chart with no grade (docs/pine/evidence/2026-11-17-library-store-fail-closed/EVIDENCE.md).
+
+HELD_PATH = "PineCoders/ConditionalAverages/2"      # a `heldOut` row of the committed allowlist
+UNLISTED_PATH = "TradingView/ta/7"                  # on no list: production held it, served `ok`
+STAND_IN = {HELD_PATH: "//@version=5\nlibrary(\"ConditionalAverages\")\nexport f() => 1\n",
+            UNLISTED_PATH: "//@version=5\nlibrary(\"ta\")\nexport f() => 1\n"}
+SENTENCE = "this library version is withheld until its drawing is verified against TradingView"
+
+
+def assert_refused_by_name(path, status):
+    """Every serving door refuses `path` by name: the store status, the read door's 409, the list,
+    `read_entry`, and the server run's pins (`pine:library-denied`), each with the member's sentence."""
+    assert store.entry_status(path) == (status, [SENTENCE])
+    assert store.read_entry(path) is None
+    assert path not in [e["path"] for e in store.list_entries()]
+    r = _client().get("/api/pine/libraries/" + path)
+    assert r.status_code == 409, r.text
+    assert r.json()["detail"] == {"code": store.DENIED, "reason": SENTENCE}
+    _, refusal = store.pinned_entries([{"path": path, "sha256": sha(STAND_IN.get(path, LIB))}])
+    assert refusal == (store.DENIED_GUARD, "the library %s is not served: %s" % (path, SENTENCE))
+
+
+def assert_served(path, source):
+    assert store.entry_status(path)[0] == "ok"
+    r = _client().get("/api/pine/libraries/" + path)
+    assert r.status_code == 200 and r.json()["sha256"] == sha(source) and r.json()["source"] == source
+    assert path in [e["path"] for e in store.list_entries()]
+    got, why = store.pinned_entries([{"path": path, "sha256": sha(source)}])
+    assert why is None and got[0]["sha256"] == sha(source)
+
+
+def test_a_held_out_version_is_refused_by_name(root, monkeypatch):
+    committed = json.load(open(COMMITTED_PROMOTION, encoding="utf-8"))
+    assert HELD_PATH in {r["path"] for r in committed["heldOut"]}            # non-vacuity: it IS held out,
+    assert HELD_PATH not in {r["path"] for r in committed["promote"]}        # not promoted,
+    assert store.denied(HELD_PATH) is None                                   # and not on the deny list
+    monkeypatch.setattr(store, "PROMOTION_FILE", COMMITTED_PROMOTION)
+    store.write_entry(entry(path=HELD_PATH, source=STAND_IN[HELD_PATH]))
+    assert store.stored_status(HELD_PATH)[0] == "ok"                         # a valid entry: what used to serve
+    assert_refused_by_name(HELD_PATH, store.HELD)
+    # control: the same entry, under an allowlist that promotes it at its sha, is served
+    monkeypatch.setattr(store, "PROMOTION_FILE", write_promotion(
+        os.path.join(root, "allow.json"), {"promote": [{"path": HELD_PATH, "sha256": sha(STAND_IN[HELD_PATH])}],
+                                           "heldOut": []}))
+    assert_served(HELD_PATH, STAND_IN[HELD_PATH])
+
+
+def test_a_version_on_no_list_is_refused_by_name(root, monkeypatch):
+    committed = json.load(open(COMMITTED_PROMOTION, encoding="utf-8"))
+    listed = ({r["path"] for r in committed["promote"]} | {r["path"] for r in committed["heldOut"]}
+              | set(committed["neverPromoted"]["paths"]))
+    assert UNLISTED_PATH not in listed and store.denied(UNLISTED_PATH) is None   # non-vacuity
+    monkeypatch.setattr(store, "PROMOTION_FILE", COMMITTED_PROMOTION)
+    store.write_entry(entry(path=UNLISTED_PATH, source=STAND_IN[UNLISTED_PATH]))
+    assert store.stored_status(UNLISTED_PATH)[0] == "ok"
+    assert_refused_by_name(UNLISTED_PATH, store.UNPROMOTED)
+    # a version the store does not hold is still a plain 404 (refused as missing, as before)
+    assert store.entry_status("TradingView/ta/8") == ("missing", None)
+    assert _client().get("/api/pine/libraries/TradingView/ta/8").status_code == 404
+    # control: promoted at its sha, served
+    monkeypatch.setattr(store, "PROMOTION_FILE", write_promotion(
+        os.path.join(root, "allow.json"), {"promote": [{"path": UNLISTED_PATH, "sha256": sha(STAND_IN[UNLISTED_PATH])}]}))
+    assert_served(UNLISTED_PATH, STAND_IN[UNLISTED_PATH])
+
+
+def test_a_promoted_version_is_served_only_at_its_pinned_sha(root):
+    # the autouse allowlist promotes tester/pinlib/1 at sha(LIB)
+    store.write_entry(entry())
+    assert_served("tester/pinlib/1", LIB)
+    # the store now holds OTHER code under the promoted version: that code was never graded
+    store.write_entry(entry(source=LIB_V2))
+    assert store.stored_status("tester/pinlib/1")[0] == "ok"
+    assert_refused_by_name("tester/pinlib/1", store.UNPROMOTED)
+    # control: the graded code back, served again
+    store.write_entry(entry())
+    assert_served("tester/pinlib/1", LIB)
+
+
+def test_the_served_set_is_derived_from_the_committed_allowlist():
+    """ONE authority: the store's promoted map IS the committed file's `promote` rows, path -> sha256."""
+    committed = json.load(open(COMMITTED_PROMOTION, encoding="utf-8"))
+    want = {r["path"]: r["sha256"] for r in committed["promote"]}
+    assert len(want) >= 6                                                   # non-vacuity (6 promoted 2026-11-17)
+    assert store.promoted_versions(committed) == want
+    with open(COMMITTED_PROMOTION, encoding="utf-8") as f:
+        assert store.promoted_versions(json.load(f)) == want
+    assert os.path.normcase(COMMITTED_PROMOTION) == os.path.normcase(
+        os.path.join(REPO, "tools", "pine_library", "promotion_allowlist.json"))
+
+
+@pytest.mark.parametrize("text", [
+    None,                                                     # no file at all
+    "not json at all",
+    "[]",
+    "{}",
+    '{"promote": "tester/pinlib/1"}',
+    '{"promote": [{"path": "tester/pinlib/1"}]}',             # a row with no sha256
+    '{"promote": [{"sha256": "%s"}]}' % ("0" * 64),           # a row with no path
+    '{"promote": [{"path": "not a path", "sha256": "%s"}]}' % ("0" * 64),
+    '{"promote": [{"path": "tester/pinlib/1", "sha256": "%s"}, 5]}' % ("0" * 64),
+], ids=["missing", "not-json", "a-list", "no-promote", "promote-not-a-list", "row-without-sha", "row-without-path",
+        "bad-path", "row-not-an-object"])
+def test_an_unreadable_allowlist_serves_nothing(root, monkeypatch, text):
+    """FAIL CLOSED, whichever way the file is wrong: nothing is served, every stored version refused by name."""
+    store.write_entry(entry())
+    bad = os.path.join(root, "allow.json")
+    if text is not None:
+        with open(bad, "w", encoding="utf-8") as f:
+            f.write(text)
+    monkeypatch.setattr(store, "PROMOTION_FILE", bad)
+    assert store.promoted_versions() is None
+    assert_refused_by_name("tester/pinlib/1", store.UNPROMOTED)
+
+
+def test_control_a_readable_allowlist_serves_exactly_what_it_promotes(root, monkeypatch):
+    store.write_entry(entry())
+    store.write_entry(entry(path="tester/pinlib/2"))
+    ok = os.path.join(root, "allow.json")
+    monkeypatch.setattr(store, "PROMOTION_FILE", write_promotion(ok, {
+        "promote": [{"path": "tester/pinlib/1", "sha256": sha(LIB)}], "heldOut": [{"path": "tester/pinlib/2"}]}))
+    assert_served("tester/pinlib/1", LIB)
+    assert_refused_by_name("tester/pinlib/2", store.HELD)
+    write_promotion(ok, {"promote": []})                    # readable and empty: nothing promoted, nothing served
+    assert store.promoted_versions() == {}
+    assert_refused_by_name("tester/pinlib/1", store.UNPROMOTED)
+
+
+def test_the_owner_tools_still_see_what_the_store_holds(root, monkeypatch, capsys):
+    """`fetch_library` must not re-fetch (and overwrite) a version it holds because it is not promoted, and
+    `promotion_check` must name every other version by the status this server now serves it with."""
+    monkeypatch.setattr(store, "PROMOTION_FILE", COMMITTED_PROMOTION)
+    store.write_entry(entry(path=UNLISTED_PATH, source=STAND_IN[UNLISTED_PATH]))
+    store.write_entry(entry(path=HELD_PATH, source=STAND_IN[HELD_PATH]))
+    assert store.stored_entry(UNLISTED_PATH)["source"] == STAND_IN[UNLISTED_PATH]
+    assert [e["path"] for e in store.list_entries(served=False)] == [HELD_PATH, UNLISTED_PATH]
+    assert store.list_entries() == []
+    from tools.pine_library import fetch_library
+
+    def no_fetch(*_a, **_k):
+        raise AssertionError("re-fetched a version the store holds")
+    monkeypatch.setattr(fetch_library, "fetch", no_fetch)
+    assert fetch_library.main([UNLISTED_PATH]) == 0                     # held: no network, nothing written
+    assert "have  %s" % UNLISTED_PATH in capsys.readouterr().out
+    _problems, lines = _promotion_check().check(root, json.load(open(COMMITTED_PROMOTION, encoding="utf-8")))
+    assert "OTHER     %s  held out, store status held" % HELD_PATH in lines
+    assert "OTHER     %s  not on the allowlist, store status unpromoted" % UNLISTED_PATH in lines

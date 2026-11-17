@@ -83,8 +83,8 @@ describe('the definitions list re-reads ONLY while a row is pending', () => {
     expect(pendingRefreshInterval([row({ runtimePending: true })])).toBe(0)       // no sentence: not pending
   })
 
-  it('the hook passes it to SWR (wired, not just defined)', () => {
-    const src = fs.readFileSync(path.join(REPO, 'app', 'src', 'hooks', 'useUserDefinitions.js'), 'utf8')
-    expect(src).toMatch(/refreshInterval:\s*pendingRefreshInterval/)
-  })
+  // ⚰️ 'the hook passes it to SWR (wired, not just defined)' read the SOURCE for
+  // `refreshInterval: <the function>`, and that wiring was the defect: SWR 2.4.0 reads a
+  // function-form interval once, at mount, so a cold load never polled. Whether the hook
+  // POLLS is now measured, not read: hooks/useUserDefinitions.pendingPoll.test.jsx.
 })

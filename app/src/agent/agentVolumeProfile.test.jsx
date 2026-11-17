@@ -138,7 +138,7 @@ describe('P2 · bins and colours: the row\'s own bounds; asked, never clamped', 
   it('colours: a name → the hex the picker stores; POC separately; Undo restores the rgba defaults', async () => {
     const { say, board: b } = mountOn('c0', { c0: withVp({ enabled: true }) })
     p.st.envelopes.push(plan(['c0', VP, vp({ color: 'blue', pocColor: '#FF8800' })]))
-    expect(await say('make the volume profile blue with an orange-ish point of control')).toMatch(/Set Volume Profile to colour blue \(was rgba\(120,160,100,0\.25\)\) and point of control colour #ff8800/)
+    expect(await say('make the volume profile blue with an orange-ish point of control')).toMatch(/Set Volume Profile to color blue \(was rgba\(120,160,100,0\.25\)\) and point of control color #ff8800/)
     expect(vpOf(b, 'c0')).toMatchObject({ color: '#2962ff', pocColor: '#ff8800' })
     await say('undo')
     expect(vpOf(b, 'c0')).toEqual({ ...DEF, enabled: true })
@@ -147,7 +147,7 @@ describe('P2 · bins and colours: the row\'s own bounds; asked, never clamped', 
     const { say, board: b } = mountOn('c0', { c0: withVp({ enabled: true }) })
     const was = JSON.stringify(b.state.widgets)
     p.st.envelopes.push(plan(['c0', VP, vp({ color: c })]))
-    expect(await say('change the volume profile colour')).toMatch(/isn’t a colour I can set for Volume Profile/)
+    expect(await say('change the volume profile colour')).toMatch(/isn’t a color I can set for Volume Profile/)
     expect(JSON.stringify(b.state.widgets)).toBe(was)
   }, 40000)
   it('bins on a profile that is OFF: asked first, nothing written', async () => {

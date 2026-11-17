@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest'
 import { translatePine } from './pine.js'
 
 /**
- * `tf = followChart ? period : pickedTf` — the MTF toggle idiom (in our own
+ * `tf = followChart ? timeframe.period : pickedTf` — the MTF toggle idiom (in our own
  * names: the community scripts it comes from are licence-held, LICENSING.md §2d).
  *
  * ⚰️⚰️ `pine.security.test.js` RECORDED THIS AS UNWINNABLE IN THOSE WORDS: "a
@@ -39,14 +39,17 @@ describe('a timeframe chosen by a ternary', () => {
 
   // ─── the idiom, both ways round ────────────────────────────────────────────
 
-  it('⭐⭐ a TRUE default takes `period` — the chart\'s own timeframe, so no tf node', () => {
+  // ⚰️ (bt, NUMBER PENDING) these v4 scripts wrote the bare `period`, which TradingView's v4 compiler
+  // refuses ("Undeclared identifier 'period'"), so they spell it `timeframe.period`
+  // (`pine.js::legacyPeriodUndeclared`); a script's OWN `period` binding (below) is unchanged.
+  it('⭐⭐ a TRUE default takes `timeframe.period` — the chart\'s own timeframe, so no tf node', () => {
     // What scripts 19 and 20 actually are: a wrapper that, at its shipped
     // defaults, reads this chart. Translating it as anything else would be
     // translating a script the author did not write.
     const ast = treeOf(translatePine(src(
       `followChart = input(true, title="Follow the chart")
 pickedTf = input(title="Timeframe", type=resolution, defval="60")
-tf = followChart ? period : pickedTf
+tf = followChart ? timeframe.period : pickedTf
 plot(security(tickerid, tf, sma(close, 10)))`)))
     expect(ast).toEqual({
       type: 'call', name: 'sma',
@@ -62,7 +65,7 @@ plot(security(tickerid, tf, sma(close, 10)))`)))
     const out = translatePine(src(
       `followChart = input(false, title="Follow the chart")
 pickedTf = input(title="Timeframe", type=resolution, defval="60")
-tf = followChart ? period : pickedTf
+tf = followChart ? timeframe.period : pickedTf
 plot(security(tickerid, tf, sma(close, 10)))`))
     expect(out.refusal).toBeTruthy()
     expect(out.refusal.guard).toBe('pine:request')
@@ -74,7 +77,7 @@ plot(security(tickerid, tf, sma(close, 10)))`))
     const ast = treeOf(translatePine(src(
       `useCurrent = input(false)
 other = input(title="Other", type=resolution, defval="W")
-res = useCurrent ? period : other
+res = useCurrent ? timeframe.period : other
 plot(security(tickerid, res, close))`)))
     expect(ast).toEqual({ type: 'tf_merge', value: 'W', args: [{ type: 'series', name: 'close' }] })
   })
@@ -85,7 +88,7 @@ plot(security(tickerid, res, close))`)))
     // `close > open` is a different answer on every bar, so there is no single
     // timeframe this script reads. Picking either branch would be inventing one.
     const out = translatePine(src(
-      `res = close > open ? period : "W"
+      `res = close > open ? timeframe.period : "W"
 plot(security(tickerid, res, close))`))
     expect(out.refusal).toBeTruthy()
     expect(out.refusal.guard).toBe('pine:request')
@@ -120,7 +123,7 @@ plot(security(tickerid, period, close))`))
     const out = translatePine(src(
       `followChart = input(true, title="Follow the chart")
 pickedTf = input(title="Timeframe", type=resolution, defval="60")
-tf = followChart ? period : pickedTf
+tf = followChart ? timeframe.period : pickedTf
 plot(security(tickerid, tf, close))`))
     const row = out.outputs.find((o) => o.refusal === null)
     const folded = (row.inputsFolded || []).map((f) => f.call)

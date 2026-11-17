@@ -5745,7 +5745,7 @@ export default function NoteEditorPage({
               aria-expanded={formatOpen}
               aria-controls={`${formatRunId}-a ${formatRunId}-b ${formatRunId}-c ${formatRunId}-d`}
               data-tour="note-format"
-              title="More formatting: font, size, colour, headings, numbered list, quote, code, links, images, files, rule and widgets"
+              title="More formatting: font, size, color, headings, numbered list, quote, code, links, images, files, rule and widgets"
               data-format-toggle=""
             >
               <span aria-hidden="true" className={styles.formatGlyph}>Aa</span>

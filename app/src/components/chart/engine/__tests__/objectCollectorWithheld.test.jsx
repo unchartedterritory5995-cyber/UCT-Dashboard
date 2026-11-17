@@ -400,6 +400,8 @@ describe('⭐ r5/r6 (N-g) — a `var` array of lines pushed past the cap: the li
     expect(runtimeLane(true).withheld.line).toMatch(/held in an array or a user type/)
   })
 
+  // ⭐ DRAW-1 GC (2026-11-17) — boxes held in arrays keep the collector on both lanes: the count-at-cap
+  // carve-out (`objectPool.js::historyHeldOf`) reaches only a box a script reads at a past offset.
   it('⭐ r6 — BOXES in a `var` array are WITNESSED collected (sonarlab-order-blocks-spy-1d): neither lane withholds, the host lane draws them', () => {
     const boxSrc = ['//@version=6', 'indicator("t", overlay = true, max_boxes_count = 5)', 'var bxs = array.new_box()',
       'if close > open', '    bxs.push(box.new(bar_index, high, bar_index + 1, low))', ''].join(LF)
@@ -414,6 +416,7 @@ describe('⭐ r5/r6 (N-g) — a `var` array of lines pushed past the cap: the li
     const p2 = lowerIrProgram(b.ir)
     const fin = execute(p2, { bars: NB, series: SERIES, columns: p2.columns, confirmed: true, barTimes: RT_BARS.map((x) => x.t) }).objects.finish()
     expect(fin.withheld.box).toBeUndefined()
+    expect(fin.live.filter((o) => o.family === 'box').length).toBeGreaterThanOrEqual(5)
   })
 
   it('⛔ CONTROL: the same lines held by nothing — the collector is measured, both lanes draw and name nothing', () => {

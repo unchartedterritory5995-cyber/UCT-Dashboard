@@ -577,7 +577,9 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
         return <SwatchRow key={f.key} {...common} value={cur} fallback={declared ? declared.default : undefined} onChange={write} />
       }
       case 'toggle':
-        return <SwitchRow key={f.key} {...common} value={!!cur} onChange={write} />
+        // a numeric switch (a Pine `bool` held as 1 / 0) reads and writes 1 / 0
+        return <SwitchRow key={f.key} {...common} value={f.numeric ? Number(cur) === 1 : !!cur}
+          onChange={f.numeric ? (v) => write(v ? 1 : 0) : write} />
       case 'select':
         return <ChipRow key={f.key} {...common} value={cur} options={f.options || []} onChange={write} />
       case 'text':

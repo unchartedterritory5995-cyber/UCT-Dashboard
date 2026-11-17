@@ -32,6 +32,7 @@ import path from 'node:path'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
+import { runGuardOf } from './condHistoryOutcome.js'
 
 const DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
 const load = (f) => JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'))
@@ -162,7 +163,11 @@ plot(ta.ema(close, 3))
   })
 })
 
-describe('⭐⭐ R4 — every other conditional shape is refused BY NAME on the plot lane', () => {
+// ⭐ HIST-S3 — "never the every-bar number" holds in two ways now: the build refuses the shape by
+// name, or the shape is drawn only while its region has run on every bar (where per call site and
+// every bar are the same number) and the run STOPS by the same guard at the first skip. On RDDT the
+// block `close > open` skips, so each case answers R4 either way.
+describe('⭐⭐ R4 — every other conditional shape is never drawn off every bar: refused, or stopped at the first skip', () => {
   const head = '//@version=6\nindicator("t")\nfloat y = na\n'
   const cases = {
     'an unwitnessed window (`ta.highest`) in a block': 'if close > open\n    y := ta.highest(high, 10)\nplot(y)\n',
@@ -177,9 +182,7 @@ describe('⭐⭐ R4 — every other conditional shape is refused BY NAME on the 
   }
   for (const [name, body] of Object.entries(cases)) {
     it(name, () => {
-      const r = refusalOf(head + body)
-      expect(r, name).not.toBeNull()
-      expect(r.guard).toBe('runtime:conditional-history')
+      expect(runGuardOf(head + body, { bars: barsOf(RDDT) }), name).toBe('runtime:conditional-history')
     })
   }
 })

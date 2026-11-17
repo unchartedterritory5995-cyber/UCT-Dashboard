@@ -198,6 +198,7 @@ FAILURE_CLASSES = frozenset({
     "budget_global",      # the shared member pool
     "rate_limited",       # the hourly request window
     "platform",           # the model provider could not be reached
+    "provider_account",   # the provider refused OUR account (key, permission, credit): needs a person
     "internal",           # an unexpected server error
 })
 #: Unsupported demand, aggregated. ⭐ Derived from the refusal reasons that exist
@@ -264,6 +265,7 @@ EVENT_SCHEMAS.update({
         "conversation_id": (str,), "access": (str,), "disposition": (str,),
         "outcome": (str,), "failure_class": (str,), "unsupported_category": (str,),
         "attempts": _N, "calls": _N, "repair_gate": (str,), "input_wrapper": (str,),
+        "examples": (int,),
         "usd": _N, "input_tokens": _N, "output_tokens": _N,
         "cache_read_tokens": _N, "cache_write_tokens": _N, "latency_ms": _N,
         "op_kinds": (str,), "preflight": (bool,),

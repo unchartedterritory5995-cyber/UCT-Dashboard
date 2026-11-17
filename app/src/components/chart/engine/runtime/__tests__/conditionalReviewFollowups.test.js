@@ -16,6 +16,7 @@ import { describe, it, expect } from 'vitest'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
+import { runGuardOf } from './condHistoryOutcome.js'
 
 const mkBars = (n) => Array.from({ length: n }, (_, i) => ({
   t: 1600000000 + i * 86400, o: 100 + (i % 7), h: 104 + (i % 5), l: 96 - (i % 3), c: 100 + ((i * 37) % 11), v: 1000 + i,
@@ -33,6 +34,9 @@ function run(src, bars = BARS) {
 }
 const v6 = (body) => `//@version=6\nindicator("t")\n${body}`
 const R4 = 'runtime:conditional-history'
+// ⭐ HIST-S3 — never drawn per run: the build's refusal guard, else the guard the run stopped with
+// at the first skip (`callSiteRuns`). These bars' `close > open` varies, so each is R4 either way.
+const guardOf = (src, bars = BARS) => runGuardOf(src, { bars })
 
 describe('H1 — a held (parameter-specialised) function in an arm', () => {
   const fn = 'f(mode) =>\n    float base = na\n    if mode == "ATR"\n        base := ta.atr(3)\n    else\n        base := high - low\n    nz(base)\n'
@@ -42,8 +46,7 @@ describe('H1 — a held (parameter-specialised) function in an arm', () => {
       'm = input.string("ATR", "m")\ny = close > open ? f(m) : 0.0\nplot(y)\n',
       'plot(close > open and f("ATR") > 1 ? 1 : 0)\n',
     ]) {
-      const r = refusalOf(v6(fn + tail))
-      expect(r && r.guard, tail).toBe(R4)
+      expect(guardOf(v6(fn + tail)), tail).toBe(R4)
     }
   })
   it('CONTROL: called on every bar it is still served', () => {
@@ -66,8 +69,7 @@ describe('H2 — a function whose state is a `var`, in an arm', () => {
       'g(x) =>\n    var float s = 0.0\n    s := s + x\n    s\nplot(close > open ? g(close) : 0.0)\n',
       'f() =>\n    var float c = 0.0\n    c += 1\n    c > 3\nplot(close > open and f() ? 1 : 0)\n',
     ]) {
-      const r = refusalOf(v6(src))
-      expect(r && r.guard, src).toBe(R4)
+      expect(guardOf(v6(src)), src).toBe(R4)
     }
   })
   it('CONTROL: a pure function in an arm is served', () => {
@@ -77,10 +79,8 @@ describe('H2 — a function whose state is a `var`, in an arm', () => {
 
 describe('M1 — `(expr)[k]` in a block', () => {
   it('is refused by name, as the `?:` route refuses it', () => {
-    const r = refusalOf(v6('float y = na\nif close > open\n    y := (close + open)[1]\nplot(y)\n'))
-    expect(r && r.guard).toBe(R4)
-    const a = refusalOf(v6('plot(close > open ? (close + open)[1] : 0.0)\n'))
-    expect(a && a.guard).toBe(R4)
+    expect(guardOf(v6('float y = na\nif close > open\n    y := (close + open)[1]\nplot(y)\n'))).toBe(R4)
+    expect(guardOf(v6('plot(close > open ? (close + open)[1] : 0.0)\n'))).toBe(R4)
   })
   it('CONTROL: at the root it is served, and a chart series\' `[1]` in a block is the chart\'s', () => {
     expect(refusalOf(v6('plot((close + open)[1])\n'))).toBeNull()
@@ -108,10 +108,15 @@ describe('M2 — a dynamic offset in a pure subtree meets the buffer stop', () =
 
 describe('M3 — v4 `iff` with history in an argument', () => {
   const v4 = (body) => `//@version=4\nstudy("t")\n${body}`
-  it('is refused by name (laziness of `iff` is not witnessed)', () => {
-    const r = refusalOf(v4('plot(iff(close > open, sma(close, 3), 0))\n'))
-    expect(r && r.guard).toBe(R4)
-    expect(r.message).toMatch(/argument of `iff`/)
+  // ⚰️ WAS: refused by name, "laziness of `iff` is not witnessed". It is now: `vw-cs2-v4-ternary-lazy`
+  // C00 (`iff(up, sma(close, 5), close)` equals the every-bar `sma`, 666 / 666) — HIST-S1
+  it('is EAGER: both arguments run on every bar, so the `sma` is the every-bar one', () => {
+    const [iffOut] = run(v4('plot(iff(close > open, sma(close, 3), 0))\n'))
+    const [sma3] = run(v4('plot(sma(close, 3))\n'))
+    iffOut.forEach((x, i) => {
+      const want = BARS[i].c > BARS[i].o ? sma3[i] : 0
+      expect(Number.isNaN(x) ? Number.isNaN(want) : Math.abs(x - want) < 1e-9, `bar ${i}`).toBe(true)
+    })
   })
   it('CONTROL: an `iff` over pure values, or on an input, is served', () => {
     expect(refusalOf(v4('plot(iff(close > open, close, open))\n'))).toBeNull()
@@ -147,12 +152,10 @@ describe('H1b — the held-body scan is an ALLOWLIST: any non-pointwise call or 
     'ta.percentrank(close, 3)', 'ta.correlation(close, open, 3)', 'ta.mfi(hlc3, 3)']
   const v4Leaks = ['change(close)', 'atr(3)', 'rsi(close, 3)', 'mom(close, 2)', 'roc(close, 2)', 'cci(close, 3)']
   it.each(v6Leaks)('v6 `%s` in a held branch, called from an arm, is refused', (expr) => {
-    const r = refusalOf(held(expr))
-    expect(r && r.guard).toBe(R4)
+    expect(guardOf(held(expr))).toBe(R4)
   })
   it.each(v4Leaks)('v4 `%s` in a held branch, called from an arm, is refused', (expr) => {
-    const r = refusalOf(held(expr, 4))
-    expect(r && r.guard).toBe(R4)
+    expect(guardOf(held(expr, 4))).toBe(R4)
   })
   it('CONTROL: the v4 `tr` VARIABLE is the chart series (its `close[1]` is the chart one, as C06 / H06 witness), not call-site state', () => {
     const b = built(held('tr', 4))

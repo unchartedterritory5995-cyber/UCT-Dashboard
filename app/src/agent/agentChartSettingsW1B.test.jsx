@@ -31,7 +31,7 @@ describe('KNOWN → ELIGIBLE rows (W1-B)', () => {
       expect(settingDescriptor(id).agent, id).toBe('eligible')
     }
     for (const id of ['header.showMarketCap', 'header.showNextEarnings', 'header.showUctRating', 'volume.plotStyle', 'theme', 'hideDrawings']) expect(ids, id).not.toContain(id)
-    expect(ELIGIBLE_SETTINGS.filter(d => d.type === 'number').map(d => d.id).sort()).toEqual(['positionCalc.accountSize', 'positionCalc.riskPct', 'volume.maPeriod', 'volume.paneHeightPct', 'watermark.opacity', 'watermark.x', 'watermark.y'])
+    expect(ELIGIBLE_SETTINGS.filter(d => d.type === 'number').map(d => d.id).sort()).toEqual(['positionCalc.accountSize', 'positionCalc.riskPct', 'scaleTime.rightMargin', 'volume.maPeriod', 'volume.paneHeightPct', 'watermark.opacity', 'watermark.x', 'watermark.y'])
   })
 
   it('"turn on dark pool" → the fast path (0 model turns): the dialog\'s own write (section spread, preset custom); receipt; Undo restores the stored blob byte for byte', async () => {

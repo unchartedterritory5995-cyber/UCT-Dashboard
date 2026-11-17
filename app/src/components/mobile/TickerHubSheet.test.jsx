@@ -82,7 +82,7 @@ test('opens with header, action buttons, TF chips and Compass', async () => {
   expect(screen.getByText('Flag')).toBeInTheDocument()
   expect(screen.getByText('Journal')).toBeInTheDocument()
   expect(screen.getByText('Research')).toBeInTheDocument()
-  expect(screen.getByText('Ask AI')).toBeInTheDocument()
+  expect(screen.getByText('Ask the UCT Agent')).toBeInTheDocument()
   // ChartPane (the TF row's new home) is a lazy chunk, heavier than bare
   // StockChart was — under full-suite parallel load the Suspense fallback can
   // still be up when the default 1000ms findBy timeout fires, so give it real
@@ -117,7 +117,7 @@ test('Research action navigates to the canonical /research/:sym route', () => {
 test('Ask AI action navigates to the same route with ?section=ai, never a second AI surface', () => {
   render(<Harness />)
   fireEvent.click(screen.getByText('open AAPL'))
-  fireEvent.click(screen.getByText('Ask AI'))
+  fireEvent.click(screen.getByText('Ask the UCT Agent'))
   expect(navigateMock).toHaveBeenCalledWith('/research/AAPL?section=ai')
 })
 

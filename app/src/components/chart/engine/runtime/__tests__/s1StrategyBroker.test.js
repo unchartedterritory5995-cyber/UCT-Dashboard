@@ -57,13 +57,23 @@ describe('⭐⭐ the gate and the retry', () => {
     expect(b.ok).toBe(false)
     expect(b.refusal.guard).toBe('pine:strategy-call')
   })
-  it('flag ON: a strategy that reads no broker value builds the SAME program (orders skipped)', () => {
+  // ⭐⭐ W9 ARMED ROUTE (coordinator ruling 2026-11-16): this said "flag ON: a strategy that reads no broker
+  // value builds the SAME program (orders skipped)". With the flag on, EVERY order-placing strategy is now built
+  // by the broker, because its trades are its output; the flag-off build is still master's, byte for byte.
+  it('flag OFF: a strategy that reads no broker value builds as before (orders skipped, no broker)', () => {
+    const src = `${V5}if close > open\n    strategy.entry("L", strategy.long)\nplot(close)\n`
+    const off = build(src, QUIET, { strategyBroker: false })
+    expect(off.ok).toBe(true)
+    expect(off.ir.broker).toBe(null)
+    expect(off.diagnostics.families['runtime:strategy-order']).toBe(1)
+  })
+  it('flag ON: the same strategy is built BY THE BROKER, drawing the same plot', () => {
     const src = `${V5}if close > open\n    strategy.entry("L", strategy.long)\nplot(close)\n`
     const off = build(src, QUIET, { strategyBroker: false })
     const on = build(src, QUIET)
     expect(on.ok).toBe(true)
-    expect(JSON.stringify(on.ir)).toBe(JSON.stringify(off.ir))
-    expect(on.ir.broker).toBe(null)
+    expect(on.ir.broker).not.toBe(null)
+    expect(on.ir.outputs.map((o) => o.call)).toEqual(off.ir.outputs.map((o) => o.call))
   })
 })
 
@@ -116,6 +126,25 @@ describe('⭐⭐ reversal and pyramiding [B-REVERSE] [B-PYR] [B-MODIFY]', () => 
       + 'plot(strategy.position_size)\nplot(strategy.position_avg_price)\n')
     expect(cols[0][6]).toBe(4)
     expect(cols[1][6]).toBeCloseTo((103 * 1 + 106 * 3) / 4, 10)
+  })
+  // ⭐ Q-S1g [B-PYR-PRICE] — the shape of vw-s1-q-s1g-blocked-stop-entry (values, 2026-11-16): pyramiding 1, a
+  // long, then a stop entry `L2` whose level the QUIET bars reach on every bar while long AND after the long is
+  // closed. TradingView's position stays 0 after the close: `L2` was not kept waiting. ⛔ This said
+  // `runtime:strategy-unsettled` (Q-S1g): with the rule, the ledger alone decides whether it is served.
+  const Q_S1G = `//@version=5\nstrategy("t", pyramiding = 1)\nif bar_index == 2\n    strategy.entry("L", strategy.long)\n`
+    + 'if bar_index == 4\n    strategy.entry("L2", strategy.long, stop = close + 0.25)\n'
+    + 'if bar_index == 12\n    strategy.close("L")\nplot(strategy.position_size)\nplot(strategy.opentrades)\n'
+  it('a stop entry reached at the pyramiding limit does not fill, then or after the position closes', () => {
+    const { cols } = run(Q_S1G)
+    expect(cols[0].slice(3, 13)).toEqual(Array(10).fill(1))
+    expect(cols[0].slice(13)).toEqual(Array(QUIET.length - 13).fill(0))
+    expect(Math.max(...cols[1])).toBe(1)
+  })
+  it('⛔ with B-PYR-PRICE unpinned the run stops there by name, under the rule that will pin it', () => {
+    const e = stopOf(Q_S1G, QUIET, { pins: (id) => id !== 'B-PYR-PRICE' })
+    expect(e.guard).toBe('runtime:strategy-unpinned')
+    expect(e.rule).toBe('B-PYR-PRICE')
+    expect(e.capture).toBe('Q-S1g')
   })
   it('the same id on one bar is ONE order (modified, not duplicated)', () => {
     const { cols } = run(`//@version=5\nstrategy("t", pyramiding = 5)\n`
