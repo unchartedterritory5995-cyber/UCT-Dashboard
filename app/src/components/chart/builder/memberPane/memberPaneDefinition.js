@@ -1307,6 +1307,7 @@ function routeByCost({ host, source, id, name, t, no }) {
   const run = runtimeLaneDefinition({
     source, id, name, t, no, routed: false, hostGuard: null,
     hostReason: `its formula lane would hold the chart for about ${cost.stepsPerBar} steps a bar`,
+    drawnBecause: 'because drawn as formulas it would hold the chart for a noticeable time on every update',
   })
   const doc = run && run.ok ? run.definition : null
   if (!doc || !doc.compute || doc.compute.kind !== 'runtime') {
@@ -2034,7 +2035,7 @@ function runtimeShiftContext(source, version, specs) {
  * of the one is the n-th of the other — and when the counts differ the mapping
  * is unknown, which is a refusal, never a guess.
  */
-function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = null, routed = true, no }) {
+function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = null, routed = true, no, drawnBecause = null }) {
   const decline = (code, why) => {
     const refusal = routed
       ? no(`${hostReason} — and the per-bar lane that could draw it declined: ${why}`, 'pine:state', t)
@@ -2447,8 +2448,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   }
   const notes = [{
     name: 'Drawn bar by bar',
+    // ⭐ ROUTE BY COST (NUMBER PENDING) — a script moved for its cost says so (`drawnBecause`); every
+    // other caller keeps the sentence it always had.
     note: 'This script is drawn by running it bar by bar, the way TradingView does, '
-      + 'because a single formula per line cannot hold it. Its settings can be changed '
+      + `${drawnBecause || 'because a single formula per line cannot hold it'}. Its settings can be changed `
       + 'like any indicator\'s; a value outside the script author\'s own bounds or options '
       + 'is refused by name, never stretched to fit.',
   }]

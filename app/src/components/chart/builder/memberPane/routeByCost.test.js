@@ -13,7 +13,10 @@ import { COST_ROUTE_SURFACE } from './costRoute'
 import { parityOf } from './costRouteParity'
 import * as registry from '../../engine/nativeRegistry'
 import { __permitRuntimePaneForTests, __resetRuntimePanePermission } from '../../engine/runtimePaneGate'
-import { __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList } from '../../engine/runtimeKill'
+import {
+  __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList, __resetRuntimeAdmission,
+  setRuntimeCapabilityAdmission, latchRuntimeAdmission, runtimeSourceHash,
+} from '../../engine/runtimeKill'
 import { setRuntimeDoorClock } from '../../engine/runtime/runtimeColumns'
 
 const REPO = path.resolve(__dirname, '../../../../../..')
@@ -55,6 +58,10 @@ describe('route by cost — the door', () => {
     expect(built.costRoute).toMatchObject({ moved: true })
     expect(built.costRoute.cost.over).toBe(true)
     expect(built.costRoute.cost.stepsPerBar).toBeGreaterThan(540)
+    // the member reads WHY it is drawn bar by bar: its cost, never "a formula cannot hold it"
+    const drawn = (built.notes || []).find((n) => n && n.name === 'Drawn bar by bar')
+    expect(drawn && drawn.note).toMatch(/hold the chart for a noticeable time on every update/)
+    expect(drawn.note).not.toMatch(/single formula per line/)
   })
 
   it('⛔ with the runtime pane off (a member today) nothing moves and nothing is asked', () => {
@@ -85,6 +92,23 @@ describe('route by cost — the door', () => {
     const built = memberPaneDefinition({ source: script(TWIN_RANGE), id: 'u_member-pane-cost' })
     expect(kindOf(built)).toBe('ast')
     expect(built.costRoute).toMatchObject({ moved: false, code: 'runtime:not-yet-graded' })
+  })
+
+  it('⭐ production\'s admission (no test grant): the server\'s latched verdict admits it, and it moves', () => {
+    runtimeView()
+    __resetRuntimeAllowList()
+    __resetRuntimeAdmission()
+    setRuntimeCapabilityAdmission(true)
+    const source = script(TWIN_RANGE)
+    // no verdict yet: the run declines ("still being checked") and the host answer stands
+    const pending = memberPaneDefinition({ source, id: 'u_member-pane-cost' })
+    expect(kindOf(pending)).toBe('ast')
+    expect(pending.costRoute).toMatchObject({ moved: false, code: 'runtime:not-yet-graded' })
+    latchRuntimeAdmission(runtimeSourceHash(source), { admitted: true })
+    const built = memberPaneDefinition({ source, id: 'u_member-pane-cost' })
+    expect(kindOf(built)).toBe('runtime')
+    expect(built.costRoute).toMatchObject({ moved: true })
+    __resetRuntimeAdmission()
   })
 
   it('a cheap host document is not offered at all (control: the route only reads cost)', () => {
