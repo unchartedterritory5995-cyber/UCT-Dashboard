@@ -53,6 +53,9 @@ EXPECTED = {
     "W9-G1": ["w9-g1-v3-properties"],
     # 2026-11-16, ruling D11: the one shape that can exercise the exception (late first use of B-PYR)
     "W9-V-D11": ["w9-d11-late-first-use"],
+    # 2026-11-16 (#1526): why TradingView's strategy stopped one bar short -- W9-MK1's probe on ANOTHER chart
+    # (NASDAQ:ALAB 1D), so no existing RDDT capture answers it
+    "W9-NB1": ["w9-mk1-markers"],
 }
 EXPECTED["W9-R1i"] = ["w9-r1-risk-intraday", "w9-r1-risk-intraday-range"]
 #: method (b) variants: range_guard.py over their parent probe. The capture of W9-R1i's was taken with the parent's
@@ -184,6 +187,7 @@ def test_every_w9_queue_row_resolves_to_its_probe_and_chart():
     assert rows["W9-R1i"]["charts"] == [["AMEX:SPY", "15"]]
     assert rows["Q-S1o"]["charts"] == [["AMEX:SPY", "5"]]
     assert rows["Q-S1a"]["charts"] == [["NYSE:RDDT", "1D"]]
+    assert rows["W9-NB1"]["charts"] == [["NASDAQ:ALAB", "1D"]]
 
 
 def test_no_generated_probe_is_an_orphan_of_the_queue():
