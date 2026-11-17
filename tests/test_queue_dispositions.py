@@ -168,6 +168,13 @@ COMMITTED = {
     # CLOSED the same day by fix/pine-sar-warmup (SAR_WARMUP 200 -> 400, measured; the it.fails is an it), which
     # added the load-time rewrite of a formula document's stored 200-bar SAR tree as an engine gap
     "capture-queue-2026-11-16-sar-window": {"sar() window": "closed", "sar() saved-tree upgrade": "engine-gap"},
+    # 2026-11-17 (owner decision; feat/pine-host-known-divergence): ONE engine-gap row per script on the host
+    # known-divergence list, generated with the list (`tools/vendor_harness/host_divergence.py --write`). Read off
+    # the committed list, so the doc and the list cannot disagree on which scripts carry a gap row.
+    "capture-queue-2026-11-17-host-known-divergence": {
+        __import__("host_divergence").queue_row_id(s["slug"]): "engine-gap"
+        for s in json.loads((REPO / "app" / "src" / "components" / "chart" / "engine" / "hostKnownDivergence.json")
+                            .read_text(encoding="utf-8"))["scripts"]},
 }
 
 

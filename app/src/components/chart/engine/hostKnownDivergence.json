@@ -1,0 +1,871 @@
+{
+ "schema": "uct.pine-host-known-divergence/v1",
+ "guard": "pine:known-divergence",
+ "_readme": [
+  "HOST KNOWN-DIVERGENCE LIST (owner decision 2026-11-17): the host lane's twin of the runtime kill list",
+  "(api/data/pine_runtime_killlist.json). Every script, by the sha256 of its source (UTF-8, as the door receives it),",
+  "with at least one COMMITTED capture grading DIVERGE on the production (host) lane. Every host door refuses a listed",
+  "script BY NAME (pine:known-divergence): the member preview and the install door (engine/hostKnownDivergence.js),",
+  "the save door, served rows, alerts, scans and backtests (api/services/host_known_divergence.py).",
+  "GENERATED, NEVER HAND-TYPED: python tools/vendor_harness/host_divergence.py --write. The rail",
+  "tests/test_pine_host_known_divergence.py re-derives it from docs/pine/vendor-harness/production/verdicts.json and fails",
+  "both ways. An entry comes off only by its liftWhen: the engine fix, then a production re-grade that leaves no named",
+  "capture DIVERGE (then --write drops it). Nothing stored is deleted: a saved copy is kept and comes back when unlisted."
+ ],
+ "scripts": [
+  {
+   "slug": "artemis-oscillator-pro",
+   "sha256": "7375c4d95c5820eb9dce153a30b21d12a1bfd6fe823685cc36a950faf6bac656",
+   "title": "AOP PRO",
+   "source": "corpus/committed/artemis-oscillator-pro__ea1097ca9e.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NYSE:RDDT 1D): tableCells text_font_family of cell (0,0) of table #31: TradingView \"monospace\", ours \"default\"",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "artemis-oscillator-pro-rddt-1d-2026-09-28",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells text_font_family of cell (0,0) of table #31: TradingView \"monospace\", ours \"default\""
+     },
+     {
+      "capture": "artemis-oscillator-pro-rddt-1d-2026-11-15",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells text_font_family of cell (0,0) of table #33: TradingView \"monospace\", ours \"default\""
+     },
+     {
+      "capture": "artemis-oscillator-pro-spy-1d-2026-10-03",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells text_font_family of cell (0,0) of table #370: TradingView \"monospace\", ours \"default\""
+     },
+     {
+      "capture": "artemis-oscillator-pro-spy-1d-2026-11-15",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells text_font_family of cell (0,0) of table #370: TradingView \"monospace\", ours \"default\""
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of artemis-oscillator-pro-rddt-1d-2026-09-28, artemis-oscillator-pro-rddt-1d-2026-11-15, artemis-oscillator-pro-spy-1d-2026-10-03, artemis-oscillator-pro-spy-1d-2026-11-15 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "atr-trailing-stop-by-ceyhun",
+   "sha256": "7ce4458ad42c3f1d3cec9462475e4f251c29c55f2192a23704d139ebb0e0be93",
+   "title": "ATR Trailing Stop by ceyhun",
+   "source": "corpus/committed/atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NYSE:RDDT 1D): TradingView draws objects this lane withholds (TradingView holds 1 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused))",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "atr-trailing-stop-by-ceyhun-rddt-1d-2026-10-02",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 1 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused)"
+     },
+     {
+      "capture": "atr-trailing-stop-by-ceyhun-spy-1d-2026-10-02",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 1 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused)"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of atr-trailing-stop-by-ceyhun-rddt-1d-2026-10-02, atr-trailing-stop-by-ceyhun-spy-1d-2026-10-02 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "auto-trendline-dojiemoji",
+   "sha256": "9a27bc71b30b1d89a3a806932d75fde460ba28415c5b32ba3b0b0bf691faaac6",
+   "title": "Auto Trendline [DojiEmoji]",
+   "source": "corpus/committed/auto-trendline-dojiemoji__c21f83602c.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NYSE:RDDT 1D): TradingView draws objects this lane withholds (TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost))",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "auto-trendline-dojiemoji-rddt-1d-2026-10-02",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost)"
+     },
+     {
+      "capture": "auto-trendline-dojiemoji-spy-1d-2026-10-03",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost)"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of auto-trendline-dojiemoji-rddt-1d-2026-10-02, auto-trendline-dojiemoji-spy-1d-2026-10-03 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "average-day-range-adr-pivots",
+   "sha256": "2e89665acd634797854c1c27c48d5365f5b8f522aeb975aa0ecde3e75ed4c5b0",
+   "title": "ADR Pivots",
+   "source": "corpus/committed/average-day-range-adr-pivots__38b8c996e9.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (AMEX:SPY 1D): lines x2 of line #42700: TradingView 8507, ours 8506",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "average-day-range-adr-pivots-spy-1d-2026-11-15",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "lines x2 of line #42700: TradingView 8507, ours 8506"
+     }
+    ],
+    "match": [
+     "average-day-range-adr-pivots-rddt-1d-2026-09-28",
+     "average-day-range-adr-pivots-rddt-1d-2026-11-15",
+     "average-day-range-adr-pivots-spy-1d-2026-10-03"
+    ],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of average-day-range-adr-pivots-spy-1d-2026-11-15 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "contraction-box-doji-lines",
+   "sha256": "e1800075f68502a1c26be72510646ffdb68967581c0aa2ada3b54c6d19155cf3",
+   "title": "Contraction Box & Doji Lines",
+   "source": "corpus/committed/contraction-box-doji-lines__1486658151.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (AMEX:SPY 1D): lines count of lines held: TradingView 204, ours 205",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "contraction-box-doji-lines-spy-1d-2026-10-03",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "lines count of lines held: TradingView 204, ours 205"
+     },
+     {
+      "capture": "contraction-box-doji-lines-spy-1d-2026-11-15",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "lines count of lines held: TradingView 200, ours 201"
+     }
+    ],
+    "match": [
+     "contraction-box-doji-lines-rddt-1d-2026-09-28",
+     "contraction-box-doji-lines-rddt-1d-2026-11-15"
+    ],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of contraction-box-doji-lines-spy-1d-2026-10-03, contraction-box-doji-lines-spy-1d-2026-11-15 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "dual-view-htf-candlestick-patterns-theultimator5",
+   "sha256": "e1c592098f94ac8d96ee885a57b89386a773b128c5a7a1b02b6bbeeb30c638a3",
+   "title": "Dual View HTF Candlestick Patterns [theUltimator5]",
+   "source": "corpus/committed/dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NYSE:RDDT 1D): TradingView draws objects this lane withholds (TradingView holds 436 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost))",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "dual-view-htf-candlestick-patterns-theultimator5-rddt-1d-2026-09-28",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 436 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost)"
+     },
+     {
+      "capture": "dual-view-htf-candlestick-patterns-theultimator5-spy-1d-2026-10-03",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 272 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost)"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of dual-view-htf-candlestick-patterns-theultimator5-rddt-1d-2026-09-28, dual-view-htf-candlestick-patterns-theultimator5-spy-1d-2026-10-03 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "ema-ribbon-trend-filter-strixedge",
+   "sha256": "66efe6b7bddbb2c216d663bae3ff4f35d91c23e92baa1e1f2c1153565e6aaf90",
+   "title": "EMA Ribbon Trend Filter [StrixEDGE]",
+   "source": "corpus/committed/ema-ribbon-trend-filter-strixedge__737f5c58ad.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NYSE:RDDT 1D): tableCells text_font_family of cell (2,3) of table #1: TradingView \"monospace\", ours \"default\"",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "ema-ribbon-trend-filter-strixedge-rddt-1d-2026-09-28",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells text_font_family of cell (2,3) of table #1: TradingView \"monospace\", ours \"default\""
+     },
+     {
+      "capture": "ema-ribbon-trend-filter-strixedge-spy-1d-2026-10-03",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells text_font_family of cell (2,3) of table #1: TradingView \"monospace\", ours \"default\""
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of ema-ribbon-trend-filter-strixedge-rddt-1d-2026-09-28, ema-ribbon-trend-filter-strixedge-spy-1d-2026-10-03 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "heat-map-seasons",
+   "sha256": "eac7328544bd4ac89d4df75df5cd391a4ef5ccf38f4d1fd9868a63bee16f2a18",
+   "title": "HeatMapS",
+   "source": "corpus/committed/heat-map-seasons__53acdf3223.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NYSE:RDDT 1D): tableCells count of tableCells held: TradingView 31, ours 30",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "heat-map-seasons-rddt-1d-2026-09-28",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells count of tableCells held: TradingView 31, ours 30"
+     },
+     {
+      "capture": "heat-map-seasons-spy-1d-2026-10-03",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells count of tableCells held: TradingView 31, ours 30"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of heat-map-seasons-rddt-1d-2026-09-28, heat-map-seasons-spy-1d-2026-10-03 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "htf-candle-footprint-cartel-console",
+   "sha256": "e0db92075b2e1421b0c47c26b26de7ad5fe52fd6313971d6edbf6a28c9d4b538",
+   "title": "HTF Candle Footprint [Cartel Console]",
+   "source": "corpus/committed/htf-candle-footprint-cartel-console__ca3ff4e904.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NYSE:RDDT 1D): boxes top of box #2: TradingView 156.35857142857142, ours 152.67",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "htf-candle-footprint-cartel-console-rddt-1d-2026-09-28",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "boxes top of box #2: TradingView 156.35857142857142, ours 152.67"
+     },
+     {
+      "capture": "htf-candle-footprint-cartel-console-spy-1d-2026-10-03",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "boxes top of box #2: TradingView 771.0525250000001, ours 769.64"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of htf-candle-footprint-cartel-console-rddt-1d-2026-09-28, htf-candle-footprint-cartel-console-spy-1d-2026-10-03 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "htf-liquidity-dashboard-tfo",
+   "sha256": "18279b6aa3fbba7499888e5066d95d7664904b560caa2b65be1a51e27743ef99",
+   "title": "HTF Liquidity Dashboard [TFO]",
+   "source": "corpus/committed/htf-liquidity-dashboard-tfo__ec8f8316a4.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NYSE:RDDT 1D): tableCells count of tableCells held: TradingView 30, ours 3",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "htf-liquidity-dashboard-tfo-rddt-1d-2026-09-28",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells count of tableCells held: TradingView 30, ours 3"
+     },
+     {
+      "capture": "htf-liquidity-dashboard-tfo-spy-1d-2026-10-03",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 43 drawing object(s) at the last bar and our drawing is withheld by name (objects:off-listing)"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of htf-liquidity-dashboard-tfo-rddt-1d-2026-09-28, htf-liquidity-dashboard-tfo-spy-1d-2026-10-03 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "multicator-table",
+   "sha256": "1d39ab50b74c2194ef276fadcdc1abef9ea4057f68bdeb4ec7349614533b2f18",
+   "title": "Multicator Table",
+   "source": "corpus/committed/multicator-table__486858895c.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NYSE:RDDT 1D): TradingView draws objects this lane withholds (TradingView holds 72 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost))",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "multicator-table-rddt-1d-2026-10-02",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 72 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost)"
+     },
+     {
+      "capture": "multicator-table-spy-1d-2026-10-02",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 72 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost)"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of multicator-table-rddt-1d-2026-10-02, multicator-table-spy-1d-2026-10-02 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "pmax-explorer",
+   "sha256": "4d19cd30686373aef6a3f501260b92f43a60fdb0bb255fe16f8bc1645d4c6a69",
+   "title": "PMEx",
+   "source": "corpus/committed/pmax-explorer__jN9HBNhynF.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NYSE:RDDT 1D): TradingView draws objects this lane withholds (TradingView holds 1 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused))",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "pmax-explorer-rddt-1d-2026-10-02",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 1 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused)"
+     },
+     {
+      "capture": "pmax-explorer-spy-1d-2026-10-02",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 1 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused)"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of pmax-explorer-rddt-1d-2026-10-02, pmax-explorer-spy-1d-2026-10-02 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "position-size-calc",
+   "sha256": "eaeec551cca2cea99029592a57a9687c0b1c58a635e512183a57ba353c20fe1e",
+   "title": "Position Size Calc.",
+   "source": "corpus/committed/position-size-calc__a42db1a620.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NYSE:RDDT 1D): tableCells count of tableCells held: TradingView 10, ours 9",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "position-size-calc-rddt-1d-2026-09-28",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells count of tableCells held: TradingView 10, ours 9"
+     },
+     {
+      "capture": "position-size-calc-spy-1d-2026-10-03",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells count of tableCells held: TradingView 10, ours 9"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of position-size-calc-rddt-1d-2026-09-28, position-size-calc-spy-1d-2026-10-03 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "request-realtime-alignment",
+   "sha256": "1cab006d4e496583c55bc03c5fac6b56839adc3d377cb4d2c12199652add2c99",
+   "title": "UCTPROBE_REQ_REALTIME",
+   "source": "tools/visual_conformance/probes/request-realtime-alignment.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (AMEX:SPY 5): plot `R4_isrealtime`: 1 steady-state bars disagree; first at bar 299 (value: vendor 1 vs ours 0) — scattered, last at bar 299",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "request-realtime-alignment-spy-5-b-2026-10-01",
+      "symbol": "AMEX:SPY",
+      "timeframe": "5",
+      "kind": "drawn",
+      "firstDiverging": "plot `R4_isrealtime`: 1 steady-state bars disagree; first at bar 299 (value: vendor 1 vs ours 0) — scattered, last at bar 299"
+     }
+    ],
+    "match": [],
+    "inconclusive": [
+     "request-realtime-alignment-spy-5-2026-10-01"
+    ]
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of request-realtime-alignment-spy-5-b-2026-10-01 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "rs-rating-fred6724",
+   "sha256": "caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0",
+   "title": "RS Rating",
+   "source": "docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NASDAQ:NVDA 1D): plot `RS Line`: 1292 steady-state bars disagree; first at bar 4 (value: vendor 0.11226225436176289 vs ours 0.1122640604261686) — scattered, last at bar 6257",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "rs-rating-fred6724-alab-1d-2026-11-15",
+      "symbol": "NASDAQ:ALAB",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost)"
+     },
+     {
+      "capture": "rs-rating-fred6724-crwv-1d-2026-11-15",
+      "symbol": "NASDAQ:CRWV",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost)"
+     },
+     {
+      "capture": "rs-rating-fred6724-nvda-1d-2026-11-15",
+      "symbol": "NASDAQ:NVDA",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "plot `RS Line`: 1292 steady-state bars disagree; first at bar 4 (value: vendor 0.11226225436176289 vs ours 0.1122640604261686) — scattered, last at bar 6257"
+     },
+     {
+      "capture": "rs-rating-fred6724-rddt-1d-2026-11-15",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost)"
+     },
+     {
+      "capture": "rs-rating-fred6724-alab-1d-2026-11-16",
+      "symbol": "NASDAQ:ALAB",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost)"
+     },
+     {
+      "capture": "rs-rating-fred6724-crwv-1d-2026-11-16",
+      "symbol": "NASDAQ:CRWV",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost)"
+     },
+     {
+      "capture": "rs-rating-fred6724-rddt-1d-2026-11-16",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost)"
+     }
+    ],
+    "match": [],
+    "inconclusive": [
+     "rs-rating-fred6724-spy-1d-2026-11-15"
+    ]
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of rs-rating-fred6724-alab-1d-2026-11-15, rs-rating-fred6724-crwv-1d-2026-11-15, rs-rating-fred6724-nvda-1d-2026-11-15, rs-rating-fred6724-rddt-1d-2026-11-15, rs-rating-fred6724-alab-1d-2026-11-16, rs-rating-fred6724-crwv-1d-2026-11-16, rs-rating-fred6724-rddt-1d-2026-11-16 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "sonarlab-order-blocks",
+   "sha256": "a9206097b4ef73a17a00cc49caba533209f337b5c3f30ff212835c36505b4fc5",
+   "title": "Sonarlab - OB",
+   "source": "corpus/committed/sonarlab-order-blocks__0df0d45ee6.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NASDAQ:AAPL 1D): TradingView draws objects this lane withholds (TradingView holds 17 drawing object(s) at the last bar and our drawing is withheld by name (objects:off-listing))",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "sonarlab-order-blocks-aapl-1d-2026-10-02",
+      "symbol": "NASDAQ:AAPL",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 17 drawing object(s) at the last bar and our drawing is withheld by name (objects:off-listing)"
+     }
+    ],
+    "match": [
+     "sonarlab-order-blocks-brk-a-1d-2026-10-02",
+     "sonarlab-order-blocks-rddt-1d-2026-10-02",
+     "sonarlab-order-blocks-spy-1d-2026-10-02"
+    ],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of sonarlab-order-blocks-aapl-1d-2026-10-02 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "trend-lines-supports-and-resistances",
+   "sha256": "e2ff7d788c694424facc01cd373b852b4f13c7301c2d4a96a81a72e0707b4844",
+   "title": "TSR",
+   "source": "corpus/committed/trend-lines-supports-and-resistances__413ee2ee3b.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NYSE:RDDT 1D): TradingView draws objects this lane withholds (TradingView holds 14 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused))",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "trend-lines-supports-and-resistances-rddt-1d-2026-09-28",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 14 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused)"
+     },
+     {
+      "capture": "trend-lines-supports-and-resistances-spy-1d-2026-10-03",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 11 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused)"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of trend-lines-supports-and-resistances-rddt-1d-2026-09-28, trend-lines-supports-and-resistances-spy-1d-2026-10-03 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vold-market-breadth",
+   "sha256": "278394d0336ccbacbc8df6c84e1ea428c2a1c892db77cea238d5848cc69cafde",
+   "title": "VOLD-Market Breadth",
+   "source": "corpus/committed/vold-market-breadth__9c5cde9557.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NYSE:RDDT 1D): tableCells count of tableCells held: TradingView 2, ours 0",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vold-market-breadth-rddt-1d-2026-09-28",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells count of tableCells held: TradingView 2, ours 0"
+     },
+     {
+      "capture": "vold-market-breadth-spy-1d-2026-10-03",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "tableCells count of tableCells held: TradingView 2, ours 0"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vold-market-breadth-rddt-1d-2026-09-28, vold-market-breadth-spy-1d-2026-10-03 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-fmt-tie-readings",
+   "sha256": "aed6aa3bd544d3440c6310587e7c52e56ee691a3d0667fb497d1efa55374760c",
+   "title": "UCTPROBE_VW_FMT_TIE_READINGS",
+   "source": "tools/visual_conformance/probes/vw-fmt-tie-readings.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NYSE:RDDT 1D): labels text of label #21: TradingView \"T21 0.12345 percent|0.12%\", ours null",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-fmt-tie-readings-rddt-1d-2026-11-15",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "labels text of label #21: TradingView \"T21 0.12345 percent|0.12%\", ours null"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-fmt-tie-readings-rddt-1d-2026-11-15 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-int-cast",
+   "sha256": "adfb9b3e36cee933596bf9b6102611ce474b85e951dcdfd5c9dbe9e33f8cb812",
+   "title": "UCTPROBE_VW_INT_CAST",
+   "source": "tools/visual_conformance/probes/vw-int-cast.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (AMEX:SPY D): plot `I00_bar_index_CONTROL`: 300 steady-state bars disagree; first at bar 0 (value: vendor 8172 vs ours 0) — persistent, last at bar 299",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-int-cast-spy-1d-2026-09-27",
+      "symbol": "AMEX:SPY",
+      "timeframe": "D",
+      "kind": "drawn",
+      "firstDiverging": "plot `I00_bar_index_CONTROL`: 300 steady-state bars disagree; first at bar 0 (value: vendor 8172 vs ours 0) — persistent, last at bar 299"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-int-cast-spy-1d-2026-09-27 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-nvi-pvi",
+   "sha256": "aae643347742257de64e0828e0c15fd9610847185c41b044d9320b40640a81b7",
+   "title": "UCTPROBE_VW_NVI_PVI",
+   "source": "tools/visual_conformance/probes/vw-nvi-pvi.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (AMEX:SPY D): plot `P00_bar_index_CONTROL`: 1040 steady-state bars disagree; first at bar 0 (value: vendor 7432 vs ours 0) — persistent, last at bar 1039",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-nvi-pvi-spy-1d-truncated-2026-09-27",
+      "symbol": "AMEX:SPY",
+      "timeframe": "D",
+      "kind": "drawn",
+      "firstDiverging": "plot `P00_bar_index_CONTROL`: 1040 steady-state bars disagree; first at bar 0 (value: vendor 7432 vs ours 0) — persistent, last at bar 1039"
+     }
+    ],
+    "match": [
+     "vw-nvi-pvi-spy-1d-full-2026-09-27"
+    ],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-nvi-pvi-spy-1d-truncated-2026-09-27 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-object-gc-a",
+   "sha256": "abf0a7a54ee28a4bbb4a75cc6bcd8197af416b520dbd8f5bb042d2e918efc1d8",
+   "title": "UCTPROBE_VW_OBJECT_GC_A",
+   "source": "tools/visual_conformance/probes/vw-object-gc-a.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (AMEX:SPY 1W): plot `A01_isconfirmed`: 1 steady-state bars disagree; first at bar 1757 (value: vendor 0 vs ours 1) — persistent, last at bar 1757",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-object-gc-a-spy-1d-2026-09-28",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1W",
+      "kind": "drawn",
+      "firstDiverging": "plot `A01_isconfirmed`: 1 steady-state bars disagree; first at bar 1757 (value: vendor 0 vs ours 1) — persistent, last at bar 1757"
+     }
+    ],
+    "match": [
+     "vw-object-gc-a-spy-1d-2026-09-28"
+    ],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-object-gc-a-spy-1d-2026-09-28 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-object-gc-b",
+   "sha256": "dff1681ba3aafd9c38bbd9e3ab5cc02a204678437c9ba3264065b3c620502c40",
+   "title": "UCTPROBE_VW_OBJECT_GC_B",
+   "source": "tools/visual_conformance/probes/vw-object-gc-b.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (AMEX:SPY 1W): plot `B01_isconfirmed`: 1 steady-state bars disagree; first at bar 1757 (value: vendor 0 vs ours 1) — persistent, last at bar 1757",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-object-gc-b-spy-1d-2026-09-28",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1W",
+      "kind": "drawn",
+      "firstDiverging": "plot `B01_isconfirmed`: 1 steady-state bars disagree; first at bar 1757 (value: vendor 0 vs ours 1) — persistent, last at bar 1757"
+     }
+    ],
+    "match": [
+     "vw-object-gc-b-spy-1d-2026-09-28"
+    ],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-object-gc-b-spy-1d-2026-09-28 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-object-gc-c",
+   "sha256": "6f18983cff4317de046e28f7b96bc2c18f89f8df399bcb682f40a7ff144537c5",
+   "title": "UCTPROBE_VW_OBJECT_GC_C",
+   "source": "tools/visual_conformance/probes/vw-object-gc-c.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (AMEX:SPY 1W): plot `C01_isconfirmed`: 1 steady-state bars disagree; first at bar 1757 (value: vendor 0 vs ours 1) — persistent, last at bar 1757",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-object-gc-c-spy-1d-2026-09-28",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1W",
+      "kind": "drawn",
+      "firstDiverging": "plot `C01_isconfirmed`: 1 steady-state bars disagree; first at bar 1757 (value: vendor 0 vs ours 1) — persistent, last at bar 1757"
+     }
+    ],
+    "match": [
+     "vw-object-gc-c-spy-1d-2026-09-28"
+    ],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-object-gc-c-spy-1d-2026-09-28 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-other-symbol",
+   "sha256": "7aa94ec896ab324847c015960ab3263d5026740e2767efb682432a8fb8fce9a9",
+   "title": "UCTPROBE_OTHER_SYMBOL",
+   "source": "tools/visual_conformance/probes/vw-other-symbol.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NYSE:RDDT 1D): plot `O05_BRKB_bare`: 334 steady-state bars disagree; first at bar 0 (na: vendor 413.78 vs ours na) — scattered, last at bar 333",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-other-symbol-rddt-1d-2026-09-30",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "plot `O05_BRKB_bare`: 334 steady-state bars disagree; first at bar 0 (na: vendor 413.78 vs ours na) — scattered, last at bar 333"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-other-symbol-rddt-1d-2026-09-30 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-time-tf",
+   "sha256": "0b55edec69b923ba5fe8d9dfc787067c56682e866fcea36dc903760471b21cdc",
+   "title": "UCTPROBE_VW_TIME_TF",
+   "source": "tools/visual_conformance/probes/vw-time-tf.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (BITSTAMP:BTCUSD 1D): plot `T01_timeW_minus_time_DAYS`: 53 steady-state bars disagree; first at bar 0 (na: vendor -3 vs ours na) — scattered, last at bar 5283",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-time-tf-bitstamp-btcusd-1d-2026-09-30",
+      "symbol": "BITSTAMP:BTCUSD",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "plot `T01_timeW_minus_time_DAYS`: 53 steady-state bars disagree; first at bar 0 (na: vendor -3 vs ours na) — scattered, last at bar 5283"
+     }
+    ],
+    "match": [],
+    "inconclusive": [
+     "vw-time-tf-eurusd-1d-2026-10-02",
+     "vw-time-tf-fx-eurusd-1d-2026-10-01",
+     "vw-time-tf-rddt-1d-2026-10-02",
+     "vw-time-tf-spy-1-2026-10-02",
+     "vw-time-tf-spy-15-2026-10-01",
+     "vw-time-tf-spy-1d-2026-09-27",
+     "vw-time-tf-spy-1d-2026-09-28",
+     "vw-time-tf-spy-1d-full-2026-10-01",
+     "vw-time-tf-spy-1d-full-2026-10-02",
+     "vw-time-tf-spy-1m-2026-10-01",
+     "vw-time-tf-spy-1m-2026-10-02",
+     "vw-time-tf-spy-1w-2026-10-01",
+     "vw-time-tf-spy-1w-2026-10-02",
+     "vw-time-tf-spy-240-2026-10-02",
+     "vw-time-tf-spy-30-2026-10-02",
+     "vw-time-tf-spy-5-2026-10-01",
+     "vw-time-tf-spy-5-ext-2026-10-02",
+     "vw-time-tf-spy-60-2026-09-28"
+    ]
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-time-tf-bitstamp-btcusd-1d-2026-09-30 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-w3n-draw-block-history-a",
+   "sha256": "0cee10839e257b3a1d199066848918cdb1781dd114ea1596030e87a466ab1135",
+   "title": "UCTPROBE_VW_W3N_DRAW_BLOCK_HISTORY_A",
+   "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history-a.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NYSE:RDDT 1D): TradingView draws objects this lane withholds (TradingView holds 316 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused))",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-w3n-draw-block-history-a-rddt-1d-2026-11-15",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 316 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused)"
+     },
+     {
+      "capture": "vw-w3n-draw-block-history-a-spy-1d-2026-11-15",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 501 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused)"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-w3n-draw-block-history-a-rddt-1d-2026-11-15, vw-w3n-draw-block-history-a-spy-1d-2026-11-15 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-w3n-draw-block-history-b",
+   "sha256": "18eca33b53ad0a55cbce1e2ce73078b7e08d5831c9b0731b9228158ff0f59004",
+   "title": "UCTPROBE_VW_W3N_DRAW_BLOCK_HISTORY_B",
+   "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history-b.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NYSE:RDDT 1D): TradingView draws objects this lane withholds (TradingView holds 316 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused))",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-w3n-draw-block-history-b-rddt-1d-2026-11-15",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 316 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused)"
+     },
+     {
+      "capture": "vw-w3n-draw-block-history-b-spy-1d-2026-11-15",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 501 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused)"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-w3n-draw-block-history-b-rddt-1d-2026-11-15, vw-w3n-draw-block-history-b-spy-1d-2026-11-15 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-w3n-draw-block-history-c",
+   "sha256": "6c343788965a3b12d6863c0988f8979256d0d37c7459a599c3432f67221c6e62",
+   "title": "UCTPROBE_VW_W3N_DRAW_BLOCK_HISTORY_C",
+   "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history-c.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NYSE:RDDT 1D): TradingView draws objects this lane withholds (TradingView holds 316 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused))",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-w3n-draw-block-history-c-rddt-1d-2026-11-15",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 316 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused)"
+     },
+     {
+      "capture": "vw-w3n-draw-block-history-c-spy-1d-2026-11-15",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 501 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused)"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-w3n-draw-block-history-c-rddt-1d-2026-11-15, vw-w3n-draw-block-history-c-spy-1d-2026-11-15 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
+   "slug": "vw-w3n-draw-block-history-d",
+   "sha256": "42fb685a6daa13cdfd48a2b12f52298668ab25d20d2c97b6aa30e9ccb193e1d6",
+   "title": "UCTPROBE_VW_W3N_DRAW_BLOCK_HISTORY_D",
+   "source": "tools/visual_conformance/probes/vw-w3n-draw-block-history-d.pine",
+   "reason": "a TradingView capture of it grades DIVERGE on this lane (NYSE:RDDT 1D): TradingView draws objects this lane withholds (TradingView holds 316 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused))",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-w3n-draw-block-history-d-rddt-1d-2026-11-15",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 316 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused)"
+     },
+     {
+      "capture": "vw-w3n-draw-block-history-d-spy-1d-2026-11-15",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "withheld",
+      "firstDiverging": "TradingView holds 501 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused)"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-w3n-draw-block-history-d-rddt-1d-2026-11-15, vw-w3n-draw-block-history-d-spy-1d-2026-11-15 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  }
+ ]
+}

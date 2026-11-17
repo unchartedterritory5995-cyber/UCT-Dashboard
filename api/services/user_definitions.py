@@ -2218,7 +2218,22 @@ def _row_to_dict(row: sqlite3.Row) -> dict:
         # here and none of them needs the text. `list_for_user(source_below=…)`
         # and `get(…, with_source=True)` are the only doors that serve it.
         "has_pine_source": _pine_source_of(row) is not None,
+        # ⭐ HOST KNOWN-DIVERGENCE (owner decision 2026-11-17) — a Pine `ast` version whose stored
+        # script has a committed TradingView capture grading DIVERGE on the host lane carries the
+        # refusal sentence (`host_known_divergence.refused`), and ONLY then: every server lane reads it
+        # through `engine_withheld_reason`, `stamp_served` stamps it for the install door. Derived at
+        # read, never stored: unlisting the script brings the row back on the next read.
+        **_host_known_divergence_of(definition, row),
     }
+
+
+def _host_known_divergence_of(definition: Any, row: Any) -> dict:
+    """``{"host_known_divergence": sentence}`` for a host-lane document whose stored script is listed."""
+    from api.services import host_known_divergence as hkd
+    if not hkd.applies_to(definition):
+        return {}
+    why = hkd.refused(_pine_source_of(row))
+    return {"host_known_divergence": why} if why else {}
 
 
 #: The browser's engine-number file — the ONE authority for the number.
@@ -2804,6 +2819,12 @@ def engine_withheld_reason(row: Any, current: Optional[int] = None) -> Optional[
     `SCRIPT_ENGINE_VERSION` both None) FAILS CLOSED: every refusal binds (F2).
     The browser (`savedScriptUpgrade.upgradeKindOf`) answers the same way, so a chart
     never draws what the alerts withhold, or the reverse."""
+    # ⭐ HOST KNOWN-DIVERGENCE (owner decision 2026-11-17) — FIRST: a stored script with a committed
+    # capture grading DIVERGE on the host lane runs on no server lane (alerts, the sweep, on-demand screens,
+    # backtests, the scannable stamp), refused by name (`pine:known-divergence`), whatever its engine verdict.
+    hk = row.get("host_known_divergence") if isinstance(row, Mapping) else None
+    if isinstance(hk, str) and hk:
+        return hk
     st = row.get("engine_status") if isinstance(row, Mapping) else None
     if not isinstance(st, Mapping) or st.get("status") != "refused":
         # ⭐ COND-TA — a Pine import applied before the conditional-call fix, with no script
@@ -3098,6 +3119,13 @@ def save(user_id: Any, def_id: str, definition: dict,
     _run_half_why = runtime_definitions.run_half_source_refusal(definition, pine_source)
     if _run_half_why:
         raise SaveRefused("presentation", _run_half_why, guard="run-half:source")
+    # ⭐ HOST KNOWN-DIVERGENCE (owner decision 2026-11-17) — the save door refuses a host-lane document
+    # built from a script on the list, by name, before anything is written (the member door already
+    # refuses to build one; this is the door a direct API save reaches).
+    from api.services import host_known_divergence as _hkd
+    _hk_why = _hkd.refused(pine_source)
+    if _hk_why:
+        raise SaveRefused("tree", _hk_why, guard=_hkd.GUARD)
     # ⭐ R2 — the browser's one provable load-time repair, applied here too, so an old
     # param-edited document with a stale handle saves under its tree's own name.
     definition = refresh_stale_handle(definition)

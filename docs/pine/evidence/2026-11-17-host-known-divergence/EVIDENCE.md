@@ -1,0 +1,56 @@
+# Host known-divergence list (2026-11-17, owner decision)
+
+The runtime lane has a committed kill list (`api/data/pine_runtime_killlist.json`). The host lane had none, so a
+script whose committed TradingView capture grades DIVERGE on the host (production) lane was still drawn for members.
+This unit gives the host lane the same protection: refused BY NAME, `pine:known-divergence`, at every host door.
+
+## The authority
+
+- `app/src/components/chart/engine/hostKnownDivergence.json`: ONE file, imported by the browser bundle
+  (`engine/hostKnownDivergence.js`) and read by the server (`api/services/host_known_divergence.py`). Under
+  `app/src` because the dev server will not serve a JSON outside the app root; the server reads files there already
+  (`scriptEngineVersion.js`).
+- GENERATED, never hand-typed: `python tools/vendor_harness/host_divergence.py --write` derives every script, by the
+  sha256 of its source, with at least one COMMITTED capture grading DIVERGE in
+  `docs/pine/vendor-harness/production/verdicts.json` (the capture's own `source.text`), and writes the queue doc
+  `docs/pine/capture-queue-2026-11-17-host-known-divergence.md` (one `engine-gap` row per script, naming the capture
+  and the first diverging item). `--check` fails, by script, both ways.
+- Each entry: slug, sha256, source path, reason (the capture and what diverges), evidence (every DIVERGE capture with
+  `kind` drawn / withheld and its first diverging item; the MATCH and INCONCLUSIVE captures of the same source),
+  liftWhen (the engine fix, then a production re-grade leaving none of the named captures DIVERGE).
+
+## The doors
+
+| door | where | how |
+|---|---|---|
+| member preview | `memberPaneDefinition.js` | refused `pine:known-divergence` before the host lane; the runtime lane is offered it as for any host refusal (its own kill list / allowlist / admission decide) |
+| install (served rows) | `nativeRegistry.validateUserDefinitions` | an `ast` row stamped `meta.hostKnownDivergence` by the server is refused with the server's sentence, kept (`killedIds`) |
+| served rows | `runtime_definitions.stamp_served` | stamps `meta.hostKnownDivergence` from the row's `host_known_divergence` (derived at read in `user_definitions._row_to_dict` from the stored script); a written-back stamp is dropped |
+| save | `user_definitions.save` | `SaveRefused("tree", ..., guard="pine:known-divergence")` before anything is written |
+| alerts, sweep, on-demand screens, backtests, scannable stamp | `user_definitions.engine_withheld_reason` | the listed sentence, first; every server lane already asks this one function |
+
+## Instruments
+
+- The measuring suites grade the ENGINE (`src/test-setup.js` turns the list off for every suite but its own rail), so
+  the production verdicts keep witnessing the divergence and the list stays derivable (a list that refused its own
+  evidence would lift itself).
+- The census applies the list in its predicate: `coverage_map.transfers_fully(row, u, src)`,
+  `runtime_on_transfers(..., host_listed)`, the ratchet's `transfers` / `wall_of`, `support_loop/remeasure.py`.
+  A listed script's runtime ATTACH is still judged by the runtime lane's own kill list.
+- REACH (`capability_admission.py report`): a host-drawn DIVERGE of a listed script is reported under
+  `refusedByName`, not `hostDiverge`.
+- Coverage ratchet, written from the CI census rows of PR #1533's run 44007547152 (`--rows ... --write`): production
+  60 -> 58, runtime-on 92 -> 90; both lose `contraction-box-doji-lines` and `sonarlab-order-blocks`, wall "on the host
+  known-divergence list".
+
+## What members lose (30 scripts at this number)
+
+`python tools/vendor_harness/host_divergence.py --table` prints it. 19 have a capture where our side drew something
+that differs; 11 (atr-trailing-stop-by-ceyhun, auto-trendline-dojiemoji, dual-view-htf-candlestick-patterns-theultimator5,
+multicator-table, pmax-explorer, sonarlab-order-blocks, trend-lines-supports-and-resistances, vw-w3n-draw-block-history-a..d)
+are DIVERGE only because TradingView draws objects our side already withholds by name, so their served plots were not
+shown to differ. The owner's rule lists both; a narrower rule (drawn differences only) is one predicate in
+`host_divergence.derive` and is an owner decision.
+
+Rails: `tests/test_pine_host_known_divergence.py`, `app/src/components/chart/engine/hostKnownDivergence.test.js`,
+`tests/test_queue_dispositions.py` (the doc's 30 engine-gap rows).
