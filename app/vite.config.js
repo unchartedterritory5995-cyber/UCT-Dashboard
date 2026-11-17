@@ -340,7 +340,15 @@ export default defineConfig({
     // test legitimately needs more than a couple of seconds, the question is
     // still what it is doing — this only stops a healthy 2.3s test from being
     // killed because the machine was busy.
-    testTimeout: 15000,
+    //
+    // ⭐ 15000 -> 30000 on 2026-11-16, for the same reason one layer up: the ENGINE and vendor-harness
+    // lanes on GitHub's runners. One passing run of those lanes (PR #1502) held 35 tests at 7-15 s with
+    // no per-file budget, and that night two tripped the 15 s line on slower runners while answering
+    // correctly: vendorHarness.div1WarmHistory's htf-liquidity grade (11.5 / 13.1 / 15.45 s across
+    // three PRs) and objectFnInline.vendor's sector-rotation (8.8 / 10.1 / 13.1 s, then >15 s). Full
+    // grades of real scripts, roughly 1x headroom against a 2x runner variance: the margin above, again.
+    // Files that need more still say so with `vi.setConfig({ testTimeout })` (c26OtherSymbol: 60 s).
+    testTimeout: 30000,
     server: {
       deps: {
         // Alias the broken @picovoice/porcupine-web package to our test stub
