@@ -14190,12 +14190,14 @@ export class Resolver {
       const lowerWhy = lower ? ` Below the chart's own timeframe: ${lower.why}.` : ''
       // ⭐ RS RATING L11 (Q-RS7 R3) — this chart's own symbol read at "D" on a weekly chart is served for a
       // bare `close` only (`dailyOnWeeklyTargetOf`); anything else is named here, not as a resample.
-      if (code === 'D' && this.basePeriod === 'W' && this.ownSymbolNameOf(positional[0]) !== null) {
+      // ⭐ L13 (Q-RS-M) — a monthly chart the same.
+      if (code === 'D' && (this.basePeriod === 'W' || this.basePeriod === 'M') && this.ownSymbolNameOf(positional[0]) !== null) {
+        const period = this.basePeriod === 'W' ? 'week' : 'month'
         return {
-          why: 'on a weekly chart a daily read of this chart’s own symbol is served for a bare `close` only '
-            + '(a week’s last daily close is its weekly close: witnessed on NYSE:RDDT 1W, capture-queue row '
-            + 'Q-RS7); this one reads another expression or looks ahead, which needs the symbol’s daily bars, '
-            + 'and a weekly chart holds none beside its own weekly bars.',
+          why: `on a ${period}ly chart a daily read of this chart’s own symbol is served for a bare \`close\` only `
+            + `(a ${period}’s last daily close is its close: witnessed on NYSE:RDDT 1W and 1M, capture-queue rows `
+            + 'Q-RS7 and Q-RS-M); this one reads another expression or looks ahead, which needs the symbol’s daily bars, '
+            + `and a ${period}ly chart holds none beside its own ${period}ly bars.`,
         }
       }
       if (code && !TF_RESAMPLABLE.includes(code)) {
@@ -14907,10 +14909,11 @@ export class Resolver {
         })
         folded = code
         code = null
-      } else if (code === 'D' && this.basePeriod === 'W') {
+      } else if (code === 'D' && (this.basePeriod === 'W' || this.basePeriod === 'M')) {
         // ⭐⭐ RS RATING L11 (Q-RS7) — A DAILY READ ON A WEEKLY CHART (`dailyOnWeeklyTargetOf`):
         // this chart's own `close` (R3), or another symbol's daily series held and sampled per
         // week by the supply (R2 / R4); anything else declines as it always did.
+        // ⭐ L13 (Q-RS-M) — and on a MONTHLY chart, per month (R3 witnessed 32 of 32 RDDT months).
         return this.dailyOnWeeklyTargetOf(node, args, placed, positional, own, other, venue)
       } else if (isLowerTfRequest(code, this.basePeriod)) {
         // ⭐⭐ C41 — A TIMEFRAME BELOW THE CHART'S OWN. Whether it is served is
@@ -14976,7 +14979,7 @@ export class Resolver {
         column: node.tok ? node.tok.column : null,
         requested: 'D',
         base: this.basePeriod,
-        foldedTo: 'the chart’s own close (a week’s last daily close is its weekly close)',
+        foldedTo: `the chart’s own close (a ${this.basePeriod === 'M' ? 'month' : 'week'}’s last daily close is its ${this.basePeriod === 'M' ? 'monthly' : 'weekly'} close)`,
       })
       return { own, other: null, venue: null, code: null, live: false, positional, folded: this.basePeriod }
     }
