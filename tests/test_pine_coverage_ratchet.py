@@ -207,16 +207,27 @@ def test_the_committed_kill_list_is_read_and_an_unreadable_one_fails_loud(tmp_pa
         CM.runtime_killed_hashes(str(tmp_path / "missing.json"))
 
 
-def test_a_HELD_kill_kills_nothing_in_the_census_by_the_servers_one_rule(tmp_path):
+def test_a_HELD_kill_kills_nothing_in_the_census_by_the_servers_one_rule(tmp_path, monkeypatch):
     """(2026-11-18) A held kill (`status: pending` on the committed kill list) is recorded, not served: the door still
     draws the script, so the census must not count it killed. ⚰️ The coverage census read every entry as a kill and the
     runtime-on ratchet LOST adx-and-di-for-v4 (#1859). Its reader asks the server's one rule
     (`runtime_definitions.kill_entry_is_served`). CONTROL: the same entry without the status IS a kill."""
     from api.services import runtime_definitions as rt
-    held = [s for s in json.loads(pathlib.Path(CM.RUNTIME_KILLLIST).read_text(encoding="utf-8"))["scripts"]
-            if s.get("status") == rt.KILL_PENDING]
-    assert held, "no held kill on the committed list (vacuous)"
-    killed = CM.runtime_killed_hashes()
+    doc = json.loads(pathlib.Path(CM.RUNTIME_KILLLIST).read_text(encoding="utf-8"))
+    held = [s for s in doc["scripts"] if s.get("status") == rt.KILL_PENDING]
+    killlist = CM.RUNTIME_KILLLIST
+    if not held:
+        # the committed list holds no held kill since adx-and-di-for-v4 was LIFTED (engine 78): the same entry, HELD,
+        # in a tmp list beside the committed entries, read by both readers
+        src = (ROOT / "corpus/committed/adx-and-di-for-v4__932.pine").read_bytes().decode("utf-8")
+        held = [{"slug": "adx-and-di-for-v4", "status": rt.KILL_PENDING, "expires": "2099-01-01",
+                 "sha256": rt.source_hash(src), "source": "corpus/committed/adx-and-di-for-v4__932.pine",
+                 "reason": "SYNTHETIC", "liftWhen": "SYNTHETIC", "evidence": {}}]
+        tmp = tmp_path / "held-killlist.json"
+        tmp.write_text(json.dumps({"_readme": ["tmp"], "scripts": doc["scripts"] + held}), encoding="utf-8")
+        killlist = str(tmp)
+        monkeypatch.setattr(rt, "KILLLIST_PATH", killlist)
+    killed = CM.runtime_killed_hashes(killlist)
     for s in held:
         src = (ROOT / s["source"]).read_bytes().decode("utf-8")
         assert not CM.is_runtime_killed(src, killed), s["slug"]

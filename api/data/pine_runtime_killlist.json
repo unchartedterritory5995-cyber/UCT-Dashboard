@@ -12,7 +12,7 @@
     "DRAW-1 (2026-11-16): seven scripts newly admitted by obj:box / obj:table have a committed capture grading DIVERGE on",
     "either lane, so each is killed here until its liftWhen (rail: test_DRAW1_every_newly_admitted_object_script_with_a_DIVERGE_capture_is_killed).",
     "Engine 68 regrade (feat/pine-host-known-divergence, 2026-11-17): seven probes newly graded DIVERGE are killed until their liftWhen: vw-h5-format-volume, vw-w3-format-date, vw-w3-loop-helper-text, vw-w3-str-repeat-length (admitted by obj:table, DRAW-1 rule) and vw-imp-change-before-reassign, vw-w4-series-length, vw-w4-series-length-v4 (drawn by the runtime lane under admission, the REACH stop rule).",
-    "HELD kills (2026-11-18): an entry with `status: \"pending\"` is recorded here and NOT served (runtime_definitions.committed_kills skips it; the script still draws); it names its evidence capture, its liftWhen and a hard `expires` date (YYYY-MM-DD), and the REACH rail accepts that one capture as a stop only until then. Past `expires` the rails are red on their own. adx-and-di-for-v4 is held until the Q-FCMP float-comparison capture rules."
+    "HELD kills (2026-11-18): an entry with `status: \"pending\"` is recorded here and NOT served (runtime_definitions.kill_entry_is_served is the one rule: committed_kills and the coverage census both skip it; the script still draws); it names its evidence capture, its liftWhen and a hard `expires` date (YYYY-MM-DD), and the REACH rail accepts that one capture as a stop only until then. Past `expires` the rails are red on their own. LIFTED 2026-11-18 on its liftWhen: adx-and-di-for-v4 (Q-FCMP ruled TOLERANCE, packet 56330c15e071; engine 78 #1858 compares within 1e-10; adx-and-di-for-v4-spy-1d-2026-11-17 re-graded MATCH on the runtime-on lane). The list holds no held kill now; the rails show the rule on a synthetic one."
   ],
   "scripts": [
     {
@@ -184,38 +184,6 @@
       },
       "liftWhen": "an engine fix to the flat-window stdev residue, then a runtime-on re-grade to MATCH on vw-w4-series-length-v4-spy-1d-2026-11-16",
       "addedBy": "feat/pine-host-known-divergence (2026-11-17, verdicts regenerated on the engine-68 tree): a newly graded capture the RUNTIME lane draws under capability admission grades DIVERGE (the REACH stop rule)"
-    },
-    {
-      "slug": "adx-and-di-for-v4",
-      "status": "pending",
-      "expires": "2026-11-21",
-      "sha256": "d0853c4724651a1d3c63542a2ae767861030137cb1c75ea57a376c53a1630499",
-      "source": "corpus/committed/adx-and-di-for-v4__932.pine",
-      "reason": "its DI+ and ADX lines drift from TradingView's on a long daily history: on SPY daily from its 1993 listing one bar's up and down moves differ only in the last binary digits of their prices (0.09000000000000341 against 0.08999999999997499), this engine counts the up move and TradingView counts a tie, and the smoothed lines take about 370 bars to agree again",
-      "evidence": {
-        "capture": "adx-and-di-for-v4-spy-1d-2026-11-17",
-        "verdict": "DIVERGE",
-        "tieBar": {
-          "bar": 5333,
-          "date": "2014-04-03",
-          "high": [
-            189.13,
-            189.22
-          ],
-          "low": [
-            188.14,
-            188.05
-          ],
-          "upMove": "0.09000000000000341",
-          "downMove": "0.08999999999997499",
-          "witnesses": [
-            "adx-and-di-for-v4-spy-1d-2026-11-17: DI+ and ADX first differ at this bar (360 / 372 steady bars)",
-            "the library DMI check: the same tie on the same bar"
-          ]
-        }
-      },
-      "liftWhen": "the Q-FCMP ruling (docs/pine/capture-queue-2026-11-18-float-compare.md, probe vw-float-compare-tolerance on SPY 1D from the listing and RDDT 1D): TOLERANCE -> an engine fix, then a runtime-on re-grade to MATCH on adx-and-di-for-v4-spy-1d-2026-11-17, and this entry is removed; EXACT -> the kill is served (status removed) and the rails' canonical sample moves off this script",
-      "addedBy": "admit strategy-decl (2026-11-18, coordinator ruling): the whole runtime-on snapshot holds this capture for the first time; the kill is HELD until the Q-FCMP capture rules, and past `expires` the rail is red on its own"
     }
   ]
 }

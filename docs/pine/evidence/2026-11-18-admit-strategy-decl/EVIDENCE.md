@@ -1,6 +1,11 @@
 # `strategy-decl` admitted at engine 77 (2026-11-18)
 
-This follows `docs/pine/evidence/2026-11-17-admit-strategy-decl/EVIDENCE.md`, which recorded the evidence that day and did NOT admit. The coordinator ruled the conditions on 2026-11-18. The base is master f5def8bc3c, engine 77: train e77 = #1833 (the stand-in run draws what no broker value reaches) + #1831 + #1824. The governing rule is the owner's: **an admission must never take away what a member sees today.**
+This follows `docs/pine/evidence/2026-11-17-admit-strategy-decl/EVIDENCE.md`, which recorded the evidence that day and did NOT admit. The coordinator ruled the conditions on 2026-11-18. The governing rule is the owner's: **an admission must never take away what a member sees today.**
+
+Lineage:
+- Filed at engine 77: master f5def8bc3c, train e77 = #1833 (the stand-in run draws what no broker value reaches) + #1831 + #1824.
+- Re-measured at **engine 78**: master 239c84a903, train e78 = #1858 (tolerant compare), #1847, #1773 (RS newest bar), #1853, with #1885 (the supply-behind-capture grader rule) also on master.
+- The merge took the evidence ledger as the union of both sides' rows, in file order: master's 18, then this branch's 2. REACH's report was regenerated, never hand-merged.
 
 ## 1. The answer
 
@@ -33,20 +38,20 @@ This follows `docs/pine/evidence/2026-11-17-admit-strategy-decl/EVIDENCE.md`, wh
 - macd-shortlong keeps its six MACD plots; its backtest is refused at the report (B-EXIT-NA).
 - stop-loss-and-take-profit is refused at its run: all three of its plots draw `strategy.position_avg_price` (`strategyServeCensus.test.js`).
 
-## 3. The runtime-on snapshot regenerated, every move accounted (the production snapshot is kept as master's)
+## 3. Both snapshots regenerated at engine 78, every move accounted
 
-The runtime-on snapshot was regenerated over `tests/fixtures/vendor`. The licence-held `supertrend-kivancozbilgic-rddt-1d-2026-10-02` was graded from the local capture store and written with its repository path, as before. Counts are by capture id.
+Both snapshots were regenerated over `tests/fixtures/vendor` at engine 78. The licence-held `supertrend-kivancozbilgic-rddt-1d-2026-10-02` was graded from the local capture store and written with its repository path, as before. Counts are by capture id.
 
 | lane | committed ids | regenerated ids | identical | same verdict, record changed | verdict moves | new captures |
 |---|---:|---:|---:|---:|---:|---:|
-| runtime-on | 866 | 915 | 776 | 55 | 35 | 49 (11 MATCH, 7 DIVERGE, 31 INCONCLUSIVE) |
+| production | 866 | 935 | 789 | 76 | 1 | 69 (60 INCONCLUSIVE, 7 DIVERGE, 2 MATCH) |
+| runtime-on | 866 | 935 | 776 | 55 | 35 | 69 (14 MATCH, 3 MATCH_SUBSTITUTED, 48 INCONCLUSIVE, 4 DIVERGE) |
 
-**The PRODUCTION snapshot is byte-identical to master's** (coordinator ruling 2026-11-18). The admission does not change the production lane, so master's status quo stands.
-- Regenerated at 77 it would move 1 row: the licence-held kivancozbilgic, INCONCLUSIVE -> MATCH, from #1788.
-- It would also add 49 new captures, among them the RS Rating weekly captures. Those grade DIVERGE with a drawn difference that is not on `hostKnownDivergence.json`, and listing RS Rating there would take it away from every member.
-- The production regeneration rides train e78 with #1773 (the weekly forming-week fix). §3b records what the weekly NVDA capture shows beyond the forming week.
+No capture is gone. The new ones were committed after the snapshots were last derived (engine 68).
+- The production lane's 7 new DIVERGE rows are RS Rating captures. Each diverges only on drawing objects this lane already withholds by name (`pine:object-removal-lost`). Their plots are served, MATCH_SUBSTITUTED since #1885 / #1773.
+- The host known-divergence derivation (`tools/vendor_harness/host_divergence.py --write`) therefore leaves `hostKnownDivergence.json` unchanged: 28 listed, no script added or dropped. Only its rendering `docs/pine/capture-queue-2026-11-17-host-known-divergence.md` restates the RS Rating count. **RS Rating is not listed.**
 
-No capture is gone. The 49 new ones were committed after the snapshots were last derived (engine 68). Every verdict move, by reason:
+Every verdict move, by reason:
 
 | moves | lane | rows | why |
 |---|---|---|---|
@@ -56,39 +61,30 @@ No capture is gone. The 49 new ones were committed after the snapshots were last
 | 2 INCONCLUSIVE -> MATCH | runtime-on | vw-udt-legacy-array-param, vw-w6-forin-fn-two-sites | engine 69 (#1469, imp): `type[]` parameters (b140273575), and a `for … in` in a function body |
 | 1 INCONCLUSIVE -> MATCH | both | supertrend-kivancozbilgic-rddt-1d-2026-10-02 (licence-held) | engine 75 (#1788): its one uncompared item was the fill anchor, now drawn |
 
-## 3b. RS Rating weekly on the production lane (reported, not part of this admission)
+## 3b. RS Rating weekly at engine 78
 
-`rs-rating-fred6724-w-rddt-1w-2026-11-17` (140 weekly bars, NYSE:RDDT, newest week forming) differs only on **its forming week**: bar 139, 2026-11-16, TradingView 37.84075536780042 against ours 36.73410767727235. That is the known difference #1773 fixes.
+At engine 77, `rs-rating-fred6724-w-nvda-1w-2026-11-17` differed on 267 bars:
+- the forming week;
+- 266 settled weeks, by 2.2e-6 to 7.6e-3 relative. The first was bar 5, 1999-02-22: TradingView 0.10843211775433953 against ours 0.10842949274543663.
 
-`rs-rating-fred6724-w-nvda-1w-2026-11-17` (1,453 weekly bars, NASDAQ:NVDA, from 1999-01-18, not from the listing) differs on **267 bars**:
-- **the forming week**: bar 1452, 2026-11-16, TradingView 62.264223428008606 against ours 60.443314770414474;
-- **266 settled weeks**, with small relative differences of 2.2e-6 to 7.6e-3:
-  - the first is bar 5, 1999-02-22: TradingView 0.10843211775433953 against ours 0.10842949274543663 (2.4e-5);
-  - the largest is bar 65, 2000-04-17: 0.36682757944466726 against 0.3640315385976293 (7.6e-3).
-
-By year, the differing bars are:
-
-| years | differing weeks | shape |
-|---|---:|---|
-| 1999 to 2011 | 113 | scattered |
-| 2020 | 2 | |
-| 2021 to 2023 | 151 | contiguous, about 2.2e-6 each |
-| 2026 | 1 | the forming week |
-
-That is not the forming-week difference alone. The RS Line reads SPX through the server's daily supply (FMP ^GSPC) held at D on this W chart, and the settled-week differences are of the size a benchmark data-source difference would leave. That is an inference, not measured here. It is reported to the coordinator, and nothing in this PR depends on it.
+At engine 78 with #1885, the grade reads those 266 bars as **MATCH_SUBSTITUTED**: "every one a value on a date where UCT's SPX (FMP ^GSPC, the server's PRIMARY …)" differs from the supply recorded beside the capture. #1773 holds the newest bar INCONCLUSIVE by name. `w-rddt-1w` reads MATCH_SUBSTITUTED on all 139 settled weeks.
 
 ## 4. REACH, re-derived with the broker armed
 
 The flag is stubbed ON as the production build arms it (`Dockerfile.web` `ARG VITE_PINE_STRATEGY_BROKER_ENABLED=1`), in `capabilityAdmission.measure.test.js` and in `capabilityEvidenceLane.test.js`. REACH was re-derived in three steps (`capability_admission.py input`, the door in admission mode, `report`).
 
 - 77 admitted captures use `strategy-decl`.
-- **MATCH -> DIVERGE: none**, read against master's production snapshot.
-- **Runtime-lane DIVERGE stops: 2, both named:**
+- **MATCH -> DIVERGE: none** (and MATCH_SUBSTITUTED -> DIVERGE: none).
+- **Runtime-lane DIVERGE stops at engine 78: 1, `vw-deadband-ticks-brk-a-1d-2026-09-28`** (WITHHELD_WHOLE, as before).
+- At engine 77 there were 2 stops. The second, now healed, is kept below for the record:
   - `vw-deadband-ticks-brk-a-1d-2026-09-28`: WITHHELD_WHOLE, as before.
   - `adx-and-di-for-v4-spy-1d-2026-11-17`: a **HELD kill**. It is an indicator, unrelated to strategy-decl, and members see this divergence today with or without the admission.
     - It diverges from bar 5,333 (2014-04-03). There, up move 189.22 - 189.13 = 0.09000000000000341 and down move 188.14 - 188.05 = 0.08999999999997499 differ only in their last binary digits.
     - It is held on the ONE kill list: `api/data/pine_runtime_killlist.json`, `status: "pending"`, `expires: "2026-11-21"`. It is not served (`runtime_definitions.committed_kills` skips it). Its liftWhen is the Q-FCMP ruling (`docs/pine/capture-queue-2026-11-18-float-compare.md`).
     - The REACH and RT1 rails accept its one named capture, re-proved from its record, only until `expires`. Past that date they are red on their own.
+- **The held kill is LIFTED** on its own liftWhen: Q-FCMP ruled TOLERANCE (packet 56330c15e071), engine 78 (#1858) compares within 1e-10, and `adx-and-di-for-v4-spy-1d-2026-11-17` grades **MATCH** on the runtime-on lane. The entry is removed from `api/data/pine_runtime_killlist.json`, and its README line records the lift.
+  - The held-kill mechanism stays: `status: pending`, `kill_entry_is_served`, the expiry, and the REACH acceptance.
+  - Its rails now show the rule on a synthetic held entry, because the committed list holds none.
 - `fvg-trend-spy-1d-2026-11-17`, `inside-bar-boxes-spy-1d-2026-11-17` and `trend-targets-algoalpha-spy-1d-2026-11-17` are no longer stops. Since #1842 the paint grade excuses a bar our side withholds inside the run's own curtain.
 
 ## 5. Rails

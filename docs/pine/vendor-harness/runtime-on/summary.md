@@ -2,7 +2,7 @@
 
 Directories: `tests/fixtures/vendor`
 
-Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 503, host refusals 535) · objects-only pane ARMED · runtime drew 194, declined 309 · strategy lane: broker gate ON, 82 graded on their trades, 67 broker run(s)
+Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 507, host refusals 539) · objects-only pane ARMED · runtime drew 194, declined 313 · strategy lane: broker gate ON, 82 graded on their trades, 67 broker run(s)
 
 ```
 capture                                      symbol/tf        plots  verdict           first divergence / reason
@@ -32,10 +32,10 @@ adx-and-di-for-v4-spy-1d-2026-10-03          AMEX:SPY 1D      3      MATCH      
     DI-                                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     ADX                                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.67e-15
     objects                                  MATCH         neither side draws an object
-adx-and-di-for-v4-spy-1d-2026-11-17          AMEX:SPY 1D      3      DIVERGE           DI+: bar 5333 t=1396531800 value vendor=27.57607096793957 ours=27.938901695336465
-    DI+                                      DIVERGE           cmp 8509 ok 7570 warm 579/579 steady 360/7930 maxRel 1.22e-1 — 360 steady-state bars disagree; first at bar 5333 (value: vendor 27.57607096793957 vs ours 27.938901695336465) — scattered, last at bar 5692
+adx-and-di-for-v4-spy-1d-2026-11-17          AMEX:SPY 1D      3      MATCH             all 4 items agree
+    DI+                                      MATCH             cmp 8509 ok 7930 warm 579/579 steady 0/7930 maxRel 0.00e+0
     DI-                                      MATCH             cmp 8509 ok 7930 warm 579/579 steady 0/7930 maxRel 0.00e+0
-    ADX                                      DIVERGE           cmp 8509 ok 7571 warm 566/579 steady 372/7930 maxRel 1.15e-1 — 372 steady-state bars disagree; first at bar 5333 (value: vendor 15.188478885057036 vs ours 15.231086392045967) — scattered, last at bar 5706
+    ADX                                      MATCH             cmp 8509 ok 7943 warm 566/579 steady 0/7930 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 all-chart-patterns-theeccentrictrader-rddt-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `theEccentricTrader/PubLibSwing/3` is not in this engine's library registry, so its code cannot be compiled
 all-chart-patterns-theeccentrictrader-spy-1d AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `theEccentricTrader/PubLibSwing/3` is not in this engine's library registry, so its code cannot be compiled
@@ -380,10 +380,10 @@ contraction-box-doji-lines-rddt-1d-2026-09-2 NYSE:RDDT 1D     0      MATCH      
     objects                                  MATCH         object counts and texts agree; colours agree on 82 paired slots; 96 slots on objects neither side draws not graded; coordinates are NOT compared by v1
 contraction-box-doji-lines-rddt-1d-2026-11-1 NYSE:RDDT 1D     0      MATCH             all 1 items agree
     objects                                  MATCH         object counts and texts agree; colours agree on 92 paired slots; 102 slots on objects neither side draws not graded; coordinates are NOT compared by v1
-contraction-box-doji-lines-spy-1d-2026-10-03 AMEX:SPY 1D      0      DIVERGE           1 of 1 compared items diverge
-    objects                                  DIVERGE       1 object families differ (count or text); colours agree on 208 paired slots; 102 slots on objects neither side draws not graded; coordinates are NOT compared by v1
-contraction-box-doji-lines-spy-1d-2026-11-15 AMEX:SPY 1D      0      DIVERGE           1 of 1 compared items diverge
-    objects                                  DIVERGE       1 object families differ (count or text); colours agree on 210 paired slots; 96 slots on objects neither side draws not graded; coordinates are NOT compared by v1
+contraction-box-doji-lines-spy-1d-2026-10-03 AMEX:SPY 1D      0      MATCH             all 1 items agree
+    objects                                  MATCH         object counts and texts agree; colours agree on 208 paired slots; 102 slots on objects neither side draws not graded; coordinates are NOT compared by v1
+contraction-box-doji-lines-spy-1d-2026-11-15 AMEX:SPY 1D      0      MATCH             all 1 items agree
+    objects                                  MATCH         object counts and texts agree; colours agree on 210 paired slots; 96 slots on objects neither side draws not graded; coordinates are NOT compared by v1
 cppivot-boss-floor-pivots-with-atr-dilation- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `security`
 cppivot-boss-floor-pivots-with-atr-dilation- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `security`
 cpr-with-mas-super-trend-vwap-by-guruprasadm NYSE:RDDT 1D     29     MATCH             all 30 items agree
@@ -1568,6 +1568,18 @@ rs-rating-fred6724-crwv-1d-2026-11-16        NASDAQ:CRWV 1D   4      MATCH_SUBST
     Plot                                     MATCH_SUBSTITUTED cmp 411 ok 411 warm 0/0 steady 0/411 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 411 ok 411 warm 0/0 steady 0/411 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
+rs-rating-fred6724-m-nvda-1m-2026-11-18      NASDAQ:NVDA 1M   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
+    RS Line                                  MATCH_SUBSTITUTED cmp 335 ok 265 warm 0/0 steady 70/335 maxRel 5.66e-3
+    Plot                                     MATCH_SUBSTITUTED cmp 335 ok 335 warm 0/21 steady 0/314 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 335 ok 335 warm 0/21 steady 0/314 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 335 ok 335 warm 0/50 steady 0/285 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 3 paired slots; coordinates are NOT compared by v1
+rs-rating-fred6724-m-rddt-1m-2026-11-18      NYSE:RDDT 1M     4      INCONCLUSIVE      1 of 5 items could not be compared
+    RS Line                                  MATCH_SUBSTITUTED cmp 33 ok 33 warm 0/0 steady 0/33 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 33 ok 33 warm 0/21 steady 0/12 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 33 ok 33 warm 0/21 steady 0/12 maxRel 0.00e+0
+    Plot                                     INCONCLUSIVE      cmp 33 ok 33 warm 0/33 steady 0/0 maxRel 0.00e+0 — every compared bar is inside the warm-up region — nothing in steady state to judge
+    objects                                  MATCH         object counts and texts agree; colours agree on 3 paired slots; coordinates are NOT compared by v1
 rs-rating-fred6724-nvda-1d-2026-11-15        NASDAQ:NVDA 1D   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
     RS Line                                  MATCH_SUBSTITUTED cmp 6997 ok 5705 warm 0/0 steady 1292/6997 maxRel 1.83e-2
     Plot                                     MATCH_SUBSTITUTED cmp 6997 ok 6997 warm 0/0 steady 0/6997 maxRel 0.00e+0
@@ -1689,17 +1701,17 @@ rs-rating-fred6724-setf-rddt-1d-2026-11-16   NYSE:RDDT 1D     4      MATCH_SUBST
     Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
 rs-rating-fred6724-spy-1d-2026-11-15         AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: the supply this grade needs is not recorded — other symbol SPX: not graded, by owner ruling 2026-11-15 ("Leave spy blank imo"). The served SPX source (FMP) is recorded since L9 (local supply store, out of git), but this capture is deliberately not supplied, so no verdict implies a pass or a fail for it. Before the ruling, the L5 builder's probe on the yfinance fallback read a rating of 63 where TradingView draws 64.
-rs-rating-fred6724-w-nvda-1w-2026-11-17      NASDAQ:NVDA 1W   4      DIVERGE           RS Line: bar 5 t=919693800 value vendor=0.10843211775433953 ours=0.10842949274543663
-    RS Line                                  DIVERGE           cmp 1453 ok 1186 warm 0/0 steady 267/1453 maxRel 2.92e-2 — 267 steady-state bars disagree; first at bar 5 (value: vendor 0.10843211775433953 vs ours 0.10842949274543663) — persistent, last at bar 1452
-    Plot                                     MATCH_SUBSTITUTED cmp 1453 ok 1453 warm 0/21 steady 0/1432 maxRel 0.00e+0
-    Plot                                     MATCH_SUBSTITUTED cmp 1453 ok 1453 warm 0/21 steady 0/1432 maxRel 0.00e+0
-    Plot                                     MATCH_SUBSTITUTED cmp 1453 ok 1453 warm 0/50 steady 0/1403 maxRel 0.00e+0
+rs-rating-fred6724-w-nvda-1w-2026-11-17      NASDAQ:NVDA 1W   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
+    RS Line                                  MATCH_SUBSTITUTED cmp 1452 ok 1186 warm 0/0 steady 266/1452 maxRel 7.62e-3
+    Plot                                     MATCH_SUBSTITUTED cmp 1452 ok 1452 warm 0/21 steady 0/1431 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 1452 ok 1452 warm 0/21 steady 0/1431 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 1452 ok 1452 warm 0/50 steady 0/1402 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
-rs-rating-fred6724-w-rddt-1w-2026-11-17      NYSE:RDDT 1W     4      DIVERGE           RS Line: bar 139 t=1794839400 value vendor=37.84075536780042 ours=36.73410767727235
-    RS Line                                  DIVERGE           cmp 140 ok 139 warm 0/0 steady 1/140 maxRel 2.92e-2 — 1 steady-state bars disagree; first at bar 139 (value: vendor 37.84075536780042 vs ours 36.73410767727235) — persistent, last at bar 139
-    Plot                                     MATCH_SUBSTITUTED cmp 140 ok 140 warm 0/21 steady 0/119 maxRel 0.00e+0
-    Plot                                     MATCH_SUBSTITUTED cmp 140 ok 140 warm 0/21 steady 0/119 maxRel 0.00e+0
-    Plot                                     MATCH_SUBSTITUTED cmp 140 ok 140 warm 0/50 steady 0/90 maxRel 0.00e+0
+rs-rating-fred6724-w-rddt-1w-2026-11-17      NYSE:RDDT 1W     4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
+    RS Line                                  MATCH_SUBSTITUTED cmp 139 ok 139 warm 0/0 steady 0/139 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 139 ok 139 warm 0/21 steady 0/118 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 139 ok 139 warm 0/21 steady 0/118 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 139 ok 139 warm 0/50 steady 0/89 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
 rs-seed-rsrating-pm-alab-1d-2026-11-16       NASDAQ:ALAB 1D   6      DIVERGE           S01_seed_close: bar 639 t=1791379800 na vendor=199.57 ours=na
     S01_seed_close                           DIVERGE           cmp 668 ok 643 warm 0/0 steady 25/668 maxRel 0.00e+0 — 25 steady-state bars disagree; first at bar 639 (na: vendor 199.57 vs ours na) — scattered, last at bar 663
@@ -3249,6 +3261,572 @@ vw-default-param-spy-1d-2026-10-02           AMEX:SPY 1D      16     MATCH      
     objects                                  MATCH         neither side draws an object
 vw-draw-count-at-cap-rddt-1d-2026-11-16      NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: runtime:object-op]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `boxesMade` builds on its own previous bar and this engine cannot tell that it ever forgets where it started, so folding it would draw a rolling window over the last 250 bars rather than a running total. THIS ENGINE DOES DECLARE A BOUNDED FORM: `cumFrom(<that value>, <anchor>, <bars>)` — the same running total with the starting instant STATED. Stating the window is what makes the answer the same tomorrow — an all-time value moves with however many bars were fetched.
 vw-draw-count-at-cap-spy-1d-2026-11-16       AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: runtime:object-op]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `boxesMade` builds on its own previous bar and this engine cannot tell that it ever forgets where it started, so folding it would draw a rolling window over the last 250 bars rather than a running total. THIS ENGINE DOES DECLARE A BOUNDED FORM: `cumFrom(<that value>, <anchor>, <bars>)` — the same running total with the starting instant STATED. Stating the window is what makes the answer the same tomorrow — an all-time value moves with however many bars were fetched.
+vw-fcmp-builtins-rddt-1d-2026-11-18          NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:collection) [runtime declined: pine:function]: an array, a matrix or a map is outside the expression grammar this engine runs — `this name` is read as an array here and nothing in this script creates it, so there are no slots to read
+vw-fcmp-builtins-spy-1d-2026-11-18           AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:collection) [runtime declined: pine:function]: an array, a matrix or a map is outside the expression grammar this engine runs — `this name` is read as an array here and nothing in this script creates it, so there are no slots to read
+vw-fcmp-builtins-v2-rddt-1d-2026-11-18       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:collection) [runtime declined: pine:function]: an array, a matrix or a map is outside the expression grammar this engine runs — `this name` is read as an array here and nothing in this script creates it, so there are no slots to read
+vw-fcmp-builtins-v2-spy-1d-2026-11-18        AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:collection) [runtime declined: pine:function]: an array, a matrix or a map is outside the expression grammar this engine runs — `this name` is read as an array here and nothing in this script creates it, so there are no slots to read
+vw-fcmp-const-v4-spy-1d-2026-11-18           AMEX:SPY 1D      15     INCONCLUSIVE      10 of 16 items could not be compared
+    C00_bar_index_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    C01_literals                             INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C02_named_consts                         INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C03_literal_sum                          INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C04_named_sum                            INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C05_input_literal                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    C06_input_input                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    C07_const_series                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    C08_series_series_CONTROL                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    C09_reassigned                           INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C10_function_result                      INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C11_ternary_of_consts                    INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C12_int_vs_float                         INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C13_tie_literals                         INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C14_tie_inline                           INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-const-v5-spy-1d-2026-11-18           AMEX:SPY 1D      15     INCONCLUSIVE      10 of 16 items could not be compared
+    C00_bar_index_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    C01_literals                             INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C02_named_consts                         INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C03_literal_sum                          INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C04_named_sum                            INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C05_input_literal                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    C06_input_input                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    C07_const_series                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    C08_series_series_CONTROL                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    C09_reassigned                           INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C10_function_result                      INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C11_ternary_of_consts                    INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C12_int_vs_float                         INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C13_tie_literals                         INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C14_tie_inline                           INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-form-rddt-1d-2026-11-18              NYSE:RDDT 1D     51     INCONCLUSIVE      2 of 52 items could not be compared
+    T00_bar_index_CONTROL                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T01_ctl_eq                               MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T02_ctl_lt                               MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T03_ctl_gt                               MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T04_center_1e-13                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T05_center_1e-12                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T06_center_1e-11                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T07_center_1e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T08_center_3e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T09_center_4.9e-10                       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T10_center_5.1e-10                       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T11_center_9e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T12_center_1.4e-9                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T13_center_1e-8                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T14_edge_0491                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T15_edge_0495                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T16_edge_0499                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T17_edge_0501                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T18_edge_051                             MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T19_edge_059                             MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T20_straddle_1                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T21_straddle_1_rev                       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T22_straddle_0.09                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T23_straddle_100                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T24_neg_bucket                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T25_neg_straddle                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T26_neg_across                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T27_zero_p4e-10                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T28_zero_m4e-10                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T29_m4e-10_p4e-10                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T30_zero_p6e-10                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T31_tiny_zero                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T32_half_1.0000000025                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T33_half_1.0000000075                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T34_half_1.0000000015                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T35_half_1.0000000005                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T36_half_-1.0000000005                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T37_half_0.0000000005                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T38_half_-0.0000000005                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T39_half_2.0000000035                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T40_int1_f1.0000000003                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T41_int1_f0.9999999997                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T42_int1_f1.0000000006                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T43_f1.0000000003_int1                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T44_int7_int7_CONTROL                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T45_naf_naf                              MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T46_naf_1                                MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T47_1_naf                                MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T48_nai_nai                              MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T49_const_center_3e-10                   INCONCLUSIVE      cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T50_const_straddle_1                     INCONCLUSIVE      cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-form-spy-1d-2026-11-18               AMEX:SPY 1D      51     INCONCLUSIVE      2 of 52 items could not be compared
+    T00_bar_index_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T01_ctl_eq                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T02_ctl_lt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T03_ctl_gt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T04_center_1e-13                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T05_center_1e-12                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T06_center_1e-11                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T07_center_1e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T08_center_3e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T09_center_4.9e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T10_center_5.1e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T11_center_9e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T12_center_1.4e-9                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T13_center_1e-8                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T14_edge_0491                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T15_edge_0495                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T16_edge_0499                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T17_edge_0501                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T18_edge_051                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T19_edge_059                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T20_straddle_1                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T21_straddle_1_rev                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T22_straddle_0.09                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T23_straddle_100                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T24_neg_bucket                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T25_neg_straddle                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T26_neg_across                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T27_zero_p4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T28_zero_m4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T29_m4e-10_p4e-10                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T30_zero_p6e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T31_tiny_zero                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T32_half_1.0000000025                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T33_half_1.0000000075                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T34_half_1.0000000015                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T35_half_1.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T36_half_-1.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T37_half_0.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T38_half_-0.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T39_half_2.0000000035                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T40_int1_f1.0000000003                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T41_int1_f0.9999999997                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T42_int1_f1.0000000006                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T43_f1.0000000003_int1                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T44_int7_int7_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T45_naf_naf                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T46_naf_1                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T47_1_naf                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T48_nai_nai                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T49_const_center_3e-10                   INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T50_const_straddle_1                     INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-form-v1-spy-1d-2026-11-18            AMEX:SPY 1D      51     INCONCLUSIVE      2 of 52 items could not be compared
+    T00_bar_index_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T01_ctl_eq                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T02_ctl_lt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T03_ctl_gt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T04_center_1e-13                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T05_center_1e-12                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T06_center_1e-11                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T07_center_1e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T08_center_3e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T09_center_4.9e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T10_center_5.1e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T11_center_9e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T12_center_1.4e-9                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T13_center_1e-8                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T14_edge_0491                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T15_edge_0495                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T16_edge_0499                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T17_edge_0501                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T18_edge_051                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T19_edge_059                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T20_straddle_1                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T21_straddle_1_rev                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T22_straddle_0.09                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T23_straddle_100                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T24_neg_bucket                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T25_neg_straddle                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T26_neg_across                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T27_zero_p4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T28_zero_m4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T29_m4e-10_p4e-10                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T30_zero_p6e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T31_tiny_zero                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T32_half_1.0000000025                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T33_half_1.0000000075                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T34_half_1.0000000015                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T35_half_1.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T36_half_-1.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T37_half_0.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T38_half_-0.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T39_half_2.0000000035                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T40_int1_f1.0000000003                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T41_int1_f0.9999999997                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T42_int1_f1.0000000006                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T43_f1.0000000003_int1                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T44_int7_int7_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T45_naf_naf                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T46_naf_1                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T47_1_naf                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T48_nai_nai                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T49_const_center_3e-10                   INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T50_const_straddle_1                     INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-form-v2-spy-1d-2026-11-18            AMEX:SPY 1D      51     INCONCLUSIVE      2 of 52 items could not be compared
+    T00_bar_index_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T01_ctl_eq                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T02_ctl_lt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T03_ctl_gt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T04_center_1e-13                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T05_center_1e-12                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T06_center_1e-11                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T07_center_1e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T08_center_3e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T09_center_4.9e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T10_center_5.1e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T11_center_9e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T12_center_1.4e-9                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T13_center_1e-8                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T14_edge_0491                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T15_edge_0495                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T16_edge_0499                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T17_edge_0501                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T18_edge_051                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T19_edge_059                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T20_straddle_1                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T21_straddle_1_rev                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T22_straddle_0.09                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T23_straddle_100                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T24_neg_bucket                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T25_neg_straddle                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T26_neg_across                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T27_zero_p4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T28_zero_m4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T29_m4e-10_p4e-10                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T30_zero_p6e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T31_tiny_zero                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T32_half_1.0000000025                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T33_half_1.0000000075                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T34_half_1.0000000015                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T35_half_1.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T36_half_-1.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T37_half_0.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T38_half_-0.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T39_half_2.0000000035                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T40_int1_f1.0000000003                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T41_int1_f0.9999999997                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T42_int1_f1.0000000006                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T43_f1.0000000003_int1                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T44_int7_int7_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T45_naf_naf                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T46_naf_1                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T47_1_naf                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T48_nai_nai                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T49_const_center_3e-10                   INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T50_const_straddle_1                     INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-form-v3-spy-1d-2026-11-18            AMEX:SPY 1D      51     INCONCLUSIVE      2 of 52 items could not be compared
+    T00_bar_index_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T01_ctl_eq                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T02_ctl_lt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T03_ctl_gt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T04_center_1e-13                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T05_center_1e-12                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T06_center_1e-11                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T07_center_1e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T08_center_3e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T09_center_4.9e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T10_center_5.1e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T11_center_9e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T12_center_1.4e-9                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T13_center_1e-8                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T14_edge_0491                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T15_edge_0495                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T16_edge_0499                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T17_edge_0501                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T18_edge_051                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T19_edge_059                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T20_straddle_1                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T21_straddle_1_rev                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T22_straddle_0.09                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T23_straddle_100                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T24_neg_bucket                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T25_neg_straddle                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T26_neg_across                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T27_zero_p4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T28_zero_m4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T29_m4e-10_p4e-10                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T30_zero_p6e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T31_tiny_zero                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T32_half_1.0000000025                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T33_half_1.0000000075                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T34_half_1.0000000015                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T35_half_1.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T36_half_-1.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T37_half_0.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T38_half_-0.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T39_half_2.0000000035                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T40_int1_f1.0000000003                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T41_int1_f0.9999999997                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T42_int1_f1.0000000006                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T43_f1.0000000003_int1                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T44_int7_int7_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T45_naf_naf                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T46_naf_1                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T47_1_naf                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T48_nai_nai                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T49_const_center_3e-10                   INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T50_const_straddle_1                     INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-form-v4-rddt-1d-2026-11-18           NYSE:RDDT 1D     51     INCONCLUSIVE      2 of 52 items could not be compared
+    T00_bar_index_CONTROL                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T01_ctl_eq                               MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T02_ctl_lt                               MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T03_ctl_gt                               MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T04_center_1e-13                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T05_center_1e-12                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T06_center_1e-11                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T07_center_1e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T08_center_3e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T09_center_4.9e-10                       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T10_center_5.1e-10                       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T11_center_9e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T12_center_1.4e-9                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T13_center_1e-8                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T14_edge_0491                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T15_edge_0495                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T16_edge_0499                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T17_edge_0501                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T18_edge_051                             MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T19_edge_059                             MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T20_straddle_1                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T21_straddle_1_rev                       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T22_straddle_0.09                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T23_straddle_100                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T24_neg_bucket                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T25_neg_straddle                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T26_neg_across                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T27_zero_p4e-10                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T28_zero_m4e-10                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T29_m4e-10_p4e-10                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T30_zero_p6e-10                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T31_tiny_zero                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T32_half_1.0000000025                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T33_half_1.0000000075                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T34_half_1.0000000015                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T35_half_1.0000000005                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T36_half_-1.0000000005                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T37_half_0.0000000005                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T38_half_-0.0000000005                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T39_half_2.0000000035                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T40_int1_f1.0000000003                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T41_int1_f0.9999999997                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T42_int1_f1.0000000006                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T43_f1.0000000003_int1                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T44_int7_int7_CONTROL                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T45_naf_naf                              MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T46_naf_1                                MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T47_1_naf                                MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T48_nai_nai                              MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T49_const_center_3e-10                   INCONCLUSIVE      cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T50_const_straddle_1                     INCONCLUSIVE      cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-form-v4-spy-1d-2026-11-18            AMEX:SPY 1D      51     INCONCLUSIVE      2 of 52 items could not be compared
+    T00_bar_index_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T01_ctl_eq                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T02_ctl_lt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T03_ctl_gt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T04_center_1e-13                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T05_center_1e-12                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T06_center_1e-11                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T07_center_1e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T08_center_3e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T09_center_4.9e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T10_center_5.1e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T11_center_9e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T12_center_1.4e-9                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T13_center_1e-8                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T14_edge_0491                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T15_edge_0495                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T16_edge_0499                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T17_edge_0501                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T18_edge_051                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T19_edge_059                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T20_straddle_1                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T21_straddle_1_rev                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T22_straddle_0.09                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T23_straddle_100                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T24_neg_bucket                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T25_neg_straddle                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T26_neg_across                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T27_zero_p4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T28_zero_m4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T29_m4e-10_p4e-10                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T30_zero_p6e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T31_tiny_zero                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T32_half_1.0000000025                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T33_half_1.0000000075                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T34_half_1.0000000015                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T35_half_1.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T36_half_-1.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T37_half_0.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T38_half_-0.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T39_half_2.0000000035                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T40_int1_f1.0000000003                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T41_int1_f0.9999999997                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T42_int1_f1.0000000006                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T43_f1.0000000003_int1                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T44_int7_int7_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T45_naf_naf                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T46_naf_1                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T47_1_naf                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T48_nai_nai                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T49_const_center_3e-10                   INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T50_const_straddle_1                     INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-form-v5-spy-1d-2026-11-18            AMEX:SPY 1D      51     INCONCLUSIVE      2 of 52 items could not be compared
+    T00_bar_index_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T01_ctl_eq                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T02_ctl_lt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T03_ctl_gt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T04_center_1e-13                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T05_center_1e-12                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T06_center_1e-11                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T07_center_1e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T08_center_3e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T09_center_4.9e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T10_center_5.1e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T11_center_9e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T12_center_1.4e-9                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T13_center_1e-8                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T14_edge_0491                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T15_edge_0495                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T16_edge_0499                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T17_edge_0501                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T18_edge_051                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T19_edge_059                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T20_straddle_1                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T21_straddle_1_rev                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T22_straddle_0.09                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T23_straddle_100                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T24_neg_bucket                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T25_neg_straddle                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T26_neg_across                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T27_zero_p4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T28_zero_m4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T29_m4e-10_p4e-10                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T30_zero_p6e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T31_tiny_zero                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T32_half_1.0000000025                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T33_half_1.0000000075                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T34_half_1.0000000015                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T35_half_1.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T36_half_-1.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T37_half_0.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T38_half_-0.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T39_half_2.0000000035                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T40_int1_f1.0000000003                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T41_int1_f0.9999999997                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T42_int1_f1.0000000006                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T43_f1.0000000003_int1                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T44_int7_int7_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T45_naf_naf                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T46_naf_1                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T47_1_naf                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T48_nai_nai                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T49_const_center_3e-10                   INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T50_const_straddle_1                     INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-magnitude-rddt-1d-2026-11-18         NYSE:RDDT 1D     35     MATCH             all 36 items agree
+    M00_bar_index_CONTROL                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M01_M1e-12_16ulp                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M02_M1e-12_3e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M03_M1e-12_7e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M04_M1e-10_16ulp                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M05_M1e-10_3e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M06_M1e-10_7e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M07_M1e-9_16ulp                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M08_M1e-9_3e-10                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M09_M1e-9_7e-10                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M10_M1e-6_16ulp                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M11_M1e-6_3e-10                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M12_M1e-6_7e-10                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M13_M0.001_16ulp                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M14_M0.001_3e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M15_M0.001_7e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M16_M1000.0_16ulp                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M17_M1000.0_3e-10                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M18_M1000.0_7e-10                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M19_M1000000.0_16ulp                     MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M20_M1000000.0_3e-10                     MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M21_M1000000.0_7e-10                     MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M22_M10000000.0_16ulp                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M23_M1000000000.0_16ulp                  MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M24_M10000000.0_1e-6                     MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M25_M1000000000.0_1e-6                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M26_M10000000.0_1ulp                     MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M27_M123456789.123_1ulp                  MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M28_M1000000000.0_1ulp                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M29_mulmerge_1e7                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M30_mulmerge_1.2e8                       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M31_mulmerge_1e9                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M32_dmi_moves_x1.0                       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M33_dmi_moves_x1e6                       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M34_dmi_moves_x1e-8                      MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-magnitude-spy-1d-2026-11-18          AMEX:SPY 1D      35     MATCH             all 36 items agree
+    M00_bar_index_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M01_M1e-12_16ulp                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M02_M1e-12_3e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M03_M1e-12_7e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M04_M1e-10_16ulp                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M05_M1e-10_3e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M06_M1e-10_7e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M07_M1e-9_16ulp                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M08_M1e-9_3e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M09_M1e-9_7e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M10_M1e-6_16ulp                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M11_M1e-6_3e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M12_M1e-6_7e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M13_M0.001_16ulp                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M14_M0.001_3e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M15_M0.001_7e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M16_M1000.0_16ulp                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M17_M1000.0_3e-10                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M18_M1000.0_7e-10                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M19_M1000000.0_16ulp                     MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M20_M1000000.0_3e-10                     MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M21_M1000000.0_7e-10                     MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M22_M10000000.0_16ulp                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M23_M1000000000.0_16ulp                  MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M24_M10000000.0_1e-6                     MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M25_M1000000000.0_1e-6                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M26_M10000000.0_1ulp                     MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M27_M123456789.123_1ulp                  MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M28_M1000000000.0_1ulp                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M29_mulmerge_1e7                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M30_mulmerge_1.2e8                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M31_mulmerge_1e9                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M32_dmi_moves_x1.0                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M33_dmi_moves_x1e6                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M34_dmi_moves_x1e-8                      MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-float-compare-tolerance-rddt-1d-2026-11-1 NYSE:RDDT 1D     13     INCONCLUSIVE      6 of 14 items could not be compared
+    F00_bar_index_CONTROL                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    F01_sum_eq_point3                        INCONCLUSIVE      cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    F02_sum_gt_point3                        INCONCLUSIVE      cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    F03_y_gt_x_3e-14                         INCONCLUSIVE      cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    F04_y_eq_x_3e-14                         INCONCLUSIVE      cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    F05_up_gt_down                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    F06_up_lt_down                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    F07_up_eq_down                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    F08_up_minus_down                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    F09_up                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    F10_down                                 MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    F11_tie_literals_gt                      INCONCLUSIVE      cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    F12_tie_literals_eq                      INCONCLUSIVE      cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-float-compare-tolerance-spy-1d-2026-11-18 AMEX:SPY 1D      13     INCONCLUSIVE      6 of 14 items could not be compared
+    F00_bar_index_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    F01_sum_eq_point3                        INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    F02_sum_gt_point3                        INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    F03_y_gt_x_3e-14                         INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    F04_y_eq_x_3e-14                         INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    F05_up_gt_down                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    F06_up_lt_down                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    F07_up_eq_down                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    F08_up_minus_down                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    F09_up                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    F10_down                                 MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    F11_tie_literals_gt                      INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    F12_tie_literals_eq                      INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
 vw-fmt-tie-readings-rddt-1d-2026-11-15       NYSE:RDDT 1D     0      DIVERGE           1 of 1 compared items diverge
     objects                                  DIVERGE       1 object families differ (count or text); colours agree on 50 paired slots; coordinates are NOT compared by v1
 vw-fn-history-in-if-v2-rddt-1d-2026-11-15    NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:fn-history-in-block) [runtime declined: runtime:output-map]: a script function reads a chart series at a bar offset and is called inside a block that does not run on every bar; in Pine v2 and v3 that read is a copy the function keeps of the series, repeating its last value on bars the call does not run (captures `vw-fn-history-in-if-v2` / `-v3`; v1 does not compile an `if`, s24), which this lane does not compute — `f2`
@@ -6202,19 +6780,19 @@ supertrend-kivancozbilgic-rddt-1d-2026-10-02 NYSE:RDDT 1D     7      MATCH      
     plot_6                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 
-TOTAL 920 captures — MATCH 316 · DIVERGE 74 · INCONCLUSIVE 510 · MATCH_SUBSTITUTED 20 (verified with substituted inputs; never counted as MATCH)
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 213 captures) — MATCH 317 · DIVERGE 74 · INCONCLUSIVE 509
+TOTAL 940 captures — MATCH 321 · DIVERGE 69 · INCONCLUSIVE 527 · MATCH_SUBSTITUTED 23 (verified with substituted inputs; never counted as MATCH)
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 215 captures) — MATCH 322 · DIVERGE 69 · INCONCLUSIVE 526
 CHANGED BY OBJECT COLOUR (1): w9-d11-late-first-use-rddt-1d-2026-11-16 MATCH → INCONCLUSIVE
-WITHOUT PAINTS (the verdict before B1; paints graded on 75 captures) — MATCH 319 · DIVERGE 72 · INCONCLUSIVE 509
+WITHOUT PAINTS (the verdict before B1; paints graded on 75 captures) — MATCH 324 · DIVERGE 67 · INCONCLUSIVE 526
 CHANGED BY PAINTS (5): one-sided-gaussian-support-resistance-rate-loxx-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; supertrend-strategy-rddt-1d-2026-10-02 MATCH → INCONCLUSIVE; supertrend-strategy-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-deadband-ticks-brk-a-1d-2026-09-28 INCONCLUSIVE → DIVERGE
 ```
 
-## Runtime declines by code (309)
+## Runtime declines by code (313)
 
 - `pine:builtin` 37
 - `runtime:library` 37
+- `pine:function` 31
 - `pine:request` 29
-- `pine:function` 27
 - `runtime:request-with-state` 23
 - `runtime:statement` 16
 - `lower-tf:store-unmeasured` 15

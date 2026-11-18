@@ -1268,15 +1268,35 @@ def test_REACH_no_runtime_lane_DIVERGE_and_no_MATCH_to_DIVERGE():
     assert problems == [], problems
 
 
-def test_REACH_a_held_kill_is_one_named_stop_until_its_expiry_and_nothing_else():
+def held_kills_or_synthetic(rtv: dict, tmp_path, monkeypatch) -> dict:
+    """The committed list's HELD kills; when it holds none (adx-and-di-for-v4 was LIFTED at engine 78: Q-FCMP ruled
+    TOLERANCE, #1858, and its SPY capture re-graded MATCH), ONE synthetic held entry in a tmp kill list naming a real
+    committed capture that grades DIVERGE, so the rule is still shown both ways. Read through `rt.pending_kills`."""
+    pending = rt.pending_kills()
+    if pending:
+        return pending
+    rec = next(r for r in rtv["results"] if r["verdict"] == "DIVERGE" and r["id"] not in WITHHELD_WHOLE
+               and (ROOT / r["file"]).is_file())
+    src = json.loads((ROOT / rec["file"]).read_text(encoding="utf-8"))["source"]["text"]
+    entry = {"slug": "synthetic-held", "status": rt.KILL_PENDING,
+             "expires": (datetime.date.today() + datetime.timedelta(days=3)).isoformat(),
+             "sha256": rt.source_hash(src), "source": rec["file"], "reason": "SYNTHETIC", "liftWhen": "SYNTHETIC",
+             "evidence": {"capture": rec["id"], "verdict": "DIVERGE"}}
+    f = tmp_path / "held-killlist.json"
+    f.write_text(json.dumps({"_readme": ["tmp, synthetic"], "scripts": [entry]}), encoding="utf-8")
+    monkeypatch.setattr(rt, "KILLLIST_PATH", str(f))
+    return rt.pending_kills()
+
+
+def test_REACH_a_held_kill_is_one_named_stop_until_its_expiry_and_nothing_else(tmp_path, monkeypatch):
     """(coordinator ruling 2026-11-18) A HELD kill (`status: pending` on the committed kill list) lets the REACH rule
     carry its ONE named capture as a stop, re-proved from that capture's record, and only until `expires`. CONTROLS:
     the day after expiry it is a stop again; the same capture graded MATCH (the held entry no longer true) is not
     accepted; another DIVERGE capture of the same script is not accepted."""
     rtv = json.loads(VERDICTS_RT.read_text(encoding="utf-8"))
     prodv = json.loads(VERDICTS_PROD.read_text(encoding="utf-8"))
-    pending = rt.pending_kills()
-    assert pending, "no held kill on the committed list (vacuous)"
+    pending = held_kills_or_synthetic(rtv, tmp_path, monkeypatch)
+    assert pending, "no held kill, committed or synthetic (vacuous)"
     for s in pending.values():
         cid = s["evidence"]["capture"]
         expires = datetime.date.fromisoformat(s["expires"])
