@@ -802,9 +802,14 @@ export function createPrefetch(o = {}) {
         if (carries) fresh.push(k)
       }
     }
-    edgeQueue.length = 0          // the list on screen replaces the one before it
-    edgeQueue.push(...fresh)
-    edgeListAt = Date.now()
+    // the list on screen replaces the one before it; the same list sent again (a retime, a refresh)
+    // neither restarts the delay nor reorders the queue
+    const same = fresh.length === edgeQueue.length && fresh.every((k, i) => k === edgeQueue[i])
+    if (!same) {
+      edgeQueue.length = 0
+      edgeQueue.push(...fresh)
+      edgeListAt = Date.now()
+    }
     if (edgeRunning || !fresh.length) return
     edgeRunning = true
     const pause = (ms) => new Promise((r) => setTimeout(r, ms))
