@@ -111,6 +111,16 @@ export const GROUPS = [
     words: [
       /\b(?:ask|open|pull up|bring up|launch|use)\s+(?:the\s+)?ai\s+(?:about|on|for|regarding)\b|\bask\s+(?:the\s+)?ai\b.*\b(?:chart|stock|symbol|ticker|this one|name)\b/,
       /\bwatermark\b.*\b(?:reset|back|default|original|re-?cent(?:er|re)|where it was)\b|\b(?:reset|re-?cent(?:er|re)|restore|undrag)\b.*\bwatermark\b/] },
+  // Charts family (2026-11-15): boardDetach.* — the in-canvas float, its Dock and "Move into tabs", and the Merge widgets toggle —
+  // in its OWN words-only group (as chartMenu): never a filler. The words name the ACT on a widget: float + the / my / this /
+  // it / a widget noun (never "low float", "the float of NVDA"), dock + it / them / all / a widget noun (never "dock the
+  // ranking": periodSort.dock), into … tabs, merge / unmerge the board / widgets / borders (never "merge my layouts").
+  { id: 'boardDetach', title: 'Float / dock widgets, move one into another’s tabs, merged board view', domains: ['boardDetach'], fillLast: true, wordsOnly: true,
+    words: [
+      /\b(?:float|unfloat|detach)\s+(?:the |my |this |that |it\b|them\b|every|all\b|(?:[a-z]+ )?(?:widget|panel)s?\b)|\bfloating\s+(?:widgets?|panels?)\b/,
+      /^(?!.*\b(?:ranking|period sort|sort)\b).*\bdock\s+(?:it|them|everything|all\b|(?:the |my )?(?:floating |[a-z]+ )?(?:widget|panel)s?\b)/,
+      /\b(?:move|put|drop|merge|send)\b.*\binto\b.*\btabs?\b/,
+      /\b(?:un)?merge(?:d)?\s+(?:the |my )?(?:board|widgets|borders)\b|\bmerged\s+(?:view|board)\b/] },
   // Charts family (2026-11-12): a chart's Company Info side panel and Earnings Strip (Add to Chart's host features), in their
   // OWN words-only group (as chartMenu): never a filler, so no existing group and no unrecognised request changes. The
   // words name the PANEL or the STRIP itself (company info / company or profile panel / earnings or fundamentals strip / the

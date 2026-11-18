@@ -116,6 +116,15 @@ def test_the_guard_still_passes_ordinary_multi_chart_prose():
         assert guard.suspicious(text) is False, text
 
 
+def test_the_board_detach_family_is_a_BOARD_action_withheld_bare():
+    # boardDetach.* floats / docks / moves widgets on the Charts workspace and merges its view: the board domain, never history
+    for n in ("boardDetach.float", "boardDetach.dock", "boardDetach.intoTabs", "boardDetach.setMerged"):
+        assert v2.domain_for(n) == "board", n
+        assert guard.suspicious(_bare(n)) is True, n
+    for text in ("Float the watchlist over the chart, then dock it back.", "Merge the board so the widgets touch."):
+        assert guard.suspicious(text) is False, text
+
+
 def test_the_news_library_family_is_a_NEWS_action_withheld_bare():
     # newsLibrary.* saves / notes / collects the member's own UCT News headlines: the news domain, never history
     for n in ("newsLibrary.save", "newsLibrary.setNote", "newsLibrary.collection", "newsLibrary.deleteCollection", "newsLibrary.place"):

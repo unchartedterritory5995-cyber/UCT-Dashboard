@@ -5597,6 +5597,66 @@
      "modes": {}
     }
    }
+  },
+  "boardDetach.dock": {
+   "digest": "6c22fc70cabd7a68",
+   "phrasings": {
+    "dock the news widget back": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "dock it back": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "dock all the floating widgets": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "boardDetach.intoTabs": {
+   "digest": "9114c4fa115a3d7a",
+   "phrasings": {
+    "move the news widget into the chart tabs": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move the news panel into the tabs of the chart": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "move the news widget into the chart widget tabs": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "boardDetach.setMerged": {
+   "digest": "2beb6de0ff6b379a",
+   "phrasings": {
+    "merge the board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "merge the widgets on the board": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "turn on the merged view": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {
@@ -5817,6 +5877,16 @@
   },
   "refuse.multiChart.cell-grid-closed": {
    "digest": "0638b246c841cc2a",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.boardDetach.float.switched-off": {
+   "digest": "ef86388d650446cd",
+   "gap": false,
+   "mode": null
+  },
+  "refuse.boardDetach.float.switched-off.model": {
+   "digest": "c619348b12fe13bb",
    "gap": false,
    "mode": null
   }

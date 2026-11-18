@@ -97,12 +97,31 @@ export function resolveActiveTab(widget) {
 // Period Sort "add as tab" carries its configuration here. ⛔ It used to be dropped
 // (`opts: {}` always), so a moved watchlist lost its list and a Period Sort tab fell back
 // to its default range — widgetTabs.test.js pins both callers' shapes.
-export function addWidgetTab(widget, { type, color = 'A', opts = {} } = {}) {
+export function addWidgetTab(widget, { type, color = 'A', opts = {}, tabId = null } = {}) {
   const w = widget && typeof widget === 'object' ? widget : {}
   const { tabs } = sanitizeWidgetTabs(widget)
-  const tab = { id: _newTabId(), type, color, opts: opts && typeof opts === 'object' && !Array.isArray(opts) ? { ...opts } : {} }
+  // `tabId`: a caller that must plan the same tab twice (UCT Agent's card, then its approval) names it; otherwise a fresh one
+  const tab = { id: (typeof tabId === 'string' && tabId && !tabs.some(t => t.id === tabId)) ? tabId : _newTabId(), type, color, opts: opts && typeof opts === 'object' && !Array.isArray(opts) ? { ...opts } : {} }
   const next = [...tabs, tab]
   return { ...w, wtabs: next, activeWtab: next.length } // active = the new last tab
+}
+
+// ⭐ "Move into another widget's tabs" (the floating panel's menu → ChartsWorkspace handleFloatWidgetToTab), as ONE pure
+// transform over the board's widgets so the handler and UCT Agent (boardDetach.intoTabs) run the same code: the source
+// widget's base definition ({type, color, opts}) becomes a new last tab of the target, the target keeps its own slot, and
+// the source leaves the board. ⛔ Only the base definition moves: a source's OWN extra tabs are not carried (the handler
+// never did) — a caller that must not lose them checks `sanitizeWidgetTabs(src).tabs.length` first. Identity when there is
+// nothing to do (same id, or either widget missing).
+export function moveIntoTabs(widgets, srcId, targetId, { tabId = null } = {}) {
+  const list = Array.isArray(widgets) ? widgets : []
+  if (srcId === targetId) return list
+  const src = list.find(w => w.id === srcId)
+  const target = list.find(w => w.id === targetId)
+  if (!src || !target) return list
+  const nextTarget = addWidgetTab(target, { type: src.type, color: src.color, opts: src.opts, tabId })
+  return list
+    .filter(w => w.id !== srcId)
+    .map(w => (w.id === targetId ? { ...nextTarget, x: w.x, y: w.y, w: w.w, h: w.h } : w))
 }
 
 // Close an extra tab by id. Never closes the base tab. Keeps the active pointer on

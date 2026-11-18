@@ -11232,6 +11232,10 @@
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
+     },
+     {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
@@ -11612,6 +11616,10 @@
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
+     },
+     {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
@@ -11988,6 +11996,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
      },
      {
       "id": "chartFeatures",
@@ -12374,6 +12386,10 @@
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
+     },
+     {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
@@ -12749,6 +12765,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
      },
      {
       "id": "chartFeatures",
@@ -13129,6 +13149,10 @@
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
+     },
+     {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
@@ -13505,6 +13529,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
      },
      {
       "id": "chartFeatures",
@@ -14152,6 +14180,10 @@
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
+     },
+     {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
@@ -14531,6 +14563,10 @@
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
+     },
+     {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
@@ -14906,6 +14942,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
      },
      {
       "id": "chartFeatures",
@@ -15546,6 +15586,10 @@
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
+     },
+     {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
@@ -15922,6 +15966,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
      },
      {
       "id": "chartFeatures",
@@ -16569,6 +16617,10 @@
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
+     },
+     {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
@@ -17206,6 +17258,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
      },
      {
       "id": "chartFeatures",
@@ -17847,6 +17903,10 @@
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
+     },
+     {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
@@ -18223,6 +18283,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
      },
      {
       "id": "chartFeatures",
@@ -18870,6 +18934,10 @@
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
+     },
+     {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
@@ -19246,6 +19314,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
      },
      {
       "id": "chartFeatures",
@@ -19632,6 +19704,10 @@
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
+     },
+     {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
@@ -20014,6 +20090,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
      },
      {
       "id": "chartFeatures",
@@ -20400,6 +20480,10 @@
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
+     },
+     {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
@@ -20776,6 +20860,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
      },
      {
       "id": "chartFeatures",
@@ -21156,6 +21244,10 @@
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
+     },
+     {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
@@ -21531,6 +21623,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
      },
      {
       "id": "chartFeatures",
@@ -21909,6 +22005,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
      },
      {
       "id": "chartFeatures",
@@ -22547,6 +22647,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
      },
      {
       "id": "chartFeatures",
@@ -23189,6 +23293,10 @@
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
+     },
+     {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
@@ -23826,6 +23934,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
      },
      {
       "id": "chartFeatures",
@@ -24467,6 +24579,10 @@
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
      },
      {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
+     },
+     {
       "id": "chartFeatures",
       "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
@@ -24842,6 +24958,10 @@
      {
       "id": "chartMenu",
       "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "boardDetach",
+      "title": "Float / dock widgets, move one into another’s tabs, merged board view"
      },
      {
       "id": "chartFeatures",

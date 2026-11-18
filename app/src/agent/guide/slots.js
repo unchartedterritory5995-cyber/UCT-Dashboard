@@ -15,6 +15,7 @@ import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 import { menuGroups, labelMap } from '../../widgets/registry'
 import { CHART_SETTING_DESCRIPTORS } from '../../components/chart/chartSettingsDescriptors'
 import { ACTION_SLOTS } from './actions'
+import { FLOAT_BUTTON_ON } from '../../pages/charts/floatButton'
 
 const firstRow = (rows) => (text) => rows.find(r => r.re.test(String(text || '').toLowerCase())) || null
 
@@ -172,12 +173,13 @@ export function widgetRows() {
 export const readWidget = (text) => widgetRows().find(w => w.re.test(String(text || '').toLowerCase())) || null
 
 // widget header controls (pages/charts/WidgetHeader.jsx)
+// (the Float button is shown only while pages/charts/floatButton.js FLOAT_BUTTON_ON is on — owner 11-14: off for now)
 export const HEADER_CONTROLS = [
   { id: 'float', label: 'Float', re: /\bfloat\w*\b|\bon top of\b|\boverlay a widget\b/, say: 'This button floats the widget on top of the others, for example over a chart. Its ⊞ docks it back.' },
   { id: 'popOut', label: 'Pop out', re: /\bpop\w*[- ]?out\b|\b(own|separate|new) window\b|\bother monitor\b|\bsecond (monitor|screen)\b/, say: 'This button opens the widget in its own window, which you can drag to another monitor.' },
   { id: 'addTab', label: 'Add a tab', re: /\btabs?\b/, say: 'This + adds a tab, so one slot can hold several widgets.' },
   { id: 'close', label: 'Close', re: /\b(close|remove|delete|get rid of)\b/, say: 'This × closes the widget.' },
-]
+].filter(c => c.id !== 'float' || FLOAT_BUTTON_ON)
 
 // components/chart/chartSettingsDescriptors.js: the product's own table of what Chart Settings holds and where
 const TABS = { 'price style': 'price', canvas: 'canvas', indicators: 'indicators', 'header & legend': 'header', header: 'header', markers: 'markers' }

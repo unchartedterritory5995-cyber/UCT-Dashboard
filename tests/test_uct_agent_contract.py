@@ -43,6 +43,8 @@ _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layo
              "chartReplay": "chartReplay",
              # C3-205..207 (pl-exec6): Tools → Custom-Period Sort, its own words-only group (app/src/agent/routing.js)
              "periodSort": "periodSort",
+             # Charts family (2026-11-15): float / dock / move into tabs / merged board, its own words-only group
+             "boardDetach": "boardDetach",
              # Charts family (2026-11-12): Tools → Compare Symbols' Rotation / Overlay view, its own words-only group
              "compare": "comparePanel",
              # Charts family (2026-11-15): the UCT News library, its own words-only group

@@ -859,6 +859,9 @@ export function withoutExcludedCharts(ops, texts, { host, getTargetKind, getCapa
       const chart = snap ? chartRefOf(kind, snap) : null
       if (chart && ex.has(chart)) { dropped++; continue }
     }
+    // boardDetach.* (Charts family, 2026-11-15): a BOARD op that names a widget in its args (cap.widgetArgs) — float / dock /
+    // move-into-tabs of the excluded chart's widget — is dropped too: a chart ref is its widget id (or `id~tab`)
+    if (Array.isArray(cap?.widgetArgs) && cap.widgetArgs.some(k => o?.args?.[k] != null && [...ex].some(r => String(r).split('~')[0] === String(o.args[k])))) { dropped++; continue }
     // (AUDIT, #988 GO) a change that lands on charts named in its ARGS — an indicator Save's `addTo`, run later as follow-ups
     // that never pass through execute — loses the excluded ones too
     if (Array.isArray(o?.args?.addTo) && o.args.addTo.some(r => ex.has(String(r).replace(/^[a-z]+:/i, '')))) {

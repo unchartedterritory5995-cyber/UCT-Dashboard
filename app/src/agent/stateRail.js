@@ -38,11 +38,17 @@ import { instancesOf } from '../components/chart/builder/agentSeams'
 import * as nativeRegistry from '../components/chart/engine/nativeRegistry'
 import { tickersIn } from './multiChart'
 import { matchPosition } from './fastPath'
-import { pronounReferent } from './chartRail'
+import { pronounReferent, INTO_TABS_DEST } from './chartRail'
+import { positionWord } from './host'
+import { agentLabelsOf } from '../widgets/registry'
+import { nameWords, saysName } from './widgetNames'
 
 export const STATE_RAIL_MARK = 'state-rail'
 
 const sameJson = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+// boardDetach.* (2026-11-15): the words that name a board-view change — an effect carrying `permit` is licensed only by a
+// clause that matches it (or the ordinary verbs below); additive words alone never match these
+const MERGE_WORDS = /\b(?:un)?merg(?:e|ed|es|ing)\b|\bgaps?\b/i
 const rowsOf = (cs) => instancesOf(cs, nativeRegistry).filter(r => !r.setting)
 const nm = (x) => (x == null ? '' : String(x))
 
@@ -93,6 +99,17 @@ const HARMLESS_DRAWING_KEYS = new Set(['hidden', 'locked'])
 const contentOf = (opts) => opts?.watchKey ?? opts?.scanKey ?? null
 const tabIds = (w) => (Array.isArray(w?.wtabs) ? w.wtabs.map(t => t.id) : [])
 
+// boardDetach.intoTabs (AUDIT T2 hold): the board as the words can name it — every widget by type and its own list / scan name,
+// a chart by the ticker it shows, a widget ON THE GRID by its position word (the same positionWord the receipts use)
+function boardWidgetsOf(p) {
+  const all = p.before?.board || []
+  const off = new Set((p.snap?.detached || []).map(String))
+  const grid = all.filter(w => !off.has(String(w.id)))
+  const charts = p.snap?.charts instanceof Map ? p.snap.charts : new Map()
+  return all.map(w => ({ id: String(w.id), type: w.type, name: nm(w.opts?.watchName || w.opts?.scanName) || null,
+    symbol: w.type === 'chart' ? (nm(charts.get(String(w.id))?.symbol).toUpperCase() || null) : null,
+    position: off.has(String(w.id)) ? '' : positionWord(w, grid) }))
+}
 const READERS = {
   indicatorEdits(p) {
     const req = p.patch?.change?.request ?? p.after?.change?.request
@@ -160,7 +177,32 @@ const READERS = {
     if (!pt || pt.grid || pt.add) return []                       // chartGrid.set / a new widget: the chart rail reads the grid
     const was = new Map((p.before?.board || []).map(w => [String(w.id), w]))
     const out = []
+    // boardDetach.setMerged (2026-11-15): the board's merged view is the member's setting on EVERY layout — an overwrite,
+    // licensed only by the words that ask for it (merge / unmerge / merged / the gaps), never by additive words alone
+    if (pt.viewDo && 'merged' in pt.viewDo) out.push({ state: 'widget', type: 'overwrite', name: 'the board’s merged view (on every layout)', label: 'merged view', permit: MERGE_WORDS })
+    // boardDetach.intoTabs (2026-11-15): a widget MOVED into another widget's tabs leaves its slot on the board — a destroy of
+    // that grid widget (its base definition lives on as the new tab), licensed by a modify verb or by the words that name the
+    // move ("into … tabs"), never by additive words alone. Its own `remove` below is replaced by this effect.
+    const movedIn = new Set()
     for (const id of pt.remove || []) {
+      const w = was.get(String(id))
+      if (!w) continue
+      const into = Object.entries(pt.set || {}).find(([tid, d]) => {
+        const t = was.get(String(tid))
+        if (!t || !('wtabs' in d)) return false
+        const old = new Set(tabIds(t))
+        return (d.wtabs || []).some(x => !old.has(x.id) && x.type === w.type && sameJson(x.opts || {}, w.opts || {}))
+      })
+      if (into && w.type !== 'chart') {
+        movedIn.add(String(id))
+        // ⛔ AUDIT T2 HOLD (wrong target): licensed only by words naming THIS widget as the one that moves and THAT widget as
+        // the one whose tabs it joins (intoTabsLicensed) — never by "into … tabs" alone
+        out.push({ state: 'widget', type: 'overwrite', name: `the ${nm(w.type)} widget’s spot on the board (it moves into the ${nm(was.get(String(into[0]))?.type)} widget’s tabs)`,
+          intoTabs: { src: String(id), dst: String(into[0]), board: boardWidgetsOf(p) } })
+      }
+    }
+    for (const id of pt.remove || []) {
+      if (movedIn.has(String(id))) continue
       const w = was.get(String(id))
       if (w && w.type !== 'chart') out.push({ state: 'widget', type: 'remove', name: `the ${nm(w.type)} widget` })
     }
@@ -516,6 +558,8 @@ const MADE_NOW = /\b(?:add|adds|adding|put|puts|putting|insert\w*|include\w*|dra
 export function permits(e0, words, subjects = null, previous = null, previousSet = null, made = null, extra = null) {
   // (H14) the conversation's subject — the indicator this conversation just added or changed — is what a class noun said
   // right after means ("…add the 21 EMA and RSI, and make the EMA orange"): it narrows the class to that one instance
+  // ⛔ AUDIT T2 HOLD: a widget moved into another's tabs — ONLY its own target read (no modify verb, no class noun licenses it)
+  if (e0?.intoTabs) return intoTabsLicensed(e0.intoTabs, words)
   const e = e0 && e0.state === 'indicator' && e0.id && subjects?.has?.(e0.id) ? { ...e0, subjectNow: true } : e0
   const why = extra?.why || {}
   // a PICK the member made from the choices this rail asked with: exactly that object
@@ -533,6 +577,8 @@ export function permits(e0, words, subjects = null, previous = null, previousSet
     // a display switch named by the list it shows (never a symbol; a homograph is asked: stateRailRefusal)
     if (!negated && e.type === 'replace' && e.to && PUT_IN.test(c) && has(c, e.to) && (SAID_LIST(c, e.to) || !tickersIn(c).includes(String(e.to).toUpperCase()))) return true
     if (!negated && e.via === 'save' && KEEP_IN_LAYOUT.test(c)) return true
+    // an effect's own words (boardDetach: "merge the board") license exactly it
+    if (!negated && e.permit instanceof RegExp && e.permit.test(c)) return true
     if (!negated && e.state === 'watchlist' && e.syms && e.listSyms) {
       // "remove all five": the count IS the list's size, and the change removes every one
       const an = ALL_N.exec(c)
@@ -638,6 +684,56 @@ export function permits(e0, words, subjects = null, previous = null, previousSet
     }
     if (named.length) { before = named; prev = c }
     if (named.length || STATE_ADDITIVE.test(c) || new RegExp(VERBS.source, 'i').test(c)) spoke = true
+  }
+  return false
+}
+// ⛔ AUDIT T2 HOLD (#1304, wrong-target class): "into … tabs" licensed ANY widget's into-tabs move — "tuck the news widget into the
+// watchlist tabs" applied to a plan moving the CALENDAR, "put the watchlist into the news tabs" to the REVERSED plan. The words
+// are split as the chart rail splits them (chartRail INTO_TABS_DEST): the DESTINATION phrase ("into the X tabs", "into the tabs
+// of X") must name exactly the widget whose tabs the plan fills, and the words OUTSIDE it exactly the widget the plan moves — by
+// type, its own list / scan name, the ticker a chart shows, or its position. Anything else fails closed: no destination
+// phrase, two of them, a negated clause, a side that names no widget, or one that names several (two news widgets and nothing
+// telling them apart) → refused, nothing written, no card.
+const TYPE_NAMES = new Map()
+const typeNamesOf = (type) => {
+  if (!TYPE_NAMES.has(type)) TYPE_NAMES.set(type, [...Object.values(agentLabelsOf(type) || {}), type].map(nameWords).filter(n => n.length))
+  return TYPE_NAMES.get(type)
+}
+// "into the tabs of the watchlist": the destination runs on past "tabs" to the end of its clause
+const TABS_OF_TAIL = /^\s*of\s+[^.,;:!?(—–]*?(?=\s*(?:$|[.,;:!?(—–]|\s(?:and|then|please|pls|now|for me|right now)\b))/i
+const DEST_FILLER = /\b(?:into|tabs?|of)\b/gi
+const POS_SAID = /\b(top[- ]left|top[- ]right|bottom[- ]left|bottom[- ]right|upper[- ]left|upper[- ]right|lower[- ]left|lower[- ]right|top[- ]middle|bottom[- ]middle|left|right|top|bottom|upper|lower|middle)\b/gi
+/** The widgets a phrase names on this board → [ids] (empty: it names none). Every kind of naming said must fit the widget:
+ *  its type (or its own list name), its list / scan name, the ticker it shows, its position. */
+export function widgetsNamedOn(text, board) {
+  const t = String(text || '').replace(/\bwatch\s+lists?\b/gi, 'watchlist')
+  const words = nameWords(t)
+  const types = new Set(board.map(w => w.type).filter(ty => typeNamesOf(ty).some(n => saysName(words, n))))
+  const named = board.filter(w => w.name && has(t, w.name)).map(w => w.id)
+  const syms = new Set(tickersIn(t))
+  const ticker = board.filter(w => w.symbol && syms.has(w.symbol)).map(w => w.id)
+  const pos = t.match(POS_SAID) || []
+  if (!types.size && !named.length && !ticker.length && !pos.length) return []
+  return board.filter(w => (!types.size || types.has(w.type) || named.includes(w.id))
+    && (!named.length || named.includes(w.id))
+    && (!ticker.length || ticker.includes(w.id))
+    && (!pos.length || atPosition(w.position, pos))).map(w => w.id)
+}
+/** Do the words move EXACTLY this widget (`src`) into EXACTLY that widget's (`dst`) tabs? */
+export function intoTabsLicensed(it, words) {
+  const board = Array.isArray(it?.board) ? it.board : []
+  for (const c of clausesOf(words)) {
+    if (NEG.test(c)) continue
+    const ms = [...c.matchAll(new RegExp(INTO_TABS_DEST.source, 'gi'))]
+    if (ms.length !== 1) continue
+    const m = ms[0]
+    let end = m.index + m[0].length
+    const tail = /\btabs?\s*$/i.test(m[0]) ? TABS_OF_TAIL.exec(c.slice(end)) : null
+    if (tail) end += tail[0].length
+    const dest = c.slice(m.index, end).replace(DEST_FILLER, ' ')
+    const source = `${c.slice(0, m.index)} ${c.slice(end)}`
+    const src = widgetsNamedOn(source, board), dst = widgetsNamedOn(dest, board)
+    if (src.length === 1 && dst.length === 1 && src[0] === String(it.src) && dst[0] === String(it.dst) && src[0] !== dst[0]) return true
   }
   return false
 }

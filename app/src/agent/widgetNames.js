@@ -58,7 +58,7 @@ const CONNECTORS = new Set(['and', 'or', 'of', 'the', 'a', 'an', 'vs', 'versus',
 const stem = (w) => (/(?:x|s|z|ch|sh)es$/.test(w) && w.length > 4 ? w.slice(0, -2) : /s$/.test(w) && !/ss$/.test(w) && w.length > 4 ? w.slice(0, -1) : w)
 export const nameWords = (s) => normName(s).trim().split(' ').filter(w => w && !CONNECTORS.has(w)).map(stem)
 const GAP = 1
-function saysName(words, name) {
+export function saysName(words, name) {
   if (!name.length) return false
   for (let i = 0; i < words.length; i++) {
     if (words[i] !== name[0]) continue

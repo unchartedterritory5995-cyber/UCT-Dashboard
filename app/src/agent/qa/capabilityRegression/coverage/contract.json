@@ -105,6 +105,58 @@
    ],
    "fast": true
   },
+  "boardDetach.dock": {
+   "domain": "boardDetach",
+   "group": "boardDetach",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "boardDetach.float": {
+   "domain": "boardDetach",
+   "group": "boardDetach",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
+  "boardDetach.intoTabs": {
+   "domain": "boardDetach",
+   "group": "boardDetach",
+   "target": "board",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false
+  },
+  "boardDetach.setMerged": {
+   "domain": "boardDetach",
+   "group": "boardDetach",
+   "target": "board",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true
+  },
   "breadth.history": {
    "domain": "breadth",
    "group": "breadth",

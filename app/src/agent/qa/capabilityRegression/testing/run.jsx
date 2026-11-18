@@ -256,6 +256,8 @@ export function checkExpect(ctx, e, label) {
   if ('movingAveragesOn' in e) expect(anyAverageOn(mergeChartSettings(chartsOf(board)[0]?.opts?.settings ?? null), nativeRegistry.getDefinition), `${label}: a moving average showing`).toBe(e.movingAveragesOn)
   // volumeProfile.set: the first chart's Volume Profile as the canvas reads it ({enabled, bins, ...} — only the keys a case names)
   if (e.volumeProfile) expect(volumeProfileOf(chartsOf(board)[0]?.opts?.settings ?? null), `${label}: the Volume Profile`).toMatchObject(e.volumeProfile)
+  // boardDetach.*: the workspace's float / merged state as the fixture's detach source holds it (only the keys a case names)
+  if (e.detach) expect({ floating: [...(board.state.detach?.floating || [])].sort(), merged: board.state.detach?.merged === true, widgets: board.state.widgets.map(w => w.id).sort() }, `${label}: the board's float / merged state`).toMatchObject(e.detach)
   if (e.indicators) {
     const id = chartsOf(board)[e.indicators.chart || 0]?.id
     const got = p.brief(board, id)
