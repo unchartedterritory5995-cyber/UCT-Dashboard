@@ -166,7 +166,7 @@ function Contracts({ code, date, order, onDate }) {
           <thead>
             <tr>
               <th scope="col" title="Click a symbol to load it into the linked panels">Symbol</th>
-              <th scope="col" className={styles.wrapCell}>Contract</th>
+              <th scope="col" className={`${styles.wrapCell} ${styles.phoneTight}`}>Contract</th>
               <th scope="col" title="Trades on this contract in the session that cleared the size floor for the stock, and all its trades counted">Hits</th>
               <th scope="col" title="Dollars across all the contract's trades in the session, and the session's contracts against the open interest before it (OI)">Premium</th>
               <th scope="col" title="Which way the contract's premium leans, and the share of all its premium on that side; the rest went the other way or has no readable side">Direction</th>
@@ -181,16 +181,16 @@ function Contracts({ code, date, order, onDate }) {
                   <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
                   <PanelSymbol sym={r.sym} className={styles.sym} />
                 </td>
-                <td className={styles.wrapCell}>{unbroken(contractText(r))}</td>
+                <td className={`${styles.wrapCell} ${styles.phoneTight}`}>{unbroken(contractText(r))}</td>
                 <td>
                   {count(r.hits)}
                   {r.trades != null && r.hits != null && r.trades > r.hits ? <span className={styles.muted}>{` of${NBSP}${count(r.trades)}`}</span> : null}
                 </td>
-                <td>
+                <td className={styles.phoneWrap}>
                   {money(r.premium)}
                   {r.volToOi == null ? null : <span className={styles.muted}>{` ${formatNumber(r.volToOi, { decimals: 1 })}×${NBSP}OI`}</span>}
                 </td>
-                <td className={toneOf(r.direction)}>
+                <td className={`${toneOf(r.direction) || ''} ${styles.phoneWrap}`.trim()}>
                   {directionWords(r)}
                   {r.leanSharePct == null ? null : <span className={styles.muted}>{` (${share(r.leanSharePct)})`}</span>}
                 </td>
