@@ -35,7 +35,7 @@ export function ensureChartSources(keys, tf, barCount, fetcher) {
   for (const k of list) {
     const held = heldKeyParts(k)
     if (!held) continue
-    const entry = ensureSecondaryBars(held.symbol, held.tf, heldDepthOf(barCount), fetcher)
+    const entry = ensureSecondaryBars(held.symbol, held.tf, heldDepthOf(barCount, tf), fetcher)
     if (entry) out.set(k, entry)
   }
   return out
@@ -59,7 +59,7 @@ export function liveTailTick(keys, tf, barCount, fetcher, chartForming) {
     const held = heldKeyParts(k)
     const symbol = held ? held.symbol : k
     const at = held ? held.tf : tf
-    const depth = held ? heldDepthOf(barCount) : barCount
+    const depth = held ? heldDepthOf(barCount, tf) : barCount
     const e = cachedBars(symbol, at, depth)
     if (!e || e.status !== 'available') continue
     if (e.newestBarIsForming !== true && chartForming !== true) continue
