@@ -94,6 +94,8 @@ def test_a_new_day_is_backed_up_built_published_and_proven_on_the_bucket(tmp_pat
     assert "heavy_lock.py" in " ".join(build) and build[build.index("--days") + 1] == "2026-11-16"
     pub = next(c for c in calls if any(x.endswith("publish.py") for x in c))
     assert pub[pub.index("--as-of") + 1] == "2026-11-16" and "--force-since" in pub and "--upload" in pub
+    # only the packs this run rebuilt are checked (the rest were checked when written)
+    assert pub[pub.index("--check-since") + 1] == pub[pub.index("--force-since") + 1] and "--no-check" not in pub
     assert str(root / "packs-1") in pub and str(root / "packs-7") in pub          # every tree's indexes
     assert flat.index(" ".join(build)) < flat.index(" ".join(pub))                 # build before publish
     backups = list(root.glob("backup-*"))
@@ -133,7 +135,7 @@ def test_a_build_whose_publish_failed_is_published_again_next_run_without_rebuil
     assert code == D.EXIT_OK
     assert not any(any(x.endswith("build.py") for x in c) for c in calls)
     pub = next(c for c in calls if any(x.endswith("publish.py") for x in c))
-    assert pub[pub.index("--as-of") + 1] == "2026-11-16" and "--force-since" not in pub
+    assert pub[pub.index("--as-of") + 1] == "2026-11-16" and "--force-since" not in pub and "--no-check" in pub   # nothing rebuilt: nothing re-read
     assert json.loads((root / "daily-state.json").read_text())["published_through"] == "2026-11-16"
 
 
