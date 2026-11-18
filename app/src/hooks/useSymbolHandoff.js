@@ -33,7 +33,7 @@ import { BARSTORE } from '../components/chart/barStoreSwitch'
 import { viewCacheTf } from '../utils/viewSession'
 import { isCurrentEnoughForPaint } from '../utils/marketSession'
 import { isNativeTf, fetchTf } from '../components/chart/timeframes'
-import { columnsReadyFor, whenColumnsReady } from '../components/chart/engine/serverCompute'
+import { columnsReadyFor, whenColumnsReady, warmColumnsFor } from '../components/chart/engine/serverCompute'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
 /** The longest a switch waits for its panes' server columns before it commits anyway. */
@@ -128,6 +128,10 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     // or prefetch through the bars lane (it would 404) — the chart loads it from
     // /api/econ itself, so the request commits straight through.
     if (/^ECON:/i.test(String(requestedSym))) { commitNow(); return undefined }
+
+    // The panes' server columns leave NOW, beside the bars (the prepare below, or the daily one), so
+    // the commit's bounded wait (COLUMNS_WAIT_MS) covers only what is left of them.
+    warmColumnsFor(requestedSym, tf)
 
     // FAST PATH — synchronous, same tick, no scheduling latency added.
     // ⛔ THE SYNCHRONOUS setState IS THE POINT, NOT AN OVERSIGHT. A neighbour the
