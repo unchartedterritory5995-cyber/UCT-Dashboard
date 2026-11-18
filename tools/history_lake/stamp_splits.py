@@ -51,6 +51,15 @@ def stamp(lake: Path, rows, as_of: str, *, log=print) -> dict:
     seen = set()
     with os.scandir(idx_dir) as it:
         names = sorted(e.name for e in it if e.name.endswith(".json"))
+    # The lake's own symbols, from the file names (`s-<encoded>.json`), so a class share can borrow
+    # the splits the vendor filed under its undotted spelling (factors.with_class_share_spellings).
+    lake_symbols = set()
+    for name in names:
+        try:
+            lake_symbols.add(piece.decode_symbol(name[:-5]))
+        except piece.PieceError:
+            pass
+    tables = factors.with_class_share_spellings(tables, lake_symbols)
     for name in names:
         path = idx_dir / name
         try:
