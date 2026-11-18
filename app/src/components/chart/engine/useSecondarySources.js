@@ -21,9 +21,25 @@
 // network traffic for series that will never be bound.
 import { useEffect, useMemo, useState } from 'react'
 import { symbolsNeeded } from './sourceRef'
-import { fetchableOtherSymbols, isPineOriginDoc } from './otherSymbols'
+import { fetchableOtherSymbols, isPineOriginDoc, heldKeyParts, heldDepthOf } from './otherSymbols'
 import { instanceDocumentForFetch } from './symbolInputs'
 import { ensureAll, ensureSecondaryBars, subscribe } from './secondaryBars'
+
+/** ⭐⭐ RS RATING L11 — every key this chart needs, asked once each: an ordinary key at the chart's
+ *  own timeframe and depth (`ensureAll`, as before), a HELD key (`SPX@D` on a weekly chart,
+ *  `otherSymbols.js::heldKeyParts`) at its held timeframe, deep enough for the chart's weekly bars
+ *  (`heldDepthOf`). One map, keyed as `symbolsNeeded` named them. */
+export function ensureChartSources(keys, tf, barCount, fetcher) {
+  const list = Array.isArray(keys) ? keys : []
+  const out = ensureAll(list.filter((k) => !heldKeyParts(k)), tf, barCount, fetcher)
+  for (const k of list) {
+    const held = heldKeyParts(k)
+    if (!held) continue
+    const entry = ensureSecondaryBars(held.symbol, held.tf, heldDepthOf(barCount), fetcher)
+    if (entry) out.set(k, entry)
+  }
+  return out
+}
 import { lowerTfWindowsNeeded } from './lowerTf'
 
 /** Do two maps hold the same entry OBJECT for the same symbols? */
@@ -53,7 +69,8 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
   const [state, setState] = useState(EMPTY)
 
   useEffect(() => {
-    const symbols = symbolsNeeded(instances ? instances() : null, defOf)
+    // ⭐ RS RATING L11 — named for THIS chart's timeframe (a weekly chart holds SP:SPX and the seed at D)
+    const symbols = symbolsNeeded(instances ? instances() : null, defOf, tf)
     const key = `${symbols.join(',')}|${tf}|${barCount}`
     let alive = true
 
@@ -64,7 +81,7 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
       // null-key-means-no-traffic idiom `compareSwrUrl` and
       // `useSignatureIndicators` already use. It returns the SHARED empty state,
       // so "needs nothing" is one stable identity rather than a new object.
-      const map = symbols.length ? ensureAll(symbols, tf, barCount, fetcher) : null
+      const map = symbols.length ? ensureChartSources(symbols, tf, barCount, fetcher) : null
       setState((prev) => {
         if (!map) return prev.map === null ? prev : EMPTY
         return prev.key === key && sameEntries(prev.map, map) ? prev : { key, map }

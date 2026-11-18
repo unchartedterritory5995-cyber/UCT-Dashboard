@@ -1,0 +1,3493 @@
+{
+ "schema": "uct.vendor-capture/v1",
+ "id": "rs-rating-fred6724-w-rddt-1w-2026-11-17",
+ "capturedAtUTC": "2026-11-17T21:16:39.028Z",
+ "tool": {
+  "snippet": "tools/vendor_harness/tv_capture.js",
+  "version": 2
+ },
+ "page": {
+  "url": "https://www.tradingview.com/chart/01f1AcIj/",
+  "visibilityState": "visible",
+  "hasFocus": true
+ },
+ "symbol": {
+  "name": "RDDT",
+  "full_name": "NYSE:RDDT",
+  "pro_name": "NYSE:RDDT",
+  "exchange": "NYSE",
+  "listed_exchange": "NYSE",
+  "type": "stock",
+  "session": "0930-1600",
+  "timezone": "America/New_York",
+  "pricescale": 100,
+  "minmov": 1,
+  "currency": "USD"
+ },
+ "timeframe": "1W",
+ "newestBarIsForming": true,
+ "newestBar": {
+  "time": 1794839400,
+  "source": "derived",
+  "derived": true,
+  "periodEndUTC": "2026-11-20T21:00:00.000Z",
+  "rule": "the session close of the last trading day of the bar's week (session_holidays read)",
+  "asserted": true
+ },
+ "history": {
+  "startsAtBar0": false,
+  "why": "not asserted"
+ },
+ "source": {
+  "text": "//Relative Price Strength (RS) Rating or Relative Strenght.\n//This is a measure of a stock's price performance over the last\n//twelve months, compared to all US stocks.\n//The rating scale ranges frome 1 (lowest) to 99 (highest)\n//Let's create an equivalent here for TradingView!\n//\n// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/\n// © Fred6724\n// RaviYendru thank you for providing the intial script\n\n//@version=5\nindicator(title='RS Rating', shorttitle='RS Rating', overlay=true, max_bars_back = 253)\n\n// Constant value\ncomparativeTickerId = 'SP:SPX' // For RS Score Calculation, the SPX Value only makes sens because of the GitHub project\n\n// Inputs\nhideRSRat   = input(false, title='Hide Rating', group = 'RS Line')\nratingOnly  = input(false, title='Rating Only', group = 'RS Line')\n// seedetail   = input(false, title='Display the 3 results', group = 'Parameters', inline='0')\ncolorRS     = input(color.rgb(0, 0, 255,0), title = 'Color', group = 'RS Line', inline = 'a')\nlineTicker  = input('SP:SPX', title='Comparative Symbol for Line', group = 'Shape & Offset', tooltip = 'Reference ticker used for calculation of the RS Line.')\nSpxValue    = input(4200, title='Approximate Value of Comparative Symbol', group = 'Shape & Offset', tooltip = 'Used to gather a constant value')\noffset      = input.int(80, minval = 0, maxval = 2000, title='Offset (%)', group = 'Shape & Offset', tooltip = 'Used to display the RS Line under the price.')\nplotNewHigh = input(true, title = 'Plot RS New Highs', group = 'RS Line New High')\nrsNewHigh   = input.string('RS New Highs', title = 'Type', options=['RS New Highs','RS New Highs Before Price', 'Historical RS New Highs', 'Historical RS New Highs  Before Price'], group = 'RS Line New High', inline = 'b')\nblueDotCol  = input(color.rgb(121, 213, 242,62), title = 'Color', group = 'RS Line New High', inline = 'b')\nlookback    = input.int(250, title = 'Look-back', minval = 1, maxval = 252, group = 'RS Line New High', tooltip = 'The lookback for calculation of price and RS New Highs.', inline = 'b')\nsizeLabHigh = input.string('Tiny', title = 'Size', options = ['Tiny', 'Small', 'Normal', 'Large'], group = 'RS Line New High')\nplotNewLow  = input(false, title = 'Plot RS New Lows', group = 'RS Line New High')\nrsNewLow    = input.string('Historical RS New Lows', title = 'Type', options=['RS New Lows','RS New Lows Before Price', 'Historical RS New Lows', 'Historical RS New Lows  Before Price'], group = 'RS Line New High', inline = 'x')\nredDotCol   = input(color.rgb(255, 82, 82, 62), title = 'Color', group = 'RS Line New High', inline = 'x')\nlookback2   = input.int(250, title = 'Look-back', minval = 1, maxval = 252, group = 'RS Line New High', tooltip = 'The lookback for calculation of price and RS New Lows.', inline = 'x')\nsizeLabLow  = input.string('Tiny', title = 'Size', options = ['Tiny', 'Small', 'Normal', 'Large'], group = 'RS Line New High')\nboolMa      = input(false, title = 'Display MA 1 on RS Line', group = '1st MA on RS Line')\nlenMa       = input(21, title = 'Lenght Da', group = '1st MA on RS Line', inline = 'c')\ncolMa       = input(color.orange, title = 'Color', group = '1st MA on RS Line', inline = 'c')\ntypMa       = input.string('EMA', title = 'Type Da', options = ['SMA', 'EMA'], group = '1st MA on RS Line', inline = 'c')\nlenMaWe     = input(10, title = 'Lenght We', group = '1st MA on RS Line', inline = 'c')\ntypMaWe     = input.string('SMA', title = 'Type We', options = ['SMA', 'EMA'], group = '1st MA on RS Line', inline = 'c')\nfillMa      = input(false, title = 'Area Color', group = '1st MA on RS Line')\nposCol      = input(color.rgb(0, 230, 119, 75), title = 'Positive Area', group = '1st MA on RS Line', inline = 'd')\nnegCol      = input(color.rgb(255, 82, 82, 75),  title = 'Negative Area', group = '1st MA on RS Line', inline = 'd')\nboolMa2     = input(false, title = 'Display MA 2 on RS Line', group = '2nd MA on RS Line')\nlenMa2      = input(50, title = 'Lenght Da', group = '2nd MA on RS Line', inline = 'c')\ncolMa2      = input(color.red, title = 'Color', group = '2nd MA on RS Line', inline = 'c')\ntypMa2      = input.string('EMA', title = 'Type Da', options = ['SMA', 'EMA'], group = '2nd MA on RS Line', inline = 'c')\nlenMa2We    = input(21, title = 'Lenght We', group = '2nd MA on RS Line', inline = 'c')\ntypMa2We    = input.string('SMA', title = 'Type We', options = ['SMA', 'EMA'], group = '2nd MA on RS Line', inline = 'c')\nallowReplay = input(false, title = 'Use fix values for replay mode', group = 'Replay mode (Approximate Method)', tooltip = 'Here we use constant values in order to provide the environment regardless of the date. See RSRATING ticker and report close values to have the last data.')\nfirst2      = input(195.93, title='For 99 stocks' , group = 'Replay mode (Approximate Method)')\nscnd2       = input(117.11, title='For 90+ stocks', group = 'Replay mode (Approximate Method)')\nthrd2       = input(99.04, title='For 70+ stocks' , group = 'Replay mode (Approximate Method)')\nfrth2       = input(91.66, title='For 50+ stocks' , group = 'Replay mode (Approximate Method)')\nffth2       = input(80.96, title='For 30+ stocks' , group = 'Replay mode (Approximate Method)')\nsxth2       = input(53.64, title='For 10+ stocks' , group = 'Replay mode (Approximate Method)')\nsvth2       = input(24.86, title='For 1- stocks'  , group = 'Replay mode (Approximate Method)')\n\n\n// Blue Dot\n// If Blue Dot is ste to 250 Da, than we want it to be set on 52 We on the Weekly TimeFrame\nif (lookback  == 250 and timeframe.isweekly)\n    lookback  := 52\nif (lookback2 == 250 and timeframe.isweekly)\n    lookback2 := 52\n\n// Switch Label Size\nhighLabel = switch sizeLabHigh\n    'Normal'  => size.normal\n    'Tiny'    => size.tiny\n    'Small'   => size.small\n    'Large'   => size.large\n\nlowLabel  = switch sizeLabLow\n    'Normal'  => size.normal\n    'Tiny'    => size.tiny\n    'Small'   => size.small\n    'Large'   => size.large\n\n// Using bar index in case of IPO to avoid NaN results\n// Added max_bars_max = 253 to improve display speed\nn63      = bar_index < 63  ? bar_index:63 \nn126     = bar_index < 126 ? bar_index:126\nn189     = bar_index < 189 ? bar_index:189\nn252     = bar_index < 252 ? bar_index:252\n\n\n// Comparative Ticker for RS Line\ncomparativeSymbol   = request.security(lineTicker, timeframe.period, close)\n// RS Line but multiplied by a little bit less than the constant value of the comparative ticker for correct display\nrsCurve             = (close/comparativeSymbol)\n// Adapt Offset for low ADR grapghs like indices and sectors\n// Adapt Ratio for Sectors and Indices\nif (syminfo.industry == 'Investment Trusts/Mutual Funds')\n    offset := 90\n// We use a wider offset for Weekly timeframe for a smoother display\nrsRatio             = timeframe.isweekly ? SpxValue*(offset-10)/100:SpxValue*offset/100\nrs                  = rsCurve*rsRatio\nprevlookback  = lookback\nprevlookback2 = lookback2 // For RS New Lows\nlookback := math.min(lookback - 1, bar_index)\nrsPlot = plot(rs, title='RS Line', style=plot.style_line, linewidth=1, color=colorRS)\n\n// 1st MA on RS Line\n// SMA and EMA\nrsMA      = ta.sma(rs, lenMa)\nif (typMa == 'SMA' and not timeframe.isweekly)\n    rsMA      := ta.sma(rs, lenMa)\nif (typMa == 'EMA' and not timeframe.isweekly)  \n    rsMA      := ta.ema(rs, lenMa)\nif (typMaWe == 'SMA' and timeframe.isweekly)\n    rsMA      := ta.sma(rs, lenMaWe)\nif (typMaWe == 'EMA' and timeframe.isweekly)\n    rsMA      := ta.ema(rs, lenMaWe)\n\nmaPlot    = plot(boolMa ? rsMA :na,    color = colMa, linewidth = 1)\n\n// Color Filling\n// I will use an invisible MA to be able to choose or not the display of the fill\nmaPlot2    = plot(boolMa and fillMa ? rsMA:na,    color = color.rgb(0,0,0,100), linewidth = 1)\n// This variable gets the color that will be used for the fill\nfillCol = rs > rsMA ? posCol:negCol\n// Here if a MA is missing, there is no fill\nfill(rsPlot, maPlot2 ,   color=fillCol)\n\n\n// 2nd MA on RS Line\n// SMA and EMA\nrsMA2      = ta.sma(rs, lenMa2)\nif (typMa2 == 'SMA' and not timeframe.isweekly)\n    rsMA2      := ta.sma(rs, lenMa2)\nif (typMa2 == 'EMA' and not timeframe.isweekly)  \n    rsMA2      := ta.ema(rs, lenMa2)\nif (typMa2We == 'SMA' and timeframe.isweekly)\n    rsMA2      := ta.sma(rs, lenMa2We)\nif (typMa2We == 'EMA' and timeframe.isweekly)\n    rsMA2      := ta.ema(rs, lenMa2We)\n\nmaPlot3  = plot(boolMa2 ? rsMA2 :na,    color = colMa2, linewidth = 1)\n\n\n\n\n// Historical New Highs & New Highs Before Price\nvar label newHigh = na\nhistNH = ta.highest(rs  , prevlookback)\nhistCl = ta.highest(high, prevlookback)\n// Historical RS New High\nif (rsNewHigh == 'Historical RS New Highs' and plotNewHigh and rs == histNH)\n    newHigh := label.new(x = bar_index, y = rs, color = blueDotCol, style = label.style_circle, size = highLabel)\n// Historical RS New High Before Price\nif (rsNewHigh == 'Historical RS New Highs  Before Price' and plotNewHigh and rs == histNH and high < histCl)\n    newHigh := label.new(x = bar_index, y = rs, color = blueDotCol, style = label.style_circle, size = highLabel)\n// RS New High\nif (barstate.islast and rsNewHigh == 'RS New Highs' and plotNewHigh and rs == histNH)\n    label.delete(newHigh)\n    newHigh := label.new(x = bar_index, y = rs, color = blueDotCol, style = label.style_circle, size = highLabel)\n// RS New High Before Price\nif (barstate.islast and rsNewHigh == 'RS New Highs Before Price' and plotNewHigh and rs == histNH and high < histCl)\n    label.delete(newHigh)\n    newHigh := label.new(x = bar_index, y = rs, color = blueDotCol, style = label.style_circle, size = highLabel)\n\n\n// Historical New Lows & New Lows Before Price\nvar label newLow  = na\nhistNL  = ta.lowest(rs , prevlookback2)\nhistClL = ta.lowest(low, prevlookback2)\n// Historical RS New Low\nif (rsNewLow == 'Historical RS New Lows' and plotNewLow and rs == histNL)\n    newLow := label.new(x = bar_index, y = rs, color = redDotCol, style = label.style_circle, size = lowLabel)\n// Historical RS New Low Before Price\nif (rsNewLow == 'Historical RS New Lows  Before Price' and plotNewLow and rs == histNL and low > histClL)\n    newLow := label.new(x = bar_index, y = rs, color = redDotCol, style = label.style_circle, size = lowLabel)\n// RS New Low\nif (barstate.islast and rsNewLow == 'RS New Lows' and plotNewLow and rs == histNL)\n    label.delete(newLow)\n    newLow := label.new(x = bar_index, y = rs, color = redDotCol, style = label.style_circle, size = lowLabel)\n// RS New Low Before Price\nif (barstate.islast and rsNewLow == 'RS New Lows Before Price' and plotNewLow and rs == histNL and low > histClL)\n    label.delete(newLow)\n    newLow := label.new(x = bar_index, y = rs, color = redDotCol, style = label.style_circle, size = lowLabel)\n\n\n\n// Calculation of the RS Rating\n// Getting ticker and reference ticker daily data\ncloseDa    = request.security(syminfo.tickerid,    'D', close)\nspxCloseDa = request.security(comparativeTickerId, 'D', close)\n\n// Calculation of the performance from 1 to 4 last quarters\n// Ticker\nperfTicker63   = closeDa/closeDa[n63]\nperfTicker126  = closeDa/closeDa[n126]\nperfTicker189  = closeDa/closeDa[n189]\nperfTicker252  = closeDa/closeDa[n252]\n\n// SP500 of reference ticker\nperfComp63     = spxCloseDa/spxCloseDa[n63]\nperfComp126    = spxCloseDa/spxCloseDa[n126]\nperfComp189    = spxCloseDa/spxCloseDa[n189]\nperfComp252    = spxCloseDa/spxCloseDa[n252]\n\n// Using Formula to calculate a relative score of the ticker and the SP500 with the last quarter weighted double\nfloat rs_stock = 0.4*perfTicker63 + 0.2*perfTicker126 + 0.2*perfTicker189 + 0.2*perfTicker252\nfloat rs_ref   = 0.4*perfComp63   + 0.2*perfComp126   + 0.2*perfComp189   + 0.2*perfComp252\n\n// Calculation of the total relative score or rs performance\nfloat totalRsScore  = (rs_stock) / (rs_ref) * 100\nfloat totalRsRating = -1\n\n// Here we calculated the relative score of the stock. The goal is now to assign the percentile correctly\n// For this I took the curve given by my fork repo of Skyte on Rs Log and tried to calibrate the better possible\n// the output curve of the relative performance of the 6,6xx stocks.\n// Link: https://github.com/Fred6725/rs-log/blob/main/output/rs_stocks.csv\n// Here is the curve in ASCII Art; on the x-axis, the Rs Rating and on the y-axis, the calculated performance.\n      \n//                      \n//                                                                                        /                               \n//                                                                                        /                               \n//                                                                                        /                               \n//                                                                                        /                               \n//,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,/,,,,,,,,,,,,,,,,,              \n//                                                                                        /                               \n//                                                                                        /                               \n//                                                                                        /                               \n//                                                                                        /                               \n//                                                                                       |                               \n//                                                                                       /                               \n//                                                                                      ‾                                 \n//                                                                                     ‾                                   \n//                                                                                   -‾                                    \n//                                                                           _____, ‾                                     \n//                                         _____----------------‾‾‾‾‾‾‾‾‾‾‾‾‾                                                   \n//                        __ */‾‾‾‾‾‾‾‾‾‾‾‾                                                                                       \n//             __ ,,----‾‾                                                                                                 \n//          _/                                                                                                           \n//        /                                                                                                               \n//       |                                                                                                     \n// ______|________________ _______________________________ _____________________________________            \n//       |0               |20             |40             |60             |80              |100   \n//\n// I decided to cut this curve in 7 different levels that needs to be entered each day.\n// These are relative strength scores corresponding to percentiles 98, 89, 69, 49, 29, 9 and 1.\n// Finally I used the request.seed() function to auto update these levels automatically on a daily basis.\n// Everything is managed in this repo if you're curious:\n// https://github.com/Fred6725/relative-strength/tree/main    (Fork from Skyte)\n// More precisly in rs_ranking.py for extracting what I needed and in workflows/output.yml for the auto update.\n// The update is done in the private fork of the seed tradingview original repo, checked and synchronised automatically\n// I tried to uplad the full 6,6xx list of relative strength score and rs rating but the display speed was too long.\n\n\n// Use the request.seed() function to access the RS Score environment of all the market\ncurveRsPerf  = request.seed('seed_fred6725_rs_rating', 'RSRATING', close)\n\n// To prevent loosing data because of week-ends and public holidays I decided to send the value 5 times in a row.\n// Which gives 5*7 = 35 bars. (seed_fred6725_rs_rating:rsrating)\n// Depending of the day we look at the graph we will have a variable amount of bars. \n// The goal is to get these 7 numbers anyway.\n\n// In case the graph is not updated, we count the number of bars since we have the first data.\n// Calculation of the number of bar since we have the first data\ndelta  = ta.barssince(na(curveRsPerf) != true)\n\n// Table to store the different values\nvar float[] different_values = array.new_float(7)\n\n// Counter for stored values\nvar int counter = 0\n\n// Variable for storage of the environment\nfloat first = 0\nfloat scnd  = 0\nfloat thrd  = 0\nfloat frth  = 0\nfloat ffth  = 0\nfloat sxth  = 0\nfloat svth  = 0\n\n// Browse seed's values and store the first 7 different values\nif (not allowReplay)\n    for i = delta to 34+delta\n        close_value = nz(curveRsPerf[i])\n        if (not array.includes(different_values, close_value) and counter < 7 and close_value!=0)\n            array.set(different_values, counter, close_value)\n            counter := counter + 1\n\n    // Assign stored values to variables\n    first := array.get(different_values, 0)\n    scnd  := array.get(different_values, 1)\n    thrd  := array.get(different_values, 2)\n    frth  := array.get(different_values, 3)\n    ffth  := array.get(different_values, 4)\n    sxth  := array.get(different_values, 5)\n    svth  := array.get(different_values, 6)\n\n// Assign fix value for getting an approximation in Replay mode\nif (allowReplay)\n    first := first2\n    scnd  := scnd2 \n    thrd  := thrd2 \n    frth  := frth2 \n    ffth  := ffth2 \n    sxth  := sxth2 \n    svth  := svth2 \n\n// Now that we've recovered the environment, we can assign a percentile using a simple linear approximation of the curve (+ adjustment).\nif(totalRsScore >= first)\n    totalRsRating := 99\nif(totalRsScore <= svth)\n    totalRsRating := 1\n\n// Function to attribute the percentile with a simple linear approximation\nf_attributePercentile(totalRsScore, tallerPerf, smallerPerf, rangeUp, rangeDn, weight) =>\n    sum = totalRsScore + (totalRsScore-smallerPerf)*weight // weight is used for manual calibration\n    if(sum > tallerPerf - 1)\n        sum := tallerPerf - 1\n    k1 = smallerPerf/rangeDn\n    k2 = (tallerPerf-1)/rangeUp\n    k3 = (k1-k2)/(tallerPerf-1-smallerPerf)\n    RsRating = sum/(k1-k3*(totalRsScore-smallerPerf))\n    if (RsRating > rangeUp)\n        RsRating := rangeUp\n    if (RsRating < rangeDn)\n        RsRating := rangeDn\n    RsRating\n\n// Between 199 & 120 the score where approx 98 to 90.\nif (totalRsScore < first and totalRsScore >= scnd)\n    totalRsRating := f_attributePercentile(totalRsScore, first, scnd, 98, 90, 0.33)\n// Between 119 and 100 we have scores between 89 and 70.\nif (totalRsScore < scnd and totalRsScore >= thrd)\n    totalRsRating := f_attributePercentile(totalRsScore, scnd, thrd, 89, 70, 2.1)\n// Between 100 and 91 we have scores between 69 and 50.\nif (totalRsScore < thrd and totalRsScore >= frth)\n    totalRsRating := f_attributePercentile(totalRsScore, thrd, frth, 69, 50, 0)\n// Between 90 and 82 we have scores between 49 and 30.\nif (totalRsScore < frth and totalRsScore >= ffth)\n    totalRsRating := f_attributePercentile(totalRsScore, frth, ffth, 49, 30, 0)\n// Between 81 and 56 we have scores between 29 and 10.\nif (totalRsScore < ffth and totalRsScore >= sxth)\n    totalRsRating := f_attributePercentile(totalRsScore, ffth, sxth, 29, 10, 0)\n// Between 55 and 28 we have scores between 9 and 2.\nif (totalRsScore < sxth and totalRsScore >= svth)\n    totalRsRating := f_attributePercentile(totalRsScore, sxth, svth, 9, 2, 0)\n\n// Check if one of this value is empty for replay mode\nfor i = 0 to 6\n    if (nz(array.get(different_values, i)) == 0 and not allowReplay)\n        totalRsRating := -1\n\n// Display the RS Rating\n// The results can only be used in Daily TimeFrame\nisDaily = timeframe.isdaily\nlabelText1 = '                RS Rating'\nlabelText2 = ''\n// Here we want to display 'RS' without value if one of the constants is missing\nif (isDaily and totalRsRating != -1)\n    labelText2 := '\\n\\n       '+str.tostring(totalRsRating,'#0')\n// Rating Only\nif (ratingOnly)\n    labelText1 := ''\n    labelText2 := '\\n    '+str.tostring(totalRsRating,'#0')\n// Display the labels\nlabel1 = (hideRSRat == false) and barstate.islast ? label.new(bar_index, rs, text=labelText1 , color = color.rgb(0,0,0,100), size=size.normal, textcolor=colorRS, style=label.style_label_center, textalign=text.align_left, yloc=yloc.price) : na\nlabel2 = (hideRSRat == false) and barstate.islast ? label.new(bar_index, rs, text=labelText2 , color = color.rgb(0,0,0,100), size=size.large,  textcolor=colorRS, style=label.style_label_center, textalign=text.align_left, yloc=yloc.price) : na\n\n// Delete previous Labels (When new candle opens or when replay mode, the labels were piling on)\nlabel.delete(label1[1])\nlabel.delete(label2[1])",
+  "sha256": "caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0",
+  "chars": 21030,
+  "declaredTitle": null
+ },
+ "census": {
+  "studies": 3,
+  "events": [
+   "Splits",
+   "Earnings"
+  ],
+  "indicators": 1,
+  "controlProbeSawSomething": true,
+  "controlFilterRemovedExactlyTheEvents": true
+ },
+ "study": {
+  "id": "Script$USER;6a17cb6595e6407f8b76c162ed6bb027@tv-scripting",
+  "fullId": "Script$USER;6a17cb6595e6407f8b76c162ed6bb027@tv-scripting-101",
+  "title": "RS Rating",
+  "description": "RS Rating",
+  "shortDescription": "RS Rating",
+  "status": {
+   "type": 2
+  },
+  "plots": [
+   {
+    "id": "plot_0",
+    "type": "line",
+    "title": "RS Line"
+   },
+   {
+    "id": "plot_1",
+    "type": "colorer",
+    "target": "plot_0",
+    "palette": "palette_0",
+    "title": null
+   },
+   {
+    "id": "plot_2",
+    "type": "line",
+    "title": "Plot"
+   },
+   {
+    "id": "plot_3",
+    "type": "colorer",
+    "target": "plot_2",
+    "palette": "palette_1",
+    "title": null
+   },
+   {
+    "id": "plot_4",
+    "type": "line",
+    "title": "Plot"
+   },
+   {
+    "id": "plot_5",
+    "type": "colorer",
+    "target": "fill_0",
+    "palette": "palette_2",
+    "title": null
+   },
+   {
+    "id": "plot_6",
+    "type": "line",
+    "title": "Plot"
+   },
+   {
+    "id": "plot_7",
+    "type": "colorer",
+    "target": "plot_6",
+    "palette": "palette_3",
+    "title": null
+   }
+  ],
+  "styles": {
+   "plot_0": {
+    "histogramBase": 0,
+    "isHidden": false,
+    "joinPoints": false,
+    "title": "RS Line"
+   },
+   "plot_2": {
+    "histogramBase": 0,
+    "isHidden": false,
+    "joinPoints": false,
+    "title": "Plot"
+   },
+   "plot_4": {
+    "histogramBase": 0,
+    "isHidden": false,
+    "joinPoints": false,
+    "title": "Plot"
+   },
+   "plot_6": {
+    "histogramBase": 0,
+    "isHidden": false,
+    "joinPoints": false,
+    "title": "Plot"
+   }
+  },
+  "styleState": {
+   "plot_0": {
+    "color": "#2962ff",
+    "display": 15,
+    "linestyle": 0,
+    "linewidth": 1,
+    "plottype": 0,
+    "trackPrice": false,
+    "transparency": 0,
+    "title": "plot_0"
+   },
+   "plot_2": {
+    "color": "#2962ff",
+    "display": 15,
+    "linestyle": 0,
+    "linewidth": 1,
+    "plottype": 0,
+    "trackPrice": false,
+    "transparency": 0,
+    "title": "plot_2"
+   },
+   "plot_4": {
+    "color": "rgba(0,0,0,0)",
+    "display": 15,
+    "linestyle": 0,
+    "linewidth": 1,
+    "plottype": 0,
+    "trackPrice": false,
+    "transparency": 0,
+    "title": "plot_4"
+   },
+   "plot_6": {
+    "color": "#2962ff",
+    "display": 15,
+    "linestyle": 0,
+    "linewidth": 1,
+    "plottype": 0,
+    "trackPrice": false,
+    "transparency": 0,
+    "title": "plot_6"
+   }
+  },
+  "palettes": {
+   "palette_0": {
+    "valToIndex": {
+     "0": 0
+    },
+    "colors": {
+     "0": {
+      "color": "rgba(0,0,255,1)",
+      "style": 0,
+      "width": 1
+     }
+    }
+   },
+   "palette_1": {
+    "valToIndex": {
+     "3": 0
+    },
+    "colors": {
+     "0": {
+      "color": "#FF9800",
+      "style": 0,
+      "width": 1
+     }
+    }
+   },
+   "palette_2": {
+    "valToIndex": {
+     "4": 0,
+     "5": 1
+    },
+    "colors": {
+     "0": {
+      "color": "rgba(0,230,119,0.25)",
+      "style": 0,
+      "width": 1
+     },
+     "1": {
+      "color": "rgba(255,82,82,0.25)",
+      "style": 0,
+      "width": 1
+     }
+    }
+   },
+   "palette_3": {
+    "valToIndex": {
+     "6": 0
+    },
+    "colors": {
+     "0": {
+      "color": "#FF5252",
+      "style": 0,
+      "width": 1
+     }
+    }
+   },
+   "palette_common": {
+    "valToIndex": {
+     "0": 0,
+     "1": 1,
+     "2": 2,
+     "3": 3,
+     "4": 4,
+     "5": 5,
+     "6": 6,
+     "7": 7,
+     "8": 8
+    },
+    "colors": {
+     "0": {
+      "color": "rgba(0,0,255,1)"
+     },
+     "1": {
+      "color": "rgba(121,213,242,0.38)"
+     },
+     "2": {
+      "color": "rgba(255,82,82,0.38)"
+     },
+     "3": {
+      "color": "#FF9800"
+     },
+     "4": {
+      "color": "rgba(0,230,119,0.25)"
+     },
+     "5": {
+      "color": "rgba(255,82,82,0.25)"
+     },
+     "6": {
+      "color": "#FF5252"
+     },
+     "7": {
+      "color": "#363A45"
+     },
+     "8": {
+      "color": "rgba(0,0,0,0)"
+     }
+    }
+   }
+  },
+  "paletteState": {
+   "palette_0": {
+    "colors": {
+     "0": {
+      "color": "rgba(0,0,255,1)",
+      "style": 0,
+      "width": 1
+     }
+    }
+   },
+   "palette_1": {
+    "colors": {
+     "0": {
+      "color": "#FF9800",
+      "style": 0,
+      "width": 1
+     }
+    }
+   },
+   "palette_2": {
+    "colors": {
+     "0": {
+      "color": "rgba(0,230,119,0.25)",
+      "style": 0,
+      "width": 1
+     },
+     "1": {
+      "color": "rgba(255,82,82,0.25)",
+      "style": 0,
+      "width": 1
+     }
+    }
+   },
+   "palette_3": {
+    "colors": {
+     "0": {
+      "color": "#FF5252",
+      "style": 0,
+      "width": 1
+     }
+    }
+   },
+   "palette_common": {
+    "colors": {
+     "0": {
+      "color": "rgba(0,0,255,1)"
+     },
+     "1": {
+      "color": "rgba(121,213,242,0.38)"
+     },
+     "2": {
+      "color": "rgba(255,82,82,0.38)"
+     },
+     "3": {
+      "color": "#FF9800"
+     },
+     "4": {
+      "color": "rgba(0,230,119,0.25)"
+     },
+     "5": {
+      "color": "rgba(255,82,82,0.25)"
+     },
+     "6": {
+      "color": "#FF5252"
+     },
+     "7": {
+      "color": "#363A45"
+     },
+     "8": {
+      "color": "rgba(0,0,0,0)"
+     }
+    }
+   }
+  },
+  "inputs": [
+   {
+    "id": "text",
+    "name": "ILScript",
+    "type": "text",
+    "defval": "",
+    "isHidden": true,
+    "value": "bmI9Ks46_l5p1Nv29j+ni/SkSOhZHzA==_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"
+   },
+   {
+    "id": "pineId",
+    "name": "pineId",
+    "type": "text",
+    "defval": "",
+    "isHidden": true,
+    "value": ""
+   },
+   {
+    "id": "pineVersion",
+    "name": "pineVersion",
+    "type": "text",
+    "defval": "",
+    "isHidden": true,
+    "value": ""
+   },
+   {
+    "id": "pineFeatures",
+    "name": "pineFeatures",
+    "type": "text",
+    "defval": "{\"indicator\":1,\"plot\":1,\"str\":1,\"array\":1,\"ta\":1,\"math\":1,\"label\":1,\"request.security\":1}",
+    "isHidden": true,
+    "value": "{\"indicator\":1,\"plot\":1,\"str\":1,\"array\":1,\"ta\":1,\"math\":1,\"label\":1,\"request.security\":1}"
+   },
+   {
+    "id": "in_0",
+    "name": "Hide Rating",
+    "type": "bool",
+    "defval": false,
+    "isHidden": false,
+    "value": false
+   },
+   {
+    "id": "in_1",
+    "name": "Rating Only",
+    "type": "bool",
+    "defval": false,
+    "isHidden": false,
+    "value": false
+   },
+   {
+    "id": "in_2",
+    "name": "Color",
+    "type": "color",
+    "defval": "rgba(0,0,255,1)",
+    "isHidden": false,
+    "value": "rgba(0,0,255,1)"
+   },
+   {
+    "id": "in_3",
+    "name": "Comparative Symbol for Line",
+    "type": "text",
+    "defval": "SP:SPX",
+    "isHidden": false,
+    "value": "SP:SPX"
+   },
+   {
+    "id": "in_4",
+    "name": "Approximate Value of Comparative Symbol",
+    "type": "integer",
+    "defval": 4200,
+    "isHidden": false,
+    "value": 4200
+   },
+   {
+    "id": "in_5",
+    "name": "Offset (%)",
+    "type": "integer",
+    "defval": 80,
+    "isHidden": false,
+    "value": 80
+   },
+   {
+    "id": "in_6",
+    "name": "Plot RS New Highs",
+    "type": "bool",
+    "defval": true,
+    "isHidden": false,
+    "value": true
+   },
+   {
+    "id": "in_7",
+    "name": "Type",
+    "type": "text",
+    "defval": "RS New Highs",
+    "isHidden": false,
+    "value": "RS New Highs"
+   },
+   {
+    "id": "in_8",
+    "name": "Color",
+    "type": "color",
+    "defval": "rgba(121,213,242,0.38)",
+    "isHidden": false,
+    "value": "rgba(121,213,242,0.38)"
+   },
+   {
+    "id": "in_9",
+    "name": "Look-back",
+    "type": "integer",
+    "defval": 250,
+    "isHidden": false,
+    "value": 250
+   },
+   {
+    "id": "in_10",
+    "name": "Size",
+    "type": "text",
+    "defval": "Tiny",
+    "isHidden": false,
+    "value": "Tiny"
+   },
+   {
+    "id": "in_11",
+    "name": "Plot RS New Lows",
+    "type": "bool",
+    "defval": false,
+    "isHidden": false,
+    "value": false
+   },
+   {
+    "id": "in_12",
+    "name": "Type",
+    "type": "text",
+    "defval": "Historical RS New Lows",
+    "isHidden": false,
+    "value": "Historical RS New Lows"
+   },
+   {
+    "id": "in_13",
+    "name": "Color",
+    "type": "color",
+    "defval": "rgba(255,82,82,0.38)",
+    "isHidden": false,
+    "value": "rgba(255,82,82,0.38)"
+   },
+   {
+    "id": "in_14",
+    "name": "Look-back",
+    "type": "integer",
+    "defval": 250,
+    "isHidden": false,
+    "value": 250
+   },
+   {
+    "id": "in_15",
+    "name": "Size",
+    "type": "text",
+    "defval": "Tiny",
+    "isHidden": false,
+    "value": "Tiny"
+   },
+   {
+    "id": "in_16",
+    "name": "Display MA 1 on RS Line",
+    "type": "bool",
+    "defval": false,
+    "isHidden": false,
+    "value": false
+   },
+   {
+    "id": "in_17",
+    "name": "Lenght Da",
+    "type": "integer",
+    "defval": 21,
+    "isHidden": false,
+    "value": 21
+   },
+   {
+    "id": "in_18",
+    "name": "Color",
+    "type": "color",
+    "defval": "#FF9800",
+    "isHidden": false,
+    "value": "#FF9800"
+   },
+   {
+    "id": "in_19",
+    "name": "Type Da",
+    "type": "text",
+    "defval": "EMA",
+    "isHidden": false,
+    "value": "EMA"
+   },
+   {
+    "id": "in_20",
+    "name": "Lenght We",
+    "type": "integer",
+    "defval": 10,
+    "isHidden": false,
+    "value": 10
+   },
+   {
+    "id": "in_21",
+    "name": "Type We",
+    "type": "text",
+    "defval": "SMA",
+    "isHidden": false,
+    "value": "SMA"
+   },
+   {
+    "id": "in_22",
+    "name": "Area Color",
+    "type": "bool",
+    "defval": false,
+    "isHidden": false,
+    "value": false
+   },
+   {
+    "id": "in_23",
+    "name": "Positive Area",
+    "type": "color",
+    "defval": "rgba(0,230,119,0.25)",
+    "isHidden": false,
+    "value": "rgba(0,230,119,0.25)"
+   },
+   {
+    "id": "in_24",
+    "name": "Negative Area",
+    "type": "color",
+    "defval": "rgba(255,82,82,0.25)",
+    "isHidden": false,
+    "value": "rgba(255,82,82,0.25)"
+   },
+   {
+    "id": "in_25",
+    "name": "Display MA 2 on RS Line",
+    "type": "bool",
+    "defval": false,
+    "isHidden": false,
+    "value": false
+   },
+   {
+    "id": "in_26",
+    "name": "Lenght Da",
+    "type": "integer",
+    "defval": 50,
+    "isHidden": false,
+    "value": 50
+   },
+   {
+    "id": "in_27",
+    "name": "Color",
+    "type": "color",
+    "defval": "#FF5252",
+    "isHidden": false,
+    "value": "#FF5252"
+   },
+   {
+    "id": "in_28",
+    "name": "Type Da",
+    "type": "text",
+    "defval": "EMA",
+    "isHidden": false,
+    "value": "EMA"
+   },
+   {
+    "id": "in_29",
+    "name": "Lenght We",
+    "type": "integer",
+    "defval": 21,
+    "isHidden": false,
+    "value": 21
+   },
+   {
+    "id": "in_30",
+    "name": "Type We",
+    "type": "text",
+    "defval": "SMA",
+    "isHidden": false,
+    "value": "SMA"
+   },
+   {
+    "id": "in_31",
+    "name": "Use fix values for replay mode",
+    "type": "bool",
+    "defval": false,
+    "isHidden": false,
+    "value": false
+   },
+   {
+    "id": "in_32",
+    "name": "For 99 stocks",
+    "type": "float",
+    "defval": 195.93,
+    "isHidden": false,
+    "value": 195.93
+   },
+   {
+    "id": "in_33",
+    "name": "For 90+ stocks",
+    "type": "float",
+    "defval": 117.11,
+    "isHidden": false,
+    "value": 117.11
+   },
+   {
+    "id": "in_34",
+    "name": "For 70+ stocks",
+    "type": "float",
+    "defval": 99.04,
+    "isHidden": false,
+    "value": 99.04
+   },
+   {
+    "id": "in_35",
+    "name": "For 50+ stocks",
+    "type": "float",
+    "defval": 91.66,
+    "isHidden": false,
+    "value": 91.66
+   },
+   {
+    "id": "in_36",
+    "name": "For 30+ stocks",
+    "type": "float",
+    "defval": 80.96,
+    "isHidden": false,
+    "value": 80.96
+   },
+   {
+    "id": "in_37",
+    "name": "For 10+ stocks",
+    "type": "float",
+    "defval": 53.64,
+    "isHidden": false,
+    "value": 53.64
+   },
+   {
+    "id": "in_38",
+    "name": "For 1- stocks",
+    "type": "float",
+    "defval": 24.86,
+    "isHidden": false,
+    "value": 24.86
+   },
+   {
+    "id": "__fast_calc",
+    "name": "Fast calculation",
+    "type": "bool",
+    "defval": false,
+    "isHidden": true,
+    "value": false
+   },
+   {
+    "id": "__profile",
+    "name": "",
+    "type": "bool",
+    "defval": false,
+    "isHidden": true,
+    "value": false
+   }
+  ]
+ },
+ "window": {
+  "chartBarsLoaded": 140,
+  "studyBarsLoaded": 140,
+  "firstBarTime": 1710768600,
+  "lastBarTime": 1794839400
+ },
+ "bars": {
+  "fields": [
+   "time",
+   "open",
+   "high",
+   "low",
+   "close",
+   "volume"
+  ],
+  "timeUnit": "unix-s",
+  "count": 140,
+  "rows": [
+   [
+    1710768600,
+    47,
+    57.8,
+    45.05,
+    46,
+    64688672
+   ],
+   [
+    1711373400,
+    47.09,
+    74.9,
+    46.08,
+    49.32,
+    91182606
+   ],
+   [
+    1711978200,
+    48.95,
+    51.35,
+    44,
+    47.56,
+    34802817
+   ],
+   [
+    1712583000,
+    47.86,
+    49.1799,
+    41.72,
+    42.27,
+    15573221
+   ],
+   [
+    1713187800,
+    41.94,
+    43.83,
+    37.35,
+    40.88,
+    12126159
+   ],
+   [
+    1713792600,
+    40.88,
+    46.199,
+    40.51,
+    45.43,
+    9076948
+   ],
+   [
+    1714397400,
+    46.05,
+    49.639,
+    44.15,
+    46.64,
+    9589055
+   ],
+   [
+    1715002200,
+    46.99,
+    55.16,
+    46.75,
+    53.53,
+    30227517
+   ],
+   [
+    1715607000,
+    56.49,
+    66.15,
+    55.59,
+    62.04,
+    39101884
+   ],
+   [
+    1716211800,
+    61.9,
+    62.46,
+    53.11,
+    54.72,
+    17250958
+   ],
+   [
+    1716903000,
+    55.12,
+    59.49,
+    53.45,
+    54.24,
+    8754192
+   ],
+   [
+    1717421400,
+    57.55,
+    63.8,
+    53.955,
+    59.8,
+    13683404
+   ],
+   [
+    1718026200,
+    60.01,
+    69.59,
+    58.26,
+    60.94,
+    15638302
+   ],
+   [
+    1718631000,
+    61,
+    61.6387,
+    54.45,
+    57.3,
+    12122478
+   ],
+   [
+    1719235800,
+    57.32,
+    65.82,
+    55.95,
+    63.89,
+    12072796
+   ],
+   [
+    1719840600,
+    64.2,
+    76.2,
+    62.2,
+    72.97,
+    15004074
+   ],
+   [
+    1720445400,
+    72.76,
+    76.74,
+    67.62,
+    73.85,
+    12919899
+   ],
+   [
+    1721050200,
+    74.69,
+    78.08,
+    63.79,
+    64.7,
+    14752384
+   ],
+   [
+    1721655000,
+    66.93,
+    71.41,
+    59.73,
+    62.36,
+    13689174
+   ],
+   [
+    1722259800,
+    62.97,
+    64.64,
+    54.11,
+    57.58,
+    11840727
+   ],
+   [
+    1722864600,
+    53.25,
+    59.13,
+    49.13,
+    52.91,
+    37512480
+   ],
+   [
+    1723469400,
+    52.5,
+    56.85,
+    50.8,
+    54.92,
+    19087281
+   ],
+   [
+    1724074200,
+    54.79,
+    59.68,
+    52.39,
+    59.21,
+    22098682
+   ],
+   [
+    1724679000,
+    59.29,
+    60.41,
+    55.02,
+    60.03,
+    19497807
+   ],
+   [
+    1725370200,
+    59.245,
+    60.41,
+    55.8,
+    56.85,
+    11562214
+   ],
+   [
+    1725888600,
+    57.14,
+    62.6594,
+    55.2511,
+    59.09,
+    19134322
+   ],
+   [
+    1726493400,
+    58.6,
+    67.19,
+    57.22,
+    66.17,
+    24820589
+   ],
+   [
+    1727098200,
+    66,
+    69.11,
+    63.6,
+    67.08,
+    20644064
+   ],
+   [
+    1727703000,
+    66.94,
+    72.88,
+    64.515,
+    72.38,
+    22240904
+   ],
+   [
+    1728307800,
+    72.99,
+    75.2,
+    69.3001,
+    73.25,
+    19375277
+   ],
+   [
+    1728912600,
+    73.75,
+    81.36,
+    72.82,
+    80.9,
+    24148672
+   ],
+   [
+    1729517400,
+    80.555,
+    81.72,
+    76.54,
+    81.36,
+    17182385
+   ],
+   [
+    1730122200,
+    82.21,
+    123.6,
+    79.1,
+    112.98,
+    86108942
+   ],
+   [
+    1730730600,
+    110.765,
+    134.8,
+    108.6847,
+    134.8,
+    37214677
+   ],
+   [
+    1731335400,
+    139,
+    139.04,
+    123.14,
+    124.78,
+    22799500
+   ],
+   [
+    1731940200,
+    125.56,
+    158.49,
+    124.66,
+    146.67,
+    47648942
+   ],
+   [
+    1732545000,
+    149.5,
+    152.14,
+    132.475,
+    140.69,
+    23737969
+   ],
+   [
+    1733149800,
+    144,
+    163.72,
+    138.75,
+    162.76,
+    28209200
+   ],
+   [
+    1733754600,
+    171.5,
+    180.74,
+    151.76,
+    172.65,
+    42513430
+   ],
+   [
+    1734359400,
+    169.27,
+    180.36,
+    157.22,
+    170.71,
+    36089401
+   ],
+   [
+    1734964200,
+    171.25,
+    182.2,
+    166.3731,
+    173.54,
+    10877834
+   ],
+   [
+    1735569000,
+    167.375,
+    181.22,
+    156.0357,
+    177.74,
+    24492187
+   ],
+   [
+    1736173800,
+    182,
+    187.69,
+    159.8,
+    167.08,
+    17823847
+   ],
+   [
+    1736778600,
+    160.44,
+    179.87,
+    156.58,
+    175.33,
+    21164123
+   ],
+   [
+    1737469800,
+    177.5,
+    191,
+    175.6,
+    182.4,
+    19966576
+   ],
+   [
+    1737988200,
+    174.22,
+    208.62,
+    170.2,
+    199.55,
+    22771980
+   ],
+   [
+    1738593000,
+    189.12,
+    227.05,
+    188.95,
+    225.23,
+    24541345
+   ],
+   [
+    1739197800,
+    228.8,
+    230.41,
+    192.5701,
+    196.38,
+    51262436
+   ],
+   [
+    1739889000,
+    193.4,
+    196.758,
+    161.883,
+    166.4,
+    34029099
+   ],
+   [
+    1740407400,
+    164.77,
+    172.14,
+    154.2,
+    161.78,
+    35081780
+   ],
+   [
+    1741012200,
+    165.455,
+    174.22,
+    131.26,
+    133.98,
+    38484355
+   ],
+   [
+    1741613400,
+    127.75,
+    136.47,
+    105.51,
+    128.21,
+    61062532
+   ],
+   [
+    1742218200,
+    123.62,
+    142,
+    105.5,
+    115.7,
+    57814024
+   ],
+   [
+    1742823000,
+    119.81,
+    127.27,
+    103.74,
+    107.71,
+    34474389
+   ],
+   [
+    1743427800,
+    102.295,
+    113.75,
+    82.8,
+    86.91,
+    51284093
+   ],
+   [
+    1744032600,
+    81.01,
+    113.9,
+    79.7499,
+    101.15,
+    46881288
+   ],
+   [
+    1744637400,
+    105.75,
+    106.5,
+    91.61,
+    96.16,
+    14548689
+   ],
+   [
+    1745242200,
+    94,
+    120.56,
+    90.78,
+    118.1,
+    26917037
+   ],
+   [
+    1745847000,
+    118.58,
+    126.1,
+    108.5,
+    113.83,
+    64594171
+   ],
+   [
+    1746451800,
+    113.09,
+    120.87,
+    102.8,
+    108.46,
+    40298652
+   ],
+   [
+    1747056600,
+    114.15,
+    130.11,
+    109.6021,
+    113.23,
+    56846825
+   ],
+   [
+    1747661400,
+    104.89,
+    110.09,
+    94.89,
+    100.76,
+    50397141
+   ],
+   [
+    1748352600,
+    103,
+    113.7999,
+    99.1401,
+    112.35,
+    30601166
+   ],
+   [
+    1748871000,
+    109.16,
+    121.29,
+    109.16,
+    121.29,
+    31690489
+   ],
+   [
+    1749475800,
+    119.65,
+    121.98,
+    110.85,
+    118.18,
+    28589066
+   ],
+   [
+    1750080600,
+    121.425,
+    147.999,
+    121.425,
+    139.15,
+    52894842
+   ],
+   [
+    1750685400,
+    135.77,
+    153.94,
+    133.28,
+    143.01,
+    46967462
+   ],
+   [
+    1751290200,
+    148.08,
+    164.55,
+    146.55,
+    157.03,
+    33664800
+   ],
+   [
+    1751895000,
+    154.95,
+    155.85,
+    141.28,
+    145.59,
+    25600813
+   ],
+   [
+    1752499800,
+    146,
+    150.39,
+    138.11,
+    148.24,
+    25579041
+   ],
+   [
+    1753104600,
+    145.02,
+    152.78,
+    138.6,
+    149.66,
+    25948427
+   ],
+   [
+    1753709400,
+    150.84,
+    196.6799,
+    141.6,
+    188.64,
+    63000724
+   ],
+   [
+    1754314200,
+    191.7,
+    219,
+    188.98,
+    215.44,
+    44779173
+   ],
+   [
+    1754919000,
+    215.23,
+    248.015,
+    211.8001,
+    246.5,
+    31847274
+   ],
+   [
+    1755523800,
+    245.63,
+    253.14,
+    205.374,
+    217.31,
+    40305940
+   ],
+   [
+    1756128600,
+    214.27,
+    227.9,
+    208.24,
+    225.08,
+    23872116
+   ],
+   [
+    1756819800,
+    219.98,
+    241.18,
+    213.15,
+    240,
+    22904341
+   ],
+   [
+    1757338200,
+    245.09,
+    266.6395,
+    229.86,
+    254.29,
+    24461363
+   ],
+   [
+    1757943000,
+    256.66,
+    282.95,
+    249.22,
+    264.48,
+    36714376
+   ],
+   [
+    1758547800,
+    257.45,
+    262.99,
+    223.5,
+    240.11,
+    26071352
+   ],
+   [
+    1759152600,
+    244.804,
+    246.43,
+    198.8,
+    207.2,
+    40666336
+   ],
+   [
+    1759757400,
+    207.3,
+    214.4,
+    195.01,
+    198.55,
+    26101404
+   ],
+   [
+    1760362200,
+    201.89,
+    205.52,
+    189.02,
+    194.95,
+    17033689
+   ],
+   [
+    1760967000,
+    201,
+    215.94,
+    191.28,
+    214.2,
+    25443067
+   ],
+   [
+    1761571800,
+    219.7,
+    230.97,
+    193.81,
+    208.95,
+    44489387
+   ],
+   [
+    1762180200,
+    211.06,
+    214.25,
+    173.56,
+    194.58,
+    32841295
+   ],
+   [
+    1762785000,
+    200.03,
+    213,
+    183.8,
+    193.31,
+    21185032
+   ],
+   [
+    1763389800,
+    191.34,
+    195.48,
+    178.2448,
+    183.48,
+    18219732
+   ],
+   [
+    1763994600,
+    186.6,
+    220.7642,
+    184.78,
+    216.47,
+    20089092
+   ],
+   [
+    1764599400,
+    211.72,
+    237.59,
+    211.5,
+    234.11,
+    20605971
+   ],
+   [
+    1765204200,
+    230,
+    240.18,
+    222.85,
+    224.78,
+    19612178
+   ],
+   [
+    1765809000,
+    222.045,
+    246.15,
+    213.35,
+    233.19,
+    27472937
+   ],
+   [
+    1766413800,
+    235.95,
+    240.4899,
+    220.26,
+    225.77,
+    10416371
+   ],
+   [
+    1767018600,
+    225.15,
+    242.8699,
+    223.9101,
+    241.89,
+    12087147
+   ],
+   [
+    1767623400,
+    248.84,
+    263.4999,
+    235.01,
+    244.56,
+    19085154
+   ],
+   [
+    1768228200,
+    244.72,
+    263.335,
+    222.85,
+    231.01,
+    28268133
+   ],
+   [
+    1768919400,
+    220.125,
+    228.98,
+    208.5,
+    218.88,
+    14273200
+   ],
+   [
+    1769437800,
+    216.64,
+    222.65,
+    180,
+    180.27,
+    22301355
+   ],
+   [
+    1770042600,
+    180,
+    184.35,
+    137.02,
+    139.83,
+    55381196
+   ],
+   [
+    1770647400,
+    139.39,
+    152.44,
+    127.705,
+    139.65,
+    42066178
+   ],
+   [
+    1771338600,
+    138.2,
+    151.25,
+    135.85,
+    150.17,
+    23184499
+   ],
+   [
+    1771857000,
+    148.42,
+    156.39,
+    140.34,
+    145.81,
+    22698508
+   ],
+   [
+    1772461800,
+    142.25,
+    153.78,
+    137.5001,
+    139.39,
+    24340802
+   ],
+   [
+    1773063000,
+    136.75,
+    142.46,
+    131.31,
+    132.36,
+    25614621
+   ],
+   [
+    1773667800,
+    133.97,
+    147.45,
+    133.18,
+    139.85,
+    26480557
+   ],
+   [
+    1774272600,
+    140,
+    144.19,
+    120.5,
+    121.84,
+    24162212
+   ],
+   [
+    1774877400,
+    122.5,
+    139.34,
+    119.27,
+    136,
+    16941014
+   ],
+   [
+    1775482200,
+    138.46,
+    154.77,
+    135,
+    139.73,
+    17880956
+   ],
+   [
+    1776087000,
+    138.97,
+    168.7,
+    138.81,
+    163.8,
+    20366717
+   ],
+   [
+    1776691800,
+    162.15,
+    167.92,
+    150.55,
+    154.89,
+    17672546
+   ],
+   [
+    1777296600,
+    154.375,
+    173,
+    143.09,
+    166.48,
+    35476830
+   ],
+   [
+    1777901400,
+    170.08,
+    177.13,
+    155.2101,
+    155.8,
+    31575959
+   ],
+   [
+    1778506200,
+    153.5,
+    162.45,
+    148.5,
+    158.17,
+    20532907
+   ],
+   [
+    1779111000,
+    157,
+    161.49,
+    140.67,
+    141.67,
+    29277940
+   ],
+   [
+    1779802200,
+    143.495,
+    176.69,
+    139.55,
+    176,
+    26189505
+   ],
+   [
+    1780320600,
+    179.9,
+    187.34,
+    159.11,
+    173.45,
+    26857173
+   ],
+   [
+    1780925400,
+    171.51,
+    183.12,
+    158.36,
+    162.1,
+    20480150
+   ],
+   [
+    1781530200,
+    168.81,
+    182.41,
+    165.88,
+    174.96,
+    18148495
+   ],
+   [
+    1782135000,
+    171.86,
+    182.3,
+    152.65,
+    166.94,
+    21026513
+   ],
+   [
+    1782739800,
+    168.29,
+    201.16,
+    166.6,
+    194.67,
+    18843796
+   ],
+   [
+    1783344600,
+    197.96,
+    208.05,
+    189.33,
+    195.34,
+    18531725
+   ],
+   [
+    1783949400,
+    199,
+    207,
+    173.71,
+    181.18,
+    17961550
+   ],
+   [
+    1784554200,
+    179,
+    187.43,
+    165.55,
+    168.73,
+    23027399
+   ],
+   [
+    1785159000,
+    173.335,
+    185.9099,
+    135.2223,
+    140.67,
+    53174861
+   ],
+   [
+    1785763800,
+    141.9,
+    163.9,
+    140.0501,
+    161.7,
+    28949046
+   ],
+   [
+    1786368600,
+    161.49,
+    184.284,
+    152.0101,
+    178.09,
+    35314118
+   ],
+   [
+    1786973400,
+    177.51,
+    178.34,
+    144.05,
+    153.29,
+    65677614
+   ],
+   [
+    1787578200,
+    150.01,
+    165.91,
+    149.2,
+    153,
+    17077261
+   ],
+   [
+    1788183000,
+    151.32,
+    162.5,
+    143.47,
+    154.46,
+    20772320
+   ],
+   [
+    1788874200,
+    155.01,
+    159.4999,
+    144.8,
+    157.77,
+    18848207
+   ],
+   [
+    1789392600,
+    160,
+    166.18,
+    149.21,
+    150.85,
+    32202766
+   ],
+   [
+    1789997400,
+    152.67,
+    161.67,
+    147.77,
+    149.84,
+    20441299
+   ],
+   [
+    1790602200,
+    149,
+    151.8899,
+    141.3217,
+    147.86,
+    21469225
+   ],
+   [
+    1791207000,
+    150.73,
+    162.96,
+    146.2486,
+    159.91,
+    21384404
+   ],
+   [
+    1791811800,
+    160.9,
+    164.94,
+    145.5101,
+    156.14,
+    21467546
+   ],
+   [
+    1792416600,
+    157.9,
+    160.415,
+    143.92,
+    144.25,
+    17006849
+   ],
+   [
+    1793021400,
+    144.25,
+    144.5499,
+    89.28,
+    91.73,
+    69172619
+   ],
+   [
+    1793629800,
+    92.21,
+    104.55,
+    90.5,
+    95.1,
+    42603200
+   ],
+   [
+    1794234600,
+    95.1,
+    106.38,
+    94.1001,
+    98.45,
+    25404131
+   ],
+   [
+    1794839400,
+    95.56,
+    97.58,
+    92.1813,
+    94.48,
+    10796145
+   ]
+  ]
+ },
+ "plotValues": {
+  "fields": [
+   "time",
+   "plot_0",
+   "plot_1",
+   "plot_2",
+   "plot_3",
+   "plot_4",
+   "plot_5",
+   "plot_6",
+   "plot_7"
+  ],
+  "rows": [
+   [
+    1710768600,
+    26.4290320689453,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1711373400,
+    27.702730327826572,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1711978200,
+    26.611601076443478,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1712583000,
+    23.87883213081365,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1713187800,
+    23.45848460007027,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1713792600,
+    26.889016838324704,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1714397400,
+    26.886851831880705,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1715002200,
+    30.691173602714613,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1715607000,
+    34.92407169485457,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1716211800,
+    30.33545404147637,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1716903000,
+    30.061134350416896,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1717421400,
+    33.313500710563716,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1718026200,
+    33.50743784341816,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1718631000,
+    31.01511338258822,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1719235800,
+    34.373285559262236,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1719840600,
+    39.28801261425257,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1720445400,
+    38.999676677683574,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1721050200,
+    33.87470749767601,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1721655000,
+    33.304038699434514,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1722259800,
+    31.0097836818957,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1722864600,
+    29.094537599012444,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1723469400,
+    30.21337350186653,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1724074200,
+    31.341240777349277,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1724679000,
+    31.322223405388133,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1725370200,
+    29.590555892918157,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1725888600,
+    32.121077651000384,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1726493400,
+    34.57864454560159,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1727098200,
+    34.58374689173596,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1727703000,
+    37.08457066376678,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1728307800,
+    37.44614036368947,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1728912600,
+    40.901868258859785,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1729517400,
+    40.78626625834657,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1730122200,
+    57.189206127294426,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1730730600,
+    69.17876487438055,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1731335400,
+    61.18778489975031,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1731940200,
+    73.45204858763027,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1732545000,
+    69.2922991357489,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1733149800,
+    79.32418162618795,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1733754600,
+    83.34444393361225,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1734359400,
+    82.941788903799,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1734964200,
+    86.02619527756607,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1735569000,
+    87.5177905993284,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1736173800,
+    82.66192788845024,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1736778600,
+    88.4619094118273,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1737469800,
+    89.42592947729149,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1737988200,
+    96.15685310387217,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1738593000,
+    109.62238350340698,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1739197800,
+    95.81133691117462,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1739889000,
+    80.00758837016855,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1740407400,
+    79.0992363365441,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1741012200,
+    66.15174044547744,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1741613400,
+    65.32495463754226,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1742218200,
+    60.323146412528615,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1742823000,
+    55.87357544767864,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1743427800,
+    45.78349564142306,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1744032600,
+    58.607750355236114,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1744637400,
+    52.71153290387537,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1745242200,
+    65.72674148965774,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1745847000,
+    60.56957008046738,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1746451800,
+    56.07375858588345,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1747056600,
+    58.81662220180569,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1747661400,
+    49.717355585504095,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1748352600,
+    56.92205354973349,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1748871000,
+    60.32001055537512,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1749475800,
+    57.90462921453178,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1750080600,
+    68.44633392226149,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1750685400,
+    70.45240748343204,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1751290200,
+    74.78733468544065,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1751895000,
+    68.16532258064517,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1752499800,
+    69.62359459019066,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1753104600,
+    69.87704826911533,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1753709400,
+    86.81045291258717,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1754314200,
+    101.5379288233408,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1754919000,
+    113.42308559122554,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1755523800,
+    99.05615531668474,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1756128600,
+    102.32617691265703,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1756819800,
+    109.22177934290468,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1757338200,
+    115.34543648007948,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1757943000,
+    118.095099236363,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1758547800,
+    105.92500116290063,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1759152600,
+    91.69093774412188,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1759757400,
+    86.9202088216112,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1760362200,
+    87.47062198970777,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1760967000,
+    94.49999999999999,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1761571800,
+    90.45081629287598,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1762180200,
+    83.63294002067195,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1762785000,
+    84.46239379622845,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1763389800,
+    80.10442375373101,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1763994600,
+    96.38402660616873,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1764599400,
+    100.49282531376478,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1765204200,
+    96.18860064712482,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1765809000,
+    100.4154717301704,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1766413800,
+    97.11972656335733,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1767018600,
+    102.62074040938246,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1767623400,
+    104.83465724183785,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1768228200,
+    97.49370181258604,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1768919400,
+    92.72438040345821,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1769437800,
+    76.63720678695475,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1770042600,
+    59.24470602477007,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1770647400,
+    59.2257126412408,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1771338600,
+    64.58282257049989,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1771857000,
+    62.04213896189604,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1772461800,
+    59.574524378206355,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1773063000,
+    57.735581994685475,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1773667800,
+    61.994360845571606,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1774272600,
+    55.05419972980824,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1774877400,
+    62.780466205883,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1775482200,
+    62.40713508783656,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1776087000,
+    70.64384104211592,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1776691800,
+    63.90308796598395,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1777296600,
+    68.31073527544044,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1777901400,
+    63.35339296359253,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1778506200,
+    62.84968617041405,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1779111000,
+    56.220606358380714,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1779802200,
+    69.23682140047207,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1780320600,
+    67.2743583485597,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1780925400,
+    64.54380103281133,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1781530200,
+    69.21696304220578,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1782135000,
+    65.43550690147549,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1782739800,
+    77.82532842536678,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1783344600,
+    76.74477899947081,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1783949400,
+    70.31574612000175,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1784554200,
+    66.51740686459212,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1785159000,
+    55.797479216079914,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1785763800,
+    63.473400874799054,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1786368600,
+    67.49276841926152,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1786973400,
+    57.88421425782454,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1787578200,
+    58.61328030835105,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1788183000,
+    58.885701837194105,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1788874200,
+    60.09429171093203,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1789392600,
+    57.92087742164666,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1789997400,
+    57.581805110777076,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1790602200,
+    56.13914283242138,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1791207000,
+    60.87691901299024,
+    0,
+    null,
+    3,
+    null,
+    4,
+    null,
+    6
+   ],
+   [
+    1791811800,
+    58.76582594469208,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1792416600,
+    55.36893036566642,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1793021400,
+    35.37480586803223,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1793629800,
+    36.88541134844401,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1794234600,
+    39.23661286780555,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ],
+   [
+    1794839400,
+    37.84075536780042,
+    0,
+    null,
+    3,
+    null,
+    5,
+    null,
+    6
+   ]
+  ]
+ },
+ "objects": {
+  "counts": {
+   "lines": 0,
+   "labels": 2,
+   "boxes": 0,
+   "tables": 0,
+   "tableCells": 0,
+   "linefills": 0
+  },
+  "records": {
+   "lines": [],
+   "labels": [
+    {
+     "id": 13,
+     "x": 0,
+     "y": 37.84075536780042,
+     "yl": "pr",
+     "t": "                RS Rating",
+     "st": "lcn",
+     "ci": 8,
+     "tci": 0,
+     "sz": "normal",
+     "ta": "left",
+     "tt": ""
+    },
+    {
+     "id": 14,
+     "x": 0,
+     "y": 37.84075536780042,
+     "yl": "pr",
+     "t": "",
+     "st": "lcn",
+     "ci": 8,
+     "tci": 0,
+     "sz": "large",
+     "ta": "left",
+     "tt": ""
+    }
+   ],
+   "boxes": [],
+   "tables": [],
+   "tableCells": [],
+   "linefills": []
+  },
+  "texts": {
+   "labels": [
+    "                RS Rating",
+    ""
+   ],
+   "tableCells": []
+  },
+  "unreadable": [],
+  "xIndex": {
+   "schema": "uct.object-x-index/v1",
+   "unit": "an object x is a position in `indexes`; each entry is a model bar index (mainSeries().bars()); `times` is that bar's time (unix-s), null off the loaded bars",
+   "modelBars": {
+    "first": 0,
+    "last": 139,
+    "count": 140,
+    "contiguous": true
+   },
+   "found": true,
+   "path": "graphics()._indexes",
+   "alsoAt": [],
+   "indexes": [
+    139
+   ],
+   "times": [
+    1794839400
+   ]
+  }
+ },
+ "warnings": [],
+ "receipt": {
+  "algo": "fnv1a32-utf16",
+  "over": "JSON.stringify(capture without its receipt key)",
+  "chars": 57038,
+  "fnv1a": 2719761208
+ }
+}

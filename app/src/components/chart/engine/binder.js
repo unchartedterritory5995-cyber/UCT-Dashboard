@@ -2090,7 +2090,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // a memo keyed only on the bars would keep the curtained columns.
       // ⭐ C26 — a Pine document's other-symbol series: a secondary that lands
       // (or changes) must recompute, exactly as a symbol SOURCE does above.
-      const otherSig = frame ? '' : otherSymbolsSignature(def, secondary)
+      // ⭐ RS RATING L11 — read under the key THIS chart's timeframe files it under (`SPX@D` on a weekly chart)
+      const otherSig = frame ? '' : otherSymbolsSignature(def, secondary, ctx.tf)
       // ⭐ C41 — and this symbol's intraday windows, for a document that reads
       // below the chart: a window that lands (or changes) must recompute. '' for
       // every document that reads none (one property read).
