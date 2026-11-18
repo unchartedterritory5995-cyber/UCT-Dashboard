@@ -1253,16 +1253,79 @@ def remembered_defaults(message: str, understood: Dict[str, Any], view: Any, cha
     return message, understood, used
 
 
-def offered_first(question: Dict[str, Any], memory: Any) -> Dict[str, Any]:
-    """The question with the member's LAST answer first (`remember: offer`): a length they used
-    before is the likeliest again, but it is never applied without being chosen."""
+#: What follows a choice the member answered last time, and one their saved indicators mostly use.
+#: ⛔ NO DIGITS IN EITHER. A tapped choice comes back as the member's message, and a number in it
+#: would be read as a length ("Exponential (EMA), in 7 of 9" asks for a 7-bar average). The
+#: counts go in the question's own sentence, which is never sent back.
+LAST_MARK = "(your last)"
+USUAL_MARK = "(your usual)"
+#: The questions a habit can answer, and nothing else is read for any other.
+HABIT_QUESTIONS = ("average_kind", "average_length")
+
+
+def usual_choices(question_id: str, definitions: Any) -> Dict[str, Any]:
+    """⭐ WHAT THIS MEMBER USUALLY USES for one of the door's questions, read from the formulas of
+    their OWN saved indicators (`indicator_habits`; slice E of "clarify and learn"): the labels to
+    offer first and the sentence that says why, or {} when there is no habit. Derived each time;
+    nothing is stored. Never raises (a store that cannot be read is no habit)."""
+    if question_id not in HABIT_QUESTIONS:
+        return {}
+    try:
+        from api.services import indicator_habits
+        counts = indicator_habits.habits(definitions)
+        if question_id == "average_kind":
+            top = indicator_habits.usual_kind(counts)
+            values = clarify_registry()[question_id].get("values") or {}
+            label = next((lab for lab, value in values.items() if top and value == top["value"]), None)
+            if label is None:
+                return {}
+            return {"labels": [label], "counts": [top],
+                    "why": f"You usually use {label}: it is in {top['indicators']} of your {top['of']} saved "
+                           "indicators that use an average."}
+        rows = indicator_habits.usual_lengths(counts)
+        if not rows:
+            return {}
+        labels = [str(r["value"]) for r in rows]
+        return {"labels": labels, "counts": rows,
+                "why": f"Your saved indicators most often use {' and '.join(labels)}."}
+    except Exception:                              # noqa: BLE001 -- a habit is a courtesy, never a failed turn
+        logger.warning("[converse] the member's usual choices could not be read; none are offered")
+        return {}
+
+
+def _usual_for(question_id: str, saved: Any, user_id: Any) -> Dict[str, Any]:
+    """`usual_choices` for the question about to be asked, reading the member's saved indicators
+    through `saved` only when that question is one a habit can answer. Never raises."""
+    if saved is None or question_id not in HABIT_QUESTIONS:
+        return {}
+    try:
+        return usual_choices(question_id, saved(user_id))
+    except Exception:                              # noqa: BLE001 -- a habit is a courtesy, never a failed turn
+        logger.warning("[converse] the member's saved indicators could not be read; no usual choice is offered")
+        return {}
+
+
+def offered_first(question: Dict[str, Any], memory: Any, usual: Any = None) -> Dict[str, Any]:
+    """The question with the member's LAST answer first (`remember: offer`), then what their saved
+    indicators mostly use (`usual_choices`), then the rest. A length they used before is the
+    likeliest again, but nothing is ever applied without being chosen. When a usual choice is
+    offered the question says why, in one more sentence."""
     entry = clarify_registry()[question["id"]]
     kept = memory.choice(question["id"]) if memory is not None and entry.get("remember") == "offer" else None
-    if not kept:
+    first: List[Tuple[str, str]] = [(kept["label"], f"{kept['label']} {LAST_MARK}")] if kept else []
+    habit = usual if isinstance(usual, Mapping) else {}
+    for label in habit.get("labels") or []:
+        if label in question["choices"] or question["id"] == "average_length":
+            if all(label != have for have, _shown in first):
+                first.append((label, f"{label} {USUAL_MARK}"))
+    if not first:
         return question
-    mine = f"{kept['label']} (your last)"
-    rest = [c for c in question["choices"] if c != kept["label"]]
-    return {**question, "choices": ([mine] + rest)[:6]}
+    rest = [c for c in question["choices"] if all(c != have for have, _shown in first)]
+    choices = ([shown for _have, shown in first] + rest)[:6]
+    offered = {**question, "choices": choices}
+    if habit.get("why") and any(c.endswith(USUAL_MARK) for c in choices):
+        offered["text"] = f"{question['text']} {habit['why']}"
+    return offered
 
 
 # ⭐ VISIBLE, EDITABLE, FORGETTABLE (slice C). What the door remembers about a member is theirs to
@@ -1282,15 +1345,31 @@ def memory_choices(question_id: str) -> List[Dict[str, Any]]:
     return [{"label": label, "value": int(label)} for label in question["choices"] if label.isdigit()]
 
 
-def memory_view(memory: Any) -> Dict[str, Any]:
+def usual_sentence(question_id: str, definitions: Any) -> Optional[str]:
+    """What Settings says about a member's usual choice for one question, or None."""
+    habit = usual_choices(question_id, definitions)
+    if not habit:
+        return None
+    if question_id == "average_kind":
+        top = habit["counts"][0]
+        said = f"{habit['labels'][0]}, in {top['indicators']} of {top['of']} that use an average"
+    else:
+        said = ", ".join(f"{r['value']} (in {r['indicators']})" for r in habit["counts"])
+    return (f"From your saved indicators: {said}. Offered first when it asks, never used without you choosing; "
+            "nothing is stored.")
+
+
+def memory_view(memory: Any, definitions: Any = None) -> Dict[str, Any]:
     """What Settings shows: every question the door can remember an answer to, and this member's
     answer where they have one. Only what the registry still knows is shown (an entry for a
-    question that no longer exists is not)."""
+    question that no longer exists is not). With the member's saved indicators (`definitions`),
+    each row also says what they USUALLY use, where that is a habit (`usual`)."""
     kept = memory.read()["choices"] if memory is not None else {}
     rows = []
     for qid, question in clarify_registry().items():
         mine = kept.get(qid)
         rows.append({
+            "usual": usual_sentence(qid, definitions) if definitions is not None else None,
             "id": qid, "title": question["title"], "question": question["text"],
             # what an answer does next time, in the member's words
             "use": ("Used without asking, and said each time." if question.get("remember") == "default"
@@ -3865,8 +3944,13 @@ def _as_it_stood(live: Any) -> Any:
 def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
              snippets: Any = None, chart: Any = None, admin: bool = False,
              conversation_id: Any = None, examples: Any = False,
-             browser_refusal: Any = None, memory: Any = None, accepts: Any = None) -> Dict[str, Any]:
+             browser_refusal: Any = None, memory: Any = None, accepts: Any = None,
+             saved: Any = None) -> Dict[str, Any]:
     """One conversational turn. NEVER raises.
+
+    ``saved`` reads this member's OWN saved indicators (`saved(user_id)` -> their definitions), or
+    None for a turn that offers no usual choice (every test that does not ask for one). It is
+    called only when the door is about to ask one of `HABIT_QUESTIONS`, never on any other turn.
 
     ``accepts`` is what the browser said it accepts beyond the first contract (`ACCEPTS_NOTE_BY`).
     Without it the answer is exactly what an older tab has always been sent.
@@ -3907,7 +3991,8 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
                 lambda: _converse_turn(message, user_id=user_id, view=view, authoring=authoring,
                                        snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls,
                                        trace=trace, admin=admin, examples=examples is True,
-                                       refused_by_browser=browser_refusal, memory=memory, cancelled=cancelled),
+                                       refused_by_browser=browser_refusal, memory=memory, cancelled=cancelled,
+                                       saved=saved),
                 cancelled)
             if result is None:
                 # ⭐ THE CEILING PASSED. The member is answered now and their slot is freed as this
@@ -4236,7 +4321,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
                    trace: Optional[Dict[str, Any]] = None,
                    admin: bool = False, examples: bool = False,
                    refused_by_browser: Any = None, memory: Any = None,
-                   cancelled: Optional[threading.Event] = None) -> Dict[str, Any]:
+                   cancelled: Optional[threading.Event] = None, saved: Any = None) -> Dict[str, Any]:
     trace = trace if trace is not None else {}
     try:
         message, view, state, turns = _bounded_inputs(message, view, authoring, snippets)
@@ -4272,7 +4357,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         # ⭐ THE DOOR ASKS, with no model call: the same question every time, for nothing. ONE
         # question; the next open one is asked on the next turn (`with_pending_answers`).
         question = {"contract": PATCH_CONTRACT, "baseRevision": revision, "ops": [], "disposition": "clarify",
-                    "questions": [offered_first(clarify_question(asking), memory)]}
+                    "questions": [offered_first(clarify_question(asking), memory, _usual_for(asking, saved, user_id))]}
         try:
             question = check_envelope(question, revision, view)
         except _Refused:                           # never: the question is this door's own. If it ever is, the model asks.

@@ -109,6 +109,11 @@ export default function IndicatorMemoryCard() {
               <span className={styles.hint} data-testid={`memory-from-${row.id}`}>
                 {row.remembered ? `${row.use} ` : ''}{cameFrom(row.remembered)}
               </span>
+              {/* What the member USUALLY uses, read by the server from their own saved indicators
+                  (nothing is stored). The server words it; with no habit there is no line. */}
+              {typeof row.usual === 'string' && row.usual ? (
+                <span className={styles.hint} data-testid={`memory-usual-${row.id}`}>{row.usual}</span>
+              ) : null}
             </div>
             <ChoiceMenu
               ariaLabel={row.title}
