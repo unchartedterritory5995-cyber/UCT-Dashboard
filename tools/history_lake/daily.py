@@ -52,20 +52,52 @@ EXIT_OK, EXIT_FAILED, EXIT_BEHIND = 0, 1, 3
 
 def raw_days(raw_dir: Path, years: Iterable[int]) -> List[str]:
     """Every vendor day file present, 'YYYY-MM-DD', ascending."""
-    out = []
+    return sorted(raw_sizes(raw_dir, years))
+
+
+def raw_sizes(raw_dir: Path, years: Iterable[int]) -> dict:
+    """{day: byte size} of every vendor day file present (the downloader keeps each at the vendor's
+    listed size, re-fetching one the vendor rewrote)."""
+    out = {}
     for y in years:
         d = Path(raw_dir) / str(y)
         if d.is_dir():
-            out += [f.name[:10] for f in d.iterdir() if f.name.endswith(".csv.gz") and len(f.name) == 17]
-    return sorted(out)
+            for f in d.iterdir():
+                if f.name.endswith(".csv.gz") and len(f.name) == 17:
+                    out[f.name[:10]] = f.stat().st_size
+    return out
+
+
+#: Held days this recent are re-checked against the vendor's file: a day file can be rewritten after
+#: it was first folded (an early copy before ~11:00 ET, or a correction months later).
+REVISIT_DAYS = 10
 
 
 def new_days(raw: Sequence[str], ledger_days: Iterable[str]) -> List[str]:
-    """The days to fold: present in raw, after the newest day the tree already holds (never older: the
-    builder folds in date order and a period's pack is flushed once the range moves past it)."""
+    """The days AFTER the newest day the tree holds (the common case: yesterday)."""
     have = set(ledger_days)
     last = max(have) if have else ""
     return [d for d in raw if d > last and d not in have]
+
+
+def days_to_fold(sizes: dict, ledger: dict, *, revisit: int = REVISIT_DAYS) -> dict:
+    """What this run folds, by reason, each list ascending:
+      new      after the newest held day;
+      holes    present now, inside the tree's range, but never folded (a failed download fixed later):
+               never left behind for good;
+      changed  among the newest `revisit` held days, the vendor's file is not the size that was folded
+               (the builder refolds a day whose size changed)."""
+    held = {d: (v or {}) for d, v in (ledger or {}).items()}
+    if not held:
+        return {"new": sorted(sizes), "holes": [], "changed": []}
+    first, last = min(held), max(held)
+    recent = set(sorted(held)[-revisit:]) if revisit > 0 else set()
+    return {
+        "new": sorted(d for d in sizes if d > last),
+        "holes": sorted(d for d in sizes if first < d < last and d not in held),
+        "changed": sorted(d for d in sizes if d in recent and held[d].get("size") is not None
+                          and int(held[d]["size"]) != int(sizes[d])),
+    }
 
 
 def period_of(day: str, series: str) -> str:
@@ -156,11 +188,23 @@ def run(root: Path, tree: str, bucket: str, prefix: str, *, dry_run: bool = Fals
         log("[lake-daily] download failed; folding whatever is already on disk")
 
     ledger = json.loads((tree_dir / "ledger.json").read_text(encoding="utf-8"))
-    held = list((ledger.get("days") or {}).keys())
-    days = new_days(raw_days(root / "raw", years), held)
+    held_days = ledger.get("days") or {}
+    held = list(held_days.keys())
+    plan = days_to_fold(raw_sizes(root / "raw", years), held_days)
+    days = sorted(set(plan["new"]) | set(plan["holes"]) | set(plan["changed"]))
     status["days"] = days
+    status["plan"] = plan
     lake_last = max(held) if held else None
-    if not days:
+    # What the BUCKET was last proven to hold (written only after a verified publish). The build ledger
+    # is not that: a run that built, then failed to publish, recorded its days anyway.
+    state_file = root / "daily-state.json"
+    try:
+        published = json.loads(state_file.read_text(encoding="utf-8")).get("published_through")
+    except (OSError, ValueError):
+        published = None
+    unpublished = bool(lake_last and (published is None or published < lake_last))
+    status["published_through"] = published
+    if not days and not unpublished:
         behind = trading_days_between(lake_last, today) if lake_last else 99
         status["lake_last_day"] = lake_last
         if behind > 1:
@@ -170,6 +214,12 @@ def run(root: Path, tree: str, bucket: str, prefix: str, *, dry_run: bool = Fals
     status["step"] = "splits"
     if not dry_run and runner([sys.executable, str(root / "tools" / "fetch_splits.py")], log) != 0:
         log("[lake-daily] split reference not refreshed; publishing with the last one")
+
+    if not days:
+        # Nothing to build, but the bucket was never proven to hold what the tree has: publish again
+        # (packs already there at their size are skipped; indexes are rewritten).
+        return _publish_and_verify(root, tree, bucket, prefix, lake_last, None, status, finish,
+                                   runner=runner, read_index=read_index, log=log, now=now, dry_run=dry_run)
 
     status["step"] = "backup"
     backup = root / f"backup-{_dt.datetime.fromtimestamp(now()).strftime('%Y%m%d-%H%M')}"
@@ -193,15 +243,35 @@ def run(root: Path, tree: str, bucket: str, prefix: str, *, dry_run: bool = Fals
     if not dry_run and runner(_locked("lake-daily-build", build, 4 * 3600), log, low_priority=True) != 0:
         return finish(EXIT_FAILED, reason=f"build failed; packs backed up in {backup}")
 
+    try:
+        ledger_last = max((json.loads((tree_dir / "ledger.json").read_text(encoding="utf-8")).get("days") or {}).keys())
+    except (OSError, ValueError):
+        ledger_last = days[-1]
+    return _publish_and_verify(root, tree, bucket, prefix, max(ledger_last, days[-1]), t0, status, finish,
+                               runner=runner, read_index=read_index, log=log, now=now, dry_run=dry_run)
+
+
+def _publish_and_verify(root: Path, tree: str, bucket: str, prefix: str, through: str, built_at: Optional[float],
+                        status: dict, finish: Callable, *, runner: Callable, read_index: Callable,
+                        log: Callable, now: Callable, dry_run: bool) -> int:
+    """Publish every tree, read the reference index back, and only then record what the bucket holds."""
     status["step"] = "publish"
     trees = sorted(p for p in root.glob("packs-*") if (p / "packs").is_dir())
     pub = [sys.executable, str(HERE / "publish.py")]
     for t in trees:
         pub += ["--from", str(t)]
-    pub += ["--out", str(root / "publish"), "--splits", str(root / "ref" / "splits.json"), "--as-of", days[-1],
-            "--upload", "--bucket", bucket, "--prefix", prefix, "--force-since", f"{t0 - 1:.0f}"]
+    pub += ["--out", str(root / "publish"), "--splits", str(root / "ref" / "splits.json"), "--as-of", through,
+            "--upload", "--bucket", bucket, "--prefix", prefix]
+    if built_at is not None:
+        # packs rebuilt by this run: always sent, and the only ones whose pieces are checked
+        pub += ["--force-since", f"{built_at - 1:.0f}", "--check-since", f"{built_at - 1:.0f}"]
+    else:
+        pub += ["--no-check"]           # nothing rebuilt: every pack was checked when it was written
+    events = root / "ref" / "ticker_events.jsonl"
+    if events.exists():                 # reused tickers cut, renamed companies stitched (identity.py)
+        pub += ["--ticker-events", str(events)]
     if not dry_run and runner(_locked("lake-daily-publish", pub, 4 * 3600), log, low_priority=True) != 0:
-        return finish(EXIT_FAILED, reason="publish failed (rerun: packs already sent are skipped)")
+        return finish(EXIT_FAILED, reason="publish failed (the next run publishes again: packs already sent are skipped)")
 
     status["step"] = "verify"
     if dry_run:
@@ -211,9 +281,12 @@ def run(root: Path, tree: str, bucket: str, prefix: str, *, dry_run: bool = Fals
     except Exception as e:  # noqa: BLE001 - reported, the run fails
         return finish(EXIT_FAILED, reason=f"could not read back {REFERENCE_SYMBOL}'s index: {type(e).__name__}")
     status["reference_last_1m"] = last
-    if not reaches_day(last, days[-1]):
-        return finish(EXIT_FAILED, reason=f"{REFERENCE_SYMBOL}'s live index does not reach {days[-1]}")
-    return finish(EXIT_OK, ok=True, reason=f"published through {days[-1]}")
+    if not reaches_day(last, through):
+        return finish(EXIT_FAILED, reason=f"{REFERENCE_SYMBOL}'s live index does not reach {through}")
+    tmp = root / "daily-state.json.tmp"
+    tmp.write_text(json.dumps({"published_through": through, "at": now()}), encoding="utf-8")
+    os.replace(tmp, root / "daily-state.json")
+    return finish(EXIT_OK, ok=True, reason=f"published through {through}")
 
 
 def main(argv: Optional[List[str]] = None) -> int:

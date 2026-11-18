@@ -238,8 +238,10 @@ def test_the_method_text_names_its_sources():
     it has to say all three."""
     text = compute_scoreboard([], today=TODAY)["methodology"]
     assert "flagged on UCT's options flow tape" in text
-    assert "recorded each weekday after the close from Massive, with Schwab as backup" in text
-    assert "Results recorded before the move to Massive in November 2026 came from Schwab" in text
+    assert "recorded each weekday after the close from Massive. " in text
+    assert "Schwab as backup" not in text                    # the backup was removed 2026-11-17
+    assert text.count("Schwab") == 1                         # said once, about the past
+    assert "Results recorded before November 2026 came from Schwab and stay as recorded" in text
     assert "read from Schwab" not in text
 
 
@@ -248,11 +250,11 @@ def test_the_docstring_names_the_source_order_the_tracker_runs():
     import api.top_flow_tracker as tracker
     doc = " ".join(fs.__doc__.split())
     assert "from Massive (api.massive_oi_snapshots._fetch_fields_all_async)" in doc
-    assert "Schwab (api.schwab_service.get_batch_option_quotes) as the backup" in doc
-    assert "Results recorded before that change came from Schwab and stay as recorded" in doc
-    assert "an entry without one is Schwab" in doc
-    # ...and that is the tracker's code default, not a wish
-    assert tracker.TOP_FLOW_MODE_FLAGS["TOP_FLOW_SNAPSHOT_SOURCE"][0] == "massive"
+    assert "and from nothing else" in doc and "schwab_service" not in doc
+    assert "before November 2026 came from Schwab and stay as recorded" in " ".join(doc.split())
+    assert 'with none is Schwab' in " ".join(doc.split())
+    # ...and that is what the tracker does, not a wish: no switch, no second source
+    assert not hasattr(tracker, "TOP_FLOW_MODE_FLAGS") and not hasattr(tracker, "snapshot_source")
 
 
 def test_the_docstring_describes_the_gated_mount_not_a_public_route():

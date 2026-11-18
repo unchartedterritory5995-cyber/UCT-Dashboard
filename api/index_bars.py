@@ -1,9 +1,9 @@
 """
-index_bars.py — cache-backed bars for cash-settled indexes that Schwab's
+index_bars.py — cache-backed bars for cash-settled indexes that the old Schwab
 /pricehistory doesn't serve (SPX, NDX, VIX, RUT, DJX, XSP, XND).
 
 WHY THIS EXISTS
-  Schwab serves /pricehistory for ETFs but returns {"bars": []} for cash indexes.
+  Schwab (retired 2026-11-17) served /pricehistory for ETFs but returned {"bars": []} for cash indexes.
   We source those from yfinance (^GSPC for SPX, ^NDX for NDX, …).
 
 ⭐ INSTANT-CHARTS REWRITE (2026-08-31)
@@ -111,7 +111,7 @@ _bg_lock = threading.Lock()
 
 
 def is_index(ticker: str) -> bool:
-    """True if the ticker should route through yfinance instead of Schwab."""
+    """True if the ticker should route through yfinance (the index path)."""
     return (ticker or "").upper().strip() in INDEX_TICKERS
 
 

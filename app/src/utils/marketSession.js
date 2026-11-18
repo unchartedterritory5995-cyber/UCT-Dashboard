@@ -356,7 +356,13 @@ function _etDateOfUnix(unixSec) {
 // verified on prod then ramped, exactly like the daily edge fixes. At PCT=0 with no
 // opt-in, isIntradayTailStale is byte-identical to before. Owner opt-in for testing:
 // window.__uctIntradayComplete(true). Instant revert: set PCT to 0 / opt-out.
-export const INTRADAY_COMPLETENESS_PCT = 0
+// ⭐ RAMPED TO 100 (2026-11-17). Dark since 2026-09-04 and never ramped, so for every member a tail
+// dated on the last closed session counted as complete wherever it stopped. Measured that night
+// (flip proof, production server, 00:36 ET): first paints of never-opened tickers held copies ending
+// at 11:05 the day before, the store called them displayable and the typed warm skipped its request,
+// and that session's afternoon (+45-63 5m bars) arrived ~500 ms later in view. Overnight, pre-open
+// and all weekend. Per browser, 'uct.intradayComplete.enabled' = '0' still opts out.
+export const INTRADAY_COMPLETENESS_PCT = 100
 export function _intradayCompletenessOn() {
   try {
     const ls = typeof localStorage !== 'undefined' ? localStorage.getItem('uct.intradayComplete.enabled') : null

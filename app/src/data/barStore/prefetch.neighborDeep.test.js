@@ -94,6 +94,23 @@ describe('the neighbor hold deepens the next rows once the member rests', () => 
     expect(t.scrolls).toEqual([])                                     // at the lake target: done
   })
 
+  it('where the lake carries the row, ONE lake load brings its whole depth: no window is asked', async () => {
+    const t = await boot()
+    t.store.lakeCarries = () => true
+    t.store.lakeSeed = vi.fn(async () => 'join')
+    t.seed('AAA')
+    const hold = t.pf.createNeighborHold()
+    hold.set(['AAA'], '5', { deep: ['AAA'] })
+    await t.fire()
+    expect(t.store.lakeSeed).toHaveBeenCalledWith(t.k('AAA'))
+    expect(t.scrolls).toEqual([])
+    // a lake that adds nothing (it ends before the row's answer) hands over to the windows
+    t.store.lakeSeed = vi.fn(async () => false)
+    hold.set(['AAA'], '5', { deep: ['AAA'] })
+    await t.fire()
+    expect(t.scrolls.length).toBeGreaterThan(0)
+  })
+
   it('never asks a row already at the chart\'s target', async () => {
     const t = await boot()
     t.seed('AAA', '5', HISTORY_PREFETCH_TARGET_BARS)
@@ -174,6 +191,19 @@ describe('the neighbor hold deepens the next rows once the member rests', () => 
       expect(t.scrolls.filter(([key]) => key === t.k('AAA')).length).toBe(1)
       expect(t.scrolls.filter(([key]) => key === t.k('BBB')).length).toBe(PREFETCH_WINDOWS)
     }
+  })
+
+  it('a window that THROWS ends that row as a named failure (TERM-033), and the next row is still deepened', async () => {
+    // Without the named sentinel the rejection escapes `deepen` and the timer's catch swallows the
+    // WHOLE run: BBB, the next row, would never be deepened.
+    const t = await boot({ windowAnswer: (key) => { if (key.startsWith('AAA')) throw new Error('window read failed'); return { ok: true, added: HISTORY_WINDOW_BARS } } })
+    t.seed('AAA'); t.seed('BBB')
+    const hold = t.pf.createNeighborHold()
+    hold.set(['AAA', 'BBB'], '5', { deep: ['AAA', 'BBB'] })
+    await t.fire()
+    expect(t.scrolls.filter(([key]) => key === t.k('AAA')).length).toBe(1)
+    expect(t.scrolls.filter(([key]) => key === t.k('BBB')).length).toBe(PREFETCH_WINDOWS)
+    expect(t.snaps.get(t.k('AAA')).depth).toBe(470)                  // a failed window adds nothing
   })
 
   it('intraday only, and only rows the hold holds', async () => {

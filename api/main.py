@@ -4445,6 +4445,15 @@ def register_transcript_index_jobs(scheduler):
                 _ilog.info("[tindex] pruned %s calls past the retention window", dropped)
         except Exception as exc:
             _ilog.warning("[tindex] sweep failed: %s", exc)
+        # "What CEOs are saying" (the Terminal's CEOS panel) is worked out from this same index,
+        # so its once-a-day build rides this sweep instead of a schedule of its own: it runs after
+        # the index is current, on the one service that holds the index, and never on a request.
+        try:
+            from api.services import call_themes
+            if call_themes.refresh_if_due():
+                _ilog.info("[call-themes] daily build started after the index sweep")
+        except Exception as exc:
+            _ilog.warning("[call-themes] daily build could not start: %s", exc)
 
     for hour, minute in ((6, 45), (20, 45)):
         scheduler.add_job(
@@ -5855,44 +5864,9 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logging.getLogger(__name__).exception("[startup] failed to schedule reconciliation_worker: %s", e)
 
-    # ── Schwab proactive token refresh ───────────────────────────────────────
-    #
-    # ⚰️ `schwab_service.start_auto_refresh()` HAS EXISTED AND HAS NEVER BEEN CALLED.
-    # Measured 2026-11-09: zero callers anywhere in the tree, while
-    # `_auto_refresh_loop`'s own docstring claims "As long as the app is running, users
-    # never need to re-authenticate." Two separate false claims in one function — the
-    # loop never ran, AND Schwab caps the refresh token at 7 days regardless, so a
-    # weekly manual OAuth is unavoidable either way.
-    #
-    # The observable consequence, measured the same evening: web's access token sat
-    # **53.4 minutes old** with an unchanged value, i.e. expired (they live 1800s),
-    # because the ONLY thing that ever refreshed was an on-demand `get_valid_token()`
-    # call and nothing had asked after hours.
-    #
-    # ⛔ WHY IT MATTERS NOW, AND WHY IT IS HERE RATHER THAN IN THE PUSHER. The token
-    # replication added alongside this ships ONLY the access token to flow-worker, and
-    # flow-worker cannot refresh by design (it never holds a refresh token). So
-    # flow-worker's coverage is exactly as fresh as web's last refresh. The pusher
-    # deliberately refuses to ship an expired token, so without a proactive refresh on
-    # web there are windows where there is nothing good to send. Refreshing from the
-    # pusher was rejected: it runs on a BackgroundScheduler THREAD, and driving an
-    # async refresh from there means a second event loop touching `_TOKEN_REFRESH_LOCK`
-    # — a second authority over the one thing that must stay single-flight.
-    #
-    # ⛔ MUST be created here, inside the async lifespan: `start_auto_refresh` calls
-    # `asyncio.create_task`, which needs the running loop.
-    #
-    # DARK by default — arm with the replication flags, not before, since its only
-    # purpose here is keeping the replicated token fresh.
-    try:
-        if os.environ.get("SCHWAB_AUTO_REFRESH_ENABLED", "0") == "1":
-            from api import schwab_service as _schwab
-            _schwab.start_auto_refresh()
-            logging.getLogger(__name__).info(
-                "[startup] schwab auto-refresh task started (25 min cadence)")
-    except Exception as e:
-        logging.getLogger(__name__).exception(
-            "[startup] failed to start schwab auto-refresh: %s", e)
+    # (The Schwab token refresh task that used to start here is gone: Schwab was retired from
+    # the product on 2026-11-17. Its poll was the source of the every-minute
+    # "Token refresh failed" error in the web log.)
 
     # Live options-flow SSE tailer (2026-07-08) — the instant-tape backend.
     # Reads flow.db for new prints and pushes them to connected browsers. Inert
@@ -6643,6 +6617,16 @@ async def lifespan(app: FastAPI):
         print("[startup] ticker-names prewarm scheduled")
     except Exception as e:
         print(f"[startup] ticker-names prewarm scheduling failed (non-fatal): {e}")
+
+    # The Terminal's one-click period rankings (PCHG: this month, this quarter, year to date
+    # ...) are kept built so a member's first click is not a half-minute "computing". The
+    # loop starts itself on the web service only (scan_period.start_preset_warmer).
+    try:
+        from api.services import scan_period as _scan_period
+        if not _light_skip("period-preset-warm"):
+            _scan_period.start_preset_warmer()
+    except Exception as e:
+        print(f"[startup] period preset warm scheduling failed (non-fatal): {e}")
 
     # Company-logo cache prewarm: fill /data/logo_cache for the whole cap_universe
     # so the FIRST view of any watchlist / theme / calendar serves real logos from
@@ -8092,52 +8076,6 @@ async def lifespan(app: FastAPI):
             _scheduler.add_job(_of_etf_reconcile, "interval", minutes=30,
                                id="optionsflow_etf_replica_reconcile",
                                max_instances=1, coalesce=True, replace_existing=True)
-
-        # ── Schwab access token -> flow-worker ────────────────────────────────
-        #
-        # ⚰️ WHY THIS EXISTS. Schwab's OAuth callback can only land on `web`, and
-        # `/data/schwab_token.json` is on a PER-SERVICE volume. Measured 2026-11-09,
-        # minutes after a successful re-auth: web's token 0.0 days old, flow-worker's
-        # **113.4 days** old and failing `invalid_grant` on every cycle, silently
-        # covered by the Massive OI fallback. The owner read that as "every deploy I
-        # have to log in again" — the login fixed the pod they were looking at and
-        # never the one serving the data. `/data` survives deploys; nothing propagated.
-        #
-        # ⛔ NOT FOLDED INTO THE TICKER_TYPES BLOCK ABOVE, and not under its flag.
-        # Those carry datasets on a daily/30-min cadence; this carries a 30-MINUTE
-        # CREDENTIAL and must run far more often. Its own flag, its own job id, its
-        # own try/except — a fault in either must not stop the other.
-        #
-        # ⛔ A PUSH IS NOT THE PRIMARY PATH — `save_tokens` already pushes on every
-        # login and every refresh. This is the self-healing cadence, and it is what
-        # covers the case the owner actually hits: a flow-worker DEPLOY, which boots
-        # with whatever token the volume last held and cannot pull (web is IPv4-only
-        # on an IPv6 private network, so pull was disproved). A current pod costs one
-        # status probe and transfers nothing.
-        #
-        # ⚠️ THIS DOES NOT REMOVE THE WEEKLY RE-AUTH. Schwab caps the refresh token at
-        # 7 days and refreshing does not extend it. One manual OAuth per week on web
-        # is unavoidable; what this removes is the per-pod and per-deploy half.
-        #
-        # DARK until SCHWAB_TOKEN_PUSH_ENABLED=1 on web AND
-        # SCHWAB_TOKEN_REPLICA_RECEIVE_ENABLED=1 on flow-worker.
-        try:
-            def _schwab_token_push():
-                try:
-                    from api.services import schwab_token_push
-                    schwab_token_push.reconcile()
-                except Exception as _e:
-                    logging.getLogger(__name__).warning(
-                        "[schwab-token-push] reconcile raised: %s", _e)
-
-            _scheduler.add_job(
-                _schwab_token_push, "interval",
-                minutes=int(os.environ.get("SCHWAB_TOKEN_PUSH_INTERVAL_MIN", "5")),
-                id="schwab_token_replica_push",
-                max_instances=1, coalesce=True, replace_existing=True)
-        except Exception as _e:
-            logging.getLogger(__name__).warning(
-                "[schwab-token-push] could not register job: %s", _e)
 
         # Breadth live -- rebuild the day's reference levels BEFORE the open.
         #
@@ -10214,9 +10152,9 @@ async def lifespan(app: FastAPI):
                            id="ssetf_nightly_rebuild", max_instances=1, replace_existing=True)
 
         # -- Daily OI snapshot for retroactive flow confirmation ----------
-        # Captures Schwab live OI for every contract with flow in the past
-        # 30 days. Runs at 5:30 AM ET -- well before market open, off-peak
-        # for Schwab API rate limits. Day-over-day OI deltas let us
+        # Captures open interest (from Massive) for every contract with flow in
+        # the past 30 days. Runs at 5:30 AM ET -- well before market open.
+        # Day-over-day OI deltas let us
         # retroactively confirm B-side trades as real positioning once
         # OI growth proves they were institutional opens (vs churn).
         try:
@@ -10232,11 +10170,11 @@ async def lifespan(app: FastAPI):
                 print("[startup] dealer_positioning table initialized")
             except Exception as _e:
                 print(f"[startup] dealer_positioning init failed (non-fatal): {_e}")
-            # Post-P5-cutover: the Schwab consumer + on-demand OI fetch + flow.db
+            # Post-P5-cutover: the OPRA consumer + on-demand OI fetch + flow.db
             # live on the FLOW-WORKER now, so the daily OI snapshot cron runs
             # THERE (see flow_worker_main._start_flow_schedulers). Registering it
-            # on web too would write to web's frozen flow.db AND refresh-race the
-            # shared Schwab token. Gate it to where the consumer runs.
+            # on web too would write to web's frozen flow.db. Gate it to where
+            # the consumer runs.
             if os.getenv("MASSIVE_WS_ENABLED") == "1":
                 # timezone EXPLICIT (2026-07-16): a pre-built CronTrigger defaults
                 # to the SERVER-LOCAL tz (UTC on Railway), NOT the scheduler's ET —

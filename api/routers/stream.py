@@ -314,6 +314,57 @@ def _build_stale_events(tickers, now=None, bb=None):
     return events
 
 
+#: How much NEWER a Finnhub trade must be than the live feed's last trade before Finnhub's price is
+#: sent (the two feeds stamp the same print within about a second of each other).
+FRESHER_SOURCE_MARGIN_MS = 2000
+
+
+def _trade_ms(v) -> int | None:
+    """A trade time in epoch ms whatever unit it was stored in (Finnhub's trade handler keeps ms, the
+    tick recorder seconds); None when absent or not a time."""
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return None
+    if not x > 0:
+        return None
+    return int(x) if x > 1e12 else int(x * 1000)
+
+
+def _overlay_live(current: dict, sym: str, mp) -> None:
+    """Overlay the MASSIVE live quote (`mp`, bar_broadcaster.get_last_price) on the Finnhub entry in
+    `current`, in place. Only the price, the live day volume and the trade time are overlaid; the
+    client recomputes the day % from the price and the REST previous close.
+
+    ⭐ THE FRESHER SOURCE WINS (2026-11-17 audit, gap 2: stale shown as live). The live price used to
+    overlay Finnhub's whenever it existed, so a symbol whose live trades stopped arriving (the vendor
+    socket up, that symbol's flow lost) held a frozen price while Finnhub's own trades moved on. Now a
+    Finnhub trade more than FRESHER_SOURCE_MARGIN_MS newer than the live one keeps its own price."""
+    if not mp or mp.get("price") is None:
+        return
+    entry = current.get(sym)
+    live_ms = _trade_ms(mp.get("trade_ts"))
+    other_ms = _trade_ms(entry.get("timestamp")) if entry else None
+    if live_ms is not None and other_ms is not None and other_ms - live_ms > FRESHER_SOURCE_MARGIN_MS:
+        return
+    if entry is None:
+        entry = {}
+        current[sym] = entry
+    entry["price"] = mp["price"]
+    # Live cumulative day volume (Massive `av`) overlays the 15s REST value so the Volume column ticks too.
+    if mp.get("volume") is not None:
+        entry["volume"] = mp["volume"]
+    # Stamp the TRADE time, not this loop's send time: the client buckets the live price into a candle
+    # by `updated_at`, and send time put a 9:59:59.9 print into the 10:00 candle. `trade_ts` (ms) is the
+    # exact value; send time is only the fallback.
+    tts = mp.get("trade_ts")
+    if tts:
+        entry["updated_at"] = int(tts // 1000)
+        entry["trade_ts"] = int(tts)
+    else:
+        entry["updated_at"] = int(time.time())
+
+
 @router.get("/api/stream/prices")
 async def stream_prices(
     request: Request,
@@ -403,28 +454,7 @@ async def stream_prices(
                 # recomputes the day % from this price + the REST prev close.
                 if _bb is not None:
                     for sym in ticker_list:
-                        mp = _bb.get_last_price(sym)
-                        if mp and mp.get("price") is not None:
-                            entry = current.get(sym)
-                            if entry is None:
-                                entry = {}
-                                current[sym] = entry
-                            entry["price"] = mp["price"]
-                            # Live cumulative day volume (Massive `av`) overlays the
-                            # 15s REST value so the Volume column ticks too.
-                            if mp.get("volume") is not None:
-                                entry["volume"] = mp["volume"]
-                            # Stamp the TRADE time, not this loop's send time: the
-                            # client buckets the live price into a candle by
-                            # `updated_at`, and send time put a 9:59:59.9 print
-                            # into the 10:00 candle. `trade_ts` (ms) is the exact
-                            # value; send time is only the fallback.
-                            _tts = mp.get("trade_ts")
-                            if _tts:
-                                entry["updated_at"] = int(_tts // 1000)
-                                entry["trade_ts"] = int(_tts)
-                            else:
-                                entry["updated_at"] = int(time.time())
+                        _overlay_live(current, sym, _bb.get_last_price(sym))
 
                 # Only send if any ticker's price OR live volume actually changed
                 # (volume is included so the Volume column still ticks on a trade

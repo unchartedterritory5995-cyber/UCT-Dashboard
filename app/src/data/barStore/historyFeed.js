@@ -16,6 +16,7 @@
 // (createBarStore, every suite) keeps the old default, OFF unless '1': a suite asks for the lake by name.
 import { createHistorySource, periodsFor, seriesFor } from '../historyLake/source'
 import { parseKey, isIntradayTf } from './types'
+import { LAKE_PREFETCH_TARGET_BARS } from '../../utils/historyPrepend'
 
 export const HISTORY_LAKE_KEY = 'uct.historyLake'
 
@@ -59,15 +60,21 @@ export function createHistoryFeed({ source = createHistorySource() } = {}) {
   // the index (kept for the page's life) and the series' newest pieces into the browser's HTTP cache,
   // the very URLs the window then reads. Once per key per page; a few hundred keys at most.
   const primed = new Set()
-  function prime(key, { pieces = PRIME_PIECES } = {}) {
+  // ⭐ ENOUGH PIECES FOR THE WHOLE FIRST PAINT (2026-11-17): the handoff now loads the chart's whole
+  // depth (LAKE_PREFETCH_TARGET_BARS) at Enter, so the prime warms the newest pieces until they hold
+  // that many bars (at least PRIME_PIECES), not just the newest two.
+  function prime(key, { pieces = PRIME_PIECES, bars = LAKE_PREFETCH_TARGET_BARS } = {}) {
     const ls = lakeSeriesOfKey(key)
     if (!ls || !ls.series || primed.has(key)) return
     primed.add(key)
     if (primed.size > PRIME_MAX_KEYS) primed.delete(primed.values().next().value)
     Promise.resolve().then(() => source.loadIndex(ls.sym)).then((index) => {
       if (!index || !source.warmPieces) return undefined
-      const newest = periodsFor(index, ls.series, {}).slice(-pieces)
-      return source.warmPieces(ls.sym, ls.series, newest)
+      const all = periodsFor(index, ls.series, {})
+      let have = 0
+      let from = all.length
+      while (from > 0 && (all.length - from < pieces || have < bars)) { from--; have += all[from].bars || 0 }
+      return source.warmPieces(ls.sym, ls.series, all.slice(from))
     }).catch(() => {})
   }
 
@@ -101,7 +108,12 @@ export function createHistoryFeed({ source = createHistorySource() } = {}) {
     for (let i = start; i < end; i++) rows.push({ t: t[i], o: o[i], h: h[i], l: l[i], c: c[i], v: v[i] })
     return { bars: rows, exhausted: false }
   }
-  return { olderBars, prime }
+  /** Does the lake hold `sym` at all (its index exists)? A 404 is "no such ticker": the typed warm's
+   *  second authority when the daily pack does not know a real ticker. Never rejects. */
+  function hasSymbol(sym) {
+    return Promise.resolve().then(() => source.loadIndex(sym)).then((i) => !!i).catch(() => false)
+  }
+  return { olderBars, prime, hasSymbol }
 }
 
 /** Pieces `prime` warms per key: the newest two hold the first lake window of every series (a month

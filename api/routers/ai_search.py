@@ -1211,7 +1211,7 @@ def _ctx_verdict(sym: str) -> str:
 
 def _ctx_levels(sym: str) -> str:
     """Dark-pool levels (SQLite-backed, safe to build) + gamma walls read
-    CACHE-ONLY — the GXW cold build is a live ~20s Schwab chain call and must
+    CACHE-ONLY — the GXW cold build is a live option-chain walk (up to ~25s) and must
     never run inside an answer."""
     bits: list[str] = []
     try:

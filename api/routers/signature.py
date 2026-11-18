@@ -83,7 +83,7 @@ _FCB_TTL_S = 300
 
 # ── GEX negative cache ──────────────────────────────────────────────────────
 # `good()` for GEX is "not error", so an auth-down envelope is NEVER remembered
-# by ServeStale. Without this dict, every cold request during a Schwab auth
+# by ServeStale. Without this dict, every cold request during a chain-source
 # outage — a routine, hours-long production state — blocks an anyio worker for
 # the full ~20s /chains timeout, and the single-flight lock just queues the
 # rest behind it. 60s of memory turns that storm into one call per symbol per
@@ -745,10 +745,10 @@ def _gxw_remember_error(sym: str, payload: dict) -> None:
 def _gxw_build(sym: str) -> dict:
     # `asyncio.run` creates a NEW event loop for every build. That is safe
     # today and MUST STAY safe: nothing reachable from `get_gex_data` may touch
-    # a module-level asyncio primitive (`schwab_service._CHAIN_SEMAPHORE`,
+    # a module-level asyncio primitive (the retired Schwab client had two: `_CHAIN_SEMAPHORE`,
     # `_TOKEN_REFRESH_LOCK` — created at import and bound to the first loop
     # that awaits them). A cross-loop await raises "attached to a different
-    # loop", which arrives here indistinguishable from a Schwab outage: it
+    # loop", which arrives here indistinguishable from a vendor outage: it
     # would be logged as one, negative-cached as one, and chased as one.
     try:
         payload = asyncio.run(fetch_gex_walls(sym))

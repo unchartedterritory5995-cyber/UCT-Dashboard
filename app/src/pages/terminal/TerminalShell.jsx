@@ -62,10 +62,13 @@ import { pushFunctionRecent, readFunctionRecents } from './recents'
 import { TERMINAL_CALENDAR_PATH, TERMINAL_PATH } from './terminalGate'
 import L0Strip from './L0Strip'
 import FirstRunCard from './FirstRunCard'
+import PanelShare from './share/PanelShare'
+import { shareDecision } from './share/shareRule'
 import {
   BOARD_PAGE, boardCodeRefusal, boardableCodes, buildScanBoard, cleanSymbols, scanBoardName, scanBoardNotice,
   symbolsFromRows,
 } from './scanBoard'
+import { buildStarterBoard, freeBoardName, starterBoardNotice } from './starterBoards'
 import { brandedTitle } from '../../surfaces/brand'
 import styles from './TerminalShell.module.css'
 
@@ -262,7 +265,7 @@ export function Panel({
   index, panel, focused, syms, auth, channel, onFocus, onChannelMenu, onRun, onRows, onList, onBoard, boardCodes, helpProps,
   onClose, onDuplicate, onPopout, onBringBack, canClose, isPhone, standalone, hidden = false,
   density = 'comfortable', domId, canMaximise = false, maximised = false, onMaximise,
-  reorder = null, linkedSym = null,
+  reorder = null, linkedSym = null, onNotice = null,
 }) {
   const r = resolvePanel(panel, syms, auth)
   const Comp = r.state === 'ready' && !panel.popout ? panelComponent(r.name) : null
@@ -281,6 +284,13 @@ export function Panel({
   // which clears this via the same setter) before the new one mounts — never a stale badge
   // held over from the previous security.
   const [freshness, setFreshness] = useState(null)
+  // Share a panel (owner pick 2026-11-17): ONE Share control in the frame, for the panels
+  // share/shareRule.js allows. It reads this body element when the member picks an item, so what
+  // is shared is what is on screen; the header's own title and freshness report name it.
+  const bodyRef = useRef(null)
+  const share = shareDecision(r.fn, r.variant)
+  const shareMeta = useMemo(() => ({ code: panel.code, command: title, label: r.fn?.label || '', sym: r.sym || '', report: freshness }),
+    [panel.code, title, r.fn, r.sym, freshness])
   // ONE header per panel: what the embedded component learns about the frame it sits in, so a
   // page can drop its own title and page padding (components/terminal/terminalPanel.js).
   const flush = !!(r.name && FLUSH_PANELS.has(r.name))
@@ -395,6 +405,10 @@ export function Panel({
                 <UIcon name={maximised ? 'collapse' : 'expand'} size={14} gold={false} />
               </button>
             )}
+            {Comp && share.offered && (
+              <PanelShare index={index} decision={share} bodyRef={bodyRef} meta={shareMeta} onNotice={onNotice}
+                className={styles.panelAct} />
+            )}
             {!isPhone && (
               <button type="button" className={styles.panelAct} onClick={onDuplicate} aria-keyshortcuts="Alt+C"
                 aria-label={`Duplicate panel ${index + 1}`} title="Duplicate (Alt+C)" data-testid={`terminal-dup-${index}`}>
@@ -419,7 +433,7 @@ export function Panel({
       {/* Wave 3 (#2): ONE headline line per one-stock panel — price, % change, volume vs
           average, next earnings — drawn by the frame so no panel carries its own copy. */}
       {r.state === 'ready' && r.sym && !panel.popout && <SecurityHeadline sym={r.sym} onRun={(t) => runHere(t)} />}
-      <div className={`${styles.panelBody} ${flush && !panel.popout ? styles.panelBodyFlush : ''}`}
+      <div ref={bodyRef} className={`${styles.panelBody} ${flush && !panel.popout ? styles.panelBodyFlush : ''}`}
         data-inset={flush && !panel.popout ? 'flush' : 'inset'} data-testid={`terminal-body-${index}`}>
         {panel.popout && (
           <PanelState kind="paused" testId={`terminal-popped-${index}`}
@@ -518,6 +532,9 @@ export default function TerminalShell() {
   if (previousRef.current === undefined) previousRef.current = readRevert()
   const [hasRevert, setHasRevert] = useState(() => !!previousRef.current)
   const [currentBoard, setCurrentBoard] = useState(null)
+  // The ready-made board (starterBoards.js) on screen, by id, for the Boards menu's "open now"
+  // mark. Cleared when any other board opens, on "Back to my layout", and once it is saved.
+  const [currentStarter, setCurrentStarter] = useState(null)
   // Every run gets a number; an async answer (an address resolve, a sector lookup, an alias
   // save) acts only if no later run — and no unmount — happened since (audit #12).
   const runSeqRef = useRef(0)
@@ -616,6 +633,7 @@ export default function TerminalShell() {
     for (const [ch, s] of Object.entries(compatSyms)) setGroupSym(ch, s)
     save(next)
     setCurrentBoard(name || null)
+    setCurrentStarter(null)
     if (boardId) saveLibrary(markOpened(libraryRef.current, boardId))
     setNotice({
       kind: 'info',
@@ -636,6 +654,7 @@ export default function TerminalShell() {
     for (const ch of ['A', 'B', 'C', 'D']) setGroupSym(ch, prev.syms?.[ch] || '')
     save(prev.layout)
     setCurrentBoard(null)
+    setCurrentStarter(null)
     setNotice({ kind: 'info', text: 'Back to your layout.' })
   }, [save, setGroupSym])
 
@@ -677,6 +696,24 @@ export default function TerminalShell() {
     return null
   }, [auth, openSnapshot])
   const onBoardFromList = useCallback((req) => openScanBoard({ ...req, page: 0 }), [openScanBoard])
+
+  /** Open a ready-made board (starterBoards.js, the Boards menu) through the SAME path a saved,
+   *  shared or scan board opens: the member's own board is remembered ("Back to my layout"), the
+   *  board on screen changes, and the library is not written. Keeping it is the member's own
+   *  press of "Save to my boards". */
+  const openStarter = useCallback((starter) => {
+    const next = buildStarterBoard(layoutRef.current, starter)
+    if (!next) {
+      setNotice({ kind: 'error', text: `${starter?.name || 'That board'} could not be opened on this release; your board was not changed.` })
+      return
+    }
+    openSnapshot(next, {
+      name: starter.name,
+      text: starterBoardNotice(starter),
+      actions: [{ label: 'Save to my boards', id: 'save-starter', name: starter.name }],
+    })
+    setCurrentStarter(starter.id)
+  }, [openSnapshot])
 
   /** Run one command line. Returns the panel text it put in a panel, or null. A board
    *  address (`B:<slug>`) opens that board; everything else goes through the ONE parser. */
@@ -1397,6 +1434,7 @@ export default function TerminalShell() {
     } else {
       const replaced = library.boards.some((b) => b.id === res.board.id)
       setCurrentBoard(res.board.name)
+      setCurrentStarter(null)   // saved: it is the member's own board now, listed under My boards
       said = { kind: 'info', text: `${replaced ? `Replaced your board ${res.board.name} with this one` : `Saved as ${res.board.name}`} — open it any time with B:${res.board.slug}.` }
     }
     setNotice(said)
@@ -1450,6 +1488,13 @@ export default function TerminalShell() {
       // Saved: keep the page buttons and the way back on the notice that says so.
       const said = onSaveBoard(a.name)
       const rest = (notice?.actions || []).filter((x) => x.id !== 'save-scan')
+      if (said?.kind === 'info' && rest.length) setNotice({ ...said, actions: rest })
+    }
+    else if (a.id === 'save-starter') {
+      // A ready-made board is saved under a FREE name: `saveBoard` replaces a board of the same
+      // name, and this one-click save must never replace a board the member made.
+      const said = onSaveBoard(freeBoardName(libraryRef.current, a.name))
+      const rest = (notice?.actions || []).filter((x) => x.id !== 'save-starter')
       if (said?.kind === 'info' && rest.length) setNotice({ ...said, actions: rest })
     }
     else if ((a.id === 'board-next' || a.id === 'board-prev') && scanRef.current) {
@@ -1953,6 +1998,7 @@ export default function TerminalShell() {
                 density={layout.density}
                 reorder={reorderFor(p, i)}
                 linkedSym={syms[panelChannel(p) || layout.activeChannel || 'A'] || null}
+                onNotice={setNotice}
               />
           ))}
         </div>
@@ -1998,6 +2044,8 @@ export default function TerminalShell() {
           openToVersions={boardsOpenToVersions}
           onSave={onSaveBoard}
           onOpen={(b) => { setSheet(null); openNamed(b) }}
+          onOpenStarter={(s) => { setSheet(null); openStarter(s) }}
+          currentStarterId={currentStarter}
           onDelete={(b) => {
             // One click deleted a saved board for good (lane C audit 2026-10-08). The delete
             // stays one click, and the notice (shown at the top of this sheet) carries an Undo.
