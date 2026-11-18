@@ -200,18 +200,7 @@ export function answerFromImage(answer, withSides) {
   return withSides(out, answer && answer.sides)
 }
 
-/** A throw, as plain data: what the chart's side rebuilds it from (`errorFromImage`). */
-export function errorImageOf(err) {
-  const img = { name: (err && err.name) || 'Error', message: String((err && err.message) || err) }
-  if (err && typeof err === 'object') {
-    for (const [k, v] of Object.entries(err)) if (v === null || typeof v !== 'object') { if (typeof v !== 'function') img[k] = v }
-  }
-  return img
-}
-
-/** The throw an answer carried, with its name, message and every plain field (`guard` among them). */
-export function errorFromImage(img) {
-  const err = new Error((img && img.message) || 'the host lane failed')
-  for (const [k, v] of Object.entries(img || {})) if (k !== 'message') err[k] = v
-  return err
-}
+// ⭐ A THROW CROSSES BY THE ONE RULE FOR ERRORS AT A WORKER BOUNDARY (`runtime/errorImage.js`, #1749):
+// its name, its message and every own field that is plain data, rebuilt with every one it carried. The
+// runtime lane's worker and this one share it, so a field a lane adds tomorrow crosses both, unnamed.
+export { errorImageOf, errorFromImage } from './runtime/errorImage.js'

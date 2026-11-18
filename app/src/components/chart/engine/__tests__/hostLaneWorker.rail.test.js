@@ -31,7 +31,9 @@ import {
   hostObjectsOffThread, hostObjectsSendable,
 } from '../hostLaneAsync'
 import { hostObjectReaderOpts } from '../hostObjects'
-import { HOST_CTX_FIELDS, HOST_CTX_CARRIED, packRows, unpackRows } from '../hostLaneWire'
+import { HOST_CTX_FIELDS, HOST_CTX_CARRIED, packRows, unpackRows, errorImageOf, errorFromImage } from '../hostLaneWire'
+import * as errorImage from '../runtime/errorImage'
+import { TableRefusal, isRefusal } from '../ast/parse'
 import { AST_SIDE_RECORDS, astSideRecordsOf, withAstSideRecords, withColumnErrors, withRuntimeErrorStop } from '../astColumns'
 import { runtimeErrorNoticeFor, resetRuntimeErrorNotices } from '../runtimeErrorNotice'
 import { standInWorkers, firstDifference } from './hostLaneStandIn'
@@ -445,6 +447,19 @@ describe('5. the worker computes the main thread\'s function on the main thread\
       expect(Object.keys(back[i]).sort(), `bar ${i}`).toEqual(Object.keys(r).sort())
       for (const k of Object.keys(r)) expect(Object.is(back[i][k], r[k]), `bar ${i}.${k}`).toBe(true)
     })
+  })
+
+  it('a throw crosses by the ONE rule for errors at a worker boundary (`runtime/errorImage.js`): every plain field', () => {
+    // one implementation: the wire's doors ARE the runtime lane's
+    expect(errorImageOf).toBe(errorImage.errorImageOf)
+    expect(errorFromImage).toBe(errorImage.errorFromImage)
+    const thrown = new TableRefusal('interpret:steps', 'accum over 5000 bars is too many steps')
+    Object.assign(thrown, { pending: true, limit: 'STEPS', bar: 4211, ms: 12.5 })
+    const back = errorFromImage(structuredClone(errorImageOf(thrown)), 'the host lane failed')
+    expect(back.name).toBe('TableRefusal')
+    expect(back.message).toBe(thrown.message)
+    for (const k of ['guard', 'pending', 'limit', 'bar', 'ms']) expect(back[k], k).toBe(thrown[k])
+    expect(isRefusal(back)).toBe(true)          // the chart's side reads it as the refusal it was
   })
 
   it('every record the values carry crosses and is re-attached exactly as attached (keys, non-enumerable, frozen depth)', () => {

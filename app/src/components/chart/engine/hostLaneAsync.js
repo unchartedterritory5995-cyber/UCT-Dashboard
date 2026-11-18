@@ -76,6 +76,8 @@ const STALE_PANES = 16
 export const HOST_WORKER_UNRESPONSIVE_GUARD = 'host-lane:worker-unresponsive'
 /** Where a pending answer says so (non-enumerable, like every record on a column map). */
 export const HOST_PENDING_KEY = '__hostLanePending'
+/** The message a worker's throw is rebuilt with when it carried none (`runtime/errorImage.js`). */
+const HOST_LANE_FAILED = 'the host lane failed'
 /** Where a refused answer carries its strip sentence (non-enumerable). */
 export const HOST_STOP_KEY = '__hostLaneStop'
 
@@ -342,7 +344,7 @@ export function hostLaneOffThread(def, bars, inputs, ctx, extras) {
       rememberPicture(pane, sig, { rows: plan.rows, cols })
       return cols
     }
-    if (hit.state === 'failed') throw errorFromImage(hit.error)
+    if (hit.state === 'failed') throw errorFromImage(hit.error, HOST_LANE_FAILED)
     if (hit.state === 'main') return null
     if (hit.state === 'refused') return refusedAnswer(plan, hit.guard, hit.sentence)
     return pendingAnswer(pane, sig, plan.rows)
@@ -431,7 +433,7 @@ export function hostObjectsOffThread(def, bars, readerOpts, pane) {
   const served = (answer) => { _objServed.set(opane, sig); return answer }
   if (hit) {
     if (hit.state === 'done') return served({ done: true, host: hit.host })
-    if (hit.state === 'failed') throw errorFromImage(hit.error)
+    if (hit.state === 'failed') throw errorFromImage(hit.error, HOST_LANE_FAILED)
     if (hit.state === 'main') return served(null)
     if (hit.state === 'refused') return served({ refused: hit.sentence })
     return objectsPending(opane, sig)
