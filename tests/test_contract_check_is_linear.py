@@ -127,21 +127,55 @@ def test_what_breaks_outside_a_formula_is_said_as_before_and_beside_a_broken_for
         assert want and conv._schema_errors(envelope) == want, envelope
 
 
-def test_a_colour_rules_condition_is_a_formula_too(conv):
-    """The contract holds a formula in two kinds of place: a `tree`, and a colour state's `when`."""
-    _, _, roots, kinds = conv._linear_validators()
+def test_a_property_that_only_shares_a_formulas_name_is_checked_as_what_it_is(conv):
+    """REGRESSION, the same day (the first version of this fix, #1838). It found formulas by the
+    NAMES the contract holds one under (`tree`, `when`). A colour rule also has a `when`, and there
+    it is a plain word. The check validated the word "up" as a formula node and refused a VALID
+    answer: "ops/0/when: 'up' is not valid under any of the given schemas". The door's own truth
+    file caught it on the remote lane; it had not been run against the fix before the push.
+
+    There are no property names in the check now: a root is checked by the contract, as whatever
+    the contract says it is."""
+    data = json.loads((ROOT / "tests" / "fixtures" / "ast" / "p2_patches.json").read_text(encoding="utf-8"))
+    rule = next(c["patch"] for c in data["valid"]
+                if any(o.get("op") == "set_color_rule" and isinstance(o.get("when"), str) for o in c["patch"]["ops"]))
+    assert reference(conv, rule) == [] and conv._schema_errors(rule) == []
+    for other in ("anything", 7, None, ["up"], {"type": "series", "name": "close"}):
+        changed = copy.deepcopy(rule)
+        next(o for o in changed["ops"] if o.get("op") == "set_color_rule")["when"] = other
+        assert conv._schema_errors(changed) == reference(conv, changed), other
+    # and a formula's own name used for something else entirely is not walked as a formula
+    odd = {**with_formula(copy.deepcopy(GOOD)), "tree": "x", "when": ["y"]}
+    assert conv._schema_errors(odd) == reference(conv, odd)
+    assert len(conv._linear_validators()) == 3                               # no set of names is kept
+
+
+def test_the_engines_shared_patch_fixture_gets_the_full_contracts_verdict_case_by_case(conv):
+    """Every op kind the patch engine has, valid and invalid: the set that caught the defect above."""
+    data = json.loads((ROOT / "tests" / "fixtures" / "ast" / "p2_patches.json").read_text(encoding="utf-8"))
+    cases = [(f"valid: {c['name']}", c["patch"]) for c in data["valid"]] + [(f"invalid: {c['name']}", c["patch"]) for c in data["invalid"]]
+    assert len(cases) > 30
+    differing = [(name, conv._schema_errors(p), reference(conv, p)) for name, p in cases if conv._schema_errors(p) != reference(conv, p)]
+    assert differing == []
+    kinds = {o.get("op") for _, p in cases if isinstance(p, dict) for o in (p.get("ops") or []) if isinstance(o, dict)}
+    assert {"set_color_rule", "create", "set_output_tree"} <= kinds
+
+
+def test_a_colour_states_condition_is_a_formula_and_is_checked_inside(conv):
+    """The contract holds a formula in two kinds of place: a `tree`, and a colour STATE's `when`."""
+    kinds = conv._linear_validators()[2]
     assert kinds == frozenset({"num", "series", "op", "call", "offset", "sym", "tf", "tf_live"})
-    assert roots == frozenset({"tree", "when"})
     states = next((o for _, e in SCRIPTED for o in e["ops"] if o.get("op") == "set_color_states"), None)
     assert states is not None, "no scripted answer sets colour states: add one to this test by hand"
     good = env(0, [copy.deepcopy(states)])
     assert conv._schema_errors(good) == reference(conv, good)
-    broken = copy.deepcopy(good)
-    place = next(s for s in broken["ops"][0]["states"] if isinstance(s, dict) and "when" in s)
-    place["when"] = wrapped(copy.deepcopy(BROKEN["a function that does not exist"]), 2)
-    want = reference(conv, broken)
-    assert want and any("/when/" in line for line in want)
-    assert conv._schema_errors(broken) == want
+    for how in sorted(BROKEN):
+        for depth in (0, 2):
+            broken = copy.deepcopy(good)
+            place = next(s for s in broken["ops"][0]["states"] if isinstance(s, dict) and "when" in s)
+            place["when"] = wrapped(copy.deepcopy(BROKEN[how]), depth)
+            want = reference(conv, broken)
+            assert want and conv._schema_errors(broken) == want, (how, depth)
 
 
 # ═══ 2. it is linear ════════════════════════════════════════════════════════

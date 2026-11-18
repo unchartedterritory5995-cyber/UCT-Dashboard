@@ -1854,56 +1854,69 @@ _ONE_NODE = "uct-one-node"
 
 
 @functools.lru_cache(maxsize=1)
-def _linear_validators() -> Tuple[Draft202012Validator, Draft202012Validator, frozenset, frozenset]:
-    """(the envelope with formulas opaque, ONE node with its children opaque, the property names
-    that hold a formula, the kinds of node). All read off the composed contract; nothing is typed
-    here."""
+def _linear_validators() -> Tuple[Draft202012Validator, Draft202012Validator, frozenset]:
+    """(the envelope with every node's CHILDREN opaque, ONE node with its children opaque, the
+    kinds of node). All read off the composed contract; nothing is typed here.
+
+    ⛔ NO PROPERTY NAMES (corrected 2026-11-18, the same day). The first version found formulas by
+    the names the contract points at a node from (`tree`, `when`) and checked whatever sat under
+    those names as a formula. A colour rule also has a `when`, and there it is a plain word ("up"):
+    a VALID answer was refused. So every formula ROOT is left exactly where the contract has it and
+    is checked by the contract itself, whatever it is called; only what sits INSIDE a node is taken
+    out of the recursive check and checked node by node."""
     schema = composed_schema()
     node = schema["$defs"]["node"]
     is_node = {"$ref": "#/$defs/node"}
-    kinds = {b["$ref"].split("/")[-1] for b in node["oneOf"]}
-    roots = frozenset(prop for name, d in schema["$defs"].items() if name not in kinds
-                      for prop, sub in (d.get("properties") or {}).items() if sub == is_node)
-    if _ONE_NODE in schema["$defs"] or not roots:
-        raise RuntimeError("the patch contract no longer has the shape the linear check reads")
+    kinds = frozenset(b["$ref"].split("/")[-1] for b in node["oneOf"])
     opaque = copy.deepcopy(schema)
-    opaque["$defs"]["node"] = {}                           # any value: a formula is checked node by node
+    nested = 0
+    for kind in kinds:
+        args = (opaque["$defs"][kind].get("properties") or {}).get("args")
+        if isinstance(args, dict) and args.get("items") == is_node:
+            args["items"] = {}                             # any value: a node's children are checked one by one
+            nested += 1
+    # the ONLY way one node holds another is `args.items`: if the contract grows a second way, the
+    # recursive check would be back, so refuse to build rather than be quietly slow
+    still = json.dumps([opaque["$defs"][k] for k in sorted(kinds)]).count(json.dumps(is_node))
+    if _ONE_NODE in schema["$defs"] or not nested or still:
+        raise RuntimeError("the patch contract no longer has the shape the linear check reads")
     one = {"$ref": f"#/$defs/{_ONE_NODE}", "$defs": {**opaque["$defs"], _ONE_NODE: copy.deepcopy(node)}}
     Draft202012Validator.check_schema(opaque)
     Draft202012Validator.check_schema(one)
-    return Draft202012Validator(opaque), Draft202012Validator(one), roots, frozenset(kinds)
-
-
-def _formula_roots(value: Any, keys: frozenset, path: Tuple[str, ...] = ()) -> List[Tuple[Tuple[str, ...], Any]]:
-    """Every formula in the envelope, with where it sits. A formula is not looked inside here."""
-    found: List[Tuple[Tuple[str, ...], Any]] = []
-    if isinstance(value, Mapping):
-        for k, v in value.items():
-            if k in keys:
-                found.append((path + (str(k),), v))
-            else:
-                found.extend(_formula_roots(v, keys, path + (str(k),)))
-    elif isinstance(value, list):
-        for i, v in enumerate(value):
-            found.extend(_formula_roots(v, keys, path + (str(i),)))
-    return found
+    return Draft202012Validator(opaque), Draft202012Validator(one), kinds
 
 
 def _contract_errors(envelope: Any) -> List[Tuple[List[str], str]]:
     """Every way the envelope breaks the contract, as (where, what), in path order."""
-    whole, one_node, roots, kinds = _linear_validators()
+    whole, one_node, kinds = _linear_validators()
     found = [([str(p) for p in b.absolute_path], b.message)
              for e in whole.iter_errors(envelope) for b in _branch_errors(e)]
-    stack = _formula_roots(envelope, roots)
+    # every object in the answer, each once. A formula node (an object whose `type` is one of the
+    # contract's kinds) has each of its children checked as one node; the children are then
+    # visited in their turn. What is under an object of some OTHER `type` is not ours to judge: that
+    # object is itself the error, as the full contract reports it.
+    stack: List[Tuple[Tuple[str, ...], Any]] = [((), envelope)]
     while stack:
-        path, node = stack.pop()
-        for e in one_node.iter_errors(node):
-            for b in _branch_errors(e):
-                found.append((list(path) + [str(p) for p in b.absolute_path], b.message))
-        # (the children of a node of NO known kind are not formula nodes of ours: the node itself
-        # is the error, as the full contract reports it)
-        if isinstance(node, Mapping) and node.get("type") in kinds and isinstance(node.get("args"), list):
-            stack.extend((path + ("args", str(i)), child) for i, child in enumerate(node["args"]))
+        path, value = stack.pop()
+        if isinstance(value, list):
+            stack.extend((path + (str(i),), v) for i, v in enumerate(value))
+            continue
+        if not isinstance(value, Mapping):
+            continue
+        kind = value.get("type")
+        if isinstance(kind, str) and kind in kinds:
+            args = value.get("args")
+            if isinstance(args, list):
+                for i, child in enumerate(args):
+                    at = path + ("args", str(i))
+                    for e in one_node.iter_errors(child):
+                        for b in _branch_errors(e):
+                            found.append((list(at) + [str(p) for p in b.absolute_path], b.message))
+                    stack.append((at, child))
+            continue
+        if "type" in value and "args" in value:
+            continue                                       # a node of no known kind: not looked inside
+        stack.extend((path + (str(k),), v) for k, v in value.items())
     return sorted(found, key=lambda pair: pair[0])
 
 
