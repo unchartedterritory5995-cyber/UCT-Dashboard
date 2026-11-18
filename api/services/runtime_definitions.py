@@ -208,9 +208,34 @@ def committed_kills() -> dict[str, str]:
     for s in (doc.get("scripts") if isinstance(doc, dict) else None) or []:
         if not isinstance(s, dict):
             continue
+        # ⭐ a HELD kill (`status: "pending"`, `pending_kills`) is recorded, not served: the script still draws
+        if s.get("status") == KILL_PENDING:
+            continue
         sha = s.get("sha256")
         if isinstance(sha, str) and re.fullmatch(r"[0-9a-f]{64}", sha):
             out[sha] = s.get("reason") if isinstance(s.get("reason"), str) and s.get("reason") else ""
+    return out
+
+
+#: ⭐ (coordinator ruling 2026-11-18) — the status of a HELD kill on the committed list: a runtime-lane DIVERGE whose
+#: kill waits on a named capture ruling. It is NOT served (`committed_kills` skips it, so the script still draws), it
+#: carries a hard `expires` date (YYYY-MM-DD), and the REACH rail accepts its one named capture as a stop only until
+#: that date: past it, the rail is red on its own, so a held kill cannot quietly become permanent. ONE list: the same
+#: file and the same rail as every kill (`tests/test_pine_capability_admission.py`). Any other status is a kill.
+KILL_PENDING = "pending"
+
+
+def pending_kills() -> dict[str, dict]:
+    """The HELD kills on the committed list: ``{sha256: entry}`` for every entry whose ``status`` is ``pending``.
+    Read by the rails only; nothing serves them. An unreadable file holds none."""
+    try:
+        doc = json.loads(pathlib.Path(KILLLIST_PATH).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    out: dict[str, dict] = {}
+    for s in (doc.get("scripts") if isinstance(doc, dict) else None) or []:
+        if isinstance(s, dict) and s.get("status") == KILL_PENDING and isinstance(s.get("sha256"), str)                 and re.fullmatch(r"[0-9a-f]{64}", s["sha256"]):
+            out[s["sha256"]] = dict(s)
     return out
 
 
