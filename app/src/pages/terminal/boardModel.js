@@ -679,7 +679,7 @@ export function slugify(name) {
 }
 
 /** Two board names are one board when they differ only in case, spacing or punctuation. */
-function sameBoardName(a, b) {
+export function sameBoardName(a, b) {
   const norm = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
   return norm(a) === norm(b)
 }
