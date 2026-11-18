@@ -39,7 +39,7 @@ import {
 // ⭐⭐ RT5 — the run's own drawings (`objectStore.js`).
 import { makeObjectStore } from './objectStore.js'
 // ⭐⭐ S1 — the strategy broker (`broker.js`).
-import { makeBroker, BrokerRefusal, BrokerStart, BrokerUnpinned } from './broker.js'
+import { makeBroker, BrokerRefusal, BrokerStart, BrokerUnpinned, BROKER_ORDER_OPS } from './broker.js'
 import { pinned as ledgerPinned } from './brokerPins.js'
 import { isDrawingHandle } from './handles.js'
 import { Budget, RuntimeLimitError, LIVE_OBJECT_BYTES } from './limits.js'
@@ -81,6 +81,19 @@ const PW = POINTWISE_FOR_PARITY
 
 export class VmError extends Error {
   constructor(message) { super(message); this.name = 'VmError' }
+}
+
+/** ⭐⭐ Engine 76 (#1803, fix/strategy-refusal-keeps-plots) — the broker operations a DISARMED run (`brokerDisarmed`)
+ *  treats as placing nothing: the order commands (`broker.js::BROKER_ORDER_OPS`, every void `strategy.*` op). */
+const DISARMED_NO_OPS = new Set(BROKER_ORDER_OPS)
+/** A disarmed run reached a READ of a broker value: what it computes needs the broker, so it cannot stand in
+ *  for the broker run (the caller keeps the broker's own refusal). */
+export class DisarmedBrokerRead extends Error {
+  constructor(fn) {
+    super(`\`${fn}\` reads the strategy broker, which a run without its broker does not hold`)
+    this.name = 'DisarmedBrokerRead'
+    this.fn = fn
+  }
 }
 
 /**
@@ -335,7 +348,13 @@ export function execute(program, ctx, limits, opts) {
   // (`opts.entry`) is another symbol's bars and never trades this chart's broker.
   const brokerOps = program.brokerOps || []
   let broker = null
-  if (program.broker && !(opts && opts.entry !== undefined)) {
+  // ⭐⭐ Engine 76 (#1803, fix/strategy-refusal-keeps-plots) — A DISARMED RUN (`opts.brokerDisarmed`): the
+  // program's plots and paints computed with NO broker, as the host lane computes them (every bar, the forming
+  // one included). An order command places nothing; a read of a broker VALUE stops the run (`DisarmedBrokerRead`),
+  // so only a program whose outputs never need the broker runs to its end. Asked by `runtimeColumns.js` after the
+  // broker run refused by name: the member keeps the plots, and the backtest alone is refused.
+  const disarmed = !!(opts && opts.brokerDisarmed === true)
+  if (program.broker && !disarmed && !(opts && opts.entry !== undefined)) {
     // [B-START] a backtest is path-dependent: served only from TradingView's own first bar.
     if (program.broker.fromListing !== true) {
       throw new BrokerRefusal("this strategy's trades depend on the bar its backtest starts from, and this run is "
@@ -1054,6 +1073,11 @@ export function execute(program, ctx, limits, opts) {
         // back onto the op's parameter list (`undefined` where the script passed none).
         case 100 /* OP.BROKER */: {
           const bop = brokerOps[a]
+          if (!broker && disarmed) {
+            // an order command (and the symbol hand-off) places nothing in a disarmed run; any read stops it
+            if (bop.returns === 'void' && (bop.fn === '#symbol' || DISARMED_NO_OPS.has(bop.fn))) { sp -= b; break }
+            throw new DisarmedBrokerRead(bop.fn)
+          }
           if (!broker) {
             throw new VmError(`pc ${pc - 1}: \`${bop.fn}\` is a broker op, and this run holds no broker `
               + '(a request of other bars)')

@@ -294,6 +294,19 @@ EXTERNAL_WALLS = [
                "census a \"D\" request is the chart's own timeframe, so it never shows",
      "witness": "measured 2026-11-18 by the Create Indicator capability census (local REPORT.md): 2 of 177 ideas "
                 "(previous day H/L/C, daily pivots) blocked by exactly this"},
+    # U-CONFIRM (coordinator ruling 2026-11-18): an open QUESTION, not an engine gap. Until a capture pins it the
+    # engine does not guess: it runs every closed bar, and the harness grades a strategy capture on the bars its
+    # strategy RAN (an ABSENT newest value row is cut, `strategyLane.js::strategyRanView`).
+    {"wall": "strategy-bar-confirm", "unit": "strategy", "kind": "evidence",
+     "title": "U-CONFIRM: when TradingView confirms a closed daily bar for a strategy. A default strategy "
+              "(calc_on_every_tick false) runs a bar once TradingView confirms it, and a capture taken after the "
+              "session close can still hold a newest bar its strategy has not run",
+     "census": "the census runs every script on closed bars it treats as confirmed; the grade cuts only an ABSENT "
+               "newest value row of a strategy capture (an `na` row, or a row missing anywhere else, is compared)",
+     "witness": "r1-strategy-draws-rddt-1d-2026-10-02: 636 bars and 635 value rows, bar 635's session closed at "
+                "20:00Z and the capture was taken at 22:57Z (newestBarIsForming false); its indicator twin (no "
+                "broker) holds all 636. The 2026-11-16 report captures (22:09-23:18Z) hold the same shape. Pinned "
+                "by one strategy captured just before and just after TradingView confirms the bar"},
 ]
 
 # ── THE CREATE INDICATOR CAPABILITY CENSUS (2026-11-18, local: reports/indicator-ecosystem/capability-census/
