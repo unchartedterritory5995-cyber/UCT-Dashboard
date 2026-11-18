@@ -146,9 +146,9 @@ def test_the_evidence_says_what_was_read_and_where():
 
 
 def test_what_the_library_claims_about_tradingview_is_what_was_graded():
-    """Twenty-nine entries are TradingView built-ins and were graded against them in four batches
+    """Thirty entries are TradingView built-ins and were graded against them in four batches
     (2026-11-18; the method and grades are in docs/indicators/evidence/2026-11-18-named-library/).
-    Twenty-five are equal on every bar; two are equal after their first bars. Two claim NOTHING
+    Twenty-five are equal on every bar; three are equal after their first bars. Two claim NOTHING
     about TradingView, each for a stated reason: the McGinley Dynamic (UCT's 300-bar restart of the
     same formula is not bar-equal) and the Directional Movement Index (one floating-point tie on
     one bar of 8,509). Two are not TradingView built-ins and have no capture."""
@@ -166,7 +166,9 @@ def test_what_the_library_claims_about_tradingview_is_what_was_graded():
         "negative_volume_index", "trix",
         # the fourth batch: the Positive Volume Index, both lines on every bar
         "positive_volume_index"])
-    assert sorted(i for i, g in grade.items() if g == "EQUAL AFTER WARM-UP") == ["chandelier_exit", "connors_rsi"]
+    # the Fisher Transform is recomputed from 300 bars back on every bar: equal on every bar it has a
+    # value for, at two lengths, with no value on the first 300 bars of a chart's history
+    assert sorted(i for i, g in grade.items() if g == "EQUAL AFTER WARM-UP") == ["chandelier_exit", "connors_rsi", "fisher_transform"]
     assert grade["mcginley_dynamic"] == "FORMULA EQUAL, RESTART DIFFERS"
     assert grade["directional_movement_index"] == "FORMULA EQUAL, ONE ROUNDING TIE DIFFERS"
     for silent in ("mcginley_dynamic", "directional_movement_index"):

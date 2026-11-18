@@ -41,6 +41,9 @@
   "elder_ray": {
    "1": "sha256:4e4b1dc5174c708d07affc689a6c199f3823352c9ae20c2fc8aaee746d4849dd"
   },
+  "fisher_transform": {
+   "1": "sha256:a486a62e10e82b0697be9b39773e6f902e0f50310ac4669e01631c63959b2900"
+  },
   "force_index": {
    "1": "sha256:e4359bd70d5f5b6ae9f923824ad9f5d27ac532e1f67fe63f1f1ac834873f651e"
   },

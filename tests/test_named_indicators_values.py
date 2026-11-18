@@ -577,6 +577,57 @@ def pvi_signal(bars, signal=255):
     return ema(positive_volume_index(bars), signal)
 
 
+def _fisher_inputs(bars, length):
+    """Where the bar's midpoint sits in its `length`-bar range of midpoints, 0 to 1 (no value until
+    the range is full, or while it is flat)."""
+    mid = [(h + l) / 2 for h, l in zip(col(bars, "h"), col(bars, "l"))]
+    hi, lo = highest(mid, length), lowest(mid, length)
+    return [(m - b) / (a - b) if ok(a) and ok(b) and a != b else NAN for m, a, b in zip(mid, hi, lo)]
+
+
+def _fisher_step(x, value, fish):
+    """One bar of the published recursion: the smoothed position, SNAPPED to +/-0.999 past +/-0.99,
+    then half the log of (1 + v) / (1 - v), smoothed. A bar with no position has no value, and the
+    bar after it starts from 0 (the built-in reads a missing previous value as 0)."""
+    value = 0.0 if not ok(value) else value
+    fish = 0.0 if not ok(fish) else fish
+    if not ok(x):
+        return NAN, NAN
+    v = 0.66 * (x - 0.5) + 0.67 * value
+    v = 0.999 if v > 0.99 else -0.999 if v < -0.99 else v
+    return v, 0.5 * math.log((1 + v) / (1 - v)) + 0.5 * fish
+
+
+def fisher_transform(bars, length=9, window=WINDOW):
+    """As the engine holds two linked running values: on every bar, both start from 0 `window` bars
+    back and are stepped together up to this one."""
+    x = _fisher_inputs(bars, length)
+    out = []
+    for i in range(len(bars)):
+        if i < window:
+            out.append(NAN)
+            continue
+        value = fish = 0.0
+        for j in range(i - window + 1, i + 1):
+            value, fish = _fisher_step(x[j], value, fish)
+        out.append(fish)
+    return out
+
+
+def fisher_carried(bars, length=9):
+    """The same recursion run ONCE from the first bar, the way TradingView's chart keeps it."""
+    x = _fisher_inputs(bars, length)
+    out, value, fish = [], 0.0, 0.0
+    for i in range(len(bars)):
+        value, fish = _fisher_step(x[i], value, fish)
+        out.append(fish)
+    return out
+
+
+def fisher_trigger(bars, length=9):
+    return [NAN] + fisher_transform(bars, length)[:-1]
+
+
 def ulcer_index(bars, length=14):
     c = col(bars, "c")
     top = highest(c, length)
@@ -615,6 +666,7 @@ REFERENCES = {
     "ease_of_movement": {"emv": ease_of_movement},
     "negative_volume_index": {"nvi": negative_volume_index, "signal": nvi_signal},
     "positive_volume_index": {"pvi": positive_volume_index, "signal": pvi_signal},
+    "fisher_transform": {"fisher": fisher_transform, "trigger": fisher_trigger},
     "ulcer_index": {"ulcer": ulcer_index},
     "trix": {"trix": trix_line},
 }
@@ -650,6 +702,7 @@ OTHER = {
     "ease_of_movement": {"length": 9, "divisor": 100000000},
     "negative_volume_index": {"signal": 100},
     "positive_volume_index": {"signal": 100},
+    "fisher_transform": {"length": 20},
     "ulcer_index": {"length": 20},
     "trix": {"length": 15},
 }
@@ -759,6 +812,34 @@ def test_the_mcginley_dynamic_restarted_300_bars_back_is_within_a_millionth_of_t
         assert worst < 1e-5, worst
         short = windowed(bars, lambda i: c[i], _mcginley_step(c, 14), 40)
         assert _worst(short, full) > 100 * worst                # CONTROL: a short window does show
+
+
+def test_the_fisher_transform_restarted_300_bars_back_equals_the_carried_one():
+    """It SNAPS the value it feeds back (past 0.99 it becomes 0.999): a choice on its own value, so by
+    its shape nothing proves that where it started stops mattering, and Create Indicator refuses the
+    shape written by hand. It is in the library on evidence instead. Here: on synthetic bars the
+    300-bar restart equals the recursion carried from the first bar, to the last digit, at two
+    lengths. (Against TradingView's built-in on 8,509 real bars it is equal on every bar it has a
+    value for, at lengths 9 and 20. That capture is vendor data and stays out of the repository.)"""
+    for seed in (11, 29):
+        bars = _bars(seed)
+        for length in (9, 20):
+            full = fisher_carried(bars, length)
+            assert _worst(fisher_transform(bars, length), full) < 1e-12
+            # CONTROL: a restart far too short to forget its start does show
+            assert _worst(fisher_transform(bars, length, window=6), full) > 1e-3
+
+
+def test_the_fisher_references_snap_is_a_snap_and_not_a_clamp():
+    """The detail vendors differ on, held where the reference is written: just past 0.99 the value
+    fed back is 0.999, not the value itself and not 0.99."""
+    v, _ = _fisher_step(1.0, 0.99, 0.0)                    # 0.66 x 0.5 + 0.67 x 0.99 = 0.9933
+    assert v == 0.999
+    v, _ = _fisher_step(0.0, -0.99, 0.0)
+    assert v == -0.999
+    v, _ = _fisher_step(1.0, 0.98, 0.0)                    # 0.9866: inside, kept as it is
+    assert v == pytest.approx(0.9866)
+    assert all(not ok(a) for a in _fisher_step(NAN, 0.5, 0.5))
 
 
 def test_kama_restarted_300_bars_back_is_close_to_the_carried_one_and_not_equal():

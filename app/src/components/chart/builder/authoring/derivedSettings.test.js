@@ -150,6 +150,10 @@ describe('which numbers are settings', () => {
     const stop = 'accum(low, max(self, close - 3 * atr(high, low, close, 14)), 300)'
     expect(slotsIn(build([['stop', stop]])).map(([, v]) => v).sort((a, b) => a - b)).toEqual([3, 14])
     expect(slotsIn(build([['one', 'accum(close, self + 0.1 * (close - self), 300)']]))).toEqual([])
+    // ⛔ a function that STANDS FOR linked running values keeps its own number: `fisher(9)`'s length
+    // is one slot, though the formula it expands to is linked running values through and through
+    expect(all(build([['f', 'fisher(9)']])).map((s) => [s.id, s.value])).toEqual([['f#0', 9]])
+    expect(slotsIn(build([['st', 'supertrend(3, 10)']])).map(([, v]) => v)).toEqual([3, 10])
     // CONTROL: a formula with no running value lists its numbers as before
     expect(slotsIn(build([['avg', 'ema(close, 20) - ema(close, 50)']])).map(([, v]) => v)).toEqual([20, 50])
     // and the view of a formula of linked running values is small enough to send

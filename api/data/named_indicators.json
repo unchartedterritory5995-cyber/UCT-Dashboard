@@ -7387,6 +7387,127 @@
    ]
   },
   {
+   "id": "fisher_transform",
+   "name": "Fisher Transform",
+   "aliases": [
+    "fisher transform",
+    "ehlers fisher transform",
+    "fisher transform indicator"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "length",
+     "label": "Length",
+     "default": 9,
+     "min": 2,
+     "max": 5000,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "fisher",
+     "label": "Fisher",
+     "type": "value",
+     "formula": "fisher({length})",
+     "says": "where the bar's midpoint sits in its recent range, smoothed and stretched so that turns stand out",
+     "tree": {
+      "type": "call",
+      "name": "fisher",
+      "args": [
+       {
+        "type": "num",
+        "value": 9
+       }
+      ]
+     },
+     "sites": {
+      "length": [
+       [
+        0
+       ]
+      ]
+     }
+    },
+    {
+     "key": "trigger",
+     "label": "Trigger",
+     "type": "value",
+     "formula": "fisher({length})[1]",
+     "says": "the Fisher line one bar earlier",
+     "tree": {
+      "type": "offset",
+      "value": 1,
+      "args": [
+       {
+        "type": "call",
+        "name": "fisher",
+        "args": [
+         {
+          "type": "num",
+          "value": 9
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {
+      "length": [
+       [
+        0,
+        0
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::fisher_transform",
+    "published": {
+     "by": "John Ehlers (as published by Tulip Indicators)",
+     "url": "https://tulipindicators.org/fisher",
+     "sources": [
+      {
+       "title": "Tulip Indicators: Fisher Transform (fisher)",
+       "url": "https://tulipindicators.org/fisher",
+       "kind": "reference"
+      },
+      {
+       "title": "Tulip Indicators: fisher.c (LGPL v3)",
+       "url": "https://raw.githubusercontent.com/TulipCharts/tulipindicators/master/indicators/fisher.c",
+       "kind": "reference"
+      },
+      {
+       "title": "TradingView Help: Fisher Transform",
+       "url": "https://www.tradingview.com/support/solutions/43000589141-fisher-transform/",
+       "kind": "reference"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "Tulip Indicators' page, citing Ehlers (Stocks & Commodities V.20:11, 'Using the Fisher Transform'): hl = (high + low) / 2; val = 0.33 x 2 x ((hl - min) / (max - min) - 0.5) + 0.67 x the previous val, min and max over n bars of hl; fisher = 0.5 x log((1 + val) / (1 - val)) + 0.5 x the previous fisher; the signal is the previous bar's fisher. Its source code adds what the page leaves out: val above 0.99 becomes 0.999 and below -0.99 becomes -0.999. TradingView's help page gives only the transform, half the log of (1 + X) / (1 - X).",
+     "note": "Vendors differ under this name (another publishes 0.5 and 0.5 smoothing with a quarter of the log and a 0.9999 cap). This entry is the form TradingView's built-in computes, which the capture settles bar for bar. It is written as the function fisher(length), which stands for the whole recurrence. The value it feeds back is SNAPPED, a choice on its own value, so by its shape nothing proves that where it started stops mattering, and Create Indicator refuses that shape written out by hand; the function is offered on the capture. It is recomputed from 300 bars back on every bar: the first 300 bars of a chart's history have no value, where TradingView's has one. With 300 bars of restart, a length past 659 reaches further back than any formula may, and is refused for that as any formula is."
+    },
+    "capture": {
+     "id": "studio-builtins-2026-11-18",
+     "against": "TradingView built-in: Fisher transform",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars, from the listing"
+     ],
+     "grade": "EQUAL AFTER WARM-UP",
+     "detail": "Graded at lengths 9 and 20. Both lines are equal on every bar this entry has a value for (8,209 bars at each length; the largest relative difference is 3 parts in 10 quadrillion). This entry has no value on the first 300 bars of the chart's history, where TradingView's has one from the first full range: it is recomputed from 300 bars back on every bar. The trigger is the Fisher line one bar earlier."
+    }
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:a486a62e10e82b0697be9b39773e6f902e0f50310ac4669e01631c63959b2900",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
    "id": "ulcer_index",
    "name": "Ulcer Index",
    "aliases": [
