@@ -438,4 +438,16 @@ two captures are 1D, so they witness only the identity case).
 
 ## 12. Wider suites
 
-⟨WIDER⟩
+GitHub runners (`tools/remote_tests.py`, on `8509a6bc2d`):
+
+- **vitest**: `src/components/chart`, `src/hooks` and `components/screener/reachable.test.js`, 6 shards. Green except
+  ONE test this branch does not touch: `src/hooks/usePreferences.additionsOnly.test.js` ("NO NEW opaque-key call
+  site": `pages/screener/focus/board/useScanBoard.js`). That file came in with master `0bb48a7f5a`; master has since
+  fixed the rail (`0e79f46eb0`, `3aea780dc9`), after this branch's base. It goes green when master is merged in at
+  the train cut. Per the coordinator, master is not merged before then.
+- **pytest**: green. The files: `test_run_half_server_lanes`, `test_pine_capability_admission`,
+  `test_pine_allowlist_measured_verdicts`, `test_pine_capabilities`, `test_pine_run_half_evidence`,
+  `test_pine_coverage_ratchet`, `test_pine_host_known_divergence`, `test_runtime_definitions`, `test_ci_pine_heavy`,
+  `test_pine_parity_roadmap`, `test_engine53_stamp_served_ast`, `test_run_half_source_binding`,
+  `test_runtime_objects_schema_parity`, `test_alert_runtime_lane`, `test_alert_lookback_window`,
+  `test_script_engine_version_gate`, `test_saved_script_prebump`, `test_definition_load_budget`.
