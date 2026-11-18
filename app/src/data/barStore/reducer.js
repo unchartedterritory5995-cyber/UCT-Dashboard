@@ -784,6 +784,20 @@ function applyLocal(state, action, ctx, source) {
     const held = state.bars.length ? state.bars : (state.developing ? [state.developing] : [])
     if (held.length && !heldBasisProof(held)) return state
   }
+  // ⭐ ...and the other order: a SAVED copy landing after the lake (2026-11-18: the open's lake load
+  // waits for the cache read at most HYDRATE_WAIT_MS, prefetch _lakeLoad). The lake's rows carry no
+  // stamp, so the saved copy's own stamp proves nothing about them: it joins them only when its rows
+  // prove the lake's basis over the bars they share. On another basis (a split between the two), or
+  // with no bar in common (they could straddle a hole), the saved copy REPLACES the lake's rows: it is
+  // the server's earlier answer, and the lake re-joins whatever the next answer proves.
+  if (source !== 'lake' && !state.restSeen && state.source === 'lake' && !p.history) {
+    const held = state.bars.length ? state.bars : (state.developing ? [state.developing] : [])
+    if (held.length && basisVerdict(rows, held) !== 'same') {
+      const fresh = Object.freeze({ ...initialState(state.key, ctx), baseRev: state.baseRev + 1, devRev: state.devRev + 1,
+        gen: state.gen, invalidatedFor: 'lake_basis' })
+      return applyLocal(fresh, action, ctx, source)
+    }
+  }
 
   // ⭐ THE PERSISTED DEEP-HISTORY SEGMENT (persist.js `@hist`: scroll-back windows a reload kept).
   // It only PREPENDS — rows strictly older than everything held — and only when it reaches the
