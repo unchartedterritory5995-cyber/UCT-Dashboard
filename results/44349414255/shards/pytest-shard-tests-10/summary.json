@@ -1,0 +1,18 @@
+{
+  "suite": "pytest",
+  "collected": 2375,
+  "passed": 2328,
+  "failed": 7,
+  "errored": 0,
+  "skipped": 40,
+  "wall_s": 808.89,
+  "failed_files": [
+    "tests/test_notebook_perf_budgets.py",
+    "tests/test_notebook_transcript_capture.py",
+    "tests/test_notebook_upload_cap_2.py",
+    "tests/test_ocr_build_isolation.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "7 failed, 2328 passed, 40 skipped, 52 warnings in 808.89s (0:13:28)",
+  "ok": true
+}

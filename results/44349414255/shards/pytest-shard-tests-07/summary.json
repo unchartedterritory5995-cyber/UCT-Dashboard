@@ -1,0 +1,19 @@
+{
+  "suite": "pytest",
+  "collected": 2890,
+  "passed": 2841,
+  "failed": 18,
+  "errored": 6,
+  "skipped": 25,
+  "wall_s": 604.8,
+  "failed_files": [
+    "tests/test_history_lake_jobs.py",
+    "tests/test_history_lake_pack.py",
+    "tests/test_hub_sandbox_model_keys.py",
+    "tests/test_journal_styles_deep_settings.py",
+    "tests/test_journal_styles_schema.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "18 failed, 2841 passed, 25 skipped, 3438 warnings, 6 errors in 604.80s (0:10:04)",
+  "ok": true
+}

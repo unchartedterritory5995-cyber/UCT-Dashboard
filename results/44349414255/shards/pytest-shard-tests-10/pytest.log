@@ -1,0 +1,289 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  3%]
+..ssssssssssssssssssssss................................................ [  6%]
+...F...............................s.................................... [  9%]
+........................................................................ [ 12%]
+........................................................................ [ 15%]
+........................................................ss.............. [ 18%]
+.................sss..ssssssss.......................................... [ 21%]
+........................................................................ [ 24%]
+........................................................................ [ 27%]
+........................................................................ [ 30%]
+........................................................................ [ 33%]
+........................................................................ [ 36%]
+........................................................................ [ 39%]
+........................................................................ [ 42%]
+...................................................................F.... [ 45%]
+........................................................................ [ 48%]
+........................................................................ [ 51%]
+........................................................................ [ 54%]
+........................................................................ [ 57%]
+........FFFF............................................................ [ 60%]
+......s................................................................. [ 63%]
+........................................................................ [ 66%]
+........................................s............................... [ 69%]
+........................................................................ [ 72%]
+........................................................................ [ 75%]
+..............................................[activity] Failed to log j2:notebook_writing_help_used for u1: FOREIGN KEY constraint failed
+.......................... [ 78%]
+........................................................................ [ 81%]
+........................................................................ [ 84%]
+........................................................................ [ 87%]
+........................................................................ [ 90%]
+........................................................................ [ 94%]
+........................................................................ [ 97%]
+.......s................................................F.............   [100%]
+=================================== FAILURES ===================================
+_____ test_the_committed_budget_file_is_complete_and_hand_edit_documented ______
+
+    def test_the_committed_budget_file_is_complete_and_hand_edit_documented():
+        budgets = json.loads(pb.DEFAULT_BUDGETS.read_text(encoding="utf-8"))
+        assert "by hand" in budgets["_"].lower()
+        nb = budgets["bytes"]["notebook_first_open"]
+        assert nb["roots"], "no route roots: the byte budget would price nothing"
+>       assert int(nb["max"]) <= int(nb["baseline"] * 1.05) + 1, "max drifted above baseline + 5% without saying so"
+E       AssertionError: max drifted above baseline + 5% without saying so
+E       assert 2260993 <= (2260793 + 1)
+E        +  where 2260993 = int(2260993)
+E        +  and   2260793 = int((2153137 * 1.05))
+
+tests/test_notebook_perf_budgets.py:187: AssertionError
+_______________ test_the_import_graph_never_reaches_alphavantage _______________
+
+    def test_the_import_graph_never_reaches_alphavantage():
+        reached = _reach(CAPTURE_MODULES)
+        # non-vacuity: the walk follows function-level imports into what the module reuses
+        assert {"api.services.fmp_transcripts", "api.services.transcript_index",
+                "api.services.journal_two.note_excerpts", "api.services.journal_two.notes",
+                "api.services.journal_two.web_capture"} <= reached
+>       assert not reached & FORBIDDEN_MODULES, sorted(reached & FORBIDDEN_MODULES)
+E       AssertionError: ['api.routers.earnings', 'api.routers.earnings_intel', 'api.services.alphavantage_client', 'api.services.av_transcripts', 'api.services.call_recap', 'api.services.call_recap_warmer']
+E       assert not ({'api', 'api.alert_tester', 'api.alpha_gold_eod', 'api.apply_cancel_patches', 'api.apply_gap_fill', 'api.auth_surface_check', ...} & {'api.routers.earnings', 'api.routers.earnings_intel', 'api.services.alphavantage_client', 'api.services.av_transcripts', 'api.services.call_recap', 'api.services.call_recap_warmer'})
+
+tests/test_notebook_transcript_capture.py:430: AssertionError
+_ test_reader_door_without_a_session_reads_no_body[/api/j2/entry-context/why] __
+
+db_path = '/tmp/tmpdvupzwgm.db'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72a894354530>
+door = ('notebook_entry_context', 'api.services.journal_two.entry_context', 'PUT', '/api/j2/entry-context/why')
+
+    @pytest.mark.parametrize("door", REAL_WRITE_DOORS, ids=[d[3] for d in REAL_WRITE_DOORS])
+    def test_reader_door_without_a_session_reads_no_body(db_path, monkeypatch, door):
+        import importlib
+        name, svc_name, method, path = door
+        svc = importlib.import_module(svc_name)
+>       monkeypatch.setenv(svc.FLAG, "1")
+E       AttributeError: module 'api.services.journal_two.entry_context' has no attribute 'FLAG'
+
+tests/test_notebook_upload_cap_2.py:340: AttributeError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmpdvupzwgm.db
+_ test_reader_door_without_a_session_reads_no_body[/api/j2/plan-grades/trades/t1/relink] _
+
+db_path = '/tmp/tmpbqkyt_34.db'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72a894ec4c80>
+door = ('notebook_plan_grades', 'api.services.journal_two.plan_grading', 'POST', '/api/j2/plan-grades/trades/t1/relink')
+
+    @pytest.mark.parametrize("door", REAL_WRITE_DOORS, ids=[d[3] for d in REAL_WRITE_DOORS])
+    def test_reader_door_without_a_session_reads_no_body(db_path, monkeypatch, door):
+        import importlib
+        name, svc_name, method, path = door
+        svc = importlib.import_module(svc_name)
+>       monkeypatch.setenv(svc.FLAG, "1")
+E       AttributeError: module 'api.services.journal_two.plan_grading' has no attribute 'FLAG'
+
+tests/test_notebook_upload_cap_2.py:340: AttributeError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmpbqkyt_34.db
+__ test_reader_door_without_a_session_reads_no_body[/api/j2/template-gallery] __
+
+db_path = '/tmp/tmpnx1mf7bt.db'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72a894ec4590>
+door = ('notebook_template_gallery', 'api.services.journal_two.template_gallery', 'POST', '/api/j2/template-gallery')
+
+    @pytest.mark.parametrize("door", REAL_WRITE_DOORS, ids=[d[3] for d in REAL_WRITE_DOORS])
+    def test_reader_door_without_a_session_reads_no_body(db_path, monkeypatch, door):
+        import importlib
+        name, svc_name, method, path = door
+        svc = importlib.import_module(svc_name)
+>       monkeypatch.setenv(svc.FLAG, "1")
+E       AttributeError: module 'api.services.journal_two.template_gallery' has no attribute 'FLAG'
+
+tests/test_notebook_upload_cap_2.py:340: AttributeError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmpnx1mf7bt.db
+_ test_reader_door_without_a_session_reads_no_body[/api/j2/template-gallery/g1/report] _
+
+db_path = '/tmp/tmpvn4w27_i.db'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72a894ec7d10>
+door = ('notebook_template_gallery', 'api.services.journal_two.template_gallery', 'POST', '/api/j2/template-gallery/g1/report')
+
+    @pytest.mark.parametrize("door", REAL_WRITE_DOORS, ids=[d[3] for d in REAL_WRITE_DOORS])
+    def test_reader_door_without_a_session_reads_no_body(db_path, monkeypatch, door):
+        import importlib
+        name, svc_name, method, path = door
+        svc = importlib.import_module(svc_name)
+>       monkeypatch.setenv(svc.FLAG, "1")
+E       AttributeError: module 'api.services.journal_two.template_gallery' has no attribute 'FLAG'
+
+tests/test_notebook_upload_cap_2.py:340: AttributeError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmpvn4w27_i.db
+_ TestStartupSemanticsAreNotForked.test_every_other_deploy_setting_is_identical_to_the_shared_one _
+
+self = <tests.test_ocr_build_isolation.TestStartupSemanticsAreNotForked object at 0x72a8977372f0>
+shared_railway = {'$schema': 'https://railway.app/railway.schema.json', 'build': {'buildCommand': "pip install -r requirements.txt && c...drainingSeconds': 30, 'healthcheckPath': '/api/health', 'healthcheckTimeout': 600, 'restartPolicyType': 'ALWAYS', ...}}
+web_railway = {'$schema': 'https://railway.app/railway.schema.json', 'build': {'builder': 'DOCKERFILE', 'dockerfilePath': 'Dockerfil... 'deploy': {'drainingSeconds': 30, 'healthcheckPath': '/api/health', 'healthcheckTimeout': 600, 'numReplicas': 1, ...}}
+
+    def test_every_other_deploy_setting_is_identical_to_the_shared_one(
+            self, shared_railway, web_railway):
+        shared = {k: v for k, v in shared_railway["deploy"].items()
+                  if k != "startCommand"}
+>       assert web_railway["deploy"] == shared, (
+            "the web service would deploy differently from every other service "
+            "reading railway.json, beyond the start command it is meant to own")
+E       AssertionError: the web service would deploy differently from every other service reading railway.json, beyond the start command it is meant to own
+E       assert {'drainingSec...icas': 1, ...} == {'drainingSec...pe': 'ALWAYS'}
+E         
+E         Omitting 4 identical items, use -vv to show
+E         Left contains 1 more item:
+E         {'numReplicas': 1}
+E         
+E         Full diff:
+E           {
+E               'drainingSeconds': 30,
+E               'healthcheckPath': '/api/health',
+E               'healthcheckTimeout': 600,
+E         +     'numReplicas': 1,
+E               'restartPolicyType': 'ALWAYS',
+E           }
+
+tests/test_ocr_build_isolation.py:238: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_notebook_widgets_service.py:3
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_widgets_service.py:3: SyntaxWarning: invalid escape sequence '\d'
+    Every consumed function is monkeypatched: no network, no live data, no C:\data.
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_notebook_plan_grading.py::test_the_table_is_not_a_named_saved_object_so_needs_no_address
+tests/test_notebook_transcript_capture.py::test_the_import_graph_never_reaches_alphavantage
+tests/test_notebook_transcript_capture.py::test_CONTROL_the_walk_finds_alphavantage_where_it_is_reachable
+tests/test_notes_answer_is_the_committed_row.py::test_no_note_writer_under_api_re_reads_after_its_commit
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_notebook_upload_cap.py: 2 warnings
+tests/test_notebook_voice_notes.py: 43 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/voice_usage.py:20: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow().strftime("%Y-%m")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_notebook_p5_walk.py:28: tools/notebook_p5_walk.py loads playwright when imported (through the walk modules it imports); CI installs no browser stack
+SKIPPED [1] tests/test_notebook_nvda_pass.py:34: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:41: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:50: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:64: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:81: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:95: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:109: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:119: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:198: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:214: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:232: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:272: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:282: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:293: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:305: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:317: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:357: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:370: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:385: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:398: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:432: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:439: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_perf_harness.py:563: the SIGBREAK re-raise is Windows-only
+SKIPPED [1] tests/test_notebook_proof_walk.py:179: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:197: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:661: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:680: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:718: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:774: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:806: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:831: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:1030: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:1048: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:1116: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:1170: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:1209: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_voice_notes.py:256: no ffmpeg on this box
+SKIPPED [1] tests/test_notebook_wave8_walk.py:636: could not import 'playwright._impl._helper': No module named 'playwright'
+SKIPPED [1] tests/test_nyse_calendar_vendor_evidence.py:141: the 60m capture is kept outside git: C:/Users/Patrick/AppData/Local/uct-vendor-batch/runs/probes2-2026-09-28/captures/vw-clock-close-tfchange-spy-60-2026-09-28.json
+FAILED tests/test_notebook_perf_budgets.py::test_the_committed_budget_file_is_complete_and_hand_edit_documented - AssertionError: max drifted above baseline + 5% without saying so
+assert 2260993 <= (2260793 + 1)
+ +  where 2260993 = int(2260993)
+ +  and   2260793 = int((2153137 * 1.05))
+FAILED tests/test_notebook_transcript_capture.py::test_the_import_graph_never_reaches_alphavantage - AssertionError: ['api.routers.earnings', 'api.routers.earnings_intel', 'api.services.alphavantage_client', 'api.services.av_transcripts', 'api.services.call_recap', 'api.services.call_recap_warmer']
+assert not ({'api', 'api.alert_tester', 'api.alpha_gold_eod', 'api.apply_cancel_patches', 'api.apply_gap_fill', 'api.auth_surface_check', ...} & {'api.routers.earnings', 'api.routers.earnings_intel', 'api.services.alphavantage_client', 'api.services.av_transcripts', 'api.services.call_recap', 'api.services.call_recap_warmer'})
+FAILED tests/test_notebook_upload_cap_2.py::test_reader_door_without_a_session_reads_no_body[/api/j2/entry-context/why] - AttributeError: module 'api.services.journal_two.entry_context' has no attribute 'FLAG'
+FAILED tests/test_notebook_upload_cap_2.py::test_reader_door_without_a_session_reads_no_body[/api/j2/plan-grades/trades/t1/relink] - AttributeError: module 'api.services.journal_two.plan_grading' has no attribute 'FLAG'
+FAILED tests/test_notebook_upload_cap_2.py::test_reader_door_without_a_session_reads_no_body[/api/j2/template-gallery] - AttributeError: module 'api.services.journal_two.template_gallery' has no attribute 'FLAG'
+FAILED tests/test_notebook_upload_cap_2.py::test_reader_door_without_a_session_reads_no_body[/api/j2/template-gallery/g1/report] - AttributeError: module 'api.services.journal_two.template_gallery' has no attribute 'FLAG'
+FAILED tests/test_ocr_build_isolation.py::TestStartupSemanticsAreNotForked::test_every_other_deploy_setting_is_identical_to_the_shared_one - AssertionError: the web service would deploy differently from every other service reading railway.json, beyond the start command it is meant to own
+assert {'drainingSec...icas': 1, ...} == {'drainingSec...pe': 'ALWAYS'}
+  
+  Omitting 4 identical items, use -vv to show
+  Left contains 1 more item:
+  {'numReplicas': 1}
+  
+  Full diff:
+    {
+        'drainingSeconds': 30,
+        'healthcheckPath': '/api/health',
+        'healthcheckTimeout': 600,
+  +     'numReplicas': 1,
+        'restartPolicyType': 'ALWAYS',
+    }
+7 failed, 2328 passed, 40 skipped, 52 warnings in 808.89s (0:13:28)

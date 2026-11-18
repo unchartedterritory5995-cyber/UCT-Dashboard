@@ -1,0 +1,20 @@
+{
+  "suite": "pytest",
+  "collected": 1941,
+  "passed": 1925,
+  "failed": 13,
+  "errored": 0,
+  "skipped": 3,
+  "wall_s": 737.32,
+  "failed_files": [
+    "tests/test_shared_data_root_guard.py",
+    "tests/test_shared_root_guard.py",
+    "tests/test_shared_state_landmines.py",
+    "tests/test_shelf_pivot_parity.py",
+    "tests/test_skill_whitelist.py",
+    "tests/test_spa_head_reachability.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "13 failed, 1925 passed, 3 skipped, 7445 warnings in 737.32s (0:12:17)",
+  "ok": true
+}

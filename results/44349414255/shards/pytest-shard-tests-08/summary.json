@@ -1,0 +1,21 @@
+{
+  "suite": "pytest",
+  "collected": 2823,
+  "passed": 2791,
+  "failed": 24,
+  "errored": 0,
+  "skipped": 8,
+  "wall_s": 366.77,
+  "failed_files": [
+    "tests/test_journal_two_task_digest.py",
+    "tests/test_launch_hardening.py",
+    "tests/test_massive_guard_census.py",
+    "tests/test_member_interest_surfaces.py",
+    "tests/test_mutation_check.py",
+    "tests/test_mutation_harness_anchors.py",
+    "tests/test_mutation_harness_hygiene.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "24 failed, 2791 passed, 8 skipped, 27 warnings in 366.77s (0:06:06)",
+  "ok": true
+}

@@ -1,0 +1,21 @@
+{
+  "suite": "pytest",
+  "collected": 3648,
+  "passed": 3634,
+  "failed": 14,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 795.45,
+  "failed_files": [
+    "tests/test_terminal_next_kill_switch.py",
+    "tests/test_terminal_seen.py",
+    "tests/test_test_discovery_coverage.py",
+    "tests/test_ticker_logos.py",
+    "tests/test_ticker_meta.py",
+    "tests/test_ticker_resolver.py",
+    "tests/test_trade_exchange_news_archive.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "14 failed, 3634 passed, 1 xfailed, 87 warnings in 795.45s (0:13:15)",
+  "ok": true
+}

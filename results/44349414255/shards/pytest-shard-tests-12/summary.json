@@ -1,0 +1,20 @@
+{
+  "suite": "pytest",
+  "collected": 4856,
+  "passed": 4845,
+  "failed": 6,
+  "errored": 0,
+  "skipped": 5,
+  "wall_s": 515.4,
+  "failed_files": [
+    "tests/test_program_doc_shas_resolve.py",
+    "tests/test_queue_dispositions.py",
+    "tests/test_registry_string_inputs.py",
+    "tests/test_render_token_never_logged.py",
+    "tests/test_rig_sandbox_never_inside_a_worktree.py",
+    "tests/test_rs_discord_post.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "6 failed, 4845 passed, 5 skipped, 3 xfailed, 16 warnings in 515.40s (0:08:35)",
+  "ok": true
+}

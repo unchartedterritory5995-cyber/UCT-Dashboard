@@ -1,0 +1,211 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+........................................................................ [  3%]
+.............................................................F.......... [  5%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+........................................................................ [ 12%]
+....................[dormant] self-heal rebuilt active set (0 active)
+.................................................... [ 14%]
+........................................................................ [ 16%]
+..........................................s............................. [ 18%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 23%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 34%]
+........................................................................ [ 36%]
+........................................................................ [ 38%]
+.................................................s...................... [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 44%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 51%]
+........................................................................ [ 53%]
+........................................................................ [ 55%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+........................................................................ [ 66%]
+........................................................................ [ 67%]
+........................................................................ [ 69%]
+........................................................................ [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+..........................................F.............s............... [ 78%]
+..............................................x......................... [ 80%]
+........................................................................ [ 82%]
+........................................................................ [ 84%]
+........................................................................ [ 86%]
+........................................................................ [ 88%]
+........................................................................ [ 89%]
+........................................................................ [ 91%]
+........................................................................ [ 93%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+........................................................................ [ 99%]
+....................................                                     [100%]
+=================================== FAILURES ===================================
+______ test_EVERY_declared_BAR_READER_is_swept__DERIVED_FROM_THE_MANIFEST ______
+
+    def test_EVERY_declared_BAR_READER_is_swept__DERIVED_FROM_THE_MANIFEST():
+        """⭐ THE RAIL WHOSE SUBJECT IS THE DATA. Every entry declaring
+        `reads: "bars"` must be reported unresolvable on bars that put it in a hole,
+        and resolvable on bars that do not — and BOTH directions are asserted per
+        entry, so an entry that reads as unresolvable because the fixture is broken
+        cannot pass.
+    
+        ⛔ THE ROT CONTROLS ARE THE OTHER TWO ASSERTIONS. (1) If no fixture can hole
+        a declared entry any more, this fails BY NAME rather than skipping it — a
+        rail whose premise has dissolved is a false claim, not a pass. (2) If the
+        comparison stops laundering that hole into a confident 0.0, this fails too,
+        because that is the premise the whole file rests on.
+    
+        ⭐ IT ALREADY EARNED ITS SHAPE: `obvN` landed in `closedTable.json` from a
+        parallel lane WHILE this file was being written, and was swept with no edit
+        here — which is the entire argument for deriving the set instead of listing it.
+        """
+        declared = ast_table.bar_readers(_manifest())
+    
+        # NON-VACUITY, stated as a floor rather than assumed: the manifest declares
+        # bar readers at all, `ast_table` agrees with the file on disk, and the
+        # walker binds exactly that set.
+        assert len(declared) >= 2, (
+            f"the manifest declares {len(declared)} bar readers; this sweep proves "
+            "nothing about a set that small")
+        assert tuple(declared) == tuple(ast_table.bar_readers()), (
+            "ast_table.bar_readers() disagrees with the manifest file this rail "
+            "read — one of them is not reading closedTable.json")
+        assert set(declared) == set(ast_interpret.BAR_READERS), (
+            "the walker's dispatch set and the manifest have forked")
+    
+        functions = _manifest()["functions"]
+        met = _instant_bars()
+        anchor = met[1]["t"]
+    
+        swept = {}
+        for name in declared:
+            spec = functions[name]
+            node = _call(name, *_args_for(name, spec, anchor, len(met)))
+            tree = _op(">", _series("close"), node)
+    
+            # (a) the entry CAN compute — so (b) is about the bars, not the fixture.
+            column = ast_interpret.interpret(node, met, opts={"tf": "5"})
+>           assert any(isinstance(v, float) and math.isfinite(v) for v in column), (
+                f"{name}: the 'computable' fixture produced no value at all, so the "
+                "'holed' assertions below would pass for the wrong reason")
+E           AssertionError: openingRangeHigh: the 'computable' fixture produced no value at all, so the 'holed' assertions below would pass for the wrong reason
+E           assert False
+E            +  where False = any(<generator object test_EVERY_declared_BAR_READER_is_swept__DERIVED_FROM_THE_MANIFEST.<locals>.<genexpr> at 0x701c40fbe0a0>)
+
+tests/test_scan_not_computable_inputs.py:415: AssertionError
+_______________ test_no_credential_in_git_history_of_this_branch _______________
+
+    def test_no_credential_in_git_history_of_this_branch():
+        """A scrubbed working tree is not enough — the leak may be in a commit.
+    
+        ⛔ RANGE IS `origin/master..HEAD`, NOT `merge-base..HEAD`. After this branch merges
+        master, a merge-base range replays master's OWN commits as if they were ours — the
+        first run failed on an `Authorization:` header in `api/` code from another
+        workstream. A rail that reds on somebody else's commit gets waved through.
+    
+        ⛔ Findings name the FILE. The first version scanned one concatenated blob and
+        reported `line 2058` of something that exists nowhere on disk, which is a finding
+        nobody can act on (`lesson_a_differ_can_truncate_the_names_a_rail_exists_to_report`).
+        """
+        # ⛔ NOT `text=True`: on Windows that decodes the pipe with the locale codec
+        # (cp1252) and git emits UTF-8, so the first box-drawing byte kills the reader
+        # thread. That is the exact bug that made `tools/flag_ledger_audit.py` unrunnable
+        # for weeks while reporting something that read like an auth failure.
+        def git(*args):
+            return subprocess.run(["git", "-C", str(REPO), *args],
+                                  capture_output=True, encoding="utf-8", errors="replace").stdout
+    
+        if not git("rev-parse", "--verify", "-q", "origin/master").strip():
+            return                                  # no remote to compare against
+        diff = git("diff", "-U0", "origin/master..HEAD")
+>       assert diff.strip(), "empty diff — the check would pass vacuously"
+E       AssertionError: empty diff — the check would pass vacuously
+E       assert ''
+E        +  where '' = <built-in method strip of str object at 0x701cc162f5f0>()
+E        +    where <built-in method strip of str object at 0x701cc162f5f0> = ''.strip
+
+tests/test_secret_scrub.py:81: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_scan_run.py:1347
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_scan_run.py:1347: SyntaxWarning: invalid escape sequence '\d'
+    which leaves the carriage return inside the match, so a trailing ``(\d+)$``
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_scan_evaluator_off_request_path.py::test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+tests/test_scan_period.py::test_snaps_holiday_start_date_back_to_a_trading_day
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3398: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_scan_period.py::test_ranks_common_stock_by_period_change
+tests/test_scan_period.py::test_snaps_holiday_start_date_back_to_a_trading_day
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3401: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_schwab_partner_fixes.py::test_snapshot_now_is_admin_only_not_merely_logged_in
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_screener_backtest_auth.py::test_a_PAID_member_still_gets_200_on_EVERY_route
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:2249: UnsupportedFieldAttributeWarning: The 'alias' attribute with value 'from' was provided to the `Field()` function, which has no effect in the context it was used. 'alias' is field-specific metadata, and can only be attached to a model field using `Annotated` metadata or by assignment. This may have happened because an `Annotated` type alias using the `type` statement was used, or if the `Field()` function was attached to a single member of a union type.
+    warnings.warn(
+
+tests/test_secret_scrub.py: 3639 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:158: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_secret_scrub.py: 3639 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:159: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=200)).strftime("%Y-%m-%d")
+
+tests/test_serve_dual.py::test_both_sockets_answer
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_serve_dual.py::test_both_sockets_answer
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_screener_auth_surface.py:71: SCREEN_BACKTEST_ENABLED is off — the router is not mounted, so there is no served route to check (this is the flag working, not a gap)
+SKIPPED [1] tests/test_screener_integration.py:15: local bars reader unavailable: no such table: ohlcv
+SKIPPED [1] tests/test_seed_large_notebook_guard.py:72: mklink /J unavailable/failed on this host ([Errno 2] No such file or directory: 'cmd') -- this guard's resistance to an NTFS-junction bypass into the shared production root is UNVERIFIED on this host.
+XFAIL tests/test_serve_label_budget.py::test_warmth_audit_tool_classifies_only_declared_labels_and_all_of_them - KNOWN ROT (P0 rails 2026-11-11): tools/bars_warmth_audit.py classifies by its own hand-copied sets; they name 'disk' (never emitted) and omit most deadline/delta labels. TODO(P1 monitor): import api.services.serve_labels.SERVE_LABELS there and delete the copies — then drop this xfail.
+FAILED tests/test_scan_not_computable_inputs.py::test_EVERY_declared_BAR_READER_is_swept__DERIVED_FROM_THE_MANIFEST - AssertionError: openingRangeHigh: the 'computable' fixture produced no value at all, so the 'holed' assertions below would pass for the wrong reason
+assert False
+ +  where False = any(<generator object test_EVERY_declared_BAR_READER_is_swept__DERIVED_FROM_THE_MANIFEST.<locals>.<genexpr> at 0x701c40fbe0a0>)
+FAILED tests/test_secret_scrub.py::test_no_credential_in_git_history_of_this_branch - AssertionError: empty diff — the check would pass vacuously
+assert ''
+ +  where '' = <built-in method strip of str object at 0x701cc162f5f0>()
+ +    where <built-in method strip of str object at 0x701cc162f5f0> = ''.strip
+2 failed, 3918 passed, 3 skipped, 1 xfailed, 7290 warnings in 417.81s (0:06:57)

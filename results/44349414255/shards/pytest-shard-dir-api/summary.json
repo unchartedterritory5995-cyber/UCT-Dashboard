@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 355,
+  "passed": 353,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 47.77,
+  "failed_files": [
+    "tests/api/test_delta_snapshot.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 353 passed, 1 skipped, 7 warnings in 47.77s",
+  "ok": true
+}

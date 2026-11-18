@@ -1,0 +1,85 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  3%]
+........................................................................ [  7%]
+........................................................................ [ 11%]
+........................................................................ [ 15%]
+........................................................................ [ 18%]
+........................................................................ [ 22%]
+......s................................................................. [ 26%]
+...........................................s....................s....... [ 30%]
+........................................................................ [ 33%]
+........................................................................ [ 37%]
+........................................................................ [ 41%]
+........................................................................ [ 45%]
+........................................................................ [ 48%]
+........................................................................ [ 52%]
+........................................................................ [ 56%]
+........................................................................ [ 60%]
+...........F...........................................s................ [ 63%]
+........................................................................ [ 67%]
+........................................................................ [ 71%]
+........................................................................ [ 75%]
+...........................................................F............ [ 78%]
+........................................................................ [ 82%]
+........................................................................ [ 86%]
+........................................................................ [ 90%]
+........................................................................ [ 93%]
+........................................................................ [ 97%]
+.............................................                            [100%]
+=================================== FAILURES ===================================
+_ TestSourceStaysInTheWorkDir.test_the_writer_refuses_any_path_outside_the_report_dir[..\\escape.pine] _
+
+self = <tests.test_support_loop_tools.TestSourceStaysInTheWorkDir object at 0x7b1c464741d0>
+fname = '..\\escape.pine'
+work = PosixPath('/tmp/pytest-of-runner/pytest-0/test_the_writer_refuses_any_pa1/outside-repo/work')
+
+    @pytest.mark.parametrize("fname", ["../escape.pine", "..\\escape.pine", "/abs.pine", "sub/x.pine", "", ".."])
+    def test_the_writer_refuses_any_path_outside_the_report_dir(self, fname, work):
+>       with pytest.raises(workdir.WorkdirError):
+E       Failed: DID NOT RAISE <class 'tools.support_loop.workdir.WorkdirError'>
+
+tests/test_support_loop_tools.py:140: Failed
+_____________ test_the_page_flag_is_declared_in_the_ledger_as_dark _____________
+
+    def test_the_page_flag_is_declared_in_the_ledger_as_dark():
+        ledger = json.loads((_REPO / "docs" / "feature_flags.json").read_text(encoding="utf-8"))
+        entry = ledger["flags"][brm.FLAG]
+>       assert entry["status"] == "dark" and entry["where"] == [] and entry["note"]
+E       AssertionError: assert ('armed' == 'dark'
+E         
+E         - dark
+E         + armed)
+
+tests/test_term013_bars_rail_reader.py:457: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+<unknown>:964
+tests/test_study_flags.py::test_no_default_off_study_gate_is_undeclared
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_study_flags.py::test_no_default_off_study_gate_is_undeclared
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_study_generators.py:163: needs the PRIVATE uct-intelligence checkout (prompts/01_methodology_bible.txt), which is not on this box: looked under ['/home/runner/work/UCT-Dashboard/UCT-Dashboard/external/uct-intelligence', 'C:\\Users\\Patrick\\uct-intelligence', 'C:\\Users\\pgosz\\projects\\uct-intelligence']. Point UCT_INTEL_PATH at a checkout to run it; it runs on the owner's dev box (C:\Users\Patrick\uct-intelligence). Every other bible assertion in this file still ran, on the committed bank's own quotes.
+SKIPPED [1] tests/test_study_index_charts.py:222: the guard is the Windows box's
+SKIPPED [1] tests/test_study_intraday_charts.py:124: the refusal is the Windows box's guard
+SKIPPED [1] tests/test_survivorship_is_declared.py:91: no local screener.db to measure against
+FAILED tests/test_support_loop_tools.py::TestSourceStaysInTheWorkDir::test_the_writer_refuses_any_path_outside_the_report_dir[..\\escape.pine] - Failed: DID NOT RAISE <class 'tools.support_loop.workdir.WorkdirError'>
+FAILED tests/test_term013_bars_rail_reader.py::test_the_page_flag_is_declared_in_the_ledger_as_dark - AssertionError: assert ('armed' == 'dark'
+  
+  - dark
+  + armed)
+2 failed, 1911 passed, 4 skipped, 5 warnings in 499.15s (0:08:19)

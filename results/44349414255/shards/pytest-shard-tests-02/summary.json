@@ -1,0 +1,16 @@
+{
+  "suite": "pytest",
+  "collected": 5654,
+  "passed": 5603,
+  "failed": 2,
+  "errored": 0,
+  "skipped": 49,
+  "wall_s": 940.84,
+  "failed_files": [
+    "tests/test_async_routes_do_not_block.py",
+    "tests/test_bars_ordinal_census.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "2 failed, 5603 passed, 49 skipped, 7585 warnings in 940.84s (0:15:40)",
+  "ok": true
+}

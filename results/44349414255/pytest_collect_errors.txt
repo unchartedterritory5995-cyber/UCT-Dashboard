@@ -1,0 +1,45 @@
+======================================================================
+ERROR collecting tests/test_canonical_address_book.py
+BUCKET: AssertionError: assert {'day_close',...rade_ns', ...} == {'day_high', ...v_close', ...}
+----------------------------------------------------------------------
+tests/test_canonical_address_book.py:659: in <module>
+    @pytest.mark.parametrize("column,sqltype", _ohlcv_columns())
+tests/test_canonical_address_book.py:614: in _ohlcv_columns
+    body = _re.search(r"\((.*)\)", _ohlcv_ddl(), _re.S).group(1)
+tests/test_canonical_address_book.py:607: in _ohlcv_ddl
+    assert len(hits) == 1, f"expected one ohlcv DDL in CODE, found {len(hits)}"
+E   AssertionError: expected one ohlcv DDL in CODE, found 0
+E   assert 0 == 1
+E    +  where 0 = len([])
+=================================== FAILURES ===================================
+_______ test_snapshot_records_the_vendor_data_time_beside_unchanged_rows _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7348beaa8290>
+
+    def test_snapshot_records_the_vendor_data_time_beside_unchanged_rows(monkeypatch):
+        from api.services import massive
+        c = massive._MassiveRestClient.__new__(massive._MassiveRestClient)
+        c._api_key = "k"
+        now = 1_791_830_000.0
+        monkeypatch.setattr(massive.time, "time", lambda: now)
+        tickers = [{"ticker": f"T{i}", "updated": int((now - 900 - i) * 1e9),
+                    "day": {"c": 10, "v": 5}, "prevDay": {"c": 9}, "lastTrade": {"p": 10}}
+                   for i in range(100)]
+        tickers.append({"ticker": "FUT", "updated": int((now + 3600) * 1e9), "day": {"c": 1}})
+        tickers.append({"ticker": "NOSTAMP", "day": {"c": 1}})
+        monkeypatch.setattr(c, "_get", lambda url: {"tickers": tickers}, raising=False)
+        out = c.get_full_market_snapshot()
+>       assert set(out["T0"]) == {"last_price", "prev_close", "today_vol", "prev_vol", "day_open",
+                                  "day_high", "day_low", "last_trade_ns"}
+E       AssertionError: assert {'day_close',...rade_ns', ...} == {'day_high', ...v_close', ...}
+E         
+E         Extra items in the left set:
+E         'min_t_ms'
+E         'day_close'
+E         'min_close'
+E         
+E         Full diff:
+E           {
+E         +     'day_close',
+E               'day_high',
+

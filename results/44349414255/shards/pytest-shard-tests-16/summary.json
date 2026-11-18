@@ -1,0 +1,16 @@
+{
+  "suite": "pytest",
+  "collected": 1917,
+  "passed": 1911,
+  "failed": 2,
+  "errored": 0,
+  "skipped": 4,
+  "wall_s": 499.15,
+  "failed_files": [
+    "tests/test_support_loop_tools.py",
+    "tests/test_term013_bars_rail_reader.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "2 failed, 1911 passed, 4 skipped, 5 warnings in 499.15s (0:08:19)",
+  "ok": true
+}

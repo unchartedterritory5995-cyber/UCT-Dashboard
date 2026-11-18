@@ -1,0 +1,23 @@
+{
+  "suite": "pytest",
+  "collected": 5622,
+  "passed": 5589,
+  "failed": 20,
+  "errored": 0,
+  "skipped": 13,
+  "wall_s": 924.09,
+  "failed_files": [
+    "tests/test_voice_client_request_shapes.py",
+    "tests/test_web_capture_coverage.py",
+    "tests/test_wisdom_admin_status_counts.py",
+    "tests/test_wisdom_extract_tools.py",
+    "tests/test_wisdom_ingest_persisted_run.py",
+    "tests/test_wisdom_item3_floor.py",
+    "tests/test_wisdom_modelbook_archive_drafts.py",
+    "tests/test_wisdom_publish_adapters_drafts.py",
+    "tests/test_wisdom_type_gating_audit.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "20 failed, 5589 passed, 13 skipped, 297 warnings in 924.09s (0:15:24)",
+  "ok": true
+}

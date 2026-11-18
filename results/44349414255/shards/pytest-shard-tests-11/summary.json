@@ -1,0 +1,20 @@
+{
+  "suite": "pytest",
+  "collected": 3458,
+  "passed": 3449,
+  "failed": 8,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 844.81,
+  "failed_files": [
+    "tests/test_options_l3.py",
+    "tests/test_parity_scorecard.py",
+    "tests/test_pattern_scan_depth_and_sym.py",
+    "tests/test_perf_batch_a.py",
+    "tests/test_persistence_manifest_server_keys.py",
+    "tests/test_pine_capability_admission.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "8 failed, 3449 passed, 1 skipped, 1349 warnings in 844.81s (0:14:04)",
+  "ok": true
+}

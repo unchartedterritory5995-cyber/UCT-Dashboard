@@ -1,0 +1,18 @@
+{
+  "suite": "pytest",
+  "collected": 2403,
+  "passed": 2397,
+  "failed": 4,
+  "errored": 0,
+  "skipped": 2,
+  "wall_s": 471.87,
+  "failed_files": [
+    "tests/test_rs_split_rows.py",
+    "tests/test_run_half_refusal_telemetry.py",
+    "tests/test_s6_cp2_migration.py",
+    "tests/test_sample_never_feeds_real_numbers.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "4 failed, 2397 passed, 2 skipped, 12 warnings in 471.87s (0:07:51)",
+  "ok": true
+}

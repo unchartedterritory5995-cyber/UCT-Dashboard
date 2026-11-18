@@ -1,0 +1,3 @@
+bucket | count | example node id
+----------------------------------------------------------------------
+1   | AssertionError: assert {'day_close',...rade_ns', ...} == {'day_high', ...v_close', ...} | tests/test_canonical_address_book.py

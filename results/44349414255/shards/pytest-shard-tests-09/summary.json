@@ -1,0 +1,18 @@
+{
+  "suite": "pytest",
+  "collected": 2653,
+  "passed": 2638,
+  "failed": 7,
+  "errored": 0,
+  "skipped": 8,
+  "wall_s": 902.5,
+  "failed_files": [
+    "tests/test_note_creation_doors_no_block_tokens.py",
+    "tests/test_note_semantic.py",
+    "tests/test_notebook_campaign_clock.py",
+    "tests/test_notebook_earnings_prep.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "7 failed, 2638 passed, 8 skipped, 51 warnings in 902.50s (0:15:02)",
+  "ok": true
+}
