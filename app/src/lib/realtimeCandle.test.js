@@ -118,7 +118,7 @@ describe('getLastTrade — the last APPLIED trade at its own trade time (BarStor
   })
 })
 
-describe('tick repaint hold: 1000 ms by default, the per-browser override when set', () => {
+describe('tick repaint hold: 250 ms by default (LIVE_CANDLE_CADENCE_MS), the per-browser override when set', () => {
   const KEY = 'uct.liveCadenceMs'
   beforeEach(() => { rc._reset(); vi.useFakeTimers() })
   afterEach(() => { vi.useRealTimers(); localStorage.removeItem(KEY); rc._reset() })
@@ -132,6 +132,13 @@ describe('tick repaint hold: 1000 ms by default, the per-browser override when s
   it('default', () => {
     const r = run()
     expect(r.paints()).toBe(1)
+    vi.advanceTimersByTime(249); expect(r.paints()).toBe(1)
+    vi.advanceTimersByTime(1); expect(r.paints()).toBe(2)
+    r.off()
+  })
+  it('override 1000 (the old default) still holds a browser to 1 s', () => {
+    localStorage.setItem(KEY, '1000')
+    const r = run()
     vi.advanceTimersByTime(999); expect(r.paints()).toBe(1)
     vi.advanceTimersByTime(1); expect(r.paints()).toBe(2)
     r.off()

@@ -186,7 +186,7 @@ describe('IndicatorChip — the controls, and the one line that makes them reach
     fireEvent(chip, ev)
     expect(h.onMenu).toHaveBeenCalledWith(
       expect.objectContaining({ instanceId: 'legacy:rsi', plotKey: 'rsi', label: 'RSI(14)' }),
-      { x: 40, y: 93 })
+      { x: 40, y: 93, besideX: 166, rowTop: 70 })
     // ⚰️ IT USED TO ANCHOR AT `{clientX, clientY}` — 120,44 here. A pointer anchor
     // cannot serve a KEYBOARD activation, which has no coordinates at all, so the
     // element's own rectangle serves every input and the menu always hangs off the

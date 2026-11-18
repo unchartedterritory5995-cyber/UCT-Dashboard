@@ -200,6 +200,20 @@ def test_publish_checks_merges_stamps_and_uploads_in_order(raw, tmp_path):
     with pytest.raises(BLD.BuildError, match="disagree"):
         PUB.build_indexes(PUB.collect_packs([a]), log=lambda *_: None)
     PUB.build_indexes(PUB.collect_packs([a]), check=False, log=lambda *_: None)    # unchecked: not read
+    # check_since: only packs written at or after it are read (an immutable pack was checked when written)
+    import os as _os
+    import time as _time
+    PUB.build_indexes(PUB.collect_packs([a]), check_since=_time.time() + 3600, log=lambda *_: None)
+    # a daily run's few rebuilt packs are checked without a process pool (never pool + uploader in one process)
+    real_pool = PUB.ProcessPoolExecutor
+    PUB.ProcessPoolExecutor = lambda *a, **k: (_ for _ in ()).throw(AssertionError("no pool for a few packs"))
+    try:
+        with pytest.raises(BLD.BuildError, match="disagree"):
+            PUB.build_indexes(PUB.collect_packs([a]), jobs=8, check_since=_os.path.getmtime(p) - 1, log=lambda *_: None)
+    finally:
+        PUB.ProcessPoolExecutor = real_pool
+    with pytest.raises(BLD.BuildError, match="disagree"):
+        PUB.build_indexes(PUB.collect_packs([a]), check_since=_os.path.getmtime(p) - 1, log=lambda *_: None)
     p.write_bytes(good)
     (a / "build.lock").write_text("1")
     with pytest.raises(BLD.BuildError, match="held by a build"):
@@ -227,6 +241,103 @@ def test_publish_checks_merges_stamps_and_uploads_in_order(raw, tmp_path):
     doc = json.loads((tmp_path / "pub" / "v1" / "index" / "s-AAA.json").read_text())
     assert doc["splits"] == [["2026-12-01", 4.0]] and "off" in doc["series"]["1"]["2026-11"]
     assert PUB.main(["--from", str(tmp_path / "raw")]) == 2                 # no packs there
+
+
+def test_upload_is_resumable_and_reports_progress(raw, tmp_path):
+    """A re-run after an interrupted upload (the real lake is ~65 GB) sends only the packs the
+    bucket does not hold at the same size; indexes still go last; progress is logged."""
+    a = tmp_path / "a"
+    BLD.Builder(raw, a, quality=5, packs=True, **QUIET).run(ALL)
+    packs = PUB.collect_packs([a])
+    idx = PUB.build_indexes(packs, log=lambda *_: None)
+    keys = sorted(f"hist/{PUB.pack.pack_relpath(s, p)}" for (s, p) in packs)
+    assert len(keys) >= 3
+    sizes = {f"hist/{PUB.pack.pack_relpath(s, p)}": path.stat().st_size for (s, p), path in packs.items()}
+    in_bucket = {keys[0]: sizes[keys[0]], keys[1]: sizes[keys[1]] - 1}   # one whole, one PARTIAL (wrong size)
+    sent, order, logs = [], [], []
+    stats = PUB.upload(packs, idx,
+                       lambda k, path, ct: (sent.append(k), order.append("pack")),
+                       lambda k, data, ct: order.append("index"),
+                       prefix="hist/", jobs=2, log=logs.append, every=1,
+                       exists=lambda k, size: in_bucket.get(k) == size)
+    assert keys[0] not in sent                        # already there at its size: not sent again
+    assert keys[1] in sent                            # a partial object is re-sent
+    assert sorted(sent) == sorted(set(keys) - {keys[0]})
+    assert stats["skipped"] == 1 and stats["packs"] == len(keys) - 1
+    assert order == ["pack"] * (len(keys) - 1) + ["index"] * len(idx)      # indexes still last
+    assert any(m.startswith(f"packs {len(keys)}/{len(keys)}") for m in logs)
+    assert any("1 already there" in m for m in logs)
+
+
+def test_a_pack_rebuilt_by_the_daily_refresh_is_sent_even_at_the_same_size(raw, tmp_path):
+    """A current period's pack is rebuilt in place each day: the bucket's same-size copy is NOT proof it
+    is the same pack. Packs written since the run started (`forced_keys`) are always sent; the rest
+    keep the resumable size check."""
+    import os
+    a = tmp_path / "a"
+    BLD.Builder(raw, a, quality=5, packs=True, **QUIET).run(ALL)
+    packs = PUB.collect_packs([a])
+    idx = PUB.build_indexes(packs, log=lambda *_: None)
+    items = sorted(packs.items())
+    assert len(items) >= 2
+    (old_k, old_path), (new_k, new_path) = items[0], items[1]
+    os.utime(old_path, (1_000_000, 1_000_000))                 # written long ago
+    since = new_path.stat().st_mtime
+    force = PUB.forced_keys(packs, since, prefix="hist/")
+    key = lambda k: f"hist/{PUB.pack.pack_relpath(*k)}"
+    assert key(new_k) in force and key(old_k) not in force
+    everything_there = lambda k, size: True                   # the bucket holds every key at its size
+    sent = []
+    PUB.upload(packs, idx, lambda k, path, ct: sent.append(k), lambda k, data, ct: None,
+               prefix="hist/", jobs=1, log=lambda *_: None, exists=everything_there, force=force)
+    assert key(new_k) in sent and key(old_k) not in sent
+    sent.clear()                                              # without `force`: the old behaviour
+    PUB.upload(packs, idx, lambda k, path, ct: sent.append(k), lambda k, data, ct: None,
+               prefix="hist/", jobs=1, log=lambda *_: None, exists=everything_there)
+    assert sent == []
+
+
+def test_an_index_put_that_fails_is_retried_on_its_own_and_the_rest_carry_on(raw, tmp_path):
+    """2026-11-17: one of 36,676 index puts got R2's 'reduce your concurrent request rate for the same
+    object' and the whole run died. A failing put is retried with a backoff; the others are not held up."""
+    a = tmp_path / "a"
+    BLD.Builder(raw, a, quality=5, packs=True, **QUIET).run(ALL)
+    packs = PUB.collect_packs([a])
+    idx = PUB.build_indexes(packs, log=lambda *_: None)
+    flaky = f"hist/{PUB.piece.index_relpath(sorted(idx)[0])}"
+    tries, sent, waits = {}, [], []
+
+    def put_bytes(k, data, ct):
+        tries[k] = tries.get(k, 0) + 1
+        if k == flaky and tries[k] <= 2:
+            raise RuntimeError("ServiceUnavailable: Reduce your concurrent request rate for the same object")
+        sent.append(k)
+
+    stats = PUB.upload(packs, idx, lambda *a: None, put_bytes, prefix="hist/", jobs=2,
+                       log=lambda *_: None, sleep=waits.append)
+    assert stats["indexes"] == len(idx) and flaky in sent
+    assert tries[flaky] == 3 and waits == [PUB.INDEX_RETRY_BASE_S, PUB.INDEX_RETRY_BASE_S * 2]
+    assert all(n == 1 for k, n in tries.items() if k != flaky)
+
+
+def test_an_index_that_never_lands_is_NAMED_and_the_others_still_land(raw, tmp_path):
+    a = tmp_path / "a"
+    BLD.Builder(raw, a, quality=5, packs=True, **QUIET).run(ALL)
+    packs = PUB.collect_packs([a])
+    idx = PUB.build_indexes(packs, log=lambda *_: None)
+    dead = f"hist/{PUB.piece.index_relpath(sorted(idx)[0])}"
+    sent = []
+
+    def put_bytes(k, data, ct):
+        if k == dead:
+            raise RuntimeError("ServiceUnavailable")
+        sent.append(k)
+
+    with pytest.raises(PUB.BuildError) as e:
+        PUB.upload(packs, idx, lambda *a: None, put_bytes, prefix="hist/", jobs=2, log=lambda *_: None,
+                   sleep=lambda _s: None)
+    assert dead in str(e.value) and "re-run" in str(e.value)
+    assert len(sent) == len(idx) - 1
 
 
 def test_scratch_rows_on_another_disk_change_nothing_and_stop_before_it_fills(raw, tmp_path, monkeypatch):

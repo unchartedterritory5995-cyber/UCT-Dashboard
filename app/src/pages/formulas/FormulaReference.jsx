@@ -34,6 +34,7 @@ import TileCard from '../../components/TileCard'
 import { buildVocabulary, searchVocabulary } from '../../components/chart/engine/ast/vocabulary'
 import { referenceSentence } from './referenceSentence'
 import { buildReferenceText, saveTextFile, reachFor } from './referenceDownload'
+import { memberVocabulary } from './memberReason'
 import styles from './FormulaReference.module.css'
 
 // Opened on request (see the section below): it imports the engine's refusal families.
@@ -59,7 +60,7 @@ function Excluded({ item }) {
   return (
     <li className={styles.gone} data-excluded={item.name}>
       <code className={styles.goneName}>{item.name}</code>
-      <p className={styles.says}>{withoutGuardIds(item.reason)}</p>
+      <p className={styles.says}>{item.says}</p>
       {/* ⭐⭐ THE MEMBER LEAVES WITH SOMETHING TO PASTE. Seven of the refused
           functions carry their own substitute in the manifest, and every one
           shown here has been through the shipped parser — so a substitute on
@@ -75,7 +76,9 @@ function Excluded({ item }) {
 }
 
 export default function FormulaReference() {
-  const vocab = useMemo(() => buildVocabulary(), [])
+  // ⭐ The excluded roster AS A MEMBER READS IT (`memberReason.js`): the engine's own notes on why a
+  // name is absent are written for its maintainers and are not printed here.
+  const vocab = useMemo(() => memberVocabulary(buildVocabulary()), [])
   const [query, setQuery] = useState('')
   const [pineOpen, setPineOpen] = useState(false)
   // ⭐ THE WHOLE REFERENCE AS ONE FILE (2026-11-16), for a member who writes with their own

@@ -88,7 +88,7 @@ describe('TradingView (Pine) names on the reference page', () => {
     const row = section.querySelector('[data-pine="request.security"]')
     expect(row).toHaveTextContent(/^request\.securityNot yet: data from another symbol or timeframe$/)
     expect(section.textContent).not.toMatch(/pine:[a-z-]+|runtime:[a-z-]+/)
-    expect(section.textContent).not.toMatch(/(Valid|Supported|Verified|Converted)/)
+    expect(section.textContent).not.toMatch(/\b(Valid|Supported|Verified|Converted)\b/)
   }, PINE_LOAD_MS + 5000)
 
   it("the page's one search box filters the section, and the button says what it will look for", async () => {
@@ -139,7 +139,9 @@ describe('what the page may never tell a member', () => {
     await waitFor(() => {
       const gone = document.querySelector('[data-excluded="obv"]')
       expect(gone).toBeTruthy()
-      expect(gone.textContent).toMatch(/CUMULATIVE/)
+      // the reason in a member's words (`memberReason.js`), never the engine's own note
+      expect(gone.textContent).toMatch(/running total from the first bar of history/)
+      expect(gone.textContent).not.toMatch(/CUMULATIVE|ABSOLUTE SEED/)
     })
     // ⭐ AND THE BOUNDED FORM WE DO HAVE IS IN THE SAME ANSWER, so the member
     // leaves with something to write rather than only with a refusal.

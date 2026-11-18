@@ -17,7 +17,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import BuilderSheet from './BuilderSheet'
-import { startFrom, writeMyself, openTab } from './builderStart.testkit.js'
+import { startFrom, writeMyself, openTab } from '../../../testing/builder/builderStart.testkit.js'
 import { FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'
 import { parseFormula } from '../engine/ast/parse'

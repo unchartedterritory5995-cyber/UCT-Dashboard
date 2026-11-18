@@ -30,7 +30,9 @@ const { META, SAVED, scanMock, sendMock } = vi.hoisted(() => ({
   sendMock: vi.fn(async () => 'Screener results sent to “Plan”'),
 }))
 
-vi.mock('react-router-dom', () => ({ useNavigate: () => () => {} }))
+// No <Router> is rendered here, so the router context is absent, as `useInRouterContext` reports it.
+// ScreensManager asks since eb0689c961 (the scan hint leaves the address through the router).
+vi.mock('react-router-dom', () => ({ useNavigate: () => () => {}, useInRouterContext: () => false }))
 vi.mock('../hooks/useScreenerMeta', () => ({ default: () => ({ meta: META, isLoading: false }) }))
 vi.mock('../hooks/useScreenerScan', () => ({ default: scanMock }))
 vi.mock('../hooks/useSavedScreens', () => ({ default: () => SAVED }))

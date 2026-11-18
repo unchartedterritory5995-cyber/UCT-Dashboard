@@ -136,7 +136,7 @@ describe('TickerPopup chart header text clears 4.5:1 on the popup header', () =>
 // `header.colors.title`, written by applying a dark /charts theme), the Market Cap / Next Earnings
 // values at 2.76:1 (#6ba3be) and the UCT Rating at 1.85:1 (#dcbb5e), all inline styles. After: 0.
 describe('TickerPopup / Ticker Hub chart header: identity label and info values clear 4.5:1', () => {
-  const VALUE_KEYS = { mcap: 'info', earn: 'info', rating: 'accent' }
+  const VALUE_KEYS = { mcap: 'info', earn: 'info' }  // UCT Rating retired as a header stat 11-17
   it('both scopes re-ink the label and every info value with app tokens, over the inline colour', () => {
     for (const scope of [POPUP, HUB]) {
       expect(last(WS, `${scope} .chartHeaderTop [data-testid='sym-label']`, 'color'), scope).toBe('var(--text-bright) !important')

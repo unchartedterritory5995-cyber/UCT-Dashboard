@@ -49,7 +49,7 @@ import {
   idbPutMonotonic, idbGet, idbImportPack, idbPutHistory, idbGetHistory, idbGetHistoryEntry,
   _intradayGapStart, _newestInteriorHoleEnd,
 } from '../../utils/barsIDB'
-import { TAIL_ENTRY_MAX_BARS, historyLagsTail } from '../../utils/historyPrepend'
+import { TAIL_ENTRY_MAX_BARS, HIST_PERSIST_MAX_BARS, historyLagsTail } from '../../utils/historyPrepend'
 import { ACTION, parseKey, isDateTf, isIntradayTf, unixToDateLabel, keyOf } from './types'
 import { isSealedRow, bucketEnd, normT } from './reducer'
 
@@ -198,8 +198,11 @@ export function createPersist({
     // when its history grew past the segment or the tail is about to outrun it.
     if (isIntradayTf(p.tf) && rows.length > TAIL_ENTRY_MAX_BARS) {
       const h = hist.get(key)
-      if (!h || rows[0].t < h.first || historyLagsTail(h.last, rows)) {
-        const out = await IO.idbPutHistory(p.sym, p.cacheTf, rows, { meta: histStamp(s) })
+      // At most the newest HIST_PERSIST_MAX_BARS: deeper rows (the lake's) come back from the HTTP
+      // cache, and a whole 20,000-row series is a large structured clone on every growth.
+      const seg = rows.length > HIST_PERSIST_MAX_BARS ? rows.slice(-HIST_PERSIST_MAX_BARS) : rows
+      if (!h || seg[0].t < h.first || historyLagsTail(h.last, rows)) {
+        const out = await IO.idbPutHistory(p.sym, p.cacheTf, seg, { meta: histStamp(s) })
         if (out?.length) _noteHist(key, out)
       }
     }

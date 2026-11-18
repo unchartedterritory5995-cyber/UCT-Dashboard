@@ -60,7 +60,9 @@ describe("the Use and Adopt key is the server's", () => {
     // The three doors this client keys: use-template, adopt-tool, and a template's adopt.
     expect(router).toMatch(/@router\.post\("\/\{gallery_id\}\/use-template"/)
     expect(router).toMatch(/@router\.post\("\/\{gallery_id\}\/adopt-tool"/)
-    expect(router).toMatch(/@router\.post\("\/\{gallery_id\}\/adopt", /)
+    // The closing quote then `,` or `)` is what tells `/adopt` from `/adopt-tool` and `/adopt-layout`: the
+    // route lost its `, dependencies=[...]` when its flag retired (98929d6a7a), and a `", ` here went red.
+    expect(router).toMatch(/@router\.post\("\/\{gallery_id\}\/adopt"[,)]/)
     for (const fn of ['adopt_tool_endpoint', 'use_template_endpoint', 'adopt_endpoint']) {
       expect(routeBody(fn), fn).toMatch(/key=_key\(request\)/)
     }

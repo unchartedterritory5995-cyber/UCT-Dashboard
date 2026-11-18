@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import ReactECharts from 'echarts-for-react'
 import { heatTileInks, TIER_HEAT_TOKEN } from '../../breadth/heatTiles'
 import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 import { useThemeInk, CHROME_INK, SEMANTIC_INK, SIZE_INK } from '../../../lib/theme'
 import { buildHeatMap, GROUP_BYS, LABEL_SIZES, labelSize, LINE_T, LINE_C, tilePads } from './heatMapModel'
 import styles from './FocusScreener.module.css'
@@ -17,12 +18,10 @@ const writeLS = (k, v) => { try { localStorage.setItem(k, v) } catch { /* privat
 const TIERS = Object.keys(TIER_HEAT_TOKEN)
 const HEAT_INK = Object.fromEntries(TIERS.map(t => [`heat_${t}`, [TIER_HEAT_TOKEN[t], 'transparent']]))
 const pct = v => (v == null ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(2)}%`)
-const cap = v => {
-  if (v == null) return 'Market cap unknown'
-  if (v >= 1e12) return `$${(v / 1e12).toFixed(2)}T`
-  if (v >= 1e9) return `$${(v / 1e9).toFixed(1)}B`
-  return `$${(v / 1e6).toFixed(0)}M`
-}
+// The tooltip's market-cap ladder (T at two decimals, B at one, whole M as the floor), through the
+// one K/M/B/T decider (TERM-066). A cap that rounds up to the next tier prints in it.
+const CAP_TIERS = [{ at: 1e12, suffix: 'T', decimals: 2 }, { at: 1e9, suffix: 'B', decimals: 1 }, { at: 1e6, suffix: 'M', decimals: 0 }]
+const cap = v => (v == null ? 'Market cap unknown' : formatCompact(v, { tiers: CAP_TIERS, prefix: '$', fixedUnit: true }))
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 
 export default function ScreenerHeatMap({ rows, themeData, livePrices, onOpen }) {

@@ -187,7 +187,7 @@ import { LEGACY_PARAM_IDS } from './paramIdLegacy.js'
 // registry holds that version (`pineLibraries.js`).
 import { linkLibraries, remapLibraryLocation } from './pineLibraries.js'
 import { PINNED_SCRIPT_KEYS } from './paramIdPinned.js'
-import { strategyTaintSinks } from './strategyTaint.js'
+import { strategyTaintSinks, STRATEGY_TAINT_ROW_SINKS, STRATEGY_TAINT_SCRIPT_SINKS } from './strategyTaint.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -967,13 +967,11 @@ import { OBJECT_ENUM_VALUES } from '../objectEnums.js'
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
 
 
-/** ⛔ W9-OQ-N2 — sinks that refuse (or withhold) their own row. */
-const STRATEGY_TAINT_ROW_SINKS = new Set(['plot', 'plotshape', 'plotchar', 'plotcandle', 'plotbar',
-  'plotarrow', 'alertcondition', 'bgcolor', 'barcolor'])
-/** ⛔ W9-OQ-N2 — sinks with no row and no object of their own (a `fill` band, `alert()`, `hline`):
- *  a broker value reaching one refuses the script. Every OTHER tainted sink is a drawing, and the
- *  object pass withholds that one drawing step by name (`strategyTaintDrawingAtLine`). */
-const STRATEGY_TAINT_SCRIPT_SINKS = new Set(['fill', 'alert', 'hline'])
+// ⛔ W9-OQ-N2 — the sinks that refuse (or withhold) their own row (`STRATEGY_TAINT_ROW_SINKS`) and the sinks with no
+// row and no object of their own (`STRATEGY_TAINT_SCRIPT_SINKS`: a `fill` band, `alert()`, `hline`, which refuse the
+// script) are `strategyTaint.js`'s, imported above: the disarmed strategy run (`strategyDisarmOf`) reads the same two.
+// Every OTHER tainted sink is a drawing, and the object pass withholds that one drawing step by name
+// (`strategyTaintDrawingAtLine`).
 /** ⛔ W9-OQ-N2 — the drawing sink a broker value reaches on a line, set per `translatePineResult`. */
 let strategyTaintDrawingAtLine = () => null
 /** ⛔ W9-OQ-N2 — the current translation's taint verdict at a line, set per `translatePineResult`. */
@@ -1921,6 +1919,32 @@ export const BUILTIN_TIMEFRAME_ALIAS = Object.freeze({
   'timeframe.isweekly': 'isweekly',
   'timeframe.ismonthly': 'ismonthly',
   'timeframe.isintraday': 'isintraday',
+})
+
+/** ⭐ 2026-11-17 — THE REGULAR SESSION, UNDER THE NAMES A MEMBER WRITES. The same repair as the
+ *  map above, one namespace over: the engine holds the two columns
+ *  (`closedTable.json::clock.regularfirst` / `.regularhours`, computed by `computeClock` from the
+ *  vendor calendar's regular hours, early closes included) and the door refused the dotted names
+ *  as `pine:builtin` ("names something the engine grammar does not hold").
+ *
+ *   · `session.isfirstbar_regular` — "true on the first regular session bar of the day … the same
+ *     whether extended session information is used or not" — is `regularfirst`.
+ *   · `session.ismarket` — "true if the current bar is a part of the regular trading hours (as
+ *     opposed to pre/postmarket)" — is `regularhours`.
+ *
+ *  ⚠️ ONE STATED DIFFERENCE, AND IT IS A BLANK, NEVER A WRONG ANSWER: on the oldest loaded bar,
+ *  when that bar opens later in a regular session, `regularfirst` is blank (the window was cut
+ *  mid-session and nothing before it can show whether it is the first), where TradingView, which
+ *  holds the whole history, answers false. Every other bar is the tape's own answer.
+ *  ⛔ `session.isfirstbar` / `islastbar` / `ispremarket` / `ispostmarket` are NOT here: each needs
+ *  the chart's own session setting (extended hours shown or not), which a translation does not
+ *  hold, and they stay refused by name.
+ *
+ *  Engine 73 (#1713, the engine 73 train): this changes what the translator WRITES for an
+ *  unchanged script (two names move from refused to translated). */
+export const BUILTIN_SESSION_ALIAS = Object.freeze({
+  'session.isfirstbar_regular': 'regularfirst',
+  'session.ismarket': 'regularhours',
 })
 
 /** ⭐⭐ `timeframe.multiplier` — A FIFTH KIND OF DOTTED NAME: a value the BARS
@@ -12406,6 +12430,10 @@ export class Resolver {
       if (own(BUILTIN_TIMEFRAME_ALIAS, name)) {
         return { type: 'series', name: BUILTIN_TIMEFRAME_ALIAS[name] }
       }
+      // ⭐ 2026-11-17 — and the regular session's two (`BUILTIN_SESSION_ALIAS`), the same way
+      if (own(BUILTIN_SESSION_ALIAS, name)) {
+        return { type: 'series', name: BUILTIN_SESSION_ALIAS[name] }
+      }
       // ⭐⭐ KIND 5 — SETTLED BY THE BARS THIS TRANSLATION IS FOR. A number, so it
       // folds here; see `BUILTIN_TIMEFRAME_SCALAR` for why `this.basePeriod` is
       // the authority rather than a new one.
@@ -14105,6 +14133,16 @@ export class Resolver {
         return built ? lowerTfRefusal({ code, base: this.basePeriod, session: built }) : null
       })()
       const lowerWhy = lower ? ` Below the chart's own timeframe: ${lower.why}.` : ''
+      // ⭐ RS RATING L11 (Q-RS7 R3) — this chart's own symbol read at "D" on a weekly chart is served for a
+      // bare `close` only (`dailyOnWeeklyTargetOf`); anything else is named here, not as a resample.
+      if (code === 'D' && this.basePeriod === 'W' && this.ownSymbolNameOf(positional[0]) !== null) {
+        return {
+          why: 'on a weekly chart a daily read of this chart’s own symbol is served for a bare `close` only '
+            + '(a week’s last daily close is its weekly close: witnessed on NYSE:RDDT 1W, capture-queue row '
+            + 'Q-RS7); this one reads another expression or looks ahead, which needs the symbol’s daily bars, '
+            + 'and a weekly chart holds none beside its own weekly bars.',
+        }
+      }
       if (code && !TF_RESAMPLABLE.includes(code)) {
         // ⚰️ A SECOND, WORSE COPY OF `servableTimeframesText` LIVED HERE, and it
         // was only ever correct by accident: `.join(' and ')` reads right for the
@@ -14567,7 +14605,11 @@ export class Resolver {
     // period's last bar (`htfLookaheadOffStepBacks`, deleted): 213 wrong bars on the
     // two `support-and-resistance-multi-time-frame` captures. Formula `tf` keeps its
     // own meaning; only this door writes `tf_merge`.
-    if (code) out = { type: live ? 'tf_live' : 'tf_merge', value: code, args: [out] }
+    // ⭐⭐ RS RATING L11 — a daily read of ANOTHER symbol on a weekly chart (`dailyOnWeeklyTargetOf`) is
+    // no merge: its `sym` keeps the DAILY base's gate below, so on this chart the host lane withholds it
+    // whole by name (`request:other-timeframe`) and only the run, handed the held series per request
+    // (`requestSupply.js`), reads it.
+    if (code && target.below !== true) out = { type: live ? 'tf_live' : 'tf_merge', value: code, args: [out] }
     // ⭐⭐ C49 — A REQUEST FOR ANOTHER TIMEFRAME CARRIES THE GATE OF THE BASE IT
     // WAS TRANSLATED FOR, ON A CHART PANE. The pane translates once (for a daily
     // base) and its tree is bound on every chart; on any chart but the base's the
@@ -14580,7 +14622,8 @@ export class Resolver {
     // ⭐ ANOTHER SYMBOL TOO, and the gate goes OUTSIDE its `sym`: the merge is a
     // property of the request, not of the instrument, and `sym` hands the other
     // listing's bars at the CHART's timeframe — its 5-minute bars on a 5-minute chart.
-    const gateBase = this.strict ? (target.folded || (code ? this.basePeriod : null)) : null
+    const gateBase = target.below === true ? 'D'
+      : this.strict ? (target.folded || (code ? this.basePeriod : null)) : null
     if (gateBase && !other) out = requestBaseNode(gateBase, out)
     if (other) {
       out = { type: 'sym', value: other, args: [out] }
@@ -14809,6 +14852,11 @@ export class Resolver {
         })
         folded = code
         code = null
+      } else if (code === 'D' && this.basePeriod === 'W') {
+        // ⭐⭐ RS RATING L11 (Q-RS7) — A DAILY READ ON A WEEKLY CHART (`dailyOnWeeklyTargetOf`):
+        // this chart's own `close` (R3), or another symbol's daily series held and sampled per
+        // week by the supply (R2 / R4); anything else declines as it always did.
+        return this.dailyOnWeeklyTargetOf(node, args, placed, positional, own, other, venue)
       } else if (isLowerTfRequest(code, this.basePeriod)) {
         // ⭐⭐ C41 — A TIMEFRAME BELOW THE CHART'S OWN. Whether it is served is
         // `lowerTf.js`'s answer alone (`lowerTfDeclineOf` — the ONE reader, also
@@ -14847,6 +14895,37 @@ export class Resolver {
     if (live && !code) live = false
 
     return { own, other, venue, code, live, positional, folded }
+  }
+
+  /** ⭐⭐ RS RATING L11 (Q-RS7, `rs-weekly-2026-11-17`) — A DAILY READ ON A WEEKLY CHART, look-ahead
+   *  off. Asked only where this resolver's base IS weekly (the runtime lane, which translates per chart;
+   *  the member door translates for a daily base, where `"D"` is the identity and carries the daily gate,
+   *  C49), so no daily chart's translation moves.
+   *    * THIS CHART'S OWN SYMBOL (R3): served for a bare `close` only, as the identity. TradingView's
+   *      weekly close is its week's last daily close (139 of 139 settled NYSE:RDDT weeks, the weekly
+   *      capture against the committed daily one), and on the forming week both are the latest price.
+   *      Any other expression needs the symbol's daily bars, which a weekly chart does not hold: it
+   *      declines (null) and is refused by name (`securityDeclineReason`, `requestSupply.js`).
+   *    * ANOTHER SYMBOL (R2 / R4): `{…, code: 'D', below: true}`. The supply serves it only where a
+   *      witness row's weekly block names a daily read (`otherSymbols.js::witnessReadOf`), evaluating the
+   *      expression on the HELD daily series and sampling each week (`weekSampleOf`); every other symbol
+   *      is refused there by name. The host lane never draws it (`securityAsNode`: the daily gate). */
+  dailyOnWeeklyTargetOf(node, args, placed, positional, own, other, venue) {
+    if (this.requestLookaheadOf(args, placed) !== false) return null
+    if (own !== null) {
+      const v = positional[2]
+      const bareClose = !!v && v.type === 'name' && v.name === 'close' && !(this.env && this.env.has('close'))
+      if (!bareClose) return null
+      this.baseFolds.set(`${node.tok ? node.tok.line : '?'}:D`, {
+        line: node.tok ? node.tok.line : null,
+        column: node.tok ? node.tok.column : null,
+        requested: 'D',
+        base: this.basePeriod,
+        foldedTo: 'the chart’s own close (a week’s last daily close is its weekly close)',
+      })
+      return { own, other: null, venue: null, code: null, live: false, positional, folded: this.basePeriod }
+    }
+    return { own: null, other, venue, code: 'D', live: false, positional, folded: null, below: true }
   }
 
   /** ⭐ C47 — is this the one quarter request this door serves? The timeframe is
@@ -30890,6 +30969,12 @@ const PINE_PLOT_STYLES = Object.freeze({
   'plot.style_circles': 'markers',
 })
 
+/** The plot styles whose `na` bars are a BREAK, not a bridge (User Manual, `plot()`
+ *  `style`): `linebr` and `areabr`. `plot.style_steplinebr` is not mapped at all
+ *  (its na handling is stated nowhere beyond its name, presentation spec U8), so it
+ *  stays `styleUncarried`. */
+const PINE_BREAKING_STYLES = Object.freeze(new Set(['plot.style_linebr', 'plot.style_areabr']))
+
 // ⭐ BOTH SPELLINGS, ONE ANSWER. A bare `red` is only a colour when nothing in
 // the script has bound that name to something else — a member's own variable
 // called `green` must not silently become a colour. The bound-name check is the
@@ -31587,18 +31672,48 @@ function colourInputNameOf(node, env, depth = 0, ctx = null) {
   return null
 }
 
+/** Is a colour branch the INPUT itself (through names), not `color.new(<input>, t)` or any other wrapper? */
+function colourBranchIsBareInput(node, env, depth = 0) {
+  if (!node || depth > 6) return false
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    return !!(bound && bound.kind === 'expr') && colourBranchIsBareInput(bound.node, bound.env || env, depth + 1)
+  }
+  return node.type === 'call' && (node.name === 'input.color' || node.name === 'input')
+}
+
 /** For a fill's colour argument: which `input.color` each of its two colours
  *  (`colorUp` / `colorDown`) comes from, matched by the colour each branch folds
  *  to. Null where a branch reads no input, or the match is ambiguous. */
 function fillColourInputsOf(args, env, colorUp, colorDown, ctx = null) {
   const a = (args || []).find((x) => x && x.name === 'color')
     || (args || []).filter((x) => x && !x.name)[2]
-  const node = a && a.value
+  let node = a && a.value
+  // ⭐ SETTINGS PARITY (area colours, 2026-11-17) — a fill colour written through a NAME is that name's
+  // ternary: RS Rating writes `fillCol = rs > rsMA ? posCol : negCol` then `fill(…, color = fillCol)`, and its
+  // two area colours were never the member's knob
+  for (let d = 0; node && node.type === 'name' && d < 4; d += 1) {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (!bound || bound.kind !== 'expr') break
+    env = bound.env || env
+    node = bound.node
+  }
   if (!node || node.type !== 'ternary') return null
   const yesHex = staticColourOf(node.yes, env, 0, ctx)
   const noHex = staticColourOf(node.no, env, 0, ctx)
-  const yesIn = colourInputNameOf(node.yes, env, 0, ctx)
-  const noIn = colourInputNameOf(node.no, env, 0, ctx)
+  const withOwn = (branch, info) => {
+    if (!info) return info
+    // ⭐ OWN TRANSPARENCY: the branch IS the input (no `color.new(input, t)` around it), so the input's own
+    // default carries the band's alpha and a member's pick is the WHOLE colour, alpha included (TradingView
+    // set F: positive / negative area picked at 0.5 / 0.6 paint at 0.5 / 0.6, not the default's 0.25)
+    if (!colourBranchIsBareInput(branch, env)) return info
+    const t = colourHelperTransparency(branch, env, ctx)
+    const alpha = Number.isFinite(t) && t > 0 && t <= 100 ? Math.round((1 - t / 100) * 255) : null
+    return { ...info, own: true, ...(alpha !== null && /^#[0-9a-f]{6}$/i.test(info.hex)
+      ? { ownHex: `${info.hex.toUpperCase()}${alpha.toString(16).padStart(2, '0').toUpperCase()}` } : {}) }
+  }
+  const yesIn = withOwn(node.yes, colourInputNameOf(node.yes, env, 0, ctx))
+  const noIn = withOwn(node.no, colourInputNameOf(node.no, env, 0, ctx))
   const pick = (hex) => {
     const fromYes = yesHex && yesHex === hex ? yesIn : undefined
     const fromNo = noHex && noHex === hex ? noIn : undefined
@@ -33570,8 +33685,19 @@ function outputPresentation(args, ctx) {
       pres.style = 'markers'
     }
   } else if (st && st.value && st.value.type === 'name') {
-    if (Object.hasOwn(PINE_PLOT_STYLES, st.value.name)) pres.style = PINE_PLOT_STYLES[st.value.name]
-    else pres.styleUncarried = st.value.name
+    if (Object.hasOwn(PINE_PLOT_STYLES, st.value.name)) {
+      pres.style = PINE_PLOT_STYLES[st.value.name]
+      // ⭐⭐ 2026-11-17 (backlog row 42) — THE TWO "WITH BREAKS" STYLES BREAK. The
+      // User Manual: `plot.style_linebr` *"Allows the plotting of discontinuous lines
+      // by not plotting on na values, and not joining such gaps."*; `plot.style_areabr`
+      // *"is similar to plot.style_area but it doesn't bridge over na values."* —
+      // against `plot.style_line`, which *"does draw a line through them by joining
+      // the most recent non-na value to the next non-na value."* Both mapped to the
+      // bridging style and drew joined. `sparse` is the document's own "blank by
+      // design" (`binder.js`: one render series per valued run, because
+      // lightweight-charts 5.2 joins whitespace).
+      if (PINE_BREAKING_STYLES.has(st.value.name)) pres.sparse = true
+    } else pres.styleUncarried = st.value.name
   }
 
   const trArg = arg('transp')

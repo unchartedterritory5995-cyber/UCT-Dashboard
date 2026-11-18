@@ -46,8 +46,14 @@ const dailyBars = (n = 8) => Array.from({ length: n }, (_, i) => ({
 /** Bars whose `t` is a REAL instant, crossing an ET session boundary.
  *  ⚠️ TWO ET DAYS DELIBERATELY — a session accumulator does not answer for bars
  *  whose boundary is not visible in the series, so a one-day control would agree
- *  with its subject for the wrong reason. */
-const instantBars = (n = 120) => Array.from({ length: n }, (_, i) => {
+ *  with its subject for the wrong reason.
+ *  ⭐ 2026-11-17 — AND A REGULAR OPEN. The series starts at 19:00 New York (2026-06-09) and 120
+ *  five-minute bars ended at 05:00, before any regular session: a reader anchored on the REGULAR
+ *  open (`sessionHigh()`, `openingRangeHigh(n)`) answers nothing there, correctly, and the rail's
+ *  "the entry CAN compute" control read that as a broken entry. 240 bars run to 15:00 on
+ *  2026-06-10, so the midnight boundary AND a 09:30 open are both visible. One fixture for every
+ *  reader, still no per-name map. */
+const instantBars = (n = 240) => Array.from({ length: n }, (_, i) => {
   const c = 10 + i * 0.25
   return { t: 1781046000 + i * 300, o: c, h: c + 1, l: c - 1, c, v: 1000 }
 })
@@ -62,8 +68,8 @@ const GT = OP('>', SER('close'), VWAP)
  *  same normalisation before every cross-lane digest -- and writing the
  *  assertions against the raw carrier would make this file about JavaScript's
  *  typed arrays instead of about the NaN rule. */
-const run = (ast, bars, tf) => Array.from(
-  interpret(ast, bars, undefined, undefined, undefined, { tf }),
+const run = (ast, bars, tf, chartClockSink = undefined) => Array.from(
+  interpret(ast, bars, undefined, undefined, undefined, { tf, ...(chartClockSink ? { chartClockSink } : {}) }),
   (v) => (typeof v === 'number' && Number.isNaN(v) ? null : v))
 
 describe('a comparison launders a bar reader hole — both polarities', () => {
@@ -152,6 +158,7 @@ describe('EVERY declared bar reader — DERIVED from closedTable.json', () => {
     const anchor = met[1].t
 
     const swept = []
+    const withheldByName = []
     for (const name of BAR_READERS) {
       const node = CALL(name, ...argsFor(name, TABLE.functions[name], anchor))
 
@@ -166,7 +173,19 @@ describe('EVERY declared bar reader — DERIVED from closedTable.json', () => {
       for (const [why, sample] of Object.entries(holeFixtures(met))) {
         const own = run(node, sample, 'D')
         if (own[own.length - 1] !== null) continue
-        const laundered = run(OP('>', SER('close'), node), sample, 'D')
+        const named = new Map()
+        const laundered = run(OP('>', SER('close'), node), sample, 'D', named)
+        // ⭐ 2026-11-17 — THE THIRD OUTCOME, AND THE HONEST ONE. An entry whose answer depends on
+        // the chart's bar length (`openingRangeHigh(n)` on a daily chart) is withheld WHOLE and
+        // NAMED before anything is evaluated (`chartClockWhole`): the comparison above it is blank
+        // too, and the caller's sink holds the reason in a member's words. That is not laundering
+        // and it is not a third unmodelled hole: it is counted here only when BOTH are true.
+        if (laundered[laundered.length - 1] === null && named.size > 0) {
+          expect(laundered.every((v) => v === null), `${name}: withheld whole means every bar`).toBe(true)
+          withheldByName.push(name)
+          holed.push(why)
+          continue
+        }
         expect(laundered[laundered.length - 1],
           `${name}: with ${why}, its hole is no longer laundered into a confident 0`)
           .toBe(0)
@@ -180,6 +199,9 @@ describe('EVERY declared bar reader — DERIVED from closedTable.json', () => {
       swept.push(name)
     }
     expect(swept).toEqual([...BAR_READERS])
+    // …and that third outcome is exactly the two entries that read the bar length, no more: a
+    // reader that starts answering "blank and named" for another reason lands here by name.
+    expect([...new Set(withheldByName)].sort()).toEqual(['openingRangeHigh', 'openingRangeLow'])
   })
 })
 

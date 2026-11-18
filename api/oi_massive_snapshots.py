@@ -1,6 +1,6 @@
 """Massive/OCC-accurate daily OI snapshots for the OI Update card — ISOLATED.
 
-The shared `contract_oi_snapshots` (oi_snapshots.py) is Schwab-sourced and lags OCC by
+The shared `contract_oi_snapshots` (oi_snapshots.py) was Schwab-sourced when this was written (Massive since 2026-11-17) and lagged OCC by
 ~a trading day (VERIFIED 2026-08-24: our latest snap for PFE 27P 9/18 = 53,028, while
 Massive `open_interest` = 74,259 = UnusualWhales' current; UW's Friday ΔOI =
 74,259 − 53,028 = +21,231 exact, carry 85%). Rather than change the shared pipeline

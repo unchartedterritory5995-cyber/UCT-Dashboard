@@ -315,6 +315,13 @@ def test_the_key_set_is_exactly_what_the_workspace_writes():
     derived = _client_board_keys()
     # Non-vacuity: the scan found real, named keys.
     assert {"charts_workspace_layout", "chart_settings", "aisearch_settings"} <= derived
+    # A key the workspace writes on purpose OUTSIDE board state is subtracted only by its recorded reason
+    # (`wds.NOT_BOARD_STATE`), never by editing the board list.
+    excluded = set(wds.NOT_BOARD_STATE)
+    assert excluded <= derived, f"a NOT_BOARD_STATE key is no longer written (stale): {sorted(excluded - derived)}"
+    assert not (excluded & set(wds.WORKSPACE_PREF_KEYS)), "a key cannot be both board state and excluded"
+    assert all(isinstance(r, str) and r.strip() for r in wds.NOT_BOARD_STATE.values()), "every exclusion needs its reason"
+    derived -= excluded
     assert derived == set(wds.WORKSPACE_PREF_KEYS), (
         f"client writes but store lacks: {sorted(derived - wds.WORKSPACE_PREF_KEYS)}; "
         f"store lists but client never writes: {sorted(wds.WORKSPACE_PREF_KEYS - derived)}")

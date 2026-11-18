@@ -108,7 +108,7 @@ describe('ChartToolbar — the indicator library', () => {
     expect(ref.current.openFormulaBuilder()).toBe(true)
     // The sheet is `lazy()` — deliberately, so the two translators stay out of
     // the chunk every StockChart in the app loads — so this awaits the chunk.
-    expect(await screen.findByText('New formula', {}, { timeout: 5000 })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Create indicator' }, { timeout: 5000 })).toBeTruthy()
   })
 
   it('⭐ UCT Signature R2: `openFormulaBuilder({description})` opens the start view with the words in Describe it — not sent', async () => {
@@ -116,7 +116,7 @@ describe('ChartToolbar — the indicator library', () => {
     mount({ ref })
     const before = (globalThis.fetch && globalThis.fetch.mock) ? globalThis.fetch.mock.calls.length : 0
     expect(ref.current.openFormulaBuilder({ description: 'rsi below 30' })).toBe(true)
-    expect(await screen.findByText('New formula', {}, { timeout: 5000 })).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Create indicator' }, { timeout: 5000 })).toBeTruthy()
     expect((await screen.findByLabelText('Describe it')).value).toBe('rsi below 30')
     expect(screen.getByRole('button', { name: /Write the formula myself/ })).toBeTruthy()
     if (globalThis.fetch && globalThis.fetch.mock) {

@@ -7,6 +7,8 @@ import { TICKER_RE } from '../../components/provenance/AbsenceReceipt'
 import UIcon from '../../components/ui/UIcon'
 import { BY_CODE } from './functions'
 import { FAVORITES_MAX, boardAddress, encodeShare, groupStyle, PRESET_ANY_TICKER, recentBoards, shareHref } from './boardModel'
+import { STARTER_BOARDS } from './starterBoards'
+import { STOCK_BOARDS, defaultStockBoard, stockBoardCommand } from './stockBoards'
 import TerminalVersions from './TerminalVersions'
 import styles from './TerminalShell.module.css'
 import Input from '../../components/ui/Input'
@@ -29,7 +31,15 @@ function presetsFor(library, boardId) {
 export function BoardsMenu({
   library, libraryWritable, currentName, onSave, onOpen, onDelete, onPreset, onKeepCalendar,
   onShareCurrent, onRestored, openToVersions = false,
+  // Ready-made boards (starterBoards.js): the list is data, the shell opens one. No handler, no
+  // section, so the menu never draws a button that does nothing.
+  starters = STARTER_BOARDS, onOpenStarter, currentStarterId = null,
+  // Stock boards (stockBoards.js): the same section, one list lower. `stockSym` is the ticker the
+  // board is on (the shell's answer), or null. `currentStarterId` marks whichever is open now.
+  stockBoards = STOCK_BOARDS, onOpenStock, stockSym = null,
 }) {
+  const showStarters = typeof onOpenStarter === 'function' && starters.length > 0
+  const showStock = typeof onOpenStock === 'function' && stockBoards.length > 0
   const [name, setName] = useState(currentName || '')
   const [presetSym, setPresetSym] = useState({})
   const [presetError, setPresetError] = useState(null)
@@ -118,6 +128,92 @@ export function BoardsMenu({
           )
         })}
       </ul>
+
+      {(showStarters || showStock) && (
+        <>
+          <div className={styles.menuHead} id="terminal-starter-boards-head">Ready-made boards</div>
+          <p className={styles.menuNote}>
+            One click opens a board on screen. Your saved boards are not changed, and Back to my layout returns the board you have now.
+          </p>
+        </>
+      )}
+      {showStarters && (
+        <>
+          <ul className={styles.menuList} aria-labelledby="terminal-starter-boards-head" data-testid="terminal-starter-boards">
+            {starters.map((s) => {
+              const current = s.id === currentStarterId
+              return (
+                <li key={s.id} className={styles.menuBoard} data-testid={`terminal-starter-${s.id}`}>
+                  {/* The whole row is the one button (name, codes and the sentence), so the tap
+                      target is the row and nothing sits between the name and what it is for. It
+                      is NAMED by the name and its codes and DESCRIBED by the sentence. */}
+                  <button type="button" className={styles.starterBtn} onClick={() => onOpenStarter(s)}
+                    aria-labelledby={`terminal-starter-name-${s.id} terminal-starter-codes-${s.id}`}
+                    aria-describedby={`terminal-starter-about-${s.id}`} aria-current={current ? 'true' : undefined}
+                    data-testid={`terminal-starter-open-${s.id}`}>
+                    <span className={styles.starterTop}>
+                      <span className={styles.menuLabel} id={`terminal-starter-name-${s.id}`}>{s.name}</span>
+                      <span className={styles.menuCodes} id={`terminal-starter-codes-${s.id}`}>{s.commands.join(' · ')}</span>
+                      {current && (
+                        <span className={styles.starterNow} data-testid={`terminal-starter-current-${s.id}`}>
+                          <UIcon name="check" size={12} gold={false} />
+                          Open now
+                        </span>
+                      )}
+                    </span>
+                    <span className={styles.menuAbout} id={`terminal-starter-about-${s.id}`}>{s.about}</span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </>
+      )}
+      {showStock && (
+        <>
+          {/* Stock boards (stockBoards.js): the same one-click rows, each FOR THE TICKER THE BOARD
+              IS ON, named in the row. With no ticker the rows are disabled and say why in words:
+              never a button that does nothing. */}
+          <div className={styles.menuSub} id="terminal-stock-boards-head">Stock boards</div>
+          <p className={styles.menuNote} data-testid="terminal-stock-boards-note">
+            {stockSym
+              ? `Each opens for ${stockSym}, the ticker your board is on, with every panel in one color group, so a new ticker in any of them moves the whole board. Or type ${stockBoardCommand(defaultStockBoard(stockBoards), stockSym, stockBoards)}.`
+              : `Each opens for one ticker, and your board is not on one yet. Type a ticker on the command line first (NVDA), or type ${stockBoardCommand(defaultStockBoard(stockBoards), 'NVDA', stockBoards)}.`}
+          </p>
+          <ul className={styles.menuList} aria-labelledby="terminal-stock-boards-head" data-testid="terminal-stock-boards">
+            {stockBoards.map((b) => {
+              const current = b.id === currentStarterId
+              return (
+                <li key={b.id} className={styles.menuBoard} data-testid={`terminal-stock-${b.id}`}>
+                  <button type="button" className={styles.starterBtn} disabled={!stockSym}
+                    onClick={() => onOpenStock(b, stockSym)}
+                    aria-labelledby={`terminal-stock-name-${b.id} terminal-stock-codes-${b.id}`}
+                    aria-describedby={stockSym ? `terminal-stock-about-${b.id}` : `terminal-stock-about-${b.id} terminal-stock-why-${b.id}`}
+                    aria-current={current ? 'true' : undefined}
+                    data-testid={`terminal-stock-open-${b.id}`}>
+                    <span className={styles.starterTop}>
+                      <span className={styles.menuLabel} id={`terminal-stock-name-${b.id}`}>{stockSym ? `${b.name} · ${stockSym}` : b.name}</span>
+                      <span className={styles.menuCodes} id={`terminal-stock-codes-${b.id}`}>{b.codes.join(' · ')}</span>
+                      {current && (
+                        <span className={styles.starterNow} data-testid={`terminal-stock-current-${b.id}`}>
+                          <UIcon name="check" size={12} gold={false} />
+                          Open now
+                        </span>
+                      )}
+                    </span>
+                    <span className={styles.menuAbout} id={`terminal-stock-about-${b.id}`}>{b.about}</span>
+                  </button>
+                  {!stockSym && (
+                    <span className={styles.menuHint} id={`terminal-stock-why-${b.id}`} data-testid={`terminal-stock-why-${b.id}`}>
+                      Pick a ticker first.
+                    </span>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        </>
+      )}
 
       {shared && (
         <div className={styles.menuShare} role="status" data-testid="terminal-share-link">

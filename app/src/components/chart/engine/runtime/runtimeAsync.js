@@ -25,6 +25,7 @@ import {
   RUNTIME_PANE_TIME_BUDGET_MS, RUNTIME_TIME_BUDGET_GUARD, RUNTIME_LIMIT_GUARD, RUNTIME_FAILED_GUARD,
 } from './runtimeColumns.js'
 import { LIMIT_NAMES } from './limits.js'
+import { errorFromImage } from './errorImage.js'
 import { runtimeSourceHash } from '../runtimeKill.js'
 import { bindSymbolOf } from '../ast/bind.js'
 import { noteRuntimeRunStarted, noteRuntimeRunSettled, resetRuntimeRunTelemetry } from '../runtimeRunTelemetry.js'
@@ -53,15 +54,11 @@ export const RUNTIME_WORKER_MAX_STARTS = 3
 export const RUNTIME_WORKER_UNRESPONSIVE_GUARD = 'runtime:worker-unresponsive'
 export const RUNTIME_WORKER_FAILED_GUARD = 'runtime:worker-failed'
 
-/** Rebuild the error a worker reported, with the fields the registry reads. */
+/** Rebuild the error a worker reported, with EVERY field it carried (`errorImage.js`, the rule: an error
+ *  that crosses a worker boundary keeps every field the main thread reads). ⚰️ A hand-picked list here
+ *  dropped `pending` (RS Rating L10b): a wait came back as a refusal. */
 function errorOf(e) {
-  const err = new Error(e && e.message ? e.message : 'the runtime lane failed')
-  err.name = (e && e.name) || 'Error'
-  if (e && e.guard) err.guard = e.guard
-  if (e && typeof e.limit === 'string') err.limit = e.limit
-  if (e && Number.isInteger(e.bar)) err.bar = e.bar
-  if (e && Number.isFinite(e.ms)) err.ms = e.ms
-  return err
+  return errorFromImage(e, 'the runtime lane failed')
 }
 
 // ─── ⭐⭐ P3 WS-H (S8) — THE STOP BEACON ──────────────────────────────────────

@@ -809,9 +809,9 @@
    "key": "w1",
    "title": "Two long bears",
    "steps": [
-    "The Nasdaq closed at 5,048.62 on March 10, 2000. Its low came on October 9, 2002, at 1,114.11.",
-    "The S&P 500 fell 57% from its October 2007 peak to its March 2009 trough.",
-    "Neither was one fast drop. Both bears ground on for more than a year before the low."
+    "March 10, 2000. The Nasdaq closes at 5,048.62. It doesn't bottom until October 9, 2002, at 1,114.11.",
+    "Next time it's the S&P 500. It falls 57% from its October 2007 peak to its March 2009 trough.",
+    "Neither was one fast drop. Both ground on for more than a year, and that's what wears you out."
    ],
    "facts": [
     "f02",
@@ -824,9 +824,9 @@
    "key": "w2",
    "title": "Rallies inside a bear",
    "steps": [
-    "Bear markets bounce, and the bounces are often fast and sharp.",
-    "In 2001 the Nasdaq rose almost 40% between April and the end of May. By September it made new lows.",
-    "From mid-2000 on, each big rally topped below the last one. Lower highs and lower lows: that's a downtrend."
+    "Bears bounce, and the bounces are fast and sharp. That's what pulls people back in.",
+    "In 2001 the Nasdaq ran almost 40% between April and the end of May. By September it was at new lows.",
+    "From mid-2000 on, every big rally topped under the last one. Lower highs and lower lows: that's a downtrend."
    ],
    "facts": [
     "f66",
@@ -847,10 +847,10 @@
    "key": "w3",
    "title": "How a bear ends",
    "steps": [
-    "A downtrend holds until price makes a higher low, then clears the last rally high.",
-    "After the October 2002 low, the Nasdaq held a higher low the next March. In early May, it cleared its November high.",
-    "You only see the bottom in hindsight. The rule gets you in late, but on evidence, not a guess.",
-    "Even then, it points to a possible turn, not a sure one."
+    "A downtrend holds until price makes a higher low, then takes out the last rally high.",
+    "After the October 2002 low, the Nasdaq held a higher low in March. In early May it cleared its November high.",
+    "You only see the bottom in hindsight. Waiting for that gets you in late, but on evidence, not a guess.",
+    "Even then it's a possible turn, not a sure one."
    ],
    "facts": [
     "f68",
@@ -872,7 +872,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "downtrend",
-   "q": "What does a downtrend look like on a chart?",
+   "q": "Marking up the Nasdaq in 2001, what do you need to see before you call it a downtrend?",
    "choices": [
     "Lower highs and lower lows",
     "Higher highs and higher lows",
@@ -880,8 +880,8 @@
     "One straight drop to the low"
    ],
    "answer": "Lower highs and lower lows",
-   "why": "Lower highs and lower lows. Each rally tops out below the one before, and each drop breaks the last low. Both halves must hold. Falling highs with rising lows is not a downtrend. The mirror image, higher highs and higher lows, points up. Inside a bear market the rallies can be swift and sharp, so a downtrend is never one straight line.",
-   "lesson_line": "Track the highs and the lows. Lower and lower is a downtrend.",
+   "why": "Lower highs and lower lows. You need both. Every rally tops out under the last one, and every drop breaks the last low. Lower highs with rising lows is just the range getting tighter. And don't expect a straight line. Rallies inside a bear are fast and sharp, and they're what fool people. Here's how I read it. Mark each rally top and each low. When each top prints under the last and each low breaks the last, it's a downtrend, whatever the headlines say.",
+   "lesson_line": "Mark the tops and the lows. Lower and lower is a downtrend, bounces and all.",
    "facts": [
     "f65",
     "f88",
@@ -889,11 +889,11 @@
     "f75"
    ],
    "wrong": {
-    "Higher highs and higher lows": "That's the mirror image. Higher highs and higher lows point to an uptrend.",
-    "Lower highs and higher lows": "The lows are rising there. A downtrend needs lower lows as well as lower highs.",
-    "One straight drop to the low": "Downtrends don't fall in a straight line. They bounce along the way, often fast and sharp."
+    "Higher highs and higher lows": "That's the opposite. Higher highs and higher lows is an uptrend, the kind of chart we want to be buying.",
+    "Lower highs and higher lows": "The lows are rising there. That's the range tightening, not a downtrend. You need the lower lows too.",
+    "One straight drop to the low": "Bears don't fall in a straight line. They bounce, often hard, and the bounces are what trap people."
    },
-   "simple": "A downtrend is lower highs and lower lows, because each rally peaks lower and each drop sinks lower.",
+   "simple": "Lower highs and lower lows, because every rally tops lower and every drop breaks the last low.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -901,17 +901,17 @@
      "fixed before: the checker swapped an unconfirmed Investopedia fact (f77) for f88"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
    "skill": "history.long_bear",
    "rung": 1,
    "format": "tf",
-   "q": "From its March 2000 peak to its October 2002 low, the Nasdaq's biggest rally was under 20%.",
+   "q": "From the March 2000 top to the October 2002 low, the Nasdaq never rallied as much as 20%.",
    "answer": "False",
-   "why": "False. It bounced hard more than once. In 2001 the Nasdaq rose almost 40% between April and the end of May, then closed below the April low in September. From that September low it rallied more than 35%. The final low still did not come until October 2002. Dow theory calls a rally inside a bear market a secondary move against the main trend.",
-   "lesson_line": "Bears bounce. A big rally inside a downtrend is normal, not proof.",
+   "why": "False, and by a mile. In 2001 the Nasdaq ran almost 40% from April to the end of May. Then it closed under the April low in September. From that September low it ripped more than 35%. And the real low still didn't come until October 2002. Bears bounce hard, and that's how they pull people back in. A big rally inside a downtrend proves nothing until it holds a higher low and clears the last rally high.",
+   "lesson_line": "Bears bounce, and hard. A big rally inside a downtrend proves nothing on its own.",
    "facts": [
     "f35",
     "f36",
@@ -922,20 +922,23 @@
     "f66",
     "f76"
    ],
-   "simple": "False, because the Nasdaq had big rallies on the way down, like a jump of almost 40% in 2001.",
+   "simple": "False, the Nasdaq bounced almost 40% in 2001 and still went on to new lows.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Dow theory counts a rally inside a bear market as a secondary move: a smaller swing against the main trend. Hamilton noted those reaction rallies were swift and sharp."
+   }
   },
   {
    "key": "q03",
    "skill": "history.long_bear",
    "rung": 2,
    "format": "mcq",
-   "q": "How far did the S&P 500 fall from its October 2007 peak to its March 2009 trough?",
+   "q": "Say you bought the S&P 500 at its October 2007 top and just held on. How much was gone by the March 2009 low?",
    "choices": [
     "57%",
     "20%",
@@ -943,8 +946,8 @@
     "65%"
    ],
    "answer": "57%",
-   "why": "57%. The Fed's history of the Great Recession gives the S&P 500's fall. It dropped 57% from its October 2007 peak to its trough in March 2009. That figure is for the S&P 500 only. Other indexes and other bears had their own numbers, so always check which index a number names.",
-   "lesson_line": "A long bear can take more than half of an index.",
+   "why": "57%. That's the Fed's own number for the S&P 500, from the October 2007 peak to the March 2009 trough. More than half the index, gone. And that's the boring way to own stocks. To get back from a hole like that, it has to more than double. That's why we cut losers small and hold a lot of cash in a bear. Your job in a bear isn't to be a hero. It's to still have your money when the next bull starts.",
+   "lesson_line": "A long bear can take more than half an index. Don't sit through it.",
    "facts": [
     "f48",
     "f42",
@@ -953,11 +956,11 @@
     "f47"
    ],
    "wrong": {
-    "20%": "That's about what financial stocks lost in 2007 alone. The S&P 500's full fall to March 2009 was 57%.",
-    "39%": "That's the Nasdaq's fall in 2000 alone, a different bear. The S&P 500's 2007 to 2009 drop was 57%.",
-    "65%": "That's the climb back, not the fall. Broad indexes later rose about 65% above the March 2009 low."
+    "20%": "That's about what financial stocks lost in 2007 alone. The S&P 500's full drop into March 2009 was 57%.",
+    "39%": "That's the Nasdaq in 2000, a different bear. The S&P 500 gave up 57% from 2007 to 2009.",
+    "65%": "That's the climb back afterward, not the fall. Broad indexes later got about 65% above the March 2009 low."
    },
-   "simple": "The S&P 500 fell 57% from its 2007 peak to its 2009 low, more than half its value.",
+   "simple": "57%, so more than half the money in an S&P 500 fund was gone by March 2009.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -965,14 +968,14 @@
      "the key rests on one cited source (Federal Reserve History, f48)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q04",
    "skill": "history.long_bear",
    "rung": 2,
    "format": "mcq",
-   "q": "When did the Great Recession begin and end?",
+   "q": "Everyone remembers 2008 as the crash year. When did the Great Recession itself start and end?",
    "choices": [
     "December 2007 to June 2009",
     "October 2007 to March 2009",
@@ -980,8 +983,8 @@
     "March 2001 to November 2001"
    ],
    "answer": "December 2007 to June 2009",
-   "why": "December 2007 to June 2009. The NBER, which keeps the official US recession dates, put the peak in December 2007 and the trough in June 2009. The stock market kept its own calendar. The S&P 500 peaked in October 2007 and hit its trough in March 2009. So stocks turned down before the recession began and turned up before it ended.",
-   "lesson_line": "Market dates and recession dates are two different things. Know both.",
+   "why": "December 2007 to June 2009. Those are the NBER's dates, the group that officially dates US recessions. Now put the market next to it. The S&P 500 topped in October 2007, before the recession started. It bottomed in March 2009, three months before the recession ended. Stocks look ahead. Wait for the economy to tell you it's bad, and price already told you months earlier. Same on the way up. I watch the index, not the headlines.",
+   "lesson_line": "Stocks turn before the economy does. Watch price, not the recession calendar.",
    "facts": [
     "f49",
     "f62",
@@ -994,11 +997,11 @@
     "f60"
    ],
    "wrong": {
-    "October 2007 to March 2009": "Those are the S&P 500's peak and trough. The recession ran from December 2007 to June 2009.",
-    "September 2008 to December 2008": "That span sits inside it, when the slump steepened in fall 2008. The NBER dated the recession December 2007 to June 2009.",
-    "March 2001 to November 2001": "That's the earlier recession, during the dot-com bear."
+    "October 2007 to March 2009": "Those are the S&P 500's top and bottom, not the recession. Stocks moved first, both ways.",
+    "September 2008 to December 2008": "That's when it got ugly, after Lehman. The recession had started back in December 2007.",
+    "March 2001 to November 2001": "That's the earlier recession, the one inside the dot-com bear."
    },
-   "simple": "It ran from December 2007 to June 2009, the official start and end dates set by the group that dates US recessions.",
+   "simple": "December 2007 to June 2009, and stocks topped before it began and bottomed before it ended.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1006,7 +1009,7 @@
      "fixed before: a wrong-note superlative no source gave was removed"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q05",
@@ -1043,10 +1046,10 @@
    "skill": "history.long_bear",
    "rung": 2,
    "format": "tf",
-   "q": "While it's happening, a bear market rally looks different from the start of a new bull market.",
+   "q": "In the moment, you can tell a bear market rally apart from the first leg of a new bull market.",
    "answer": "False",
-   "why": "False. Dow theory's Hamilton said the first stage of a bull market is essentially indistinguishable from the last rally of a bear market. Investopedia adds that it is hard to tell a real turn from a short rally while it happens. You usually know only after the fact. That is why the turn rule waits for a higher low, then a break above the last rally high.",
-   "lesson_line": "You can't see the bottom while it forms. You see it after.",
+   "why": "False. While it's happening, they look almost the same. Both come off a low, both move fast, and both get the bulls talking. You only know which one it was after the fact. That's exactly why I don't guess. I wait for a higher low, then a close above the last rally high. It gets me in later than the bottom, but it gets me in on evidence.",
+   "lesson_line": "You can't see the bottom while it forms. You see it after, so let price prove it.",
    "facts": [
     "f70",
     "f74",
@@ -1054,20 +1057,23 @@
     "f71",
     "f68"
    ],
-   "simple": "False, because a bear market rally and the start of a new bull market look almost the same while they happen.",
+   "simple": "False, they look almost the same while it's happening, so you wait for a higher low and a higher high.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Dow theory's Hamilton noted that the first stage of a bull market was essentially indistinguishable from the last reaction rally of a bear market. Investopedia adds that it's hard to tell, in real time, whether an upswing in a bear is a reversal or a short rally before still lower lows."
+   }
   },
   {
    "key": "q07",
    "skill": "history.long_bear",
    "rung": 3,
    "format": "mcq",
-   "q": "Which stocks took some of the most dramatic plunges of 2000?",
+   "q": "End of 2000, year one of the dot-com bear. Which stocks took some of the most dramatic plunges?",
    "choices": [
     "Tech, telecom and internet stocks",
     "Banks and other big financial firms",
@@ -1075,8 +1081,8 @@
     "The broad market, about evenly"
    ],
    "answer": "Tech, telecom and internet stocks",
-   "why": "Tech, telecom and internet stocks. The Fed's report to Congress says some of the most dramatic plunges of 2000 came in those shares. It ties them partly to investors rethinking the high valuations in those groups. The Nasdaq Composite fell 39% that year. The report says some of the most dramatic, not that no other group fell.",
-   "lesson_line": "When rich valuations get rethought, the richly priced groups can fall hard.",
+   "why": "Tech, telecom and internet. The Fed's report to Congress puts those shares among the most dramatic plunges of 2000. Part of it was investors rethinking how rich those valuations had gotten. The Nasdaq, packed with those names, fell 39% that year. It ended the year more than 50% below its record high. Here's what I take from it. When the cycle turns, the names priced the richest can fall the hardest. Don't marry last cycle's leaders.",
+   "lesson_line": "When the cycle turns, the richest-priced groups can fall the hardest. Don't marry last cycle's leaders.",
    "facts": [
     "f31",
     "f32",
@@ -1088,11 +1094,11 @@
     "f51"
    ],
    "wrong": {
-    "Banks and other big financial firms": "That was the 2007 to 2009 bear. Financial stocks fell about 20% in 2007 alone.",
-    "Energy and other oil companies": "Energy fell hard in the autumn of 2008, a different bear.",
-    "The broad market, about evenly": "The plunges were not even. The Fed's report singles out tech, telecom and internet shares for some of the most dramatic."
+    "Banks and other big financial firms": "That's the next bear. Financial stocks fell about 20% in 2007 alone on the subprime mess.",
+    "Energy and other oil companies": "Energy got hit in the fall of 2008, a different bear.",
+    "The broad market, about evenly": "It wasn't even. The Fed names tech, telecom and internet among the most dramatic drops."
    },
-   "simple": "Tech, telecom and internet stocks had some of the worst drops, as their high prices got a second look.",
+   "simple": "Tech, telecom and web names took some of the worst drops, once people saw how rich their prices were.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1101,14 +1107,14 @@
      "fixed before: the question once said 'the most dramatic'"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
    "skill": "history.long_bear",
    "rung": 2,
    "format": "mcq",
-   "q": "About how many months did the Nasdaq take to fall from its March 2000 peak to its October 2002 low?",
+   "q": "The Nasdaq's top close came in March 2000 and its low close in October 2002. How long did that bear grind on?",
    "choices": [
     "About 31 months",
     "About 3 months",
@@ -1127,8 +1133,8 @@
     },
     "round": 0
    },
-   "why": "About 31 months. The Nasdaq's highest close was 5,048.62 on March 10, 2000. Its lowest close was 1,114.11 on October 9, 2002. March 2000 to October 2002 is 31 months by the calendar. More than a year in, it was still making new lows, at 1,638.80 on April 4, 2001.",
-   "lesson_line": "Long bears take years, not weeks. Don't rush to call the low.",
+   "why": "About 31 months. Count it: 2000 to 2002 is 2 years, so 24 months, and March to October adds 7 more. The top close was 5,048.62 on March 10, 2000. The low close was 1,114.11 on October 9, 2002. More than a year in, it was still making new lows, 1,638.80 on April 4, 2001. That's the part people underestimate. A bear doesn't end because you think it's been going long enough. Two and a half years of people calling the bottom.",
+   "lesson_line": "Long bears grind for years. Nobody gets paid for calling the bottom early.",
    "facts": [
     "f02",
     "f11",
@@ -1138,11 +1144,11 @@
     "f09"
    ],
    "wrong": {
-    "About 3 months": "Far too short. On September 21, 2001 it closed at 1,423.19, and lower lows were still ahead.",
-    "About 12 months": "It was still falling a year in. It closed at 1,638.80 on April 4, 2001, and the low was still ahead.",
-    "About 24 months": "That counts only the whole years from 2000 to 2002. The months from March to October bring it to 31."
+    "About 3 months": "Way too short. In September 2001 it closed at 1,423.19, and the low was still ahead.",
+    "About 12 months": "A year in, it was still falling. It closed at 1,638.80 on April 4, 2001, and lower lows were coming.",
+    "About 24 months": "That counts the years, 2000 to 2002, and skips the months. March to October adds 7 more."
    },
-   "simple": "It took about 31 months, from the March 2000 peak to the October 2002 low.",
+   "simple": "About 31 months, from the March 2000 top to the October 2002 low, two and a half years.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1151,14 +1157,14 @@
      "computed key (months between two dates)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q09",
    "skill": "history.long_bear",
    "rung": 4,
    "format": "mcq",
-   "q": "The Nasdaq closed at 5,048.62 in March 2000 and 1,114.11 in October 2002. How far did it fall, to the nearest whole percent?",
+   "q": "The Nasdaq closed at 5,048.62 in March 2000 and 1,114.11 in October 2002. How deep was that drawdown?",
    "answer": "78%",
    "calc": {
     "fn": "drawdown_pct",
@@ -1169,14 +1175,14 @@
     "round": 0
    },
    "suffix": "",
-   "why": "78%. Subtract the low close, 1,114.11, from the peak close, then divide by the peak, 5,048.62. Always measure a drawdown from the peak. Divided by the low, the same move reads 353%, the gain needed to get back.",
-   "lesson_line": "Measure a drawdown from the peak. This one took nearly four-fifths of the index.",
+   "why": "78%. Take the drop, 5,048.62 minus 1,114.11, and divide it by the top, 5,048.62. You always measure a drawdown from the top, because that's what you had. Divide by the low instead and you get 353%. That's not the loss. It's the gain you'd need to get back. Nearly four-fifths of the index, gone. Picture that in a buy-and-hold account.",
+   "lesson_line": "Measure a drawdown from the top. This one took nearly four-fifths of the index.",
    "facts": [
     "f02",
     "f11",
     "f01"
    ],
-   "simple": "It fell 78%, because the drop from 5,048.62 to 1,114.11 is about 78% of the peak.",
+   "simple": "78%, because the drop from 5,048.62 to 1,114.11 is about 78% of the top.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1185,7 +1191,7 @@
      "computed key (drawdown_pct)"
     ]
    },
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "353%",
     "453%",
@@ -1193,9 +1199,9 @@
     "78%"
    ],
    "wrong": {
-    "353%": "Divided the drop by the low, not the peak.",
-    "453%": "Took the peak over the low and forgot to subtract one.",
-    "122%": "Added the low to the peak instead of subtracting."
+    "353%": "You divided the drop by the low. That's the gain needed to get back, not the loss.",
+    "453%": "That's the top over the low, without subtracting one. A ratio, not a drawdown.",
+    "122%": "You added the low to the top instead of subtracting it. You can't lose more than all of it."
    }
   },
   {
@@ -1203,17 +1209,17 @@
    "skill": "history.long_bear",
    "rung": 4,
    "format": "scenario",
-   "story": "The Nasdaq peaked at 5,048.62 in March 2000. Its later rally tops included 4,274.67 in July 2000 and 2,859.15 in January 2001. Then came 2,313.85 in May 2001 and 2,059.38 in January 2002.",
-   "q": "What do those rally tops tell you?",
+   "story": "Nasdaq, 2000 to 2002. The top close is 5,048.62 in March 2000. Then the rally tops: 4,274.67 in July 2000, 2,859.15 in January 2001, 2,313.85 in May 2001 and 2,059.38 in January 2002.",
+   "q": "You've marked those rally tops on your chart. What are they telling you?",
    "choices": [
-    "Lower highs: the downtrend is intact",
+    "Lower highs, the downtrend is intact",
     "Each rally starts a new bull market",
-    "Nothing: only the lows matter",
-    "Lower tops mean a bargain: time to buy"
+    "Nothing, only the lows matter",
+    "Lower tops mean it's cheap, buy it"
    ],
-   "answer": "Lower highs: the downtrend is intact",
-   "why": "Lower highs: the downtrend is intact. Each of those four rally tops closed below the one before. A downtrend is lower highs and lower lows. It holds until a higher low forms and a rally clears the last rally high. On these swings, no rally cleared the last top. The low came on October 9, 2002, at 1,114.11.",
-   "lesson_line": "Line up the rally tops. If each one is lower, the trend is still down.",
+   "answer": "Lower highs, the downtrend is intact",
+   "why": "The downtrend is intact. Line them up: 4,274.67, then 2,859.15, then 2,313.85, then 2,059.38. Every rally topped under the one before. Not one cleared the last top, and that's the whole story. Each of those rallies felt like the bottom to somebody. I'd rather wait for a higher low and a close over the last top than buy every bounce on the way down. It kept going, to 1,114.11 on October 9, 2002.",
+   "lesson_line": "Line up the rally tops. If each one's lower, the trend is still down.",
    "facts": [
     "f02",
     "f03",
@@ -1227,11 +1233,11 @@
     "f68"
    ],
    "wrong": {
-    "Each rally starts a new bull market": "Each one failed below the last top. Bear rallies get the bulls cheering, then top out lower.",
-    "Nothing: only the lows matter": "The highs matter as much. A downtrend is lower highs AND lower lows.",
-    "Lower tops mean a bargain: time to buy": "Lower tops say the downtrend is still on, not that it's cheap. The Nasdaq kept falling, to 1,114.11 on October 9, 2002."
+    "Each rally starts a new bull market": "Each one failed under the last top. Those rallies get the bulls cheering, then roll over lower.",
+    "Nothing, only the lows matter": "The highs matter just as much. A downtrend is lower highs AND lower lows.",
+    "Lower tops mean it's cheap, buy it": "Lower tops mean the trend's still down, not that it's cheap. It fell all the way to 1,114.11 in October 2002."
    },
-   "simple": "The tops kept getting lower, which means the downtrend was still in charge.",
+   "simple": "Every rally topped lower than the last one, so the downtrend was still in charge.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1239,14 +1245,14 @@
      "fixed before: the story's 'next rally tops' and the why's 'every rally' were corrected"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q11",
    "skill": "history.long_bear",
    "rung": 5,
    "format": "mcq",
-   "q": "The Nasdaq closed at 1,638.80 on April 4, 2001 and 2,313.85 on May 22, 2001. How big was that rally, to the nearest percent?",
+   "q": "April 4, 2001: the Nasdaq closes at 1,638.80. On May 22 it closes at 2,313.85. How big was that rally?",
    "answer": "41%",
    "calc": {
     "fn": "pct_change",
@@ -1257,8 +1263,8 @@
     "round": 0
    },
    "suffix": "",
-   "why": "41%. Subtract the April 4 close, 1,638.80, from the May 22 close, 2,313.85. Divide that gain by the April close. The rally still failed. On September 21, 2001 the Nasdaq closed at 1,423.19, below the April low.",
-   "lesson_line": "Even a 41% rally can be a bear market rally. Size alone proves nothing.",
+   "why": "41%. 2,313.85 minus 1,638.80 is 675.05 points. Divide that by where it started, 1,638.80, and you get 41%. Seven weeks, 41%, and it sure felt like a new bull. It wasn't. On September 21, 2001 the Nasdaq closed at 1,423.19, under the April low. The size of a bounce tells you nothing. Where it tops out tells you a lot. This one topped at 2,313.85, under the January rally top of 2,859.15. A lower high.",
+   "lesson_line": "A 41% bounce can still be a bear market rally. Judge it by where it tops.",
    "facts": [
     "f07",
     "f08",
@@ -1267,7 +1273,7 @@
     "f66",
     "f06"
    ],
-   "simple": "It was a 41% rally, and it still failed because the Nasdaq later fell below the April low.",
+   "simple": "41%, and it still failed, because the Nasdaq went on to close under the April low.",
    "deeper": {
     "trap": "The trap is judging a rally by its size. This one gained 41% from April 4 to May 22, 2001. Dow theory's Hamilton noted that rallies inside bear markets are swift and sharp. What matters is where the rally tops out: 2,313.85 was below the January 2001 top of 2,859.15, a lower high."
    },
@@ -1279,7 +1285,7 @@
      "computed key (pct_change)"
     ]
    },
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "71%",
     "141%",
@@ -1287,9 +1293,9 @@
     "41%"
    ],
    "wrong": {
-    "141%": "Stopped at the ratio and forgot to subtract one.",
-    "71%": "Took the April close as a share of the May close.",
-    "241%": "Added the two closes before dividing by April."
+    "141%": "That's the ratio of the two closes. Subtract one and you've got the gain.",
+    "71%": "You flipped it and divided April by May. The gain goes over the April close, where the move started.",
+    "241%": "You added the two closes before dividing. The gain is the difference, not the sum."
    }
   },
   {
@@ -1297,7 +1303,7 @@
    "skill": "history.long_bear",
    "rung": 5,
    "format": "mcq",
-   "q": "An index falls 78%. What gain does it need just to get back to its old high, to the nearest percent?",
+   "q": "An index is down 78% from its high. What gain does it need just to get back to even?",
    "answer": "355%",
    "calc": {
     "fn": "gain_to_recover",
@@ -1307,15 +1313,15 @@
     "round": 0
    },
    "suffix": "",
-   "why": "355%. After a 78% loss, 22% is left. Divide the old high by what is left, then subtract one. The Nasdaq did not close above its March 2000 peak until April 23, 2015.",
-   "lesson_line": "Deep losses take years to repair. Keep your own losses small.",
+   "why": "355%. A 78% loss leaves you 22% of what you had. Divide the old high by what's left, then subtract one, and you get about 355%. That's the math that kills accounts. The Nasdaq didn't close above its March 2000 top until April 23, 2015. Fifteen years. Keep your losses small, because the deeper the hole, the harder the math works against you. That goes for an index, and it goes for your account.",
+   "lesson_line": "Deep losses take years to fix. Keep yours small.",
    "facts": [
     "f02",
     "f11",
     "f26",
     "f27"
    ],
-   "simple": "It needs about 355%, because after a 78% loss only 22% is left to grow.",
+   "simple": "About 355%, because a 78% loss leaves only 22% to grow back from.",
    "deeper": {
     "example": "The Nasdaq closed at 5,048.62 on March 10, 2000 and at 1,114.11 on October 9, 2002. To get back, the index had to more than quadruple. On April 22, 2015 it was still below the old peak, at 5,035.17. The next day it closed at 5,056.06, its first close above the 2000 high."
    },
@@ -1328,7 +1334,7 @@
      "fixed before: f84's April 24, 2015 date was removed"
     ]
    },
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "78%",
     "455%",
@@ -1336,9 +1342,9 @@
     "355%"
    ],
    "wrong": {
-    "78%": "Assumed the gain needed equals the loss.",
-    "455%": "Divided the old high by what is left but forgot to subtract one.",
-    "555%": "Added one instead of subtracting one."
+    "78%": "That assumes the gain equals the loss. It doesn't. The deeper the loss, the bigger the gain you need.",
+    "455%": "Close, but you didn't subtract one. That's the old high as a multiple of what's left.",
+    "555%": "You added one instead of subtracting it."
    }
   },
   {
@@ -1346,10 +1352,10 @@
    "skill": "history.long_bear",
    "rung": 4,
    "format": "tf",
-   "q": "In the 2000-02 and 2007-09 bears, the final low came over a year after the Fed first cut its rate target.",
+   "q": "In 2000-02 and 2007-09, stocks made their final low over a year after the Fed's first cut to its rate target.",
    "answer": "True",
-   "why": "True. The Fed first cut its rate target on January 3, 2001. The Nasdaq's low came on October 9, 2002. The Fed began cutting from 5.25% on September 18, 2007. The S&P 500's trough came in March 2009. A first cut to the rate target is not a bottom signal.",
-   "lesson_line": "A first rate cut isn't a bottom signal. In 2007 the Nasdaq even made its high after the cut.",
+   "why": "True, both times. The Fed's first cut to its target came on January 3, 2001. The Nasdaq didn't bottom until October 9, 2002. Next time, the Fed started cutting from 5.25% on September 18, 2007. The S&P 500 bottomed in March 2009. So when somebody tells you the Fed's cutting, so it's time to buy, remember these two. A first cut means the Fed sees trouble. It doesn't mean the selling's done. I'll take price over the Fed's calendar every time.",
+   "lesson_line": "The Fed's first cut isn't a buy signal. In 2007 the Nasdaq even made its top after it.",
    "facts": [
     "f52",
     "f53",
@@ -1363,7 +1369,7 @@
     "f17",
     "f23"
    ],
-   "simple": "True, because in both bears the stock low came well over a year after the Fed's first cut to its rate target.",
+   "simple": "True, in both bears the stock low came well over a year after the Fed's first cut to its target.",
    "deeper": {
     "counter": "A first cut can even come near the top. The Nasdaq closed at 2,651.66 on September 18, 2007, the day of the Fed's first cut from 5.25%. It went on to its highest close of that bull market, 2,859.12, on October 31, 2007. Then it fell to 1,268.64 by March 9, 2009."
    },
@@ -1374,24 +1380,24 @@
      "fixed before: 'first rate cut' was narrowed to the rate target (the discount rate was cut first in August 2007)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q14",
    "skill": "history.long_bear",
    "rung": 5,
    "format": "scenario",
-   "story": "It's January 3, 2001. The Fed cuts its rate target by half a point. The Nasdaq jumps from 2,291.86 to 2,616.69 in one day.",
-   "q": "What would confirm the downtrend has turned up?",
+   "story": "Jan. 3, 2001. The Fed cuts its rate target by half a point. The Nasdaq jumps from 2,291.86 to 2,616.69 in one day.",
+   "q": "What would you need to see before you believe the downtrend has turned up?",
    "choices": [
     "A higher low, then a higher high",
     "One huge up day like this one",
-    "More rate cuts from the Fed soon",
+    "More rate cuts from the Fed",
     "A 20% gain off the Nasdaq low"
    ],
    "answer": "A higher low, then a higher high",
-   "why": "A higher low, then a higher high. A downtrend holds until price makes a higher low, then rallies above the last rally high. One day proves nothing. Stocks rose in January 2001, then fell in February and March, and the Nasdaq closed at 1,638.80 on April 4. Even when both steps come, it is a possible turn, not a sure one.",
-   "lesson_line": "Don't buy the headline. Let the market confirm it with a higher low and a higher high.",
+   "why": "A higher low, then a higher high. One day, however big, proves nothing. Here's what happened next. Stocks rose in January, then sold off in February and March. On April 4 the Nasdaq closed at 1,638.80, way under where that pop started. Then the Fed cut another full point and the Nasdaq ran almost 40%. It still made new lows. You want the market to show you. First a pullback that holds above the last low. Then a close through the last rally high. Even then it's a possible turn, not a sure thing, so you start small.",
+   "lesson_line": "Don't buy the headline. Make the market show you a higher low and a higher high.",
    "facts": [
     "f68",
     "f75",
@@ -1407,11 +1413,11 @@
     "f11"
    ],
    "wrong": {
-    "One huge up day like this one": "A single day can't change a trend. Stocks rose through January, then fell, and the Nasdaq was at new lows by April.",
-    "More rate cuts from the Fed soon": "The Fed cut another 1 percentage point over March and April 2001. Stocks rallied, then made new lows into 2002.",
-    "A 20% gain off the Nasdaq low": "Size isn't proof. From April to the end of May 2001 the Nasdaq rose almost 40%, then made new lows."
+    "One huge up day like this one": "One day can't turn a trend. By April 4 the Nasdaq was at new lows, 1,638.80.",
+    "A 20% gain off the Nasdaq low": "Size isn't proof. It ran almost 40% from April to late May 2001, then made new lows.",
+    "More rate cuts from the Fed": "The Fed cut another full point over March and April. Stocks bounced, then made new lows into 2002."
    },
-   "simple": "A higher low and then a higher high confirm the turn, because one big day or a rate cut can fade.",
+   "simple": "A higher low and then a higher high, because one big day or a rate cut can fade fast.",
    "deeper": {
     "trap": "The trap is trading the headline. The Fed cut its rate a full point more over March and April 2001. The Nasdaq then rose almost 40% from April to the end of May. On September 21, 2001 it closed at 1,423.19, below the April low. The final low, 1,114.11, did not come until October 9, 2002."
    },
@@ -1422,14 +1428,14 @@
      "fixed before: the question once asked what confirms the bear market is over"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q15",
    "skill": "history.long_bear",
    "rung": 6,
    "format": "mcq",
-   "q": "The NBER, which dates US recessions, put the end of the 2001 recession in November 2001. When did the Nasdaq hit its bear-market low?",
+   "q": "The NBER, the group that dates US recessions, says the 2001 recession ended in November 2001. When did the Nasdaq bottom?",
    "choices": [
     "October 2002",
     "November 2001",
@@ -1437,27 +1443,29 @@
     "September 2001"
    ],
    "answer": "October 2002",
-   "why": "October 2002. The NBER put the 2001 recession's trough, its end, in November 2001. The Nasdaq kept falling and closed at 1,114.11 on October 9, 2002, almost a year later. The NBER only announced that November 2001 end on July 17, 2003. Here the economy turned first and stocks followed.",
-   "lesson_line": "This time the economy turned first and stocks kept falling. The two don't move in lockstep.",
+   "why": "October 2002, almost a year later. The economy turned in November 2001, and the Nasdaq kept falling to 1,114.11 on October 9, 2002. The NBER didn't even announce that November 2001 end until July 17, 2003. So here the economy turned first and stocks lagged. In 2009 it went the other way: stocks bottomed in March and the recession ended in June. The two don't move together. Trade what price is doing, not what you think the economy's doing.",
+   "lesson_line": "Stocks and the economy don't turn together. Trade the chart, not the economy.",
    "facts": [
     "f60",
     "f59",
     "f58",
     "f11",
-    "f09"
+    "f09",
+    "f48",
+    "f64"
    ],
    "wrong": {
     "November 2001": "That's when the recession ended. The Nasdaq kept making lower lows for almost another year.",
-    "March 2001": "That's when the recession began. The Nasdaq's low was still well below, at 1,114.11.",
+    "March 2001": "That's when the recession started. The Nasdaq still had a long way down, to 1,114.11.",
     "September 2001": "It closed at 1,423.19 on September 21, 2001, but that low broke in 2002."
    },
-   "simple": "The Nasdaq bottomed in October 2002, almost a year after the recession ended, because stocks and the economy don't turn together.",
+   "simple": "October 2002, almost a year after the recession ended, because stocks and the economy don't turn together.",
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q16",
@@ -1479,7 +1487,7 @@
    "skill": "history.long_bear",
    "rung": 7,
    "format": "mcq",
-   "q": "Dec. 1, 2008: the NBER calls a recession. The Nasdaq closes at 1,398.07, off a 2,859.12 peak. How far down, to the nearest percent?",
+   "q": "Dec. 1, 2008. The NBER finally says we're in a recession. The Nasdaq closes at 1,398.07, off a 2,859.12 top. How far down is it?",
    "answer": "51%",
    "calc": {
     "fn": "drawdown_pct",
@@ -1490,8 +1498,8 @@
     "round": 0
    },
    "suffix": "",
-   "why": "51%. Subtract 1,398.07 from the 2,859.12 peak, then divide by the peak. The NBER, which dates US recessions, made its call on December 1, 2008. It dated the start to December 2007, a year earlier. By then the Nasdaq was already about half below its October 31, 2007 high.",
-   "lesson_line": "Official calls come late. Price had already done the talking.",
+   "why": "51%. Take the drop, 2,859.12 minus 1,398.07, and divide it by the top, 2,859.12. Now look at the timing on the chart. The NBER made its call on December 1, 2008, and dated the start back to December 2007. A full year late. By the time it was official, half the Nasdaq was already gone. Wait for the official word and you're selling after half the damage is done.",
+   "lesson_line": "Official calls come late. Price had already told you.",
    "facts": [
     "f61",
     "f62",
@@ -1500,7 +1508,7 @@
     "f63",
     "f64"
    ],
-   "simple": "The Nasdaq was down 51% from its peak, so half its value was gone before the recession was even called.",
+   "simple": "51%, so half the Nasdaq was gone before the recession was even called.",
    "deeper": {
     "trap": "The trap is waiting for the official word. The NBER dates recessions after the fact. It called the December 2007 start on December 1, 2008. It named June 2009 as the end only on September 20, 2010. A trader who waited for either call was late both ways."
    },
@@ -1512,7 +1520,7 @@
      "computed key (drawdown_pct)"
     ]
    },
-   "batch": "index-charts-2026-11-16",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "49%",
     "5.1%",
@@ -1520,9 +1528,9 @@
     "51%"
    ],
    "wrong": {
-    "5.1%": "Decimal slip.",
-    "49%": "Gave what is left, not the fall.",
-    "34%": "Divided the drop by the peak plus the low."
+    "5.1%": "Decimal slip. Half the index was gone, not a twentieth of it.",
+    "49%": "That's what was left, not what was lost.",
+    "34%": "You divided by the top plus the low. Divide the drop by the top."
    },
    "chart": {
     "sym": "IXIC",
@@ -1536,8 +1544,8 @@
    "skill": "history.long_bear",
    "rung": 7,
    "format": "scenario",
-   "story": "Four events from the 2007-09 bear. Lehman Brothers goes bankrupt. The Fed's rate target hits 0 to 0.25%. Stocks make their final low. The recession ends.",
-   "q": "In what sequence did they happen?",
+   "story": "Four things from the 2007-09 bear, out of order. Lehman Brothers goes bankrupt. The Fed takes its rate target to 0 to 0.25%. Stocks make their final low. The recession ends.",
+   "q": "What order did they happen in?",
    "choices": [
     "Lehman, Fed at zero, low, recession end",
     "Fed at zero, Lehman, low, recession end",
@@ -1545,8 +1553,8 @@
     "Lehman, Fed at zero, recession end, low"
    ],
    "answer": "Lehman, Fed at zero, low, recession end",
-   "why": "Lehman, Fed at zero, low, recession end. Lehman Brothers filed for bankruptcy in September 2008. The Fed set its rate target at 0 to 0.25% on December 16, 2008. Stocks made their final low in March 2009. The recession ended in June 2009. The worst news and the zero-rate move both came before the low.",
-   "lesson_line": "The worst news and the zero-rate rescue both came before the low. The economy turned after it.",
+   "why": "Lehman, then the Fed at zero, then the low, then the recession's end. Lehman filed in September 2008. The Fed took its target to 0 to 0.25% on December 16, 2008. Stocks bottomed in March 2009. The recession ended in June 2009. Look at what that means. The worst news and the zero-rate rescue both came before the low, and the market still kept falling for months. Then it bottomed while the economy was still in recession. Wait for the recession to end and you'd have missed the turn.",
+   "lesson_line": "The worst news and the rescue both came before the low. The economy turned after.",
    "facts": [
     "f51",
     "f85",
@@ -1559,11 +1567,11 @@
     "f63"
    ],
    "wrong": {
-    "Fed at zero, Lehman, low, recession end": "Lehman came first, in September 2008. The Fed reached 0 to 0.25% on December 16, 2008.",
+    "Fed at zero, Lehman, low, recession end": "Lehman came first, in September 2008. The Fed got to 0 to 0.25% on December 16, 2008.",
     "Lehman, low, Fed at zero, recession end": "The Fed was at 0 to 0.25% by December 16, 2008. The low came after, in March 2009.",
     "Lehman, Fed at zero, recession end, low": "Stocks bottomed in March 2009, before the recession ended in June 2009."
    },
-   "simple": "Lehman failed first, then the Fed cut to zero, then stocks hit bottom, and only after that did the recession end.",
+   "simple": "Lehman failed first, then the Fed cut to zero, then stocks hit bottom, and only then did the recession end.",
    "deeper": {
     "trap": "The trap is waiting for good economic news. Stocks bottomed in March 2009 while the economy was still in recession. The recession ended in June 2009, and the NBER did not announce that end until September 20, 2010. By then the low was long past."
    },
@@ -1572,7 +1580,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
@@ -1580,16 +1588,16 @@
    "rung": 7,
    "format": "scenario",
    "story": "Nov. 20, 2008: the Nasdaq closes at a new low, 1,316.12. Jan. 6, 2009: the rally off that low tops at 1,652.38. Jan. 20: a pullback holds at 1,440.86. Feb. 6: it has bounced back to 1,591.71.",
-   "q": "On these swings, is the turn up confirmed yet?",
+   "q": "It's Feb. 6, 2009 and this is your chart. Has the Nasdaq turned up yet?",
    "choices": [
-    "No: still under the last rally top",
-    "No: it has not made a higher low yet",
-    "Yes: it made a clear higher low",
-    "Yes: the Fed has cut rates to zero"
+    "No, still under the last rally top",
+    "No, no higher low yet",
+    "Yes, it made a clear higher low",
+    "Yes, the Fed has cut rates to zero"
    ],
-   "answer": "No: still under the last rally top",
-   "why": "No. It held a higher low on January 20, at 1,440.86, above the November 20 low. But the bounce stalled at 1,591.71 on February 6, below the 1,652.38 rally top. The rule needs both steps, the higher low and then a close above the last rally top. On March 9 the Nasdaq closed at 1,268.64, a new low.",
-   "lesson_line": "Half the proof isn't proof. You need the higher low AND a break above the last rally top.",
+   "answer": "No, still under the last rally top",
+   "why": "No. Half the proof is there. The January 20 pullback held at 1,440.86, above the 1,316.12 low from November 20. That's your higher low. But the bounce stalled at 1,591.71 on February 6, under the 1,652.38 rally top. Until it closes over 1,652.38, the downtrend stands. Waiting paid here. On March 9 it closed at 1,268.64, a new low, and that higher low broke.",
+   "lesson_line": "Half the proof isn't proof. You need the higher low and the break of the last rally top.",
    "facts": [
     "f19",
     "f22",
@@ -1604,11 +1612,11 @@
     "f50"
    ],
    "wrong": {
-    "Yes: it made a clear higher low": "That's only step one. A downtrend holds until the rally off the higher low clears the last rally top.",
-    "Yes: the Fed has cut rates to zero": "The Fed set 0 to 0.25% on December 16, 2008. Stocks still made a new low in March 2009.",
-    "No: it has not made a higher low yet": "It has. The January 20 close of 1,440.86 held above the November 20 low of 1,316.12. What's missing is a close above 1,652.38."
+    "Yes, it made a clear higher low": "That's step one. You still need a close above the last rally top, 1,652.38.",
+    "Yes, the Fed has cut rates to zero": "It did, on December 16, 2008. Stocks still made a new low in March 2009.",
+    "No, no higher low yet": "It has one. January 20 closed at 1,440.86, above the 1,316.12 low. What's missing is a close over 1,652.38."
    },
-   "simple": "No, because the bounce never closed above the last rally top of 1,652.38, so only half the proof was there.",
+   "simple": "No, it never closed above the 1,652.38 rally top, so only half the proof was there.",
    "deeper": {
     "trap": "Half the rule is the trap. A higher low feels like a bottom, but ChartSchool says it is still too early to call a change of trend. Here the January 20 higher low of 1,440.86 broke. The Nasdaq closed at 1,268.64 on March 9, 2009, below the November 20 low of 1,316.12."
    },
@@ -1619,7 +1627,7 @@
      "fixed before: the old key was wrong by the unit's own rule and the story was rebuilt"
     ]
    },
-   "batch": "index-charts-2026-11-16",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "IXIC",
     "asof": "2009-02-06",
@@ -1632,10 +1640,10 @@
    "skill": "history.long_bear",
    "rung": 8,
    "format": "tf",
-   "q": "In the 2007-09 bear, the VIX's highest close came months before the market's final low.",
+   "q": "In the 2007-09 bear, the VIX made its highest close months before the market's final low.",
    "answer": "True",
-   "why": "True. The VIX measures the near-term volatility the options market expects. Its highest close from October 2007 to June 2009 was 80.86, on November 20, 2008. At the Nasdaq's final low on March 9, 2009, it closed at 49.68, far below that peak. Peak fear and the final price low came months apart.",
-   "lesson_line": "Peak fear and the final price low can come months apart.",
+   "why": "True. The VIX tracks how much movement the options market expects, so it's a read on fear. Its highest close from October 2007 to June 2009 was 80.86, on November 20, 2008. The Nasdaq made its final low on March 9, 2009, and the VIX closed at 49.68 that day. Way under the peak. Peak fear came first, and the price low came almost four months later. So don't buy just because you see fear off the charts. Wait for price to turn.",
+   "lesson_line": "Peak fear and the final low can come months apart. Fear alone isn't a buy signal.",
    "facts": [
     "f28",
     "f29",
@@ -1645,7 +1653,7 @@
     "f43",
     "f45"
    ],
-   "simple": "True, because the VIX peaked in November 2008 but stocks kept falling to a lower low in March 2009.",
+   "simple": "True, the VIX peaked in November 2008, but stocks kept falling to a lower low in March 2009.",
    "deeper": {
     "counter": "Peak fear did mark a low, just not the final one. On November 20, 2008 the VIX closed at 80.86 and the Nasdaq closed at 1,316.12, a new low at the time. That low did not hold. The Nasdaq closed at 1,268.64 on March 9, 2009, while the VIX closed at only 49.68."
    },
@@ -1656,7 +1664,7 @@
      "the key rests on one source (FRED VIX closes)"
     ]
    },
-   "batch": "history-charts-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "SPY",
     "asof": "2009-03-09",
@@ -1670,7 +1678,7 @@
    "rung": 8,
    "format": "scenario",
    "story": "Oct. 9, 2002: the Nasdaq closes at 1,114.11. Nov. 27: a rally tops at 1,487.94. March 11, 2003: a pullback holds at 1,271.47. May 2, 2003: it closes at 1,502.88.",
-   "q": "Using these swings, which date confirmed the turn up?",
+   "q": "You're tracking these swings as they happen. Which day confirms the turn up?",
    "choices": [
     "May 2, 2003",
     "Oct. 9, 2002",
@@ -1678,8 +1686,8 @@
     "March 11, 2003"
    ],
    "answer": "May 2, 2003",
-   "why": "May 2, 2003. October 9 was the low, but only hindsight knew it. March 11 held a higher low, above the October low. May 2 was the first close above the November 27 rally top of 1,487.94, which completed the rule on these swings. Even then it pointed to a possible turn, not a sure one. The Nasdaq went on to close at 2,153.83 on January 26, 2004.",
-   "lesson_line": "Confirmation comes late. That's the price of not guessing.",
+   "why": "May 2, 2003. Walk through it. October 9 was the low, but on the day it was just another lower low. November 27 was the rally top, and on its own it looked like every other bear rally. March 11 held at 1,271.47, above the October low. That's the higher low. May 2 closed at 1,502.88, the first close over the 1,487.94 November top. Both steps done. Yes, you're well off the low by then. That's the price of not guessing, and I'll pay it. The Nasdaq went on to close at 2,153.83 on January 26, 2004.",
+   "lesson_line": "Confirmation comes late. That's what you pay for not guessing.",
    "facts": [
     "f11",
     "f12",
@@ -1697,7 +1705,7 @@
    ],
    "wrong": {
     "Oct. 9, 2002": "That was the low, but only hindsight knew it. On the day, it was just another lower low.",
-    "Nov. 27, 2002": "That's the rally top. On its own, a rally looks like every other bear market rally.",
+    "Nov. 27, 2002": "That's the rally top. On its own, it looked like every other bear market rally.",
     "March 11, 2003": "That's the higher low, step one. The turn isn't confirmed until the last rally top is cleared."
    },
    "simple": "May 2, 2003, because that was the first close above the November rally top after the higher low in March.",
@@ -1711,24 +1719,24 @@
      "fixed before: the question now says 'Using these swings' because smaller swings fired the rule earlier"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q22",
    "skill": "history.long_bear",
    "rung": 8,
    "format": "tf",
-   "q": "In the dot-com bear, broad stock prices fell more in 2002 than in either 2000 or 2001.",
+   "q": "In the dot-com bear, broad stock prices fell more in 2002 than in 2000 or 2001.",
    "answer": "True",
-   "why": "True. The Fed's report says net declines in stock prices in 2002 exceeded those of either of the two years before. Broad indexes fell about 20% in 2002. The Nasdaq has its own numbers: it fell 39% in 2000 and more than 30% in 2002.",
-   "lesson_line": "The third year of this bear was the worst for the broad market. Long bears don't always fade out quietly.",
+   "why": "True, for the broad market. The Fed's report says the net drop in 2002 beat either of the two years before. Broad indexes fell about 20% in 2002. The Nasdaq had its own numbers, though. It fell 39% in 2000 and more than 30% in 2002. So you always check which index a number is about. And notice the timing. In year three, the broad market had its worst year. Long bears don't always fade out quietly.",
+   "lesson_line": "Year three was the worst for the broad market. Long bears don't always fade out quietly.",
    "facts": [
     "f39",
     "f40",
     "f11",
     "f33"
    ],
-   "simple": "True, because broad indexes fell about 20% in 2002, a bigger net drop than in 2000 or 2001.",
+   "simple": "True, broad indexes fell about 20% in 2002, a bigger net drop than in 2000 or 2001.",
    "deeper": {
     "trap": "The trap is mixing up indexes. For broad stock prices, 2002 was the worst of the three years. The tech-heavy Nasdaq fell 39% in 2000 alone, more than the broad indexes' fall of about 20% in 2002. Always check which index a claim is about."
    },
@@ -1739,24 +1747,24 @@
      "the key rests on one source (Fed Monetary Policy Report, February 2003)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q23",
    "skill": "history.long_bear",
    "rung": 9,
    "format": "scenario",
-   "story": "March 2009. The Nasdaq is bouncing off a new low made on March 9. A famous economist calls it a dead cat bounce headed for new lows. Its last big rally topped at 1,652.38 on January 6.",
-   "q": "What should decide whether this bounce is a real turn?",
+   "story": "March 2009. The Nasdaq is bouncing off a new low made on March 9. A famous economist calls it a dead cat bounce headed for new lows. The last big rally topped at 1,652.38 on January 6.",
+   "q": "What decides whether this bounce is the real turn?",
    "choices": [
-    "Let price decide: wait for its signal",
-    "Let the expert decide: new lows ahead",
-    "Let the NBER decide: wait for its call",
-    "Let the news decide: wait for good data"
+    "Price, wait for its signal",
+    "The expert, new lows are coming",
+    "The NBER, wait for its call",
+    "The news, wait for good data"
    ],
-   "answer": "Let price decide: wait for its signal",
-   "why": "Let price decide. An expert's call is an opinion, and this one was wrong. The rule waits for a higher low, then a close above the last rally top. The Nasdaq held a higher low at 1,501.80 on March 30. On April 9, 2009 it closed at 1,652.54, its first close above 1,652.38. By the Fed's February 2010 report, broad indexes were about 65% above the March 2009 low.",
-   "lesson_line": "Opinions are free. I'd rather let price show me the turn.",
+   "answer": "Price, wait for its signal",
+   "why": "Price. The economist's call is an opinion, and this one was wrong. Here's what price did. On March 30 the Nasdaq pulled back and held at 1,501.80, well above the March 9 low. That's the higher low. On April 9 it closed at 1,652.54, its first close above the 1,652.38 rally top. That's your confirmation. By the Fed's February 2010 report, broad indexes were about 65% above the March 2009 low. I don't care how famous the name is. The chart tells me when to get involved.",
+   "lesson_line": "Opinions are free. Let price show you the turn.",
    "facts": [
     "f80",
     "f81",
@@ -1774,11 +1782,11 @@
     "f64"
    ],
    "wrong": {
-    "Let the expert decide: new lows ahead": "That's an opinion, not evidence from price. This one was wrong: March 2009 began a long bull market.",
-    "Let the NBER decide: wait for its call": "The NBER announced the recession's end on September 20, 2010. By February 2010, broad indexes were already about 65% off the low.",
-    "Let the news decide: wait for good data": "Stocks bottomed in March 2009 while the economy was still in recession. The recession did not end until June 2009."
+    "The expert, new lows are coming": "That's an opinion, not a signal from price. And this one was wrong. March 2009 started a long bull market.",
+    "The NBER, wait for its call": "The NBER called the recession's end on September 20, 2010. Broad indexes were already about 65% above the low by February 2010.",
+    "The news, wait for good data": "Stocks bottomed in March 2009 while the economy was still in recession. It didn't end until June 2009."
    },
-   "simple": "Let price decide, because a close above 1,652.38 after a higher low is evidence, and an expert's call is opinion.",
+   "simple": "Let price decide, because a higher low and then a close above 1,652.38 is evidence, and a famous call is just opinion.",
    "deeper": {
     "trap": "The trap is trusting a famous name. The economist called a dead cat bounce headed for new lows, yet March 2009 began a long bull market. The official recession end came even later: the NBER announced it on September 20, 2010. Price gave its answer on April 9, 2009, with a close above 1,652.38."
    },
@@ -1790,7 +1798,7 @@
      "fixed before: 'Buy everything now' and the 'Short it' note were reworked"
     ]
    },
-   "batch": "index-charts-2026-11-16",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "IXIC",
     "asof": "2009-03-12",
@@ -1836,27 +1844,27 @@
   },
   "q01": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Answer right (f65, f88). Truth break: the why says 'You need both', then its own how-to checks only the tops ('If the next top prints under the last one, the trend's still down'). Fixed so the check uses both halves, without a rhetorical question. Stem said 'You pull up the Nasdaq chart from 2001' but q01 carries no chart; reworded so it doesn't promise one."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer False from f35 (almost 40% April to end of May 2001). Why rests on f35, f36, f07, f09, f11, f76. No absolute left in the stem; the 20% bar is the question's own number. 'Almost 40%' overlaps the 41% in q11, but w2 already teaches it and q11 is a calc, so no leak."
+   "fixed": true,
+   "notes": "False is right (f35, f36). Last line said a rally 'tells you nothing until it clears the last rally high', which drops the higher low the lesson's turn rule needs (f68, f69). Fixed to both steps."
   },
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer 57% from f48. Each distractor is a real, grounded number from another index or period (f42, f33 with f31 for the year, f47). No longest-choice or extreme tell. Why sentences are all 22 words or fewer."
+   "fixed": true,
+   "notes": "57% right (f48); wrong notes grounded (f42, f33, f47). Small truth nit: f48 is the S&P 500 price index, and an index fund with dividends lost a bit less, so the stem now says you bought the S&P 500 itself. 'well over double' checked: a 57% loss leaves 43%, so the way back is more than a double."
   },
   "q04": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer December 2007 to June 2009 from f49, f62, f64. The September to December 2008 note now rests only on f85 and no longer spells out q18's order. The longest choice is a wrong one."
+   "notes": "December 2007 to June 2009 right (f49, f62, f64). Market dates next to recession dates (f48), three months from the March low to the June end checks. Wrong notes grounded (f51, f85, f58, f60). Talks to you, ends on a judgment line."
   },
   "q05": {
    "status": "cut",
@@ -1868,61 +1876,61 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer False from f70 (essentially indistinguishable) and f74. Dropping 'clearly' removed the absolute tell. The why is grounded in f70, f74, f79 and f68."
+   "notes": "False right (f70, f74, f79). Hamilton and Investopedia moved to deeper. Why says what I do about it and owns the cost (later, but on evidence). Reads like him."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer tech, telecom and internet from f31. The new 'broad market, about evenly' choice is 30 characters, so the key (33) is not longest and there is no lone absolute. The banks note rests on f42 and the energy note on f44 with f43. The why's scoping sentence matches f31's 'some of'."
+   "fixed": true,
+   "notes": "TRUTH REGRESSION: the stem went back to 'Where did the most dramatic plunges come?', the exact overclaim an earlier checker removed (f31 says 'some of the most dramatic'). Restored 'some of'. Also 'The groups priced the richest fall the hardest' was stated as a law in both why and lesson_line; softened to 'can fall the hardest'. Wrong notes fine."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "My answer before the key: 31 months (March 2000 f02 to October 2002 f11; calc 24+7=31). Key matches, choices tie on length, wrong notes grounded (f09, f07, whole-years arithmetic). Only break: the simple line says the Nasdaq 'kept falling from March 2000 until October 2002', which overreaches and clashes with the lesson's own point (q02, w2) that it rallied almost 40% on the way down. Reworded to the peak-to-low span. Lesson-level note, not this item's to fix: q08's stem names the October 2002 low, which is q15's key, but q02, q09 and w1 name it too, so it is taught content."
+   "fixed": false,
+   "notes": "31 months right (calc 2*12 + 7). Steps shown, wrong notes grounded (f09, f07). 'A bear doesn't end because you think it's been going long enough' is the right mentor line."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "notes": "78% right: 5,048.62 - 1,114.11 = 3,934.51; / 5,048.62 = 0.779. Wrong choices recomputed: 3,934.51/1,114.11 = 353%, 5,048.62/1,114.11 = 453%, 6,162.73/5,048.62 = 122%. Steps named, measure-from-the-top reason given. (The drop itself can't be printed: the gate doesn't count drawdown_pct in-between numbers.)"
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer: lower highs, downtrend intact (f65, f68). The four story tops each closed below the one before (f03, f06, f08, f10, with f02 as the March peak). The why is now scoped to these swings. Wrong notes rest on f67 and f11."
+   "fixed": true,
+   "notes": "Answer right (f03, f06, f08, f10 each lower). The judgment line said wait for 'the one that finally clears the last rally high', which skips the higher low the lesson teaches (f68). Fixed to both steps, 22 words."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "fixed": true,
+   "notes": "41% right: 2,313.85 - 1,638.80 = 675.05; / 1,638.80 = 0.412. Wrong choices recomputed (141% ratio, 71% = 1,638.80/2,313.85, 241% = sum/April). The 71% note ('April as a share of May, turned upside down') was muddled; now says plainly what slip it is."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "notes": "355% right (1/0.22 - 1 = 3.545). Wrong choices recomputed (455% no minus one, 555% plus one, 78% symmetric). Ties the recovery math to your own account, f27 for April 23, 2015. A touch formula-heavy but fine."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer True: first cut January 3, 2001 (f52, f53, f34 'initial easing') to the October 9, 2002 low (f11). September 18, 2007 (f50, f55) to the March 2009 trough (f48). Both gaps are well over a year. The simple answer now matches the stem's 'rate target'."
+   "fixed": true,
+   "notes": "True right either way. But the stem dropped 'rate target', a narrowing an earlier checker made on purpose (the discount rate was cut first, August 2007). Restored it. Also cleaned the clumsy 'when you hear the Fed's cutting and it's time to buy' line."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: a higher low, then a higher high (f68, f69 'not confirmed until'). Probed the 20% choice as a second answer, since F7.04 uses 20% as the bull label. It does not stand: the question asks what confirms the turn, and the note shows a 40% rally that failed (f35, f09). Choice lengths tie, with no tell. The deeper trap is grounded in f38, f35, f09 and f11, and all its sentences are 22 words or fewer."
+   "notes": "Answer right (f68, f69). What came next is walked in order (f34, f07, f38, f35). Gives the how (higher low, then a close through the last rally high) and 'start small'. Wrong notes grounded."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer October 2002 (f11), after the November 2001 trough (f60). Notes are grounded in f58, f60, f09 and f11. The simple answer is 21 words. Lesson-level note: the stems of q02 and q08 and w1 also name the October 2002 low. That date is taught content, so this stays a rung-6 check that stocks bottomed after the recession ended; no fix is needed."
+   "notes": "October 2002 right (f11 after f60). The 2009 contrast (f48, f64) is the useful add. Ends on what you do with it."
   },
   "q16": {
    "status": "cut",
@@ -1940,43 +1948,43 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Cold check 2026-11-15. Words agree with IXIC: Dec 1, 2008 close 1,398.07 (also the day's low); Oct 31, 2007 close 2,859.12, the highest close of that bull market (first close above it Apr 27, 2011, 2,869.88); fall 51.1% -> 51%; 'about half below its October 31, 2007 high' holds. Problem with window 250: it opens Dec 5, 2007 (2,666.36), 273 bars after the peak, so the price axis never reaches the 2,859.12 the question names; the window's top is the Dec 26, 2007 close 2,724.41 (high 2,734.82 on Dec 11). A fall measured from that visible top is 48.7% (48.9% from the high), which rounds to the '49"
+   "notes": "51% right: 2,859.12 - 1,398.07 = 1,461.05; / 2,859.12 = 0.511. Wrong choices recomputed (49% what's left, 34% = 1,461.05/4,257.19, 5.1% decimal). Truth break: 'you're selling near the bottom of the chart' is wrong, the Nasdaq fell to 1,268.64 in March 2009 and the chart's forward bars show more downside. Rewritten to 'after half the damage is done'."
   },
   "q18": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Order right (f51 Sept 2008, f57 Dec 16 2008, f48 March 2009, f64 June 2009). Why says what the order means for you. Still a recall drill at heart."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check 2026-11-15. Every story level is a close on IXIC: Nov 20, 2008 1,316.12 (lowest close since the Oct 31, 2007 peak; the prior low close was 1,386.42 on Nov 19), Jan 6, 2009 1,652.38 (highest close after Nov 20 in the window), Jan 20 1,440.86 (lowest close Jan 7-Feb 5), Feb 6 1,591.71 (highest close Jan 21-Mar 9); no close above 1,652.38 from Jan 7 to Mar 9. Window 120 (Aug 18, 2008 to Feb 6, 2009) shows every swing the story names, so the member reads the swings off it; it also shows the Nov 4, 2008 top of 1,780.12, which cannot make a 'Yes' choice right (1,591.71 is below both tops)"
+   "notes": "No is right (f86 higher low, f87 stalled under 1,652.38, f23 new low March 9). Reads the swings in order, half the proof framing is his register. Story kept from the lesson."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "cold re-read 2026-11-15 (session lead): the chart and the words agree; check_course_charts 0 problems; the outcome the words name confirmed in the closes"
+   "notes": "True right (f28 80.86 on Nov 20 2008, f29 49.68 on March 9 2009). VIX defined plainly (f30). 'Almost four months' checks (Nov 20 to Mar 9). Ends on what to do."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "2026-11-16 correction: FRED's 2003 NASDAQCOM rows used here were intraday highs/lows, not closes. Story now uses the true closes (higher low March 11, 2003 at 1,271.47; May 2 close 1,502.88), each quoted from AP/CNN closing reports (f13, f13b, f14, f14b, f14c), every quote re-read on the saved page; key unchanged (May 2 is still the first close above 1,487.94; May 1 closed 1,472.56)."
+   "fixed": false,
+   "notes": "May 2, 2003 right on these swings (f13 higher low 1,271.47, f14 first close over 1,487.94; f14c May 1 at 1,472.56 still under). Stem keeps the 'these swings' scope. Owns the cost of waiting."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "My answer before the key: True (f39, confirmed word for word on the live Feb 2003 MPR page, with f40). Key right. Break: the deeper trap still opens 'Which year was worst can depend on the index', which implies the Nasdaq's worst year was not 2002. No quote ranks the Nasdaq's years (39% in 2000, f33; 'more than 30 percent' in 2002, f40), so that is the same unsupported inference the last pass removed from the why. Rewrote the trap to compare only what the quotes support (39% > about 20%). The simple line only restated the stem with 'because'; it now gives the grounded reason (f40, f39)."
+   "notes": "True right (f39, f40). Truth break: 'the Nasdaq tells a different story' implies the Nasdaq's worst year was 2000, the same ranking an earlier checker removed because no quote ranks 39% against 'more than 30 percent'. Now just gives the Nasdaq's own numbers."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold check 2026-11-15. Asof Mar 12, 2009 is the third day off the Mar 9 low (closes 1,268.64 Mar 9, the lowest close of the bear and of the window; 1,358.28, 1,371.64, 1,426.10), matching 'bouncing off a new low made on March 9'. The window (Sep 19, 2008 to Mar 12, 2009) shows the Jan 6 top of 1,652.38 the story names. The question is about process (let price decide), so the chart gives nothing away; it shows the hurdle and the fresh low. Replay 30: the Mar 30 close of 1,501.80 is the lowest close between the Mar 26 swing high (1,587.00) and Apr 8 (day 12, the why's higher low); the Apr 9 clos"
+   "fixed": true,
+   "notes": "Price is right (f80, f81 the call was wrong; f24 higher low, f25 first close over 1,652.38). The simple line called the signal 'proof', which the lesson says it isn't (a possible turn, f75). Now 'evidence'."
   }
  }
 }

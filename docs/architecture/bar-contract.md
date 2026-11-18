@@ -316,6 +316,26 @@ would make clients trust it first). `INTRADAY_SPLIT_HEAL_MODE=write` applies and
 docs/runbooks/held-flags-and-checks.md. Railed: `tests/test_intraday_split_heal_basis.py`
 (H1-H3, C1, D1-D3, M).
 
+### refreshed_at, refresh_state (cash-index answers only)
+2026-11-17. An index answer (`api/index_bars.py`: SPX NDX VIX RUT DJX XSP XND, every tf) is
+not store-backed, so it carries no proof field above; it says how current it is instead:
+```
+refreshed_at   float (unix s) | null   when the vendor last answered for the series served
+refresh_state  "fresh" | "stale" | "failed"
+```
+- `fresh`: served within its TTL (`index_bars._TTL`: D 6 h, W/M 24 h, intraday 300 s, 1m 120 s).
+- `stale`: served past its TTL; a background refresh was kicked (stale-while-revalidate).
+- `failed`: the newest refresh of this series got nothing from any vendor AFTER the served
+  copy was stored (or nothing is stored): the rows are as old as `refreshed_at`, and the
+  server logged `[index_bars] refresh FAILED <SYM> <tf>`.
+Absent on every other answer (unknown, the version rule). Equity answers are unchanged.
+⛔ Deliberately NOT `verified_through`: clients read that as proof that buckets up to it are
+empty (`barStore/reducer.liveGapStart`) and as authority over the developing bar's extremes,
+and an index answer can carry neither (yfinance intraday lags; today's daily index bar is
+built from the 5m series, `index_bars.with_todays_session`). The index store is per volume,
+and both the web pod and the bars-api tier run its warm loop (`index_bars.start_index_warm`).
+Railed: `tests/test_bars_index_daily_warm.py`.
+
 ## 3. Examples
 
 5m, 10:12:30 ET, store tail = the 10:10 bucket (partial), last repair at 10:11:02:

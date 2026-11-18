@@ -311,7 +311,11 @@ describe('C36 · parity with the Python lane — one fixture, both lanes', () =>
         // ⭐ ENGINE 57 (landing train 1) — the three built-in witness codes (`stoch:flat-window`,
         // `stoch:left-edge`, `rci:left-edge`) read no clock either; `engine57Builtins.test.js` and
         // `tests/test_engine57_builtins.py` rail them on both lanes
-        && !k.startsWith('stoch:') && !k.startsWith('rci:')).sort())
+        && !k.startsWith('stoch:') && !k.startsWith('rci:')
+        // ⭐ 2026-11-17 — the two opening-range codes are not a `time(<timeframe>)` reading either: a
+        // native call on bars it cannot be read from. Both lanes rail them on real bars in
+        // `sessionRegular.test.js` / `tests/test_ast_session_regular.py`
+        && !k.startsWith('opening-range:')).sort())
     for (const code of codes) expect(typeof CHART_CLOCK_WITHHELD[code]('5')).toBe('string')
     for (const code of CHART_CLOCK_WHOLE) expect(Object.keys(CHART_CLOCK_WITHHELD)).toContain(code)
   })

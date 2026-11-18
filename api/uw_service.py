@@ -1,7 +1,7 @@
 """
 uw_service.py — Unusual Whales API service for options contract data.
 
-Replaces Schwab for:
+Used for (it replaced Schwab for these before Schwab was retired, 2026-11-17):
   - Historical OI/Vol/Price per contract (popup charts)
   - Live contract quotes (current price, OI, volume)
   - Intraday data

@@ -1,0 +1,26 @@
+/* The watchlist mark: a 10px filled star after a name. App tokens only (the Terminal wears the
+ * member's theme), text colour and never gold: a list can hold many of these.
+ *
+ * The box is an anchor and the star is placed inside it, so ONE thing decides how much room the
+ * mark takes: the anchor's width. In the line it is 13px (a 3px gap, then the star). As an
+ * overlay it is 0, and the star hangs to the right in the cell's own padding, so a marked name
+ * is exactly as wide as an unmarked one and no column moves. */
+.mark {
+  position: relative;
+  display: inline-block;
+  width: 13px;
+  height: 10px;
+  vertical-align: -1px;
+  color: var(--text);
+}
+
+.mark svg {
+  position: absolute;
+  top: 0;
+  left: 3px;
+  display: block;
+}
+
+.overlay {
+  width: 0;
+}

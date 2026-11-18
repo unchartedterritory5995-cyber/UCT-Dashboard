@@ -152,11 +152,19 @@ describe('WS-I S6 — the kill list and allowlist re-read themselves once read',
     expect(runtimeNotGradedOf({ hash: H })).toMatch(/not yet been graded/)
   })
 
-  it('⛔ never before a first read, never under the test grant, never outside a page', () => {
+  it('⭐ a tab that never read the lists DOES read them on its first consult (2026-11-17)', () => {
+    // ⚰️ this rail used to say "never before a first read" — and that rule was the defect: only the
+    // member door ever read the lists, so a chart reloaded with RS Rating on it never did, and its run
+    // half was refused `pane:not-graded` for a script the server had graded
     __resetRuntimeListsRecheck()                       // nothing read yet in this tab
-    vi.advanceTimersByTime(RUNTIME_LISTS_RECHECK_MS * 5)
     runtimeKillOf({ hash: H })
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/user-definitions/runtime-kill')
+    runtimeKillOf({ hash: H })                         // one read in flight, never a second
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('⛔ never under the test grant, never outside a page', () => {
     setRuntimeKillList([])
     __allowEveryRuntimeScriptForTests()
     vi.advanceTimersByTime(RUNTIME_LISTS_RECHECK_MS * 5)

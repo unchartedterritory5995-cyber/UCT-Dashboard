@@ -47,6 +47,37 @@ describe('IndicatorChip — sibling plots ride on the one row', () => {
     expect(container.querySelector('[data-more-value="p1"]'), 'a hidden plot prints nothing').toBeNull()
   })
 
+  it('⭐ a sibling value is inked legibly even when the lead line draws nothing (the Uncharted Clouds row)', () => {
+    // Measured on production 2026-11-17: the script's fast average is fully transparent and its slow
+    // average is white at 95% transparency. The row carried no colour, the contrast clamp was keyed on
+    // the ROW's colour, and the slow average's value printed at 5% opacity.
+    const [row] = legendRows([
+      plot('fast', 156.22, { color: 'rgba(255, 255, 255, 0)' }),
+      plot('slow', 156.06, { color: 'rgba(255, 255, 255, 0.05)' }),
+    ])
+    const { container } = render(<IndicatorChip chip={row.chip} more={row.more} grid onMenu={() => {}} />)
+    const extra = container.querySelector('[data-more-value="slow"]')
+    // the premise: the sibling value carries a colour, and nothing above it (the row) does
+    expect(extra.getAttribute('style')).toMatch(/--chip-color/)
+    let above = 0
+    for (let el = extra.parentElement; el && el !== container; el = el.parentElement) {
+      expect(el.getAttribute('style') || '', 'the row carries a colour: this case no longer tests the gap').not.toMatch(/--chip-color/)
+      above += 1
+    }
+    expect(above).toBeGreaterThan(0)
+    // the rule: the clamp (which ends in `/ 1`, opaque) reaches a value by the VALUE's own colour,
+    // in the stack and in the inline chip, and never a hidden row's
+    const block = /@supports \(color: oklch\(from red l c h\)\) \{\s*([^{}]+)\{([^{}]*)\}/.exec(CHIP_CSS)
+    const selectors = block[1].split(',').map((s) => s.trim())
+    expect(selectors).toContain('.chipGridRow:not(.chipHidden) .chipGridVal[style*="--chip-color"]')
+    expect(selectors).toContain('.chip:not(.chipHidden) .chipVal[style*="--chip-color"]:not(.chipValStale)')
+    expect(block[2]).toMatch(/color:\s*oklch\(from var\(--chip-color\)[^;]*\/ 1\)/)
+    // the control: the row-keyed selectors are still there (a coloured row clamps its lead value)
+    expect(selectors).toContain('.chipGridRow[style*="--chip-color"]:not(.chipHidden) .chipGridVal')
+    // and a pane readout row already keys on the value itself
+    expect(ROW_CSS).toMatch(/\.vRow:not\(\.rowHidden\) \.vVal\[style\*="--row-color"\]/)
+  })
+
   it('the inline chip prints them too, after its own value', () => {
     const { container } = render(<IndicatorChip chip={plot('p0', 433.92)} more={[plot('p2', 451.49)]} onMenu={() => {}} />)
     expect(container.querySelector('[data-instance-id="uc"]').textContent).toBe('Uncharted Clouds 433.92 451.49')
@@ -146,11 +177,9 @@ describe('the study stack\'s rows meet: no gap for the pointer to fall through t
     expect(row).toMatch(/pointer-events:\s*auto/)
   })
 
-  it('the volume row sits 3px lower and reaches 3px further up, so its gap is covered too', () => {
-    const vol = /\.studyStack \[data-legend-row="volume"\]\s*\{([^}]*)\}/.exec(CHART_CSS)[1]
-    const margin = px(/margin-top:\s*(\d+)px/, vol, 'volume margin-top')
-    const top = px(/--row-hit-top:\s*(\d+)px/, vol, 'volume --row-hit-top')
-    const pad = px(/--row-hit-pad:\s*(\d+(?:\.\d+)?)px/, stack, '--row-hit-pad')
-    expect(top).toBe(pad + margin)
+  it('no stacked row gets its own margin — every row is spaced by the stack row-gap alone (owner 11-17)', () => {
+    // Volume used to sit 3px lower than the moving averages above it.
+    expect(CHART_CSS).not.toMatch(/\[data-legend-row[^\]]*\][^{]*\{[^}]*margin/)
+    expect(CHART_CSS).not.toMatch(/--row-hit-top:/)
   })
 })

@@ -17,7 +17,7 @@
 //
 // ⛔ AND THE FLOOR IS REPORTED HONESTLY. The ruling's test asked whether doc B
 // "scales to the floor and states whether it wraps". It does NOT reach the
-// floor: 270/356 = 0.758, and the floor is 9/12 = 0.75. Neither real document
+// floor: 270/356 = 0.758, and the floor is 9/12 = 0.75 (9/14 = 0.643 since Q-LB3). Neither real document
 // wraps. So the wrap branch is exercised here by a width that DOES cross it,
 // and the crossing point is asserted — a branch nothing can reach is not a
 // fallback, it is dead code.
@@ -39,7 +39,10 @@ const PLOT = SCREEN - SCALE   // 286 — the ruling's "available"
 const USABLE = PLOT - 16      // 270 — after both 8px table margins
 const DOC_A = 287             // Range table, defaults
 const DOC_B = 356             // Range table, every toggle on
-const BASE = TEXT_SIZE_PX.normal   // 12
+// ⭐ 14 since Q-LB3 (2026-11-17): TradingView draws a size.normal table cell at 14 px (measured); it was
+// the engine's own 12. ⚠️ DOC_A / DOC_B were measured on the live pane at 12 px type, so the real tables
+// are now about 14/12 wider; the arithmetic below is fitFactor's, on those widths, at the new base.
+const BASE = TEXT_SIZE_PX.normal   // 14
 
 /** ⛔ A REGISTRY THAT ANSWERS NOTHING, so the only sentence the strip can render
  *  is the one R-R adds. A stub that returned documents would make "one note"
@@ -60,7 +63,7 @@ describe('R-R — fitFactor, on the measured widths', () => {
     const fit = fitFactor({ neededWidths: [DOC_A], plotWidth: USABLE })
     expect(fit.factor).toBeCloseTo(USABLE / DOC_A, 6)   // 0.94076…
     expect(fit.wrap).toBe(false)
-    expect(fit.factor * BASE).toBeCloseTo(11.29, 2)
+    expect(fit.factor * BASE).toBeCloseTo(13.17, 2)
   })
 
   it('⛔ doc B (356) scales — and it does NOT wrap, at either width', () => {
@@ -72,22 +75,22 @@ describe('R-R — fitFactor, on the measured widths', () => {
     const atReal = fitFactor({ neededWidths: [DOC_B], plotWidth: USABLE })
     expect(atReal.factor).toBeCloseTo(USABLE / DOC_B, 6)      // 0.75842…
     expect(atReal.wrap).toBe(false)
-    // ⚠️ BY HALF A PIXEL OF TYPE. 0.75842 × 12 = 9.10px against a 9px floor —
-    // this is the number to re-read if the floor or the base size ever moves.
+    // ⚠️ RE-READ AT THE NEW BASE (Q-LB3): 0.75842 × 14 = 10.62px against a 9px floor (at 12 px type it
+    // was 9.10, half a pixel clear) — the number to re-read if the floor or the base size moves again.
     expect(atReal.factor * BASE).toBeGreaterThan(TABLES_FIT.floorPx)
-    expect(atReal.factor * BASE).toBeLessThan(TABLES_FIT.floorPx + 0.2)
+    expect(atReal.factor * BASE).toBeCloseTo(10.62, 2)
   })
 
   it('⛔⛔ THE WRAP BRANCH IS REACHABLE, and here is exactly where', () => {
-    // floorFactor = 9/12 = 0.75, so the widest table that still scales without
-    // wrapping at 270 is 270/0.75 = 360.
+    // floorFactor = 9/14 = 0.642857 (it was 9/12 = 0.75 at the old base), so the widest table that still
+    // scales without wrapping at 270 is 270/0.642857 = 420 (it was 360).
     const floorFactor = TABLES_FIT.floorPx / BASE
-    expect(floorFactor).toBeCloseTo(0.75, 6)
+    expect(floorFactor).toBeCloseTo(9 / 14, 6)
     const boundary = USABLE / floorFactor
-    expect(boundary).toBeCloseTo(360, 6)
+    expect(boundary).toBeCloseTo(420, 6)
 
-    expect(fitFactor({ neededWidths: [360], plotWidth: USABLE }).wrap).toBe(false)
-    const wrapped = fitFactor({ neededWidths: [361], plotWidth: USABLE })
+    expect(fitFactor({ neededWidths: [420], plotWidth: USABLE }).wrap).toBe(false)
+    const wrapped = fitFactor({ neededWidths: [421], plotWidth: USABLE })
     expect(wrapped.wrap).toBe(true)
     expect(wrapped.scaled).toBe(true)
     // ⛔ IT STOPS AT THE FLOOR RATHER THAN GOING PAST IT. Scaling to 270/361

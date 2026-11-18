@@ -192,6 +192,9 @@ const ACKNOWLEDGED_CHART = [
   // T3 (2026-09-12) — the member-pane path. Run green (11/11) BEFORE this
   // line was added, which is the order this rail asks for.
   'src/components/chart/builder/memberPane',
+  // Studio R5 (2026-11-17): Inspect a bar. Run green (4 files / 50 tests) BEFORE this line was
+  // added; `test:builder` and `test:chart` both cover it.
+  'src/components/chart/builder/inspect',
   // Economic data Phase 2 UI (2026-09-30): econUi words + fixtures. Run green
   // (1 file / 18 tests) BEFORE this line was added.
   'src/components/chart/economic',
