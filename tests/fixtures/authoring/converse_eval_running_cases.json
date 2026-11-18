@@ -1,6 +1,6 @@
 {
  "contract": "uct.converse-eval.cases/1",
- "_": "ONE RUNNING VALUE at the door, as cases (Studio, 2026-11-18). A capability census found twelve indicator ideas the ENGINE computes and the door refused, each a value that reads its own previous value: `accum(seed, update, warmup)` with `self`. The door now lets the assistant write ONE such value. Examples: a streak (a count), a stop that only rises (a level), a fixed-gain smoother (the one shape that provably settles), Kaufman's adaptive average and the McGinley Dynamic. Each scripted answer is the formula; the case holds that the door accepts it in one call, the browser's own patch engine applies it, and the engine computes it. `ctl-two-running-values` is the NEW negative control: two values that feed each other (`accum2`, `state1`) stay closed and are refused by name. The standard controls ride along; `ctl-mcginley` among them still holds that a Title-Case named indicator is refused before any model call (the request here is worded without that shape).",
+ "_": "ONE RUNNING VALUE at the door, as cases (Studio, 2026-11-18). A capability census found twelve indicator ideas the ENGINE computes and the door refused, each a value that reads its own previous value: `accum(seed, update, warmup)` with `self`. The door now lets the assistant write ONE such value. Examples: a streak (a count), a stop that only rises (a level), a fixed-gain smoother (the one shape that provably settles), Kaufman's adaptive average and the McGinley Dynamic. Each scripted answer is the formula; the case holds that the door accepts it in one call, the browser's own patch engine applies it, and the engine computes it. `ctl-two-running-values` is the NEW negative control: two values that feed each other (`accum2`, `state1`) stay closed and are refused by name. The standard controls ride along. Kaufman's adaptive average and the McGinley Dynamic are NAMES in the named-indicator library (api/data/named_indicators.json), so their scripted answers are the library's own formulas.",
  "chart": {
   "sym": "TEST",
   "tf": "D"
@@ -345,14 +345,84 @@
                      ]
                     },
                     {
-                     "type": "num",
-                     "value": 0.6022
+                     "type": "op",
+                     "name": "-",
+                     "args": [
+                      {
+                       "type": "op",
+                       "name": "/",
+                       "args": [
+                        {
+                         "type": "num",
+                         "value": 2
+                        },
+                        {
+                         "type": "op",
+                         "name": "+",
+                         "args": [
+                          {
+                           "type": "num",
+                           "value": 2
+                          },
+                          {
+                           "type": "num",
+                           "value": 1
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "op",
+                       "name": "/",
+                       "args": [
+                        {
+                         "type": "num",
+                         "value": 2
+                        },
+                        {
+                         "type": "op",
+                         "name": "+",
+                         "args": [
+                          {
+                           "type": "num",
+                           "value": 30
+                          },
+                          {
+                           "type": "num",
+                           "value": 1
+                          }
+                         ]
+                        }
+                       ]
+                      }
+                     ]
                     }
                    ]
                   },
                   {
-                   "type": "num",
-                   "value": 0.0645
+                   "type": "op",
+                   "name": "/",
+                   "args": [
+                    {
+                     "type": "num",
+                     "value": 2
+                    },
+                    {
+                     "type": "op",
+                     "name": "+",
+                     "args": [
+                      {
+                       "type": "num",
+                       "value": 30
+                      },
+                      {
+                       "type": "num",
+                       "value": 1
+                      }
+                     ]
+                    }
+                   ]
                   }
                  ]
                 },
@@ -444,7 +514,7 @@
                "args": [
                 {
                  "type": "num",
-                 "value": 8.4
+                 "value": 14
                 },
                 {
                  "type": "call",
@@ -504,11 +574,11 @@
    ]
   },
   {
-   "id": "ctl-mcginley",
+   "id": "ctl-unknown-name",
    "group": "control",
    "turns": [
     {
-     "words": "Add the McGinley Dynamic",
+     "words": "Add the Gann Fan",
      "model_expected": false,
      "expect": {
       "kind": "refused",

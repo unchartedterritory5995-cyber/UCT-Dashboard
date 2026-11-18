@@ -398,11 +398,20 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   if (strategyBrokerEnabled() && runtimePaneEnabled() && t && t.declaration === 'strategy') {
     const viaBroker = runtimeLaneDefinition({ source, id, name, t, hostReason: gate.reason, hostGuard: gate.guard, routed: false, no })
     const d = viaBroker && viaBroker.ok ? viaBroker.definition : null
-    if (d && d.compute && d.compute.kind === 'runtime' && d.meta && d.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY) return viaBroker
+    const brokerDoc = !!(d && d.compute && d.compute.kind === 'runtime' && d.meta && d.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY)
+    // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — AN ADMISSION NEVER TAKES AWAY WHAT A MEMBER SEES (owner rule,
+    // coordinator ruling 2026-11-18): a broker document that would withhold a plot or paint the host document shows
+    // (`takesAway`: a forward `offset`, a presentation the run does not carry) does NOT replace it; the member keeps the
+    // host document, and its note says why the backtest is not run. ⚰️ hull-moving-average-crossover-strategy: its
+    // `plot(..., offset = 3)` line, drawn by the host lane today, was withheld by the broker document.
+    const takesAway = brokerDoc ? (viaBroker.takesAway || []) : []
+    if (brokerDoc && !takesAway.length) return viaBroker
     const declined = viaBroker && !viaBroker.ok ? viaBroker.runtimeDeclined : null
-    strategyNote = strategyBacktestNote(declined
-      ? `the per-bar lane that runs the backtest declined it: ${declined.why || declined.code}`
-      : strategyRunDeclinedWhy(viaBroker))
+    strategyNote = strategyBacktestNote(takesAway.length
+      ? `running the backtest here would leave ${takesAway.join(', ')} undrawn, so the chart draws the script without it`
+      : declined
+        ? `the per-bar lane that runs the backtest declined it: ${declined.why || declined.code}`
+        : strategyRunDeclinedWhy(viaBroker))
   } else if (t && t.declaration !== 'strategy' && declaresStrategy(source)) {
     strategyNote = strategyBacktestNote('its `strategy()` line is not one this engine reads, so the script is drawn as an indicator')
   }
@@ -447,12 +456,14 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // mistranslation wearing a label". Selection is `chooseOutput`'s and it already
   // declines a hidden row; this only decides what the document CONTAINS.
   // Carriage is not offer, and the acceptance pins that both ways.
-  const carryable = (t.outputs || [])
-    .filter((o) => o && o.ast && o.formula && !o.refusal && o.kind !== 'alertcondition')
-  const visible = carryable.filter((o) => !o.hidden).slice(0, CARRY_MAX)
+  // ⭐⭐ Engine 75 (#1788, fix/fill-anchor-display) — and DRAWING is not offer either: a
+  // fill anchor ruling 1.2 never offers is DRAWN unless its own `display` hides it
+  // (`paneHides`), as TradingView draws it.
+  const carryable = (t.outputs || []).filter(hostCarriesRow)
+  const visible = carryable.filter((o) => !paneHides(o)).slice(0, CARRY_MAX)
   const visibleSet = new Set(visible)
   const drawable = carryable
-    .filter((o) => !o.hidden ? visibleSet.has(o) : true)
+    .filter((o) => !paneHides(o) ? visibleSet.has(o) : true)
     .slice(0, DOC_CARRY_MAX)
   // ⛔ THE REFUSAL STILL KEYS OFF WHAT CAN BE *SEEN*. A script whose only rows are
   // hidden anchors draws nothing a member could look at, and saying "nothing a
@@ -641,7 +652,9 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
       // hidden row, so the field could only ever be false and said nothing. Now
       // it is the anchor's whole meaning: the renderer draws no series for it and
       // a fill may still reference it.
-      hidden: !!o.hidden,
+      // ⭐⭐ Engine 75 (#1788, fix/fill-anchor-display) — the AUTHOR's statement only
+      // (`paneHides`): an untitled fill anchor with no `display.none` is drawn.
+      hidden: paneHides(o),
       // ⚰️ `opacity` WAS DROPPED HERE, AND IT IS NOT DECORATION — measured on the
       // real chart, 2026-09-12 (T5 pixels). Volume v2's fourth plot is
       // `Scale Padding`: `color = #FFFFFF, opacity = 0, width = 1`, a series whose
@@ -1493,7 +1506,8 @@ function hostPartialRunHalf({ source, id, t, objectsGate, drawable, definition, 
   if (!pairing.ok) return declined(pairing.code, pairing.why)
   const outputs = {}
   for (const [i, o] of drawable.entries()) {
-    if (o.hidden) continue
+    // every row the host document DRAWS (a fill anchor too: `paneHides`)
+    if (paneHides(o)) continue
     const index = (t.outputs || []).indexOf(o)
     const run = pairing.runOutputOf.get(index)
     if (!Number.isInteger(run)) {
@@ -2130,14 +2144,18 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // host's screening judgement, not the author's, and TradingView draws the line. ⚰️ vw-array-na lost
     // `plot(array.min(a))` and four siblings here ("hidden helper or beyond its row ceiling") while the
     // run computed them (TradingView: 1, 3, 6, 2, na).
-    if ((o.hidden && o.hiddenReason !== 'constant') || o._authorHidden === true) continue
+    // ⭐⭐ Engine 75 (#1788, fix/fill-anchor-display) — nor a row the host hid as a `fill-anchor`
+    // (`paneHides`): ruling 1.2 never OFFERS it, and TradingView DRAWS it unless its own `display`
+    // hides it. ⚰️ supertrend-strategy's `mPlot` (Q-SD1 / Q-SD2: `display: 15`, `visible: true`) was
+    // "the member pane did not carry this output" here, its value and its colour never drawn.
+    if ((paneHides(o) && o.hiddenReason !== 'constant') || o._authorHidden === true) continue
     const label = o.title || `${o.kind} ${ord + 1}`
     // ⭐ WS-E — a leftward `offset` is carried (`runtimeRowShift`), the rest withheld.
     const shift = runtimeRowShift(o, shiftCtx)
-    if (!shift.ok) { withheld.push({ label, why: shift.why }); continue }
+    if (!shift.ok) { withheld.push({ label, why: shift.why, o }); continue }
     const out = runOutputOf.get(index)
     const pres = runtimeRowPresentation(o, t && t.version, probe.outputs[out])
-    if (!pres.ok) { withheld.push({ label, why: pres.why }); continue }
+    if (!pres.ok) { withheld.push({ label, why: pres.why, o }); continue }
     for (const k of shift.keys) shiftPinned.add(k)
     carried.push({ o, index, p: pres.p, out, colourOutput: pres.colourOutput, displace: shift.displace })
   }
@@ -2158,7 +2176,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
         || (run.ro.candle && run.ro.candle.display === 'display.none')) return
       const label = (run.ro.candle && run.ro.candle.title) || `${kind} ${ord + 1}`
       const pres = runtimeCandlePresentation(kind, t && t.version, run.ro, !!(t.presentation && t.presentation.overlay === true))
-      if (!pres.ok) { withheld.push({ label, why: pres.why }); return }
+      if (!pres.ok) { withheld.push({ label, why: pres.why, o: group[3] && group[3].o }); return }
       candleEntries.push({
         candle: kind,
         label,
@@ -2599,6 +2617,12 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // it does not take runtime documents.
     saveable: true,
     withheld: withheld.map((w) => w.label),
+    // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — what this document withholds that the HOST document shows
+    // (`hostShowsRow`, `hostShowsPaint`): the armed route never replaces the host document with one that draws less
+    takesAway: [
+      ...withheld.filter((w) => hostShowsRow(w.o)).map((w) => shownRowName(w.o)),
+      ...paintWithheld.filter(({ p }) => hostShowsPaint(p)).map(({ p }) => shownPaintName(p)),
+    ],
     // ⭐ SERVE OR REFUSE BY NAME (2026-11-17) — the broker build's refusal, for the armed route's host note
     ...(probe.brokerDeclined ? { brokerDeclined: probe.brokerDeclined } : {}),
   }
@@ -2802,6 +2826,55 @@ function guardInputSpecs(t, stamp, existing) {
  *  ⭐ A document saved in the old shape still renders TradingView's default and
  *  honours a pick: `pool.resolvePlotForInstance`. The alpha byte is TradingView's
  *  (`designTokens.withAlphaByte`). An opaque colour keeps its six digits. */
+/**
+ * ⭐⭐ Engine 75 (#1788, fix/fill-anchor-display) — DOES THE PANE HIDE THIS ROW THE HOST TRANSLATED?
+ *
+ * The host translation's `hidden` merges three statements (`pine.js` `hiddenReason`): the AUTHOR's
+ * `display = display.none` ('author'); an untitled plot of a bare price source that a `fill` names
+ * ('fill-anchor'); a column that reads no bar ('constant'). Only the first is about DRAWING. 'fill-anchor'
+ * is ruling 1.2's SCREENING judgement (a column offered under the script's title that is the author's ohlc4
+ * fill edge is a mistranslation wearing a label: never OFFERED, never SELECTED, `chooseOutput`), and it was
+ * never a statement about what TradingView draws.
+ *
+ * TradingView DRAWS such an anchor unless its own `display` hides it, read off its own records:
+ * supertrend-strategy's `mPlot = plot(ohlc4, title="", style=plot.style_circles, linewidth=0)` reads back
+ * `display: 15` (pane, data window, price scale, status line) and `visible: true` (Q-SD1, Q-SD2, and
+ * `supertrend-strategy-{rddt,spy}-1d-2026-10-02`), while pmax-explorer's identical line with
+ * `display=display.none` reads back `display: 0, visible: false`, and that one is 'author' here, hidden as
+ * before. So a fill anchor's visibility follows ONLY its own `display` argument.
+ * ('constant' keeps its lane's rule: the runtime lane draws it (B7), the host lane hides it as before.)
+ */
+function paneHides(o) {
+  return !!(o && o.hidden) && o.hiddenReason !== 'fill-anchor'
+}
+
+/** A host translation row the host document CARRIES (a translated formula, not refused, not an alert condition). */
+function hostCarriesRow(o) {
+  return !!(o && o.ast && o.formula && !o.refusal && o.kind !== 'alertcondition')
+}
+
+/** ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — a host row or paint the HOST document shows a member: carried
+ *  and not hidden (`paneHides`), the host lane's own rule. The armed route reads it to decide whether a broker document
+ *  would take anything away. */
+function hostShowsRow(o) {
+  return hostCarriesRow(o) && !paneHides(o)
+}
+function hostShowsPaint(p) {
+  return !!p && !p.withheld && !p.hidden && !p.na
+}
+/** What the member's legend calls a row (coordinator wording, 2026-11-18): "the 'Hull' line" by its TITLE, and "a line
+ *  this chart draws" only when it has none. Never an engine label (`plot 1`). */
+const SHOWN_ROW_NOUN = Object.freeze({ plot: 'line', plotshape: 'markers', plotchar: 'markers', plotarrow: 'arrows',
+  plotcandle: 'candles', plotbar: 'bars' })
+function shownRowName(o) {
+  const noun = SHOWN_ROW_NOUN[o && o.kind] || 'plot'
+  const title = o && typeof o.title === 'string' ? o.title.trim() : ''
+  return title ? `the '${title}' ${noun}` : `a ${noun} this chart draws`
+}
+function shownPaintName(p) {
+  return p && p.kind === 'barcolor' ? 'the bar colours this chart draws' : 'the background colour this chart draws'
+}
+
 function rowColour(p) {
   // ⛔ No colour of its own (a palette / condition / gradient row): its opacity is
   // the palette's shared alpha and stays where it was.

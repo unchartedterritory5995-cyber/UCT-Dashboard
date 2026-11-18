@@ -243,6 +243,14 @@ export default function ConverseBox({
     say({ role: 'uct', kind: extra.kind || 'readback', updated: true, lines: ['Updated preview.', ...disclosed, ...out.readback.lines] })
   }, [gateCtx, commit, say])
 
+  /** The envelope as this sheet applies it: the turn that CREATES the indicator keeps the
+   *  assistant's name when the derived one is unreadable. */
+  const offeredEnvelope = useCallback((turn, words) => (
+    turn.outcome === OUTCOMES.CHANGE && !stateRef.current.working
+      ? nameFromAssistant(stateRef.current, turn.envelope, words, gateCtx, keepAssistantName, keepAssistantLabel)
+      : turn.envelope
+  ), [gateCtx])
+
   const send = useCallback(async (text) => {
     const words = String(text || '').trim()
     if (!words || busy) return
@@ -260,12 +268,31 @@ export default function ConverseBox({
     }
     setBusy(true)
     try {
-      const res = await converse({ message: words, state: before, gateCtx, snippets })
+      let res = await converse({ message: words, state: before, gateCtx, snippets })
+      let turn = classifyTurn(res)
+      // ⭐ 2026-11-18 — ONE REPAIR, WITH THIS ENGINE'S OWN WORDS, HERE TOO. The dock has sent its
+      // engine's refusal back to the door for one repair since 2026-11-17 (`authoringSession.
+      // modelTurn`). This sheet did not: it applied the door's patch itself, so a change the door
+      // accepted and this engine refused went straight to "Nothing was changed". Measured live
+      // (the overnight re-checks): a squeeze with dots on zero was built by the assistant and
+      // refused here ("dots is a yes/no ..."), with no second try. Same rule as the dock: once per
+      // request; the patch is tried against the state WITHOUT writing it (`applyTurn` is pure);
+      // whatever the repair turn says is what the member reads, except the door's own refusal of
+      // it (an allowance, the network), which says nothing about the request.
+      if (turn.outcome === OUTCOMES.CHANGE && turn.envelope) {
+        const dry = applyTurn(stateRef.current, offeredEnvelope(turn, words), { gateCtx })
+        const errors = dry.result && dry.result.status === 'refused' ? (dry.result.errors || []) : []
+        if (errors.length) {
+          const again = await converse({ message: words, state: before, gateCtx, snippets,
+            browserRefusal: { envelope: turn.envelope, errors: errors.map((e) => memberError(e).detail) } })
+          const second = classifyTurn(again)
+          if (second.outcome !== OUTCOMES.REFUSED) { res = again; turn = second }
+        }
+      }
       const gaps = [
         ...distinctNotUnderstood(res).map((n) => `Not understood: "${n.clause || n.text || ''}" — ${n.reason || ''}`),
         ...((res && res.unavailable) || []).map((n) => `Not available: ${n.column || n.name || ''} — ${n.reason || ''}`),
       ]
-      const turn = classifyTurn(res)
       if (turn.outcome === OUTCOMES.ANSWER) {
         say({ role: 'uct', kind: 'answer', reply: turn.reply, lines: [turn.reply, ...gaps] })
         return
@@ -283,15 +310,11 @@ export default function ConverseBox({
       // assistant's name when the derived one is unreadable (`readableName.js`, the dock's rule): a
       // member read "EMA 10 · EMA 21 +2" on the chart for "EMA 10/21 Trend". The host shows it in its
       // name field, where the member can change it before saving.
-      const creating = turn.outcome === OUTCOMES.CHANGE && !stateRef.current.working
-      const envelope = creating
-        ? nameFromAssistant(stateRef.current, turn.envelope, words, gateCtx, keepAssistantName, keepAssistantLabel)
-        : turn.envelope
-      applyEnvelope(envelope, turn.outcome === OUTCOMES.CHANGE ? { updated: true } : { reply: turn.reply })
+      applyEnvelope(offeredEnvelope(turn, words), turn.outcome === OUTCOMES.CHANGE ? { updated: true } : { reply: turn.reply })
     } finally {
       setBusy(false)
     }
-  }, [busy, transcript, converse, gateCtx, sym, tf, say, applyEnvelope])
+  }, [busy, transcript, converse, gateCtx, sym, tf, say, applyEnvelope, offeredEnvelope])
 
   const applyValidPart = useCallback(() => {
     if (!partial) return
@@ -513,6 +536,17 @@ export default function ConverseBox({
           <div style={S.head}>What will run (from the definition itself)</div>
           <ul style={S.list}>{rb.lines.map((l, i) => <li key={i}>{l}</li>)}</ul>
         </div>
+      )}
+
+      {/* ⭐ 2026-11-18: a checked library indicator says what it is in one phrase (`readback.js`).
+          Its formula in words is one tap away, here; the formula itself is in the Formula tab. */}
+      {state.working && rb.outputs.some((o) => o.formulaWords) && (
+        <details data-testid="converse-formula-words" style={{ fontSize: 12, color: '#a9a59b' }}>
+          <summary style={{ cursor: 'pointer' }}>The full formula, in words</summary>
+          <ul style={S.list}>
+            {rb.outputs.filter((o) => o.formulaWords).map((o) => <li key={o.key}>{o.name}: {o.formulaWords}</li>)}
+          </ul>
+        </details>
       )}
 
       {/* ⭐ every length, level and multiple of what was built, as a field (the preview below follows) */}

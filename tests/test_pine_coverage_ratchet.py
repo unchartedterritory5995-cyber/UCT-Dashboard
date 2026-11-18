@@ -160,6 +160,26 @@ def test_a_runtime_lane_attach_transfers_on_the_runtime_on_lane_only(small):
     assert R.transfers(RT, row, src) == CM.runtime_on_transfers(row, False)
 
 
+def test_a_host_document_whose_run_half_draws_what_it_lost_transfers_on_runtime_on_only(small, monkeypatch):
+    """PARITY UNIT 1 (`objects`, 2026-11-18): `cleanByRunHalf` (the census bound the host document's run half
+    served: the host's plots, the run's drawings, the calls the host lost included) is a runtime-on transfer;
+    the kill list and the host known-divergence list stop it, and the production lane never reads it."""
+    import hashlib
+    src = small.scripts()[K("a")]["src"]
+    row = _row(K("a"), RT, clean=False)
+    row["steps"][0].update({"lossVerdict": "partial", "runHalfBound": {"state": "served", "code": None}})
+    assert R.transfers(RT, row, src) is False, "CONTROL: dirty, no `cleanByRunHalf`"
+    assert "run half served" in R.wall_of(RT, row, src)
+    row["cleanByRunHalf"] = True
+    assert R.transfers(RT, row, src) is True
+    assert R.transfers(PROD, row, src) is False
+    assert R.transfers(RT, row, src) == CM.runtime_on_transfers(row, False)
+    assert CM.runtime_on_transfers(row, False, False, True) is False, "host-listed: refused by name"
+    monkeypatch.setattr(R, "_KILLED", {hashlib.sha256(src.encode("utf-8")).hexdigest()})
+    assert R.transfers(RT, row, src) is False
+    assert "runtime kill list" in R.wall_of(RT, row, src)
+
+
 def test_a_KILL_LISTED_runtime_attach_is_not_a_transfer_and_the_wall_says_why(small, monkeypatch):
     """2026-11-17: the census runs the door WITHOUT the runtime kill list, so it counted
     momentum-based-zigzag (killed, refused by name at every door) as transferring on runtime-on."""

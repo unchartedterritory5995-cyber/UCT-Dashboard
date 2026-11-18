@@ -70,18 +70,17 @@ SRC = os.path.join(REPO_ROOT, "app", "src")
 # derived route table; the gate is read off `route.dependant`.
 PAID_NOW: set[tuple[str, str]] = {
     # ── Compass brain / knowledge base (api/routers/intelligence.py) ─────────
+    # (that router's three desk-ledger reads are ADMIN, not paid; their rail is
+    # tests/test_intelligence_desk_ledger_admin.py)
     ("GET", "/api/analogs"),
-    ("GET", "/api/coaching-notes"),
     ("GET", "/api/confidence-scores/{symbol}"),
     ("GET", "/api/leader-persistence/{symbol}"),
     ("GET", "/api/model-examples"),
     ("GET", "/api/pre-trade-checklist"),
-    ("GET", "/api/psychology-events"),
     ("GET", "/api/risk-summary"),
     ("GET", "/api/setup-performance/{setup_type}"),
     ("GET", "/api/setup-templates"),
     ("GET", "/api/setup-templates/{name}"),
-    ("GET", "/api/skill-assessments"),
     # ── Model Book reads (api/routers/modelbook.py) ──────────────────────────
     ("GET", "/api/modelbook/all-stocks"),
     ("GET", "/api/modelbook/index-drawings"),

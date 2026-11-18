@@ -33,7 +33,7 @@
   "servedOnHistoryOnly": 11,
   "notServed": 404,
   "notServedFullyEnumerated": 201,
-  "neverServe": 9,
+  "neverServe": 12,
   "dataDecision": 5,
   "missingFacts": []
  },
@@ -7342,7 +7342,7 @@
    ],
    "sole": 45,
    "soleFullyEnumerated": 45,
-   "soleServable": 44,
+   "soleServable": 41,
    "any": 75,
    "soleScripts": [
     "builtin:multi-time-period-charts__Multi-TimePe",
@@ -7395,8 +7395,7 @@
     "counts": {
      "committedMatch": 5,
      "committedOther": 7,
-     "ledgerOnly": 29,
-     "none": 3
+     "ledgerOnly": 29
     },
     "queue": [
      {
@@ -7424,10 +7423,6 @@
       "status": "committedOther"
      },
      {
-      "script": "committed:supertrend-explorer__V4MsmtCeKs",
-      "status": "none"
-     },
-     {
       "script": "committed:trend-lines-supports-and-resistances__413ee2ee3b",
       "status": "committedOther"
      },
@@ -7446,10 +7441,6 @@
      {
       "script": "reference:cryptosignalscanner-rsi-overboughtoversold-divergence-indicator-new__918919b267",
       "status": "ledgerOnly"
-     },
-     {
-      "script": "reference:custom-screener-with-alerts__dd1bf69eb8",
-      "status": "none"
      },
      {
       "script": "reference:dot-dynamics__Zd1PZqZcep",
@@ -7522,10 +7513,6 @@
      {
       "script": "reference:rsi-support-resistance-by-dgt__ZkkLVEb1ak",
       "status": "ledgerOnly"
-     },
-     {
-      "script": "reference:screener-for-40-instruments__a009097811",
-      "status": "none"
      },
      {
       "script": "reference:smart-money-concepts-probability-expo__285cd9fa6f",
@@ -8437,12 +8424,12 @@
    "unit": "objects",
    "neededBy": null,
    "size": 4,
-   "unlocks": 44,
-   "touches": 71,
-   "unlocksPerSize": 11.0,
-   "unlocksFullyEnumerated": 44,
-   "cumulativeServed": 319,
-   "cumulativePct": 47.0
+   "unlocks": 41,
+   "touches": 68,
+   "unlocksPerSize": 10.25,
+   "unlocksFullyEnumerated": 41,
+   "cumulativeServed": 316,
+   "cumulativePct": 46.5
   },
   {
    "unit": "known-lists",
@@ -8452,8 +8439,8 @@
    "touches": 10,
    "unlocksPerSize": 5.0,
    "unlocksFullyEnumerated": 10,
-   "cumulativeServed": 329,
-   "cumulativePct": 48.5
+   "cumulativeServed": 326,
+   "cumulativePct": 48.0
   },
   {
    "unit": "admit:obj:linefill",
@@ -8463,8 +8450,8 @@
    "touches": 18,
    "unlocksPerSize": 4.0,
    "unlocksFullyEnumerated": 4,
-   "cumulativeServed": 333,
-   "cumulativePct": 49.0
+   "cumulativeServed": 330,
+   "cumulativePct": 48.6
   },
   {
    "unit": "output-contract",
@@ -8474,8 +8461,8 @@
    "touches": 30,
    "unlocksPerSize": 3.0,
    "unlocksFullyEnumerated": 2,
-   "cumulativeServed": 339,
-   "cumulativePct": 49.9
+   "cumulativeServed": 336,
+   "cumulativePct": 49.5
   },
   {
    "unit": "dynamic-history",
@@ -8485,8 +8472,8 @@
    "touches": 32,
    "unlocksPerSize": 4.0,
    "unlocksFullyEnumerated": 2,
-   "cumulativeServed": 347,
-   "cumulativePct": 51.1
+   "cumulativeServed": 344,
+   "cumulativePct": 50.7
   },
   {
    "unit": "builtins",
@@ -8496,8 +8483,8 @@
    "touches": 137,
    "unlocksPerSize": 3.5,
    "unlocksFullyEnumerated": 10,
-   "cumulativeServed": 361,
-   "cumulativePct": 53.2
+   "cumulativeServed": 358,
+   "cumulativePct": 52.7
   },
   {
    "unit": "admit:request-other",
@@ -8507,8 +8494,8 @@
    "touches": 119,
    "unlocksPerSize": 8.0,
    "unlocksFullyEnumerated": 4,
-   "cumulativeServed": 369,
-   "cumulativePct": 54.3
+   "cumulativeServed": 366,
+   "cumulativePct": 53.9
   },
   {
    "unit": "request",
@@ -8518,8 +8505,8 @@
    "touches": 39,
    "unlocksPerSize": 11.0,
    "unlocksFullyEnumerated": 11,
-   "cumulativeServed": 391,
-   "cumulativePct": 57.6
+   "cumulativeServed": 388,
+   "cumulativePct": 57.1
   },
   {
    "unit": "request-with-state",
@@ -8529,8 +8516,8 @@
    "touches": 35,
    "unlocksPerSize": 8.0,
    "unlocksFullyEnumerated": 11,
-   "cumulativeServed": 407,
-   "cumulativePct": 59.9
+   "cumulativeServed": 404,
+   "cumulativePct": 59.5
   },
   {
    "unit": "statements",
@@ -8540,8 +8527,8 @@
    "touches": 57,
    "unlocksPerSize": 7.5,
    "unlocksFullyEnumerated": 7,
-   "cumulativeServed": 422,
-   "cumulativePct": 62.2
+   "cumulativeServed": 419,
+   "cumulativePct": 61.7
   },
   {
    "unit": "colour",
@@ -8551,8 +8538,8 @@
    "touches": 20,
    "unlocksPerSize": 9.0,
    "unlocksFullyEnumerated": 4,
-   "cumulativeServed": 431,
-   "cumulativePct": 63.5
+   "cumulativeServed": 428,
+   "cumulativePct": 63.0
   },
   {
    "unit": "conditional-history",
@@ -8562,8 +8549,8 @@
    "touches": 30,
    "unlocksPerSize": 8.0,
    "unlocksFullyEnumerated": 6,
-   "cumulativeServed": 447,
-   "cumulativePct": 65.8
+   "cumulativeServed": 444,
+   "cumulativePct": 65.4
   },
   {
    "unit": "function-global-state",
@@ -8573,8 +8560,8 @@
    "touches": 13,
    "unlocksPerSize": 4.0,
    "unlocksFullyEnumerated": 4,
-   "cumulativeServed": 455,
-   "cumulativePct": 67.0
+   "cumulativeServed": 452,
+   "cumulativePct": 66.6
   },
   {
    "unit": "functions",
@@ -8584,8 +8571,8 @@
    "touches": 16,
    "unlocksPerSize": 1.5,
    "unlocksFullyEnumerated": 0,
-   "cumulativeServed": 458,
-   "cumulativePct": 67.5
+   "cumulativeServed": 455,
+   "cumulativePct": 67.0
   },
   {
    "unit": "types",
@@ -8595,8 +8582,8 @@
    "touches": 8,
    "unlocksPerSize": 0.5,
    "unlocksFullyEnumerated": 0,
-   "cumulativeServed": 459,
-   "cumulativePct": 67.6
+   "cumulativeServed": 456,
+   "cumulativePct": 67.2
   },
   {
    "unit": "libraries",
@@ -8606,8 +8593,8 @@
    "touches": 56,
    "unlocksPerSize": 8.25,
    "unlocksFullyEnumerated": 9,
-   "cumulativeServed": 492,
-   "cumulativePct": 72.5
+   "cumulativeServed": 489,
+   "cumulativePct": 72.0
   },
   {
    "unit": "admit:method-def",
@@ -8617,8 +8604,8 @@
    "touches": 25,
    "unlocksPerSize": 8.0,
    "unlocksFullyEnumerated": 3,
-   "cumulativeServed": 500,
-   "cumulativePct": 73.6
+   "cumulativeServed": 497,
+   "cumulativePct": 73.2
   },
   {
    "unit": "loops",
@@ -8628,8 +8615,8 @@
    "touches": 10,
    "unlocksPerSize": 6.0,
    "unlocksFullyEnumerated": 5,
-   "cumulativeServed": 506,
-   "cumulativePct": 74.5
+   "cumulativeServed": 503,
+   "cumulativePct": 74.1
   },
   {
    "unit": "robustness",
@@ -8639,8 +8626,8 @@
    "touches": 7,
    "unlocksPerSize": 6.0,
    "unlocksFullyEnumerated": 0,
-   "cumulativeServed": 512,
-   "cumulativePct": 75.4
+   "cumulativeServed": 509,
+   "cumulativePct": 75.0
   },
   {
    "unit": "admit:collections:matrix",
@@ -8650,8 +8637,8 @@
    "touches": 10,
    "unlocksPerSize": 5.0,
    "unlocksFullyEnumerated": 2,
-   "cumulativeServed": 517,
-   "cumulativePct": 76.1
+   "cumulativeServed": 514,
+   "cumulativePct": 75.7
   },
   {
    "unit": "imperative-host",
@@ -8661,8 +8648,8 @@
    "touches": 6,
    "unlocksPerSize": 5.0,
    "unlocksFullyEnumerated": 3,
-   "cumulativeServed": 522,
-   "cumulativePct": 76.9
+   "cumulativeServed": 519,
+   "cumulativePct": 76.4
   },
   {
    "unit": "state-calls",
@@ -8672,8 +8659,8 @@
    "touches": 14,
    "unlocksPerSize": 4.5,
    "unlocksFullyEnumerated": 2,
-   "cumulativeServed": 531,
-   "cumulativePct": 78.2
+   "cumulativeServed": 528,
+   "cumulativePct": 77.8
   },
   {
    "unit": "lower-tf",
@@ -8683,8 +8670,8 @@
    "touches": 12,
    "unlocksPerSize": 5.0,
    "unlocksFullyEnumerated": 4,
-   "cumulativeServed": 541,
-   "cumulativePct": 79.7
+   "cumulativeServed": 538,
+   "cumulativePct": 79.2
   },
   {
    "unit": "detector",
@@ -8694,8 +8681,8 @@
    "touches": 7,
    "unlocksPerSize": 5.0,
    "unlocksFullyEnumerated": 1,
-   "cumulativeServed": 546,
-   "cumulativePct": 80.4
+   "cumulativeServed": 543,
+   "cumulativePct": 80.0
   },
   {
    "unit": "call-mapping",
@@ -8705,8 +8692,8 @@
    "touches": 7,
    "unlocksPerSize": 6.0,
    "unlocksFullyEnumerated": 2,
-   "cumulativeServed": 552,
-   "cumulativePct": 81.3
+   "cumulativeServed": 549,
+   "cumulativePct": 80.9
   },
   {
    "unit": "block-value",
@@ -8716,8 +8703,8 @@
    "touches": 12,
    "unlocksPerSize": 4.5,
    "unlocksFullyEnumerated": 2,
-   "cumulativeServed": 561,
-   "cumulativePct": 82.6
+   "cumulativeServed": 558,
+   "cumulativePct": 82.2
   },
   {
    "unit": "admit:calc-bars",
@@ -8727,8 +8714,8 @@
    "touches": 9,
    "unlocksPerSize": 4.0,
    "unlocksFullyEnumerated": 1,
-   "cumulativeServed": 565,
-   "cumulativePct": 83.2
+   "cumulativeServed": 562,
+   "cumulativePct": 82.8
   },
   {
    "unit": "admit:obj:polyline",
@@ -8738,8 +8725,8 @@
    "touches": 9,
    "unlocksPerSize": 5.0,
    "unlocksFullyEnumerated": 0,
-   "cumulativeServed": 570,
-   "cumulativePct": 83.9
+   "cumulativeServed": 567,
+   "cumulativePct": 83.5
   },
   {
    "unit": "admit:collections:map",
@@ -8749,8 +8736,8 @@
    "touches": 8,
    "unlocksPerSize": 4.0,
    "unlocksFullyEnumerated": 0,
-   "cumulativeServed": 574,
-   "cumulativePct": 84.5
+   "cumulativeServed": 571,
+   "cumulativePct": 84.1
   },
   {
    "unit": "collections",
@@ -8760,8 +8747,8 @@
    "touches": 8,
    "unlocksPerSize": 4.0,
    "unlocksFullyEnumerated": 3,
-   "cumulativeServed": 582,
-   "cumulativePct": 85.7
+   "cumulativeServed": 579,
+   "cumulativePct": 85.3
   },
   {
    "unit": "admit:enum",
@@ -8771,8 +8758,8 @@
    "touches": 4,
    "unlocksPerSize": 4.0,
    "unlocksFullyEnumerated": 0,
-   "cumulativeServed": 586,
-   "cumulativePct": 86.3
+   "cumulativeServed": 583,
+   "cumulativePct": 85.9
   },
   {
    "unit": "admit:varip",
@@ -8782,8 +8769,8 @@
    "touches": 6,
    "unlocksPerSize": 3.0,
    "unlocksFullyEnumerated": 3,
-   "cumulativeServed": 589,
-   "cumulativePct": 86.7
+   "cumulativeServed": 586,
+   "cumulativePct": 86.3
   },
   {
    "unit": "compute-budget",
@@ -8793,8 +8780,8 @@
    "touches": 4,
    "unlocksPerSize": 2.0,
    "unlocksFullyEnumerated": 2,
-   "cumulativeServed": 593,
-   "cumulativePct": 87.3
+   "cumulativeServed": 590,
+   "cumulativePct": 86.9
   },
   {
    "unit": "realtime",
@@ -8804,8 +8791,8 @@
    "touches": 3,
    "unlocksPerSize": 1.5,
    "unlocksFullyEnumerated": 0,
-   "cumulativeServed": 596,
-   "cumulativePct": 87.8
+   "cumulativeServed": 593,
+   "cumulativePct": 87.3
   }
  ],
  "neverServe": [
@@ -8836,12 +8823,20 @@
    "refusal": "host `pine:request` with `other-symbol:venue-foreign` or `other-symbol:bare`; runtime `runtime:request-with-state` / `runtime:request`",
    "scripts": [
     "builtin:24-hour-volume__24hVolume",
+    "committed:supertrend-explorer__V4MsmtCeKs",
     "committed:volume-spikes-growing-volume-signals-with-alerts-scanner__8e706f448f",
     "reference:cobra039s-crypto-market-visualizer__c3636f55f4",
+    "reference:custom-screener-with-alerts__dd1bf69eb8",
     "reference:divergence-stack-scanner-agpro-series__5bfe6b3a16",
-    "reference:halftrend-longshort-signal-engine-bigbeluga__07070e14d6"
+    "reference:halftrend-longshort-signal-engine-bigbeluga__07070e14d6",
+    "reference:screener-for-40-instruments__a009097811"
    ],
-   "count": 5
+   "count": 8,
+   "ruledByName": {
+    "committed:supertrend-explorer__V4MsmtCeKs": "nine BINANCE: crypto pairs (BINANCE:EOSBTC ...) as symbol input defaults; TradingView refuses it at its defaults (\"Invalid symbol\"), run objunit-2026-11-18",
+    "reference:custom-screener-with-alerts__dd1bf69eb8": "40 crypto pairs (XRPUSDT, BTCUSDT ...) as symbol input defaults; TradingView refuses it at its defaults (\"Invalid symbol\"), run objunit-2026-11-18",
+    "reference:screener-for-40-instruments__a009097811": "40 crypto pairs (XRPUSDT, BTCUSDT ...) as symbol input defaults; TradingView refuses it at its defaults (\"Invalid symbol\"), run objunit-2026-11-18"
+   }
   },
   {
    "class": "broker",
@@ -8870,6 +8865,14 @@
    "title": "A DAILY read on an intraday chart (previous day's high / low / close, daily pivots): a request.security to a higher timeframe",
    "census": "host `tf` reads weekly and monthly only (`pine:request`: \"another timeframe as `tf` (weekly and monthly ...)\"); the session-reader spelling exceeds `budget:lookback` (1361 vs 960). On the 1D census a \"D\" request is the chart's own timeframe, so it never shows",
    "witness": "measured 2026-11-18 by the Create Indicator capability census (local REPORT.md): 2 of 177 ideas (previous day H/L/C, daily pivots) blocked by exactly this"
+  },
+  {
+   "wall": "strategy-bar-confirm",
+   "unit": "strategy",
+   "kind": "evidence",
+   "title": "U-CONFIRM: when TradingView confirms a closed daily bar for a strategy. A default strategy (calc_on_every_tick false) runs a bar once TradingView confirms it, and a capture taken after the session close can still hold a newest bar its strategy has not run",
+   "census": "the census runs every script on closed bars it treats as confirmed; the grade cuts only an ABSENT newest value row of a strategy capture (an `na` row, or a row missing anywhere else, is compared)",
+   "witness": "r1-strategy-draws-rddt-1d-2026-10-02: 636 bars and 635 value rows, bar 635's session closed at 20:00Z and the capture was taken at 22:57Z (newestBarIsForming false); its indicator twin (no broker) holds all 636. The 2026-11-16 report captures (22:09-23:18Z) hold the same shape. Pinned by one strategy captured just before and just after TradingView confirms the bar"
   }
  ],
  "authoringClasses": [

@@ -25,7 +25,7 @@ import { useId, useMemo, useState } from 'react'
 import Input from '../../../components/ui/Input'
 import FieldError from '../../../components/ui/FieldError'
 import {
-  PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
+  PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { canRetry, failureKind, failureText, useMarketRead } from './marketRead'
@@ -313,7 +313,8 @@ export default function CallSearchPanel({ q: qProp = null }) {
       ) : (
         <PanelState kind="input" role="status" testId="terminal-tsrc-idle" title="Type a word or a phrase to search every indexed earnings call.">
           You get the companies whose calls said it, a short quote from each, and whether the theme is rising or fading
-          across calls. Or type it after the code, e.g. <kbd>{code} tariff</kbd>
+          across calls. Or type it after the code, e.g. <kbd>{code} tariff</kbd>. Not sure what to search for? See{' '}
+          <PanelCommand cmd="CEOS" label="Open what CEOs are saying">what is rising across calls (CEOS)</PanelCommand>.
         </PanelState>
       )}
     </div>

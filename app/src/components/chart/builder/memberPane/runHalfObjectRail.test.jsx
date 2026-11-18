@@ -22,7 +22,9 @@ import { OBJECT_SITE_SOURCES } from '../../engine/ast/pine'
 import { runHalfOf, runtimeObjectsOf, RUNTIME_OBJECTS_KEY } from '../../engine/runtime/runtimeObjects'
 import { runtimeColumnsFor, probeRuntimeProgram } from '../../engine/runtime/runtimeColumns'
 import { __permitRuntimePaneForTests } from '../../engine/runtimePaneGate'
-import { __allowEveryRuntimeScriptForTests, setRuntimeKillList, runtimeSourceHash } from '../../engine/runtimeKill'
+import {
+  __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList, setRuntimeKillList, runtimeSourceHash,
+} from '../../engine/runtimeKill'
 import { resetObjectRenderDrops } from '../../engine/objectRenderNotice'
 import AttachedPineDisclosures from '../../pane/AttachedPineDisclosures'
 import {
@@ -33,7 +35,7 @@ import {
 } from '../../engine/runHalfRailSeam'
 import {
   runHalfObjectVerdict, RUN_HALF_OBJECT_RAIL, RUN_HALF_HOST_OBJECT_WITHHELD, RUN_HALF_NO_COMPARABLE_OBJECTS,
-  RUN_HALF_UNCOMPARED_SITE,
+  RUN_HALF_UNCOMPARED_SITE, RUN_HALF_ADMITTED_LOST,
 } from '../../engine/runHalfObjectRail'
 import {
   setRunHalfBeaconReporter, resetRunHalfTelemetry, runHalfRefusalCounts, runHalfBeaconOf, RUN_HALF_CODE_RE,
@@ -166,42 +168,79 @@ describe('⭐⭐ both lanes name a drawing by the same source call', () => {
   })
 })
 
-describe('⛔⛔ EVERY OBJECT THE RUN DRAWS COMES FROM A COMPARED SITE (engine 54 review)', () => {
-  it('auto-trendlines shape, pure: labels compared and equal, plus lines from a lost call: refused', () => {
-    const lab = (id, site, x) => ({ family: 'label', id, site, createdBar: x, props: { x, y: 100 + x, text: 'p' } })
-    const program = { ops: [{ k: 'create', family: 'label', site: 's3' }, { k: 'create', family: 'label', site: 's4' }] }
-    const sites = { s3: '104:5', s4: '114:5' }
-    const host = [lab(1, 's3', 10), lab(2, 's4', 20), lab(3, 's3', 30), lab(4, 's4', 40)]
-    const runLabels = [lab(5, '104:5', 10), lab(6, '114:5', 20), lab(7, '104:5', 30), lab(8, '114:5', 40)]
-    const lines = [{ family: 'line', id: 9, site: '68:19', createdBar: 41, props: { x1: 1, y1: 1, x2: 2, y2: 2 } }]
-    const base = { program, sites, hostRun: { status: 'ok', live: host }, bars: BARS, tf: 'D', sourceSha256: 'ab'.repeat(32) }
+describe('⭐⭐ PARITY UNIT 1 — A DRAWING THE HOST PROGRAM LOST IS THE RUN\'S TO DRAW; every one it draws is held', () => {
+  const lab = (id, site, x) => ({ family: 'label', id, site, createdBar: x, props: { x, y: 100 + x, text: 'p' } })
+  const program = { ops: [{ k: 'create', family: 'label', site: 's3' }, { k: 'create', family: 'label', site: 's4' }] }
+  const sites = { s3: '104:5', s4: '114:5' }
+  const host = [lab(1, 's3', 10), lab(2, 's4', 20), lab(3, 's3', 30), lab(4, 's4', 40)]
+  const runLabels = [lab(5, '104:5', 10), lab(6, '114:5', 20), lab(7, '104:5', 30), lab(8, '114:5', 40)]
+  const lines = [{ family: 'line', id: 9, site: '68:19', createdBar: 41, props: { x1: 1, y1: 1, x2: 2, y2: 2 } }]
+  const base = { program, sites, hostRun: { status: 'ok', live: host }, bars: BARS, tf: 'D', sourceSha256: 'ab'.repeat(32) }
+
+  it('auto-trendlines shape, pure: labels compared and equal, plus lines from a call the host LOST: the run draws them', () => {
     expect(runHalfObjectVerdict({ ...base, payload: { status: 'ok', live: runLabels } }), 'CONTROL: only compared sites')
       .toEqual({ ok: true, compared: 4 })
-    const v = runHalfObjectVerdict({ ...base, payload: { status: 'ok', live: [...runLabels, ...lines] } })
-    expect(v.ok).toBe(false)
-    expect(v.code).toBe(RUN_HALF_UNCOMPARED_SITE)
-    // a run object with no site at all is uncompared too
-    const bare = runHalfObjectVerdict({ ...base, payload: { status: 'ok', live: [...runLabels, { ...lines[0], site: null }] } })
-    expect(bare.code).toBe(RUN_HALF_UNCOMPARED_SITE)
-    // ⭐ the Part 2 hook, and only it, admits such a run
+    expect(runHalfObjectVerdict({ ...base, payload: { status: 'ok', live: [...runLabels, ...lines] } }))
+      .toEqual({ ok: true, compared: 4, admittedBy: RUN_HALF_ADMITTED_LOST })
+    // ⭐ recorded evidence still names itself first
     setRunHalfObjectEvidence([{ sha256: 'ab'.repeat(32), captures: [MATCH('a'), MATCH('b')] }])
-    expect(runHalfObjectVerdict({ ...base, payload: { status: 'ok', live: [...runLabels, ...lines] } }).ok).toBe(true)
+    expect(runHalfObjectVerdict({ ...base, payload: { status: 'ok', live: [...runLabels, ...lines] } }).admittedBy).toBe('evidence')
+  })
+
+  it('⛔ a compared site still holds: a lost call never excuses a host drawing the run withholds or makes differently', () => {
+    const v = runHalfObjectVerdict({ ...base, payload: { status: 'ok', live: [...runLabels.slice(1), ...lines] } })
+    expect(v.code).toBe(RUN_HALF_HOST_OBJECT_WITHHELD)
+    const moved = runLabels.map((o, i) => (i === 0 ? { ...o, props: { ...o.props, y: o.props.y + 1 } } : o))
+    expect(runHalfObjectVerdict({ ...base, payload: { status: 'ok', live: [...moved, ...lines] } }).code).toBe(RUN_HALF_OBJECT_RAIL)
+    const extra = [...runLabels, lab(10, '104:5', 50), ...lines]
+    expect(runHalfObjectVerdict({ ...base, payload: { status: 'ok', live: extra } }).code, 'more at a compared site').toBe(RUN_HALF_OBJECT_RAIL)
+  })
+
+  it('⛔ a run drawing that names NO call is never admitted as lost (only recorded evidence)', () => {
+    const bare = [...runLabels, { ...lines[0], site: null }]
+    expect(runHalfObjectVerdict({ ...base, payload: { status: 'ok', live: bare } }).code).toBe(RUN_HALF_UNCOMPARED_SITE)
+    // nothing compared on these bars, one unnamed run drawing: refused by the same code
+    expect(runHalfObjectVerdict({ ...base, hostRun: { status: 'ok', live: [] }, payload: { status: 'ok', live: [{ ...lines[0], site: null }] } }).code)
+      .toBe(RUN_HALF_UNCOMPARED_SITE)
+    setRunHalfObjectEvidence([{ sha256: 'ab'.repeat(32), captures: [MATCH('a'), MATCH('b')] }])
+    expect(runHalfObjectVerdict({ ...base, payload: { status: 'ok', live: bare } }).admittedBy).toBe('evidence')
+  })
+
+  it('⛔ a host document with NO object program (a lost removal, every drawing lost): only recorded evidence admits', () => {
+    const none = { ...base, program: null, hostRun: null }
+    expect(runHalfObjectVerdict({ ...none, payload: { status: 'ok', live: [...runLabels, ...lines] } }).code).toBe(RUN_HALF_NO_COMPARABLE_OBJECTS)
+    expect(runHalfObjectVerdict({ ...none, program: { ops: [] }, payload: { status: 'ok', live: lines } }).code, 'an empty program')
+      .toBe(RUN_HALF_NO_COMPARABLE_OBJECTS)
     setRunHalfObjectEvidence([{ sha256: 'ab'.repeat(32), captures: [MATCH('a')] }])
-    expect(runHalfObjectVerdict({ ...base, payload: { status: 'ok', live: [...runLabels, ...lines] } }).code).toBe(RUN_HALF_UNCOMPARED_SITE)
+    expect(runHalfObjectVerdict({ ...none, payload: { status: 'ok', live: lines } }).code, 'one capture is not evidence')
+      .toBe(RUN_HALF_NO_COMPARABLE_OBJECTS)
+    setRunHalfObjectEvidence([{ sha256: 'ab'.repeat(32), captures: [MATCH('a'), MATCH('b')] }])
+    expect(runHalfObjectVerdict({ ...none, payload: { status: 'ok', live: lines } })).toEqual({ ok: true, compared: 0, admittedBy: 'evidence' })
   })
 
-  it('at the bind: the line compared and equal, the loop labels from a lost call: refused; evidence admits', () => {
+  it('at the bind: the line compared and equal, the loop labels from a lost call: served, the run drawing them', () => {
     const def = install(door().definition)
-    expect(runHalfOf(bind(def))).toEqual({ state: 'refused', code: RUN_HALF_UNCOMPARED_SITE })
-    expect(runtimeObjectsOf(bind(def))).toBe(null)
+    const cols = bind(def)
+    expect(runHalfOf(cols)).toEqual({ state: 'served', code: null })
+    expect(runtimeObjectsOf(cols).live.filter((o) => o.family === 'label')).toHaveLength(5)
     const dOnly = install(door(DRAW_ONLY).definition)
-    expect(runHalfOf(bind(dOnly))).toEqual({ state: 'refused', code: RUN_HALF_UNCOMPARED_SITE })
-    admit(SRC)
-    expect(runHalfOf(bind(def)).state).toBe('served')
-    expect(runHalfOf(bind(dOnly)).code, 'evidence is per script').toBe(RUN_HALF_UNCOMPARED_SITE)
+    expect(runHalfOf(bind(dOnly)).state, 'a drawing-only script, its line compared').toBe('served')
   })
 
-  it('the member reads it in words', () => {
+  it('⛔ at the bind, its gates still decide first: not graded, killed, pane off refuse before the rail', () => {
+    const def = install(door().definition)
+    expect(runHalfOf(bind(def)).state, 'CONTROL').toBe('served')
+    setRuntimeKillList([runtimeSourceHash(SRC)])
+    expect(runHalfOf(bind(def))).toEqual({ state: 'refused', code: 'pane:killed' })
+    setRuntimeKillList([])
+    __resetRuntimeAllowList()
+    try {
+      expect(runHalfOf(bind(def))).toEqual({ state: 'refused', code: 'pane:not-graded' })
+    } finally { __allowEveryRuntimeScriptForTests() }
+    expect(runHalfOf(bind(def)).state).toBe('served')
+  })
+
+  it('the member reads the remaining refusals in words', () => {
     const s = runHalfRefusedSentence(RUN_HALF_UNCOMPARED_SITE)
     expect(s).not.toBe(runHalfRefusedSentence('x:y'))
     expect(s).not.toMatch(GUARD_TOKEN)
@@ -209,9 +248,9 @@ describe('⛔⛔ EVERY OBJECT THE RUN DRAWS COMES FROM A COMPARED SITE (engine 5
 })
 
 describe('⛔⛔ the object rail at the bind', () => {
-  // these fixtures' loop labels come from a lost call: admitted by evidence, so each test below
-  // isolates a COMPARED site, which refuses whatever the evidence
-  beforeEach(() => admit(SRC, DRAW_ONLY))
+  // ⭐⭐ PARITY UNIT 1 — these fixtures' loop labels come from a call the host lost, which the run now
+  // draws on its own gates: NO evidence is set, so each test below isolates a COMPARED site, which
+  // refuses whatever admitted the lost ones
   it('CONTROL: the honest run half is served (the line compared, the labels drawn by the run)', () => {
     const cols = bind(install(door().definition))
     expect(runHalfOf(cols)).toEqual({ state: 'served', code: null })
@@ -309,7 +348,11 @@ describe('⛔ nothing comparable: refused, unless recorded evidence admits the s
     const payload = { status: 'ok', live: [{ ...live[0], site: '8:5' }] }
     const base = { program, sites, payload, bars: BARS, tf: 'D' }
     expect(runHalfObjectVerdict({ ...base, hostRun: { status: 'ok', live } }).ok, 'CONTROL').toBe(true)
-    expect(runHalfObjectVerdict({ ...base, hostRun: { status: 'ok', live: [], withheld: { line: 1 } } }).code)
+    // ⭐⭐ PARITY UNIT 1 — a family the host withholds WHOLE on these bars is the run's to draw when
+    // the host document draws an object program (this one does); with none, nothing comparable
+    expect(runHalfObjectVerdict({ ...base, hostRun: { status: 'ok', live: [], withheld: { line: 1 } } }))
+      .toEqual({ ok: true, compared: 0, admittedBy: RUN_HALF_ADMITTED_LOST })
+    expect(runHalfObjectVerdict({ ...base, program: null, hostRun: { status: 'ok', live: [], withheld: { line: 1 } } }).code)
       .toBe(RUN_HALF_NO_COMPARABLE_OBJECTS)
     expect(runHalfObjectVerdict({ ...base, hostRun: { status: 'ok', live, withheld: { line: 1 } } }).code)
       .toBe(RUN_HALF_OBJECT_RAIL)
@@ -317,8 +360,10 @@ describe('⛔ nothing comparable: refused, unless recorded evidence admits the s
       .toBe(RUN_HALF_OBJECT_RAIL)
     expect(runHalfObjectVerdict({ ...base, sites: {}, hostRun: { status: 'ok', live } }).code, 'an unmapped host site')
       .toBe(RUN_HALF_OBJECT_RAIL)
-    expect(runHalfObjectVerdict({ ...base, hostRun: { status: 'ok', live: [] }, payload: { status: 'ok', live: [] } }).code,
-      'compared sites holding nothing on either side').toBe(RUN_HALF_NO_COMPARABLE_OBJECTS)
+    expect(runHalfObjectVerdict({ ...base, hostRun: { status: 'ok', live: [] }, payload: { status: 'ok', live: [] } }),
+      'compared sites holding nothing on either side: nothing taken away').toEqual({ ok: true, compared: 0, admittedBy: RUN_HALF_ADMITTED_LOST })
+    expect(runHalfObjectVerdict({ ...base, program: null, hostRun: { status: 'ok', live: [] }, payload: { status: 'ok', live: [] } }).code,
+      'and with no program of its own').toBe(RUN_HALF_NO_COMPARABLE_OBJECTS)
   })
 
   it('a fill is compared by which compared lines it spans', () => {

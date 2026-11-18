@@ -114,6 +114,13 @@ const COOLDOWN_MAX_KEYS = 400
  *  the server like any key the cache does not hold. */
 const NOTHING_HYDRATED = null
 const nothingHydrated = () => NOTHING_HYDRATED
+/** TERM-033: what a neighbor hold's deep window resolves to when the store's `scrollBack` THREW
+ *  (`createNeighborHold` → `deepen`). "This window did not arrive", never "nothing older": it ends
+ *  that ROW's deepening for now (the chart's own loader asks again when the member lands on it),
+ *  and the hold goes on to the next row. Shaped like a refused window (`ok: false`) so the one
+ *  stop rule there reads it; `failed` says which kind of stop it was. */
+const DEEP_WINDOW_FAILED = Object.freeze({ ok: false, failed: true, added: 0 })
+const deepWindowFailed = () => DEEP_WINDOW_FAILED
 
 /** Re-ask cooldown of a key the server already answered (see header). */
 export function cooldownMs(tf) {
@@ -181,9 +188,17 @@ const LAKE_PAINTS = Symbol('lake copy painted')
 /** How long after Enter a lake copy may be committed ALONE (the server has not answered): a normal
  *  answer (~70-300 ms) lands first and the chart paints it with the lake's depth already joined. */
 export const LAKE_ALONE_MS = 450
+/** A lake copy whose newest bars are NOT current for the view (during the session the lake never
+ *  holds today's bars) waits for the server's answer, so the chart paints once with the newest bars
+ *  in place; past this it is committed anyway (the answer then adds the newest bars). Measured
+ *  2026-11-18 on production: never-opened tickers' first answers 485-926 ms. */
+export const LAKE_BEHIND_MAX_MS = 1200
 /** After an answer (or a saved copy) that paints, how long the handoff waits for the lake's whole
- *  depth to join it, so the first paint is the whole chart and nothing loads in view afterwards. */
-export const LAKE_JOIN_WAIT_MS = 350
+ *  depth to join it, so the first paint is the whole chart and nothing loads in view afterwards.
+ *  550, not 350 (2026-11-18): on production, never-opened 5m tickers' lake loads landed 441-458 ms
+ *  after the key (4/4), so a held copy painted alone at ~370 ms and the depth redrew the averages
+ *  ~80 ms later. A lake already in the browser joins in tens of ms; only a cold load waits. */
+export const LAKE_JOIN_WAIT_MS = 550
 /** How long a typed text the daily pack does not know may wait for the lake's answer to "is it a
  *  ticker?" (its index: one edge round trip) before the warm gives up on it. */
 export const INTENT_LAKE_INDEX_WAIT_MS = 400
@@ -458,7 +473,7 @@ export function createPrefetch(o = {}) {
       if (s0 === undefined) {
         const req = ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: S().peek(key) || {}, session: session(showExtended) })
         const localFirst = hyd.then((h) => (_localPaints(h, fetchTf(String(tf)), showExtended) ? LOCAL_PAINTS : new Promise(() => {})))
-        const won = await Promise.race([req, localFirst, _lakeAlone(lake, t0)])
+        const won = await Promise.race([req, localFirst, _lakeAlone(lake, t0, key, fetchTf(String(tf)), showExtended)])
         if (won === LOCAL_PAINTS) { await _joined(lake); return 'current' }
         if (won === LAKE_PAINTS) return 'lake'
         return _whole(_outcome(won, { aborted: !!signal?.aborted, date }), lake)
@@ -477,7 +492,7 @@ export function createPrefetch(o = {}) {
       // for the same URL joins it.
       const req = ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: s0, session: session(showExtended) })
       // (a D/W/M key never paints from the lake: network.lakeSeed carries intraday keys only)
-      const s = await Promise.race([req, _lakeAlone(lake, t0)])
+      const s = await Promise.race([req, _lakeAlone(lake, t0, key, fetchTf(String(tf)), showExtended)])
       if (s === LAKE_PAINTS) return 'lake'
       return _whole(_outcome(s, { aborted: !!signal?.aborted, date }), lake)
     } catch {
@@ -506,8 +521,10 @@ export function createPrefetch(o = {}) {
   // one load, LAKE_PREFETCH_TARGET_BARS), and the handoff commits ONCE:
   //   * the server answers: commit when the lake's depth has joined it, waiting at most
   //     LAKE_JOIN_WAIT_MS for the join (its pieces are primed at intent);
-  //   * the server is slow: commit on the lake's history alone once LAKE_ALONE_MS has passed
-  //     (provisional; the answer adds the newest bars when it lands);
+  //   * the server is slow: commit on the lake's history alone once LAKE_ALONE_MS has passed, if it
+  //     is current for the view (overnight, a lake that reaches the close); a copy without the newest
+  //     bars waits for the answer, up to LAKE_BEHIND_MAX_MS (2026-11-18: the answer added a whole
+  //     session in view);
   //   * a saved copy that paints: the same bounded join before it commits.
   // A key the lake does not carry resolves the load false at once and nothing waits.
   function _lakeLoad(key, after = null) {
@@ -532,11 +549,21 @@ export function createPrefetch(o = {}) {
     return !!key && !!S().lakePending?.(key)
   }
 
-  /** LAKE_PAINTS once the lake has painted before any answer AND the server has had LAKE_ALONE_MS. */
-  function _lakeAlone(lake, t0) {
+  /** LAKE_PAINTS once the lake has painted before any answer AND the server has had LAKE_ALONE_MS,
+   *  if the copy is current for the view (`_localPaints`); a copy that is behind waits for the answer
+   *  until LAKE_BEHIND_MAX_MS. ⛔ During the session the lake never holds today's bars: committed at
+   *  LAKE_ALONE_MS, the chart drew yesterday's close as its edge and the answer then added the whole
+   *  session in view (the step the owner sees). */
+  function _lakeAlone(lake, t0, key, tf, showExtended) {
     const never = new Promise(() => {})
     return lake.then((r) => (r === 'seed'
-      ? new Promise((resolve) => setTimer(() => resolve(LAKE_PAINTS), Math.max(0, t0 + LAKE_ALONE_MS - now())))
+      ? new Promise((resolve) => {
+        const at = (ms, fn) => setTimer(fn, Math.max(0, t0 + ms - now()))
+        at(LAKE_ALONE_MS, () => {
+          if (_localPaints(S().peek(key), tf, showExtended)) resolve(LAKE_PAINTS)
+          else at(LAKE_BEHIND_MAX_MS, () => resolve(LAKE_PAINTS))
+        })
+      })
       : never), () => never)
   }
 
@@ -676,7 +703,7 @@ export function createPrefetch(o = {}) {
             const joined = await Promise.resolve().then(() => S().lakeSeed?.(k)).catch(() => false)
             if (joined) break
           }
-          const res = await Promise.resolve().then(() => S().scrollBack(k, { priority: 'grid' })).catch(() => null)
+          const res = await Promise.resolve().then(() => S().scrollBack(k, { priority: 'grid' })).catch(deepWindowFailed)
           // Nothing older, refused at the seam, still filling or failed: this row is done for now
           // (the chart's own loader retries a filling window when the member lands on it).
           if (!res?.ok || !(res.added > 0) || res.filling) break

@@ -20,6 +20,12 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 vi.mock('../../../utils/jsonFetcher', () => ({ default: vi.fn() }))
+// The list alert switch has its own test (ListAlertSwitch.test.jsx). Here it is a marker, so this
+// file's reads stay the panel's own, and one test at the end pins that the panel mounts it.
+vi.mock('./ListAlertSwitch', async () => {
+  const { createElement } = await import('react')
+  return { default: ({ kind }) => createElement('span', { 'data-testid': 'list-alert-stub', 'data-kind': kind, hidden: true }) }
+})
 import jsonFetcher from '../../../utils/jsonFetcher'
 import { PanelFreshnessContext, PanelListContext, TerminalPanelContext } from '../../../components/terminal'
 import RepeatContractsPanel, { MAX_ROWS, contractText, dayReadUrl, repeatContractsUrl } from './RepeatContractsPanel'
@@ -384,4 +390,15 @@ describe('ACCUM accessibility', () => {
     await screen.findByTestId('terminal-accum-empty')
     await expectNoAxeViolations(document.body.firstElementChild)
   }, 20_000)
+})
+
+describe('ACCUM list alert', () => {
+  it('mounts the "alert me" switch for the repeat-hit contracts list, outside the toolbar', async () => {
+    serve({ [READ_URL]: DAY, [LIST_URL]: CONTRACTS })
+    renderPanel()
+    await screen.findByTestId('terminal-accum-table')
+    const stub = screen.getByTestId('list-alert-stub')
+    expect(stub.getAttribute('data-kind')).toBe('repeat_contracts')
+    expect(stub.closest('[role="toolbar"]')).toBeNull()
+  })
 })

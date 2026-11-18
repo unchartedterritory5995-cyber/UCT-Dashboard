@@ -119,6 +119,10 @@ import { carryPriorParamIds, savedParamManifest, carryNotice, inputPlaces } from
 import ParamControls from './ParamControls'
 import SettingsFields from './studio/SettingsFields'
 import { settingsOfTrees } from './authoring/derivedSettings'
+import { libraryParts, namedByTitle } from './authoring/checkedLibrary'
+import { nameOfTree } from './authoring/derivedName'
+import { noLongerChecked } from './authoring/readback'
+import { collapseExpansions } from '../engine/ast/callExpansions'
 import { formulasWithSetting } from './authoring/settingsOnFormulas'
 import { applyParamEdit } from './paramEdit'
 // ⭐ W1a HAND-BACK — THE DRAFT, DRAWN WHILE IT IS BEING TYPED. The preview is
@@ -2699,6 +2703,45 @@ export default function BuilderSheet({
     .map((r, i) => ({ key: r.key || (i === 0 ? 'value' : `plot${i}`), tree: (i === 0 ? result : r.result)?.ast || null }))
     .filter((o) => o.tree)), [allRows, result, paramManifest])
   const formSettings = useMemo(() => settingsOfTrees(formTrees), [formTrees])
+  // ⭐ 2026-11-18 (ruling) — A TITLE THAT NAMES A CHECKED LIBRARY INDICATOR IS A CLAIM ABOUT THE
+  // FORMULA, HERE TOO. The patch engine already drops such a title when a change leaves a formula
+  // that is no longer the library's (`derivedName.libraryTitleOf`). A hand edit in this tab went
+  // round it: the name field kept "Kaufman Adaptive Moving Average" over a formula that no longer
+  // was one. So while the title and the formulas AGREE the claim is armed; when the formulas stop
+  // holding that indicator the title gives way to the name of what the formula now is, and the
+  // sheet says so. Putting the formula back puts the title back. A title the member then types
+  // themselves is theirs and is left alone.
+  const libraryClaim = useMemo(() => namedByTitle(name), [name])
+  const formHolds = useCallback((entry) => formTrees.some((o) => {
+    try { return libraryParts(collapseExpansions(o.tree)).some((p) => p.entry.id === entry.id) } catch { return false }
+  }), [formTrees])
+  const claimArmedRef = useRef(null)          // the library indicator the title and the formulas last agreed on
+  const [lostClaim, setLostClaim] = useState(null)   // {name, derived}: the title that gave way, and to what
+  useEffect(() => {
+    if (!formTrees.length) return             // nothing parsed yet (mid-edit): decide nothing
+    if (lostClaim) {
+      // the formula is that indicator again: the line goes, and the title returns unless the
+      // member has typed their own in the meantime
+      const entry = namedByTitle(lostClaim.name)
+      if (entry && formHolds(entry)) {
+        if (name === lostClaim.derived) setName(lostClaim.name)
+        setLostClaim(null)
+        return
+      }
+    }
+    if (libraryClaim && formHolds(libraryClaim)) {
+      claimArmedRef.current = libraryClaim
+      return
+    }
+    if (libraryClaim && claimArmedRef.current && claimArmedRef.current.id === libraryClaim.id) {
+      // the formulas were that indicator and no longer are, under a title that still says so
+      let derived = ''
+      try { derived = String(nameOfTree(formTrees[0].tree) || '').slice(0, 48) } catch { derived = '' }
+      claimArmedRef.current = null
+      setLostClaim({ id: libraryClaim.id, name: libraryClaim.name, derived })
+      if (derived) setName(derived)
+    }
+  }, [formTrees, libraryClaim, formHolds, lostClaim, name])
   const setFormSetting = useCallback((setting, value) => {
     const out = formulasWithSetting(formTrees, setting, value)
     if (!out.ok) return out
@@ -2832,6 +2875,12 @@ export default function BuilderSheet({
               <h2 className={styles.title}>{sheetTitle}</h2>
               <button type="button" className={styles.iconBtn} aria-label="Close" onClick={requestClose}>✕</button>
             </div>
+          )}
+
+          {isEditor && lostClaim && (
+            <p role="status" data-testid="library-title-dropped" style={{ margin: '4px 16px 0', fontSize: 12, color: '#a9a59b' }}>
+              {noLongerChecked(lostClaim.name)}
+            </p>
           )}
 
           {/* ── THE TABS — gold underline on the current one only (UCT Signature §2b) ── */}

@@ -1359,6 +1359,21 @@ export function columnsReadyFor(sym, tf, now = Date.now()) {
 /** Resolves true once `columnsReadyFor(sym, tf)`, or with that answer after `ms`. What is missing is
  *  asked for at once, as the chart's own (one batch, deduped against what is already on its way).
  *  Never rejects. */
+/**
+ * The columns request for a switch, sent at Enter beside the bars request; never waits, never throws.
+ * The handoff's commit-time wait (`whenColumnsReady`) then covers only what is left of it.
+ * ⚰️ The request left only from that wait, after the bars prepare had reported: on production
+ * (2026-11-18, 60m, URI) the prepare took ~235 ms, the wait's 300 ms ran out at 535 ms and the RS
+ * pane lines appeared 167 ms after the candles. `fetchColumnsBatch` skips a key cached or in flight
+ * (and sends nothing when no chart at `tf` asks), so the later wait's own call sends nothing again.
+ */
+export function warmColumnsFor(sym, tf) {
+  try {
+    if (!sym || !tf) return
+    Promise.resolve(fetchColumnsBatch(sym, String(tf), liveAsks(tf))).catch(() => {})
+  } catch { /* a warm only */ }
+}
+
 export function whenColumnsReady(sym, tf, ms) {
   if (columnsReadyFor(sym, tf)) return Promise.resolve(true)
   try { Promise.resolve(fetchColumnsBatch(sym, String(tf), liveAsks(tf))).catch(() => {}) } catch { /* the wait still ends */ }

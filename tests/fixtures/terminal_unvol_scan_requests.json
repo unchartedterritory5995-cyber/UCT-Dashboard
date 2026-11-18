@@ -1,0 +1,116 @@
+{
+  "_about": "The exact bodies the Terminal's UNVOL panel POSTs to /api/screener/scan (app/src/pages/terminal/panels/unusualVolumeModel.js unvolScanBody). Pinned from both sides: unusualVolumeModel.test.js holds the panel to these bodies, and tests/test_terminal_unusual_volume_scan.py runs each one through the real scan builder. Change the panel's scan and this file together.",
+  "requests": [
+    {
+      "name": "now_base",
+      "mode": "now",
+      "picks": {"side": "all", "min": 2},
+      "body": {
+        "filters": [
+          {"key": "rvol_live", "op": "gte", "min": 2},
+          {"key": "price", "op": "gte", "min": 5},
+          {"key": "dollar_vol_30d", "op": "gte", "min": 10000000},
+          {"key": "security_type", "op": "not_in", "values": ["ETF"]}
+        ],
+        "sort": {"key": "rvol_live", "dir": "desc"},
+        "view": "technical",
+        "columns": ["company", "price", "chg_pct_1d", "rvol_live", "vol_ratio", "avg_volume_30d", "industry", "bars_asof"],
+        "page": 1,
+        "page_size": 100
+      }
+    },
+    {
+      "name": "now_up_3",
+      "mode": "now",
+      "picks": {"side": "up", "min": 3},
+      "body": {
+        "filters": [
+          {"key": "rvol_live", "op": "gte", "min": 3},
+          {"key": "price", "op": "gte", "min": 5},
+          {"key": "dollar_vol_30d", "op": "gte", "min": 10000000},
+          {"key": "security_type", "op": "not_in", "values": ["ETF"]},
+          {"key": "chg_pct_1d", "op": "gt", "min": 0}
+        ],
+        "sort": {"key": "rvol_live", "dir": "desc"},
+        "view": "technical",
+        "columns": ["company", "price", "chg_pct_1d", "rvol_live", "vol_ratio", "avg_volume_30d", "industry", "bars_asof"],
+        "page": 1,
+        "page_size": 100
+      }
+    },
+    {
+      "name": "now_down_5",
+      "mode": "now",
+      "picks": {"side": "down", "min": 5},
+      "body": {
+        "filters": [
+          {"key": "rvol_live", "op": "gte", "min": 5},
+          {"key": "price", "op": "gte", "min": 5},
+          {"key": "dollar_vol_30d", "op": "gte", "min": 10000000},
+          {"key": "security_type", "op": "not_in", "values": ["ETF"]},
+          {"key": "chg_pct_1d", "op": "lt", "max": 0}
+        ],
+        "sort": {"key": "rvol_live", "dir": "desc"},
+        "view": "technical",
+        "columns": ["company", "price", "chg_pct_1d", "rvol_live", "vol_ratio", "avg_volume_30d", "industry", "bars_asof"],
+        "page": 1,
+        "page_size": 100
+      }
+    },
+    {
+      "name": "now_probe",
+      "mode": "now",
+      "picks": {"side": "down", "min": 5, "probe": true},
+      "body": {
+        "filters": [
+          {"key": "rvol_live", "op": "gte", "min": 2},
+          {"key": "price", "op": "gte", "min": 5},
+          {"key": "dollar_vol_30d", "op": "gte", "min": 10000000},
+          {"key": "security_type", "op": "not_in", "values": ["ETF"]}
+        ],
+        "sort": {"key": "rvol_live", "dir": "desc"},
+        "view": "technical",
+        "columns": ["company", "price", "chg_pct_1d", "rvol_live", "vol_ratio", "avg_volume_30d", "industry", "bars_asof"],
+        "page": 1,
+        "page_size": 1
+      }
+    },
+    {
+      "name": "last_base",
+      "mode": "last",
+      "picks": {"side": "all", "min": 2},
+      "body": {
+        "filters": [
+          {"key": "vol_ratio", "op": "gte", "min": 2},
+          {"key": "price", "op": "gte", "min": 5},
+          {"key": "dollar_vol_30d", "op": "gte", "min": 10000000},
+          {"key": "security_type", "op": "not_in", "values": ["ETF"]}
+        ],
+        "sort": {"key": "vol_ratio", "dir": "desc"},
+        "view": "technical",
+        "columns": ["company", "price", "chg_pct_1d", "rvol_live", "vol_ratio", "avg_volume_30d", "industry", "bars_asof"],
+        "page": 1,
+        "page_size": 100
+      }
+    },
+    {
+      "name": "last_down_3",
+      "mode": "last",
+      "picks": {"side": "down", "min": 3},
+      "body": {
+        "filters": [
+          {"key": "vol_ratio", "op": "gte", "min": 3},
+          {"key": "price", "op": "gte", "min": 5},
+          {"key": "dollar_vol_30d", "op": "gte", "min": 10000000},
+          {"key": "security_type", "op": "not_in", "values": ["ETF"]},
+          {"key": "chg_pct_1d", "op": "lt", "max": 0}
+        ],
+        "sort": {"key": "vol_ratio", "dir": "desc"},
+        "view": "technical",
+        "columns": ["company", "price", "chg_pct_1d", "rvol_live", "vol_ratio", "avg_volume_30d", "industry", "bars_asof"],
+        "page": 1,
+        "page_size": 100
+      }
+    }
+  ]
+}

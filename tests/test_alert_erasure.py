@@ -75,11 +75,13 @@ def _build_schemas(paths: dict[str, Path]) -> None:
             k = opener(str(paths["alert_taxonomy"]))
             k.close()
     from api.services.screener import rs_screen_alerts, screen_alerts, spec_alerts
-    from api.services import calendar_alerts, transcript_keyword_alerts as tka
+    from api.services import calendar_alerts, list_alerts, transcript_keyword_alerts as tka
     from api.services.catalyst import store as cstore
     # rs_screen_alerts (RS screens unit U13): its two tables carry a member id too.
+    # list_alerts (the Terminal list alerts) keeps its tables in screener.db as well: three
+    # carry a member id, two hold what was on each list for everyone.
     for name, ddl in (("screener", screen_alerts._SCHEMA + spec_alerts._SCHEMA
-                       + rs_screen_alerts._SCHEMA),
+                       + rs_screen_alerts._SCHEMA + list_alerts._SCHEMA),
                       ("calendar_alerts", calendar_alerts._SCHEMA),
                       ("transcript_alerts", tka._SCHEMA),
                       ("catalysts", cstore._SCHEMA)):
@@ -94,7 +96,7 @@ def stores(tmp_path, monkeypatch):
     """The five stores at tmp paths, pointed at through each module's OWN path attribute."""
     from api.services.alert_taxonomy import db as _db
     from api.services.screener import rs_screen_alerts, screen_alerts, spec_alerts
-    from api.services import calendar_alerts, transcript_keyword_alerts as tka
+    from api.services import calendar_alerts, list_alerts, transcript_keyword_alerts as tka
     from api.services.catalyst import store as cstore
     paths = {s.name: tmp_path / s.db for s in ae.STORES}
     monkeypatch.setattr(_db, "DB_PATH", str(paths["alert_taxonomy"]))
@@ -105,6 +107,7 @@ def stores(tmp_path, monkeypatch):
     screen_alerts._done.clear()
     spec_alerts._done.clear()
     rs_screen_alerts._done.clear()
+    list_alerts._done.clear()
     _build_schemas(paths)
     # Non-vacuity: the purge resolves exactly these files.
     assert {s.name: s.path() for s in ae.STORES} == {k: str(v) for k, v in paths.items()}
@@ -230,6 +233,9 @@ _STORE_NOT_MEMBER = {
     "regime_change_heartbeat", "regime_change_projection_watermark", "scan_membership_heartbeat",
     "catalysts", "catalyst_cost_log", "catalyst_gate_rejections", "catalyst_learned_rules",
     "catalyst_learn_state", "catalyst_deep_context_done", "catalyst_runs",
+    # list_alerts: what was on each Terminal list, and which sessions were checked. For
+    # everyone; no member id.
+    "list_alert_presence", "list_alert_sessions",
 }
 #: A column that ties a row to a member's row without naming the member.
 _HANGS_OFF = {"predicate_id", "fire_id", "sub_id", "webhook_id"}

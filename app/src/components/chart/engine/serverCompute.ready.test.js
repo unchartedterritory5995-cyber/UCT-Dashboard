@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   clearServerColumns, serverColumnsFor, primeServerColumns, columnsReadyFor, whenColumnsReady,
-  __setServerBatchFetcherForTests,
+  warmColumnsFor, __setServerBatchFetcherForTests,
 } from './serverCompute'
 
 const WIRE = { times: [1, 2], columns: { rsLine: [0.5, 0.6] } }
@@ -48,5 +48,27 @@ describe('columnsReadyFor / whenColumnsReady', () => {
     expect(batchCalls.some((u) => u.includes('SLOW'))).toBe(true)          // asked now, not at mount
     await vi.advanceTimersByTimeAsync(299)
     expect(got).toBe(false)
+  })
+})
+
+describe('warmColumnsFor: the switch asks at Enter', () => {
+  it('sends the missing columns request at once, and the commit-time wait does not send it again', async () => {
+    chartAsks()
+    warmColumnsFor('ENTER', '5')
+    await vi.advanceTimersByTimeAsync(10)
+    const sent = batchCalls.filter((u) => u.includes('ENTER')).length
+    expect(sent).toBe(1)
+    whenColumnsReady('ENTER', '5', 300)
+    await vi.advanceTimersByTimeAsync(10)
+    expect(batchCalls.filter((u) => u.includes('ENTER')).length).toBe(1)   // in flight: not again
+  })
+
+  it('asks nothing when the columns are already here, or nothing at the timeframe needs them', async () => {
+    warmColumnsFor('NEW', '60')                                             // no ask at 60m
+    chartAsks()
+    primeServerColumns('rsLine', 'HELD', '5', null, WIRE)
+    warmColumnsFor('HELD', '5')
+    await vi.advanceTimersByTimeAsync(10)
+    expect(batchCalls).toEqual([])
   })
 })
