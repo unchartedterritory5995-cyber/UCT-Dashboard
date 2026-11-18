@@ -1,0 +1,111 @@
+/* The chart's bar markers as labels (ChartMarkOverlay, StockChart `markerLook`): the Study kit's pill (the eyebrow chip
+   over the question: a tinted fill, a hairline edge, letter-spaced caps in the app's type) with a glowing pointer on the
+   bar. Every colour comes from the mark's own hue (--mk-*, set per mark). One ease-in when a mark lands; nothing loops. */
+
+.layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  font-family: var(--font-sans, 'Instrument Sans', system-ui, sans-serif);
+}
+
+.pill {
+  position: absolute;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--mk-glyph-gap);
+  height: var(--mk-h);
+  padding: 0 var(--mk-pad);
+  box-sizing: border-box;
+  border-radius: 999px;
+  white-space: nowrap;
+  border: 1px solid var(--mk-edge);
+  background:
+    linear-gradient(180deg, var(--mk-fill-top), var(--mk-fill-bottom)),
+    rgba(11, 12, 14, 0.94);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 0 1px rgba(0, 0, 0, 0.38),
+    0 8px 18px -8px rgba(0, 0, 0, 0.75),
+    0 0 16px -3px var(--mk-glow);
+  color: var(--mk-ink);
+}
+
+.word {
+  font-size: var(--mk-font);
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: var(--mk-track);
+  /* the last letter's tracking would sit as dead space inside the right edge */
+  margin-right: calc(var(--mk-track) * -1);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 10px var(--mk-soft), 0 1px 0 rgba(0, 0, 0, 0.55);
+}
+
+.glyph {
+  width: var(--mk-glyph);
+  height: var(--mk-glyph);
+  flex: none;
+  overflow: visible;
+  fill: var(--mk-tone);
+  filter: drop-shadow(0 0 3px var(--mk-glow));
+}
+.glyph path[fill='none'] { stroke: var(--mk-tone); }
+
+.caret {
+  position: absolute;
+  z-index: 2;
+  width: var(--mk-caret-w);
+  height: var(--mk-caret-h);
+  overflow: visible;
+  fill: var(--mk-tone);
+  filter: drop-shadow(0 0 4px var(--mk-glow)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
+}
+/* a top mark's pointer points DOWN into the bar's high */
+.caret[data-side='above'] { transform: scaleY(-1); }
+
+.stem {
+  position: absolute;
+  z-index: 1;
+  width: 1px;
+  background: linear-gradient(180deg, var(--mk-tone), var(--mk-edge));
+  opacity: 0.85;
+  transform-origin: 50% 0;
+}
+.stem[data-side='above'] {
+  background: linear-gradient(0deg, var(--mk-tone), var(--mk-edge));
+  transform-origin: 50% 100%;
+}
+
+/* a mark with no word: a lit dot, ringed in the chart's black so it reads on a wick */
+.dot {
+  position: absolute;
+  z-index: 3;
+  width: var(--mk-dot);
+  height: var(--mk-dot);
+  border-radius: 50%;
+  background: var(--mk-tone);
+  box-shadow: 0 0 0 2px rgba(11, 12, 14, 0.9), 0 0 9px var(--mk-glow);
+}
+
+/* the landing: once, the first time the mark is on the chart (data-on is set by the placement) */
+@keyframes markLand {
+  from { opacity: 0; transform: translateY(var(--mk-rise, 5px)) scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes markFade {
+  from { opacity: 0; }
+}
+@keyframes markGrow {
+  from { opacity: 0; transform: scaleY(0); }
+}
+.pill[data-on='1'], .dot[data-on='1'] { animation: markLand 0.42s cubic-bezier(0.2, 0.9, 0.2, 1) both; }
+.pill[data-side='above'], .dot[data-side='above'] { --mk-rise: -5px; }
+.caret[data-on='1'] { animation: markFade 0.3s ease-out 0.08s both; }
+.stem[data-on='1'] { animation: markGrow 0.34s cubic-bezier(0.2, 0.9, 0.2, 1) 0.04s both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pill[data-on='1'], .dot[data-on='1'], .caret[data-on='1'], .stem[data-on='1'] { animation: none; }
+}

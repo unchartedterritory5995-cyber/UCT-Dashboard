@@ -72,6 +72,15 @@ describe('the trade marks keep their words apart', () => {
     expect(out.map((m) => [m.text, m.shape])).toEqual([['BOUGHT', 'arrowUp'], ['3R', 'circle'], ['', 'square']])
   })
 
+  // 2026-11-17: the drill chart's label layer (StockChart `markerLook`) stacks crowded words clear of each other, so on
+  // the drill a crowded mark keeps its word (the phone check: a bare green dot where 5R was); the sides still spread
+  it('keepWords: a crowded mark keeps its word, the sides spread as before', () => {
+    const crowded = { ...plan, t1At: 1, t2At: null, stoppedSession: 2 }
+    const kept = tradeMarkers(crowded, bars, n, { near: 12, keepWords: true })
+    expect(kept.map((m) => [m.text, m.position, m.shape])).toEqual([['BOUGHT', 'belowBar', 'arrowUp'], ['3R', 'aboveBar', 'circle'], ['STOPPED', 'belowBar', 'square']])
+    expect(tradeMarkers(stoppedNextDay, bars, n, { near: 12, keepWords: true }).map((m) => [m.text, m.position])).toEqual([['BOUGHT', 'belowBar'], ['STOPPED', 'aboveBar']])
+  })
+
   it('the gap is about 56 px of word in the bars of the frame: a phone needs more bars than a desktop', () => {
     expect(markerGapBars(170, 258)).toBe(37)
     expect(markerGapBars(170, 640)).toBe(15)

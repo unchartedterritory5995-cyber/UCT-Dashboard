@@ -19,6 +19,8 @@ vi.mock('../../components/StockChart', () => ({
       data-markers={(props.markers || []).map((m) => m.text).join('|')}
       data-marker-days={(props.markers || []).map((m) => `${m.text}@${m.time}`).join('|')}
       data-marker-sides={(props.markers || []).map((m) => `${m.text}:${m.position}`).join('|')}
+      data-marker-signs={(props.markers || []).map((m) => `${m.text}:${m.glyph || '-'}`).join('|')}
+      data-marker-look={String(props.markerLook ?? '-')}
       data-annotations={(props.annotations || []).length}
       data-ann-chips={(props.annotations || []).map((a) => String(!!a.showPriceLabel)).join('|')}
       data-price-lines={(props.priceLines || []).map((p) => `${p.title || '-'}@${p.price}`).join('|')}
@@ -276,6 +278,48 @@ describe('DrillPlayer', () => {
     await screen.findByTestId('drill-replay-skip')
     expect(screen.getByTestId('stock-chart').getAttribute('data-markers')).toBe('DECISION DAY')
     expect(screen.queryByTestId('drill-key')).not.toBeInTheDocument()
+  })
+
+  // The owner on the real member screen (2026-11-17): "the arrow and the text/font could look much better and be a lot
+  // more of a cool production". The drill's marks are drawn as labels (StockChart markerLook): a pointer on the bar, a
+  // sign ahead of each word (a diamond on the decision day, an up sign on BOUGHT, a cross on STOPPED), a phone a size
+  // smaller. The words, sides and colours stay what they were.
+  it('draws the marks as labels: the look for the screen and each mark\'s sign', async () => {
+    const set = tenSet()
+    set.items[0] = item('recall', 'si_c7', { question: 'Where is the stop?', kind: 'mcq', choices: ['The buy point', 'The stop', 'The target', 'The low'] }, true)
+    set.items[1] = item('recall', 'si_c8', { question: 'What is a pivot?', kind: 'mcq', choices: ['The buy point', 'The stop', 'The target', 'The low'] }, true)
+    const base = makeFetcher(set)
+    const fetcher = vi.fn(async (url, opts = {}) => {
+      const r = await base(url, opts)
+      if (url === '/api/study/attempts' && opts.body?.item_id === 'si_c7') {
+        r.reveal = { ...r.reveal, trade: { entry: 119.5, stop: 110, t1: 148, t2: 167, direction: 'bullish', enters_intraday: true, trim_r: [3, 5] } }
+      }
+      return r
+    })
+    render(<DrillPlayer open onClose={() => {}} fetcher={fetcher} />)
+    expect((await screen.findByTestId('stock-chart')).getAttribute('data-marker-look')).toBe('wide')
+    await answerChoice('The buy point')
+    fireEvent.click(screen.getByTestId('drill-takeover-go'))
+    fireEvent.click(await screen.findByTestId('drill-replay-skip'))
+    await waitFor(() => expect(screen.getByTestId('stock-chart').getAttribute('data-marker-signs')).toBe('BOUGHT:up|STOPPED:cross'))
+    expect(screen.getByTestId('stock-chart').getAttribute('data-marker-sides')).toBe('BOUGHT:belowBar|STOPPED:aboveBar')
+    // the next chart, with no trade: the decision day with its diamond
+    fireEvent.click(screen.getByTestId('primary-action'))
+    await answerChoice('The buy point')
+    fireEvent.click(screen.getByTestId('drill-takeover-go'))
+    await screen.findByTestId('drill-replay-skip')
+    expect(screen.getByTestId('stock-chart').getAttribute('data-marker-signs')).toBe('DECISION DAY:diamond')
+  })
+
+  it('a phone gets the phone-size marks', async () => {
+    const real = window.matchMedia
+    window.matchMedia = (q) => ({ matches: q === '(max-width: 640px)', media: q, onchange: null, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {}, dispatchEvent() { return false } })
+    try {
+      render(<DrillPlayer open onClose={() => {}} fetcher={makeFetcher(tenSet())} />)
+      expect((await screen.findByTestId('stock-chart')).getAttribute('data-marker-look')).toBe('phone')
+    } finally {
+      window.matchMedia = real
+    }
   })
 
   it('calls an intraday course chart\'s decision point the decision BAR', async () => {
