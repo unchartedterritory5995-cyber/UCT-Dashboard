@@ -792,24 +792,45 @@ census cannot see it** (on a daily chart, "D" is the chart's own timeframe).
 Added 2026-11-18 (coordinator ruling, from capture A1 `support-and-resistance-multi-time-frame-spy-1d-2026-11-18`,
 run `adm-2026-11-18`, local). It is NOT a feed wall: TradingView's weekly and monthly values are folds of its own
 daily bars on every bar of that capture (480 of 480 distinct "Resistance Weekly" values, 57 / 57 weekly lows, 159 /
-159 monthly highs, 9 / 9 monthly lows equal a period's fold of the daily rows TradingView drew).
+159 monthly highs, 9 / 9 monthly lows equal a period's fold of the daily rows TradingView drew). The switch year was
+read 2026-11-18 from Q-HTF-CAL-1a / 1b (below).
 - **TradingView:** with look-ahead off, a completed week or month appears on the daily chart on that period's LAST
-  session, except a period that ends early, before TradingView knows the exchange's holidays: then it appears one bar
-  later, on the next period's first session. Measured over the 60 short weeks (last session not a Friday) on AMEX:SPY
-  1D from 1993: every one through 2001 whose value changes is shown on the NEXT bar (10: Good Friday 1995 / 1998,
-  3 July 1997 / 1998, 24 and 31 December 1998, 23 December 1999, 31 March 1994, 10 September 2001), and every one from
-  2004 on is shown on its LAST bar (14). One month: May 1999 (its last session Friday 28 May, Memorial Day the 31st).
-  2002-2003 holds no short week whose value changes, so the calendar's first year is between those.
+  session, except a period that ends early (its last session is not the period's last weekday) before TradingView's
+  exchange calendar begins: then it appears one bar later, on the next period's first session. **The calendar begins
+  in 2000, on AMEX and on NASDAQ alike.** Read off TradingView's own `close` at `"W"` and `"M"` with look-ahead off
+  (A02 / A05) on every short period:
+  - **through 1999, every short period is shown on the NEXT bar:** AMEX:SPY, 13 weeks (8 April 1993 to 23 December
+    1999) and 2 months (May 1993, May 1999); NASDAQ:QQQ (listed March 1999), the weeks of 1 April and 23 December 1999
+    and May 1999;
+  - **from 2000, every short period is shown on its LAST bar:** the same 46 weeks on both (20 April 2000 to 2 July
+    2026) and the same 7 months (March 2002 to March 2024), including the closure of Friday 11 June 2004, which the
+    calendar holds;
+  - **one exception, on both:** the week of 10 September 2001, whose other sessions (11-14 September) closed without
+    notice, is shown on the NEXT bar;
+  - no short period falls between 23 December 1999 and 20 April 2000, so the calendar's first day is in that window;
+    the reading is 1 January 2000.
+  - Controls: every full period is shown on its last bar (SPY 1,701 weeks and 396 months, QQQ 1,394 weeks and 323
+    months; 3 weeks whose close equals the week before cannot be read), and no short period reads anything else.
 - **Ours today:** `interpret.js::requestAlignment` / `tfMergeReads` show every completed period on its last session,
-  whatever the year, so the early short periods read one bar EARLY: Resistance Weekly differs on 7 bars, Support
-  Weekly on 2, Resistance Monthly on 1 (patrick-54's grade: 8,509 bars, daily S/R equal everywhere).
-- **Smallest honest change:** none to the data. A period-close rule keyed by the exchange calendar's first year
-  (a short period before it closes on the next bar), stated once in the host alignment the run's supply already
-  shares; the first year is owed to a capture (Q-HTF-CAL-1: a short week in 2002 and 2003, AMEX:SPY 1D).
+  whatever the year, so a short period before 2000, and the week of 10 September 2001, read one bar EARLY:
+  Resistance Weekly differs on 7 bars, Support Weekly on 2, Resistance Monthly on 1 (patrick-54's grade of A1 SPY:
+  8,509 bars, daily S/R equal everywhere).
+- **Smallest honest change:** none to the data. A period-close rule stated once in the host alignment the run's
+  supply already shares: a short period whose last session is before 1 January 2000, or the week of 10 September
+  2001, closes on the next bar. The other unscheduled closures since 2000 (2 January 2007, 29-30 October 2012,
+  5 December 2018, 9 January 2025) fall inside a week and a month, so they end no period and no capture can read them.
 - **Evidence:** A1 SPY (above) for the rule; A1 RDDT (NYSE:RDDT 1D, listed 2024) MATCH on both lanes reaches no
-  early short period. Until the rule lands, a weekly or monthly request capture of a symbol whose history starts
-  before 2004 is not request-other evidence unless none of its plotted values changes on such a period; the counted
-  request-other captures (fair-value-gap RDDT, PA ZigZag RDDT / SPY, all the chart's own period) read no period at all.
+  early short period. Q-HTF-CAL-1a `vw-request-htf-alignment-spy-1d-2026-11-18` (AMEX:SPY 1D, 8,509 bars from the
+  1993-01-29 listing) and Q-HTF-CAL-1b `vw-request-htf-alignment-qqq-1d-2026-11-18` (NASDAQ:QQQ 1D, 6,967 bars from
+  1999-03-10), patrick-54's run `htfcal-2026-11-18`, packet `39001cc9653b`, our probe (licence `probe`, promoted to
+  `tests/fixtures/vendor/harness/`), graded at 76: INCONCLUSIVE on both lanes as expected (the probe's `60` request is
+  below the chart's timeframe); the year-by-year read is of the vendor's own columns, not a grade, and
+  `tests/test_pine_htf_calendar_switch_year.py` re-derives it from the two committed captures (controls: one doctored
+  week, and a start year of 1999 or 2001, each read as a break). Until the rule
+  lands, a weekly or monthly request capture of a symbol whose history reaches a short period before 2000, or the week
+  of 10 September 2001, is not request-other evidence unless none of its plotted values changes on such a period; the
+  counted request-other captures (fair-value-gap RDDT, PA ZigZag RDDT / SPY, all the chart's own period) read no
+  period at all.
 - **Risk:** a wrong bar on old history only; never the newest bar. Engine number: yes (a value moves).
 
 ### U-ANCHOR `first-bar-anchor`: a running value anchored at the first bar
