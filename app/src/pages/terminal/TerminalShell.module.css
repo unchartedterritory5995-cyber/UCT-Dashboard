@@ -656,6 +656,25 @@
   background: var(--bg-hover);
 }
 
+/* A stock board with no ticker to open for: the row stays, quiet and not clickable, and the
+   reason is written under it (BoardsMenu.jsx), never left to the cursor alone. */
+.starterBtn:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.starterBtn:disabled:hover {
+  background: transparent;
+}
+
+/* The label over the stock boards, inside the ready-made section: a sub-heading, quieter than
+   the section's own (`.menuHead`) and in sentence case as written. */
+.menuSub {
+  margin-top: var(--space-xs);
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+
 .starterTop {
   display: flex;
   align-items: baseline;
