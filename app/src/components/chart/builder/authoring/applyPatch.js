@@ -1307,6 +1307,15 @@ function authoredTrees(ops) {
   return out
 }
 
+/**
+ * Who said a note. ⭐ 2026-11-18: the DOOR's own notes ("Built to UCT's checked formula ...", "as you
+ * chose before") arrive marked `by: "uct"` and are statements, not something the assistant assumed.
+ * Only the door can set the mark (it strips it from the assistant's answer), and it sends it only
+ * to a browser that said it accepts it.
+ */
+export const NOTE_BY_UCT = 'uct'
+const sourceOf = (a) => (a.by === NOTE_BY_UCT ? 'uct' : 'model')
+
 function checkAssumptions(patchAssumptions, def, authored = new Map()) {
   const all = parameterSlots(def)
   const slots = new Map(all.map((s) => [s.id, s]))
@@ -1334,9 +1343,9 @@ function checkAssumptions(patchAssumptions, def, authored = new Map()) {
       out.push({ slot: s.id, output: s.output, label: s.label, value: s.value, text: a.text, source: 'model' })
     } else if (a.output !== undefined) {
       if (!keys.has(a.output)) throw err('assumption:unknown-output', `The assumption names "${a.output}", which is not an output.`)
-      out.push({ output: a.output, text: a.text, source: 'model' })
+      out.push({ output: a.output, text: a.text, source: sourceOf(a) })
     } else {
-      out.push({ text: a.text, source: 'model' })
+      out.push({ text: a.text, source: sourceOf(a) })
     }
   }
   return out

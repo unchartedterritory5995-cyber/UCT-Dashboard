@@ -116,3 +116,29 @@ scratch directory; only identifiers and counts are written here.
 | census, both lanes, and the engine door (`run_census.py`, `coverageMapDoorCensus.measure.test.js`), the 11-17 sample manifest | 967 / 967 rows each lane; map: host-only 220 / 679, runtime-on 285 / 679, runtime-attached 88 |
 | `parity_roadmap.py facts` + `build` (master's registry) | **SERVED 275 / 679** (allowlisted 1, capability 54, not admitted 10), as at engine 73 |
 | the same with a hypothetical row (a temp copy of the registry; the committed file untouched) | `request-other` admitted: 276 / 679 (+1: fair-value-gap; PA ZigZag is already served on the host lane) |
+
+## 7. Addendum, same day: the follow-up captures, graded at engine 75 (still HELD)
+
+patrick-54 took the second-binding-script row (run `adm-2026-11-18`, local; packet `b416f5fa…`; from the listing,
+defaults, x table recorded). Filed as ledger rows at engine 75 (`evidence_engine.py regrade`, both lanes) and graded
+runtime-on at `394853a21e`:
+
+| capture | production | runtime-on | for this unit |
+|---|---|---|---|
+| `support-and-resistance-multi-time-frame-rddt-1d-2026-11-18` ("SNR": syminfo.tickerid at W, W, M, look-ahead off) | MATCH, 7 / 7 | MATCH, 7 / 7 | drawn by the HOST lane (the runtime lane refuses it, `runtime:request-with-state`): not runtime-drawn evidence until that wall moves |
+| `support-and-resistance-multi-time-frame-spy-1d-2026-11-18` | DIVERGE, 3 of 7 | DIVERGE, 3 of 7 | not evidence: the weekly / monthly reads differ on early SHORT periods (below) |
+
+**The SPY difference is a period-close rule, not the feed.** TradingView's weekly and monthly values in that capture
+are folds of its own daily bars (480 / 480 distinct weekly highs, 57 / 57 weekly lows, 159 / 159 monthly highs,
+9 / 9 monthly lows). What differs is the BAR a completed period first appears on: TradingView shows a week whose last
+session is not a Friday on the NEXT bar through 2001 (every one of the 10 short weeks whose value changes:
+1994-03-31, Good Friday 1995 / 1998, 3 July 1997 / 1998, 24 and 31 December 1998, 23 December 1999,
+10 September 2001; and the month ending Friday 28 May 1999), and on its LAST bar from 2004 on (every one of 14), while
+ours shows every period on its last bar. It is the roadmap's new wall U-HTF-CALENDAR (under U-REQ). Until it lands, a
+weekly or monthly capture of a symbol whose history reaches before 2004 is not request-other evidence unless no
+plotted value changes on such a period; the captures counted so far (fair-value-gap RDDT, PA ZigZag RDDT / SPY) read the
+chart's own period only and depend on none of it.
+
+Counted for `request-other` after the follow-up: unchanged (4 captures, 2 scripts, both the identity request: HELD).
+The PA ZigZag 1W / 1M captures (`rozz-2026-11-18`) reach the run through the timeframe setting (#1831) and DIVERGE
+there on 9 of 10 items, so no binding capture exists yet.

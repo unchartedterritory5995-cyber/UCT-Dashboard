@@ -371,3 +371,107 @@ def test_union_rail_is_identical_in_fallback_mode(tmp_path, capsys, mutant, code
     if code:
         want = "files no shard ran" if mutant == "drop_one" else "files more than one shard ran"
         assert "::error::" + want in r.stdout, r.stdout
+
+
+# ---- refreshed timings + the committed file as fallback (2026-11-17) ----------------------------------------------
+def _tjson(tmp_path, name, files_ms):
+    p = tmp_path / name
+    p.write_text(json.dumps({"files_ms": files_ms}), encoding="utf-8")
+    return p
+
+
+def test_fallback_timings_weigh_only_the_files_the_primary_lacks(tmp_path):
+    prim = _tjson(tmp_path, "week.json", {"src/agent/a.test.jsx": 5000, "src/agent/b.test.jsx": 1000})
+    fb = _tjson(tmp_path, "committed.json", {"src/agent/a.test.jsx": 1, "src/agent/c.0.test.jsx": 9000})
+    t, errs = avs.read_timings_with_fallback(prim, fb)
+    assert errs == [] and t == {"src/agent/a.test.jsx": 5000, "src/agent/b.test.jsx": 1000, "src/agent/c.0.test.jsx": 9000}
+    assert avs.read_timings_with_fallback(prim, None) == avs.read_timings_with_fallback(prim, prim) == (avs.read_timings(prim)[0], [])
+
+
+@pytest.mark.parametrize("bad", ["primary", "fallback", "both"])
+def test_an_invalid_timing_file_contributes_nothing_and_is_annotated(tmp_path, capsys, bad):
+    good_p = {"src/agent/a.test.jsx": 5000}
+    good_f = {"src/agent/b.test.jsx": 7000}
+    prim = _tjson(tmp_path, "week.json", good_p) if bad == "fallback" else _bad_timings(tmp_path, "malformed_json")
+    fb = _tjson(tmp_path, "committed.json", good_f) if bad == "primary" else tmp_path / "no-such.json"
+    t, errs = avs.read_timings_with_fallback(prim, fb)
+    want = {"primary": good_f, "fallback": good_p, "both": {}}[bad]
+    assert t == want and len(errs) == (2 if bad == "both" else 1)
+    files = _files(9) + ["src/agent/a.test.jsx", "src/agent/b.test.jsx"]
+    lst = tmp_path / "files.txt"
+    lst.write_text("\n".join(files) + "\n", encoding="utf-8")
+    seen = []
+    for i in range(1, 4):
+        assert avs.main(["--files-list", str(lst), "--of", "3", "--shard", str(i), "--timings", str(prim),
+                         "--timings-fallback", str(fb)]) == avs.OK
+        cap = capsys.readouterr()
+        seen += [l for l in cap.out.splitlines() if l]
+        then = "splitting the Agent shards by count" if bad == "both" else "using the other timing file"
+        assert sum(1 for l in cap.err.splitlines() if l.startswith("::warning") and l.endswith("(%s)" % then)) == len(errs)
+    assert sorted(seen) == sorted(files) and len(seen) == len(set(seen))
+
+
+def test_browser_shards_plan_with_the_committed_file_as_fallback():
+    step = [s for s in _wf()["jobs"]["browser"]["steps"] if s.get("name") == "vitest shard"][0]["run"]
+    assert 'F=../tools/agent_vitest_shard_timings.json' in step
+    assert step.count('--timings "$T" --timings-fallback "$F"') == 2      # the --plan line and the --shard line
+
+
+# ---- split test files (2026-11-17): the slices together are exactly the old file --------------------------------
+AGENT = ROOT / "app" / "src" / "agent"
+#: old file -> (suite module, slice count). A split moves the old file's body verbatim into the module; each slice file
+#: calls the suite with its index. Adding a split here is how the rails below learn about it.
+SPLITS = {
+    "agentTickerCompoundExclusion.test.jsx": ("testing/tickerCompoundExclusionSuite.jsx", 3),
+}
+
+
+@pytest.mark.parametrize("old", sorted(SPLITS))
+def test_a_split_file_is_gone_and_every_slice_calls_its_suite_once(old):
+    module, n = SPLITS[old]
+    stem = old[: -len(".test.jsx")]
+    assert not (AGENT / old).exists(), "the old file came back beside its slices: its tests would run twice"
+    src = (AGENT / module).read_text(encoding="utf-8")
+    assert "export const SLICES = %d\n" % n in src
+    assert "const mine = (rows) => rows.filter((_, i) => i % SLICES === SLICE)" in src
+    fn = src.split("export function ", 1)[1].split("(", 1)[0]
+    slices = sorted(p.name for p in AGENT.glob(stem + ".*.test.jsx"))
+    assert slices == ["%s.%d.test.jsx" % (stem, k) for k in range(n)], slices
+    for k in range(n):
+        body = (AGENT / ("%s.%d.test.jsx" % (stem, k))).read_text(encoding="utf-8")
+        calls = [l for l in body.splitlines() if l.startswith(fn + "(")]
+        assert calls == ["%s(%d)" % (fn, k)], (k, calls)
+
+
+@pytest.mark.parametrize("old", sorted(SPLITS))
+def test_a_split_suite_slices_every_table_and_keeps_each_single_test_once(old):
+    """Every it.each table goes through mine(); every other test is in slice 0 only; describe names never vary."""
+    module, _n = SPLITS[old]
+    src = (AGENT / module).read_text(encoding="utf-8")
+    assert src.count("it.each(") == src.count("it.each(mine(") > 0
+    lines = src.splitlines()
+    in_slice0_describe = False           # inside `if (SLICE === 0) describe(...)`, up to its closing `})` at column 0
+    singles = 0
+    for l in lines:
+        s = l.strip()
+        if l.startswith("if (SLICE === 0) describe("):
+            in_slice0_describe = True
+        elif in_slice0_describe and l.startswith("})"):
+            in_slice0_describe = False
+        if s.startswith("it(") or s.startswith("test("):
+            assert in_slice0_describe, "a single test outside the slice-0 guard: %r" % s
+            singles += 1
+        elif s.startswith("if (SLICE === 0) it("):
+            singles += 1
+        if "describe(" in s:
+            assert "SLICE" not in s.split("describe(", 1)[1].split("',", 1)[0], "a describe name that varies by slice: %r" % s
+    assert singles, "the single tests are not guarded"
+
+
+@pytest.mark.parametrize("old", sorted(SPLITS))
+def test_a_split_files_slices_are_timed_and_the_old_entry_is_gone(old):
+    module, n = SPLITS[old]
+    stem = "src/agent/" + old[: -len(".test.jsx")]
+    t, err = avs.read_timings()
+    assert err is None and stem + ".test.jsx" not in t
+    assert all(t.get("%s.%d.test.jsx" % (stem, k), 0) > 0 for k in range(n))

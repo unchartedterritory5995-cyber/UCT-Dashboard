@@ -57,7 +57,9 @@ export const SHARE_POLICY = Object.freeze({
 
 const CLASS_CODES = {
   // The member's own records.
-  own: ['PERF', 'RSCH'],
+  // MYH is the member's own trades and note titles on one stock. Its holding rows mark an open
+  // position at a live price, and they are a list, never a table, so no price is in a share.
+  own: ['PERF', 'RSCH', 'MYH'],
   // UCT's own words: the function list, and the index of UCT's own lessons.
   uct: ['HELP', 'LEARN'],
   // Read straight from the SEC (EDGAR, the fails-to-deliver files).
@@ -66,7 +68,10 @@ const CLASS_CODES = {
   team: ['WHO', 'HIS', 'CHK'],
   // UCT's own analytics over licensed prices: ranks, returns over a window, breadth, regime.
   derived: ['TECH', 'RTG', 'SEAS', 'DR', 'GRADE', 'REL', 'CORR', 'RRG', 'REGM', 'RSL', 'THMS', 'SCAT', 'IMOV', 'BRKO',
-    'SCTR', 'H52', 'RSS', 'PCHG', 'TROT', 'IDAY'],
+    'SCTR', 'H52', 'RSS', 'PCHG', 'TROT', 'IDAY', 'UNVOL',
+    // GRP is PCHG's changes joined with the RS rank and the confluence board for one group: UCT's
+    // own analytics over licensed prices (and flow), so it is not shared by default.
+    'GRP'],
   // Vendor or third-party values shown as they came, or a list that mixes them in (a live price
   // beside the member's own alert, a quote beside a watchlist name).
   vendor: ['CAL', 'ERN', 'EMOV', 'DES', 'GP', 'CN', 'CATS', 'MOVE', 'FA', 'EE', 'EEH', 'ANR', 'OWN', 'PPL', 'TRAN', 'MB',

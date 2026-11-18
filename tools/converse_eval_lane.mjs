@@ -25,7 +25,7 @@ import {
   newAuthoringState, openAuthoringState, prepareSave, readback,
 } from '../app/src/components/chart/builder/authoring/index.js'
 import { localTurn, modelTurn } from '../app/src/components/chart/builder/authoring/authoringSession.js'
-import { converseBody, converseTurn } from '../app/src/components/chart/builder/authoring/converseClient.js'
+import { converseBody, converseTurn, transcriptSnippets } from '../app/src/components/chart/builder/authoring/converseClient.js'
 import { astHash } from '../app/src/components/chart/engine/ast/parse.js'
 import { validateUserDefinitions, computeFor } from '../app/src/components/chart/engine/nativeRegistry.js'
 import { outputsOf, outputTreeOf } from '../app/src/components/chart/engine/outputType.js'
@@ -71,16 +71,23 @@ function columnsOf(def, bars) {
   return { valid: errors.length === 0, errors, columns, hashes }
 }
 
+// ⭐ THE CONVERSATION SO FAR, AS THE REAL BOX SENDS IT (2026-11-18). `ConverseBox.jsx` keeps a transcript
+// (the member's words, then what the assistant said) and sends its last turns with every request
+// (`transcriptSnippets`). This lane sent none, so a turn that depends on the one before it (the member
+// ANSWERING a question) could not be run here at all. The transcript is kept per session and the
+// snippets are taken BEFORE the member's new words are added, exactly as the box does.
+const said = (s, words, entries) => { s.transcript.push({ role: 'member', text: String(words || '') }, ...(Array.isArray(entries) ? entries : [])) }
+
 async function handle(req) {
   switch (req.cmd) {
     case 'ping':
       return { pong: true }
     case 'new': {
-      sessions.set(req.sid, { state: newAuthoringState(), sym: req.sym || 'TEST', tf: req.tf || 'D' })
+      sessions.set(req.sid, { state: newAuthoringState(), sym: req.sym || 'TEST', tf: req.tf || 'D', transcript: [] })
       return summary(sessions.get(req.sid))
     }
     case 'open': {
-      const s = sessions.get(req.sid) || { sym: req.sym || 'TEST', tf: req.tf || 'D' }
+      const s = sessions.get(req.sid) || { sym: req.sym || 'TEST', tf: req.tf || 'D', transcript: [] }
       s.state = openAuthoringState(req.def, { defId: req.defId, version: req.version })
       sessions.set(req.sid, s)
       return summary(s)
@@ -91,12 +98,13 @@ async function handle(req) {
       const out = localTurn(s.state, req.words, { sym: s.sym, tf: s.tf, gateCtx: gateCtxOf(s) })
       if (out === null) return { handled: false }
       if (out.state) s.state = out.state
+      said(s, req.words, out.entries)
       return { handled: true, turnOk: out.ok, changed: !!out.changed, entries: out.entries,
         renameOnly: !!out.renameOnly, ...summary(s) }
     }
     case 'body': {
       const s = sessions.get(req.sid)
-      return { body: converseBody({ message: req.words, state: s.state, gateCtx: gateCtxOf(s), snippets: [] }) }
+      return { body: converseBody({ message: req.words, state: s.state, gateCtx: gateCtxOf(s), snippets: transcriptSnippets(s.transcript) }) }
     }
     case 'model': {
       const s = sessions.get(req.sid)
@@ -116,9 +124,10 @@ async function handle(req) {
         },
       })
       const out = await modelTurn(before, () => s.state, req.words,
-        { snippets: [], gateCtx: gateCtxOf(s), converse })
+        { snippets: transcriptSnippets(s.transcript), gateCtx: gateCtxOf(s), converse })
       if (wanted) return { needsServer: wanted, ...summary(s) }
       if (out.state) s.state = out.state
+      said(s, req.words, out.entries)
       return { turnOk: out.ok, changed: !!out.changed, outcome: out.outcome || null,
         repairedAfterRefusal: !!out.repairedAfterRefusal,
         entries: out.entries, changes: out.changes || [], errors: out.errors || [], ...summary(s) }

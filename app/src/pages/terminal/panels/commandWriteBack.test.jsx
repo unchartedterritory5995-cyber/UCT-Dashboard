@@ -3,7 +3,10 @@
 //   * the command is built only when the code's market variant applies every token;
 //   * a token the variant does not take, an unknown code and a code with no market variant give null;
 //   * the hook re-runs in the panel's own slot, and is a no-op outside the shell.
-// The registered codes used here are existing ones (THMS takes a window, INS takes nothing).
+//   * a per-stock panel passes its security: the TICKER variant is asked, and the command is
+//     `SYM CODE TOKEN`; a market-only code given a security gives null.
+// The registered codes used here are existing ones (THMS takes a window, INS takes nothing, GP is
+// per-stock and takes a timeframe, MYH is per-stock and takes a Journal account).
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { PanelListContext, TerminalPanelContext } from '../../../components/terminal'
@@ -11,12 +14,12 @@ import { usePanelWriteBack, writeBackCommand } from './commandWriteBack'
 
 afterEach(cleanup)
 
-function Probe({ tokens }) {
+function Probe({ tokens, sym }) {
   const writeBack = usePanelWriteBack()
-  return <button type="button" onClick={(e) => { e.currentTarget.dataset.wrote = String(writeBack(tokens)) }}>write</button>
+  return <button type="button" onClick={(e) => { e.currentTarget.dataset.wrote = String(sym === undefined ? writeBack(tokens) : writeBack(tokens, sym)) }}>write</button>
 }
-function renderProbe(tokens, { code = 'THMS', rerun = vi.fn(), shell = true } = {}) {
-  const ui = <Probe tokens={tokens} />
+function renderProbe(tokens, { code = 'THMS', rerun = vi.fn(), shell = true, sym = undefined } = {}) {
+  const ui = <Probe tokens={tokens} sym={sym} />
   render(shell
     ? (
       <PanelListContext.Provider value={{ rerun, run: vi.fn(), open: vi.fn() }}>
@@ -52,6 +55,21 @@ describe('writeBackCommand (pure)', () => {
     expect(writeBackCommand(null, [])).toBeNull()
     expect(writeBackCommand('DES', [])).toBeNull()
   })
+
+  it('with a security, a per-stock code writes `SYM CODE TOKEN` from its ticker variant', () => {
+    expect(writeBackCommand('MYH', ['2'], 'NVDA')).toBe('NVDA MYH 2')
+    expect(writeBackCommand('myh', ['ALL'], ' nvda ')).toBe('NVDA MYH ALL')
+    expect(writeBackCommand('MYH', [], 'NVDA')).toBe('NVDA MYH')
+    expect(writeBackCommand('GP', ['W'], 'AMD')).toBe('AMD GP W')
+    // a token the ticker variant does not take, and a per-stock code with no security, still give null
+    expect(writeBackCommand('MYH', ['BOGUS'], 'NVDA')).toBeNull()
+    expect(writeBackCommand('MYH', ['2'])).toBeNull()
+    expect(writeBackCommand('MYH', ['2'], '')).toBeNull()
+    // a market-only code is never written with a security in front of it
+    expect(writeBackCommand('THMS', ['1W'], 'NVDA')).toBeNull()
+    expect(writeBackCommand('PERF', ['2'], 'NVDA')).toBeNull()
+    expect(writeBackCommand('PERF', ['2'])).toBe('PERF 2')
+  })
 })
 
 describe('usePanelWriteBack', () => {
@@ -73,5 +91,17 @@ describe('usePanelWriteBack', () => {
     const { button } = renderProbe(['1W'], { shell: false })
     fireEvent.click(button)
     expect(button.dataset.wrote).toBe('false')
+  })
+
+  it('a per-stock panel re-runs its command with its security', () => {
+    const { rerun, button } = renderProbe(['ALL'], { code: 'MYH', sym: 'NVDA' })
+    fireEvent.click(button)
+    expect(rerun).toHaveBeenCalledWith('NVDA MYH ALL')
+    expect(button.dataset.wrote).toBe('true')
+    cleanup()
+    const bare = renderProbe(['ALL'], { code: 'MYH' })
+    fireEvent.click(bare.button)
+    expect(bare.rerun).not.toHaveBeenCalled()
+    expect(bare.button.dataset.wrote).toBe('false')
   })
 })

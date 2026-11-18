@@ -32,6 +32,13 @@ AUTOMATIC WEEKLY REFRESH (2026-11-16): .github/workflows/shard-timings-refresh.y
 last green master deploy gate runs every Sunday and caches them for the NEXT week; the shard jobs of agent-ci.yml and
 master-deploy-gate.yml restore their commit's week by exact key and pass it as --timings (the committed file below is
 the fallback on a miss). Refreshing the committed file by hand is still how a change becomes the permanent default.
+agent-ci.yml also passes the committed file as --timings-fallback (2026-11-17), so a file the refreshed week has no
+entry for (added or split since that week was recorded) weighs its committed time, not the p90.
+
+SPLITTING A SLOW FILE (2026-11-17): a file whose own time floors its shard is split by test into slices (the
+corpus.finalState.<k> pattern: the body moves verbatim into a suite module, each slice file calls it with its index).
+Record the slices' times in the committed file in the same change; tests/test_uct_agent_vitest_shards.py SPLITS
+lists every split and holds the slices, the suite and the timings in step.
 
 REFRESH THE TIMINGS (read-only, no reruns):
     for id in $(gh run list --workflow agent-ci.yml --status success --limit 5 --json databaseId -q '.[].databaseId'); do
@@ -122,6 +129,23 @@ def read_timings(path=None) -> tuple:
     return out, None
 
 
+def read_timings_with_fallback(path, fallback_path=None) -> tuple:
+    """({file: ms}, [(path, error)]): `path`'s timings and, for each file `path` has no entry for, `fallback_path`'s.
+
+    WHY (2026-11-17): the weekly refreshed timings (shard-timings-refresh.yml) are recorded from runs that predate a file
+    added or split since, so there such a file weighs only the p90; a 3-minute slice planned as a 1-minute file
+    unbalances its shard. The committed file (which a split updates in the same PR) fills exactly those gaps. Each file
+    stays all-or-nothing: an invalid one contributes nothing and adds its error; both invalid = {} (the count split)."""
+    timings, err = read_timings(path)
+    errors = [(path, err)] if err else []
+    if fallback_path is not None and pathlib.Path(fallback_path).resolve() != pathlib.Path(path).resolve():
+        fb, fb_err = read_timings(fallback_path)
+        if fb_err:
+            errors.append((fallback_path, fb_err))
+        timings = {**fb, **timings}
+    return timings, errors
+
+
 def load_timings(path=None) -> dict:
     """{file: ms}, or {} if the timing file is absent, unreadable or invalid (see read_timings)."""
     return read_timings(path)[0]
@@ -135,15 +159,15 @@ def _gh_msg(v: str) -> str:
     return v.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
 
 
-def timings_warning(path, error: str) -> str:
-    """The GitHub annotation for a fallback: `::warning file=<timings path>::<parse error>`.
+def timings_warning(path, error: str, then: str = "splitting the Agent shards by count") -> str:
+    """The GitHub annotation for a fallback: `::warning file=<timings path>::<parse error> (<what happens instead>)`.
     The path is repo-relative when it lies inside the repo, so the annotation links to the file."""
     p = pathlib.Path(path)
     try:
         shown = p.resolve().relative_to(_repo_root()).as_posix()
     except ValueError:
         shown = p.as_posix()
-    return "::warning file=%s::%s (splitting the Agent shards by count)" % (_gh_prop(shown), _gh_msg(error))
+    return "::warning file=%s::%s (%s)" % (_gh_prop(shown), _gh_msg(error), then)
 
 
 def fallback_ms(timings: dict, pct: int = FALLBACK_PERCENTILE) -> int:
@@ -298,6 +322,8 @@ def main(argv=None) -> int:
     ap.add_argument("--shard", type=int, help="print this shard's files (1-based), one per line")
     ap.add_argument("--plan", action="store_true")
     ap.add_argument("--timings", default=None, help="timing file (default %s)" % TIMINGS_FILE)
+    ap.add_argument("--timings-fallback", default=None,
+                    help="a second timing file; its entries weigh the files --timings has no entry for")
     ap.add_argument("--record-timings", nargs="+", metavar="SHARD_JSON")
     ap.add_argument("--source", action="append", default=[])
     ap.add_argument("--compare", nargs="+", metavar="SHARD_JSON")
@@ -313,11 +339,12 @@ def main(argv=None) -> int:
         print("wrote %d file timings to %s" % (len(ms), tpath))
         return OK
 
-    timings, err = read_timings(tpath)
-    if err:
+    timings, errs = read_timings_with_fallback(tpath, a.timings_fallback)
+    for path, err in errs:
         # stdout for --plan / --compare (the workflow's plan line); stderr for --shard, whose stdout is the file list.
         # The Actions runner reads workflow commands from both streams.
-        print(timings_warning(tpath, err), file=sys.stderr if a.shard is not None else sys.stdout)
+        then = "using the other timing file" if timings else "splitting the Agent shards by count"
+        print(timings_warning(path, err, then), file=sys.stderr if a.shard is not None else sys.stdout)
 
     if a.compare:
         r = compare(a.compare, timings, a.of)

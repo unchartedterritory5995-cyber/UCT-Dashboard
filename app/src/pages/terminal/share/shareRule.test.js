@@ -91,16 +91,24 @@ describe('the policy today', () => {
       expect(shareDecision(fn, fn.market || fn.ticker), code).toMatchObject({ offered: true, image: true, file: true })
     }
     expect(shareClassOf('PERF')).toBe('own')
+    // MYH is the member's own record on one stock: the same class as PERF, on its ticker variant.
+    expect(shareClassOf('MYH')).toBe('own')
+    expect(shareDecision(BY_CODE.MYH, BY_CODE.MYH.ticker)).toMatchObject({ offered: true, image: true, file: true, cls: 'own' })
     expect(shareClassOf('help')).toBe('uct')
     expect(shareClassOf('FEED')).toBe('public')
   })
 
   it('licensed and third-party data, and analytics worked out from it, are not offered', () => {
-    for (const code of ['MOST', 'MON', 'TOPF', 'FLWL', 'UPDG', 'TSRC', 'TWT', 'SENT', 'INS', 'CONG', 'ALRT', 'RSL', 'THMS', 'PCHG', 'H52']) {
+    for (const code of ['MOST', 'MON', 'TOPF', 'FLWL', 'UPDG', 'TSRC', 'TWT', 'SENT', 'INS', 'CONG', 'ALRT', 'RSL', 'THMS', 'PCHG', 'H52', 'UNVOL']) {
       const fn = BY_CODE[code]
       expect(shareDecision(fn, fn.market || fn.ticker), code).toMatchObject({ offered: false, image: false, file: false })
     }
     expect(shareClassOf('RSL')).toBe('derived')
+    // GRP joins PCHG's changes with RS ranks and the confluence board: worked out from licensed data.
+    expect(shareClassOf('GRP')).toBe('derived')
+    expect(shareDecision(BY_CODE.GRP, BY_CODE.GRP.market)).toMatchObject({ offered: false, image: false, file: false, cls: 'derived' })
+    // UNVOL is a ratio UCT works out from licensed volume and prices: derived, so not offered.
+    expect(shareClassOf('UNVOL')).toBe('derived')
     expect(shareClassOf('MOST')).toBe('vendor')
   })
 

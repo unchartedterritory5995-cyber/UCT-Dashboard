@@ -44,7 +44,8 @@
       "properties": {
         "slot": { "$ref": "#/$defs/slotId" },
         "output": { "$ref": "#/$defs/outputKey" },
-        "text": { "type": "string", "minLength": 1, "maxLength": 300 }
+        "text": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "by": { "enum": ["uct"], "x-uct-door-only": true }
       }
     },
     "question": {
