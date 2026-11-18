@@ -17,6 +17,11 @@
 // member who already holds an unchanged copy gets THAT copy, not a second one: the copy is
 // recognised by its maths (`compute.fn`, which the store keeps as saved; checked on production).
 // A copy the member has since changed is their own indicator now, and adding makes a new copy.
+// ⭐ 2026-11-18 — ITS WHOLE MATHS: `compute.fn` is the FIRST line's formula only, so it could not
+// tell "Relative Strength vs SPY" from "RS New High vs SPY" (one ratio, different marks: a member
+// holding one got it again when adding the other), nor version 1 of a house indicator from
+// version 2 when only a later line changed. `compute.treesHash` (every line; the store holds it
+// to its trees) is compared too.
 //
 // ⚠️ THE SET IS LOADED ON OPEN (`house/houseIndicators.json`): it is not part of the first-open
 // bytes of any page.
@@ -48,11 +53,17 @@ export function houseMatches(item, query) {
 
 /** The member's own UNCHANGED copy of a house indicator, by its maths; `null` when they have none. */
 export function ownCopyId(item, own) {
-  const fn = item && item.definition && item.definition.compute && item.definition.compute.fn
+  const compute = item && item.definition && item.definition.compute
+  const fn = compute && compute.fn
   if (typeof fn !== 'string' || !fn) return null
-  const hit = (Array.isArray(own) ? own : []).find((d) => d && d.compute && d.compute.fn === fn && typeof d.id === 'string')
+  const all = wholeMaths(compute)
+  const hit = (Array.isArray(own) ? own : []).find((d) => d && d.compute && d.compute.fn === fn
+    && wholeMaths(d.compute) === all && typeof d.id === 'string')
   return hit ? hit.id : null
 }
+
+/** Every line's formula as one fingerprint, or '' for an indicator of one formula (no `trees`). */
+const wholeMaths = (compute) => (compute && typeof compute.treesHash === 'string' ? compute.treesHash : '')
 
 const loadHouseSet = () => import('./house/houseIndicators.json').then((m) => (m.default || m).indicators || [])
 const NONE = () => []
