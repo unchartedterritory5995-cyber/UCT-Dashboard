@@ -1,0 +1,3609 @@
+{
+ "_": "THE NAMED-INDICATOR LIBRARY. One entry per named indicator: the ONE checked formula the assistant builds when a member names it (api/services/named_indicators.py says how). A person writes `formula` (with {param} where a parameter's number goes), `params`, `aliases` and `evidence`; tools/named_indicators_build.py writes `tree`, `sites` and each newest version's `maths`. THE RULE: an entry's maths never changes under the same version; a change is a new entry in its `versions` with the reason. `evidence.published` is what was READ, on the date in `read`, at the pages listed; `says` is the definition in those pages' terms. Aliases are never a bare two- or three-letter acronym.",
+ "contract": "uct.named-indicators/1",
+ "indicators": [
+  {
+   "id": "kaufman_adaptive_moving_average",
+   "name": "Kaufman Adaptive Moving Average",
+   "aliases": [
+    "kaufman adaptive moving average",
+    "kaufman's adaptive moving average",
+    "kaufmans adaptive moving average",
+    "kaufman adaptive average",
+    "kaufman moving average",
+    "kama"
+   ],
+   "placement": "overlay",
+   "params": [
+    {
+     "key": "er_length",
+     "label": "Efficiency length",
+     "default": 10,
+     "min": 2,
+     "max": 200,
+     "integer": true
+    },
+    {
+     "key": "fast",
+     "label": "Fast length",
+     "default": 2,
+     "min": 1,
+     "max": 100,
+     "integer": true
+    },
+    {
+     "key": "slow",
+     "label": "Slow length",
+     "default": 30,
+     "min": 2,
+     "max": 400,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "kama",
+     "label": "KAMA",
+     "type": "value",
+     "formula": "accum(close, self + pow(abs(close - close[{er_length}]) / sum(abs(close - close[1]), {er_length}) * (2 / ({fast} + 1) - 2 / ({slow} + 1)) + 2 / ({slow} + 1), 2) * (close - self), 300)",
+     "tree": {
+      "type": "call",
+      "name": "accum",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "op",
+        "name": "+",
+        "args": [
+         {
+          "type": "series",
+          "name": "self"
+         },
+         {
+          "type": "op",
+          "name": "*",
+          "args": [
+           {
+            "type": "call",
+            "name": "pow",
+            "args": [
+             {
+              "type": "op",
+              "name": "+",
+              "args": [
+               {
+                "type": "op",
+                "name": "*",
+                "args": [
+                 {
+                  "type": "op",
+                  "name": "/",
+                  "args": [
+                   {
+                    "type": "call",
+                    "name": "abs",
+                    "args": [
+                     {
+                      "type": "op",
+                      "name": "-",
+                      "args": [
+                       {
+                        "type": "series",
+                        "name": "close"
+                       },
+                       {
+                        "type": "offset",
+                        "value": 10,
+                        "args": [
+                         {
+                          "type": "series",
+                          "name": "close"
+                         }
+                        ]
+                       }
+                      ]
+                     }
+                    ]
+                   },
+                   {
+                    "type": "call",
+                    "name": "sum",
+                    "args": [
+                     {
+                      "type": "call",
+                      "name": "abs",
+                      "args": [
+                       {
+                        "type": "op",
+                        "name": "-",
+                        "args": [
+                         {
+                          "type": "series",
+                          "name": "close"
+                         },
+                         {
+                          "type": "offset",
+                          "value": 1,
+                          "args": [
+                           {
+                            "type": "series",
+                            "name": "close"
+                           }
+                          ]
+                         }
+                        ]
+                       }
+                      ]
+                     },
+                     {
+                      "type": "num",
+                      "value": 10
+                     }
+                    ]
+                   }
+                  ]
+                 },
+                 {
+                  "type": "op",
+                  "name": "-",
+                  "args": [
+                   {
+                    "type": "op",
+                    "name": "/",
+                    "args": [
+                     {
+                      "type": "num",
+                      "value": 2
+                     },
+                     {
+                      "type": "op",
+                      "name": "+",
+                      "args": [
+                       {
+                        "type": "num",
+                        "value": 2
+                       },
+                       {
+                        "type": "num",
+                        "value": 1
+                       }
+                      ]
+                     }
+                    ]
+                   },
+                   {
+                    "type": "op",
+                    "name": "/",
+                    "args": [
+                     {
+                      "type": "num",
+                      "value": 2
+                     },
+                     {
+                      "type": "op",
+                      "name": "+",
+                      "args": [
+                       {
+                        "type": "num",
+                        "value": 30
+                       },
+                       {
+                        "type": "num",
+                        "value": 1
+                       }
+                      ]
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "op",
+                "name": "/",
+                "args": [
+                 {
+                  "type": "num",
+                  "value": 2
+                 },
+                 {
+                  "type": "op",
+                  "name": "+",
+                  "args": [
+                   {
+                    "type": "num",
+                    "value": 30
+                   },
+                   {
+                    "type": "num",
+                    "value": 1
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 2
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": "-",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "series",
+              "name": "self"
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 300
+       }
+      ]
+     },
+     "sites": {
+      "er_length": [
+       [
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1
+       ],
+       [
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+       ]
+      ],
+      "fast": [
+       [
+        1,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0
+       ]
+      ],
+      "slow": [
+       [
+        1,
+        1,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        0
+       ],
+       [
+        1,
+        1,
+        0,
+        0,
+        1,
+        1,
+        0
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::kaufman_adaptive_moving_average",
+    "published": {
+     "by": "Perry J. Kaufman",
+     "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/kaufmans-adaptive-moving-average-kama",
+     "sources": [
+      {
+       "title": "StockCharts ChartSchool: Kaufman's Adaptive Moving Average (KAMA)",
+       "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/kaufmans-adaptive-moving-average-kama",
+       "kind": "reference"
+      },
+      {
+       "title": "TradingView help center: Kaufman's Adaptive Moving Average (KAMA)",
+       "url": "https://www.tradingview.com/support/solutions/43000773012-kaufman-s-adaptive-moving-average-kama/",
+       "kind": "vendor documentation"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "ER = |close - close 10 ago| / sum of |close - prior close| over 10; SC = (ER x (2/(2+1) - 2/(30+1)) + 2/(30+1)) squared; KAMA = prior KAMA + SC x (price - prior KAMA). Settings 10, 2, 30.",
+     "note": "StockCharts starts the series from a simple average; UCT starts it from the close 300 bars back on every bar."
+    },
+    "capture": null
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:3438275e44468d8e2a2cca9417be7459712f1bd686eeaf4f27ce56c7a373e426",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "mcginley_dynamic",
+   "name": "McGinley Dynamic",
+   "aliases": [
+    "mcginley dynamic",
+    "mcginley dynamic indicator",
+    "mcginley dynamic line",
+    "mcginley dynamic average",
+    "mcginley"
+   ],
+   "placement": "overlay",
+   "params": [
+    {
+     "key": "length",
+     "label": "Length",
+     "default": 14,
+     "min": 2,
+     "max": 400,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "mcginley",
+     "label": "McGinley Dynamic",
+     "type": "value",
+     "formula": "accum(close, self + (close - self) / ({length} * pow(close / self, 4)), 300)",
+     "tree": {
+      "type": "call",
+      "name": "accum",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "op",
+        "name": "+",
+        "args": [
+         {
+          "type": "series",
+          "name": "self"
+         },
+         {
+          "type": "op",
+          "name": "/",
+          "args": [
+           {
+            "type": "op",
+            "name": "-",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "series",
+              "name": "self"
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": "*",
+            "args": [
+             {
+              "type": "num",
+              "value": 14
+             },
+             {
+              "type": "call",
+              "name": "pow",
+              "args": [
+               {
+                "type": "op",
+                "name": "/",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 },
+                 {
+                  "type": "series",
+                  "name": "self"
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 4
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 300
+       }
+      ]
+     },
+     "sites": {
+      "length": [
+       [
+        1,
+        1,
+        1,
+        0
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::mcginley_dynamic",
+    "published": {
+     "by": "John R. McGinley",
+     "url": "https://www.tradingview.com/support/solutions/43000589175-mcginley-dynamic/",
+     "sources": [
+      {
+       "title": "TradingView help center: McGinley Dynamic",
+       "url": "https://www.tradingview.com/support/solutions/43000589175-mcginley-dynamic/",
+       "kind": "vendor documentation"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "MD = prior MD + (price - prior MD) / (N x (price / prior MD) to the 4th power).",
+     "note": "A variant divides by 0.6 x N. Which constant McGinley first published was not confirmed on a page read; this is TradingView's documented form. Its default length, 14, was read back from TradingView's own settings."
+    },
+    "capture": {
+     "id": "builtin-2026-11-18",
+     "against": "TradingView built-in: McGinley dynamic",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars",
+      "NYSE:RDDT 1D, 668 bars"
+     ],
+     "grade": "FORMULA EQUAL, RESTART DIFFERS",
+     "detail": "TradingView's line IS this formula carried from the mean of the first 14 closes: equal on all 8,495 and all 654 bars when carried that way. UCT restarts it 300 bars back on every bar: within 3 billionths on SPY (8 bars differ at all), within 0.015% on RDDT, a young stock in a long rise, where the line is slow to forget its start."
+    }
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:4cfd4bbb645851d7cd5999b0aa9713b398cd63e52924f473a3c5dd1a485d3ff1",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "connors_rsi",
+   "name": "Connors RSI",
+   "aliases": [
+    "connors rsi",
+    "connorsrsi",
+    "connors relative strength index",
+    "crsi"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "rsi_length",
+     "label": "RSI length",
+     "default": 3,
+     "min": 2,
+     "max": 100,
+     "integer": true
+    },
+    {
+     "key": "streak_length",
+     "label": "Streak RSI length",
+     "default": 2,
+     "min": 2,
+     "max": 100,
+     "integer": true
+    },
+    {
+     "key": "rank_length",
+     "label": "Rank length",
+     "default": 100,
+     "min": 2,
+     "max": 900,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "crsi",
+     "label": "Connors RSI",
+     "type": "value",
+     "formula": "(rsi(close, {rsi_length}) + rsi(accum(0, close > close[1] ? (self > 0 ? self + 1 : 1) : close < close[1] ? (self < 0 ? self - 1 : -1) : 0, 100), {streak_length}) + percentrank(roc(close, 1), {rank_length})) / 3",
+     "tree": {
+      "type": "op",
+      "name": "/",
+      "args": [
+       {
+        "type": "op",
+        "name": "+",
+        "args": [
+         {
+          "type": "op",
+          "name": "+",
+          "args": [
+           {
+            "type": "call",
+            "name": "rsi",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "num",
+              "value": 3
+             }
+            ]
+           },
+           {
+            "type": "call",
+            "name": "rsi",
+            "args": [
+             {
+              "type": "call",
+              "name": "accum",
+              "args": [
+               {
+                "type": "num",
+                "value": 0
+               },
+               {
+                "type": "op",
+                "name": "?:",
+                "args": [
+                 {
+                  "type": "op",
+                  "name": ">",
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   },
+                   {
+                    "type": "offset",
+                    "value": 1,
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "close"
+                     }
+                    ]
+                   }
+                  ]
+                 },
+                 {
+                  "type": "op",
+                  "name": "?:",
+                  "args": [
+                   {
+                    "type": "op",
+                    "name": ">",
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "self"
+                     },
+                     {
+                      "type": "num",
+                      "value": 0
+                     }
+                    ]
+                   },
+                   {
+                    "type": "op",
+                    "name": "+",
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "self"
+                     },
+                     {
+                      "type": "num",
+                      "value": 1
+                     }
+                    ]
+                   },
+                   {
+                    "type": "num",
+                    "value": 1
+                   }
+                  ]
+                 },
+                 {
+                  "type": "op",
+                  "name": "?:",
+                  "args": [
+                   {
+                    "type": "op",
+                    "name": "<",
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "close"
+                     },
+                     {
+                      "type": "offset",
+                      "value": 1,
+                      "args": [
+                       {
+                        "type": "series",
+                        "name": "close"
+                       }
+                      ]
+                     }
+                    ]
+                   },
+                   {
+                    "type": "op",
+                    "name": "?:",
+                    "args": [
+                     {
+                      "type": "op",
+                      "name": "<",
+                      "args": [
+                       {
+                        "type": "series",
+                        "name": "self"
+                       },
+                       {
+                        "type": "num",
+                        "value": 0
+                       }
+                      ]
+                     },
+                     {
+                      "type": "op",
+                      "name": "-",
+                      "args": [
+                       {
+                        "type": "series",
+                        "name": "self"
+                       },
+                       {
+                        "type": "num",
+                        "value": 1
+                       }
+                      ]
+                     },
+                     {
+                      "type": "op",
+                      "name": "u-",
+                      "args": [
+                       {
+                        "type": "num",
+                        "value": 1
+                       }
+                      ]
+                     }
+                    ]
+                   },
+                   {
+                    "type": "num",
+                    "value": 0
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 100
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 2
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "call",
+          "name": "percentrank",
+          "args": [
+           {
+            "type": "call",
+            "name": "roc",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "num",
+              "value": 1
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 100
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 3
+       }
+      ]
+     },
+     "sites": {
+      "rsi_length": [
+       [
+        0,
+        0,
+        0,
+        1
+       ]
+      ],
+      "streak_length": [
+       [
+        0,
+        0,
+        1,
+        1
+       ]
+      ],
+      "rank_length": [
+       [
+        0,
+        1,
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::connors_rsi",
+    "published": {
+     "by": "Connors, Alvarez and Radtke (Connors Research)",
+     "url": "https://alvarezquanttrading.com/wp-content/uploads/2016/05/ConnorsRSIGuidebook.pdf",
+     "sources": [
+      {
+       "title": "An Introduction to ConnorsRSI (Connors Research Trading Strategy Series, 2012)",
+       "url": "https://alvarezquanttrading.com/wp-content/uploads/2016/05/ConnorsRSIGuidebook.pdf",
+       "kind": "originator"
+      },
+      {
+       "title": "TradingView help center: Connors RSI (CRSI)",
+       "url": "https://www.tradingview.com/support/solutions/43000502017-connors-rsi-crsi/",
+       "kind": "vendor documentation"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "ConnorsRSI(3,2,100) = [RSI(close,3) + RSI(streak,2) + PercentRank(100)] / 3. The streak counts consecutive up closes (positive) or down closes (negative) and is 0 on an unchanged close. PercentRank is the share of the previous 100 one-day returns that are less than today's."
+    },
+    "capture": {
+     "id": "builtin-2026-11-18",
+     "against": "TradingView built-in: Connors RSI",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars",
+      "NYSE:RDDT 1D, 668 bars"
+     ],
+     "grade": "EQUAL AFTER WARM-UP",
+     "detail": "Equal on every bar after bar 130 on both charts. Bars 102 to 130 differ: the streak is first known 100 bars in, and its 2-bar RSI needs a few bars more."
+    }
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:9402e07ba557b49ea732547ba47684b5918c810fe48bacf9875fec3c6ed2798a",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "chandelier_exit",
+   "name": "Chandelier Exit",
+   "aliases": [
+    "chandelier exit",
+    "chandelier exits",
+    "chandelier stop",
+    "chandelier stops",
+    "chandelier"
+   ],
+   "placement": "overlay",
+   "params": [
+    {
+     "key": "length",
+     "label": "Length",
+     "default": 22,
+     "min": 1,
+     "max": 400,
+     "integer": true
+    },
+    {
+     "key": "atr_length",
+     "label": "ATR length",
+     "default": 22,
+     "min": 1,
+     "max": 400,
+     "integer": true
+    },
+    {
+     "key": "multiplier",
+     "label": "ATR multiplier",
+     "default": 3.0,
+     "min": 0.1,
+     "max": 20,
+     "integer": false
+    }
+   ],
+   "outputs": [
+    {
+     "key": "long",
+     "label": "Chandelier Exit long",
+     "type": "value",
+     "formula": "highest(high, {length}) - {multiplier} * atr(high, low, close, {atr_length})",
+     "tree": {
+      "type": "op",
+      "name": "-",
+      "args": [
+       {
+        "type": "call",
+        "name": "highest",
+        "args": [
+         {
+          "type": "series",
+          "name": "high"
+         },
+         {
+          "type": "num",
+          "value": 22
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": "*",
+        "args": [
+         {
+          "type": "num",
+          "value": 3
+         },
+         {
+          "type": "call",
+          "name": "atr",
+          "args": [
+           {
+            "type": "series",
+            "name": "high"
+           },
+           {
+            "type": "series",
+            "name": "low"
+           },
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "num",
+            "value": 22
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {
+      "length": [
+       [
+        0,
+        1
+       ]
+      ],
+      "atr_length": [
+       [
+        1,
+        1,
+        3
+       ]
+      ],
+      "multiplier": [
+       [
+        1,
+        0
+       ]
+      ]
+     }
+    },
+    {
+     "key": "short",
+     "label": "Chandelier Exit short",
+     "type": "value",
+     "formula": "lowest(low, {length}) + {multiplier} * atr(high, low, close, {atr_length})",
+     "tree": {
+      "type": "op",
+      "name": "+",
+      "args": [
+       {
+        "type": "call",
+        "name": "lowest",
+        "args": [
+         {
+          "type": "series",
+          "name": "low"
+         },
+         {
+          "type": "num",
+          "value": 22
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": "*",
+        "args": [
+         {
+          "type": "num",
+          "value": 3
+         },
+         {
+          "type": "call",
+          "name": "atr",
+          "args": [
+           {
+            "type": "series",
+            "name": "high"
+           },
+           {
+            "type": "series",
+            "name": "low"
+           },
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "num",
+            "value": 22
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {
+      "length": [
+       [
+        0,
+        1
+       ]
+      ],
+      "atr_length": [
+       [
+        1,
+        1,
+        3
+       ]
+      ],
+      "multiplier": [
+       [
+        1,
+        0
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::chandelier_exit",
+    "published": {
+     "by": "Charles Le Beau",
+     "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/chandelier-exit",
+     "sources": [
+      {
+       "title": "StockCharts ChartSchool: Chandelier Exit",
+       "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/chandelier-exit",
+       "kind": "reference"
+      },
+      {
+       "title": "TradingView help center: Chandelier Exit",
+       "url": "https://www.tradingview.com/support/solutions/43000773013-chandelier-exit/",
+       "kind": "vendor documentation"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "Long = 22-day highest high - ATR(22) x 3; short = 22-day lowest low + ATR(22) x 3.",
+     "note": "TradingView gives the lookback and the ATR their own lengths (both 22); so does this entry."
+    },
+    "capture": {
+     "id": "builtin-2026-11-18",
+     "against": "TradingView built-in: Chandelier exit",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars",
+      "NYSE:RDDT 1D, 668 bars"
+     ],
+     "grade": "EQUAL AFTER WARM-UP",
+     "detail": "Equal on every bar after bar 355. Earlier bars differ by an amount that shrinks every bar (2% at bar 27, under a millionth of a percent by bar 355): UCT's ATR is Wilder's original and TradingView's is seeded one bar earlier."
+    }
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:cc329c62d2e787c37d1f716a1a79e69b7276b3ae8901a7d49b49b3cef43cecc3",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "chaikin_money_flow",
+   "name": "Chaikin Money Flow",
+   "aliases": [
+    "chaikin money flow",
+    "chaikin's money flow",
+    "chaikins money flow",
+    "chaikin money flow indicator"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "length",
+     "label": "Length",
+     "default": 20,
+     "min": 1,
+     "max": 400,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "cmf",
+     "label": "Chaikin Money Flow",
+     "type": "value",
+     "formula": "sum(high == low ? 0 : ((close - low) - (high - close)) / (high - low) * volume, {length}) / sum(volume, {length})",
+     "tree": {
+      "type": "op",
+      "name": "/",
+      "args": [
+       {
+        "type": "call",
+        "name": "sum",
+        "args": [
+         {
+          "type": "op",
+          "name": "?:",
+          "args": [
+           {
+            "type": "op",
+            "name": "==",
+            "args": [
+             {
+              "type": "series",
+              "name": "high"
+             },
+             {
+              "type": "series",
+              "name": "low"
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 0
+           },
+           {
+            "type": "op",
+            "name": "*",
+            "args": [
+             {
+              "type": "op",
+              "name": "/",
+              "args": [
+               {
+                "type": "op",
+                "name": "-",
+                "args": [
+                 {
+                  "type": "op",
+                  "name": "-",
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   },
+                   {
+                    "type": "series",
+                    "name": "low"
+                   }
+                  ]
+                 },
+                 {
+                  "type": "op",
+                  "name": "-",
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "high"
+                   },
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "op",
+                "name": "-",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "high"
+                 },
+                 {
+                  "type": "series",
+                  "name": "low"
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "series",
+              "name": "volume"
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 20
+         }
+        ]
+       },
+       {
+        "type": "call",
+        "name": "sum",
+        "args": [
+         {
+          "type": "series",
+          "name": "volume"
+         },
+         {
+          "type": "num",
+          "value": 20
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {
+      "length": [
+       [
+        0,
+        1
+       ],
+       [
+        1,
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::chaikin_money_flow",
+    "published": {
+     "by": "Marc Chaikin",
+     "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/chaikin-money-flow-cmf",
+     "sources": [
+      {
+       "title": "StockCharts ChartSchool: Chaikin Money Flow (CMF)",
+       "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/chaikin-money-flow-cmf",
+       "kind": "reference"
+      },
+      {
+       "title": "TradingView help center: Chaikin Money Flow (CMF)",
+       "url": "https://www.tradingview.com/support/solutions/43000501974-chaikin-money-flow-cmf/",
+       "kind": "vendor documentation"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "Money flow multiplier = [(close - low) - (high - close)] / (high - low); money flow volume = multiplier x volume; CMF = 20-period sum of money flow volume / 20-period sum of volume.",
+     "note": "A bar with no range (high equals low) has no multiplier in the published formula; it counts as 0 here."
+    },
+    "capture": {
+     "id": "builtin-2026-11-18",
+     "against": "TradingView built-in: Chaikin money flow",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars",
+      "NYSE:RDDT 1D, 668 bars"
+     ],
+     "grade": "EQUAL",
+     "detail": "Equal on every bar both charts have a value for."
+    }
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:eaa3d5d0a33d84eaa50c77cba749ff94a02207660ed5af85d468b69f0dc9430e",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "ultimate_oscillator",
+   "name": "Ultimate Oscillator",
+   "aliases": [
+    "ultimate oscillator",
+    "williams ultimate oscillator",
+    "larry williams ultimate oscillator"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "fast",
+     "label": "Fast length",
+     "default": 7,
+     "min": 1,
+     "max": 300,
+     "integer": true
+    },
+    {
+     "key": "middle",
+     "label": "Middle length",
+     "default": 14,
+     "min": 1,
+     "max": 300,
+     "integer": true
+    },
+    {
+     "key": "slow",
+     "label": "Slow length",
+     "default": 28,
+     "min": 1,
+     "max": 600,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "uo",
+     "label": "Ultimate Oscillator",
+     "type": "value",
+     "formula": "100 * (4 * sum(close - min(low, close[1]), {fast}) / sum(max(high, close[1]) - min(low, close[1]), {fast}) + 2 * sum(close - min(low, close[1]), {middle}) / sum(max(high, close[1]) - min(low, close[1]), {middle}) + sum(close - min(low, close[1]), {slow}) / sum(max(high, close[1]) - min(low, close[1]), {slow})) / 7",
+     "tree": {
+      "type": "op",
+      "name": "/",
+      "args": [
+       {
+        "type": "op",
+        "name": "*",
+        "args": [
+         {
+          "type": "num",
+          "value": 100
+         },
+         {
+          "type": "op",
+          "name": "+",
+          "args": [
+           {
+            "type": "op",
+            "name": "+",
+            "args": [
+             {
+              "type": "op",
+              "name": "/",
+              "args": [
+               {
+                "type": "op",
+                "name": "*",
+                "args": [
+                 {
+                  "type": "num",
+                  "value": 4
+                 },
+                 {
+                  "type": "call",
+                  "name": "sum",
+                  "args": [
+                   {
+                    "type": "op",
+                    "name": "-",
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "close"
+                     },
+                     {
+                      "type": "call",
+                      "name": "min",
+                      "args": [
+                       {
+                        "type": "series",
+                        "name": "low"
+                       },
+                       {
+                        "type": "offset",
+                        "value": 1,
+                        "args": [
+                         {
+                          "type": "series",
+                          "name": "close"
+                         }
+                        ]
+                       }
+                      ]
+                     }
+                    ]
+                   },
+                   {
+                    "type": "num",
+                    "value": 7
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "call",
+                "name": "sum",
+                "args": [
+                 {
+                  "type": "op",
+                  "name": "-",
+                  "args": [
+                   {
+                    "type": "call",
+                    "name": "max",
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "high"
+                     },
+                     {
+                      "type": "offset",
+                      "value": 1,
+                      "args": [
+                       {
+                        "type": "series",
+                        "name": "close"
+                       }
+                      ]
+                     }
+                    ]
+                   },
+                   {
+                    "type": "call",
+                    "name": "min",
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "low"
+                     },
+                     {
+                      "type": "offset",
+                      "value": 1,
+                      "args": [
+                       {
+                        "type": "series",
+                        "name": "close"
+                       }
+                      ]
+                     }
+                    ]
+                   }
+                  ]
+                 },
+                 {
+                  "type": "num",
+                  "value": 7
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "op",
+              "name": "/",
+              "args": [
+               {
+                "type": "op",
+                "name": "*",
+                "args": [
+                 {
+                  "type": "num",
+                  "value": 2
+                 },
+                 {
+                  "type": "call",
+                  "name": "sum",
+                  "args": [
+                   {
+                    "type": "op",
+                    "name": "-",
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "close"
+                     },
+                     {
+                      "type": "call",
+                      "name": "min",
+                      "args": [
+                       {
+                        "type": "series",
+                        "name": "low"
+                       },
+                       {
+                        "type": "offset",
+                        "value": 1,
+                        "args": [
+                         {
+                          "type": "series",
+                          "name": "close"
+                         }
+                        ]
+                       }
+                      ]
+                     }
+                    ]
+                   },
+                   {
+                    "type": "num",
+                    "value": 14
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "call",
+                "name": "sum",
+                "args": [
+                 {
+                  "type": "op",
+                  "name": "-",
+                  "args": [
+                   {
+                    "type": "call",
+                    "name": "max",
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "high"
+                     },
+                     {
+                      "type": "offset",
+                      "value": 1,
+                      "args": [
+                       {
+                        "type": "series",
+                        "name": "close"
+                       }
+                      ]
+                     }
+                    ]
+                   },
+                   {
+                    "type": "call",
+                    "name": "min",
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "low"
+                     },
+                     {
+                      "type": "offset",
+                      "value": 1,
+                      "args": [
+                       {
+                        "type": "series",
+                        "name": "close"
+                       }
+                      ]
+                     }
+                    ]
+                   }
+                  ]
+                 },
+                 {
+                  "type": "num",
+                  "value": 14
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": "/",
+            "args": [
+             {
+              "type": "call",
+              "name": "sum",
+              "args": [
+               {
+                "type": "op",
+                "name": "-",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 },
+                 {
+                  "type": "call",
+                  "name": "min",
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "low"
+                   },
+                   {
+                    "type": "offset",
+                    "value": 1,
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "close"
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 28
+               }
+              ]
+             },
+             {
+              "type": "call",
+              "name": "sum",
+              "args": [
+               {
+                "type": "op",
+                "name": "-",
+                "args": [
+                 {
+                  "type": "call",
+                  "name": "max",
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "high"
+                   },
+                   {
+                    "type": "offset",
+                    "value": 1,
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "close"
+                     }
+                    ]
+                   }
+                  ]
+                 },
+                 {
+                  "type": "call",
+                  "name": "min",
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "low"
+                   },
+                   {
+                    "type": "offset",
+                    "value": 1,
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "close"
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 28
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 7
+       }
+      ]
+     },
+     "sites": {
+      "fast": [
+       [
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        1
+       ],
+       [
+        0,
+        1,
+        0,
+        0,
+        1,
+        1
+       ]
+      ],
+      "middle": [
+       [
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1
+       ],
+       [
+        0,
+        1,
+        0,
+        1,
+        1,
+        1
+       ]
+      ],
+      "slow": [
+       [
+        0,
+        1,
+        1,
+        0,
+        1
+       ],
+       [
+        0,
+        1,
+        1,
+        1,
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::ultimate_oscillator",
+    "published": {
+     "by": "Larry Williams",
+     "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/ultimate-oscillator",
+     "sources": [
+      {
+       "title": "StockCharts ChartSchool: Ultimate Oscillator",
+       "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/ultimate-oscillator",
+       "kind": "reference"
+      },
+      {
+       "title": "TradingView help center: Ultimate Oscillator (UO)",
+       "url": "https://www.tradingview.com/support/solutions/43000502328-ultimate-oscillator-uo/",
+       "kind": "vendor documentation"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "BP = close - min(low, prior close); TR = max(high, prior close) - min(low, prior close); average N = sum of BP / sum of TR for N = 7, 14, 28; UO = 100 x (4 x avg7 + 2 x avg14 + avg28) / 7."
+    },
+    "capture": {
+     "id": "builtin-2026-11-18",
+     "against": "TradingView built-in: Ultimate oscillator",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars",
+      "NYSE:RDDT 1D, 668 bars"
+     ],
+     "grade": "EQUAL",
+     "detail": "Equal on every bar both charts have a value for."
+    }
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:f8f3aed020d1d8749e716f0c6ecad1a1f758d046fd1cc05a5d34e5c4e2ff14d9",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "awesome_oscillator",
+   "name": "Awesome Oscillator",
+   "aliases": [
+    "awesome oscillator",
+    "bill williams awesome oscillator"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "fast",
+     "label": "Fast length",
+     "default": 5,
+     "min": 1,
+     "max": 300,
+     "integer": true
+    },
+    {
+     "key": "slow",
+     "label": "Slow length",
+     "default": 34,
+     "min": 2,
+     "max": 600,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "ao",
+     "label": "Awesome Oscillator",
+     "type": "value",
+     "formula": "sma((high + low) / 2, {fast}) - sma((high + low) / 2, {slow})",
+     "tree": {
+      "type": "op",
+      "name": "-",
+      "args": [
+       {
+        "type": "call",
+        "name": "sma",
+        "args": [
+         {
+          "type": "op",
+          "name": "/",
+          "args": [
+           {
+            "type": "op",
+            "name": "+",
+            "args": [
+             {
+              "type": "series",
+              "name": "high"
+             },
+             {
+              "type": "series",
+              "name": "low"
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 2
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 5
+         }
+        ]
+       },
+       {
+        "type": "call",
+        "name": "sma",
+        "args": [
+         {
+          "type": "op",
+          "name": "/",
+          "args": [
+           {
+            "type": "op",
+            "name": "+",
+            "args": [
+             {
+              "type": "series",
+              "name": "high"
+             },
+             {
+              "type": "series",
+              "name": "low"
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 2
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 34
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {
+      "fast": [
+       [
+        0,
+        1
+       ]
+      ],
+      "slow": [
+       [
+        1,
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::awesome_oscillator",
+    "published": {
+     "by": "Bill Williams",
+     "url": "https://www.tradingview.com/support/solutions/43000501826-awesome-oscillator-ao/",
+     "sources": [
+      {
+       "title": "TradingView help center: Awesome Oscillator (AO)",
+       "url": "https://www.tradingview.com/support/solutions/43000501826-awesome-oscillator-ao/",
+       "kind": "vendor documentation"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "AO = SMA of (high + low) / 2 over 5 - SMA of (high + low) / 2 over 34."
+    },
+    "capture": {
+     "id": "builtin-2026-11-18",
+     "against": "TradingView built-in: Awesome oscillator",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars",
+      "NYSE:RDDT 1D, 668 bars"
+     ],
+     "grade": "EQUAL",
+     "detail": "Equal on every bar both charts have a value for."
+    }
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:d3a7d34f7f6af22a37b9a5ced32cad2821a39c200724441650ed80636c57b15a",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "coppock_curve",
+   "name": "Coppock Curve",
+   "aliases": [
+    "coppock curve",
+    "coppock indicator",
+    "coppock"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "wma_length",
+     "label": "WMA length",
+     "default": 10,
+     "min": 1,
+     "max": 300,
+     "integer": true
+    },
+    {
+     "key": "long_roc",
+     "label": "Long rate of change",
+     "default": 14,
+     "min": 1,
+     "max": 600,
+     "integer": true
+    },
+    {
+     "key": "short_roc",
+     "label": "Short rate of change",
+     "default": 11,
+     "min": 1,
+     "max": 600,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "coppock",
+     "label": "Coppock Curve",
+     "type": "value",
+     "formula": "wma(roc(close, {long_roc}) + roc(close, {short_roc}), {wma_length})",
+     "tree": {
+      "type": "call",
+      "name": "wma",
+      "args": [
+       {
+        "type": "op",
+        "name": "+",
+        "args": [
+         {
+          "type": "call",
+          "name": "roc",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "num",
+            "value": 14
+           }
+          ]
+         },
+         {
+          "type": "call",
+          "name": "roc",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "num",
+            "value": 11
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 10
+       }
+      ]
+     },
+     "sites": {
+      "wma_length": [
+       [
+        1
+       ]
+      ],
+      "long_roc": [
+       [
+        0,
+        0,
+        1
+       ]
+      ],
+      "short_roc": [
+       [
+        0,
+        1,
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::coppock_curve",
+    "published": {
+     "by": "Edwin S. Coppock",
+     "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/coppock-curve",
+     "sources": [
+      {
+       "title": "StockCharts ChartSchool: Coppock Curve",
+       "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/coppock-curve",
+       "kind": "reference"
+      },
+      {
+       "title": "Wikipedia: Coppock curve",
+       "url": "https://en.wikipedia.org/wiki/Coppock_curve",
+       "kind": "reference"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "Coppock = 10-period weighted average of (14-period rate of change + 11-period rate of change).",
+     "note": "Designed for monthly bars; it computes on whatever bars the chart shows."
+    },
+    "capture": {
+     "id": "builtin-2026-11-18",
+     "against": "TradingView built-in: Coppock curve",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars",
+      "NYSE:RDDT 1D, 668 bars"
+     ],
+     "grade": "EQUAL",
+     "detail": "Equal on every bar both charts have a value for."
+    }
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:beefe7aca98b9f24d66da5211174dff401c6a224b5dc96a0a4e16b000b3c48b1",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "true_strength_index",
+   "name": "True Strength Index",
+   "aliases": [
+    "true strength index",
+    "true strength indicator"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "long",
+     "label": "Long length",
+     "default": 25,
+     "min": 1,
+     "max": 400,
+     "integer": true
+    },
+    {
+     "key": "short",
+     "label": "Short length",
+     "default": 13,
+     "min": 1,
+     "max": 400,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "tsi",
+     "label": "True Strength Index",
+     "type": "value",
+     "formula": "100 * ema(ema(close - close[1], {long}), {short}) / ema(ema(abs(close - close[1]), {long}), {short})",
+     "tree": {
+      "type": "op",
+      "name": "/",
+      "args": [
+       {
+        "type": "op",
+        "name": "*",
+        "args": [
+         {
+          "type": "num",
+          "value": 100
+         },
+         {
+          "type": "call",
+          "name": "ema",
+          "args": [
+           {
+            "type": "call",
+            "name": "ema",
+            "args": [
+             {
+              "type": "op",
+              "name": "-",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "offset",
+                "value": 1,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 25
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 13
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "call",
+        "name": "ema",
+        "args": [
+         {
+          "type": "call",
+          "name": "ema",
+          "args": [
+           {
+            "type": "call",
+            "name": "abs",
+            "args": [
+             {
+              "type": "op",
+              "name": "-",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "offset",
+                "value": 1,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 25
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 13
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {
+      "long": [
+       [
+        0,
+        1,
+        0,
+        1
+       ],
+       [
+        1,
+        0,
+        1
+       ]
+      ],
+      "short": [
+       [
+        0,
+        1,
+        1
+       ],
+       [
+        1,
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::true_strength_index",
+    "published": {
+     "by": "William Blau",
+     "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/true-strength-index",
+     "sources": [
+      {
+       "title": "StockCharts ChartSchool: True Strength Index",
+       "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/true-strength-index",
+       "kind": "reference"
+      },
+      {
+       "title": "Wikipedia: True strength index",
+       "url": "https://en.wikipedia.org/wiki/True_strength_index",
+       "kind": "reference"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "PC = close - prior close; TSI = 100 x (13-period EMA of the 25-period EMA of PC) / (13-period EMA of the 25-period EMA of |PC|).",
+     "note": "No signal line: the sources read do not agree on its length."
+    },
+    "capture": {
+     "id": "builtin-2026-11-18",
+     "against": "TradingView built-in: True strength index",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars",
+      "NYSE:RDDT 1D, 668 bars"
+     ],
+     "grade": "EQUAL",
+     "detail": "Equal on every bar both charts have a value for. TradingView also draws a 13-bar signal line; this entry has none."
+    }
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:7cf1973b640a18b1f752299ff7e714f9acd10d60df476b4239ed482a1432c22e",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "vortex_indicator",
+   "name": "Vortex Indicator",
+   "aliases": [
+    "vortex indicator",
+    "vortex"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "length",
+     "label": "Length",
+     "default": 14,
+     "min": 1,
+     "max": 600,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "plus",
+     "label": "VI+",
+     "type": "value",
+     "formula": "sum(abs(high - low[1]), {length}) / sum(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), {length})",
+     "tree": {
+      "type": "op",
+      "name": "/",
+      "args": [
+       {
+        "type": "call",
+        "name": "sum",
+        "args": [
+         {
+          "type": "call",
+          "name": "abs",
+          "args": [
+           {
+            "type": "op",
+            "name": "-",
+            "args": [
+             {
+              "type": "series",
+              "name": "high"
+             },
+             {
+              "type": "offset",
+              "value": 1,
+              "args": [
+               {
+                "type": "series",
+                "name": "low"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 14
+         }
+        ]
+       },
+       {
+        "type": "call",
+        "name": "sum",
+        "args": [
+         {
+          "type": "call",
+          "name": "max",
+          "args": [
+           {
+            "type": "op",
+            "name": "-",
+            "args": [
+             {
+              "type": "series",
+              "name": "high"
+             },
+             {
+              "type": "series",
+              "name": "low"
+             }
+            ]
+           },
+           {
+            "type": "call",
+            "name": "max",
+            "args": [
+             {
+              "type": "call",
+              "name": "abs",
+              "args": [
+               {
+                "type": "op",
+                "name": "-",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "high"
+                 },
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "call",
+              "name": "abs",
+              "args": [
+               {
+                "type": "op",
+                "name": "-",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "low"
+                 },
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 14
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {
+      "length": [
+       [
+        0,
+        1
+       ],
+       [
+        1,
+        1
+       ]
+      ]
+     }
+    },
+    {
+     "key": "minus",
+     "label": "VI-",
+     "type": "value",
+     "formula": "sum(abs(low - high[1]), {length}) / sum(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), {length})",
+     "tree": {
+      "type": "op",
+      "name": "/",
+      "args": [
+       {
+        "type": "call",
+        "name": "sum",
+        "args": [
+         {
+          "type": "call",
+          "name": "abs",
+          "args": [
+           {
+            "type": "op",
+            "name": "-",
+            "args": [
+             {
+              "type": "series",
+              "name": "low"
+             },
+             {
+              "type": "offset",
+              "value": 1,
+              "args": [
+               {
+                "type": "series",
+                "name": "high"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 14
+         }
+        ]
+       },
+       {
+        "type": "call",
+        "name": "sum",
+        "args": [
+         {
+          "type": "call",
+          "name": "max",
+          "args": [
+           {
+            "type": "op",
+            "name": "-",
+            "args": [
+             {
+              "type": "series",
+              "name": "high"
+             },
+             {
+              "type": "series",
+              "name": "low"
+             }
+            ]
+           },
+           {
+            "type": "call",
+            "name": "max",
+            "args": [
+             {
+              "type": "call",
+              "name": "abs",
+              "args": [
+               {
+                "type": "op",
+                "name": "-",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "high"
+                 },
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "call",
+              "name": "abs",
+              "args": [
+               {
+                "type": "op",
+                "name": "-",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "low"
+                 },
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 14
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {
+      "length": [
+       [
+        0,
+        1
+       ],
+       [
+        1,
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::vortex_indicator",
+    "published": {
+     "by": "Etienne Botes and Douglas Siepman",
+     "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/vortex-indicator",
+     "sources": [
+      {
+       "title": "StockCharts ChartSchool: Vortex Indicator",
+       "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/vortex-indicator",
+       "kind": "reference"
+      },
+      {
+       "title": "Wikipedia: Vortex indicator",
+       "url": "https://en.wikipedia.org/wiki/Vortex_indicator",
+       "kind": "reference"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "+VM = |high - prior low|; -VM = |low - prior high|; TR = max(high - low, |high - prior close|, |low - prior close|); +VI = n-period sum of +VM / n-period sum of TR; -VI likewise.",
+     "note": "Length 14 follows StockCharts; other sources suggest 21."
+    },
+    "capture": {
+     "id": "builtin-2026-11-18",
+     "against": "TradingView built-in: Vortex indicator",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars",
+      "NYSE:RDDT 1D, 668 bars"
+     ],
+     "grade": "EQUAL",
+     "detail": "Equal on every bar both charts have a value for."
+    }
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:c0b7229f3ed3f9b37a55ef9d0b9506c64817bb1e8b8fa0ce148a77244d7225de",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "choppiness_index",
+   "name": "Choppiness Index",
+   "aliases": [
+    "choppiness index",
+    "chop index",
+    "choppiness indicator",
+    "choppiness"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "length",
+     "label": "Length",
+     "default": 14,
+     "min": 2,
+     "max": 600,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "chop",
+     "label": "Choppiness Index",
+     "type": "value",
+     "formula": "100 * log10(sum(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), {length}) / (highest(high, {length}) - lowest(low, {length}))) / log10({length})",
+     "tree": {
+      "type": "op",
+      "name": "/",
+      "args": [
+       {
+        "type": "op",
+        "name": "*",
+        "args": [
+         {
+          "type": "num",
+          "value": 100
+         },
+         {
+          "type": "call",
+          "name": "log10",
+          "args": [
+           {
+            "type": "op",
+            "name": "/",
+            "args": [
+             {
+              "type": "call",
+              "name": "sum",
+              "args": [
+               {
+                "type": "call",
+                "name": "max",
+                "args": [
+                 {
+                  "type": "op",
+                  "name": "-",
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "high"
+                   },
+                   {
+                    "type": "series",
+                    "name": "low"
+                   }
+                  ]
+                 },
+                 {
+                  "type": "call",
+                  "name": "max",
+                  "args": [
+                   {
+                    "type": "call",
+                    "name": "abs",
+                    "args": [
+                     {
+                      "type": "op",
+                      "name": "-",
+                      "args": [
+                       {
+                        "type": "series",
+                        "name": "high"
+                       },
+                       {
+                        "type": "offset",
+                        "value": 1,
+                        "args": [
+                         {
+                          "type": "series",
+                          "name": "close"
+                         }
+                        ]
+                       }
+                      ]
+                     }
+                    ]
+                   },
+                   {
+                    "type": "call",
+                    "name": "abs",
+                    "args": [
+                     {
+                      "type": "op",
+                      "name": "-",
+                      "args": [
+                       {
+                        "type": "series",
+                        "name": "low"
+                       },
+                       {
+                        "type": "offset",
+                        "value": 1,
+                        "args": [
+                         {
+                          "type": "series",
+                          "name": "close"
+                         }
+                        ]
+                       }
+                      ]
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 14
+               }
+              ]
+             },
+             {
+              "type": "op",
+              "name": "-",
+              "args": [
+               {
+                "type": "call",
+                "name": "highest",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "high"
+                 },
+                 {
+                  "type": "num",
+                  "value": 14
+                 }
+                ]
+               },
+               {
+                "type": "call",
+                "name": "lowest",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "low"
+                 },
+                 {
+                  "type": "num",
+                  "value": 14
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "call",
+        "name": "log10",
+        "args": [
+         {
+          "type": "num",
+          "value": 14
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {
+      "length": [
+       [
+        0,
+        1,
+        0,
+        0,
+        1
+       ],
+       [
+        0,
+        1,
+        0,
+        1,
+        0,
+        1
+       ],
+       [
+        0,
+        1,
+        0,
+        1,
+        1,
+        1
+       ],
+       [
+        1,
+        0
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::choppiness_index",
+    "published": {
+     "by": "E.W. Dreiss",
+     "url": "https://www.tradingview.com/support/solutions/43000501980-choppiness-index-chop/",
+     "sources": [
+      {
+       "title": "TradingView help center: Choppiness Index (CHOP)",
+       "url": "https://www.tradingview.com/support/solutions/43000501980-choppiness-index-chop/",
+       "kind": "vendor documentation"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "100 x LOG10(SUM(ATR(1), n) / (MaxHi(n) - MinLo(n))) / LOG10(n); length 14."
+    },
+    "capture": {
+     "id": "builtin-2026-11-18",
+     "against": "TradingView built-in: Choppiness index",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars",
+      "NYSE:RDDT 1D, 668 bars"
+     ],
+     "grade": "EQUAL",
+     "detail": "Equal on every bar both charts have a value for."
+    }
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:ebe45e6c40c65fcc88aab32a4603f5a895c77169b803c226e3af3e76bad00b81",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "elder_ray",
+   "name": "Elder Ray",
+   "aliases": [
+    "elder ray",
+    "elder-ray",
+    "elder ray index",
+    "elder-ray index",
+    "bull and bear power",
+    "bull power and bear power"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "length",
+     "label": "Length",
+     "default": 13,
+     "min": 1,
+     "max": 400,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "bull",
+     "label": "Bull Power",
+     "type": "value",
+     "formula": "high - ema(close, {length})",
+     "tree": {
+      "type": "op",
+      "name": "-",
+      "args": [
+       {
+        "type": "series",
+        "name": "high"
+       },
+       {
+        "type": "call",
+        "name": "ema",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "num",
+          "value": 13
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {
+      "length": [
+       [
+        1,
+        1
+       ]
+      ]
+     }
+    },
+    {
+     "key": "bear",
+     "label": "Bear Power",
+     "type": "value",
+     "formula": "low - ema(close, {length})",
+     "tree": {
+      "type": "op",
+      "name": "-",
+      "args": [
+       {
+        "type": "series",
+        "name": "low"
+       },
+       {
+        "type": "call",
+        "name": "ema",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "num",
+          "value": 13
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {
+      "length": [
+       [
+        1,
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::elder_ray",
+    "published": {
+     "by": "Alexander Elder",
+     "url": "https://ta-lib.org/functions/eri.html",
+     "sources": [
+      {
+       "title": "TA-Lib: Elder Ray Index",
+       "url": "https://ta-lib.org/functions/eri.html",
+       "kind": "reference"
+      },
+      {
+       "title": "Incredible Charts: Elder Ray Index",
+       "url": "https://incrediblecharts.com/indicators/elder_ray_index.php",
+       "kind": "reference"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "Bull Power = high - 13-period EMA of the close; Bear Power = low - the same EMA.",
+     "note": "TradingView's built-in 'Bull Bear Power' plots the SUM of the two as one line; this entry is Elder's two lines."
+    },
+    "capture": {
+     "id": "builtin-2026-11-18",
+     "against": "TradingView built-in: Bull bear power",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars",
+      "NYSE:RDDT 1D, 668 bars"
+     ],
+     "grade": "EQUAL",
+     "detail": "TradingView draws ONE line, bull power plus bear power; the sum of this entry's two lines equals it on every bar."
+    }
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:4e4b1dc5174c708d07affc689a6c199f3823352c9ae20c2fc8aaee746d4849dd",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "squeeze_momentum",
+   "name": "Squeeze Momentum Indicator",
+   "aliases": [
+    "squeeze momentum",
+    "squeeze momentum indicator",
+    "lazybear squeeze momentum",
+    "lazybear squeeze"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "bb_length",
+     "label": "BB length",
+     "default": 20,
+     "min": 2,
+     "max": 400,
+     "integer": true
+    },
+    {
+     "key": "bb_mult",
+     "label": "BB multiplier",
+     "default": 2.0,
+     "min": 0.1,
+     "max": 10,
+     "integer": false
+    },
+    {
+     "key": "kc_length",
+     "label": "KC length",
+     "default": 20,
+     "min": 2,
+     "max": 400,
+     "integer": true
+    },
+    {
+     "key": "kc_mult",
+     "label": "KC multiplier",
+     "default": 1.5,
+     "min": 0.1,
+     "max": 10,
+     "integer": false
+    }
+   ],
+   "outputs": [
+    {
+     "key": "momentum",
+     "label": "Squeeze momentum",
+     "type": "value",
+     "formula": "linreg(close - ((highest(high, {kc_length}) + lowest(low, {kc_length})) / 2 + sma(close, {kc_length})) / 2, {kc_length}, 0)",
+     "tree": {
+      "type": "call",
+      "name": "linreg",
+      "args": [
+       {
+        "type": "op",
+        "name": "-",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "op",
+          "name": "/",
+          "args": [
+           {
+            "type": "op",
+            "name": "+",
+            "args": [
+             {
+              "type": "op",
+              "name": "/",
+              "args": [
+               {
+                "type": "op",
+                "name": "+",
+                "args": [
+                 {
+                  "type": "call",
+                  "name": "highest",
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "high"
+                   },
+                   {
+                    "type": "num",
+                    "value": 20
+                   }
+                  ]
+                 },
+                 {
+                  "type": "call",
+                  "name": "lowest",
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "low"
+                   },
+                   {
+                    "type": "num",
+                    "value": 20
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 2
+               }
+              ]
+             },
+             {
+              "type": "call",
+              "name": "sma",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "num",
+                "value": 20
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 2
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 20
+       }
+      ]
+     },
+     "sites": {
+      "kc_length": [
+       [
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1
+       ],
+       [
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        1
+       ],
+       [
+        0,
+        1,
+        0,
+        1,
+        1
+       ],
+       [
+        1
+       ]
+      ]
+     }
+    },
+    {
+     "key": "squeeze_on",
+     "label": "Squeeze on",
+     "type": "condition",
+     "formula": "sma(close, {bb_length}) - {bb_mult} * stdev(close, {bb_length}) > sma(close, {kc_length}) - {kc_mult} * sma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), {kc_length}) && sma(close, {bb_length}) + {bb_mult} * stdev(close, {bb_length}) < sma(close, {kc_length}) + {kc_mult} * sma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), {kc_length})",
+     "tree": {
+      "type": "op",
+      "name": "&&",
+      "args": [
+       {
+        "type": "op",
+        "name": ">",
+        "args": [
+         {
+          "type": "call",
+          "name": "bbLower",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "num",
+            "value": 20
+           },
+           {
+            "type": "num",
+            "value": 2
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "-",
+          "args": [
+           {
+            "type": "call",
+            "name": "sma",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "num",
+              "value": 20
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": "*",
+            "args": [
+             {
+              "type": "num",
+              "value": 1.5
+             },
+             {
+              "type": "call",
+              "name": "sma",
+              "args": [
+               {
+                "type": "call",
+                "name": "max",
+                "args": [
+                 {
+                  "type": "op",
+                  "name": "-",
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "high"
+                   },
+                   {
+                    "type": "series",
+                    "name": "low"
+                   }
+                  ]
+                 },
+                 {
+                  "type": "call",
+                  "name": "max",
+                  "args": [
+                   {
+                    "type": "call",
+                    "name": "abs",
+                    "args": [
+                     {
+                      "type": "op",
+                      "name": "-",
+                      "args": [
+                       {
+                        "type": "series",
+                        "name": "high"
+                       },
+                       {
+                        "type": "offset",
+                        "value": 1,
+                        "args": [
+                         {
+                          "type": "series",
+                          "name": "close"
+                         }
+                        ]
+                       }
+                      ]
+                     }
+                    ]
+                   },
+                   {
+                    "type": "call",
+                    "name": "abs",
+                    "args": [
+                     {
+                      "type": "op",
+                      "name": "-",
+                      "args": [
+                       {
+                        "type": "series",
+                        "name": "low"
+                       },
+                       {
+                        "type": "offset",
+                        "value": 1,
+                        "args": [
+                         {
+                          "type": "series",
+                          "name": "close"
+                         }
+                        ]
+                       }
+                      ]
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 20
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": "<",
+        "args": [
+         {
+          "type": "call",
+          "name": "bbUpper",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "num",
+            "value": 20
+           },
+           {
+            "type": "num",
+            "value": 2
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "+",
+          "args": [
+           {
+            "type": "call",
+            "name": "sma",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "num",
+              "value": 20
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": "*",
+            "args": [
+             {
+              "type": "num",
+              "value": 1.5
+             },
+             {
+              "type": "call",
+              "name": "sma",
+              "args": [
+               {
+                "type": "call",
+                "name": "max",
+                "args": [
+                 {
+                  "type": "op",
+                  "name": "-",
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "high"
+                   },
+                   {
+                    "type": "series",
+                    "name": "low"
+                   }
+                  ]
+                 },
+                 {
+                  "type": "call",
+                  "name": "max",
+                  "args": [
+                   {
+                    "type": "call",
+                    "name": "abs",
+                    "args": [
+                     {
+                      "type": "op",
+                      "name": "-",
+                      "args": [
+                       {
+                        "type": "series",
+                        "name": "high"
+                       },
+                       {
+                        "type": "offset",
+                        "value": 1,
+                        "args": [
+                         {
+                          "type": "series",
+                          "name": "close"
+                         }
+                        ]
+                       }
+                      ]
+                     }
+                    ]
+                   },
+                   {
+                    "type": "call",
+                    "name": "abs",
+                    "args": [
+                     {
+                      "type": "op",
+                      "name": "-",
+                      "args": [
+                       {
+                        "type": "series",
+                        "name": "low"
+                       },
+                       {
+                        "type": "offset",
+                        "value": 1,
+                        "args": [
+                         {
+                          "type": "series",
+                          "name": "close"
+                         }
+                        ]
+                       }
+                      ]
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 20
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {
+      "bb_length": [
+       [
+        0,
+        0,
+        1
+       ],
+       [
+        1,
+        0,
+        1
+       ]
+      ],
+      "bb_mult": [
+       [
+        0,
+        0,
+        2
+       ],
+       [
+        1,
+        0,
+        2
+       ]
+      ],
+      "kc_length": [
+       [
+        0,
+        1,
+        0,
+        1
+       ],
+       [
+        0,
+        1,
+        1,
+        1,
+        1
+       ],
+       [
+        1,
+        1,
+        0,
+        1
+       ],
+       [
+        1,
+        1,
+        1,
+        1,
+        1
+       ]
+      ],
+      "kc_mult": [
+       [
+        0,
+        1,
+        1,
+        0
+       ],
+       [
+        1,
+        1,
+        1,
+        0
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::squeeze_momentum",
+    "published": {
+     "by": "LazyBear",
+     "url": "https://www.tradingview.com/script/nqQ1DT5a-Squeeze-Momentum-Indicator-LazyBear/",
+     "sources": [
+      {
+       "title": "Squeeze Momentum Indicator [LazyBear]",
+       "url": "https://www.tradingview.com/script/nqQ1DT5a-Squeeze-Momentum-Indicator-LazyBear/",
+       "kind": "originator"
+      },
+      {
+       "title": "The script's source as its author posted it",
+       "url": "https://pastebin.com/raw/UCpcX8d7",
+       "kind": "originator"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "Bollinger band: 20-bar simple average of the close, 2 standard deviations. Keltner channel: the same average, 1.5 x the 20-bar simple average of the true range. Squeeze on = both Bollinger bands inside the Keltner channel. Momentum = linear regression (20) of close - average of (the 20-bar highest high and lowest low midpoint, the 20-bar average close).",
+     "note": "This is LazyBear's public formula, named as his. John Carter's TTM Squeeze as he published it was not confirmed on a page read, so 'TTM Squeeze' is not a name in this library."
+    },
+    "capture": null
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:bcbe0ed27cb47a7a75aac0ce6b172e1e158dc8bdc1a6619db3780edde9e7f911",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  }
+ ]
+}

@@ -65,6 +65,7 @@ from jsonschema import Draft202012Validator
 from api.services import ast_interpret, ast_lint, call_expansions, conversation_preflight, user_definitions
 from api.services import definition_concierge as dc
 from api.services import chart_twins
+from api.services import named_indicators
 from api.services.ast_budget import BudgetExceeded, check_budget
 from api.services.ast_interpret import TableRefusal
 from api.services.catalyst import cost_guard
@@ -296,6 +297,11 @@ def anthropic_tool() -> Dict[str, Any]:
 #: are reported under ``dc.REFUSALS``. ⛔ Disjoint from every other door's phrases
 #: (``tests/test_p2_truth_server.py`` asserts it).
 REFUSALS: Mapping[str, str] = {
+    # ⭐ THE NAMED-INDICATOR LIBRARY (`named_indicators.py`)
+    "named:formula": (
+        "the UCT Agent did not build that named indicator to UCT's checked formula, so nothing was changed"),
+    "named:unchecked": (
+        "that indicator is in UCT's library but its formula has not been checked yet, so the assistant will not build it"),
     # ⭐ BATCH 2 -- linreg / correlation / vwma / roc / mom / Keltner with an unusable length
     "resolve:expansion": (
         "a formula function was given a length it cannot use (a whole number is needed)"),
@@ -819,11 +825,145 @@ def _chart_form(tree: Any) -> Optional[Dict[str, Any]]:
     return out
 
 
+#: ⭐ THE NAMED-INDICATOR LIBRARY -- the rules the model reads beside a name the member wrote.
+NAMED_RULE = ("a NAMED indicator: UCT builds it to ONE checked formula. For each output you build, copy "
+              "its `tree` exactly. The only numbers that may differ are the ones in `numbers`, and only when "
+              "the member gave their own (within min and max, the same number everywhere that parameter "
+              "appears). Use `placement` and each output's `label`. Never write your own version of it; if "
+              "what the member asked cannot be this formula, emit no ops and say so in `note`")
+NAMED_UNCHECKED_RULE = ("in UCT's library but its formula is NOT CHECKED YET: you may discuss it, never "
+                        "author with it")
+NAMED_GATE = "named:formula"
+NAMED_UNCHECKED_GATE = "named:unchecked"
+
+
+def _named_term(e: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
+    """What the assistant is handed for a library name: the formula as data, never a recollection."""
+    if e is None:
+        return {}
+    if not named_indicators.passes(e):
+        return {"named_indicator": e["name"], "rule": NAMED_UNCHECKED_RULE}
+    at = named_indicators.defaults(e)
+    return {
+        "named_indicator": e["name"], "placement": e["placement"],
+        "outputs": [{"key": o["key"], "label": o["label"], "type": o["type"],
+                     "formula": named_indicators.formula_at(o["formula"], at), "tree": o["tree"]}
+                    for o in e["outputs"]],
+        "numbers": [{"name": p["label"], "in_the_formula": named_indicators.number_text(p["default"]),
+                     "min": p["min"], "max": p["max"], "whole_number": bool(p.get("integer"))}
+                    for p in e["params"]],
+        "rule": NAMED_RULE,
+    }
+
+
+def named_in(terms: Any) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """The library entries a turn's terms name: (those the assistant may build, those not checked
+    yet as {entry, wrote}). Each entry once, in the order written."""
+    ready: List[Dict[str, Any]] = []
+    unchecked: List[Dict[str, Any]] = []
+    seen: set = set()
+    for t in terms or []:
+        if not isinstance(t, Mapping) or t.get("section") != named_indicators.SECTION or t.get("name") in seen:
+            continue
+        seen.add(t.get("name"))
+        e = named_indicators.entry(t.get("name"))
+        if e is None:
+            continue
+        if named_indicators.passes(e):
+            ready.append(e)
+        else:
+            unchecked.append({"entry": e, "wrote": t.get("matched_as")})
+    return ready, unchecked
+
+
+def _patch_outputs(envelope: Mapping[str, Any]) -> List[Tuple[Any, Any]]:
+    """Every (output key, tree) a patch brings a formula in by."""
+    found: List[Tuple[Any, Any]] = []
+    for op in envelope.get("ops") or []:
+        if not isinstance(op, Mapping):
+            continue
+        if op.get("op") == "create":
+            found.extend((o.get("key"), o.get("tree")) for o in op.get("outputs") or [] if isinstance(o, Mapping))
+        elif op.get("op") == "add_output":
+            found.append((op.get("key"), op.get("tree")))
+        elif op.get("op") == "set_output_tree":
+            found.append((op.get("output"), op.get("tree")))
+    return found
+
+
+def _view_trees(view: Any) -> List[Any]:
+    definition = view.get("definition") if isinstance(view, Mapping) else None
+    outputs = definition.get("outputs") if isinstance(definition, Mapping) else None
+    return [o.get("tree") for o in outputs or [] if isinstance(o, Mapping)]
+
+
+def check_named(envelope: Mapping[str, Any], view: Any, named: Any) -> None:
+    """⛔ NEVER APPROXIMATED. The member named a library indicator, so a patch that brings a formula
+    in must hold that indicator's checked formula (`named_indicators.output_in`: equal in shape
+    and in every number but a declared parameter's) -- or the indicator already on the chart must.
+    Anything else is refused with the checked formula as the repair's diagnostic; wrong twice ends
+    in a refusal, never in something near it."""
+    if not named:
+        return
+    trees = [tree for _key, tree in _patch_outputs(envelope)]
+    if not trees:
+        return                                       # no formula enters by this patch
+    inputs = sorted(declared_inputs(envelope, view))
+    existing = _view_trees(view)
+    for e in named:
+        if named_indicators.held(trees, e, inputs) or named_indicators.held(existing, e, inputs):
+            continue
+        at = named_indicators.defaults(e)
+        formulas = "; ".join(f"{o['key']} = {named_indicators.formula_at(o['formula'], at)}" for o in e["outputs"])
+        numbers = ", ".join(f"{p['label']} {named_indicators.number_text(p['default'])} "
+                            f"({named_indicators.number_text(p['min'])} to {named_indicators.number_text(p['max'])})"
+                            for p in e["params"])
+        raise _Refused(
+            NAMED_GATE,
+            f"the member named {e['name']}, which UCT builds to ONE checked formula, and no formula in this "
+            f"patch holds it. Copy the `tree` given for it in uct_language_notes.matched_terms exactly "
+            f"({formulas}). Only these numbers may differ, and only to the member's own: {numbers}. "
+            "If the member wants something this formula cannot be, emit no ops and say so in `note`.",
+            member=e["name"])
+
+
+def named_notes(envelope: Mapping[str, Any], view: Any, named: Any) -> List[Dict[str, Any]]:
+    """One assumption per output this patch builds to a library formula: what it was built to and
+    how that formula was checked, in the member's words."""
+    notes: List[Dict[str, Any]] = []
+    if not named:
+        return notes
+    inputs = sorted(declared_inputs(envelope, view))
+    for key, tree in _patch_outputs(envelope):
+        if not isinstance(key, str):
+            continue
+        for e in named:
+            got = next((g for g in (named_indicators.output_in(tree, e, o, inputs) for o in e["outputs"]) if g is not None), None)
+            if got is not None:
+                notes.append({"output": key, "text": named_indicators.member_sentence(e, got)})
+                break
+    return notes
+
+
+def _with_door_notes(envelope: Dict[str, Any], notes: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """The patch with the door's own notes ahead of what it already carries (never more than the
+    contract allows; a note already there for that output, word for word, is not repeated)."""
+    if not notes:
+        return envelope
+    have = [a for a in (envelope.get("assumptions") or []) if isinstance(a, Mapping)]
+    fresh = [n for n in notes if not any(a.get("output") == n["output"] and a.get("text") == n["text"] for a in have)]
+    out = dict(envelope)
+    out["assumptions"] = (fresh + have)[:MAX_ASSUMPTIONS]
+    return out
+
+
 def _matched_term(t: Mapping[str, Any]) -> Dict[str, Any]:
     """One term the member wrote that names a table entry. ⭐ L4: a Screener column with a
     chart twin carries the house formula, so "ADR %" on a chart is the Screener's ADR %
     (21 sessions of (high - low) / close), not whatever the model would improvise."""
     out: Dict[str, Any] = {"wrote": t.get("matched_as"), "entry": t.get("name")}
+    if t.get("section") == named_indicators.SECTION:
+        return {**out, **_named_term(named_indicators.entry(t.get("name")))}
     twin = CHART_TWINS.get(t.get("name")) if isinstance(t.get("name"), str) else None
     if twin is not None:
         out["chart_formula"] = dc.formula_for(twin)
@@ -2179,6 +2319,17 @@ def _chart_lexicon(base: Mapping[str, Any]) -> Dict[str, Any]:
             continue
         index[stems] = [{"kind": dc.TABLE_ENTRY, "key": column, "section": ast_table.SCALARS_SECTION,
                          "words": words, "cost": cost}]
+    # ⭐ THE NAMED-INDICATOR LIBRARY -- a name in it ("McGinley Dynamic", "connors rsi") is a term of
+    # its entry, so the planner's Title-Case rule finds it already accounted for and `_matched_term`
+    # hands the assistant the ONE checked formula. ⛔ ADDED, NEVER REPLACED, as above; a name that
+    # could not be added is a failing test (`tests/test_named_indicators.py`), never a silent skip.
+    for phrase, entry_id in named_indicators.phrases():
+        words = dc._form_tokens(phrase)
+        stems, cost = dc._stem_key(words)
+        if stems in index:
+            continue
+        index[stems] = [{"kind": dc.TABLE_ENTRY, "key": entry_id, "section": named_indicators.SECTION,
+                         "words": words, "cost": cost}]
     return {"index": index, "max_words": max((len(k) for k in index), default=1),
             "collisions": {k: v for k, v in (base.get("collisions") or {}).items() if k in index
                            and index[k] is base["index"].get(k)}}
@@ -2905,6 +3056,16 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
     else:
         request_text = understanding["understood"]
 
+    # ⭐ THE NAMED-INDICATOR LIBRARY -- a name whose formula is not checked yet is refused BY NAME
+    # on an authoring turn (never handed to a model that could approximate it); on a question it is
+    # discussed, and the advisory backstop below keeps that turn from coming back as a change.
+    named, unchecked = named_in(understanding.get("terms"))
+    if unchecked and not advisory:
+        return {"refusal": _refusal(NAMED_UNCHECKED_GATE, member=unchecked[0]["entry"]["name"],
+                                    not_understood=not_understood, unavailable=unavailable)}
+    if unchecked:
+        discussed = discussed + [{"phrase": u["wrote"], "gate": NAMED_UNCHECKED_GATE} for u in unchecked]
+
     notes = _language_notes(understanding)
     if discussed:
         notes["not_understood"] = []
@@ -2917,7 +3078,7 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
     return {"refusal": None, "request_text": request_text, "notes": notes,
             "advisory": advisory, "other_sym": other_sym, "discussed": discussed,
             "not_understood": not_understood, "unavailable": unavailable,
-            "terms": understanding.get("terms") or []}
+            "terms": understanding.get("terms") or [], "named": named}
 
 
 def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
@@ -2945,6 +3106,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     discussed = understood_turn["discussed"]
     not_understood = understood_turn["not_understood"]
     unavailable = understood_turn["unavailable"]
+    named = understood_turn.get("named") or []
     # ⭐ L5 -- WORKED EXAMPLES (`worked_examples.py`): for a NEW indicator, the nearest one or two of
     # UCT's own checked builds ride along INSIDE <uct_language_notes> (data, by the instructions' own
     # rule; the cached instruction block is untouched). Dark for members; an admin turn can ask.
@@ -3036,7 +3198,9 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         try:
             envelope = check_envelope(candidate, revision, view)
             check_output_renames(envelope, message, view, turns)
+            check_named(envelope, view, named)                 # a named indicator is its checked formula, or nothing
             envelope = with_running_value_notes(envelope)      # the door says where a running value starts
+            envelope = _with_door_notes(envelope, named_notes(envelope, view, named))
             if replayed and envelope.get("ops") == replayed[0].get("ops"):
                 raise _Refused("envelope:reference",
                                f"this is the patch the app already refused ({replayed[1]}); change it")
