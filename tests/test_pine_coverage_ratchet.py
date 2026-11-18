@@ -207,6 +207,28 @@ def test_the_committed_kill_list_is_read_and_an_unreadable_one_fails_loud(tmp_pa
         CM.runtime_killed_hashes(str(tmp_path / "missing.json"))
 
 
+def test_a_HELD_kill_kills_nothing_in_the_census_by_the_servers_one_rule(tmp_path):
+    """(2026-11-18) A held kill (`status: pending` on the committed kill list) is recorded, not served: the door still
+    draws the script, so the census must not count it killed. ⚰️ The coverage census read every entry as a kill and the
+    runtime-on ratchet LOST adx-and-di-for-v4 (#1859). Its reader asks the server's one rule
+    (`runtime_definitions.kill_entry_is_served`). CONTROL: the same entry without the status IS a kill."""
+    from api.services import runtime_definitions as rt
+    held = [s for s in json.loads(pathlib.Path(CM.RUNTIME_KILLLIST).read_text(encoding="utf-8"))["scripts"]
+            if s.get("status") == rt.KILL_PENDING]
+    assert held, "no held kill on the committed list (vacuous)"
+    killed = CM.runtime_killed_hashes()
+    for s in held:
+        src = (ROOT / s["source"]).read_bytes().decode("utf-8")
+        assert not CM.is_runtime_killed(src, killed), s["slug"]
+        assert s["sha256"] not in rt.kill_list(), s["slug"]          # the server serves it the same way
+    served = tmp_path / "killlist.json"
+    served.write_text(json.dumps({"scripts": [{k: v for k, v in s.items() if k != "status"} for s in held]}), encoding="utf-8")
+    assert {s["sha256"] for s in held} <= CM.runtime_killed_hashes(str(served))
+    # the serve census's mirror of the server payload (JS cannot import the rule) spells the same status
+    census = (ROOT / "app/src/components/chart/engine/runtime/__tests__/strategyServeCensus.test.js").read_text(encoding="utf-8")
+    assert f"e.status !== '{rt.KILL_PENDING}'" in census
+
+
 # ── refusals: a comparison that would prove nothing ──────────────────────────
 
 def test_a_vacuous_snapshot_is_refused(small, monkeypatch):

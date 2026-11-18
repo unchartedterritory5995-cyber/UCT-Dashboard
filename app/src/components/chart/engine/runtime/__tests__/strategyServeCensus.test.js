@@ -105,7 +105,10 @@ const SERVER_ADMITS = Object.freeze([
 function productionLists() {
   const allow = JSON.parse(fs.readFileSync(ALLOWLIST, 'utf8')).scripts.map((s) => s.sha256)
   const killDoc = JSON.parse(fs.readFileSync(KILLLIST, 'utf8'))
-  const kill = (killDoc.entries || killDoc.scripts || []).map((e) => (typeof e === 'string' ? e : e.sha256 || e.id)).filter(Boolean)
+  // ⭐ (2026-11-18) a HELD kill (`status: 'pending'`) kills nothing: the server's ONE rule
+  // (`runtime_definitions.kill_entry_is_served`; `tests/test_pine_coverage_ratchet.py` holds this spelling to it)
+  const kill = (killDoc.entries || killDoc.scripts || []).filter((e) => typeof e === 'string' || e.status !== 'pending')
+    .map((e) => (typeof e === 'string' ? e : e.sha256 || e.id)).filter(Boolean)
   return { kill, allow, capability_admission: true }
 }
 

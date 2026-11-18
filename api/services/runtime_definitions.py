@@ -209,7 +209,7 @@ def committed_kills() -> dict[str, str]:
         if not isinstance(s, dict):
             continue
         # ⭐ a HELD kill (`status: "pending"`, `pending_kills`) is recorded, not served: the script still draws
-        if s.get("status") == KILL_PENDING:
+        if not kill_entry_is_served(s):
             continue
         sha = s.get("sha256")
         if isinstance(sha, str) and re.fullmatch(r"[0-9a-f]{64}", sha):
@@ -223,6 +223,15 @@ def committed_kills() -> dict[str, str]:
 #: that date: past it, the rail is red on its own, so a held kill cannot quietly become permanent. ONE list: the same
 #: file and the same rail as every kill (`tests/test_pine_capability_admission.py`). Any other status is a kill.
 KILL_PENDING = "pending"
+
+
+def kill_entry_is_served(entry: Any) -> bool:
+    """Does this committed kill-list entry KILL its script? Every entry does except a held one (`KILL_PENDING`).
+    ⛔ THE ONE RULE: every reader of `api/data/pine_runtime_killlist.json` asks it (this module's `committed_kills`,
+    the coverage census `tools/pine_coverage/coverage_map.py::runtime_killed_hashes`), so no reader counts a held
+    kill as a kill. ⚰️ 2026-11-18: the coverage census read every entry as a kill and the runtime-on ratchet lost
+    adx-and-di-for-v4, which the door still draws."""
+    return not (isinstance(entry, dict) and entry.get("status") == KILL_PENDING)
 
 
 def pending_kills() -> dict[str, dict]:
