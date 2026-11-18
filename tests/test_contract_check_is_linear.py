@@ -73,6 +73,9 @@ BROKEN = {
     "two broken children": op("+", call("noSuchFunction", S("close")), {"type": "num", "value": "20"}),
     "a broken piece under a broken function": call("noSuchFunction", {"type": "num", "value": "20"}, num(20)),
     "a kind that does not exist, holding broken pieces": {"type": "textop", "name": "==", "args": [{"type": "symtext", "name": "sector"}, "x"]},
+    # (what is under a node of no known kind is not judged: the full contract stops at that node)
+    "a kind that does not exist, holding a known node with a broken child": {
+        "type": "textop", "name": "==", "args": [call("ema", {"type": "num", "value": "20"}, num(20)), S("close")]},
 }
 
 

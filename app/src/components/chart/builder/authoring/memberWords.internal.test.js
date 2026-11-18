@@ -5,7 +5,7 @@
 // have gone differently. The failure is ours, so the sentence says so and says what to do.
 
 import { describe, it, expect } from 'vitest'
-import { memberRefusal, INTERNAL } from './memberWords'
+import { memberRefusal, INTERNAL, TOOK_TOO_LONG } from './memberWords'
 
 describe('internal:error in member words', () => {
   const said = memberRefusal('internal:error', 'anything the server said')
@@ -22,6 +22,13 @@ describe('internal:error in member words', () => {
   it('is said whatever reason the server sent, including none', () => {
     expect(memberRefusal('internal:error')).toBe(INTERNAL)
     expect(memberRefusal('internal:anything-else', 'x')).toBe(INTERNAL)
+  })
+
+  it('a turn that passed its ceiling is said by name (ruling 2026-11-18), whatever the server sent', () => {
+    expect(memberRefusal('internal:timeout', 'anything')).toBe('That took too long on our side and nothing was changed. Try again.')
+    expect(memberRefusal('internal:timeout')).toBe(TOOK_TOO_LONG)
+    expect(TOOK_TOO_LONG).not.toBe(INTERNAL)
+    expect(TOOK_TOO_LONG).not.toMatch(/rephras/i)
   })
 
   it('CONTROL: a fault in the answer itself still gets the rephrase sentence, and an outage its own', () => {
