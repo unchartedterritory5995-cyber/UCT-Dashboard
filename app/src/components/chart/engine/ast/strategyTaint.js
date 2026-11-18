@@ -305,9 +305,13 @@ export function strategyTaintSinks(stmts) {
  * `strategyTaintSinks` and the two sink classes above):
  *   - a tainted ROW sink (a plot, a paint, an alertcondition) is WITHHELD by name: each runtime output its call
  *     emitted (a plot's colour output too, through `of`), matched on the call's line and name;
- *   - a tainted sink with NO ROW of its own (a `fill` band, `alert()`, `hline`), or a tainted DRAWING, keeps the
- *     broker's refusal: nothing is drawn rather than part of it (coordinator ruling 2026-11-18, condition (b));
- *   - so does a trace that failed (`taint` null), and a tainted row sink no output can be matched to.
+ *   - EVERY tainted sink must be matched to an output it withholds, or the broker's refusal stands and nothing is
+ *     drawn rather than part of it (coordinator ruling 2026-11-18, condition (b)). ONE guard: only a ROW sink's
+ *     outputs are ever matched, so a tainted sink with no row of its own (a `fill` band, `alert()`, `hline`) or a
+ *     DRAWING is always refused by it, as is a tainted row no output sits on; `why` names which it was. ⚰️ A
+ *     separate sink-class check ran first and refused the same sinks: a mutant removing it changed only `why`
+ *     ("a guard repeated is a guard unproved"), so it is gone;
+ *   - so does a trace that failed (`taint` null).
  * @param {Map|null} taint  `strategyTaintSinks(stmts)` on the build's original statements; null when it threw
  * @param {Array<{call: string, of?: number}>} outputs  the runtime build's outputs
  * @param {Array<number|null>} lines  per output, the source line its call is on (null when unknown)
@@ -318,10 +322,6 @@ export function strategyDisarmOf(taint, outputs, lines) {
   const refuse = (v, why) => ({ refused: { word: (v && v.word) || null, name: (v && v.name) || null,
     line: v && v.tok && Number.isInteger(v.tok.line) ? v.tok.line : null, why }, withheld: [] })
   if (!(taint instanceof Map)) return refuse(null, 'untraced')
-  for (const v of taint.values()) {
-    if (STRATEGY_TAINT_SCRIPT_SINKS.has(v.name)) return refuse(v, 'no-row')
-    if (!STRATEGY_TAINT_ROW_SINKS.has(v.name)) return refuse(v, 'drawing')
-  }
   const withheld = []
   if (!taint.size) return { refused: null, withheld }
   const list = Array.isArray(outputs) ? outputs : []
@@ -341,6 +341,11 @@ export function strategyDisarmOf(taint, outputs, lines) {
       break
     }
   }
-  for (const [k, v] of taint) if (!matched.has(k)) return refuse(v, 'unmatched')
+  // ⛔ THE ONE GUARD: a tainted sink no output was withheld for keeps the broker's refusal
+  for (const [k, v] of taint) {
+    if (matched.has(k)) continue
+    return refuse(v, STRATEGY_TAINT_SCRIPT_SINKS.has(v.name) ? 'no-row'
+      : STRATEGY_TAINT_ROW_SINKS.has(v.name) ? 'unmatched' : 'drawing')
+  }
   return { refused: null, withheld }
 }
