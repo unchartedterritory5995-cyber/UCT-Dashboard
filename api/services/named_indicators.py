@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
@@ -72,8 +73,21 @@ def entry(entry_id: Any) -> Optional[Dict[str, Any]]:
 
 
 def phrases() -> Tuple[Tuple[str, str], ...]:
-    """Every (words a member uses, entry id), the name itself included, held names too."""
-    return tuple((alias, e["id"]) for e in entries() + held_names() for alias in e["aliases"])
+    """Every (words a member uses, entry id), the name itself included, held names too, and each
+    entry's acronyms (read by the Create Indicator door, which is the only reader of this)."""
+    return tuple((spelling, e["id"]) for e in entries() + held_names()
+                 for spelling in list(e["aliases"]) + list(e.get("acronyms") or ()))
+
+
+def initials(name: Any) -> str:
+    """"On Balance Volume" -> "obv"."""
+    return "".join(word[0] for word in re.findall(r"[A-Za-z]+", str(name or ""))).lower()
+
+
+def acronym_entry(wrote: Any) -> Optional[str]:
+    """The id of the entry these letters are an ACRONYM of (in any capitals), or None."""
+    want = str(wrote or "").strip().lower()
+    return next((e["id"] for e in entries() if want in (e.get("acronyms") or ())), None)
 
 
 def way_forward(e: Mapping[str, Any]) -> str:

@@ -241,9 +241,9 @@ not belong in a lookup.
 every output's formula once and holds it against every reference calculation in the library: only
 its own may agree.
 
-**Acronyms.** A bare two- or three-letter acronym is never a library spelling ("OBV", "DMI",
-"PPO"): several are real tickers. A request that uses only the acronym is not looked up, and is
-counted by the name catalogue as that name, so the weekly report shows how often it happens.
+**Acronyms.** A bare two- or three-letter acronym is never a library ALIAS ("OBV", "DMI", "PPO"):
+several are real tickers. (Since the ruling below, four entries carry an acronym in a field of
+their own, read inside the Create Indicator door only.)
 
 ## The third batch: slice 3 against TradingView's built-ins
 
@@ -375,3 +375,19 @@ version moved, even when the file carries no fingerprint to compare with, and on
 recorded entry or version; `--ship` adds what is new and never rewrites a recorded line; `--check`
 fails while a version is unrecorded. Proved by changing a shipped formula through the seed and
 watching the build refuse it (`tests/test_named_indicators_ledger.py`).
+
+## Acronyms: four admitted, under four conditions (ruling 2026-11-18)
+
+Inside the Create Indicator door a bare word is an indicator request, so an entry may be named by
+its acronym, as its own `acronyms` field (an alias is still never a bare short word):
+**OBV, PPO, PVT, KST.**
+
+| condition | how it is held |
+|---|---|
+| (1) it names exactly one indicator UCT knows by name | each is the initials of its own entry and of no other library entry or name-catalogue row, and is no word of the product's own. The same check refuses ADL (also Advance Decline Line) and DMI (also Dynamic Momentum Index); ADX is the engine's own function word |
+| (2) every request on file that uses it reads as that indicator | THE REQUESTS ON FILE COULD NOT SAY. Of 909, one used an admitted acronym, and it was written to test this. So it is watched instead: each build that came from an acronym is its own row of the weekly report, with how often the member's next turn in that conversation removed or rewrote what was built |
+| (3) the reply names the indicator in full | the door's own sentence on every output begins "Built to UCT's checked formula for On Balance Volume" |
+| (4) a symbol beside it is still the symbol | "OBV of AAPL" names the entry and reads AAPL. The acronym itself is never read as a symbol, even where the same letters are a real ticker (PVT): a patch that reads the symbol PVT for "Add PVT" is refused as a symbol the member never asked for. "PVT.TO" and "XYZ.PVT" are symbols and are left alone |
+
+An acronym names the library's formula and nothing looser: a patch that holds another formula for
+"Add OBV" is sent back once and then refused, exactly as for the full name.

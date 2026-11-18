@@ -1389,6 +1389,29 @@ def _named_outputs(envelope: Mapping[str, Any], view: Any, named: Any) -> List[T
     return found
 
 
+def by_acronym(terms: Any) -> Dict[str, str]:
+    """{the acronym as written: library entry id} for each library entry a turn named by its ACRONYM
+    ("OBV"). The library's spelling wins over a ticker of the same letters (ruling 2026-11-18: a bare
+    word typed into Create Indicator is an indicator request, and what was built is named in full)."""
+    found: Dict[str, str] = {}
+    for t in terms or []:
+        if isinstance(t, Mapping) and t.get("section") == named_indicators.SECTION \
+                and named_indicators.acronym_entry(t.get("matched_as")) == t.get("name"):
+            found[str(t.get("matched_as"))] = t["name"]
+    return found
+
+
+def without_acronyms(message: Any, acronyms: Mapping[str, str]) -> str:
+    """The message with those acronyms taken out, for the TICKER readers only: "PVT" named the Price
+    Volume Trend, so it is not also a symbol the member asked to read. Every other word stays, so
+    "PVT of AAPL" still names AAPL."""
+    text = str(message or "")
+    for wrote in acronyms:
+        # (a whole word only, and never the first part of a dotted symbol: "PVT.TO" is a symbol)
+        text = re.sub(rf"(?<![A-Za-z0-9.]){re.escape(wrote)}(?![A-Za-z0-9]|\.[A-Za-z0-9])", " ", text)
+    return text
+
+
 def named_built(envelope: Mapping[str, Any], view: Any, named: Any) -> List[str]:
     """The ids of the library entries this patch built, each once, in the order built."""
     ids: List[str] = []
@@ -3477,6 +3500,7 @@ def learned_fields(result: Mapping[str, Any], learned: Optional[Mapping[str, Any
       answered      the registry question this turn's message answered
       remembered    the registry questions answered from the member's memory instead of asking
       named_built   the library entries the change built
+      acronym_built the ones of those the member named by ACRONYM ("OBV"): watched for misreads
       named_held    the held names the turn was refused for
       unknown_name  the catalogue names the request asked for (``other``: a refused name in no row)
     """
@@ -3484,7 +3508,8 @@ def learned_fields(result: Mapping[str, Any], learned: Optional[Mapping[str, Any
     csv = lambda ids: ",".join(i for i in ids or [] if isinstance(i, str)) or None  # noqa: E731
     asked = t.get("asked") or ("assistant" if result.get("ok") and result.get("turn") == "question" else None)
     return {"asked": asked, "answered": t.get("answered"), "remembered": csv(t.get("remembered")),
-            "named_built": csv(t.get("named_built")), "named_held": csv(t.get("named_held")),
+            "named_built": csv(t.get("named_built")), "acronym_built": csv(t.get("acronym_built")),
+            "named_held": csv(t.get("named_held")),
             "unknown_name": csv(t.get("unknown_name"))}
 
 
@@ -3690,6 +3715,8 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     named = understood_turn.get("named") or []
     own_words = understood_turn.get("own_words") or []
     withheld = understood_turn.get("withheld") or []
+    acronyms = by_acronym(understood_turn.get("terms"))
+    asked_symbols = without_acronyms(message, acronyms)        # what the ticker readers read
     # ⭐ L5 -- WORKED EXAMPLES (`worked_examples.py`): for a NEW indicator, the nearest one or two of
     # UCT's own checked builds ride along INSIDE <uct_language_notes> (data, by the instructions' own
     # rule; the cached instruction block is untouched). Dark for members; an admin turn can ask.
@@ -3828,7 +3855,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             {conversation_preflight.store_ticker(other_sym)} if other_sym else set())
         reads_other = bool(other_sym) and bool(
             named_syms & {conversation_preflight.store_ticker(t) for t in envelope_tickers(envelope)})
-        unasked = unasked_tickers(envelope, message, view)
+        unasked = unasked_tickers(envelope, asked_symbols, view)
         if envelope.get("disposition") == "change" and unasked:
             refused = _Refused("unsupported:symbol-unasked", f"reads {', '.join(unasked)}",
                                member=f"it reads {', '.join(unasked)}")
@@ -3857,6 +3884,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             turn = "noop"
         reply = envelope.get("reply")
         trace["named_built"] = named_built(envelope, view, named)   # what the patch holds; nothing on a turn with no formula
+        trace["acronym_built"] = [i for i in trace["named_built"] if i in acronyms.values()]
         return {
             **({"remembered": [qid for qid, _label in as_before]} if as_before else {}),
             "ok": True,

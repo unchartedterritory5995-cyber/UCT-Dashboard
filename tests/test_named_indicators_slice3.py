@@ -288,12 +288,16 @@ def test_the_build_tool_and_the_browser_test_have_a_probe_number_for_every_setti
         assert len(numbers) >= most == 9 and len(set(numbers)) == len(numbers)
 
 
-def test_no_alias_in_the_library_is_another_entrys_or_a_bare_short_acronym():
+def test_no_spelling_in_the_library_is_another_entrys_and_no_ALIAS_is_a_bare_short_acronym():
     seen = {}
-    for alias, entry_id in ni.phrases():
-        assert alias not in seen or seen[alias] == entry_id, (alias, entry_id, seen[alias])
-        seen[alias] = entry_id
-        assert not (len(alias) <= 3 and " " not in alias), alias
+    for spelling, entry_id in ni.phrases():
+        assert spelling not in seen or seen[spelling] == entry_id, (spelling, entry_id, seen[spelling])
+        seen[spelling] = entry_id
+    # the alias rule is untouched: an acronym is admitted only through an entry's own `acronyms`
+    # (tests/test_named_acronyms.py holds each of those to its four conditions)
+    for e in ni.entries() + ni.held_names():
+        for alias in e["aliases"]:
+            assert not (len(alias) <= 3 and " " not in alias), alias
 
 
 # ═══ 4. the value checks can tell the outputs apart ═════════════════════════
