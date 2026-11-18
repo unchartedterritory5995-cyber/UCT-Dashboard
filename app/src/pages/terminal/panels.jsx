@@ -113,6 +113,7 @@ export const PANEL_IMPORTERS = {
   RepeatContracts: () => import('./panels/RepeatContractsPanel'),
   PeriodChange: () => import('./panels/PeriodChangePanel'),
   CallSearch: () => import('./panels/CallSearchPanel'),
+  CallThemes: () => import('./panels/CallThemesPanel'),
   ExpectedMove: () => import('./panels/ExpectedMovePanel'),
   ThemeRotation: () => import('./panels/ThemeRotationPanel'),
   // data wave 6 (2026-11-17)

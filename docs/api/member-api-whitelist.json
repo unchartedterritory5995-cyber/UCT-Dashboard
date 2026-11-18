@@ -1275,6 +1275,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "month",
+      "path": "/api/earnings/call-themes",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "{ticker}",
       "path": "/api/earnings/intel/{ticker}",
       "rate_limit_family": "research",
@@ -4965,6 +4973,14 @@
       "method": "GET",
       "params": "",
       "path": "/api/screener/grammar",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/screener/layout-gallery",
       "rate_limit_family": "screener",
       "tier": "paid"
     },

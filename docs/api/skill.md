@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (769)
+## Member session reads (771)
 
 ### Limits
 
@@ -288,6 +288,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/earnings/audio/{ticker}` | paid | research | {ticker} |
 | GET | `/api/earnings/call-audio/{ticker}` | paid | research | {ticker}, year, quarter |
 | GET | `/api/earnings/call-recap/{ticker}` | paid | research | {ticker}, quarter |
+| GET | `/api/earnings/call-themes` | paid | research | month |
 | GET | `/api/earnings/intel/{ticker}` | paid | research | {ticker} |
 | GET | `/api/earnings/keyword-alerts` | paid | research |  |
 | GET | `/api/earnings/sentiment/{ticker}` | paid | research | {ticker} |
@@ -750,6 +751,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/screener/compile` | paid | screener |  |
 | GET | `/api/screener/fields` | paid | screener | options=0 |
 | GET | `/api/screener/grammar` | paid | screener |  |
+| GET | `/api/screener/layout-gallery` | paid | screener |  |
 | GET | `/api/screener/meta` | paid | screener |  |
 | GET | `/api/screener/methodology` | paid | screener | column |
 | GET | `/api/screener/row/{ticker}` | paid | screener | {ticker}, columns |
