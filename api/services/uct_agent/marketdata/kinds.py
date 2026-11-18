@@ -21,6 +21,9 @@ Terminal data wave 1 (terminal-data): `analyst.actions`, `highsLows.session`, `s
 Terminal data wave 2 (terminal-data): `highsLows.yearly`, `themes.rotation`, `confluence.board`, `earnings.expectedMove`,
 `earnings.callSearch` — the Agent half of the H52 / TROT / CONFL / EXMV / TSRC terminal panels. All default OFF, all
 MODEL-ISOLATED, and none ever starts a build: each reads what its service already holds (MD-1 §4.11).
+Terminal data wave 3 (terminal-data): `levels.gamma`, `flow.topPicks`, `flow.record`, `earnings.reactions` — the Agent
+half of the LVL (options half) / TOPF / Flow Record / EMOV surfaces. All default OFF, all MODEL-ISOLATED, and none ever
+starts a build or spends a provider call (MD-1 §4.12).
 """
 from __future__ import annotations
 
@@ -31,6 +34,7 @@ from api.services.uct_agent.marketdata import (analyst_actions, darkpool_levels,
                                               session_highs_lows)
 from api.services.uct_agent.marketdata import (confluence_board, earnings_call_search, earnings_expected_move,
                                               themes_rotation, yearly_highs_lows)
+from api.services.uct_agent.marketdata import earnings_reactions, flow_record, flow_top_picks, gamma_levels
 from api.services.uct_agent.research import rs1
 
 # Symbols one read may name. A request-shape bound per kind, not a toolkit cap: the cap numbers live only
@@ -278,6 +282,49 @@ def register(registry) -> None:
                     "match first, with the index's own short excerpt (third-party text, never lengthened). An empty index "
                     "is 'unavailable', never 'no mention'. Shown to the member only. "
                     f"Params: {{q, limit (1-{earnings_call_search.MAX_LIMIT}), symbol?, since? (YYYY-MM-DD)}}.",
+    ))
+    # Terminal data wave 3 (owner: terminal-data): four more kinds, the Agent half of the LVL panel's options levels, the
+    # TOPF panel, the Flow Record page and the EMOV panel. Default OFF like every kind (UCT_AGENT_DATA_KINDS); ALL FOUR
+    # are model-isolated, so each also needs its own UCT_AGENT_ISOLATED_KINDS entry (ADR-005) and its capability is
+    # local-only. None starts a build or spends a provider call: `levels.gamma` and `earnings.reactions` read only what
+    # their routes already hold, and the two flow kinds read the pick tracker's in-memory lists.
+    registry.register(Kind(
+        name=gamma_levels.KIND, fn=gamma_levels.read_gamma_levels, validate=gamma_levels.validate,
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="One stock's gamma walls: the call wall, the put wall and the zero gamma level UCT works out from an "
+                    "option chain, read from what the server already holds (its 10-minute cache, else a last good copy) "
+                    "and never built here ('not held' otherwise); as_of is null (only UCT's build time is known). "
+                    "Shown to the member only. Params: {symbol}.",
+    ))
+    registry.register(Kind(
+        name=flow_top_picks.KIND, fn=flow_top_picks.read_top_picks, validate=flow_top_picks.validate,
+        # declared `periodic` (the store grows daily); every read reports the LESS fresh `historical` (daily prices)
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="UCT's Top Flow picks, one by one, with how each option CONTRACT has done since it was flagged (the "
+                    "Flow Record's own arithmetic; a pick with fewer than two daily prices is too new to score, never "
+                    "0%). Picks from UCT's options flow tape; daily prices from Massive with Schwab as backup. as_of is "
+                    "the newest daily price date. Shown to the member only. "
+                    f"Params: {{status: {'|'.join(flow_top_picks.STATUSES)}, direction: {'|'.join(flow_top_picks.DIRECTIONS)}, "
+                    f"sort: {'|'.join(flow_top_picks.SORTS)}, limit (1-{flow_top_picks.MAX_LIMIT}), symbol?}}.",
+    ))
+    registry.register(Kind(
+        name=flow_record.KIND, fn=flow_record.read_flow_record, validate=flow_record.validate,
+        # declared `periodic`; every read reports the LESS fresh `historical` (daily prices of completed sessions)
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="The Flow Record: aggregate results of every Top Flow pick (win rates, the same by grade, recent "
+                    "standouts, the last scored picks whatever their result), from the service's own 5-minute cache; "
+                    "losers are never left out and too-new picks are in no rate. as_of is the newest daily price date; "
+                    "the newest pick's date is given. Shown to the member only. Params: none.",
+    ))
+    registry.register(Kind(
+        name=earnings_reactions.KIND, fn=earnings_reactions.read_earnings_reactions,
+        validate=earnings_reactions.validate, freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL,
+        model_isolated=True,
+        description="One day's earnings reporters from UCT's calendar, each with its reported EPS and revenue against "
+                    "what was expected and the stock's move, read only from what the server's calendar caches already "
+                    "hold (never a week build, never a price read: 'not held' otherwise); as_of is null (no data time "
+                    "is carried). Shown to the member only. "
+                    f"Params: {{date? (YYYY-MM-DD, a weekday), limit (1-{earnings_reactions.MAX_LIMIT})}}.",
     ))
     # W2-B1 (agent-rs, RS-1 v1): a COMPOSED kind. It reads the served kinds above (purpose "research", so a
     # model-isolated kind refuses before admission) and the turn's one web search; every fact's figures come from
