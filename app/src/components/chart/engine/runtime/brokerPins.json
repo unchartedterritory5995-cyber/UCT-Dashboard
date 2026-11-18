@@ -61,6 +61,9 @@
    "w9-q-s1b-defaults-v5-rddt-1d-2026-11-15",
    "w9-q-s1b-defaults-v6-rddt-1d-2026-11-15"
   ],
+  "B-EXEC": [
+   "supertrend-strategy-is-rddt-1d-2026-11-18"
+  ],
   "B-EXIT-BIND": [
    "w9-q-s1e-live-past-rddt-1d-2026-11-15",
    "w9-q-s1k-exit-levels-rddt-1d-2026-11-15",
