@@ -324,6 +324,14 @@ REFUSALS: Mapping[str, str] = {
         "a formula function was given a length it cannot use (a whole number is needed)"),
     "converse:too-large": (
         "this conversation turn carries more than the assistant may read at once"),
+    # ⭐ 2026-11-18 (after the contract-check incident): an answer refused for its SIZE, before
+    # anything examines it (`answer_size_problem`)
+    "envelope:formula-size": (
+        "the UCT Agent wrote a formula too large to check, so nothing was changed"),
+    # ⭐ 2026-11-18 (ruling): a whole turn passed its wall-clock ceiling (`TURN_CEILING_S`). Said in
+    # full, as the member reads it; the window says this same sentence (`memberWords.TOOK_TOO_LONG`).
+    "internal:timeout": (
+        "That took too long on our side and nothing was changed. Try again."),
     "converse:view": (
         "the indicator view sent with this turn is not one the assistant can read"),
     "envelope:schema": (
@@ -374,6 +382,107 @@ REFUSALS: Mapping[str, str] = {
 _TERMINAL_GATES = frozenset({"unsupported:node", "unsupported:scalar",
                              "unsupported:symbol-ambiguous", "unsupported:symbol-count",
                              "unsupported:symbol-unasked"})
+
+# ⭐⭐ 2026-11-18 -- TWO GUARDS, ADDED AFTER THE CONTRACT-CHECK INCIDENT (`_contract_errors` says what
+# happened). The check itself is linear now. These bound the two things nothing bounded:
+#
+# 1. THE SIZE OF AN ANSWER, refused BY NAME before anything walks it. Sized from what is real:
+#    the largest formula in the library, every scripted answer and every live answer on file is 70
+#    nodes and 12 levels deep (measured 2026-11-18, 767 formulas). The caps leave four times that.
+#    Defence in depth for a failure class the linear check does not cover: anything else that walks
+#    a formula (a mend, a planner check, the evaluator) is handed at most this much.
+#    `tests/test_turn_guards.py` holds the headroom, so a library entry that outgrows it is a red
+#    test and a decision, not a refused member.
+#: The most nodes ONE formula may hold, and how deep it may nest.
+MAX_FORMULA_NODES = 300
+MAX_FORMULA_DEPTH = 48
+#: The same for the whole answer (every op, every formula, every note): how many values it may
+#: hold in all, and how deep its objects and lists may nest (a formula level is an object and its
+#: list of arguments, so two). Far above anything real (the largest scripted answer holds under
+#: 400 values), and low enough that nothing after this can recurse out of the interpreter's stack.
+MAX_ANSWER_ITEMS = 20000
+MAX_ANSWER_DEPTH = 2 * MAX_FORMULA_DEPTH + 16
+SIZE_GATE = "envelope:formula-size"
+
+# 2. THE LENGTH OF A TURN. One call in flight per member (`dc.interactive_slot`) means a turn that
+#    does not end holds that member out for as long as it runs: ten minutes, in the incident. A
+#    turn now has a wall-clock ceiling. When it passes, the member is answered by name, their slot
+#    is freed, and the turn is recorded as an internal error. Sized from what is real: of 314 live
+#    turns that called the model (2026-11-17 and -18) the median took 8.0 s, the 99th percentile
+#    26.9 s and the slowest 31.5 s. 90 s is about three times the slowest, and longer than one
+#    model call's own 60 s limit, so a single slow call still gets to answer.
+#: Seconds a whole turn may take. Read at call time (a test shortens it).
+TURN_CEILING_S = 90.0
+TIMEOUT_GATE = "internal:timeout"
+
+
+def answer_size_problem(answer: Any) -> Optional[str]:
+    """Why this answer is too large to examine, or None. ITERATIVE, and a value's children are
+    counted BEFORE they are looked at, so its own cost is the caps whatever it is handed (a list of
+    a million items is refused on its length, not walked)."""
+    items = 0
+    stack: List[Tuple[Any, int, bool, int, List[int]]] = [(answer, 1, False, 0, [0])]
+    while stack:
+        value, depth, in_formula, formula_depth, counter = stack.pop()
+        if not isinstance(value, (Mapping, list)):
+            continue
+        if depth > MAX_ANSWER_DEPTH:
+            return f"the answer nests more than {MAX_ANSWER_DEPTH} levels deep"
+        items += len(value)
+        if items > MAX_ANSWER_ITEMS:
+            return f"the answer holds more than {MAX_ANSWER_ITEMS} values"
+        if in_formula and isinstance(value, Mapping):
+            formula_depth += 1
+            counter[0] += 1
+            if counter[0] > MAX_FORMULA_NODES:
+                return f"a formula holds more than {MAX_FORMULA_NODES} nodes"
+            if formula_depth > MAX_FORMULA_DEPTH:
+                return f"a formula nests more than {MAX_FORMULA_DEPTH} levels deep"
+        if isinstance(value, Mapping):
+            for key, child in value.items():
+                starts = not in_formula and key in _SIZED_FORMULA_KEYS
+                stack.append((child, depth + 1, in_formula or starts, formula_depth, [0] if starts else counter))
+        else:
+            for child in value:
+                stack.append((child, depth + 1, in_formula, formula_depth, counter))
+    return None
+
+
+#: The property names a formula sits under in an answer, for COUNTING its size only (a `when` that
+#: is a plain word holds nothing to count). Typed here because this check runs BEFORE the contract
+#: is consulted; `tests/test_turn_guards.py` holds it equal to what the contract says.
+_SIZED_FORMULA_KEYS = frozenset({"tree", "when"})
+
+
+def _bounded_turn(run: Any, cancelled: threading.Event) -> Optional[Dict[str, Any]]:
+    """Run one turn on its own thread and wait at most `TURN_CEILING_S` for it. Its result, or None
+    when the ceiling passed: `cancelled` is then set, so the turn makes no further model call, and
+    whatever it goes on to conclude is discarded (a model call already in flight is paid for and
+    recorded in the ledger by the turn itself). What the member ANSWERED to one of the door's
+    questions is theirs and was remembered when they said it, before any call."""
+    box: Dict[str, Any] = {}
+    done = threading.Event()
+    started = time.monotonic()
+
+    def work() -> None:
+        try:
+            box["result"] = run()
+        except BaseException:                      # noqa: BLE001 -- a thread never raises out
+            logger.exception("[converse] the turn raised")
+            box["result"] = {"ok": False, "gate": "internal:error", "reason": dc.REFUSALS["internal:error"]}
+        finally:
+            done.set()
+            if cancelled.is_set():
+                logger.warning("[converse] a turn past its ceiling ended after %.0f s; its answer was discarded",
+                               time.monotonic() - started)
+
+    threading.Thread(target=work, name="converse-turn", daemon=True).start()
+    if done.wait(TURN_CEILING_S):
+        return box["result"]
+    cancelled.set()
+    logger.error("[converse] a turn passed its %.0f s ceiling: the member was answered and their slot freed",
+                 TURN_CEILING_S)
+    return None
 
 #: ⭐ Node types that are NOT the advertised union, each refused BY NAME. The
 #: concierge's own ``_UNFINISHABLE`` reasons for sym/tf/textop, plus the shapes
@@ -857,10 +966,27 @@ MOVING_AVERAGE_RULE = (
     "chart uses one kind of average and they plainly mean that one, use it. Otherwise ASK which kind "
     "(disposition clarify, one question offering Simple, Exponential, Weighted, Hull and Volume-weighted). "
     "NEVER assume a kind")
+# ⭐ 2026-11-18 (ruling) -- A HOUSE TERM HOLDS ITS OWN CONVENTION, SO THE ASSISTANT IS HANDED IT AND
+# NEED NOT INFER IT. "Follow-through day" is the firm's term. Asked for "day 4 through day 12
+# after the lowest low", the assistant counted the day of the low as day 1 (the low 3 to 11 bars
+# back) and said so; the house counts the day AFTER the low as day 1 (4 to 12 bars back). It was
+# the one house indicator still graded different after the instruction changes of that day, and
+# everything else in it matched. A firm definition settles a house term: it is never a question.
+# (A GENERIC request that counts days from a low, with no house term, is a different matter. It was
+# measured on the requests on file before anything was built: 1 of 965, and that one is this
+# house term's own request. So no question was added; it is a row in the backlog.)
+FOLLOW_THROUGH_DAY_RULE = (
+    "a HOUSE TERM. UCT's convention for its day count: THE DAY AFTER THE LOWEST LOW IS DAY 1, so day N is N "
+    "bars after the low. \"Day 4 through day 12 after the lowest low of the last 50 sessions\" is the low "
+    "sitting 4 to 12 bars back: lowestbars(low, 50) >= 4 and lowestbars(low, 50) <= 12. Use the member's own "
+    "numbers for the gain, the days and the lookback, and compare the close with the PREVIOUS close. Say the "
+    "day-count convention in one assumption")
 GENERIC_PHRASES: Mapping[str, Tuple[str, str]] = {
     "moving average": ("moving_average", MOVING_AVERAGE_RULE),
     "ma": ("moving_average", MOVING_AVERAGE_RULE),
     "dma": ("moving_average", MOVING_AVERAGE_RULE),
+    "follow through day": ("follow_through_day", FOLLOW_THROUGH_DAY_RULE),
+    "follow through days": ("follow_through_day", FOLLOW_THROUGH_DAY_RULE),
 }
 #: The terms that NAME a kind of average. One of them beside the bare phrase settles it.
 AVERAGE_TERMS = frozenset({"sma", "ema", "wma", "hma", "vwma", "alma"})
@@ -3467,6 +3593,16 @@ def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
     return usage
 
 
+def _as_it_stood(live: Any) -> Any:
+    """A copy of a list or dict another thread may still be writing to."""
+    for _ in range(5):
+        try:
+            return [dict(c) for c in live] if isinstance(live, list) else dict(live)
+        except RuntimeError:                       # it changed size while being copied: read it again
+            continue
+    return [] if isinstance(live, list) else {}
+
+
 def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
              snippets: Any = None, chart: Any = None, admin: bool = False,
              conversation_id: Any = None, examples: Any = False,
@@ -3507,10 +3643,19 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
     # (`dc.interactive_slot`): a concurrent turn is refused and spends nothing.
     with dc.interactive_slot(user_id) as free:
         if free:
-            result = _converse_turn(message, user_id=user_id, view=view, authoring=authoring,
-                                    snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls,
-                                    trace=trace, admin=admin, examples=examples is True,
-                                    refused_by_browser=browser_refusal, memory=memory)
+            cancelled = threading.Event()
+            result = _bounded_turn(
+                lambda: _converse_turn(message, user_id=user_id, view=view, authoring=authoring,
+                                       snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls,
+                                       trace=trace, admin=admin, examples=examples is True,
+                                       refused_by_browser=browser_refusal, memory=memory, cancelled=cancelled),
+                cancelled)
+            if result is None:
+                # ⭐ THE CEILING PASSED. The member is answered now and their slot is freed as this
+                # block ends. The turn's own thread may still be inside a model call: what is
+                # recorded here is a copy of what it had done so far, never its live objects.
+                calls, trace = _as_it_stood(calls), dict(_as_it_stood(trace))
+                result = _refusal(TIMEOUT_GATE)
         else:
             result = {"ok": False, "gate": "rate:busy", "reason": dc.REFUSALS["rate:busy"]}
     if not accepts_note_by(accepts) and isinstance(result.get("envelope"), Mapping):
@@ -3563,7 +3708,7 @@ _BUDGET_GATES = {"cost:user": "budget_user", "cost:global": "budget_global",
 _PLATFORM_GATES = {"model:transport"}
 #: ⭐ O7 -- the provider refused OUR ACCOUNT. Its own class: an outage heals, this needs a person.
 _ACCOUNT_GATES = {"model:unavailable"}
-_INTERNAL_GATES = {"internal:error"}
+_INTERNAL_GATES = {"internal:error", "internal:timeout"}
 _MODEL_GATE_PREFIXES = ("envelope:", "model:", "schema:", "lint:", "budget:", "converse:")
 
 #: ⭐ UNSUPPORTED DEMAND. Deterministic buckets over a model-"unsupported" turn's own
@@ -3831,7 +3976,8 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
                    calls: List[Dict[str, Any]],
                    trace: Optional[Dict[str, Any]] = None,
                    admin: bool = False, examples: bool = False,
-                   refused_by_browser: Any = None, memory: Any = None) -> Dict[str, Any]:
+                   refused_by_browser: Any = None, memory: Any = None,
+                   cancelled: Optional[threading.Event] = None) -> Dict[str, Any]:
     trace = trace if trace is not None else {}
     try:
         message, view, state, turns = _bounded_inputs(message, view, authoring, snippets)
@@ -3928,6 +4074,10 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     extra = {"not_understood": not_understood, "unavailable": unavailable}
 
     while attempts < MAX_MODEL_CALLS:
+        if cancelled is not None and cancelled.is_set():
+            # the ceiling passed and the member has been answered: no (further) model call is made.
+            # (A call already in flight when it passed is paid for, and is in the ledger below.)
+            return _refusal(TIMEOUT_GATE, **extra)
         # ⭐ THE CAPS ARE CONSULTED BEFORE EVERY SPEND, including the repair.
         if not cost_guard.may_member_spend(market_date):
             return _refusal("cost:global", **extra)
@@ -3968,6 +4118,11 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
                       "usd": round(spent, 6)})
 
         tool_input = _tool_input(msg)
+        oversize = answer_size_problem(tool_input)             # ⭐ BEFORE anything walks the answer
+        if oversize is not None:
+            # TERMINAL: an answer this shape is not sent back for a second paid call
+            logger.warning("[converse] the answer was refused for its size on attempt=%d: %s", attempts, oversize)
+            return _refusal(SIZE_GATE, oversize, **extra)
         candidate, wrapper = _unwrap_input(tool_input)
         candidate = _own_notes_only(candidate)             # the assistant may not sign a note as UCT's
         if wrapper:
