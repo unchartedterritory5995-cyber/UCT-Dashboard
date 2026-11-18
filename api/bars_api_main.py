@@ -284,6 +284,13 @@ async def _lifespan(app: FastAPI):
                   ",".join(index_bars.SERVING_TIER_WARM_TFS))
     except Exception as e:  # noqa: BLE001
         _log.warning("[bars-api] index warm loop start failed (non-fatal): %s", e)
+    try:
+        # Deep daily history rebuilt from one checked source, served per ticker (bars_rebuild):
+        # the local copy loads at once, then syncs from the bars bucket. BARS_REBUILD_SERVE=0 = off.
+        from api.services import bars_rebuild
+        bars_rebuild.start_background_sync()
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] rebuilt-history sync start failed (non-fatal): %s", e)
     _log.info("[bars-api] serving tier UP — /api/bars + /api/bars-history "
               "(no universe warmers, no uploader, no WS; index warm on)")
     yield

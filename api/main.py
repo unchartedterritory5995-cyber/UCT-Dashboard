@@ -7066,6 +7066,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] breadth EOD source wiring error (non-fatal): {e}")
 
+    # Deep daily history rebuilt from one checked source, served per ticker (bars_rebuild); web serves
+    # /api/bars too when the edge falls back to it. BARS_REBUILD_SERVE=0 = off.
+    try:
+        from api.services import bars_rebuild as _bars_rebuild
+        _bars_rebuild.start_background_sync()
+    except Exception as e:  # noqa: BLE001
+        print(f"[startup] rebuilt-history sync start failed (non-fatal): {e}")
+
     # Brain Pack: nightly uct-intelligence code+KB from R2 (flag-off by default)
     if os.environ.get("BRAIN_PACK_ENABLED", "0") == "1":
         try:
