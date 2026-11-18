@@ -7,7 +7,7 @@
 //     chart.setSymbol summary: "Widgets linked to the same color group follow"), and a Watchlist / Scanner widget's arrow step
 //     moves the charts linked to it (watchlist.step: "the linked chart follows") — the actions below.
 // The excluded-chart gate (spatialCheck.withoutExcludedCharts) reads this, so a chart the words exclude is never changed through
-// a chart it shares drawings or a link group with. Pure; never throws (an unreadable snapshot lands on its own chart only).
+// a chart it shares drawings or a link group with. never throws; an unreadable landing is `unknown` and the gate drops it.
 import { chartRefOf } from './deixis'
 
 /** Actions whose change FOLLOWS the target chart's color link group onto every chart in it. (A rail —

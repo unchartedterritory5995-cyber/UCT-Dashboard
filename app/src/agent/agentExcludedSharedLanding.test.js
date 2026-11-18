@@ -221,7 +221,7 @@ describe('LINK_FOLLOWING rail over every capability', () => {
   const says = (n) => FOLLOWS.test(`${getCapability(n)?.summary || ''} ${getCapability(n)?.hints || ''}`)
   it('every capability whose summary or hints say a link follows is in LINK_FOLLOWING or reasonably exempt', () => {
     const hits = allCapabilityNames().filter(n => !getCapability(n)?.query && says(n))
-    expect(hits.length).toBeGreaterThanOrEqual(2)
+    expect(hits).toEqual(expect.arrayContaining(['chart.setSymbol', 'watchlist.step']))
     expect(hits.filter(n => !LINK_FOLLOWING.has(n) && !LINK_EXEMPT[n])).toEqual([])
   })
   it('every LINK_FOLLOWING action and every exemption is a registered capability that says so', () => {
