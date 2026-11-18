@@ -134,6 +134,7 @@ const ARG_SAMPLE = {
   confluenceLean: 'BEAR', repeatOrder: 'LATEST', periodRange: 'QTD', periodDate: '2026-01-02', periodSide: 'LOSERS', callQuery: 'margins',
   rotationSide: 'OUT', periodUnit: 'SECTORS',
   topFlowStatus: 'EXPIRED', topFlowDirection: 'BEAR', topFlowSort: 'PEAK',
+  earningsDay: 'TOMORROW', earningsSession: 'AMC',
 }
 
 afterEach(cleanup)

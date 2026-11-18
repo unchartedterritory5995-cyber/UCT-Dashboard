@@ -435,6 +435,15 @@ export const FUNCTIONS = [
   { code: 'TOPF', label: 'Top Flow picks (each pick and how its contract has done)', group: 'Options',
     market: { panel: 'TopFlow', args: [{ kind: 'topFlowStatus', prop: 'status' }, { kind: 'topFlowDirection', prop: 'direction' },
       { kind: 'topFlowSort', prop: 'sort' }] } },
+
+  // ── the earnings season screen (owner pick, 2026-11-17) ──
+  // ERNS: one day's reporters, before the open and after the close: the move options priced
+  // before each report, how the stock moved on its past reports, and the result and move once it
+  // lands (GET /api/calendar/earnings-season, which only reads what the server already holds).
+  // EMOV is the scoreboard of who HAS reported; this is the day ahead too. `ERNS TONIGHT`,
+  // `ERNS TOMORROW BMO`, `ERNS 11/19`.
+  { code: 'ERNS', label: 'Earnings season (who reports, the priced move, past moves, the result)', group: 'Calendar',
+    market: { panel: 'EarningsSeason', args: [{ kind: 'earningsDay', prop: 'day' }, { kind: 'earningsSession', prop: 'session' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -702,6 +711,8 @@ const FUNCTION_WORDS = {
   TROT: { example: 'TROT IN', keywords: ['theme rotation', 'rotating in', 'rotating out', 'themes gaining rank'] },
   IDAY: { keywords: ['intraday update', 'market update', 'midday update', 'session note'] },
   TOPF: { example: 'TOPF OPEN', keywords: ['top flow picks', 'flow picks', 'pick by pick', 'how the picks did'] },
+  ERNS: { example: 'ERNS TONIGHT', keywords: ['earnings season', 'who reports tonight', 'who reports tomorrow', 'earnings tonight',
+    'reporting after the close', 'reporting before the open', 'priced move for earnings'] },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

@@ -118,6 +118,8 @@ export const PANEL_IMPORTERS = {
   // data wave 6 (2026-11-17)
   IntradayUpdate: () => import('./panels/IntradayUpdatePanel'),
   TopFlow: () => import('./panels/TopFlowPanel'),
+  // the earnings season screen (owner pick, 2026-11-17)
+  EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),
   // wave 8, lane E: market reads (SENT)
   Sentiment: () => import('./panels/SentimentPanel'),

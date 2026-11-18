@@ -109,6 +109,14 @@ export const TOP_FLOW_SORT_WORDS = Object.freeze({
   PEAK: 'peak', HIGH: 'peak',
   NEW: 'newest', NEWEST: 'newest', LATEST: 'newest', RECENT: 'newest',
 })
+// the earnings season screen: copies of the panel model's words (args.earningsSeason.test.js pins each to its owner)
+export const EARNINGS_DAY_WORDS = Object.freeze({ TODAY: 'today', TONIGHT: 'tonight', TOMORROW: 'tomorrow' })
+export const EARNINGS_SESSION_WORDS = Object.freeze({
+  BMO: 'bmo', MORNING: 'bmo', BEFORE: 'bmo',
+  AMC: 'amc', EVENING: 'amc', AFTER: 'amc',
+})
+/** A typed `MM/DD` for ERNS is the nearest such day; past this many days away it is the next or the last year's. */
+export const EARNINGS_DAY_REACH = 183
 export const RS_SCREEN_ARG_WORDS = Object.freeze({
   LEADERS: 'starter_rs_leaders', LEADER: 'starter_rs_leaders', LDR: 'starter_rs_leaders',
   TOP: 'starter_rs_top_rating', RATING: 'starter_rs_top_rating',
@@ -433,6 +441,39 @@ export const ARG_KINDS = {
     takes: 'an order (GAIN, LOSERS, PEAK, NEW)',
     parse: (tok) => TOP_FLOW_SORT_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
     describe: (v) => ({ gain: 'biggest gain first', loss: 'biggest loss first', peak: 'biggest peak gain first', newest: 'newest pick first' })[v] || v,
+  },
+  // ── the earnings season screen (2026-11-17) ──
+  /** ERNS's day (panels/earningsSeasonModel.js parseEarningsDay; pinned by args.earningsSeason.test.js):
+   *  TODAY, TONIGHT (today, after the close), TOMORROW (the next session), or a date. Unlike
+   *  `etDate` the day may be ahead, and `11/19` is the NEAREST such day, not the most recent. The
+   *  word is kept as a word, so a saved `ERNS TOMORROW` still means tomorrow the day after. */
+  earningsDay: {
+    takes: 'TODAY, TONIGHT, TOMORROW or a date (YYYY-MM-DD or MM/DD)',
+    parse: (tok, ctx = {}) => {
+      const t = String(tok ?? '').trim().toUpperCase()
+      if (Object.prototype.hasOwnProperty.call(EARNINGS_DAY_WORDS, t)) return EARNINGS_DAY_WORDS[t]
+      if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return isRealIsoDate(t) ? t : null
+      const m = t.match(/^(\d{1,2})\/(\d{1,2})$/)
+      if (!m) return null
+      const today = ctx.today || todayIso()
+      const p = (n) => String(n).padStart(2, '0')
+      const year = Number(today.slice(0, 4))
+      const at = (y) => `${y}-${p(m[1])}-${p(m[2])}`
+      const dayNumber = (iso) => { const [y, mo, d] = iso.split('-').map(Number); return Date.UTC(y, mo - 1, d) / 86400000 }
+      let iso = at(year)
+      if (!isRealIsoDate(iso)) return null
+      const away = dayNumber(iso) - dayNumber(today)
+      if (away < -EARNINGS_DAY_REACH) iso = at(year + 1)
+      else if (away > EARNINGS_DAY_REACH) iso = at(year - 1)
+      return isRealIsoDate(iso) ? iso : null
+    },
+    describe: (v) => ({ today: 'today', tonight: 'today, after the close', tomorrow: 'the next session' })[v] || `day ${v}`,
+  },
+  /** ERNS's part of the day (panels/earningsSeasonModel.js EARNINGS_SESSION_ARG_WORDS). */
+  earningsSession: {
+    takes: 'BMO (before the open) or AMC (after the close)',
+    parse: (tok) => EARNINGS_SESSION_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => (v === 'bmo' ? 'before the open' : 'after the close'),
   },
 }
 
