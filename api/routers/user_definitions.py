@@ -589,6 +589,10 @@ class ConverseIn(BaseModel):
     #: optional; `definition_conversation.browser_refusal` decides whether it is used, and a
     #: malformed one is ignored (an ordinary turn), never a 422.
     browser_refusal: Optional[Any] = None
+    #: ⭐ 2026-11-18 — what this build of the browser accepts beyond the first contract
+    #: (``["note.by"]``). Optional and untrusted: an older tab omits it and gets the answer it
+    #: always got; anything that is not a list of known words is ignored, never a 422.
+    accepts: Optional[Any] = None
 
 
 def require_create_indicator_access(user: dict = Depends(require_paid)) -> dict:
@@ -645,6 +649,7 @@ def converse_definition(body: ConverseIn, user: dict = Depends(require_paid),
         authoring=body.authoring, snippets=body.snippets, chart=chart,
         admin=(user.get("role") == "admin"), conversation_id=body.conversationId,
         examples=body.examples is True, browser_refusal=body.browser_refusal,
+        accepts=body.accepts,
         # ⭐ what THIS member chose when the door asked before (their own account row, no one else's)
         memory=indicator_memory.Memory(user["id"]))
 

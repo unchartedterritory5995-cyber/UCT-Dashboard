@@ -44,6 +44,17 @@ CASES = {
         ["when price closes above the 50 day EMA", "when price trades through the 50 day EMA",
          "EMA 9 crosses above EMA 21", "price crosses above the 50 day EMA on a closing basis",
          "mark where the high crosses the 20 day SMA"]),
+    # letters that could mean two indicators: asked which (tests/test_ambiguous_acronyms.py has the rest)
+    "acronym_dmi": (
+        ["Add DMI", "add the dmi in a lower pane", "show me Dmi"],
+        ["Add the Directional Movement Index", "Add the Dynamic Momentum Index", "Add ADX", "add a 14 day RSI",
+         "DMI, the Directional Movement Index"]),
+    "acronym_adl": (
+        ["Add ADL", "plot the adl"],
+        ["Add the Accumulation Distribution Line", "add obv", "a paddle shaped line"]),
+    "acronym_ad": (
+        ["Add AD", "show AD in a lower pane"],
+        ["Add the Accumulation Distribution Line", "an ad for my chart", "add ADX", "Add ADL"]),      # capitals only; ADL is its own
 }
 
 
@@ -55,7 +66,8 @@ def understood(conv, words):
 
 def test_the_registry_is_data_and_every_question_fits_the_contract(conv):
     registry = conv.clarify_registry()
-    assert list(registry) == ["average_kind", "average_length", "cross_meaning"]      # the order asked
+    assert list(registry) == ["average_kind", "average_length", "cross_meaning",
+                              "acronym_dmi", "acronym_adl", "acronym_ad"]             # the order asked
     assert set(registry) == set(CASES), "a question with no cases here, or cases with no question"
     limits = json.loads(conv._raw_schema_text())["x-uct-limits"]
     for qid, q in registry.items():

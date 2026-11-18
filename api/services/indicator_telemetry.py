@@ -829,6 +829,17 @@ def _question_block(sel: list) -> dict:
     }
 
 
+def _internal_block(sel: list) -> dict:
+    """⭐ TURNS THAT FAILED ON OUR SIDE (ruling 2026-11-18), over one window of `(member, props)`
+    turns: the door raised, the member was told to try again, and nothing was changed. Its own
+    outcome so the owner sees it. PLAIN COUNTS, never withheld: the number says what UCT did, and
+    nothing about what any member asked for."""
+    failed = [p for _, p in sel if p.get("failure_class") == "internal"]
+    mine = [p for p in failed if p.get("access") == "admin"]
+    return {"turns": len(failed), "members_turns": len(failed) - len(mine), "builders_turns": len(mine),
+            "share_of_turns": round(len(failed) / len(sel), 3) if sel else None}
+
+
 #: What a member's NEXT turn does when the indicator they were given was not the one they meant:
 #: it takes the output away, rewrites its formula, or starts another indicator. (Changing a number
 #: or a colour is ordinary use and is not counted.)
@@ -951,6 +962,8 @@ def weekly_report(days: int = 7) -> dict:
         "named_built": library_rows(built),
         # 6. the ones named by ACRONYM, and how often the next turn removed or rewrote what was built
         "built_from_an_acronym": _acronym_rows(ordered, recent_ids),
+        # 7. turns that failed on OUR side (an internal error), this window against the one before
+        "internal_error": {"this": _internal_block(this), "previous": _internal_block(previous)},
     }
 
 
@@ -991,6 +1004,13 @@ def weekly_report_text(report: dict) -> str:
            f"  Built using a remembered choice: {this['built_from_memory']} of {this['built']}"]
     for qid, n in this["by_question"].items():
         out.append(f"  Asked {n} time{'' if n == 1 else 's'}: {question_text(qid)}")
+
+    failed, failed_before = report["internal_error"]["this"], report["internal_error"]["previous"]
+    out += ["", "FAILED ON OUR SIDE (an internal error: the member was told to try again, nothing was changed)",
+            f"  {failed['turns']} turn{'' if failed['turns'] == 1 else 's'}"
+            + (f": {failed['members_turns']} for members, {failed['builders_turns']} for the builders' own accounts"
+               if failed["turns"] else "")
+            + f" (the {days} days before: {failed_before['turns']})"]
 
     names = report["names"]
     out += ["", "NAMES ASKED FOR THAT ARE NOT BUILT BY NAME (the library's queue)"]

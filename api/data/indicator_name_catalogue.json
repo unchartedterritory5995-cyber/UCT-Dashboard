@@ -155,8 +155,7 @@
    "id": "directional_movement_index",
    "name": "Directional Movement Index",
    "aliases": [
-    "directional movement index",
-    "dmi"
+    "directional movement index"
    ]
   },
   {
@@ -453,7 +452,8 @@
    "name": "Dynamic Momentum Index",
    "aliases": [
     "dynamic momentum index"
-   ]
+   ],
+   "distinctive": true
   },
   {
    "id": "qqe",

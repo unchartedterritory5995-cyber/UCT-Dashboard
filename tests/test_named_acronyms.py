@@ -115,14 +115,14 @@ def test_the_planner_shared_with_the_screener_does_not_read_them():
 # ═══ (3) what was built is named in full ═════════════════════════════════════
 
 @pytest.mark.parametrize("acronym,entry_id", ADMITTED)
-def test_what_was_built_is_named_in_full_on_every_output(store, conv, clean_env, model, acronym, entry_id):
+def test_what_was_built_is_named_in_full_and_said_once(store, conv, clean_env, model, acronym, entry_id):
     e = ENTRIES[entry_id]
     client = model([emits(env(0, [create(entry_id)]))])
     r = conv.converse(f"Add {acronym.upper()}", user_id="u1", view=empty_view(0), chart=CHART)
     assert r["ok"] is True and r["disposition"] == "change" and len(client.calls) == 1, r.get("reason")
     said = [a["text"] for a in r["envelope"]["assumptions"] if a.get("output") in {o["key"] for o in e["outputs"]}]
-    assert len(said) == len(e["outputs"])
-    assert all(t.startswith(f"Built to UCT's checked formula for {e['name']}") for t in said), said
+    assert len(said) == 1, said                                             # once for the indicator, not once per output
+    assert said[0].startswith(f"Built to UCT's checked formula for {e['name']}"), said
     # and the record says it came from an acronym
     assert learned(last_turn()) == {"named_built": entry_id, "acronym_built": entry_id}
 

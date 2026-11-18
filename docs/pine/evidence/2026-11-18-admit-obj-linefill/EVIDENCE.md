@@ -93,3 +93,21 @@ scratch directory; only identifiers and counts are written here.
 | census, both lanes, and the engine door (`run_census.py`, `coverageMapDoorCensus.measure.test.js`), the 11-17 sample manifest | 967 / 967 rows each lane; map: host-only 220 / 679, runtime-on 285 / 679, runtime-attached 88 |
 | `parity_roadmap.py facts` + `build` (master's registry) | **SERVED 275 / 679** (allowlisted 1, capability 54, not admitted 10), as at engine 73 |
 | the same with a hypothetical row (a temp copy of the registry; the committed file untouched) | `obj:linefill` admitted: 279 / 679 (+4: FVG Finder, AlgoAlpha, linear-regression-channel, best-sr-indicator) |
+
+## 6. Addendum, same day: the follow-up captures, graded at engine 75 (still NOT admitted)
+
+patrick-54 took the rows sent for this unit (run `adm-2026-11-18`, local; packet `b416f5fa…`; all from the listing,
+defaults, x table recorded). Filed as ledger rows at engine 75 (`evidence_engine.py regrade`, both lanes; grader
+`5500f8f1c291`) and graded on the runtime-on lane at `394853a21e`:
+
+| capture | production | runtime-on | objects v2 (runtime-on) | for this unit |
+|---|---|---|---|---|
+| `trend-targets-algoalpha-spy-1d-2026-11-18` | INCONCLUSIVE (`pine:state`) | MATCH, 7 / 7 | MATCH, linefills 2 / 0, x 15 / 15 | the 11-17 barcolor DIVERGE was the history start (that capture is not from the listing): the safety objection to AlgoAlpha is gone. It still does not count: its objects are the host program's (`objectsLane` host) |
+| `fvg-detector-tradingfinder-…-spy-1d-2026-11-18` | INCONCLUSIVE (`pine:no-output`) | MATCH, 1 / 1 | **DIVERGE**: linefills held, vendor 289, ours 250 (lines 500 / 500 paired at the 500 cap, labels 289 / 289, linefills 250 paired, 0 field differing, x 1,289 / 1,289) | a LINEFILL COUNT AT THE LINE CAP: TradingView keeps 39 more linefills than we do once the line collector runs. This capture cannot count (objects v2 is not MATCH), and it is the obj:linefill analogue of `obj:box`'s count-at-cap carve-out: a row would need that carve-out, or the count settled, before FVG Finder's SPY picture reaches a member |
+| `vdubus-pattern-gen-v2-restored-refined-rddt-1d-2026-11-18` | MATCH | MATCH | MATCH, linefills 52 / 0, x 245 / 245 | host-drawn (its run builds its drawings but the door keeps the host program): counts only after the roadmap's run-owned-objects change |
+| `vdubus-…-spy-1d-2026-11-18` | INCONCLUSIVE | INCONCLUSIVE | INCONCLUSIVE: lines withheld by name (`objects:collector`, 500 lines / 505 linefills) | not evidence |
+| `k-clustering-{rddt,spy}-1d-2026-11-18` | INCONCLUSIVE | INCONCLUSIVE (`objects:not-computable`) | INCONCLUSIVE | not evidence (TradingView now draws 3 linefills) |
+
+Counted for `obj:linefill` after the follow-up: still 1 capture of 1 script (FVG Finder RDDT 11-15). Two walls stand,
+both on the roadmap's objects unit: the run owning a runtime document's drawings (AlgoAlpha, vdubus-pattern-gen-v2),
+and the linefill count once the line collector has run (FVG Finder SPY).

@@ -13,6 +13,10 @@
 // backtest ALONE is refused, by the broker's own name, in the member's words (`strategyRecord.js::
 // refusedStrategyRecordOf`). A program whose outputs READ the broker cannot stand in: the member reads the broker's
 // refusal exactly as before.
+//
+// ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint): WHAT the stand-in run draws is decided statically by the host
+// lane's own taint (`strategyTaint.js::strategyDisarmOf`): a plot a broker value reaches is withheld BY NAME, never
+// drawn from the `na` the disarmed run reads in the broker's place. Its rails: `strategyDisarmedTaint.test.js`.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -127,7 +131,7 @@ describe('a broker run refused by name keeps the plots; the backtest alone is re
     expect(strategyReportOf(rec).status).toBe('ok')
   })
 
-  it('⛔ a strategy whose PLOT reads the broker cannot stand in: the broker\'s refusal stands, nothing is drawn', () => {
+  it('⛔ a strategy whose EVERY plot shows a broker value: a stand-in would draw nothing, so the broker\'s refusal stands', () => {
     const reads = `//@version=5
 strategy("reads the broker", overlay = false)
 if ta.crossover(ta.sma(close, 5), ta.sma(close, 20))

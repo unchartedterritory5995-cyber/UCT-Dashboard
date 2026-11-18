@@ -1,0 +1,136 @@
+//@version=6
+indicator("vw-fcmp-builtins-v2")
+
+// PROVENANCE: written 2026-11-18 for the Pine parity programme, the rerun of vw-fcmp-builtins.pine asked for by
+// coordinator patrick-2b after the Q-FCMP2 readings. Q-FCMP2 found the operators' rule an ABSOLUTE EPSILON:
+// two floats are equal when |a - b| < about 1e-10 (equal at 2e-11, unequal at 1.0000000827e-10), na makes every
+// comparison false, the ordering operators are true only when not equal. vw-fcmp-builtins.pine used a near tie of
+// 3e-10, OUTSIDE that epsilon, so it could not tell a tolerant built-in from an exact one.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: do built-ins compare exactly or with the operators' epsilon, and where exactly is the epsilon's edge?
+// - B01-B31: vw-fcmp-builtins.pine's rows B01-B31 with the near tie e = 3e-14 (well inside the epsilon: Q-FCMP's
+//   `1.0 + 3e-14 == 1.0` is true). Same series shapes, same reading rules (see that probe's header); the row
+//   numbers match, so a reading here is graded against the same table, except B21-B23, which are math.sign of
+//   3e-14, -3e-14 and 9e-11 (v1's B23 already read math.sign(3e-14) = 1). `(1 + e) - 1` is 2.9976021664879227e-14.
+// - Z01-Z17: the main built-ins again with e = 9e-11, just under the operators' 1e-10 (a built-in tolerant at 3e-14
+//   but exact at 9e-11 has a smaller epsilon of its own).
+// - E01-E14: the operators' epsilon edge, on pairs whose double difference is exact (one operand 0, or both halves
+//   of one value): cmp(a, b) = 1*(a == b) + 2*(a != b) + 4*(a < b) + 8*(a <= b) + 16*(a > b) + 32*(a >= b).
+//   E10 is the double just below 1e-10, E11 1e-10 itself, E12 the double just above: `|a - b| < 1e-10` reads
+//   41 / 14 / 14, `<= 1e-10` reads 41 / 41 / 14.
+// CAPTURE: AMEX:SPY 1D FROM THE LISTING (history.startsAtBar0 asserted), then NYSE:RDDT 1D, inputs at defaults.
+
+one = bar_index >= 0 ? 1.0 : 0.0
+e = 3e-14
+z = 9e-11
+p3 = bar_index % 3
+p4 = bar_index % 4
+cmp(float a, float b) => (a == b ? 1 : 0) + (a != b ? 2 : 0) + (a < b ? 4 : 0) + (a <= b ? 8 : 0) + (a > b ? 16 : 0) + (a >= b ? 32 : 0)
+
+plot(bar_index, "B00_bar_index_CONTROL")
+
+// ---- e = 3e-14 (B rows, numbered as in vw-fcmp-builtins.pine)
+xo = (p3 == 0 ? 0.5 : p3 == 1 ? 1.0 + e : 2.0) * one
+xu = (p3 == 0 ? 1.5 : p3 == 1 ? 1.0 - e : 0.0) * one
+xt = (p3 == 0 ? 0.5 : p3 == 1 ? 1.0 : 2.0) * one
+plot(ta.crossover(xo, one) ? 1 : 0, "B01_crossover_neartie")
+plot(ta.crossunder(xu, one) ? 1 : 0, "B02_crossunder_neartie")
+plot(ta.cross(xo, one) ? 1 : 0, "B03_cross_neartie")
+plot(ta.crossover(xt, one) ? 1 : 0, "B04_crossover_exacttie_CONTROL")
+
+hs = (p3 == 1 ? 1.0 + e : 1.0) * one
+ls = (p3 == 1 ? 1.0 - e : 1.0) * one
+plot(ta.highest(hs, 2) - 1.0, "B05_highest2_minus1")
+plot(ta.highestbars(hs, 2), "B06_highestbars2")
+plot(ta.lowest(ls, 2) - 1.0, "B07_lowest2_minus1")
+plot(ta.lowestbars(ls, 2), "B08_lowestbars2")
+
+phT = (p4 == 0 ? 1.0 : p4 == 1 ? 1.0 : 0.0) * one
+phN = (p4 == 0 ? 1.0 + e : p4 == 1 ? 1.0 : 0.0) * one
+phM = (p4 == 0 ? 1.0 : p4 == 1 ? 1.0 + e : 0.0) * one
+plT = (p4 == 0 ? 1.0 : p4 == 1 ? 1.0 : 2.0) * one
+plN = (p4 == 0 ? 1.0 - e : p4 == 1 ? 1.0 : 2.0) * one
+plM = (p4 == 0 ? 1.0 : p4 == 1 ? 1.0 - e : 2.0) * one
+plot(ta.pivothigh(phT, 1, 1), "B09_pivothigh_exacttie_CONTROL")
+plot(ta.pivothigh(phN, 1, 1), "B10_pivothigh_e_first")
+plot(ta.pivothigh(phM, 1, 1), "B11_pivothigh_e_second")
+plot(ta.pivotlow(plT, 1, 1), "B12_pivotlow_exacttie_CONTROL")
+plot(ta.pivotlow(plN, 1, 1), "B13_pivotlow_e_first")
+plot(ta.pivotlow(plM, 1, 1), "B14_pivotlow_e_second")
+
+up1 = (1.0 + e) * one
+dn1 = (1.0 - e) * one
+plot(math.max(one, up1) - 1.0, "B15_max_1_1pe")
+plot(math.max(up1, one) - 1.0, "B16_max_1pe_1")
+plot(math.min(one, dn1) - 1.0, "B17_min_1_1me")
+plot(math.min(dn1, one) - 1.0, "B18_min_1me_1")
+plot(array.max(array.from(one, up1)) - 1.0, "B19_arraymax_1_1pe")
+plot(array.min(array.from(one, dn1)) - 1.0, "B20_arraymin_1_1me")
+
+plot(math.sign(e * one), "B21_sign_3e-14")
+plot(math.sign(-e * one), "B22_sign_m3e-14")
+plot(math.sign(9e-11 * one), "B23_sign_9e-11")
+plot(ta.rising(hs, 1) ? 1 : 0, "B24_rising1")
+plot(ta.falling(hs, 1) ? 1 : 0, "B25_falling1")
+
+sw = switch up1
+    1.0 => 1
+    => 0
+plot(sw, "B26_switch_float")
+plot(array.indexof(array.from(1.0, 2.0), up1), "B27_indexof")
+plot(array.includes(array.from(1.0, 2.0), up1) ? 1 : 0, "B28_includes")
+srt = array.from(up1, one)
+array.sort(srt, order.ascending)
+plot(array.get(srt, 0) - 1.0, "B29_sort_first_minus1")
+
+plot(ta.percentrank(hs, 1), "B30_percentrank1")
+md = (p3 == 0 ? 1.0 + e : p3 == 1 ? 1.0 : 0.5) * one
+plot(ta.mode(md, 3), "B31_mode3")
+
+// ---- e = 9e-11 (Z rows: the same shapes, just under the operators' epsilon)
+xoZ = (p3 == 0 ? 0.5 : p3 == 1 ? 1.0 + z : 2.0) * one
+xuZ = (p3 == 0 ? 1.5 : p3 == 1 ? 1.0 - z : 0.0) * one
+plot(ta.crossover(xoZ, one) ? 1 : 0, "Z01_crossover_neartie")
+plot(ta.crossunder(xuZ, one) ? 1 : 0, "Z02_crossunder_neartie")
+hsZ = (p3 == 1 ? 1.0 + z : 1.0) * one
+lsZ = (p3 == 1 ? 1.0 - z : 1.0) * one
+plot(ta.highest(hsZ, 2) - 1.0, "Z03_highest2_minus1")
+plot(ta.highestbars(hsZ, 2), "Z04_highestbars2")
+plot(ta.lowest(lsZ, 2) - 1.0, "Z05_lowest2_minus1")
+plot(ta.lowestbars(lsZ, 2), "Z06_lowestbars2")
+phNZ = (p4 == 0 ? 1.0 + z : p4 == 1 ? 1.0 : 0.0) * one
+phMZ = (p4 == 0 ? 1.0 : p4 == 1 ? 1.0 + z : 0.0) * one
+plot(ta.pivothigh(phNZ, 1, 1), "Z07_pivothigh_z_first")
+plot(ta.pivothigh(phMZ, 1, 1), "Z08_pivothigh_z_second")
+plot(ta.rising(hsZ, 1) ? 1 : 0, "Z09_rising1")
+plot(ta.falling(hsZ, 1) ? 1 : 0, "Z10_falling1")
+up1Z = (1.0 + z) * one
+swZ = switch up1Z
+    1.0 => 1
+    => 0
+plot(swZ, "Z11_switch_float")
+plot(array.indexof(array.from(1.0, 2.0), up1Z), "Z12_indexof")
+srtZ = array.from(up1Z, one)
+array.sort(srtZ, order.ascending)
+plot(array.get(srtZ, 0) - 1.0, "Z13_sort_first_minus1")
+plot(ta.percentrank(hsZ, 1), "Z14_percentrank1")
+mdZ = (p3 == 0 ? 1.0 + z : p3 == 1 ? 1.0 : 0.5) * one
+plot(ta.mode(mdZ, 3), "Z15_mode3")
+plot(math.max(one, up1Z) - 1.0, "Z16_max_1_1pz")
+plot(math.max(up1Z, one) - 1.0, "Z17_max_1pz_1")
+
+// ---- the operators' epsilon edge (E rows), exact differences
+plot(cmp(0.0 * one, 2.5e-11 * one), "E01_0_2.5e-11")
+plot(cmp(0.0 * one, 4e-11 * one), "E02_0_4e-11")
+plot(cmp(0.0 * one, 5e-11 * one), "E03_0_5e-11")
+plot(cmp(0.0 * one, 6e-11 * one), "E04_0_6e-11")
+plot(cmp(0.0 * one, 7e-11 * one), "E05_0_7e-11")
+plot(cmp(0.0 * one, 8e-11 * one), "E06_0_8e-11")
+plot(cmp(0.0 * one, 9e-11 * one), "E07_0_9e-11")
+plot(cmp(0.0 * one, 9.5e-11 * one), "E08_0_9.5e-11")
+plot(cmp(0.0 * one, 9.9e-11 * one), "E09_0_9.9e-11")
+plot(cmp(0.0 * one, 9.999999999999999e-11 * one), "E10_0_below_1e-10")
+plot(cmp(0.0 * one, 1e-10 * one), "E11_0_1e-10")
+plot(cmp(0.0 * one, 1.0000000000000002e-10 * one), "E12_0_above_1e-10")
+plot(cmp(-5e-11 * one, 5e-11 * one), "E13_m5e-11_p5e-11")
+plot(cmp(1e-10 * one, 0.0 * one), "E14_1e-10_0")

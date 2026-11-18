@@ -386,8 +386,47 @@ its acronym, as its own `acronyms` field (an alias is still never a bare short w
 |---|---|
 | (1) it names exactly one indicator UCT knows by name | each is the initials of its own entry and of no other library entry or name-catalogue row, and is no word of the product's own. The same check refuses ADL (also Advance Decline Line) and DMI (also Dynamic Momentum Index); ADX is the engine's own function word |
 | (2) every request on file that uses it reads as that indicator | THE REQUESTS ON FILE COULD NOT SAY. Of 909, one used an admitted acronym, and it was written to test this. So it is watched instead: each build that came from an acronym is its own row of the weekly report, with how often the member's next turn in that conversation removed or rewrote what was built |
-| (3) the reply names the indicator in full | the door's own sentence on every output begins "Built to UCT's checked formula for On Balance Volume" |
+| (3) the reply names the indicator in full | the door's own sentence begins "Built to UCT's checked formula for On Balance Volume" (said once for the indicator) |
 | (4) a symbol beside it is still the symbol | "OBV of AAPL" names the entry and reads AAPL. The acronym itself is never read as a symbol, even where the same letters are a real ticker (PVT): a patch that reads the symbol PVT for "Add PVT" is refused as a symbol the member never asked for. "PVT.TO" and "XYZ.PVT" are symbols and are left alone |
 
 An acronym names the library's formula and nothing looser: a patch that holds another formula for
 "Add OBV" is sent back once and then refused, exactly as for the full name.
+
+## Letters that mean two indicators are a question (ruling 2026-11-18)
+
+**DMI** is the Directional Movement Index and the Dynamic Momentum Index. **ADL** and **AD** are the
+Accumulation Distribution Line and the Advance Decline Line. The door neither guesses nor gives the
+unknown-name answer. It asks which, with no model call, through the same question registry as "which
+kind of moving average", the likeliest meaning first.
+
+| the member answers | what happens |
+|---|---|
+| the one in the library (Directional Movement Index; Accumulation Distribution Line) | built to the checked formula, in one call |
+| a well-known name with no checked formula (Dynamic Momentum Index) | built with the name withheld, as for that name written in full |
+| a name UCT does not build (Advance Decline Line: it needs every stock in the market) | that name's own answer and the way forward; the question is not asked again, and nothing is remembered |
+
+The answer is remembered like any other, shown and changeable in Settings ("What DMI means"), used
+next time, and said: "Reading DMI as the Directional Movement Index, as you chose before. Name the
+other one to change it." Naming either indicator in full is never overridden by the memory.
+
+"AD" is read in capitals only (an "ad" is a word). The letters inside a longer word ("headline") or
+as a symbol with a suffix ("ADL.TO") are not the acronym.
+
+**Every clash of initials that touches the library is decided, and a test holds the list:** DMI and
+ADL are asked; AO, CC, PP, SMI and TS are not admitted as acronyms at all (nobody writes those
+letters for both names), so none of them is ever guessed. A new library entry whose initials clash
+with another indicator fails that test until someone decides.
+
+Because "DMI" now means two things, it is no longer a spelling of one row in the name catalogue.
+
+### A defect this work found, and what the instruments gained
+
+Writing the test for "the remembered answer, then a library build" found a live defect in the
+remembered-choice path: the door's "as you chose before" sentence has no `output`, and adding it to
+an answer that ALREADY carried a note raised, so the member read an internal error. Every earlier
+test of that path answered with a patch that carried no note. Fixed in one line (#1822).
+
+So that the two cannot fail to meet again, an evaluation case can now say what the member chose
+before (`remembers`) and what the answer must say (`says`). Two cases use them: a remembered kind
+beside the assistant's own note, and a remembered acronym followed by a library build. With the
+faulty line put back, the case fails.
