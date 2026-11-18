@@ -9,6 +9,10 @@
 //      the first load shows nothing until the values land (the pane's loading state);
 //   3. a superseded result never paints: a newer request of a pane replaces its waiting one, and a
 //      symbol switch never draws the old symbol's values, before or after the old job lands;
+//   3b. a superseded RUNNING job stops at once (its worker terminated, a fresh one takes the newer job),
+//      except the pane's first picture, which finishes on a retired worker and is drawn; a late older
+//      answer is dropped; a cancel is never a failure; no worker state outlives its worker
+//      (docs/pine/evidence/2026-11-18-host-lane-worker-followups/EVIDENCE.md);
 //   4. a worker that fails never blanks a pane: no worker, a crash, a refused post -> the main thread
 //      (values equal to today's); past the watchdog -> refused BY NAME, said on the strip;
 //   5. what the worker computes is the main thread's function on the main thread's arguments: every
