@@ -516,13 +516,15 @@ def _rth_union_script():
     return run.split("<<'EOF'\n", 1)[1].rsplit("EOF", 1)[0]
 
 
-def _rth_fixture(tmp_path, files, legs, lists=None, failed=0, n=None):
+def _rth_fixture(tmp_path, files, legs, lists=None, failed=0, n=None, n_lists=None):
     d = tmp_path / "capreg"
     d.mkdir()
     for i, members in enumerate(legs, 1):
         doc = {"numFailedTests": failed if i == 1 else 0, "numPassedTests": len(members),
                "testResults": [{"name": "/runner/w/app/" + f, "startTime": 0, "endTime": 1} for f in members]}
         (d / ("capreg-rth-%d.json" % i)).write_text(json.dumps(doc), encoding="utf-8")
+        if n_lists is not None and i > n_lists:
+            continue                      # a report with no expected list (only the report count is wrong)
         lst = files if lists is None else lists[i - 1]
         (d / ("capreg-rth-%d.expected.txt" % i)).write_text("\n".join(lst) + "\n", encoding="utf-8")
     (tmp_path / "rth.js").write_text(_rth_union_script(), encoding="utf-8")
@@ -561,6 +563,23 @@ def test_capreg_rth_union_rail_fails_closed(tmp_path, mutant):
         assert "17 files listed; 2 legs ran 17 distinct" in r.stdout
     else:
         assert r.returncode == 1 and "::error::" in r.stdout, (mutant, r.stdout + r.stderr)
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+def test_capreg_rth_union_rail_fails_a_correct_union_over_the_wrong_number_of_reports(tmp_path):
+    """AUDIT #1839: the union is exactly right (every file once, nothing outside the list, none failed) and there are
+    exactly CAPREG_RTH_LEGS identical expected lists, but THREE reports for two legs. Only the report-count check can
+    catch it; with that check removed the rail would pass it."""
+    files = _files(17, "src/agent/qa/capabilityRegression/c")
+    legs = [files[:1], files[1:2], files[2:]]
+    assert sorted(f for leg in legs for f in leg) == sorted(files) and len(set(files)) == 17   # a correct union, no dupes
+    r = _rth_fixture(tmp_path, files, legs, n=2, n_lists=2)
+    assert sorted(p.name for p in (tmp_path / "capreg").iterdir()) == [
+        "capreg-rth-1.expected.txt", "capreg-rth-1.json", "capreg-rth-2.expected.txt", "capreg-rth-2.json",
+        "capreg-rth-3.json"]
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert [ln for ln in r.stdout.splitlines() if ln.startswith("::error::")] == [
+        "::error::expected 2 rth leg reports, got 3"], r.stdout + r.stderr
 
 
 def test_capreg_join_downloads_the_rth_legs_and_still_requires_every_leg_success():
