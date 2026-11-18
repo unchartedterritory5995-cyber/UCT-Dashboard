@@ -53,6 +53,58 @@ alone rules them; RDDT is the second-symbol control.
 | `vw-fcmp-magnitude.pine` | 35 | `2f008984fa08fa538f7c170521b34f2a5021b1f71280d5fe64988b55966148a4` |
 | `vw-fcmp-builtins.pine` | 35 | `12dee08684f92076653b363e76fde1cf3a152093034ef214c13560d65b01b7ba` |
 
+## The rerun and the version rows (filed after rows 1-8 were read)
+
+### Readings of rows 1-8 (as the coordinator relayed them, 2026-11-18)
+
+The form is an ABSOLUTE EPSILON of about 1e-10, NOT rounding to nine fractional digits, against the v6 reference's
+remark. The straddles T20-T23 and T25 read 41 and T08 / T09 read 14, so every rounding form is refuted. Equal at 1e-11,
+1.1e-11 and 2e-11; unequal at 1.0000000827e-10 (T07). All six operators share the rule, and an ordering is true only
+when the operands are not equal. Half-way rows read 0. The rule is absolute (M rows, and M33 reads 50 on SPY bars 5,333
+and 5,453). `na` makes every comparison false, `!=` included. v6 const folding matches series. The v4 twin equals v6 on
+every row except T50: v4 compares two literals inline EXACTLY. `math.sign(3e-14)` = 1. The B probe's near tie (3e-10)
+lies outside the epsilon, so its built-in rows cannot rule. Hence the rows below.
+
+### The rerun rows
+
+| id | probe | chart | what to record | unblocks |
+|---|---|---|---|---|
+| Q-FCMP2-9 | `tools/visual_conformance/probes/vw-fcmp-builtins-v2.pine` | AMEX:SPY 1D | from the listing (`history.startsAtBar0` asserted); every plot on every bar | which built-ins use the epsilon (e = 3e-14 and 9e-11); the epsilon's edge, `<` or `<=` (E rows) |
+| Q-FCMP2-10 | `tools/visual_conformance/probes/vw-fcmp-builtins-v2.pine` | NYSE:RDDT 1D | from the listing; every plot on every bar | the same, on a second symbol |
+| Q-FCMP2-11 | `tools/visual_conformance/probes/vw-fcmp-const-v4.pine` | AMEX:SPY 1D | from the listing; every plot on every bar | which v4 operands are compile-time constants, compared exactly (T50) |
+| Q-FCMP2-12 | `tools/visual_conformance/probes/vw-fcmp-const-v5.pine` | AMEX:SPY 1D | from the listing; every plot on every bar | the same under v5 |
+| Q-FCMP2-13 | `tools/visual_conformance/probes/vw-fcmp-form-v5.pine` | AMEX:SPY 1D | from the listing; every plot on every bar | whether v5 runs the v4 / v6 rule (rows 1-8 read v4 and v6 only) |
+
+Rows 9 and 10 are the coordinator's ask. Rows 11-13 are recommended: without them a v5 script's comparisons and a
+v4 / v5 constant comparison are unmeasured, and the engine would have to refuse them by name.
+
+### Built probes (rerun; record each sha256 with its capture)
+
+| probe | plots | sha256 |
+|---|---:|---|
+| `vw-fcmp-builtins-v2.pine` | 63 | `9c675e98f407965ee17f580d09a8b76bcd97684f494d2a038cb35af71a82183b` |
+| `vw-fcmp-const-v4.pine` | 15 | `86d69d0ddec8fffbe9926f38f8898e4e401019f72ebeeee0d3a971f0d0441b8d` |
+| `vw-fcmp-const-v5.pine` | 15 | `f1a561bb66e03c45ccbed1d7cd0cd776c920ef07bb330ea4310c1fd1fb960dfa` |
+| `vw-fcmp-form-v5.pine` | 51 | `cb2d146b6cf0398e317ca3f69c5ffaea63340450fd238f4fe8b36b5114ebb94b` |
+
+What each answers:
+
+- `vw-fcmp-builtins-v2.pine`:
+  - B01-B31 are B01-B31 of `vw-fcmp-builtins.pine` with the near tie e = 3e-14, read against that probe's table
+    below ("exact reads" / "a tolerant built-in reads"). B21-B23 are `math.sign` of 3e-14, -3e-14 and 9e-11.
+  - Z01-Z17 repeat the main built-ins with e = 9e-11. Exact at 9e-11 but tolerant at 3e-14 means the built-in has a
+    smaller epsilon of its own.
+  - E01-E14 are the operators' edge, on exact differences: 0 vs 2.5e-11, 4e-11, 5e-11, 6e-11, 7e-11, 8e-11, 9e-11,
+    9.5e-11 and 9.9e-11, then the double just below 1e-10 (E10), 1e-10 (E11) and the double just above (E12); E13 is
+    -5e-11 vs 5e-11 (1e-10 apart); E14 is 1e-10 vs 0. `|a - b| < 1e-10` reads 41 for E01-E10 and 14 / 14 / 14 / 50
+    for E11-E14. `<= 1e-10` reads 41 for E11 and E13, and 32 + 8 + 1 = 41 for E14. A smaller epsilon turns the code
+    to 14 from the first row it lies under.
+- `vw-fcmp-const-v4.pine` / `-v5.pine`: C01-C14 are pairs 3e-14 apart, each written inline so the operands keep their
+  own qualifier. They cover literals, named literals, literal sums, inputs, a const against a series, a series
+  control, a reassigned name, a function's literal, a `?:` of consts, int against float, and Q-FCMP's literal tie.
+  An exact compare reads 50 (or 14 for C12) and the epsilon reads 41. C08 (series) is the control and must read 41.
+- `vw-fcmp-form-v5.pine` is `vw-fcmp-form.pine` under v5, read against the same T table.
+
 ## Readings each model predicts (what each plot answers)
 
 **The code.** Every `cmp(a, b)` plot packs the six operators into one integer: 1·(a == b) + 2·(a != b) + 4·(a < b) +
