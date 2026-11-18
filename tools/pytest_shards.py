@@ -37,12 +37,30 @@ Usage:
 
 ⭐ 2026-11-10: the root buckets are cut by MEASURED time from `tools/pytest_shard_timings.json`
 (per-file junit seconds from the last completed runs), not by file count — see `ROOT_BUCKETS`.
+
+⚰️⚰️ 2026-11-18 — TWO HOLES IN THIS PARTITION, BOTH MEASURED.
+  * IT PARTITIONED `tests/` AND NOTHING ELSE. pytest.ini's `testpaths` is `tests api`, and the 203
+    collectable files under `api/**` were in no shard and no other job: no CI run ever ran them.
+    The enumeration is now pytest's OWN discovery — every `testpaths` root, every `python_files`
+    pattern, read from pytest.ini (`pytest_discovery`) — and a non-`tests` root is cut into
+    `<root>-NN` time buckets. The rail that keeps it honest runs in the master deploy gate:
+    tests/test_every_backend_test_file_is_in_the_shard_plan.py.
+  * A THIN TIMING FILE KILLED THE WHOLE NIGHTLY. `--self-check` failed "timing covers >= 85% of
+    loose root files" on 11-16 and 11-17, the plan job failed, and every pytest AND vitest shard
+    was skipped: two nights with no backend test run at all. Untimed files already weigh the p90
+    of the recorded ones and the 720 s rail still bounds every shard, so thin coverage is now a
+    WARNING, never a refusal. The file is kept fresh by the nightly itself (`--record-timings
+    --merge-into`, saved to actions/cache by `publish`).
 """
 from __future__ import annotations
 
 import argparse
 import collections
+import configparser
+import fnmatch
+import hashlib
 import json
+import os
 import pathlib
 import sys
 
@@ -116,26 +134,75 @@ SHARD_RAIL_S = 720.0
 #: (conservative: 90% of timed files are faster). It is the "fall back to file count" rule
 #: with a unit that is in seconds, so timed and untimed files can share one cut.
 FALLBACK_PERCENTILE = 90
-#: the timing file must cover at least this share of the loose root files, or the planner
-#: is guessing and `--self-check` says so.
+#: below this share of the loose root files timed, `--self-check` WARNS (it never fails on it:
+#: see the module docstring, 2026-11-18). The rail on shard size is what bounds the plan.
 MIN_TIMING_COVERAGE = 0.85
 TIMINGS_FILE = "tools/pytest_shard_timings.json"
 TEST_GLOB = "test_*.py"
+#: the root whose layout the shard ids were designed around: `dir-<subdir>` + `tests-NN`.
+TESTS_ROOT = "tests"
+PYTEST_INI = "pytest.ini"
+#: pytest's own default `python_files`, used when pytest.ini sets none (it sets none today).
+PYTEST_DEFAULT_PYTHON_FILES = ("test_*.py", "*_test.py")
+#: folders the discovery walk never enters. ⛔ The same set tests/test_test_discovery_coverage.py
+#: prunes; the shard-plan rail asserts the two are equal, so they cannot drift apart.
+PRUNED_DIRS = frozenset({"node_modules", "__pycache__", "external", "venv", ".venv", "dist", "build"})
+#: a root other than `tests` is cut into `<root>-NN` time buckets, at least this many.
+OTHER_ROOT_BUCKETS_MIN = 1
 
 
 def _repo_root() -> pathlib.Path:
     return pathlib.Path(__file__).resolve().parent.parent
 
 
-def all_test_files(root: pathlib.Path | None = None) -> list:
-    """Every backend test file, repo-relative, SORTED. One enumeration, reused."""
-    base = root or (_repo_root() / "tests")
+def pytest_discovery(repo: pathlib.Path | None = None) -> tuple:
+    """(testpaths, python_files) as pytest reads them from pytest.ini.
+
+    ⛔ Read here, not retyped: the plan job runs on a bare interpreter with no pytest installed,
+    so this parses the file itself, and the shard-plan rail asserts the answer equals pytest's
+    own `getini("testpaths")` / `getini("python_files")`.
+    """
+    repo = repo or _repo_root()
+    cp = configparser.ConfigParser(interpolation=None)
+    cp.read(str(pathlib.Path(repo) / PYTEST_INI), encoding="utf-8")
+    sec = cp["pytest"] if cp.has_section("pytest") else {}
+    roots = (sec.get("testpaths") or "").split()
+    patterns = (sec.get("python_files") or "").split() or list(PYTEST_DEFAULT_PYTHON_FILES)
+    return roots, patterns
+
+
+def _walk(base: pathlib.Path, rel_to: pathlib.Path, patterns) -> list:
     out = []
-    for p in base.rglob(TEST_GLOB):
-        if "__pycache__" in p.parts:
-            continue
-        out.append(p.relative_to(base.parent).as_posix())
-    return sorted(out)
+    for dirpath, dirnames, filenames in os.walk(str(base)):
+        dirnames[:] = sorted(d for d in dirnames if d not in PRUNED_DIRS and not d.startswith("."))
+        for name in filenames:
+            if any(fnmatch.fnmatch(name, pat) for pat in patterns):
+                out.append(pathlib.Path(dirpath, name).relative_to(rel_to).as_posix())
+    return out
+
+
+def all_test_files(root: pathlib.Path | None = None) -> list:
+    """Every backend test file, repo-relative, SORTED. One enumeration, reused.
+
+    With no `root`: pytest's own discovery — every `testpaths` root of pytest.ini, every
+    `python_files` pattern. With a `root` (a synthetic tree in the rails): that one folder.
+    """
+    if root is not None:
+        base = pathlib.Path(root)
+        return sorted(_walk(base, base.parent, PYTEST_DEFAULT_PYTHON_FILES))
+    repo = _repo_root()
+    roots, patterns = pytest_discovery(repo)
+    out = []
+    for r in roots:
+        if (repo / r).is_dir():
+            out += _walk(repo / r, repo, patterns)
+    return sorted(set(out))
+
+
+def loose_root_files(files: list) -> list:
+    """The files directly in `tests/`: the set the `tests-NN` buckets cut (and the timing
+    coverage is measured over)."""
+    return [f for f in files if f.startswith(TESTS_ROOT + "/") and f.count("/") == 1]
 
 
 # --------------------------------------------------------------------------- timings
@@ -200,17 +267,21 @@ def _cut(weights: list, n: int) -> list:
     return [(bounds[i], bounds[i + 1]) for i in range(len(bounds) - 1)]
 
 
-def root_buckets(loose: list, timings: dict) -> list:
-    """The root buckets as lists of files. Time-cut when timings exist, count-cut otherwise."""
+def root_buckets(loose: list, timings: dict, floor: int = ROOT_BUCKETS) -> list:
+    """The root buckets as lists of files. Time-cut when timings exist, count-cut otherwise.
+
+    `floor` is the fewest buckets: ROOT_BUCKETS for `tests/`'s loose files (the shape every
+    baseline was recorded under), OTHER_ROOT_BUCKETS_MIN for any other testpaths root.
+    """
     if not loose:
         return []
-    if not timings:
+    if not timings and floor == ROOT_BUCKETS:
         n = ROOT_BUCKETS_NO_TIMINGS
         size = (len(loose) + n - 1) // n
         return [loose[i:i + size] for i in range(0, len(loose), size)]
     w, _fb, _u = file_weights(loose, timings)
     chosen = None
-    for n in range(ROOT_BUCKETS, ROOT_BUCKETS_MAX + 1):
+    for n in range(floor, ROOT_BUCKETS_MAX + 1):
         runs = _cut(w, n)
         chosen = runs
         if max(sum(w[a:b]) for a, b in runs) <= ROOT_BUCKET_TARGET_S:
@@ -227,31 +298,54 @@ def shard_plan(root: pathlib.Path | None = None, buckets: int | None = None,
     `buckets` forces the OLD count-based split (kept for `--before` comparisons); the
     default is the time-cut over `timings` (the committed timing file when None).
     """
-    base = root or (_repo_root() / "tests")
-    files = all_test_files(base)
-    top = base.name
-
-    loose, bydir = [], collections.OrderedDict()
-    for f in files:
-        parts = pathlib.PurePosixPath(f).parts          # ('tests', ...)
-        if len(parts) == 2:
-            loose.append(f)
-        else:
-            bydir.setdefault(parts[1], []).append(f)
+    timings = load_timings() if timings is None else timings
+    if root is not None:
+        files = all_test_files(root)
+        groups = {pathlib.Path(root).name: files}
+        primary = pathlib.Path(root).name
+    else:
+        files = all_test_files()
+        groups = collections.OrderedDict()
+        for f in files:
+            groups.setdefault(pathlib.PurePosixPath(f).parts[0], []).append(f)
+        primary = TESTS_ROOT
 
     plan = collections.OrderedDict()
-    for d in sorted(bydir):
-        plan["dir-%s" % d] = bydir[d]
-
-    if buckets is not None:
-        n = max(1, int(buckets))
-        size = (len(loose) + n - 1) // n if loose else 1
-        chunks = [loose[i * size:(i + 1) * size] for i in range(n)]
-    else:
-        chunks = root_buckets(loose, load_timings() if timings is None else timings)
-    for i, chunk in enumerate([c for c in chunks if c]):
-        plan["%s-%02d" % (top, i + 1)] = chunk
+    for top in sorted(groups):
+        members = groups[top]
+        if top != primary:
+            # ⛔ 2026-11-18: any other testpaths root (`api` today) — every file of it, cut by
+            # time into `<root>-NN`. Its own ids, so no `tests` shard id moves.
+            for i, chunk in enumerate(root_buckets(members, timings, OTHER_ROOT_BUCKETS_MIN)):
+                plan["%s-%02d" % (top, i + 1)] = chunk
+            continue
+        loose, bydir = [], collections.OrderedDict()
+        for f in members:
+            parts = pathlib.PurePosixPath(f).parts          # ('tests', ...)
+            if len(parts) == 2:
+                loose.append(f)
+            else:
+                bydir.setdefault(parts[1], []).append(f)
+        for d in sorted(bydir):
+            plan["dir-%s" % d] = bydir[d]
+        if buckets is not None:
+            n = max(1, int(buckets))
+            size = (len(loose) + n - 1) // n if loose else 1
+            chunks = [loose[i * size:(i + 1) * size] for i in range(n)]
+        else:
+            chunks = root_buckets(loose, timings)
+        for i, chunk in enumerate([c for c in chunks if c]):
+            plan["%s-%02d" % (top, i + 1)] = chunk
     return plan
+
+
+def plan_digest(plan: dict) -> str:
+    """sha256 of the partition itself (shard id -> files). Two runs with the same digest put the
+    same files in the same processes; `ci_inventory` refuses to call a flip between two runs
+    with DIFFERENT digests flaky, because who shares a process moved."""
+    canon = json.dumps({k: list(v) for k, v in sorted(plan.items())}, sort_keys=True,
+                       separators=(",", ":"))
+    return hashlib.sha256(canon.encode("utf-8")).hexdigest()
 
 
 def shard_seconds(plan: dict, timings: dict) -> dict:
@@ -372,12 +466,27 @@ def _self_check(timings_path=None) -> int:
     show("largest shard holds under 25%% of the tree",
          biggest < rep["files_total"] * 0.25, True)
 
-    # ⛔ TIME RAILS — the timing file is real, covers the tree, and the plan fits the rail.
-    loose = [f for f in files if f.count("/") == 1]
+    # ⛔ 2026-11-18 — EVERY testpaths ROOT IS IN THE PLAN, not only tests/ (api/** was in none).
+    roots, _pats = pytest_discovery()
+    for r in roots:
+        show("testpaths root %r contributes files to the plan" % r,
+             any(f.startswith(r.rstrip("/") + "/") for v in plan.values() for f in v), True)
+
+    # ⛔ TIME RAILS — the timing file is real and the plan fits the rail.
+    loose = loose_root_files(files)
     cov = sum(1 for f in loose if f in timings) / float(len(loose) or 1)
     show("timing file loads and is non-empty", len(timings) > 1000, True)
-    show("timing covers >= %d%% of loose root files" % int(MIN_TIMING_COVERAGE * 100),
-         cov >= MIN_TIMING_COVERAGE, True)
+    # ⚰️ 2026-11-18: this row was a REFUSAL and it failed the plan job on 11-16 and 11-17, so
+    # NOTHING ran. Thin coverage only means more files weigh the p90 fallback; the rail below
+    # still bounds every shard. It warns, by name, and never fails.
+    print("  %-56s -> %-10s %s" % ("(warning only) timing covers >= %d%% of loose root files"
+                                   % int(MIN_TIMING_COVERAGE * 100), "%.0f%%" % (cov * 100),
+                                   "ok" if cov >= MIN_TIMING_COVERAGE else "THIN (warning)"))
+    if cov < MIN_TIMING_COVERAGE:
+        print("::warning title=pytest shard timings are thin::%.0f%% of the loose root files have a "
+              "recorded time (want >= %d%%); the rest weigh the p%d fallback. The nightly refreshes "
+              "the timings itself; nothing is refused." % (cov * 100, int(MIN_TIMING_COVERAGE * 100),
+                                                          FALLBACK_PERCENTILE))
     secs = shard_seconds(plan, timings)
     worst = max(secs.items(), key=lambda kv: kv[1]["estimated_s"])
     print("  (largest planned shard: %s %.0f s recorded+estimated)" % (worst[0],
@@ -432,13 +541,34 @@ def main(argv=None) -> int:
                     help="write --timings from these junit files, newest run FIRST")
     ap.add_argument("--source", action="append", default=[],
                     help="with --record-timings: a provenance line to store (repeatable)")
+    ap.add_argument("--merge-into", metavar="TIMINGS",
+                    help="with --record-timings: start from this timing file (its entries for "
+                         "files that still exist), then overwrite what the junit observed")
+    ap.add_argument("--plan-digest", action="store_true",
+                    help="print the sha256 of the shard plan (who shares a process)")
     a = ap.parse_args(argv)
 
     tpath = a.timings or str(_repo_root() / TIMINGS_FILE)
     if a.record_timings:
         out = tpath
-        ms = record_timings(a.record_timings, all_test_files())
-        write_timings(out, ms, a.source)
+        files = all_test_files()
+        ms = record_timings(a.record_timings, files)
+        sources = list(a.source)
+        if a.merge_into:
+            # ⛔ A shard that did not report (killed, collection error) leaves its files at their
+            # previous time rather than dropping them: one bad night must not thin the file.
+            keep = set(files)
+            base = {f: int(round(s * 1000)) for f, s in load_timings(a.merge_into).items() if f in keep}
+            observed = len(ms)
+            base.update(ms)
+            ms = base
+            try:
+                old = json.loads(pathlib.Path(a.merge_into).read_text(encoding="utf-8"))
+                sources += [s for s in old.get("sources") or [] if s not in sources][:4]
+            except (OSError, ValueError, AttributeError):
+                pass
+            print("observed %d files; %d kept from %s" % (observed, len(ms) - observed, a.merge_into))
+        write_timings(out, ms, sources)
         print("wrote %d file timings to %s" % (len(ms), out))
         return OK
 
@@ -452,6 +582,9 @@ def main(argv=None) -> int:
                                                              ROOT_BUCKETS_NO_TIMINGS),
               file=sys.stderr)
     plan = shard_plan(buckets=a.buckets, timings=timings)
+    if a.plan_digest:
+        print(plan_digest(plan))
+        return OK
     if a.list:
         print(json.dumps(sorted(plan)))
         return OK

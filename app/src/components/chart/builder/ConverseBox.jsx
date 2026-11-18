@@ -538,6 +538,17 @@ export default function ConverseBox({
         </div>
       )}
 
+      {/* ⭐ 2026-11-18: a checked library indicator says what it is in one phrase (`readback.js`).
+          Its formula in words is one tap away, here; the formula itself is in the Formula tab. */}
+      {state.working && rb.outputs.some((o) => o.formulaWords) && (
+        <details data-testid="converse-formula-words" style={{ fontSize: 12, color: '#a9a59b' }}>
+          <summary style={{ cursor: 'pointer' }}>The full formula, in words</summary>
+          <ul style={S.list}>
+            {rb.outputs.filter((o) => o.formulaWords).map((o) => <li key={o.key}>{o.name}: {o.formulaWords}</li>)}
+          </ul>
+        </details>
+      )}
+
       {/* ⭐ every length, level and multiple of what was built, as a field (the preview below follows) */}
       {state.working && (
         <SettingsFields settings={numberSettings} onSet={setNumber} disabled={busy || saving} label="Numbers in this indicator" />
