@@ -44,6 +44,7 @@
       "api/services/snapshot_hl.py",
       "api/services/trade_conditions.py",
       "api/services/trial.py",
+      "api/services/vendor_symbols.py",
       "api/services/yf_util.py",
       "api/stream_edge_main.py",
       "requirements.txt",
