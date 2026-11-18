@@ -21,6 +21,12 @@ import { fileURLToPath } from 'node:url'
 
 const wire = vi.hoisted(() => ({ writeBack: null }))
 vi.mock('../../../utils/jsonFetcher', () => ({ default: vi.fn() }))
+// The list alert switch has its own test (ListAlertSwitch.test.jsx). Here it is a marker, so this
+// file's reads stay the panel's own, and one test at the end pins that the panel mounts it.
+vi.mock('./ListAlertSwitch', async () => {
+  const { createElement } = await import('react')
+  return { default: ({ kind }) => createElement('span', { 'data-testid': 'list-alert-stub', 'data-kind': kind, hidden: true }) }
+})
 // The registry half of the write-back has its own test (commandWriteBack.test.jsx); here the panel's
 // half is pinned: which words it hands over, and when.
 vi.mock('./commandWriteBack', () => ({ usePanelWriteBack: () => wire.writeBack }))
@@ -528,4 +534,15 @@ describe('H52 accessibility', () => {
     await screen.findByTestId('terminal-h52-highs')
     await expectNoAxeViolations(document.body.firstElementChild)
   }, 20_000)
+})
+
+describe('H52 list alert', () => {
+  it('mounts the "alert me" switch for the new 52-week highs list, outside the toolbar', async () => {
+    serve(LIVE_ROUTES)
+    renderPanel()
+    await screen.findByTestId('terminal-h52-highs')
+    const stub = screen.getByTestId('list-alert-stub')
+    expect(stub.getAttribute('data-kind')).toBe('highs52')
+    expect(stub.closest('[role="toolbar"]')).toBeNull()
+  })
 })
