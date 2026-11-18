@@ -43,6 +43,7 @@ import StudySettingsCard from '../components/settings/StudySettingsCard'
 import IndicatorMemoryCard from '../components/settings/IndicatorMemoryCard'
 import AlertRoutingPanel from '../components/settings/AlertRoutingPanel'
 import StandingAlertsPanel from '../components/settings/StandingAlertsPanel'
+import ListAlertsPanel from '../components/settings/ListAlertsPanel'
 import AppThemePicker from '../components/AppThemePicker'
 import { useVoice } from '../context/VoiceContext'
 import { formatETDate } from '../utils/timeAgo'
@@ -2227,6 +2228,8 @@ export default function Settings() {
             <PushNotificationsRow />
             <AlertRoutingPanel />
             <StandingAlertsPanel />
+            {/* The Terminal list alerts (H52, CONFL, ACCUM). Renders nothing while the server setting is off. */}
+            <ListAlertsPanel />
           </div>
         </TileCard>
   )

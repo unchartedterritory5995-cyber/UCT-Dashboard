@@ -91,6 +91,9 @@ describe('the policy today', () => {
       expect(shareDecision(fn, fn.market || fn.ticker), code).toMatchObject({ offered: true, image: true, file: true })
     }
     expect(shareClassOf('PERF')).toBe('own')
+    // MYH is the member's own record on one stock: the same class as PERF, on its ticker variant.
+    expect(shareClassOf('MYH')).toBe('own')
+    expect(shareDecision(BY_CODE.MYH, BY_CODE.MYH.ticker)).toMatchObject({ offered: true, image: true, file: true, cls: 'own' })
     expect(shareClassOf('help')).toBe('uct')
     expect(shareClassOf('FEED')).toBe('public')
   })

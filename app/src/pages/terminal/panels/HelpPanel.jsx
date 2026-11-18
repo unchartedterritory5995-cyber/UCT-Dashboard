@@ -8,11 +8,12 @@ import { useEffect, useId, useMemo } from 'react'
 import { FUNCTIONS, FUNCTION_GROUPS, ABSENT, BY_CODE, aliasesOf, exampleFor, flagOn } from '../functions'
 import {
   ADDRESS_PREFIXES, ALIAS_RULE, ASK_RULE, BOARD_RULE, CHANNEL_RULE, COLLISION_RULE, COMPARE_RULE, RANKING_ORDER,
-  ROW_RULE, START_HERE, TICKER_COLLISIONS,
+  ROW_RULE, START_HERE, STOCK_BOARD_RULE, TICKER_COLLISIONS,
 } from '../grammar'
 import { SHORTCUTS } from '../../command/shortcutRegistry'
 import { boardableCodes } from '../scanBoard'
 import { STARTER_BOARDS } from '../starterBoards'
+import { STOCK_BOARDS, defaultStockBoard, stockBoardCommand } from '../stockBoards'
 import { ARG_KINDS } from '../args'
 import { COMMAND_LINE_KEYS } from '../CommandLine'
 import styles from '../TerminalShell.module.css'
@@ -151,6 +152,14 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
               click: {STARTER_BOARDS.map((b) => b.name).join(', ')}.
             </p>
           )}
+          {/* Stock boards (2026-11-18): the same button, for the ticker the board is on. Names
+              and the typed command come from the list itself (stockBoards.js). */}
+          {STOCK_BOARDS.length > 0 && (
+            <p className={styles.helpRule} data-testid="terminal-help-stock-boards">
+              For one stock, the same button opens a stock board for the ticker you are on
+              ({STOCK_BOARDS.map((b) => b.name).join(', ')}), or type <kbd>{stockBoardCommand(defaultStockBoard())}</kbd>.
+            </p>
+          )}
         </section>
       )}
       <p className={styles.helpSyntax}>
@@ -227,7 +236,7 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
           <summary className={styles.helpGroup} data-testid="terminal-help-advanced-toggle">Advanced: rules, keys and addresses</summary>
           <section data-testid="terminal-help-rules">
             <h3 className={styles.helpGroup}>Rules</h3>
-            {[COLLISION_RULE, CHANNEL_RULE, COMPARE_RULE, ASK_RULE, ALIAS_RULE, ROW_RULE, BOARD_RULE].map((r) => (
+            {[COLLISION_RULE, CHANNEL_RULE, COMPARE_RULE, ASK_RULE, ALIAS_RULE, ROW_RULE, BOARD_RULE, STOCK_BOARD_RULE].map((r) => (
               <p key={r} className={styles.helpRule}>{r}</p>
             ))}
             {/* BOARD's entry names the codes the list panels' "Board of" menu offers — the SAME list

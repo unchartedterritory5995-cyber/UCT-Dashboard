@@ -313,11 +313,12 @@ def market_narrative(_auth: dict = Depends(require_flow_user)):
         return JSONResponse(status_code=500, content={"error": str(e)})
 # ─── Daily Tracker Endpoints ──────────────────────────────────────────────────
 @router.post("/track-contracts")
-async def track_contracts(contracts: list[dict]):
+async def track_contracts(contracts: list[dict], _auth: dict = Depends(require_flow_admin)):
     """
     Register top-flow CONV contracts for daily OI/price tracking.
-    Called automatically by the dashboard whenever new flow data loads.
     Body: [{sym, cp, K, exp, grade, dir, hits, prem}, ...]
+    The body REPLACES the registered list, so this takes an admin session or the
+    service token, like the tracker's other operating routes below.
     """
     from api.daily_tracker import register_contracts
     count = register_contracts(contracts)
@@ -363,11 +364,13 @@ async def backfill_contract_history(
     result = await backfill_contract(sym, cp, strike, exp, days_back)
     return result
 @router.post("/backfill-all")
-async def backfill_all_contracts(days_back: int = 60):
+async def backfill_all_contracts(days_back: int = 60, _auth: dict = Depends(require_flow_admin)):
     """
     Backfill Polygon history for all registered CONV contracts.
     Polygon free tier allows 5 req/min — adds 13s delay between contracts.
     For 6 CONV contracts, completes in ~75 seconds.
+    An operating job (a vendor call per contract, written to the tracker), so it
+    takes an admin session or the service token.
     """
     from api.daily_tracker import backfill_all_registered
     result = await backfill_all_registered(days_back)
@@ -708,8 +711,9 @@ def _fetch_earnings_yf(symbol: str):
         print(f"[earnings] {symbol} exception: {e}", flush=True)
         return None
 @router.post("/earnings")
-async def get_earnings_dates(req: dict):
-    """Batch fetch next earnings dates from Yahoo Finance."""
+async def get_earnings_dates(req: dict, _auth: dict = Depends(require_flow_user)):
+    """Batch fetch next earnings dates from Yahoo Finance (a signed-in session or
+    the service token, like the page's other POST read above)."""
     symbols = req.get("symbols", [])[:50]
     results = {}
     now = _datetime.now()

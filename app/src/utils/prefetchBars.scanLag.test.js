@@ -79,7 +79,11 @@ describe('extended-hours view: the warmers ask the chart\'s session question', (
   })
   it('RTH view keeps its own rule: pre-market there is nothing to be stale against', async () => {
     at(9, 0)
-    idb.entries.set('CCC_5', { bars: bars5(4, 0, 7, 0), lastT: et(7, 0), savedAt: Date.now() })
+    // yesterday's whole regular session, then today's pre-market to 07:00 (stale for an extended view).
+    // ⚰️ It held today's pre-market ONLY: a regular-hours view draws nothing of that, and since
+    // 2026-11-18 a tail that does not carry the last session to its close is not a first frame.
+    const bars = [...bars5(9, 30, 15, 55).map(b => ({ ...b, t: b.t - 86400 })), ...bars5(4, 0, 7, 0)]
+    idb.entries.set('CCC_5', { bars, lastT: et(7, 0), savedAt: Date.now() })
     warmMemFromIDB(['CCC'], ['5'])
     await flush()
     expect(memPeek('CCC', '5')?.length).toBeGreaterThan(0)
