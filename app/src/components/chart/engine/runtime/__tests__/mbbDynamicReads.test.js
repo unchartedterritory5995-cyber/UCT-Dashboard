@@ -64,6 +64,17 @@ describe('Q-MBB-1 / Q-MBB-2 / M3 shapes, served and read as the real history', (
       for (let i = 300; i < RDDT.length; i += 1) expect(c[i]).toBe(RDDT[i - (60 + (i % 60))].c)
     })
   }
+  for (const [label, decl] of [['declared 50', ', max_bars_back = 50'], ['no declaration', '']]) {
+    it(`⛔ TRAP B (${label}): a non-folding offset lowered BAR BY BAR (inside a block) is the real history, never "counts backwards"`, () => {
+      // the arm a top-level expression never reaches (it goes to the columnar lane): with no declaration this refused
+      // "a bar offset counts backwards in whole bars" (the engine agent's trap B; Fred RS's own door hit it)
+      const src = v5(decl, 'k = bar_index % 120', 's = 0.0', 'if close > 0', '    s := close[k]', 'plot(s)')
+      const b = build(src, RDDT)
+      expect(b.ok, b.ok ? '' : b.refusal.message).toBe(true)
+      const [s] = run(src, RDDT)
+      for (let i = 0; i < RDDT.length; i += 1) expect(s[i], `close[${i % 120}] at ${i}`).toBe(RDDT[i - (i % 120)].c)
+    })
+  }
   it('M3 (no declaration): a 250-bar offset after bar 300 is the real close', () => {
     const [c] = run(v5('', 'n = bar_index > 300 ? 250 : 1', 'plot(close[n])'), RDDT)
     expect(c[400]).toBe(RDDT[150].c)
