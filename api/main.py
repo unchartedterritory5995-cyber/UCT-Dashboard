@@ -4445,6 +4445,15 @@ def register_transcript_index_jobs(scheduler):
                 _ilog.info("[tindex] pruned %s calls past the retention window", dropped)
         except Exception as exc:
             _ilog.warning("[tindex] sweep failed: %s", exc)
+        # "What CEOs are saying" (the Terminal's CEOS panel) is worked out from this same index,
+        # so its once-a-day build rides this sweep instead of a schedule of its own: it runs after
+        # the index is current, on the one service that holds the index, and never on a request.
+        try:
+            from api.services import call_themes
+            if call_themes.refresh_if_due():
+                _ilog.info("[call-themes] daily build started after the index sweep")
+        except Exception as exc:
+            _ilog.warning("[call-themes] daily build could not start: %s", exc)
 
     for hour, minute in ((6, 45), (20, 45)):
         scheduler.add_job(

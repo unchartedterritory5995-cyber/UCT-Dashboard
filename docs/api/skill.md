@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (771)
+## Member session reads (773)
 
 ### Limits
 
@@ -197,6 +197,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/calendar/day-metrics` | paid | research | date |
 | GET | `/api/calendar/day-metrics-batch` | paid | research | dates |
 | GET | `/api/calendar/dividends` | paid | research | syms |
+| GET | `/api/calendar/earnings-season` | paid | research | date |
 | GET | `/api/calendar/enrichment` | paid | research | date |
 | GET | `/api/calendar/enrichment-batch` | paid | research | dates |
 | GET | `/api/calendar/implied-moves` | paid | research | date |
@@ -289,6 +290,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/earnings/audio/{ticker}` | paid | research | {ticker} |
 | GET | `/api/earnings/call-audio/{ticker}` | paid | research | {ticker}, year, quarter |
 | GET | `/api/earnings/call-recap/{ticker}` | paid | research | {ticker}, quarter |
+| GET | `/api/earnings/call-themes` | paid | research | month |
 | GET | `/api/earnings/intel/{ticker}` | paid | research | {ticker} |
 | GET | `/api/earnings/keyword-alerts` | paid | research |  |
 | GET | `/api/earnings/sentiment/{ticker}` | paid | research | {ticker} |

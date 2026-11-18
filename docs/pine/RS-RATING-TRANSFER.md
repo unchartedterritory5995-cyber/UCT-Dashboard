@@ -284,6 +284,8 @@ graded on the real supply; NOT admitted. What is and is not proven:
   timeframe. RS Rating on a weekly chart is refused by name and draws nothing:
   - every host plot is refused `other-symbol:witness-timeframe` (SP:SPX is witnessed on D only);
   - the run half is refused `pine:request`.
+  - ⭐ **Superseded on a WEEKLY chart by L11 (2026-11-17, below):** RS Rating is served there. On an
+    intraday chart the refusal stands.
 
 **L9 status (2026-11-15, engine 68 placeholder, branch `pine/rs-l5-runtime-requests`):** the
 three L8 blockers are addressed. RDDT grades MATCH_SUBSTITUTED; NVDA still DIVERGEs on the RS line
@@ -505,6 +507,99 @@ runtime pane on and **`objectsV2: "INCONCLUSIVE"`**.
 - **Controls kept.** `test_E1c`: a record built on the 2026-11-15 captures (no x table, objects v2
   INCONCLUSIVE) serves nothing and admits nothing, and claiming the grade for them is caught by
   name.
+
+## L11: RS Rating on a WEEKLY chart (2026-11-17, PR 1 of 2, engine 74 (#1737, the engine 74 train), branch `feat/rs-weekly-witness`)
+
+**Weekly is served.** Before L11 every plot was refused `other-symbol:witness-timeframe` on a weekly
+chart and the run half `pine:request` (4b). Now RS Rating draws its RS line and both labels there.
+
+**The witness.** Q-RS7, batch `rs-weekly-2026-11-17` (taken 2026-11-17 ~21:17Z, after the close; newest
+week FORMING):
+- `rs-rating-fred6724-w-rddt-1w-2026-11-17` (NYSE:RDDT 1W, 140 bars) and
+  `rs-rating-fred6724-w-nvda-1w-2026-11-17` (NASDAQ:NVDA 1W, 1453 bars from 1999). The original
+  source (sha256 `caa94fe3…5af0`), default inputs. MPL-2.0, so both are committed beside the daily
+  captures (`tests/fixtures/vendor/harness/`).
+- `rs-spx-daily-w-rddt-1w-2026-11-17` and `rs-seed-rsrating-w-rddt-1w-2026-11-17` (UCT probes, NYSE:RDDT
+  1W). **Kept local** (`%LOCALAPPDATA%/uct-vendor-batch/runs/rs-weekly-2026-11-17/captures`).
+- TradingView draws two labels on the weekly chart: `"                RS Rating"` and `""`. The rating
+  text is empty there by the script's own design (`isDaily` gate, line 357), unless `ratingOnly` is on.
+
+**The rules** (`requestWitnesses.json`, each row's `periods.W` block; every one checked against the
+captures before it was coded, on every visible week):
+
+| rule | read | on a weekly chart | evidence |
+|---|---|---|---|
+| R1 | `SP:SPX` at `timeframe.period` (the RS line, line 89) | each week reads the PREVIOUS week's last daily close (`previous-week`): week of 2026-11-09 reads 2026-11-06's 7376.86; 2026-11-02 reads 2026-10-30's 7580.07 | 139/139 settled RDDT weeks against FMP ^GSPC daily (max relative difference 0) and 138/138 against TradingView's own daily SP:SPX (the committed `rs-spx-daily-pm-rddt-1d-2026-11-16`); holiday weeks included (Good Friday 2025-04-18 and 2026-04-03, 2026-07-03, every Monday holiday) |
+| R2 | `SP:SPX` at `"D"` (line 188) | each week reads the previous-session-aligned daily bar at its LAST session (`week-last-row`): its Thursday close in a full week (2026-11-12's 7592.40 for the week of 2026-11-09), Wednesday's in a Good Friday week; open / high / low the same bar's | 139/139 settled weeks, all four fields |
+| R3 | `syminfo.tickerid` at `"D"` (line 187) | the week's last daily close, which IS the weekly close | TradingView's weekly close equals its last daily close on 139/139 RDDT weeks (the weekly capture against the committed daily one); on the forming week both are the latest price |
+| R4 | `request.seed(…)` = `SEED_…:RSRATING` at `"D"` (line 253) | the seed row dated the week's FIRST calendar day, Monday (`week-first-day`); a week with no such row reads `na` | 140/140 weeks against `pine_seed_store`'s replay as it stood at the capture (newest upload `af528c134fb9`, 2026-11-17T09:39:26Z): week 2026-11-09 reads 39.88 (its Monday row) although 2026-11-12..15 hold 12.98; week 2026-11-16 reads 12.98; week 2026-10-12, whose Monday has no row (the series begins on the 13th), reads `na` where the week's first row would have been 190.9 |
+
+**How it is built.**
+- **Fetch and hold at D.** On a weekly chart SP:SPX and the seed are fetched from `/api/bars/<store>?tf=D`
+  and cached under their own key (`SPX@D`, `SEED_…:RSRATING@D`; `otherSymbols.js::heldFetchOf`, one
+  answer for `sourceRef.symbolsNeeded`, `useSecondarySources.ensureChartSources`, the binder's memo key,
+  `headlessCompute`'s supply and the harness). Depth `heldDepthOf`: 7 rows per weekly bar + 14, capped at
+  12,500 (FMP from 1990 is 9,288 sessions). `/api/bars/SPX?tf=W` (yfinance 1wk, Monday keys, ten years)
+  and the seed's `tf=W` (no data) are never asked.
+- **R1, both lanes.** `previousWeekBarsOf`: the held rows folded into Monday-to-Sunday weeks (the weekly
+  bar `resampleTo` builds), each keyed by the product's weekly key (its Friday) one calendar week later.
+  Placed by the calendar, so a chart week whose own SPX rows have not arrived still reads the week before.
+  The host lane (RS line) and the run (`requestAlignment`) read the same series.
+- **R2 / R4, the run.** `pine.js::dailyOnWeeklyTargetOf` reads another symbol's `"D"` request on a weekly
+  base as `{code: 'D', below: true}`. `requestSupply.js::belowChartRead` asks the bind for that read
+  (`witnessReadOf(row, 'W', 'D')`), runs the request's expression on the HELD DAILY series (the row's own
+  daily read: `previous-session` for SPX, `same-date-gaps-na` for the seed) and samples each chart week
+  (`weekSampleOf`). The host lane keeps the daily base's gate on such a read, so it is withheld whole by
+  name there (`request:other-timeframe`); a run COLUMN that would read one is refused `runtime:request`
+  by name (the run reads it only as its own variable, the way RS Rating writes it).
+- **R3, the identity.** Served for a bare `close` only: `request.security(syminfo.tickerid, 'D', close)`
+  on a weekly base is the chart's own `close` (gated to the weekly chart, recorded in `baseFolds`).
+  Chosen over evaluating the expression on the symbol's daily bars because a weekly chart holds none (that
+  is a new own-symbol daily supply in the chart, the headless door and the harness, and the harness has no
+  daily bars of the forming week). Every other expression keeps its refusal by name.
+
+**Graded by the harness** (`batch_capture.py grade --run-dir …/rs-weekly-2026-11-17`, both lanes; supply
+records `tests/fixtures/vendor-supply/rs-{rating-fred6724-w-{rddt,nvda},spx-daily-w-rddt,seed-rsrating-w-rddt}-1w-2026-11-17.json`:
+FMP ^GSPC daily through 2026-11-16 (the owner's 2026-11-16T23:13Z recording, inline in the RS records
+under the 2026-11-15 ruling, by manifest in the probe's record) and the seed as served at the capture):
+
+| capture | runtime-on | production |
+|---|---|---|
+| `rs-rating-fred6724-w-rddt-1w-2026-11-17` | DIVERGE: RS line 139/140 (every settled week exact, maxRel 0 on them); the ONE difference is the forming week (37.8408 vs 36.7341); the three averages MATCH_SUBSTITUTED 140/140; objects v1 MATCH (both labels, texts equal); objects v2 DIVERGE only on the labels' `y` (the RS value of the forming week, the same difference), x 2 of 2 exact | the same plots; objects DIVERGE (the run half is dark: `pine:object-removal-lost`, as on daily) |
+| `rs-rating-fred6724-w-nvda-1w-2026-11-17` | DIVERGE: RS line 1186/1453; 266 settled weeks differ, every one before 2023-12-05 (first 1999-02-22, last 2023-12-04, the accepted S&P 500 history, Q-RS9), plus the forming week; averages MATCH_SUBSTITUTED; objects v1 MATCH; objects v2 DIVERGE only on the labels' `y` (the forming week), x 2 of 2 exact | the same plots; objects DIVERGE (run half dark) |
+| `rs-spx-daily-w-rddt-1w-2026-11-17` | DIVERGE: X05 (R1) 139/140, the forming week the one difference (7340.53 vs 7561.67); X01..X04 INCONCLUSIVE by name (host lane: `request:other-timeframe`) | the same |
+| `rs-seed-rsrating-w-rddt-1w-2026-11-17` | INCONCLUSIVE: S01..S05 withheld by name in the host lane (`request:other-timeframe`); S06 control MATCH | the same |
+
+The host lane does not read a daily series below the chart, so the probes' `"D"` plots are graded on the
+RUN, with the harness's own supply and comparator (`vendorHarness.l11WeeklyWitness.test.js`, run when the
+local captures are present at their recorded sha256, skipped by name otherwise). The capture does not
+start at the listing, so the run withholds its first 31 weeks (its off-listing warm-up, the runtime lane's
+own rule); on the 109 weeks after it X01..X05 equal TradingView on every settled week, the forming week
+the one difference, and S01..S05 equal on all 109 (the forming week included; the rule itself was checked
+on all 140 weeks against the replay, above).
+
+**⏳ The one known difference: the FORMING week.** TradingView reads the latest SPX value there
+(7340.53 on 2026-11-17, both `"D"` and `timeframe.period`); this engine reads the previous week's close
+(R1) and the newest placed daily row (R2), as the daily previous-session rule does. **PR 2** settles it
+on an in-session capture (Q-RS7b).
+
+**A daily chart is byte-identical.** Our side's columns, objects and refusals on all 32 committed daily
+RS Rating, seed and SPX captures are equal on the base (`99e99171ee`) and on this branch (sha256 per
+capture), with the two weekly captures as the control that the comparison saw the change (refused on
+the base, served here). A daily row has no weekly block and its keys are the plain store keys.
+
+**Not settled, by name.**
+- The weekly OPEN / HIGH / LOW of `SP:SPX` at `timeframe.period`: the probe captured only the close (X05);
+  the fold serves them as the weekly resample builds them, unwitnessed.
+- A `"D"` read of another symbol below a weekly chart that is NOT a witnessed spelling (a listing): refused
+  `other-symbol:witness-timeframe`; no capture shows how TradingView samples one.
+- R4 when a week's Monday is a holiday: the 35-day seed window had none; the rule reads the Monday's
+  calendar row regardless (seed rows exist for every calendar day).
+- A pre-existing runtime-lane hole, NOT changed here: on a plain (non-drawing) runtime run, a request bound
+  to a name and read inside a pure expression (`na(s_c)`) goes to the columnar lane, which holds no
+  other-symbol supply (on a daily chart it draws `1` on every bar for `na(seed)`). RS Rating's run half
+  (the drawing build) reads it as a slot and is not affected. On a weekly chart that column is now refused
+  by name instead.
 
 ## Owner rulings
 

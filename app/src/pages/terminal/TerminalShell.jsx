@@ -62,6 +62,8 @@ import { pushFunctionRecent, readFunctionRecents } from './recents'
 import { TERMINAL_CALENDAR_PATH, TERMINAL_PATH } from './terminalGate'
 import L0Strip from './L0Strip'
 import FirstRunCard from './FirstRunCard'
+import PanelShare from './share/PanelShare'
+import { shareDecision } from './share/shareRule'
 import {
   BOARD_PAGE, boardCodeRefusal, boardableCodes, buildScanBoard, cleanSymbols, scanBoardName, scanBoardNotice,
   symbolsFromRows,
@@ -263,7 +265,7 @@ export function Panel({
   index, panel, focused, syms, auth, channel, onFocus, onChannelMenu, onRun, onRows, onList, onBoard, boardCodes, helpProps,
   onClose, onDuplicate, onPopout, onBringBack, canClose, isPhone, standalone, hidden = false,
   density = 'comfortable', domId, canMaximise = false, maximised = false, onMaximise,
-  reorder = null, linkedSym = null,
+  reorder = null, linkedSym = null, onNotice = null,
 }) {
   const r = resolvePanel(panel, syms, auth)
   const Comp = r.state === 'ready' && !panel.popout ? panelComponent(r.name) : null
@@ -282,6 +284,13 @@ export function Panel({
   // which clears this via the same setter) before the new one mounts — never a stale badge
   // held over from the previous security.
   const [freshness, setFreshness] = useState(null)
+  // Share a panel (owner pick 2026-11-17): ONE Share control in the frame, for the panels
+  // share/shareRule.js allows. It reads this body element when the member picks an item, so what
+  // is shared is what is on screen; the header's own title and freshness report name it.
+  const bodyRef = useRef(null)
+  const share = shareDecision(r.fn, r.variant)
+  const shareMeta = useMemo(() => ({ code: panel.code, command: title, label: r.fn?.label || '', sym: r.sym || '', report: freshness }),
+    [panel.code, title, r.fn, r.sym, freshness])
   // ONE header per panel: what the embedded component learns about the frame it sits in, so a
   // page can drop its own title and page padding (components/terminal/terminalPanel.js).
   const flush = !!(r.name && FLUSH_PANELS.has(r.name))
@@ -396,6 +405,10 @@ export function Panel({
                 <UIcon name={maximised ? 'collapse' : 'expand'} size={14} gold={false} />
               </button>
             )}
+            {Comp && share.offered && (
+              <PanelShare index={index} decision={share} bodyRef={bodyRef} meta={shareMeta} onNotice={onNotice}
+                className={styles.panelAct} />
+            )}
             {!isPhone && (
               <button type="button" className={styles.panelAct} onClick={onDuplicate} aria-keyshortcuts="Alt+C"
                 aria-label={`Duplicate panel ${index + 1}`} title="Duplicate (Alt+C)" data-testid={`terminal-dup-${index}`}>
@@ -420,7 +433,7 @@ export function Panel({
       {/* Wave 3 (#2): ONE headline line per one-stock panel — price, % change, volume vs
           average, next earnings — drawn by the frame so no panel carries its own copy. */}
       {r.state === 'ready' && r.sym && !panel.popout && <SecurityHeadline sym={r.sym} onRun={(t) => runHere(t)} />}
-      <div className={`${styles.panelBody} ${flush && !panel.popout ? styles.panelBodyFlush : ''}`}
+      <div ref={bodyRef} className={`${styles.panelBody} ${flush && !panel.popout ? styles.panelBodyFlush : ''}`}
         data-inset={flush && !panel.popout ? 'flush' : 'inset'} data-testid={`terminal-body-${index}`}>
         {panel.popout && (
           <PanelState kind="paused" testId={`terminal-popped-${index}`}
@@ -1985,6 +1998,7 @@ export default function TerminalShell() {
                 density={layout.density}
                 reorder={reorderFor(p, i)}
                 linkedSym={syms[panelChannel(p) || layout.activeChannel || 'A'] || null}
+                onNotice={setNotice}
               />
           ))}
         </div>

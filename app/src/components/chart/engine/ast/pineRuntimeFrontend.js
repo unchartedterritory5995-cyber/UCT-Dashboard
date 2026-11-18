@@ -3952,6 +3952,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⭐⭐ ENGINE 56 — a column the columnar lane withholds on some bars by a witness code
         // declines the run by that code: drawn here those bars would read `na`
         if (code === BOOL_NA_UNWITNESSED || code === TIE_UNWITNESSED) throw new RuntimeRefusal(code, sentence, at)
+        // ⭐⭐ RS RATING L11 — a column holding a daily read of another symbol on a weekly chart: its tree
+        // carries the DAILY base's gate (`pine.js::securityAsNode`, `below`), so the columnar lane withholds it
+        // whole here and would draw that as `na` on every bar. Such a read is the run's request
+        // (`requestSupply.js`, held and sampled per week), reached through a slot, never a column: refused by
+        // name. ⛔ No other chart reaches this: the run translates for the chart's own period, so every other
+        // gate it writes is this chart's.
+        if (code === 'request:other-timeframe') {
+          throw new RuntimeRefusal('runtime:request', 'a value here reads another symbol at `"D"` below this '
+            + 'weekly chart inside an expression the per-bar run hands its columnar lane, which holds no daily '
+            + 'series; the run reads such a request only where it is written as its own variable, so nothing '
+            + 'is drawn rather than a blank line', at)
+        }
       }
     }
     let arr
@@ -7021,6 +7033,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         code: hostTarget.code,
         live: hostTarget.live === true,
         line: node.tok ? node.tok.line : null,
+        // ⭐ RS RATING L11 — a daily read of another symbol on a weekly chart (`pine.js::
+        // dailyOnWeeklyTargetOf`): supplied held and sampled per week (`requestSupply.js`)
+        ...(hostTarget.below === true ? { below: true } : {}),
       }) : ownUnread ? Object.freeze({
         // ⭐ RS RATING L8 (4b) — the chart's own symbol at a timeframe the host does not read:
         // `code` is the literal as written, never a served code; `unread` refuses it in the supply

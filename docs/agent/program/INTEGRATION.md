@@ -45,9 +45,14 @@ Push runs are unchanged (every added step is skipped on push; rails: `tests/test
    `refs/pull/N/merge` while master moves fast (2026-11-17: all ~40 open PRs stale), so the tool no longer waits for
    it. It fetches the master tip and the PR head, builds the merge ITSELF (`git merge-tree --write-tree`, a conflict =
    refuse; `git commit-tree T -p <master tip> -p <PR head>`, fixed identity and date), re-reads the commit's parents
-   and tree, pushes it to `refs/agent-ci-evidence/pr-<N>`, then dispatches agent-ci.yml ONCE from master
-   (`workflow_dispatch`, inputs `pr` + `merge_sha`) for that PR only. Every job checks out that one commit. The PR
-   and its branch are not touched.
+   and tree, pushes it to `refs/agent-ci-evidence/pr-<N>`, then starts agent-ci.yml ONCE for that PR only with a
+   `repository_dispatch` (P2c, 2026-11-18: event_type `agent-ci-evidence`, client_payload `{pr: <int>, merge_sha: C}`;
+   the re-arm token may POST /dispatches but not workflow_dispatch, and workflow_dispatch is no longer a trigger).
+   A repository_dispatch always runs master's copy of the workflow. Every job validates the payload FIRST (pr
+   `^[1-9][0-9]{0,6}$`, merge_sha `^[0-9a-f]{40}$`, through `env:`, never in a shell) and checks out that one commit;
+   the run's GITHUB_SHA is master's tip, so the evidence record carries `git rev-parse HEAD` after checkout. The
+   dispatch returns no run id: verify finds the run by its `agent-ci-evidence-pr<N>-*` artifacts. The PR and its
+   branch are not touched.
    **New write capability: the re-arm tool pushes refs matching `agent-ci-evidence/pr-<N>`** (the full ref is
    `refs/agent-ci-evidence/pr-<N>`). That namespace is tool-owned: one ref per PR, force-updated only by
    `tools/agent_ci_rearm.py`, from a refspec built from the integer PR number and re-checked before every push; it
@@ -55,8 +60,9 @@ Push runs are unchanged (every added step is skipped on push; rails: `tests/test
    `refs/tags/`, so no workflow's push / create / pull_request trigger fires on it (a rail derived from
    `.github/workflows/*.yml` in `tests/test_agent_ci_evidence.py` holds that). Deleting a stale one is harmless.
 3. **Verify** from a master checkout: `python tools/agent_ci_evidence.py verify --pr <N> --tree <expected tree>`
-   (add `--accept-dispatch` to accept a re-arm run, and only one whose workflow is master's
-   `.github/workflows/agent-ci.yml` and whose commit is what `refs/agent-ci-evidence/pr-<N>` points at now). It trusts
+   (add `--accept-dispatch` to accept a repository_dispatch re-arm run, and only one whose workflow is master's
+   `.github/workflows/agent-ci.yml`, whose workflow commit is on master's current history, and whose recorded checkout
+   is what `refs/agent-ci-evidence/pr-<N>` points at now; a workflow_dispatch run is never accepted). It trusts
    the tested commit's CONTENT, not a ref name or an author: PASS only when the newest evidence run for the PR is
    completed, every required job (read from master's agent-ci.yml) is success, all 13 records are present and agree,
    the commit's parents are exactly [master tip, PR head] AT VERIFY TIME, and its tree is the expected tree.
