@@ -344,3 +344,41 @@ describe('developing-bar hold: 250 ms by default (LIVE_CANDLE_CADENCE_MS), the p
     expect(r.at(1)).toEqual([1.2])
   })
 })
+
+describe('delivering = a DEVELOPING frame, never past finals alone (2026-11-17, 1m live edge)', () => {
+  it('the subscribe snapshot of closed finals leaves delivering false; a developing frame turns it on', () => {
+    bars.subscribe('AAPL', '1', {})
+    bars._flushRebuild()
+    const es = MockES.instances[0]
+    es._open()
+    for (let t = 1; t <= 3; t++) es._emit('bar', { sym: 'AAPL', tf: '1', bar: { t, o: 1, h: 1, l: 1, c: 1, final: true } })
+    expect(bars.getStatus('AAPL', '1').delivering).toBe(false)
+    es._emit('bar', { sym: 'AAPL', tf: '1', bar: { t: 2, c: 1 } })          // a straggler: dropped
+    expect(bars.getStatus('AAPL', '1').delivering).toBe(false)
+    es._emit('bar', { sym: 'AAPL', tf: '1', bar: { t: 4, c: 1 } })          // the live candle
+    expect(bars.getStatus('AAPL', '1').delivering).toBe(true)
+  })
+})
+
+describe('edge entitlement refresh (stream-edge, 2026-11-17)', () => {
+  it('re-mints the edge cookie every EDGE_REFRESH_MS while a stream is open, and stops after', () => {
+    vi.useFakeTimers()
+    const fetchSpy = vi.fn(() => Promise.resolve({ ok: true }))
+    const saved = global.fetch
+    global.fetch = fetchSpy
+    try {
+      const unsub = bars.subscribe('AAPL', '1', {})
+      bars._flushRebuild()
+      expect(fetchSpy).not.toHaveBeenCalled()
+      vi.advanceTimersByTime(bars.EDGE_REFRESH_MS)
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+      expect(fetchSpy.mock.calls[0][0]).toBe('/api/auth/me')
+      vi.advanceTimersByTime(bars.EDGE_REFRESH_MS)
+      expect(fetchSpy).toHaveBeenCalledTimes(2)
+      unsub()
+      bars._flushRebuild()
+      vi.advanceTimersByTime(bars.EDGE_REFRESH_MS * 3)
+      expect(fetchSpy).toHaveBeenCalledTimes(2)
+    } finally { global.fetch = saved; vi.useRealTimers() }
+  })
+})

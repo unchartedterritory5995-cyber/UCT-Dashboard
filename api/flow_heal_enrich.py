@@ -16,7 +16,7 @@ function of OI, so OI MUST land before the color rebuild):
                       (start-of-day OI for the trade day) preferred; falls back
                       to the nearest EARLIER snapshot within OI_MAX_STALE_DAYS.
                       Never a later snapshot (contaminated by the day's own
-                      volume) and never a live Schwab call (point-in-time trap:
+                      volume) and never a live vendor call (point-in-time trap:
                       today's OI written onto a past day silently corrupts
                       V/OI, colors, and tiers).
   2. Color rebuild  — color_rebuild.run_color_rebuild (WHITE-only upgrades),

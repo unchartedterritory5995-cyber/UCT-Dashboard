@@ -158,6 +158,26 @@ def test_index_bars_proxy_ratio_reaches_yfinance_through_the_guard(spy):
     assert len(spy.calls) == 2, "both legs of the ratio must be guarded"
 
 
+def test_breadth_eod_extras_reaches_yfinance_through_the_guard(spy):
+    """`sp500_close` is the EOD collector's ^GSPC read; a suppressed call is "no close
+    for that day" (None), never an exception out of the collector."""
+    from api.services import breadth_eod_extras
+    assert breadth_eod_extras.sp500_close("2026-11-13") is None
+    assert spy.fired
+
+
+def test_earnings_session_resolver_reaches_yfinance_through_the_guard(spy, monkeypatch):
+    """`_yahoo_fetch` asks the guard to RERAISE (lane "earnings"); the resolver's own
+    `_cached` turns that into "Yahoo has no answer" (None), so a refused call degrades
+    the vote instead of failing the resolve. Fresh cache and health so neither leaks."""
+    from api.services import earnings_session_resolver as esr
+    monkeypatch.setattr(esr, "_cache", {})
+    monkeypatch.setattr(esr, "_health", {})
+    assert esr._yahoo("ZZZQ") is None
+    assert spy.fired
+    assert spy.calls[0]["reraise"] is True and spy.calls[0]["lane"] == "earnings"
+
+
 def test_charts_router_reaches_yfinance_through_the_guard(spy):
     from api.routers import charts
     resp = charts.chart_image("AAPL")
@@ -219,7 +239,9 @@ def test_yfinance_pool_run_in_pool_reaches_the_shared_guard(spy):
 BOUND_HERE = {
     "api/index_bars.py",
     "api/routers/charts.py",
+    "api/services/breadth_eod_extras.py",
     "api/services/catalyst/ticker_metadata.py",
+    "api/services/earnings_session_resolver.py",
     "api/services/engine.py",
     "api/services/financial_statements.py",
     "api/services/fundamentals.py",

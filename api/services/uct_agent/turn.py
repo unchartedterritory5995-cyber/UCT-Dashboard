@@ -1232,10 +1232,15 @@ _OUTCOME_LABEL = {
 # wave 2): each reads a model-isolated kind (highsLows.yearly: UCT breadth lists; themes.rotation and confluence.board:
 # UCT's own selections; earnings.expectedMove: UCT-computed from an option chain; earnings.callSearch: third-party
 # transcript excerpts), so the member sees the card and a model never sees a value or an excerpt
+# stock.gammaLevels / stock.topFlowPicks / stock.flowRecord / stock.earningsReactions (terminal data wave 3): each reads a
+# model-isolated kind (levels.gamma: UCT-computed from an option chain; flow.topPicks and flow.record: UCT's own selections
+# and their option contract results; earnings.reactions: UCT's calendar with third-party results and estimates), so the
+# member sees the card and a model never sees a value
 LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades", "news.movers",
                                 "rs.compare", "stock.analystActions", "stock.sessionHighsLows", "stock.longRunLeaders",
                                 "stock.darkPoolLevels", "stock.yearlyHighsLows", "stock.themeRotation",
-                                "stock.confluenceBoard", "stock.expectedMove", "stock.callSearch"})
+                                "stock.confluenceBoard", "stock.expectedMove", "stock.callSearch",
+                                "stock.gammaLevels", "stock.topFlowPicks", "stock.flowRecord", "stock.earningsReactions"})
 #: ⛔ DATA-READ ANSWERS (hotfix 2026-11-03, live: "when does nvda report" got a reply inventing a date and a
 #: beat while the stock.earnings card said the date was not in UCT's data). These read-only actions (manifest
 #: `query: true`, market / screen data) answer with UCT's own deterministic card; the model's `reply` is written

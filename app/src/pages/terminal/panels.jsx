@@ -113,8 +113,14 @@ export const PANEL_IMPORTERS = {
   RepeatContracts: () => import('./panels/RepeatContractsPanel'),
   PeriodChange: () => import('./panels/PeriodChangePanel'),
   CallSearch: () => import('./panels/CallSearchPanel'),
+  CallThemes: () => import('./panels/CallThemesPanel'),
   ExpectedMove: () => import('./panels/ExpectedMovePanel'),
   ThemeRotation: () => import('./panels/ThemeRotationPanel'),
+  // data wave 6 (2026-11-17)
+  IntradayUpdate: () => import('./panels/IntradayUpdatePanel'),
+  TopFlow: () => import('./panels/TopFlowPanel'),
+  // the earnings season screen (owner pick, 2026-11-17)
+  EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),
   // wave 8, lane E: market reads (SENT)
   Sentiment: () => import('./panels/SentimentPanel'),

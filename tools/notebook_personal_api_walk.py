@@ -214,8 +214,19 @@ def main(argv=None) -> int:
         # is exactly what an iOS Shortcut sends; the control below proves it has no session.
         bare = pw.request.new_context(base_url=args.base, user_agent=UA)
         try:
-            r = req.post("/api/auth/login", data=json.dumps({"email": email, "password": password}),
-                         headers={"Content-Type": "application/json"})
+            # tools/synthetic_session.py signs this session OUT when the run ends, however it ends.
+            try:
+                from tools import synthetic_session as S  # noqa: PLC0415 — package import
+            except ImportError:
+                import synthetic_session as S  # noqa: PLC0415 — script import (tools/ on sys.path)
+            try:
+                r = S.sign_in_playwright(req, args.base, "bench")
+            except S.IdentityMismatch:
+                step("the session is bench@ and nobody else", "FAIL", 200)
+                return finish(1)
+            except S.SignInError as exc:
+                step("sign in as bench@", "INCONCLUSIVE-OWNER", why=str(exc))
+                return finish(2)
             if not r.ok:
                 step("sign in as bench@", "INCONCLUSIVE-OWNER", r.status)
                 return finish(2)

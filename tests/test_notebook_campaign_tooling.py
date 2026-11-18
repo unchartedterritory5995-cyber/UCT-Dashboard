@@ -2,6 +2,7 @@
 persona file against the plan's own table, the sentences against their sources, and the pure helpers the
 verdicts and the defect ledger are built from. No browser, no sandbox, no api import."""
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -17,7 +18,13 @@ PLAN = REPO / "docs" / "superpowers" / "plans" / "2026-10-24-notebook-widgets-p2
 SPEC = json.loads((REPO / "tools" / "notebook_campaign" / "personas.json").read_text(encoding="utf-8"))
 
 
-@pytest.mark.parametrize("path", [r"C:\data", r"C:\DATA\auth.db", r"c:\data\sub", "/data", "/data/x"])
+# EACH OS IS ASKED ABOUT ITS OWN SPELLINGS OF THE ROOT (the convention tests/test_converse_eval_runner.py records):
+# scripts/shared_root_guard.py canonicalises per OS, so on Linux a drive-letter string is a file name in the working
+# directory, not the shared root. Asking Linux to refuse one failed this case on every Linux runner (2026-11-17).
+_ROOT_SPELLINGS = ([r"C:\data", r"C:\DATA\auth.db", r"c:\data\sub"] if os.name == "nt" else []) + ["/data", "/data/x"]
+
+
+@pytest.mark.parametrize("path", _ROOT_SPELLINGS)
 def test_the_shared_data_root_is_refused(path):
     assert sm.refuse_shared_root(path)
 
@@ -1150,7 +1157,8 @@ def test_m3_an_evidence_folder_under_the_shared_root_is_refused(tmp_path, capsys
     data.mkdir()
     (data / sm.MANIFEST_NAME).write_text(json.dumps({"members": {}}), encoding="utf-8")
     monkeypatch.setattr(rc, "load_walk_libs", lambda root: pytest.fail("the walk libs were loaded"))
-    code = rc.main(["--run-id", "x", "--base", "http://127.0.0.1:1", "--data-dir", str(data), "--out", r"C:\data\x"])
+    out = r"C:\data\x" if os.name == "nt" else "/data/x"           # this OS's own spelling of the shared root
+    code = rc.main(["--run-id", "x", "--base", "http://127.0.0.1:1", "--data-dir", str(data), "--out", out])
     assert code == 3 and "--out" in capsys.readouterr().out
 
 
@@ -2785,10 +2793,17 @@ def test_i2_the_obscured_suppression_is_the_d005_geometry_only_and_is_recorded()
 
 
 def test_i3_the_moved_lines_are_pinned_to_the_served_tree():
-    # re-pinned 2026-11-04: template_gallery.py lost the retired library/example switches' lines above these
-    want = {"key_in_flight": 4221, "key_reused": 4220, "listing_moved": 3185, "helpful_days": 5121}
-    for k, line in want.items():
-        assert SPEC["sentences"][k]["source"].endswith(f":{line}"), (k, SPEC["sentences"][k]["source"])
+    # ⚰️ This pinned four hand-typed line numbers (re-pinned 2026-11-04, stale again 11-17 when template_gallery.py
+    # grew 35 lines above them): a second copy of the citation, beside the citation. It now DERIVES: each of these
+    # four is cited on the code line of the served tree that holds its fragment. g4 checks every sentence that way;
+    # these four keep their own case because template_gallery.py is the file that keeps moving under them.
+    read = rc.tree_reader(REPO)
+    for k in ("key_in_flight", "key_reused", "listing_moved", "helpful_days"):
+        s = SPEC["sentences"][k]
+        m = rc._SOURCE_RE.match(s["source"])
+        lines = read(m["path"]).splitlines()
+        frag = s.get("fragment") or s["text"]
+        assert rc.fragment_on_line(lines, int(m["line"]), frag), (k, s["source"])
 
 
 def test_i4_the_stranger_pages_forbid_the_private_note_its_body_tag_and_the_member_id(monkeypatch):
@@ -3164,3 +3179,14 @@ def test_r88_an_api_already_imported_from_another_tree_is_refused_not_served(tmp
     tool, app, p = _boot(tmp_path, preseed=True, preimport=True)
     assert p.returncode == 2 and "SERVED " not in p.stdout, p.stdout[-2000:]
     assert "REFUSED: `api` is already imported from" in p.stdout and str(tool) in p.stdout
+
+
+def test_a_sentence_cited_on_a_comment_line_is_refused():
+    """A retired sentence often survives in the comment that records its retirement; that is not the product showing
+    it (2026-11-17: 'Templates are coming soon.' and 'Make it yours' passed this way). Control: the same fragment on a
+    code line on the very next line counts."""
+    lines = ["// 'Templates are coming soon.' went with follow-up C", "  soon: 'Templates are coming soon.',"]
+    assert rc.fragment_on_line(lines, 1, "Templates are coming soon.") is False
+    assert rc.fragment_on_line(lines, 2, "Templates are coming soon.") is True
+    assert rc.fragment_on_line(["# a python note: Make it yours"], 1, "Make it yours") is False
+    assert rc.fragment_on_line([" * a doc comment: Make it yours"], 1, "Make it yours") is False

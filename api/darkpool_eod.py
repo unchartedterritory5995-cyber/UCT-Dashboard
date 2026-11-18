@@ -4,7 +4,7 @@ and posts it to Discord as an image attachment.
 
 Mirrors alpha_gold_eod.py (the Top Flow card): same brand palette / fonts /
 compass logo / hand-rolled multipart Discord post. Runs WEB-side (owns
-darkpool.db + the aggregator + the Schwab/Yahoo market-cap source).
+darkpool.db + the aggregator + the flow-DB/Yahoo market-cap source).
 
 Dark by default: gated by DARKPOOL_EOD_ENABLED. A PUSH_SECRET endpoint triggers
 it manually — ?post=0 returns the rendered PNG for preview, ?post=1 posts it.
@@ -459,7 +459,7 @@ def _concentration_band(ticker: str, days: int) -> tuple:
 _ENRICH_BUFFER = 18
 
 
-# ── data: build market-cap sections from the aggregator + Schwab mkt-caps ──
+# ── data: build market-cap sections from the aggregator + flow-DB/Yahoo mkt-caps ──
 def build_sections(days: int = 1, top_n: int = 10, min_notional: float = 5e6,
                    weekly: bool = False):
     """Pull aggregated dark-pool items, resolve sector + ETF flag + market cap for
@@ -480,10 +480,10 @@ def build_sections(days: int = 1, top_n: int = 10, min_notional: float = 5e6,
     caps: dict = {}
     try:
         import asyncio
-        from api.schwab_service import get_mktcap_batch
+        from api.services.flow_market_data import mktcap_batch
         syms = sorted({(it.get("t") or "").upper() for it in items if it.get("t")})
         if syms:
-            caps = asyncio.run(get_mktcap_batch(syms)) or {}
+            caps = asyncio.run(mktcap_batch(syms)) or {}
     except Exception as e:
         log.warning("[darkpool-eod] mkt-cap fetch failed: %s", e)
 

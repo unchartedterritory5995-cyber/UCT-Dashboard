@@ -8,6 +8,7 @@ from api.services.cache import cache
 def _reset():
     cache.delete_prefix("scan_period_")
     sp._period_done.clear()          # the module's own held answers (see _period_remember)
+    sp._period_old.clear()           # and the past answers it may still serve
     sp._period_last.clear()
 
 

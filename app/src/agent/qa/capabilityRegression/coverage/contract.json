@@ -2333,9 +2333,48 @@
    ],
    "fast": false
   },
+  "stock.earningsReactions": {
+   "domain": "stock",
+   "group": "marketBoards",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.expectedMove": {
    "domain": "stock",
    "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.flowRecord": {
+   "domain": "stock",
+   "group": "marketBoards",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.gammaLevels": {
+   "domain": "stock",
+   "group": "marketBoards",
    "target": "market",
    "risk": "local",
    "reversible": true,
@@ -2427,6 +2466,19 @@
   "stock.themes": {
    "domain": "stock",
    "group": "data",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.topFlowPicks": {
+   "domain": "stock",
+   "group": "marketBoards",
    "target": "market",
    "risk": "local",
    "reversible": true,

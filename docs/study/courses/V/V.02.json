@@ -671,6 +671,14 @@
    "title": "Our rules, in our words (2026-11-14)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
    "accessed": "2026-11-14"
+  },
+  {
+   "id": "s_rb9_a11",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9: A11 sell into strength and trail (owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-17"
   }
  ],
  "facts": [
@@ -2059,6 +2067,42 @@
    "source": "s_rb9_lb",
    "quote": "The full size at one price with one stop; no adding.",
    "claim": "Our rule: take the full size at one price with one stop, and never add to the trade."
+  },
+  {
+   "id": "h_w_ema",
+   "source": "hw",
+   "quote": "We use the 9 and 20 EMA, with the 50 and 200 SMA.",
+   "claim": "Our lines are the 9 and 20 EMA, with the 50 and 200-day simple moving averages."
+  },
+  {
+   "id": "h_w_vol",
+   "source": "hw",
+   "quote": "Volume raises the grade; it is not a requirement, except where volume is the setup.",
+   "claim": "Volume raises the grade of a setup; it is not a requirement unless volume is the setup."
+  },
+  {
+   "id": "h_w_200",
+   "source": "hw",
+   "quote": "Below the 200-day is a hard no for stocks",
+   "claim": "We don't buy stocks below the 200-day moving average."
+  },
+  {
+   "id": "h_a11",
+   "source": "s_rb9_a11",
+   "quote": "Sell some into strength and trail the rest under the rising averages.",
+   "claim": "We sell some of a winner into strength and trail the rest under the rising moving averages."
+  },
+  {
+   "id": "rw_add",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy full size at one price with one stop and never add to a loser; adding to a working winner is rare, a feel call, never the plan."
+  },
+  {
+   "id": "rw_ma",
+   "source": "hw",
+   "quote": "For a long, the 50-day above the 200-day is mostly a must, not always; an exception is a judgment call. Below the 200-day stays a hard no for stocks.",
+   "claim": "For a long, the 50-day above the 200-day is mostly a must, not always; below the 200-day is a hard no for stocks."
   }
  ],
  "walkthroughs": [
@@ -2066,9 +2110,9 @@
    "key": "w1",
    "title": "Read the trend first",
    "steps": [
-    "Read a chart by its peaks and troughs. Higher highs and higher lows: that's an uptrend.",
-    "Lower highs and lower lows: a downtrend. Flat highs and flat lows: a trading range.",
-    "A trend holds until price proves otherwise. An uptrend ends when a lower low drops under the last trough."
+    "First thing I look at: the peaks and the troughs. Higher highs and higher lows, that's an uptrend.",
+    "Lower highs and lower lows is a downtrend. Flat highs and flat lows is a range, going nowhere.",
+    "Trust the trend until price proves otherwise. The uptrend is over when it makes a lower low under the last trough."
    ],
    "facts": [
     "f1",
@@ -2081,9 +2125,9 @@
    "key": "w2",
    "title": "Floors, ceilings and breaks",
    "steps": [
-    "Support is a floor where buyers have stepped in before. Resistance is a ceiling where sellers have.",
-    "A breakout is price clearing that level. Heavy volume on the break says real buyers showed up.",
-    "Once broken, an old ceiling often becomes the new floor, and the other way round."
+    "Support is a floor, where buyers stepped in before. Resistance is a ceiling, where sellers did.",
+    "A breakout is price clearing that level. Big volume on the break raises the grade. Light volume fails more often.",
+    "Once it breaks, the old ceiling often turns into the new floor. Works the other way too."
    ],
    "facts": [
     "f31",
@@ -2091,19 +2135,22 @@
     "f59",
     "f54",
     "f36",
-    "f45"
+    "f45",
+    "h_w_vol"
    ]
   },
   {
    "key": "w3",
    "title": "How far is too far",
    "steps": [
-    "Extended means stretched far above the moving averages. We give it as a percent, not a feeling.",
-    "Overbought is a gauge reading: RSI above 70. Oversold is RSI below 30.",
-    "Neither reading is a signal on its own. Strong stocks can stay overbought, and weak ones can stay oversold."
+    "Extended means stretched way above the moving averages. I put a number on it, a percent, not a feeling.",
+    "More than 10% over the 9 EMA and I skip it. Too stretched to buy.",
+    "Overbought and oversold are gauge readings. RSI over 70 is overbought, under 30 is oversold.",
+    "Neither one is a signal on its own. Strong stocks can stay overbought for a long time, weak ones oversold."
    ],
    "facts": [
     "h1",
+    "h_c29",
     "f96",
     "f101",
     "f102",
@@ -2119,7 +2166,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "uptrend",
-   "q": "On a chart, what makes an uptrend?",
+   "q": "Your friend says his stock is in an uptrend. What do you check on the chart to see if he's right?",
    "choices": [
     "Higher highs and higher lows",
     "Lower highs and lower lows",
@@ -2127,8 +2174,8 @@
     "Price above last year's price"
    ],
    "answer": "Higher highs and higher lows",
-   "why": "Higher highs and higher lows. Each rally peaks above the last one, and each dip bottoms above the last dip. ChartSchool, Schwab, Fidelity and Investopedia all define an uptrend this way. One up day is not a trend, and neither is a price above last year's. ChartSchool's Dow Theory keeps the uptrend in place until a lower low drops under the last trough.",
-   "lesson_line": "Read the staircase first. Rising peaks and rising troughs mean an uptrend.",
+   "why": "Higher highs and higher lows. That's the staircase I look for. Each rally peaks above the last one, and each dip stops above the last dip. One green day isn't a trend. A stock that's higher than a year ago can still be falling right now. So mark the last few swing highs and lows on his chart and see which way they step. The uptrend holds until a dip breaks under the last low.",
+   "lesson_line": "Read the staircase first. No higher highs and higher lows, no uptrend.",
    "facts": [
     "f1",
     "f8",
@@ -2137,17 +2184,20 @@
     "f5"
    ],
    "wrong": {
-    "Lower highs and lower lows": "That's the opposite staircase: a downtrend.",
-    "A close above yesterday's close": "One up day says nothing about the trend. A trend is a pattern of peaks and troughs over time.",
-    "Price above last year's price": "A stock can be higher than a year ago and still be falling now. Read the recent peaks and troughs."
+    "Lower highs and lower lows": "That's the staircase going down. You just described a downtrend.",
+    "A close above yesterday's close": "One up day tells you nothing about the trend. A trend is the pattern of peaks and dips over time.",
+    "Price above last year's price": "A stock can be up on the year and still be sliding right now. Read the recent peaks and dips."
    },
-   "simple": "Higher highs and higher lows, because each rally peaks above the last one and each dip stops above the last dip.",
+   "simple": "Higher highs and higher lows. Each rally tops the last one and each dip holds above the last dip.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool, Schwab, Fidelity and Investopedia all define an uptrend this way. ChartSchool's Dow Theory keeps the uptrend in place until a lower low drops under the last trough."
+   }
   },
   {
    "key": "q02",
@@ -2188,7 +2238,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "Trading range",
-   "q": "Which word is this: price swings between roughly the same high and the same low for weeks, with no clear direction.",
+   "q": "For weeks a stock keeps topping out near the same high and bottoming near the same low. What do you call that?",
    "choices": [
     "Trading range",
     "Uptrend",
@@ -2196,8 +2246,8 @@
     "Pullback"
    ],
    "answer": "Trading range",
-   "why": "Trading range. Price moves between a steady high and a steady low, so the peaks and troughs line up flat. ChartSchool reads that as supply and demand in balance. Fidelity calls it a sideways trend. When price breaks out of the range, up or down, ChartSchool says a winner has emerged.",
-   "lesson_line": "Flat peaks and flat troughs mean a range. A break out of it, either way, shows who won.",
+   "why": "A trading range. The highs line up flat and the lows line up flat, so nobody's winning. Buyers and sellers are in balance. There's nothing for me to do in the middle of a range. Mark the top and the bottom of the box. When price breaks out of it, up or down, that shows you who won.",
+   "lesson_line": "Flat highs and flat lows mean a range. Mark the box and let the break show who won.",
    "facts": [
     "f22",
     "f23",
@@ -2209,17 +2259,20 @@
     "f66"
    ],
    "wrong": {
-    "Uptrend": "An uptrend needs higher highs and higher lows. Here the highs and lows stay flat.",
-    "Pullback": "A pullback is a short dip inside an uptrend. This stock has no uptrend to dip within.",
-    "False breakout": "A false breakout pokes out of a level and falls straight back. This stock never left its range."
+    "Uptrend": "An uptrend needs higher highs and higher lows. These stay flat.",
+    "Pullback": "A pullback is a short dip inside an uptrend. There's no uptrend here to dip from.",
+    "False breakout": "A false breakout pokes out of a level and falls right back. This stock never left its box."
    },
-   "simple": "A trading range, because the highs and lows stay flat, so price has no clear direction.",
+   "simple": "A trading range. The highs and lows stay flat, so price has no clear direction yet.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool reads a trading range as supply and demand in balance, and Fidelity calls it a sideways trend. When price breaks out of the range, ChartSchool says a winner has emerged."
+   }
   },
   {
    "key": "q04",
@@ -2227,7 +2280,7 @@
    "rung": 4,
    "format": "mcq",
    "term": "Lower high",
-   "q": "A stock has been in an uptrend. Its latest rally tops out below the prior peak. What do you call the latest peak?",
+   "q": "Your stock's been in an uptrend. The latest rally rolls over below the prior peak. What did it just print?",
    "choices": [
     "Lower high",
     "Higher low",
@@ -2235,8 +2288,8 @@
     "Higher high"
    ],
    "answer": "Lower high",
-   "why": "Lower high. The latest rally peaked below the prior peak, so this peak is lower. It is a warning, not the end of the uptrend. Investopedia says swings that stop reaching new highs could signal an uptrend that has lost momentum. ChartSchool's Dow Theory keeps the uptrend in place until a lower low forms under the last trough.",
-   "lesson_line": "One lower high is a warning. A lower low under the last trough is what breaks the uptrend.",
+   "why": "A lower high. The rally stalled under the last peak. That's a yellow flag, not the end of the uptrend. The trend breaks when price makes a lower low under the last dip. So now you watch that last low. If it holds and price pushes back over the peak, you're fine. If it breaks, the uptrend is done.",
+   "lesson_line": "One lower high is a warning. A lower low under the last dip is what breaks the uptrend.",
    "facts": [
     "f21",
     "f5",
@@ -2245,17 +2298,20 @@
     "f59"
    ],
    "wrong": {
-    "Higher low": "A higher low is a dip that bottoms above the last dip. This was a rally peak, and it came in lower.",
-    "Breakout": "A breakout clears a prior high. This rally fell short of one.",
-    "Higher high": "A higher high tops the prior peak. This rally stalled below it, so the peak came in lower."
+    "Higher low": "A higher low is a dip that holds above the last dip. This was a rally peak, and it came in lower.",
+    "Breakout": "A breakout clears a prior high. This rally didn't even get back to it.",
+    "Higher high": "A higher high tops the prior peak. This one stalled under it."
    },
-   "simple": "It is a lower high, because the rally stalled under the last peak instead of rising above it.",
+   "simple": "A lower high. The rally stalled under the last peak instead of rising above it.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "counter": "Investopedia says swings that stop reaching new highs could signal an uptrend that has lost momentum. ChartSchool's Dow Theory keeps the uptrend in place until a lower low forms under the last trough."
+   }
   },
   {
    "key": "q05",
@@ -2264,16 +2320,16 @@
    "format": "scenario",
    "term": "higher low",
    "story": "A stock has made lower highs and lower lows for months. It drops again but holds above its last low, then bounces. The bounce stalls under the last peak.",
-   "q": "Has the downtrend turned into an uptrend yet?",
+   "q": "Has the downtrend turned up yet?",
    "choices": [
-    "No: it needs a higher high too",
-    "Yes: the higher low confirms it",
-    "Yes: any bounce ends a downtrend",
-    "No: the 50-day must cross the 200-day"
+    "Not yet, it needs a higher high",
+    "Yes, the higher low confirms it",
+    "Yes, any bounce ends a downtrend",
+    "Not until the 50-day crosses the 200"
    ],
-   "answer": "No: it needs a higher high too",
-   "why": "No, not yet. A higher low is the first step, but it is too early to call a new trend. ChartSchool's Dow Theory confirms the change only when price clears the last reaction high. Schwab asks for at least one higher high and one higher low. Until then the bounce may be only a bear market rally.",
-   "lesson_line": "A higher low is a hint. A higher high above the last peak is the proof.",
+   "answer": "Not yet, it needs a higher high",
+   "why": "Not yet. The higher low is the first step, and it's a good one. But the bounce stalled under the last peak, so the downtrend isn't broken. I want price to clear that last peak. That's the higher high that proves the turn. Until then this can be a bear market rally that rolls over into a new low. Waiting costs you a little of the move. Buying the first bounce costs you a lot more when it fails.",
+   "lesson_line": "A higher low is a hint. A higher high over the last peak is the proof.",
    "facts": [
     "f3",
     "f4",
@@ -2283,20 +2339,20 @@
     "f7"
    ],
    "wrong": {
-    "Yes: the higher low confirms it": "Half the picture. Dow Theory and Schwab both want a higher high above the last peak as well.",
-    "Yes: any bounce ends a downtrend": "Downtrends bounce all the time. Schwab warns a bounce may be only a dead cat bounce.",
-    "No: the 50-day must cross the 200-day": "A trend turns on peaks and troughs, not average crosses. ChartSchool says crossovers give late signals from two lagging averages."
+    "Yes, the higher low confirms it": "That's half of it. You still need a higher high over the last peak.",
+    "Yes, any bounce ends a downtrend": "Downtrends bounce all the time. A bounce that stalls under the last peak can be a dead cat bounce.",
+    "Not until the 50-day crosses the 200": "A trend turns on peaks and dips, not on averages crossing. A cross like that comes late, because both lines lag."
    },
-   "simple": "No, because a higher low is only a start and the bounce must also clear the last peak.",
+   "simple": "Not yet. A higher low is only the start, and the bounce also has to clear the last peak.",
    "deeper": {
-    "trap": "The trap is buying the first higher low as if the trend had already turned. Dow Theory warns that investors often mistake a counter-move for a new trend. A bounce that stalls under the last peak can still roll over into a lower low. The turn is confirmed only when price clears that last peak."
+    "trap": "The trap is buying the first higher low as if the trend had already turned. Dow Theory warns that investors often mistake a counter-move for a new trend. ChartSchool confirms the change only when price clears the last reaction high, and Schwab asks for at least one higher high and one higher low."
    },
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q06",
@@ -2304,10 +2360,10 @@
    "rung": 3,
    "format": "tf",
    "term": "timeframe",
-   "q": "A stock can be in an uptrend on its weekly chart and a downtrend on its daily chart at the same time.",
+   "q": "Your stock is in an uptrend on the weekly chart. On the daily it's in a downtrend. Both can be true at once.",
    "answer": "True",
-   "why": "True. Trends exist on every timeframe. ChartSchool sorts them into major (longer than a year), intermediate (one to six months) and minor (less than a month). A daily downtrend can be a pullback inside a weekly uptrend. Fidelity says each trend is shaped by the next longer and the next shorter one. So name the timeframe whenever you name a trend.",
-   "lesson_line": "Name the timeframe when you name the trend. The daily and the weekly can disagree.",
+   "why": "True. Every timeframe has its own trend. A few weeks of lower highs and lower lows on the daily can just be a pullback inside a weekly uptrend. That's why I always say which chart I'm talking about. Check the weekly first for the big picture. Then use the daily to find your spot.",
+   "lesson_line": "Name the timeframe when you name the trend. Weekly for the big picture, daily for your spot.",
    "facts": [
     "f24",
     "f14",
@@ -2316,13 +2372,16 @@
     "f6",
     "f7"
    ],
-   "simple": "True, because a trend depends on the timeframe, and a short move can run against a longer trend.",
+   "simple": "True. Each timeframe has its own trend, so a daily dip can sit inside a weekly uptrend.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool sorts trends into major (longer than a year), intermediate (one to six months) and minor (less than a month). Fidelity says each trend is shaped by the next longer and the next shorter one."
+   }
   },
   {
    "key": "q07",
@@ -2330,16 +2389,16 @@
    "rung": 1,
    "format": "mcq",
    "term": "support",
-   "q": "On a chart, what is support?",
+   "q": "Every time it drops, your stock bounces off the same area. What is that area telling you?",
    "choices": [
     "Where buyers tend to stop a fall",
     "Where sellers tend to stop a rise",
     "The stock's lowest price ever",
-    "A price the stock cannot fall below"
+    "A price it can't fall below"
    ],
    "answer": "Where buyers tend to stop a fall",
-   "why": "Where buyers tend to stop a fall. ChartSchool defines support as the price where demand is thought strong enough to stop a decline. Earlier reaction lows often mark it, not the lowest price ever. It is a floor, and floors can break.",
-   "lesson_line": "Support is a floor made of buyers. Floors can break.",
+   "why": "Where buyers tend to stop a fall. That's support. Each time price came down there, enough buyers showed up to turn it. You find support at the earlier lows where the stock turned back up. It doesn't have to be the lowest price ever. It's a floor, and floors break. So treat it as a place to put your stop just under, not a promise that the stock holds.",
+   "lesson_line": "Support is a floor made of buyers. Floors break, so your stop goes under it.",
    "facts": [
     "f31",
     "f42",
@@ -2347,20 +2406,24 @@
     "f33",
     "f32",
     "f209",
-    "f36"
+    "f36",
+    "f50"
    ],
    "wrong": {
     "Where sellers tend to stop a rise": "That's resistance, the ceiling.",
-    "The stock's lowest price ever": "Support can sit at any earlier low where buyers stepped in. It doesn't have to be the lowest price ever.",
-    "A price the stock cannot fall below": "Support can break. ChartSchool only says demand is thought strong enough to stop the decline."
+    "The stock's lowest price ever": "Support sits at any earlier low where buyers stepped in. It doesn't have to be the all-time low.",
+    "A price it can't fall below": "Support breaks all the time. It's where buyers showed up before, not a wall."
    },
-   "simple": "Support is a price where buyers tend to step in and stop a fall, at least for a while.",
+   "simple": "It's support, where buyers keep stepping in to stop the fall. It's a floor, and floors can break.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool defines support as the price where demand is thought strong enough to stop a decline. Schwab calls it a temporary floor, and with a bounce trade sets a stop order below the line of support."
+   }
   },
   {
    "key": "q08",
@@ -2402,9 +2465,9 @@
    "rung": 5,
    "format": "tf",
    "term": "polarity",
-   "q": "Once a stock breaks below support, that old support often acts as resistance when price comes back up.",
+   "q": "A stock breaks below support it held for months. When it rallies back there, that old floor often acts as a ceiling.",
    "answer": "True",
-   "why": "True. ChartSchool says a broken support level can turn into resistance. Buyers who bought at the old floor sit on losses, and many sell near breakeven when price returns. Investopedia calls this the Polarity Principle, and it works both ways: broken resistance becomes support. It is a tendency, not a certainty.",
+   "why": "True. The people who bought at the old floor are now sitting on losses. When price gets back there, a lot of them sell just to get out even. That selling turns the old floor into a ceiling. It works the other way too. Broken resistance often turns into support, which is why a breakout that holds the old high is a good sign. It's a tendency, not a law, so let price show you.",
    "lesson_line": "Broken floors become ceilings. Broken ceilings become floors.",
    "facts": [
     "f36",
@@ -2412,13 +2475,16 @@
     "f45",
     "f49"
    ],
-   "simple": "True, because buyers stuck at the old floor often sell when price gets back there, so it becomes a ceiling.",
+   "simple": "True. Buyers stuck at the old floor sell when price gets back there, so it becomes a ceiling.",
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool says a broken support level can turn into resistance, and Fidelity says the same. Investopedia calls it the Polarity Principle: once resistance is broken it becomes support, and vice versa."
+   }
   },
   {
    "key": "q10",
@@ -2426,30 +2492,31 @@
    "rung": 7,
    "format": "scenario",
    "term": "support zone",
-   "story": "A stock found buyers near $48 three times this year. The lows were $48.10, $47.60 and $48.40. It's back near $48 today.",
-   "q": "How would you mark that support on your chart?",
+   "story": "BRQX found buyers near $48 three times this year. The lows were $48.10, $47.60 and $48.40. It's back near $48 today.",
+   "q": "How do you mark that support on your chart?",
    "choices": [
     "As a zone, about $47.60 to $48.40",
     "As exactly $48.00, nothing else",
-    "As broken: one low went under $48",
+    "As broken, one low went under $48",
     "As one line at the lowest low, $47.60"
    ],
    "answer": "As a zone, about $47.60 to $48.40",
-   "why": "As a zone, about $47.60 to $48.40, from the lowest low to the highest. ChartSchool notes price can briefly dip below support, so some traders mark support zones. Investopedia says traders want to see a support band rather than one line through the lowest lows. A small undercut inside the zone is not a break.",
-   "lesson_line": "Draw support as a zone, not a line. A small dip inside the zone is not a break.",
+   "why": "As a zone, $47.60 to $48.40, from the lowest low to the highest. Buyers didn't show up at one exact penny. They showed up across that whole area. Draw one line at exactly $48 and the $47.60 low already looks like a break, even though buyers were still stepping in. So mark the zone. If you buy a bounce here, your stop goes under the bottom of the zone, not under a round number.",
+   "lesson_line": "Draw support as a zone, not a line. A small dip inside the zone isn't a break.",
    "facts": [
     "f34",
     "f35",
-    "f43"
+    "f43",
+    "f50"
    ],
    "wrong": {
-    "As exactly $48.00, nothing else": "Too precise. The lows ran from $47.60 to $48.40, so a single line would call support broken while buyers are still there.",
-    "As broken: one low went under $48": "A brief dip under a level isn't a break. ChartSchool notes price can briefly dip below support, which is why traders use zones.",
-    "As one line at the lowest low, $47.60": "Investopedia says traders want a support band, not a single line through the lowest lows. Buyers stepped in from $47.60 up to $48.40."
+    "As exactly $48.00, nothing else": "Too precise. The lows ran from $47.60 to $48.40, so one line calls support broken while buyers are still there.",
+    "As one line at the lowest low, $47.60": "You want the whole band, not one line through the lowest low. Buyers stepped in from $47.60 up to $48.40.",
+    "As broken, one low went under $48": "A brief dip under a level isn't a break. Price can dip below support for a moment, which is why you mark a zone."
    },
    "simple": "Mark it as a zone from $47.60 to $48.40, because buyers showed up a little above and below $48.",
    "deeper": {
-    "trap": "The trap is the round number. Mark support at exactly $48.00, and the $47.60 low already reads as a break. You sell while buyers are still stepping in. ChartSchool says it does not seem logical to call support broken when price closes an eighth below it. That is why traders mark a zone."
+    "trap": "The trap is the round number. Mark support at exactly $48.00 and the $47.60 low already reads as a break, so you sell while buyers are still stepping in. ChartSchool says it does not seem logical to call support broken when price closes an eighth below it. Investopedia says traders want a support band rather than one line through the lowest lows."
    },
    "tier": "extended",
    "risk": {
@@ -2458,7 +2525,7 @@
      "fixed before (f46 removed, lesson wording changed)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q11",
@@ -2466,16 +2533,16 @@
    "rung": 8,
    "format": "scenario",
    "term": "overhead supply",
-   "story": "A stock traded near $60 for months, then fell to $45. Now it rallies back toward $60.",
-   "q": "What is it likely to meet near $60?",
+   "story": "A stock traded near $60 for months, then fell to $45. Now it's rallying back toward $60.",
+   "q": "What's likely waiting for it near $60?",
    "choices": [
     "Selling from trapped buyers",
     "Support from new buyers",
-    "Nothing: old prices don't matter",
+    "Nothing, old prices don't matter",
     "Momentum that carries it through"
    ],
    "answer": "Selling from trapped buyers",
-   "why": "Selling from trapped buyers. Many who bought near $60 were still holding when it fell to $45. When price comes back, many sell to escape with little or no loss. ChartSchool calls this a supply overhang, commonly known as resistance, and notes broken support can turn into resistance. Bulkowski names overhead resistance the chief cause of a throwback.",
+   "why": "Selling from trapped buyers. Plenty of people bought near $60 and rode it down to $45. They've been underwater for months. When price gets back to $60, a lot of them sell just to get out even. That's overhead supply, and it can stall the rally right there. Before you buy a rebound, look left on the chart. A pile of old buyers above you is where the move is likely to run into trouble.",
    "lesson_line": "Before you buy a rebound, look left. Trapped buyers above are sellers waiting for you.",
    "facts": [
     "f37",
@@ -2484,13 +2551,13 @@
     "f36"
    ],
    "wrong": {
-    "Support from new buyers": "$60 was a floor before the drop. Once broken, it tends to work as a ceiling, not a floor.",
-    "Nothing: old prices don't matter": "They do. ChartSchool traces resistance to the supply left by buyers stuck at that price.",
-    "Momentum that carries it through": "A rally into an old price runs into supply. ChartSchool shows holders stuck there selling on the rebound to get out with little or no loss."
+    "Support from new buyers": "$60 was a floor before the drop. Once it broke, it's more likely to act as a ceiling.",
+    "Momentum that carries it through": "A rally into an old price runs into the supply sitting there. The stuck holders sell into it.",
+    "Nothing, old prices don't matter": "They do. The buyers stuck at $60 are still holding, and they want out."
    },
-   "simple": "It will likely meet selling, because people who bought near $60 want out once they get their money back.",
+   "simple": "Selling. People who bought near $60 want out once they get their money back.",
    "deeper": {
-    "trap": "The trap is buying the rebound near $60 because it looks strong. Holders stuck since the drop sell into that strength to get out near breakeven. Bulkowski calls overhead resistance the chief cause of a throwback: price bumps up against it, and then price tumbles."
+    "trap": "The trap is buying the rebound near $60 because it looks strong. ChartSchool calls the stuck supply an overhang, commonly known as resistance. Bulkowski calls overhead resistance the chief cause of a throwback: price bumps up against it, and then price tumbles."
    },
    "tier": "expert",
    "risk": {
@@ -2499,7 +2566,7 @@
      "fixed before (story and lesson softened by the checker)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q12",
@@ -2507,16 +2574,16 @@
    "rung": 3,
    "format": "mcq",
    "term": "breakout",
-   "q": "What is a breakout?",
+   "q": "Everyone in chat says a stock broke out today. What actually happened on the chart?",
    "choices": [
-    "A move through resistance or support",
-    "A bounce off support on heavy volume",
-    "A dip back to the moving average",
-    "Any big up day on heavy volume"
+    "It moved through resistance or support",
+    "It bounced off support on heavy volume",
+    "It dipped back to its moving average",
+    "It had a big up day on heavy volume"
    ],
-   "answer": "A move through resistance or support",
-   "why": "A move through resistance or support. Investopedia and Schwab both define a breakout as price moving past a resistance or support level. ChartSchool says the new price breaks out of the lines that enclosed the earlier prices. A move below support counts too, as a downside breakout. A bounce is different: it turns at the level instead of going through.",
-   "lesson_line": "A breakout means price cleared the level. Volume tells you whether anyone cared.",
+   "answer": "It moved through resistance or support",
+   "why": "It moved through resistance or support. A breakout means price traded through a level that had held it. Up through resistance is the one we buy. Down through support is a breakdown. A bounce is different, because it turns at the level instead of going through. And a big day inside the range isn't a breakout at all. Mark the level ahead of time so you know exactly where your trigger is.",
+   "lesson_line": "A breakout means price cleared the level. Mark the level before it happens.",
    "facts": [
     "f52",
     "f59",
@@ -2525,11 +2592,11 @@
     "f64"
    ],
    "wrong": {
-    "A bounce off support on heavy volume": "A bounce turns at the level. A breakout goes through it.",
-    "A dip back to the moving average": "That's a dip toward an average. A breakout goes through a support or resistance level.",
-    "Any big up day on heavy volume": "A big day inside a range isn't a breakout. Price has to clear a level that held it."
+    "It bounced off support on heavy volume": "A bounce turns at the level. A breakout goes through it.",
+    "It dipped back to its moving average": "That's a dip toward an average. A breakout goes through a level.",
+    "It had a big up day on heavy volume": "A big day inside the range isn't a breakout. Price has to clear the level that held it."
    },
-   "simple": "A breakout is price moving through a level that held it, up through resistance or down through support.",
+   "simple": "Price moved through a level that had held it, up through resistance or down through support.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -2537,7 +2604,10 @@
      "fixed before (unsourced line removed)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia and Schwab both define a breakout as price moving past a resistance or support level. ChartSchool says the new price breaks out of the lines that enclosed the earlier prices."
+   }
   },
   {
    "key": "q13",
@@ -2580,36 +2650,40 @@
    "rung": 5,
    "format": "scenario",
    "term": "breakout volume",
-   "story": "Two stocks clear resistance today. Stock A trades 3 times its average volume. Stock B trades about half its average volume.",
-   "q": "Which breakout shows more conviction?",
+   "story": "Two names on your list clear resistance today. QZRT trades 3 times its average volume. PLMQ trades about half its average volume.",
+   "q": "Which breakout has more behind it?",
    "choices": [
-    "A, with 3x volume behind it",
-    "B, with half its volume",
-    "Neither: only price counts",
-    "Neither: A is a blow-off"
+    "QZRT, on 3x its volume",
+    "PLMQ, on half its volume",
+    "Neither, only price counts",
+    "Neither, QZRT is a blow-off"
    ],
-   "answer": "A, with 3x volume behind it",
-   "why": "A. A breakout on high or above-average volume shows conviction, so price is more likely to keep going. Investopedia says breakouts on low relative volume are more prone to failure. Schwab adds that low volume suggests enthusiasm for the move may be lacking. Volume guarantees nothing. It shows how much interest stands behind the move.",
-   "lesson_line": "A breakout on thin volume is a question, not an answer. I want volume to show up.",
+   "answer": "QZRT, on 3x its volume",
+   "why": "QZRT. Three times normal volume says a lot of people cared about that level. More buyers showing up gives the move a better shot at follow-through. PLMQ cleared its level on half its normal volume, so few people showed up. Breakouts on light volume fail more often. Volume isn't a must for us. It raises the grade. But given the choice, I want the one where the crowd showed up.",
+   "lesson_line": "Volume raises the grade. On a breakout, I want to see the crowd show up.",
    "facts": [
     "f54",
     "f64",
     "f217",
     "f218",
-    "f137"
+    "f137",
+    "h_w_vol"
    ],
    "wrong": {
-    "Neither: only price counts": "Price says where. Volume says how many showed up. Schwab and Investopedia both weigh it.",
-    "B, with half its volume": "Light volume says few people cared about the level. Investopedia notes low-volume breakouts are more prone to failure.",
-    "Neither: A is a blow-off": "A blow-off top is a steep, rapid run that ends in a steep drop. A is just clearing resistance, where high volume shows conviction."
+    "Neither, only price counts": "Price tells you where. Volume tells you how many people showed up. Both matter.",
+    "PLMQ, on half its volume": "Light volume says few people cared about the level. Those breakouts fail more often.",
+    "Neither, QZRT is a blow-off": "A blow-off is a steep run that ends in a steep drop. QZRT is just clearing resistance, and heavy volume there is a good sign."
    },
-   "simple": "Stock A, because heavy volume on a breakout shows real interest, while light volume breakouts fail more often.",
+   "simple": "QZRT. Heavy volume on a breakout shows real interest, and light volume breakouts fail more often.",
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia says breakouts on low relative volume are more prone to failure. Schwab adds that low volume suggests enthusiasm for the move may be lacking. Neither says volume guarantees anything."
+   }
   },
   {
    "key": "q15",
@@ -2617,7 +2691,7 @@
    "rung": 4,
    "format": "mcq",
    "term": "False breakout",
-   "q": "Price clears resistance, then falls straight back below that level within days. Which word fits?",
+   "q": "You watch a stock clear resistance. Two days later it's already back under that level. What do you call that?",
    "choices": [
     "False breakout",
     "Pullback",
@@ -2625,27 +2699,31 @@
     "Trend reversal"
    ],
    "answer": "False breakout",
-   "why": "False breakout. Fidelity's chart-pattern slides define it as a breakout that almost at once returns back through the breakout price. Investopedia says that if price does not move back in the breakout direction, the breakout has failed. It is not a pullback, which dips and holds. Nor do a few days prove a trend change.",
-   "lesson_line": "A breakout that falls straight back through its level has failed. Fidelity calls it a false breakout.",
+   "why": "A false breakout. Price broke out and then fell right back through the breakout level almost at once. A real breakout keeps moving in the breakout direction. This one didn't. It's not a pullback, because a pullback dips and holds. A couple of days doesn't make a trend reversal either. If you bought it, the reason you bought is gone. Respect your stop and move on.",
+   "lesson_line": "A breakout that falls straight back through its level has failed. Take the stop and move on.",
    "facts": [
     "f66",
     "f56",
     "f28",
     "f68",
-    "f26"
+    "f26",
+    "h_lb_a3"
    ],
    "wrong": {
-    "Pullback": "A pullback is a dip inside an uptrend that holds. This move erased the breakout itself.",
-    "Bear trap": "A bear trap is the mirror: a break below support that snaps back up and catches sellers.",
-    "Trend reversal": "Nothing here shows a trend changing. A break that almost at once returns through its breakout price is Fidelity's false breakout."
+    "Pullback": "A pullback is a dip in an uptrend that holds. This move wiped out the breakout itself.",
+    "Bear trap": "A bear trap is the mirror: a break below support that snaps back up and catches the sellers.",
+    "Trend reversal": "A couple of days doesn't show a trend changing. It shows a breakout that failed."
    },
-   "simple": "A false breakout, because price broke out and then fell right back through the breakout level.",
+   "simple": "A false breakout. Price broke out and then fell right back through the breakout level.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Fidelity's chart-pattern slides define a false breakout as one that almost at once returns back through the breakout price. Investopedia says that if price does not move back in the breakout direction, the breakout has failed."
+   }
   },
   {
    "key": "q16",
@@ -2654,7 +2732,7 @@
    "format": "scenario",
    "term": "Bull trap",
    "story": "A stock pokes above $50 resistance on light volume. You buy at $50.40. Two days later it's at $47, back below the old resistance.",
-   "q": "Which word fits what just happened?",
+   "q": "What just happened to you?",
    "choices": [
     "Bull trap",
     "Bear trap",
@@ -2662,8 +2740,8 @@
     "Pullback"
    ],
    "answer": "Bull trap",
-   "why": "Bull trap. The break above $50 looked like a buy signal, then price reversed back under the level and left the buyers with losses. That is ChartSchool's definition of a bull trap. Seen on the chart, Fidelity calls the same move a false breakout. Investopedia notes that low volume on the break could signal one. A breakout on heavy volume is a stronger signal, though never a sure one.",
-   "lesson_line": "Light-volume breaks are where bull traps live. Check the volume before you trust a breakout.",
+   "why": "A bull trap. The break over $50 looked like a buy, then price reversed back under the level and left the buyers holding losses. You're one of them. The light volume on the break was the warning, because not many people believed it. This is why your stop goes in the moment you buy. A failed break should take you out small, not leave you sitting at $47 after buying $50.40.",
+   "lesson_line": "Light-volume breaks are where bull traps live. Your stop goes in before you find out.",
    "facts": [
     "f67",
     "f69",
@@ -2672,23 +2750,24 @@
     "f71",
     "f28",
     "f54",
-    "f66"
+    "f66",
+    "h_lb_a3"
    ],
    "wrong": {
     "Bear trap": "A bear trap is the mirror: a break below support that reverses up and catches the sellers.",
     "Throwback that held": "A throwback that holds stays near the breakout price. This one fell to $47, well under $50.",
     "Pullback": "A pullback is a dip in a rising stock that holds. This one fell back under the level it broke."
    },
-   "simple": "A bull trap, because the break above $50 drew buyers in and then fell back below the level.",
+   "simple": "A bull trap. The break above $50 pulled buyers in, then price fell back below the level.",
    "deeper": {
-    "trap": "The trap is reading every break above resistance as a buy. Investopedia notes that many breakouts are followed by strong moves, but some quickly reverse. Low volume and indecisive candles are the warnings it names. Heavy volume on the break shows more conviction, though no breakout is ever certain."
+    "trap": "The trap is reading every break above resistance as a buy. ChartSchool defines a bull trap as a break that generates a buy signal, then reverses and traps the bulls with losses. Investopedia names low volume and indecisive candles as the warnings."
    },
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
@@ -2696,10 +2775,10 @@
    "rung": 8,
    "format": "tf",
    "term": "throwback",
-   "q": "After an upward breakout, price usually keeps climbing without returning to the breakout price.",
+   "q": "After a stock breaks out, it usually keeps climbing and never comes back to the breakout price.",
    "answer": "False",
-   "why": "False. Bulkowski: since 2000, 58% of 10,305 chart patterns with upward breakouts had throwbacks, a return to the breakout price within 30 days. Investopedia says that even after a high volume breakout, price often, but not always, retraces to the breakout point before moving on. ChartSchool and Fidelity's slides describe the same return. A throwback is common and does not by itself mean the breakout failed.",
-   "lesson_line": "Expect a retest. A return to the breakout price is common, not proof the breakout failed.",
+   "why": "False. A lot of breakouts come back and test the breakout price before they go. In one big count of chart patterns, more than half did it within 30 days. So a dip back to the level isn't proof the breakout failed. What matters is whether it holds there. A retest that holds is normal. Falling back through the level and staying under is the failure. Set your stop where the breakout is wrong, not where it just feels uncomfortable.",
+   "lesson_line": "Expect a retest. Coming back to the breakout price is common. Falling through it is the failure.",
    "facts": [
     "f72",
     "f71",
@@ -2707,9 +2786,9 @@
     "f219",
     "f220"
    ],
-   "simple": "False, because more than half of upward breakouts return to the breakout price within 30 days.",
+   "simple": "False. More than half of breakouts come back to the breakout price within 30 days before moving on.",
    "deeper": {
-    "trap": "The trap is reading a throwback as a failed breakout. Bulkowski counts a throwback when price returns to the breakout price within 30 days of an upward breakout. Since 2000, that happened in 58% of 10,305 patterns. Investopedia notes it happens even after high volume breakouts, often but not always, before price moves on in the breakout direction."
+    "trap": "The trap is reading a throwback as a failed breakout. Bulkowski counts a throwback when price returns to the breakout price within 30 days of an upward breakout. Since 2000, that happened in 58% of 10,305 patterns. Investopedia notes it happens even after high volume breakouts, often but not always."
    },
    "tier": "expert",
    "risk": {
@@ -2719,7 +2798,7 @@
      "statement reworded in wave8 to break the lesson's hedge-means-True pattern"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
@@ -2727,7 +2806,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "moving average",
-   "q": "What does a moving average line on a chart show?",
+   "q": "You add a 50-day moving average to your chart. What is that line actually showing you?",
    "choices": [
     "The average close over recent days",
     "Today's high, low and closing price",
@@ -2735,7 +2814,7 @@
     "The stock's fair value per share"
    ],
    "answer": "The average close over recent days",
-   "why": "The average close over recent days. Most moving averages use closing prices. Each day the newest close is added and the oldest one dropped, so the line moves along with price. ChartSchool says it defines the current direction but does not predict it. It lags, because it is built from past prices.",
+   "why": "The average close over recent days, here the last 50. Each day the newest close gets added and the oldest drops off, so the line moves along with price. It shows you the direction. It doesn't predict anything. And it lags, because it's built from past prices. We use the 50 and 200-day simple averages with the 9 and 20 EMA. A healthy stock holds above its rising averages.",
    "lesson_line": "A moving average smooths the noise and shows direction. It never predicts.",
    "facts": [
     "f75",
@@ -2747,20 +2826,24 @@
     "f198",
     "f204",
     "f202",
-    "f78"
+    "f78",
+    "h_w_ema"
    ],
    "wrong": {
-    "Today's high, low and closing price": "That's one day's range. A moving average averages many days.",
-    "Where price will most likely go next": "It doesn't predict. ChartSchool says it defines the current direction, and it lags.",
+    "Today's high, low and closing price": "That's one day's bar. A moving average averages many days.",
+    "Where price will most likely go next": "It doesn't predict. It shows the current direction, and it lags.",
     "The stock's fair value per share": "It's only an average of past prices. It says nothing about what the company is worth."
    },
-   "simple": "It shows the average closing price over a set number of recent days, updated each day.",
+   "simple": "The average closing price over the last 50 days, updated each day as a new close comes in.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool says a moving average defines the current direction but does not predict it, and lags because it's based on past prices. Schwab notes the oldest day is subtracted and the current day added each day."
+   }
   },
   {
    "key": "q19",
@@ -2768,7 +2851,7 @@
    "rung": 4,
    "format": "mcq",
    "term": "simple moving average",
-   "q": "The last five closes are $20, $22, $24, $25 and $23. What is the 5-day simple moving average?",
+   "q": "Five closes in a row: $20, $22, $24, $25 and $23. What's the 5-day simple moving average?",
    "answer": "$22.80",
    "calc": {
     "fn": "arith",
@@ -2782,13 +2865,13 @@
     }
    },
    "prefix": "$",
-   "why": "$22.80. ChartSchool: a 5-day simple moving average is the five-day sum of closing prices divided by five. The sum is $20 + $22 + $24 + $25 + $23 = $114. Then $114 / 5 = $22.80. Fidelity calls the SMA simply the average price over the period.",
+   "why": "$22.80. Add the five closes, then divide by five. $20 + $22 + $24 + $25 + $23 is $114. $114 divided by 5 is $22.80. That's all a simple average is. Your chart does this every day for you, dropping the oldest close and adding the newest. Doing it once by hand shows you why the line lags: an old close counts just as much as today's.",
    "lesson_line": "A simple moving average adds up the closes and divides by how many there are.",
    "facts": [
     "f78",
     "f204"
    ],
-   "simple": "It's $22.80, because you add the five closes and divide by five.",
+   "simple": "It's $22.80. You add the five closes and divide by five.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2796,7 +2879,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$114.00",
     "$28.50",
@@ -2804,9 +2887,9 @@
     "$21.50"
    ],
    "wrong": {
-    "$114.00": "Added the five closes and never divided.",
-    "$28.50": "Divided the $114 sum by 4 instead of 5.",
-    "$21.50": "Averaged only the oldest and newest closes, $20 and $23."
+    "$114.00": "You added the five closes and never divided.",
+    "$28.50": "You divided the $114 sum by 4 instead of 5.",
+    "$21.50": "You averaged only the oldest and newest closes, $20 and $23."
    },
    "visual": {
     "kind": "size",
@@ -2847,6 +2930,9 @@
      "label": "5-day moving average",
      "as": "price"
     }
+   },
+   "deeper": {
+    "example": "ChartSchool's example: a 5-day simple moving average is the five-day sum of closing prices divided by five. Fidelity calls the SMA simply the average price over the period."
    }
   },
   {
@@ -2855,7 +2941,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "EMA",
-   "q": "How does an exponential moving average (EMA) differ from a simple one?",
+   "q": "On your chart, the 20 EMA turns before the 20-day simple average does. What makes the EMA quicker?",
    "choices": [
     "Weights recent prices more",
     "Weights every day the same",
@@ -2863,8 +2949,8 @@
     "Looks ahead of price"
    ],
    "answer": "Weights recent prices more",
-   "why": "It weights recent prices more. A simple moving average weights every day in its period the same. Fidelity says the EMA has a shorter delay than an SMA of the same period. ChartSchool says it turns first. It still uses only past prices, so it cannot look ahead.",
-   "lesson_line": "The EMA reacts faster, the SMA is steadier. Neither one sees the future.",
+   "why": "It weights recent prices more. A simple average counts every day in its window the same. The EMA leans on the latest closes, so it reacts faster and turns first. That's why we use the 9 and 20 EMA as our shorter lines. They stay close to a stock that's moving. It's still built from past prices, so it can't see ahead. It's just less late.",
+   "lesson_line": "The EMA reacts faster, the simple average is steadier. Neither one sees the future.",
    "facts": [
     "f79",
     "f80",
@@ -2872,20 +2958,24 @@
     "f78",
     "f200",
     "f201",
-    "f206"
+    "f206",
+    "h_w_ema"
    ],
    "wrong": {
-    "Weights every day the same": "That's the simple moving average.",
-    "Uses only the daily highs": "Most moving averages, EMAs included, are built from closing prices.",
-    "Looks ahead of price": "No average looks ahead. Every moving average is built from past prices."
+    "Weights every day the same": "That's the simple average, and it's the slower one.",
+    "Uses only the daily highs": "EMAs are built from closing prices, like most moving averages.",
+    "Looks ahead of price": "No average looks ahead. Every one is built from past prices."
    },
-   "simple": "An EMA gives more weight to recent prices, so it reacts faster than a simple average of the same length.",
+   "simple": "The EMA gives more weight to recent prices, so it reacts faster than a simple average of the same length.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool says exponential averages turn before simple ones. Fidelity says the EMA has a shorter delay than an SMA of the same period."
+   }
   },
   {
    "key": "q21",
@@ -2893,23 +2983,26 @@
    "rung": 4,
    "format": "tf",
    "term": "lag",
-   "q": "A 200-day moving average turns faster than a 20-day moving average.",
+   "q": "When a stock turns, its 200-day moving average turns faster than its 20-day.",
    "answer": "False",
-   "why": "False. The longer the moving average, the more it lags. A 200-day average holds 200 days of prices, so Investopedia says it lags far more than a 20-day one. ChartSchool compares short averages to speedboats, quick to change. The trade-off is that a longer average is smoother but slower.",
-   "lesson_line": "Short averages are speedboats, quick to change. Long ones hold more past data, so they turn slowly.",
+   "why": "False. It's the other way around. The 200-day holds 200 days of prices, so a few new days barely move it. The 20-day only holds 20, so it turns quickly. Short averages react fast. Long ones are smooth but slow. That's why I use the 200-day for the big trend and the shorter lines for what's happening right now.",
+   "lesson_line": "Short averages turn fast. The 200-day holds so much history that it turns slowly.",
    "facts": [
     "f81",
     "f87",
     "f82",
     "f203"
    ],
-   "simple": "False, because a longer average holds more past prices, so it lags more and turns more slowly.",
+   "simple": "False. A longer average holds more past prices, so it lags more and turns more slowly.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia says a 200-day average has a much greater degree of lag than a 20-day one. ChartSchool compares short averages to speedboats, nimble and quick to change."
+   }
   },
   {
    "key": "q22",
@@ -2917,7 +3010,7 @@
    "rung": 4,
    "format": "mcq",
    "term": "Golden cross",
-   "q": "Which word is this: the 50-day moving average crosses up through the 200-day moving average.",
+   "q": "The 50-day on your chart just crossed up through the 200-day. What's that called?",
    "choices": [
     "Golden cross",
     "Death cross",
@@ -2925,22 +3018,24 @@
     "Bearish divergence"
    ],
    "answer": "Golden cross",
-   "why": "Golden cross. ChartSchool defines it as a shorter moving average moving above a longer one, usually the 50-day crossing above the 200-day. Investopedia uses the same short over long definition, and Fidelity calls it a bullish signal. The reverse, the 50-day crossing below the 200-day, is a death cross. It is two averages crossing, not price breaking a level.",
-   "lesson_line": "The 50-day crossing up through the 200-day is the classic golden cross. Down through it is a death cross.",
+   "why": "A golden cross. That's a shorter average crossing up through a longer one, and the classic version is the 50-day over the 200-day. The reverse, the 50-day dropping under the 200-day, is a death cross. It's two averages crossing, not price breaking a level. For a long I want the 50-day over the 200-day. That's mostly a must, not always. But the cross itself comes late, because both lines lag, so price will have told you first.",
+   "lesson_line": "The 50-day over the 200-day is a golden cross. Mostly a must for a long, but the cross comes late.",
    "facts": [
     "f89",
     "f91",
     "f83",
     "f90",
     "f205",
-    "f52"
+    "f52",
+    "f84",
+    "rw_ma"
    ],
    "wrong": {
-    "Death cross": "That's the opposite: the 50-day crossing below the 200-day.",
-    "Breakout": "A breakout is price clearing a support or resistance level. Here two averages cross each other.",
-    "Bearish divergence": "No. When two moving averages cross, the names are golden cross and death cross."
+    "Death cross": "That's the opposite, the 50-day crossing below the 200-day.",
+    "Breakout": "A breakout is price clearing a level. Here two averages crossed each other.",
+    "Bearish divergence": "Divergence is price against an indicator like RSI. Two averages crossing is a golden or death cross."
    },
-   "simple": "It's a golden cross, the name for a shorter average crossing up through a longer one, classically the 50-day over the 200-day.",
+   "simple": "A golden cross. The shorter 50-day average crossed up through the longer 200-day.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -2948,7 +3043,10 @@
      "fixed before (f92 removed)"
     ]
    },
-   "batch": "wave8"
+   "batch": "rulings-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool associates the golden cross with the 50-day crossing above the 200-day, and Fidelity calls it a bullish signal. ChartSchool also notes crossovers produce relatively late signals, since both averages lag."
+   }
   },
   {
    "key": "q23",
@@ -2956,21 +3054,22 @@
    "rung": 8,
    "format": "tf",
    "term": "Death cross",
-   "q": "A death cross is an early warning: it tends to show up before a stock starts to fall.",
+   "q": "A death cross is an early warning. It shows up before a stock starts to fall.",
    "answer": "False",
-   "why": "False. A death cross comes late, not early. It is usually the 50-day average crossing below the 200-day. ChartSchool says crossovers give relatively late signals because both averages lag, and Fidelity says moving averages follow the trend with a delay. Investopedia calls the death cross a coincident indicator of market weakness rather than a leading one. It confirms weakness; it does not warn ahead of it.",
-   "lesson_line": "By the time the 50-day crosses under the 200-day, price has already told you. Read price first.",
+   "why": "False. It comes late. For the 50-day to drop under the 200-day, the stock has been sliding for a while. Both averages lag, so the cross confirms weakness that price already showed you with lower highs and lower lows. Read price first. And once a stock is under the 200-day, we don't buy it anyway. That's a hard no for stocks.",
+   "lesson_line": "By the time the 50-day crosses under the 200-day, price already told you. Read price first.",
    "facts": [
     "f84",
     "f94",
     "f90",
     "f205",
     "f199",
-    "f202"
+    "f202",
+    "h_w_200"
    ],
-   "simple": "False, because both averages lag, so the cross shows up after the price has already been falling.",
+   "simple": "False. Both averages lag, so the cross shows up after the price has already been falling.",
    "deeper": {
-    "trap": "The trap is waiting for the cross before you act. For the 50-day average to fall under the 200-day, the stock has usually been sliding for a while. Price shows it first, with lower highs and lower lows. The cross adds confirmation, not an early warning."
+    "trap": "The trap is waiting for the cross before you act. ChartSchool says crossovers give relatively late signals because both averages lag. Investopedia calls the death cross a coincident indicator of market weakness rather than a leading one."
    },
    "tier": "expert",
    "risk": {
@@ -2979,7 +3078,7 @@
      "fixed before (f93 removed; Investopedia read from the Internet Archive)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q24",
@@ -2988,31 +3087,32 @@
    "format": "scenario",
    "term": "50-day moving average",
    "story": "A stock is in an uptrend and pulls back to its rising 50-day average. It dips about 1% under the line during the day, then closes back above it.",
-   "q": "How do you read the dip under the line?",
+   "q": "What do you make of the dip under the line?",
    "choices": [
-    "Normal: averages act as zones",
+    "Normal, averages act as zones",
     "The uptrend has now ended",
-    "The 50-day line is broken for good",
+    "The 50-day is broken for good",
     "A death cross has formed"
    ],
-   "answer": "Normal: averages act as zones",
-   "why": "Normal. ChartSchool warns not to expect exact support and resistance from moving averages, because markets overshoot. Here price dipped under the rising 50-day and closed back above it. In a bigger uptrend, ChartSchool reads a dip under the 50-day as a pullback. Investopedia calls a pullback a temporary dip in an otherwise rising stock. One dip under the line is not a broken uptrend. That takes a lower low under the last trough.",
+   "answer": "Normal, averages act as zones",
+   "why": "Normal. Moving averages aren't exact lines. Price overshoots them all the time, especially the longer ones. Here it poked about 1% under the rising 50-day and closed back above it. That's a stock holding its average, not losing it. One intraday poke doesn't end an uptrend. That takes a lower low under the last dip. A pullback to a rising 50-day that holds is a spot where good stocks often get bought.",
    "lesson_line": "Treat a moving average as a zone. One intraday poke through it isn't a broken trend.",
    "facts": [
     "f85",
     "f86",
     "f28",
     "f5",
-    "f90"
+    "f90",
+    "f30"
    ],
    "wrong": {
-    "The uptrend has now ended": "One dip under a line doesn't end an uptrend. The trend ends with a lower low under the last trough.",
-    "A death cross has formed": "A death cross is the 50-day crossing below the 200-day. Here price dipped under one average, and no averages crossed.",
-    "The 50-day line is broken for good": "It closed back above. Averages work as zones, and markets overshoot them."
+    "The uptrend has now ended": "One dip under a line doesn't end an uptrend. A lower low under the last dip does.",
+    "A death cross has formed": "A death cross is the 50-day crossing below the 200-day. Here price dipped under one line. No averages crossed.",
+    "The 50-day is broken for good": "It closed back above. Averages work as zones, and price overshoots them."
    },
-   "simple": "It is normal, because a moving average works as a zone, and the stock closed back above it.",
+   "simple": "Normal. A moving average works as a zone, and the stock closed back above it.",
    "deeper": {
-    "counter": "The read changes only if the trend itself breaks. ChartSchool's Dow Theory keeps an uptrend in place until a lower low forms and the decline goes under the previous low. Watch that trough, not the line."
+    "counter": "The read changes only if the trend itself breaks. ChartSchool warns not to expect exact support from moving averages, because markets overshoot. Its Dow Theory keeps an uptrend in place until a lower low forms under the previous low. Watch that low, not the line."
    },
    "tier": "extended",
    "risk": {
@@ -3021,7 +3121,7 @@
      "fixed before (checker, Fidelity wording)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q25",
@@ -3029,7 +3129,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "extended",
-   "q": "When we call a stock extended, what do we mean?",
+   "q": "Someone in chat says the stock you want is way too extended. What does that mean?",
    "choices": [
     "Stretched far above its averages",
     "Down a lot from its 52-week high",
@@ -3037,20 +3137,21 @@
     "Trading after the market's close"
    ],
    "answer": "Stretched far above its averages",
-   "why": "Stretched far above its averages. Our rule reads a chart in percents, and one of them is how far a stock is extended from its moving averages. ChartSchool's distance from moving average indicator measures the same thing. ChartSchool's glossary adds that an extended stock has risen past its pivot point. Extended does not mean it must fall. It means the advance has already begun, so a new buy carries more risk.",
+   "why": "Stretched far above its averages. We read every chart in percents, and one of them is how far a stock sits above its moving averages. Extended doesn't mean it has to fall. It means the move already started without you. Buy it now and your stop is a long way down, or you're buying right before a pullback. If it's more than 10% above its 9 EMA, we skip it.",
    "lesson_line": "Extended is a measurement, not a feeling. Know the percent before you chase.",
    "facts": [
     "h1",
     "f95",
-    "f96"
+    "f96",
+    "h_c29"
    ],
    "wrong": {
-    "Down a lot from its 52-week high": "That's the other number we track, percent down from highs. Extended is the stretch above the averages.",
+    "Down a lot from its 52-week high": "That's the other number we track, percent off the highs. Extended is the stretch above the averages.",
     "Stuck in a tight sideways range": "That's a stock resting. Extended is a stock that has run far from its averages.",
-    "Trading after the market's close": "That's a time of day, not a chart reading. On a chart, we use extended for how far price is stretched above its averages."
+    "Trading after the market's close": "That's a time of day, not a chart read. On a chart, extended means stretched above the averages."
    },
    "house": true,
-   "simple": "It means the price has run far above its moving averages, and we measure that stretch in percent.",
+   "simple": "The price has run far above its moving averages, and we measure that stretch in percent.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -3058,7 +3159,10 @@
      "house rule (h1, owner's rulebook A14)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool's Distance From Moving Average indicator measures the same stretch. Its glossary calls a stock that has risen past its pivot point a risky buy, because it has already begun its advance."
+   }
   },
   {
    "key": "q26",
@@ -3066,7 +3170,7 @@
    "rung": 5,
    "format": "mcq",
    "term": "percent extended",
-   "q": "A stock closes at $66. Its 50-day average is $60. How far above the 50-day is it?",
+   "q": "Your stock closes at $66 and its 50-day sits at $60. How far above the 50-day is it?",
    "answer": "10.0%",
    "calc": {
     "fn": "pct_change",
@@ -3077,17 +3181,17 @@
    },
    "suffix": "%",
    "house": true,
-   "why": "10%. Subtract the average from the close, then divide by the average: (66 - 60) / 60 = 10%. ChartSchool measures distance from a moving average as a percent of the average. A $5 gap means far more on a $20 stock than on a $500 stock. We read extension the same way.",
-   "lesson_line": "Measure extension in percent, not dollars. Then a $20 stock and a $500 stock compare fairly.",
+   "why": "10%. Take the gap, then divide by the average. $66 minus $60 is $6. $6 divided by $60 is 10%. Always divide by the average, not the close. Percent is what lets you compare: a $5 gap on a $20 stock means far more than on a $500 stock. Just know which line you measured from. Our too-stretched line uses the 9 EMA, not the 50-day.",
+   "lesson_line": "Measure extension in percent, not dollars. Then any two stocks compare fairly.",
    "facts": [
     "h1",
     "f97",
     "f98",
     "h_c29"
    ],
-   "simple": "It's 10% above, because the gap between the close and the average is one tenth of the $60 average.",
+   "simple": "It's 10% above. The gap between the close and the average is one tenth of the $60 average.",
    "deeper": {
-    "counter": "Always say which average you measured from. Our skip line uses the 9 EMA: we skip a long that is more than 10% above its 9 EMA. This question measures from the 50-day, so its 10% is not the same test."
+    "counter": "Always say which average you measured from. Our skip line uses the 9 EMA: we skip a long that is more than 10% above its 9 EMA. This question measures from the 50-day, so its 10% is not the same test. ChartSchool measures distance from a moving average as a percent of the average."
    },
    "tier": "extended",
    "risk": {
@@ -3097,7 +3201,7 @@
      "house rule (h1, owner's rulebook A14 and C29)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "9.1%",
     "6.0%",
@@ -3105,9 +3209,9 @@
     "10.0%"
    ],
    "wrong": {
-    "9.1%": "Divided the $6 gap by the $66 close, not the $60 average.",
-    "6.0%": "Used the $6 gap as a percent and never divided by $60.",
-    "110.0%": "Took the close as a percent of the average, not the gap."
+    "9.1%": "You divided the $6 gap by the $66 close, not the $60 average.",
+    "6.0%": "You took the $6 gap as a percent and never divided by $60.",
+    "110.0%": "That's the close as a percent of the average, not the gap."
    }
   },
   {
@@ -3117,32 +3221,32 @@
    "format": "scenario",
    "term": "extended",
    "story": "A leader broke out three weeks ago. It now sits 25% above its 50-day average, its widest stretch in a year. You missed the entry.",
-   "q": "What's the sound move now?",
+   "q": "What's the play now?",
    "choices": [
     "Wait for a pullback or a new setup",
     "Buy now before it runs further",
-    "Short it: it has to drop back",
+    "Short it, it has to drop back",
     "Buy half now and half on a dip"
    ],
    "answer": "Wait for a pullback or a new setup",
-   "why": "Wait for a pullback or a new setup. The stock sits 25% above its 50-day average, its widest stretch in a year. ChartSchool calls a stock past its buy point a risky buy, because the advance has already begun. Its overview adds that after a big advance it may be prudent to wait for a pullback. Extended is not a reason to short: far above the average can be strength in a strong uptrend.",
-   "lesson_line": "An extended stock has already begun its advance. Wait for a pullback or a new setup.",
+   "why": "Wait for a pullback or a new setup. At 25% over the 50-day, the move happened without you. Buy here and your stop is a long way down. Put it tight instead and the first normal pullback takes you out. I'd rather miss it than chase it. Leaders give you another spot. Let it rest and pull back toward its rising averages, or build a new base. Then buy that with a stop that makes sense.",
+   "lesson_line": "I'd rather miss it than chase it. Leaders give you another spot.",
    "facts": [
     "f95",
     "f99",
     "f100",
     "f231",
     "f29",
-    "h_lb_a5"
+    "rw_add"
    ],
    "wrong": {
-    "Buy now before it runs further": "That's chasing. ChartSchool calls a stock past its buy point a risky buy, because the advance has already begun.",
-    "Short it: it has to drop back": "Far above the average can be strength in a strong uptrend. Extended is a reason to wait, not to short.",
-    "Buy half now and half on a dip": "We don't scale in. Our rule is the full size at one price with one stop, no adding. ChartSchool calls a stretched buy risky."
+    "Buy now before it runs further": "That's chasing. The move already started, so your risk to a sensible stop is huge.",
+    "Buy half now and half on a dip": "We don't scale in. We buy the full size at one price with one stop. Adding on a dip is never the plan.",
+    "Short it, it has to drop back": "Stretched isn't the same as done. Far above the average can just be strength in a strong uptrend."
    },
-   "simple": "Wait for a pullback or a new setup, because buying a stock this stretched means buying after the move began.",
+   "simple": "Wait for a pullback or a new setup. Buying this stretched means buying after the move already ran.",
    "deeper": {
-    "trap": "The trap is fear of missing out. ChartSchool says a stock far above its average may be ripe for a pullback. After a big advance, it adds, waiting for a pullback may be prudent. Buying here means buying after the advance has already begun."
+    "trap": "The trap is fear of missing out. ChartSchool calls a stock past its buy point a risky buy, because the advance has already begun. After a big advance, it adds, waiting for a pullback may be prudent."
    },
    "tier": "expert",
    "risk": {
@@ -3152,7 +3256,7 @@
      "fixed before (checker, ChartSchool wording)"
     ]
    },
-   "batch": "wave8"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q28",
@@ -3160,7 +3264,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "overbought",
-   "q": "On the RSI, what reading is traditionally called overbought?",
+   "q": "RSI on your stock reads 76. Which RSI reading do traders call overbought?",
    "choices": [
     "RSI above 70",
     "RSI below 30",
@@ -3168,8 +3272,8 @@
     "RSI above 14"
    ],
    "answer": "RSI above 70",
-   "why": "RSI above 70. RSI moves between zero and 100. Wilder considered RSI overbought above 70 and oversold below 30, and ChartSchool, Investopedia and Fidelity give the same traditional levels. Investopedia words it as 70 or above. A reading of 50 is the middle of the scale, not an extreme.",
-   "lesson_line": "On RSI, 70 is the classic overbought line and 30 the oversold line.",
+   "why": "Above 70. RSI runs from zero to 100. Above 70 is the classic overbought line and below 30 the classic oversold line, so 76 counts. 50 is just the middle of the scale. And 14 is the lookback setting, how many bars RSI uses, not a level. Know the lines, but don't trade off them alone. A strong stock can sit above 70 for a long time.",
+   "lesson_line": "On RSI, 70 is the classic overbought line and 30 the oversold line. Neither one is a trade.",
    "facts": [
     "f101",
     "f107",
@@ -3179,10 +3283,10 @@
    ],
    "wrong": {
     "RSI below 30": "That's oversold, the other end of the scale.",
-    "RSI above 50": "That's the middle of the scale, not an extreme. Overbought needs a high reading.",
-    "RSI above 14": "14 is the default look-back, the number of periods RSI uses. It's a setting, not an overbought level."
+    "RSI above 50": "50 is the middle of the scale, not an extreme.",
+    "RSI above 14": "14 is the lookback, how many periods RSI uses. It's a setting, not a level."
    },
-   "simple": "Above 70 is overbought, the classic line on the RSI scale, while below 30 is oversold.",
+   "simple": "Above 70 is overbought on the RSI scale, and below 30 is oversold.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -3190,7 +3294,10 @@
      "fixed before (f235 added)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Wilder considered RSI overbought above 70 and oversold below 30. ChartSchool, Investopedia and Fidelity give the same traditional levels. Investopedia words it as 70 or above."
+   }
   },
   {
    "key": "q29",
@@ -3198,10 +3305,10 @@
    "rung": 7,
    "format": "tf",
    "term": "overbought",
-   "q": "An overbought RSI reading means the stock is about to fall.",
+   "q": "Your stock's RSI just pushed over 70. That means it's about to fall.",
    "answer": "False",
-   "why": "False. Overbought means RSI is above 70: the stock has risen far and fast. ChartSchool says momentum gauges can become overbought and stay that way in a strong uptrend. Its glossary says overbought is not the same as bearish, only that a pullback might be due. Fidelity notes RSI can stay overbought for extended periods during strong trends.",
-   "lesson_line": "In a strong uptrend, overbought can stay overbought. I don't short a leader on RSI alone.",
+   "why": "False. Overbought just means the stock has run far and fast. In a strong uptrend RSI can sit up there for a long time while price keeps climbing. It works better in a choppy range than in a trend. Overbought isn't bearish. At most it says a pullback might be due. I'd never sell a leader on an RSI number alone. Price breaking its trend is what gets me out.",
+   "lesson_line": "Overbought can stay overbought. I don't sell a leader on RSI alone.",
    "facts": [
     "f102",
     "f106",
@@ -3210,16 +3317,16 @@
     "f214",
     "f101"
    ],
-   "simple": "False, because in a strong uptrend RSI can stay overbought for a long time while price keeps rising.",
+   "simple": "False. In a strong uptrend, RSI can stay overbought for a long time while price keeps rising.",
    "deeper": {
-    "trap": "The trap is shorting a leader because RSI says overbought. Investopedia notes that RSI works best in trading ranges, not trending markets. In a strong trend the gauge can sit above 70 for extended periods while price climbs. Overbought says the stock has run, not that it is done."
+    "trap": "The trap is selling a leader because RSI says overbought. ChartSchool says overbought is not the same as bearish. Investopedia notes RSI works best in trading ranges, and Fidelity says RSI can stay overbought for extended periods during strong trends."
    },
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q30",
@@ -3236,8 +3343,8 @@
     "It should bounce once RSI nears 20"
    ],
    "answer": "It can stay oversold for a long time",
-   "why": "It can stay oversold for a long time. RSI below 30 is the traditional oversold line, so 25 qualifies. Investopedia says an oversold condition can last a long time, and a rally may not come soon, or at all. It calls oversold an alert, not a buy signal. Many traders wait for price to start moving up before buying.",
-   "lesson_line": "Oversold is an alert, not a buy signal. Falling stocks can look cheap all the way down.",
+   "why": "It can stay oversold for a long time. RSI at 25 is under the classic 30 line, sure. But in a steady downtrend that reading can hang down there while price keeps falling. Oversold is an alert, not a buy signal. Falling stocks look cheap all the way down. Price has to turn first, a higher low and then a higher high. And a stock that's fallen for months is probably under its 200-day, where we don't buy stocks at all. I'd rather buy strength than guess a bottom.",
+   "lesson_line": "Oversold is an alert, not a buy signal. I'd rather buy strength than guess a bottom.",
    "facts": [
     "f111",
     "f112",
@@ -3247,16 +3354,17 @@
     "f3",
     "f211",
     "f213",
-    "f101"
+    "f101",
+    "h_w_200"
    ],
    "wrong": {
-    "Oversold means it is time to buy now": "Investopedia says some traders wrongly read oversold as a buy signal. It's more of an alert.",
+    "Oversold means it is time to buy now": "That's the mistake. Oversold is an alert, not a buy signal.",
     "RSI 25 means the downtrend has ended": "A reading doesn't end a trend. Price ends it, with a higher low and then a higher high.",
-    "It should bounce once RSI nears 20": "No reading promises a bounce, not even a lower one. Investopedia says an oversold rally may not come soon, or at all."
+    "It should bounce once RSI nears 20": "No reading promises a bounce. A rally may not come soon, or at all."
    },
-   "simple": "It can stay oversold for a long time, because a weak stock can keep falling while its RSI stays low.",
+   "simple": "It can stay oversold for a long time. A weak stock can keep falling while its RSI stays low.",
    "deeper": {
-    "trap": "Investopedia warns that stocks that keep falling look cheap all the way down. In a strong downtrend, Fidelity's slides note, an oscillator can stay in its oversold zone and give many false signals on the bounces. Let price show the turn first: a higher low, then a higher high above the last peak."
+    "trap": "Investopedia warns that stocks that keep falling look cheap all the way down, and that many traders wait for the price to start moving up before buying. In a strong downtrend, Fidelity's slides note, an oscillator can stay in its oversold zone and give many false signals."
    },
    "tier": "extended",
    "risk": {
@@ -3265,7 +3373,7 @@
      "fixed before (checker, Investopedia wording)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q31",
@@ -3273,7 +3381,7 @@
    "rung": 5,
    "format": "mcq",
    "term": "RSI",
-   "q": "What does the RSI measure?",
+   "q": "You've got RSI plotted under your chart. What is it actually measuring?",
    "choices": [
     "A stock's recent gains vs losses",
     "A stock's move vs the S&P 500",
@@ -3281,8 +3389,8 @@
     "Price vs its 200-day average"
    ],
    "answer": "A stock's recent gains vs losses",
-   "why": "A stock's recent gains vs losses. ChartSchool builds RSI from three parts: RS, average gain and average loss, over 14 periods by Wilder's default. Fidelity says RSI compares recent gains to recent losses, usually on a 0 to 100 scale. Investopedia says it compares a stock's strength on up days with its strength on down days.",
-   "lesson_line": "RSI weighs a stock's own recent gains against its own recent losses.",
+   "why": "A stock's recent gains against its recent losses. RSI looks at one stock alone. It weighs the size of its up moves against its down moves. The standard setting is 14 periods, on a 0 to 100 scale. It doesn't compare the stock to the market. That's relative strength, a different thing with a confusingly similar name. Know which one you're looking at.",
+   "lesson_line": "RSI weighs a stock's own recent gains against its own recent losses. It never looks at the market.",
    "facts": [
     "f103",
     "f104",
@@ -3292,9 +3400,9 @@
     "f96"
    ],
    "wrong": {
-    "A stock's move vs the S&P 500": "RSI looks at one stock alone. Investopedia says it compares the stock's up days with its own down days.",
-    "Today's volume vs average volume": "That's relative volume. RSI uses price changes only.",
-    "Price vs its 200-day average": "That's distance from a moving average. RSI uses the size of up moves and down moves."
+    "A stock's move vs the S&P 500": "RSI looks at one stock alone. Comparing to the index is relative strength.",
+    "Today's volume vs average volume": "That's relative volume. RSI only uses price changes.",
+    "Price vs its 200-day average": "That's distance from an average. RSI uses the size of the up moves and down moves."
    },
    "simple": "RSI measures a stock's own recent gains against its own recent losses.",
    "tier": "extended",
@@ -3302,7 +3410,10 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool builds RSI from RS, average gain and average loss, over 14 periods by Wilder's default. Fidelity says RSI compares recent gains to recent losses. Investopedia says it compares strength on up days with strength on down days."
+   }
   },
   {
    "key": "q32",
@@ -3310,7 +3421,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "relative strength",
-   "q": "In chart talk, what does relative strength compare?",
+   "q": "You're picking between two names for your watchlist, and a friend says check the RS. What does relative strength compare?",
    "choices": [
     "A stock's move vs a benchmark",
     "Its price today vs a year ago",
@@ -3318,7 +3429,7 @@
     "Price vs its moving average"
    ],
    "answer": "A stock's move vs a benchmark",
-   "why": "A stock's move vs a benchmark. ChartSchool's price relative is a ratio chart comparing one security with another. Fidelity says it is often used against a market index. Investopedia uses it to find stocks that outperform the market or a chosen benchmark. The CMT Association notes it has nothing to do with the RSI.",
+   "why": "A stock's move against a benchmark, like the market. If the index is up a little and your stock is up a lot, that's relative strength. It's a ratio of one against the other. When that line rises, your stock is beating the index. It has nothing to do with RSI. I want stocks beating the market, not just rising with it. Those are the ones that lead.",
    "lesson_line": "I want stocks beating the market, not just rising with it.",
    "facts": [
     "f115",
@@ -3326,20 +3437,24 @@
     "f118",
     "f222",
     "f127",
-    "f96"
+    "f96",
+    "f223"
    ],
    "wrong": {
-    "Today's volume vs normal volume": "That's relative volume.",
-    "Price vs its moving average": "That's distance from an average. Relative strength compares the stock with a second security, such as an index.",
-    "Its price today vs a year ago": "That's the stock against its own past. Relative strength compares it with a second security, such as a market index."
+    "Today's volume vs normal volume": "That's relative volume, a different read.",
+    "Price vs its moving average": "That's distance from an average. Relative strength compares the stock with the market.",
+    "Its price today vs a year ago": "That's the stock against its own past. Relative strength compares it with an index."
    },
-   "simple": "It compares a stock's move with a benchmark, such as a market index, to see if it beats the market.",
+   "simple": "It compares a stock's move with a benchmark, like a market index, to see if it beats the market.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool's price relative is a ratio chart comparing one security with another. Fidelity says it's often used against a market index. The CMT Association notes it has nothing to do with Wilder's RSI."
+   }
   },
   {
    "key": "q33",
@@ -3347,7 +3462,7 @@
    "rung": 3,
    "format": "mcq",
    "term": "leader",
-   "q": "In chart talk, what is a leader?",
+   "q": "Someone calls a stock a leader. On a chart, what makes it one?",
    "choices": [
     "A stock outperforming the market",
     "The biggest company in its industry",
@@ -3355,8 +3470,8 @@
     "The stock with the highest share price"
    ],
    "answer": "A stock outperforming the market",
-   "why": "A stock outperforming the market. ChartSchool's glossary defines a leader as an industry or company outperforming the market. A relative strength chart against the stock's group shows whether it is leading or lagging its peers. In business talk, Investopedia's market leader is the company with the largest market share, a different meaning.",
-   "lesson_line": "Leaders are found by performance, not by fame. Check how the stock moves against the index.",
+   "why": "It's beating the market. On a chart, leadership is about performance, not fame or size. The biggest company in an industry can lag. A stock with a high share price can lag. Check it against the index and against its group. If it's beating both, it's leading. Those are the names we want on our list.",
+   "lesson_line": "Leaders are found by performance, not fame. Check the stock against the index and its group.",
    "facts": [
     "f120",
     "f224",
@@ -3365,8 +3480,8 @@
    ],
    "wrong": {
     "The biggest company in its industry": "That's the business meaning, market share. On a chart, a leader is the stock beating the market.",
-    "The most heavily traded stock": "Volume shows activity, not leadership. A busy stock can still lag the market.",
-    "The stock with the highest share price": "A share price says nothing about performance. A leader is judged by its returns against the market, not by what one share costs."
+    "The most heavily traded stock": "Volume shows activity, not leadership. A busy stock can still lag.",
+    "The stock with the highest share price": "A share price says nothing about performance. A leader is judged by its returns against the market."
    },
    "simple": "A leader is a stock doing better than the market, judged by how it moves, not by its size.",
    "deeper": {
@@ -3377,7 +3492,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q34",
@@ -3385,16 +3500,16 @@
    "rung": 7,
    "format": "scenario",
    "term": "relative strength",
-   "story": "Over one month, the S&P 500 falls 8%. Stock A falls 2%. Stock B falls 15%.",
-   "q": "Which stock showed relative strength?",
+   "story": "Over one month, the S&P 500 falls 8%. KZRN falls 2%. BLTQ falls 15%.",
+   "q": "Which one showed relative strength?",
    "choices": [
-    "A: it fell less than the index",
-    "B: it fell the most",
-    "Neither: both went down",
-    "Neither: you'd need each RSI first"
+    "KZRN, it fell less than the index",
+    "BLTQ, it fell the most",
+    "Neither, both went down",
+    "Neither, you'd need each RSI first"
    ],
-   "answer": "A: it fell less than the index",
-   "why": "A. Relative strength compares a stock with a benchmark. ChartSchool's price relative rises when a stock advances more than the S&P 500 or declines less. A fell 2% while the index fell 8%, so A held up better. B fell 15%, which is relative weakness. ChartSchool adds that stocks holding up best in a decline are often the leaders when the market turns.",
+   "answer": "KZRN, it fell less than the index",
+   "why": "KZRN. Relative strength is about the gap to the index, not the direction. The market fell 8% and KZRN only fell 2%, so it held up far better. BLTQ fell 15%, way worse than the index. That's relative weakness. Watch the names that hold up while the market drops. When the market turns, those are often the next leaders. That's where I start building my list.",
    "lesson_line": "Watch who holds up when the market drops. That's where the next leaders hide.",
    "facts": [
     "f116",
@@ -3405,20 +3520,20 @@
     "f222"
    ],
    "wrong": {
-    "B: it fell the most": "Falling more than the index is relative weakness.",
-    "Neither: both went down": "Relative strength is about the gap to the index, not the direction. A fell far less than the market.",
-    "Neither: you'd need each RSI first": "Relative strength is not the RSI. The CMT Association says RSI rates one stock alone, while relative strength compares two."
+    "BLTQ, it fell the most": "Falling more than the index is relative weakness, the opposite.",
+    "Neither, both went down": "Relative strength is about the gap to the index, not the direction. KZRN fell far less than the market.",
+    "Neither, you'd need each RSI first": "Relative strength isn't RSI. RSI rates one stock alone. Relative strength compares the stock with the index."
    },
-   "simple": "Stock A, because it fell less than the index, and holding up better than the market is relative strength.",
+   "simple": "KZRN. It fell less than the index, and holding up better than the market is relative strength.",
    "deeper": {
-    "example": "Relative strength is a comparison, so a falling stock can show it. With the index down 8% and A down 2%, A's ratio to the index rises even as A's price falls. When the market turns, ChartSchool says, the stocks that held up best are often the leaders. Watch them first."
+    "example": "A falling stock can show relative strength. ChartSchool's price relative rises when a stock advances more than the S&P 500 or declines less. It adds that stocks holding up best during a decline are often the leaders when the market turns around."
    },
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q35",
@@ -3426,7 +3541,7 @@
    "rung": 5,
    "format": "mcq",
    "term": "Bearish divergence",
-   "q": "Price makes a higher high, but RSI makes a lower high. Which word fits?",
+   "q": "Your stock prints a new high, but RSI tops out lower than it did at the last high. What's that called?",
    "choices": [
     "Bearish divergence",
     "Bullish divergence",
@@ -3434,7 +3549,7 @@
     "Trend confirmation"
    ],
    "answer": "Bearish divergence",
-   "why": "Bearish divergence. ChartSchool defines it as price recording a higher high while the indicator forms a lower high, and Investopedia calls it negative divergence. Fidelity says a new high that RSI does not confirm can signal a price reversal. It is a warning, not a sell signal on its own: ChartSchool says to confirm RSI signals with other tools.",
+   "why": "Bearish divergence. Price made a higher high, but the momentum behind it made a lower high. The move is running on less fuel. That's a warning, not a sell signal. I want price itself to crack before I act, like losing a key level or making a lower low. Until then, it's a note on the chart.",
    "lesson_line": "Divergence is a yellow light. Wait for price to confirm before you act on it.",
    "facts": [
     "f123",
@@ -3447,9 +3562,9 @@
    "wrong": {
     "Bullish divergence": "That's the mirror: a lower low in price with a higher low in the indicator.",
     "Golden cross": "That's two moving averages crossing, not price against an indicator.",
-    "Trend confirmation": "Confirmation would be RSI making a higher high too. Fidelity says a new high that RSI does not confirm is a divergence that can signal a reversal."
+    "Trend confirmation": "Confirmation would be RSI making a higher high too. Here it didn't."
    },
-   "simple": "It's bearish divergence, because price rose to a new high while the momentum behind it made a lower high.",
+   "simple": "Bearish divergence. Price rose to a new high while the momentum behind it made a lower high.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -3457,7 +3572,10 @@
      "fixed before (f125 removed, f236 added)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool defines it as price recording a higher high while the indicator forms a lower high, and Investopedia calls it negative divergence. Fidelity says a new high that RSI does not confirm can signal a reversal. ChartSchool says to confirm RSI signals with other tools."
+   }
   },
   {
    "key": "q36",
@@ -3465,18 +3583,19 @@
    "rung": 9,
    "format": "tf",
    "term": "divergence",
-   "q": "In a strong uptrend, bearish RSI divergences give many false signals.",
+   "q": "In a strong uptrend, bearish RSI divergences give a lot of false signals.",
    "answer": "True",
-   "why": "True. ChartSchool warns that divergences are misleading in a strong trend: a strong uptrend can show numerous bearish divergences before a top materializes. Fidelity's slides add that in some strong trends an oscillator stays in its zone and gives many false signals on corrections. A divergence is a warning to watch, not proof of a top.",
+   "why": "True. A strong uptrend can show divergence after divergence before it ever tops. Each one looks like the end, and most aren't. RSI just can't keep up with a stock that keeps running. So in a leader, a divergence is a note on the chart, not an exit. Let price break first. Your trail under the rising averages will get you out when it's really over.",
    "lesson_line": "One divergence in a strong leader is a note, not an exit. Let price break first.",
    "facts": [
     "f105",
     "f213",
-    "f214"
+    "f214",
+    "h_a11"
    ],
-   "simple": "True, because a strong uptrend can show many bearish divergences while the stock keeps going up.",
+   "simple": "True. A strong uptrend can show many bearish divergences while the stock keeps going up.",
    "deeper": {
-    "trap": "The trap is selling a strong leader on the first bearish divergence. ChartSchool says a strong uptrend can show numerous bearish divergences before a top materializes, and each one can look like the end. Let price confirm before you act."
+    "trap": "The trap is selling a strong leader on the first bearish divergence. ChartSchool says a strong uptrend can show numerous bearish divergences before a top materializes. Fidelity's slides add that in strong trends an oscillator gives many false signals on corrections."
    },
    "tier": "expert",
    "risk": {
@@ -3485,7 +3604,7 @@
      "statement reworded by the final checker: the 'does not prove' wording was a negated-absolute tell"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q37",
@@ -3493,7 +3612,7 @@
    "rung": 4,
    "format": "mcq",
    "term": "relative volume",
-   "q": "A stock trades 3,000,000 shares today. Its 50-day average volume is 1,200,000 shares. What is its relative volume?",
+   "q": "Your stock trades 3,000,000 shares today against a 50-day average of 1,200,000. What's its relative volume?",
    "answer": "2.5x",
    "calc": {
     "fn": "arith",
@@ -3504,13 +3623,14 @@
     }
    },
    "suffix": "x",
-   "why": "2.5x. Relative volume is today's volume divided by the average: 3,000,000 / 1,200,000 = 2.5. ChartSchool: an RVOL of 2.5 means volume is 2.5 times normal. A value of 1.0 means volume matches the average.",
-   "lesson_line": "Relative volume compares today with normal. A reading of 1.0 is a normal day; 2.5 is two and a half times normal.",
+   "why": "2.5x. Divide today's volume by the average. 3,000,000 divided by 1,200,000 is 2.5, so today is two and a half times a normal day. A reading of 1.0 would be a normal day. On a breakout, that's the kind of number that tells you people showed up. It raises the grade.",
+   "lesson_line": "Relative volume is today against normal. 1.0 is a normal day, and 2.5 means people showed up.",
    "facts": [
     "f126",
-    "f127"
+    "f127",
+    "h_w_vol"
    ],
-   "simple": "It's 2.5x, because today's 3,000,000 shares divided by the 1,200,000 average is two and a half times normal.",
+   "simple": "It's 2.5x. Today's 3,000,000 shares divided by the 1,200,000 average is two and a half times normal.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -3518,7 +3638,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "0.4x",
     "2.5x",
@@ -3526,9 +3646,12 @@
     "1.5x"
    ],
    "wrong": {
-    "0.4x": "Flipped it: divided the average by today's volume.",
-    "25.0x": "Decimal slip: moved the point one place too far.",
-    "1.5x": "Used the extra volume over average, not today's volume itself."
+    "0.4x": "You flipped it and divided the average by today's volume.",
+    "25.0x": "Decimal slip. You moved the point one place too far.",
+    "1.5x": "You used the extra volume over the average, not today's volume itself."
+   },
+   "deeper": {
+    "example": "ChartSchool: an RVOL of 2.5 means the current bar's volume is 2.5 times the normal volume, and a value of 1.0 means it matches the average."
    }
   },
   {
@@ -3537,7 +3660,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "heavy volume",
-   "q": "When a chart shows heavy volume on a day, what does that mean?",
+   "q": "The volume bar under today's candle towers over the rest. What does heavy volume tell you?",
    "choices": [
     "Far more shares traded than usual",
     "The price moved a lot that day",
@@ -3545,8 +3668,8 @@
     "It was the most traded stock that day"
    ],
    "answer": "Far more shares traded than usual",
-   "why": "Far more shares traded than usual. Volume counts the shares traded in a period, and heavy means well above the stock's own average. Every share bought is also a share sold, so volume alone does not say buyers beat sellers. It is not the size of the price move either: Schwab notes volume can rise with no rise in price.",
-   "lesson_line": "Volume is the crowd. Heavy volume means a lot of people cared about that day.",
+   "why": "Far more shares traded than usual. Heavy is measured against the stock's own average, not against other stocks. It doesn't mean buyers beat sellers, because every share bought is a share sold. It isn't the size of the price move either. A stock can trade huge volume and barely move. What heavy volume tells you is that a lot of people cared about that day. Then you read the candle to see who won.",
+   "lesson_line": "Volume is the crowd. Heavy volume means a lot of people cared, and the candle shows who won.",
    "facts": [
     "f130",
     "f132",
@@ -3556,11 +3679,11 @@
     "f144"
    ],
    "wrong": {
-    "The price moved a lot that day": "Price and volume are separate measures. A big move can come on light volume, and a quiet day on heavy volume.",
-    "Buyers outnumbered sellers that day": "Every share bought is a share sold. Heavy volume means more shares changed hands, not more buyers than sellers.",
-    "It was the most traded stock that day": "Heavy is judged against the stock's own average, not other stocks. Investopedia reads bars higher than average as high volume."
+    "The price moved a lot that day": "Price and volume are separate reads. A big move can come on light volume.",
+    "Buyers outnumbered sellers that day": "Every share bought is a share sold. Heavy volume means more shares changed hands, not more buyers.",
+    "It was the most traded stock that day": "Heavy is judged against the stock's own average, not against other stocks."
    },
-   "simple": "Heavy volume means far more shares than usual changed hands that day, compared with the stock's own average.",
+   "simple": "Far more shares than usual changed hands that day, compared with the stock's own average.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -3568,7 +3691,10 @@
      "fixed before (checker added f144)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool: for every buyer there is a seller, 100 shares bought = 100 shares sold. Schwab notes volume can rise with no rise in price."
+   }
   },
   {
    "key": "q39",
@@ -3577,7 +3703,7 @@
    "format": "scenario",
    "term": "light volume",
    "story": "A stock in a strong uptrend dips 6% over four days. Volume on the dip runs well below its 50-day average.",
-   "q": "How does the light volume read?",
+   "q": "What's the light volume telling you?",
    "choices": [
     "Likely just a pullback",
     "Big sellers are taking over",
@@ -3585,7 +3711,7 @@
     "Likely weak demand ahead"
    ],
    "answer": "Likely just a pullback",
-   "why": "Likely just a pullback. ChartSchool says a pullback with low relative volume is likely just a pullback. Heavier than usual volume on the drop would show traders committed to a new downtrend. Schwab adds that a decline without above average volume implies investor concern is limited. Likely is not certain: the read changes if heavy volume shows up on further selling.",
+   "why": "Likely just a pullback. The stock dipped 6% in four days, and volume dried up the whole way down. Nobody's rushing for the exits. That's what a normal pullback in a strong stock looks like. If volume had spiked on the drop, I'd worry about real selling. Likely isn't certain, so keep your stop where it is and let the stock show you.",
    "lesson_line": "Quiet dips in a strong trend are normal. Loud dips get my attention.",
    "facts": [
     "f128",
@@ -3593,16 +3719,19 @@
    ],
    "wrong": {
     "Big sellers are taking over": "Big sellers leave heavy volume behind. This dip is quiet.",
-    "Volume doesn't matter on a dip": "It matters some. Schwab reads a decline without heavy volume as limited concern.",
-    "Likely weak demand ahead": "Light volume on the way down means sellers aren't pressing. Schwab reads a decline without above average volume as a sign that concern is limited."
+    "Volume doesn't matter on a dip": "It does. A quiet dip and a loud dip read very differently.",
+    "Likely weak demand ahead": "Light volume on the way down means sellers aren't pressing. Concern looks limited, not growing."
    },
-   "simple": "It's likely just a pullback, because light volume on the dip shows few people are rushing to sell.",
+   "simple": "Likely just a pullback. Volume dried up on the dip, so few people are rushing to sell.",
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool says a pullback with low relative volume is likely just a pullback, while heavier volume on the drop shows traders committed to the move down. Schwab adds that a decline without above average volume implies investor concern is limited."
+   }
   },
   {
    "key": "q40",
@@ -3610,26 +3739,27 @@
    "rung": 8,
    "format": "tf",
    "term": "volume spike",
-   "q": "A huge volume spike after a long run-up confirms the uptrend will keep going.",
+   "q": "After a long run-up, your stock trades its biggest volume in months. That confirms the uptrend will keep going.",
    "answer": "False",
-   "why": "False. A volume spike late in a long run-up does not confirm more gains. Schwab notes high volume can signal the end of a trend, the final surge before it is exhausted. ChartSchool says relative volume spiking to 4.0 or more, especially when overbought, could foreshadow a reversal. A moderately above-average reading is different: ChartSchool says it points the other way.",
-   "lesson_line": "After a long run, the loudest day can be the last one. Respect it.",
+   "why": "False. Late in a long run, the loudest day can be the last one. That burst can be the final rush of buyers before the trend runs out. Relative volume of 4.0 or more, especially when the stock's already overbought, can come right before a reversal. Early in a move, rising volume is good. After a long run, it's a warning. That's a day to sell some into the strength, not to buy more.",
+   "lesson_line": "After a long run, the loudest day can be the last one. Sell some into it.",
    "facts": [
     "f134",
     "f129",
     "f132",
-    "f137"
+    "f137",
+    "h_a11"
    ],
-   "simple": "False, because after a long run a huge volume spike can mark the last burst of buying before the trend ends.",
+   "simple": "False. After a long run, a huge volume day can be the last burst of buying before the trend ends.",
    "deeper": {
-    "trap": "The trap is reading the loudest day as the strongest proof. Early in a move, rising volume can show traders are committed, Schwab says. After a long run, the same burst can be the last buyers rushing in. Investopedia's blow-off top is a steep rise in price and volume, followed by a steep, rapid drop."
+    "trap": "The trap is reading the loudest day as the strongest proof. Schwab notes high volume can signal the end of a trend, the final surge before it is exhausted. Investopedia's blow-off top is a steep rise in price and volume, followed by a steep, rapid drop."
    },
    "tier": "expert",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q41",
@@ -3637,7 +3767,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "parabolic",
-   "q": "When a stock goes parabolic, what is the price doing?",
+   "q": "A buddy says his stock went parabolic. What's the price doing?",
    "choices": [
     "Rising faster and faster",
     "Drifting sideways on low volume",
@@ -3645,8 +3775,8 @@
     "Gapping down at the open"
    ],
    "answer": "Rising faster and faster",
-   "why": "Rising faster and faster. Schwab describes parabolic as a rapid, accelerating rise in price. On a Fidelity webinar, the trend line under such a move has to be redrawn steeper and steeper. Investopedia's blow-off top shows how it can end: a near-vertical climb, then a steep, rapid drop.",
-   "lesson_line": "Parabolic moves speed up as they go. When they end, the drop can be steep and fast.",
+   "why": "Rising faster and faster. The climb keeps getting steeper, so any trend line under it has to be redrawn steeper and steeper. It's great to own. But these moves can end hard, with a near-vertical top and then a steep, fast drop. If you own one, sell some into the strength and trail the rest under the rising averages. Don't start chasing it up there.",
+   "lesson_line": "Parabolic moves speed up as they go. Sell some into it, and don't chase it.",
    "facts": [
     "f135",
     "f228",
@@ -3655,20 +3785,24 @@
     "f137",
     "f145",
     "f190",
-    "f155"
+    "f155",
+    "h_a11"
    ],
    "wrong": {
     "Drifting sideways on low volume": "That's a quiet range, the opposite of parabolic.",
     "Falling in a steady channel": "That's a downtrend between two parallel lines.",
     "Gapping down at the open": "A gap down is a one-day jump lower. Parabolic is a run higher that keeps speeding up."
    },
-   "simple": "Parabolic means the price is rising faster and faster, so the climb keeps getting steeper.",
+   "simple": "It's rising faster and faster, so the climb keeps getting steeper.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Schwab describes parabolic as a rapid, accelerating rise in price. On a Fidelity webinar the trend line under such a move has to be redrawn steeper and steeper. Investopedia's blow-off top shows how it can end: a near-vertical climb, then a steep, rapid drop."
+   }
   },
   {
    "key": "q42",
@@ -3676,7 +3810,7 @@
    "rung": 3,
    "format": "mcq",
    "term": "base",
-   "q": "On a chart, what is a base?",
+   "q": "You hear a stock is building a base. What does that look like on the chart?",
    "choices": [
     "A sideways range lasting weeks",
     "A one-day gap up on heavy volume",
@@ -3684,8 +3818,8 @@
     "The lowest point on the chart"
    ],
    "answer": "A sideways range lasting weeks",
-   "why": "A sideways range lasting weeks. ChartSchool describes basing as a flat trading range without any noticeable trend, a stock catching its breath. Bulkowski's flat base is a price area the stock touches again and again over several weeks or months. How bases are built and judged is a later lesson.",
-   "lesson_line": "A base is a stock catching its breath. Learn to spot the flat stretch before the next move.",
+   "why": "A sideways range that lasts weeks. The stock stops trending and goes flat, touching the same areas again and again. It's resting. That's what I want to see after a run. The stock digests the move and the sellers get used up. A base is where the next move starts from. So mark the top of the range and put the name on your radar.",
+   "lesson_line": "A base is a stock resting. Learn to spot the flat stretch before the next move.",
    "facts": [
     "f138",
     "f139"
@@ -3695,13 +3829,16 @@
     "A steady climb with no pauses": "That's a trend. A base is the pause.",
     "The lowest point on the chart": "That's one price, not a stretch of time. A base is a flat range that lasts weeks."
    },
-   "simple": "A base is a flat stretch where price moves sideways for weeks with no clear trend.",
+   "simple": "A flat stretch where price moves sideways for weeks with no clear trend.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool describes basing as a flat trading range without any noticeable trend. Bulkowski's flat base is a price area the stock touches again and again over several weeks or months."
+   }
   },
   {
    "key": "q43",
@@ -3740,7 +3877,7 @@
    "rung": 4,
    "format": "mcq",
    "term": "distribution",
-   "q": "On a chart, what does distribution mean?",
+   "q": "You read that a stock is under distribution. What's going on?",
    "choices": [
     "Selling that barely moves the price",
     "Buying that barely lifts the price",
@@ -3748,7 +3885,7 @@
     "A one-day crash on panic selling"
    ],
    "answer": "Selling that barely moves the price",
-   "why": "Selling that barely moves the price. ChartSchool defines distribution as systematic selling that does not move the price much. Schwab says one hallmark is volume rising with no rise in price. On a chart the word has nothing to do with dividends. It is not a crash either: the price barely moves while the shares change hands.",
+   "why": "Selling that barely moves the price. Big holders are getting out steadily, without dumping it all at once. On the chart you see volume rising while price makes no progress. Here the word has nothing to do with dividends. It's not a crash either, because price barely moves while the shares change hands. When I see heavy volume and no progress, I get careful with that name.",
    "lesson_line": "Heavy volume with no price progress is a warning. Someone may be selling quietly.",
    "facts": [
     "f143",
@@ -3756,17 +3893,20 @@
     "f140"
    ],
    "wrong": {
-    "A company paying out a cash dividend": "That's a different, business use of the word. On a chart, distribution means quiet selling.",
-    "Buying that barely lifts the price": "That's the opposite: buying shares without pushing the price up much.",
-    "A one-day crash on panic selling": "A crash is fast and loud. ChartSchool defines distribution as selling without significantly affecting the price."
+    "A company paying out a cash dividend": "That's the business use of the word. On a chart, distribution means quiet selling.",
+    "Buying that barely lifts the price": "That's the opposite, quiet buying. Distribution is quiet selling.",
+    "A one-day crash on panic selling": "A crash is fast and loud. Distribution is selling that barely moves the price."
    },
-   "simple": "Distribution is steady selling that barely moves the price, even while a lot of shares trade.",
+   "simple": "Steady selling that barely moves the price, even while a lot of shares trade.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool defines distribution as the systematic selling of a security without significantly affecting the price. Schwab says one hallmark is an increase in volume without an increase in price."
+   }
   },
   {
    "key": "q45",
@@ -3774,23 +3914,26 @@
    "rung": 4,
    "format": "tf",
    "term": "tight",
-   "q": "When traders say a stock is trading tight, its price swings are small.",
+   "q": "When we say a stock is getting tight, we mean its daily swings are small.",
    "answer": "True",
-   "why": "True. Tight means a narrow range with small swings. Investopedia describes a sideways market as prices staying within a tight range. Schwab notes quiet markets make smaller bars. John Bollinger, quoted by ChartSchool, says low-volatility periods are often followed by high-volatility ones.",
-   "lesson_line": "Tight is quiet. Quiet stretches are often followed by bigger moves.",
+   "why": "True. Tight means small candles in a narrow range. The stock's quiet. Quiet stretches are often followed by big moves, which is why tight action gets my attention. And when a strong stock gets tight, your stop can sit close, so the risk is small. That's the kind of spot I want to get involved in.",
+   "lesson_line": "Tight is quiet. Quiet stretches are often followed by bigger moves, and the risk is small.",
    "facts": [
     "f145",
     "f147",
     "f39",
     "f151"
    ],
-   "simple": "True, because tight means the stock trades in a narrow range with small swings.",
+   "simple": "True. Tight means the stock trades in a narrow range with small swings.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia describes a sideways market as prices staying within a tight range. Schwab notes quiet markets make smaller bars. John Bollinger, quoted by ChartSchool, says low-volatility periods are often followed by high-volatility ones."
+   }
   },
   {
    "key": "q46",
@@ -3799,15 +3942,15 @@
    "format": "scenario",
    "term": "coiled",
    "story": "For three weeks a stock's swings keep shrinking: lower highs, higher lows. Volume dries up. It's coiled in the middle of its range.",
-   "q": "What does the coil tell you about the next move?",
+   "q": "What's the coil telling you about the next move?",
    "choices": [
-    "A move may come; direction unknown",
+    "A move may come, direction unknown",
     "It most likely breaks out upward",
     "It will break down through the low",
     "It will stay quiet for months"
    ],
-   "answer": "A move may come; direction unknown",
-   "why": "A move may come; direction unknown. ChartSchool calls the narrowing pattern a coil: lower highs, higher lows, and volume that dries up, the quiet before the storm. John Bollinger notes low volatility is often followed by high volatility, and ChartSchool says narrowing bands give no directional clues. The direction of the breakout can only be determined after the break.",
+   "answer": "A move may come, direction unknown",
+   "why": "A move may be coming, but the coil doesn't pick a side. Lower highs and higher lows squeeze the range, and volume dries up. That's the quiet before the storm. Quiet stretches are often followed by big moves. But narrowing doesn't tell you the direction. You find out on the break. So set an alert at the top of the coil and one at the bottom, and let price choose.",
    "lesson_line": "A coil tells you to get ready, not which side to pick. Let the break choose.",
    "facts": [
     "f148",
@@ -3818,13 +3961,13 @@
     "f146"
    ],
    "wrong": {
-    "It will break down through the low": "Same guess the other way. ChartSchool says the direction is only known after the break has occurred.",
-    "It will stay quiet for months": "Low-volatility stretches are often followed by high volatility. That's why traders watch coils.",
-    "It most likely breaks out upward": "The story gives no trend for the coil to continue. ChartSchool says the breakout's direction can only be determined after the break."
+    "It will break down through the low": "That's a guess the other way. You only know the direction once it breaks.",
+    "It will stay quiet for months": "Quiet stretches are often followed by big moves. That's why you watch a coil.",
+    "It most likely breaks out upward": "The story gives no trend for the coil to continue. You only know the direction after the break."
    },
-   "simple": "A move may be coming, but the coil does not tell you which way, so let the break decide.",
+   "simple": "A move may be coming, but the coil doesn't tell you which way. Let the break decide.",
    "deeper": {
-    "trap": "The trap is guessing the side early. A coil looks ready to pop, and buying before the break bets on a direction the chart has not shown. ChartSchool notes the pattern usually forms as a continuation pattern, yet says the direction can only be known after the break."
+    "trap": "The trap is guessing the side early. ChartSchool calls the narrowing pattern a coil, notes it usually forms as a continuation pattern, and still says the direction can only be determined after the break. John Bollinger notes low volatility is often followed by high volatility."
    },
    "tier": "expert",
    "risk": {
@@ -3833,7 +3976,7 @@
      "only ChartSchool uses the word coil (see conflicts)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q47",
@@ -3841,7 +3984,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "52-week high",
-   "q": "What is a stock's 52-week high?",
+   "q": "Your scanner flags a stock at a new 52-week high. What is that high?",
    "choices": [
     "Its highest price in the past year",
     "Its highest price since it listed",
@@ -3849,7 +3992,7 @@
     "Its highest close of the past week"
    ],
    "answer": "Its highest price in the past year",
-   "why": "Its highest price in the past year. Investopedia: a 52-week high is simply the highest price seen over the last year. ChartSchool's new highs count uses the same 52-week look-back. It is not the all-time high: a stock can make a 52-week high and still trade below older peaks.",
+   "why": "Its highest price in the past year, since 52 weeks is a year. It's not the all-time high. A stock can make a 52-week high and still sit under peaks from years ago. A new 52-week high means buyers are paying more than at any point all year. That's strength. Pull up the longer chart too, so you know what's sitting overhead.",
    "lesson_line": "A new 52-week high means buyers are paying more than at any time all year. That's strength.",
    "facts": [
     "f58",
@@ -3858,9 +4001,9 @@
     "f41"
    ],
    "wrong": {
-    "Its highest price since it listed": "That's the all-time high. A 52-week high only looks back one year, so a stock can still sit under older highs.",
+    "Its highest price since it listed": "That's the all-time high. A 52-week high only looks back one year.",
     "Its average price over the past year": "That's an average, not a high. The 52-week high is the single highest price in that year.",
-    "Its highest close of the past week": "A week is far too short. The look-back is 52 weeks, a full year."
+    "Its highest close of the past week": "A week is far too short. The lookback is 52 weeks, a full year."
    },
    "simple": "It's the highest price the stock reached in the past 52 weeks, which is one year.",
    "tier": "core",
@@ -3868,7 +4011,10 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia: a 52-week high is simply the highest price seen over the last year. ChartSchool's new highs count uses the same 52-week lookback, and it reads new highs as buyers willing to pay even higher prices."
+   }
   },
   {
    "key": "q48",
@@ -3876,17 +4022,17 @@
    "rung": 8,
    "format": "scenario",
    "term": "new high",
-   "story": "Stock A just closed at a new 52-week high. Stock B trades 30% below its 52-week high after a long slide.",
-   "q": "Which faces less selling from trapped buyers above it?",
+   "story": "QRVL just closed at a new 52-week high. WQZN trades 30% below its 52-week high after a long slide.",
+   "q": "Which one has fewer trapped buyers overhead?",
    "choices": [
-    "A, at the new high",
-    "B, after its slide",
+    "QRVL, at the new high",
+    "WQZN, after its slide",
     "They face the same",
-    "Neither: losers just hold"
+    "Neither, losers just hold"
    ],
-   "answer": "A, at the new high",
-   "why": "A. At a new 52-week high, almost nobody who bought in the past year is holding a loss. B sits 30% under its high, so a year of buyers sits above it. ChartSchool explains that trapped buyers often sell near breakeven when price returns, which forms resistance. New highs, it adds, show buyers willing to pay even higher prices.",
-   "lesson_line": "At a new 52-week high, almost nobody from the past year is underwater. Far below the high, a trapped crowd waits.",
+   "answer": "QRVL, at the new high",
+   "why": "QRVL. At a new 52-week high, almost nobody who bought in the past year is holding a loss. There's nobody above waiting to sell just to get even. WQZN sits 30% under its high, so a whole year of buyers is stacked above it. Every rally runs into people who want out. That's why I'd rather buy strength near the highs than a cheap stock after a slide.",
+   "lesson_line": "At a new high, nobody from the past year is underwater. Far below the high, a trapped crowd waits.",
    "facts": [
     "f58",
     "f37",
@@ -3895,20 +4041,20 @@
     "f51"
    ],
    "wrong": {
-    "B, after its slide": "Cheaper isn't lighter. Every buyer between B's price and its high is a possible seller on the way back up.",
-    "They face the same": "B has a year of trapped buyers above it. A has almost none from the past year.",
-    "Neither: losers just hold": "Trapped buyers do sell. ChartSchool says many take the chance to escape near their cost with little to no loss."
+    "They face the same": "WQZN has a year of trapped buyers above it. QRVL has almost none from the past year.",
+    "WQZN, after its slide": "Cheaper isn't lighter. Every buyer between its price and its high is a seller on the way back up.",
+    "Neither, losers just hold": "Trapped buyers do sell. Many take the chance to get out near their cost."
    },
-   "simple": "Stock A, because at a new 52-week high almost no buyer from the past year is sitting on a loss.",
+   "simple": "QRVL. At a new 52-week high, almost no buyer from the past year is sitting on a loss.",
    "deeper": {
-    "counter": "A new 52-week high clears overhead supply only from buyers inside that window. A stock can sit at a 52-week high and still trade below a peak from years ago, where older buyers wait. Look at the longer chart too. The claim here covers the past year, which is all a 52-week high tells you."
+    "counter": "A new 52-week high clears overhead supply only from buyers inside that window. A stock can sit at a 52-week high and still trade below a peak from years ago, where older buyers wait. ChartSchool explains trapped buyers often sell near breakeven when price returns."
    },
    "tier": "expert",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q49",
@@ -3916,7 +4062,7 @@
    "rung": 6,
    "format": "mcq",
    "term": "down from highs",
-   "q": "A stock's high is $80. It now trades at $68. How far down from its high is it?",
+   "q": "Your stock topped at $80 and now trades at $68. How far is it off the high?",
    "answer": "15.0%",
    "calc": {
     "fn": "drawdown_pct",
@@ -3927,15 +4073,16 @@
    },
    "suffix": "%",
    "house": true,
-   "why": "15%. Subtract the price from the high, then divide by the high: (80 - 68) / 80 = 15%. Measure from the high, not from today's price. We read every chart this way, in percent down from highs, so stocks at any price compare fairly.",
-   "lesson_line": "We read a chart in percents: down from highs, extended from the averages. Percents compare across stocks.",
+   "why": "15%. Take the drop, then divide by the high. $80 minus $68 is $12. $12 divided by $80 is 15%. Always divide by the high, not today's price. Divide by $68 and you get 17.6%, which makes it look further off than it is. We read every chart this way, in percent off the high, so a $20 stock and a $500 stock compare fairly.",
+   "lesson_line": "We read a chart in percents: off the highs, extended from the averages.",
    "facts": [
     "h1",
-    "f98"
+    "f98",
+    "f97"
    ],
-   "simple": "It's 15% down, because you measure the drop from the $80 high, not from today's price.",
+   "simple": "It's 15% off the high. You measure the drop from the $80 high, not from today's price.",
    "deeper": {
-    "trap": "The trap is dividing by the wrong number. Divide the drop by today's $68 and you get a bigger figure than 15%. The stock then looks further from its high than it is. Always divide by the high."
+    "trap": "The trap is dividing by the wrong number. Divide the drop by today's $68 and you get a bigger figure than 15%, so the stock looks further from its high than it is. Always divide by the high."
    },
    "tier": "extended",
    "risk": {
@@ -3945,7 +4092,7 @@
      "house rule (h1, owner's rulebook A14)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "85.0%",
     "17.6%",
@@ -3953,9 +4100,9 @@
     "15.0%"
    ],
    "wrong": {
-    "17.6%": "Divided the $12 drop by today's $68, not by the $80 high.",
-    "12.0%": "Used the $12 drop as a percent and never divided.",
-    "85.0%": "$68 is 85% of the high. That is what is left, not the drop."
+    "17.6%": "You divided the $12 drop by today's $68, not by the $80 high.",
+    "12.0%": "You took the $12 drop as a percent and never divided.",
+    "85.0%": "$68 is 85% of the high. That's what's left, not the drop."
    }
   },
   {
@@ -3964,7 +4111,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "gap down",
-   "q": "On a daily chart, what makes a gap down?",
+   "q": "There's empty space on the daily between yesterday's bar and today's lower one. What makes that a gap down?",
    "choices": [
     "Today's high is below yesterday's low",
     "Today's low is above yesterday's high",
@@ -3972,19 +4119,19 @@
     "Today's range is smaller than usual"
    ],
    "answer": "Today's high is below yesterday's low",
-   "why": "Today's high is below yesterday's low. ChartSchool and Bulkowski both define a down gap this way. The two days' price ranges do not overlap, so an empty space shows on the chart. A lower close alone is not a chart gap. Bulkowski notes gaps are useful for showing support or resistance zones.",
-   "lesson_line": "A gap down leaves a hole above the price. Gaps often mark support or resistance zones.",
+   "why": "Today's high is below yesterday's low. The two days' ranges don't overlap at all, so there's a hole on the chart. A lower close isn't a gap. That's just a down day. Gaps matter because they often act as support or resistance later. A gap down leaves a hole above the price, and that hole is where a bounce can stall. Mark it on your chart.",
+   "lesson_line": "A gap down leaves a hole above the price. Mark it, because rallies often stall there.",
    "facts": [
     "f155",
     "f156",
     "f157"
    ],
    "wrong": {
-    "Today's low is above yesterday's high": "That's a gap up.",
-    "Today closes below yesterday's close": "That's just a down day. On a chart, a gap needs empty space between the two days' ranges.",
+    "Today's low is above yesterday's high": "That's a gap up, the other direction.",
+    "Today closes below yesterday's close": "That's just a down day. A gap needs empty space between the two days' ranges.",
     "Today's range is smaller than usual": "That's a narrow day. A gap is about the space between days, not the size of one."
    },
-   "simple": "A gap down is when today's whole range sits below yesterday's low, leaving empty space on the chart.",
+   "simple": "Today's whole range sits below yesterday's low, so the two days don't overlap and leave empty space.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -3992,7 +4139,10 @@
      "fixed before; gap has a second sense in V.05 (our Kicker), see conflicts"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool and Bulkowski both define a down gap as today's high below yesterday's low. Bulkowski notes gaps are useful for showing support or resistance zones."
+   }
   },
   {
    "key": "q51",
@@ -4000,18 +4150,18 @@
    "rung": 7,
    "format": "tf",
    "term": "gap fill",
-   "q": "An upward breakaway gap usually gets filled within a week.",
+   "q": "Your stock gaps up out of a base on heavy volume, a breakaway gap. Gaps like that usually fill within a week.",
    "answer": "False",
-   "why": "False. Bulkowski's figures for upward gaps: 85% of area gaps closed within a week, but only 1% of breakaway gaps did. ChartSchool says the adage that all gaps eventually get filled might not always hold true, especially for breakaway and runaway gaps. It warns that waiting for them to fill can devastate a portfolio.",
+   "why": "False. Breakaway gaps rarely fill fast. In one big study, only 1% of upward breakaway gaps closed within a week. The small gaps inside quiet ranges are the ones that fill, 85% within a week in the same count. So don't sit out a strong breakaway gap waiting for a fill that may never come. If the setup's there, you buy it with a stop that makes sense.",
    "lesson_line": "Don't sit out a strong breakaway gap waiting for a fill. It may never come.",
    "facts": [
     "f161",
     "f158",
     "f159"
    ],
-   "simple": "False, because Bulkowski found only 1% of upward breakaway gaps closed within a week.",
+   "simple": "False. Only 1% of upward breakaway gaps closed within a week, so don't wait for a fill.",
    "deeper": {
-    "counter": "Bulkowski's numbers cover one week. They say an upward breakaway gap rarely closes within a week, not that it never closes. Don't count on a fill, especially after a breakaway or runaway gap."
+    "counter": "Bulkowski's figures for upward gaps: 85% of area gaps closed within a week, but only 1% of breakaway gaps did. They cover one week, so they say a breakaway gap rarely closes fast, not that it never closes. ChartSchool warns that waiting for breakaway or runaway gaps to fill can devastate a portfolio."
    },
    "tier": "extended",
    "risk": {
@@ -4021,7 +4171,7 @@
      "statement reworded in wave8 to break the lesson's absolute-means-False pattern"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q52",
@@ -4029,7 +4179,7 @@
    "rung": 5,
    "format": "mcq",
    "term": "Exhaustion gap",
-   "q": "Which word is this: a gap late in a long move, on heavy volume, that closes within days as the trend ends.",
+   "q": "After a long run, a stock gaps up on huge volume. Within days it reverses and closes the gap. Which gap was it?",
    "choices": [
     "Exhaustion gap",
     "Breakaway gap",
@@ -4037,31 +4187,32 @@
     "Common gap"
    ],
    "answer": "Exhaustion gap",
-   "why": "Exhaustion gap. ChartSchool: after a long move, a gap in the direction of the move is an exhaustion gap. To count, prices should reverse soon after and close the gap. Bulkowski: it happens at the end of a trend on high volume and usually closes within a week. So the label is often clear only after the gap closes.",
-   "lesson_line": "A huge gap after a long run can be the last gasp. Watch whether it closes.",
+   "why": "An exhaustion gap. It came late in a long move, on heavy volume, and then price reversed and closed it within days. That's the last gasp. Buyers piled in one final time and ran out. You often only know for sure once the gap closes. That's why I sell some into big strength late in a run instead of adding to it. If the gap closes, the move is likely done.",
+   "lesson_line": "A huge gap after a long run can be the last gasp. Sell some into it and watch whether it closes.",
    "facts": [
     "f162",
     "f163",
     "f164",
     "f166",
     "f188",
-    "f189"
+    "f189",
+    "h_a11"
    ],
    "wrong": {
-    "Breakaway gap": "A breakaway gap starts a new trend as price leaves a consolidation area. This gap came as a trend ended.",
-    "Common gap": "Common gaps form inside quiet ranges, not at the end of a long trend.",
-    "Continuation gap": "That one forms in the middle of a move, not as the trend ends."
+    "Breakaway gap": "A breakaway gap starts a new move as price leaves a base. This one came as the move ended.",
+    "Common gap": "Common gaps form in quiet, trendless stretches, not at the end of a long run.",
+    "Continuation gap": "That one forms in the middle of a move and doesn't get closed fast."
    },
-   "simple": "It's an exhaustion gap, the last jump at the end of a long move that soon closes as the trend ends.",
+   "simple": "An exhaustion gap. It's the last jump at the end of a long move, and it soon closes.",
    "deeper": {
-    "trap": "The trap is calling it early. A tall gap on heavy volume late in a run can be a continuation gap or an exhaustion gap. ChartSchool says an exhaustion gap counts only if prices reverse soon after and close the gap. So the label is often clear only in hindsight."
+    "trap": "The trap is calling it early. ChartSchool says an exhaustion gap counts only if prices reverse soon after and close the gap. Bulkowski says it happens at the end of a trend on high volume and usually closes within a week."
    },
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q53",
@@ -4070,7 +4221,7 @@
    "format": "scenario",
    "term": "Runaway gap",
    "story": "A stock broke out of a base weeks ago and has climbed almost straight up. Today it gaps up again on heavy volume. For weeks after, it keeps making new highs and never comes back to the gap.",
-   "q": "Which gap type fits best?",
+   "q": "Which kind of gap was that?",
    "choices": [
     "Runaway gap",
     "Exhaustion gap",
@@ -4078,8 +4229,8 @@
     "Common gap"
    ],
    "answer": "Runaway gap",
-   "why": "Runaway gap. It came weeks into a straight-line advance, and price kept making new highs without closing it. Bulkowski calls this a continuation gap, and ChartSchool also calls it a measuring gap. An exhaustion gap also comes late on heavy volume. But it is usually not followed by new highs, and it tends to close within a week. A breakaway gap starts the move as price leaves a base.",
-   "lesson_line": "A gap mid-trend that never fills is strength. Don't wait for it to close before you trust the trend.",
+   "why": "A runaway gap. It came weeks into a straight-up run, and price kept making new highs without ever coming back to fill it. That's a gap in the middle of a move, also called a continuation gap. An exhaustion gap looks the same on day one, late and on heavy volume. The difference is what comes after. Exhaustion gaps get closed fast. This one never did. That's strength, so don't wait for it to fill before you trust the trend.",
+   "lesson_line": "A gap mid-trend that never fills is strength. Don't wait for it to close before you trust it.",
    "facts": [
     "f165",
     "f166",
@@ -4090,20 +4241,20 @@
     "f189"
    ],
    "wrong": {
-    "Exhaustion gap": "An exhaustion gap is usually not followed by new highs and tends to close fast. This one did the opposite.",
+    "Exhaustion gap": "An exhaustion gap isn't followed by new highs, and it closes fast. This one did the opposite.",
     "Breakaway gap": "A breakaway gap starts the move as price leaves a base. This one came weeks into the run.",
     "Common gap": "Common gaps form in quiet, trendless stretches and close within days."
    },
-   "simple": "A runaway gap, because it came in the middle of a fast climb and price kept making new highs without filling it.",
+   "simple": "A runaway gap. It came in the middle of a fast climb, and price kept making new highs.",
    "deeper": {
-    "trap": "On the gap day itself, a runaway gap and an exhaustion gap can look alike. Both come after a long run, often on heavy volume. Bulkowski tells them apart by what follows: exhaustion gaps usually close within a week, while continuation gaps see new highs without closing. Here, weeks of new highs settled it."
+    "trap": "On the gap day itself, a runaway gap and an exhaustion gap can look alike. Both come after a long run, often on heavy volume. Bulkowski tells them apart by what follows: exhaustion gaps usually close within a week, while continuation gaps see new highs without closing. ChartSchool also calls it a measuring gap."
    },
    "tier": "expert",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q54",
@@ -4112,7 +4263,7 @@
    "format": "scenario",
    "term": "Log scale",
    "story": "A stock ran from $10 to $80 in two years. On your chart, the move from $10 to $20 looks the same size as $70 to $80.",
-   "q": "What would show the $10 to $20 move as the bigger one?",
+   "q": "Which chart setting shows the $10 to $20 move as the bigger one?",
    "choices": [
     "A log price scale",
     "An arithmetic scale",
@@ -4120,7 +4271,7 @@
     "A line chart instead"
    ],
    "answer": "A log price scale",
-   "why": "Log scale. A log scale measures moves in percent. $10 to $20 is a 100% gain, while $70 to $80 is a much smaller one. On an arithmetic scale every dollar takes the same space, so the two moves look equal. Changing the timeframe or the chart type does not change how price is spaced.",
+   "why": "A log scale. It spaces price by percent. $10 to $20 is a 100% gain, while $70 to $80 is a far smaller one. On an arithmetic scale every dollar takes the same space, so the two moves look equal. Changing the timeframe or the chart type doesn't change how price is spaced. On long charts and big movers I use log, because percent is what your account feels.",
    "lesson_line": "On long charts and big movers, use log scale. Percent is what your account feels.",
    "facts": [
     "f168",
@@ -4130,16 +4281,19 @@
    ],
    "wrong": {
     "A shorter timeframe": "Zooming in changes the window, not how price is spaced. The scale is the fix.",
-    "An arithmetic scale": "That's the scale you're on. It spaces every dollar the same, so $70 to $80 looks as big as $10 to $20.",
-    "A line chart instead": "A line chart joins the closing prices. It changes how price is drawn, not how the price axis is spaced."
+    "An arithmetic scale": "That's the scale you're on. Every dollar gets the same space, so $70 to $80 looks as big as $10 to $20.",
+    "A line chart instead": "A line chart joins the closes. It changes how price is drawn, not how the price axis is spaced."
    },
-   "simple": "A log scale, because it spaces moves by percent, and $10 to $20 is a far bigger percent gain.",
+   "simple": "A log scale. It spaces moves by percent, and $10 to $20 is a far bigger percent gain.",
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool: a log scale measures price movements in percentage terms, and an advance from 10 to 20 is 100%. On a plain scale, a move from 10 to 80 shows 10 to 20 the same size as 70 to 80."
+   }
   },
   {
    "key": "q55",
@@ -4147,7 +4301,7 @@
    "rung": 4,
    "format": "mcq",
    "term": "range",
-   "q": "Today's high is $52.40 and today's low is $50.10. What is the day's range?",
+   "q": "Today your stock's high is $52.40 and its low is $50.10. What's the day's range?",
    "answer": "$2.30",
    "calc": {
     "fn": "arith",
@@ -4158,13 +4312,14 @@
     }
    },
    "prefix": "$",
-   "why": "$2.30. ChartSchool defines the daily range as the day's high minus the same day's low: $52.40 - $50.10 = $2.30. On a bar chart, Schwab notes, the height of the bar shows that range. It is not the change from yesterday's close.",
-   "lesson_line": "Range is the day's high minus its low, the distance between the two.",
+   "why": "$2.30. The high minus the low. $52.40 minus $50.10 is $2.30. On a candle it's the full height, from the top of the wick to the bottom. It's not the change from yesterday's close. The range matters for your stop. Our stop goes a few cents under the low of the day, the LOD. So if you bought near the high, you're risking a little more than $2.30 a share.",
+   "lesson_line": "Range is the day's high minus its low. Know it before you buy, because your stop sits under the low.",
    "facts": [
     "f171",
-    "f172"
+    "f172",
+    "h_lb_a3"
    ],
-   "simple": "It's $2.30, the high minus the low for the day.",
+   "simple": "It's $2.30, the day's high minus the day's low.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -4172,7 +4327,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$2.30",
     "$23.00",
@@ -4180,9 +4335,9 @@
     "$102.50"
    ],
    "wrong": {
-    "$102.50": "Added the high and the low instead of subtracting.",
-    "$51.25": "Took the midpoint of the day, not the range.",
-    "$23.00": "Decimal slip: moved the point one place up."
+    "$102.50": "You added the high and the low instead of subtracting.",
+    "$51.25": "That's the middle of the day, not the range.",
+    "$23.00": "Decimal slip. You moved the point one place."
    },
    "visual": {
     "kind": "ladder",
@@ -4204,6 +4359,9 @@
      "label": "The day's range",
      "as": "dollars"
     }
+   },
+   "deeper": {
+    "example": "ChartSchool defines the daily range as the day's high minus the same day's low. Schwab notes the vertical height of a bar shows that range."
    }
   },
   {
@@ -4285,22 +4443,24 @@
    "rung": 5,
    "format": "mcq",
    "term": "correction",
-   "q": "The S&P 500 peaks at 5,000 and falls to 4,400. How far is it down from the peak?",
-   "answer": "12.0%",
+   "q": "The S&P 500 peaks at 5,000 and falls to 4,400. Is that a correction yet?",
+   "answer": "Yes, it's down 12.0%",
    "calc": {
-    "fn": "drawdown_pct",
+    "fn": "arith",
     "args": {
+     "expr": "(peak - low) / peak * 100",
      "peak": 5000,
-     "trough": 4400
+     "low": 4400
     }
    },
    "suffix": "%",
-   "why": "12%. Divide the drop by the peak: (5,000 - 4,400) / 5,000 = 12%. Investopedia calls a decline of 10% or more from the peak a correction. By that line, this drop is a correction.",
-   "lesson_line": "Measure a drop from the peak. A fall of 10% or more counts as a correction.",
+   "why": "Yes, it's a correction. Take the drop, then divide by the peak. 5,000 minus 4,400 is 600. 600 divided by 5,000 is 12%. A drop of 10% or more from the peak is a correction. 20% or more is a bear market. In a market like that I get picky. Our market reading in the app tells you how much to trade, and it's worth checking before every buy.",
+   "lesson_line": "Measure a drop from the peak. Down 10% or more is a correction.",
    "facts": [
-    "f185"
+    "f185",
+    "f184"
    ],
-   "simple": "It is down 12%, past the 10% line Investopedia uses for a correction.",
+   "simple": "Yes. It's down 12% from the peak, past the 10% line for a correction.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -4308,17 +4468,20 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
-    "12.0%",
-    "6.4%",
-    "1.2%",
-    "0.1%"
+    "Yes, it's down 12.0%",
+    "No, it's down only 1.2%",
+    "No, it's down only 6.4%",
+    "No, a correction needs 20%"
    ],
    "wrong": {
-    "1.2%": "Decimal slip: moved the point one place too far.",
-    "6.4%": "Divided the drop by the two levels added together.",
-    "0.1%": "Divided the drop by the peak and never made it a percent."
+    "No, it's down only 1.2%": "Decimal slip. You moved the point one place too far.",
+    "No, it's down only 6.4%": "You divided the drop by the two levels added together. Divide by the peak.",
+    "No, a correction needs 20%": "20% is the bear market line. A correction starts at 10% off the peak."
+   },
+   "deeper": {
+    "example": "Investopedia calls a decline of 10% or more from the peak a correction. Schwab puts a correction at more than 10% but less than 20%, and a bear market at 20% or greater."
    }
   },
   {
@@ -4327,14 +4490,14 @@
    "rung": 2,
    "format": "tf",
    "term": "bear market",
-   "q": "Generally, a bear market means a broad market index has fallen 20% or more over at least two months.",
+   "q": "The Nasdaq Composite is down 22% from its peak after three months of selling. That's a bear market by the usual definition.",
    "answer": "True",
-   "why": "True. Investor.gov is the SEC's site for investors. It says a bear market generally means a broad market index falls by 20% or more over at least a two-month period. It also describes a bear market as a time of falling prices and pessimistic sentiment. The word generally matters: this is a rule of thumb, not a law.",
-   "lesson_line": "A 20% drop from the peak in a broad index is the usual line for a bear market.",
+   "why": "True. The usual line for a bear market is a broad index down 20% or more over at least two months. Down 22% over three months clears both. The label matters because breakouts fail more often when the market isn't backing them. So I trade a lot less and protect the account first. Check the market reading in the app before every buy.",
+   "lesson_line": "A broad index down 20% or more is a bear market. Protect the account first.",
    "facts": [
     "f186"
    ],
-   "simple": "True, the SEC's investor site says a bear market is generally a 20% or more drop over at least two months.",
+   "simple": "True. A broad index down 20% or more over at least two months is a bear market.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -4342,7 +4505,10 @@
      "one cited fact only (Tier 1); Investor.gov returned 403 to WebFetch on 2026-11-12 (confirmed by the checker on 2026-11-09)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investor.gov, the SEC's site for investors, says a bear market generally occurs when a broad market index falls by 20% or more over at least a two-month period, a time of falling prices and pessimistic sentiment."
+   }
   },
   {
    "key": "q59",
@@ -4350,7 +4516,7 @@
    "rung": 4,
    "format": "mcq",
    "term": "Whipsaw",
-   "q": "Which word is this: you act on a buy signal, and the price reverses against you within days.",
+   "q": "You buy on a signal Monday. By Wednesday price has reversed hard against you. What's that called?",
    "choices": [
     "Whipsaw",
     "Accumulation",
@@ -4358,8 +4524,8 @@
     "Golden cross"
    ],
    "answer": "Whipsaw",
-   "why": "Whipsaw. ChartSchool defines it as a buy or sell signal that is reversed in a short time. Investopedia says you are whipsawed when price abruptly moves the other way right after you buy. Volatile markets and sensitive indicators can cause whipsaws.",
-   "lesson_line": "Whipsaws are a cost of trading signals. Volatile markets and sensitive indicators can cause them.",
+   "why": "A whipsaw. The signal flipped on you in a short time. Choppy markets and twitchy indicators cause a lot of them. You can't avoid every one. That's the cost of trading signals. What you control is the damage. A stop a few cents under the low of the day keeps a whipsaw a small loss. And when you're getting whipsawed again and again, the market's telling you to trade less.",
+   "lesson_line": "Whipsaws are a cost of trading. A tight stop keeps them small, and a string of them says trade less.",
    "facts": [
     "f73",
     "f74",
@@ -4367,14 +4533,15 @@
     "f141",
     "f142",
     "f189",
-    "f83"
+    "f83",
+    "h_lb_a3"
    ],
    "wrong": {
     "Accumulation": "Accumulation is big buyers quietly building positions in a range.",
     "Breakaway gap": "A breakaway gap is a gap that starts a new move.",
     "Golden cross": "A golden cross is a shorter moving average crossing above a longer one."
    },
-   "simple": "A whipsaw, because the buy signal reversed against you in a short time.",
+   "simple": "A whipsaw. The buy signal reversed against you in a short time.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -4382,7 +4549,10 @@
      "fixed before (checker, ChartSchool wording)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool defines a whipsaw as a buy or sell signal that is reversed in a short time, caused by volatile markets and sensitive indicators. Investopedia says you are whipsawed when price abruptly moves the other way right after you buy."
+   }
   },
   {
    "key": "q60",
@@ -4390,7 +4560,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "uptrend line",
-   "q": "How do you draw an uptrend line?",
+   "q": "You want to draw an uptrend line on your stock's daily chart. Where does it go?",
    "choices": [
     "Connect the rising lows",
     "Connect the rising highs",
@@ -4398,7 +4568,7 @@
     "Draw a flat line at the lows"
    ],
    "answer": "Connect the rising lows",
-   "why": "Connect the rising lows. ChartSchool says an uptrend line has a positive slope and joins two or more lows. Two points draw it, and a third touch confirms it. A line over the rally peaks is the channel line, the upper edge. Murphy's laws on ChartSchool add that a line tested more often matters more.",
+   "why": "Connect the rising lows. The line runs under the dips and slopes up. Two lows draw it, and a third touch confirms it. The more times it's tested and holds, the more it matters. A line across the rally peaks is the channel line, the top edge. Prices often pull back to the trend line before they move on, so it's a spot to watch for an entry.",
    "lesson_line": "Uptrend lines go under the lows. The more clean touches, the more the line matters.",
    "facts": [
     "f176",
@@ -4411,11 +4581,11 @@
     "f33"
    ],
    "wrong": {
-    "Connect the rising highs": "In an uptrend, a line over the rally peaks is the channel line, the upper edge.",
-    "Connect the closing prices": "That's a line chart, not a trendline.",
-    "Draw a flat line at the lows": "A flat line at the lows marks support. An uptrend line slopes up: ChartSchool says it has a positive slope."
+    "Connect the rising highs": "A line over the rally peaks is the channel line, the upper edge.",
+    "Connect the closing prices": "That's a line chart, not a trend line.",
+    "Draw a flat line at the lows": "A flat line at the lows marks support. An uptrend line slopes up."
    },
-   "simple": "Connect the rising lows, because an uptrend line runs under the dips and slopes upward.",
+   "simple": "Connect the rising lows. An uptrend line runs under the dips and slopes upward.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -4423,7 +4593,10 @@
      "fixed before (checker added f234)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool: an uptrend line has a positive slope and joins two or more lows. It takes two points to draw it, and the third confirms it. Murphy's rule adds that a line tested more often matters more."
+   }
   },
   {
    "key": "q61",
@@ -4431,10 +4604,10 @@
    "rung": 7,
    "format": "tf",
    "term": "trendline break",
-   "q": "When price breaks below an uptrend line, the uptrend has reversed.",
+   "q": "Your stock just closed under its uptrend line. That means the uptrend is over.",
    "answer": "False",
-   "why": "False. A break of an uptrend line is a warning, not a verdict. ChartSchool says trend line breaks should serve merely as a warning that a change in trend may be imminent. It says to check a break with support and resistance levels or peak and trough analysis. By Dow Theory, an uptrend stays in place until a lower low forms. Investopedia says only that a break could indicate a reversal, and that many false signals occur.",
-   "lesson_line": "A broken trendline says pay attention. A lower low says the uptrend is done.",
+   "why": "False. A broken trend line is a warning, not a verdict. Check it against the swing lows and the support levels. The uptrend holds until price makes a lower low under the last dip. Trend line breaks throw a lot of false signals. So pay attention and keep your stop where it is. Let price confirm before you call it done.",
+   "lesson_line": "A broken trend line says pay attention. A lower low says the uptrend is done.",
    "facts": [
     "f178",
     "f179",
@@ -4443,9 +4616,9 @@
     "f195",
     "f196"
    ],
-   "simple": "False, because a broken trendline is only a warning, and the uptrend holds until price makes a lower low.",
+   "simple": "False. A broken trend line is only a warning, and the uptrend holds until price makes a lower low.",
    "deeper": {
-    "trap": "The trap is acting on the line alone. ChartSchool says to validate a trend line break with horizontal support and resistance or peak and trough analysis. By Dow Theory, an uptrend is in place until a lower low forms and the decline exceeds the previous low. Check the swing lows before you call the trend over."
+    "trap": "The trap is acting on the line alone. ChartSchool says trend line breaks should serve merely as a warning, to be checked with support and resistance or peak and trough analysis. Investopedia says a break could indicate a reversal, and that many false signals occur."
    },
    "tier": "extended",
    "risk": {
@@ -4454,7 +4627,7 @@
      "sources differ in strength (Murphy: usually signals), see conflicts"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q62",
@@ -4462,26 +4635,26 @@
    "rung": 8,
    "format": "tf",
    "term": "reversal",
-   "q": "In its first few days, a reversal can look exactly like an ordinary pullback.",
+   "q": "In its first few days, a reversal can look exactly like a normal pullback.",
    "answer": "True",
-   "why": "True. Investopedia says there is no perfect way to tell a pullback from a reversal. For a few critical sessions, they look identical. Its reversal page says the same. Dow Theory adds that investors often mistake a counter-move for the start of a new trend. Only later price action sorts them out.",
-   "lesson_line": "You won't know at the start. That's why our stop goes in first, before you find out.",
+   "why": "True. For a few sessions you can't tell them apart. Both start as down days in a stock that was going up. Only later price action sorts it out. That's why the stop goes in first, before you find out. If it's a pullback, your stop never gets touched. If it's a reversal, your stop takes you out small. Either way you don't have to guess.",
+   "lesson_line": "You won't know at the start. That's why our stop goes in first.",
    "facts": [
     "f26",
     "f27",
     "f7",
     "h_lb_a3"
    ],
-   "simple": "True, because at the start a reversal and a pullback move the same way, so you cannot tell them apart.",
+   "simple": "True. At the start, a reversal and a pullback move the same way, so you can't tell them apart.",
    "deeper": {
-    "trap": "The trap is reading the first down days as proof either way. Investopedia says a pullback and a reversal look identical for a few critical sessions. Dow Theory warns that people often mistake a counter-move for a new trend. Only later price action sorts them out."
+    "trap": "The trap is reading the first down days as proof either way. Investopedia says a pullback and a reversal look identical for a few critical sessions. Dow Theory warns that people often mistake a counter-move for a new trend."
    },
    "tier": "expert",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q63",
@@ -4489,7 +4662,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "pullback",
-   "q": "What is a pullback?",
+   "q": "Everyone's waiting for a pullback to buy your stock. What are they waiting for?",
    "choices": [
     "A short dip inside an uptrend",
     "A change from uptrend to downtrend",
@@ -4497,7 +4670,7 @@
     "A slow sideways drift in price"
    ],
    "answer": "A short dip inside an uptrend",
-   "why": "A short dip inside an uptrend. Investopedia calls a pullback a temporary dip in an otherwise rising stock price, before the price continues upward. Prices often pull back to trend lines, and in Investopedia's examples to near the 50-day moving average, before rebounding. A pullback ends with the uptrend resuming; a lasting change of direction is a reversal.",
+   "why": "A short dip inside an uptrend. Price backs off for a few days, then the uptrend picks up again. Pullbacks often come back to the trend line or a rising average like the 50-day. That's one of the two classic places to buy a strong stock. A push to a new high is the other. If the dip turns into a lasting change of direction, that's a reversal, and your stop tells you which one you got.",
    "lesson_line": "Pullbacks in strong uptrends are one of the two classic places to buy. A new high is the other.",
    "facts": [
     "f28",
@@ -4513,10 +4686,10 @@
    ],
    "wrong": {
     "A change from uptrend to downtrend": "That's a reversal. A pullback is temporary, and the uptrend carries on.",
-    "A break above the last high": "That's a breakout, price clearing a level that held it. A pullback is a dip, not a push higher.",
-    "A slow sideways drift in price": "That's a sideways market, prices staying in a tight range for a long period. A pullback is a dip lower, and then the uptrend resumes."
+    "A break above the last high": "That's a breakout. A pullback is a dip, not a push higher.",
+    "A slow sideways drift in price": "That's a sideways market. A pullback dips lower, then the uptrend resumes."
    },
-   "simple": "A pullback is a short dip in a stock that is still in an uptrend, and then the rise goes on.",
+   "simple": "A short dip in a stock that's still in an uptrend, and then the rise goes on.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -4524,7 +4697,10 @@
      "fixed before; pullback has a second, narrower sense in Bulkowski (see conflicts)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia calls a pullback a temporary dip in an otherwise rising stock price, and in its examples pullbacks moved to near the 50-day moving average before a rebound. It names buying the pullback and buying the new swing high as the two classic entries."
+   }
   },
   {
    "key": "q97",
@@ -4561,29 +4737,33 @@
    "skill": "vocab.chart_terms",
    "rung": 3,
    "format": "mcq",
-   "q": "Price falls through a support level on heavy volume. How do traders usually read that?",
+   "q": "Your stock falls through support on heavy volume. How do you read it?",
    "choices": [
-    "A more serious break than on low volume",
-    "A cue to buy more at the lower price",
-    "A sign the sellers are running out",
-    "A routine move; volume adds nothing"
+    "A serious break, sellers mean it",
+    "A cue to buy more down here",
+    "A sign sellers are running out",
+    "A routine move, volume adds nothing"
    ],
-   "answer": "A more serious break than on low volume",
-   "why": "A more serious break. Schwab says a breakdown is generally believed to be more significant when volume is high or above average. ChartSchool reads a drop below support as a new willingness to sell. Technical traders may then close longs or go short.",
-   "lesson_line": "A break of support on heavy volume counts for more.",
+   "answer": "A serious break, sellers mean it",
+   "why": "A serious break. A drop through support shows a new willingness to sell, and heavy volume says a lot of people mean it. A break on light volume can snap back. On heavy volume it counts for more. If you own it, your stop should already have you out. And we never add to a loser. A stock breaking support isn't a buy just because it's cheaper.",
+   "lesson_line": "A break of support on heavy volume counts for more. Your stop should already have you out.",
    "facts": [
     "f65",
     "f216",
-    "f63"
+    "f63",
+    "rw_add"
    ],
    "wrong": {
-    "A cue to buy more at the lower price": "A drop through support shows a new willingness to sell. Buying more adds to a position that just broke.",
-    "A sign the sellers are running out": "Heavy volume on a break shows sellers in control. It does not show them tiring.",
-    "A routine move; volume adds nothing": "Volume matters here. A breakdown on high volume is generally believed to be more significant."
+    "A cue to buy more down here": "We never add to a loser. A drop through support shows a new willingness to sell.",
+    "A sign sellers are running out": "Heavy volume on a break shows sellers pressing, not tiring.",
+    "A routine move, volume adds nothing": "Volume matters here. A breakdown on heavy volume counts for more."
    },
-   "simple": "Heavy volume makes a break through support count for more, so it reads as a more serious break.",
+   "simple": "A serious break. Heavy volume through support means a lot of sellers mean it.",
    "tier": "core",
-   "batch": "fills"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Schwab says a breakdown is generally believed to be more significant when volume is high or above average. ChartSchool reads a decline below support as a new willingness to sell."
+   }
   }
  ],
  "conflicts": [
@@ -4627,9 +4807,9 @@
   },
   "q01": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q02": {
    "status": "cut",
@@ -4639,33 +4819,33 @@
   },
   "q03": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q04": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold answer Lower high matches. Stem names the latest peak, no second defensible choice. Why and lesson line rest on f21 (Investopedia), f5 and f2 (ChartSchool); breakout note on f59/f33."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q05": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold answer No (f3, f4: the rally must clear the last reaction high). Two Yes, two No; the 50/200 cross is a wrong reason (f3/f4 define the turn; f84). Why, simple and deeper grounded in f4, f10, f11, f7. q30's reveal restates the higher-low-then-higher-high rule at the same rung: reinforcement, not a giveaway of the choices."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q06": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold answer matches f31/f42/f209. Key not the longest; absolute choice is wrong and its note quotes f31's 'thought to be'. q09's polarity point no longer in the reveal."
+   "fixed": true,
+   "notes": "Truth fine. One wrong note read like a textbook ('Buyers are only thought strong enough'); rewritten plainly."
   },
   "q08": {
    "status": "cut",
@@ -4675,27 +4855,27 @@
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived: zone from the lowest low to the highest ($47.60 to $48.40); f34/f35 ChartSchool and f43 Investopedia agree. New 4th choice is Investopedia's named misconception, not the longest. Numbers all from the story. No forward leak."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived: trapped buyers sell near breakeven (f37/f38), overhead resistance (f51). The polarity line repeats q09's key, but q09 comes first and walkthrough w2 already teaches it, so no forward giveaway. Minor: 'were still holding' is the story's inference from ChartSchool's 'probably'."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived: a breakout is a move above resistance or below support (f52 Investopedia, f59 Schwab, f61 ChartSchool). 'Breakdown' and 'pullback' are gone from the reveal, so q13 and q63 are not handed over. f64's volume point is already taught in w2."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q13": {
    "status": "cut",
@@ -4707,177 +4887,175 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold answer A (f54, f64, f217). Choices 27 to 29 characters, no tell. Blow-off note rests on f137; does not give q40's verdict. All notes grounded.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (Fidelity slides verified: 'Price breaks out but almost immediately returns back through its breakout price'). The why paraphrased Investopedia loosely: the quote says a breakout that fails to move back in the breakout direction after a retrace has failed, not 'does not keep moving'. Fidelity also reserves 'Failed Breakout (Trap)' for a different case, so the why should not blur them. Reworded that sentence only."
+   "fixed": false,
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold answer Bull trap (f67, f69). False breakout is not a choice, so the added f66 sentence gives nothing away and links q15. Volume sentence on f70/f54."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Chart-pattern throwback statistic; no ruling touched."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q18": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Five closes in order, each stated; slot $22.80 matches key."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q20": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False is right (f81, f87, f203). Lesson line now sits inside f82's quote."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Unambiguous definition. Quotes support it. The distractors are distinct. It does not give away q23 (lag) or q35."
+   "notes": "'a plus' now reads mostly a must, not always; the cross itself still comes late. Golden cross answer clear. Voice 4."
   },
   "q23": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ChartSchool f86 context (a bearish price cross under the 50-day inside a bigger uptrend reads as a pullback) supports the why. f85 supports 'zones'. The distractors are clearly wrong. No conflict with sizing_rule section 9."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q25": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shown, wrongs are real mistakes, no tell. | 2026-11-14: stretch line read through D-021 as the 9 EMA, as in the other 44 live questions."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold answer wait (f95, f231); agrees with C28/C29. Scale-in distractor now teaches our A5 through h_lb_a5, quote verbatim in sizing_rule.md section 9. Choices 30 to 35 characters. Owner flag on teaching the C29 10-day number stands.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "'never add on a dip' is a new absolute the ruling doesn't state. Now: adding on a dip is never the plan; no scaling in stays."
   },
   "q28": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Stem said 'Your screen shows a stock with RSI at 76' then asked a different question; tightened into one plain ask. Why already teaches 76 against 70."
   },
   "q29": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q30": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right. deeper.trap overreaches: Fidelity's slide says that in some cases an oscillator stays in its zone and gives 'many false signals on corrections', not a false signal 'on each small bounce' (slide text verified via pdftotext). Reworded. Note: the key is the only modal/hedged choice (a mild tell), but the content forces it."
+   "notes": "TRUTH: the why said 'If you want it at all, wait for price to turn first', which invites buying a months-long downtrend name without the 200-day hard no. Added it (fact h_w_200)."
   },
   "q31": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Gains vs losses is backed by ChartSchool, Fidelity and Investopedia. The distractors map to RS, RVOL and distance from the MA. It does not answer q32."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q32": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key is backed by ChartSchool, Fidelity and Investopedia. The first-person lesson_line matches the lesson's house voice (q14, q29, q43). It does not answer q31 or q34 outright."
+   "fixed": true,
+   "notes": "TRUTH: the stem asserted 'We say RS is the guide when you build a watchlist', a house claim no fact in the lesson supports. Replaced with a real screen situation."
   },
   "q33": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "'In chart talk' rules out the business meaning, and the conflicts entry records the split. The distractors are clear."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q34": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q35": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "golden cross only as a defined distractor. Voice 4."
   },
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "True is right per ChartSchool f105. The why overstated Fidelity: the slide says 'In some cases' an oscillator stays in its zone for the trend's length (pdftotext verified), and it is about zone signals, not divergences. Reworded so the Fidelity line is scoped and framed as an addition, not proof of the divergence claim."
+   "fixed": false,
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q37": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed from the calc; answer shown, wrongs are real mistakes, no tell."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q38": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q39": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Reading of light volume on a dip is fine and agrees with HEAVY-DOWN; only the wrong note 'It matters a lot' overstates volume against D-006 (volume raises the grade, not a major requirement). Softened."
+   "fixed": false,
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q40": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q41": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold answer matches f135, f228. Lesson line now within f137 ('steep and rapid drop')."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key matches ChartSchool's basing and Bulkowski's weeks or months. The distractors are distinct. q03 defines a trading range but does not name a base."
+   "fixed": true,
+   "notes": "Why ended on 'How we judge and buy bases comes in a later lesson', filler. Ends now on the practical how, in his words."
   },
   "q43": {
    "status": "cut",
@@ -4888,122 +5066,122 @@
   "q44": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is backed by ChartSchool. But the distractor 'Heavy selling that sinks the price' is close to the IBD distribution-day idea the courses teach (V.11 f: a 0.2%+ index loss on higher volume), so an IBD-trained learner could defend it. 'The selling is spread out' in the why is not in any distribution quote (Schwab f142 is about accumulation). Swapped the distractor for an unambiguous crash and grounded the why line."
+   "fixed": false,
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q45": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True is right (f145, f39, f147); uncited direction sentence gone; Bollinger line on f151."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q46": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived: a coil gives no direction until the break (f150, f152). The story gives no prior trend, so the up-break choice is wrong for a reason the note states. 'most likely' is also a hedge, so the key is not a lone hedge."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q47": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q48": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Content passes; reordered only to vary the answer slot."
+   "fixed": false,
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q50": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q51": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived False from f161 (1% of upward breakaway gaps close within a week) and f158/f159. 'usually' on a False breaks the lesson's absolute-means-False pattern. Minor: f158 names runaway gaps as unlikely to fill, a small hint for q53, but q53 turns on the gap's place in the trend."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q52": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived: late in a long move, heavy volume, closes as the trend ends = exhaustion (f162, f163, f164). Wrong notes rest on f166, f188, f189. q51 is no longer answered here. Pass."
+   "notes": "sell into strength late in a run instead of adding agrees. Voice 4."
   },
   "q53": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold answer log scale (f168, f169). New stem fits all four choices; choices 17 to 20 characters, key shortest. 100% is in f168."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q55": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "High and low on one ruler; slot $2.30 matches key."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q56": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "'Start'/'Now' are bare: Start is the rally's start, Now is the pulled-back price; name the roles."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
   },
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Replaced weak distractor(s) and/or filled missing upgrade so the right answer sits at the target rank."
+   "fixed": false,
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q58": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "TRUTH: 'In a market like that I'm mostly in cash' tied a bear-market definition to our Red rule (Red is mostly cash); a 20% index drop is not the market reading. Now says why the label matters and points to the app's reading."
   },
   "q59": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ChartSchool and Investopedia both support whipsaw. The distractors are distinct terms. Golden cross is a plausible buy-signal confusion and does not fit 'reverses against you'."
+   "notes": "golden cross only as a defined distractor. Voice 4."
   },
   "q60": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q61": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q62": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True is right (f26, f27 Investopedia; f7). Deeper now grounded and no longer contradicts q05/q30. Lesson line voiced as our rule A3 via h_lb_a3, quote verbatim in sizing_rule.md section 9."
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q63": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Answer, wrong choices and every number re-checked; idea and right answer unchanged; voice reads as a mentor at the screen."
   },
   "q97": {
    "status": "cut",
@@ -5014,8 +5192,8 @@
   "q98": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Idea right and supported by f65, f216, f63. Two distractors were weak tells: a bounce that proves support holds contradicts the stem, and noise because volume never matters is a straw man. Replace with plausible real mistakes."
+   "fixed": false,
+   "notes": "never add to a loser is the ruling. Voice 4."
   }
  }
 }

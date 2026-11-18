@@ -304,8 +304,8 @@ export function nameFromAssistant(state, envelope, words, gateCtx, keep, keepLab
  * @returns `{ok, entries, state: next|null, changed}` — `changed`: a new revision of the
  *          definition (the preview acknowledgement resets, the "updated" cue fires).
  */
-export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn, keepCreateName = null, keepCreateLabel = null, signal = null } = {}) {
-  const res = await converse({ message: words, state: before, gateCtx, snippets, signal })
+export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn, keepCreateName = null, keepCreateLabel = null, signal = null, browserRefusal = null } = {}) {
+  const res = await converse({ message: words, state: before, gateCtx, snippets, signal, ...(browserRefusal ? { browserRefusal } : {}) })
   // ⭐ STOP (2026-11-16) — the member stopped waiting. Whatever came back (or did not) is
   // NOT read: no reply, no patch, no refusal. Checked on the signal as well as the gate,
   // so an answer that landed in the same instant as the press is dropped too.
@@ -347,9 +347,23 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
   const out = applyTurn(now, envelope, { gateCtx, memberWords: words })
   const { result } = out
   if (result.status === 'refused') {
-    return said(false, { role: 'uct', kind: 'refusal', codes: (result.errors || []).map((e) => e.code),
+    const refusal = said(false, { role: 'uct', kind: 'refusal', codes: (result.errors || []).map((e) => e.code),
       details: (result.errors || []).map((e) => memberError(e).detail),
       lines: [...(result.errors || []).map((e) => errorWords(e, now.working)), ...gaps, NOTHING_CHANGED] }, { errors: result.errors || [] })
+    // ⭐ 2026-11-17 — ONE REPAIR, WITH THIS ENGINE'S OWN WORDS. The door offered a change and this
+    // engine refused it: before the member reads "Nothing was changed" for a request the assistant
+    // built, the same turn goes back once with the refused patch and why (`converseClient.
+    // browserRefusalBlock`). Once: a turn that is already that repair is never repaired again, so a
+    // request costs at most one extra round trip. Whatever the repair turn says is what the member
+    // reads, except the door's own refusal of it (an allowance, the network): that says nothing
+    // about the request, so the member reads this engine's refusal instead.
+    const repairable = turn.outcome === OUTCOMES.CHANGE && !browserRefusal && !(signal && signal.aborted)
+      && turn.envelope && (result.errors || []).length > 0
+    if (!repairable) return refusal
+    const again = await modelTurn(before, current, words, { snippets, gateCtx, converse, keepCreateName, keepCreateLabel, signal,
+      browserRefusal: { envelope: turn.envelope, errors: (result.errors || []).map((e) => memberError(e).detail) } })
+    if (again.stopped) return again
+    return again.outcome === OUTCOMES.REFUSED ? refusal : { ...again, repairedAfterRefusal: true }
   }
   if (result.status === 'question') {
     return { ok: true, state: out.state, changed: false, outcome: turn.outcome,

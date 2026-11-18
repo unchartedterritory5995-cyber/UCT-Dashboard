@@ -480,9 +480,9 @@
    "key": "w1",
    "title": "The rock in your shoe",
    "steps": [
-    "Fear, greed, anger. They feel like the problem. Coach Jared Tendler says they're the pain, and pain is a signal.",
-    "The problem is the rock: a hidden flaw in your thinking, like the need to be right.",
-    "That flaw drives the emotional swings and the same mistake, again and again. Find it and you know what to fix."
+    "Fear, greed, anger. They feel like the problem. Jared Tendler says they're the pain, and pain's just a signal.",
+    "The real problem is the rock in your shoe. A hidden flaw in how you think, like needing to be right.",
+    "That flaw drives the swings and the same mistake, again and again. Find it and you know what to fix."
    ],
    "facts": [
     "g01",
@@ -496,9 +496,9 @@
    "key": "w2",
    "title": "Five steps, on paper",
    "steps": [
-    "Step 1: describe the problem in detail. Step 2: explain why it makes sense that you react that way.",
-    "Step 3: explain why that logic is flawed. Step 4: come up with a correction to it.",
-    "Step 5: explain why the correction is correct. Draft it, set it down for a day or two, then come back."
+    "Grab a pen. One, write out the problem in detail. Two, explain why it makes sense you react that way.",
+    "Three, show where that logic breaks. Four, write the correction.",
+    "Five, explain why the correction's right. Then put it down a day or two and come back to it."
    ],
    "facts": [
     "f05",
@@ -515,9 +515,9 @@
    "key": "w3",
    "title": "A worked example",
    "steps": [
-    "A trader keeps forcing trades in the opening range. To him, it feels like proving something to himself.",
+    "One trader kept forcing trades in the opening range. To him, it felt like proving something to himself.",
     "The flaw: he made it about himself, not the market. His correction: take what the market gives you.",
-    "Next session, when the urge shows up, you remind yourself of that line. Early, ideally before it builds. Then again, every time."
+    "Next session the urge shows up. He says that line early, before it builds. Then again, every single time."
    ],
    "facts": [
     "f10",
@@ -537,16 +537,16 @@
    "skill": "psych.hand_history",
    "rung": 1,
    "format": "mcq",
-   "q": "In Tendler's mental hand history, what goes in step 1?",
+   "q": "You chased extended breakouts again this month. Sunday you sit down to do a mental hand history. What goes in step 1?",
    "choices": [
-    "The problem, described in detail",
-    "The rule for next time",
-    "What the mistake cost",
+    "The problem, in full detail",
+    "Your rule for next time",
+    "What the chases cost you",
     "Why your thinking was flawed"
    ],
-   "answer": "The problem, described in detail",
-   "why": "The problem, described in detail. Tendler's step 1 reads: describe the problem in detail. It is a record of what happens, not a fix. Why it makes sense comes in step 2. The flaw in that logic comes in step 3. The correction comes in step 4.",
-   "lesson_line": "Describe it fully before you try to fix it.",
+   "answer": "The problem, in full detail",
+   "why": "The problem, written out in full. Step 1 is just the record: which names you chased, how far past the pivot you paid, what you felt when you hit buy. No fixing yet. Jump straight to a rule and you're patching something you haven't looked at. Step 2 is why it makes sense to you. Step 3 finds the flaw. Step 4 is the correction.",
+   "lesson_line": "Write the whole mess down before you try to fix it.",
    "facts": [
     "f05",
     "g04",
@@ -555,11 +555,11 @@
     "f08"
    ],
    "wrong": {
-    "The rule for next time": "A fix comes later, in step 4, and there it corrects your logic. Step 1 only describes the problem.",
-    "What the mistake cost": "The cost can be one detail. Step 1 is the full description of the problem, not just the bill.",
-    "Why your thinking was flawed": "That's step 3. You can't find a flaw in logic you haven't laid out yet."
+    "Why your thinking was flawed": "That's step 3. You can't find the hole in your logic until the logic is on paper.",
+    "Your rule for next time": "That's jumping to the fix. The correction comes in step 4, and it goes after your thinking, not just your entry.",
+    "What the chases cost you": "The cost is one detail you can put in. Step 1 is the whole picture, not just the bill."
    },
-   "simple": "Step 1 describes the problem in detail, and the later steps explain it, find the flaw and correct it.",
+   "simple": "Step 1 is the full story of the problem. The why, the flaw and the fix come later.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -567,44 +567,44 @@
      "fixed before (wrong note on the step 4 rule)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
    "skill": "psych.hand_history",
    "rung": 1,
    "format": "tf",
-   "q": "The name 'mental hand history' comes from Tendler's poker work: studying the mental game like the technical game.",
+   "q": "'Hand history' is a poker term. Tendler borrowed it to get players reviewing their thinking with the same structure as their play.",
    "answer": "True",
-   "why": "True. The name comes from Tendler's work with poker players. He wanted them to work on their mental game in the same structured way they work on their technical game. For a trader, that means reviewing your thinking with the same structure you use to review a chart.",
-   "lesson_line": "Review your thinking with the same structure you use to review a chart.",
+   "why": "True, it's a poker term. Tendler wanted his poker players to work on the mental game with the same structure they used on the technical game. Same deal for you. You'd never skip the review on a bad entry. Give the thinking behind that entry the same treatment, on paper, one step at a time.",
+   "lesson_line": "Review your head the way you review your charts.",
    "facts": [
     "f04",
     "g03"
    ],
-   "simple": "True. It comes from his poker work, where he wanted players to study the mental game like the technical game.",
+   "simple": "True. It comes from poker, where he wanted players to review their thinking as carefully as their play.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
    "skill": "psych.hand_history",
    "rung": 2,
    "format": "mcq",
-   "q": "Tendler compares a mental game problem to pain from a rock in your shoe. What is the rock?",
+   "q": "You get angry after every stop-out. Tendler would say you've got a rock in your shoe. What's the rock?",
    "choices": [
     "A flaw in how you think",
-    "The fear or anger you feel",
+    "The anger itself",
     "The loss that set it off",
     "A market that won't cooperate"
    ],
    "answer": "A flaw in how you think",
-   "why": "A flaw in how you think. Tendler calls the rock the underlying flaw driving your emotional swings and repeated errors. The emotion is the pain, and the pain is a signal pointing at a problem. It is not the problem itself. Rocks he names include the need to be right and expecting to always be at your best.",
-   "lesson_line": "Fear is the alarm, not the fire. Find the flaw under it.",
+   "why": "A flaw in your thinking. The anger is real, but it's the signal, not the problem. Tendler calls the rock the underlying flaw driving your emotional swings and repeated mistakes. Think the need to be right, or expecting to always be at your best. Fight the anger and the rock's still in your shoe tomorrow. Find the flaw and you know what to fix.",
+   "lesson_line": "The anger is the alarm. Go find what tripped it.",
    "facts": [
     "f01",
     "f03",
@@ -614,11 +614,11 @@
     "h01"
    ],
    "wrong": {
-    "The fear or anger you feel": "That's the pain. Tendler's point: the pain signals a problem, it isn't the problem.",
-    "The loss that set it off": "That's the trigger, not the rock. As Tendler puts it, hating to lose is rarely just about the loss.",
-    "A market that won't cooperate": "The market is outside your control. The rock sits in your own thinking, where you can work on it."
+    "The loss that set it off": "That's the trigger. Tendler says hating to lose is rarely about the loss itself. It's how hard you react.",
+    "A market that won't cooperate": "You can't fix the market. The rock sits in your own head, the one place you can work on.",
+    "The anger itself": "That's the pain. It tells you something's wrong. It isn't the thing that's wrong."
    },
-   "simple": "The rock is a flaw in how you think, and the fear or anger is just the pain it causes.",
+   "simple": "The rock is a flaw in how you think. The anger is just the pain it causes.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -626,30 +626,30 @@
      "fixed before (wrong note on the loss)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q04",
    "skill": "psych.hand_history",
    "rung": 2,
    "format": "tf",
-   "q": "In step 2, you explain why your reaction is wrong.",
+   "q": "You sell winners on the first red day. Step 2 of your hand history is where you write why that habit is wrong.",
    "answer": "False",
-   "why": "False. Step 2 asks why it makes sense that you have the problem, or why you react that way. You lay out the logic. You do not judge it yet. Showing why that logic is flawed is step 3.",
-   "lesson_line": "First understand why the reaction makes sense. Then take it apart.",
+   "why": "False, that's jumping ahead. Step 2 asks why the habit makes sense to you. Maybe a red day feels like the start of giving it all back. Write that down honestly, and don't judge it yet. Step 3 is where you take it apart. Skip the why and you end up arguing with a reason you never found.",
+   "lesson_line": "Understand the habit before you take it apart.",
    "facts": [
     "f06",
     "f07",
     "g04",
     "g05"
    ],
-   "simple": "False. Step 2 explains why your reaction makes sense to you, and step 3 is where you show the flaw.",
+   "simple": "False, step 2 is why the habit makes sense to you. Step 3 is where you show the flaw.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q05",
@@ -686,16 +686,16 @@
    "skill": "psych.hand_history",
    "rung": 3,
    "format": "mcq",
-   "q": "What does step 4 of the hand history work on?",
+   "q": "Your hand history is on forcing trades in a choppy market. Step 3 found the flaw. What does your step 4 correct?",
    "choices": [
     "The flawed logic you laid out",
-    "The setup's entry rules",
-    "The emotion, by pushing down",
-    "The exit on the losing trade"
+    "Your setup's entry rules",
+    "The urge, by pushing it down",
+    "The exit on your last loser"
    ],
    "answer": "The flawed logic you laid out",
-   "why": "The flawed logic you laid out. Step 4 asks for a correction to that flawed logic: the step 2 logic that step 3 showed is broken. It is not a new entry or exit rule. Tendler's book says recurring mistakes often persist after technical fixes. It is not pushing the emotion down either: controlling an emotion is different from correcting the problem.",
-   "lesson_line": "Correct the thinking, not just the trade.",
+   "why": "The logic. In step 2 you wrote why forcing trades in chop makes sense to you. Step 3 showed the hole in it. Step 4 is the new way of thinking that plugs that hole. Tightening your entry rules is a different job. Tendler's book makes the point that these mistakes often survive technical fixes. And sitting on the urge isn't a fix either. Controlling an emotion is different from correcting the problem behind it.",
+   "lesson_line": "Fix the thinking that made the trade.",
    "facts": [
     "f08",
     "g05",
@@ -704,11 +704,11 @@
     "t01"
    ],
    "wrong": {
-    "The setup's entry rules": "Technical fixes are a different job. Tendler's book says recurring mistakes often persist after them; step 4 targets the thinking.",
-    "The emotion, by pushing down": "Controlling an emotion and correcting the problem are different things. Pushing it down corrects nothing.",
-    "The exit on the losing trade": "That's a trade review. Worth doing, but step 4 targets the thinking that drove the mistake."
+    "Your setup's entry rules": "Rules say what to do. If your thinking pulls you off the old ones, it'll pull you off new ones too.",
+    "The urge, by pushing it down": "That's control, not correction. Hold it down today and it's back tomorrow.",
+    "The exit on your last loser": "That's a trade review. Worth doing, but step 4 goes after the thinking that put you in the trade."
    },
-   "simple": "You correct the flawed logic you laid out in step 2, not your trade rules and not the feeling itself.",
+   "simple": "Step 4 corrects the thinking you laid out, not your trade rules and not the feeling.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -716,37 +716,37 @@
      "fixed before (entry-rules note)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
    "skill": "psych.hand_history",
    "rung": 3,
    "format": "tf",
-   "q": "In Tendler's view, your emotions are never illogical.",
+   "q": "Tendler says your emotions are never illogical. That includes the urge behind a revenge trade that looks crazy the next morning.",
    "answer": "True",
-   "why": "True. In Tendler's words, your emotions are never illogical, you just lack the rationale to explain what's going on. It isn't a matter of intelligence. A reaction can look irrational until step 2 spells out its logic.",
-   "lesson_line": "If a reaction looks irrational, you haven't found its logic yet.",
+   "why": "True. Tendler says your emotions are never illogical, you just lack the rationale to explain what's going on. It's not about how smart you are. That revenge trade made sense to something in you at the time. Maybe you wanted the money back before the close. Step 2 is where you dig that out. Call it crazy and you've got nothing to correct.",
+   "lesson_line": "If it looks crazy, you haven't found the logic yet.",
    "facts": [
     "g10",
     "f06",
     "g04"
    ],
-   "simple": "True. Tendler says an emotion always has a reason behind it, even when you have not found it yet.",
+   "simple": "True, even a reaction that looks crazy has a reason behind it. You just haven't found it yet.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
    "skill": "psych.hand_history",
    "rung": 4,
    "format": "scenario",
-   "story": "A trader keeps forcing trades in the opening range. In his hand history he writes: 'Feels like I'm trying to prove something to myself.'",
-   "q": "Which step is that line?",
+   "story": "A trader keeps forcing trades in the opening range, the first stretch of the session. In his hand history he writes: 'Feels like I'm trying to prove something to myself.'",
+   "q": "Which step is he working on with that line?",
    "choices": [
     "Step 1: the problem",
     "Step 2: why it makes sense",
@@ -754,8 +754,8 @@
     "Step 5: why the fix is right"
    ],
    "answer": "Step 2: why it makes sense",
-   "why": "Step 2: why it makes sense. In Tendler's worked example, step 1 is the problem: he forces trades in the opening range. This line explains why that makes sense to him: a trade there would prove something to himself. It does not judge that reason yet. Judging it is step 3.",
-   "lesson_line": "Step 2 isn't an excuse. It's the reason, written down so you can test it.",
+   "why": "Step 2. He's already named the problem, forcing trades in the opening range. Now he's saying why it makes sense to him: getting a trade on there would prove something to himself. Notice he doesn't argue with it yet. That's the point of step 2. You can't correct an urge you haven't named honestly. Be that honest in your own.",
+   "lesson_line": "Step 2 isn't an excuse. It's the reason, out on paper where you can test it.",
    "facts": [
     "f11",
     "f06",
@@ -763,25 +763,25 @@
     "g04"
    ],
    "wrong": {
-    "Step 1: the problem": "Step 1 is the problem itself: forcing trades in the opening range. This line says why he does it.",
-    "Step 3: where the logic breaks": "Step 3 would argue against this reason. Here he's still laying it out.",
-    "Step 5: why the fix is right": "There's no correction yet for this line to defend."
+    "Step 1: the problem": "Step 1 is the problem itself, forcing trades in the opening range. This line says why he does it.",
+    "Step 3: where the logic breaks": "Step 3 would argue with this reason. He's still laying it out.",
+    "Step 5: why the fix is right": "There's no fix on the page yet for this line to defend."
    },
-   "simple": "It is step 2, because the line explains why forcing the trade makes sense to him.",
+   "simple": "It's step 2. The line says why forcing the trade makes sense to him.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q09",
    "skill": "psych.hand_history",
    "rung": 5,
    "format": "scenario",
-   "story": "Another line from the same trader's hand history: 'You're making it about yourself and not about the market.'",
-   "q": "Where does this line belong?",
+   "story": "Same trader, next line in his hand history: 'You're making it about yourself and not about the market.'",
+   "q": "Where does that line go in his hand history?",
    "choices": [
     "Step 2: why it makes sense",
     "Step 3: where the logic breaks",
@@ -789,8 +789,8 @@
     "Step 5: why the fix is right"
    ],
    "answer": "Step 3: where the logic breaks",
-   "why": "Step 3: where the logic breaks. Step 3 explains why the step 2 logic is flawed. His step 2 said forcing the trade proves something to himself. This line answers it: he is making it about himself and not about the market. It names the flaw but gives no new way to think. That comes in step 4.",
-   "lesson_line": "A good step 3 names the hole in your own reasoning, plainly.",
+   "why": "Step 3. His step 2 said forcing the trade proves something to himself. This line pokes the hole in that. The trade became about him, not about what the market was giving him. That's the flaw. Notice it doesn't tell him what to do instead. The new way to think is step 4. A good step 3 is blunt like this, one sentence that names the hole.",
+   "lesson_line": "A good step 3 calls out the hole in your reasoning, plainly.",
    "facts": [
     "f12",
     "f07",
@@ -799,17 +799,17 @@
     "sw1"
    ],
    "wrong": {
-    "Step 2: why it makes sense": "Step 2 explains why the habit makes sense to him. This line pokes a hole in that.",
+    "Step 2: why it makes sense": "Step 2 says why the habit makes sense to him. This line pokes a hole in it.",
     "Step 5: why the fix is right": "Step 5 defends a correction. There isn't one in this line.",
-    "Step 4: the correction he'll use": "It points at the flaw but gives him no new way to think. His correction comes next."
+    "Step 4: the correction he'll use": "It names the flaw but gives him no new way to think. His correction comes next."
    },
-   "simple": "It is step 3, because the line shows where his reason breaks: he made it about himself, not the market.",
+   "simple": "Step 3. It shows where his reason breaks, because he made the trade about himself and not the market.",
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q10",
@@ -849,7 +849,7 @@
    "skill": "psych.hand_history",
    "rung": 5,
    "format": "scenario",
-   "story": "Your step 1: you widen your stop when a trade goes against you. For step 2 you write: 'No reason. I'm just being an idiot.'",
+   "story": "Your problem: when a trade goes against you, you widen the stop instead of taking the loss. For step 2 you write: 'No reason. I'm just being an idiot.'",
    "q": "What's wrong with that step 2?",
    "choices": [
     "It doesn't say why it makes sense",
@@ -858,8 +858,8 @@
     "It should list what the trades cost"
    ],
    "answer": "It doesn't say why it makes sense",
-   "why": "It doesn't say why it makes sense. Step 2 asks why it makes sense that you react that way. Tendler says 'I'm just being an idiot' is a common answer to it. It isn't a matter of intelligence. Your emotions are never illogical, you just haven't found the rationale yet. Without a reason, step 3 has nothing to test.",
-   "lesson_line": "Name-calling isn't a step 2. Find the reason the habit makes sense to you.",
+   "why": "It gives you no reason to work with. Tendler says 'I'm just being an idiot' is a common step 2 answer. It's not about intelligence. Something makes widening that stop feel right in the moment. Maybe you'd rather not book the loss yet. Write that down. Then step 3 has something real to take apart. A widened stop is how a small loss turns into a big one, so this one's worth the work.",
+   "lesson_line": "Name-calling isn't a step 2. Find out why it felt right.",
    "facts": [
     "f06",
     "g04",
@@ -868,11 +868,11 @@
     "g08"
    ],
    "wrong": {
-    "Nothing, blunt honesty is the point": "Blunt isn't the same as honest. A verdict on yourself skips the reason, and step 3 needs a reason to test.",
-    "It belongs in step 3 instead": "Step 3 finds the flaw in logic you've already written. There's no logic here yet to test.",
-    "It should list what the trades cost": "Detail like the cost can go in step 1. Step 2 needs the why behind widening the stop."
+    "Nothing, blunt honesty is the point": "Blunt isn't honest here. It's a verdict on yourself, and it skips the reason step 3 needs.",
+    "It belongs in step 3 instead": "Step 3 takes apart logic you've already written. There's no logic here yet.",
+    "It should list what the trades cost": "The cost can go in step 1. Step 2 needs the why behind widening the stop."
    },
-   "simple": "Calling yourself an idiot gives no reason, and step 2 needs the reason the habit makes sense to you.",
+   "simple": "Calling yourself an idiot gives no reason. Step 2 needs the reason the habit feels right to you.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -880,24 +880,24 @@
      "fixed before (story changed to widen the stop)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q12",
    "skill": "psych.hand_history",
    "rung": 6,
    "format": "scenario",
-   "story": "Rough day. You broke two of your rules, you're still angry, and you're drained. A full hand history feels like too much tonight.",
-   "q": "What's the minimum Tendler suggests before you walk away?",
+   "story": "Rough day. You broke two of your rules, you're still angry, and you're fried. A full hand history feels like too much tonight.",
+   "q": "What do you do before you shut the screens off?",
    "choices": [
     "A brain dump of what happened",
-    "Nothing; review it fresh tomorrow",
+    "Nothing, look at it fresh tomorrow",
     "A promise it won't happen again",
     "A look back at the charts"
    ],
    "answer": "A brain dump of what happened",
-   "why": "A brain dump of what happened. After a day with big emotion, Tendler says to do a mental hand history if you have the energy. At a minimum, do a brain dump: write out what happened, what the emotion was and what the trigger was. As soon as you walk away, details start to disappear. The goal is to keep the emotion from carrying into tomorrow.",
-   "lesson_line": "Too drained for all five steps: do the brain dump tonight, before the details fade.",
+   "why": "A brain dump, tonight. Tendler's line: do a full hand history if you've got the energy. If not, at minimum write out what happened, what you felt and what set it off. Details start to disappear as soon as you walk away. And the goal on a day like this is to keep today's emotion out of tomorrow's session. If you journal your trades, add a few honest lines about your head while you're at it.",
+   "lesson_line": "Too fried for the full thing, so dump it on paper tonight, before it fades.",
    "facts": [
     "r02",
     "r03",
@@ -905,11 +905,11 @@
     "st1"
    ],
    "wrong": {
-    "Nothing; review it fresh tomorrow": "Details start to fade as soon as you walk away. Steenbarger agrees: write soon after a big event.",
-    "A promise it won't happen again": "A promise isn't a record. Without the details there's nothing to dig into later.",
-    "A look back at the charts": "The charts will still be there tomorrow. What you felt, and what set it off, fade fast."
+    "A promise it won't happen again": "A promise isn't a record. With no details there's nothing to dig into later.",
+    "A look back at the charts": "The charts will still be there tomorrow. What you felt and what set it off won't be.",
+    "Nothing, look at it fresh tomorrow": "Sounds wise, but details start to fade the minute you walk away. Write it while it's raw."
    },
-   "simple": "Write a brain dump tonight, because details start to fade as soon as you walk away.",
+   "simple": "Do a quick brain dump tonight. The details start to fade as soon as you walk away.",
    "deeper": {
     "trap": "Waiting for a fresh head tomorrow feels wiser. But Tendler says details start to disappear as soon as you walk away. Steenbarger gives the same advice for journals: write soon after a significant event. A rough dump tonight keeps what happened, what you felt and what set it off."
    },
@@ -920,22 +920,22 @@
      "fixed before (story and tomorrow note)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q13",
    "skill": "psych.hand_history",
    "rung": 6,
    "format": "tf",
-   "q": "Once a hand history is written, you shouldn't revise it.",
+   "q": "You wrote a hand history on your chasing last month. It's done, so you leave it exactly as written from here on.",
    "answer": "False",
-   "why": "False. Tendler says to draft your answers, put them down for a day or two, then come back to them. Later, if the correction isn't potent enough in the moment, his fix is to revise the hand history. It is a working document, not a one-time form.",
-   "lesson_line": "Draft it, step away, come back. Revise it when the correction isn't strong enough.",
+   "why": "False. It's a working document. Tendler says draft it, put it down for a day or two, then come back to it. And if the correction isn't strong enough when the urge hits, his fix is to revise the hand history. So if you're still chasing, the page isn't done. Go back in and dig.",
+   "lesson_line": "Still chasing means the page isn't done.",
    "facts": [
     "g07",
     "t06"
    ],
-   "simple": "False. Draft it, come back in a day or two, and revise it when the correction is not strong enough.",
+   "simple": "False. Come back to it after a day or two, and revise it when the correction isn't strong enough.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -943,24 +943,24 @@
      "fixed before (scope of the revise case)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q14",
    "skill": "psych.hand_history",
    "rung": 6,
    "format": "scenario",
-   "story": "Your hand history is on cutting winners early, and your correction is clear. Today a winner pulls back, still inside your plan. You feel the urge to sell.",
-   "q": "What does Tendler say to do right now?",
+   "story": "Your hand history is on cutting winners early, and your correction is written. Today a winner pulls back, still inside your plan, and you feel the itch to sell.",
+   "q": "The urge is here. What's your move?",
    "choices": [
     "Recall what you wrote about it",
-    "Sell, write it up tonight",
+    "Sell now and write it up tonight",
     "Push the urge down and hold",
     "Wait for the urge to pass"
    ],
    "answer": "Recall what you wrote about it",
-   "why": "Recall what you wrote about it, now. Tendler says to use your step 2 to 5 answers to correct the reaction in real time. When the emotion is triggered, ideally before it gets too intense, remind yourself of what your answers say. Holding is right here, since the pullback is inside your plan. But holding by force is control, not correction.",
-   "lesson_line": "Write it after the session. Use it in the next one, the moment the urge shows up.",
+   "why": "Pull up what you wrote, right now. This is what the hand history is for. Tendler says use your step 2 to 5 answers to correct the reaction in real time. Do it early, ideally before the feeling gets intense. The pullback is inside your plan, so holding is right. But white-knuckling it is control, not correction. Remind yourself why selling felt right and why that logic is flawed. That's what lets you sit tight.",
+   "lesson_line": "Write it after the session. Use it the second the urge shows up.",
    "facts": [
     "g13",
     "g14",
@@ -969,17 +969,17 @@
     "t01"
    ],
    "wrong": {
-    "Sell, write it up tonight": "Selling on the urge is the habit you set out to fix. The correction is for this moment.",
-    "Push the urge down and hold": "Holding is fine, but forcing the feeling down is control, not correction. Your correction is logic you already wrote, so use it.",
-    "Wait for the urge to pass": "Tendler says use it early, as soon as the emotion is triggered. Waiting gives it time to build."
+    "Push the urge down and hold": "Holding's right, but forcing the feeling down is control, not correction. Use the logic you already wrote.",
+    "Wait for the urge to pass": "Use it early, as soon as the feeling shows up. Waiting just gives it time to build.",
+    "Sell now and write it up tonight": "Selling on the itch is the exact habit you set out to fix. The correction is for this moment."
    },
-   "simple": "Recall what you wrote right now, because the correction works best before the urge grows strong.",
+   "simple": "Recall what you wrote right away. It works best before the urge gets strong.",
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q15",
@@ -987,7 +987,7 @@
    "rung": 7,
    "format": "scenario",
    "story": "Tendler gives a poker example. A player hates it when others play badly and still win. His step 3: 'I'm trying to control how they play.'",
-   "q": "Which step 4 answers that flaw best?",
+   "q": "Which step 4 answers his flaw best?",
    "choices": [
     "Make the decisions I want to make",
     "Leave tables with players like that",
@@ -995,8 +995,8 @@
     "Remind myself I'm the better player"
    ],
    "answer": "Make the decisions I want to make",
-   "why": "Make the decisions I want to make. Step 4 corrects the flawed logic, and step 3 showed the flaw: he tries to control how others play. This is the correction in Tendler's own poker example. It moves his focus from their decisions to his own. Leaving or playing less only keeps the feeling away. Tendler says controlling emotions differs from correcting the problem.",
-   "lesson_line": "Aim step 4 at the flaw step 3 named. Keeping the feeling away is not a correction.",
+   "why": "Make the decisions I want to make. His step 3 named the flaw: he's trying to control how other people play, and he can't. This correction is Tendler's own from that example. It moves the focus back to what he does control, his own decisions. Leaving the table or playing fewer hands just keeps the feeling away. The logic underneath doesn't change. Same for you with the market: you can't control it, only your own decisions.",
+   "lesson_line": "Aim step 4 at the flaw step 3 named. Hiding from the feeling isn't a fix.",
    "facts": [
     "f19",
     "f18",
@@ -1006,11 +1006,11 @@
     "t01"
    ],
    "wrong": {
-    "Leave tables with players like that": "It keeps the feeling away but leaves the logic alone. Step 4 corrects the flawed logic itself.",
-    "Play fewer hands until it passes": "Less exposure, same logic. Step 4 corrects the flawed logic, and this only changes how often he plays.",
-    "Remind myself I'm the better player": "Feeling better than them answers nothing in step 3. His flaw is trying to control others, and this line never mentions it."
+    "Leave tables with players like that": "It keeps the feeling away and leaves the logic alone. Step 4 corrects the logic itself.",
+    "Play fewer hands until it passes": "Less exposure, same logic. This only changes how often he plays.",
+    "Remind myself I'm the better player": "Feeling better than them doesn't answer step 3. His flaw is trying to control others, and this never touches it."
    },
-   "simple": "The right step 4 is to make the decisions he wants to make, because his flaw is trying to control other players.",
+   "simple": "Make his own decisions, because his flaw is trying to control how other players play.",
    "deeper": {
     "trap": "Avoiding the trigger feels like a fix. But step 4 corrects the flawed logic, not the place it shows up. Tendler says controlling emotions is different from correcting the problem. Test any step 4 by asking: does it answer the flaw I named in step 3?"
    },
@@ -1021,24 +1021,24 @@
      "case changed in wave9: Tendler's poker example (s1) replaces the opening-range case that w3 already answers"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q16",
    "skill": "psych.hand_history",
    "rung": 7,
    "format": "tf",
-   "q": "In Tendler's experience, once you find the flaw behind a mistake, the mistake usually stops on its own.",
+   "q": "You finally found the flaw behind your chasing. In Tendler's experience, that alone usually ends the chasing.",
    "answer": "False",
-   "why": "False. Tendler calls this belief the biggest mistake at this stage: thinking that uncovering the root wins the battle on its own. He says that happens in less than 5% of the clients he works with. To change a flaw, you must repeat the correction over and over. Over time, he says, the reactions become less intense.",
-   "lesson_line": "Finding the flaw is half the job. Repeating the correction is the other half.",
+   "why": "False, and he's blunt about it. Tendler calls this the biggest mistake at this stage: thinking that finding the root wins the battle on its own. He says that happens with less than 5% of his clients. Finding the flaw is half the job. The other half is reps. You use the correction over and over, every time the urge shows up. Over time, he says, the reactions get less intense.",
+   "lesson_line": "Finding the flaw is half the job. Reps are the other half.",
    "facts": [
     "i01",
     "i02",
     "t07",
     "g15"
    ],
-   "simple": "False. Finding the flaw rarely ends the mistake, so you still have to repeat the correction again and again.",
+   "simple": "False, finding the flaw rarely ends it. You still have to use the correction again and again.",
    "deeper": {
     "counter": "The rare case does happen: fewer than 5% of Tendler's clients see the problem fade once the root is found. Planning around that case is the trap. Plan for the usual path instead: find the flaw, write the correction, then use it every time the emotion is triggered."
    },
@@ -1049,7 +1049,7 @@
      "a number (Tendler's less-than-5% figure) from one coach's own client count"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
@@ -1057,16 +1057,16 @@
    "rung": 8,
    "format": "scenario",
    "story": "A day trader mapped his emotions, did a hand history on his revenge trading and believes he found the root. For 4 months he has tried a lot of things. A loss or two still sets him off.",
-   "q": "What does Tendler say is most likely?",
+   "q": "What's most likely going on with him?",
    "choices": [
     "He hasn't nailed down the cause",
-    "The method doesn't fit him",
+    "The method just doesn't fit him",
     "He needs more willpower",
     "His entries are the problem"
    ],
    "answer": "He hasn't nailed down the cause",
-   "why": "He hasn't nailed down the cause. Tendler says that after a lot of work with the problem still there, the root cause likely hasn't been nailed down. Believing you found the root is not proof. In this real reader case the trader had tried for 4 months. Tendler suggested his definition of progress was too narrow. Dig again, and aim for something new.",
-   "lesson_line": "Real work and no progress means dig again. The root likely isn't found yet.",
+   "why": "He hasn't found the real cause yet. Tendler's read: lots of work and no progress means the root likely hasn't been nailed down. Believing he found it isn't proof. The result is the test, and the losses still set him off. So he digs again. Tendler also thought this trader judged progress too narrowly. Aim for something you didn't already know. Rewriting what you know gets you the same answer.",
+   "lesson_line": "Real work and no progress means dig again.",
    "facts": [
     "h05",
     "h02",
@@ -1076,11 +1076,11 @@
     "t01"
    ],
    "wrong": {
-    "The method doesn't fit him": "Tendler doesn't blame the method here. Lots of work with no progress likely means the root cause isn't found yet.",
-    "He needs more willpower": "Willpower is trying to control the emotion. Tendler says controlling it is different from correcting the problem.",
-    "His entries are the problem": "Revenge trades follow losses, whatever the setup. That points to his thinking, not his entries."
+    "He needs more willpower": "Willpower is trying to control the feeling. Controlling it isn't the same as correcting the problem.",
+    "His entries are the problem": "Revenge trades follow losses, whatever the setup. That points at his thinking, not his entries.",
+    "The method just doesn't fit him": "Tendler doesn't blame the method. Real work with no progress points to a root that isn't found yet."
    },
-   "simple": "He likely has not found the real cause yet, because lots of work with no progress usually means that.",
+   "simple": "He likely hasn't found the real cause. Lots of work with no progress points there.",
    "deeper": {
     "trap": "The trap is the word 'believes'. A root you think you found can be the wrong one. Tendler's test is the result: a lot of work and no progress means the root likely isn't nailed down. Aim each new pass at something you did not already know, not at what you have written before."
    },
@@ -1089,7 +1089,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
@@ -1097,7 +1097,7 @@
    "rung": 8,
    "format": "scenario",
    "story": "A friend shares a sharp hand history on chasing breakouts. You chase too, and his correction reads well.",
-   "q": "Should you adopt his hand history as your own?",
+   "q": "Do you just use his as your own?",
    "choices": [
     "No, use it to guide your own",
     "Yes, same problem means same fix",
@@ -1105,8 +1105,8 @@
     "No, nobody shares the same flaw"
    ],
    "answer": "No, use it to guide your own",
-   "why": "No, use it to guide your own. Tendler says to use other people's examples as guidance but complete your own hand history. The way you experience a flaw may differ from someone else, even with the same challenge. And a correction should be specific to you and, ideally, in your own words.",
-   "lesson_line": "Borrow the format, not the answers. Your flaw is yours.",
+   "why": "Use it as a guide, then write your own. Tendler says the way you experience a flaw can differ from the next person's, even with the same problem. Your buddy might chase because he hates missing a move. You might chase because you're down on the month and want it back fast. Same mistake, different rock. And a correction works best when it's specific to you, in your own words.",
+   "lesson_line": "Borrow the format, not the answers.",
    "facts": [
     "f17",
     "t03",
@@ -1114,11 +1114,11 @@
     "g12"
    ],
    "wrong": {
-    "Yes, same problem means same fix": "Same problem, not always the same fix. Tendler: the way you experience a flaw may differ from someone else.",
-    "Yes, just borrow his correction": "A correction works when it's specific to you, ideally in your own words. His targets his flaw.",
-    "No, nobody shares the same flaw": "Too far. Traders can share a flaw. Tendler's point is that the way you experience it may differ, so the work must be your own."
+    "Yes, same problem means same fix": "Same mistake, not always the same rock. The way you experience a flaw can differ from his.",
+    "Yes, just borrow his correction": "A correction works when it's specific to you, in your own words. His is aimed at his flaw.",
+    "No, nobody shares the same flaw": "Too far. Traders can share a flaw. The point is you may feel it differently, so do the work yourself."
    },
-   "simple": "No, use his as a guide but write your own, because two traders can feel the same flaw in different ways.",
+   "simple": "Use his as a guide but write your own. Two traders can chase for different reasons.",
    "deeper": {
     "trap": "A borrowed line can read well and still miss. Tendler says a correction should be specific to you and, ideally, in your own words. Read his hand history for the format and for ideas. Then write your own reason why chasing makes sense to you."
    },
@@ -1129,7 +1129,7 @@
      "fixed before (f17 claim and why reworded)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
@@ -1137,7 +1137,7 @@
    "rung": 7,
    "format": "scenario",
    "story": "Last month your journal flagged four things. You have time for one mental hand history.",
-   "q": "Which one deserves it most?",
+   "q": "Which one gets the hand history?",
    "choices": [
     "Chasing extended breakouts, again",
     "One stop-out on a by-the-plan trade",
@@ -1145,7 +1145,7 @@
     "A fill a few cents off the quote"
    ],
    "answer": "Chasing extended breakouts, again",
-   "why": "Chasing extended breakouts, again. Tendler's rock is the flaw driving emotional swings and repetitive errors. His book names chasing price as a common, costly, recurring mistake. One stop-out on a planned trade is not an error: losing with a good process is not a step backward. A slow week and a fill a few cents off are not repeated errors in your thinking.",
+   "why": "The chasing. It keeps coming back, and a mistake that repeats is the sign of a rock. Tendler's book names chasing price as one of the common, costly ones. The stop-out isn't a mistake. You took it by the plan, and losing with a good process can't be called a step backward. A slow week isn't on you. A fill a few cents off is noise. Spend your time on the pattern.",
    "lesson_line": "Point the hand history at the mistake that keeps coming back.",
    "facts": [
     "f01",
@@ -1154,11 +1154,11 @@
     "h07"
    ],
    "wrong": {
-    "One stop-out on a by-the-plan trade": "Losing with a good process isn't a step backward. There's no error to dissect.",
-    "A slow week with few setups": "Few setups is not a mistake you made. A hand history digs into an error you keep repeating.",
-    "A fill a few cents off the quote": "One small fill gap is not a repeated error. Point the hand history at what keeps coming back."
+    "One stop-out on a by-the-plan trade": "You followed the plan. Losing with a good process isn't a step backward, so there's nothing to dig into.",
+    "A slow week with few setups": "Few setups isn't a mistake you made. Save the hand history for an error you keep repeating.",
+    "A fill a few cents off the quote": "A small fill gap is noise, not a repeated error. Point the work at what keeps coming back."
    },
-   "simple": "Pick the mistake that keeps coming back, because a repeated error points to a flaw in your thinking.",
+   "simple": "Pick the chasing. A mistake that keeps coming back points to a flaw in your thinking.",
    "deeper": {
     "trap": "The stop-out can feel like the worst thing in the month. But it followed the plan, and Tendler says losing with a good process can't be defined as a step backward. The chase is the one with a pattern. A mistake that keeps coming back is the sign of a rock."
    },
@@ -1169,7 +1169,7 @@
      "fixed before (lesson line)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
@@ -1177,7 +1177,7 @@
    "rung": 9,
    "format": "scenario",
    "story": "Your flaw: you expect to make money every day. Your step 4 reads: 'Stay positive and stay focused.' In the moment, it does nothing.",
-   "q": "What's the problem with that step 4?",
+   "q": "Why isn't that step 4 working?",
    "choices": [
     "It misses the root cause",
     "You aren't repeating it enough",
@@ -1185,8 +1185,8 @@
     "It should be a stricter rule"
    ],
    "answer": "It misses the root cause",
-   "why": "It misses the root cause. Tendler warns about lines that sound nice and are technically correct but don't target the root cause. The flaw here is expecting a profit every day, and 'stay positive' never answers it. A better aim: money is the scoreboard, but it isn't reliable for measuring short-term performance. When a correction isn't potent enough, revise the hand history.",
-   "lesson_line": "A correction that misses the flaw is just a pep talk. Aim it at the flaw.",
+   "why": "It doesn't touch the flaw. Your flaw is expecting a profit every day. 'Stay positive' sounds nice and it's technically correct, but it never answers that. Tendler warns about exactly these lines. Aim it at the flaw instead: money is the scoreboard, but it isn't reliable for judging short-term performance. Now a red day has an answer. If it still feels weak in the moment, revise the hand history.",
+   "lesson_line": "A correction that misses the flaw is just a pep talk.",
    "facts": [
     "t04",
     "sw2",
@@ -1197,11 +1197,11 @@
     "t03"
    ],
    "wrong": {
-    "You aren't repeating it enough": "Repetition matters, but repeating a line that misses the flaw just repeats the miss.",
+    "You aren't repeating it enough": "Reps matter, but repeating a line that misses the flaw just repeats the miss.",
     "It should be a stricter rule": "A rule says what to do. Step 4 corrects the thinking that makes you want to break it.",
-    "It should quote a famous trader": "Tendler says the correction should be specific to you and, ideally, in your own words. A famous quote is someone else's."
+    "It should quote a famous trader": "A correction should be specific to you, in your own words. A famous quote is someone else's."
    },
-   "simple": "It misses the root cause, because staying positive says nothing about expecting to make money every day.",
+   "simple": "It misses the root cause. Staying positive says nothing about expecting to make money every day.",
    "deeper": {
     "counter": "Compare two step 4 lines. 'Stay positive' says nothing about expecting a profit every day. 'Money keeps score, but it isn't reliable over a short stretch' answers that flaw head on. Tendler says a correction should be specific to you. Schwab's psychology piece adds that positive thinking alone won't do the trick."
    },
@@ -1212,7 +1212,7 @@
      "fixed before (step 4 line changed)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
@@ -1265,26 +1265,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key decided cold from f05/g04 before reading it: matches. Choices 28-32 chars, key tied for longest, not alone. Simple and why rest on f05-f08/g04 only. Voice fine.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Key matches f05/g04. Real Sunday review after chasing; why gives what step 1 looks like on the page and why you don't jump to the fix. No numbers. Choices 23-28 chars, key not alone in length."
   },
   "q02": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Stem said 'He got players to work the mental game': f04/g03 say he was TRYING to get them to, so 'got' overclaims a result. Stem now says what he was after, in 'same structure' wording from f04. True stays right."
   },
   "q03": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Stem was leading: it told the member the anger is the pain, which gave away the distractor 'The anger itself'. Stem now names the reaction and the rock picture only, so the anger stays a live wrong answer. Key f01/g01 unchanged."
   },
   "q04": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False is right per f06 (step 2 explains why it makes sense) and f07 (judging is step 3). Why sentences under 22 words."
+   "notes": "False is right per f06/f07. Real habit (selling winners on the first red day); why gives a sample step 2 line and why skipping it fails."
   },
   "q05": {
    "status": "cut",
@@ -1295,27 +1294,26 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold answer from f08/g05 (step 4: a correction to that flawed logic) matches the key. Choices 28-31 chars, key not longest, no lone absolute or hedge. Entry-rules note rests on b02, push-down note on t01. Stem no longer names the step 4 label. The why says 'a correction', which is what q10 blanks, but q01's why and w2 already say step 4 is the correction, so q10 is deliberate recall, not a new leak.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Two fixes. The choice 'The exit on that losing trade' pointed at a trade the stem never names; now 'your last loser'. The why said mistakes survive technical fixes 'because the trouble starts before the chart': b02 only says they persist, so the 'because' was an added claim. Rewritten without it, in a plainer review voice. Key f08/g05 unchanged."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "True per g10, quoted nearly verbatim. The absolute 'never' is keyed True, so it does not point to the answer. Why grounded in g09/g10/f06."
+   "fixed": true,
+   "notes": "Stem grammar: 'your emotions are never illogical, even a revenge trade' made the trade an emotion. Split into two plain sentences. True stays right per g10."
   },
   "q08": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Step 2 is right per f11/f06. Opening range taught once in the story. Why reads like a review of his page."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Step 3 per f12/f07; recall of w3's label accepted at this rung as before. Choices 26-32 chars, key 30 not longest. New step 4 wrong note fits the rewritten choice."
+   "notes": "Step 3 is right per f12/f07. Why links it to his step 2 and says what a good step 3 sounds like."
   },
   "q10": {
    "status": "cut",
@@ -1325,65 +1323,63 @@
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Key per g09/g10/f06. Widening the stop is a real habit and the why says why it matters (small loss into big). Reads like a mentor."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key per r02 (minimum is a brain dump); new simple rests on r03. Key not longest. Same-day writing agrees with our rulebook B27."
+   "fixed": true,
+   "notes": "Truth: 'You journal your trades the same day anyway' asserts a habit of the member that no fact supports. Now conditional. Rest of the why kept (r01-r03)."
   },
   "q13": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "False is right per g07/t06. Why gives the practical test (still chasing means the page isn't done)."
   },
   "q14": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key per g13/g14/t05. Stem opener 'What do you do' was shared with q12 (2 of 18 stems, over the 10% cap). Stem reworded. 'sit on hands' means staying out of trades; here he's holding a winner, so 'sit tight'."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-fetched s1 2026-11-12. In Tendler's poker example, step 1 is f20, step 3 is f18 ('I'm trying to control how they play, which obviously is impossible') and step 4 is f19. Key decided cold, and it matches. Choices 32-35 chars, key not longest, and it shares no content word with the story. 'Better player' is not a second answer: the story names only the control flaw, and that choice ignores it. Avoidance notes rest on f08/g05 (step 4 corrects the logic) plus t01. It overlaps in principle with q20 (step 4 must target the flaw), but it does not give q20's key or its t04 wording."
+   "notes": "Key is Tendler's own correction (f19). Why says why avoidance fails and carries it over to the market."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False per i01/i02 ('less than 5%' quoted in i02). The hedge 'usually' keyed False, so it is no tell. Why sentences at most 21 words; every claim in i01, i02, t07, g15."
+   "notes": "False per i01/i02. The 5% is cited (i02). Why is blunt and gives the how (reps each time the urge shows up, t07/g15)."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-fetched s6 2026-11-12: the reader's letter does say he mapped his emotions, did a mental hand history, identified the root cause, and tilts after 'a loss or two'; '4 months' is in h04. Tendler's root-cause line (h05) sits right before his diagnosis of this reader, so the key holds. Story details are on the page but carry no fact quote in the file; not a key or number, so not blocking.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Key per h05. The 4 months is in the story (h04). Why says the result is the test and how to dig again (g12)."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key per f17/t03. Two Yes and two No, key not longest. Deeper now rests on t03 and f17, not t04, so q20 stays unspoiled. Chasing treated as a flaw, which agrees with our rulebook C28."
+   "notes": "Key per f17/t03. Two buddies chasing for different reasons makes the point concrete."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story is two sentences. Cold answer: the recurring mistake (f01 repetitive errors, b01 chasing price), and it matches. The key is backed by s1 and s2 (g06). Stop-out note rests on h07. Fits rulebook C28 (no chasing). 'again' is the decision cue, not a tell: the story does not repeat it, and the lengths are similar (27-35 chars). No other defensible answer. It does not answer any other question."
+   "notes": "Chasing is right (f01/b01 repeat errors; h07 for the stop-out). Why ranks all four."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "New deeper counter rests on h03/h08 (the same reader's flaw and Tendler's 'money is the scoreboard' line, re-fetched s6 2026-11-12), t03 and sw2. No number, no unsupported claim. Key unchanged and right per t04."
+   "notes": "Key per t04. Why shows a better step 4 aimed at the flaw (h08) and the revise step (t06)."
   },
   "q21": {
    "status": "cut",

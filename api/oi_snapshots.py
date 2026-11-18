@@ -14,12 +14,13 @@ Architecture:
     Confirmation logic compares trade_day_oi → next_day_oi against volume on the
     trade day. If oi_growth / volume >= 50%, the B-side cluster is confirmed.
 
-Schwab integration:
-    Calls api.schwab_router.options_quotes_batch() in-process — same code path
-    the frontend uses for "Fetch Live OI", which includes UW fallback. No HTTP
-    loopback, no port/auth complexity. The router's batch endpoint groups
-    contracts by symbol and uses one chain call per symbol, so several thousand
-    contracts resolves to a few hundred Schwab API calls.
+Where the open interest comes from:
+    Massive's options chain snapshot (api/massive_oi_snapshots.py), one chain
+    call per underlying, so several thousand contracts resolve to a few hundred
+    calls. It is the only source since 2026-11-17, when Schwab was retired from
+    the product by the owner's instruction; until then Schwab was asked first
+    during market hours and Massive filled what it missed. Rows written before
+    that carry source 'schwab' / 'ondemand-schwab' and stay as recorded.
 
 Integration in main.py:
     from api.oi_snapshots import init_db, daily_snapshot_job
@@ -56,7 +57,7 @@ logger = logging.getLogger(__name__)
 FLOW_DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 # 2026-07-17 (Ravi's #1 structural fix): contract_oi_snapshots + oi_snapshot_runs
 # used to live INSIDE flow.db, so every OI write (5:30 cron AND the consumer's
-# own on-demand Schwab fetch every 20s) took the flow.db WRITE LOCK — and
+# own on-demand OI fetch every 20s) took the flow.db WRITE LOCK — and
 # FlowDB._conn's timeout=30 means a contended insert BLOCKS the writer thread
 # 30-93s before dropping a batch. Moving the tables to their OWN file removes
 # that contention by construction: OI writes never touch the tape's lock again.
@@ -440,7 +441,7 @@ def get_distinct_contracts(
         the long tail of single-trade fluke contracts that aren't part of
         any cluster anyway — cuts contract universe ~70-90% in practice.
       - Excludes adjusted/expired symbols ending in a digit (e.g. GME1,
-        TLRY1, SOXS1) — Schwab returns 400 for those, they're just noise.
+        TLRY1, SOXS1) — no chain is served for those, they're just noise.
       - Drops malformed strike/expiration values.
     """
     cutoff = date.today() - timedelta(days=days_back)
@@ -490,8 +491,8 @@ def get_distinct_contracts(
     skipped_adjusted = 0
     skipped_malformed = 0
     for sym, cp, strike, exp, n in rows:
-        # Skip adjusted/when-issued symbols (end in digit). Schwab can't
-        # quote them — they always 400.
+        # Skip adjusted/when-issued symbols (end in digit). No chain is
+        # served for them.
         if sym and sym[-1].isdigit():
             skipped_adjusted += 1
             continue
@@ -513,152 +514,41 @@ def get_distinct_contracts(
     return contracts
 
 
-# ── Schwab fetch (direct in-process call, no HTTP loopback) ──────────────
-def _exp_to_iso_for_schwab(exp: str) -> str:
-    """Convert flow-table 'M/D/YYYY' → 'YYYY-MM-DD' for Schwab API."""
-    parts = exp.split("/")
-    if len(parts) != 3:
-        return exp  # let Schwab reject it; safer than guessing
-    m, d, y = parts
-    if len(y) == 2:
-        y = "20" + y
-    return f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
-
-
+# ── OI fetch (Massive, the one source) ───────────────────────────────────
 async def _fetch_oi_all_async(
     contracts: List[Tuple[str, str, float, str]],
 ) -> List[Tuple[str, Optional[int]]]:
-    """Fetch OI for all contracts via direct schwab service call (in-process).
+    """Fetch OI for all contracts from Massive's options chain snapshot.
     Returns list of (contract_key, oi_or_None) parallel to input.
 
-    Uses api.schwab_router.options_quotes_batch() so we get UW fallback for
-    free. schwab.get_batch_option_quotes internally groups by symbol and
-    does one chain call per ticker — way more efficient than per-contract calls.
+    Every caller of this function reads through here:
+      - WS worker's oi_fetch_manager (live alerts)
+      - 5:30 AM daily_snapshot_job (cron)
+      - fetch_and_persist_one_oi (single-contract on-demand)
+      - "fetch OI" admin button on /live-massive dashboard
+
+    MASSIVE ONLY since 2026-11-17 (Schwab was retired from the product by the
+    owner's instruction). Before that Schwab's batch quote was asked first
+    during market hours and Massive filled its misses; outside market hours it
+    was already Massive alone, because a broker quote's openInterest is 0
+    off-hours (2026-07-19).
+
+    An OI of 0 or no answer is None: we want signal, not noise, and a stored 0
+    would stop the on-demand retry.
+
+    Cost: one Massive chain call per unique underlying among the contracts
+    (bounded by massive_oi_snapshots.MAX_CONCURRENCY). For a batch of 30
+    contracts spread across 5 tickers, that's 5 calls not 30.
+
+    Kill switch: set env var MASSIVE_OI_FALLBACK_DISABLED=1 to skip the Massive
+    read without redeploying (the name is from when it was the fallback). With
+    it set nothing is fetched and every contract comes back None.
     """
-    # Lazy import — avoid circular deps if main.py imports us at startup
-    from api.schwab_router import options_quotes_batch
-
-    # Pure cash-settled index symbols Schwab requires with a "$" prefix
-    # (matches gex_service.py). ETFs like SPY/QQQ/IWM use the regular
-    # ticker. Without this prefix, the chain call 400s on the index name.
-    INDEX_TICKERS_NEED_PREFIX = {"SPX", "NDX", "VIX", "RUT", "DJX", "XSP", "XND"}
-    def _schwab_symbol(sym: str) -> str:
-        s = (sym or "").upper().strip()
-        return "$" + s if s in INDEX_TICKERS_NEED_PREFIX else s
-
-    # Build the payload in the shape schwab expects
-    payload = [
-        {
-            "symbol": _schwab_symbol(sym),
-            "cp": "C" if cp.upper() in ("C", "CALL") else "P",
-            "strike": float(strike),
-            "expDate": _exp_to_iso_for_schwab(exp),
-        }
-        for sym, cp, strike, exp in contracts
+    # All-None baseline, in input order; the Massive read fills it in.
+    results: List[Tuple[str, Optional[int]]] = [
+        (make_key(s, cp, k, x), None) for s, cp, k, x in contracts
     ]
 
-    # Schwab API calls have been observed to hang silently (no timeout,
-    # no exception) during certain network or rate-limit conditions.
-    # When that happens with await + no wait_for, the oi_fetch_manager
-    # task blocks forever. Worse, if options_quotes_batch() is async
-    # but internally uses sync I/O (requests vs httpx), the await blocks
-    # the entire event loop — causing the WS read loop to stop receiving
-    # events. This was the suspected root cause of the silent-hang
-    # incidents on 6/29 where the worker container stayed alive but
-    # stopped writing rows.
-    #
-    # Timeout scales with batch size. options_quotes_batch groups by
-    # underlying internally and makes one chain call per distinct symbol.
-    # A batch of 1 finishes in 1-2s; a chunk of 200 spans 30-50 distinct
-    # symbols and needs 30-60s of real work. Using a single 10s ceiling
-    # meant every cron chunk timed out unconditionally regardless of
-    # Schwab health (root cause of the 6/30–7/6 coverage collapse to
-    # `failures: 37782, inserted: 0` on 7/6). The 10s guard is kept for
-    # on-demand paths (single-contract enrich-oi and Bullflow first-fires)
-    # where hang protection matters and real work is short.
-    #
-    # If it does time out, we fall through to Massive fallback below;
-    # the watchdog in massive_ws_worker.py is the second line of defense
-    # for the WS event loop itself.
-    # Massive-primary when the market is closed (2026-07-19). Schwab option
-    # openInterest is 0 outside RTH (verified), so at the 5:30 AM cron every
-    # contract "misses" and routes to Massive anyway -- the Schwab call is pure
-    # overhead there and was the source of the 7/6 timeout collapse
-    # (failures: 37782, inserted: 0). During RTH Schwab OI is valid, so it stays
-    # first then and the live oi_fetch_manager path is unchanged.
-    schwab_timeout = 15.0 if len(payload) <= 10 else 90.0
-    response = None
-    if _in_market_hours():
-        try:
-            response = await asyncio.wait_for(
-                options_quotes_batch(payload), timeout=schwab_timeout
-            )
-        except asyncio.TimeoutError:
-            logger.warning(
-                "[oi-snapshot] Schwab batch call timed out (>%.0fs, %d contracts) — "
-                "falling through to Massive fallback.",
-                schwab_timeout, len(payload),
-            )
-            response = None
-        except Exception as e:
-            logger.exception(f"[oi-snapshot] Schwab batch call failed: {e}")
-            response = None
-    else:
-        logger.info(
-            "[oi-snapshot] market closed — skipping Schwab (OI=0 off-RTH), "
-            "going Massive-primary for %d contracts.", len(payload),
-        )
-
-    # Build results from Schwab response (or all-None if Schwab failed).
-    # The Massive fallback block below handles either case — it fills in
-    # any None entries.
-    quotes = response.get("quotes", []) if isinstance(response, dict) else []
-
-    results: List[Tuple[str, Optional[int]]] = []
-    if quotes:
-        for orig, quote in zip(contracts, quotes):
-            sym, cp, strike, exp = orig
-            ck = make_key(sym, cp, strike, exp)
-            if not isinstance(quote, dict) or quote.get("error") or quote.get("expired"):
-                results.append((ck, None))
-                continue
-            oi = quote.get("openInterest")
-            # Schwab returns 0 for "no data" as well as legit 0-OI contracts.
-            # Treat 0 as None for snapshot purposes — we want signal, not noise.
-            if oi is None or oi == 0:
-                results.append((ck, None))
-            else:
-                try:
-                    results.append((ck, int(oi)))
-                except (ValueError, TypeError):
-                    results.append((ck, None))
-    else:
-        # Schwab failed entirely (timeout/exception/empty). All-None
-        # baseline; Massive fallback below will try to fill these in.
-        results = [(make_key(s, cp, k, x), None) for s, cp, k, x in contracts]
-
-    # ─── Massive fallback for Schwab misses (added 6/30 evening) ──────────
-    # Schwab has known coverage gaps (~7-13%) on deep-OTM strikes, small/
-    # mid-cap names, and freshly-listed weeklies. Massive's chain snapshot
-    # endpoint often has them since it's sourced from the same OPRA feed
-    # as the trade stream.
-    #
-    # Adding fallback HERE in _fetch_oi_all_async means every caller of
-    # this function automatically benefits:
-    #   - WS worker's oi_fetch_manager (live alerts)
-    #   - 5:30 AM daily_snapshot_job (cron)
-    #   - fetch_and_persist_one_oi (single-contract on-demand)
-    #   - "fetch OI" admin button on /live-massive dashboard
-    #
-    # Schwab still runs first. Massive only fills gaps. Schwab successes
-    # are never overwritten.
-    #
-    # Cost: one Massive chain call per unique underlying among the
-    # unresolved contracts. For a batch where Schwab missed 30 contracts
-    # spread across 5 tickers, that's 5 Massive calls not 30.
-    #
-    # Kill switch: set env var MASSIVE_OI_FALLBACK_DISABLED=1 to skip
-    # Massive without redeploying.
     import os
     massive_disabled = os.environ.get(
         "MASSIVE_OI_FALLBACK_DISABLED", "0"
@@ -674,9 +564,10 @@ async def _fetch_oi_all_async(
             (s, "C" if str(cp).upper() in ("C", "CALL") else "P", k, x)
             for s, cp, k, x in (contracts[i] for i in unresolved_idx)
         ]
-        # Same size-scaled timeout logic as the Schwab call above: 12s
-        # ceiling for small on-demand batches (hang protection), 60s
-        # for cron chunks that span dozens of underlyings.
+        # Size-scaled timeout: 12s ceiling for small on-demand batches (hang
+        # protection — an await that never returns would block the worker's
+        # oi_fetch_manager forever), 60s for cron chunks that span dozens of
+        # underlyings.
         massive_timeout = 12.0 if len(massive_batch) <= 10 else 60.0
         try:
             from api.massive_oi_snapshots import (
@@ -687,15 +578,14 @@ async def _fetch_oi_all_async(
             )
         except asyncio.TimeoutError:
             logger.warning(
-                "[oi-snapshot] Massive OI fallback timed out (>%.0fs, %d contracts)",
+                "[oi-snapshot] Massive OI read timed out (>%.0fs, %d contracts)",
                 massive_timeout, len(massive_batch),
             )
             massive_results = []
         except Exception as e:
-            logger.warning("[oi-snapshot] Massive OI fallback failed: %s", e)
+            logger.warning("[oi-snapshot] Massive OI read failed: %s", e)
             massive_results = []
 
-        # Merge: only overwrite None entries; never demote a Schwab success.
         massive_by_ck = {
             ck: oi for ck, oi in massive_results
             if oi is not None and oi > 0
@@ -709,7 +599,7 @@ async def _fetch_oi_all_async(
         if massive_filled:
             unique_underlyings = len({c[0] for c in massive_batch})
             logger.info(
-                "[oi-snapshot] Massive fallback: %d of %d Schwab misses "
+                "[oi-snapshot] Massive: %d of %d contracts "
                 "resolved (%d underlyings queried)",
                 massive_filled, len(unresolved_idx), unique_underlyings
             )
@@ -734,26 +624,27 @@ def _fetch_oi_all(
 #   1. liveflow worker calls fetch_and_persist_one_oi(...)
 #   2. We check DB first (fast, no API hit) — might already be there from
 #      a same-day fire or an earlier on-demand fetch
-#   3. If not, single Schwab options-chain call (~200-400ms)
-#   4. Persist result to contract_oi_snapshots with source='ondemand-schwab'
+#   3. If not, one Massive chain call for the underlying
+#   4. Persist result to contract_oi_snapshots with source='ondemand-massive'
+#      (rows written before 2026-11-17 say 'ondemand-schwab')
 #   5. Return OI value
 #
 # Subsequent fires on the same contract (multi-fire pattern) hit step 2 and
-# skip Schwab entirely.
+# make no vendor call.
 async def fetch_and_persist_one_oi(
     sym: str, cp: str, strike: float, exp_iso: str,
 ) -> Optional[int]:
-    """On-demand OI fetch for a single contract from Schwab.
+    """On-demand OI fetch for a single contract (from Massive).
 
     `exp_iso` is ISO format ('YYYY-MM-DD') as used in Bullflow live alerts.
     Internally converted to MDY for the snapshot key convention.
 
     Idempotent: if the contract is already in contract_oi_snapshots for
-    today, returns the cached value without calling Schwab. Safe to call
+    today, returns the cached value without a vendor call. Safe to call
     from multiple alert handlers concurrently — DB unique constraint
     handles race conditions.
 
-    Returns OI as int, or None if Schwab returns no data / errors out /
+    Returns OI as int, or None if the source returns no data / errors out /
     inputs are malformed. Caller handles None gracefully (no OI badge).
     """
     if not sym or not cp or strike is None or not exp_iso:
@@ -773,7 +664,7 @@ async def fetch_and_persist_one_oi(
     today_iso = date.today().isoformat()
     ck = make_key(sym, cp, strike, exp_mdy)
 
-    # DB hit? Skip Schwab. This handles the multi-fire case where the FIRST
+    # DB hit? No vendor call. This handles the multi-fire case where the FIRST
     # fire triggered an on-demand fetch and persisted it; subsequent fires
     # within the same day get the cached value for free.
     existing = get_snapshot(ck, today_iso)
@@ -789,12 +680,12 @@ async def fetch_and_persist_one_oi(
         if snap:
             return snap[0]
 
-    # No snapshot exists. Call Schwab.
+    # No snapshot exists. Ask Massive.
     try:
         results = await _fetch_oi_all_async([(sym, cp, strike, exp_mdy)])
     except Exception as e:
         logger.warning(
-            f"[oi-snapshot] on-demand Schwab fetch failed for "
+            f"[oi-snapshot] on-demand OI fetch failed for "
             f"{sym} {cp} ${strike} {exp_iso}: {e}"
         )
         return None
@@ -803,20 +694,20 @@ async def fetch_and_persist_one_oi(
         return None
     _, oi = results[0]
     if oi is None or oi == 0:
-        # Schwab returned no data (delisted, expired, or invalid contract).
+        # No data came back (delisted, expired, or invalid contract).
         # Don't persist a 0 — get_snapshot would return it on next call and
         # we'd skip the retry.
         return None
 
     # Persist with source label so we can distinguish on-demand vs cron later
     try:
-        record_batch([(ck, oi, "ondemand-schwab")], today_iso)
+        record_batch([(ck, oi, "ondemand-massive")], today_iso)
         logger.info(
             f"[oi-snapshot] on-demand persisted {sym} {cp} ${strike} {exp_iso} OI={oi}"
         )
     except Exception as e:
         # Persist failure isn't fatal — caller still gets the OI value, just
-        # next same-day fire will refetch from Schwab instead of DB
+        # next same-day fire will refetch from the vendor instead of DB
         logger.warning(f"[oi-snapshot] on-demand persist failed: {e}")
 
     return oi
@@ -832,18 +723,18 @@ _STALE_OK_DAYS = 5   # how far back to walk for "stale-but-OK" snapshot match
 #
 # CHUNK_SIZE tuning history:
 #   500 → too big: a chunk spans 80-120 distinct underlyings, each an
-#         internal chain call, and the fixed 10s wait_for on the Schwab
-#         batch could never accommodate that. Every cron chunk timed out.
+#         internal chain call, and a fixed 10s wait_for on the batch
+#         could never accommodate that. Every cron chunk timed out.
 #   200 → bounds a chunk to ~30-50 distinct underlyings, well within the
-#         size-scaled 90s Schwab timeout below. Full universe of ~38K
-#         contracts = ~190 chunks; run completes in under 30 min.
+#         size-scaled 60s timeout in _fetch_oi_all_async. Full universe of
+#         ~38K contracts = ~190 chunks; run completes in under 30 min.
 CHUNK_SIZE = 200
 
 
 def _in_market_hours() -> bool:
     """True Mon-Fri 9:20 AM - 4:20 PM ET (options tape 9:30-4:15 + buffer).
 
-    The snapshot job runs ON THE FLOW-WORKER POD. Its Massive-fallback chain
+    The snapshot job runs ON THE FLOW-WORKER POD. Its Massive chain
     parsing is heavy pure-Python CPU: on 2026-07-17 a re-kicked run that
     overlapped the open GIL-starved the OPRA consumer's writer thread — the
     tape fell into 4-5 min batch-flush cycles (rows captured but minutes
@@ -867,7 +758,7 @@ def daily_snapshot_job() -> Dict:
     3. Get filtered contracts from past 30d of trades (stocks only,
        min 3 trades, no adjusted symbols)
     4. Process in CHUNK_SIZE batches:
-         - Fetch OI from Schwab for the chunk
+         - Fetch OI from Massive for the chunk
          - Insert that chunk's results
          - Heartbeat the run progress
     5. Prune snapshots older than 90 days
@@ -952,7 +843,7 @@ def daily_snapshot_job() -> Dict:
             logger.info(f"[oi-snapshot] Chunk {chunk_num}/{total_chunks} ({len(chunk)} contracts)...")
             fetched = _fetch_oi_all(chunk)
 
-            insert_batch = [(ck, oi, "schwab") for ck, oi in fetched if oi is not None]
+            insert_batch = [(ck, oi, "massive") for ck, oi in fetched if oi is not None]
             chunk_succ = len(insert_batch)
             chunk_fail = len(fetched) - chunk_succ
 
@@ -1062,8 +953,8 @@ def confirm_trade_direction(
         color: 'YELLOW' or 'MAGENTA' (must be one of these to even attempt)
         cp: 'C' or 'P' or 'CALL' / 'PUT'
         next_trading_day_iso: optional override (ISO YYYY-MM-DD); defaults to
-              trade_date + 1 calendar day, which only finds a snapshot if Schwab
-              ran on that date. For weekends/holidays, caller should pass the
+              trade_date + 1 calendar day, which only finds a snapshot if the
+              job ran on that date. For weekends/holidays, caller should pass the
               correct next-trading-day.
 
     Returns:

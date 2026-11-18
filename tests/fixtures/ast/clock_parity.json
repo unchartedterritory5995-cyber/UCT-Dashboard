@@ -2613,6 +2613,52 @@
       300,
       300
     ],
+    "regularfirst": [
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1
+    ],
+    "regularhours": [
+      0,
+      1,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1
+    ],
     "sessionfirst": [
       null,
       0,
@@ -3031,6 +3077,24 @@
       86400,
       86400
     ],
+    "regularfirst": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "regularhours": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
     "sessionfirst": [
       null,
       1,
@@ -3371,6 +3435,24 @@
       2628003,
       2628003
     ],
+    "regularfirst": [
+      1,
+      0,
+      1,
+      0,
+      1,
+      0,
+      0
+    ],
+    "regularhours": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
     "sessionfirst": [
       null,
       0,
@@ -3633,6 +3715,22 @@
       2628003,
       2628003,
       2628003
+    ],
+    "regularfirst": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "regularhours": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
     ],
     "sessionfirst": [
       null,
@@ -3985,6 +4083,24 @@
       604800,
       604800
     ],
+    "regularfirst": [
+      1,
+      0,
+      1,
+      0,
+      1,
+      1,
+      0
+    ],
+    "regularhours": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
     "sessionfirst": [
       null,
       0,
@@ -4301,6 +4417,26 @@
       604800,
       604800,
       604800
+    ],
+    "regularfirst": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "regularhours": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
     ],
     "sessionfirst": [
       null,
@@ -5055,6 +5191,52 @@
       null
     ],
     "month": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "regularfirst": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "regularhours": [
       null,
       null,
       null,

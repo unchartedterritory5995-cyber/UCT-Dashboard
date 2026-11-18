@@ -49,6 +49,8 @@ import { pairRunRows } from './runRowPairing'
 import { runtimeInputSpecsOf, plotColourInputAt } from '../../engine/runtime/runtimeInputs'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
 import { hostKnownDivergenceOf } from '../../engine/hostKnownDivergence'
+import { hostLaneCostOf } from '../../engine/hostLaneCost'
+import { sameDrawnSurface } from './costRoute'
 import { objectLossNote, RUN_HALF_DRAWING_SENTENCE } from '../../engine/ast/objectLoss'
 // ⭐ ENGINE 53 — the run half's door reads the store's cap as the save door counts it.
 import { DOCUMENT_BYTE_BUDGET } from '../../engine/ast/graphDocument'
@@ -445,12 +447,15 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // mistranslation wearing a label". Selection is `chooseOutput`'s and it already
   // declines a hidden row; this only decides what the document CONTAINS.
   // Carriage is not offer, and the acceptance pins that both ways.
+  // ⭐⭐ Engine 75 (#1788, fix/fill-anchor-display) — and DRAWING is not offer either: a
+  // fill anchor ruling 1.2 never offers is DRAWN unless its own `display` hides it
+  // (`paneHides`), as TradingView draws it.
   const carryable = (t.outputs || [])
     .filter((o) => o && o.ast && o.formula && !o.refusal && o.kind !== 'alertcondition')
-  const visible = carryable.filter((o) => !o.hidden).slice(0, CARRY_MAX)
+  const visible = carryable.filter((o) => !paneHides(o)).slice(0, CARRY_MAX)
   const visibleSet = new Set(visible)
   const drawable = carryable
-    .filter((o) => !o.hidden ? visibleSet.has(o) : true)
+    .filter((o) => !paneHides(o) ? visibleSet.has(o) : true)
     .slice(0, DOC_CARRY_MAX)
   // ⛔ THE REFUSAL STILL KEYS OFF WHAT CAN BE *SEEN*. A script whose only rows are
   // hidden anchors draws nothing a member could look at, and saying "nothing a
@@ -639,7 +644,9 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
       // hidden row, so the field could only ever be false and said nothing. Now
       // it is the anchor's whole meaning: the renderer draws no series for it and
       // a fill may still reference it.
-      hidden: !!o.hidden,
+      // ⭐⭐ Engine 75 (#1788, fix/fill-anchor-display) — the AUTHOR's statement only
+      // (`paneHides`): an untitled fill anchor with no `display.none` is drawn.
+      hidden: paneHides(o),
       // ⚰️ `opacity` WAS DROPPED HERE, AND IT IS NOT DECORATION — measured on the
       // real chart, 2026-09-12 (T5 pixels). Volume v2's fourth plot is
       // `Scale Padding`: `color = #FFFFFF, opacity = 0, width = 1`, a series whose
@@ -1262,7 +1269,7 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     }
     return no(installWhy.reason, installWhy.guard, t)
   }
-  return {
+  return routeByCost({ source, id, name, t, no, host: {
     ok: true,
     definition: docOut,
     reason: null,
@@ -1281,7 +1288,41 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // declined (by code, for the census); absent for a script whose drawings are complete.
     ...(runHalfOut && runHalfOut.runtimeObjects ? { runHalf: { minted: true, columns: Object.keys(runHalfOut.runtimeObjects.outputs).length } } : {}),
     ...(runHalfOut && runHalfOut.declined ? { runHalfDeclined: runHalfOut.declined } : {}),
+  } })
+}
+
+/** ⭐⭐ ROUTE BY COST (NUMBER PENDING, docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md) —
+ *  THE HOST LANE'S ANSWER, OR THE SAME SCRIPT DRAWN BY THE RUNTIME LANE WHEN THE HOST ONE IS TOO DEAR.
+ *
+ *  The host lane computes on the member's main thread, inside the chart's paint, for every new bars
+ *  array; the runtime lane computes in a worker. A host document whose recurrences cost more than a
+ *  long task over 5,000 bars (`hostLaneCost.js`: no clock, a count off its own trees) is offered to
+ *  the runtime lane exactly as a host refusal is (`routed: false`), and MOVED only when that lane
+ *  builds it, admits it (its kill list, allowlist and capability verdict) and draws the same picture
+ *  (`costRoute.js::sameDrawnSurface`). Anything else keeps the host answer a member has today,
+ *  carrying `costRoute` (why it stayed) for the census; nothing a member reads changes.
+ *  ⛔ Only while the runtime pane is on for THIS viewer (`runtimePaneEnabled`): with it off nothing is
+ *  asked and the answer is byte-identical to before. */
+function routeByCost({ host, source, id, name, t, no }) {
+  if (!runtimePaneEnabled()) return host
+  const cost = hostLaneCostOf(host.definition)
+  if (!cost.over) return host
+  // ⛔ The refusal `runtimeLaneDefinition` builds on a decline is never read (the host answer stands),
+  // so it carries no guard of its own: a code nobody can be shown is not minted.
+  const run = runtimeLaneDefinition({
+    source, id, name, t, no, routed: false, hostGuard: null,
+    hostReason: `its formula lane would hold the chart for about ${cost.stepsPerBar} steps a bar`,
+    drawnBecause: 'because drawn as formulas it would hold the chart for a noticeable time on every update',
+  })
+  const doc = run && run.ok ? run.definition : null
+  if (!doc || !doc.compute || doc.compute.kind !== 'runtime') {
+    const declined = run && run.runtimeDeclined
+    return { ...host, costRoute: { moved: false, cost, code: (declined && declined.code) || null,
+      why: (declined && declined.why) || null } }
   }
+  const same = sameDrawnSurface(host, run)
+  if (!same.ok) return { ...host, costRoute: { moved: false, cost, code: same.code, why: same.why } }
+  return { ...run, costRoute: { moved: true, cost } }
 }
 
 /** The guard an install refusal that is NOT a budget cap is named by: the document this door
@@ -1457,7 +1498,8 @@ function hostPartialRunHalf({ source, id, t, objectsGate, drawable, definition, 
   if (!pairing.ok) return declined(pairing.code, pairing.why)
   const outputs = {}
   for (const [i, o] of drawable.entries()) {
-    if (o.hidden) continue
+    // every row the host document DRAWS (a fill anchor too: `paneHides`)
+    if (paneHides(o)) continue
     const index = (t.outputs || []).indexOf(o)
     const run = pairing.runOutputOf.get(index)
     if (!Number.isInteger(run)) {
@@ -1999,7 +2041,7 @@ function runtimeShiftContext(source, version, specs) {
  * of the one is the n-th of the other — and when the counts differ the mapping
  * is unknown, which is a refusal, never a guess.
  */
-function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = null, routed = true, no }) {
+function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = null, routed = true, no, drawnBecause = null }) {
   const decline = (code, why) => {
     const refusal = routed
       ? no(`${hostReason} — and the per-bar lane that could draw it declined: ${why}`, 'pine:state', t)
@@ -2094,7 +2136,11 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // host's screening judgement, not the author's, and TradingView draws the line. ⚰️ vw-array-na lost
     // `plot(array.min(a))` and four siblings here ("hidden helper or beyond its row ceiling") while the
     // run computed them (TradingView: 1, 3, 6, 2, na).
-    if ((o.hidden && o.hiddenReason !== 'constant') || o._authorHidden === true) continue
+    // ⭐⭐ Engine 75 (#1788, fix/fill-anchor-display) — nor a row the host hid as a `fill-anchor`
+    // (`paneHides`): ruling 1.2 never OFFERS it, and TradingView DRAWS it unless its own `display`
+    // hides it. ⚰️ supertrend-strategy's `mPlot` (Q-SD1 / Q-SD2: `display: 15`, `visible: true`) was
+    // "the member pane did not carry this output" here, its value and its colour never drawn.
+    if ((paneHides(o) && o.hiddenReason !== 'constant') || o._authorHidden === true) continue
     const label = o.title || `${o.kind} ${ord + 1}`
     // ⭐ WS-E — a leftward `offset` is carried (`runtimeRowShift`), the rest withheld.
     const shift = runtimeRowShift(o, shiftCtx)
@@ -2412,8 +2458,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   }
   const notes = [{
     name: 'Drawn bar by bar',
+    // ⭐ ROUTE BY COST (NUMBER PENDING) — a script moved for its cost says so (`drawnBecause`); every
+    // other caller keeps the sentence it always had.
     note: 'This script is drawn by running it bar by bar, the way TradingView does, '
-      + 'because a single formula per line cannot hold it. Its settings can be changed '
+      + `${drawnBecause || 'because a single formula per line cannot hold it'}. Its settings can be changed `
       + 'like any indicator\'s; a value outside the script author\'s own bounds or options '
       + 'is refused by name, never stretched to fit.',
   }]
@@ -2764,6 +2812,28 @@ function guardInputSpecs(t, stamp, existing) {
  *  ⭐ A document saved in the old shape still renders TradingView's default and
  *  honours a pick: `pool.resolvePlotForInstance`. The alpha byte is TradingView's
  *  (`designTokens.withAlphaByte`). An opaque colour keeps its six digits. */
+/**
+ * ⭐⭐ Engine 75 (#1788, fix/fill-anchor-display) — DOES THE PANE HIDE THIS ROW THE HOST TRANSLATED?
+ *
+ * The host translation's `hidden` merges three statements (`pine.js` `hiddenReason`): the AUTHOR's
+ * `display = display.none` ('author'); an untitled plot of a bare price source that a `fill` names
+ * ('fill-anchor'); a column that reads no bar ('constant'). Only the first is about DRAWING. 'fill-anchor'
+ * is ruling 1.2's SCREENING judgement (a column offered under the script's title that is the author's ohlc4
+ * fill edge is a mistranslation wearing a label: never OFFERED, never SELECTED, `chooseOutput`), and it was
+ * never a statement about what TradingView draws.
+ *
+ * TradingView DRAWS such an anchor unless its own `display` hides it, read off its own records:
+ * supertrend-strategy's `mPlot = plot(ohlc4, title="", style=plot.style_circles, linewidth=0)` reads back
+ * `display: 15` (pane, data window, price scale, status line) and `visible: true` (Q-SD1, Q-SD2, and
+ * `supertrend-strategy-{rddt,spy}-1d-2026-10-02`), while pmax-explorer's identical line with
+ * `display=display.none` reads back `display: 0, visible: false`, and that one is 'author' here, hidden as
+ * before. So a fill anchor's visibility follows ONLY its own `display` argument.
+ * ('constant' keeps its lane's rule: the runtime lane draws it (B7), the host lane hides it as before.)
+ */
+function paneHides(o) {
+  return !!(o && o.hidden) && o.hiddenReason !== 'fill-anchor'
+}
+
 function rowColour(p) {
   // ⛔ No colour of its own (a palette / condition / gradient row): its opacity is
   // the palette's shared alpha and stays where it was.

@@ -1500,6 +1500,18 @@
    "source": "h5",
    "quote": "The low of day (the entry day's low) is the primary stop. The pattern's low and a line minus a cushion are acceptable alternatives, not wrong answers.",
    "claim": "D-008: the low of day is the primary stop; a line minus a cushion is an acceptable alternative."
+  },
+  {
+   "id": "hw05",
+   "source": "hw",
+   "quote": "Stop distance: 1-3% is preferred, 3.5% is good, and up to 5% is acceptable; past 5%, we mostly wait for a tighter trigger.",
+   "claim": "Our stop band: 1-3% preferred, up to 5% acceptable; past 5%, wait for a tighter trigger."
+  },
+  {
+   "id": "h4a7b",
+   "source": "h4",
+   "quote": "A tight stop never justifies a bigger position than that: a gap can jump the stop.",
+   "claim": "A tight stop never justifies a bigger position: a gap can jump the stop."
   }
  ],
  "walkthroughs": [
@@ -1508,8 +1520,8 @@
    "title": "R: the unit of risk",
    "steps": [
     "Before you buy, find the price that proves you wrong. Entry minus that stop is R, your initial risk.",
-    "Count every result in R. Risk $10 and make $100, and that's a 10R multiple.",
-    "Average your R-multiples over many trades. That's your expectancy, what one trade is worth on average."
+    "Count every result in R. Risk $10 and make $100, and that's a 10R winner.",
+    "Average your R over a lot of trades and you've got your expectancy: what one trade is worth to you."
    ],
    "facts": [
     "f40",
@@ -1524,9 +1536,10 @@
    "key": "w2",
    "title": "Drawdown and ruin",
    "steps": [
-    "A drawdown is the fall from your account's high to the low after it, quoted as a percent.",
-    "Losses are harder to undo than they look. A 50% loss needs a 100% gain to get back.",
-    "Risk too much per trade and a normal losing streak can finish the account. Those odds are your risk of ruin."
+    "A drawdown is the drop from your account's high to the low after it, as a percent.",
+    "Losses are harder to fix than they look. Lose 50% and you need 100% just to get back.",
+    "Risk too much per trade and a normal losing streak can finish you. That's risk of ruin.",
+    "So we keep it small. Under 1% a trade is normal, and 2% is the absolute ceiling."
    ],
    "facts": [
     "f75",
@@ -1534,16 +1547,18 @@
     "f142",
     "f73",
     "f66",
-    "f74"
+    "f74",
+    "hA1"
    ]
   },
   {
    "key": "w3",
    "title": "Stops that follow the trend",
    "steps": [
-    "Your first stop sets R. As the trade works, you can move the stop up, never down.",
-    "A trailing stop follows price by a set amount. The Chandelier Exit sets it three ATRs under the recent high by default.",
-    "Too tight and normal swings take you out. Too loose and a real reversal eats your profit."
+    "Your first stop sets R. As the trade works, the stop moves up. Never down, never wider.",
+    "A trailing stop follows price. The Chandelier Exit hangs it three ATRs under the 22-day high.",
+    "We keep it simpler: the 9 EMA for fast movers, the 20 EMA for steadier ones.",
+    "Too tight and normal wiggles knock you out. Too loose and a real reversal eats your profit."
    ],
    "facts": [
     "f39",
@@ -1553,7 +1568,9 @@
     "f111",
     "f88",
     "f89",
-    "f112"
+    "f112",
+    "hA4",
+    "hE52"
    ]
   }
  ],
@@ -1564,7 +1581,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "R",
-   "q": "What does R mean on a trade?",
+   "q": "Your plan reads: buy at $50, stop at $48.50. Before you size it, you need your R. What is R?",
    "choices": [
     "Your planned loss, entry to stop",
     "The money you put into the trade",
@@ -1572,8 +1589,8 @@
     "The gain you expect at your target"
    ],
    "answer": "Your planned loss, entry to stop",
-   "why": "Your planned loss, entry to stop. Van Tharp calls the gap between your entry and your stop the initial risk, R for short. It is what you are willing to lose per share if you are wrong.",
-   "lesson_line": "R is what being wrong costs you. Know it before you buy.",
+   "why": "Your planned loss, entry to stop. Here that's $50 down to $48.50. It's what being wrong costs you on each share, and you know it before you click buy. Everything else runs off it. The share count comes from it, and every result gets counted in it. Get R wrong and the size is wrong too.",
+   "lesson_line": "Know what being wrong costs before you buy. That's your R.",
    "facts": [
     "f40",
     "f15",
@@ -1583,11 +1600,11 @@
     "f87"
    ],
    "wrong": {
-    "The money you put into the trade": "That's your position size. Tharp is clear: the amount risked is not the amount invested.",
-    "The stock's average daily range": "That's ATR, the stock's average range of movement per trading day.",
-    "The gain you expect at your target": "That's the reward side of the trade. R is the risk side."
+    "The money you put into the trade": "That's your position size. You risk far less than you put in, because the stop gets you out first.",
+    "The stock's average daily range": "That's ATR, how far the stock moves in a normal day. It helps you place a stop, but it isn't your risk.",
+    "The gain you expect at your target": "That's the reward side. R is the risk side, entry down to the stop."
    },
-   "simple": "R is the loss you plan for: the distance from your entry down to your stop.",
+   "simple": "R is the loss you plan for, the gap from your entry down to your stop.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1595,7 +1612,10 @@
      "stable definition, two publishers agree"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Van Tharp calls it the initial risk, R for short: the difference between your stop and your entry. He's clear that the amount risked is not the amount invested."
+   }
   },
   {
    "key": "q02",
@@ -1603,25 +1623,26 @@
    "rung": 2,
    "format": "mcq",
    "term": "R",
-   "q": "You buy at $50 with your stop at $46. What is your R per share?",
+   "q": "You buy a breakout at $100 and set your stop at $96, under the low of the day. What's your R per share?",
    "answer": "$4",
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "entry - stop",
-     "entry": 50,
-     "stop": 46
+     "entry": 100,
+     "stop": 96
     }
    },
    "prefix": "$",
-   "why": "$4. R per share is your entry minus your stop: $50 less $46. Tharp's own example buys at $50 with a $40 exit, so 1R is $10 a share. R is the loss you plan for.",
+   "why": "$4 a share. $100 minus $96 is $4, and that's 1R. It's 4% of your price, inside the 5% we'll accept on a stop. Every number after this runs off that $4: the share count, your targets, how you grade the result. Write it down before you buy.",
    "lesson_line": "Entry minus stop. That's 1R per share.",
    "facts": [
     "f40",
     "f16",
-    "f68"
+    "f68",
+    "hw05"
    ],
-   "simple": "Your R is $4 a share, because R is your entry price minus your stop price.",
+   "simple": "Your R is $4 a share, the gap from your $100 buy down to your $96 stop.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1629,17 +1650,20 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
-    "$46",
+    "$96",
     "$0.40",
-    "$54",
+    "$104",
     "$4"
    ],
    "wrong": {
-    "$46": "Gave the stop price instead of the gap between entry and stop.",
-    "$54": "Added the risk to your entry instead of taking the stop off.",
-    "$0.40": "Slipped a decimal place."
+    "$0.40": "A slipped decimal. $100 minus $96 is $4, not 40 cents.",
+    "$96": "That's the stop price. R is the distance down to it.",
+    "$104": "You added the $4 to your entry. The stop sits under your buy, so you subtract."
+   },
+   "deeper": {
+    "example": "Tharp's own example buys at $50 and sells if it drops to $40, so 1R is $10 a share."
    }
   },
   {
@@ -1648,9 +1672,9 @@
    "rung": 4,
    "format": "tf",
    "term": "R",
-   "q": "R is the amount of money you put into the trade.",
+   "q": "You buy $4,000 of stock with a stop that would cost you $1,000. Your R on this trade is the $4,000.",
    "answer": "False",
-   "why": "False. R is the amount you risk, not the amount you invest. Tharp says the amount risked should not be confused with the amount invested. In his example you buy $4,000 of stock but risk only $1,000. R can mean your risk per share or your total risk on the position.",
+   "why": "False. The $4,000 is what you put in. R is what you lose if the stop hits, and here that's $1,000. Mix those two up and you'll size every trade wrong. You'd only lose the whole $4,000 if the stock went to zero, and your stop gets you out long before that. R can mean the risk per share or on the whole position.",
    "lesson_line": "Invested and risked are two different numbers. R is the risked one.",
    "facts": [
     "f30",
@@ -1659,7 +1683,7 @@
     "f19",
     "f40"
    ],
-   "simple": "False, R is what you plan to lose at your stop, not the money you put into the stock.",
+   "simple": "False. R is what you lose at your stop, not the money you put into the stock.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1667,7 +1691,10 @@
      "fixed before (checker added a second publisher)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "This is Tharp's own example: you buy $4,000 worth of stock but risk only $1,000, 1% of the account. He warns the amount risked should not be confused with the amount invested."
+   }
   },
   {
    "key": "q04",
@@ -1675,8 +1702,8 @@
    "rung": 5,
    "format": "scenario",
    "term": "Total risk",
-   "story": "You buy 200 shares at $30. Your stop is at $28.50.",
-   "q": "What is your total risk on the position?",
+   "story": "You buy 200 shares at $30. Your stop sits at $28.50, a few cents under the low of the day.",
+   "q": "If the stop hits, how much do you lose?",
    "choices": [
     "$300",
     "$1.50",
@@ -1684,16 +1711,16 @@
     "$5,700"
    ],
    "answer": "$300",
-   "why": "$300. The risk per share is $30 less $28.50, which is $1.50. Times 200 shares, that is $300. Tharp: R can mean the risk per share or the total risk on the position. It is not the $6,000 you paid. That is what you invested, not what the stop costs you.",
-   "lesson_line": "Risk per share times shares is your total risk. That's the number the account feels.",
+   "why": "$300. $30 minus $28.50 is $1.50 a share. Times 200 shares, that's $300. That's the number your account feels if you're wrong, so it's the number you size from. The $6,000 is what the shares cost. You'd only lose all of it if the stock went to zero.",
+   "lesson_line": "Risk per share times shares. That's the number your account feels.",
    "facts": [
     "f18",
     "f19",
     "f17"
    ],
    "wrong": {
-    "$1.50": "That's the risk on one share. You hold 200 of them.",
-    "$6,000": "That's what the position costs. You'd only lose all of it if the stock went to zero.",
+    "$1.50": "That's the loss on one share. You hold 200 of them.",
+    "$6,000": "That's what the position cost. Your stop gets you out long before the stock goes to zero.",
     "$5,700": "That's what your shares are worth at the stop, not what you lose."
    },
    "calc": {
@@ -1704,7 +1731,7 @@
      "stop": 28.5
     }
    },
-   "simple": "Your total risk is $300, because you lose $1.50 a share on all 200 shares if the stop is hit.",
+   "simple": "You lose $300, $1.50 a share on all 200 shares, if the stop hits.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1712,7 +1739,7 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q05",
@@ -1720,10 +1747,10 @@
    "rung": 7,
    "format": "tf",
    "term": "Risk",
-   "q": "In Tharp's trading sense, the risk on a trade means how much the stock's price bounces around.",
+   "q": "The risk on your trade is how much the stock bounces around in a day.",
    "answer": "False",
-   "why": "False. Tharp defines risk as the distance from your entry to the worst-case loss you are willing to take. He says this is much different from the academic idea of risk as variability. You pick that distance when you set the stop. How much a stock swings still matters, because a stop inside its normal swing is likely to be hit.",
-   "lesson_line": "Your risk is a distance you choose: entry to stop. Volatility is why you choose it with care.",
+   "why": "False. Your risk is a distance you pick: from your entry down to your stop, the most you're willing to lose. How much a stock bounces is its volatility. That still matters, because a stop inside the normal bounce gets hit for no reason. So a jumpy stock gets a stop outside its noise, and you buy fewer shares.",
+   "lesson_line": "Your risk is a distance you choose. The stock's swing is why you choose it with care.",
    "facts": [
     "f51",
     "f52",
@@ -1731,9 +1758,9 @@
     "f122",
     "f141"
    ],
-   "simple": "False, for Tharp risk is the distance from entry to the most you are willing to lose, not price swings.",
+   "simple": "False. Your risk is the gap from your entry to your stop, the most you'll lose, not how much price swings.",
    "deeper": {
-    "trap": "Both meanings use the word risk. In a finance class, risk means how much prices swing. In a trade plan, Tharp's risk is what you plan to lose at your stop. The two meet when you set the stop. A jumpy stock needs a wider stop, so you buy fewer shares, since size comes from the stop distance."
+    "trap": "Van Tharp makes the point himself: his risk is the distance from entry to the worst loss you're willing to take, much different from the academic idea of risk as variability. A finance class means price swings. A trade plan means what you lose at the stop."
    },
    "tier": "extended",
    "risk": {
@@ -1742,7 +1769,7 @@
      "fixed before (lesson line)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q06",
@@ -1750,7 +1777,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "R-multiple",
-   "q": "What is an R-multiple?",
+   "q": "Your trade journal has a column for each trade's R-multiple. What goes in it?",
    "choices": [
     "A trade's result counted in R",
     "Your stop distance in ATRs",
@@ -1758,7 +1785,7 @@
     "Your share count times R"
    ],
    "answer": "A trade's result counted in R",
-   "why": "A trade's result counted in R. Divide the profit or loss by your initial risk, the distance from entry to stop. A profit of 10 times your risk is a 10R multiple. Lose exactly what you planned and the result is one R lost. It is not a count of trades and not your total risk.",
+   "why": "The trade's result counted in R. Take the profit or loss and divide it by the risk you planned, entry to stop. Make 10 times your risk and that's a 10R winner. Lose exactly what you planned and it's 1R lost. Counting this way puts a cheap stock and an expensive one on the same scale.",
    "lesson_line": "Count every result in R and every trade speaks the same language.",
    "facts": [
     "f41",
@@ -1766,20 +1793,24 @@
     "f59",
     "f40",
     "f18",
-    "f86"
+    "f86",
+    "f20"
    ],
    "wrong": {
-    "Your stop distance in ATRs": "That's how an ATR stop is measured. An R-multiple measures the result.",
-    "Winning trades divided by losers": "That counts trades. It ignores how big each win or loss was.",
-    "Your share count times R": "That's your total risk on the position."
+    "Your stop distance in ATRs": "That's how you'd measure an ATR stop. An R-multiple measures the result.",
+    "Winning trades divided by losers": "That counts trades. It says nothing about how big each win or loss was.",
+    "Your share count times R": "That's your total risk on the position, not the result."
    },
-   "simple": "A trade's result counted in R, because you divide the profit or loss by the risk you planned.",
+   "simple": "It's the trade's result counted in R, the profit or loss divided by the risk you planned.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Tharp's glossary: a 10R multiple is a profit 10 times the initial risk. Risk $10 and make $100, and that's a 10R-multiple profit."
+   }
   },
   {
    "key": "q07",
@@ -1787,7 +1818,7 @@
    "rung": 4,
    "format": "mcq",
    "term": "R-multiple",
-   "q": "You buy at $80 with a stop at $76. You sell at $92. What R-multiple did you make?",
+   "q": "You bought at $80 with a stop at $76. You sold into a strong push at $92. What did the trade make in R?",
    "answer": "3R",
    "calc": {
     "fn": "r_multiple",
@@ -1798,14 +1829,14 @@
     }
    },
    "suffix": "R",
-   "why": "3R. Gain per share is $92 less $80, or $12. Risk per share is $80 less $76, or $4. $12 divided by $4 is 3R. Tharp's drill works the same way: buy at $40, stop at $35, sell at $50 is a $10 gain on $5 of risk, or 2R.",
+   "why": "3R. Your risk was $80 minus $76, $4 a share. Your gain was $92 minus $80, $12 a share. $12 over $4 is 3R. Log it that way. Then every trade in your journal speaks the same language, whatever the stock costs.",
    "lesson_line": "Divide what you made by what you risked. That's the R-multiple.",
    "facts": [
     "f41",
     "f21",
     "f22"
    ],
-   "simple": "You made 3R, because your gain per share was three times your risk per share.",
+   "simple": "You made 3R, because your $12 gain is three times the $4 you risked.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1813,7 +1844,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "12R",
     "0.33R",
@@ -1821,9 +1852,12 @@
     "3R"
    ],
    "wrong": {
-    "12R": "Gave the gain per share and never divided by the risk.",
-    "4R": "Gave the risk per share instead of the multiple.",
-    "0.33R": "Divided the risk by the gain, upside down."
+    "12R": "That's the $12 gain per share. You still have to divide by the $4 risk.",
+    "4R": "That's the $4 risk per share, not the multiple.",
+    "0.33R": "Upside down. That's the risk divided by the gain."
+   },
+   "deeper": {
+    "example": "Tharp's drill works the same way: buy at $40, plan to exit at $35, sell at $50. That's $10 on $5 of risk, a 2R profit."
    }
   },
   {
@@ -1850,39 +1884,40 @@
    "rung": 7,
    "format": "scenario",
    "term": "R-multiple",
-   "story": "You buy at $60 with a stop at $55. It hits $55 and you hold, hoping. You finally sell at $45.",
-   "q": "What R-multiple is that loss?",
+   "story": "You buy at $100 with a stop at $97, a 3% risk. It trades down to $97 and you don't sell. You're hoping. You finally get out at $91.",
+   "q": "What did that trade cost you in R?",
    "choices": [
     "-3R",
     "-1R",
-    "-15R",
+    "-9R",
     "-0.33R"
    ],
    "answer": "-3R",
-   "why": "-3R. You planned to risk $5 a share, from $60 down to $55. You sold at $45, three times as far below your entry. Holding past the stop turned a planned 1R loss into 3R. Tharp's goal is to keep losses at 1R or less.",
-   "lesson_line": "The stop is the plan. Skipping it multiplies the loss.",
+   "why": "-3R. You planned to lose $3 a share, $100 down to $97. You sold at $91, $9 under your buy. $9 over $3 is 3R lost. The stop was the plan, and hoping tripled the loss. I almost never take a loss greater than 3%. That only works because I sell when the stop hits, not when it feels better.",
+   "lesson_line": "The stop is the plan. Skip it and the loss multiplies.",
    "facts": [
     "f23",
     "f24",
     "f20",
-    "f41"
+    "f41",
+    "h4d41"
    ],
    "wrong": {
-    "-1R": "That's the loss you planned at $55. You held past it.",
-    "-15R": "That's the dollar drop per share read as R. Divide it by your risk per share.",
-    "-0.33R": "That's upside down: your risk divided by your loss."
+    "-1R": "That's the loss you planned at $97. You held past it.",
+    "-0.33R": "Upside down. That's your risk divided by your loss.",
+    "-9R": "That's the $9 drop per share. Divide it by the $3 you risked."
    },
    "calc": {
     "fn": "r_multiple",
     "args": {
-     "entry": 60,
-     "stop": 55,
-     "exit": 45
+     "entry": 100,
+     "stop": 97,
+     "exit": 91
     }
    },
-   "simple": "It is a -3R loss, because you lost three times the $5 a share you planned to risk.",
+   "simple": "It's a -3R loss. You planned to lose $3 a share and lost $9 by holding past the stop.",
    "deeper": {
-    "trap": "Hoping it comes back is how a 1R loss grows. Tharp's own drill skips a $55 stop on a $60 buy and ends with a 12R loss."
+    "trap": "Hoping is how a 1R loss grows. Tharp's own drill skips a $55 stop on a $60 buy and ends with a 12R loss. That's why every stop sits with the broker as a real order, not in your head."
    },
    "tier": "extended",
    "risk": {
@@ -1891,7 +1926,7 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q10",
@@ -1899,16 +1934,16 @@
    "rung": 3,
    "format": "mcq",
    "term": "R-multiple",
-   "q": "Our plan sells in parts. What happens to the last part?",
+   "q": "You sold some of a winner into a 5-day push. The stock is still trending. What do you do with the rest?",
    "choices": [
-    "It trails after the earlier sells",
-    "It sells together with the first sell",
-    "It sells at a set percent gain",
-    "It sells at a 2R profit target"
+    "Trail it under the 9 or 20 EMA",
+    "Sell the rest right now too",
+    "Hold it to a set percent gain",
+    "Sell it at a 2R profit target"
    ],
-   "answer": "It trails after the earlier sells",
-   "why": "It trails after the earlier sells. The first sell is a judgment: we very rarely sell on day 1 and usually wait until day 3 at the earliest. A 3, 5 or 7 day push, or about 5 to 10R, is often best. What is left then trails on a close below the 9 EMA, or the 20 EMA for steadier movers.",
-   "lesson_line": "The first sell is a judgment, not a fixed third. Then trail what is left.",
+   "answer": "Trail it under the 9 or 20 EMA",
+   "why": "Trail it. You've already paid yourself into the push, so the rest gets room to run. Fast movers ride the 9 EMA, steadier ones the 20 EMA. Sell what's left on a close below that line. The first sell was a judgment too. We rarely sell on day 1, and selling into a 3, 5 or 7 day push is often best.",
+   "lesson_line": "Sell some into the push. Trail the rest and let the line take you out.",
    "facts": [
     "r01",
     "r02",
@@ -1918,12 +1953,12 @@
     "r05"
    ],
    "wrong": {
-    "It sells at a set percent gain": "Our plan does not sell the last part at a set percent. It trails.",
-    "It sells at a 2R profit target": "Our plan has no fixed 2R target. The first sell is a judgment, and the last part trails.",
-    "It sells together with the first sell": "Selling it all at once ends the trade. The last part stays on and trails."
+    "Sell the rest right now too": "That ends the trade on a stock that's still trending. The trail keeps you in for the next leg.",
+    "Hold it to a set percent gain": "A fixed percent ignores how the stock is acting. The trail follows the trend instead.",
+    "Sell it at a 2R profit target": "We don't sell the last part at a fixed 2R. It trails until the line breaks."
    },
    "house": true,
-   "simple": "The last part trails, because the first sell is a judgment and what is left rides the trail.",
+   "simple": "Trail the rest under the 9 or 20 EMA and sell it on a close below the line.",
    "tier": "core",
    "risk": {
     "score": 6,
@@ -1933,7 +1968,7 @@
      "fixed before (was 2R and 3R)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q11",
@@ -1941,7 +1976,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "Expectancy",
-   "q": "What does expectancy mean for a trading method?",
+   "q": "Your journal says your expectancy is positive. What is that number telling you?",
    "choices": [
     "Your average result per trade",
     "The share of trades that win",
@@ -1949,7 +1984,7 @@
     "What you hope this trade makes"
    ],
    "answer": "Your average result per trade",
-   "why": "Your average result per trade. Tharp measures it as the mean R-multiple over many trades, best stated per dollar risked. Schwab calls it your average gain or loss per trade. It weighs how often you win and how big the wins and losses are. It is not your win rate, one big trade, or a hope for the next trade.",
+   "why": "Your average result per trade. Add up every win and loss in R and divide by the number of trades. It weighs how often you win and how big the wins and losses are, both at once. Positive means the way you trade makes money over many trades. That's the number I'd check before I ever sized up.",
    "lesson_line": "Expectancy is what one trade is worth, on average, over many trades.",
    "facts": [
     "f43",
@@ -1962,13 +1997,16 @@
     "Your biggest win so far": "One trade says nothing about the average.",
     "What you hope this trade makes": "That's a target. Expectancy is an average over many trades."
    },
-   "simple": "Your average result per trade, because expectancy averages what all your trades made or lost.",
+   "simple": "It's your average result per trade, what all your wins and losses work out to.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Tharp calls expectancy the mean R-multiple, best stated per dollar you risk. Schwab says to track your trading history to find your average gain or loss per trade."
+   }
   },
   {
    "key": "q12",
@@ -1976,7 +2014,7 @@
    "rung": 4,
    "format": "mcq",
    "term": "Expectancy",
-   "q": "You win 40% of your trades. Winners average 3R and losers 1R. What is your expectancy per trade?",
+   "q": "Your log: you win 40% of your trades. Winners average 3R, losers 1R. What's your expectancy per trade?",
    "answer": "0.6R",
    "calc": {
     "fn": "expectancy_r",
@@ -1987,14 +2025,14 @@
     }
    },
    "suffix": "R",
-   "why": "0.6R. Weight each result by how often it happens. Wins: 40% times 3R is 1.2R. Losses: 60% times 1R is 0.6R. Take 1.2R less 0.6R and you get 0.6R. Tharp calls expectancy the mean R-multiple. Investopedia's expected value is the same sum.",
+   "why": "0.6R a trade. Weight each result by how often it happens. Wins: 40% of the time at 3R is 1.2R. Losses: the rest of the time at 1R is 0.6R. 1.2R minus 0.6R leaves 0.6R. You lose more often than you win and still make money, because the winners are three times the losers.",
    "lesson_line": "Expectancy needs both: how often you win, and how big the wins and losses are.",
    "facts": [
     "f97",
     "f25",
     "f44"
    ],
-   "simple": "Your expectancy is 0.6R a trade, because your 3R wins outweigh your 1R losses at a 40% win rate.",
+   "simple": "Your expectancy is 0.6R a trade, because your 3R wins more than pay for your 1R losses.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2002,7 +2040,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "1.2R",
     "2R",
@@ -2010,9 +2048,12 @@
     "1.4R"
    ],
    "wrong": {
-    "1.2R": "Counted the 40% wins and ignored the losses.",
-    "2R": "Took the 3R win less the 1R loss and ignored how often each happens.",
-    "1.4R": "Swapped the rates, so winners came 60% of the time."
+    "1.2R": "That counts the wins and forgets the losses.",
+    "2R": "That's the 3R win minus the 1R loss. It ignores how often each one happens.",
+    "1.4R": "You swapped the rates, as if the winners came 60% of the time."
+   },
+   "deeper": {
+    "example": "Tharp calls expectancy the mean R-multiple. Investopedia's expected value is the same sum: each outcome times how likely it is, added up."
    }
   },
   {
@@ -2021,25 +2062,25 @@
    "rung": 5,
    "format": "tf",
    "term": "Expectancy",
-   "q": "A positive expectancy tells you that your next trade will make money.",
+   "q": "Your method has a positive expectancy, so the next trade you take will make money.",
    "answer": "False",
-   "why": "False. Expectancy is what you can expect to make on average over many trades. Like any expected value, it is a long-term average. It says nothing certain about the next trade. A method with a positive expectancy still has losing trades and losing runs. Tharp sizes a low-risk idea to survive the worst short-term run.",
+   "why": "False. Expectancy is an average over many trades. It says nothing about the next one. A good method still loses trades, sometimes several in a row. That's why you size small enough to sit through the losing runs. Judge your method on the whole sample, never on the last trade.",
    "lesson_line": "An edge shows up over many trades, not on the next one.",
    "facts": [
     "f43",
     "f98",
     "f58"
    ],
-   "simple": "False, expectancy is an average over many trades, so any single trade can still lose.",
+   "simple": "False. Expectancy is an average over many trades, so any single trade can still lose.",
    "deeper": {
-    "trap": "The trap is judging a method by its last trade. One loss does not prove the edge is gone, and one win does not prove it works. Expectancy shows up only over many trades, so judge the whole sample."
+    "trap": "The trap is judging your method by its last trade. One loss doesn't prove the edge is gone, and one win doesn't prove it works. Tharp sizes a trade so it survives the worst short-term run and still collects the long-term average."
    },
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q14",
@@ -2109,7 +2150,7 @@
    "format": "scenario",
    "term": "Expectancy",
    "story": "Plan A wins 30% of the time, with +4R winners and -1R losers. Plan B wins 70%, with +0.5R winners and -2R losers.",
-   "q": "Which plan has the better expectancy?",
+   "q": "Which plan would you rather trade?",
    "choices": [
     "A, at +0.5R a trade",
     "B, at +0.35R a trade",
@@ -2117,7 +2158,7 @@
     "A, at +1.2R a trade"
    ],
    "answer": "A, at +0.5R a trade",
-   "why": "A, at +0.5R a trade. Weight each result by how often it happens, then add. A wins 30% of the time at +4R and loses the rest at -1R. B wins 70% of the time, but every 2R loss wipes out four 0.5R wins. B averages below zero.",
+   "why": "Plan A, at +0.5R a trade. A wins 30% of the time at +4R, which is +1.2R. It loses the rest of the time at -1R, and that nets +0.5R. B feels better because it wins 70% of the time. But each 2R loss wipes out four 0.5R wins, and B ends up below zero. I'd take the plan that pays, not the one that feels good.",
    "lesson_line": "Always weigh how often you win by how much you win or lose.",
    "facts": [
     "f97",
@@ -2138,9 +2179,9 @@
      "avg_loss_r": 1
     }
    },
-   "simple": "Plan A is better at +0.5R a trade, because its big wins pay for its losses while B's big losses sink it.",
+   "simple": "Plan A. Its big wins pay for its losses, while each of B's 2R losses eats four of its small wins.",
    "deeper": {
-    "trap": "Plan B feels better to trade, because it wins 70% of the time. But it loses the other 30%, and each 2R loss costs four 0.5R wins. Tharp notes some systems that win often still lose money through occasional large losses. Always weigh how often by how much."
+    "trap": "Plan B is easier to live with, because it wins 70% of the time. But it loses the other 30%, and each 2R loss costs four 0.5R wins. Tharp notes that some systems with a high hit rate still lose money through occasional large losses."
    },
    "tier": "expert",
    "risk": {
@@ -2149,7 +2190,7 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
@@ -2157,7 +2198,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "Win rate",
-   "q": "Which term means the share of your closed trades that made money?",
+   "q": "You closed 20 trades this month and 9 of them made money. Which number does that give you?",
    "choices": [
     "Win rate",
     "Expectancy",
@@ -2165,7 +2206,7 @@
     "Risk/reward ratio"
    ],
    "answer": "Win rate",
-   "why": "Win rate. Tharp defines it as the percentage of closed trades in which you make money. Investopedia agrees: winning trades out of all trades. It says how often you win, never how much.",
+   "why": "Win rate. It's how often your closed trades made money, here 9 out of 20. It says nothing about how much. A low win rate can make money with big winners, and a high one can lose with big losers. So I never read it alone. Look at it next to your average win and loss in R.",
    "lesson_line": "Win rate counts how often you win. It never says how much.",
    "facts": [
     "f45",
@@ -2175,17 +2216,20 @@
     "f91"
    ],
    "wrong": {
-    "Expectancy": "That's your average result per trade, which weighs the size of wins and losses too.",
+    "Expectancy": "That's your average result per trade. It weighs the size of the wins and losses too.",
     "R-multiple": "That's one trade's result counted in R.",
-    "Risk/reward ratio": "That's about one trade's plan, not your record of closed trades."
+    "Risk/reward ratio": "That's one trade's plan, stop against target, not your record."
    },
-   "simple": "Win rate, because it counts how often your closed trades made money, not how much.",
+   "simple": "Win rate. It counts how often your closed trades made money, not how much.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Tharp defines win rate as the percentage of closed trades in which you make money. Investopedia agrees: winning trades out of all trades."
+   }
   },
   {
    "key": "q18",
@@ -2194,7 +2238,7 @@
    "format": "scenario",
    "term": "Win rate",
    "story": "Over 100 trades, 99 lose $1 each. One trade makes $500.",
-   "q": "Your win rate is 1%. What is the net result?",
+   "q": "Your win rate is 1%. What's the net result?",
    "choices": [
     "A $401 profit",
     "A $99 loss",
@@ -2202,7 +2246,7 @@
     "A $4.01 gain"
    ],
    "answer": "A $401 profit",
-   "why": "A $401 profit. The 99 losers cost $1 each, $99 in all. The one winner made $500, and $500 less $99 is $401. This is Tharp's own example: 99% of the trades lost and the method still made money. Win rate counts how often you win, never how much.",
+   "why": "A $401 profit. The 99 losers cost $1 each, $99 in all. The one winner made $500, and $500 minus $99 is $401. You lost 99 times out of 100 and still made money. That's why win rate alone tells you nothing. The size of the winners decides it.",
    "lesson_line": "A low win rate can pay and a high one can lose. Check the sizes.",
    "facts": [
     "f28",
@@ -2212,7 +2256,7 @@
    "wrong": {
     "A $99 loss": "That counts the losers and forgets the one big winner.",
     "$500 profit": "That forgets the 99 small losses.",
-    "A $4.01 gain": "That's the average per trade, the $401 spread over 100 trades. The question asks for the net result."
+    "A $4.01 gain": "That's the average per trade, the $401 spread over 100 trades. The question asks for the net."
    },
    "calc": {
     "fn": "arith",
@@ -2225,7 +2269,7 @@
    },
    "simple": "You net a $401 profit, because the one $500 winner is bigger than the 99 losses of $1.",
    "deeper": {
-    "counter": "It works the other way too. Investopedia: if the losses are three times as large as the gains, more wins than losses is still a losing strategy. Win rate alone proves nothing."
+    "counter": "This is Tharp's own example. It works the other way too. Investopedia: if the losses are three times as large as the gains, more wins than losses is still a losing strategy."
    },
    "tier": "extended",
    "risk": {
@@ -2235,7 +2279,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "Over 100 trades",
@@ -2271,7 +2315,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "Risk/reward ratio",
-   "q": "What does a trade's risk/reward ratio compare?",
+   "q": "You're planning a buy with a stop and a target. What does the trade's risk/reward compare?",
    "choices": [
     "Loss at the stop vs gain at the target",
     "Your winning trades vs your losers",
@@ -2279,7 +2323,7 @@
     "Today's range vs the average range"
    ],
    "answer": "Loss at the stop vs gain at the target",
-   "why": "Loss at the stop vs gain at the target. Investopedia measures entry to the stop against entry to the take-profit order. Tharp says to ask before every trade whether the reward is worth the risk. It describes one trade's plan, not your record of wins and losses.",
+   "why": "Loss at the stop against gain at the target, both measured from your entry. Ask it before every buy: is the reward worth the risk. It describes one trade's plan, not your record. And it's only as good as the stop. A stop placed to make the ratio look good isn't a real stop.",
    "lesson_line": "Before you buy, know both distances: to the stop and to the target.",
    "facts": [
     "f91",
@@ -2288,11 +2332,11 @@
     "f87"
    ],
    "wrong": {
-    "Your winning trades vs your losers": "That's a count of wins and losses, not one trade's setup.",
+    "Your winning trades vs your losers": "That's a count of wins and losses, not one trade's plan.",
     "Your risk vs your account size": "That's your risk per trade as a share of the account. Risk/reward compares two distances on one trade.",
-    "Today's range vs the average range": "That's a volatility read. ATR is the stock's average range of movement per day."
+    "Today's range vs the average range": "That's a read on how jumpy the stock is today."
    },
-   "simple": "It compares what you lose if the stop is hit with what you gain if the target is reached.",
+   "simple": "It compares what you lose if the stop hits with what you make if the target hits.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -2300,7 +2344,10 @@
      "stable definition, two publishers agree"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia measures entry to the stop against entry to the take-profit order. Tharp says to ask before every trade whether the potential reward is worth the potential risk."
+   }
   },
   {
    "key": "q20",
@@ -2308,7 +2355,7 @@
    "rung": 4,
    "format": "mcq",
    "term": "Risk/reward ratio",
-   "q": "Entry $20, stop $19, target $23. How many dollars can you make for each dollar you risk?",
+   "q": "Entry $20, stop $19, and your target is the old high at $23. How many dollars can you make for each dollar you risk?",
    "answer": "$3",
    "calc": {
     "fn": "arith",
@@ -2320,13 +2367,13 @@
     }
    },
    "prefix": "$",
-   "why": "$3. The target is $23 less $20, or $3 away. The stop is $20 less $19, or $1 away. $3 of reward for $1 of risk is $3 for each dollar. Investopedia writes that as 1:3 risk/reward: three units of reward for every unit of risk.",
+   "why": "$3. The target is $23 minus $20, $3 away. The stop is $20 minus $19, $1 away. $3 over $1 is $3 for every $1 you risk, which people write as 1:3. Just don't let the ratio pick your stop. The chart picks the stop, then you check if the reward is worth it.",
    "lesson_line": "Divide the distance to the target by the distance to the stop.",
    "facts": [
     "f91",
     "f92"
    ],
-   "simple": "You can make $3 for each $1 you risk, because the target is three times as far away as the stop.",
+   "simple": "You make $3 for each $1 you risk, because the target is three times as far as the stop.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2334,7 +2381,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$4",
     "$0.33",
@@ -2342,9 +2389,9 @@
     "$1.15"
    ],
    "wrong": {
-    "$4": "Measured the reward from the stop instead of from your entry.",
-    "$0.33": "Divided the risk by the reward, upside down.",
-    "$1.15": "Divided the target price by the entry price."
+    "$4": "You measured the reward from the stop, not from your entry.",
+    "$0.33": "Upside down. That's the risk divided by the reward.",
+    "$1.15": "You divided the target price by the entry price."
    }
   },
   {
@@ -2353,17 +2400,17 @@
    "rung": 7,
    "format": "scenario",
    "term": "Risk/reward ratio",
-   "story": "You buy at $20 with a target of $30. To improve the ratio, you move your stop from $15 up to $18.",
-   "q": "What did the tighter stop cost you?",
+   "story": "You buy at $50. The low of the day is $48.50 and your stop sits just under it. Your target is $56. To make the ratio look better, you pull the stop up to $49.60.",
+   "q": "What did that tighter stop cost you?",
    "choices": [
     "More chance the stop is hit",
     "Nothing, the trade got safer",
-    "Some of your upside to $30",
+    "Some of your upside to $56",
     "Your protection from a gap"
    ],
    "answer": "More chance the stop is hit",
-   "why": "More chance the stop is hit. Moving the stop from $15 to $18 cuts the loss per share and improves the ratio to the $30 target. But a stop closer to entry is more likely to be triggered by normal price swings. So the better ratio comes with a lower chance of reaching the target.",
-   "lesson_line": "A tighter stop makes the ratio look better and the stop easier to hit.",
+   "why": "More chance the stop is hit. Your loss per share shrank, and the ratio looks great on paper. But $49.60 sits inside today's range, where the normal wiggles live. The stock can dip there and come right back. So you swapped a real stop for a coin flip. The stop goes where the chart says you're wrong, and the size comes from it.",
+   "lesson_line": "Never move the stop to make the ratio pretty. The chart sets the stop.",
    "facts": [
     "f93",
     "f94",
@@ -2373,20 +2420,20 @@
     "hA3"
    ],
    "wrong": {
-    "Nothing, the trade got safer": "The loss per share shrank, but the odds of being stopped out went up.",
-    "Some of your upside to $30": "The target didn't move. Only the stop did.",
-    "Your protection from a gap": "No stop protects against a gap, at $15 or at $18."
+    "Nothing, the trade got safer": "The loss per share shrank, but the odds of getting shaken out went way up.",
+    "Your protection from a gap": "No stop protects you from a gap, at $48.50 or at $49.60.",
+    "Some of your upside to $56": "The target didn't move. Only the stop did."
    },
-   "simple": "It raised the chance the stop is hit, because a stop closer to your entry is easier for normal swings to reach.",
+   "simple": "It raised the chance the stop is hit, because $49.60 sits inside the normal swings.",
    "deeper": {
-    "trap": "The trap is judging a trade by its ratio alone. Pulling the stop up makes the ratio look better on paper. It does that by moving the stop closer to normal swings. Our rule is stop first, and the size comes from the stop."
+    "trap": "Judging a trade by its ratio alone is the trap. Investopedia makes the point: a tighter stop shrinks the loss, but it raises the odds the price action triggers it. Stop first, then the size."
    },
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q22",
@@ -2394,7 +2441,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "Position sizing",
-   "q": "What does position sizing decide?",
+   "q": "Your stop is marked a few cents under the low of the day. What does position sizing decide from here?",
    "choices": [
     "How many shares to buy",
     "Where to put your stop",
@@ -2402,8 +2449,8 @@
     "When to take profits"
    ],
    "answer": "How many shares to buy",
-   "why": "How many shares to buy. Investopedia: position sizing decides how many units to invest, given your account size and risk tolerance. Tharp calls it the part of your system that says how much you trade. Size comes from the stop distance. So sizing does not pick the stock, the stop or the exit.",
-   "lesson_line": "The stop comes first. Position sizing turns it into a share count.",
+   "why": "How many shares to buy. You've already picked the stock and the stop. Sizing takes the dollars you're willing to lose and divides them by your risk per share. That gives you the share count. It never moves the stop. If the honest stop doesn't fit your risk, you skip the trade.",
+   "lesson_line": "The stop comes first. Sizing turns it into a share count.",
    "facts": [
     "f67",
     "f29",
@@ -2411,17 +2458,20 @@
     "hA3"
    ],
    "wrong": {
-    "Where to put your stop": "The stop comes first, from the chart. Sizing uses its distance.",
+    "Where to put your stop": "The chart picks the stop. Sizing uses its distance.",
     "Which stock to buy": "That's your setup and your watchlist.",
-    "When to take profits": "That's your exit plan."
+    "When to take profits": "That's your sell plan."
    },
-   "simple": "How many shares to buy, because sizing turns your stop and your risk into a share count.",
+   "simple": "It decides how many shares to buy, from your stop and what you're willing to lose.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia: sizing decides how many units to buy, given the account size and risk tolerance. Tharp calls it the part of your system that controls how much you trade."
+   }
   },
   {
    "key": "q23",
@@ -2429,20 +2479,20 @@
    "rung": 5,
    "format": "mcq",
    "term": "Position sizing",
-   "q": "Account $40,000, risking 1% a trade. Entry $25, stop $23.50. How many shares do you buy?",
+   "q": "Account $40,000, risking 1% a trade. Entry $50, stop $48.50 under the low of the day. How many shares do you buy?",
    "answer": "266 shares",
    "calc": {
     "fn": "shares_from_risk",
     "args": {
      "account": 40000,
      "risk_pct": 1,
-     "entry": 25,
-     "stop": 23.5
+     "entry": 50,
+     "stop": 48.5
     }
    },
    "suffix": "shares",
-   "why": "266 shares. 1% of $40,000 is $400. Risk per share is $25 less $23.50. Divide the $400 by the risk per share and round down, never up. Investopedia's method is the same. Our rule caps size at 40% of the account, and here the cap does not bind.",
-   "lesson_line": "Dollars at risk divided by risk per share. Round down, never up.",
+   "why": "266 shares. 1% of $40,000 is $400 at risk. $50 minus $48.50 is $1.50 a share. $400 over $1.50 is 266.67, and you round down to 266. Always down: rounding up risks more than you planned. The stop sits 3% under your buy, a good spot. The position also stays under our 40% cap, so the risk sets the size.",
+   "lesson_line": "Dollars at risk over risk per share. Round down, never up.",
    "facts": [
     "f69",
     "f70",
@@ -2450,7 +2500,7 @@
     "h4a5",
     "h4a7"
    ],
-   "simple": "Buy 266 shares, because 1% of the account divided by your risk per share, rounded down, gives 266.",
+   "simple": "Buy 266 shares. $400 of risk over $1.50 a share is 266.67, rounded down.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2459,17 +2509,20 @@
      "rests on the owner's rulebook (A5, A7)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "400 shares",
     "2,666 shares",
-    "1,600 shares",
+    "800 shares",
     "266 shares"
    ],
    "wrong": {
-    "400 shares": "Treated the $400 of risk as a share count.",
-    "1,600 shares": "Spent the whole account on shares, ignoring the stop.",
-    "2,666 shares": "Slipped a decimal place."
+    "400 shares": "That's the $400 of risk read as a share count.",
+    "2,666 shares": "A slipped decimal. $400 over $1.50 is 266.67.",
+    "800 shares": "That spends the whole $40,000 at $50 and ignores the stop."
+   },
+   "deeper": {
+    "example": "Investopedia's method is the same: divide the account risk by the trade risk. Their $500 over $20 gives 25 shares."
    }
   },
   {
@@ -2478,7 +2531,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "2% rule",
-   "q": "What does the 2% rule limit?",
+   "q": "Everyone talks about the 2% rule. What does it actually cap?",
    "choices": [
     "Your risk per trade to 2% of capital",
     "Each position to 2% of the account",
@@ -2486,7 +2539,7 @@
     "Your losses in any one month to 2%"
    ],
    "answer": "Your risk per trade to 2% of capital",
-   "why": "Your risk per trade to 2% of capital. The rule caps what you plan to lose if the stop is hit, not how much you buy. A 2% risk can sit on a much bigger position. Gaps and slippage can still push a real loss past 2%. UCT's absolute ceiling is also 2%.",
+   "why": "Your risk per trade, at 2% of the account. It caps what you lose if the stop hits, not how much you buy. Risk 2% with a tight stop and the position can be far bigger than 2%. For us 2% is the absolute ceiling, and under 1% is normal. A gap can still push a real loss past it, so size for that too.",
    "lesson_line": "The 2% rule caps risk, not position size.",
    "facts": [
     "f99",
@@ -2499,12 +2552,12 @@
    ],
    "wrong": {
     "Each position to 2% of the account": "That mixes up risk and size. A 2% risk can sit on a much bigger position.",
-    "Your stop to 2% under your entry price": "The rule caps the dollars you lose. The chart sets where the stop goes.",
-    "Your losses in any one month to 2%": "A monthly cap is a separate rule. UCT's monthly loss limit is 8%."
+    "Your stop to 2% under your entry price": "The chart sets the stop. The rule caps the dollars you lose there.",
+    "Your losses in any one month to 2%": "That's a different rule. Our monthly brake is 8%: hit it and you're done for the month."
    },
-   "simple": "It caps your risk on one trade at 2% of capital, what you plan to lose at the stop.",
+   "simple": "It caps what you lose on one trade, at the stop, at 2% of your account.",
    "deeper": {
-    "counter": "A 2% risk does not mean a 2% position. In Tharp's magazine example you buy $10,000 of stock, yet your initial risk is only $1,000. The stop distance sets how big the position can be."
+    "counter": "A 2% risk doesn't mean a 2% position. In Tharp's magazine example you buy $10,000 of stock, yet your initial risk is only $1,000. The stop distance sets how big the position can be."
    },
    "tier": "core",
    "risk": {
@@ -2514,7 +2567,7 @@
      "fixed before (key changed from loss to risk)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q25",
@@ -2522,7 +2575,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "Gap risk",
-   "q": "What is gap risk for a position with a stop?",
+   "q": "You hold a stock overnight with a stop under it. Bad news hits after the close. What's gap risk?",
    "choices": [
     "Price opens past your stop",
     "Your stop sits too far away",
@@ -2530,26 +2583,31 @@
     "Your order fills in parts"
    ],
    "answer": "Price opens past your stop",
-   "why": "Price opens past your stop. A gap through the stop still triggers it, and the stock sells at the next available price. So the loss can be well beyond what you planned. Investopedia notes that even proper position sizing cannot prevent it. Schwab: after a gap down, the fill can be far below the stop price.",
+   "why": "Price opens right past your stop. The stop still triggers, but it sells at the next price there is, not at your stop price. So the loss can be well beyond what you planned, and good sizing can't stop that. It's why a tight stop never earns a monster position. It's also why we don't buy in the 3 days before earnings.",
    "lesson_line": "A stop picks when you sell, not the price you get in a gap.",
    "facts": [
     "f71",
     "f102",
     "f119",
-    "f05"
+    "f05",
+    "hB22",
+    "h4a7b"
    ],
    "wrong": {
-    "Your stop sits too far away": "That's a stop-placement choice. Gap risk is price jumping past the stop.",
+    "Your stop sits too far away": "That's a stop you placed badly. Gap risk is price jumping past the stop.",
     "The stock drifts sideways": "That costs you time, not a gap.",
     "Your order fills in parts": "That's a partial fill, an order issue."
    },
-   "simple": "Price jumps past your stop at the open, so the stop sells lower than planned and you lose more.",
+   "simple": "Price jumps past your stop at the open, so you sell lower than planned and lose more.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia: even proper position sizing can't stop you losing more than you meant to if a stock gaps beyond your stop. Schwab: after a gap down, the fill can be far below the stop price."
+   }
   },
   {
    "key": "q26",
@@ -2557,42 +2615,43 @@
    "rung": 7,
    "format": "scenario",
    "term": "Gap risk",
-   "story": "You risk 1% of the account. Entry $170, with a stop order at $155 resting with your broker. Bad news hits overnight, and the stock opens at $140.",
+   "story": "You risk 1% of the account. Entry $50, with a real stop order at $48.50 sitting with your broker. Bad news hits overnight and the stock opens at $47.",
    "q": "Roughly how much of the account did you lose?",
    "choices": [
     "About 2%, twice your plan",
     "1%, your stop capped the loss",
-    "None yet, the gap skipped it",
-    "About 18%, as far as it fell"
+    "Nothing yet, the gap skipped it",
+    "About 6%, as far as it fell"
    ],
    "answer": "About 2%, twice your plan",
-   "why": "About 2%, twice your plan. Your resting stop became a market order at the open and sold near $140. The drop from $170 to $140 is twice your stop distance. So the loss is about twice your planned 1%. The SEC: a triggered stop's fill can be far from the stop price.",
+   "why": "About 2%, double what you planned. Your stop turned into a market order at the open and sold near $47. You planned to lose $1.50 a share, $50 down to $48.50. The gap cost you $3, $50 down to $47. Twice the distance means twice the loss, about 2% instead of 1%. That's the cost of holding overnight.",
    "lesson_line": "Plan your size for the gap, not just for the stop.",
    "facts": [
     "f100",
     "f102",
     "f02",
     "f05",
-    "h4d41"
+    "h4d41",
+    "h4a7b"
    ],
    "wrong": {
-    "None yet, the gap skipped it": "A gap through the stop still triggers it. It sells at the next available price.",
-    "About 18%, as far as it fell": "That's how far the stock fell, $170 to $140. Your account lost what your size made it lose, about twice the 1% you planned.",
-    "1%, your stop capped the loss": "A stop can't fill at a price the stock never traded. It sold near the $140 open."
+    "1%, your stop capped the loss": "A stop can't fill at a price the stock never traded. It sold near the $47 open.",
+    "Nothing yet, the gap skipped it": "A gap through the stop still triggers it. It sells at the next price there is.",
+    "About 6%, as far as it fell": "That's how far the stock fell. Your account lost what your size made it lose, about twice the 1% you planned."
    },
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "(entry - open) / (entry - stop) * risk_pct",
-     "entry": 170,
-     "open": 140,
-     "stop": 155,
+     "entry": 50,
+     "open": 47,
+     "stop": 48.5,
      "risk_pct": 1
     }
    },
-   "simple": "You lost about 2%: the stop sold at the open, and the drop to $140 was twice your stop distance.",
+   "simple": "About 2%. The stop sold at the $47 open, twice as far down as you planned.",
    "deeper": {
-    "trap": "A stop is a trigger, not a floor. When a stock gaps past it, the order sells at the next available price. Investopedia warns slippage and gap risk can make a loss significantly greater than planned."
+    "trap": "A stop is a trigger, not a floor. Investopedia warns that slippage and gap risk can make a loss significantly greater than planned. That's why a tight stop never justifies a bigger position: a gap can jump the stop."
    },
    "tier": "extended",
    "risk": {
@@ -2602,7 +2661,7 @@
      "touches the owner's gap rule (B20), flagged"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "ladder",
     "title": "The gap",
@@ -2611,17 +2670,17 @@
      {
       "key": "price",
       "label": "Gap open",
-      "price": 140
+      "price": 47
      },
      {
       "key": "stop",
       "label": "Stop order",
-      "price": 155
+      "price": 48.5
      },
      {
       "key": "entry",
       "label": "Entry",
-      "price": 170
+      "price": 50
      }
     ],
     "find": {
@@ -2680,7 +2739,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "Stop-loss",
-   "q": "What job does the stop-loss do in your plan?",
+   "q": "Before you buy, you mark a stop a few cents under the low of the day. What job is that stop doing?",
    "choices": [
     "Sets where you get out if wrong",
     "Locks in the exact price you sell at",
@@ -2688,7 +2747,7 @@
     "Sets how many shares you should buy"
    ],
    "answer": "Sets where you get out if wrong",
-   "why": "Sets where you get out if wrong. Tharp calls a stop a preplanned exit. The SEC says investors use sell stops to try to limit a loss on stock they own. It does not lock in a price. The stop price is a trigger, and the order then sells at market. It does not pick your target or your share count, though sizing uses its distance.",
+   "why": "It sets where you get out if you're wrong. You pick that spot before you buy, while you're calm. The stop price is a trigger. Once it hits, the order sells at market, so the fill can come in a bit lower. It doesn't pick your target. Your share count comes after, from its distance.",
    "lesson_line": "Decide where you're wrong before you buy. That's the stop.",
    "facts": [
     "f33",
@@ -2699,17 +2758,20 @@
     "f141"
    ],
    "wrong": {
-    "Locks in the exact price you sell at": "It sets an exit, not a price. Once hit, it sells at market, and the fill can differ.",
+    "Locks in the exact price you sell at": "It sets an exit, not a price. Once hit it sells at market, and the fill can differ.",
     "Picks where you will take your profit": "That's the target, the reward side of the plan.",
     "Sets how many shares you should buy": "Sizing comes after the stop and uses its distance."
    },
-   "simple": "It sets where you get out if the trade goes wrong, so you know your exit before you buy.",
+   "simple": "It marks where you get out if the trade is wrong, so you know your exit before you buy.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Tharp calls a stop a preplanned exit. The SEC says investors use sell stops to try to limit a loss on stock they own."
+   }
   },
   {
    "key": "q29",
@@ -2717,9 +2779,9 @@
    "rung": 6,
    "format": "tf",
    "term": "Stop-loss",
-   "q": "It's fine to pick your stop after the trade is already open.",
+   "q": "It's fine to buy first and work out where your stop goes once you're in.",
    "answer": "False",
-   "why": "False. Tharp's golden rule: never open a position without knowing exactly where you will exit. His article says the exit that sets your worst-case risk comes before you enter. Schwab also says to specify how you'll close a trade before you place it. At UCT, every planned buy has its entry, stop and size written down before the market opens.",
+   "why": "False. The stop comes before the buy, every time. No stop, no size, no trade. We write the entry, the stop and the size down before the market opens. Once you're in and it's moving, you'll talk yourself into a stop that feels better, not one that's right. Decide while you're calm.",
    "lesson_line": "No stop, no trade. The exit is part of the entry.",
    "facts": [
     "f34",
@@ -2727,7 +2789,7 @@
     "f117",
     "hD39"
    ],
-   "simple": "False, you set your exit before you open the trade, never after it is already on.",
+   "simple": "False. You set the stop before you open the trade, never after you're in.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2735,7 +2797,10 @@
      "the why teaches the owner's rulebook D39 (entry, stop and size written down before the open)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Tharp's golden rule: never open a position without knowing exactly where you'll exit. Schwab also says to specify how you'll close a trade before you place it."
+   }
   },
   {
    "key": "q30",
@@ -2743,16 +2808,17 @@
    "rung": 4,
    "format": "tf",
    "term": "Stop-loss",
-   "q": "Our default stop on a new long is a flat 8% under your entry.",
+   "q": "We set our stop a flat 8% under the price we pay.",
    "answer": "False",
-   "why": "False. Our default stop sits a few cents under the day's low or the prior day's low. It comes from the chart, not from a fixed percent. The size then comes from the stop. If the honest stop does not fit the risk, we skip the trade.",
-   "lesson_line": "Our default stop: a few cents under today's low or yesterday's low.",
+   "why": "False. Our stop goes a few cents under the low of the day, or yesterday's low. That's where the chart says you're wrong. A flat 8% ignores the chart, and it's wider than we'll take. We like 1-3%, accept up to 5%, and past that we wait for a tighter trigger. The size then comes from the stop.",
+   "lesson_line": "A few cents under the low of the day. The chart sets the stop, not a percent.",
    "facts": [
     "h03",
-    "h4a3"
+    "h4a3",
+    "hw05"
    ],
    "house": true,
-   "simple": "False, because our default stop goes a few cents under today's low or yesterday's low, not a flat percent.",
+   "simple": "False. Our stop goes a few cents under today's low or yesterday's low, not a flat percent.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -2761,7 +2827,7 @@
      "rests on the owner's rulebook (A3, F62)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q31",
@@ -2769,15 +2835,15 @@
    "rung": 1,
    "format": "mcq",
    "term": "Drawdown",
-   "q": "What is a drawdown?",
+   "q": "Your account made a new high last month and has slid since. What does your drawdown measure?",
    "choices": [
-    "A drop from a peak to a low",
-    "A loss below what you paid",
-    "Money taken out of an account",
+    "The drop from the peak to the low",
+    "Your loss below what you put in",
+    "Money you took out of the account",
     "The day's high-to-low range"
    ],
-   "answer": "A drop from a peak to a low",
-   "why": "A drop from a peak to a low. Investopedia quotes it as the percent fall from a peak to the trough after it. Fidelity: from one peak to the next valley. It counts open losses as well as closed ones. So a drawdown is not always a loss. You can be in one and still be up on what you paid.",
+   "answer": "The drop from the peak to the low",
+   "why": "The drop from the peak to the low. You measure from the high, not from where you started. It counts open losses too, not just closed trades. So you can be in a drawdown and still be up overall. Watch it, because our size steps down as the drawdown grows.",
    "lesson_line": "Drawdown is measured from the high, not from where you started.",
    "facts": [
     "f75",
@@ -2788,11 +2854,11 @@
     "f77"
    ],
    "wrong": {
-    "A loss below what you paid": "A drawdown runs from the peak. You can be in a drawdown and still in profit.",
-    "Money taken out of an account": "That's a retirement drawdown, a withdrawal. In trading it means a fall in value.",
-    "The day's high-to-low range": "That's one day's range, a volatility number, not a fall in value."
+    "The day's high-to-low range": "That's one day's range, not a fall in your account.",
+    "Your loss below what you put in": "A drawdown runs from the peak. You can be in one and still be in profit.",
+    "Money you took out of the account": "That's a retirement drawdown, a withdrawal. In trading it means a fall in value."
    },
-   "simple": "A drop from a peak to a low, measured from the high and not from what you paid.",
+   "simple": "It's the drop from the account's peak to its low, measured from the high, not from what you put in.",
    "deeper": {
     "example": "Investopedia's example: a stock bought at $100 rises to $110, then falls to $80. The drawdown is 27.3%, measured from the $110 peak. The trader's loss is only $20 a share, measured from the $100 they paid."
    },
@@ -2801,7 +2867,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q32",
@@ -2809,8 +2875,8 @@
    "rung": 5,
    "format": "scenario",
    "term": "Drawdown",
-   "story": "You buy at $40. The stock runs to $60, then falls to $48.",
-   "q": "Which is true at $48?",
+   "story": "You buy at $40. The stock runs to $60, then pulls back to $48.",
+   "q": "Where do you stand at $48?",
    "choices": [
     "A 20% drawdown, still a profit",
     "A 20% loss on the whole trade",
@@ -2818,7 +2884,7 @@
     "A 12% drawdown from the $60 peak"
    ],
    "answer": "A 20% drawdown, still a profit",
-   "why": "A 20% drawdown, but still a profit. Drawdown runs from the peak: $60 down to $48 is 20%. Profit runs from what you paid. You paid $40, and $48 is above it. Investopedia: a drawdown isn't always the same as a loss.",
+   "why": "A 20% drawdown, and still a profit. Drawdown runs from the peak: $60 down to $48 is $12, and $12 over $60 is 20%. Profit runs from what you paid, and $48 is still above your $40. Both are true at once. That giveback is exactly what a trail is there to limit.",
    "lesson_line": "A drawdown can happen inside a winner. It measures what you gave back.",
    "facts": [
     "f75",
@@ -2838,7 +2904,7 @@
      "trough": 48
     }
    },
-   "simple": "It is a 20% drawdown but still a profit, because drawdown runs from the $60 peak and profit from your $40 buy.",
+   "simple": "A 20% drawdown but still a profit. Drawdown runs from the $60 peak, profit from your $40 buy.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2847,7 +2913,10 @@
      "choices rebalanced (the key was the longest)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia makes the same point: a drawdown isn't always the same as a loss."
+   }
   },
   {
    "key": "q33",
@@ -2855,18 +2924,18 @@
    "rung": 7,
    "format": "tf",
    "term": "Drawdown",
-   "q": "After a 50% drawdown, a 50% gain gets you back to the peak.",
+   "q": "Your account drops 50%. A 50% gain gets you all the way back.",
    "answer": "False",
-   "why": "False. A 50% loss needs a 100% gain to get back to even. Many people wrongly assume a 50% gain is enough. A percentage loss always needs a bigger percentage gain to repair it. The gain has to be bigger because it starts from a smaller base.",
+   "why": "False. You need 100%. Halve the account and a 50% gain on what's left only gets you three quarters of the way back. You have to double the half to get to even. The deeper the hole, the harder the climb. That's the whole case for keeping losses small.",
    "lesson_line": "Losses are harder to undo than they look. Keep them small.",
    "facts": [
     "f142",
     "f143",
     "f144"
    ],
-   "simple": "False, after a 50% drop you need a 100% gain to get back to the peak.",
+   "simple": "False. After a 50% drop you need a 100% gain to get back to the peak.",
    "deeper": {
-    "trap": "Halve an account and it holds half what it did. A 50% gain on that smaller base adds back less than you lost. You are still below the peak. It takes a 100% gain, doubling the half, to get back. That is why big losses are so hard to undo."
+    "trap": "Many people assume a 50% gain offsets a 50% loss. A given percentage loss always needs a bigger percentage gain to repair, because the gain starts from a smaller base."
    },
    "tier": "extended",
    "risk": {
@@ -2875,7 +2944,7 @@
      "fixed before (why wording)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q34",
@@ -2883,7 +2952,7 @@
    "rung": 5,
    "format": "mcq",
    "term": "Drawdown",
-   "q": "Your account is down 20% from its peak. What gain takes it back to the high?",
+   "q": "Your account is down 20% from its high. What gain do you need to get back to that high?",
    "answer": "25%",
    "calc": {
     "fn": "gain_to_recover",
@@ -2892,15 +2961,15 @@
     }
    },
    "suffix": "%",
-   "why": "25%. Say the account was $100. Down 20% leaves $80. To get back to $100 you need $20 on a base of $80. $20 divided by $80 is 25%. You climb back from a smaller base, so the gain is bigger than the loss.",
+   "why": "25%. Say the account was $100. Down 20% leaves $80. Getting back to $100 means making $20 on $80, and $20 over $80 is 25%. You climb from a smaller base, so the gain has to be bigger than the loss. Keep the losses small and the climbs stay short.",
    "lesson_line": "Down 20% needs up 25%. The deeper the hole, the steeper the climb.",
    "facts": [
     "f142",
     "f144"
    ],
-   "simple": "You need a 25% gain, because you climb back from a smaller base than the one you fell from.",
+   "simple": "You need 25%, because you climb back from a smaller base than the one you fell from.",
    "deeper": {
-    "example": "The climb back is always steeper than the fall. Here, down 20% needs 25%. Every loss needs a bigger gain to repair, so keeping losses small keeps the climb short."
+    "example": "The climb back is always steeper than the fall. A 10% loss needs an 11% gain, and a 50% loss needs 100%."
    },
    "tier": "extended",
    "risk": {
@@ -2909,7 +2978,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "20%",
     "25%",
@@ -2917,9 +2986,9 @@
     "80%"
    ],
    "wrong": {
-    "20%": "Assumed the gain needed equals the loss.",
-    "16.7%": "Worked out the fall that follows a 20% gain, the reverse trip.",
-    "80%": "Gave the share of the account you still have."
+    "20%": "That assumes the gain equals the loss. You're climbing from a smaller base.",
+    "16.7%": "That's the reverse trip, the fall that follows a 20% gain.",
+    "80%": "That's the share of the account you still have."
    }
   },
   {
@@ -2995,8 +3064,8 @@
    "rung": 7,
    "format": "scenario",
    "term": "Daily loss limit",
-   "story": "Your rule: no new trades once you're down $1,000 in a day. By noon you're down $1,050. At 1 p.m. a great setup appears.",
-   "q": "What do you do?",
+   "story": "You set yourself a rule: no new trades once you're down $1,000 on the day. By noon you're down $1,050. At 1 p.m. a great setup shows up.",
+   "q": "Do you take it?",
    "choices": [
     "Skip it, wait for tomorrow",
     "Skip it, but trade after 3 p.m.",
@@ -3004,8 +3073,8 @@
     "Raise today's limit to $2,000"
    ],
    "answer": "Skip it, wait for tomorrow",
-   "why": "Skip it, wait for tomorrow. Your limit is $1,000 and you are down $1,050, so the limit is hit. Fidelity: once you have a limit, have the discipline to observe it. Schwab calls it a circuit breaker. Trading to win it back is the revenge trading Schwab links to many blowups. UCT's own limit is monthly, and it works the same way.",
-   "lesson_line": "The limit only works as a wall, never as a suggestion.",
+   "why": "Skip it. You're down $1,050 against a $1,000 limit, so you're done for the day. A limit only gets tested when breaking it looks smart, and a great setup is that test. Trading to win it back is revenge trading, and that's how blowups start. We don't use a daily limit ourselves. Ours is monthly: 8% down in a month, no new trades till it ends.",
+   "lesson_line": "A limit is a wall, not a suggestion.",
    "facts": [
     "f126",
     "f127",
@@ -3015,13 +3084,13 @@
     "hB16"
    ],
    "wrong": {
-    "Take it to win the loss back": "That's revenge trading, which Schwab links to many big blowups.",
+    "Take it to win the loss back": "That's revenge trading, the spiral behind a lot of big blowups.",
     "Raise today's limit to $2,000": "A limit you move when it's hit isn't a limit.",
     "Skip it, but trade after 3 p.m.": "The limit ends your whole day, not just one setup."
    },
-   "simple": "Skip it and wait for tomorrow, because a loss limit only works if you obey it once it is hit.",
+   "simple": "Skip it and wait for tomorrow. A loss limit only works if you obey it once it's hit.",
    "deeper": {
-    "trap": "The trap is the great setup. A limit is only tested when breaking it looks smart. A later trade, a revenge trade and a higher limit all break it. Our monthly rule works the same way. At 8% down in a calendar month, no new trades for the rest of the month."
+    "trap": "The great setup is the trap. Fidelity: once you set a limit, have the discipline to observe it. Schwab calls these limits circuit breakers, and links revenge trading to many blowups."
    },
    "tier": "extended",
    "risk": {
@@ -3030,7 +3099,7 @@
      "the why and deeper teach the owner's rulebook B15 and B16; a daily limit is not a UCT rule"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q38",
@@ -3038,7 +3107,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "Maximum drawdown",
-   "q": "What is maximum drawdown?",
+   "q": "You look back over two years of your account. What does its maximum drawdown tell you?",
    "choices": [
     "The biggest peak-to-low drop",
     "Your largest loss on one trade",
@@ -3046,7 +3115,7 @@
     "The average of all your drawdowns"
    ],
    "answer": "The biggest peak-to-low drop",
-   "why": "The biggest peak-to-low drop. Investopedia: the largest decline from a peak to a trough before a new peak. IBKR measures it as a percent fall from the peak value. A bounce that does not make a new high is not a new peak. It measures the whole account, not one trade or one stop.",
+   "why": "The biggest drop from a peak to a low before a new high. That's the worst stretch your account has lived through. A bounce that doesn't make a new high isn't a new peak, so you keep measuring from the old one. It's about the whole account, not one trade. If you can't stomach that number again, you're sizing too big.",
    "lesson_line": "Max drawdown is the worst stretch your account has lived through.",
    "facts": [
     "f79",
@@ -3059,16 +3128,16 @@
     "The widest stop you've used": "That's a stop setting, not a fall in value.",
     "The average of all your drawdowns": "It's the single worst one, not an average."
    },
-   "simple": "The biggest drop from a peak to a low, measured before the account reaches a new high.",
+   "simple": "It's the biggest drop from a peak to a low before the account made a new high.",
    "deeper": {
-    "example": "Investopedia's example: an account peaks at $750,000, falls, then bounces to $600,000 and falls again. The drop is still measured from $750,000, because $600,000 was not a new high."
+    "example": "Investopedia's example: an account peaks at $750,000, falls, bounces to $600,000 and falls again. The drop is still measured from $750,000, because $600,000 was not a new high."
    },
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q39",
@@ -3077,7 +3146,7 @@
    "format": "scenario",
    "term": "Maximum drawdown",
    "story": "Your account climbs from $100,000 to $130,000 and falls to $104,000. It bounces to $120,000, drops to $91,000, then makes a new high.",
-   "q": "What was your maximum drawdown?",
+   "q": "What's your maximum drawdown?",
    "choices": [
     "30%",
     "20%",
@@ -3085,7 +3154,7 @@
     "9%"
    ],
    "answer": "30%",
-   "why": "30%. Measure from the $130,000 peak to the lowest point, $91,000, before a new high. Investopedia: maximum drawdown is the largest fall from a peak to a trough before a new peak. The $120,000 bounce was not a new high, so it is not the peak.",
+   "why": "30%. Measure from the $130,000 peak to the lowest point before a new high, $91,000. From $130,000 down to $91,000 is 30%. The bounce to $120,000 never beat $130,000, so it isn't a new peak. That 30% is the hole you lived through, and it's the number to size against.",
    "lesson_line": "Max drawdown runs from the highest peak to the lowest low before a new high.",
    "facts": [
     "f79",
@@ -3106,7 +3175,7 @@
    },
    "simple": "Max drawdown is 30%, from the $130,000 high to the $91,000 low before any new high.",
    "deeper": {
-    "trap": "The bounce is the trap. $120,000 looks like a fresh start, but it is below the $130,000 high, so it is not a new peak. Investopedia's own example skips an interim peak of $600,000 for the same reason."
+    "trap": "The bounce is the trap. $120,000 looks like a fresh start, but it's below the $130,000 high, so it's not a new peak. Investopedia's own example skips an interim peak of $600,000 for the same reason."
    },
    "tier": "expert",
    "risk": {
@@ -3115,7 +3184,7 @@
      "computed key"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q40",
@@ -3123,15 +3192,15 @@
    "rung": 1,
    "format": "mcq",
    "term": "Risk of ruin",
-   "q": "What does risk of ruin measure?",
+   "q": "A friend says his risk of ruin is high. What is he worried about?",
    "choices": [
-    "Odds of losses too big to recover",
-    "Odds that the next trade loses",
-    "Your largest drawdown so far",
-    "How far price can gap at the open"
+    "Losses too big to come back from",
+    "The next trade losing",
+    "His largest drawdown so far",
+    "A gap right past his stop"
    ],
-   "answer": "Odds of losses too big to recover",
-   "why": "Odds of losses too big to recover. Investopedia: the probability of losses big enough to make recovery impossible. Tharp sets ruin at the drawdown where you would stop trading, a personal level.",
+   "answer": "Losses too big to come back from",
+   "why": "Losses too big to come back from. Ruin is the account getting so small it can't trade its way back. It doesn't have to mean zero. It's whatever drawdown would make you quit. Big size per trade plus a normal losing run is how you get there. Small risk per trade keeps you in the game.",
    "lesson_line": "Survival comes first. An edge is worthless once the account can't trade it.",
    "facts": [
     "f73",
@@ -3140,11 +3209,11 @@
     "f71"
    ],
    "wrong": {
-    "Odds that the next trade loses": "That's one trade. Ruin is about the account surviving a run of them.",
-    "Your largest drawdown so far": "That's maximum drawdown, the largest fall already taken. Risk of ruin is about the odds ahead.",
-    "How far price can gap at the open": "That's gap risk: a gap past your stop can cost more than you planned on one trade."
+    "The next trade losing": "That's one trade. Ruin is about the account surviving a run of them.",
+    "His largest drawdown so far": "That's max drawdown, a fall already taken. Risk of ruin is about the odds ahead.",
+    "A gap right past his stop": "That's gap risk on one trade. It can cost more than planned, but it's not ruin."
    },
-   "simple": "Risk of ruin is the chance your losses get so big that the account cannot recover.",
+   "simple": "It's the chance your losses get so big the account can't recover.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -3152,7 +3221,10 @@
      "stable definition, two publishers (wording differs, key fits both)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia: the probability of losses big enough to make recovery impossible. Tharp sets ruin at the drawdown where you'd stop trading, a personal level."
+   }
   },
   {
    "key": "q41",
@@ -3160,21 +3232,24 @@
    "rung": 5,
    "format": "tf",
    "term": "Risk of ruin",
-   "q": "Your risk of ruin depends on how much capital you have to cushion your losses.",
+   "q": "The smaller the cushion of money behind your losses, the fewer losing trades it takes to wreck the account.",
    "answer": "True",
-   "why": "True. Investopedia: risk of ruin depends on how many bets you make and how much capital there is to cushion probable losses. A thin cushion means a normal losing run can finish the account. Tharp says a positive-expectancy method makes money over the long term if the risk level is low enough.",
-   "lesson_line": "Ruin comes from losses your capital can't absorb. Keep the cushion thick.",
+   "why": "True. Ruin is about how many losses your money can soak up before the account can't come back. Thin cushion, and an ordinary losing run finishes it. That's what small risk per trade buys you. Each loss is a small bite out of a big cushion. Same edge, and you're still here to collect it.",
+   "lesson_line": "Keep the cushion thick. You can't collect an edge with a blown-up account.",
    "facts": [
     "f74",
     "f57"
    ],
-   "simple": "True, the more capital you have to absorb a losing run, the lower your odds of ruin.",
+   "simple": "True. The less money you have to absorb a losing run, the fewer losses it takes to wreck you.",
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia: risk of ruin depends on how many bets are placed and how much capital there is to cushion probable losses. Tharp: a positive-expectancy method makes money over the long term if played at a low enough risk level."
+   }
   },
   {
    "key": "q42",
@@ -3183,7 +3258,7 @@
    "format": "scenario",
    "term": "Risk of ruin",
    "story": "Two traders run the same method, which has a positive expectancy. One risks 1% a trade. The other risks 25%.",
-   "q": "Which one faces the bigger risk of ruin?",
+   "q": "Which one is more likely to blow up the account?",
    "choices": [
     "The trader risking 25%",
     "Neither, edge saves both",
@@ -3191,7 +3266,7 @@
     "Both face the same odds"
    ],
    "answer": "The trader risking 25%",
-   "why": "The trader risking 25%. Same method and same edge, but very different size. At 25% a trade, a short losing run leaves little capital. Risk of ruin depends on how much capital cushions the losses. Tharp's low-risk idea is sized to survive the worst short-term run. An edge only pays if you are still trading to collect it.",
+   "why": "The one risking 25%. Same method, same edge, very different size. At 25% a trade, a few losers in a row and most of the account is gone. Every method has losing runs. At 1% a trade the same run is a scratch. We risk under 1% normally, and 2% is the ceiling we never cross.",
    "lesson_line": "An edge only pays if you're still around to collect it.",
    "facts": [
     "f58",
@@ -3203,18 +3278,18 @@
    "wrong": {
     "Neither, edge saves both": "An edge is an average. Size decides whether you survive the losing runs on the way.",
     "The trader risking 1%": "Small risk keeps the cushion thick, so a losing run hurts far less.",
-    "Both face the same odds": "Same method, different size. Ruin depends on how much capital cushions the losses, and 25% a trade leaves little cushion."
+    "Both face the same odds": "Same method, different size. At 25% a trade there's almost no cushion."
    },
-   "simple": "The trader risking 25%, because a short losing run at that size leaves little capital to recover with.",
+   "simple": "The one risking 25%. A short losing run at that size leaves too little to recover with.",
    "deeper": {
-    "trap": "The trap is thinking a positive expectancy makes you safe. Expectancy is an average over many trades. It pays only if you survive the losing runs on the way. Tharp sizes a low-risk idea for the worst short-term run. UCT's ceiling is 2% a trade, and under 1% is normal."
+    "trap": "The trap is thinking a positive expectancy makes you safe. It's an average over many trades, and it only pays if you survive the losing runs. Tharp sizes a low-risk idea so it survives the worst short-term run."
    },
    "tier": "expert",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q43",
@@ -3222,7 +3297,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "Portfolio heat",
-   "q": "What is portfolio heat?",
+   "q": "You've got six trades on, each with a stop. What does your portfolio heat add up?",
    "choices": [
     "Total open risk across your trades",
     "How fast your best stock rises",
@@ -3230,7 +3305,7 @@
     "Your account's monthly drawdown"
    ],
    "answer": "Total open risk across your trades",
-   "why": "Total open risk across your trades. Tharp: the total open risk in your portfolio at any given time. Seykota and Druz named it the heat of the portfolio. Elder's rule adds up the risk on all open positions the same way. Our rulebook treats total open risk as a guide that varies, not a hard cap.",
+   "why": "Your total open risk. Add up what every trade loses if its stop hits, and that's your heat. It's your worst case if the whole market turns on you at once. We watch it, and it moves with the market. There's no fixed cap. But if you can't name your heat, you don't know what you're risking.",
    "lesson_line": "Portfolio heat is what you lose if every stop hits at once.",
    "facts": [
     "f46",
@@ -3243,7 +3318,7 @@
     "Your single largest position": "That's one position's size. Heat adds up the risk on all of them.",
     "Your account's monthly drawdown": "That's a loss already taken. Heat is risk still open."
    },
-   "simple": "Portfolio heat is the total you would lose if every one of your open stops were hit at once.",
+   "simple": "Heat is what you'd lose if every one of your stops hit at once.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -3251,7 +3326,10 @@
      "rests on the owner's rulebook (A10)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Tharp: the total open risk in your portfolio at any given time. Seykota and Druz call the distributed bet size the heat of the portfolio. Elder's rule keeps the total risk on open positions to 6% of capital."
+   }
   },
   {
    "key": "q44",
@@ -3259,7 +3337,7 @@
    "rung": 5,
    "format": "mcq",
    "term": "Portfolio heat",
-   "q": "You hold four trades. Each one risks 1.5% of the account to its stop. What is your portfolio heat?",
+   "q": "You hold four trades. Each one risks 1.5% of the account to its stop. What's your heat?",
    "answer": "6%",
    "calc": {
     "fn": "arith",
@@ -3270,7 +3348,7 @@
     }
    },
    "suffix": "%",
-   "why": "6%. Add up what every open trade loses if its stop is hit. Four trades at 1.5% each is 4 times 1.5%, or 6%. Seykota and Druz: 2% on each of five positions is a total heat of 10%. Heat adds up even when each trade looks small.",
+   "why": "6%. Four trades at 1.5% each is 4 times 1.5%, 6% in all. That's what you lose if the market drops hard and every stop hits the same day. Each trade looks small on its own. Together they add up fast, so check the total before you add one more.",
    "lesson_line": "Know your total heat before you add one more trade.",
    "facts": [
     "f65",
@@ -3285,7 +3363,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "1.5%",
     "6%",
@@ -3293,9 +3371,9 @@
     "4%"
    ],
    "wrong": {
-    "1.5%": "Counted one trade's risk and skipped the other three.",
-    "5.5%": "Added the 4 trades to the 1.5% instead of multiplying.",
-    "4%": "Gave the number of trades as the percent."
+    "1.5%": "That's one trade's risk. You've got three more on.",
+    "5.5%": "You added the 4 trades to the 1.5% instead of multiplying.",
+    "4%": "That's the number of trades read as a percent."
    },
    "visual": {
     "kind": "size",
@@ -3318,6 +3396,9 @@
      "label": "Portfolio heat",
      "as": "pct"
     }
+   },
+   "deeper": {
+    "example": "Seykota and Druz: a portfolio risking 2% on each of five positions has a total heat of 10%."
    }
   },
   {
@@ -3326,26 +3407,27 @@
    "rung": 3,
    "format": "mcq",
    "term": "Concentration risk",
-   "q": "What is concentration risk?",
+   "q": "Seven of your eight positions are chip stocks. What kind of risk are you carrying?",
    "choices": [
-    "Risk from too much money in one area",
-    "Risk from owning too many positions",
-    "Risk that your stop order fills too late",
-    "Risk of a gap right past your stop"
+    "Too much money in one area",
+    "Owning too many positions",
+    "A stop that fills too late",
+    "A gap right past your stop"
    ],
-   "answer": "Risk from too much money in one area",
-   "why": "Risk from too much money in one area. FINRA: the risk of amplified losses from having a large portion of your holdings in one investment, asset class or market segment.",
-   "lesson_line": "Too much money in one area can amplify your losses.",
+   "answer": "Too much money in one area",
+   "why": "Too much money in one area. Seven chip stocks aren't seven bets. Stocks in one group tend to move together, so one bad day for the group hits most of your book at once. That's concentration risk. Being heavy in the leading group is how you catch a big move, and I'm fine with that. Just know your total risk if the whole group turns the same day.",
+   "lesson_line": "Heavy in one group is fine. Know what you lose if the whole group turns.",
    "facts": [
     "f11",
+    "f12",
     "f71"
    ],
    "wrong": {
-    "Risk from owning too many positions": "FINRA's concentration risk comes from too much in one investment or segment, not from too many positions.",
-    "Risk of a gap right past your stop": "That's gap risk on one position. Concentration is about how much sits in one area.",
-    "Risk that your stop order fills too late": "That's about how a stop order fills. Concentration is about how much sits in one area."
+    "Owning too many positions": "That's the opposite problem. Concentration is too much in one place.",
+    "A stop that fills too late": "That's how a stop order fills, not where your money sits.",
+    "A gap right past your stop": "That's gap risk on one stock. Concentration is about how much sits in one group."
    },
-   "simple": "Concentration risk is the bigger loss you can take when too much of your money sits in one area.",
+   "simple": "Too much of your money sits in one area, so one bad day for that group hits most of your book.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -3353,7 +3435,10 @@
      "one source only (FINRA, Tier 1)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "FINRA: the risk of amplified losses from having a large portion of your holdings in one investment, asset class or market segment. Same-industry holdings tend to be highly correlated."
+   }
   },
   {
    "key": "q46",
@@ -3362,7 +3447,7 @@
    "format": "scenario",
    "term": "Concentration risk",
    "story": "You hold five chip stocks. Each one risks 1% of the account to its stop.",
-   "q": "If chips have a bad day, how much of the account is at risk?",
+   "q": "Semis get hit hard tomorrow. How much of the account is at risk?",
    "choices": [
     "About 5%, if all five stops hit",
     "About 1%, one stop will hit",
@@ -3370,8 +3455,8 @@
     "About 0.2%, 1% split five ways"
    ],
    "answer": "About 5%, if all five stops hit",
-   "why": "About 5%, if all five stops hit. FINRA: same-industry holdings tend to be highly correlated. What happens to one is likely to happen to the others. Heat adds the risks: five trades at 1% each is 5%.",
-   "lesson_line": "Stocks in one industry tend to fall together, so their stops can hit together.",
+   "why": "About 5%, if all five stops hit. Chip stocks tend to move together, so what hits one is likely to hit the others. Your risk isn't 1%. It's 1% five times, 5% in all. Know that number before the bad day comes, not after.",
+   "lesson_line": "Stocks in one group tend to fall together, so their stops can hit together.",
    "facts": [
     "f12",
     "f46",
@@ -3379,13 +3464,13 @@
     "f30"
    ],
    "wrong": {
-    "About 1%, one stop will hit": "Stocks in one industry tend to move together. When one falls hard, the others likely fall too.",
-    "All the money in the stocks": "That's what you invested. Tharp: the amount risked is not the amount invested. Each stop is set to cost 1%.",
-    "About 0.2%, 1% split five ways": "Each stock risks its own 1%. Heat adds the risks up; it does not split them."
+    "About 1%, one stop will hit": "Stocks in one group move together. When one falls hard, the others likely fall too.",
+    "All the money in the stocks": "That's what you put in. Each stop is set to cost 1%.",
+    "About 0.2%, 1% split five ways": "Each stock risks its own 1%. The risks add up, they don't split."
    },
-   "simple": "About 5% is at risk, because chip stocks tend to fall together, so all five stops can hit at once.",
+   "simple": "About 5%. Chip stocks tend to fall together, so all five stops can hit at once.",
    "deeper": {
-    "trap": "Five tickers feel like five separate bets. FINRA's point is correlation: same-industry stocks tend to move together. A bad day for chips can trigger every stop at once."
+    "trap": "Five tickers can feel like five separate bets. FINRA's point is correlation: same-industry stocks tend to move together. A bad day for chips can trigger every stop at once."
    },
    "tier": "extended",
    "risk": {
@@ -3402,7 +3487,7 @@
      "risk_each": 1
     }
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "The chip stocks",
@@ -3432,17 +3517,17 @@
    "rung": 7,
    "format": "tf",
    "term": "Concentration risk",
-   "q": "Owning tech stocks plus a tech fund spreads out your risk.",
+   "q": "You own three chip stocks and a chip ETF. That spreads out your risk.",
    "answer": "False",
-   "why": "False. FINRA's own example of concentration is tech companies, plus a tech fund, plus tech stocks inside an index fund. Same-industry holdings tend to move together, so the fund adds more of the same bet. Different tickers, same risk.",
+   "why": "False. A chip ETF is full of chip stocks, likely the same ones you already own. So you added more of the same bet. Stocks in one group tend to move together. Different tickers, same risk. Look at what a fund holds before you call your book spread out.",
    "lesson_line": "Look under the hood. Different tickers can carry the same risk.",
    "facts": [
     "f13",
     "f12"
    ],
-   "simple": "False, because a tech fund holds more tech, so you own more of the same bet instead of spreading it out.",
+   "simple": "False. A chip ETF holds more chip stocks, so you own more of the same bet.",
    "deeper": {
-    "trap": "The hidden overlap is the trap. FINRA counts the tech stocks inside an index fund you own as part of the same concentration. Look at what each fund holds before you call your book spread out."
+    "trap": "The hidden overlap is the trap. FINRA's own example is tech stocks, plus a tech fund, plus the tech stocks inside an index fund you own, all one concentration."
    },
    "tier": "extended",
    "risk": {
@@ -3451,7 +3536,7 @@
      "one source only (FINRA, Tier 1)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q48",
@@ -3459,7 +3544,7 @@
    "rung": 4,
    "format": "mcq",
    "term": "Open risk",
-   "q": "In Tharp's terms, what is open risk?",
+   "q": "You hold three winners, all well above where you bought. What does your open risk measure?",
    "choices": [
     "Price now to stop, all positions",
     "Entry to stop on your newest trade",
@@ -3467,7 +3552,7 @@
     "Profit you have not yet sold"
    ],
    "answer": "Price now to stop, all positions",
-   "why": "Price now to stop, across all positions. Tharp: the difference between the current price and the stop for all positions you have open. He calls it another word for portfolio heat. Elder's rule, as Incredible Charts explains it, measures each stock from its last month-end close to its stop, times the shares. It is not R, which runs from your entry.",
+   "why": "Price now down to the stop, across every position. Not from your entry, from today's price. As a winner runs, the gap between price and stop grows, and so does what you could give back. Raise the stop and open risk shrinks. That's why open risk can climb in a great week.",
    "lesson_line": "As a winner runs, open risk grows unless your stop follows it.",
    "facts": [
     "f47",
@@ -3475,11 +3560,11 @@
     "f132"
    ],
    "wrong": {
-    "Entry to stop on your newest trade": "That's the initial risk, R, on one trade.",
-    "Money spent on your open positions": "That's what you invested, not what you can lose.",
-    "Profit you have not yet sold": "That's open profit, measured from your entry. Open risk runs from the current price down to the stop."
+    "Entry to stop on your newest trade": "That's the first risk, R, on one trade.",
+    "Money spent on your open positions": "That's what you put in, not what you can lose.",
+    "Profit you have not yet sold": "That's open profit, measured from your entry. Open risk runs from today's price down to the stop."
    },
-   "simple": "Open risk is what all your positions would lose if they fell from today's price down to their stops.",
+   "simple": "It's what all your positions lose if they fall from today's price down to their stops.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -3487,7 +3572,10 @@
      "stable definition named for Tharp, Elder agrees"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Tharp: the difference between the current price and the stop for all positions you have open. He calls it another word for portfolio heat."
+   }
   },
   {
    "key": "q49",
@@ -3495,7 +3583,7 @@
    "rung": 6,
    "format": "mcq",
    "term": "Open risk",
-   "q": "You own 100 shares bought at $50. They now trade at $62, and your stop is $55. What is your open risk?",
+   "q": "You own 100 shares bought at $50. They trade at $62 now, and you've raised your stop to $55. What's your open risk?",
    "answer": "$700",
    "calc": {
     "fn": "arith",
@@ -3507,14 +3595,14 @@
     }
    },
    "prefix": "$",
-   "why": "$700. Open risk runs from today's $62 down to your $55 stop: $7 a share. Times 100 shares is $700. Your stop sits above your $50 entry, so a fill at the stop would still be a profit. But the open gain above $55 is still at risk.",
+   "why": "$700. Open risk runs from today's $62 down to your $55 stop. That's $7 a share, times 100 shares, $700. Your stop sits over your $50 buy, so the trade can't lose money anymore, short of a gap. But $700 of open profit can still go back. Keep raising the stop as it works and that number shrinks.",
    "lesson_line": "Open profit above your stop is still at risk.",
    "facts": [
     "f47",
     "f131",
     "f132"
    ],
-   "simple": "Your open risk is $700, because 100 shares could fall from $62 down to your $55 stop.",
+   "simple": "Your open risk is $700, because 100 shares can fall from $62 to your $55 stop.",
    "deeper": {
     "example": "Here the stop at $55 keeps part of the gain. Every dollar the stock sits above $55 is still exposed. Raising the stop shrinks open risk."
    },
@@ -3525,7 +3613,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$1,200",
     "$700",
@@ -3533,9 +3621,9 @@
     "$7"
    ],
    "wrong": {
-    "$1,200": "Gave the open gain from your entry, not the risk down to the stop.",
-    "$500": "Gave the profit locked in above your entry, not the open risk.",
-    "$7": "Gave the risk per share and skipped the 100 shares."
+    "$1,200": "That's your open gain from your entry, not the risk down to the stop.",
+    "$500": "That's the profit locked in above your entry, not the open risk.",
+    "$7": "That's the risk on one share. You hold 100."
    }
   },
   {
@@ -3544,27 +3632,27 @@
    "rung": 2,
    "format": "mcq",
    "term": "Breakeven stop",
-   "q": "What is a breakeven stop?",
+   "q": "Your breakout is up 3R and you decide to move to a breakeven stop. Where does the stop go?",
    "choices": [
-    "A stop moved up to your entry price",
-    "A stop that trails the session's high",
-    "A stop just under the day's low",
-    "A target set at a 1R profit level"
+    "Up to the price you paid",
+    "Just under today's high",
+    "Just under the day's low",
+    "Halfway to your entry"
    ],
-   "answer": "A stop moved up to your entry price",
-   "why": "A stop moved up to your entry price. TradeStation places it at the average entry price of the position. Our rulebook moves the stop to breakeven at 2R to 5R, ideally. The aim, in O'Neil's words, is not to let a stock fall back below your purchase price.",
-   "lesson_line": "A breakeven stop aims to keep a winner from turning into a loser.",
+   "answer": "Up to the price you paid",
+   "why": "Up to the price you paid. From here the trade can't turn into a loser, short of a gap. We make that move somewhere between 2R and 5R, or when we take the first sell. It's a judgment, not a fixed spot. Do it too early and a normal dip knocks you out of a good trade.",
+   "lesson_line": "A breakeven stop keeps a winner from turning into a loser.",
    "facts": [
     "f135",
     "f139",
     "h4b19"
    ],
    "wrong": {
-    "A stop that trails the session's high": "A breakeven stop doesn't follow the high. It sits at your entry price.",
-    "A stop just under the day's low": "That stop comes from the chart's low. A breakeven stop uses your own entry price.",
-    "A target set at a 1R profit level": "That's a profit level, not a stop. Our rule moves the stop to breakeven at 2R to 5R, ideally."
+    "Just under today's high": "That's a very tight trail. A breakeven stop sits at your entry.",
+    "Just under the day's low": "That's where your first stop went. A breakeven stop uses your entry price.",
+    "Halfway to your entry": "That cuts the risk but the trade can still lose. Breakeven is your entry."
    },
-   "simple": "A breakeven stop is your stop moved up to the price you paid.",
+   "simple": "It goes up to the price you paid, so the trade can't turn into a loss.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -3572,7 +3660,10 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "TradeStation places it at the average entry price of the position. O'Neil's version: don't let a stock fall back below your purchase price."
+   }
   },
   {
    "key": "q51",
@@ -3609,8 +3700,8 @@
    "rung": 8,
    "format": "scenario",
    "term": "Breakeven stop",
-   "story": "Your breakout is up 1R, so you move the stop to your entry. The stock dips a few cents under your entry and sells you out. Then it rallies hard.",
-   "q": "What did the breakeven stop cost you here?",
+   "story": "Your breakout is up 1R, so you move the stop to your entry. The stock dips a few cents under your entry, sells you out, then rallies hard.",
+   "q": "What did that early breakeven stop cost you?",
    "choices": [
     "It let normal swings stop you out",
     "It locked in a gain on the trade",
@@ -3618,8 +3709,8 @@
     "It made the stop a limit order"
    ],
    "answer": "It let normal swings stop you out",
-   "why": "It let normal swings stop you out. A stop at your entry sits close to the price. Schwab warns a stop too close can be triggered by regular daily price swings. FINRA notes a quick drop can trigger a stop and the stock can rebound. Our rulebook waits for 2R to 5R, ideally, before moving to breakeven.",
-   "lesson_line": "An early breakeven stop trades a smaller loss for more shakeouts. We wait for 2R to 5R, ideally.",
+   "why": "It let a normal dip stop you out. At 1R your entry sits right in the noise, and a stop that close gets hit by regular day-to-day swings. We wait until somewhere between 2R and 5R, or the first sell, before moving to breakeven. That gives the stock room to work. Getting shaken out of a winner costs more than a small loss.",
+   "lesson_line": "Move to breakeven too early and the noise takes you out of good trades.",
    "facts": [
     "f10",
     "f140",
@@ -3630,13 +3721,13 @@
     "f135"
    ],
    "wrong": {
-    "It made the stop a limit order": "A breakeven stop is still a stop market order. TradeStation: all its stop orders are stop market orders.",
-    "It locked in a gain on the trade": "A breakeven stop sits at your entry price. Filled there, it saves you from a loss but keeps no gain.",
+    "It made the stop a limit order": "A breakeven stop is still a stop that sells at market.",
+    "It locked in a gain on the trade": "A breakeven stop sits at your entry. Filled there, it saves you a loss but keeps no gain.",
     "It capped your upside at your entry": "A stop limits the downside. Your upside was open until the stop sold you out."
    },
-   "simple": "Moving the stop to your entry too early lets ordinary dips stop you out before the real move.",
+   "simple": "Moving to breakeven at 1R let an ordinary dip stop you out before the real move.",
    "deeper": {
-    "trap": "A breakeven stop trades one risk for another. It shrinks the loss if the trade fails, but ordinary dips can now take you out. O'Neil says don't let a worthwhile profit fall back into a loss. Mabe never moves to breakeven. Our rule waits for 2R to 5R, ideally."
+    "trap": "A breakeven stop trades one risk for another. It shrinks the loss if the trade fails, but ordinary dips can now take you out. Schwab warns a stop too close can be triggered by regular daily swings. Dave Mabe never moves to breakeven at all."
    },
    "tier": "expert",
    "risk": {
@@ -3645,7 +3736,7 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q53",
@@ -3653,7 +3744,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "Trailing stop",
-   "q": "Which stop rises as the price rises but never moves down?",
+   "q": "You want a stop that climbs as the stock climbs but never moves down. Which one is that?",
    "choices": [
     "Trailing stop",
     "Breakeven stop",
@@ -3661,7 +3752,7 @@
     "Stop-limit order"
    ],
    "answer": "Trailing stop",
-   "why": "Trailing stop. It follows a rising price up. When the price falls, the stop stays where it is. Schwab: it can move higher but never lower. A breakeven stop sits at your entry, and an initial stop is the first stop, the one that sets R.",
+   "why": "A trailing stop. It follows the price up, and when the stock falls it stays put. That lets you keep most of a big move without guessing the top. Ours trails the 9 EMA for fast movers, or the 20 EMA for steadier ones. Sell what's left on a close below it.",
    "lesson_line": "A trailing stop moves one way: with your profit.",
    "facts": [
     "f07",
@@ -3670,20 +3761,24 @@
     "f53",
     "f135",
     "f40",
-    "f145"
+    "f145",
+    "h4e52"
    ],
    "wrong": {
     "Breakeven stop": "That sits at your entry price and stays there.",
     "Initial stop": "That's the first stop, the one that sets R.",
     "Stop-limit order": "That's about the fill price once triggered, not about following the trend."
    },
-   "simple": "A trailing stop, because it follows the price up and stays put when the price falls.",
+   "simple": "A trailing stop. It follows the price up and stays put when the price falls.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Schwab: the stop price can move higher indefinitely, but it can never move lower."
+   }
   },
   {
    "key": "q54",
@@ -3691,18 +3786,18 @@
    "rung": 5,
    "format": "mcq",
    "term": "Trailing stop",
-   "q": "You set a 20% trailing stop. The stock peaks at $85, then starts to fall. Where is your stop?",
+   "q": "You set a 20% trailing stop. The stock peaks at $85, then starts to slide. Where's your stop now?",
    "answer": "$68",
    "calc": {
     "fn": "arith",
     "args": {
-     "expr": "high * (100 - pct) / 100",
+     "expr": "high - high * pct / 100",
      "high": 85,
      "pct": 20
     }
    },
    "prefix": "$",
-   "why": "$68. The stop trails 20% under the $85 high. Take that 20% off the $85 high to get $68. It stays there as the stock falls. A trailing stop measures from the highest price, not from your entry. Tharp's example: a 25% trail under a $60 high sits at $45 and is never moved back down.",
+   "why": "$68. The stop trails 20% under the high. 20% of $85 is $17, and $85 minus $17 is $68. It stays there as the stock slides. A percent trail measures from the highest price, never from your entry. Ours isn't a percent, though. We trail the 9 or 20 EMA and sell on a close below it.",
    "lesson_line": "A trailing stop measures from the high, not from your entry.",
    "facts": [
     "f36",
@@ -3710,9 +3805,9 @@
     "f06",
     "h4e52"
    ],
-   "simple": "Your stop is at $68, because it sits 20% under the $85 high and never moves down.",
+   "simple": "Your stop is $68, 20% under the $85 high, and it never moves down.",
    "deeper": {
-    "counter": "A percent trail is one way to trail. Our own default is not a percent. We sell on a close below the 9 EMA for fast movers, or the 20 EMA for steadier ones."
+    "counter": "Tharp's example: a 25% trail under a $60 high sits at $45 and is never moved back down."
    },
    "tier": "extended",
    "risk": {
@@ -3722,7 +3817,7 @@
      "deeper cites the owner's rulebook (E52)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$68",
     "$85",
@@ -3730,9 +3825,9 @@
     "$106"
    ],
    "wrong": {
-    "$102": "Added 20% to the high instead of subtracting.",
-    "$85": "Set the stop at the high and took nothing off.",
-    "$106": "Divided the high by what is left after the trail instead of multiplying."
+    "$102": "You added 20% to the high instead of taking it off.",
+    "$85": "That's the high itself. The trail sits 20% under it.",
+    "$106": "You divided the high instead of taking 20% off it."
    }
   },
   {
@@ -3742,7 +3837,7 @@
    "format": "scenario",
    "term": "Trailing stop",
    "story": "You bought at $30. The stock ran to $60, and your 25% trailing stop now sits at $45. Then the stock turns down.",
-   "q": "What does the stop lock in if it fills at $45?",
+   "q": "If the stop fills at $45, what do you keep?",
    "choices": [
     "$15 a share, half the gain",
     "$30 a share, the whole gain",
@@ -3750,8 +3845,8 @@
     "$22.50 a share, 75% of the gain"
    ],
    "answer": "$15 a share, half the gain",
-   "why": "$15 a share, half the gain. You paid $30 and the stop sells at $45, so you keep $15 a share. At the $60 high the gain was $30, so the stop keeps half. That's Tharp's own example. The trail is 25% of the price, not 25% of the gain.",
-   "lesson_line": "A trailing stop gives some gain back so you can stay for the rest.",
+   "why": "$15 a share, half the gain. You paid $30 and sell at $45, so you keep $15. At the $60 high you were up $30, so the trail gave half of it back. That's the price of staying in for a big run. The trail is 25% of the price, not 25% of the gain.",
+   "lesson_line": "A trailing stop gives some back so you can stay for the rest.",
    "facts": [
     "f37",
     "f35",
@@ -3760,8 +3855,8 @@
    ],
    "wrong": {
     "$30 a share, the whole gain": "The stop sits 25% under the high, so part of the gain goes back.",
-    "$45 a share, the stop price": "$45 is the price you sell at, not your profit. You paid $30, so you keep $15 a share.",
-    "$22.50 a share, 75% of the gain": "That takes 25% off the $30 gain. The trail is 25% off the $60 price, which puts the stop at $45."
+    "$45 a share, the stop price": "$45 is the price you sell at, not your profit. You paid $30.",
+    "$22.50 a share, 75% of the gain": "That takes 25% off the $30 gain. The trail is 25% off the $60 price."
    },
    "calc": {
     "fn": "arith",
@@ -3771,9 +3866,9 @@
      "entry": 30
     }
    },
-   "simple": "The stop locks in $15 a share, half the gain, because you sell at $45 after paying $30.",
+   "simple": "You keep $15 a share, half the gain, because you sell at $45 after paying $30.",
    "deeper": {
-    "trap": "The trail only moves one way. Tharp: never move it backward. If the stock falls from $60 to $50, the exit stays at $45. Lowering it to give the trade room would hand back the profit the trail was built to keep."
+    "trap": "The trail only moves one way. Tharp's own example: if the stock falls from $60 to $50, the exit stays at $45. Lowering it to give the trade room hands back the profit the trail was built to keep."
    },
    "tier": "extended",
    "risk": {
@@ -3782,7 +3877,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "ladder",
     "title": "The trailing stop",
@@ -3816,10 +3911,10 @@
    "rung": 7,
    "format": "tf",
    "term": "Trailing stop",
-   "q": "A wider trailing stop gives back more profit when the trend finally turns.",
+   "q": "Set your trail wider and you give back more profit when the trend finally turns.",
    "answer": "True",
-   "why": "True. Set too far away, a real reversal eats more of your profit before the stop is hit. Set too close, normal swings stop you out before the trend is done. Schwab warns about both sides. This compares two trails both still open at the turn.",
-   "lesson_line": "Too wide gives back profit. Too tight gets shaken out. Weigh both when you set the trail.",
+   "why": "True. A wide trail lets a real reversal eat more of your gain before you're out. Too tight has its own cost: a normal dip shakes you out before the trend is done. So it's a trade-off. We trail the 9 EMA for fast movers and the 20 EMA for steadier ones. Match the line to how the stock trends.",
+   "lesson_line": "Too wide gives back profit. Too tight gets shaken out. Match the trail to the stock.",
    "facts": [
     "f89",
     "f88",
@@ -3827,16 +3922,16 @@
     "f120",
     "hE52"
    ],
-   "simple": "True, a trail set far away lets the price fall further before you are out, so you give back more.",
+   "simple": "True. A trail set far away lets price fall further before you're out, so you give back more.",
    "deeper": {
-    "counter": "A wider trail is not always worse. A tight trail can stop you out on a normal dip and miss the rest of the run. The wide trail loses more only at the final turn. Our default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones."
+    "counter": "A wider trail isn't always worse. A tight trail can stop you out on a normal dip and miss the rest of the run. The wide trail loses more only at the final turn. Investopedia warns about both sides."
    },
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q57",
@@ -3867,15 +3962,15 @@
    "rung": 1,
    "format": "mcq",
    "term": "ATR",
-   "q": "What does ATR measure?",
+   "q": "You pull up a daily chart and see an ATR of $1.18. What's that telling you?",
    "choices": [
-    "How much a stock typically moves",
-    "How far price is from average",
-    "Average volume over 14 days",
+    "How much it moves in a normal day",
+    "How far price is from its average",
+    "Its average volume over 14 days",
     "Your average loss per trade"
    ],
-   "answer": "How much a stock typically moves",
-   "why": "How much a stock typically moves. Wilder's average true range is an average of the true range, usually over 14 days. On a daily chart, an ATR of $1.18 means an average range of $1.18 a day. It measures volatility, the size of the moves.",
+   "answer": "How much it moves in a normal day",
+   "why": "How much it moves in a normal day. ATR averages each day's true range, over 14 days on most charts. An ATR of $1.18 means the stock moves about $1.18 a day. It tells you size, not direction. I use it to keep a stop outside the normal noise.",
    "lesson_line": "ATR tells you how far a stock normally moves in a day.",
    "facts": [
     "f81",
@@ -3884,17 +3979,20 @@
     "f103"
    ],
    "wrong": {
-    "Average volume over 14 days": "That's a volume average. ATR uses price ranges.",
     "Your average loss per trade": "That comes from your trade log, not the chart.",
-    "How far price is from average": "That's a stretch measure. ATR averages the size of each day's range."
+    "How far price is from its average": "That's a stretch read. ATR averages the size of each day's range.",
+    "Its average volume over 14 days": "That's a volume average. ATR uses price ranges."
    },
-   "simple": "How much a stock typically moves, because ATR averages the size of each day's true range.",
+   "simple": "It shows how much the stock moves in a normal day, about $1.18 here.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "J. Welles Wilder built the Average True Range to measure volatility. Investopedia: if the ATR is $1.18, the price has an average range of movement of $1.18 per trading day."
+   }
   },
   {
    "key": "q59",
@@ -3902,22 +4000,22 @@
    "rung": 4,
    "format": "tf",
    "term": "ATR",
-   "q": "A rising ATR tells you the stock is heading higher.",
+   "q": "ATR has been rising all week. That means the stock is heading higher.",
    "answer": "False",
-   "why": "False. ATR measures volatility, not direction. Big ranges come with strong moves either way. A stock falling hard can show a rising ATR, just as a stock rising hard can. ATR says how big the moves are, never which way.",
+   "why": "False. ATR measures how big the moves are, not which way. A stock falling hard shows a rising ATR, same as one ripping up. So a rising ATR never gives you a buy. Read direction from price and the averages. Read ATR for how much room a stop needs.",
    "lesson_line": "ATR says how big the moves are, never which way.",
    "facts": [
     "f105",
     "f84",
     "f109"
    ],
-   "simple": "False, ATR only shows how big the moves are, and it rises in a sharp fall too.",
+   "simple": "False. ATR only shows how big the moves are, and it rises in a sharp fall too.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q60",
@@ -3925,16 +4023,16 @@
    "rung": 7,
    "format": "scenario",
    "term": "ATR",
-   "story": "Stock A trades at $300 with a daily ATR of $6. Stock B trades at $20 with a daily ATR of $1.50.",
+   "story": "One stock trades at $300 with a daily ATR of $6. Another trades at $20 with a daily ATR of $1.50.",
    "q": "Which one moves more for its price?",
    "choices": [
-    "B, about 7.5% a day",
-    "A, ATR is bigger",
+    "The $20 one, about 7.5% a day",
+    "The $300 one, its ATR is bigger",
     "About the same",
-    "B, 1.5% a day"
+    "The $20 one, 1.5% a day"
    ],
-   "answer": "B, about 7.5% a day",
-   "why": "B, about 7.5% a day. ATR is in dollars, so a high-priced stock shows a bigger number. StockCharts: ATR is not shown as a percent of the close, so raw ATRs can't be compared across price levels. B's $1.50 is 7.5% of $20. A's $6 is a much smaller share of $300.",
+   "answer": "The $20 one, about 7.5% a day",
+   "why": "The $20 one, about 7.5% a day. ATR is in dollars, so a pricey stock always shows the bigger number. Put it in percent: $1.50 over $20 is 7.5%. $6 over $300 is a lot less. I always read ATR as a percent of price. That's what tells you how much room a stop needs.",
    "lesson_line": "Compare ATR as a percent of price. Dollars alone mislead.",
    "facts": [
     "f106",
@@ -3942,9 +4040,9 @@
     "f87"
    ],
    "wrong": {
-    "A, ATR is bigger": "A $6 ATR on a $300 stock is a small move for its price.",
-    "About the same": "For its price, B moves several times as much as A.",
-    "B, 1.5% a day": "That reads the $1.50 ATR as a percent. ATR is in dollars, and $1.50 on a $20 stock is 7.5%."
+    "About the same": "For its price, the $20 stock moves several times as much.",
+    "The $300 one, its ATR is bigger": "A $6 ATR on a $300 stock is a small move for its price.",
+    "The $20 one, 1.5% a day": "That reads the $1.50 ATR as a percent. On a $20 stock it's 7.5%."
    },
    "calc": {
     "fn": "arith",
@@ -3954,9 +4052,9 @@
      "price": 20
     }
    },
-   "simple": "Stock B moves more for its price, because its $1.50 range is 7.5% of $20, far more than A's share of $300.",
+   "simple": "The $20 stock. Its $1.50 range is 7.5% of its price, far more than $6 is of $300.",
    "deeper": {
-    "trap": "A bigger ATR number is not a bigger move. StockCharts warns that ATR values are not comparable across price levels. Divide ATR by the price before you compare how jumpy two stocks are."
+    "trap": "A bigger ATR number isn't a bigger move. StockCharts: ATR isn't shown as a percent of the close, so low-priced stocks show lower ATR values and the raw numbers aren't comparable."
    },
    "tier": "extended",
    "risk": {
@@ -3965,32 +4063,32 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "Two stocks",
     "rows": [
      {
       "key": "r1",
-      "label": "A's price",
+      "label": "First stock's price",
       "value": 300,
       "fmt": "$"
      },
      {
       "key": "r2",
-      "label": "A's ATR",
+      "label": "First stock's ATR",
       "value": 6,
       "fmt": "$"
      },
      {
       "key": "r3",
-      "label": "B's price",
+      "label": "Second stock's price",
       "value": 20,
       "fmt": "$"
      },
      {
       "key": "r4",
-      "label": "B's ATR",
+      "label": "Second stock's ATR",
       "value": 1.5,
       "fmt": "$"
      }
@@ -4007,30 +4105,30 @@
    "rung": 5,
    "format": "mcq",
    "term": "ATR",
-   "q": "Our Launchpad line-based stop goes under the 20 EMA and 50 SMA. How far under the lower one?",
+   "q": "You're buying a stock resting on its 20 EMA and 50 SMA. You want your stop under the lines. Where exactly?",
    "choices": [
-    "A quarter of an ATR below",
-    "Three full ATRs below it",
-    "A flat 10% of the price",
-    "Right on it, with no cushion"
+    "A little under the lower line",
+    "Right on the line, no cushion",
+    "A flat 10% under your entry",
+    "Three ATRs under the high"
    ],
-   "answer": "A quarter of an ATR below",
-   "why": "A quarter of an ATR below. Our Launchpad plan puts the line-based stop under both the 20 EMA and 50 SMA, a quarter of an ATR below the lower one. It is set from the averages and ATR, not a flat percent. The low of day stays our primary stop.",
-   "lesson_line": "Launchpad line stop: under both averages, plus a quarter ATR.",
+   "answer": "A little under the lower line",
+   "why": "A little under the lower line. When price rests on the 20 EMA and 50 SMA, those lines are the support. If it closes through both, the idea's broken. So the stop goes under the lower one, with a small cushion for wicks. How big a cushion is a read of the chart: how much this stock pokes through its lines. Our first choice is still a few cents under the low of the day.",
+   "lesson_line": "Under the lower line, with room for a wick. Or a few cents under the low of the day.",
    "facts": [
-    "h02",
+    "r06",
+    "r05",
     "f111",
     "f110",
-    "r05",
-    "r06"
+    "hw05"
    ],
    "wrong": {
-    "Three full ATRs below it": "That's the long Chandelier Exit: three ATRs under the 22-day high, a trailing stop.",
-    "A flat 10% of the price": "Our Launchpad stop comes from the averages and ATR, not a flat percent.",
-    "Right on it, with no cushion": "The plan adds a quarter-ATR cushion under the lower average."
+    "Right on the line, no cushion": "Price often pokes through a line and comes right back. No cushion, and a wick takes you out.",
+    "A flat 10% under your entry": "That ignores the chart, and 10% is twice the most we'll take on a stop.",
+    "Three ATRs under the high": "That's the Chandelier Exit, a trailing stop for a winner, not where a new stop goes."
    },
    "house": true,
-   "simple": "Our line-based Launchpad stop sits a quarter of an ATR under the lower of the 20 EMA and 50 SMA.",
+   "simple": "A little under the lower of the two lines, with a small cushion for wicks.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -4039,7 +4137,7 @@
      "house setup plan not yet reviewed against the rulebook"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q62",
@@ -4048,7 +4146,7 @@
    "format": "scenario",
    "term": "True range",
    "story": "Yesterday the stock closed at $50. Today it gaps up: high $54, low $52.50.",
-   "q": "What is today's true range?",
+   "q": "What's today's true range?",
    "choices": [
     "$4.00",
     "$5.50",
@@ -4056,17 +4154,17 @@
     "$8.00"
    ],
    "answer": "$4.00",
-   "why": "$4.00. True range is the largest of three distances: high to low, high to the prior close, or low to the prior close. Here the longest is high to the prior close, $4.00. After a gap up, high to the prior close wins.",
-   "lesson_line": "True range is the largest of three distances. Check all three.",
+   "why": "$4.00. True range is the biggest of three distances: high to low, high to yesterday's close, and low to yesterday's close. High to the $50 close is $4.00, and that's the biggest of the three. After a gap up, high to yesterday's close wins. That's how the gap gets counted in the stock's range.",
+   "lesson_line": "True range is the biggest of three distances. Check all three.",
    "facts": [
     "f82",
     "f108",
     "f104"
    ],
    "wrong": {
-    "$5.50": "Added the high-to-low and high-to-prior-close distances.",
-    "$6.50": "Added the two distances measured from the prior close.",
-    "$8.00": "Added all three distances. True range is the largest one, not a sum."
+    "$5.50": "You added the high-to-low and high-to-close distances. True range takes the biggest one.",
+    "$6.50": "You added the two distances from yesterday's close.",
+    "$8.00": "You added all three. True range is the biggest one, not a sum."
    },
    "calc": {
     "fn": "arith",
@@ -4084,7 +4182,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "ladder",
     "title": "The gap up",
@@ -4118,7 +4216,7 @@
    "rung": 3,
    "format": "mcq",
    "term": "Chandelier Exit",
-   "q": "What is the name of a trailing stop set a multiple of ATR under the highest high?",
+   "q": "A trailing stop hangs a set number of ATRs under the highest high since you bought. What's it called?",
    "choices": [
     "Chandelier Exit",
     "Breakeven stop",
@@ -4126,28 +4224,32 @@
     "Initial stop"
    ],
    "answer": "Chandelier Exit",
-   "why": "Chandelier Exit. Chuck LeBeau's exit places a trailing stop a multiple of ATR under the highest high since entry. StockCharts' version hangs three ATRs under the 22-period high. As the high rises, the stop rises with it. A jumpier stock has a bigger ATR, so its stop sits further away.",
-   "lesson_line": "The Chandelier Exit lets volatility set the trail.",
+   "why": "The Chandelier Exit. It hangs under the highest high like a chandelier from the ceiling. As the high climbs, the stop climbs with it. A jumpier stock has a bigger ATR, so its stop hangs further down. It's a fine tool, but ours is simpler: we trail the 9 or 20 EMA.",
+   "lesson_line": "The Chandelier Exit lets the stock's swing set the trail.",
    "facts": [
     "f85",
     "f86",
     "f110",
     "f111",
     "f90",
-    "f135"
+    "f135",
+    "h4e52"
    ],
    "wrong": {
     "Breakeven stop": "That sits at your entry price.",
-    "Initial stop": "That's your first stop, set at entry.",
+    "Initial stop": "That's your first stop, set when you buy.",
     "Moving-average trail": "That trails a moving average. The Chandelier Exit uses the high minus ATRs."
    },
-   "simple": "The Chandelier Exit, because it hangs a trailing stop a few ATRs under the highest high.",
+   "simple": "The Chandelier Exit. It hangs a trailing stop a few ATRs under the highest high.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Chuck LeBeau developed it. StockCharts' standard version hangs three ATR values below the 22-period high."
+   }
   },
   {
    "key": "q64",
@@ -4155,7 +4257,7 @@
    "rung": 5,
    "format": "mcq",
    "term": "Chandelier Exit",
-   "q": "The 22-day high is $80 and the 22-day ATR is $2.50. Where is a long Chandelier Exit set 3 ATRs down?",
+   "q": "The 22-day high is $80 and the 22-day ATR is $2.50. Where does a 3-ATR Chandelier Exit sit?",
    "answer": "$72.50",
    "calc": {
     "fn": "arith",
@@ -4167,8 +4269,8 @@
     }
    },
    "prefix": "$",
-   "why": "$72.50. StockCharts' long Chandelier Exit is the 22-day high minus three times the 22-day ATR. Three times $2.50 is $7.50. $80 less $7.50 is $72.50. It is a trailing stop based on ATR, so it hangs under the high and its distance grows with volatility.",
-   "lesson_line": "Chandelier Exit: the 22-day high minus three ATRs, by default.",
+   "why": "$72.50. Three ATRs is 3 times $2.50, $7.50. $80 minus $7.50 is $72.50. As new highs print, the exit climbs with them. A wilder stock has a bigger ATR, so its exit hangs further down.",
+   "lesson_line": "Chandelier Exit: the 22-day high minus three ATRs.",
    "facts": [
     "f114",
     "f111",
@@ -4183,7 +4285,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$72.50",
     "$70.00",
@@ -4191,9 +4293,9 @@
     "$7.50"
    ],
    "wrong": {
-    "$7.50": "Gave the three ATRs and never took them off the high.",
-    "$70.00": "Went down four ATRs instead of three.",
-    "$25.00": "Used 22 ATRs, the lookback, not three."
+    "$7.50": "That's the three ATRs. You still take them off the high.",
+    "$70.00": "You went down four ATRs instead of three.",
+    "$25.00": "You used 22 ATRs, the lookback, instead of three."
    },
    "visual": {
     "kind": "size",
@@ -4222,6 +4324,9 @@
      "label": "The long exit",
      "as": "price"
     }
+   },
+   "deeper": {
+    "example": "StockCharts' formula: Chandelier Exit (long) = 22-day High - ATR(22) x 3."
    }
   },
   {
@@ -4231,7 +4336,7 @@
    "format": "scenario",
    "term": "Chandelier Exit",
    "story": "You trail jumpy tech stocks with a 3-ATR Chandelier Exit. Normal pullbacks keep stopping you out before the trend resumes.",
-   "q": "What should you change on your next trade?",
+   "q": "What do you change on your next trade?",
    "choices": [
     "A higher ATR multiplier",
     "A smaller ATR multiplier",
@@ -4239,7 +4344,7 @@
     "Same stop, half the shares"
    ],
    "answer": "A higher ATR multiplier",
-   "why": "A higher ATR multiplier. StockCharts: volatile stocks may need a higher multiplier to reduce whipsaws, and it names techs. Set it before you enter. Our stop only moves up, never down or wider. A wider stop costs more per share if hit, so buy fewer shares from the new stop distance.",
+   "why": "A higher multiplier. Jumpy tech names swing more, so the trail needs more room or normal pullbacks take you out. Set it before you buy, never by widening a stop you already hold. Our stop only moves up. A wider trail costs more per share if it hits, so buy fewer shares and keep the dollars at risk the same.",
    "lesson_line": "Give a jumpy stock more room, and buy fewer shares to pay for it.",
    "facts": [
     "f112",
@@ -4250,19 +4355,19 @@
    ],
    "wrong": {
     "A flat 2% stop instead": "A flat percent ignores how much this stock swings.",
-    "A smaller ATR multiplier": "That tightens the stop. You'd get shaken out even more.",
+    "A smaller ATR multiplier": "That tightens the trail. You'd get shaken out even more.",
     "Same stop, half the shares": "Fewer shares cut the dollars lost, but the same trail still shakes you out."
    },
-   "simple": "Use a higher ATR multiplier on the next trade, because a jumpy stock needs more room, then buy fewer shares.",
+   "simple": "Use a higher ATR multiplier next time and buy fewer shares, so a jumpy stock gets room.",
    "deeper": {
-    "trap": "The trap is widening the stop on a trade you already hold. Our stop only moves up, never down or wider. Set the wider trail at entry, and buy fewer shares so the dollars at risk stay the same."
+    "trap": "The trap is widening the stop on a trade you already hold. The stop only moves up, never down or wider. StockCharts: volatile stocks may need a higher multiplier to reduce whipsaws, and it names techs."
    },
    "tier": "expert",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q66",
@@ -4270,7 +4375,7 @@
    "rung": 6,
    "format": "mcq",
    "term": "Volatility-based sizing",
-   "q": "What does volatility-based position sizing do?",
+   "q": "You're sizing two trades: a calm stock and one that swings twice as much. What does volatility-based sizing do?",
    "choices": [
     "Smaller size for jumpier stocks",
     "Bigger size for jumpier stocks",
@@ -4278,7 +4383,7 @@
     "Size set by your win rate"
    ],
    "answer": "Smaller size for jumpier stocks",
-   "why": "Smaller size for jumpier stocks. Tharp's percent volatility model caps the volatility in each position, usually measured by ATR, at a set percent of equity. Investopedia: higher volatility may require smaller positions. So a stock that swings more gets fewer shares, not more.",
+   "why": "Smaller size in the jumpier stock. The more a stock swings, the fewer shares you hold, so each position moves the account about the same. It's the same idea as sizing from the stop: a wider stop for a wilder stock means fewer shares. Never more shares just because a stock moves a lot.",
    "lesson_line": "Let the stock's swing set the size, so each position moves the account about the same.",
    "facts": [
     "f55",
@@ -4289,13 +4394,16 @@
     "Same share count on every trade": "That ignores both the stop and the swing.",
     "Size set by your win rate": "Win rate doesn't measure how much a stock moves."
    },
-   "simple": "It buys a smaller size in jumpier stocks, so each position swings the account by about the same amount.",
+   "simple": "It gives the jumpier stock a smaller size, so each position moves the account about the same.",
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Tharp's percent volatility model caps the volatility in each position, measured by the average true range, at a set percent of equity. Investopedia: higher volatility may require smaller positions."
+   }
   },
   {
    "key": "q67",
@@ -4303,16 +4411,17 @@
    "rung": 2,
    "format": "tf",
    "term": "Trailing stop",
-   "q": "A trailing stop can be set a fixed percent or a dollar amount away from the price.",
+   "q": "You can set a trailing stop a fixed percent or a fixed dollar amount under the price.",
    "answer": "True",
-   "why": "True. The SEC says a trailing stop price is a defined percentage or dollar amount above or below the market price. As the price moves your way, the stop follows by that amount. When the price moves against you, it stays fixed.",
-   "lesson_line": "A trailing stop sits a set percent or dollar amount from the price.",
+   "why": "True. Your broker lets you set the trail either way, a percent or a dollar amount. As the price climbs, the stop follows by that amount. When the price drops, the stop stays fixed. Ours trails a moving average instead, the 9 or 20 EMA, and sells on a close below it.",
+   "lesson_line": "A broker's trail sits a set percent or dollar amount from the price.",
    "facts": [
     "f06",
     "f07",
-    "f08"
+    "f08",
+    "h4e52"
    ],
-   "simple": "True, a trailing stop can sit a set percent or a set dollar amount away from the price.",
+   "simple": "True. A trailing stop can sit a set percent or a set dollar amount under the price.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -4320,7 +4429,10 @@
      "one source only (SEC Investor.gov bulletin), which refused WebFetch (403) on 2026-11-12, so it was not re-read this run"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "The SEC: a trailing stop price is a defined percentage or dollar amount above or below the current market price."
+   }
   },
   {
    "key": "q68",
@@ -4343,21 +4455,24 @@
    "rung": 4,
    "format": "tf",
    "term": "Win rate",
-   "q": "A high win rate alone does not prove a method makes money.",
+   "q": "A high win rate on its own doesn't prove your method makes money.",
    "answer": "True",
-   "why": "True. Win rate counts how often you win, not how much. Investopedia: a trader who wins more often can still have a losing strategy when the losses are much bigger than the gains. Tharp notes that some systems with a high hit rate lose money through occasional large losses.",
+   "why": "True. Win rate counts how often you win, not how much. Win most of the time, take a few big losses, and you can still be down. Some setups that hit often bleed money this way. Check your average win and loss in R next to it. Expectancy is the number that tells you.",
    "lesson_line": "Win rate alone proves nothing. The size of the losses matters too.",
    "facts": [
     "f96",
     "f56"
    ],
-   "simple": "True, if the losing trades are much bigger than the winners, a high win rate can still lose money.",
+   "simple": "True. If the losing trades are much bigger than the winners, a high win rate can still lose money.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia: if the losing trades have dollar losses three times as large as the winning trades' gains, the trader has a losing strategy. Tharp notes some high hit-rate systems lose money through occasional large losses."
+   }
   },
   {
    "key": "q70",
@@ -4365,10 +4480,10 @@
    "rung": 5,
    "format": "tf",
    "term": "Breakeven stop",
-   "q": "TradeStation's breakeven stop only takes effect once the trade reaches a set profit.",
+   "q": "You don't move your stop to breakeven the day you buy. It waits until the trade has built up some profit.",
    "answer": "True",
-   "why": "True. TradeStation's breakeven stop places a stop at your average entry price once the profit passes a set floor. Until then it does nothing, so in a given trade it may never take effect. UCT moves the stop to breakeven at 2R to 5R, ideally.",
-   "lesson_line": "A breakeven stop waits for a set profit before it moves to entry.",
+   "why": "True. Breakeven comes after the trade has paid you something. We make the move somewhere from 2R to 5R, or at the first sell. Put it at your entry on day one and there's no room at all. The first normal dip back to your price takes you out. Some platforms automate it: the stop only goes in once the profit passes a floor you set.",
+   "lesson_line": "Let the trade pay you first. Then the stop goes to breakeven.",
    "facts": [
     "f138",
     "f135",
@@ -4376,9 +4491,9 @@
     "f140",
     "hB19"
    ],
-   "simple": "True, this breakeven stop only goes in once the trade shows the profit you set, so it may never kick in.",
+   "simple": "True. You move the stop up to breakeven only after the trade shows a profit, never right after you buy.",
    "deeper": {
-    "counter": "Not every trader uses a breakeven stop. Dave Mabe never moves a stop to breakeven. O'Neil says not to let a worthwhile profit fall back below your purchase price. Our rule: move it to breakeven somewhere from 2R to 5R, ideally."
+    "counter": "TradeStation's breakeven stop works this way: it does nothing until the profit passes a floor you set, then places a stop at your average entry price. Not every trader uses one. Dave Mabe never moves a stop to breakeven. O'Neil says not to let a worthwhile profit fall back below your purchase price."
    },
    "tier": "extended",
    "risk": {
@@ -4388,7 +4503,7 @@
      "the why and deeper teach the owner's rulebook B19 (breakeven at 2R to 5R)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q71",
@@ -4396,22 +4511,25 @@
    "rung": 6,
    "format": "tf",
    "term": "True range",
-   "q": "True range counts the gap from the prior close, which the day's high-to-low range misses.",
+   "q": "True range counts an overnight gap that a plain high-to-low range would miss.",
    "answer": "True",
-   "why": "True. A range from the high to the low alone misses volatility from gaps. Wilder built true range to capture it. True range is the largest of three distances: high to low, high to prior close, and low to prior close. So a gap open shows up in true range.",
-   "lesson_line": "True range includes the gap from the prior close, so gaps count.",
+   "why": "True. Say a stock gaps up and holds tight all day. Its high-to-low range looks quiet, but the real move happened overnight. True range also measures from yesterday's close, so the gap counts. That's why ATR is built on true range, not just the day's range.",
+   "lesson_line": "True range counts the gap from yesterday's close.",
    "facts": [
     "f104",
     "f108",
     "f82"
    ],
-   "simple": "True, true range adds the distance from the prior close, so a gap counts in the stock's range.",
+   "simple": "True. True range measures from the prior close too, so a gap counts in the stock's range.",
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "StockCharts: a volatility formula based only on the high-low range would fail to capture volatility from gap or limit moves. Wilder built the Average True Range to capture it."
+   }
   },
   {
    "key": "q72",
@@ -4419,21 +4537,21 @@
    "rung": 3,
    "format": "mcq",
    "term": "2% rule",
-   "q": "What risk per trade does our rulebook call normal?",
+   "q": "Normal day, normal setup, nothing special about it. How much of the account do you put at risk?",
    "choices": [
-    "Under 1% of the account a trade",
-    "2% of the account on every trade",
-    "1.5% of the account on every trade",
-    "Up to 5% a trade on top setups"
+    "Under 1% of the account",
+    "2% of the account, every time",
+    "1.5% of the account, every time",
+    "Up to 5% on the best ones"
    ],
-   "answer": "Under 1% of the account a trade",
-   "why": "Under 1% of the account a trade. Our rulebook: under 1% is normal, and 1.5% is the most any grade uses. 2% is the absolute ceiling, not the normal.",
+   "answer": "Under 1% of the account",
+   "why": "Under 1% of the account. That's normal for us. Even our best setups top out at 1.5%, and 2% is the ceiling we never cross. Small risk per trade is what lets you sit through a losing run and still be here for the big winners. Size up on quality, not on feeling.",
    "wrong": {
-    "2% of the account on every trade": "2% is our absolute ceiling, not our normal. Under 1% is normal.",
-    "Up to 5% a trade on top setups": "Our ceiling is 2% a trade. Even the best grade uses 1.5% at most.",
-    "1.5% of the account on every trade": "1.5% is the most any grade uses, a top, not the normal. Under 1% is normal."
+    "2% of the account, every time": "2% is our absolute ceiling, not our normal.",
+    "1.5% of the account, every time": "1.5% is the most any grade gets. It's a top, not the normal.",
+    "Up to 5% on the best ones": "Our ceiling is 2% a trade. Even the best grade gets 1.5% at most."
    },
-   "simple": "Our normal risk is under 1% of the account a trade, and 2% is the most we ever risk.",
+   "simple": "Under 1% of the account. That's our normal, and 2% is the most we ever risk.",
    "lesson_line": "Our normal risk is under 1% a trade. 2% is the ceiling.",
    "facts": [
     "h4a1"
@@ -4447,37 +4565,37 @@
      "rests on the owner's rulebook (A1)"
     ]
    },
-   "batch": "wave8"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q97",
    "skill": "vocab.risk_terms",
    "rung": 4,
    "format": "mcq",
-   "q": "Which loss limit does UCT set for a trader's account?",
+   "q": "It's mid-month and your account is down 8% since the month began. What now?",
    "choices": [
-    "Monthly: 8% down, no new trades",
-    "Daily: stop trading for the day",
-    "Weekly: no new trades that week",
-    "None: the stop is the only limit"
+    "No new trades until next month",
+    "Stop for today, back tomorrow",
+    "Sit out the rest of the week",
+    "Keep going, your stops cover it"
    ],
-   "answer": "Monthly: 8% down, no new trades",
-   "why": "Monthly. At 8% down in a calendar month, we make no new trades for the rest of the month. UCT has no daily loss limit and no weekly one. A daily loss limit, which ends your trading for the day after a set loss, is a tool other traders use. It is not ours.",
-   "lesson_line": "UCT's loss limit is monthly, not daily.",
+   "answer": "No new trades until next month",
+   "why": "No new trades until next month. 8% down in a calendar month is our brake. You stop opening trades for the rest of the month. We don't use a daily or a weekly limit, just this one. It stops a bad month from turning into a disaster, right when you're most tempted to press. Use the time to review what went wrong.",
+   "lesson_line": "Down 8% in a month, we stop opening trades until the next one.",
    "facts": [
     "hB15",
     "hB16",
     "f126"
    ],
    "wrong": {
-    "Daily: stop trading for the day": "UCT has no daily loss limit. Other traders use one to end the day after a set loss.",
-    "Weekly: no new trades that week": "UCT has no weekly loss limit. The limit is monthly.",
-    "None: the stop is the only limit": "A stop limits one trade. The monthly limit is the account-level brake: at 8% down, no new trades that month."
+    "Stop for today, back tomorrow": "We don't use a daily limit. The brake is monthly, so the rest of the month is off.",
+    "Sit out the rest of the week": "We don't use a weekly limit either. At 8% down it's the rest of the month.",
+    "Keep going, your stops cover it": "A stop limits one trade. The monthly limit protects the whole account."
    },
-   "simple": "A monthly limit, because at 8% down in a month we make no new trades until the month ends.",
+   "simple": "No new trades until next month. At 8% down in a month, we stop opening trades.",
    "tier": "core",
    "house": true,
-   "batch": "fills"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -4520,43 +4638,43 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key independently right (f40, f15, f68 agree). Choices 31-34 chars, no tell. ATR and invested wrong-notes grounded (f87, f30). The invested note overlaps q03 only as the distractor itself requires."
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
+   "notes": "100-96=4, 4% stop inside our 5%. Wrongs map to real slips."
   },
   "q03": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False is right before looking (f30, f31; f61 Traders.com second publisher; f40 grounds 'at your stop'). Same idea recurs in q01's wrong note, q04's why and q46's wrong note: reinforcement of one core idea across formats, not a giveaway of a judgment key."
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q04": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q05": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key False derived from f51/f52 before reading it. Why, simple and deeper grounded (f51, f52, f68, f122, f141). No tell. The deeper's 'fewer shares' line overlaps q66's key, but q66 is rung 6 and q05 rung 7, so it is not a giveaway."
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key independently right (f41, f42, f59). Choices 24-32 chars, key not longest. Definition is also taught by w1 by design. Wrong notes grounded (f86, f18)."
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
+   "notes": "(92-80)/(80-76)=3R; sold into a push, no fixed 3R sell implied."
   },
   "q08": {
    "status": "cut",
@@ -4568,31 +4686,31 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Plain R loss arithmetic; keep."
+   "notes": "(91-100)/(100-97)=-3R. His 3% line used in first person, fits the 3% stop."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D-013 and D-021 correct; last part trails; numbers from r02/r04/r05."
+   "notes": "Trail 9 or 20 EMA, first sell as judgment into a 3/5/7 day push: matches the rulings."
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
+   "notes": "0.4x3-0.6x1=0.6R; 1.4R wrong note checked (rates swapped)."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key False from f43/f98. Deeper now has no numbers and no other key. Lone-hedge tells none."
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q14": {
    "status": "cut",
@@ -4610,68 +4728,67 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc expectancy 30/4/1 = +0.5R matches. A/B choices balanced (two each), lesson line no longer restates q69. 'B averages below zero' is arithmetic on the story, no number given. The scenario itself illustrates q69 (inherent to the apply-the-idea pair)."
+   "notes": "A=+0.5R, B=-0.25R recomputed; 'four 0.5R wins' per 2R loss correct."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f45, f95). The 'Risk/reward ratio' wrong note ('compares the stop distance with the target distance on one trade') states q19's key ('Loss at the stop vs gain at target') nearly word for word; risk/reward is not taught in a walkthrough. Reworded so it says what the term is not, without defining it."
+   "fixed": false,
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "99 losers at $1 and the one $500 winner clear; slot 'A $401 profit' matches key."
+   "notes": "500-99=401; 4.01 is the per-trade average."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (f91; f32 Tharp agrees on weighing reward vs risk). All four choices 34 chars, no tell. ATR and 2%-style notes grounded (f87, f99).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 3.0 matches. Wrong choices real (4 = reward from stop, 0.33 inverted, 1.15 = 23/20). Why gave no figures for the two distances; added the steps."
+   "fixed": false,
+   "notes": "3/1=3; $4 from the stop, $1.15 = 23/20 checked."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from f93/f94 first. Numbers only from the story. Choices 26-28 characters, key not longest. Gap note backed by f102. No conflict with A4 (the stop moved up)."
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (f67, f29). Wrong notes plain; 'stop comes first' backed by hA3 and f141."
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
+   "notes": "1% of 40,000=400; 1.50/share; 266.67 down to 266; 266x50=13,300 under the 40% cap (A7); stop 3%."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (f99, f134). But the why's last clause 'and under 1% is normal for us' states q72's house key ('Under 1% of the account a trade') outright. Trimmed to the ceiling only (hA1 still grounds it). INTEGRATOR: q42's deeper also says 'under 1% is normal' and gives q72's key; trim it there too."
+   "fixed": false,
+   "notes": "2% ceiling, under 1% normal, monthly brake 8% (B16): all rulings."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stop filling past the stop on a gap down, kept by GAP-TRIM; not a sell-into-gap-up rule."
+   "notes": "No buys in the 3 days before earnings is B22, stated right."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The 2% answer depends on the 1% planned risk, which the ladder cannot carry; say it in the label. No r drawn, correct, since the gap runs past the stop."
+   "fixed": false,
+   "notes": "(50-47)/(50-48.5)x1%=2%; 6% wrong = 3/50."
   },
   "q27": {
    "status": "cut",
@@ -4683,43 +4800,43 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (f03 SEC Tier 1, f54, f33). 'Sets how many shares' is wrong as the stop's job (sizing uses the distance, A3) and the why says so. 'Before you buy' in simple/lesson line overlaps q29's False key, but w1 step 1 teaches that before any question by design."
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q29": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q30": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Stop few cents under LOD or prior low; 1-3% preferred, up to 5%: matches D-005/F62."
   },
   "q31": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q32": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "12/60=20%; still above the $40 buy."
   },
   "q33": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key False from f142/f143 (two publishers with f144). Deeper has only quoted numbers (50%, 100%) and no computed ones."
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q34": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed; answer shows it; wrong choices checked. Answer shows the calc, no tell, why walks the steps."
+   "notes": "20/80=25%; 16.7% = reverse trip checked."
   },
   "q35": {
    "status": "cut",
@@ -4737,86 +4854,85 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key Skip from f126/f127; the 3 p.m. skip still breaks a day limit. Two skip and two trade choices, key shortest. Why cites f124 for revenge trading and hB16 for our monthly rule. Owner flag stands."
+   "notes": "His real limit is monthly 8%, said plainly; no daily limit claimed as ours."
   },
   "q38": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q39": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "130k to 91k=30%; 24.2% from 120k; 20% first drop; 9% from 100k."
   },
   "q40": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (f73 Investopedia; f50 Tharp agrees in substance). Max-drawdown and gap wrong-notes grounded (f79, f71). No longer hands over q41."
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q41": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key True from f74; f57 second publisher. Its why's Tharp line leans toward q42, but q41 is rung 5 and q42 rung 8 (learn, then apply)."
+   "fixed": true,
+   "notes": "Voice 3: stem and why paraphrased Investopedia ('cushion of capital to absorb probable losses'). Rewritten as a trader says it; same true claim, same facts."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from f74/f58/f66. Choices 21-24 characters, key not longest. 'The trader risking 1%' is the weak mirror distractor, accepted as the natural pair. Deeper's 2% / under 1% from hA1."
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q43": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "No fixed heat cap taught as ours (A10). Elder 6% stays in deeper only."
   },
   "q44": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Count of trades and risk each, % of account; slot 6% matches key."
+   "notes": "4x1.5=6%; 5.5% = 4+1.5."
   },
   "q45": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (FINRA f11, Tier 1; quote confirmed on finra.org). All four start 'Risk ...', key 36 chars not longest. No correlation giveaway left for q47."
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Slot reads 5% (key too long); the 5% only holds if every stop hits, so the label must say it."
+   "fixed": false,
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q47": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q48": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 700 matches; wrong choices real (1,200 = gain from entry, 500 = locked profit, 7 = per share). Why skipped the per-share step; added it."
+   "fixed": false,
+   "notes": "(62-55)x100=700; $500 = locked gain above entry."
   },
   "q50": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (TradeStation f135 confirmed on page; house B19 uses 'breakeven' the same way). Choices 31-37 chars. No wrong note defines another question's key."
+   "notes": "Breakeven 2R to 5R or at first sell, as judgment. Correct."
   },
   "q51": {
    "status": "cut",
@@ -4828,31 +4944,31 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (Schwab f120, FINRA f10; B19 waits for 2R to 5R, story at 1R consistent). f136 'All stop orders are stop market orders' confirmed on TradeStation page. Choices 30-35 chars, key not longest."
+   "notes": "Early breakeven at 1R; 2R-5R window stated right."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (SEC f07, f08 Tier 1; Schwab f118). A4 says all our stops only move up, but 'rises as the price rises' only fits the trailing stop. Breakeven note overlaps q50's key, but w3 and q50 cover stops by design."
+   "notes": "9/20 EMA trail, sell on a close below. Correct."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Replaced weak distractor(s) and/or filled missing upgrade so the right answer sits at the target rank."
+   "fixed": false,
+   "notes": "85x0.8=68; 102=85x1.2; 106 = 85/0.8 rounded."
   },
   "q55": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Slot would read '15.00 a share' with no dollar sign; use dollars so it reads $15. 'The run' is vague: it is the run's high."
+   "fixed": false,
+   "notes": "45-30=15, half of the $30 gain; 22.50 wrong note checked."
   },
   "q56": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key True from f89 + f121 (two publishers). The why's last line makes the condition explicit. Deeper's trail from hE52."
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q57": {
    "status": "cut",
@@ -4864,62 +4980,61 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f81/f103/f83/f87. The volume-average distractor is a real trap (also says average and 14 days). No longer gives q59 or q71 away.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q59": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q60": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Label 'B's ATR as a % of price' names B (the answer) and hands over the method (ATR / price) before the answer. Neutral label with the unit only."
+   "fixed": false,
+   "notes": "1.5/20=7.5%; 6/300 left as 'a lot less' (no new number)."
   },
   "q61": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "20 EMA / 50 SMA, quarter ATR; low of day primary stated (D-008); distractors fine."
+   "notes": "Truth edit verified: the quarter-ATR cushion is the scanner's (07-launchpad overrides 'not ours'), now taught by eye; LOD still first choice (D-008). 10% = twice our 5% max."
   },
   "q62": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "High, low and yesterday's close on one ruler; slot $4.00 matches key."
+   "notes": "TR=max(1.5,4,2.5)=4; 5.50, 6.50, 8.00 sums checked."
   },
   "q63": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (f85, f86 Investopedia; f110, f111 StockCharts, both confirmed on page). Choices 12-20 chars, no Exit-word tell. Three ATRs under the high is also in w3 by design; q64 states its own 3 ATRs."
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q64": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "22-day high, ATR and multiple labelled; multiple 3 is stated; slot $72.50 matches key."
+   "notes": "80-3x2.5=72.5; 70 = four ATRs; 25 = 22 ATRs."
   },
   "q65": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from f112/f113 before reading it. Reframed to the next trade, so it agrees with A4 (hA4, quote verbatim from section 9). 'Same stop, half the shares' is a real beginner reply. q66 (rung 6) comes before it, so 'fewer shares' is not a giveaway."
+   "notes": "Stop only moves up (A4); fewer shares for a wider trail. Correct."
   },
   "q66": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q67": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave8; awaiting cold re-read"
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q68": {
    "status": "cut",
@@ -4930,31 +5045,31 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key True from f96 + f56 (two publishers). No hedge word."
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q70": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key True from f138; the statement is TradeStation's own product, so its doc is the authority. Our rule from hB19; Mabe f140 and O'Neil f139 quoted right."
+   "fixed": true,
+   "notes": "Voice 3 and rule 1: the stem tested one broker's feature (TradeStation), which reads as platform trivia. Same idea kept (a breakeven stop waits for a profit before it goes to entry), now as the trader's move; TradeStation moved to deeper. Answer stays True (TF true share unchanged)."
   },
   "q71": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key True from f104 + f82/f108 (two publishers). q62 (rung 5) still needs its own arithmetic."
+   "notes": "Numbers and answer checked; voice fine, no working words, stem gives enough to decide."
   },
   "q72": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The stem 'The 2% rule caps risk at 2% a trade' gives q24's key ('Your risk per trade to 2% of capital') away word for word. Re-asked as the house rule alone. The '2% a day' distractor only made sense against that preamble; replaced with a real slip (1.5% is the most any grade uses, not normal), grounded in h4a1. f99 dropped (no longer used). Key shortest but one; no lone hedge (the 5% choice also says 'Up to'). INTEGRATOR: q24's why (fixed here) and q42's deeper both stated this key."
+   "fixed": false,
+   "notes": "Under 1% normal, 1.5% grade top, 2% ceiling (A1/E49)."
   },
   "q97": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Correct per hB15, hB16 (no daily, no weekly, monthly 8%) and f126. Owner's own rule, not otherwise tested (q37 is a generic daily-limit scenario). Choices are all plausible."
+   "notes": "Monthly 8% brake, no daily/weekly limit (B15/B16)."
   }
  }
 }

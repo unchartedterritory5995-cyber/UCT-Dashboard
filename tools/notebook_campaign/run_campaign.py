@@ -453,10 +453,18 @@ def ref_resolves(app_root: Path, ref: str) -> bool:
     return r.returncode == 0
 
 
+_COMMENT_LINE = re.compile(r"^\s*(//|/\*|\*|#)")
+
+
 def fragment_on_line(lines: list[str], n: int, frag: str) -> bool:
-    """The WHOLE fragment on the cited line (and the lines after it, for a fragment that spans lines): review m6."""
+    """The WHOLE fragment on the cited line (and the lines after it, for a fragment that spans lines): review m6.
+    ⛔ A cited line that is a COMMENT never counts (2026-11-17): three retired sentences ('Templates are coming soon.',
+    'Make it yours', and a moved one) went on 'passing' because a comment recording their retirement still quoted
+    them. A sentence a member reads lives in code, so a quote of it in prose is not evidence it is still shown."""
     k = frag.count("\n") + 1
-    return 0 < n <= len(lines) and frag in "\n".join(lines[n - 1:n - 1 + k])
+    if not (0 < n <= len(lines)) or _COMMENT_LINE.match(lines[n - 1]):
+        return False
+    return frag in "\n".join(lines[n - 1:n - 1 + k])
 
 
 def verify_sentences(spec: dict, app_root: Path, served_tree: bool = False) -> dict:

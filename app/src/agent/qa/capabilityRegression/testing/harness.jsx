@@ -227,6 +227,36 @@ const TERMINAL_DATA = {
     hits: [{ symbol: 'AAA', year: 2026, quarter: 3, date: '2026-10-29 17:00:00', snippet: 'a synthetic excerpt about <mark>fixture</mark> words \u2026 and nothing else', score: 9.5 },
       { symbol: 'BBB', year: 2026, quarter: 3, date: '2026-10-27 17:00:00', snippet: 'another synthetic <mark>fixture</mark> excerpt', score: 7.25 }],
     expanded: {}, index: { calls: 12, oldest: '2026-08-15', newest: '2026-11-02' } } }),
+  // Terminal data wave 3 (dark kinds `levels.gamma`, `flow.topPicks`, `flow.record`, `earnings.reactions`; MD-1 §4.12): the same
+  // rule — each adapter's own data shape, made-up names and figures.
+  'levels.gamma': (p) => ({ data: { sym: String(p.symbol || '').toUpperCase(), levels: [{ kind: 'callWall', price: 105 }, { kind: 'putWall', price: 95 }, { kind: 'zeroGamma', price: 98.5 }],
+    spot: 100, regime: 'choppy', version: 'fixture', asOf: 1793721000, computed_at: '2026-11-03T15:50:00Z', held: 'fresh', chain_source: 'massive', band_pct: 15, kept_minutes: 10, last_good_minutes: 30 } }),
+  'flow.topPicks': (p) => {
+    const row = (sym, dir, status, o = {}) => ({ id: `${sym}|C|100.0|1/15/2027`, sym, cp: dir === 'BULL' ? 'C' : 'P', strike: 100, exp: '1/15/2027', grade: 'A', dir, dateSaved: '2026-08-10', saved_date: '2026-08-10',
+      status, stopped: false, scored: true, prices: 3, entry: 2, latest_price: 3, latest_date: '2026-11-02', peak_price: 4, current_gain_pct: 50, max_gain_pct: 100, days_tracked: 2,
+      oi_evaluable: true, oi_confirmed: true, prem: 1500000, hits: 4, cap: 'Large Cap', src: ['massive'], ...o })
+    const all = [row('AAA', 'BULL', 'open'), row('BBB', 'BEAR', 'expired', { current_gain_pct: -50, max_gain_pct: -20, latest_price: 1, peak_price: 1.6, oi_confirmed: false }),
+      row('CCC', 'BULL', 'open', { scored: false, prices: 1, latest_price: 1.2, peak_price: null, current_gain_pct: null, max_gain_pct: null, days_tracked: null, oi_evaluable: false, oi_confirmed: false })]
+    const want = { bullish: 'BULL', bearish: 'BEAR' }[p.direction] || null
+    const rows = all.filter(r => (!p.status || p.status === 'all' || r.status === p.status) && (!want || r.dir === want) && (!p.symbol || r.sym === p.symbol))
+    return { freshness: 'historical', as_of: '2026-11-02T21:00:00Z', data: { status: p.status || 'all', direction: p.direction || 'any', sort: p.sort || 'gain', symbol: p.symbol || null, rows, count: rows.length,
+      counts: { total: 3, open: 2, expired: 1, scored: 2, too_new: 1, never_scored: 0 }, matching_too_new: rows.filter(r => !r.scored).length, unread: 0, min_prices: 2,
+      newest_price_date: '2026-11-02', newest_pick_date: '2026-08-10', days_since_newest_price: 1, days_since_newest_pick: 85, no_new_picks: true } }
+  },
+  'flow.record': () => {
+    const bucket = (picks, o = {}) => ({ picks, win_rate_10: picks ? 75 : null, win_rate_25: picks ? 50 : null, win_rate_50: picks ? 25 : null, pct_doubled: picks ? 12.5 : null,
+      avg_max_gain: picks ? 41.5 : null, median_max_gain: picks ? 22 : null, oi_confirmed_rate: picks ? 62.5 : null, oi_evaluated: picks, ...o })
+    const pick = (sym, gain) => ({ sym, cp: 'C', strike: 100, exp: '1/15/2027', grade: 'A', dateSaved: '2026-08-10', entry: 2, peak_price: 4, max_gain_pct: 100, days_tracked: 2, oi_confirmed: true, current_gain_pct: gain, latest_price: 2 * (1 + gain / 100) })
+    return { freshness: 'historical', as_of: '2026-11-02T21:00:00Z', data: { flagged: 10, picks_tracked: 8, too_new: 2, overall: bucket(8),
+      by_grade: ['A+', 'A', 'B', 'C', 'D'].map((grade, i) => ({ grade, ...bucket(i < 2 ? 4 : 0) })), recent_winners: [pick('AAA', 50)], recent_picks: [pick('AAA', 50), pick('BBB', -50)],
+      generated_at: '2026-11-03T15:58:00+00:00', computed_at: '2026-11-03T15:58:00Z', min_prices: 2, recent_window_days: 45, newest_price_date: '2026-11-02', newest_pick_date: '2026-08-10',
+      days_since_newest_price: 1, days_since_newest_pick: 85, no_new_picks: true } }
+  },
+  'earnings.reactions': (p) => {
+    const row = (sym, session, move, o = {}) => ({ sym, name: `Fixture ${sym}`, session, eps_act: 1.25, eps_est: 1, rev_act: 520, rev_est: 500, move, ...o })
+    const all = [row('BBB', 'bmo', -7.5, { eps_act: 0.8 }), row('AAA', 'amc', 4.25), row('CCC', 'tbd', null)]
+    return { freshness: 'historical', data: { date: p.date || '2026-11-02', day_kind: 'past', scheduled: 5, reporters: all.slice(0, p.limit || 25), count: 3, moves: 'held', moved: 2, up: 1, down: 1, flat: 0, no_move: 1 } }
+  },
 }
 // SG-1: T13–T18 sit FAR below their 52-week high (the Screener's sign: a distance from a high is NEGATIVE) and meet every
 // other condition of the owner's screen — so only a correctly signed "near the high" filter leaves them out
@@ -417,7 +447,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (u === '/api/agent/data' && ['index.quote', 'commodity.quote', 'crypto.quote'].includes(body?.kind)) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'refused', freshness: 'unavailable', as_of: null, stale: false, notes: ['no licensed source'], data: null })
     }
-    // terminal data waves 1 and 2 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
+    // terminal data waves 1, 2 and 3 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
     if (u === '/api/agent/data' && TERMINAL_DATA[body?.kind]) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'periodic', as_of: null, fetched_at: '2026-11-03T16:00:00Z', delay_s: null,
         stale: false, source: 'fixture', coverage: null, notes: [], provider_calls: 0, ...TERMINAL_DATA[body.kind](body.params || {}) })

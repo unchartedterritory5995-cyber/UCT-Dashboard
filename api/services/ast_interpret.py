@@ -94,6 +94,10 @@ from api.services.indicator_compute import (
     compute_pvt_raw,
     compute_rsi_raw,
     compute_stoch_raw,
+    compute_session_regular_raw,
+    opening_range_refusal,
+    OPENING_RANGE_BARS_LONGER,
+    OPENING_RANGE_BARS_DO_NOT_DIVIDE,
     compute_vwap_raw,
     compute_williams_r_raw,
 )
@@ -3082,7 +3086,7 @@ def _fn_avwap(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
 
 
 def _bar_column(name: str, bars: List[dict], args: Sequence[Any],
-                length: int) -> List[float]:
+                length: int, tf: Optional[str] = None) -> List[float]:
     """Run a bar-reading entry over the REAL bars and unpack a NaN-padded column.
 
     ⛔ A LENGTH MISMATCH IS ALL-NaN, NOT A PARTIAL FILL -- the same contract
@@ -3091,7 +3095,10 @@ def _bar_column(name: str, bars: List[dict], args: Sequence[Any],
     would put a real value at the wrong bar.
     """
     out = _nan_col(length)
-    values = _BAR_FN[name](bars, args)
+    # ⭐ 2026-11-17 -- the regular-session readers resolve a date-keyed daily bar and the bar
+    # length through the clock, so they are handed the chart's timeframe as well.
+    values = (_BAR_FN_TF[name](bars, args, tf) if name in _BAR_FN_TF
+              else _BAR_FN[name](bars, args))
     if not isinstance(values, list) or len(values) != length:
         return out
     for i in range(length):
@@ -3387,7 +3394,25 @@ def _fn_bop(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
 
 
 #: name -> ``(bars, args) -> column``. Keys asserted against ``bar_readers()``.
-_BAR_FN: Dict[str, Callable[[List[dict], Sequence[Any]], List[MaybeNum]]] = {
+def _session_reader(kind: str, ranged: bool):
+    """``sessionOpen()`` .. ``openingRangeLow(minutes)`` -- the regular session's own values
+    (``indicator_compute.compute_session_regular_raw``, where the rules are written once)."""
+    def read(bars: List[dict], args: Sequence[Any], tf: Optional[str] = None) -> List[MaybeNum]:
+        return compute_session_regular_raw(bars, tf, kind, args[0] if ranged else None)
+    return read
+
+
+#: The bar readers that also take the chart's timeframe. A subset of ``_BAR_FN``'s keys.
+_BAR_FN_TF: Dict[str, Callable[..., List[MaybeNum]]] = {
+    "sessionOpen": _session_reader("open", False),
+    "sessionHigh": _session_reader("high", False),
+    "sessionLow": _session_reader("low", False),
+    "openingRangeHigh": _session_reader("high", True),
+    "openingRangeLow": _session_reader("low", True),
+}
+
+_BAR_FN: Dict[str, Callable[..., List[MaybeNum]]] = {
+    **_BAR_FN_TF,
     "vwap": _fn_vwap,
     "vwapOf": _fn_vwap_of,
     "avwap": _fn_avwap,
@@ -6103,7 +6128,12 @@ CHART_CLOCK_WHOLE = (
     "running-total:window",
     # 2026-11-09 -- a `var` that began before the loaded bars (``var_origin_mask``)
     "var-origin:window",
+    # 2026-11-17 -- an opening range on bars it cannot be read from (``opening_range_refusal``)
+    OPENING_RANGE_BARS_LONGER, OPENING_RANGE_BARS_DO_NOT_DIVIDE,
 )
+#: The opening-range calls: the two whose answer depends on the chart's bar length. Mirrors
+#: ``interpret.js::OPENING_RANGE_CALLS``.
+OPENING_RANGE_CALLS = ("openingRangeHigh", "openingRangeLow")
 #: ⭐⭐ ENGINE HL -- the two codes ``window_hole_mask`` names (``interpret.js::WINDOW_EXTREME_LEFT_EDGE``
 #: ; the sentence is the JS lane's). ⚰️ ``arg-extreme:holed-window`` went with S17.
 WINDOW_EXTREME_LEFT_EDGE = "window-extreme:left-edge"
@@ -6114,7 +6144,9 @@ WINDOW_EXTREME_LEFT_EDGE = "window-extreme:left-edge"
 #: reading one is withheld whole (``time-clock:weekend-session``).
 SESSION_CLOCK_LEAVES = ("time", "hour", "minute", "timeclose", "dayopentime",
                         "dayclosetime", "weekfirst", "monthfirst", "lastbartime",
-                        "lastbarhour", "lastbarminute")
+                        "lastbarhour", "lastbarminute",
+                        # 2026-11-17 -- the regular session is a time of day
+                        "regularhours", "regularfirst")
 CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "time-anchor:period-open-missing", "time-anchor:utc-day-clock",
     "bar-index:early-bars", "running-total:early-bars", "bar-index:first-bar", "var-origin:bars",
@@ -6436,6 +6468,7 @@ def _scan_chart_clock(tree: Any):
     sixties: List[dict] = []
     folds: List[str] = []
     leaves: List[dict] = []
+    ranges: List[float] = []
     nested = False
     stack = [(tree, False)]
     seen = set()
@@ -6467,6 +6500,12 @@ def _scan_chart_clock(tree: Any):
         base = request_base_of(node)
         if base is not None and base not in folds:
             folds.append(base)
+        # 2026-11-17 -- an opening-range call: its ``minutes``, whatever it sits under
+        if node.get("type") == "call" and node.get("name") in OPENING_RANGE_CALLS:
+            m = (node.get("args") or [None])[0]
+            if (isinstance(m, dict) and m.get("type") == "num" and not isinstance(m.get("value"), bool)
+                    and isinstance(m.get("value"), (int, float)) and m["value"] not in ranges):
+                ranges.append(m["value"])
         # C41 (`interpret.js::scanChartClock`): an `ltf` child runs on the symbol's
         # intraday series, another clock -- nested exactly as under a request
         into = under or node.get("type") in ("tf", "tf_live", "tf_merge", "sym", "ltf")
@@ -6474,7 +6513,7 @@ def _scan_chart_clock(tree: Any):
         if isinstance(args, list):
             for a in args:
                 stack.append((a, into))
-    return anchors, closes, owns, sixties, folds, nested, leaves
+    return anchors, closes, owns, sixties, folds, nested, leaves, ranges
 
 
 def _date_keyed(bars) -> bool:
@@ -6494,13 +6533,17 @@ def _name_chart_clock(opts, codes) -> None:
 def _chart_clock_whole(tree: Any, bars: List[dict], inputs, budget, scalars, opts) -> Optional[dict]:
     """``interpret.js::chartClockWhole`` -- the whole-series decision, made before
     anything is evaluated: ``None`` when the tree holds no chart-clock node."""
-    anchors, closes, owns, sixties, folds, nested, leaves = _scan_chart_clock(tree)
+    anchors, closes, owns, sixties, folds, nested, leaves, ranges = _scan_chart_clock(tree)
     clocked = bool(anchors or closes or owns or sixties)
     tf = (opts or {}).get("tf")
     # 2026-10-31 -- a time-of-day leaf is asked about on a DAILY chart only, the one
     # timeframe ``chart_clock_regime`` can call FX-shaped (``one-weekend-day``)
     day_leaves = bool(leaves) and tf == "D" and _date_keyed(bars)
-    if not clocked and not folds and not day_leaves:
+    # 2026-11-17 -- an opening range is asked about on a chart that STATES its timeframe
+    # (``interpret.js::chartClockWhole``); an unstated one is the daily consumers, where the
+    # reader itself answers nothing
+    ranged = bool(ranges) and isinstance(tf, str) and tf != ""
+    if not clocked and not folds and not day_leaves and not ranged:
         return None
     why: List[str] = []
 
@@ -6508,6 +6551,11 @@ def _chart_clock_whole(tree: Any, bars: List[dict], inputs, budget, scalars, opt
         if code not in why:
             why.append(code)
 
+    if ranged:
+        for minutes in ranges:
+            refusal = opening_range_refusal(CLOCK_PERIOD_SECONDS.get(tf), minutes)
+            if refusal:
+                add(refusal)
     # C49 -- a request translated for one base period, on a chart that STATES another
     # timeframe (``interpret.js::requestBaseNode``). An unstated timeframe is served.
     if isinstance(tf, str) and tf and any(base != tf for base in folds):
@@ -7264,7 +7312,7 @@ def _interpret_column(ast: Any, bars: List[dict],
             # question asked is "does this entry declare it", never "is this call
             # ``vwap``", so a third such entry needs no edit here.
             if n["name"] in _BAR_FN:
-                return _bar_column(n["name"], bars, args, length)
+                return _bar_column(n["name"], bars, args, length, (opts or {}).get("tf"))
             # ⭐ P0G -- owner decision C (``FN_V2``), semantics 2 only.
             if v2_fn and n["name"] in FN_V2:
                 return FN_V2[n["name"]](*args)

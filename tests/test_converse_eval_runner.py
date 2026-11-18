@@ -495,3 +495,183 @@ def test_CONTROL_on_the_default_history_the_runner_refuses_to_grade_them(tmp_pat
     proc, _work, _out = _run(tmp_path, "--cases", str(short), "--script", str(STATEFUL_SCRIPT), "--only", "stateful-supertrend")
     assert proc.returncode != 0
     assert "all-unknown on the synthetic bars" in proc.stdout + proc.stderr
+
+
+# ─── Indicators backlog 59: the door accepts what the browser refuses ─────────────────────────────
+#
+# Found six times by hand on production on 2026-11-17: the door answered ok with a change, the
+# browser's own patch engine refused the whole patch, and a member read "Nothing was changed" for a
+# request the assistant had built. This is the rail that finds the next one here.
+#
+# Each case is one request with TWO scripted answers: the answer production really gave, then the
+# repair. With the door's rule in place the first is refused AT THE DOOR, the repair is accepted,
+# the browser applies it and its outputs compute. With the rule gone the door accepts the first,
+# the browser refuses it, and the runner fails the case by name (`ACCEPT_THEN_REFUSE`).
+
+DOOR_BROWSER_CASES = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_door_browser_cases.json"
+DOOR_BROWSER_SCRIPT = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_door_browser_scripted.json"
+DOOR_BROWSER_IDS = {"door-marker-colour-states", "door-calc-timeframe-marker", "door-column-limit",
+                    "door-table-cell-setting", "door-calc-timeframe-other-symbol"}
+#: NOT a door rule: the door accepts it, the browser refuses it and sends its own refusal back to
+#: the door for one repair (`definition_conversation.browser_refusal`, `authoringSession.modelTurn`).
+BROWSER_REPAIR_ID = "browser-sends-its-refusal-back"
+
+
+def test_the_door_browser_cases_are_two_answers_each_and_the_standard_controls():
+    """No bundler needed: what the fixture holds."""
+    doc = json.loads(io.open(DOOR_BROWSER_CASES, encoding="utf-8").read())
+    script = json.loads(io.open(DOOR_BROWSER_SCRIPT, encoding="utf-8").read())["turns"]
+    examples = {c["id"]: c for c in doc["cases"] if c["group"] == "example"}
+    assert set(examples) == DOOR_BROWSER_IDS | {BROWSER_REPAIR_ID}
+    for cid, case in examples.items():
+        (turn,) = case["turns"]
+        answers = script[f"{cid}#0"]
+        assert len(answers) == 2, cid                                      # what production gave, then the repair
+        assert answers[0]["ops"] != answers[1]["ops"], cid
+        assert turn["expect"]["max_model_calls"] == 2, cid
+    base = {c["id"]: c for c in json.loads(io.open(ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_cases.json", encoding="utf-8").read())["cases"]}
+    assert {c["id"]: c for c in doc["cases"] if c["group"] == "control"} == {k: v for k, v in base.items() if v["group"] == "control"}
+
+
+@needs_node
+def test_what_the_door_refuses_is_repaired_and_the_browser_applies_the_repair(tmp_path):
+    proc, _work, out = _run(tmp_path, "--cases", str(DOOR_BROWSER_CASES), "--script", str(DOOR_BROWSER_SCRIPT))
+    text = proc.stdout
+    assert ce.ACCEPT_THEN_REFUSE not in text, text[-3000:]
+    rows = [r for r in _records(out) if r.get("case") in DOOR_BROWSER_IDS]
+    assert {r["case"] for r in rows} == DOOR_BROWSER_IDS
+    for r in rows:
+        assert r.get("grade", {}).get("ok") is True, (r["case"], r.get("grade", {}).get("problems"))
+        # the production answer was refused AT THE DOOR (attempt 1) and the repair accepted (attempt 2)
+        assert (r.get("server") or {}).get("attempts") == 2, r["case"]
+        assert (r.get("client") or {}).get("changed") is True, r["case"]   # and the BROWSER applied the repair
+    # ⚠️ THE VERDICT LINE IS "FAIL" HERE, FOR ONE STATED REASON, AND THAT IS ASSERTED RATHER THAN
+    # IGNORED: every example needs its repair by design, so the first-pass gate (which measures how
+    # often the assistant is right first time on the STANDARD set) is below its line on this set.
+    # Nothing else may fail.
+    last = _last_line(text)
+    assert last.startswith("VERDICT: FAIL") and "case runs passed" in last, last
+    assert last.split("failed gates: ")[-1].strip() == "['first-pass rate (no repair, >= 70%)']", last
+    done, of = last.split(" -- ")[1].split(" case runs passed")[0].split("/")
+    assert done == of and int(of) >= len(DOOR_BROWSER_IDS), last          # every case run passed
+    # none of these needed the browser to ask again: the door's own rule caught each
+    assert not any(r.get("browser_repair") for r in rows)
+
+
+@needs_node
+def test_what_the_browser_refuses_goes_back_to_the_door_once_and_is_repaired(tmp_path):
+    """The general half. The door accepts a candle colour that follows a number; the browser's
+    engine refuses it. Through the SHIPPED modules: the browser builds the second request with the
+    refused patch and its own words, the real door spends one call on it, the browser applies the
+    repair, and the indicator computes."""
+    proc, _work, out = _run(tmp_path, "--cases", str(DOOR_BROWSER_CASES), "--script", str(DOOR_BROWSER_SCRIPT),
+                            "--only", BROWSER_REPAIR_ID)
+    assert ce.ACCEPT_THEN_REFUSE not in proc.stdout, proc.stdout[-3000:]
+    (row,) = [r for r in _records(out) if r.get("case") == BROWSER_REPAIR_ID]
+    assert row["grade"]["ok"] is True, row["grade"].get("problems")
+    assert row["browser_repair"] is True
+    assert row["usage"]["repair_gate"] == "browser:refused"
+    assert row["server"]["attempts"] == 1                                 # the repair cost ONE more call
+    assert row["client"]["changed"] is True and row["client"]["revision"] == 1
+    grading = json.loads(io.open(out / "grading.json", encoding="utf-8").read())
+    # a turn the browser sent back is not a first pass
+    assert grading["gates"]["first-pass rate (no repair, >= 70%)"]["value"] == 0
+
+
+def test_the_runner_names_the_class_on_any_model_turn_and_only_then():
+    refused = {"changed": False, "entries": [{"lines": ["Nothing was changed.", "Change 2 ..."]}]}
+    accepted = {"ok": True, "disposition": "change"}
+    said = ce.accept_then_refuse({"path": "model", "server": accepted, "client": refused})
+    assert said.startswith(ce.ACCEPT_THEN_REFUSE) and "Nothing was changed. Change 2" in said
+    # not the class: the browser applied it; the door refused it; the door asked; no model was reached
+    assert ce.accept_then_refuse({"path": "model", "server": accepted, "client": {"changed": True}}) is None
+    assert ce.accept_then_refuse({"path": "model", "server": {"ok": False, "gate": "envelope:reference"}, "client": refused}) is None
+    assert ce.accept_then_refuse({"path": "model", "server": {"ok": True, "disposition": "clarify"}, "client": refused}) is None
+    assert ce.accept_then_refuse({"path": "local", "server": None, "client": refused}) is None
+
+
+def test_a_case_that_expects_no_particular_change_still_fails_on_the_class():
+    """The controls and the other-symbol case are not graded as a change. They are asked too."""
+    t = {"path": "model", "unexpected_calls": 0, "model_calls": 1,
+         "server": {"ok": True, "disposition": "change"},
+         "client": {"changed": False, "entries": [{"lines": ["Nothing was changed."]}]}}
+    for kind in ("safe-change-allowed", "none", "clarify", "refused"):
+        grade = ce.Run.grade_turn(None, {"id": "x"}, {"expect": {"kind": kind}}, t, None)
+        assert grade["ok"] is False and any(p.startswith(ce.ACCEPT_THEN_REFUSE) for p in grade["problems"]), kind
+    applied = dict(t, client={"changed": True, "working": {}})
+    quiet = dict(t, server={"ok": False, "gate": "envelope:reference"})
+    assert ce.Run.grade_turn(None, {"id": "x"}, {"expect": {"kind": "none"}}, quiet, None)["ok"] is True
+    import types
+    safe = types.SimpleNamespace(unsafe=lambda *_a: None)                   # the one thing an applied change asks of the run
+    assert ce.Run.grade_turn(safe, {"id": "x"}, {"expect": {"kind": "safe-change-allowed", "named_symbols": ["SPY"]}}, applied, None) == {"ok": True, "problems": []}
+
+
+# ─── conventions the instructions teach, as cases ─────────────────────────────────────────────────
+
+CONVENTION_CASES = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_convention_cases.json"
+CONVENTION_SCRIPT = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_convention_scripted.json"
+
+
+@needs_node
+def test_for_the_first_time_in_n_bars_builds_marks_and_computes_in_one_call(tmp_path):
+    """"For the first time in N bars", spelled the way the instructions teach it
+    (`tests/test_converse_first_time_convention.py`): the door accepts it on the first call, the
+    browser applies it as a marker, and it is true on at least one synthetic bar."""
+    proc, _work, out = _run(tmp_path, "--cases", str(CONVENTION_CASES), "--script", str(CONVENTION_SCRIPT))
+    assert proc.returncode == 0, proc.stdout[-3000:]
+    assert _last_line(proc.stdout).startswith("VERDICT: PASS"), proc.stdout[-1500:]
+    (row,) = [r for r in _records(out) if r.get("case") == "conv-first-time-in-n"]
+    assert row["grade"]["ok"] is True, row["grade"].get("problems")
+    assert row["server"]["attempts"] == 1 and row["browser_repair"] is False
+    assert row["client"]["changed"] is True
+
+
+# ─── ONE running value at the door ────────────────────────────────────────────────────────────────
+
+RUNNING_CASES = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_running_cases.json"
+RUNNING_SCRIPT = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_running_scripted.json"
+RUNNING_IDS = {"run-streak", "run-ratchet-stop", "run-smoother", "run-kama", "run-mcginley"}
+
+
+def test_the_running_value_cases_are_five_examples_a_new_control_and_the_standard_ones():
+    """No bundler needed: what the fixture holds."""
+    doc = json.loads(io.open(RUNNING_CASES, encoding="utf-8").read())
+    script = json.loads(io.open(RUNNING_SCRIPT, encoding="utf-8").read())["turns"]
+    assert {c["id"] for c in doc["cases"] if c["group"] == "example"} == RUNNING_IDS
+    for cid in RUNNING_IDS:
+        (answer,) = script[f"{cid}#0"]
+        text = json.dumps(answer["ops"])
+        assert '"name": "accum"' in text and '"name": "self"' in text and "accum2" not in text, cid
+    controls = {c["id"]: c for c in doc["cases"] if c["group"] == "control"}
+    new = controls.pop("ctl-two-running-values")
+    assert new["turns"][0]["expect"]["gate_prefix"] == "unsupported:running-value"
+    assert all("accum2" in json.dumps(a["ops"]) for a in script["ctl-two-running-values#0"])
+    base = {c["id"]: c for c in json.loads(io.open(ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_cases.json", encoding="utf-8").read())["cases"]}
+    assert controls == {k: v for k, v in base.items() if v["group"] == "control"}
+    assert doc["bars"] > ce.DEFAULT_BARS                                   # a 300-bar running value needs the history
+
+
+@needs_node
+def test_a_running_value_builds_applies_and_computes_in_one_call_and_two_stay_closed(tmp_path):
+    """A streak, a stop that only rises, a smoother, Kaufman's adaptive average and the McGinley
+    Dynamic: each accepted by the door in one call, applied by the browser's own patch engine, and
+    computed by the engine to the reference. The door's own note is on each. Two running values
+    that feed each other are refused by name, twice, and nothing is built."""
+    proc, _work, out = _run(tmp_path, "--cases", str(RUNNING_CASES), "--script", str(RUNNING_SCRIPT))
+    assert proc.returncode == 0, proc.stdout[-3000:]
+    assert _last_line(proc.stdout).startswith("VERDICT: PASS"), proc.stdout[-1500:]
+    assert ce.ACCEPT_THEN_REFUSE not in proc.stdout
+    rows = {r["case"]: r for r in _records(out) if r.get("case") in RUNNING_IDS | {"ctl-two-running-values"}}
+    for cid in RUNNING_IDS:
+        r = rows[cid]
+        assert r["grade"]["ok"] is True, (cid, r["grade"].get("problems"))
+        assert r["server"]["attempts"] == 1 and r["browser_repair"] is False and r["client"]["changed"] is True, cid
+        (note,) = r["server"]["envelope"]["assumptions"]
+        assert "bars back on every bar" in note["text"], cid
+    settled = rows["run-smoother"]["server"]["envelope"]["assumptions"][0]["text"]
+    assert "starting point no longer matters" in settled
+    for cid in RUNNING_IDS - {"run-smoother"}:
+        assert "counts and levels restart" in rows[cid]["server"]["envelope"]["assumptions"][0]["text"], cid
+    closed = rows["ctl-two-running-values"]
+    assert closed["grade"]["ok"] is True and closed["server"]["ok"] is False
+    assert closed["server"]["gate"] == "unsupported:running-value" and closed["client"]["changed"] is False

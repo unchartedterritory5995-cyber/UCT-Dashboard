@@ -1,0 +1,20 @@
+{
+ "schema": "uct.harness-supply/v1",
+ "capture": "rs-spx-daily-w-rddt-1w-2026-11-17",
+ "why": "RS RATING L11 (Q-RS7): the SP:SPX witness on a WEEKLY chart (X01..X04 at \"D\", X05 at timeframe.period). The grade needs what OUR SERVER serves for SPX, held at D on a weekly chart: FMP ^GSPC daily through 2026-11-16. The 2026-11-15 owner ruling covers inline provider rows in the rs-rating-fred6724-* records only, so this probe's record names them by MANIFEST and the rows stay in the local supply store (ourSide.js::recordedSupplyOf; without the file the grade is refused by name).",
+ "other": {
+  "SPX": {
+   "servedBy": "api/index_bars.py::_fetch_full_series(SPX, D): FMP ^GSPC first (_fetch_fmp_daily, paged from 1990-01-01)",
+   "source": "FMP ^GSPC, the server's PRIMARY, recorded by the owner under `railway run` at 2026-11-16T23:13:34.138857+00:00 with tools/vendor_harness/record_rs_supply.py --spx; read through api/index_bars.py::_fetch_fmp_daily('^GSPC', 1.0) (the served shape)",
+   "primaryRecorded": true,
+   "recordedAtUTC": "2026-11-16T23:13:34.138857+00:00",
+   "rows": {
+    "file": "spx-fmp-gspc-1d-recorded-2026-11-16.json",
+    "sha256": "facde8bd173e0a741330df00e049883ff2fa6ecf36678ba06535c5ef42a62387",
+    "count": 9287,
+    "first": "1990-01-02",
+    "last": "2026-11-16"
+   }
+  }
+ }
+}

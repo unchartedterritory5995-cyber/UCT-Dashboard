@@ -173,6 +173,62 @@ def test_a_full_subscriber_queue_drops_its_oldest():
     asyncio.run(go())
 
 
+def test_a_slow_reader_gets_the_CURRENT_value_of_the_forming_candle_not_a_backlog():
+    """⭐ 2026-11-17: 18% of bar frames were dropped from full queues in one session, and a reader that
+    fell behind drained up to 64 stale frames before the newest price (6-12 s behind). Forming frames of
+    one candle are last-value-wins: the queue holds ONE, the newest, and nothing is dropped."""
+    async def go():
+        rb, c, _ = make_rb()
+        q = rb.subscribe("ZZA", "1", v2=True)
+        for i in range(100):
+            rb.apply_batch(batch(i + 1, [("ZZA", "1", bar(T0, 10.0 + i / 100))]))
+        assert q.qsize() == 1
+        assert rb.counters["dropped"] == 0 and rb.counters["conflated"] == 99
+        assert drain(q)[0]["bar"]["c"] == 10.99
+        assert rb.get_status()["conflated_total"] == 99
+    asyncio.run(go())
+
+
+def test_quotes_are_not_served_as_live_while_ingest_says_its_vendor_socket_is_down():
+    """⛔ 2026-11-17 audit: status batches keep arriving while ingest's Massive socket is DOWN, so "a
+    batch arrived" kept the frozen quote served as live and the quote feed never fell back."""
+    rb, c, _ = make_rb()
+    rb.subscribe("ZZA", "1", v2=True)
+    rb.apply_batch(batch(1, prices={"ZZA": {"price": 5.0, "ts": T0}}))
+    assert rb.get_last_price("ZZA")["price"] == 5.0
+    rb.apply_batch(fp.Batch(epoch=1, seq=2, status={"epoch": 1, "connect": False, "closing": False, "clients": 1}))
+    assert rb.feed_fresh() is False and rb.get_last_price("ZZA") is None     # the caller falls back
+    assert rb.get_status()["vendor_up"] is False
+    rb.apply_batch(fp.Batch(epoch=1, seq=3, status={"epoch": 1, "connect": True, "closing": False, "clients": 1}))
+    assert rb.feed_fresh() is True and rb.get_last_price("ZZA")["price"] == 5.0
+    # a batch WITHOUT a status leaves ingest's last word in place
+    rb.apply_batch(batch(4, prices={"ZZA": {"price": 6.0, "ts": T0 + 1000}}))
+    assert rb.get_last_price("ZZA")["price"] == 6.0
+
+
+def test_a_final_is_never_replaced_or_overtaken_and_order_is_kept():
+    async def go():
+        rb, c, _ = make_rb()
+        q = rb.subscribe("ZZA", "1", v2=True)
+        seq = iter(range(1, 100))
+        put = lambda t, cl, final=False: rb.apply_batch(batch(next(seq), [("ZZA", "1", bar(t, cl, final=final))]))
+        put(T0, 10.0)                 # forming, candle 1
+        put(T0, 10.1, final=True)     # its final takes the forming frame's place (same candle)
+        put(T0 + MIN, 11.0)           # candle 2 forming: appended behind the final
+        put(T0 + MIN, 11.1)           # replaces candle 2's forming frame
+        put(T0, 10.2, final=True)     # a late correction of candle 1: appended, never merged backwards
+        put(T0 + MIN, 11.2)           # candle 2 again: a final sits last, so it is appended
+        got = [(m["bar"]["t"], m["bar"]["c"], bool(m["bar"].get("final"))) for m in drain(q)]
+        assert got == [(T0, 10.1, True), (T0 + MIN, 11.1, False), (T0, 10.2, True), (T0 + MIN, 11.2, False)]
+        assert rb.counters["dropped"] == 0
+        # a correction of the SAME candle right behind its final: both finals are delivered
+        put(T0 + 2 * MIN, 12.0, final=True)
+        put(T0 + 2 * MIN, 12.5, final=True)
+        got = [(m["bar"]["t"], m["bar"]["c"]) for m in drain(q)]
+        assert got == [(T0 + 2 * MIN, 12.0), (T0 + 2 * MIN, 12.5)]
+    asyncio.run(go())
+
+
 # ── the remote-mode guards ────────────────────────────────────────────────────
 
 def test_feed_source_is_local_unless_remote_is_asked(monkeypatch):
@@ -248,7 +304,12 @@ def test_feed_client_end_to_end_with_the_ingest_service(monkeypatch):
     from api.services import ingest_feed_server as ifs
     monkeypatch.setenv("PUSH_SECRET", SECRET)
     monkeypatch.setattr(ifs, "BATCH_INTERVAL_S", 0.01)
+    monkeypatch.setattr(ifs, "STATUS_INTERVAL_S", 0.02)
     monkeypatch.setattr(fc, "RECONNECT_MIN_S", 0.05)
+    # No Massive socket in a test: ingest reports its vendor socket through this property, in every
+    # status batch (`connect`), and web serves quotes as live only while it says up.
+    vendor = {"up": True}
+    monkeypatch.setattr(ir.IngestRuntime, "vendor_connected", property(lambda self: vendor["up"]))
     port = _free_port()
     owners = {"bars": {"ZZA": frozenset({"AM", "A", "T"})}}
 
@@ -279,6 +340,12 @@ def test_feed_client_end_to_end_with_the_ingest_service(monkeypatch):
         rt.on_bar("ZZA", {"t": T0 + 1000, "p": 10.5, "s": 100, "c": []}, "T")
         await _until(lambda: not q.empty() and rb.get_last_price("ZZA") is not None)
         assert q.get_nowait()["bar"]["c"] == 10.5 and rb.get_last_price("ZZA")["price"] == 10.5
+        # ingest's Massive socket drops: over the real wire, the quote stops being served as live
+        vendor["up"] = False
+        await _until(lambda: rb.get_last_price("ZZA") is None)
+        assert rb.get_status()["vendor_up"] is False
+        vendor["up"] = True
+        await _until(lambda: rb.get_last_price("ZZA") is not None)
         epoch1 = srv.epoch
 
         stop.set()                                     # ingest restarts: a new process, a new epoch

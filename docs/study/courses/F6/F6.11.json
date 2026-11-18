@@ -99,6 +99,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-17"
   }
  ],
  "facts": [
@@ -533,6 +541,18 @@
    "source": "s11",
    "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
    "claim": "Our rule (B22): no new buys in the 3 days before an earnings report."
+  },
+  {
+   "id": "hx1",
+   "source": "hw",
+   "quote": "Shorting is recommended only for traders who have already made $1 million trading.",
+   "claim": "We only recommend shorting to traders who have already made $1 million trading."
+  },
+  {
+   "id": "aw_r",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -540,9 +560,9 @@
    "key": "w1",
    "title": "Calls up, puts down",
    "steps": [
-    "A call is for when you expect the stock to rise soon. A put is for when you expect a sharp drop.",
-    "Either way, the premium you pay is the most you can lose.",
-    "At expiry, a call breaks even at the strike plus the premium. A put breaks even at the strike minus it."
+    "Buy a call when you expect the stock up, soon. Buy a put when you expect a sharp drop, soon.",
+    "Either way, what you pay is the most you can lose. The premium is your stop.",
+    "At expiry, a call breaks even at strike plus premium. A put breaks even at strike minus premium."
    ],
    "facts": [
     "f1",
@@ -556,10 +576,10 @@
    "key": "w2",
    "title": "A winner that turned into a loser",
    "steps": [
-    "The stock is at $68. You buy the 70 call for $2.20, which is $220 for the contract.",
-    "Two weeks later the stock is $80 and the call is $10.20. Selling now would make $800.",
-    "You hold for more. At expiry the stock is $65, below the strike, and the call expires worthless.",
-    "The whole $220 is gone. Set a target or a review date before you buy."
+    "The stock's at $68. You buy the 70 call for $2.20, so $220 for the contract.",
+    "Two weeks later it's $80 and the call's $10.20. Sell right there and you're up $800.",
+    "You hold for more. On expiry day the stock's $65, under the strike. The call expires worthless.",
+    "The whole $220, gone, on a trade that was up $800. Set a target or a review date before you buy."
    ],
    "facts": [
     "f38",
@@ -575,9 +595,9 @@
    "key": "w3",
    "title": "When a call beats the shares",
    "steps": [
-    "One call controls 100 shares for much less money, and you know your worst case before you buy.",
-    "A gap can blow straight through a stop on shares. A long option can't lose more than its premium.",
-    "The catch: a deadline, a break-even past the strike, and time value that tends to melt day by day.",
+    "One call controls 100 shares for a lot less money. And you know your worst case before you buy.",
+    "Shares can gap straight through your stop. A call you own can't lose more than its premium.",
+    "The catch: a deadline, a break-even past the strike, and time value melting day by day.",
     "Shares can wait out a slow move. A call can't."
    ],
    "facts": [
@@ -601,16 +621,16 @@
    "skill": "options.directional",
    "rung": 1,
    "format": "mcq",
-   "q": "You buy a call. What are you betting the stock will do?",
+   "q": "This time you skip the shares and buy a call that expires in six weeks. What has to happen for it to pay?",
    "choices": [
-    "Rise before the option expires",
-    "Fall before the option expires",
-    "Stay flat until the option expires",
-    "Move sharply in either direction"
+    "A rise before it expires",
+    "A drop before it expires",
+    "Any rise, whenever it comes",
+    "A big move either way"
    ],
-   "answer": "Rise before the option expires",
-   "why": "Rise, and before expiry. A call buyer is bullish in the near term, looking for gains during the life of the option. A rally after expiry does the holder no good. At expiry, a call at or below the strike is worth zero.",
-   "lesson_line": "A call is a bet on a rise, with a deadline.",
+   "answer": "A rise before it expires",
+   "why": "Up, and inside six weeks. A call only pays if the stock rises while the option's still alive. Be right a week after expiry and you get nothing. A call at or under its strike is worth zero at expiry. That's the catch versus the shares. Shares only need you right on direction, and they can wait. A call needs you right and on time.",
+   "lesson_line": "A call is a bet on up, with a deadline.",
    "facts": [
     "f1",
     "f5",
@@ -618,11 +638,11 @@
     "f11"
    ],
    "wrong": {
-    "Fall before the option expires": "That's the put buyer's bet. A call gains when the stock goes up.",
-    "Stay flat until the option expires": "Flat hurts a call buyer. Time value tends to melt day by day, and at or below the strike the call is worth zero at expiry.",
-    "Move sharply in either direction": "A call buyer is bullish. The call gains from a rise in the stock, not from a drop."
+    "A big move either way": "A drop does nothing for a call. You need the move to be up, and in time.",
+    "A drop before it expires": "That's the put buyer's bet. A call makes money when the stock goes up.",
+    "Any rise, whenever it comes": "That's how you think about shares. A call has a deadline, and a rise after expiry pays you nothing."
    },
-   "simple": "You are betting the stock goes up before the call expires, because a rise after expiry does you no good.",
+   "simple": "A rise before it expires, because a call only pays if the stock goes up while the option is still alive.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -630,7 +650,7 @@
      "fixed before (wrong-note hedge softened)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
@@ -652,16 +672,16 @@
    "skill": "options.directional",
    "rung": 2,
    "format": "mcq",
-   "q": "You own a put. What do you want the stock to do?",
+   "q": "You bought a put that expires in a month. What do you need the stock to do?",
    "choices": [
     "Fall sharply before expiry",
-    "Rise, so the put gains",
-    "Stay flat as time passes",
-    "End just below the strike"
+    "Rise, so the put gains value",
+    "Drift sideways for a while",
+    "Close just under the strike"
    ],
    "answer": "Fall sharply before expiry",
-   "why": "Fall sharply, and soon. A put buyer is looking for a sharp decline in the stock during the life of the option. The time horizon ends at expiry, and as it nears, the chances of further gains shrink. A put loses value as the stock rises.",
-   "lesson_line": "A put wants a fast drop. A slow one can come too late.",
+   "why": "Fall, and fast. You've got a month, and a put only pays on a drop while it's still alive. Every day you wait, the odds of more gains shrink. If the stock rises instead, the put loses value. And just under the strike isn't enough. At expiry you need the stock below the strike by more than what you paid. A slow bleed that shows up late can still lose you money.",
+   "lesson_line": "A put wants a fast drop. A slow one can show up too late.",
    "facts": [
     "f18",
     "f17",
@@ -672,11 +692,11 @@
     "f47"
    ],
    "wrong": {
-    "Rise, so the put gains": "That's backward. A put profits from a fall in the stock, and loses value as it rises.",
-    "Stay flat as time passes": "Time works against the buyer. As expiry nears, the chances of further gains shrink.",
-    "End just below the strike": "At expiry, just below the strike, the put is in the money but likely still a net loss. It profits only below the strike minus the premium."
+    "Rise, so the put gains value": "Backwards. A put gains on a fall and loses value as the stock rises.",
+    "Drift sideways for a while": "Sideways eats a put. As expiry gets closer, the chances of more gains shrink.",
+    "Close just under the strike": "That's in the money but still a loss. The put pays only below the strike minus the premium."
    },
-   "simple": "You want the stock to drop fast before expiry, because a put gains on a fall and its time runs out.",
+   "simple": "A sharp drop before expiry, because a put gains on a fall and its time runs out.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -684,7 +704,7 @@
      "the key's 'sharply' rests on one OIC quote (f18)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q04",
@@ -723,15 +743,15 @@
    "skill": "options.directional",
    "rung": 2,
    "format": "tf",
-   "q": "Before you can buy calls or puts, your broker has to approve your account for options.",
+   "q": "Before your first call or put, your broker has to approve your account for options trading.",
    "answer": "True",
-   "why": "True. FINRA says your broker must approve your account for a specific level of options trading first. Some strategies involve substantial risk. Fidelity agrees: you must first qualify with your brokerage account. Buying a call or a put needs that approval too.",
-   "lesson_line": "No approval, no options. Your broker sets the level you can trade.",
+   "why": "True. Your broker has to sign off on a specific level of options trading before you can place one. Some option strategies carry big risk, so they gate it. A plain call or put needs that approval too. Get it done before you need it. You don't want to find out the day a setup triggers that the order won't go through.",
+   "lesson_line": "Get options approval sorted before the trade shows up, not the day it does.",
    "facts": [
     "f46",
     "f58"
    ],
-   "simple": "True: your broker has to approve your account for options first, because some option trades carry big risk.",
+   "simple": "True, because your broker has to approve your account for options first, since some option trades carry big risk.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -739,14 +759,14 @@
      "two agreeing sources (FINRA Tier 1, Fidelity)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q06",
    "skill": "options.directional",
    "rung": 3,
    "format": "mcq",
-   "q": "You expect a stock to drop. Why buy a put instead of shorting the shares?",
+   "q": "A stock you're watching looks ready to break down. Why would you buy a put rather than short the shares?",
    "choices": [
     "It caps your loss at the premium",
     "It gains $1 for every $1 the stock drops",
@@ -754,8 +774,8 @@
     "It needs a smaller drop to profit"
    ],
    "answer": "It caps your loss at the premium",
-   "why": "The cap. A put buyer's maximum loss is the premium paid. A short seller's risk is unlimited in theory, because there's no limit on how high a stock can go. Shorting also carries borrowing costs and margin. The trade-off: a put usually gains less than $1 per $1 the stock falls, and it expires.",
-   "lesson_line": "Short the stock and your risk is open-ended. Buy the put and it's the premium.",
+   "why": "The cap. Buy the put and the most you can lose is what you paid for it. Short the shares and your risk is open-ended, because there's no ceiling on how high a stock can run. A short also costs you borrow fees and needs margin. The put has its own costs, though. It won't gain a dollar for every dollar the stock drops, and it has a deadline. One more thing: we only recommend shorting to traders who've already made $1 million trading.",
+   "lesson_line": "Short the shares and your risk is open-ended. Buy the put and it's the premium.",
    "facts": [
     "f17",
     "f61",
@@ -764,14 +784,15 @@
     "f22",
     "f23",
     "f47",
-    "f21"
+    "f21",
+    "hx1"
    ],
    "wrong": {
-    "It gains $1 for every $1 the stock drops": "A put usually gains less than that per dollar. The real edge is the cap on what you can lose.",
-    "It gives you more time to be right": "It's the opposite. A put's time horizon ends when the option expires.",
-    "It needs a smaller drop to profit": "It needs a bigger one. At expiry, a put makes money only when the stock falls below the strike by more than the premium."
+    "It gains $1 for every $1 the stock drops": "It won't, most of the time. A put gains less than a dollar per dollar the stock falls. The edge is the cap on your loss.",
+    "It gives you more time to be right": "The opposite. A put has a deadline, and its time runs out at expiry.",
+    "It needs a smaller drop to profit": "It needs a bigger one. At expiry the stock has to fall below the strike by more than the premium you paid."
    },
-   "simple": "The put caps your loss at what you paid, while a short sale can lose without limit if the stock climbs.",
+   "simple": "The put caps your loss at what you paid, while a short can keep losing as long as the stock keeps climbing.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -779,23 +800,23 @@
      "two publishers agree on the cap (OIC Tier 1, Investopedia)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
    "skill": "options.directional",
    "rung": 3,
    "format": "tf",
-   "q": "All else equal, a jump in implied volatility helps a call or put you own.",
+   "q": "You own a call. The stock hasn't moved, but implied volatility jumps. All else equal, that helps your call.",
    "answer": "True",
-   "why": "True. All else equal, a rise in implied volatility tends to lift the value of options you own, calls and puts alike. The reverse holds too. A fall in implied volatility tends to lower a long call's value even when the stock's trend is fine.",
-   "lesson_line": "Buy an option and you own volatility too. A fall in it can hurt even when the stock behaves.",
+   "why": "True. When implied volatility rises, the options you own tend to get more valuable, calls and puts both, even with the stock sitting still. It cuts the other way too. If implied volatility drops, your call can lose value while the stock's trend is fine. So when you buy an option, you're not just betting on the stock. You're long volatility too, whether you meant to be or not.",
+   "lesson_line": "Buy an option and you own volatility too. A drop in it can hurt even when the stock behaves.",
    "facts": [
     "f12",
     "f13",
     "f27"
    ],
-   "simple": "True: if nothing else changes, a jump in implied volatility tends to lift the price of options you own.",
+   "simple": "True, because if nothing else changes, higher implied volatility lifts the price of options you own.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -803,7 +824,7 @@
      "two OIC pages agree, hedged as the source hedges"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
@@ -836,21 +857,21 @@
    "rung": 3,
    "format": "mcq",
    "house": true,
-   "q": "What is our default for a swing trade?",
+   "q": "You've got a clean breakout lined up on a stock you like, and you plan to hold it a few weeks. What do you buy?",
    "choices": [
-    "Shares, which have no expiry date",
+    "Shares, full size off your stop",
     "Calls, to control more for less",
     "Weeklies, because they're cheap",
-    "Shares, added to as the trade works"
+    "Shares, a starter, then add to it"
    ],
-   "answer": "Shares, which have no expiry date",
-   "why": "Shares. Our rule: trade shares. Options are only a defined-risk alternative, used occasionally, with the premium paid as the stop. We buy the full size at one price, with no adding. Shares have no expiration date, so they can wait out a slow move.",
-   "lesson_line": "Our default is shares. Options come with a clock; shares don't.",
+   "answer": "Shares, full size off your stop",
+   "why": "Shares. I trade shares. An option is the occasional defined-risk buy, and when I do buy one, the premium paid is the stop. On the shares, the stop goes in first and the size comes from it. Full size at one price, one stop, no starter piece. And shares give you something a call can't: no expiry date. If the move takes longer than you thought, the shares can wait it out. The call can't.",
+   "lesson_line": "Shares are the default. An option comes with a clock. Shares don't.",
    "facts": [
     "h1",
     "h2",
     "h3",
-    "h4",
+    "aw_r",
     "f57",
     "f29",
     "f35",
@@ -858,11 +879,11 @@
     "f34"
    ],
    "wrong": {
-    "Calls, to control more for less": "Controlling more cuts both ways. A call can lose its whole premium while the shares sit flat.",
-    "Weeklies, because they're cheap": "Weeklies are short-dated. The shorter the time and the further out of the money, the bigger the risk of losing some or all of it.",
-    "Shares, added to as the trade works": "Shares, yes, but not in pieces. Our rule is the full size at one price with one stop, and no adding."
+    "Calls, to control more for less": "Controlling more cuts both ways. The call can lose its whole premium while the shares just sit there flat.",
+    "Weeklies, because they're cheap": "Cheap for a reason. The shorter the time and the further out of the money, the bigger the chance you lose some or all of it.",
+    "Shares, a starter, then add to it": "Shares, yes, but not in pieces. We buy the full size at one price with one stop. No starter piece."
    },
-   "simple": "Our default is shares. Options are only a defined-risk alternative, and they expire while shares don't.",
+   "simple": "Shares, because they don't expire, and we use options only now and then, with the premium as the stop.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -871,7 +892,7 @@
      "fixed before (weeklies note)"
     ]
    },
-   "batch": "wave7"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q10",
@@ -901,7 +922,7 @@
    "skill": "options.directional",
    "rung": 4,
    "format": "mcq",
-   "q": "You buy the 40 put for 1.75. At expiry, what stock price is your break-even?",
+   "q": "You buy the 40 put for 1.75 because you think the stock's headed lower. Where's your break-even at expiry?",
    "answer": "$38.25",
    "prefix": "$",
    "calc": {
@@ -912,14 +933,14 @@
      "premium": 1.75
     }
    },
-   "why": "$38.25. A long put breaks even at expiry at the strike minus the premium: 40 minus 1.75. Below $38.25 the put makes a net profit at expiry. Between $38.25 and $40 it is in the money but still a net loss.",
-   "lesson_line": "Take the premium off the strike. The stock has to finish below that for a put to profit.",
+   "why": "$38.25. For a put, take the premium off the strike: 40 minus 1.75 is 38.25. Under $38.25 at expiry, you're making money. Between $38.25 and $40 the put is in the money, but you're still down on the trade. It's worth less than the 1.75 you paid. Work this out before you buy. It tells you how far the stock really has to fall.",
+   "lesson_line": "Put break-even: strike minus premium. That's how far it really has to fall.",
    "facts": [
     "f21",
     "f47",
     "f11"
    ],
-   "simple": "Your break-even is $38.25, because the put must finish below the strike by more than the 1.75 you paid.",
+   "simple": "$38.25, because a put has to finish below the strike by more than the 1.75 you paid.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -928,7 +949,7 @@
      "fixed before (lesson line wording)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$41.75",
     "$40.00",
@@ -936,9 +957,9 @@
     "$38.25"
    ],
    "wrong": {
-    "$41.75": "Adds the premium to the strike. That is the call formula.",
-    "$40.00": "Stops at the strike and forgets the 1.75 the put cost.",
-    "$36.50": "Takes the premium off twice."
+    "$41.75": "That adds the premium to the strike. That's the call math, not the put.",
+    "$40.00": "That's just the strike. You still have to earn back the 1.75 you paid.",
+    "$36.50": "That takes the premium off twice."
    }
   },
   {
@@ -1008,7 +1029,7 @@
    "skill": "options.directional",
    "rung": 5,
    "format": "mcq",
-   "q": "You own 2 of the 50 calls, bought at 2.50. At expiry the stock is 56. What's your profit?",
+   "q": "You hold 2 of the 50 calls, bought at 2.50. On expiry day the stock's at 56 and you sell before the close. What did you make?",
    "answer": "$700",
    "prefix": "$",
    "calc": {
@@ -1022,14 +1043,14 @@
      "multiplier": 100
     }
    },
-   "why": "$700. At expiry each call is worth only its in-the-money amount, 56 minus 50. Take off the 2.50 premium you paid. Then multiply by 100 shares a contract and by 2 contracts.",
-   "lesson_line": "At expiry: value minus premium, times 100, times contracts. Always net out what you paid.",
+   "why": "$700. Right at expiry a call's worth what it's in the money, nothing more. 56 minus 50 is 6, so each call sells for about 6.00. Take off the 2.50 you paid and you're up 3.50 a share. Times 100 shares, times 2 contracts, that's $700. Always net out the premium. The $1,200 is what the calls are worth, not what you made. And selling before the close means you never need the cash to buy the shares.",
+   "lesson_line": "At expiry: what it's worth, minus what you paid, times 100, times contracts.",
    "facts": [
     "f11",
     "f4",
     "f37"
    ],
-   "simple": "You make $700: each call is worth 56 minus 50 at expiry, less the 2.50 paid, times 100 shares, times 2.",
+   "simple": "$700, because each call ends worth 56 minus 50, you paid 2.50, and that's times 100 shares and 2 contracts.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1037,7 +1058,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$700",
     "$1,200",
@@ -1045,9 +1066,9 @@
     "$7,000"
    ],
    "wrong": {
-    "$1,200": "Forgets to take off the 2.50 premium.",
-    "$1,700": "Adds the premium instead of taking it off.",
-    "$7,000": "Slips a decimal place."
+    "$1,200": "That's what the calls are worth at expiry. You forgot to take off the 2.50 you paid.",
+    "$1,700": "That adds the premium instead of taking it off.",
+    "$7,000": "A decimal slipped. It's 3.50 a share, times 100, times 2."
    }
   },
   {
@@ -1055,7 +1076,7 @@
    "skill": "options.directional",
    "rung": 5,
    "format": "scenario",
-   "story": "Your plan risks $750 on this trade. You treat the whole premium as the risk. The call you want costs 2.50.",
+   "story": "You want to play a breakout with calls this time. Your plan puts $750 at risk. The call you like costs 2.50, and the premium is your stop.",
    "q": "How many contracts do you buy?",
    "choices": [
     "3 contracts, $750 in premium",
@@ -1073,8 +1094,8 @@
      "shares": 100
     }
    },
-   "why": "3 contracts. Each costs 2.50 times 100 shares, so three use your full $750. If all three expire worthless, you lose what you planned and no more. That fits our rule for options: the premium paid is the stop.",
-   "lesson_line": "Size an option by the premium you can afford to lose, not by the cash in the account.",
+   "why": "Three. One contract is 2.50 times 100 shares, so $250. $750 over $250 is 3. With an option the premium is the stop, so the whole premium is your risk. If all three go to zero, you lose the $750 you planned and not a dollar more. That's the nice part of a long option. You know the worst case before you click buy.",
+   "lesson_line": "Size an option off the premium you can lose, not the cash in the account.",
    "facts": [
     "f45",
     "f37",
@@ -1082,11 +1103,11 @@
     "h3"
    ],
    "wrong": {
-    "300 contracts, 750 / 2.50": "750 divided by 2.50 is 300, but that counts shares. Each contract covers 100 shares.",
-    "As many as your cash buys": "That sizes by buying power, not risk. If they expire worthless, you could lose more than your planned $750.",
-    "6 contracts, out if halved": "The story treats the whole premium as the risk, and so does our rule: the premium paid is the stop. At 2.50 times 100 shares each, $750 covers 3."
+    "300 contracts, 750 / 2.50": "750 over 2.50 is 300, but that counts shares. A contract covers 100 shares, so it's 3 contracts.",
+    "As many as your cash buys": "That's sizing off buying power, not risk. If they expire worthless, you've lost a lot more than $750.",
+    "6 contracts, out if halved": "That puts a stop on the option. We don't. The premium paid is the stop, so you size as if all of it can go."
    },
-   "simple": "Buy 3 contracts, because each costs 2.50 times 100 shares, so three put exactly your $750 at risk.",
+   "simple": "3 contracts, because each one costs 2.50 times 100 shares, so three put exactly your $750 at risk.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -1095,7 +1116,7 @@
      "the why and a wrong note rest on the owner's rulebook (B25)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "Sizing by premium",
@@ -1125,7 +1146,7 @@
    "skill": "options.directional",
    "rung": 5,
    "format": "mcq",
-   "q": "You buy the 40 put for 2.50. If the stock went to zero, what would one contract make?",
+   "q": "You own one 40 put, bought for 2.50. Best case, the company goes to zero. What does that contract make?",
    "answer": "$3,750",
    "prefix": "$",
    "calc": {
@@ -1139,15 +1160,15 @@
      "multiplier": 100
     }
    },
-   "why": "$3,750. A long put's best case is the stock going to zero. The put is then worth the 40 strike. Take off the 2.50 premium to get 37.50 a share. Times 100 shares is 3,750. That is the ceiling. A long call's profit has no cap.",
-   "lesson_line": "A put's upside has a ceiling: strike minus premium. A call's doesn't.",
+   "why": "$3,750. That's the ceiling on a put. At zero the put is worth the full 40 strike. Take off the 2.50 you paid and you're up 37.50 a share. Times 100 shares, that's $3,750. It can't do better, because a stock can't go below zero. A call's different. Its upside has no cap.",
+   "lesson_line": "A put's best case has a ceiling. A call's doesn't.",
    "facts": [
     "f19",
     "f20",
     "f2",
     "f37"
    ],
-   "simple": "One contract makes $3,750: at zero the put is worth the strike, less the 2.50 you paid, times 100 shares.",
+   "simple": "$3,750, because at zero the put is worth the 40 strike, less the 2.50 you paid, times 100 shares.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1155,7 +1176,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$3,750",
     "$37.50",
@@ -1163,9 +1184,9 @@
     "$4,000"
    ],
    "wrong": {
-    "$4,000": "Forgets to take off the 2.50 the put cost.",
-    "$37.50": "Forgets that one contract covers 100 shares.",
-    "$3,500": "Takes the premium off twice."
+    "$4,000": "That forgets the 2.50 you paid for the put.",
+    "$37.50": "That's per share. One contract covers 100 shares.",
+    "$3,500": "That takes the premium off twice."
    }
   },
   {
@@ -1210,15 +1231,15 @@
    "skill": "options.directional",
    "rung": 6,
    "format": "tf",
-   "q": "A call usually gains a full dollar for every dollar the stock rises.",
+   "q": "The stock you own calls on rises $1. For most of the call's life, it rises a full $1 right along with it.",
    "answer": "False",
-   "why": "False. For most of its life, a call is unlikely to gain a full dollar for each dollar the stock rises. Its percentage gain can still be large, because the premium is small.",
-   "lesson_line": "Don't count a call's gain like the shares'. Per dollar, it usually moves less.",
+   "why": "False. For most of its life, a call gains less than a dollar for each dollar the stock rises. So don't count your P&L like you own the shares. The percent gain can still be big, though, because you paid a small premium to start. Fewer dollars per move, a bigger percent on what you put in.",
+   "lesson_line": "Don't count a call's gain like the shares'. Per dollar, it moves less.",
    "facts": [
     "f6",
     "f7"
    ],
-   "simple": "False: for most of its life a call gains less than a dollar for each dollar the stock rises.",
+   "simple": "False, because for most of its life a call gains less than a dollar for each dollar the stock rises.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1226,18 +1247,18 @@
      "one cited fact for the key (f6)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
    "skill": "options.directional",
    "rung": 6,
    "format": "scenario",
-   "story": "A stock sits at 50. Plan A: 100 shares, stop at 47. Plan B: one 50 call at 2.00. Overnight it gaps to 40.",
-   "q": "Which plan's worst case was fixed before the gap?",
+   "story": "A stock's at 50. Plan A: 100 shares with a stop at 48.50. Plan B: one 50 call for 2.00. Overnight, bad news gaps it down to 40.",
+   "q": "Which plan's worst case was locked in before the gap?",
    "choices": [
     "Plan B: the call, $200 at most",
-    "Plan A: the stop, $300 at most",
+    "Plan A: the stop, $150 at most",
     "Both, the stop and the premium",
     "Neither: a gap can hit either plan"
    ],
@@ -1250,7 +1271,7 @@
      "shares": 100
     }
    },
-   "why": "Plan B. A stop becomes a market order when hit and fills at the next available price. A gap to 40 can fill it far below 47. The call can't lose more than the $200 paid.",
+   "why": "Plan B. The most the call can ever cost you is the $200 you paid, 2.00 times 100 shares. The stop on Plan A is a trigger, not a price. When it's hit it turns into a market order and fills at the next price there is. After a gap to 40, that's nowhere near 48.50. That's why a tight stop never licenses a monster position. A stop can't catch a gap.",
    "lesson_line": "A stop can't catch a gap. A long option's worst case is set the day you buy it.",
    "facts": [
     "f3",
@@ -1259,13 +1280,13 @@
     "f66"
    ],
    "wrong": {
-    "Plan A: the stop, $300 at most": "That assumes a fill at 47. The stock gapped to 40, and a stop fills at the next available price.",
-    "Both, the stop and the premium": "The stop capped nothing here. A stop fills at the next available price, and the stock gapped to 40.",
-    "Neither: a gap can hit either plan": "A gap can't push a long call past its cost. An option holder can't lose more than the price paid, here $200."
+    "Both, the stop and the premium": "Only the premium was locked in. The stop capped nothing once the stock gapped to 40.",
+    "Neither: a gap can hit either plan": "A gap can't push a long call past what you paid for it. The worst case was $200 the day you bought it.",
+    "Plan A: the stop, $150 at most": "That assumes you get filled at 48.50. You don't. The stock gapped to 40, and a stop fills at the next price there is."
    },
-   "simple": "Only the call's worst case was fixed: a gap can jump a stop, but the call can lose just its $200.",
+   "simple": "Only the call's, because a gap can jump a stop, but the call can never lose more than the $200 you paid.",
    "deeper": {
-    "trap": "The trap is reading a stop as a price you are sure to get. A stop is a trigger. After a gap it fills at the next available price. So Plan A's loss here is set by the open, not by 47. A tight stop never makes a gap safe."
+    "trap": "The trap is reading a stop as a price you're sure to get. A stop is a trigger. After a gap it fills at the next price there is, so Plan A's loss is set by the open, not by 48.50. A tight stop never makes a gap safe."
    },
    "tier": "extended",
    "risk": {
@@ -1275,7 +1296,7 @@
      "story reworded so it no longer models a buy into earnings"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "Plan A or Plan B",
@@ -1295,7 +1316,7 @@
      {
       "key": "plan_a_stop",
       "label": "Plan A stop",
-      "value": 47.0,
+      "value": 48.5,
       "fmt": "$"
      },
      {
@@ -1316,8 +1337,8 @@
    "skill": "options.directional",
    "rung": 7,
    "format": "scenario",
-   "story": "The stock is at 47. You buy the 50 call for 1.60. Two weeks later the stock is 58 and the call is 8.40. You hold for more, and at expiry the stock closes at 44.",
-   "q": "What did the trade end up doing, per contract?",
+   "story": "The stock's at 47 and you buy the 50 call for 1.60. Two weeks later it's 58 and the call is 8.40. You hold for more. At expiry it closes at 44.",
+   "q": "Where did the trade end up, per contract?",
    "choices": [
     "Lost the whole $160 premium",
     "Made $680 on the run to 58",
@@ -1333,8 +1354,8 @@
      "shares": 100
     }
    },
-   "why": "Lost the $160. At expiry the stock is 44, below the 50 strike, so the call expires worthless. Selling at 8.40 two weeks in would have made $680: 8.40 minus 1.60, times 100. An option profit isn't guaranteed until you close the trade or the contract expires. Some buyers set a target or a review date before they buy.",
-   "lesson_line": "An option gain isn't yours until you close the trade. At expiry, below the strike, a call is worth nothing.",
+   "why": "You lost the whole $160. At 44 the stock's under the 50 strike, so the call expires worthless. 1.60 times 100 is $160, gone. Two weeks in, that same call was 8.40. Sell it there and you bank 8.40 minus 1.60, times 100, which is $680. That gain was never yours, though. It was a number on the screen until you closed the trade. Set your target or your review date before you buy. With an option, holding for more can take you all the way to zero.",
+   "lesson_line": "An option gain isn't yours until you sell it. Under the strike at expiry, a call is worth nothing.",
    "facts": [
     "f11",
     "f44",
@@ -1345,13 +1366,13 @@
     "f37"
    ],
    "wrong": {
-    "Broke even on a round trip": "Break-even was above the strike by the premium paid. At 44 the call is worth nothing.",
-    "Lost $300, from 47 to 44": "That's how 100 shares would have done. The call's loss is its whole premium.",
-    "Made $680 on the run to 58": "That was the profit on offer two weeks in, 8.40 minus 1.60, times 100, if you'd sold. Holding turned it into a total loss."
+    "Broke even on a round trip": "Break-even was the strike plus what you paid. At 44 the call is worth nothing.",
+    "Lost $300, from 47 to 44": "That's what 100 shares would have lost. The call loses its whole premium.",
+    "Made $680 on the run to 58": "That was on the table two weeks in, if you'd sold. You held, and it went to zero."
    },
-   "simple": "You lost the whole $160, because the call finished below its strike and the $680 gain was never locked in.",
+   "simple": "You lost the whole $160, because the call finished under its strike and you never sold to lock in the $680.",
    "deeper": {
-    "trap": "The trap is counting the $680 as yours. It was a price on the screen, not a profit. Closing the trade would have kept it. Some buyers set a price target or a review date before they buy. That way the exit is planned in advance."
+    "trap": "The trap is counting the $680 as yours. It was a price on the screen, not a profit. Selling would have kept it. Some buyers set a price target or a review date before they buy, so the exit is planned before the emotions show up."
    },
    "tier": "extended",
    "risk": {
@@ -1361,7 +1382,7 @@
      "fixed before (closing-trade wording)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "payoff",
     "title": "The 50 call at expiry",
@@ -1381,18 +1402,18 @@
    "skill": "options.directional",
    "rung": 7,
    "format": "tf",
-   "q": "Buy an at-the-money call, and at expiry you need a bigger rise to profit than if you'd bought the shares.",
+   "q": "A stock's at 50 and you buy the 50 call instead of the shares. At expiry, the call needs a bigger rise than the shares to make money.",
    "answer": "True",
-   "why": "True. Shares make money on any rise above your entry. At expiry an at-the-money call makes money only when the stock rises past the strike by more than the premium. That bigger move is why buying calls is typically a lower-probability trade than buying shares.",
-   "lesson_line": "A call's break-even sits above today's price. That's why buying calls is usually the lower-probability trade.",
+   "why": "True. The shares make money on any tick above 50. The call only makes money at expiry once the stock is past 50 plus whatever you paid for it. That extra distance is the price of the option. It's why buying calls tends to be the lower-probability trade. You get a smaller, capped loss, and you pay for it by needing a bigger move.",
+   "lesson_line": "A call's break-even sits above today's price. That's what the cap costs you.",
    "facts": [
     "f47",
     "f56",
     "f4"
    ],
-   "simple": "True: the call needs a rise past the strike plus the price you paid, while shares gain on any rise.",
+   "simple": "True, because the call has to climb past the strike plus what you paid, while shares gain on any rise.",
    "deeper": {
-    "trap": "The trap is treating a call as cheap shares. It is a different bet. The shares win on any rise. The call wins only past the strike plus the premium, and only before it expires."
+    "trap": "The trap is treating a call like cheap shares. It's a different bet. The shares win on any rise. The call wins only past the strike plus the premium, and only before it expires."
    },
    "tier": "extended",
    "risk": {
@@ -1401,23 +1422,23 @@
      "two publishers agree (FINRA Tier 1, Fidelity)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q22",
    "skill": "options.directional",
    "rung": 7,
    "format": "mcq",
-   "q": "Which view suits a long call better than the shares?",
+   "q": "You're weighing a call against the shares. Which of these views makes the call the better tool?",
    "choices": [
     "A sharp rally you expect soon",
-    "A slow climb over a year",
+    "A slow climb over the next year",
     "A stock to hold through dips",
     "A small rise you expect soon"
    ],
    "answer": "A sharp rally you expect soon",
-   "why": "A sharp rally, soon. The earlier and sharper the rise, the better for a long call. Its value must be realized before it expires, and time value tends to drain day by day. A slow climb or a stock you'd hold through dips suits the shares, which can wait.",
-   "lesson_line": "Calls reward fast, early moves. Slow grinds suit the shares.",
+   "why": "A sharp rally, soon. That's what a call is built for. The earlier and sharper the move, the better, because it all has to happen before expiry and time value drains every day you wait. A slow climb, or a name you'd sit through dips with, is a shares trade. The shares can wait. A call runs out of time.",
+   "lesson_line": "Calls want fast, early moves. Slow grinds are for shares.",
    "facts": [
     "f8",
     "f5",
@@ -1427,13 +1448,13 @@
     "f10"
    ],
    "wrong": {
-    "A stock to hold through dips": "Riding out dips takes time, and an option has a deadline. That's a job for shares.",
-    "A small rise you expect soon": "A small rise may not cover the premium. A call makes money only when the stock passes the strike by more than the premium. Shares profit on any rise.",
-    "A slow climb over a year": "Time value melts while you wait, and the call can expire before the climb pays. Shares can wait."
+    "A stock to hold through dips": "Sitting through dips takes time, and an option has a deadline. That's a job for shares.",
+    "A small rise you expect soon": "A small rise may not even cover the premium. The call pays only past the strike plus what you paid.",
+    "A slow climb over the next year": "Time value melts while you wait, and the call can expire before the climb pays. The shares can wait."
    },
-   "simple": "A fast rise soon suits a call best, because the call has a deadline and tends to lose value as time passes.",
+   "simple": "A fast rise soon, because the call has a deadline and loses a little value every day you wait.",
    "deeper": {
-    "counter": "A slow climb can make the shares money and the call nothing. If the rise comes after expiry, the call is already gone. Shares have no expiration date, so they can wait out a slow move."
+    "counter": "A slow climb can make the shares money and the call nothing. If the rise shows up after expiry, the call is already gone. Shares don't expire, so they can wait out a slow move."
    },
    "tier": "extended",
    "risk": {
@@ -1442,19 +1463,19 @@
      "one cited fact for the key (f8)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q23",
    "skill": "options.directional",
    "rung": 8,
    "format": "scenario",
-   "story": "You own two 100-strike calls. It's expiry day, the stock is at 104, and your account holds $3,000 in cash.",
-   "q": "What is likely to happen if you hold them through the close?",
+   "story": "You own two 100 calls. It's expiry day, the stock's at 104, and you've got $3,000 cash in the account.",
+   "q": "You hold them through the close. What's most likely to happen?",
    "choices": [
     "Exercise: $20,000 for 200 shares",
     "They settle in cash, about $800",
-    "Nothing; the calls just expire",
+    "Nothing, the calls just expire",
     "They roll into next month's calls"
    ],
    "answer": "Exercise: $20,000 for 200 shares",
@@ -1467,8 +1488,8 @@
      "shares": 100
     }
    },
-   "why": "Exercise, most likely. In-the-money stock options are generally exercised automatically at expiry. Each 100-strike call then buys 100 shares for $10,000, so two need $20,000. Your $3,000 won't cover it. Check your broker's exercise procedures before expiry day.",
-   "lesson_line": "Sell an in-the-money call before the close unless you have the cash for the shares.",
+   "why": "Exercise. In-the-money stock options get exercised automatically at expiry in most cases, and at 104 your 100 calls are in the money. Each call buys 100 shares at 100, so $10,000. Two of them is $20,000. You've got $3,000. Now you're scrambling for cash to settle. The fix is easy: sell the calls before the close and take their value in cash. And check your broker's exercise rules before expiry day, not on it.",
+   "lesson_line": "Sell an in-the-money call before the close unless you've got the cash for the shares.",
    "facts": [
     "f48",
     "f49",
@@ -1481,13 +1502,13 @@
     "f64"
    ],
    "wrong": {
-    "They settle in cash, about $800": "Index options settle in cash. Stock options deliver shares, so exercising a call means buying them.",
-    "Nothing; the calls just expire": "That's for out-of-the-money options. At 104 the 100 calls are in the money.",
-    "They roll into next month's calls": "No. In-the-money options are generally exercised automatically at expiry, so you'd be buying the shares."
+    "They settle in cash, about $800": "Index options settle in cash. Stock options deliver shares, so an exercised call means you're buying them.",
+    "They roll into next month's calls": "No. In-the-money calls get exercised at expiry, so you'd be buying the shares.",
+    "Nothing, the calls just expire": "That's what happens out of the money. At 104 the 100 calls are in the money."
    },
-   "simple": "Expect the calls to be exercised, so you'd owe $20,000 for 200 shares, far more than your $3,000.",
+   "simple": "Expect the calls to be exercised, so you'd owe $20,000 for 200 shares with only $3,000 in the account.",
    "deeper": {
-    "trap": "The trap is thinking a winning call just pays you the gain. A stock call that is exercised buys the shares, and the full price is due. Here that is $20,000 against $3,000 in cash. Selling the calls before the close collects their value instead."
+    "trap": "The trap is thinking a winning call just pays you the gain. An exercised stock call buys the shares, and the full price is due. Here that's $20,000 against $3,000 in cash. Sell the calls before the close and you collect their value instead."
    },
    "tier": "expert",
    "risk": {
@@ -1498,7 +1519,7 @@
      "fixed before ('likely' wording)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "Expiry day",
@@ -1539,16 +1560,16 @@
    "skill": "options.directional",
    "rung": 8,
    "format": "scenario",
-   "story": "You own one 30 put on a stock you don't own. It's expiry day, and the stock sits at 27.",
-   "q": "If you hold through the close, what are you likely left with?",
+   "story": "You bought one 30 put as a bet on the drop. You don't own the stock. It's expiry day and the stock sits at 27.",
+   "q": "You hold the put through the bell. What are you probably left with?",
    "choices": [
     "A short position in 100 shares",
     "$300 in cash, the put's value",
-    "Nothing; the put simply expires",
+    "Nothing, the put just expires",
     "100 shares, bought at the 27 price"
    ],
    "answer": "A short position in 100 shares",
-   "why": "A short position, most likely. In-the-money options are generally exercised automatically at expiry. Exercising a put sells 100 shares. You don't own them, so you end up short. Check your broker's expiry procedures, or sell the put before the close.",
+   "why": "Short 100 shares, most likely. In the money at expiry, the put gets exercised in most cases. Exercising a put sells 100 shares at the 30 strike. You don't own any, so now you're short. That's a whole different risk. Your loss on the put was capped at the premium. A short stock position has no cap. And shorting is something we only recommend to traders who've already made $1 million trading. If you don't want the short, sell the put before the close.",
    "lesson_line": "If you don't want a short, sell the in-the-money put before the bell.",
    "facts": [
     "f48",
@@ -1559,16 +1580,17 @@
     "f67",
     "f62",
     "f64",
-    "f36"
+    "f36",
+    "hx1"
    ],
    "wrong": {
-    "$300 in cash, the put's value": "That's what the put is worth at 27, but stock options don't settle in cash. Exercising a put sells shares.",
-    "Nothing; the put simply expires": "In-the-money options are generally exercised automatically at expiry. At 27 the 30 put is in the money.",
-    "100 shares, bought at the 27 price": "That's backward. Exercising a put sells shares at the strike. You don't own them, so the sale leaves you short."
+    "$300 in cash, the put's value": "That's what the put's worth at 27, but stock options don't settle in cash. An exercised put sells shares.",
+    "100 shares, bought at the 27 price": "Backwards. Exercising a put sells shares at the strike. You don't own them, so the sale leaves you short.",
+    "Nothing, the put just expires": "In the money at expiry, it gets exercised in most cases. At 27 the 30 put is in the money."
    },
    "simple": "You'd most likely end up short 100 shares, because the put gets exercised and sells shares you don't own.",
    "deeper": {
-    "trap": "The trap is thinking a put can only cost you its premium. That holds while you own the option. Once it is exercised, you hold a short stock position, and a short carries theoretically unlimited risk. Selling the put before the close avoids that."
+    "trap": "The trap is thinking a put can only cost you its premium. That holds while you own the option. Once it's exercised you hold a short stock position, and a short carries theoretically unlimited risk. Selling the put before the close avoids all of it."
    },
    "tier": "expert",
    "risk": {
@@ -1578,15 +1600,15 @@
      "fixed before ('likely' wording)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q25",
    "skill": "options.directional",
    "rung": 9,
    "format": "scenario",
-   "story": "You bought a 45 call a month ago. The stock has chopped sideways near 42, with nine days to expiry. The call still has some time value.",
-   "q": "The quick move you wanted now looks unlikely. What do you do?",
+   "story": "You bought a 45 call a month ago. The stock's chopped sideways around 42 ever since. Nine days left, and the call still has a little time value.",
+   "q": "The quick move you wanted looks unlikely now. What's the play?",
    "choices": [
     "Sell it now to recover some cost",
     "Exercise it and hold the shares",
@@ -1594,8 +1616,8 @@
     "Swap it for a cheaper weekly call"
    ],
    "answer": "Sell it now to recover some cost",
-   "why": "Sell it. When a quick turnaround looks unlikely, selling while some time value remains can recover part or even all of what you paid. Time value tends to drain faster near expiry. Exercising would pay 45 for a stock near 42 and throw that time value away.",
-   "lesson_line": "When the move stalls near expiry, sell what's left. Waiting costs a little more every day.",
+   "why": "Sell it. The idea didn't work on time, so get out while there's still something to sell. Whatever time value is left, you collect it by selling. Wait, and it drains faster the closer you get to expiry. Exercising is the worst of both. You'd pay 45 for a stock trading around 42 and throw that time value away. Take what's left and move on to a better setup.",
+   "lesson_line": "When the move stalls near expiry, sell what's left. Waiting costs more every day.",
    "facts": [
     "f9",
     "f10",
@@ -1605,13 +1627,13 @@
     "f35"
    ],
    "wrong": {
-    "Exercise it and hold the shares": "Exercise buys at 45 a stock trading near 42, and throws away the time value.",
-    "Buy more to lower your cost": "That adds to a losing trade whose clock is running out, while time value tends to melt faster.",
-    "Swap it for a cheaper weekly call": "That re-bets on a move that now looks unlikely, with less time. The shorter the time to expiry, the greater the risk of losing some or all of it."
+    "Exercise it and hold the shares": "That pays 45 for a stock trading near 42, and throws away the time value you could have sold.",
+    "Buy more to lower your cost": "That's adding to a loser with the clock running out. Time value melts faster from here.",
+    "Swap it for a cheaper weekly call": "That re-bets the same stalled idea with even less time. The shorter the time left, the bigger the chance you lose some or all of it."
    },
-   "simple": "Sell the call now, because it still has some time value and that value tends to drain faster as expiry nears.",
+   "simple": "Sell it now, because it still has some time value and that value drains faster as expiry gets close.",
    "deeper": {
-    "example": "Most long options that still have value are closed by selling, not by exercise. Selling here collects the time value that is left. Exercise would buy at 45 a stock trading near 42, and that time value would be lost."
+    "example": "Most long options that still have value get closed by selling, not by exercise. Selling here collects the time value that's left. Exercise would buy at 45 a stock trading near 42, and that time value would be gone."
    },
    "tier": "expert",
    "risk": {
@@ -1621,15 +1643,15 @@
      "fixed before (hedge on time decay)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q26",
    "skill": "options.directional",
    "rung": 9,
    "format": "scenario",
-   "story": "You'd normally buy 100 shares of a stock at 50, a $5,000 position. The six-month 50 call costs 5.00.",
-   "q": "You want calls that control the same number of shares. How many do you buy?",
+   "story": "Normally you'd buy 100 shares of this one at 50, a $5,000 position. This time you want calls on the same 100 shares. The six-month 50 call is 5.00.",
+   "q": "How many calls get you the same 100 shares?",
    "choices": [
     "1 contract, $500 in premium",
     "10 contracts, the full $5,000",
@@ -1645,8 +1667,8 @@
      "per_contract": 100
     }
    },
-   "why": "One contract. It covers the same 100 shares, for $500. Ten contracts would control ten times as many shares. In the options disclosure document's example, that buyer lost 20% with the stock up at 54. The same buyer lost everything at or below 50.",
-   "lesson_line": "One contract covers 100 shares. Spend the shares' dollars on calls and you control far more.",
+   "why": "One contract. One call covers 100 shares, and it costs 5.00 times 100, so $500. The mistake is spending the whole $5,000 on ten calls. That's ten times the shares you'd normally hold. In the options disclosure document's example, that buyer was down 20% even with the stock up at 54. At or under 50 at expiry, they lost all of it. And remember, the premium is your stop. That $500 can all go, so it has to be a loss you'd accept on this trade.",
+   "lesson_line": "One contract covers 100 shares. Spend the shares' dollars on calls and you control ten times as much.",
    "facts": [
     "f37",
     "f31",
@@ -1657,11 +1679,11 @@
     "f34"
    ],
    "wrong": {
-    "10 contracts, the full $5,000": "That controls ten times your normal share count. A flat stock at expiry wipes it out.",
+    "10 contracts, the full $5,000": "That controls ten times your normal share count. A flat stock at expiry wipes the whole thing out.",
     "5 contracts, half the cash": "That's five times your normal share count for half the money. The risk grows with the shares you control.",
     "100 contracts, one per share": "One contract already covers 100 shares. A hundred contracts would control a hundred times your normal position."
    },
-   "simple": "Buy 1 contract, because one call covers 100 shares, the same as your normal position.",
+   "simple": "1 contract, because one call covers 100 shares, the same as your normal position.",
    "deeper": {
     "trap": "The trap is spending the shares' dollars on calls. Ten calls cost the same $5,000 but control ten times as many shares. The disclosure document's all-calls buyer did best at 62, yet lost 20% at 54 and everything at or below 50."
    },
@@ -1673,7 +1695,7 @@
      "fixed before (sentence split)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "Calls for 100 shares",
@@ -1709,11 +1731,11 @@
    "skill": "options.directional",
    "rung": 3,
    "format": "tf",
-   "q": "All else equal, an option's time value tends to hold steady as expiry nears.",
+   "q": "You own a call with three weeks left. If the stock just sits there, the call's time value holds steady as expiry gets closer.",
    "answer": "False",
-   "why": "False. All else equal, an option typically loses time value with every passing day. That loss tends to speed up, not hold steady. Options expire; stocks don't.",
-   "lesson_line": "Time value drains day by day, and the drain tends to speed up as expiry nears.",
-   "simple": "False: an option you own tends to lose time value every day, and that loss tends to speed up.",
+   "why": "False. With the stock sitting still, an option loses time value every day you hold it. And the drain speeds up as expiry gets closer. It doesn't level off. Shares don't have this problem, because they don't expire. So if you buy a call and the stock just sits, you're paying for every day it does.",
+   "lesson_line": "Time value drains every day, and faster near expiry.",
+   "simple": "False, because an option you own loses time value every day, and that loss speeds up near expiry.",
    "facts": [
     "f10",
     "f57",
@@ -1726,7 +1748,7 @@
      "one Tier 1 fact (f10, OIC), backed by Fidelity (f57)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1760,8 +1782,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer Rise (f1, f5). Choices 30-34 chars, no tell. Flat note conditional ('at or below the strike') matches f11; melt hedged per f10. Why sentences under 22 words."
+   "fixed": true,
+   "notes": "Stem led: 'you think it's headed higher' handed over the answer, and no choice tested the deadline. New stem gives a six-week call; 'Any rise, whenever it comes' replaces 'Flat trading' as the named mistake (forgetting the clock). f5, f11 support the why."
   },
   "q02": {
    "status": "cut",
@@ -1778,9 +1800,8 @@
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer Fall sharply (f18). 'Finish just below the strike' is a real trap, note hedged 'likely' and anchored at expiry (f21, f47). Lengths 26-28. No second defensible answer.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Truth fine (f18, f21, f26, f47, f63). Stem 'a name you think is about to crack' leaned on the answer; now gives the clock instead. Why opens on the month."
   },
   "q04": {
    "status": "cut",
@@ -1792,19 +1813,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True per f46 (FINRA, re-fetched: 'must approve your account for a specific level of options trading') and f58. Last sentence is a direct reading of 'before you can trade options'. Sentences short."
+   "notes": "Approval rests on f46, f58. Kept, not cut as broker trivia: it changes what you do (get approved before the setup shows up), which the why says."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Own answer before key: the loss cap (f61 'maximum loss is limited to the premium', f17, f62 short has theoretically unlimited risk). Key right, no second defensible choice (a short profits on any drop, so 'smaller drop' is wrong; no expiry on a short, so 'more time' is wrong; f22 kills $1 per $1). Tell: three choices start 'It ...' (the put as subject) and the key alone starts 'Your loss ...'. Reworded the key to the same grammar; wrong notes unchanged."
+   "fixed": false,
+   "notes": "Cap on the put vs open-ended short risk (f17, f61, f62); wrong notes match f22, f23, f47. Carries the $1 million shorting line."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True per f27 ('any long option strategy') and f12; reverse per f13. Hedged as sources hedge."
+   "notes": "f12, f13, f27 support calls and puts both. 'You're long volatility too, whether you meant to be or not' reads like a person."
   },
   "q08": {
    "status": "cut",
@@ -1822,7 +1843,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer Shares (h1 'Trade SHARES', h2 A6 'Trade shares; options are only a defined-risk alternative'). The two 'Shares' choices narrow it to two, but the second one tests A5 (h4, 'no adding'), a real rule a beginner can get wrong (pyramiding), so it discriminates rather than gives away. Why grounded in h2, h3, h4, f57, f29; weeklies note matches f35 ('all or part'). No conflict with section 9. Does not answer any other question."
+   "notes": "Agrees: wrong choice is a starter piece; 'no starter piece' and one size at one price survive. Voice 4."
   },
   "q10": {
    "status": "cut",
@@ -1839,8 +1860,8 @@
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed from calc; answer shows it; every wrong choice is a real slip and clear of the answer. Fix: answer was in slot 1 (a tell), reordered to slot 3."
+   "fixed": false,
+   "notes": "40 - 1.75 = 38.25; 41.75 is the call math; 36.50 = 40 - 3.50, premium twice. Steps shown."
   },
   "q12": {
    "status": "cut",
@@ -1869,20 +1890,20 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "fixed": true,
+   "notes": "Math right: (56-50-2.50) x 100 x 2 = 700; 1,200 value, 1,700 adds premium, 7,000 decimal. But holding in-the-money calls through expiry means exercise (q23 teaches exactly that), so 'what did you make' only holds if you sell. Stem now sells before the close, tying it to q23."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Roles, numbers, format and label checked against the question."
+   "notes": "750 / (2.50 x 100) = 3. Premium is the stop (B25 via h3); the 'out if halved' note states that plainly without inventing a reason."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at target rank after sorting; each wrong choice matches a real slip on this math and is clearly wrong; no new tell."
+   "notes": "(40 - 2.50) x 100 = 3,750; 4,000 forgets premium; 37.50 per share; 3,500 premium twice. f19, f20, f2."
   },
   "q17": {
    "status": "cut",
@@ -1900,62 +1921,61 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False per f6 ('unlikely ... during most of the option's life'); f7 for percentage gains. No unsupported line left."
+   "notes": "f6, f7. Plain claim, no bolted-on clause."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Find label 'Plan B's worst case' announces Plan B is the answer to 'which plan'; the calc is the call's premium paid"
+   "fixed": false,
+   "notes": "Writer's stop move 47 -> 48.50 is right: 47 was a 6% stop, past our 5% max; 48.50 is 3% and (50-48.50) x 100 = 150 matches the new choice and visual. f3, f45, f65, f66 support; 'a tight stop never licenses a monster position' is his own line."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Result slot would print $160 beside 'Result per contract' for what is a loss; the calc is premium x 100, so name that"
+   "fixed": false,
+   "notes": "160 = 1.60 x 100; 680 = (8.40 - 1.60) x 100; 300 = 100 shares 47 -> 44. Target or review date rests on f15, stated as advice, not as one of his rules."
   },
   "q21": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "f47, f56, f4. Lower-probability line is Fidelity's (f56), stated as 'tends to'."
   },
   "q22": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "f8, f5, f57, f10. Not leading; the three wrong views are real shares-trade mistakes."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'Cash to exercise' presupposes exercise, the answer; make it conditional"
+   "fixed": false,
+   "notes": "2 x 100 x 100 = 20,000 vs 3,000 cash (f48, f49, f14); 800 = 4 x 100 x 2 as the cash-settle mistake (f51). Practical fix: sell before the close, check broker exercise rules (f67)."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer short 100 shares (f24, f52, f48). Long-shares distractor no longer mirrors the key. Deeper's unlimited short risk is f62. Distinct from q23 (cash for a call vs a short from a put)."
+   "notes": "Put exercise sells shares you don't own, leaving a short (f48, f52); short risk uncapped (f62); $1 million shorting line present; 300 = (30-27) x 100."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer sell (f9: when a quick turnaround looks unlikely, selling while time value remains can recoup some or all). No 'hold and wait' choice, so OIC's open judgment is not keyed (conflicts note). Exercise wrong per f60/f36; buy more also breaks h4 (A5, no adding); weekly note matches f35. Section 9 agrees: C33 time stop (under 1R after 10 trading days is sold) supports selling a month-old loser; B25 (premium is the stop) sets the max risk and does not require holding to zero. Its why mentions time decay speeding up, which is q27's topic, but only in the explanation, not the question text."
+   "notes": "Agrees: buying more of a stalled option is adding to a loser. Voice 4."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Roles, numbers, format and label checked against the question."
+   "fixed": true,
+   "notes": "Truth: the why ended 'Size off the shares you'd hold, not the dollars you'd spend', a sizing rule he never gave, and it clashes with B25 and q15 (the premium is the stop, so size from the loss you accept). Kept as the mechanics question (calls on the same 100 shares); why now says the $500 premium is the stop and has to be a loss you'd accept. 20% at 54 and all at 50 are f33/f34."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False per f10 (OIC, re-fetched: 'loses time value premium with every passing day ... tends to accelerate'), f57 backs. Hedged 'tends to', so the False isn't given away by an absolute. No other question asks decay directly; others' notes mention it as reinforcement."
+   "notes": "f10, f57, f26. Plain false claim; 'you're paying for every day it does' is a good close."
   }
  }
 }

@@ -154,6 +154,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our review notes (2026-11-12)",
+   "url": "repo:docs/study/REVIEW_LEARNINGS.md",
+   "accessed": "2026-11-17"
   }
  ],
  "facts": [
@@ -558,6 +566,12 @@
    "source": "s18",
    "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
    "claim": "We trade only stocks priced $10 or more that trade at least $20 million a day."
+  },
+  {
+   "id": "f68",
+   "source": "h1",
+   "quote": "I don't really trade small caps though. Very rarely under $1B but sometimes.",
+   "claim": "We rarely trade companies under $1 billion in market cap. A small-cap is the exception."
   }
  ],
  "walkthroughs": [
@@ -565,10 +579,10 @@
    "key": "w1",
    "title": "Price times shares",
    "steps": [
-    "Market cap is the share price times every share outstanding. It's the market's price tag on the whole company.",
-    "Price alone tells you nothing about size. Two stocks at $50 can be a $250 million company and a $250 billion one.",
-    "Size buckets are a convention, and the lines vary by source.",
-    "FINRA's usual lines: mega-cap $200 billion and up, large from $10 billion, mid from $2 billion, small from $250 million."
+    "Market cap is the share price times every share outstanding. It's the price tag on the whole company.",
+    "Price alone says nothing about size. Two $50 stocks can be a $250 million company and a $250 billion one.",
+    "The difference is the share count: 5 million shares against 5 billion.",
+    "Size buckets vary by source. FINRA's large-cap starts at $10 billion. We very rarely trade anything under $1 billion."
    ],
    "facts": [
     "f1",
@@ -578,38 +592,36 @@
     "f4",
     "f5",
     "f6",
-    "f12"
+    "f12",
+    "f68"
    ]
   },
   {
    "key": "w2",
    "title": "Outstanding versus float",
    "steps": [
-    "Shares outstanding count every holder: the public, the big funds, the officers and the employees.",
-    "The float is the part the public can actually trade. Insiders' holdings and restricted stock are left out.",
-    "Locked-up IPO shares join the float only when the lockup ends. Most lockups run 180 days.",
-    "Many index providers, Russell included, weight stocks by float-adjusted market cap: price times the shares available to the public."
+    "Shares outstanding counts every holder: the public, the big funds, the officers, the employees.",
+    "The float is what the public can actually trade. Take out insiders' holdings and restricted stock, and that's it.",
+    "Restricted shares can unlock. Most IPO lockups run 180 days, and when one ends, the float grows."
    ],
    "facts": [
     "f63",
     "f26",
     "f43",
-    "f41",
-    "f32",
-    "f40",
     "f44",
+    "f32",
     "f48",
-    "f61"
+    "f41"
    ]
   },
   {
    "key": "w3",
    "title": "Why a small float moves fast",
    "steps": [
-    "Fewer shares to go around means the same buying can push the price further. Volatility tends to run opposite to float.",
-    "It cuts both ways. Spreads tend to run wider, and getting out can be hard.",
-    "Pump-and-dump fraudsters use this. They quietly buy up a big part of the float, which makes the price easier to push.",
-    "Check the float before you size a name. A thin float can trap you on the way out."
+    "Fewer shares to go around means the same buying pushes price further. Small float, bigger swings.",
+    "It cuts both ways. Spreads run wider, and getting out can be hard right when you need to.",
+    "Pump-and-dump crews know this. They quietly buy up a big part of the float, then push the price.",
+    "So check the float before you size. A thin float can trap you on the way out."
    ],
    "facts": [
     "f27",
@@ -630,7 +642,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "market cap",
-   "q": "What is a stock's market cap?",
+   "q": "You pull up a new name in the Screener and Market Cap reads $40 billion. What is that number measuring?",
    "choices": [
     "Price times all shares outstanding",
     "Price times the shares traded today",
@@ -638,22 +650,23 @@
     "The company's total yearly sales"
    ],
    "answer": "Price times all shares outstanding",
-   "why": "Price times all shares outstanding. Shares outstanding means every share investors hold, including the restricted shares officers and insiders own. FINRA's example: 5 million shares at $20 is a $100 million market cap. Think of it as the market's price tag on the whole company. It is not sales, and not the day's trading. Free-float cap, which counts only freely tradable shares, is a separate measure.",
-   "lesson_line": "Market cap is price times every share outstanding, not just the ones trading.",
+   "why": "Price times every share outstanding. It's the market's price tag on the whole company. Shares outstanding means every share investors hold, the restricted shares insiders own included. Say a company has 5 million shares at $20. That's a $100 million company. So $40 billion tells you how big the business is, not how much traded today. I check it first on any new name, because size tells you a lot about how the stock will move. Smaller companies tend to swing harder.",
+   "lesson_line": "Market cap is price times every share outstanding. It sizes the whole company, not today's trading.",
    "facts": [
     "f1",
     "f2",
     "f3",
     "f59",
     "f61",
-    "f12"
+    "f12",
+    "f60"
    ],
    "wrong": {
-    "Price times the shares traded today": "That counts one day's trading, not the company. Market cap uses every share outstanding.",
-    "Price times the float shares only": "That's free-float market cap, a version many indexes use for weighting. Plain market cap counts every outstanding share.",
+    "Price times the shares traded today": "That's today's dollar volume. It tells you how much traded, not how big the company is.",
+    "Price times the float shares only": "That's float-adjusted cap, what a lot of indexes weight by. Plain market cap counts every share, insiders' too.",
     "The company's total yearly sales": "Sales come from the business. Market cap comes from the stock price and the share count."
    },
-   "simple": "Price times all shares outstanding, since it counts each share, even the ones that insiders hold.",
+   "simple": "Price times every share outstanding, so it sizes up the whole company, insider shares included.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -661,7 +674,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "review2"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
@@ -669,7 +682,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "float",
-   "q": "A trader looks up a stock's float. What does the float count?",
+   "q": "A stock you like just gapped up on earnings. Before you size it, you check the float. What does the float count?",
    "choices": [
     "Shares the public can trade",
     "Every share the company issued",
@@ -677,8 +690,8 @@
     "Shares traded in one day"
    ],
    "answer": "Shares the public can trade",
-   "why": "Shares the public can trade. The float is the supply we can actually buy and sell. Shares outstanding is the bigger count, because it also includes insider and restricted shares that cannot trade yet. Nasdaq defines the float as outstanding shares available to the public, leaving out insiders and restricted stock. We check it because a small float means thin supply, and the price can swing fast both ways. Find it in the UCT Screener as Float (Shares), or work it out: shares outstanding minus insider and restricted shares.",
-   "lesson_line": "The float is the supply we can actually trade. A thin float means fast moves, both ways.",
+   "why": "The shares the public can actually trade. That's the real supply you're buying into. Shares outstanding is the bigger number, because it also holds insiders' shares and restricted stock that can't trade yet. Take those out and what's left is the float. I want to know it before I size, because a thin float can swing hard in both directions. In the UCT Screener you'll find it as Float (Shares), right alongside Shares Outstanding.",
+   "lesson_line": "The float is the supply you can actually trade. Thin float, fast moves, both ways.",
    "facts": [
     "f26",
     "f20",
@@ -689,17 +702,17 @@
     "f45"
    ],
    "wrong": {
-    "Every share the company issued": "That is close to shares outstanding. It also counts insider and restricted shares the public cannot trade.",
-    "Shares sold short right now": "That is short interest. It is often measured against the float, but it is not the float.",
-    "Shares traded in one day": "That is volume. Buying and selling move shares between owners and do not change the float."
+    "Every share the company issued": "That's closer to shares outstanding. It still counts insider and restricted shares nobody can trade yet.",
+    "Shares sold short right now": "That's short interest. We measure it against the float, but it isn't the float.",
+    "Shares traded in one day": "That's volume. Buying and selling just moves shares between owners. The float doesn't change."
    },
-   "simple": "The shares the public can freely trade. Insider and restricted shares are left out, so this is the real supply.",
+   "simple": "The shares the public can freely trade. Insider and locked shares are left out, so it's the real supply.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "review4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
@@ -737,7 +750,7 @@
    "skill": "basics.float_cap",
    "rung": 2,
    "format": "mcq",
-   "q": "On FINRA's usual ranges, what size is a company with a $5 billion market cap?",
+   "q": "A name on your list shows a $5 billion market cap. Using FINRA's usual ranges, what size is it?",
    "choices": [
     "Mid-cap",
     "Large-cap",
@@ -745,19 +758,20 @@
     "Mega-cap"
    ],
    "answer": "Mid-cap",
-   "why": "Mid-cap. On FINRA's usual ranges, mid-cap is a market value between $2 billion and $10 billion. $5 billion sits well inside it. Large-cap runs from $10 billion to $200 billion, and small-cap from $250 million to $2 billion. FINRA says the lines between the groups can vary, so other sources may draw them a little differently.",
-   "lesson_line": "Mega $200 billion plus, large from $10 billion, mid from $2 billion, small from $250 million.",
+   "why": "Mid-cap. FINRA's usual mid-cap range runs from $2 billion to $10 billion, and $5 billion sits right in the middle. Large-cap starts at $10 billion. Small-cap runs from $250 million to $2 billion. The lines move a little depending on who you ask, so don't get hung up on the edges. What I care about is the rough size. Very little of what we trade is under $1 billion, and a $5 billion name is well inside the size we like.",
+   "lesson_line": "Small up to $2 billion, mid up to $10 billion, large up to $200 billion. Know roughly where a name sits.",
    "facts": [
     "f4",
     "f5",
-    "f6"
+    "f6",
+    "f68"
    ],
    "wrong": {
-    "Large-cap": "Large-cap starts at $10 billion on FINRA's ranges.",
-    "Small-cap": "Small-cap tops out at $2 billion.",
-    "Mega-cap": "Mega-cap means $200 billion or more."
+    "Large-cap": "Not yet. Large-cap starts at $10 billion on FINRA's ranges, so $5 billion is only halfway there.",
+    "Small-cap": "Too small. Small-cap tops out at $2 billion.",
+    "Mega-cap": "Way off. Mega-cap means $200 billion or more."
    },
-   "simple": "Mid-cap, because FINRA's usual mid-cap range runs from $2 billion to $10 billion.",
+   "simple": "Mid-cap, because $5 billion sits inside FINRA's usual mid-cap range of $2 billion to $10 billion.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -766,17 +780,17 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q05",
    "skill": "basics.float_cap",
    "rung": 3,
    "format": "tf",
-   "q": "A higher share price means a bigger company.",
+   "q": "You're comparing two names. One trades at $500 a share, the other at $50. So the $500 stock is the bigger company.",
    "answer": "False",
-   "why": "False. Market cap is price times shares outstanding, so price alone cannot show size. FINRA's example: two stocks both trade at $50. One has 5 million shares: $50 x 5 million = $250 million, a small-cap. The other has 5 billion shares: $50 x 5 billion = $250 billion, a mega-cap. Same price, a thousand times the size. Always check the share count too.",
-   "lesson_line": "Never judge size by the share price. Multiply by the shares outstanding.",
+   "why": "False. Price on its own tells you nothing about size. Size is price times shares outstanding. FINRA's example makes it obvious. Two stocks both trade at $50. One has 5 million shares, so it's a $250 million company, a small-cap. The other has 5 billion shares, a $250 billion company. Same price, a thousand times the size. So with your $500 and $50 names you can't tell until you check the share count. Or skip the math and read Market Cap in the Screener.",
+   "lesson_line": "Never judge size by the share price. Check the market cap.",
    "facts": [
     "f7",
     "f8",
@@ -785,13 +799,13 @@
     "f6",
     "f1"
    ],
-   "simple": "False, because size is price times shares, so a high price on few shares can still be a small company.",
+   "simple": "False, because size is price times shares. A high price on few shares can still be a small company.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "review1"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q06",
@@ -832,10 +846,10 @@
    "skill": "basics.float_cap",
    "rung": 3,
    "format": "tf",
-   "q": "A stock's float is usually smaller than its shares outstanding.",
+   "q": "Pull up most stocks in the Screener and the float reads smaller than the shares outstanding.",
    "answer": "True",
-   "why": "True. The float leaves out shares insiders hold and restricted stock, so it is usually smaller than the full share count.",
-   "lesson_line": "The float leaves out insiders' shares and anything that can't trade yet.",
+   "why": "True. The float leaves out what insiders hold and anything restricted, so on most names it comes in under the full share count. The gap between the two numbers is what insiders and locked-up holders own. A big gap means a lot of the company can't trade yet. So the supply you're dealing with is thinner than the share count makes it look. I like to know that before I size. Both numbers sit in the Screener, Shares Outstanding and Float (Shares).",
+   "lesson_line": "Float is what's left after insiders and locked shares come out. That's the real supply.",
    "facts": [
     "f26",
     "f43",
@@ -845,20 +859,20 @@
     "f48",
     "f52"
    ],
-   "simple": "True, because the float leaves out insider and restricted shares the public cannot trade.",
+   "simple": "True, because the float leaves out insider and restricted shares that the public can't trade.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
    "skill": "basics.float_cap",
    "rung": 4,
    "format": "mcq",
-   "q": "A stock trades at $30 with 50 million shares outstanding. What is its market cap?",
+   "q": "TMXV trades at $30 with 50 million shares outstanding. What's the market cap?",
    "answer": "$1.5 billion",
    "calc": {
     "fn": "arith",
@@ -872,13 +886,14 @@
    },
    "prefix": "$",
    "suffix": " billion",
-   "why": "$1.5 billion. Market cap is the share price times the shares outstanding: $30 times 50 million is 1,500 million. A billion is 1,000 million, so that reads $1.5 billion. FINRA's own example works the same way: 5 million shares at $20 is a $100 million market cap.",
-   "lesson_line": "Price times shares outstanding. Past 1,000 million, say it in billions.",
+   "why": "$1.5 billion. Market cap is price times shares outstanding. $30 times 50 million shares is 1,500 million dollars. A thousand million is a billion, so call it $1.5 billion. Say it in billions, the way you'd say it at the desk. That also tells you where it sits for us. Very little of what we trade is under $1 billion, and TMXV clears that line.",
+   "lesson_line": "Price times shares outstanding. Past a thousand million, say it in billions.",
    "facts": [
     "f1",
-    "f3"
+    "f3",
+    "f68"
    ],
-   "simple": "$1.5 billion, since market cap is the $30 price times the 50 million shares.",
+   "simple": "$1.5 billion, since $30 times 50 million shares is 1,500 million, and that reads as $1.5 billion.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -886,7 +901,7 @@
      "computed key (+2)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$15 billion",
     "$1.5 million",
@@ -894,9 +909,9 @@
     "$1.5 billion"
    ],
    "wrong": {
-    "$80 million": "You added the price and the shares instead of multiplying.",
-    "$15 billion": "A decimal slip: 30 times 50 is 1,500 million, and you added a zero.",
-    "$1.5 million": "A units slip: 1,500 million is $1.5 billion, not $1.5 million."
+    "$80 million": "You added $30 and 50 instead of multiplying them.",
+    "$15 billion": "One zero too many. 30 times 50 is 1,500 million, which is $1.5 billion.",
+    "$1.5 million": "Units slip. 1,500 million is $1.5 billion, not $1.5 million."
    },
    "visual": {
     "kind": "size",
@@ -926,7 +941,7 @@
    "skill": "basics.float_cap",
    "rung": 4,
    "format": "mcq",
-   "q": "80 million shares are outstanding. Insiders hold 30 million, all restricted. The rest trade freely. What is the float?",
+   "q": "QLPF has 80 million shares outstanding. Insiders hold 30 million, all restricted. The rest trade freely. What's the float?",
    "answer": "50 million",
    "calc": {
     "fn": "arith",
@@ -937,12 +952,13 @@
     }
    },
    "suffix": " million",
-   "why": "50 million shares. The float is shares outstanding minus closely held shares and restricted stock: 80 million minus 30 million. The insiders' 30 million are all restricted, so nothing is subtracted twice. The rest trade freely, so they make up the float.",
-   "lesson_line": "Float is the shares outstanding minus insiders' holdings and restricted stock.",
+   "why": "50 million shares. Start with the 80 million outstanding and take out the 30 million insiders hold and can't sell. 80 minus 30 is 50. That 50 million is what you and everyone else are actually trading. Keep an eye on the insiders' 30 million though. If those shares ever free up, the float grows and so does the supply. That's why I want both numbers in front of me. In the Screener they sit side by side, Shares Outstanding and Float (Shares).",
+   "lesson_line": "Float is shares outstanding minus what insiders hold and can't sell.",
    "facts": [
     "f43",
     "f26",
-    "f44"
+    "f44",
+    "f48"
    ],
    "simple": "50 million, since you take the 30 million insider shares away from the 80 million in all.",
    "tier": "core",
@@ -953,7 +969,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "30 million",
     "110 million",
@@ -961,9 +977,9 @@
     "80 million"
    ],
    "wrong": {
-    "110 million": "You added the insider shares to the shares outstanding.",
-    "30 million": "You gave the insiders' shares, which are the part left out of the float.",
-    "80 million": "You gave all shares outstanding and never took out the insiders' shares."
+    "110 million": "You added the insider shares instead of taking them out.",
+    "30 million": "That's the insiders' piece, the part that's left out of the float.",
+    "80 million": "That's every share outstanding. You never took out the insiders' 30 million."
    },
    "visual": {
     "kind": "size",
@@ -1044,7 +1060,7 @@
    "skill": "basics.float_cap",
    "rung": 5,
    "format": "mcq",
-   "q": "A $20 stock has 100 million shares outstanding and 60 million in the float. What is its float-adjusted market cap?",
+   "q": "BRWQ is a $20 stock with 100 million shares outstanding and a 60 million share float. What's its float-adjusted market cap?",
    "answer": "$1.2 billion",
    "calc": {
     "fn": "arith",
@@ -1058,14 +1074,15 @@
    },
    "prefix": "$",
    "suffix": " billion",
-   "why": "$1.2 billion. Float-adjusted market cap is the price times the shares available to the public, the float: $20 times 60 million is 1,200 million. A billion is 1,000 million, so that reads $1.2 billion. Plain market cap would use all 100 million shares outstanding instead. Many index providers, Russell included, weight stocks by the float-adjusted number.",
+   "why": "$1.2 billion. Float-adjusted cap only counts the shares the public can trade. $20 times the 60 million float shares is $1.2 billion. Plain market cap uses all 100 million shares, so it reads $2 billion. The $800 million difference is the insiders' stake, the part nobody can buy. Why you'd care: a lot of indexes, the Russell included, weight a stock by the float-adjusted number. So index money follows the shares that actually trade.",
    "lesson_line": "Market cap counts every share. Float-adjusted cap counts only what can trade.",
    "facts": [
     "f40",
     "f61",
-    "f38"
+    "f38",
+    "f39"
    ],
-   "simple": "$1.2 billion, because float-adjusted cap counts only the 60 million shares the public can trade, at $20 each.",
+   "simple": "$1.2 billion, because you count only the 60 million float shares, at $20 each.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1074,7 +1091,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$2 billion",
     "$800 million",
@@ -1082,9 +1099,9 @@
     "$1.2 billion"
    ],
    "wrong": {
-    "$800 million": "You used only the shares that are not in the float.",
-    "$2 billion": "You used all 100 million shares outstanding instead of the 60 million float.",
-    "$1.2 million": "A units slip: 1,200 million is $1.2 billion, not $1.2 million."
+    "$800 million": "You priced the insiders' shares, the ones outside the float.",
+    "$2 billion": "That's plain market cap, all 100 million shares at $20. Float-adjusted uses only the 60 million float.",
+    "$1.2 million": "Units slip. Right digits, but 60 million shares at $20 is $1.2 billion."
    },
    "visual": {
     "kind": "size",
@@ -1120,10 +1137,10 @@
    "skill": "basics.float_cap",
    "rung": 5,
    "format": "tf",
-   "q": "When a company sells new shares to raise cash, its shares outstanding go up.",
+   "q": "Your stock announces an offering, selling new shares to raise cash. Once it closes, its shares outstanding go up.",
    "answer": "True",
-   "why": "True. When a company issues new shares to raise money, shares outstanding go up. Fidelity calls a public company's sale of new shares a follow-on offering, and says it dilutes existing holders. The new shares usually add to the float too. A buyback works the other way and lowers the count.",
-   "lesson_line": "Offerings add shares and supply. Watch the share count, not just the price.",
+   "why": "True. New shares get added to the count, and most of them add to the float too. That's dilution. Your slice of the company just got a little smaller, and there's more stock out there for sale. So when one of my names announces an offering, I look at how big it is next to the current float. A buyback works the other way. It takes shares off the count.",
+   "lesson_line": "Offerings add shares and supply. Buybacks take them away. Watch the count, not just the price.",
    "facts": [
     "f54",
     "f66",
@@ -1141,15 +1158,15 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q13",
    "skill": "basics.float_cap",
    "rung": 6,
    "format": "scenario",
-   "story": "Four stocks report strong earnings. Market caps: HJTK $40 billion, QZLN $1.5 billion, ZWMB $900 billion, VXRP $6 billion.",
-   "q": "Which is most likely to gap up the most in percent?",
+   "story": "Earnings night. Four names on your list all beat by about the same. HJTK is $40 billion, QZLN $1.5 billion, ZWMB $900 billion and VXRP $6 billion.",
+   "q": "Which one is most likely to gap up the most, in percent?",
    "choices": [
     "HJTK",
     "QZLN",
@@ -1157,23 +1174,24 @@
     "VXRP"
    ],
    "answer": "QZLN",
-   "why": "QZLN, most likely. At $1.5 billion it is the smallest of the four, a small-cap on FINRA's ranges. VXRP at $6 billion is a mid-cap, HJTK at $40 billion a large-cap and ZWMB at $900 billion a mega-cap. FINRA says large caps tend to swing less than mid caps, and mid caps less than small caps. Fidelity agrees that smaller companies may be more volatile. Size is only a rough guide. The float matters too: Nasdaq ties a stock's volatility to its float. Market cap is a column in the UCT Screener, and the float sits next to it as Float (Shares).",
-   "lesson_line": "Same earnings gap, smaller company, usually a bigger move. Then check the float.",
+   "why": "QZLN, most likely. At $1.5 billion it's the smallest of the four, a small-cap on FINRA's ranges. Smaller companies tend to swing more. Large caps tend to move less than mid caps, and mid caps less than small caps. But size only tilts the odds. The beat itself, and how the market takes it, still decides the night. Then check the float, because a thin float swings harder. Market Cap and Float (Shares) both sit in our Screener. And to be honest, I don't trade many small caps. Under $1 billion is rare for me, though it happens. QZLN clears that line, but it's on the small end of what I'd look at.",
+   "lesson_line": "Smaller company, bigger percent move, more often than not. Then check the float.",
    "facts": [
     "f10",
     "f60",
     "f11",
     "f6",
-    "f27"
+    "f27",
+    "f68"
    ],
    "wrong": {
-    "VXRP": "At $6 billion it is a mid-cap, and mid caps tend to swing less than small caps.",
-    "HJTK": "At $40 billion it is a large-cap. Large caps tend to be steadier than mid caps and small caps.",
-    "ZWMB": "At $900 billion it is the biggest of the four. Fidelity says larger companies often have less volatile stocks."
+    "VXRP": "At $6 billion it's a mid-cap. Mid caps tend to swing less than small caps.",
+    "HJTK": "At $40 billion it's a large-cap. Those tend to move steadier than the smaller names.",
+    "ZWMB": "At $900 billion it's the biggest of the four. Bigger companies tend to have steadier stocks."
    },
-   "simple": "QZLN, because the smallest company tends to swing the most, though that is a tendency and not a promise.",
+   "simple": "QZLN, because the smallest company tends to swing the most. That's the odds, not a promise.",
    "deeper": {
-    "counter": "The tendency can fail for any one company. FINRA says these generalizations are no guarantee that any particular small-cap company will or won't thrive. Read size as odds, not a forecast. Then check the float, because Nasdaq ties a stock's volatility to its float. A $1.5 billion company with a big float can move less than a $6 billion one with a tiny float."
+    "counter": "The odds can fail for any one name. FINRA says size is no guarantee that any particular small-cap will or won't thrive. And a $1.5 billion company with a big float can move less than a $6 billion one with a tiny float. Read size as odds, then check the float."
    },
    "tier": "extended",
    "risk": {
@@ -1182,7 +1200,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "review4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q14",
@@ -1235,16 +1253,16 @@
    "skill": "basics.float_cap",
    "rung": 7,
    "format": "scenario",
-   "story": "Two drug stocks get the same kind of good news before the open. Stock A has a 4 million share float. Stock B's float is 400 million shares.",
-   "q": "Which is more likely to make the bigger percent move?",
+   "story": "Same news, two names. Before the open, LQVX and DRNP both get the same kind of good drug news. LQVX has a 4 million share float. DRNP has 400 million.",
+   "q": "Which name moves more in percent?",
    "choices": [
-    "Stock A, the small float",
-    "Stock B, the big float",
+    "LQVX, the small float",
+    "DRNP, the big float",
     "Neither, same news, same move",
     "Can't tell without the price"
    ],
-   "answer": "Stock A, the small float",
-   "why": "Stock A, most likely. Nasdaq says a stock's volatility is inversely correlated to its float. With fewer shares available, it can be harder to find a buyer or seller, so the price tends to move further. In a big float, large orders move the price less. This is a tendency, not a promise for any one day.",
+   "answer": "LQVX, the small float",
+   "why": "LQVX. With only 4 million shares floating, there's way less stock to go around. Buyers have a harder time finding sellers, so price has to move further to get them filled. DRNP has a hundred times the supply. Big orders get soaked up and the price moves less. It cuts both ways though. Thin supply that lifts a stock fast can drop it just as fast, and spreads run wider. So check the float before you size, and know where you're getting out before you're in.",
    "lesson_line": "Small float, big moves, both ways. Check the float before you size.",
    "facts": [
     "f27",
@@ -1254,13 +1272,13 @@
     "f47"
    ],
    "wrong": {
-    "Stock B, the big float": "A big float soaks up buying. Large orders move it less.",
-    "Neither, same news, same move": "Same news, very different share supply. The smaller float usually swings harder.",
-    "Can't tell without the price": "You don't need it to lean one way. Volatility tends to run opposite to float, and A's float is far smaller."
+    "Neither, same news, same move": "Same news, very different supply. The thin float tends to swing harder.",
+    "Can't tell without the price": "You don't need it to lean one way. The float alone tilts the odds toward LQVX.",
+    "DRNP, the big float": "Big float, lots of supply. Large orders get absorbed and the price moves less."
    },
-   "simple": "Stock A, because a small float tends to swing harder, with fewer shares to go around.",
+   "simple": "LQVX, because a small float tends to swing harder, with fewer shares to go around.",
    "deeper": {
-    "trap": "The bigger move cuts both ways. Low-float stocks tend to have wider spreads and bigger swings, and getting in and out can be hard. The same thin supply that lifts the price fast can drop it fast. The bigger move you hoped for can be a bigger loss."
+    "trap": "The bigger move cuts both ways. Low-float stocks tend to have wider spreads and bigger swings, and getting in and out can be hard. The same thin supply that lifts the price fast can drop it fast. The move you hoped for can turn into a bigger loss."
    },
    "tier": "extended",
    "risk": {
@@ -1269,15 +1287,15 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q16",
    "skill": "basics.float_cap",
    "rung": 7,
    "format": "scenario",
-   "story": "A stock went public about six months ago. Its insiders signed a 180-day lockup, and it ends next week.",
-   "q": "What should you watch for as that date gets close?",
+   "story": "ZNVB went public about six months ago, and you own some. The insiders' 180-day lockup ends next week.",
+   "q": "What are you watching for as that date gets close?",
    "choices": [
     "More shares free to sell",
     "Fewer shares in the float",
@@ -1285,7 +1303,7 @@
     "Insiders forced to sell"
    ],
    "answer": "More shares free to sell",
-   "why": "More shares free to sell. A lockup bars insiders, including employees and large shareholders, from selling for a set time after an IPO. When it ends, they can start selling, and those shares can join the float. Investor.gov notes the price may drop ahead of the date, because locked shares may be sold. May, not will: the end of a lockup only allows selling.",
+   "why": "More shares free to sell. For six months the insiders, the staff and the big early holders couldn't sell. Next week they can. Those shares can join the float, and some of that supply may hit the market. The stock can even slip ahead of the date, because everybody knows it's coming. It's not a sure thing though. The end of a lockup only allows selling. Nobody has to sell. So mark the date on any recent IPO you own, and watch how it trades into it.",
    "lesson_line": "Mark lockup dates on new issues. Fresh supply can weigh on the stock.",
    "facts": [
     "f31",
@@ -1294,13 +1312,13 @@
     "f48"
    ],
    "wrong": {
-    "Fewer shares in the float": "It's the other way. Locked-up shares join the float once they're free to sell.",
-    "A guaranteed drop in price": "Nothing guarantees it. The SEC says the price may drop, not that it will.",
-    "Insiders forced to sell": "The lockup only stops selling for a set time. After it, insiders may sell or keep their shares."
+    "Fewer shares in the float": "Backwards. Locked-up shares join the float once they're free to sell.",
+    "A guaranteed drop in price": "Nothing's guaranteed. The price may drop, but insiders don't have to sell.",
+    "Insiders forced to sell": "The lockup only stopped them selling. Once it ends they can sell or hold."
    },
    "simple": "More shares free to sell, because when the lockup ends insiders may start selling and those shares can join the float.",
    "deeper": {
-    "trap": "The date is public, so watch the days before it, not just the day. Investor.gov says the price may drop in anticipation that locked-up shares will be sold. And the end of a lockup only allows selling. Whether insiders sell, and how much, is their choice."
+    "trap": "The date is public, so watch the days before it, not just the day. Investor.gov says the price may drop in anticipation that locked-up shares will be sold. And the end of a lockup only allows selling. Whether insiders sell, and how much, is up to them."
    },
    "tier": "extended",
    "risk": {
@@ -1309,7 +1327,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
@@ -1394,16 +1412,16 @@
    "rung": 8,
    "format": "scenario",
    "story": "NRTQ trades at $0.40 and announces a 1-for-25 reverse split. After it takes effect, the stock trades around $10.",
-   "q": "What has really changed?",
+   "q": "The quote now says $10. What has actually changed?",
    "choices": [
     "Fewer shares, same company value",
     "The company is worth 25 times more",
     "The float grew 25 times larger",
-    "It is a safer stock to own now"
+    "It's a safer stock to own now"
    ],
    "answer": "Fewer shares, same company value",
-   "why": "Fewer shares, same company value. In a 1-for-25 reverse split you get one new share for every 25 old ones. So 25 shares at $0.40 become one share near $10. FINRA's example: 5,000 shares at 10 cents, worth $500, become 25 shares at $20. FINRA says a split or reverse split does nothing to change the value of a company. The float shrinks with the share count. Reverse splits tend to go hand in hand with low-priced, high-risk stocks.",
-   "lesson_line": "A reverse split shrinks the share count and the float. It changes nothing about the business.",
+   "why": "Fewer shares, same company. Every 25 old shares became one new one. 25 shares at $0.40 is $10, and that's your one new share at $10. The price went up because the share count went down. The business didn't get one bit better. The float shrank right along with it. So don't let the new quote fool you. It clears $10 on paper now, but it's the same business that traded at $0.40. Reverse splits tend to show up in low-priced, high-risk stocks. I'd pass.",
+   "lesson_line": "A reverse split shrinks the share count and the float. The business stays the same.",
    "facts": [
     "f17",
     "f18",
@@ -1413,9 +1431,9 @@
     "f56"
    ],
    "wrong": {
-    "The company is worth 25 times more": "The price rose because the share count fell. The company's value didn't change.",
-    "The float grew 25 times larger": "Backwards. A reverse split shrinks the share count, and the float with it.",
-    "It is a safer stock to own now": "A higher price is cosmetic. Reverse splits tend to go with high-risk stocks."
+    "The company is worth 25 times more": "The price rose because the share count fell. The company's worth the same.",
+    "The float grew 25 times larger": "Backwards. Fewer shares means a smaller float.",
+    "It's a safer stock to own now": "A higher price is cosmetic. Reverse splits tend to show up in low-priced, high-risk stocks."
    },
    "simple": "Fewer shares, same company value: 25 old shares become 1 new one, and the price rises to match.",
    "deeper": {
@@ -1426,7 +1444,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "review2"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
@@ -1436,13 +1454,13 @@
    "story": "A $3 stock with a 2 million share float is up 180% before the open. A group chat is pushing it hard. The spread is wide.",
    "q": "What's the biggest risk if you buy here?",
    "choices": [
-    "A crash that's hard to exit",
-    "Missing more of the move",
+    "A crash you can't get out of",
+    "Missing the rest of the move",
     "Paying a few cents extra",
-    "Being shaken out early"
+    "Getting shaken out too early"
    ],
-   "answer": "A crash that's hard to exit",
-   "why": "A crash that's hard to exit. FINRA describes the pump and dump: fraudsters buy up much of the public float, which makes the price easier to push. A group chat can be the lure, and the scheme counts on the fear of missing out. When the promoters sell, the crash can come in seconds. Selling without big losses can then be hard. Our rule skips it anyway. We trade only stocks at $10 or more that trade at least $20 million a day.",
+   "answer": "A crash you can't get out of",
+   "why": "A crash you can't get out of. This is how a pump and dump works. Promoters quietly buy up a big part of a tiny float, so the price is easy to push. Then a group chat brings in the buyers. When the promoters sell, it can crash in seconds, and with a wide spread there's hardly anyone to sell to. And honestly, I'd never be in it. We only trade stocks at $10 or more that trade at least $20 million a day. A $3 stock fails that before you look at anything else.",
    "lesson_line": "On a tiny float a dump can crash it in seconds. Under $10, it's not on our list.",
    "facts": [
     "f20",
@@ -1455,13 +1473,13 @@
     "f67"
    ],
    "wrong": {
-    "Missing more of the move": "That's the fear of missing out these schemes count on. If you never buy, a dump can't trap you.",
-    "Paying a few cents extra": "The wide spread does cost you. The bigger danger is a fast crash that's hard to sell into.",
-    "Being shaken out early": "That's the smaller worry. FINRA warns a dump can crash the price in seconds, and selling then can be hard."
+    "Paying a few cents extra": "The wide spread costs you, sure. A fast crash with no buyers costs a lot more.",
+    "Missing the rest of the move": "That's the fear of missing out these schemes run on. If you never buy, the dump can't trap you.",
+    "Getting shaken out too early": "That's the least of it. The real danger is a crash you can't sell into."
    },
-   "simple": "A crash that's hard to exit, because when promoters dump a tiny float the price can fall in seconds.",
+   "simple": "A crash you can't get out of, because when promoters dump a tiny float the price can fall in seconds.",
    "deeper": {
-    "trap": "The move already made looks like proof. FINRA says these schemes rely on the fear of missing out. A text, an ad or a group chat can pull people in. The promoters buy first, push the price, then sell. On a tiny float with a wide spread, getting out can be hard just when you need to."
+    "trap": "The move already made looks like proof. FINRA says these schemes rely on the fear of missing out. A text, an ad or a group chat pulls people in. The promoters buy first, push the price, then sell. On a tiny float with a wide spread, getting out is hard right when you need to."
    },
    "tier": "expert",
    "risk": {
@@ -1470,7 +1488,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
@@ -1529,7 +1547,7 @@
    "skill": "basics.float_cap",
    "rung": 5,
    "format": "mcq",
-   "q": "A stock has a 12 million share float and 3 million shares sold short. Short interest is what percent of the float?",
+   "q": "KZFL has a 12 million share float, and 3 million shares are sold short. What's short interest as a percent of the float?",
    "choices": [
     "25%",
     "75%",
@@ -1545,16 +1563,16 @@
      "float_shares": 12
     }
    },
-   "why": "25%. Short interest is measured against the float, the shares available for trading. Divide the shares sold short by the float: 3 million divided by 12 million is 25%. It tells you how much of the tradable supply is already sold short. The float is the right base because those are the shares that trade.",
-   "lesson_line": "Short interest is shares sold short divided by the float, not by all shares outstanding.",
+   "why": "25%. Divide the shares sold short by the float. 3 million over 12 million is 0.25, which is 25%. So a quarter of the shares that actually trade are already sold short. We measure it against the float, not shares outstanding, because the float is what trades. You don't have to do it by hand either. The UCT Screener shows it as Short % of Float.",
+   "lesson_line": "Short interest is shares sold short over the float, not over every share outstanding.",
    "facts": [
     "f64",
     "f26"
    ],
    "wrong": {
-    "75%": "You found the part of the float that is not sold short, not the part that is.",
-    "400%": "You divided the float by the shares sold short, 12 over 3, instead of the other way round.",
-    "3%": "You read 3 million as 3 percent. Divide the short shares by the float shares to get the percent."
+    "75%": "That's the part of the float that isn't sold short.",
+    "400%": "Flipped. You divided the float by the short shares, 12 over 3.",
+    "3%": "You read 3 million as 3 percent. Divide the short shares by the float."
    },
    "simple": "25%, since 3 million shorted shares out of a 12 million float is one quarter.",
    "tier": "extended",
@@ -1564,7 +1582,7 @@
      "computed key (+2)"
     ]
    },
-   "batch": "review2"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1603,13 +1621,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Why now defines shares outstanding in plain words and shows FINRA's 5 million x $20 = $100 million (f3, re-read live on finra.org, word for word); f2 and f12 also verbatim. Every sentence under 22 words, teaches per rules 3 and 10. Answer unchanged and right."
+   "notes": "Screen-first stem, verdict first, f3 example worked, why I check size. Truth ok (f1, f2, f3, f60)."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer right, choices even, why defines float and shares outstanding, shows where to find it (UCT Screener has a Float (Shares) filter, checked in api/services/screener/filters.py) and by hand (f43), says a thin float swings both ways (f45, f27 tend wording). Facts f26 f20 f64 f51 f43 f27 f45 all exist and match. No banned phrase. One catch: the wrong note for 'Every share the company issued' says 'That is shares outstanding', but issued shares include treasury shares that are not outstanding (f28), so the note overstated. Now 'That is close to shares outstanding'."
+   "fixed": false,
+   "notes": "His change met: 'stock talk' gone, real moment (sizing an earnings gapper), where to find it (Float (Shares) is a real Screener field). Truth ok (f26, f27, f64, f51)."
   },
   "q03": {
    "status": "cut",
@@ -1619,15 +1637,15 @@
   },
   "q04": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "FINRA ranges right (f4-f6); fuzzy edges admitted; his $1B note (f68) used as judgment, not a rule."
   },
   "q05": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Why now defines market cap as price times shares outstanding, shows both multiplications ($50 x 5 million = $250 million small-cap; $50 x 5 billion = $250 billion, over FINRA's $200 billion mega-cap line f4) and the 1,000x ratio (250B / 250M). Supported by f7, f8, f9, f4, f6, f1. Answer False is right. Sentences under 22 words; simple unchanged and valid."
+   "notes": "His 'could be a better explanation' met at rewrite magnitude: concrete $500 vs $50 claim, FINRA's 5 million vs 5 billion worked out (thousand times), Screener shortcut. Answer False stays right."
   },
   "q06": {
    "status": "cut",
@@ -1639,67 +1657,67 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from f26: float excludes insiders and restricted stock. Key 37 chars, longest is 38. Grammar varies across all four choices, so no lone-form tell. Each wrong note rests on f51/f48/f52."
+   "notes": "Plain claim; why says what the gap means for supply and where both numbers sit. True is right (f26, f43)."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "shares in millions matches '50 million'; key '$1.5 billion' fills slot"
+   "notes": "30 x 50 million = 1,500 million = $1.5 billion; $80 million is the add mistake. Money said in billions (rule 9); 1,500 million appears only as the shown step."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "float question; num unit million matches key '50 million'"
+   "fixed": true,
+   "notes": "Math right (80 - 30 = 50). The line 'take them out once, not twice' is a confusing leftover with no setup in the stem (rule 5). Replaced it with why you track both numbers and where to find them."
   },
   "q10": {
    "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "cut in review2: see the resolver's notes"
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
   },
   "q11": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "price, outstanding, float all as stated; key '$1.2 billion'"
+   "notes": "His 'read in billions' met: $1.2 billion, $2 billion, $800 million, no '1,200 million' in member text. 20 x 60 million = $1.2 billion; 20 x 40 million = $800 million. Russell weighting (f40) gives the reason."
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Owner note met: smallest name now $1.5 billion, labelled a small-cap, universe-friendly. Buckets right on FINRA lines (f6, f5, f4): $1.5 billion small, $6 billion mid, $40 billion large, $900 billion mega. Made-up tickers are not the real companies (earlier checker verified against Nasdaq lists). 'Likely' and 'rough guide' wording, float follow-up and Screener lookup present, no number in why missing from the story. Catch: the story says all four already gap up, then asks which makes the biggest percent move, which reads as a second move after the gap and needs a second read (rule 5). Reworded"
+   "notes": "His note 'Not exactly but yeah kinda' was only half met: the writer added his small-cap line but the stem still pitted four beats of unknown size against each other, so 'gap the most' rode on size alone. Story now says they beat by about the same, and the why says size tilts the odds while the beat and the reaction decide the night (rule 11). 'Large caps swing less' now 'tend to' (f10 is a tendency)."
   },
   "q14": {
    "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "cut in review2: see the resolver's notes"
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key Stock A from f27 (Nasdaq, Tier 1). The changed note for 'Can't tell without the price' rests on f27 and the story's 4 million vs 400 million only. Key 24 chars, not longest."
+   "notes": "Tickers not A/B (rule 7), 400 / 4 = a hundred times the supply, both-ways risk and what to do (f45, f46, f47, f50)."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f31 + f41/f48. 'May, not will' matches f33. The new note 'may sell or keep their shares' is supported by f33's 'may be sold'. 'Guaranteed' is the lone absolute but sits on a wrong choice, so it marks a wrong answer, not the key."
+   "notes": "Owns a recent IPO, 180-day lockup (f32); may drop ahead (f33), nobody has to sell; mark the date. Good mentor close."
   },
   "q17": {
    "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "cut in review2: see the resolver's notes"
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
   },
   "q18": {
    "status": "cut",
@@ -1710,15 +1728,14 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "NRTQ is not a listed ticker (Nasdaq directories checked today). Math right: 25 shares at $0.40 = $10 = one share near $10; FINRA's 5,000 shares at 10 cents = $500 = 25 shares at $20, quote re-read word for word on finra.org (f18). f19 and f16 quotes verbatim on the live page. Teaches the step and a real sourced case (rule 10). Answer unchanged and right."
+   "fixed": true,
+   "notes": "Math right (25 x $0.40 = $10). The FINRA 5,000-share aside was textbook padding in the why; cut it (f18 is still in deeper's spirit). Choice 'It is a safer...' made plain. Added the mentor point the question sets up: it clears $10 on paper, same 40-cent business, I'd pass (judgment, f16)."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key re-derived before reading it: the fast dump that is hard to sell into (f22, f23, FINRA, re-read live 2026-11-12: 'sometimes in a matter of seconds', 'difficult ... to sell their holdings without incurring substantial losses'). f20, f21, f24, f25 also verbatim on the live page. f67 matches sizing_rule.md section 9 B23 word for word; $3 is under $10, so the why's rule line is right and nothing contradicts the rulebook. Break found: the key 'A crash you can't get out of' is the lone absolute among the choices and overreaches f23, which says selling is difficult without big losses, not impossi",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "Blunt verdict and our $10 / $20 million a day line (f67, B23) as his own; pump and dump told from FINRA facts (f20-f25). Could be his words."
   },
   "q21": {
    "status": "cut",
@@ -1736,7 +1753,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "New. 3 / 12 = 25%, calc and key agree; wrong notes are the real slips (75% = the part not shorted, 400% = 12/3 flipped, 3% = unit slip). f64 (Schwab) quote re-read live, word for word: ratio of shares sold short to the float. Practical screen number a trader reads and ties the float to a real use, replacing cut calc slots. No new fact needed. Choices all round, no tell. Short interest was already introduced in q02's wrong note and why."
+   "notes": "3 / 12 = 0.25 = 25%; 400% is the flip, 75% the complement. Where to find it (Short % of Float is a real Screener field)."
   }
  }
 }

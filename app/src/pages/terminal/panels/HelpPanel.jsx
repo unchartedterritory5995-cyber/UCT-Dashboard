@@ -12,6 +12,7 @@ import {
 } from '../grammar'
 import { SHORTCUTS } from '../../command/shortcutRegistry'
 import { boardableCodes } from '../scanBoard'
+import { STARTER_BOARDS } from '../starterBoards'
 import { ARG_KINDS } from '../args'
 import { COMMAND_LINE_KEYS } from '../CommandLine'
 import styles from '../TerminalShell.module.css'
@@ -143,6 +144,13 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
               </li>
             ))}
           </ul>
+          {/* The one-click way in (2026-11-17): the names come from the list itself. */}
+          {STARTER_BOARDS.length > 0 && (
+            <p className={styles.helpRule} data-testid="terminal-help-ready-boards">
+              No codes needed: the Boards button (<kbd>Alt</kbd>+<kbd>O</kbd>) opens a ready-made board in one
+              click: {STARTER_BOARDS.map((b) => b.name).join(', ')}.
+            </p>
+          )}
         </section>
       )}
       <p className={styles.helpSyntax}>

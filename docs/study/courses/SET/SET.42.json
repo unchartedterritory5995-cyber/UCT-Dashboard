@@ -2,7 +2,7 @@
  "unit": "SET.42",
  "track": "SET",
  "title": "4B Setup",
- "teaches": "The 4B- (Stan Weinstein) as we trade it: after a Stage 4 decline under a falling 30-week line, a stock that has seen its low for the cycle sets a higher low on drying volume, reclaims the 50-day and pauses above it with room to run, the buy is the trade through the pause high at market once price is back above the 200-day and never more than 4% past it, the trade is short term, with the first sell a judgment on day 3 or later and no adding, and a plain 4B that is still falling is much too soon to buy.",
+ "teaches": "The 4B- (Stan Weinstein) as we trade it: after a Stage 4 decline under a falling 30-week line, a stock that has seen its low for the cycle sets a higher low on drying volume, reclaims the 50-day and pauses above it with room to run, the buy is the trade through the pause high at market once price is back above the 200-day and never more than 4% past it, the trade is short term, with the first sell a judgment on day 3 or later, the full size at one price and no add in the plan, and a plain 4B that is still falling is much too soon to buy.",
  "skills": [
   {
    "id": "setup.weinstein_4b",
@@ -845,6 +845,78 @@
    "source": "h2",
    "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
    "claim": "Owner: the course teaches the 9 and 20 EMA with the 50 and 200 SMA."
+  },
+  {
+   "id": "r20",
+   "source": "hw",
+   "quote": "Stop distance: 1-3% is preferred, 3.5% is good, and up to 5% is acceptable; past 5%, we mostly wait for a tighter trigger.",
+   "claim": "Our stop distance: 1-3% is preferred, up to 5% is acceptable, and past 5% we mostly wait for a tighter trigger."
+  },
+  {
+   "id": "r22",
+   "source": "hw",
+   "quote": "Volume raises the grade; it is not a requirement, except where volume is the setup.",
+   "claim": "Volume raises the grade. It is not a requirement, except where volume is the setup."
+  },
+  {
+   "id": "r24",
+   "source": "h1",
+   "quote": "Read a chart in percents: how far a stock is off its highs and how far it is stretched above its averages.",
+   "claim": "We read a chart in percents: how far a stock is off its highs and how far it is stretched above its averages."
+  },
+  {
+   "id": "r25",
+   "source": "h1",
+   "quote": "The market reading as a guide (A10): Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
+   "claim": "The market reading is a guide: Green trades full risk, Yellow smaller and fewer, Orange only A+ setups, Red mostly cash."
+  },
+  {
+   "id": "r27",
+   "source": "h1",
+   "quote": "Setup grades set the size: A and B setups at normal size; A+ sized up; B- or lower sized down.",
+   "claim": "The grade sets the size: A and B at normal size, A+ sized up, B- or lower sized down."
+  },
+  {
+   "id": "r28",
+   "source": "h1",
+   "quote": "Every planned buy has its entry, stop and size written down before the market opens.",
+   "claim": "Every planned buy has its entry, stop and size written down before the open."
+  },
+  {
+   "id": "r30",
+   "source": "h1",
+   "quote": "We swing trade: days to a few weeks; a winner can be held longer while it keeps working.",
+   "claim": "We swing trade, days to a few weeks. A winner can be held longer while it keeps working."
+  },
+  {
+   "id": "r31",
+   "source": "hw",
+   "quote": "Every setup, long or short, enters as price trades through its trigger during the day, never at the close.",
+   "claim": "Every setup enters as price trades through its trigger during the day, never at the close."
+  },
+  {
+   "id": "r32",
+   "source": "h1",
+   "quote": "Our rule: buy the full position at one price, with one stop.",
+   "claim": "We buy the full position at one price, with one stop. No adds."
+  },
+  {
+   "id": "r40",
+   "source": "h2",
+   "quote": "If there is a gap past it you can potentially buy it intraday on a morning flush/pullback and curl back up",
+   "claim": "When the open gaps past the trigger, an intraday morning flush or pullback that curls back up is one more way in."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser.",
+   "claim": "The full size goes on at one price with one stop: no starter piece, and never an add to a loser."
+  },
+  {
+   "id": "aw2",
+   "source": "hw",
+   "quote": "Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "Adding to a working winner on strength happens, but rarely, as a feel call, never as the plan."
   }
  ],
  "walkthroughs": [
@@ -852,10 +924,10 @@
    "key": "w1",
    "title": "NUS, April 2013: the longest base",
    "steps": [
-    "NUS, 2013. A December capitulation low, then a February higher low. Three months of flat 150 and 200-day lines.",
-    "A 19-day pause sits above a turning 50-day. The low is 48% under the high; the close is above the 200-day.",
-    "2013-04-18: price trades over the pause high. Buy at market, 49.99. Stop 49.05, 1.9% away.",
-    "Failure mode: Stage 4 resumes and the stop is hit. Instead the best run was 31.9R. First sell by judgment."
+    "NUS, 2013. A December capitulation low, then a February higher low, with the 150 and 200-day flat for three months.",
+    "Then a 19-day pause above a turning 50-day. The low was 48% under its high; now it's back above the 200-day.",
+    "April 18 it trades over the pause high. Buy at market, 49.99. Stop 49.05, a tight 1.9%.",
+    "If Stage 4 resumes, the stop takes you out. Instead its best run hit 31.9R. Sell into a push, trail the rest."
    ],
    "facts": [
     "d03",
@@ -872,10 +944,10 @@
    "key": "w2",
    "title": "PENN, November 2019: the picture-book shape",
    "steps": [
-    "PENN, 2019. A long Stage 4 under a falling 30-week line. The August low is 53% under the high.",
-    "An October higher low, 7.7% above it, then a 17-day pause above a 50-day that has turned up.",
-    "2019-11-05: price trades over the pause high, above the 200-day. Buy at market, 22.12. Stop 21.49, 2.8% away.",
-    "Failure mode: the break stalls under a falling long average, stop taken. Instead the best run was 15.7R. First sell by judgment."
+    "Memorize this shape. PENN, 2019: a long Stage 4 under a falling 30-week line, then an August low.",
+    "In October, a higher low 7.7% above it. Then a 17-day pause above a 50-day that's turned up.",
+    "November 5 it trades over the pause high, above the 200-day. Buy at market, 22.12. Stop 21.49, 2.8% away.",
+    "If it stalls under a falling long average, the stop goes. Instead its best run was 15.7R. Sell into a push."
    ],
    "facts": [
     "d01",
@@ -890,10 +962,10 @@
    "key": "w3",
    "title": "F, February 2024: the planned loss",
    "steps": [
-    "F, 2024. A 37.5% decline to 9.63, a higher low 3.6% above it, 70 sessions off the low.",
-    "A 12-day pause above the 50-day. The trigger day closes near its high.",
-    "2024-02-12: price trades over the pause high. Buy at market, 12.99. Stop 12.59, 3.1% away.",
-    "Failure mode: the next session fell to 12.48 and took the stop. The stop did its job; the loss was planned."
+    "A 4B- can be right and still lose. Ford, 2024: down 37.5% to 9.63, then a higher low 3.6% above it.",
+    "It's 70 sessions off the low. A 12-day pause above the 50-day, and the trigger day closes near its high.",
+    "February 12 it trades over the pause high. Buy at market, 12.99. Stop 12.59, 3.1% away.",
+    "Next day it drops to 12.48 and the stop's gone. A planned 3.1% loss. The stop did its job."
    ],
    "facts": [
     "d06",
@@ -913,35 +985,34 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "w4b.never_plain_4b",
-   "q": "In Weinstein's stage legend, what does a plain 4B mean?",
+   "q": "Your stock keeps sliding under a falling 30-week line. Weinstein's legend calls that a plain 4B. What's it telling you?",
    "choices": [
-    "Late in the decline: not a buy yet",
-    "A bottom is in: buy on strength",
-    "Early in the decline: sell rallies",
-    "A Stage 2 breakout on volume"
+    "Too soon to buy, it's still falling",
+    "The bottom's in, buy the strength",
+    "Early in the drop, sell the rallies",
+    "It's a Stage 2 breakout on volume"
    ],
-   "answer": "Late in the decline: not a buy yet",
-   "why": "A plain 4B means late in the downtrend, and much too soon to consider buying. It is not a buy. The buy is the 4B-, the one with the minus, once its other steps are in.",
-   "lesson_line": "A plain 4B is not a buy. Wait for the minus.",
+   "answer": "Too soon to buy, it's still falling",
+   "why": "Too soon. Weinstein's legend reads a plain 4B as late in the downtrend, much too soon to consider buying. Late can still mean another leg lower, and nobody knows where it stops. There's no low yet, so there's nothing for you to risk against. The one we trade is the 4B-, with the minus, and even that waits for its base. While it's in Stage 4, there's no reason to own it.",
+   "lesson_line": "A plain 4B is still falling. Wait for the minus.",
    "facts": [
-    "c38",
     "x01",
     "x08",
-    "l2"
+    "x02"
    ],
    "wrong": {
-    "A bottom is in: buy on strength": "The minus is the one that says the low is in, and even it is not an instant buy. A plain 4B is late in the downtrend and much too soon to consider buying.",
-    "Early in the decline: sell rallies": "The B means late in the stage, not early.",
-    "A Stage 2 breakout on volume": "A plain 4B is still in the Stage 4 decline. During a Stage 4 decline there is no reason to be long the stock."
+    "The bottom's in, buy the strength": "That's what the minus says, not a plain 4B. A plain 4B hasn't shown you a low yet.",
+    "Early in the drop, sell the rallies": "The B means late in the decline, not early.",
+    "It's a Stage 2 breakout on volume": "Stage 2 is the uptrend. A 4B is still inside the Stage 4 decline."
    },
    "house": true,
-   "simple": "A plain 4B is late in a falling trend, so it is much too soon to buy.",
+   "simple": "A plain 4B is late in a falling trend. It's much too soon to buy.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
@@ -949,28 +1020,28 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "w4b.no_new_low",
-   "q": "What does the minus in 4B- say?",
+   "q": "Weinstein's legend also has a 4B-, with a minus on the end. What's that minus telling you about the stock?",
    "choices": [
-    "The stock has now seen its low",
-    "The stock is still falling",
-    "The stock is in Stage 2",
-    "The stock is a short idea"
+    "It has now seen its low for the cycle",
+    "It's still falling, just slower",
+    "It's already in a Stage 2 uptrend",
+    "It's a short, the decline isn't done"
    ],
-   "answer": "The stock has now seen its low",
-   "why": "The minus says the stock has now seen its low for the cycle. It is not yet officially in Stage 1A, but the low is in, with no close under it since. It does not say the buy is ready.",
-   "lesson_line": "The minus says the low is in. Not yet a base, but the low is in.",
+   "answer": "It has now seen its low for the cycle",
+   "why": "It has seen its low for the cycle. That's the minus in Weinstein's legend. It isn't officially in Stage 1A yet, but the low is in. Notice what it doesn't say. It doesn't say buy now. The low being in just puts it on your radar. The buy still waits for a higher low and a pause above the averages, so you risk against a real level instead of guessing at a bottom.",
+   "lesson_line": "The minus says the low is in. The buy comes later.",
    "facts": [
     "x02",
-    "c03",
-    "m01"
+    "x01",
+    "x08"
    ],
    "wrong": {
-    "The stock is still falling": "That is a plain 4B, a stock still falling. The minus says the stock has now seen its low for the cycle.",
-    "The stock is in Stage 2": "It is not yet even officially in Stage 1A. The minus only says the low is in.",
-    "The stock is a short idea": "The minus says the low for the cycle is in, not that the decline is still running."
+    "It's still falling, just slower": "Still falling is the plain 4B. The minus says the low is in.",
+    "It's already in a Stage 2 uptrend": "Not even close. It isn't officially in Stage 1A yet, let alone Stage 2.",
+    "It's a short, the decline isn't done": "The minus says the opposite. The low for the cycle is in."
    },
    "house": true,
-   "simple": "The minus says the stock has now seen its low for the cycle, though it is not yet officially in Stage 1A.",
+   "simple": "The minus says the low is in. It doesn't say buy yet.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -978,7 +1049,7 @@
      "one web publisher (stageanalysis.net) plus the card's own line"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
@@ -986,16 +1057,17 @@
    "rung": 1,
    "format": "tf",
    "criterion": "w4b.stage4",
-   "q": "Before a 4B-, there was a Stage 4 decline: the 30-week line fell and price sat under it.",
+   "q": "A 4B- only comes after a Stage 4 decline. The 30-week line was falling, with price stuck under it.",
    "answer": "True",
-   "why": "True. A Stage 4 decline comes first. At the cycle low, the 30-week line was lower than 20 sessions earlier, and price was under it.",
-   "lesson_line": "No decline first, no 4B-. The 30-week line was falling at the low.",
+   "why": "True. No decline, no 4B-. This setup is a turn after a real Stage 4, the 30-week line rolling over and price stuck under it. Check that line at the low. If it was still rising when the low hit, you're looking at a pullback in an uptrend. That's a different trade with different rules. Name the stage right and you'll manage the trade right.",
+   "lesson_line": "No Stage 4 first, no 4B-.",
    "facts": [
-    "c02",
-    "x01"
+    "x01",
+    "x05",
+    "x10"
    ],
    "house": true,
-   "simple": "True. A Stage 4 decline comes first, with the 30-week line falling and price under it at the low.",
+   "simple": "True. A 4B- comes after a real decline, with the 30-week line falling and price under it.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1003,7 +1075,7 @@
      "the 20-session test is the card's own working rule"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q04",
@@ -1011,7 +1083,7 @@
    "rung": 1,
    "format": "fill",
    "criterion": "w4b.stage4",
-   "q": "Tap the number that fits the blank.",
+   "q": "Weinstein works off weekly charts and you trade a daily. Tap the daily average that stands in for his 30-week line.",
    "sentence": "The 30-week line is about the ___-day average.",
    "bank": [
     "150",
@@ -1021,13 +1093,13 @@
     "10"
    ],
    "answer": "150",
-   "why": "150. Weinstein's 30-week line, on a daily chart, sits near the 150-day average, and the 40-week line matches the 200-day. Roughly is the word: it is a close match, not an exact one. A trader needs this to draw the line on a daily chart.",
-   "lesson_line": "Thirty weeks is about 150 days. Forty weeks is 200.",
+   "why": "150. Thirty weeks of five sessions is about 150 days, so the 150-day stands in for his 30-week line. His 40-week line is the 200-day the same way. It's close, not exact, and that's fine. You need it to read his stages on the daily chart you actually trade off.",
+   "lesson_line": "Thirty weeks is about 150 days. Forty weeks is about 200.",
    "facts": [
     "x04",
     "x05"
    ],
-   "simple": "The 30-week line is about the same as the 150-day average.",
+   "simple": "The 30-week line is about the 150-day average on a daily chart.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1035,7 +1107,7 @@
      "the TraderLion archive page (x05) could not be opened to re-check; Deepvue (x04) was confirmed"
     ]
    },
-   "batch": "fills"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q05",
@@ -1060,15 +1132,16 @@
    "rung": 1,
    "format": "tf",
    "criterion": "w4b.reclaim_50",
-   "q": "A 4B- needs a close back above the 50-day average.",
+   "q": "On a 4B-, the stock has to close back above its 50-day before you even think about buying it.",
    "answer": "True",
-   "why": "True. The close must be above the 50-day, the recapture of the 50-day that Weinstein names. That is the reclaim. The buy comes later, after a pause above it and a trade over the pause high.",
-   "lesson_line": "The 50-day has to be won back before the buy.",
+   "why": "True. Winning back the 50-day is the first real sign buyers have taken over. It's the recapture the whole setup hangs on. Under the line, sellers still own it and every rally runs into them. Even then it isn't the buy. I want to see it pause above the 50-day, then trade through that pause high.",
+   "lesson_line": "Win back the 50-day first. Then we talk about a buy.",
    "facts": [
-    "c07"
+    "c07",
+    "c19"
    ],
    "house": true,
-   "simple": "True. A 4B- stock has to close back above its 50-day average before we buy it.",
+   "simple": "True. It has to win back the 50-day first, and the buy comes after a pause above it.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1076,7 +1149,7 @@
      "one cited fact only (the criteria card)"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
@@ -1099,26 +1172,28 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "w4b.cycle_low",
-   "q": "How does our rule find the cycle low before a trigger?",
+   "q": "You're marking up a 4B- chart. Which low do you mark as the cycle low, the one everything else gets measured from?",
    "choices": [
-    "Lowest low of the last 252 sessions",
-    "Lowest close of the last 252 sessions",
-    "Lowest close of the last 20 sessions",
-    "Lowest low of the last 20 sessions"
+    "The lowest low of the whole decline",
+    "The most recent dip on the chart",
+    "The low of the first big down day",
+    "Wherever the 50-day turned up"
    ],
-   "answer": "Lowest low of the last 252 sessions",
-   "why": "The lowest low of the 252 sessions before the trigger. That is our working rule. The 52-week high is the highest high of the 252 sessions before the cycle low. Everything else is measured from that low.",
-   "lesson_line": "Find the cycle low first. Everything else is measured from it.",
+   "answer": "The lowest low of the whole decline",
+   "why": "The lowest low of the whole decline. That's the bottom of Stage 4, the price the stock hasn't been back to since. Mark it first. The higher low, how far it fell off its highs, and the call that the low is in all measure off it. If price ever closes back under it, the call was wrong and you start the count over.",
+   "lesson_line": "Mark the cycle low first. Everything else measures off it.",
    "facts": [
-    "c01"
+    "x02",
+    "c03",
+    "c35"
    ],
    "wrong": {
-    "Lowest close of the last 20 sessions": "That is a recent close, not the low for the cycle. Our working rule uses the lowest low of the 252 sessions.",
-    "Lowest close of the last 252 sessions": "The cycle low is a low, not a close. Our working rule uses the lowest low of the 252 sessions.",
-    "Lowest low of the last 20 sessions": "That is a recent dip, not the low for the cycle. Our working rule looks back 252 sessions."
+    "The most recent dip on the chart": "A recent dip may be your higher low. The cycle low is the bottom of the whole decline.",
+    "The low of the first big down day": "That's one day early in the slide. The stock went lower after it.",
+    "Wherever the 50-day turned up": "The 50-day turns well after the low. You want the price low itself."
    },
    "house": true,
-   "simple": "The cycle low is the lowest low of the 252 sessions before the trigger, which is about one trading year.",
+   "simple": "Mark the lowest low of the whole decline. Everything else is measured from that price.",
    "tier": "core",
    "risk": {
     "score": 6,
@@ -1128,7 +1203,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q09",
@@ -1173,26 +1248,29 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "w4b.pause",
-   "q": "In our rule, how many closes above the 50-day make the minimum pause?",
+   "q": "Your stock just closed back over its 50-day for the first time in months. Why not just buy that close?",
    "choices": [
-    "2",
-    "1",
-    "5",
-    "10"
+    "You want it to pause and hold first",
+    "No reason, buy it right there",
+    "Volume has to double first",
+    "The 200-day has to turn up first"
    ],
-   "answer": "2",
-   "why": "2. The minimum pause is 2 closes above the 50-day before the trigger. That is our working rule, and it is a floor, not a target.",
-   "lesson_line": "Two closes above the 50-day is the minimum pause.",
+   "answer": "You want it to pause and hold first",
+   "why": "You want a pause first. The first close over the 50-day is often just a pop. Plenty of them fail the next day and you're back under the line. A few days holding above it tells you the reclaim is real. It also builds a small range: a high to trigger on and a low to risk against. That's a tight, honest stop instead of a guess.",
+   "lesson_line": "The reclaim puts it on your list. The pause makes it a trade.",
    "facts": [
-    "c08"
+    "c07",
+    "c19",
+    "r22",
+    "r31"
    ],
    "wrong": {
-    "1": "One close is a single day above the average, not a pause.",
-    "5": "5 is not the minimum. The minimum is 2 closes.",
-    "10": "10 sessions is a longer pause. The minimum is 2."
+    "No reason, buy it right there": "A first close over the line can fail the next day. And we buy through a trigger during the day, not at the close.",
+    "Volume has to double first": "Volume raises the grade. It's not a must, and doubling is no rule of ours.",
+    "The 200-day has to turn up first": "A turning 200-day is a nice cue, not the gate. The pause is what you're waiting on."
    },
    "house": true,
-   "simple": "A pause needs at least 2 closes above the 50-day. That is a floor, not a target.",
+   "simple": "Wait for a pause above the 50-day. It shows the reclaim holds and gives you a tight stop.",
    "tier": "core",
    "risk": {
     "score": 6,
@@ -1202,7 +1280,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q11",
@@ -1210,16 +1288,15 @@
    "rung": 2,
    "format": "tf",
    "criterion": "w4b.liquidity",
-   "q": "We take a 4B- in a $5 stock that trades $20 million a day.",
+   "q": "A 4B- sets up in a $5 stock that trades $20 million a day. The chart is perfect. We can take it.",
    "answer": "False",
-   "why": "False. We trade only stocks priced at $10 or more that trade at least $20 million a day. A $5 stock fails the price test even when the dollar volume is enough. Both tests must pass.",
+   "why": "False. We only trade stocks at $10 or more that trade at least $20 million a day. This one has the dollar volume and fails on price. Cheap stocks swing hard on nothing and gap right through stops. A perfect chart doesn't change that. Both tests have to pass, so go find a name we'd actually own.",
    "lesson_line": "Under $10 is out, however clean the base.",
    "facts": [
-    "c17",
     "h09"
    ],
    "house": true,
-   "simple": "False. A $5 stock is under our $10 minimum price, even though $20 million a day is enough volume.",
+   "simple": "False. A $5 stock is under our $10 floor, however good the chart looks.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1227,7 +1304,7 @@
      "rests on the owner's rulebook (B23)"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q12",
@@ -1235,28 +1312,30 @@
    "rung": 2,
    "format": "scenario",
    "criterion": "w4b.trigger",
-   "q": "What is the buy on a 4B-?",
+   "q": "This is the day before the trigger. It's back over the 50-day and pausing. How do you get in?",
    "choices": [
-    "A break of the pause high, at market",
-    "The first daily close over the 50-day",
-    "A limit order at the pause high",
-    "A close over the 200-day average"
+    "Market order through the pause high",
+    "On the first close over the 50-day",
+    "A limit order resting at the pause high",
+    "On a close back over the 200-day"
    ],
-   "answer": "A break of the pause high, at market",
-   "why": "It trades over the highest high of the pause above the 50-day, during regular hours, and we buy at market. That is our default trigger. With the 2-session minimum pause, that high is the higher of the last two highs. Entries are market orders, not limits.",
-   "lesson_line": "Over the pause high, in hours, at market.",
+   "answer": "Market order through the pause high",
+   "why": "Market order as it trades through the pause high. That high is where the sellers in the pause kept turning it back. When price takes it out during the day, they're used up, and you want in right there. Set an alert on the pause high the night before. We buy with a market order, because a limit can leave you watching it run. Your stop goes a few cents under the low of the day, the LOD.",
+   "lesson_line": "Alert on the pause high. Market order when it trades through.",
    "facts": [
     "c19",
-    "c20",
-    "h22"
+    "h22",
+    "h01",
+    "r31",
+    "h10"
    ],
    "wrong": {
-    "The first daily close over the 50-day": "The 50-day reclaim comes first. The buy waits for the pause and the trade over its high.",
-    "A close over the 200-day average": "Being over the 200-day is a gate, not the trigger. The trigger is the pause high.",
-    "A limit order at the pause high": "Our entries are market orders, not limits."
+    "On the first close over the 50-day": "That close is the reclaim, step one. The buy waits for the pause and a trade through its high.",
+    "A limit order resting at the pause high": "We buy at market. A limit can leave you watching it run without you.",
+    "On a close back over the 200-day": "Being over the 200-day is a gate, not the trigger. And we buy during the day, never at the close."
    },
    "house": true,
-   "simple": "We buy at market once price trades over the high of the pause above the 50-day, during regular hours.",
+   "simple": "Buy at market as it trades through the pause high. Set the alert the night before.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1266,8 +1345,8 @@
      "fixed before"
     ]
    },
-   "batch": "visuals-4",
-   "story": "The day before the trigger.",
+   "batch": "voice-8-2026-11-17",
+   "story": "Months of decline, a higher low, the 50-day won back, and a pause sitting above it.",
    "chart": {
     "sym": "NDSN",
     "asof": "2016-03-01",
@@ -1281,18 +1360,18 @@
    "rung": 2,
    "format": "tf",
    "criterion": "w4b.base_length",
-   "q": "A buy 12 sessions after the cycle low is long enough for a 4B-.",
-   "answer": "False",
-   "why": "False. Our working rule needs at least 15 sessions from the cycle low to the trigger, so 12 is too early. The 15 is our number. The idea behind it is on stageanalysis.net: buyers get in too early on a small base after a large decline.",
-   "lesson_line": "Give the base time. At least 15 sessions off the low.",
+   "q": "A long Stage 4 slide, then a small, quick base with price still under falling averages. Buying that is getting in too early.",
+   "answer": "True",
+   "why": "True. A big decline leaves a lot of trapped holders above. A small base right off the low hasn't worked through them yet, and price is often still under falling averages. I'd rather give it time. Let it build a higher low, win back the 50-day and pause. You'll buy a little higher, but against a level that's been tested.",
+   "lesson_line": "Big decline, small base: too early. Give it time.",
    "facts": [
-    "c05",
-    "x10"
+    "x10",
+    "c07"
    ],
    "house": true,
-   "simple": "False. Our rule wants at least 15 sessions from the cycle low to the buy trigger, and 12 falls short.",
+   "simple": "True. A quick little base after a big drop is often too early, so give it time.",
    "deeper": {
-    "trap": "Counting days is not enough. Passing 15 sessions only says the base had time. A 4B- also needs the higher low, the reclaim of the average and the pause before the buy."
+    "trap": "Time alone isn't the test either. A base can be old and still have no higher low. You want the higher low, the 50-day won back and the pause, not a day count."
    },
    "tier": "core",
    "risk": {
@@ -1303,7 +1382,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q14",
@@ -1311,7 +1390,7 @@
    "rung": 3,
    "format": "scenario",
    "criterion": "w4b.trim_1",
-   "q": "Bought at 22.12 with the stop at 21.49. Where is 3R?",
+   "q": "You bought this trigger at 22.12 with your stop at 21.49. Where's 3R?",
    "answer": "$24.01",
    "calc": {
     "fn": "arith",
@@ -1322,16 +1401,16 @@
     },
     "round": 2
    },
-   "why": "One R is 22.12 minus 21.49. Add three of those to the buy of 22.12 and you get 24.01. That is a measuring stick, not a sell order. This is PENN's buy.",
-   "lesson_line": "Know your 3R before the open. It measures the move; it is not a sell order.",
+   "why": "24.01. Start with one R, your risk per share: 22.12 minus 21.49 is 0.63. Three of those is 1.89. Add it to the 22.12 buy and 3R sits at 24.01. Mark it so you know what the trade is doing. It's a ruler, not a sell order. Our first sell is a judgment, often into a push on day 3 or later. This was PENN in November 2019.",
+   "lesson_line": "Know where 3R is before the open. It's a ruler, not a sell order.",
    "facts": [
-    "c28",
     "d01",
-    "r11"
+    "r11",
+    "r12"
    ],
    "prefix": "$",
    "house": true,
-   "simple": "3R is the buy price plus three times the gap between the buy and the stop.",
+   "simple": "3R is your buy plus three times your risk per share. Here that's 24.01.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1340,7 +1419,7 @@
      "the 3R trim is the owner's hard rule (B19)"
     ]
    },
-   "batch": "visuals-4",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$23.38",
     "$22.75",
@@ -1348,11 +1427,11 @@
     "$24.01"
    ],
    "wrong": {
-    "$23.38": "Added the three R to the stop, not to the buy.",
-    "$22.75": "Added only one R.",
-    "$24.64": "Counted four R instead of three."
+    "$23.38": "That's three R added to the stop, not the buy.",
+    "$22.75": "That's only one R above the buy.",
+    "$24.64": "That's four R. Count three."
    },
-   "story": "Bought on the trigger.",
+   "story": "A long Stage 4, an October higher low, then a 17-day pause over a 50-day that turned up. You're in.",
    "chart": {
     "sym": "PENN",
     "asof": "2019-11-05",
@@ -1370,24 +1449,25 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "w4b.cycle_low",
-   "q": "The 52-week high is 60.00 and the cycle low is 31.50. How far under the high is the low, in percent?",
+   "q": "A stock topped at 60.00 and bottomed at 31.50 on the slide. How far off its high did it get?",
    "answer": "47.5%",
    "calc": {
-    "fn": "drawdown_pct",
+    "fn": "arith",
     "args": {
-     "peak": 60.0,
-     "trough": 31.5
+     "expr": "(a - b) / a * 100",
+     "a": 60.0,
+     "b": 31.5
     },
     "round": 1
    },
-   "why": "The drop is 60.00 minus 31.50. Divide that drop by the high of 60.00. The answer is 47.5%.",
-   "lesson_line": "Depth is high minus low, over the high. Measure it.",
+   "why": "47.5%. The drop is 60.00 minus 31.50, which is 28.5. Divide that by the 60.00 high, not the low, and you get 47.5%. We read every chart in percents. Nearly half off its high tells you how hard it was sold and how many holders are trapped above. Those holders are who sells into your rally later.",
+   "lesson_line": "Measure from the high: the drop over the high.",
    "facts": [
-    "c01"
+    "r24"
    ],
    "suffix": "%",
    "house": true,
-   "simple": "The low is 47.5% under the high, found by dividing the drop by the high.",
+   "simple": "Take the drop of 28.5 and divide by the high of 60.00. That's 47.5% off the high.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1400,7 +1480,7 @@
    "depends_on": [
     "D-070"
    ],
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "47.5%",
     "52.5%",
@@ -1408,9 +1488,9 @@
     "190.5%"
    ],
    "wrong": {
-    "52.5%": "Found where the low sits as a share of the high, not the drop.",
-    "90.5%": "Divided the drop by the low instead of the high.",
-    "190.5%": "Divided the high by the low and forgot to subtract one."
+    "52.5%": "That's where the low sits as a share of the high, not the drop.",
+    "90.5%": "You divided the drop by the low instead of the high.",
+    "190.5%": "You divided the high by the low and forgot to take away one."
    }
   },
   {
@@ -1465,17 +1545,17 @@
    "rung": 3,
    "format": "tf",
    "criterion": "w4b.volume_into_higher_low",
-   "q": "Volume on the down days into the higher low should be light.",
-   "answer": "True",
-   "why": "True. Our working rule: the average volume on the down days of the higher-low pullback is below the 50-day average volume. The best grade shows the down days drying up. This is about the pullback. The best trigger day comes on clearly higher volume.",
-   "lesson_line": "Quiet selling into the higher low is the picture.",
+   "q": "You can't take a 4B- unless volume dries up on the pullback into the higher low.",
+   "answer": "False",
+   "why": "False. Volume drying up there raises the grade. It's not a must. Light volume on the way down into the higher low says the sellers are mostly done, and I like seeing it. But a clean higher low and a good pause still get bought without it. On the trigger day itself, I want to see volume pick up.",
+   "lesson_line": "Volume drying up into the higher low raises the grade. It's not a must.",
    "facts": [
-    "c06",
+    "r22",
     "g1",
     "g2"
    ],
    "house": true,
-   "simple": "True. Selling into the higher low should be light, below the 50-day average volume.",
+   "simple": "False. Volume drying up into the higher low raises the grade, but it's not a must.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1483,7 +1563,7 @@
      "proposed card rule, fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
@@ -1517,16 +1597,16 @@
    "rung": 3,
    "format": "tf",
    "criterion": "w4b.fresh_reason",
-   "q": "A fresh reason for the turn, like an earnings reaction, counts against a 4B-.",
+   "q": "A fresh reason behind the turn, like a strong earnings reaction, counts against a 4B-.",
    "answer": "False",
-   "why": "False. A fresh reason for the turn, like an earnings reaction or a guidance change, helps. It is a cue, not a requirement. Keep the buy out of the 3 days before a report.",
-   "lesson_line": "A fresh reason for the turn helps the setup.",
+   "why": "False. It helps. A stock that turns on real news, a good earnings reaction or a guidance change, gives buyers a reason to stay. Just keep your buy out of the 3 days before the next report. A turn on news is a trade. A buy right before a report is a bet on the number.",
+   "lesson_line": "A fresh reason for the turn helps.",
    "facts": [
     "c14",
     "h08"
    ],
    "house": true,
-   "simple": "False. A fresh reason for the turn, like an earnings reaction, helps the setup instead of hurting it.",
+   "simple": "False. A fresh reason for the turn helps the setup, it doesn't hurt it.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1534,7 +1614,7 @@
      "the report window rests on the owner's rulebook (B22)"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
@@ -1542,16 +1622,16 @@
    "rung": 3,
    "format": "tf",
    "criterion": "w4b.after_entry_stop",
-   "q": "After entry, our stop only moves up, apart from the gap rule.",
+   "q": "Once you're in a 4B-, your stop only ever moves up, never down, except under the gap rule.",
    "answer": "True",
-   "why": "True. After entry the stop is the exit, and it only moves up, never down or wider. The one exception is the gap rule.",
+   "why": "True. The stop is the exit, and it only moves up. The one exception is a gap through it, where the first 30-minute low becomes the new stop. Lower it any other time and a planned small loss turns into hope. That's how small losers turn into big ones.",
    "lesson_line": "The stop is the plan. It only moves up.",
    "facts": [
-    "c40",
-    "h02"
+    "h02",
+    "h06"
    ],
    "house": true,
-   "simple": "True, because once you are in, the stop can only move up, with the gap rule as the one exception.",
+   "simple": "True. The stop only moves up, and the gap rule is the one exception.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1559,7 +1639,7 @@
      "rests on the owner's rulebook (A4)"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
@@ -1617,32 +1697,31 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "w4b.never_plain_4b",
-   "q": "Buy it?",
-   "story": "A stock down 60% still makes new lows under a falling 30-week line. It looks cheap.",
+   "q": "It's down 60% and it looks cheap. Do you buy it here?",
+   "story": "It's still making new lows under a falling 30-week line. No higher low yet.",
    "choices": [
-    "No; that stock is a plain 4B",
-    "Yes; it is cheap, down 60%",
-    "Yes, but only a starter",
-    "No; it is a Remount"
+    "No, it's a plain 4B, still falling",
+    "Yes, down 60% is cheap enough",
+    "Yes, but just a starter position",
+    "Yes, it's due for a bounce"
    ],
-   "answer": "No; that stock is a plain 4B",
-   "why": "No. Never a 4B without the minus. A stock still making new lows has not seen its low for the cycle, so it is a plain 4B. That is much too soon to consider buying. Cheap is not a reason.",
-   "lesson_line": "Cheap is not a reason. A falling stock is a falling stock.",
+   "answer": "No, it's a plain 4B, still falling",
+   "why": "No. It's still making new lows, so it hasn't seen its low. That's a plain 4B, much too soon to buy. Down 60% isn't cheap, it's just down. It can lose a lot more from here. There's no level to risk against while it keeps breaking lows. I'd keep it on the radar and wait for the minus.",
+   "lesson_line": "Cheap isn't a reason. A falling stock is a falling stock.",
    "facts": [
-    "c38",
-    "m01",
     "x01",
-    "l1"
+    "x08",
+    "r32"
    ],
    "wrong": {
-    "Yes; it is cheap, down 60%": "Buying because it seems cheap is the named mistake.",
-    "Yes, but only a starter": "Size does not fix timing. It is much too soon to consider buying.",
-    "No; it is a Remount": "A Remount comes with a rising 150-day. This stock sits under a falling 30-week line and still makes new lows: a plain 4B."
+    "Yes, down 60% is cheap enough": "Buying because it looks cheap is the classic mistake. Down a lot can go further down.",
+    "Yes, but just a starter position": "A smaller size doesn't fix bad timing. And we buy the full size at one price anyway.",
+    "Yes, it's due for a bounce": "Due is a feeling, not a level. There's no low to risk against yet."
    },
    "house": true,
-   "simple": "No. A stock still making new lows is a plain 4B, which is much too soon to buy.",
+   "simple": "No. It's still making new lows, so it's a plain 4B, and cheap isn't a reason.",
    "deeper": {
-    "trap": "Cheap is the trap. A stock down 60% and still making new lows has not seen its low for the cycle. The minus is the test, not the price."
+    "trap": "Cheap is the trap. A stock down 60% and still making new lows hasn't seen its low for the cycle. The minus is the test, not the price."
    },
    "tier": "core",
    "risk": {
@@ -1651,7 +1730,7 @@
      "x01 from one publisher plus the card's own line"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q23",
@@ -1659,30 +1738,29 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "w4b.inv_close_under_cycle_low",
-   "q": "What does that tell you?",
-   "story": "A stock bounces for three weeks, then closes under its cycle low.",
+   "q": "Three weeks of bounce, then today it closes under the cycle low. What's that telling you?",
+   "story": "It bounced for three weeks off its cycle low. Today it closed under that low.",
    "choices": [
-    "The low call failed; still falling",
-    "A bargain; buy it on the pullback",
-    "A longer base; still a 4B-",
-    "Just noise; the low call still holds"
+    "Still falling, the low wasn't the low",
+    "A bargain, buy it on the pullback",
+    "Just a longer base, still a 4B-",
+    "Noise, the low call still holds"
    ],
-   "answer": "The low call failed; still falling",
-   "why": "The low-for-the-cycle call was wrong. A close under the cycle low means it is still a 4B or a 4, not a 4B-. A 4B- has no close under its cycle low since it was set.",
+   "answer": "Still falling, the low wasn't the low",
+   "why": "The low wasn't the low. A close under the cycle low means the stock never finished falling. It's back to a 4B or a plain 4. Those three weeks of bounce were just a rally in a downtrend. Take it off your 4B- list. If it builds again, the new low becomes the cycle low and you start the count over.",
    "lesson_line": "A close under the cycle low resets the count.",
    "facts": [
     "c35",
     "c03",
-    "c01",
-    "c05"
+    "x02"
    ],
    "wrong": {
-    "A bargain; buy it on the pullback": "A close under the cycle low is no bargain. The low was not the low.",
-    "Just noise; the low call still holds": "The test is the close. A close under the cycle low means the low call was wrong.",
-    "A longer base; still a 4B-": "A 4B- has no close under its cycle low since it was set. This close says it is still a 4B or a 4."
+    "A bargain, buy it on the pullback": "There's nothing to buy. The level you'd risk against just broke.",
+    "Just a longer base, still a 4B-": "A 4B- never closes under its cycle low. This one just did.",
+    "Noise, the low call still holds": "We go by the close, and it closed under. That ends the call."
    },
    "house": true,
-   "simple": "A close under the cycle low means the low was not in, so the stock is still in the decline.",
+   "simple": "The low wasn't the low. A close under it means it's still falling, so the count resets.",
    "deeper": {
     "counter": "A close under the low ends the call, not the stock. The new low becomes the new cycle low, and the count starts over from it."
    },
@@ -1693,7 +1771,7 @@
      "rests on the proposed card rule c35"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q24",
@@ -1726,7 +1804,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "w4b.trim_2",
-   "q": "Bought at 12.37, stop 12.06. The stock trades to 13.92. How many R is that?",
+   "q": "You bought at 12.37 with a 12.06 stop. It just traded 13.92. How many R are you up?",
    "answer": "5.0R",
    "calc": {
     "fn": "r_multiple",
@@ -1737,15 +1815,15 @@
     },
     "round": 1
    },
-   "why": "One R is the buy minus the stop: 12.37 minus 12.06. The gain is 13.92 minus 12.37. Divide the gain by one R to get 5R. That is a mark on the ruler, not a sell order. This is AMD's buy.",
-   "lesson_line": "Count in R, not dollars. 5R is a mark on the ruler, not a sell order.",
+   "why": "5R. Your risk is 12.37 minus 12.06, which is 0.31 a share. The gain is 13.92 minus 12.37, which is 1.55. 1.55 over 0.31 is 5. Count in R, not dollars, so every trade reads the same whatever the price. At 5R I'm thinking about selling some into strength, especially into a 3, 5 or 7 day push. That's AMD in May 2018.",
+   "lesson_line": "Count in R, not dollars.",
    "facts": [
-    "r13",
-    "d05"
+    "d05",
+    "r13"
    ],
    "suffix": "R",
    "house": true,
-   "simple": "The stock is up 5R, which means the gain is five times the risk per share.",
+   "simple": "Divide the gain by your risk per share. Here that's 5R.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1754,7 +1832,7 @@
      "the 5R trim is the owner's adjustable default (E51)"
     ]
    },
-   "batch": "visuals-4",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "5.0R",
     "6.0R",
@@ -1762,11 +1840,11 @@
     "50.0R"
    ],
    "wrong": {
-    "6.0R": "Measured the gain from the stop instead of the buy.",
-    "44.9R": "Divided the exit price by R instead of the gain.",
-    "50.0R": "Slipped the decimal point one place right."
+    "6.0R": "You measured the gain from the stop instead of the buy.",
+    "44.9R": "You divided the price by R instead of the gain.",
+    "50.0R": "You slipped the decimal one place."
    },
-   "story": "Bought on the trigger.",
+   "story": "A deep decline, a higher low and a 10-day pause above the 50-day. You bought the trigger.",
    "chart": {
     "sym": "AMD",
     "asof": "2018-05-15",
@@ -1784,16 +1862,16 @@
    "rung": 4,
    "format": "tf",
    "criterion": "w4b.breakeven",
-   "q": "Our stop moves to breakeven at 1R, well before the first sell.",
+   "q": "In a 4B-, you move the stop to breakeven as soon as you're up 1R, well before the first sell.",
    "answer": "False",
-   "why": "False. The stop moves to breakeven between 2R and 5R, ideally. Moving it at 1R falls below that range.",
-   "lesson_line": "Breakeven between 2R and 5R.",
+   "why": "False. We move it to breakeven somewhere between 2R and 5R, or at the first sell. At 1R it's too tight. A normal shake takes you out at zero, right before the move you were waiting for. Give it room to work first. Once you're up 2R or more, then think about taking the loss off the table.",
+   "lesson_line": "Breakeven between 2R and 5R. Not at 1R.",
    "facts": [
-    "c27",
+    "h05",
     "r11"
    ],
    "house": true,
-   "simple": "False. Breakeven comes between 2R and 5R, not at 1R.",
+   "simple": "False. Breakeven comes between 2R and 5R or at the first sell, not at 1R.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1801,7 +1879,7 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q27",
@@ -1809,7 +1887,7 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "w4b.pause_length_cue",
-   "q": "In our test, which pause above the 50-day was worst at reaching 3R?",
+   "q": "We scanned past 4B- triggers. Which pause above the 50-day did worst at reaching 3R?",
    "choices": [
     "A pause of 2 to 4 sessions",
     "A pause of 5 to 10 sessions",
@@ -1817,22 +1895,21 @@
     "A pause of 21 to 40 sessions"
    ],
    "answer": "A pause of 2 to 4 sessions",
-   "why": "A pause of 2 to 4 sessions did worst: 15.7% reached 3R. The 5 to 10 session pause did best at reaching 3R, at 25.9%. This is one test. It is a cue, not a rule.",
-   "lesson_line": "Give the pause a few days. The shortest pause did worst.",
+   "why": "The bare 2 to 4 session pause. Only 15.7% reached 3R. The 5 to 10 session pause did best at 25.9%. A pause of a few days barely tests the 50-day, so more of them fail. A longer pause shows the line holding and builds a tighter range to trigger from. It's one scan, so I treat it as a cue. Still, I'd rather see it sit a while.",
+   "lesson_line": "Give the pause some days. The shortest ones did worst.",
    "facts": [
     "d27",
-    "c09",
     "d25"
    ],
    "wrong": {
     "A pause of 5 to 10 sessions": "That did best: 25.9% reached 3R.",
-    "A pause of 11 to 20 sessions": "23.1% reached 3R, well above the shortest pause.",
-    "A pause of 21 to 40 sessions": "21.3% reached 3R, also above the shortest pause."
+    "A pause of 11 to 20 sessions": "23.1% reached 3R, well ahead of the shortest pause.",
+    "A pause of 21 to 40 sessions": "21.3% reached 3R, still ahead of the shortest pause."
    },
    "house": true,
-   "simple": "A pause of 2 to 4 sessions did worst in our test, with 15.7% reaching 3R.",
+   "simple": "The shortest pause did worst. Give the pause some time to prove the 50-day holds.",
    "deeper": {
-    "counter": "Even the best bucket reached 3R only about a quarter of the time (25.9% for 5 to 10 sessions). The 11 to 20 session pause did 23.1% and 21 to 40 sessions did 21.3%. This is one test: use pause length as a cue, not a promise."
+    "counter": "Even the best group reached 3R only about a quarter of the time, 25.9% for 5 to 10 sessions. The 11 to 20 session pause did 23.1% and 21 to 40 sessions did 21.3%. It's one scan. Use pause length as a cue, not a promise."
    },
    "tier": "core",
    "risk": {
@@ -1843,7 +1920,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q28",
@@ -1851,27 +1928,28 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "w4b.group",
-   "q": "Which group reading does our 4B- card want?",
+   "q": "Your stock's 4B- looks clean. What do you want its group doing?",
    "choices": [
-    "The group ETF closes above its 50-day",
-    "One big up day in the group ETF",
-    "The group is not part of the 4B- call",
-    "The group ETF just made a new low"
+    "Basing and turning up with it",
+    "Still making new lows",
+    "Doesn't matter, just the stock",
+    "One big up day, then flat"
    ],
-   "answer": "The group ETF closes above its 50-day",
-   "why": "The group ETF closes above its 50-day. Our card wants the stock's group ETF or index closing above its own 50-day. Buying against a weak group is a named mistake.",
-   "lesson_line": "Check the group's 50-day, not just the stock's.",
+   "answer": "Basing and turning up with it",
+   "why": "Turning up with it. A stock rarely turns alone for long. When the group is basing and turning too, buyers are coming into the whole space and your stock has a tailwind. Fight a weak group and you own the one name swimming upstream. Pull up the group's ETF next to your chart before you buy. If the group's still sliding, I'd pass or size down.",
+   "lesson_line": "Check the group, not just the stock.",
    "facts": [
-    "c12",
-    "m08"
+    "g5",
+    "m08",
+    "r27"
    ],
    "wrong": {
-    "The group is not part of the 4B- call": "The group is part of it. Buying against a weak group is a named mistake.",
-    "The group ETF just made a new low": "A group making new lows is the weak end. Buying against a weak group is a named mistake.",
-    "One big up day in the group ETF": "One day is not the test. The card wants the group ETF or index closing above its own 50-day."
+    "Still making new lows": "That's buying against a weak group. Your stock fights the whole space.",
+    "Doesn't matter, just the stock": "The group matters. A turn with the group behind it holds better.",
+    "One big up day, then flat": "One day isn't a turn. I want the group basing and turning up."
    },
    "house": true,
-   "simple": "The card wants the group ETF or index closing above its own 50-day. Buying against a weak group is a named mistake.",
+   "simple": "You want the group turning up too. Buying against a weak group is a common mistake.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1879,7 +1957,7 @@
      "proposed card cue, not an owner ruling"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q29",
@@ -1887,29 +1965,29 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "w4b.inv_close_under_higher_low",
-   "q": "What does that do to the setup?",
-   "story": "A stock sets a higher low. Before it reclaims its 50-day, it closes under that higher low.",
+   "q": "It set a higher low, then closed under it before winning back the 50-day. Where does the setup stand?",
+   "story": "A higher low formed weeks after the cycle low. Before the 50-day reclaim, price closed under that higher low.",
    "choices": [
-    "It is off; the step up failed",
-    "It is on; the price is cheaper now",
-    "Nothing; the cycle low still holds",
-    "Not yet; wait for a second close"
+    "Off, the higher low just broke",
+    "Better, it's cheaper now",
+    "Fine, the cycle low still holds",
+    "Fine until a second close under"
    ],
-   "answer": "It is off; the step up failed",
-   "why": "It is off. Under our working rule, a close under the higher low before the entry cancels the setup. A close under the cycle low is a separate, bigger break: the low-for-the-cycle call was wrong.",
-   "lesson_line": "A higher low that breaks is not a higher low.",
+   "answer": "Off, the higher low just broke",
+   "why": "It's off. A higher low that breaks isn't a higher low anymore. That level was buyers stepping in above the old low, and they just stopped. The cycle low might still hold, but the base has to build a new higher low first. I'd leave it on the radar and wait for it to show me again.",
+   "lesson_line": "A higher low that breaks isn't a higher low.",
    "facts": [
     "c41",
-    "c04",
-    "c35"
+    "m03",
+    "c07"
    ],
    "wrong": {
-    "It is on; the price is cheaper now": "A close under the higher low cancels the setup. A lower price is not a bargain.",
-    "Nothing; the cycle low still holds": "A close under the higher low cancels the setup even while the cycle low holds. A close under the cycle low is a separate, bigger break.",
-    "Not yet; wait for a second close": "Our rule asks for a close under the higher low before entry, and that one close cancels the setup. It sets no second-close test."
+    "Better, it's cheaper now": "Cheaper isn't better. The level you'd risk against just failed.",
+    "Fine, the cycle low still holds": "The cycle low holding keeps it alive, not ready. It needs a new higher low.",
+    "Fine until a second close under": "One close under it is enough. It isn't a higher low anymore."
    },
    "house": true,
-   "simple": "The setup is off, because a close under the higher low before you buy cancels it.",
+   "simple": "It's off. Once the higher low breaks, the base has to build a new one.",
    "tier": "core",
    "risk": {
     "score": 6,
@@ -1919,7 +1997,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q30",
@@ -1927,33 +2005,32 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "w4b.base_length",
-   "q": "Is that a 4B-?",
-   "story": "A stock closes under its cycle low, then closes back over it two sessions later. You want to buy that reclaim.",
+   "q": "It closed under its cycle low, then two days later closed back over it. Is that a 4B- you can buy?",
+   "story": "A stock closes under its cycle low. Two sessions later it closes back over it, and you want to buy the reclaim.",
    "choices": [
-    "No; a 4B- waits for a higher low",
-    "Yes; it reclaimed the low fast",
-    "Yes, if the volume is big",
-    "No; it needs a rising 150-day"
+    "No, a 4B- takes weeks to build",
+    "Yes, it took the low back fast",
+    "Yes, if the volume was big",
+    "No, the 150-day has to rise first"
    ],
-   "answer": "No; a 4B- waits for a higher low",
-   "why": "No. A 4B- never closes under its cycle low. It waits weeks after the low for a higher low on drying volume and a 50-day reclaim. Two sessions after a new low, none of that exists.",
-   "lesson_line": "An undercut and reclaim is quick. A 4B- takes weeks.",
+   "answer": "No, a 4B- takes weeks to build",
+   "why": "No. That's an undercut and snap back, a different trade on a different clock. A 4B- never closes under its cycle low. It takes weeks to build a higher low, win back the 50-day and pause. Two days after a new low, none of that is there. If you want to trade the snap back, trade it as that setup with its own rules.",
+   "lesson_line": "Same low, different clock. A 4B- takes weeks.",
    "facts": [
-    "l2",
     "l3",
     "c35",
-    "l1",
-    "c02"
+    "c03",
+    "l1"
    ],
    "wrong": {
-    "Yes; it reclaimed the low fast": "That is a different setup that buys a quick reclaim. A 4B- never closes under its cycle low.",
-    "Yes, if the volume is big": "Volume does not make a quick reclaim into a 4B-. The 4B- waits for the base.",
-    "No; it needs a rising 150-day": "A 4B- comes after a Stage 4 decline. If the 150-day was rising at the low, it is a Remount or a pullback, not a 4B-."
+    "Yes, it took the low back fast": "Fast is the other setup. A 4B- never closes under its cycle low.",
+    "Yes, if the volume was big": "Volume raises a grade. It doesn't turn a two-day snap back into a base.",
+    "No, the 150-day has to rise first": "A 4B- comes off a falling 150-day. That's not why this one fails."
    },
    "house": true,
-   "simple": "No. A 4B- takes weeks to build a higher low, a 50-day reclaim and a pause, so a quick reclaim is not one.",
+   "simple": "No. A quick snap back off a new low is a different setup, and a 4B- takes weeks.",
    "deeper": {
-    "counter": "A quick reclaim is not a 4B-. Our card says a capitulation buys the snap back within 3 sessions. A 4B- waits weeks for a higher low and a 50-day reclaim. Same low, different clock."
+    "counter": "A quick reclaim isn't a 4B-. A capitulation buys the snap back within days. A 4B- waits weeks for a higher low and a 50-day reclaim. Same low, different clock."
    },
    "tier": "extended",
    "risk": {
@@ -1962,7 +2039,7 @@
      "the 15-session count is the card's proposed number"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q31",
@@ -2007,32 +2084,29 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "w4b.higher_low",
-   "q": "Is it a 4B- yet?",
-   "story": "A stock bottoms and rallies straight into its 50-day with no pullback.",
+   "q": "It bottomed and ran straight up into the 50-day without a single pullback. Is it a 4B- yet?",
+   "story": "A V off the low: straight up into the 50-day, no pullback on the way.",
    "choices": [
-    "No; it has made no higher low",
-    "Yes; it reclaimed the 50-day",
-    "Yes, if volume stayed quiet",
-    "No; the 200-day is not flat yet"
+    "No, it hasn't made a higher low",
+    "Yes, it's back at the 50-day",
+    "Yes, as long as volume was light",
+    "No, the 200-day isn't flat yet"
    ],
-   "answer": "No; it has made no higher low",
-   "why": "No. A higher low is the critical signal, and a V straight up into the 50-day has not shown one. Our working rule wants a pullback low at least 3% above the cycle low, after a rally of 5% or more.",
+   "answer": "No, it hasn't made a higher low",
+   "why": "Not yet. A V straight off the low has no higher low, and the higher low is the tell. It's where buyers step in above the old low on their own. Without it, the only place to risk against is the bottom, way below you. Let it pull back and hold above the cycle low. That pullback low is your higher low, and the base starts there.",
    "lesson_line": "No pullback, no higher low, no 4B- yet.",
    "facts": [
     "g7",
     "m03",
-    "c04",
-    "x01",
-    "l2",
-    "c11"
+    "x02"
    ],
    "wrong": {
-    "Yes; it reclaimed the 50-day": "The 50-day reclaim is one step. Without a higher low, it is a V.",
-    "Yes, if volume stayed quiet": "Volume cannot stand in for a higher low.",
-    "No; the 200-day is not flat yet": "A flat or turning 200-day is a cue, not the gate. The gate here is the higher low, and a V straight up has none."
+    "Yes, it's back at the 50-day": "Reaching the 50-day is one step. Without a higher low it's just a V.",
+    "Yes, as long as volume was light": "Volume can't stand in for a higher low.",
+    "No, the 200-day isn't flat yet": "A flat 200-day is a nice cue, not the gate. The missing piece is the higher low."
    },
    "house": true,
-   "simple": "No. A straight run up has no pullback, so it has not made a higher low yet.",
+   "simple": "No. A straight run up has no pullback, so there's no higher low yet.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2040,7 +2114,7 @@
      "the higher-low numbers are the card's proposed rule"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q33",
@@ -2123,28 +2197,28 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "w4b.not_stretched",
-   "q": "Buy the break?",
-   "story": "A pause breaks out, and the stock sits 12% over its 9 EMA.",
+   "q": "The pause just broke out, but the stock's already 12% above its 9 EMA. Can you take the break?",
+   "story": "A clean pause breaks out today. The stock sits 12% over its 9 EMA.",
    "choices": [
-    "No; it is too stretched to buy",
-    "Yes; the break itself is clean",
+    "No, it's too stretched to buy",
+    "Yes, the break itself is clean",
     "Yes, but only on half size",
-    "No; the 9 EMA is not rising yet"
+    "No, the 9 EMA isn't rising yet"
    ],
-   "answer": "No; it is too stretched to buy",
-   "why": "No. Skip a long that is more than 10% above its 9 EMA. This one is 12% over, so it is too stretched to buy, however clean the break looks.",
-   "lesson_line": "A clean break, too far above its average, is a pass.",
+   "answer": "No, it's too stretched to buy",
+   "why": "Pass. We skip a long more than 10% above its 9 EMA, and this one's 12% over. A stretched stock tends to snap back toward its average. Your stop sits way below the fill, and that's a lot of air between you and your risk. Let it come back in and set up again. There's always another trigger.",
+   "lesson_line": "A clean break that's too far from its average is still a pass.",
    "facts": [
-    "c22",
-    "h13"
+    "h13",
+    "r32"
    ],
    "wrong": {
-    "Yes; the break itself is clean": "A clean break can still be too stretched. Skip a long more than 10% above its 9 EMA.",
-    "Yes, but only on half size": "Half size does not cure a stretch.",
-    "No; the 9 EMA is not rising yet": "The rule is about distance, not slope: skip a long that is more than 10% above its 9 EMA."
+    "Yes, but only on half size": "Half size doesn't fix a stretch. And we buy the full size at one price.",
+    "Yes, the break itself is clean": "Clean and stretched can both be true. Past 10% over the 9 EMA, we skip it.",
+    "No, the 9 EMA isn't rising yet": "The line here is distance, not slope. It's 12% over."
    },
    "house": true,
-   "simple": "No. At 12% over its 9 EMA, the stock is stretched past the 10% limit, so we skip it.",
+   "simple": "Pass. At 12% over its 9 EMA, it's past our 10% line, too stretched to buy.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2152,7 +2226,7 @@
      "rests on the owner's rulebook (C29)"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q36",
@@ -2160,30 +2234,28 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "w4b.time_stop",
-   "q": "What do you do?",
-   "story": "You bought a 4B- break 10 trading days ago. It sits at 0.7R and the stop has not traded.",
+   "q": "You bought a 4B- 10 trading days ago. It sits at 0.7R and the stop hasn't been touched. What do you do?",
+   "story": "Ten trading days in. Up 0.7R. The stop has never traded.",
    "choices": [
-    "Sell; under 1R after 10 days",
-    "Hold; the stop has not traded",
+    "Sell it, under 1R after 10 days",
+    "Hold it, the stop hasn't traded",
     "Widen the stop to give it room",
     "Sell half and hold the rest"
    ],
-   "answer": "Sell; under 1R after 10 days",
-   "why": "Sell. A trade still under 1R after 10 trading days is sold, freeing the money. The stop has not traded, but the time stop is its own exit. Do not widen the stop.",
+   "answer": "Sell it, under 1R after 10 days",
+   "why": "Sell it. A trade still under 1R after 10 trading days gets sold. The stop didn't trade, but time is its own exit. A good turn should move. If it's done nothing in two weeks, that money can work in a name that's actually going. Don't widen anything. Close it and go find the next one.",
    "lesson_line": "Ten days and nothing. The money has somewhere better to be.",
    "facts": [
-    "c32",
     "h15",
-    "c28",
     "h02"
    ],
    "wrong": {
-    "Hold; the stop has not traded": "The time stop is its own exit. Under 1R after 10 days, the money goes elsewhere.",
     "Widen the stop to give it room": "The stop only moves up, never down or wider.",
-    "Sell half and hold the rest": "The time stop sells the trade; it does not trim it."
+    "Sell half and hold the rest": "The time stop sells the trade. It doesn't trim it.",
+    "Hold it, the stop hasn't traded": "Time is its own exit. Under 1R after 10 days, the money goes elsewhere."
    },
    "house": true,
-   "simple": "Sell. A trade still under 1R after 10 trading days is sold, even though the stop has not traded.",
+   "simple": "Sell it. Ten days and still under 1R means the money is better used somewhere else.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2191,7 +2263,7 @@
      "rests on the owner's rulebook (C33)"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q37",
@@ -2199,31 +2271,29 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "w4b.inv_market_red",
-   "q": "What do you do with the break?",
-   "story": "A clean 4B- breaks the pause high above its 200-day, but the market reading just turned Red.",
+   "q": "A clean 4B- breaks its pause high above the 200-day. Our market reading just turned Red. What's the play?",
+   "story": "The setup is clean and the stock is above its 200-day. The market reading just flipped to Red.",
    "choices": [
-    "Stand aside; Red is mostly cash",
-    "Buy; the base is great and clean",
-    "Buy full size; Red changes nothing",
-    "Short it; Red means go short"
+    "Stand aside, Red is mostly cash",
+    "Buy it, the base is too good",
+    "Buy full size, Red changes nothing",
+    "Short it, Red means go short"
    ],
-   "answer": "Stand aside; Red is mostly cash",
-   "why": "Stand aside. In a Red market we are mostly cash, plus shorts below the 200-day. This stock is above its 200-day, so it is no short. The card says Red means no new longs, and a 4B- is a long.",
+   "answer": "Stand aside, Red is mostly cash",
+   "why": "Stand aside. Our market reading is the app's market filter: Green, Yellow, Orange, Red. It's a guide to how much the account trades, and Red means mostly cash. Breakouts fail more often when the whole market is selling, because nothing's backing them. A great base will still be there, or set up again, when the market turns. And it's above the 200-day, so it's no short either.",
    "lesson_line": "A great base in a Red market still waits.",
    "facts": [
-    "c39",
-    "c15",
     "h33",
-    "h10",
-    "m08"
+    "r25",
+    "h10"
    ],
    "wrong": {
-    "Buy; the base is great and clean": "Buying against the market is the named mistake. Red is mostly cash.",
-    "Buy full size; Red changes nothing": "Red changes the account: we are mostly cash. A great base still waits.",
-    "Short it; Red means go short": "Shorts are only below the 200-day, never above it. This stock is above its 200-day."
+    "Buy it, the base is too good": "Buying against the market is how good bases turn into stop-outs. Red is mostly cash.",
+    "Buy full size, Red changes nothing": "Red changes the whole account. We're mostly cash.",
+    "Short it, Red means go short": "We only short below the 200-day. This one's above it."
    },
    "house": true,
-   "simple": "Stand aside. In a Red market we are mostly cash, so this long waits.",
+   "simple": "Stand aside. In a Red market we're mostly cash, so even a great base waits.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2232,7 +2302,7 @@
      "the card's no-new-longs line is stronger than the rulebook's guide"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q38",
@@ -2240,29 +2310,30 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "w4b.inv_close_under_50_before",
-   "q": "What now?",
-   "story": "A stock has reclaimed its 50-day and paused for a week. You have not bought. Today it closes back under the 50-day.",
+   "q": "It won back the 50-day and paused a week. You haven't bought. Today it closes back under the 50-day. Now what?",
+   "story": "A week of pausing above the 50-day, no buy yet. Today's close is back under the line.",
    "choices": [
-    "Wait for a new pause above the 50-day",
-    "Buy the dip; it is cheaper now",
-    "Wait one day, then buy as before",
-    "Buy on the first close back over it"
+    "Wait for a new pause above it",
+    "Buy the dip, it's cheaper now",
+    "Wait a day, then buy as planned",
+    "Buy the first close back over it"
    ],
-   "answer": "Wait for a new pause above the 50-day",
-   "why": "Wait for a new pause. A close back under the 50-day before the trigger takes the setup off. It re-arms only after a new pause of at least 2 closes above the 50-day.",
-   "lesson_line": "Lost the 50-day, so wait for a fresh pause above it.",
+   "answer": "Wait for a new pause above it",
+   "why": "Wait for a new pause. Losing the 50-day before the trigger takes the setup off. The week above it doesn't carry over. Sellers just showed up at the line, so you want to see buyers win it back and hold there again. Once it pauses above the 50-day again, you've got a fresh high to trigger on and a fresh low to risk against.",
+   "lesson_line": "Lose the 50-day, wait for a fresh pause above it.",
    "facts": [
-    "c36"
+    "c07",
+    "c19"
    ],
    "wrong": {
-    "Buy the dip; it is cheaper now": "The setup is off until a new pause forms. A dip under the 50-day is no entry.",
-    "Wait one day, then buy as before": "A day of waiting is not a pause. The setup re-arms only after a new pause of at least 2 closes above the 50-day.",
-    "Buy on the first close back over it": "One close back over is only the reclaim. The setup re-arms only after a new pause of at least 2 closes above the 50-day."
+    "Buy the dip, it's cheaper now": "A close under the 50-day is a warning, not a discount.",
+    "Wait a day, then buy as planned": "The plan's off. A day of waiting isn't a new pause.",
+    "Buy the first close back over it": "That's just the reclaim again. Let it pause before you buy."
    },
    "house": true,
-   "simple": "Wait for a fresh pause, because a close back under the 50-day before the buy resets the setup.",
+   "simple": "Wait. Losing the 50-day before your buy resets it, so let it build a fresh pause.",
    "deeper": {
-    "trap": "A week above the 50-day does not carry over. One close back under it resets the count, and the new pause must be at least 2 closes above it."
+    "trap": "A week above the 50-day doesn't carry over. One close back under it resets the count, and you need a fresh pause above it."
    },
    "tier": "extended",
    "risk": {
@@ -2272,7 +2343,7 @@
      "a proposed rule the owner may change"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q39",
@@ -2280,7 +2351,7 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "w4b.stop",
-   "q": "Account 50,000. Risk 1%. Buy 22.12, stop 21.49. How many shares does the risk allow?",
+   "q": "Your account is 50,000 and you risk 1% a trade. You buy at 22.12 with the stop at 21.49. How many shares?",
    "answer": "793 shares",
    "calc": {
     "fn": "shares_from_risk",
@@ -2292,16 +2363,17 @@
     },
     "round": 0
    },
-   "why": "Risk is 1% of 50,000. Divide that by the buy minus the stop, 22.12 minus 21.49, and round down to 793 shares. The stop sets the size. The final size is the smaller of this and the position cap.",
+   "why": "793 shares. 1% of 50,000 is $500 at risk. 22.12 minus 21.49 is 0.63 a share. 500 over 0.63 is 793.65, round down to 793. That's a 2.85% stop, inside the 1-3% we like best. The stop sets the size, never the other way around. Then check it against your position cap and take the smaller number.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
     "h01",
-    "d01"
+    "d01",
+    "r20"
    ],
    "suffix": " shares",
    "house": true,
-   "simple": "Dividing the 1% of 50,000 you risk by the gap between 22.12 and 21.49 gives 793 shares after rounding down.",
+   "simple": "Risk $500, divide by 0.63 a share, and round down. That's 793 shares.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2310,7 +2382,7 @@
      "rests on the owner's rulebook (A3 and A5)"
     ]
    },
-   "batch": "visuals-4",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "793 shares",
     "22 shares",
@@ -2318,11 +2390,11 @@
     "396 shares"
    ],
    "wrong": {
-    "22 shares": "Divided the risk dollars by the buy price, not the stop distance.",
-    "79 shares": "Slipped a decimal the other way and risked a tenth too little.",
-    "396 shares": "Used half the risk percent."
+    "22 shares": "You divided the risk dollars by the price, not by the stop distance.",
+    "79 shares": "You slipped a decimal and risked a tenth of what you meant to.",
+    "396 shares": "You used half the risk."
    },
-   "story": "Bought on the trigger.",
+   "story": "You bought the trigger off a 17-day pause above the 50-day.",
    "chart": {
     "sym": "PENN",
     "asof": "2019-11-05",
@@ -2382,31 +2454,30 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "w4b.stop_gap",
-   "q": "What now?",
-   "story": "You bought at 40.00 with the stop at 39.00. It gaps open at 38.20, and the first 30-minute low is 37.80.",
+   "q": "You're long from 40.00, stop 39.00. It gaps open at 38.20 and the first 30-minute low is 37.80. What now?",
+   "story": "Long from 40.00, stop 39.00. Gap down open at 38.20. First 30-minute low: 37.80.",
    "choices": [
-    "Out now; the loss is past the 2R cap",
-    "The new stop is the 37.80 low",
-    "Hold; gaps tend to fill in time",
-    "Sell half now; keep half for a bounce"
+    "Get out, the loss is past 2R",
+    "Make 37.80 the new stop",
+    "Hold it, gaps tend to fill",
+    "Sell half, keep half for a bounce"
    ],
-   "answer": "Out now; the loss is past the 2R cap",
-   "why": "Out. On a gap through the stop, the first 30-minute low is the new stop, with a ceiling: if the first 30 minutes take the loss past 2R, get out. Here R is the gap from 40.00 to 39.00, and the 37.80 low is more than two of those under the buy.",
-   "lesson_line": "A gap through the stop has a ceiling of 2R.",
+   "answer": "Get out, the loss is past 2R",
+   "why": "Get out. When a gap jumps your stop, the first 30-minute low becomes the new stop, but only inside 2R. Your risk was 40.00 minus 39.00, a dollar a share. Two R down is two dollars under the buy. The 37.80 low is past that. Past 2R the rule takes you out, so one bad gap can't turn into a disaster.",
+   "lesson_line": "A gap through the stop has a ceiling: 2R.",
    "facts": [
-    "c24",
     "h06",
     "h07"
    ],
    "wrong": {
-    "The new stop is the 37.80 low": "The 30-minute low is the stop only while the loss is inside 2R. This one is past it.",
-    "Hold; gaps tend to fill in time": "Hope is not a rule. The gap rule has a ceiling, and this is past it.",
-    "Sell half now; keep half for a bounce": "The gap rule has no half exit. The first 30-minute low is the new stop, and past 2R you get out."
+    "Make 37.80 the new stop": "The 30-minute low is the new stop only inside 2R. This one's past it.",
+    "Hold it, gaps tend to fill": "Hope isn't a plan. Past 2R you're out.",
+    "Sell half, keep half for a bounce": "The gap rule has no half exit. Past 2R, all of it goes."
    },
    "house": true,
-   "simple": "Get out now. The first 30-minute low is past the 2R cap, so there is no new stop to hold.",
+   "simple": "Get out. The first 30-minute low is past 2R, so it can't be your new stop.",
    "deeper": {
-    "example": "Bought at 40.00 with the stop at 39.00. The stock gaps to 38.20 and the first 30-minute low is 37.80. That low sits more than 2R down, past the ceiling, so it cannot be the new stop. Had it held inside 2R, it would have been."
+    "example": "Long from 40.00, stop 39.00. It gaps to 38.20 and the first 30-minute low is 37.80. That low is more than 2R down, past the ceiling, so it can't be the new stop. Had it held inside 2R, it would have been."
    },
    "tier": "extended",
    "risk": {
@@ -2415,7 +2486,7 @@
      "rests on the owner's rulebook (B20)"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q42",
@@ -2450,29 +2521,29 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "w4b.size_by_grade",
-   "q": "How do you answer your friend?",
-   "story": "Your 4B- trade is working. A friend says to add along the way, as some traders do.",
+   "q": "Your 4B- is working. A friend tells you to buy more shares on each higher low. What do you tell him?",
+   "story": "The trade is up and working. Your friend adds along the way and says you should too.",
    "choices": [
-    "No; one price, one stop, no adds",
-    "Yes; add on each higher low",
-    "Yes, but add half the size",
-    "No; sell half to lock gains"
+    "No, one price and one stop",
+    "Sure, add on each higher low",
+    "Sure, but add half the size",
+    "No, sell half to lock it in"
    ],
-   "answer": "No; one price, one stop, no adds",
-   "why": "No. Size from the stop, with one price, one stop and no adding along the way. Adding to it on the way up is a named mistake. The trade grows through its trims and trail, not through adds.",
-   "lesson_line": "Full size once. A winner is not a reason to add.",
+   "answer": "No, one price and one stop",
+   "why": "No. We buy the full size at one price with one stop. An add on every higher low makes adding a routine, and that's not how we trade. Every add is a higher price with its own risk. Your average cost climbs, and one pullback can wipe out the gain on the whole thing. Adding to a working winner does happen, but it's rare and a feel call, never the plan. The trade grows by being right and riding the trail.",
+   "lesson_line": "Full size once. Adding on every higher low isn't the plan.",
    "facts": [
-    "c26",
-    "m05",
-    "r12"
+    "r12",
+    "aw1",
+    "aw2"
    ],
    "wrong": {
-    "Yes; add on each higher low": "Adding to it on the way up is the named mistake.",
-    "Yes, but add half the size": "A smaller add is still an add with a second price and a second stop.",
-    "No; sell half to lock gains": "Selling half early is not the answer to an add. The first sell is a judgment, usually day 3 at the earliest, and the rest trails."
+    "Sure, add on each higher low": "That makes adding a routine. Your cost climbs with every add.",
+    "Sure, but add half the size": "A smaller add is still a planned add, a second price and a second stop.",
+    "No, sell half to lock it in": "That's a different call. The first sell is a judgment, into a push on day 3 or later."
    },
    "house": true,
-   "simple": "No. We size from the stop once and never add along the way, even when the trade works.",
+   "simple": "No, we buy once, full size, with one stop. An add to a winner is rare, never a routine.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2480,7 +2551,7 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q44",
@@ -2514,16 +2585,15 @@
    "rung": 6,
    "format": "tf",
    "criterion": "w4b.position_adv",
-   "q": "Our position can be up to 5% of the stock's average daily volume.",
+   "q": "On a stock we really like, our position can be as big as 5% of its average daily volume.",
    "answer": "False",
-   "why": "False. The cap is 1% of a stock's average daily volume, not 5%. Illiquid stocks are not even watched.",
-   "lesson_line": "Size to the stock's volume, not just the stop.",
+   "why": "False. We never own more than 1% of a stock's average daily volume. Past that, you are the volume. Getting out on a bad day means pushing the price down against yourself. And if a stock is so thin that 1% is a small position, it's not one we should even be watching.",
+   "lesson_line": "Size to the stock's volume, not just your stop.",
    "facts": [
-    "c18",
     "h19"
    ],
    "house": true,
-   "simple": "False. We never own more than 1% of a stock's average daily volume.",
+   "simple": "False. We cap a position at 1% of the stock's average daily volume.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2531,7 +2601,7 @@
      "rests on the owner's rulebook (D42)"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q46",
@@ -2578,35 +2648,33 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "w4b.short_term",
-   "q": "What do you do?",
-   "story": "Your 4B- stalls after the buy and drifts back toward the old low. A friend says to hold it as an investment.",
+   "q": "Your 4B- stalls after the buy and drifts back toward the old low. A friend says hold it as an investment. What do you do?",
+   "story": "A few days after the buy it stalls and starts drifting back toward the cycle low. The stop hasn't traded yet.",
    "choices": [
-    "Sell by the rules; it is a trade",
-    "Hold it; a long-term bottom",
-    "Add shares; it is cheaper",
-    "Move the stop lower for room"
+    "Sell it by the plan, it's a trade",
+    "Hold it, it's a long-term bottom",
+    "Add shares, it's cheaper here",
+    "Lower the stop to give it room"
    ],
-   "answer": "Sell by the rules; it is a trade",
-   "why": "Sell by the rules. A 4B- is a short-term trade on our trims, not an investment. Holding it back down into Stage 4 is the named mistake. A stalled trade exits on its stop or its time stop.",
-   "lesson_line": "Do not turn a short-term trade into an investment.",
+   "answer": "Sell it by the plan, it's a trade",
+   "why": "Sell it by the plan. A 4B- is a swing trade, days to a few weeks. It exits on its stop or its time stop, not by getting promoted to an investment. Riding a failed turn back down into Stage 4 is how one small loss becomes the worst trade of your year. The stop is there. Let it do its job.",
+   "lesson_line": "Don't turn a trade into an investment.",
    "facts": [
     "m09",
-    "c33",
-    "c32",
-    "c40",
-    "m05",
-    "c26",
-    "h02"
+    "r30",
+    "h02",
+    "h15",
+    "aw1"
    ],
    "wrong": {
-    "Hold it; a long-term bottom": "Holding a short-term trade back down into Stage 4 is the named mistake.",
-    "Add shares; it is cheaper": "Adding to it is a named mistake. One price, one stop, no adds.",
-    "Move the stop lower for room": "The stop only moves up, never down or wider. Moving it lower turns a planned loss into a hope."
+    "Hold it, it's a long-term bottom": "That's the mistake: riding a failed trade back into Stage 4.",
+    "Add shares, it's cheaper here": "That's adding to a loser, and we never do that. One price, one stop.",
+    "Lower the stop to give it room": "The stop only moves up. Lowering it turns a planned loss into hope."
    },
    "house": true,
-   "simple": "Sell by the rules, because a 4B- is a short-term trade and we never hold a stock back in Stage 4.",
+   "simple": "Sell by the plan. A 4B- is a short trade, and we never ride one back into Stage 4.",
    "deeper": {
-    "trap": "The friend's story sounds patient, but it changes the trade. A 4B- is a short-term play, and a stalled one exits on the stop or the time stop. Hope is not an exit."
+    "trap": "The friend's story sounds patient, but it changes the trade. A 4B- is a short-term play, and a stalled one exits on the stop or the time stop. Hope isn't an exit."
    },
    "tier": "extended",
    "risk": {
@@ -2616,7 +2684,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q48",
@@ -2624,35 +2692,34 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "w4b.after_entry_stop",
-   "q": "The stop traded. How should we read that loss?",
-   "story": "You bought a 4B- on the trigger at 12.99, stop 12.59. It followed a 37.5% decline, a higher low and a 12-day pause. The next session fell to 12.48.",
+   "q": "You bought this 4B- at 12.99 with a 12.59 stop. The next day traded 12.48 and took you out. How do you grade it?",
+   "story": "A 37.5% decline, a higher low and a 12-day pause, then the trigger. The buy day closed near its high.",
    "choices": [
-    "A planned loss; the stop worked",
-    "A stop that was set too tight",
-    "A buy that came in too late",
-    "Proof the 4B- does not work"
+    "A planned loss, the stop worked",
+    "The stop was set too tight",
+    "The buy came in too late",
+    "Proof the 4B- doesn't work"
    ],
-   "answer": "A planned loss; the stop worked",
-   "why": "A planned loss. The stop is the plan, and the stop-out was the planned loss of 3.1% (12.99 to 12.59). The next session fell to 12.48 and took the stop. Judge the plan, not the outcome.",
-   "lesson_line": "A stop-out can be the plan working. The stop makes the loss small.",
+   "answer": "A planned loss, the stop worked",
+   "why": "A planned loss. You bought the trigger, your stop sat a few cents under the low of the day, and it cost you 3.1%. That's inside the 5% we accept. 12.48 traded under 12.59 and the stop did exactly what it's for. Judge the plan, not the outcome. Take enough good setups and some will do this. That was F in February 2024.",
+   "lesson_line": "A stop-out can be the plan working.",
    "facts": [
     "d06",
     "d07",
     "d08",
-    "c40",
-    "c19",
+    "h01",
     "h02",
-    "h01"
+    "r20"
    ],
    "wrong": {
-    "A stop that was set too tight": "The stop came from the day's low, as our stop rule says, and it only moves up. Calling it too tight after a loss is how stops get widened.",
-    "A buy that came in too late": "The buy was on the trigger, the trade over the pause high. That is not a chase.",
-    "Proof the 4B- does not work": "One loss proves nothing. Our dossier calls this the plain case of a correct 4B- that lost."
+    "The stop was set too tight": "It sat a few cents under the low of the day, where it belongs. Calling it tight after the fact is how stops get widened.",
+    "The buy came in too late": "You bought the trigger, right through the pause high. That's not a chase.",
+    "Proof the 4B- doesn't work": "One loss proves nothing. This setup loses often and gets paid on its runners."
    },
    "house": true,
-   "simple": "It was a planned loss, because the stop did its job and kept the loss small.",
+   "simple": "It was a planned loss. The stop did its job and kept the loss small.",
    "deeper": {
-    "trap": "A stop-out is not proof of a bad setup. Here the next session's low of 12.48 was under the 12.59 stop, so the exit happened as planned. Do not widen a stop after the fact. It only moves up."
+    "trap": "A stop-out isn't proof of a bad setup. The next session's low of 12.48 was under the 12.59 stop, so the exit happened as planned. Don't widen a stop after the fact. It only moves up."
    },
    "tier": "extended",
    "risk": {
@@ -2663,7 +2730,7 @@
      "fixed before"
     ]
    },
-   "batch": "visuals-4",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "F",
     "asof": "2024-02-12",
@@ -2681,31 +2748,30 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "w4b.inv_close_under_50_before",
-   "q": "After the first stop-out, when do you buy again?",
-   "story": "Bought at 213.22 with the stop at 210.32. It followed a 39% drop to the March 2020 low, a higher low and a 13-day pause. The next day took the 1.4% stop.",
+   "q": "You got stopped out the next day for 1.4%. When do you buy this stock again?",
+   "story": "Bought at 213.22, stop 210.32, after a 39% drop to the March 2020 low, a higher low and a 13-day pause. The next day took the stop.",
    "choices": [
     "Only when it triggers again",
-    "At once; it is the same setup",
-    "Only at a lower price than before",
-    "Only after a full week of waiting"
+    "Right away, it's the same setup",
+    "Only below your first buy price",
+    "After waiting a full week"
    ],
    "answer": "Only when it triggers again",
-   "why": "Only on a new trigger. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. META's second trigger on 2020-06-10 also stopped. The real move came from a third base.",
-   "lesson_line": "This setup can fail twice. Only a new trigger buys it again.",
+   "why": "Only on a new trigger. A stop-out ends that trade. If the stock sets up again and trades through a new pause high, that's a new trade with its own stop and its own size. Don't buy back just to get even. META stopped on this one and stopped again on 2020-06-10. The real move came from a third base, and small losses kept you in the game for it.",
+   "lesson_line": "This setup can fail twice. Only a new trigger gets you back in.",
    "facts": [
     "h28",
-    "c36",
     "d09",
     "d10",
     "d11"
    ],
    "wrong": {
-    "At once; it is the same setup": "After a stop-out, buy again only on a new trigger, as a new trade.",
-    "Only at a lower price than before": "The price level is not the rule. Buy again only on a new trigger, as a new trade with its own stop.",
-    "Only after a full week of waiting": "The rule sets no waiting period. A new trigger is a new trade with its own stop and every rule."
+    "Right away, it's the same setup": "The trade is over. Only a new trigger starts a new one.",
+    "Only below your first buy price": "Your old price doesn't matter. A new trigger, with its own stop, is the only way back in.",
+    "After waiting a full week": "There's no waiting period. Wait for the next trigger, however long it takes."
    },
    "house": true,
-   "simple": "Buy again only if the setup triggers again, as a brand new trade with its own stop.",
+   "simple": "Buy again only if it triggers again, as a brand new trade with its own stop.",
    "deeper": {
     "example": "META, 2020: buy 213.22, stop 210.32, stopped the next session. The second trigger on 2020-06-10 also stopped. The real move came from a third base."
    },
@@ -2717,7 +2783,7 @@
      "fixed before"
     ]
    },
-   "batch": "visuals-4",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "META",
     "asof": "2020-05-11",
@@ -2792,32 +2858,32 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "w4b.stage4",
-   "q": "Is it a 4B-?",
-   "story": "The day before the trigger. A stock drops 34% from its high. At the cycle low the 150-day was rising: 528.74 against 521.41 twenty sessions earlier.",
+   "q": "It's down 34% from its high and turning. Is it a 4B-?",
+   "story": "The day before the trigger. At the cycle low the 150-day was rising: 528.74, against 521.41 twenty sessions earlier.",
    "choices": [
-    "No; a pullback in an uptrend",
-    "Yes; the drop is deep enough",
-    "Yes; price sat under the 150-day",
-    "No; it is a plain 4B, not a 4B-"
+    "No, it's a pullback in an uptrend",
+    "Yes, 34% is deep enough",
+    "Yes, it sat under the 150-day",
+    "No, it's a plain 4B, still falling"
    ],
-   "answer": "No; a pullback in an uptrend",
-   "why": "No. At the cycle low the 150-day was rising: 528.74 against 521.41 twenty sessions earlier. A 4B- needs a falling 150-day first. A 34% drop under a rising 150-day is a pullback in an uptrend, so a Remount or a pullback buy, not a Stage 4 turn. The 150-day is not drawn on the chart; its two readings are in the story.",
+   "answer": "No, it's a pullback in an uptrend",
+   "why": "No. It's a pullback in an uptrend. At the low the 150-day was still rising, 528.74 against 521.41 twenty sessions before. A 4B- needs the 30-week line falling first. Depth fools people. A 34% drop looks like Stage 4, but the line tells you the stage. Trade it as a pullback buy, with those rules. That's COST.",
    "lesson_line": "Read the 150-day at the low before you name it.",
    "facts": [
     "d19",
     "d20",
     "l1",
-    "c02"
+    "x05"
    ],
    "wrong": {
-    "Yes; the drop is deep enough": "A deep drop is not a Stage 4. The 150-day was rising at the low.",
-    "Yes; price sat under the 150-day": "Price under the 150-day is only half the test. The 150-day also has to be falling at the low, and here it was rising.",
-    "No; it is a plain 4B, not a 4B-": "A plain 4B is late in a Stage 4 decline. Here the 150-day was rising at the low, so there is no Stage 4 to be late in."
+    "Yes, 34% is deep enough": "Depth doesn't make a Stage 4. The 150-day was rising at the low.",
+    "Yes, it sat under the 150-day": "Under it is half the picture. The line also has to be falling, and it was rising.",
+    "No, it's a plain 4B, still falling": "There's no Stage 4 here to be late in. The 150-day was rising."
    },
    "house": true,
-   "simple": "No, because the 150-day was rising at the low, so this is a pullback in an uptrend and not a Stage 4 turn.",
+   "simple": "No. The 150-day was rising at the low, so it's a pullback in an uptrend, not a Stage 4 turn.",
    "deeper": {
-    "trap": "Depth fools people. A drop of 34% looks like a Stage 4, but the 150-day tells the stage. Read it at the low. If it was rising, this is a pullback in an uptrend."
+    "trap": "Depth fools people. A 34% drop looks like a Stage 4, but the 150-day tells the stage. Read it at the low. If it was rising, this is a pullback in an uptrend."
    },
    "tier": "extended",
    "risk": {
@@ -2827,7 +2893,7 @@
      "fixed before"
     ]
    },
-   "batch": "visuals-4",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "COST",
     "asof": "2022-07-21",
@@ -2841,29 +2907,32 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "w4b.higher_low",
-   "q": "Is that a real higher low?",
-   "story": "A stock rallies off its cycle low to a high 4.1% above it. It then pulls back to a low 3.5% above the cycle low.",
+   "q": "Two days off its cycle low it pops 4.1%, then dips to a low 3.5% above it. Is that your higher low?",
+   "story": "Two days off its cycle low it pops 4.1%. Then it slips back to a low 3.5% above the cycle low.",
    "choices": [
-    "No; too small a rally before it",
-    "Yes; 3.5% clears the 3% step",
-    "No; 3.5% is too shallow to be real",
-    "Yes; it sits above the cycle low"
+    "Not yet, that's just chop at the low",
+    "Yes, it's above the cycle low",
+    "Yes, any low over the bottom counts",
+    "Yes, buy it as it turns up"
    ],
-   "answer": "No; too small a rally before it",
-   "why": "No. Our working rule needs a rally of 5% or more before the higher low. Here the best high off the low was only 4.1% above it. The step itself is fine: 3.5% clears the 3% minimum.",
-   "lesson_line": "A higher low needs a 5% rally before it.",
+   "answer": "Not yet, that's just chop at the low",
+   "why": "Not yet. Two days and a 4.1% pop isn't a base. Price is still sitting on the low. A real higher low comes after buyers lift it clear off the bottom, then a pullback that holds. On a 4B- that takes weeks, not days. It's a read by eye, not a fixed percent. Here there's nothing to pull back from yet, so I'd wait for it to show me more.",
+   "lesson_line": "A higher low needs a real rally before it.",
    "facts": [
-    "c04"
+    "m03",
+    "g7",
+    "x02",
+    "l3"
    ],
    "wrong": {
-    "Yes; 3.5% clears the 3% step": "The step is only one test. The rally of 5% or more before the higher low is missing, since the best high was just 4.1% above the low.",
-    "No; 3.5% is too shallow to be real": "The step test is at least 3%, and 3.5% passes it. What fails is the rally before it.",
-    "Yes; it sits above the cycle low": "Above the cycle low is not enough. A rally of 5% or more has to come before it, and the best high was just 4.1% above the low."
+    "Yes, it's above the cycle low": "Above the low isn't enough. There was no real rally for it to pull back from.",
+    "Yes, any low over the bottom counts": "A wiggle isn't a step up. You want a clear rally, then a pullback that holds.",
+    "Yes, buy it as it turns up": "There's no base to buy yet. It's still sitting on the low."
    },
    "house": true,
-   "simple": "No. The rally before the higher low was only 4.1%, under the 5% we want, even though the 3.5% step clears 3%.",
+   "simple": "Not yet. A quick pop and a dip right on the low is chop, not a higher low.",
    "deeper": {
-    "trap": "These numbers are made up on purpose. A step of 3.5% passes one test. The rally before it is missing: the best high off the low was just 4.1% above it."
+    "trap": "The dip held above the low, so it looks like a step up. But a pop of a couple of days and a slip right back is chop on the low. Read the shape: a real rally, then a pullback that holds."
    },
    "tier": "extended",
    "risk": {
@@ -2874,7 +2943,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q54",
@@ -2882,31 +2951,31 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "w4b.earnings_window",
-   "q": "Does our earnings rule allow that buy?",
-   "story": "A stock closes back over its 50-day on 2022-07-18, and you want to buy it. The company reports after the close on 2022-07-19.",
+   "q": "It's 2022-07-18 and the stock is back over its 50-day. It reports after tomorrow's close. Can you buy it here?",
+   "story": "It closed back over its 50-day on 2022-07-15 and again on 2022-07-18. The company reports after the close on 2022-07-19.",
    "choices": [
-    "No; too close to the report",
-    "Yes; the reclaim was clean",
-    "Yes; it came before the report",
-    "No; the 200-day comes first"
+    "No, it's too close to the report",
+    "Yes, the reclaim was clean",
+    "Yes, it's before the report",
+    "No, wait for the 200-day first"
    ],
-   "answer": "No; too close to the report",
-   "why": "No. We take no new buy in the 3 days before a report. The stock closed back over its 50-day on 2022-07-18, and the company reported after the close on 2022-07-19. A buy on the 18th comes the day before the report. A clean chart does not move the window. The rule guards against the risk of the report, and it does not judge a trade by how the report turned out.",
+   "answer": "No, it's too close to the report",
+   "why": "No. We take no new buys in the 3 days before a report, and the 18th is one day out. A clean chart doesn't move the window. The report can gap it right through your stop, and a stop can't catch a gap. Even without the report, a close back over the 50-day isn't the buy. You wait for the pause and the trigger. Check the report date in our app's calendar before every buy. This was NFLX in July 2022.",
    "lesson_line": "Check the report date before every buy, even on a clean chart.",
    "facts": [
     "d23",
-    "c23",
-    "h08"
+    "h08",
+    "c19"
    ],
    "wrong": {
-    "Yes; the reclaim was clean": "A clean reclaim does not move the earnings window.",
-    "Yes; it came before the report": "Buying before the report is exactly what the window bans. We take no new buy in the 3 days before one.",
-    "No; the 200-day comes first": "The story says nothing about the 200-day. What it gives is the report date, the next day."
+    "Yes, the reclaim was clean": "A clean chart doesn't move the earnings window.",
+    "Yes, it's before the report": "Right before the report is exactly when we don't buy.",
+    "No, wait for the 200-day first": "The problem here is the report date, not the 200-day."
    },
    "house": true,
-   "simple": "No, because a buy on 2022-07-18 is the day before the report, and we take no new buy in the 3 days before one.",
+   "simple": "No. A buy on the 18th is the day before the report, and we don't buy within 3 days of one.",
    "deeper": {
-    "trap": "A clean chart is not a free pass. The rule looks at the report date, not at how clean the base looks. Check the date before every buy."
+    "trap": "A clean chart isn't a free pass. The window looks at the report date, not at how good the base looks. Check the date before every buy."
    },
    "tier": "extended",
    "risk": {
@@ -2916,7 +2985,7 @@
      "fixed before"
     ]
    },
-   "batch": "visuals-4",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "NFLX",
     "asof": "2022-07-18",
@@ -2930,35 +2999,35 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "w4b.stop",
-   "q": "Write the plan.",
-   "story": "78 sessions off a December low, a February higher low, and a 19-day pause above a turning 50-day. Today it trades over the pause high.",
+   "q": "It's trading through the pause high right now. What's your plan?",
+   "story": "78 sessions off a December low, a February higher low, then a 19-day pause above a turning 50-day.",
    "choices": [
-    "Buy 49.99, stop 49.05, first sell day 3+",
+    "Buy 49.99, stop 49.05, sell day 3+",
     "Buy 49.99, stop 45.00, hold it all",
-    "Wait for a Stage 2 breakout instead",
-    "Buy 49.99, stop 49.05, add on each dip"
+    "Skip it, wait for a Stage 2 break",
+    "Buy 49.99, stop 49.05, add on dips"
    ],
-   "answer": "Buy 49.99, stop 49.05, first sell day 3+",
-   "why": "Buy at market, 49.99, once price trades over the pause high. Stop 49.05, 1.9% away. The first sell is a judgment call, usually day 3 at the earliest. One price, one stop, no adding.",
-   "lesson_line": "Entry, stop, first sell, trail. Write it before the open.",
+   "answer": "Buy 49.99, stop 49.05, sell day 3+",
+   "why": "Buy 49.99 at market, stop 49.05. That's a tight 1.9% stop. The first sell is a judgment, into a push on day 3 or later. Then trail what's left under the 9 or 20 EMA. One price, one stop, and no add in the plan. Write it all down before the open: entry, stop and size. Then you're just executing. That's NUS in April 2013.",
+   "lesson_line": "Entry, stop, size, first sell, trail. Write it before the open.",
    "facts": [
     "d03",
     "d04",
-    "c19",
     "h22",
-    "c26",
-    "r11",
-    "r12"
+    "r12",
+    "h21",
+    "r28",
+    "aw2"
    ],
    "wrong": {
-    "Buy 49.99, stop 45.00, hold it all": "The stop here sat 1.9% away; 45.00 is far wider. And the plan needs a first sell and a trail.",
-    "Wait for a Stage 2 breakout instead": "That is a different trade. This is the 4B-, the short-term play.",
-    "Buy 49.99, stop 49.05, add on each dip": "The entry and stop are right, but adding on dips breaks the plan: one price, one stop, no adding along the way."
+    "Buy 49.99, stop 45.00, hold it all": "45.00 is a wide stop pulled from nowhere. The honest one sat 1.9% away, and there's no plan to sell.",
+    "Skip it, wait for a Stage 2 break": "That's a different trade, later. You're looking at the 4B- buy.",
+    "Buy 49.99, stop 49.05, add on dips": "Right entry and stop, then adding on dips breaks it. One price, one stop."
    },
    "house": true,
-   "simple": "Buy at market over the pause high with the stop at 49.05, and wait until day 3 to make the first sell.",
+   "simple": "Buy at market through the pause high with the stop at 49.05, and sell some on day 3 or later.",
    "deeper": {
-    "example": "NUS had a December low, a February higher low, three months of flat 150- and 200-day lines, then a 19-day pause above a turning 50-day. The buy was 49.99 with the stop at 49.05, 1.9% away. Write the plan before the open: entry, stop, first sell."
+    "example": "NUS had a December low, a February higher low, three months of flat 150- and 200-day lines, then a 19-day pause above a turning 50-day. The buy was 49.99 with the stop at 49.05, 1.9% away."
    },
    "tier": "expert",
    "risk": {
@@ -2969,7 +3038,7 @@
      "stop width rests on held decision D-005"
     ]
    },
-   "batch": "visuals-4",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "NUS",
     "asof": "2013-04-18",
@@ -2987,33 +3056,33 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "w4b.group",
-   "q": "Which gets the bigger size?",
-   "story": "Two 4B- breaks. A: a clean higher low on light volume, a tight pause on a flat 50-day, the group and market turning up. B: a steeply falling 50-day, and a group and market not turning up.",
+   "q": "Two 4B- breaks trigger today. Which one gets the bigger size?",
+   "story": "A: a clean higher low on light volume, a tight pause on a flat 50-day, group and market turning up. B: a 50-day still falling steeply, group and market not turning.",
    "choices": [
-    "A; stronger base and backdrop",
-    "B; a steep 50-day has more upside",
-    "Equal; both broke the pause high",
-    "Neither; the stop sets the size"
+    "A, the stronger base and backdrop",
+    "B, a steep 50-day has more upside",
+    "Same size, both broke the high",
+    "Neither, the stop sets the size"
    ],
-   "answer": "A; stronger base and backdrop",
-   "why": "A. Its cues line up. It has a clean higher low on light volume and a tight pause on a flat 50-day. The group and market are turning up too. That is the A+ end. B's steeply falling 50-day is a B- cue. We size B- or lower grades down.",
-   "lesson_line": "Same setup, different grade. The base and the backdrop set the size.",
+   "answer": "A, the stronger base and backdrop",
+   "why": "A. Everything lines up behind it. Volume dried up into the higher low, the pause is tight on a flat 50-day, and the group and market are turning with it. I'd call that the A+ end, and A+ gets sized up. B is still fighting a steeply falling 50-day with no help from the group or the market. That's a B- at best, sized down. Same trigger, different odds.",
+   "lesson_line": "Same trigger, different grade. The grade sets the size.",
    "facts": [
     "g1",
     "g2",
-    "g5",
     "g3",
-    "c26"
+    "g5",
+    "r27"
    ],
    "wrong": {
-    "B; a steep 50-day has more upside": "A steeply falling 50-day is a B- cue, not extra upside. We size B- or lower grades down.",
-    "Equal; both broke the pause high": "Both broke the pause high, but the grade, not the break, sets the size. A has the cues of an A+ and B has a B- cue.",
-    "Neither; the stop sets the size": "The stop sets the base size, but we size B- or lower grades down. So the grade still moves the size."
+    "B, a steep 50-day has more upside": "A steeply falling 50-day is a weak cue. B- or lower gets sized down.",
+    "Same size, both broke the high": "The break is the same. What's behind it isn't, and the grade sets the size.",
+    "Neither, the stop sets the size": "The stop sets the shares for your risk. The grade sets how much you risk."
    },
    "house": true,
-   "simple": "A gets the bigger size. Its base and backdrop are strong, while B shows a weak cue and none of the strong ones.",
+   "simple": "A gets the bigger size. Its base and backdrop are strong, and B's are weak.",
    "deeper": {
-    "trap": "Both broke the pause high, so both look the same on a screen. The difference is what sits behind the break. A clean base and a rising backdrop earn size, and a weak base earns less."
+    "trap": "Both broke the pause high, so both look the same on a screen. The difference is what sits behind the break. A clean base and a rising backdrop earn size. A weak base earns less."
    },
    "tier": "expert",
    "risk": {
@@ -3027,7 +3096,7 @@
    "depends_on": [
     "D-070"
    ],
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q57",
@@ -3035,32 +3104,31 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "w4b.trim_1",
-   "q": "How do you read that result?",
-   "story": "You take five 4B- trades by the rules. Four stop out, and one runs for 5R.",
+   "q": "You take five 4B- trades by the rules. Four stop out and one runs 5R. How do you read that?",
+   "story": "Five trades, all by the plan. Four small stops. One runner to 5R.",
    "choices": [
-    "Normal; this setup loses often",
-    "Broken; the setup does not work",
-    "Wrong stops; they should be wider",
-    "Bad luck; a good setup wins most"
+    "Normal, this setup loses often",
+    "Broken, the setup doesn't work",
+    "Wrong stops, they should be wider",
+    "Bad luck, good setups win most"
    ],
-   "answer": "Normal; this setup loses often",
-   "why": "Normal. In our test above the 200-day, 22.2% of 1,110 hits reached 3R and 13.9% reached 5R. So most hits never reached 3R, and four stops in five is ordinary. That is a base rate for the rule, not a promise for any one trade.",
-   "lesson_line": "Most 4B- hits never reach 3R. Judge the setup over many trades.",
+   "answer": "Normal, this setup loses often",
+   "why": "Normal. In our scan of past 4B- triggers above the 200-day, 22.2% of 1,110 hits reached 3R and 13.9% reached 5R. Most never got to 3R. So four stops in five is an ordinary run for this setup. Four small stops and one 5R runner still nets you a gain. The losses stay small at the stop and the runners pay for them. Judge it over many trades, not five.",
+   "lesson_line": "Most 4B- trades don't reach 3R. Judge it over many trades.",
    "facts": [
     "d25",
     "h01",
-    "h03",
     "r13"
    ],
    "wrong": {
-    "Broken; the setup does not work": "Four stops in five fits our test, where only 22.2% of hits reached 3R. That is the base rate, not a broken setup.",
-    "Wrong stops; they should be wider": "Our stop sits a few cents under the day's low, set before the buy. Widening it to dodge stop-outs breaks that rule, and the shares shrink.",
-    "Bad luck; a good setup wins most": "Our test shows the base rate: only 22.2% of hits reached 3R. Losing often is normal for this setup, not bad luck."
+    "Broken, the setup doesn't work": "Four stops in five fits what we measured. Only 22.2% reached 3R.",
+    "Wrong stops, they should be wider": "Our stop sits a few cents under the low of the day, set before the buy. Widening it just shrinks your shares.",
+    "Bad luck, good setups win most": "This setup doesn't win most. It wins big when it works."
    },
    "house": true,
-   "simple": "That is normal: in our test only 22.2% of hits reached 3R, so four stops in five is ordinary.",
+   "simple": "That's normal. Most 4B- trades never reach 3R, so four stops in five is ordinary.",
    "deeper": {
-    "counter": "The hit rate alone says little. Winners are sold into strength, and each loss is held to the stop. Judge the setup over many trades, not five."
+    "counter": "The hit rate alone says little. Winners get sold into strength and each loss is held to the stop. Judge the setup over many trades, not five."
    },
    "tier": "expert",
    "risk": {
@@ -3072,7 +3140,7 @@
      "fixed before"
     ]
    },
-   "batch": "rulings2"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q58",
@@ -3096,16 +3164,16 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "w4b.version_h_200",
-   "q": "A washout, a higher low, a pause over the 50-day. Take it or pass?",
+   "q": "A washout low, a higher low, and now a pause over the 50-day. Do you take this one?",
    "choices": [
-    "Take it; it is above the 200-day",
-    "Pass; the 200-day is overhead",
-    "Pass; no real higher low",
-    "Take it; washouts bounce"
+    "Take it, it's above the 200-day",
+    "Pass, the 200-day is overhead",
+    "Pass, there's no real higher low",
+    "Take it, washouts always bounce"
    ],
-   "answer": "Take it; it is above the 200-day",
-   "why": "Take it. A spring washout, a higher low, and an 11-day pause that walked up through the 50, 150 and 200-day lines. The prior close was above the 200-day, so the no-longs-under-it rule does not apply. It then ran to 5R in 9 sessions. The other checks still apply, and one winner proves nothing about the next.",
-   "lesson_line": "The 200-day first, then the base. Both passed here.",
+   "answer": "Take it, it's above the 200-day",
+   "why": "Take it. A spring washout, a higher low well above it, and an 11-day pause that walked up through the 50, 150 and 200-day lines. The close before the trigger was above the 200-day, so it clears our hard line. It went in with a 2% stop and ran to 5R in 9 sessions. That's DY in May 2025. One winner proves nothing, but that's the picture you want.",
+   "lesson_line": "The 200-day first, then the base. Both pass here.",
    "facts": [
     "h10",
     "d29",
@@ -3115,9 +3183,9 @@
     "d09"
    ],
    "wrong": {
-    "Pass; the 200-day is overhead": "Look again: price sits above the 200-day here.",
-    "Pass; no real higher low": "Look again: the second low sits well above the first.",
-    "Take it; washouts bounce": "A washout alone is not a setup. This one has a higher low, a pause over the 50-day and a prior close above the 200-day."
+    "Pass, the 200-day is overhead": "Look again. Price is above the 200-day here.",
+    "Pass, there's no real higher low": "Look again. The second low sits well above the washout.",
+    "Take it, washouts always bounce": "A washout alone isn't a setup, and nothing always bounces. This one has the higher low and the pause."
    },
    "chart": {
     "sym": "DY",
@@ -3126,9 +3194,9 @@
     "forward": 20
    },
    "house": true,
-   "simple": "Take it, because the prior close was above the 200-day and the base has a higher low and a pause.",
+   "simple": "Take it. The close was above the 200-day, and the base has a higher low and a pause.",
    "deeper": {
-    "trap": "A clean win is a bad teacher. The same shape lost in other cases, such as F and META, which were both stopped the next session. Judge the filter, not the one hit."
+    "trap": "A clean win is a bad teacher. The same shape lost in other cases, like F and META, both stopped the next session. Judge the process, not the one hit."
    },
    "tier": "expert",
    "risk": {
@@ -3139,7 +3207,7 @@
      "fixed before"
     ]
    },
-   "batch": "rulings"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q60",
@@ -3147,16 +3215,16 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "w4b.version_h_200",
-   "q": "A deep decline, a higher low, a 50-day reclaim. Is it above the 200-day? Take it or pass.",
+   "q": "A 50% decline, a 12% higher low and a 50-day reclaim. The shape looks right. Can you take it?",
    "choices": [
-    "Pass; it is still under the 200-day",
-    "Take it; the base is textbook",
-    "Take it; the higher low is big",
-    "Pass; it is a plain 4B, still falling"
+    "Pass, it's still under the 200-day",
+    "Take it, the base is textbook",
+    "Take it, the higher low is big",
+    "Pass, it's a plain 4B, still falling"
    ],
-   "answer": "Pass; it is still under the 200-day",
-   "why": "Pass. The close was 10.2% under the 200-day the day before the trigger. A 50% decline, a 12% higher low and a 50-day reclaim can all be right. The trade is still not ours. Below the 200-day is a hard no for stocks. Only indexes and a few special ETFs get an exception.",
-   "lesson_line": "The shape is not enough. For a stock, the 200-day decides.",
+   "answer": "Pass, it's still under the 200-day",
+   "why": "Pass. The close the day before the trigger was 10.2% under the 200-day. The decline, the higher low and the reclaim can all be right, and it's still not ours. Below the 200-day is a hard no for stocks. Under it, every rally runs into holders who want out. Only indexes and levered ETFs get an exception. That's BAC in June 2020.",
+   "lesson_line": "The shape isn't enough. For a stock, the 200-day decides.",
    "facts": [
     "h10",
     "d17",
@@ -3165,9 +3233,9 @@
     "r02"
    ],
    "wrong": {
-    "Take it; the base is textbook": "A good-looking base does not matter when the close is under the 200-day. That rule comes first.",
-    "Take it; the higher low is big": "A big higher low does not lift a close over the 200-day.",
-    "Pass; it is a plain 4B, still falling": "A higher low and a 50-day reclaim put it past the plain 4B stage. The reason to pass is the 200-day."
+    "Take it, the base is textbook": "A good-looking base doesn't matter with the close under the 200-day. That line comes first.",
+    "Take it, the higher low is big": "A big higher low doesn't lift the close over the 200-day.",
+    "Pass, it's a plain 4B, still falling": "The higher low and the 50-day reclaim put it past a plain 4B. The reason to pass is the 200-day."
    },
    "chart": {
     "sym": "BAC",
@@ -3176,9 +3244,9 @@
     "forward": 20
    },
    "house": true,
-   "simple": "Pass. The close is still under the 200-day, and we do not buy stocks under it.",
+   "simple": "Pass. The close is still under the 200-day, and we don't buy stocks under it.",
    "deeper": {
-    "trap": "The shape looks complete. A 50% decline, a 12% higher low and a 50-day reclaim, yet the close was still 10% under the 200-day. Check the 200-day before you admire the base. Shape never overrides the line."
+    "trap": "The shape looks complete. A 50% decline, a 12% higher low and a 50-day reclaim, and the close was still 10% under the 200-day. Check the 200-day before you admire the base."
    },
    "tier": "expert",
    "risk": {
@@ -3188,7 +3256,7 @@
      "numbers read from our own bars (dossier)"
     ]
    },
-   "batch": "rulings"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q61",
@@ -3196,33 +3264,32 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "w4b.market_reading",
-   "q": "Which one stays on our list today?",
-   "story": "Four candidates today. A: still making new lows. B: the close is under the 200-day. C: a higher low, a pause over the 50-day, 3R of room. D: reports in 2 days.",
+   "q": "Four names on your list this morning. Which one is still a 4B- candidate?",
+   "story": "A: still making new lows. B: the close is under the 200-day. C: a higher low, a pause over the 50-day, open room overhead. D: reports in 2 days.",
    "choices": [
-    "A; it is still making new lows",
-    "B; its close is under the 200-day",
-    "C; higher low, pause, 3R of room",
-    "D; it reports in just two days"
+    "A, still making new lows",
+    "B, close under the 200-day",
+    "C, higher low and a pause",
+    "D, reports in two days"
    ],
-   "answer": "C; higher low, pause, 3R of room",
-   "why": "C. A plain 4B still making new lows, a close under the 200-day and a report inside 3 sessions each rule one out. C has the higher low and 3R of room. C still has to clear its other gates before the buy.",
-   "lesson_line": "Run every gate. One failure ends it.",
+   "answer": "C, higher low and a pause",
+   "why": "C. Run every name through the checks. A is a plain 4B, still falling. B is under the 200-day, a hard no. D reports in 2 days, inside our 3-day window. C has the higher low, the pause and room over its head. It still has to trigger through the pause high, and you skip it if it's more than 4% past that.",
+   "lesson_line": "Run every check. One failure ends it.",
    "facts": [
-    "c38",
+    "x01",
     "h10",
-    "c23",
-    "c04",
-    "c10"
+    "h08",
+    "h11"
    ],
    "wrong": {
-    "A; it is still making new lows": "A stock still making new lows is a plain 4B, much too soon to buy.",
-    "B; its close is under the 200-day": "Under the 200-day, no longs.",
-    "D; it reports in just two days": "A report inside 3 sessions ends it."
+    "A, still making new lows": "Still making new lows is a plain 4B, much too soon to buy.",
+    "B, close under the 200-day": "Under the 200-day, no longs. That's a hard line.",
+    "D, reports in two days": "A report inside 3 days ends it for now."
    },
    "house": true,
-   "simple": "C. The other three each fail a gate: A is a plain 4B, B is under the 200-day, D reports within 3 sessions.",
+   "simple": "C. The other three each fail a check: a plain 4B, under the 200-day, and a report too soon.",
    "deeper": {
-    "trap": "C is only the survivor of this list. It still has to clear the rest. It needs a close above the 200-day, the 50-day reclaim and a trigger over the pause high. Then the buy must be no more than 4% past the trigger."
+    "trap": "C only survived the list. It still needs the close above the 200-day, the 50-day won back and a trade through the pause high. Then the buy can't be more than 4% past the trigger."
    },
    "tier": "expert",
    "risk": {
@@ -3232,7 +3299,7 @@
      "the 3R room number is the card's proposal"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q62",
@@ -3273,31 +3340,31 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "w4b.market_turn",
-   "q": "Do you take the third one?",
-   "story": "A broad selloff ends and the market reading turns Green again. You hold two 4B- trades, both past their first trim. A third 4B- triggers.",
+   "q": "The reading turned Green after a broad selloff. Your first two 4B- trades are working. A third triggers. Do you take it?",
+   "story": "A broad selloff ends and the market reading turns Green. You hold two 4B- trades, both up and past their first sell. A third 4B- triggers today.",
    "choices": [
-    "Yes; the first two are working",
-    "No; wait for a new index high",
+    "Yes, the first two are working",
+    "No, wait for a new index high",
     "Yes, by adding to the first two",
-    "No; three at once is too many"
+    "No, three at once is too many"
    ],
-   "answer": "Yes; the first two are working",
-   "why": "Yes. After a correction, start with a few positions and add more only as the first ones work. Your first two are past their first trim, so they are working. A third position is a new trade with its own stop, not an add to the first two.",
+   "answer": "Yes, the first two are working",
+   "why": "Yes. After a correction we start with a few positions and add more only as the first ones work. Yours are working, and that's the market telling you the turn is real. So the third goes on as a new trade with its own stop. That's adding positions, not adding to a trade. Let the market earn your exposure.",
    "lesson_line": "Add positions, not shares. Let the first ones prove the turn.",
    "facts": [
-    "c16",
     "h27",
-    "c26"
+    "aw1",
+    "aw2"
    ],
    "wrong": {
-    "No; wait for a new index high": "Our rule starts positions as the reading turns Green again. It does not wait for a new index high.",
-    "Yes, by adding to the first two": "That adds to a trade. Our plan is one price, one stop, no adding along the way.",
-    "No; three at once is too many": "The plan starts with a few positions and adds more as the first ones work. They are working, so a third is the plan."
+    "Yes, by adding to the first two": "That's adding to a trade, not a new position. The third name goes on with its own stop.",
+    "No, wait for a new index high": "We start as the reading turns Green again. Waiting for a new index high means missing the turn.",
+    "No, three at once is too many": "Start with a few and add as they work. They're working, so the third is the plan."
    },
    "house": true,
-   "simple": "Yes, take it, because the first two are working and the plan adds new positions only as the first ones work.",
+   "simple": "Yes. The first two are working, so you add a new position with its own stop.",
    "deeper": {
-    "counter": "Add positions, not shares. A third name spreads the plan across trades. Adding to a winner means a second price and a second stop, and our plan is one price, one stop, no adding along the way."
+    "counter": "Add positions, not shares. A third name spreads the plan across trades. Adding to a winner means a second price and a second stop. We buy one price with one stop, and an add is rare, never the plan."
    },
    "tier": "expert",
    "risk": {
@@ -3307,7 +3374,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave4"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q64",
@@ -3315,29 +3382,30 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "w4b.first_in_group",
-   "q": "Which stock earns the group cue in our rule?",
-   "story": "Two stocks sit in one group, which is basing too. Both show the same higher low and pause above the 50-day. Stock A reclaimed its 50-day in the first week of the group's turn. Stock B reclaimed it weeks later, after most of the group.",
+   "q": "Two stocks in a basing group, same higher low, same pause. A won back its 50-day early, B weeks later. Which do you favor?",
+   "story": "The group is basing. Both stocks show the same higher low and pause above the 50-day. A reclaimed its 50-day in the group's first week of turning. B reclaimed it weeks later, after most of the group.",
    "choices": [
-    "Stock A; it turned with the leaders",
-    "Stock B; it waited for the group",
-    "Neither; the order is not part of it",
-    "Both; a basing group is enough"
+    "A, it turned with the leaders",
+    "B, it waited for the group",
+    "Neither, the order doesn't matter",
+    "Both the same, the group's basing"
    ],
-   "answer": "Stock A; it turned with the leaders",
-   "why": "Stock A. The group cue in our rule is a group that is basing too, with the stock among the first in it to reclaim its 50-day. Stock B reclaimed it weeks later, after most of the group. It is a cue that helps, not a rule that ends Stock B's setup.",
-   "lesson_line": "In a basing group, the early reclaimers earn the cue.",
+   "answer": "A, it turned with the leaders",
+   "why": "A. When a group turns, the first names to win back their 50-day are where buyers go first. That's leadership showing up early. B came weeks later, after most of the group, so it's following. It's a cue, not a deal breaker, and B can still be a fine setup. But if I'm picking one, I want the one that led.",
+   "lesson_line": "In a turning group, favor the first to win back the 50-day.",
    "facts": [
-    "c13"
+    "c13",
+    "c07"
    ],
    "wrong": {
-    "Neither; the order is not part of it": "The cue is about the order. The stock should be among the first in the group to reclaim its 50-day.",
-    "Stock B; it waited for the group": "Stock B came late, after most of the group. The cue asks for a stock among the first to reclaim its 50-day.",
-    "Both; a basing group is enough": "A basing group is only half the cue. The stock must also be among the first in it to reclaim its 50-day, and Stock B came late."
+    "B, it waited for the group": "B is following. The cue goes to the names that turn first.",
+    "Neither, the order doesn't matter": "The order is the cue. The early ones are where buyers go first.",
+    "Both the same, the group's basing": "A basing group is half of it. The other half is your stock turning among the first."
    },
    "house": true,
-   "simple": "Stock A earns the cue because it reclaimed its 50-day among the first in a group that is basing too.",
+   "simple": "A. It won back its 50-day among the first in its group, and that's a sign of leadership.",
    "deeper": {
-    "trap": "Being late is not a veto. This is a cue, not a gate, so Stock B can still be a valid setup. It just does not earn this cue."
+    "trap": "Being late isn't a veto. It's a cue, not a gate, so B can still be a fine setup. It just doesn't earn this cue."
    },
    "tier": "extended",
    "risk": {
@@ -3346,7 +3414,7 @@
      "one cited fact only (the criteria card)"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q65",
@@ -3354,26 +3422,28 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "w4b.long_averages_flat",
-   "q": "Which picture of the 150-day and 200-day lines is the better cue?",
+   "q": "You're grading a 4B-. What do you want the 150-day and 200-day lines doing over the trade?",
    "choices": [
-    "Flat, or turning over the trade",
-    "Falling steeply, far below",
-    "No difference to the grade",
-    "The 150 crossing the 200-day"
+    "Flat, or starting to turn",
+    "Still falling steeply",
+    "Doesn't matter for the grade",
+    "The 150 crossing the 200"
    ],
-   "answer": "Flat, or turning over the trade",
-   "why": "Flat, or turning. Our card wants the 150-day and 200-day lines flat or turning over the trade, not still falling steeply.",
-   "lesson_line": "Flat or turning long averages are the better picture. A steep fall is not.",
+   "answer": "Flat, or starting to turn",
+   "why": "Flat or turning. Lines that have gone flat mean the selling that dragged them down has dried up. Steeply falling lines overhead mean sellers are still in charge, and every rally runs into them. NUS had flat 150 and 200-day lines for months before its run. It's a cue for the grade, not a rule. I'd size up the flat one and size down the steep one.",
+   "lesson_line": "Flat long averages beat falling ones.",
    "facts": [
-    "c11"
+    "c11",
+    "d04",
+    "r27"
    ],
    "wrong": {
-    "Falling steeply, far below": "The card wants the lines flat or turning, not still falling steeply. A steep fall is the weaker picture.",
-    "No difference to the grade": "It is a cue that counts. Flat or turning lines are the better picture.",
-    "The 150 crossing the 200-day": "The card asks for the 150-day and 200-day lines flat or turning over the trade, not for a cross."
+    "Still falling steeply": "That's the weaker picture. Sellers are still pressing those lines down.",
+    "Doesn't matter for the grade": "It counts. Flat or turning lines are the better grade.",
+    "The 150 crossing the 200": "A cross isn't what you're grading. You want both lines flat or turning."
    },
    "house": true,
-   "simple": "Flat or turning long averages are the better picture, and a steep fall is a weaker one.",
+   "simple": "Flat or turning long averages are the better picture. A steep fall is the weaker one.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -3382,7 +3452,7 @@
      "proposed card cue"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q66",
@@ -3390,18 +3460,20 @@
    "rung": 6,
    "format": "tf",
    "criterion": "w4b.long_averages_flat",
-   "q": "A steeply falling 200-day line cancels a 4B- on our card.",
+   "q": "Price is above the 200-day, but the 200-day is still falling steeply. That alone cancels the 4B-.",
    "answer": "False",
-   "why": "False. The card calls flat or turning lines a cue, not a veto. Lines still falling steeply are the weaker picture, but they do not cancel the setup. The close still has to be above the 200-day.",
-   "lesson_line": "A falling long average is a weaker cue, not a rule that ends the setup.",
+   "why": "False. A steeply falling 200-day is a weaker picture, not a veto. It lowers the grade, so I'd size it down. The hard line is where price sits. Price above the 200-day passes, and price under it ends the trade for a stock, whatever the slope. MSFT in May 2001 triggered with the 200-day still falling and stopped out 7 sessions later.",
+   "lesson_line": "A falling long average lowers the grade. Price under the 200-day ends it.",
    "facts": [
     "c11",
-    "h10"
+    "h10",
+    "d12",
+    "d14"
    ],
    "house": true,
-   "simple": "False. A steeply falling 200-day is a weaker cue, not a veto, though the close must still be above it.",
+   "simple": "False. A falling 200-day lowers the grade, but only price under the line ends it.",
    "deeper": {
-    "counter": "A cue is not a gate, but a gate sits beside it. A 200-day can fall and still sit under price. If price is under it, the rule of no longs under the 200-day ends the trade, whatever the cue says."
+    "counter": "A cue isn't a gate, but a gate sits right beside it. A 200-day can fall and still sit under price. If price is under it, no longs, whatever the cue says."
    },
    "tier": "extended",
    "risk": {
@@ -3411,7 +3483,7 @@
      "x11 quote from a page that could not be re-opened"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q67",
@@ -3419,29 +3491,28 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "w4b.order",
-   "q": "Do you buy now?",
-   "story": "Pre-market, a 4B- stock trades through its pause high of 20.00. The open is an hour away.",
+   "q": "Pre-market, your 4B- trades through its 20.00 pause high. The open is an hour away. Do you buy now?",
+   "story": "Pause high 20.00. Pre-market prints are already above it. The bell is an hour off.",
    "choices": [
-    "No; wait for regular hours",
+    "No, wait for regular hours",
     "Yes, with a market order",
     "Yes, with a limit at 20.00",
-    "No; wait a day to see it hold"
+    "No, wait a day to see it hold"
    ],
-   "answer": "No; wait for regular hours",
-   "why": "No. Our entry is a market order once the trigger trades, and only during regular hours. No new buys outside regular trading hours, so a pre-market print is not a buy.",
-   "lesson_line": "Market order, regular hours only. A pre-market print is not a buy.",
+   "answer": "No, wait for regular hours",
+   "why": "No. We don't buy outside regular hours. Pre-market is thin, a few shares can print through the high, and the open can look nothing like it. Wait for the bell. If it trades through 20.00 in regular hours, that's your market order. Have the alert set so you're ready.",
+   "lesson_line": "Regular hours only. A pre-market print isn't a buy.",
    "facts": [
-    "c20",
-    "h22",
-    "h32"
+    "h32",
+    "h22"
    ],
    "wrong": {
-    "Yes, with a market order": "A market order is our order type, but pre-market is outside regular hours.",
-    "Yes, with a limit at 20.00": "Our entries are market orders, and pre-market is outside regular hours.",
-    "No; wait a day to see it hold": "There is no wait-a-day step. Our entry is a market order once the trigger trades during regular hours."
+    "Yes, with a market order": "Right order type, wrong time. Pre-market is outside regular hours.",
+    "Yes, with a limit at 20.00": "We buy with a market order, and pre-market is outside regular hours.",
+    "No, wait a day to see it hold": "No need to wait a day. Buy it at market if it trades through 20.00 after the open."
    },
    "house": true,
-   "simple": "No. We buy with a market order once the trigger trades in regular hours, never pre-market.",
+   "simple": "No. We only buy in regular hours, so buy it if it trades through 20.00 after the open.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -3450,7 +3521,7 @@
      "the trigger itself is the card's default"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q68",
@@ -3458,27 +3529,27 @@
    "rung": 6,
    "format": "mcq",
    "criterion": "w4b.stop_round_number",
-   "q": "Your planned stop level lands on exactly 25.00. Where does the stop go?",
+   "q": "The low of the day is 25.00 even, a round number. Where does your stop go?",
    "choices": [
     "A few cents under 25.00",
     "Right on 25.00",
     "A few cents over 25.00",
-    "A dollar under 25.00"
+    "A full dollar under 25.00"
    ],
    "answer": "A few cents under 25.00",
-   "why": "A few cents under 25.00. Our card keeps the stop off a round number: a few cents under it, not on it. Our default stop is also a few cents under the day's low or the prior day's low.",
+   "why": "A few cents under 25.00. Our stop goes a few cents under the low of the day, never right on it. On a round number that matters even more. Round numbers are where everyone parks stops, and where buyers often step in. Sit right on it and a quick dip to the number tags you before the bounce. Then size off that stop.",
    "lesson_line": "A few cents under the round number, never right on it.",
    "facts": [
     "c42",
     "h01"
    ],
    "wrong": {
-    "Right on 25.00": "Not on a round number. The stop sits a few cents under it.",
-    "A few cents over 25.00": "That puts the stop above the level instead of under it. A long stop sits a few cents under.",
-    "A dollar under 25.00": "A few cents is the gap. A full dollar widens the stop and shrinks the size."
+    "Right on 25.00": "A quick tag of the round number takes you out right before the bounce.",
+    "A few cents over 25.00": "That's above the level. Your stop goes under it.",
+    "A full dollar under 25.00": "That widens your risk for nothing and shrinks your size."
    },
    "house": true,
-   "simple": "Put the stop a few cents under 25.00, not right on the round number.",
+   "simple": "A few cents under 25.00. Right on a round number, a quick dip takes you out.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3486,7 +3557,7 @@
      "proposed card line c42 plus the rulebook's default stop (A3)"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q69",
@@ -3518,30 +3589,28 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "w4b.stop_broker",
-   "q": "What is wrong with that plan?",
-   "story": "You buy a 4B- and plan to sell by hand if it trades under your stop level. Nothing is entered with your broker.",
+   "q": "You buy a 4B- and plan to sell by hand if it breaks your stop level. Nothing's entered with your broker. What's wrong?",
+   "story": "The stop is a number on your notepad. No order sits with the broker.",
    "choices": [
-    "Every position needs a real stop order",
-    "Nothing; you will be watching the screen",
-    "An alert is enough if you act fast",
-    "Place the stop after the first trim"
+    "You need a real stop order in",
+    "Nothing, you'll be at the screen",
+    "An alert's enough if you're fast",
+    "Enter it after the first sell"
    ],
-   "answer": "Every position needs a real stop order",
-   "why": "A stop kept in your head is not a stop. Every position has a real stop order with the broker. The stop comes first, and it only moves up, never down or wider.",
-   "lesson_line": "Place the order. A stop in your head is not a stop.",
+   "answer": "You need a real stop order in",
+   "why": "You need a real stop order. A stop in your head isn't a stop. You'll be in a meeting, the wifi drops, or you talk yourself into one more day. The broker doesn't hesitate. Enter it the moment you're filled, and only ever move it up.",
+   "lesson_line": "Place the order. A stop in your head isn't a stop.",
    "facts": [
     "h31",
-    "c25",
-    "h01",
     "h02"
    ],
    "wrong": {
-    "Nothing; you will be watching the screen": "Watching is not an order. The stop sits with the broker even when you look away.",
-    "An alert is enough if you act fast": "An alert is not an order. The rule is a real stop order with the broker.",
-    "Place the stop after the first trim": "Stop first: the stop sets the size, so every position has its real stop order from the start."
+    "Nothing, you'll be at the screen": "Watching isn't an order. The broker's stop works when you look away.",
+    "An alert's enough if you're fast": "An alert isn't an order. Fast still means a choice, and choices hesitate.",
+    "Enter it after the first sell": "Stop first. It goes in the moment you're filled."
    },
    "house": true,
-   "simple": "Every position needs a real stop order with the broker, because a stop in your head is not a stop.",
+   "simple": "Put in a real stop order with your broker. A stop in your head isn't a stop.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3549,7 +3618,7 @@
      "rests on the owner's rulebook (D41)"
     ]
    },
-   "batch": "wave4"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q71",
@@ -3573,17 +3642,16 @@
    "rung": 4,
    "format": "tf",
    "criterion": "w4b.trail",
-   "q": "By default, on a steadier mover we trail what is left under the 20 EMA, not the 9 EMA.",
+   "q": "On a steadier mover, you trail what's left under the 20 EMA rather than the 9 EMA.",
    "answer": "True",
-   "why": "True. A steadier mover trails the 20 EMA, and a fast mover trails the 9 EMA. We sell on a close below the line, not before it.",
-   "lesson_line": "Fast mover, 9 EMA. Steadier mover, 20 EMA. Sell on the close below.",
+   "why": "True. Fast movers get the 9 EMA, steadier ones the 20 EMA. A steady mover dips to its 9 all the time without breaking trend, so a 9 EMA trail shakes you out early. The 20 gives it room. Either way you sell what's left on a close below the line, not an intraday poke.",
+   "lesson_line": "Fast mover, 9 EMA. Steadier mover, 20 EMA.",
    "facts": [
-    "c31",
     "h21",
     "r91"
    ],
    "house": true,
-   "simple": "True. Steadier movers trail the 20 EMA and fast movers trail the 9 EMA, selling on a close below.",
+   "simple": "True. Steadier movers trail the 20 EMA and fast movers the 9 EMA, sold on a close below.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -3591,7 +3659,7 @@
      "rests on the owner's rulebook (E52)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q73",
@@ -3637,35 +3705,36 @@
   {
    "skill": "setup.weinstein_4b",
    "house": true,
-   "batch": "wave4",
+   "batch": "voice-8-2026-11-17",
    "key": "q81",
    "rung": 4,
    "format": "scenario",
    "criterion": "w4b.no_chase",
-   "q": "Buy the open?",
-   "story": "The pause high is 40.00. The stock gaps open at 42.00.",
+   "q": "The pause high is 40.00. It gaps open at 42.00, 5% over it. Do you buy the open?",
+   "story": "Pause high 40.00. Today it gaps open at 42.00, 5% above the trigger.",
    "choices": [
-    "Pass; it is already too far up",
-    "Buy at market; it is strong",
+    "Pass, it's already too far up",
+    "Buy at market, it's strong",
     "Buy half size at the open",
     "Set a limit at 40.00 and wait"
    ],
-   "answer": "Pass; it is already too far up",
-   "why": "Pass. The open at 42.00 is more than 4% above the pause high of 40.00, and the cap is 4%. We skip a long that is already more than 4% above its trigger level. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink.",
-   "simple": "Pass, because 42.00 is more than 4% above the 40.00 pause high, and we never buy more than 4% past it.",
-   "lesson_line": "More than 4% past the pause high is no trade.",
+   "answer": "Pass, it's already too far up",
+   "why": "Pass on the open. 42.00 is two dollars over the 40.00 pause high, 5% past it. We don't buy more than 4% over the trigger. Chasing costs you size. Your stop doesn't move up with the gap, so the distance grows and your shares shrink for the same risk. There's one more way in. If it flushes back in the morning and curls up inside that 4%, you can buy the curl at market.",
+   "simple": "Pass. At 42.00 it's 5% past the 40.00 pause high, and we never buy more than 4% past it.",
+   "lesson_line": "More than 4% past the trigger is no trade.",
    "facts": [
-    "c21",
     "h11",
-    "h12"
+    "h12",
+    "h22",
+    "r40"
    ],
    "wrong": {
-    "Buy at market; it is strong": "Past 4% the stop stays far away and the shares shrink. That is a chase.",
-    "Buy half size at the open": "Half of a chase is still a chase. The line is 4%.",
-    "Set a limit at 40.00 and wait": "Our entries are market orders, and the trigger already traded at the open. A resting limit at the old pause high is not the plan."
+    "Buy half size at the open": "Half a chase is still a chase.",
+    "Set a limit at 40.00 and wait": "Not a resting limit. If it flushes back and curls up inside the 4%, you buy that curl at market.",
+    "Buy at market, it's strong": "Strong and stretched. Past 4% your stop's far away and your shares shrink."
    },
    "deeper": {
-    "trap": "A gap above the line is not a gift. The line is 4% above the trigger level however the stock gets there, so a strong open does not move it. Skip the trade and wait for the next trigger."
+    "trap": "A gap over the line isn't a gift. The 4% line holds however the stock gets there, so a strong open doesn't move it. A morning flush that curls back up inside it is the one way in."
    },
    "tier": "core",
    "risk": {
@@ -3679,32 +3748,31 @@
   {
    "skill": "setup.weinstein_4b",
    "house": true,
-   "batch": "wave4",
+   "batch": "voice-8-2026-11-17",
    "key": "q82",
    "rung": 5,
    "format": "scenario",
    "criterion": "w4b.room_to_run",
-   "q": "Take it?",
-   "story": "You would buy at 50.00 with the stop at 48.50. The falling 150-day sits at 52.00. The 200-day is below your entry.",
+   "q": "You'd buy at 50.00 with a 48.50 stop. The falling 150-day sits at 52.00, just overhead. Do you take it?",
+   "story": "Your risk is 1.50 a share. The falling 150-day sits at 52.00, 2.00 above your buy. The 200-day is below you.",
    "choices": [
-    "Pass; too little room overhead",
-    "Take it; the 150-day breaks",
-    "Take it; over the 200-day",
-    "Pass; no longs under 150-day"
+    "Pass, the wall's right overhead",
+    "Take it, the 150-day will break",
+    "Take it, it's over the 200-day",
+    "Pass, no longs under the 150-day"
    ],
-   "answer": "Pass; too little room overhead",
-   "why": "Pass. Our working rule wants at least 3R from the entry to the nearest overhead level. The risk is the buy minus the stop. The falling 150-day sits above the buy by only a little more than that risk, far short of 3R.",
-   "simple": "Pass, because the falling 150-day sits just above the buy, which leaves far less than the 3R of room we want.",
+   "answer": "Pass, the wall's right overhead",
+   "why": "Pass. You're risking 1.50 to make 2.00 before you hit a falling 150-day. That line is where the last buyers sit on losses, waiting to get out even. It'll likely stall there. I want room to run, a few R at least, before the first wall. Here there's barely more than one. Wait for it to get through the line and set up again.",
+   "simple": "Pass. The falling 150-day is just overhead, so there's barely any room to run.",
    "lesson_line": "A wall just overhead is no trade. Count the room.",
    "facts": [
-    "c10",
-    "m06",
+    "g4",
     "h10"
    ],
    "wrong": {
-    "Take it; the 150-day breaks": "Buying right under a falling long average with less than 3R of room is the named mistake. A hoped-for break is not room.",
-    "Take it; over the 200-day": "Being over the 200-day clears one gate, not the room. The falling 150-day is just overhead, and we want at least 3R.",
-    "Pass; no longs under 150-day": "The no-long line is the 200-day, not the 150-day. The reason to pass is the room, which is under the 3R we want."
+    "Take it, the 150-day will break": "Maybe, maybe not. Hoping through a falling line isn't room.",
+    "Take it, it's over the 200-day": "That clears one gate, not the room. The wall is 2.00 away.",
+    "Pass, no longs under the 150-day": "Our hard line is the 200-day, not the 150. The problem here is room."
    },
    "tier": "extended",
    "risk": {
@@ -3721,32 +3789,30 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "w4b.climax",
-   "q": "What does our card say to do now?",
-   "story": "Your 4B- is up 4R, and you still hold two thirds. The last three days all closed up. The last two opened on gap ups, and range and volume grew each day.",
+   "q": "You're up 4R, still holding two thirds. Three straight up days, the last two on gap ups, range and volume growing. What's the play?",
+   "story": "Up 4R with two thirds left. Three up days in a row. The last two opened on gap ups. Range and volume grew each day.",
    "choices": [
     "Sell a big part into the run",
-    "Hold it all and let the trail work",
-    "Add a little while it is strong",
-    "Wait for the 5R trim, then sell"
+    "Hold it all, let the trail work",
+    "Add a little while it's strong",
+    "Wait for 5R, then decide"
    ],
    "answer": "Sell a big part into the run",
-   "why": "Sell a big part into it. Three straight up days, gap ups, and wider ranges on rising volume check the boxes of our parabolic burst. On our card a climax run is sold into, and how much is a judgment call.",
-   "lesson_line": "Up days, gap ups, wider ranges, rising volume: that burst is for selling into.",
+   "why": "Sell a big part into it. Up days in a row, gap ups, wider ranges, rising volume. That's a parabolic burst, the kind of last leg that often marks the top of the move. How much you sell is a judgment. The trail only sells on a close under the line, and by then a burst can give a lot back. Sell into the strength while buyers are paying up.",
+   "lesson_line": "Up days, gaps, wider ranges, rising volume: sell into that burst.",
    "facts": [
-    "c34",
     "h30",
     "h34",
-    "c29",
-    "c31",
-    "c26"
+    "r13",
+    "aw2"
    ],
    "wrong": {
-    "Hold it all and let the trail work": "The trail sells only on a close under its line. Our card sells a big part into a climax run instead.",
-    "Add a little while it is strong": "One price, one stop, no adding along the way. A climax run is for selling into, not buying.",
-    "Wait for the 5R trim, then sell": "At 4R the 5R trim has not come yet. Our card does not wait for it: sell a big part into a climax run."
+    "Hold it all, let the trail work": "The trail sells only on a close under its line. A burst can give back a lot before then.",
+    "Add a little while it's strong": "Never into a burst like this. A burst is for selling into, not buying.",
+    "Wait for 5R, then decide": "The burst is the signal, not the R count. Sell into it while it's here."
    },
    "house": true,
-   "simple": "When your winner bursts straight up for days on gaps and rising volume, sell a big part into it.",
+   "simple": "Sell a big part into it. A burst of up days, gaps and rising volume is for selling into.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -3755,7 +3821,7 @@
      "the burst signs are B26's parabolic burst, read as the climax run C34 names"
     ]
    },
-   "batch": "polish"
+   "batch": "rulings-2026-11-17"
   }
  ],
  "conflicts": [
@@ -3798,27 +3864,26 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key matches the cited quotes; no tell, no second answer found."
+   "fixed": true,
+   "notes": "Stem 'gets tagged a plain 4B on Weinstein's stage chart' is odd: nobody tags a stock. Rewritten as a real screen read through his legend (rule 13 allows the name). The why put Deepvue's line in first person; now plain."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key matches the cited quotes; no tell, no second answer found.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Stem read like a glossary prompt. Rewritten to a plainer question on his legend."
   },
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c02). But the why says 'the 150-day line (the 30-week line)' and cites x04 and l1, so it hands over q04's blank (30-week = 150-day, the very next item) and q52's key (a rising 150-day at the low is not a 4B-). The reveal also prints every cited fact's claim. Why now names only the 30-week line; facts c02 plus x01 (4B sits in the downtrend)."
+   "fixed": false,
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q04": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep is right: a trader needs the 30-week to 150-day conversion to plot Weinstein on a daily chart; x04/x05 support it. Only fill and no giveaway in the bank."
+   "notes": "Fine. Weekly-to-daily mapping is useful at the screen (x04, x05)."
   },
   "q05": {
    "status": "cut",
@@ -3828,9 +3893,9 @@
   },
   "q06": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q07": {
    "status": "cut",
@@ -3842,61 +3907,61 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches c01. Full low/close by 252/20 grid, no tell, no silly choice. 252 sessions about one year is the card's own 52-week framing."
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q09": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "3% is c04 verbatim; 5% and 10% distractors are the card's other numbers and are refuted in the notes. No second answer."
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "2 closes is c08. No second reading; scan results are out of the why so it no longer answers q27."
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pass. NDSN card winner 2016-03-02; asof 2016-03-01 is the day before; bar 03-01 high 73.24 is the pause high; no numbers in the text; ticker hidden; answer unchanged."
+   "fixed": true,
+   "notes": "'We market order everything' overstates E57 (entries are market orders; stops are stop orders). Now 'we buy with a market order'."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "12 is under the card's 15 (c05); why says 15 is our number and the web source supports only the idea (x10). No second answer."
+   "fixed": true,
+   "notes": "TRUTH: the stem was flipped to a true claim and the why opens 'True.', but the answer key still read False. Answer set to True. The stem also said 'a few weeks off the low', which clashes with q30 ('a 4B- takes weeks to build'); now it uses the sourced idea (x10): price still under falling averages."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. PENN 2019-11-05 buy day; trade 22.12/21.49 matches dossier row 7 and the question (2.8%); buy-day high 22.34 over entry; 3R 24.01 first traded replay day 24, inside forward 30."
+   "notes": "3R: 0.63 x 3 = 1.89, 22.12 + 1.89 = 24.01. Distractors check (23.38 stop+3R, 22.75 1R, 24.64 4R). PENN d01/d02 support the story."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "47.5% checks (28.5/60). Distractors check. Kept as reading a chart in percents (A14), no 30% depth line."
   },
   "q16": {
-   "status": "pass",
-   "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed 7.0%. Answer was the only whole number, a tell; swapped the dollar-as-percent choice for the ratio mistake."
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
   },
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key matches the cited quotes; no tell, no second answer found."
+   "fixed": true,
+   "notes": "TRUTH: the stem was flipped ('You can't take a 4B- unless volume dries up') and the why opens 'False.', but the answer key still read True, which would teach volume as a must (against D-006). Answer set to False."
   },
   "q18": {
    "status": "cut",
@@ -3906,15 +3971,15 @@
   },
   "q19": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Matches A4 (h02) exactly: only moves up, gap rule the one exception. No second reading."
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q21": {
    "status": "cut",
@@ -3926,14 +3991,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches the cited quotes; no tell, no second answer found.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c35, c03). Distractor 'A higher low; the setup is now on' is silly: a close UNDER the cycle low cannot be a higher low. Replaced with a real misreading (the base just got longer). Deeper restated q08's 252-session key and q13's 15-session key; trimmed to the reset itself."
+   "fixed": false,
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q24": {
    "status": "cut",
@@ -3945,38 +4009,37 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. AMD 2018-05-15 buy day; 12.37/12.06 match dossier row 6 and question; 13.92 (5R) first traded on replay day 10, inside forward 20."
+   "notes": "0.31 risk, 1.55 gain, 5.0R. 6.0R, 44.9R, 50.0R are real mistakes. AMD d05."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False stands; removed third-at-3R text."
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep: pause test result, 3R as measure."
+   "notes": "Scan numbers match d27; framed as one scan and a cue, not a rule."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c12), but (1) the why calls c13 'a stronger cue' than c12; c12 is a gate on the card and c13 only a cue, so 'stronger' is unsupported; (2) that c13 sentence plus the c13 claim hands over q64's key (the stock among the first in its group to reclaim the 50-day); (3) 'The group ETF falls hardest on the day' is near silly; (4) 'helps' undersells a card gate. Reworded the stem, swapped the distractor, dropped c13."
+   "fixed": false,
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q29": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c41 cancels the setup on a close under the higher low before entry; c35 supports the cycle-low line. No second answer; no tell."
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q30": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (l2, l3). Story said 'closes under its low' without saying which low, so the rule it rests on (no close under the CYCLE low) did not clearly apply; now 'its cycle low'. The why repeated q23's point; it now carries this item's own lesson, the clock (l3: weeks, not 2 sessions), so the two items no longer test the same fact the same way.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q31": {
    "status": "cut",
@@ -3988,7 +4051,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches the cited quotes; no tell, no second answer found."
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q33": {
    "status": "cut",
@@ -4006,31 +4069,31 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Kept: 10% stretch on the 10-day simple average (D-017 held); distance not a drawn line. | 2026-11-14: stretch line read through D-021 as the 9 EMA, as in the other 44 live questions."
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q36": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches the cited quotes; no tell, no second answer found."
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q37": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key fits both the rulebook (D46/F65, a guide) and the card (no new longs). Owner flag stands."
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q38": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c36: a close back under the 50-day before the trigger re-arms only after a new 2-session pause. Choices balanced; two Wait options, no number in key."
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q39": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Same PENN row as q14 (second use); trade matches the question's 22.12/21.49."
+   "notes": "500/0.63 = 793.65, round down 793; 2.85% stop; 22 / 79 / 396 distractors check; 793 x 22.12 is under the 40% cap."
   },
   "q40": {
    "status": "cut",
@@ -4040,9 +4103,9 @@
   },
   "q41": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "Risk 1.00, 2R floor 38.00, 37.80 is past it: out (B20 ceiling)."
   },
   "q42": {
    "status": "cut",
@@ -4053,7 +4116,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Wrong text now teaches the judgment first sell. Card fact c28 'Sell a third at 3R (the hard rule)' is superseded and no longer used by the text; dropped from facts."
+   "notes": "edit right; dropped r32, whose claim reads 'No adds.'"
   },
   "q44": {
    "status": "cut",
@@ -4062,9 +4125,9 @@
   },
   "q45": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q46": {
    "status": "cut",
@@ -4075,21 +4138,20 @@
   "q47": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (m09, c33). (1) Story put our 4B- 'under the falling 200-day', but B26 bars a long under the 200-day, so the story contradicts the rulebook the unit teaches; (2) the why spelled out the time stop (under 1R after 10 trading days), which is q36's key; (3) wrong notes leaned on uncited facts (adding mistake m05, stop only moves up h02). Story fixed, time-stop numbers dropped, facts added.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q48": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. F 2024-02-12 failure 4; 12.99/12.59 (3.1%), 37.5% decline, 12-day pause, next-session low 12.48 all match dossier and bars; replay stops on day 1; answer true."
+   "notes": "F d06/d07: 12.59 was the day low, 3.1% (0.40/12.99). Planned loss."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. META 2020-05-11 failure 3; 213.22/210.32 (1.4%), 39% drop, 13-day pause match dossier; low 12 May 210.00 stops it; forward 30 reaches the second trigger 2020-06-10 the why names."
+   "notes": "META d09-d11 check; 2.90/213.22 = 1.4%."
   },
   "q50": {
    "status": "cut",
@@ -4106,38 +4168,38 @@
   "q52": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Chart, asof (day before the 2022-07-22 trigger), 34% (612.27 to 406.51 in the window) and both 150-day readings all match the card. Only the why said the readings are in the question; they are in the story."
+   "fixed": false,
+   "notes": "COST d19/d20: 150-day rising 528.74 vs 521.41; pullback in an uptrend."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (c04). The story led: 'but the best high off the low was ONLY 4.1%' points straight at the flaw (rule 10, ask not lead). Neutral wording now gives the same two numbers without a 'but' or 'only'. Numbers are the story's own (hypothetical, as the deeper says)."
+   "notes": "The 4.1% / 3.5% numbers were built to fail the card's proposed 5% rally; without that number a 4.1% pop and a 0.6% dip is not clearly chop. Added the time (two days) so it is chop by eye. The deeper's 'These numbers are made up on purpose' was a working note. Added l3 (a 4B- waits weeks)."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pass. NFLX 2022-07-18 (closed back over 50-day, reported after close 07-19 per dossier); no prices in text; answer No stays right; why addresses the post-report pop the replay will show."
+   "fixed": true,
+   "notes": "Stem had the member wanting to buy the reclaim close, which q10 teaches against, and d23 shows NFLX had already closed over the 50-day on 07-15. Story now gives both closes; the why adds that a reclaim alone isn't the trigger."
   },
   "q55": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. NUS 2013-04-18 buy day; 49.99/49.05 (1.9%), 78 sessions, 19-day pause match dossier row 4; ticker removed from story; stop not hit in replay."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q56": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "A shows g1, g2, g5 (A+ cues); B shows g3 (B- cue). D38/c26: B- or lower sized down, so A is bigger. Choices balanced; no silly option."
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key stands (3R/5R as hit-rate measures); deeper no longer says trimmed at 3R and 5R."
+   "notes": "d25: 1,110 hits, 22.2% to 3R, 13.9% to 5R. Four -1R plus one +5R nets +1R."
   },
   "q58": {
    "status": "cut",
@@ -4149,19 +4211,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with its rulings"
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q60": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stock case, 200-day hard no with index/special-ETF exception; validator bans the word 'leverage' so 'special ETFs' stays."
+   "notes": "BAC d17/d18: 10.2% under the 200-day; indexes and levered ETFs exception stated right."
   },
   "q61": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep: gate screen, 3R of room is a measure."
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q62": {
    "status": "cut",
@@ -4172,40 +4234,38 @@
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Kept: 'past their first trim' only says two trades are working; no fixed third or day-1 sell keyed."
+   "fixed": true,
+   "notes": "edit right; swapped r32 (claim 'No adds.') for aw1"
   },
   "q64": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c13: group basing too and the stock among the first to reclaim its 50-day. A fits, B is late, 'neither' and 'both' fail. Key not longest and does not echo the story."
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q65": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches the cited quotes; no tell, no second answer found.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q66": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches the cited quotes; no tell, no second answer found."
+   "notes": "MSFT d12/d14 check."
   },
   "q67": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "'We market order everything' overstated; now 'we buy with a market order'."
   },
   "q68": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave4; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Stem gave no reason the stop sits on 25.00. Now the low of the day is 25.00, so the answer rests on our own stop rule (h01) and the round number is the extra reason."
   },
   "q69": {
    "status": "cut",
@@ -4217,7 +4277,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Kept: stop-order question; 'after the first trim' is a wrong choice, no D-013 key."
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q71": {
    "status": "cut",
@@ -4228,7 +4288,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "9 and 20 EMA trail with r91; 'what is left'; true statement correct."
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q73": {
    "status": "cut",
@@ -4239,20 +4299,20 @@
   "q81": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "42/40 = 5%, over the 4% line (c21, h11, h12). Limit is refuted by E57. Key is a lone Pass against three buy forms, a mild tell but natural for a skip rule; nothing defensible is lost."
+   "fixed": true,
+   "notes": "TRUTH: 'Let it go. There's always another trigger' and the deeper's 'skip it and wait for the next trigger' contradict his D-022 ruling: on a gap past the trigger you can buy an intraday morning flush or pullback that curls back up. Pass on the open stays right; the why now teaches the flush-and-curl way in, inside the 4%. Fact r40 added from his rulings. 'Market order everything' fixed too."
   },
   "q82": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep: room-to-run, 3R measure."
+   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
   },
   "q83": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Decided before reading the key: c34/h30 (C34) say a climax run on your own long, named as Bracco's parabolic burst, is sold into in a big part. The story checks every h34 box (B26, sizing_rule.md lines 161-162, quote verified, 33 words): three straight up days, two straight gap ups, range expansion, rising volume, a gap up on the last day. Key = sell a big part, matches. 4R is under the 5R trim and two thirds are held, so the climax rule decides. No second defensible answer. The trail sells only on a close below it (c31), adding is barred (c26), and waiting for 5R goes against C34. Tells: the "
+   "fixed": false,
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   }
  }
 }

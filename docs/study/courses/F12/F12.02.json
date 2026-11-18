@@ -807,10 +807,10 @@
    "key": "w1",
    "title": "Before the open",
    "steps": [
-    "Run the day on three checkpoints: before the open, during the session, and after the close.",
+    "Split the day in three: before the open, during the session, after the close.",
     "Start wide. Index futures trade nearly 24 hours, so they show how the market took the overnight news.",
-    "Then the calendar. CPI lands at 8:30 a.m. ET, and companies usually report before the open or after the close.",
-    "Then narrow your list to the few best names. Each gets levels, an entry, a stop and a risk amount."
+    "Then the calendar. CPI drops at 8:30 a.m. Eastern, and earnings come before the open or after the close.",
+    "Then cut your list to the 5 to 10 best setups. Each one gets an entry, a stop and a risk amount."
    ],
    "facts": [
     "rp1",
@@ -819,16 +819,19 @@
     "fb2",
     "fe1",
     "iw3",
-    "t4"
+    "h3",
+    "t4",
+    "h8"
    ]
   },
   {
    "key": "w2",
    "title": "During the session",
    "steps": [
-    "Volume is usually heavy early, slows at midday, and picks up again into the close.",
-    "Midday is a check, not a hunt: what you own, your stops, and news due later, like a 2:00 p.m. Fed statement.",
-    "The rules you wrote stay the rules. Changes wait until the market is closed."
+    "Once the bell rings, the action's front-loaded. Volume's heavy early, slows at midday, and picks up into the close.",
+    "Midday is a check, not a hunt. Look at what you own and where your stops sit.",
+    "Then check what's due later, like a 2:00 p.m. Fed statement.",
+    "The rules you wrote stay the rules. Changes wait until the market's closed."
    ],
    "facts": [
     "sb1",
@@ -842,14 +845,15 @@
    "key": "w3",
    "title": "After the close",
    "steps": [
-    "The recap starts with what you own. Check each stop, and consider raising it under a new higher low.",
-    "Check who reports tonight or before tomorrow's open. News after the close can gap a stock past your stop.",
-    "Then log today's ideas and write tomorrow's list and levels while the market is closed.",
-    "Veteran trader Gatis Roze found his best planned days generally gave his best results."
+    "After the bell, start with what you own. Check each stop. A new higher low is your chance to raise it.",
+    "Check who reports tonight or before tomorrow's open. News after the close can gap a stock right past your stop.",
+    "Then log today's ideas and write tomorrow's list and levels.",
+    "Do that work while the market's closed. The best-planned days tend to give the best results."
    ],
    "facts": [
     "ss2",
     "m2",
+    "h11",
     "fe1",
     "sb4",
     "ips2",
@@ -865,16 +869,16 @@
    "skill": "process.routine",
    "rung": 1,
    "format": "mcq",
-   "q": "Before the 9:30 a.m. ET open, what do S&P 500 futures show you?",
+   "q": "It's 8:30 a.m. ET, an hour before the 9:30 open. S&P 500 futures are trading lower. What's that telling you?",
    "choices": [
-    "How the market takes overnight news",
-    "The exact price stocks will open at",
-    "Which stocks will lead the market today",
-    "Nothing that matters for stocks"
+    "How the market's taking overnight news",
+    "Exactly where stocks will open",
+    "Which stocks will lead today",
+    "Nothing, futures don't matter for stocks"
    ],
-   "answer": "How the market takes overnight news",
-   "why": "How the market takes overnight news. S&P 500 futures trade nearly 24 hours, so they react to off-hour news while the regular session is closed. SPY's premarket quotes move with them, and a big gap can move the largest index stocks too. They are a hint, not a promise. The open is set by supply and demand at the open, and premarket prices may not hold.",
-   "lesson_line": "Futures are the market's overnight vote. A hint about the open, not a promise.",
+   "answer": "How the market's taking overnight news",
+   "why": "It's the market's read on the overnight news. S&P 500 futures trade nearly 24 hours, so they react while stocks sit closed. That's why I check them first thing. SPY's premarket quotes move with them, and a big gap drags the largest index names along too. But it's a hint, not a promise. The opening price gets set by buyers and sellers right at 9:30, and premarket prices don't always stick. Read the futures for the mood, then let the open confirm it.",
+   "lesson_line": "Futures are the market's overnight vote. Read the mood, then let the open confirm it.",
    "facts": [
     "fc1",
     "fc2",
@@ -888,11 +892,11 @@
     "fs2"
    ],
    "wrong": {
-    "The exact price stocks will open at": "No. The open is set by supply and demand at the open itself, and premarket prices may not hold.",
-    "Nothing that matters for stocks": "They do matter. SPY's premarket quotes move with the futures, and a big gap moves the largest index stocks too.",
-    "Which stocks will lead the market today": "The futures track the whole index. They can't single out the names that will lead."
+    "Exactly where stocks will open": "Nobody knows that before 9:30. The open gets set by supply and demand at the bell, and premarket prices don't always hold.",
+    "Which stocks will lead today": "Futures track the whole index, all 500 names at once. They can't tell you which ones lead. Your list and relative strength do that.",
+    "Nothing, futures don't matter for stocks": "They matter. SPY moves with them before the open, and a big gap moves the biggest names in the index too."
    },
-   "simple": "They show how the market is taking the overnight news, because index futures trade nearly all day and night.",
+   "simple": "They show how the market is taking the overnight news, since the futures trade nearly around the clock.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -900,17 +904,17 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
    "skill": "process.routine",
    "rung": 1,
    "format": "tf",
-   "q": "Midday is usually the busiest, most volatile stretch of the trading day.",
+   "q": "The middle of the trading day is when the market is busiest and moves the most.",
    "answer": "False",
-   "why": "False. Midday is usually the calmest stretch, not the busiest. Volume is usually heavy early, often slows at midday and grows again near the close. The opening and closing hours tend to be the most volatile and active. Big news, like a Fed rate announcement, can upset that pattern on a given day.",
-   "lesson_line": "Busy open, quiet middle, busy close. Plan your checks around that shape.",
+   "why": "False. Midday's the quiet part. Volume comes in heavy at the open, often slows into lunch, and picks back up into the close. The first and last hours are where the action and the big swings are. So I treat midday as a check-in, not a hunt. Look at what you own and what's on the calendar. One catch: big news like a Fed rate announcement can flip that pattern on a given day.",
+   "lesson_line": "Busy open, quiet lunch, busy close. Do your midday check in the quiet part.",
    "facts": [
     "sb1",
     "ib1",
@@ -918,13 +922,13 @@
     "ib3",
     "sb3"
    ],
-   "simple": "False, because the middle of the day is usually the calmest stretch, and the busy times are the open and the close.",
+   "simple": "False. The open and the close are the busy times, and the middle of the day is the quiet stretch.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
@@ -988,15 +992,15 @@
    "skill": "process.routine",
    "rung": 2,
    "format": "mcq",
-   "q": "Your levels are marked on four names. How do you catch the moment one of them trades?",
+   "q": "Your focus list has four names, each with a trigger level marked. How do you catch the moment one trades through?",
    "choices": [
-    "Set price alerts at your levels",
+    "Set price alerts at each trigger",
     "Keep flipping through the charts",
     "Buy all four now so none get away",
-    "Check all four once, right at the open"
+    "Check them once, right at the open"
    ],
-   "answer": "Set price alerts at your levels",
-   "why": "Set price alerts at your levels. An alert pops up when a stock trades at a key price, so you know the moment a level trades. SMB trader Steve Spencer loads alerts at key prices before the open. Veteran trader Gatis Roze adjusts his alerts each morning. The alert tells you when to look. Your entry rules still decide whether to buy.",
+   "answer": "Set price alerts at each trigger",
+   "why": "Set alerts. Put a price alert right at each trigger, and the stock tells you when it gets there. Then you look. Flip through charts instead and you'll be on the wrong one when the right one moves. An alert only says when to look, though. You still check the entry, the stop and the size before you buy.",
    "lesson_line": "Let alerts do the watching. You show up when a level trades.",
    "facts": [
     "t3",
@@ -1005,46 +1009,49 @@
     "ss4"
    ],
    "wrong": {
-    "Keep flipping through the charts": "You'll catch some levels and miss others. An alert pops up the moment a stock trades at a key price.",
-    "Buy all four now so none get away": "That skips your entry rules. Rules set before you buy are what take the guesswork out of the entry.",
-    "Check all four once, right at the open": "A level can trade at any time in the session. An alert pops up whenever a stock trades at a key price."
+    "Keep flipping through the charts": "You'll catch some and miss others. While you're on one chart, another trades through its level.",
+    "Buy all four now so none get away": "That's buying before any of them trigger. The plan was to buy the break, not to hope for one.",
+    "Check them once, right at the open": "A level can trade any time in the session. One look at the open misses everything after it."
    },
-   "simple": "Set price alerts at your levels, so the market tells you the moment one of them trades.",
+   "simple": "Set alerts at your triggers, so the market tells you when to look instead of you watching every chart.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "SMB trader Steve Spencer loads alerts at key prices into his platform before the open. Gatis Roze, a veteran full-time trader, spends his early morning reviewing charts and adjusting alerts. Same idea both ways: the alert watches, you decide."
+   }
   },
   {
    "key": "q06",
    "skill": "process.routine",
    "rung": 3,
    "format": "tf",
-   "q": "Mid-session, the entry and stop rules you wrote before the open stay as they are.",
+   "q": "During the session, you trade the rules you wrote before the open and save any changes for after the close.",
    "answer": "True",
-   "why": "True. Write rules with clear signals that don't change while you're trading. Rework them when the market is closed. Don't change the plan as a knee-jerk reaction to a short-term move. Don't let impulse guide you during the session.",
+   "why": "True. While the market's open you execute. You don't rewrite. In the moment, a fast drop or a big green candle makes every rule feel wrong. That's exactly when changes are worst, because they come from impulse, not thinking. So the entry and stop rules stay put. After the close, with the market shut, you look calmly and fix what needs fixing. Reading the market as it moves is fine. Rewriting your rules mid-session isn't.",
    "lesson_line": "During the session you execute. Rule changes wait for the close.",
    "facts": [
     "it1",
     "it2",
     "fp1"
    ],
-   "simple": "True, because your rules stay fixed while the market is open and only change after it closes.",
+   "simple": "True. During the session you follow your rules, and any change waits until the market is closed and you can think.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
    "skill": "process.routine",
    "rung": 3,
    "format": "mcq",
-   "q": "Your scan found a perfect-looking chart. What else does your premarket check before you plan the buy?",
+   "q": "Your scan turns up a chart that looks perfect. Before you plan the buy, what else does your premarket check?",
    "choices": [
     "The market's trend and its sector",
     "Nothing, a great chart is enough",
@@ -1052,8 +1059,8 @@
     "How much buzz it has on social media"
    ],
    "answer": "The market's trend and its sector",
-   "why": "The market's trend and its sector. Check the market's direction every day from the major averages, as CAN SLIM does. Short-term trades do better in the direction of the bigger trend. Leading stocks usually belong to leading industry groups or sectors. Veteran trader Gatis Roze finds a stock rarely rises apart from its sector. The chart still matters. It just isn't the whole check.",
-   "lesson_line": "Read the market and the group, then the stock.",
+   "why": "The market and the sector. A stock almost never runs on its own while its group goes nowhere. And even a short-term trade works better going the same way as the bigger trend. So before I plan any buy, I check the market's trend and the stock's group. The app's market reading gives you the first part at a glance. If both line up, that perfect chart has the wind at its back. If the market's rolling over, even great charts can drop fast. The chart still matters. It's just not the whole check.",
+   "lesson_line": "Market first, then the group, then the stock.",
    "facts": [
     "ic1",
     "ic3",
@@ -1063,11 +1070,11 @@
     "ir2"
    ],
    "wrong": {
-    "Nothing, a great chart is enough": "Charts don't trade in a vacuum. You do better trading in the direction of the bigger trend.",
-    "Analysts' price targets for it": "A target is someone's opinion about where it could go. It doesn't tell you if the market is helping or hurting right now.",
-    "How much buzz it has on social media": "Buzz isn't a criterion. Stock boards and chat rooms are full of people with their own motives."
+    "Nothing, a great chart is enough": "Charts don't trade in a vacuum. Fight the bigger trend and even a great setup gets dragged down.",
+    "Analysts' price targets for it": "A target is someone's guess at a price. It tells you nothing about whether the market's helping or hurting today.",
+    "How much buzz it has on social media": "Buzz isn't a reason to buy. Boards and chat rooms are full of people with their own motives."
    },
-   "simple": "Check the market's trend and the stock's sector, because trades do better with the trend and leaders usually sit in leading groups.",
+   "simple": "Check the market's trend and the stock's group. Trades work better with the trend, and leaders tend to sit in strong groups.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1075,15 +1082,18 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "O'Neil's CAN SLIM checks the market's direction every day from the major averages. Gatis Roze, a veteran full-time trader, says a stock rising all by itself is so rare it isn't worth considering. He means apart from its sector and its group."
+   }
   },
   {
    "key": "q08",
    "skill": "process.routine",
    "rung": 4,
    "format": "scenario",
-   "story": "CPI morning. The report is due at 8:30 a.m. ET. At 8:00 your plan is set: three names, with levels, entries and stops.",
-   "q": "How do you handle the report?",
+   "story": "CPI morning. The report's due at 8:30 a.m. ET. By 8:00 your plan is set: three names, each with a trigger, a stop and a size.",
+   "q": "What's the play this morning?",
    "choices": [
     "Read the futures, then run the plan",
     "Sit out the day until CPI is priced in",
@@ -1091,8 +1101,8 @@
     "Buy all three before it comes out"
    ],
    "answer": "Read the futures, then run the plan",
-   "why": "Read the futures, then run the plan. Our rule: Fed and CPI days are traded like any other day. CME lists CPI among the economic reports that move markets. It lands at 8:30 a.m. ET, before stocks open at 9:30, so the futures react first. You read that reaction before the open, as on any morning. Then the plan's entries and stops do their job.",
-   "lesson_line": "Know the calendar, then read the futures and run the plan, as on any other day.",
+   "why": "Read the futures, then run the plan. We don't have a news-day rule. Fed and CPI days get traded like any other day. CPI lands at 8:30, an hour before stocks open at 9:30. So the futures take the hit first, and you get to watch how the market takes the number. Then the open comes, your triggers trade or they don't, and your stops do their job. What you don't do is guess the number. I'd rather react to what the market does with it.",
+   "lesson_line": "Know when the report hits. Read the reaction, then run the plan.",
    "facts": [
     "fb1",
     "fb2",
@@ -1108,11 +1118,11 @@
     "h12"
    ],
    "wrong": {
-    "Scrap the plan and start over": "Don't change a plan as a knee-jerk reaction to a short-term move. A CPI morning runs like any other.",
-    "Buy all three before it comes out": "That bets on a number nobody has seen yet, in a thin premarket with little price competition. Our rules also allow no new buys outside regular trading hours.",
-    "Sit out the day until CPI is priced in": "We have no news-day rule. Fed and CPI days are traded like any other day."
+    "Scrap the plan and start over": "A report isn't a reason to tear up a plan you built with a clear head. Let the futures react, then run it.",
+    "Buy all three before it comes out": "That's a bet on a number nobody's seen, in thin premarket trading. And we don't make new buys outside regular hours anyway.",
+    "Sit out the day until CPI is priced in": "We don't have a news-day rule. CPI days get traded like any other day, and your stops are already in place."
    },
-   "simple": "Read the futures, then run your plan, because our rule trades CPI days like any other day.",
+   "simple": "Watch how the futures take the report, then run your plan, because we trade CPI days like any other day.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1122,14 +1132,14 @@
      "re-keyed to C32 in wave9"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q09",
    "skill": "process.routine",
    "rung": 4,
    "format": "mcq",
-   "q": "S&P 500 futures were at 6,000 at 4:00 p.m. yesterday. At 8:45 a.m. today they're at 5,940. How far down are they, in percent?",
+   "q": "S&P 500 futures were at 6,000 at 4:00 p.m. yesterday. At 8:45 a.m. today they're at 5,940. How far down is that?",
    "answer": "1%",
    "calc": {
     "fn": "arith",
@@ -1140,8 +1150,8 @@
     }
    },
    "suffix": "%",
-   "why": "The drop is 6,000 minus 5,940, or 60 points. Divide it by the starting level of 6,000 to get 1%. Percent change is always measured from where you started, here yesterday's 4:00 p.m. level. One ES future tracks the 500 stocks, so the drop hints at a weaker open. SPY and the biggest index stocks tend to move with the futures, but premarket prices may not hold.",
-   "lesson_line": "Read futures in percent, not points. Points mean little until you size them against the level.",
+   "why": "Down 1%. Take the drop first: 6,000 minus 5,940 is 60 points. Then divide by where you started: 60 over 6,000 is 1%. Always measure from yesterday's 4:00 level, not from today's number. Sixty points sounds scary and tells you nothing on its own. One percent you can compare to any other morning. A 1% red premarket hints at a soft open. Premarket prices don't always hold though, so I wait for the open before I worry.",
+   "lesson_line": "Read futures in percent, not points. Sixty points means little until you size it against the level.",
    "facts": [
     "fc1",
     "fc5",
@@ -1150,7 +1160,7 @@
     "ip3",
     "ip5"
    ],
-   "simple": "Down 1%, because the fall from 6,000 to 5,940 is one percent of where the futures started.",
+   "simple": "Down 1%, because the 60 point drop is one percent of the 6,000 level where the futures started.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1159,7 +1169,7 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "1%",
     "10%",
@@ -1167,9 +1177,9 @@
     "99%"
    ],
    "wrong": {
-    "60%": "Read the 60-point drop as 60%. Divide it by the starting level.",
-    "10%": "A decimal slip: ten times too big.",
-    "99%": "Gave the new level as a share of the start and forgot to subtract it from the whole."
+    "60%": "That's the 60 points read as a percent. Points aren't percent until you divide by 6,000.",
+    "10%": "A decimal slip. 60 over 6,000 is one hundredth, so 1%, not ten times that.",
+    "99%": "That's 5,940 as a share of 6,000. You skipped taking it away from the whole."
    }
   },
   {
@@ -1177,7 +1187,7 @@
    "skill": "process.routine",
    "rung": 4,
    "format": "mcq",
-   "q": "Before the open you mark yesterday's open, high, low and close on a name. Which one is our default stop for a new long?",
+   "q": "Premarket. You've marked yesterday's open, high, low and close on a name you might buy today. Which level is your stop built from?",
    "choices": [
     "Yesterday's low",
     "Yesterday's high",
@@ -1186,8 +1196,8 @@
    ],
    "answer": "Yesterday's low",
    "house": true,
-   "why": "Yesterday's low. Our default stop is the low of the day or the prior day's low. It sits a few cents under that low, not exactly on it. Before the open, today's low doesn't exist yet, so yesterday's low is the one you can mark. The high and the close are worth marking too, but not as the stop.",
-   "lesson_line": "Mark yesterday's high and low on every name. Our default stop sits under a low.",
+   "why": "Yesterday's low. Our stop goes a few cents under the low of the day or the prior day's low. Before the open, today's low doesn't exist yet. So yesterday's low is the one you can mark, and size from, right now. A low is where the chart says you're wrong. Trade back under the level buyers defended yesterday and the setup failed, so you want out. A few cents under it, not right on it, so a tick of noise doesn't take you out.",
+   "lesson_line": "Mark yesterday's high and low on every name. The stop goes a few cents under a low.",
    "facts": [
     "h1",
     "h2",
@@ -1195,11 +1205,11 @@
     "id1"
    ],
    "wrong": {
-    "Yesterday's high": "Worth marking, but our default stop for a long sits under a low, not at a high.",
-    "Yesterday's close": "Useful context, but our default stop uses the low of the day or the prior day's low, not the close.",
-    "Yesterday's open": "Worth marking, but our default stop sits under a low: the day's low or the prior day's low."
+    "Yesterday's high": "Worth marking, it can be a trigger. But a long's stop sits under a low, where the chart says you're wrong.",
+    "Yesterday's close": "Good context, but nobody defended the close. The stop goes a few cents under a low.",
+    "Yesterday's open": "Worth marking, but it's not where buyers stepped in. Our stop sits a few cents under a low."
    },
-   "simple": "Yesterday's low, because our default stop is the day's low or the prior day's low, and today's low doesn't exist yet.",
+   "simple": "Yesterday's low, because our stop sits just under a low and today's low doesn't exist yet before the open.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1208,15 +1218,15 @@
      "rests on the owner's rulebook (sizing_rule.md section 2 and F62)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q11",
    "skill": "process.routine",
    "rung": 5,
    "format": "scenario",
-   "story": "Sunday night your scans leave 45 names. Monday you get 20 minutes of prep before work.",
-   "q": "What do you do with the list tonight?",
+   "story": "Sunday night your scans leave you 45 names. Monday you get 20 minutes of prep before work.",
+   "q": "What do you do with that list tonight?",
    "choices": [
     "Narrow it to the few best setups",
     "Watch all 45 and react to movers",
@@ -1224,7 +1234,7 @@
     "Add more names so you miss nothing"
    ],
    "answer": "Narrow it to the few best setups",
-   "why": "Narrow it to the few best setups. Our rule: each day, a focus list of the 5 to 10 best setups, and the rest are ignored. Twenty minutes won't cover 45 charts well, so the narrowing happens tonight. Trading coach Brett Steenbarger notes that ranking ideas during prep is what lets you act fast when one sets up. A short list lets you watch the names that matter closely.",
+   "why": "Cut it down tonight. We keep a focus list of the 5 to 10 best setups each day, and the rest get ignored. Twenty minutes in the morning won't cover 45 charts, that's under half a minute a chart. So the ranking happens tonight, while the market's closed and you can think. Give each name that makes it a trigger, a stop, a size and an alert. Then Monday's 20 minutes go to checking that short list against the futures and the news. A few names watched closely beat 45 watched badly.",
    "lesson_line": "Narrow your list. The best names get your attention, the rest wait.",
    "facts": [
     "iw3",
@@ -1233,13 +1243,13 @@
     "h3"
    ],
    "wrong": {
-    "Watch all 45 and react to movers": "That's more than you can follow closely, and reacting to movers turns into chasing them.",
-    "Buy a little of each to be safe": "That's dozens of trades with no plan behind any of them. Every buy needs an entry, a stop and a risk amount first.",
-    "Add more names so you miss nothing": "More names means less attention on each one. Narrowing is what lets you act fast when one sets up."
+    "Watch all 45 and react to movers": "You can't follow 45 names closely. Reacting to whatever moves turns into chasing.",
+    "Buy a little of each to be safe": "That's a pile of trades with no trigger, stop or size behind any of them. Small and sloppy isn't safe.",
+    "Add more names so you miss nothing": "More names means less attention on each. You miss the good one because you're busy with the rest."
    },
-   "simple": "Narrow it to the few best setups, because our rule is a focus list of the 5 to 10 best each day.",
+   "simple": "Narrow it to the few best setups tonight, because 20 minutes can't cover 45 charts and a short list gets real attention.",
    "deeper": {
-    "example": "Sunday night, 45 names pass your scan. Rank them by how clean each setup is. Keep the best 5 to 10 and give each one levels, an entry, a stop, a size and an alert. Monday's 20 minutes then go to checking that short list against the futures and the news, not to finding it."
+    "example": "Sunday night, 45 names pass your scan. Rank them by how clean each setup is. Keep the best 5 to 10 and give each one levels, an entry, a stop, a size and an alert. Monday's 20 minutes then go to checking that short list against the futures and the news, not to finding it. Trading coach Brett Steenbarger saw the same in pro traders. Ranking ideas during prep is what lets them act fast when one sets up."
    },
    "tier": "extended",
    "risk": {
@@ -1249,7 +1259,7 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q12",
@@ -1257,7 +1267,7 @@
    "rung": 5,
    "format": "scenario",
    "story": "Your plan: buy over $50, stop at $48, so $2 of risk a share. Overnight news hits, and the stock gaps up. At 9:45 a.m. it trades at $53.50.",
-   "q": "If you buy at $53.50, what's your risk per share to the $48 stop?",
+   "q": "If you bought here at $53.50, what would each share risk?",
    "choices": [
     "$5.50, up from the planned $2",
     "Still $2, the stop didn't move",
@@ -1273,8 +1283,8 @@
      "stop": 48
     }
    },
-   "why": "$5.50, up from the planned $2. Risk per share is entry minus stop: $53.50 minus $48. The stop stayed put, but the higher entry makes each share risk far more than the plan did. Our rule would skip this buy anyway. We never buy more than 4% above the buy point, and $53.50 is beyond that.",
-   "lesson_line": "A gap rewrites your plan's numbers. Never buy on the old math.",
+   "why": "$5.50 a share, not $2. Risk per share is entry minus stop: $53.50 minus $48 is $5.50. The stop didn't move, but your entry did. Each share now risks almost three times what you planned. And we wouldn't take this one anyway. We never buy more than 4% above the buy point, and $3.50 over a $50 trigger is way past that. Chase it at the old size and the trade risks far more than you meant to. If you missed it, you missed it. Let it set up again.",
+   "lesson_line": "A gap rewrites the plan's math. Never buy on the old numbers.",
    "facts": [
     "ips1",
     "sb2",
@@ -1282,11 +1292,11 @@
     "h4"
    ],
    "wrong": {
-    "Still $2, the stop didn't move": "The stop didn't move, but your entry did. Entry minus stop is now much wider.",
-    "$3.50, how far it gapped past $50": "That's how far it ran past your $50 trigger, not the distance down to your stop.",
-    "Less, the move is in my favor": "Paying more for the same stop means more risk per share, not less."
+    "Still $2, the stop didn't move": "The stop stayed, but you paid more. It's $53.50 minus $48 now, not $50 minus $48.",
+    "$3.50, how far it gapped past $50": "That's how far it ran past your trigger, not how far down your stop is.",
+    "Less, the move is in my favor": "Paying more for the same stop means more risk a share, not less."
    },
-   "simple": "$5.50, because risk per share is your entry minus your stop, and $53.50 minus $48 is $5.50.",
+   "simple": "$5.50, because risk per share is entry minus stop, and $53.50 minus $48 is $5.50.",
    "deeper": {
     "trap": "The trap is the stop that didn't move. It feels like the plan still holds. But risk per share is entry minus stop, so at $53.50 each share risks $5.50, not $2. Buy the share count you planned for $2 of risk a share, and the trade risks far more than you meant."
    },
@@ -1299,14 +1309,14 @@
      "story moved into the session in wave9 (E58)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q13",
    "skill": "process.routine",
    "rung": 6,
    "format": "mcq",
-   "q": "It's 12:30 p.m. and the market has gone quiet. What comes first in your midday check?",
+   "q": "12:30 p.m. The market's gone quiet and you've got a few minutes. What do you look at first?",
    "choices": [
     "Positions, stops and news due later",
     "A fresh scan for new names to buy",
@@ -1314,7 +1324,7 @@
     "Close it all out while it's quiet"
    ],
    "answer": "Positions, stops and news due later",
-   "why": "Positions, stops and news due later. Veteran trader Gatis Roze checks what he owns first: protection takes precedence over fresh purchases. Each day, review open positions for new support and chances to adjust your stops. Know what's scheduled later too. Big news during the day, like a Fed rate announcement, can upset the usual rhythm. New buys can come later. They just don't come first.",
+   "why": "What you own. Check your positions, where each stop sits, and what's scheduled later, like a 2:00 Fed statement. Protecting what you already have comes before hunting for more. A new buy can't help you if an old one is quietly breaking down. So look for new support on your holdings and a chance to raise a stop. Then the calendar, because big news mid-session can flip a quiet afternoon fast. New buys can come after. They just don't come first.",
    "lesson_line": "Midday is a check, not a hunt.",
    "facts": [
     "ss2",
@@ -1323,14 +1333,15 @@
     "ib2",
     "sb1",
     "r3b",
-    "h11"
+    "h11",
+    "ff1"
    ],
    "wrong": {
-    "A fresh scan for new names to buy": "New buys can wait. Veteran trader Gatis Roze checks what he owns first: protection takes precedence over fresh purchases.",
-    "Lower stops to give trades more room": "Moving a stop lower on a long adds risk you never planned. Stops move with a trade, not away from it.",
-    "Close it all out while it's quiet": "A quiet midday is normal: volume usually slows at midday and picks up near the close. Many day traders close up by then, but a swing trade runs on its plan and its stop."
+    "A fresh scan for new names to buy": "New buys can wait. Protect what you own first.",
+    "Lower stops to give trades more room": "A long's stop only moves up, never down. Lowering it adds risk you never planned.",
+    "Close it all out while it's quiet": "Quiet at lunch is normal, and volume picks back up into the close. A swing trade runs on its plan and its stop, not the clock."
    },
-   "simple": "Check what you own, your stops and news due later, because protecting your trades comes before hunting for new ones.",
+   "simple": "Check what you own, your stops and the news due later, because protecting your trades comes before hunting for new ones.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1338,7 +1349,10 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Gatis Roze, a veteran full-time trader, does the same at midday. He shifts his focus to what he owns, because protection takes precedence over searching out fresh new purchases."
+   }
   },
   {
    "key": "q14",
@@ -1346,7 +1360,7 @@
    "rung": 6,
    "format": "scenario",
    "story": "At 2:00 p.m. the market whips both ways, and your stock swings through your stop and back. Later you learn the Fed's statement came out at 2:00.",
-   "q": "Which premarket step would have warned you?",
+   "q": "What in your premarket would've had you ready for that?",
    "choices": [
     "Checking the day's economic calendar",
     "Reading the overnight index futures",
@@ -1354,7 +1368,7 @@
     "Scanning company news on your names"
    ],
    "answer": "Checking the day's economic calendar",
-   "why": "Checking the day's economic calendar. It lists scheduled reports and events, including interest rate announcements. The Fed's Oct. 28, 2026 statement came out at 2:00 p.m. ET, in the middle of the session. Big news like that can upset the day's usual rhythm. The calendar tells you when to expect a jolt, not which way it goes. Our rule: Fed and CPI days are traded like any other day, so knowing the time just means no surprise.",
+   "why": "The economic calendar. It lists the scheduled reports and events that can move the whole market, Fed rate announcements included. The Fed's Oct. 28, 2026 statement came out at 2:00 p.m. ET, right in the middle of the session. One look at the calendar that morning and the 2:00 whipsaw isn't a surprise. It tells you when to expect a jolt, not which way it goes. We don't sit out Fed days, they trade like any other day. You just know it's coming.",
    "lesson_line": "Levels tell you where. The calendar tells you when.",
    "facts": [
     "ff1",
@@ -1365,11 +1379,11 @@
     "h12"
    ],
    "wrong": {
-    "Reading the overnight index futures": "Futures show the overnight mood. They don't tell you what's scheduled at 2:00 p.m.",
-    "Marking levels on each of your names": "Levels tell you where to act, not when the market is about to jolt.",
-    "Scanning company news on your names": "Company news matters, but a Fed statement is market-wide and scheduled. It sits on the economic calendar."
+    "Reading the overnight index futures": "Futures show the overnight mood. They don't tell you what's scheduled at 2:00.",
+    "Marking levels on each of your names": "Levels tell you where to act, not when the market's about to jolt.",
+    "Scanning company news on your names": "Company news matters, but a Fed statement hits the whole market on a schedule. That's on the economic calendar."
    },
-   "simple": "Checking the economic calendar, because it lists scheduled events like a Fed rate announcement that can jolt the whole market.",
+   "simple": "Checking the economic calendar, because it lists scheduled events like a Fed statement that can jolt the whole market.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -1379,7 +1393,7 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q15",
@@ -1424,7 +1438,7 @@
    "rung": 7,
    "format": "scenario",
    "story": "You work 9 to 5 and can't watch the market. You hold two swing trades, each with a planned stop.",
-   "q": "Where should those stops live during the day?",
+   "q": "Where do those stops live while you're at work?",
    "choices": [
     "As stop orders at your broker",
     "In your head, a lunch check",
@@ -1432,22 +1446,24 @@
     "As alerts on your phone"
    ],
    "answer": "As stop orders at your broker",
-   "why": "As stop orders at your broker. Our rule: every position has a real stop order with the broker, not a stop kept in your head. Stop orders can help protect against big declines, especially when you can't watch your positions. They are not a guarantee. A gap past your stop can cost more than you planned.",
+   "why": "Stop orders at your broker. Every position we hold has a real stop order sitting with the broker, not a number in your head. While you're in a meeting, a mental stop does nothing, and the stock can keep falling until you look. A resting order sells on its own. It's not a guarantee, though. If the stock gaps past your stop, the fill can land lower and cost more than you planned. Still a lot better than no stop at all.",
    "lesson_line": "If you can't watch, your stops have to be real orders, not intentions.",
    "facts": [
     "sb5",
     "ips2",
     "fp2",
-    "h5"
+    "h5",
+    "rf2"
    ],
    "wrong": {
-    "In your head, a lunch check": "Between checks, nothing acts on it. Our rule is a real stop order with the broker, not a stop kept in your head.",
-    "Nowhere until you get home": "Then a bad day has no limit until you're home. That's a loss you never planned.",
-    "As alerts on your phone": "An alert only tells you a price traded. While you're at work and can't act, nothing sells."
+    "In your head, a lunch check": "Between checks, nothing sells. A stop in your head only works when you're watching.",
+    "Nowhere until you get home": "Then a bad day has no floor until 5. That's a loss you never planned.",
+    "As alerts on your phone": "An alert tells you the price traded. If you can't act on it at work, nothing sells."
    },
-   "simple": "As stop orders at your broker, because a real order acts on its own while you are at work and can't watch.",
+   "simple": "Real stop orders at your broker, because an order sells on its own while you're at work and can't watch.",
    "deeper": {
-    "trap": "The trap is thinking a stop order caps the loss exactly. It doesn't. If the stock gaps past your stop, the loss can be bigger than you planned, even with proper sizing. A real stop order still beats a stop in your head when you can't watch. Just size the trade knowing a gap can skip it."
+    "trap": "The trap is thinking a stop order caps the loss exactly. It doesn't. If the stock gaps past your stop, the loss can be bigger than you planned, even with proper sizing. Size the trade knowing a gap can skip it.",
+    "counter": "Some traders who watch all session, like Gatis Roze, use mental stops instead of orders with the broker. That works when you're at the screen. We still keep a real order in, and if you can't watch, you need it."
    },
    "tier": "extended",
    "risk": {
@@ -1457,7 +1473,7 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
@@ -1465,7 +1481,7 @@
    "rung": 7,
    "format": "scenario",
    "story": "You skipped Monday's recap and Tuesday's prep. At 4:05 p.m. Tuesday, a stock you hold reports. It falls 11% after hours.",
-   "q": "What would have protected you from that 11% drop?",
+   "q": "What would have saved you from that 11% drop?",
    "choices": [
     "Checking earnings dates for holdings",
     "Reading the futures each morning",
@@ -1473,7 +1489,7 @@
     "The midday check on market volume"
    ],
    "answer": "Checking earnings dates for holdings",
-   "why": "Checking earnings dates for holdings. Companies usually report before the open or after the close. A weak report after the close can drop a stock fast in after-hours trading. Check the week ahead for earnings on what you own. Our rule: no new buys in the 3 days before a report. Hold through one only if the trade is up 5R. Knowing on Monday gave you Tuesday's session to act on that rule.",
+   "why": "Knowing the earnings date. Most companies report before the open or after the close. A weak report after the bell can drop a stock fast after hours. That's why the recap checks who reports tonight and tomorrow morning. We only hold through a report if the trade's up 5R, five times what you risked. Short of that, you sell before the close. Spot the date Monday and you'd have had all of Tuesday's session to decide. A tighter stop wouldn't have helped. The report hits after the bell, and the stock opens wherever it opens.",
    "lesson_line": "Every day, check who reports tonight and tomorrow morning. Decide before the close, not after the gap.",
    "facts": [
     "fe1",
@@ -1484,11 +1500,11 @@
     "h6"
    ],
    "wrong": {
-    "Reading the futures each morning": "Futures show the market's mood. They don't list a company's report date.",
-    "A tighter stop on that holding": "A stop can't stop a report. The stock can gap past it, and the fill can land far below.",
+    "Reading the futures each morning": "Futures show the market's mood. They don't tell you when your company reports.",
+    "A tighter stop on that holding": "A stop can't stop a report. The stock gaps right past it, and your fill comes at the next open, far below.",
     "The midday check on market volume": "Volume says nothing about a report date. The earnings calendar does."
    },
-   "simple": "Checking earnings dates for what you hold, because knowing the date lets you decide before the close, not after the gap.",
+   "simple": "Checking earnings dates on what you hold, because knowing the date lets you decide before the close, not after the gap.",
    "deeper": {
     "trap": "A tighter stop feels like protection here. It isn't. The report lands at 4:05 p.m., after the close, so the stock can open far below the stop the next morning. A gap past your stop can cost more than you planned. What works is knowing the date and applying our rule before the close."
    },
@@ -1500,22 +1516,22 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
    "skill": "process.routine",
    "rung": 7,
    "format": "tf",
-   "q": "If you can't spend two hours on premarket prep, a routine isn't worth having.",
+   "q": "You only get 20 minutes before work, so a premarket routine isn't worth having.",
    "answer": "False",
-   "why": "False. Veteran trader Gatis Roze says to design your routines around the time limits of your existing day. A good routine can pack a lot of information into a short window, as SMB trader Steve Spencer's does.",
+   "why": "False. Twenty minutes is plenty if the heavy lifting's already done. Build the routine around the day you really have. Do the list, the levels and the stops the night before. Then the morning is a quick check: the futures, the calendar, news on your names, alerts set. A short routine you run every day beats a long one you skip. Skip it entirely and you're trading the open on impulse.",
    "lesson_line": "Build the routine around the day you really have.",
    "facts": [
     "rr1",
     "t6"
    ],
-   "simple": "False, because a short routine built around the day you really have can still pack in a lot of information.",
+   "simple": "False. A short routine built around your real day still works, as long as the planning is done the night before.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1523,7 +1539,10 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Gatis Roze says to design your routines around the time limits of your existing day. SMB's Steve Spencer runs a set morning list that packs a lot of information into a short window."
+   }
   },
   {
    "key": "q19",
@@ -1531,16 +1550,16 @@
    "rung": 8,
    "format": "scenario",
    "story": "For three weeks the S&P 500 has made lower highs and lower lows. Most names on your list broke support. One chart still looks perfect.",
-   "q": "How does your premarket treat that one name?",
+   "q": "How do you treat that one name?",
    "choices": [
-    "Extra caution, the market is against it",
+    "Track it, the market's against it",
     "Full size, it held when others broke",
     "Buy the broken names, they're cheap",
     "Short it, the market is falling"
    ],
-   "answer": "Extra caution, the market is against it",
-   "why": "Extra caution, the market is against it. Short-term trades do better in the direction of the bigger trend. Even strong growth stocks can drop fast when the market shifts. Our market reading guides it: Orange, only A+ setups; Red, mostly cash and shorts. Caution is not a ban. This one name has to clear a higher bar.",
-   "lesson_line": "Check the market before the stock. A great chart can still fail when the market falls.",
+   "answer": "Track it, the market's against it",
+   "why": "Track it, don't force it. Three weeks of lower highs and lower lows is a downtrend, and you don't fight that. Trades work better with the bigger trend. When the market turns hard, even strong stocks can drop fast. But a name that holds up while most of your list breaks is showing relative strength. That's the one you want on your radar. Check our market filter in the app first. In Orange we only take A+ setups, our cleanest. In Red we're mostly cash. So it stays on watch, and you only buy if it sets up clean. If the market turns, a name like this can be one of the first to lead.",
+   "lesson_line": "In a falling market, the name that holds up goes on your radar. Let it prove itself first.",
    "facts": [
     "m1",
     "r3a",
@@ -1551,13 +1570,13 @@
     "h14"
    ],
    "wrong": {
-    "Full size, it held when others broke": "Holding up is not a free pass. Even strong growth stocks can drop fast when the market turns.",
-    "Buy the broken names, they're cheap": "Broken support isn't a discount. It usually brings selling on the way back up.",
-    "Short it, the market is falling": "Our shorts are the weakest stocks in the weakest groups. A chart that still looks perfect is the opposite of that."
+    "Full size, it held when others broke": "Holding up earns it a spot on your radar, not full size. Even strong stocks can drop fast once the market turns.",
+    "Buy the broken names, they're cheap": "Broken support isn't a discount. The old low turns into overhead, and sellers show up on the way back up.",
+    "Short it, the market is falling": "We short the weakest stocks in the weakest groups. A chart that still looks perfect is the opposite."
    },
-   "simple": "Extra caution, because trades do better with the bigger trend, and even strong stocks can drop fast when the market turns.",
+   "simple": "Track it but don't force it, because even strong stocks can drop fast while the market is falling.",
    "deeper": {
-    "trap": "The trap is the one chart that holds up while everything around it breaks. It feels like strength, and sometimes it is. But even strong stocks can drop fast when the market turns. Broken support on the other names usually brings selling on the way back up. Treat the perfect chart as a name to watch closely, not a reason to ignore the market."
+    "trap": "The trap is the one chart that holds up while everything around it breaks. It feels like strength, and sometimes it is. But even strong stocks can drop fast when the market turns. Treat it as a name to watch closely, not a reason to ignore the market."
    },
    "tier": "expert",
    "risk": {
@@ -1567,16 +1586,16 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
    "skill": "process.routine",
    "rung": 8,
    "format": "tf",
-   "q": "Written checklists are for beginners. Experienced traders run their routine from memory.",
-   "answer": "False",
-   "why": "False. Gatis Roze has traded his own account full time since 1989. He works from written checklists and says to keep them in sight. Out of sight is out of mind, he writes. A checklist tells him what's next and when the job is done. SMB's Steve Spencer keeps a set list for his morning.",
+   "q": "Even after decades of trading, it pays to run your daily routine from a written checklist.",
+   "answer": "True",
+   "why": "True. Gatis Roze has traded his own account full time since 1989, and he still works from written checklists. He keeps them in sight, because out of sight is out of mind. The list tells him what's next and when the job is done. On a busy morning, memory skips steps. The one you skip is the earnings date or the stop you meant to raise. A written list doesn't skip. I'd keep yours somewhere you see it every morning.",
    "lesson_line": "Out of sight is out of mind. Write the routine down and keep it where you can see it.",
    "facts": [
     "rp3",
@@ -1584,7 +1603,7 @@
     "rp4",
     "t7"
    ],
-   "simple": "False, because a veteran trader who has traded since 1989 still works from written checklists kept in plain sight.",
+   "simple": "True. Veterans still use written checklists kept in plain sight, because memory skips steps on a busy morning.",
    "tier": "expert",
    "risk": {
     "score": 1,
@@ -1592,7 +1611,7 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
@@ -1600,15 +1619,15 @@
    "rung": 9,
    "format": "scenario",
    "story": "Down day. You took two small losses, both by the plan, and still hold three names. It's 4:10 p.m., and you want to shut the laptop and forget it.",
-   "q": "What does tonight's recap still need?",
+   "q": "What do you still do tonight?",
    "choices": [
     "Stops, reports due, tomorrow's list",
-    "Nothing, a red day earns a break",
+    "Nothing, a red day earns you a break",
     "A bigger list to win it back",
     "Looser stops, so they don't hit"
    ],
    "answer": "Stops, reports due, tomorrow's list",
-   "why": "Stops, reports due, tomorrow's list. The recap isn't a mood check. Review each open position and its stop, check the reports coming up, and write the next plan while the market is closed. Our rule adds one more step: journal every trade the same day, the two losses included. Trading more to win back a loss is revenge trading, and it backfires.",
+   "why": "The full recap, red day or not. Check the stop on each of the three names you still hold. Check who reports tonight or tomorrow morning. Write tomorrow's list while the market's closed. And journal both losses today, while they're fresh. Two small losses taken by the plan mean the plan worked. That's the cost of trading, not a reason to quit early. What you don't do is build a bigger list to win it back. That's revenge trading, and it backfires.",
    "lesson_line": "Red day or green day, the recap runs. It's how tomorrow starts.",
    "facts": [
     "ss2",
@@ -1621,13 +1640,13 @@
     "ips1"
    ],
    "wrong": {
-    "Nothing, a red day earns a break": "Losses taken by the plan are the cost of trading. What you still hold and tomorrow's plan still need the recap.",
-    "A bigger list to win it back": "That's trading more to win back a loss. Investopedia calls revenge trading a recipe for disaster.",
-    "Looser stops, so they don't hit": "Our stop only moves up, never down or wider. A wider stop means a bigger loss when it's hit."
+    "A bigger list to win it back": "That's revenge trading. Trading more to make back a loss is how a small red day turns into a big one.",
+    "Looser stops, so they don't hit": "Our stop only moves up, never down or wider. Loosen it and the next loss is just bigger.",
+    "Nothing, a red day earns you a break": "The three names you still hold don't care how your day felt. Their stops and tomorrow's plan still need you."
    },
-   "simple": "Review your stops, check who reports, and write tomorrow's list, because the recap sets up tomorrow whatever today felt like.",
+   "simple": "Check your stops, see who reports, and write tomorrow's list, because the recap sets up tomorrow however today felt.",
    "deeper": {
-    "trap": "The trap is the urge after a red day. Shutting the laptop skips the stops on the three names you still hold. Building a bigger list to win it back is revenge trading, which Investopedia calls a recipe for disaster. Widening stops breaks our rule: the stop only moves up. Two small losses taken by the plan mean the plan worked. The recap keeps it working."
+    "trap": "The trap is the urge after a red day. Shutting the laptop skips the stops on the three names you still hold. A bigger list to win it back is revenge trading. Widening stops breaks our rule: the stop only moves up. Two small losses taken by the plan mean the plan worked. The recap keeps it working."
    },
    "tier": "expert",
    "risk": {
@@ -1637,7 +1656,7 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q22",
@@ -1645,7 +1664,7 @@
    "rung": 9,
    "format": "scenario",
    "story": "You work days. You get 20 minutes before work and about an hour after 5 p.m.",
-   "q": "Where does the heavy planning go?",
+   "q": "Where does the real planning happen?",
    "choices": [
     "Evenings: list, levels, stops, size",
     "Mornings: scan everything from scratch",
@@ -1653,7 +1672,7 @@
     "Skip prep and react to the open"
    ],
    "answer": "Evenings: list, levels, stops, size",
-   "why": "Evenings: list, levels, stops, size. The hour after 5 p.m. is your longest window, and the market is closed. That is when the plan gets built. Our rule: every planned buy has its entry, stop and size written down before the market opens. The 20 morning minutes then go to the futures, the calendar and news on your names.",
+   "why": "Evenings. The hour after 5 is your longest window, and the market's closed, so you can think. That's when the list, the levels, the stops and the size get built. Every planned buy has its entry, stop and size written down before the open. Then the 20 minutes in the morning are just a check: the futures, the calendar, news on your names. Try to build the plan in 20 minutes and you'll rush it. Then you're reacting to the open, one of the wildest hours of the day.",
    "lesson_line": "Build the plan at night. Use the morning to check it, not to write it.",
    "facts": [
     "rl1",
@@ -1667,10 +1686,10 @@
    ],
    "wrong": {
     "Mornings: scan everything from scratch": "There's no time for that. Twenty minutes is for checking the plan, not building it.",
-    "Lunch break: scan and buy midday": "Midday is for checking what you hold. Building the plan belongs to the hours when the market is closed.",
+    "Lunch break: scan and buy midday": "Midday is for checking what you hold. The plan gets built while the market's closed.",
     "Skip prep and react to the open": "Then you decide on impulse, with no entry, stop or size written down before the open."
    },
-   "simple": "Evenings, because that is your longest window and the market is closed, so the short morning only checks the plan.",
+   "simple": "Evenings, because that's your longest window and the market is closed, so the short morning only checks the plan.",
    "deeper": {
     "trap": "The trap is the morning scan. Twenty minutes feels like prep time, but it can't build a list, levels and stops from scratch. Rushed, you end up reacting to the open, and the opening hour is one of the most volatile of the day. Build the list at night, and use the morning only to check it."
    },
@@ -1682,7 +1701,7 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q23",
@@ -1691,7 +1710,7 @@
    "format": "scenario",
    "house": true,
    "story": "After the close you run your recap. One holding is a fast mover, well above your stop and riding its rising averages.",
-   "q": "What does our trail rule have you do in the recap?",
+   "q": "Tonight's recap. What are you checking on it?",
    "choices": [
     "Check for a close below the 9 EMA",
     "Look for a close below the 20 EMA",
@@ -1699,9 +1718,9 @@
     "Raise the stop to today's close"
    ],
    "answer": "Check for a close below the 9 EMA",
-   "why": "Check for a close below the 9 EMA. Our default trail is the 9 EMA for fast movers, the 20 EMA for steadier ones. We sell on a close below it, so the recap after the close is when you check. Each day, review open positions and chances to adjust your stops. Our stop only moves up, never down or wider.",
-   "lesson_line": "Stops move one way: up. Our trail is the rising average, checked after the close.",
-   "simple": "Check whether it closed below its 9 EMA, because that is our default trail for a fast mover.",
+   "why": "Whether it closed under the 9 EMA. On a fast mover, the 9 EMA is our trail. On a steadier name it's the 20 EMA. We sell what's left on a close below it, so the recap after the close is exactly when you check. A dip under the 9 during the day doesn't count. The close decides. Trail a fast mover on the 20 and you hand back more of the run. And the stop itself only ever moves up.",
+   "lesson_line": "Stops only move up. On a fast mover, the 9 EMA is the trail, checked at the close.",
+   "simple": "Check for a close below the 9 EMA, because that's our trail for a fast mover.",
    "facts": [
     "ss2",
     "h11",
@@ -1709,9 +1728,9 @@
     "rd21"
    ],
    "wrong": {
-    "Cancel the stop, it's working": "The stop is the exit. Cancel it, and a working trade has no exit if it turns.",
-    "Raise the stop to today's close": "Our default trail is an average, not the close. For a fast mover, that is the 9 EMA.",
-    "Look for a close below the 20 EMA": "The 20 EMA is our trail for steadier names. For a fast mover, our default trail is the 9 EMA."
+    "Cancel the stop, it's working": "The stop's your exit. Cancel it and a working trade has no exit if it turns.",
+    "Raise the stop to today's close": "Our trail is the rising average, not the close. On a fast mover, that's the 9 EMA.",
+    "Look for a close below the 20 EMA": "That's the trail for steadier names. On a fast mover, the 20 sits further back and gives away more of the move."
    },
    "tier": "extended",
    "risk": {
@@ -1720,7 +1739,7 @@
      "re-keyed in wave9 to the owner's rulebook (E52, A4)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1759,13 +1778,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived independently from fc1/fc2/ip1. New 'lead' note is reasoning on fc5 (one future tracks the 500 stocks), no number, no contradiction with ip3. Choices 31-39 chars, key not longest."
+   "notes": "Futures read as the overnight vote, hint not promise; fc1/ip2/ip3/fr1/ip5 support every claim. Stem gives time and futures direction, not leading."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False keyed from ib1, sb1, ib3. sb1 paraphrase keeps 'often'. Fed exception framed 'on a given day' (sb3). Hedged statement keyed False while q06 (no hedge) keys True, so hedges do not predict the key."
+   "notes": "False keyed on sb1/ib1/ib3; 'often slows' keeps the hedge; Fed exception kept as sb3. Plain claim, no 'but' clause."
   },
   "q03": {
    "status": "cut",
@@ -1783,61 +1802,61 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from t3 + fp2 + rf1. New choice 'Check all four once, right at the open' is a real misconception, in frame, not longest (key 31, max 38). Notes rest on t3 and ss4. Minor: 'Veteran' rests on rp4, which q05 does not cite (lesson-wide pattern, also q13/q18)."
+   "notes": "Alerts at triggers; t3/fp2/rf1. Sources moved to deeper. Wrong notes name the mistakes (buying before the trigger)."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True from it1 ('aren't subject to change while you're trading'), it2, fp1. Says 'rules', not stop levels, so A4 (stop moves up) and B20 (gap rule) do not make it false. True/False now 1 True, 3 False across q02/q06/q18/q20."
+   "notes": "True on it1/it2/fp1; why gives the reason (impulse) not just the rule; separates reading the market from rewriting rules (conflict note on t2)."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "I reached the key on my own (market trend + group) before looking; it fits ic1, m1, ic3, r3a and the owner's C31 and B18. Choices are 30-36 characters and the key is not the longest. Every note rests on a cited fact (m1, ir2) or plain reasoning with no number. simple keeps ic3's 'usually'. Minor: 'its sector' could grammatically point at 'the market', but the stem makes the stock the clear referent. q19 applies m1 at rung 8 with the house reading; it teaches and then applies the same idea, so this is not a leak."
+   "notes": "Market and group first; r3a/m1/ic3 carry the why, O'Neil and Roze moved to deeper. Points to the app's market reading."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "I reached the key on my own from C32 (h12): CPI days are traded like any other day, so you read the futures and run the plan. All four choices now answer 'How do you handle the report?' and none is ruled out by grammar. 8:30 comes from the story, 9:30 from fn1. The buy-before note rests on fs3 + h10 (E58), and the scrap note on fp1. Key 35 characters, max 38. Integrator: conflicts line 3 still says 'q08 keys adjusting the plan to the report'. That is stale; it now keys running the plan."
+   "notes": "h12 no news-day rule and h10 no buys outside regular hours stated correctly; 8:30 vs 9:30 from fb1/fn1. Good judgment line."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "Steps shown: 6,000-5,940=60, 60/6,000=1%. Wrong notes match each slip. Borderline rule 23 (percent drill), kept because it frames how to read the premarket."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from h1 + h2 (F62). Stem now names all four of yesterday's levels, so 'Yesterday's open' is in frame. No second right answer: before the open today's low does not exist. The only leaks of this key were in q16's story and q17's choice; both fixed there."
+   "notes": "h1/h2: a few cents under the low of the day or the prior day's low; reason given (where the chart says you're wrong). No proposal numbers."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from h3 (F64) + iw3 + t5. simple 21 words, 5 to 10 from h3. 45 and 20 are from the story. deeper.example matches D39 (size included). Integrator: key rests on a house fact, decide the house flag."
+   "notes": "h3 focus list 5 to 10; 20 min over 45 charts is under half a minute each (26.7 s), correct. Ranking tonight with the why."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc 53.5 - 48 = 5.5 checks. $2 and $50/$48/$53.50 are in the story. 4% is h4 (C28); '$53.50 is beyond that' is true (4% above $50 is under $53.50) and adds no number. Buy now at 9:45 a.m., so no E58 conflict. Distractor lengths 29-33, key not longest."
+   "fixed": true,
+   "notes": "Truth/rule 15: the writer's stem 'You buy here at $53.50' puts the member in a buy our 4% no-chase rule forbids (3.50 over a $50 trigger is 7%), then the why says we wouldn't take it. Made it a conditional. Math checked: 53.50-48=5.50, 2.75x the planned $2 ('almost three times')."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from r3b + ss2 + sb3. Why no longer repeats q14's dated Fed example. Minor lesson-level pattern: q13 'Lower stops to give trades more room' and q21 'Looser stops' are both stop-widening distractors; q23's third copy is removed in its fix."
+   "notes": "Protection before purchases (r3b), stops only move up (h11), 2:00 Fed from ff1. Correct."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from ie1/ie2 + sb3 + ff1. Why now ends on C32 (h12), so it cannot read as 'avoid Fed days'. 2:00 p.m. in the story and ff1. Sentences under 22 words. Owner flag on keeping the calendar step stands."
+   "notes": "Calendar tells you when, not which way; ff1 2:00 p.m. Oct 28 2026; h12 kept correctly."
   },
   "q15": {
    "status": "cut",
@@ -1849,53 +1868,49 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "I reached the key on my own from D41 (h5) + sb5. No second right answer: an alert only notifies, and a member at work cannot act on it. The gap caveat (ips2) keeps the why from overclaiming, and the trap agrees with A7 ('a gap can jump the stop'). The story no longer names a stop level, so q10 is not leaked. Choices are 26-30 characters and the key is not the longest.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "h5 real stop order; gap caveat from ips2; Roze's mental stops kept as the counter in deeper, correctly framed."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The key is right (fe1 + fr2 + ss3 + h6/B22) and I reached it on my own. The defect is a grammar tell, the same kind fixed in q08: the stem asks 'Which step would have flagged it', and 'A tighter stop order on that holding' cannot flag anything, so grammar alone rules it out. The stem now asks what would have protected you, which makes the stop choice a real temptation (the misconception the trap teaches) and leaves the key the only answer. The simple's 'because' now says why the check helps. Its 'decide before the close' rests on fe1 + sb4 and the why's B22 line. 11% is in the story. The key a",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Added the practical how the 5R rule implies (short of 5R you sell before the close) and put the hold rule before the 3-day buy rule, which is about new buys, not this holding. h6, fe1, fr2, sb4 support every line."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False from rr1 + t6, both credited correctly (t6 to Spencer). 'Two hours' is in the statement. Lesson line makes no comparison. Minor: 'Veteran' rests on rp4, not cited here."
+   "notes": "Routine built around your real day (rr1); night-before planning; 'a short routine you run every day beats a long one you skip' sounds like him."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from m1 + ic2 + h14 (F65); 'Short it' wrong on h9 (C31 mirror). No second right answer: the story gives no reading, and the why teaches the guide without claiming one. Choices 37-39 chars. q07 teaches m1 at rung 3; q19 applies it with the house reading at rung 8, not the same ask. Integrator: house flag decision.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Rule 2 catch: his own correction says a strong setup in a weak tape is a name to track for relative strength until the market stabilizes, NOT just 'go slow'. The writer turned 'Extra caution' into 'Go slow', the exact framing he rejected. Answer now 'Track it', why teaches the RS read, the market filter (Orange only A+, Red mostly cash, as a guide) and when you'd act."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False from rp2/rp3/rp4 + t7. 1989 and 'full time' are in rp4. 'Out of sight is out of mind' paraphrases rp3 faithfully. Sentences short."
+   "notes": "Flipped to True on the same idea (written checklists, rp2/rp3/rp4); 1989 from rp4. TF balance now 2 true / 2 false. Roze in the why is acceptable: the question is about a veteran's practice (rule 13)."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "I reached the key on my own (stops, reports, tomorrow's plan) from ss2, ss3 and rl1. The why adds B27 (h7, journal the same day), so nothing contradicts the rulebook. The looser-stops note now rests on h11 + ips1. Choices are 35-37 characters and the key is the shortest. Lesson-level notes only: the key's 'reports due' is the same idea q17 tests, but w3 already teaches it and q17 asks it in a different frame (which step), so I treat it as teach-then-apply, not a leak. The revenge-trading line appears in both the wrong note and deeper.trap; that is acceptable inside one item.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "h7 journal same day, h11 stop only moves up, ir1 revenge trading. 'Two small losses taken by the plan mean the plan worked' is the right mentor line."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The key is right (rl1 + rr1 + h8/D39, fn1 for the closed market) and I reached it on my own. Defect: the 'Skip prep and react to the open' note says 'every decision is made on impulse, at the busiest, most volatile time of day'. That is an absolute, and it drops ib3's 'tend to be' and ib3's co-claim about the closing hour. It also reads as a time-of-day warning, but the owner has none (C30). Re-grounded on the missing plan (h8, D39) and impulse (it2, added to facts). Lesson-level: q11's why ('the narrowing happens tonight', same 20-minute frame) points toward q22's key. That is consistent teac"
+   "fixed": false,
+   "notes": "h8 written before the open; ib3 opening hour volatile. Correct."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Trail renamed to 9 EMA / 20 EMA throughout; recap check on a close is an exit, fine."
+   "notes": "9 EMA for fast movers, 20 EMA for steadier (h13/rd21, not the 10/21-day); sell what's left on a close below. Correct."
   }
  }
 }

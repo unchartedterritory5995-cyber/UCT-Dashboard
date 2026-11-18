@@ -147,6 +147,7 @@
 .cmSub { margin: 4px 0 0; font-size: 12.5px; color: var(--scr-faint); }
 .cmBody { flex: 1 1 auto; min-height: 120px; overflow-y: auto; padding: 4px 18px 18px; }
 .cmHeading { display: flex; align-items: center; gap: 8px; margin: 14px 0 8px; font-size: 12px; font-weight: 600; color: var(--scr-rest); }
+.reviewCount { display: inline-block; min-width: 16px; margin-left: 6px; padding: 1px 5px; border-radius: 8px; background: var(--scr-soft-hi); color: var(--scr-bright); font-size: 10.5px; font-weight: 700; line-height: 1.3; text-align: center; }
 .cmCount { min-width: 18px; padding: 1px 6px; border-radius: 9px; background: var(--scr-soft-hi); color: var(--scr-bright); font-size: 11px; text-align: center; }
 .cmGrid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
 .cmCard { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 10px; background: var(--scr-card); border: 1px solid var(--scr-line); border-radius: 10px; }
@@ -162,3 +163,13 @@
 /* a narrow, tall box (the Screens rail) reads its label up the side */
 .thumbBox[data-tall] .thumbLabel { writing-mode: vertical-rl; transform: rotate(180deg); }
 .thumbLabel { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; justify-content: center; background: var(--scr-selected); border-radius: 4px; color: var(--scr-rest); font-size: 10.5px; font-weight: 600; white-space: nowrap; overflow: hidden; }
+
+/* A tablet's board (SCREENER_SCAN_BOARD_TABLET_ENABLED): Customize is done with a finger, so the
+   bar, its Remove button and the corner handles are finger-sized. */
+@media (max-width: 1024px) {
+  .board[data-edit] .bwBody { padding-top: 48px; }
+  .bwBar { height: 44px; font-size: 13px; touch-action: none; }
+  .bwClose { width: 44px; height: 44px; font-size: 20px; }
+  .board[data-edit] :global(.react-resizable-handle) { width: 36px; height: 36px; }
+  .board[data-edit] :global(.react-resizable-handle)::after { width: 12px; height: 12px; }
+}
