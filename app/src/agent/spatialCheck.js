@@ -861,7 +861,8 @@ export function withoutExcludedCharts(ops, texts, { host, getTargetKind, getCapa
       // and a symbol change on a linked chart retargets its whole link group (chartLanding) — "…except the top-right one" never
       // changes the top-right chart through the chart it is linked to / shares drawings with
       const landed = snap ? chartsLandedOn(cap, kind, snap, charts) : null
-      if (landed && [...landed].some(r => ex.has(r))) { dropped++; continue }
+      // ⛔ fail closed: a landing that cannot be read (chartLanding `unknown`) is never assumed to miss the excluded chart
+      if (landed && (landed.unknown || [...landed].some(r => ex.has(r)))) { dropped++; continue }
     }
     // (AUDIT, #988 GO) a change that lands on charts named in its ARGS — an indicator Save's `addTo`, run later as follow-ups
     // that never pass through execute — loses the excluded ones too

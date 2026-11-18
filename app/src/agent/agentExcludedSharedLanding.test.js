@@ -11,7 +11,8 @@ import { describe, it, expect } from 'vitest'
 import { registerBuiltins } from './builtins'
 import { getCapability, getTargetKind, allCapabilityNames } from './capabilities'
 import { withoutExcludedCharts, excludedCharts } from './spatialCheck'
-import { buildDrawingSource } from './host'
+import { buildDrawingSource, buildListViewSource } from './host'
+import { publishListView } from '../pages/watchlist/watchlistViews'
 import { chartsLandedOn, LINK_FOLLOWING } from './chartLanding'
 
 registerBuiltins()
@@ -141,5 +142,90 @@ describe('LINK_FOLLOWING rail: every chart change that follows the link group is
     const chartCaps = allCapabilityNames().filter(n => getCapability(n)?.target === 'chart' && !getCapability(n)?.query)
     expect(chartCaps.filter(says).filter(n => !LINK_FOLLOWING.has(n))).toEqual([])
     for (const n of LINK_FOLLOWING) expect(says(n), n).toBe(true)
+  })
+})
+
+// ── (AUDIT H1797-1) a link-following change whose TARGET is not a chart: a Watchlist widget's arrow step moves its linked
+// chart. The list view is read through the REAL host source (host.buildListViewSource over a published widget view), so the
+// link group the gate reads is the one the board draws.
+const listBoard = (listColor, sel = null) => {
+  const host = board(sel)
+  const widgets = [...host.charts.list().map(c => ({ id: c.ref, type: 'chart', color: c.group === 'N' ? 'N' : c.group, x: c.cell.x, y: c.cell.y, w: 12, h: 10 })),
+    { id: 'WL', type: 'watchlist', color: listColor, x: 24, y: 0, w: 6, h: 20, opts: { watchKey: 'user:1', watchName: 'Momentum' } }]
+  const live = { name: 'Momentum', rows: () => ['SPY', 'AMD', 'MU'], cfg: {}, sort: null, columns: [], fixedColumns: [], persisted: true, selected: 'SPY', active: true, saveCols: () => {}, select: () => {} }
+  const off = publishListView({ type: 'watchlist', color: listColor, key: 'user:1' }, () => live)
+  return { host: { ...host, listViews: buildListViewSource({ getWidgets: () => widgets }) }, off }
+}
+const LIST_ROWS = PLACED('top-right', 'TR').flatMap(text => ['next', 'previous', 'first', 'last'].map(d => [text, d]))
+describe('a list widget linked to an excluded chart never steps it (watchlist.step: "the linked chart follows")', () => {
+  it.each(LIST_ROWS)('"%s" — watchlist.step %s on a list in link group A (TL + TR): dropped', (text, direction) => {
+    const { host, off } = listBoard('A')
+    try {
+      const ref = getTargetKind('listView').list(host)[0]?.ref
+      expect(ref, 'the list view is a target').toBeTruthy()
+      const g = gate([{ action: 'watchlist.step', target: ref, args: { direction, by: null } }], text, host)
+      expect(g.dropped, 'stepping the list moves TR, which the words exclude').toBe(1)
+    } finally { off() }
+  })
+  it.each(LIST_ROWS)('control: "%s" — watchlist.step %s on an UNLINKED list still acts', (text, direction) => {
+    const { host, off } = listBoard('N')
+    try {
+      const ref = getTargetKind('listView').list(host)[0]?.ref
+      const ops = [{ action: 'watchlist.step', target: ref, args: { direction, by: null } }]
+      expect(gate(ops, text, host)).toEqual({ ops, dropped: 0 })
+    } finally { off() }
+  })
+  it('control: a list linked to group A with the excluded chart in the bottom row (no A chart excluded) still acts', () => {
+    const { host, off } = listBoard('A')
+    try {
+      const ops = [{ action: 'watchlist.step', target: getTargetKind('listView').list(host)[0].ref, args: { direction: 'next', by: null } }]
+      expect(gate(ops, EXCLUDE('bottom-right')[0], host)).toEqual({ ops, dropped: 0 })
+    } finally { off() }
+  })
+})
+
+// ── (AUDIT H1797-1 item 3) a landing that cannot be read FAILS CLOSED when the words exclude a chart ──
+describe('an unreadable landing is never assumed safe', () => {
+  const throwingKind = { name: 'probe', list: () => [{ ref: 'p1', chartRef: 'TL' }], sharedBy: () => { throw new Error('unreadable') } }
+  const probeDeps = (host) => ({ host, getCapability: (a) => (a === 'probe.change' ? { name: 'probe.change', target: 'probe' } : getCapability(a)), getTargetKind: (k) => (k === 'probe' ? throwingKind : getTargetKind(k)) })
+  it('a kind whose sharedBy throws: dropped when the words exclude a chart', () => {
+    const g = withoutExcludedCharts([{ action: 'probe.change', target: 'p1', args: {} }], [EXCLUDE('bottom-right')[0]], probeDeps(board()))
+    expect(g.dropped).toBe(1)
+  })
+  it('control: the same kind with no exclusion in the words runs', () => {
+    const ops = [{ action: 'probe.change', target: 'p1', args: {} }]
+    expect(withoutExcludedCharts(ops, ['change the top-left chart'], probeDeps(board()))).toEqual({ ops, dropped: 0 })
+  })
+  it('a link-following action on a snapshot that reports neither a chart nor a link group: dropped (its landing is unknown)', () => {
+    const blind = { name: 'blind', list: () => [{ ref: 'b1' }] }
+    const d = { host: board(), getCapability: (a) => (a === 'blind.step' ? { name: 'blind.step', target: 'blind' } : getCapability(a)), getTargetKind: (k) => (k === 'blind' ? blind : getTargetKind(k)) }
+    LINK_FOLLOWING.add('blind.step')
+    try {
+      expect(withoutExcludedCharts([{ action: 'blind.step', target: 'b1', args: {} }], [EXCLUDE('top-right')[0]], d).dropped).toBe(1)
+    } finally { LINK_FOLLOWING.delete('blind.step') }
+  })
+  it('chartsLandedOn marks the unreadable landing', () => {
+    expect(chartsLandedOn({ name: 'probe.change' }, throwingKind, { ref: 'p1', chartRef: 'TL' }, board().charts.list()).unknown).toBe(true)
+  })
+})
+
+// ── (AUDIT H1797-1 item 2) the rail over EVERY capability: words that say a change follows a link must be declared ──
+// An exemption names why the change reaches no OTHER widget of a link group.
+const LINK_EXEMPT = {
+  'widget.setLink': 'recolors the NAMED widget only: it takes the group\'s symbol; no other widget of either group changes',
+  'chart.linkTab': 'recolors the NAMED chart tab only: it takes the group\'s symbol; no other widget of either group changes',
+  'chart.addTab': 'adds a tab to the NAMED chart widget, following that widget\'s own symbol; no other widget changes',
+}
+describe('LINK_FOLLOWING rail over every capability', () => {
+  const FOLLOWS = /\blink(?:ed)?\b[^.]*\bfollows?\b|\bfollows?\b[^.]*\blink(?:ed)?\b|\bsame colou?r\b[^.]*\bfollow/i
+  const says = (n) => FOLLOWS.test(`${getCapability(n)?.summary || ''} ${getCapability(n)?.hints || ''}`)
+  it('every capability whose summary or hints say a link follows is in LINK_FOLLOWING or reasonably exempt', () => {
+    const hits = allCapabilityNames().filter(n => !getCapability(n)?.query && says(n))
+    expect(hits.length).toBeGreaterThanOrEqual(2)
+    expect(hits.filter(n => !LINK_FOLLOWING.has(n) && !LINK_EXEMPT[n])).toEqual([])
+  })
+  it('every LINK_FOLLOWING action and every exemption is a registered capability that says so', () => {
+    for (const n of [...LINK_FOLLOWING, ...Object.keys(LINK_EXEMPT)]) { expect(getCapability(n), n).toBeTruthy(); expect(says(n), n).toBe(true) }
+    expect(Object.keys(LINK_EXEMPT).filter(n => LINK_FOLLOWING.has(n))).toEqual([])
   })
 })
