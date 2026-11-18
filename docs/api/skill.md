@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (772)
+## Member session reads (769)
 
 ### Limits
 
@@ -227,7 +227,6 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/charts/layouts/{layout_id}/share` | member | member-workspace | {layout_id} |
 | GET | `/api/charts/list-sources/screen/{screen_id}` | member | member-workspace | {screen_id} |
 | GET | `/api/charts/list-sources/theme/{theme_id}` | member | member-workspace | {theme_id} |
-| GET | `/api/coaching-notes` | paid | member-workspace | limit=10, note_type |
 | GET | `/api/community/chat/channels` | member | community-content |  |
 | GET | `/api/community/chat/channels/{slug}/messages` | member | community-content | {slug}, before_id, after_id, limit=50 |
 | GET | `/api/community/chat/channels/{slug}/read-state` | member | community-content | {slug} |
@@ -654,7 +653,6 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/pre-trade-checklist` | paid | member-workspace | symbol (required), setup_type (required), entry_price (required), stop_price (required) |
 | GET | `/api/provenance/bar` | paid | market-data | ticker (required), tf (required), bar_time (required) |
 | GET | `/api/provenance/quote` | member | market-data | symbol (required), entity_id, entity_type, vendor |
-| GET | `/api/psychology-events` | paid | member-workspace | days=30 |
 | GET | `/api/regime` | paid | market-analytics | fresh=False |
 | GET | `/api/regime/vocabulary` | paid | market-analytics |  |
 | GET | `/api/research/analyst-ratings/{sym}` | paid | research | {sym} |
@@ -780,7 +778,6 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/signature/gex-walls` | paid | market-analytics | sym (required) |
 | GET | `/api/signature/rs-themes` | paid | market-analytics |  |
 | GET | `/api/single-stock-etfs/{symbol}` | paid | market-data | {symbol} |
-| GET | `/api/skill-assessments` | paid | member-workspace |  |
 | GET | `/api/skill.md` | member | docs |  |
 | GET | `/api/skill/whitelist` | member | docs |  |
 | GET | `/api/snapshot` | member | market-data |  |
