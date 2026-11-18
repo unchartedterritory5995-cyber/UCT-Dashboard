@@ -32,7 +32,24 @@ owed, and none of it is a TradingView capture:
 | row | what | settles |
 |---|---|---|
 | Q-RS6 | Record the bars `/api/bars/SPX?tf=D` serves from FMP (on the pod, or on a machine with the FMP key) into the three `tests/fixtures/vendor-supply/rs-rating-fred6724-*.json` records, replacing the yfinance record and SPY's `notRecorded`, then regrade runtime-on | Whether the primary SPX source equals TradingView's. If it does, RDDT (and NVDA within the served depth) grade MATCH_SUBSTITUTED, and SPY can be graded. |
-| Q-RS7 (optional) | RS Rating on a WEEKLY chart (RDDT 1W) | What TradingView draws for `request.security(syminfo.tickerid, 'D', close)` below the chart's timeframe. Today it is refused by name (L8 4b). |
+| Q-RS7 (optional) | RS Rating on a WEEKLY chart (RDDT 1W) | What TradingView draws for `request.security(syminfo.tickerid, 'D', close)` below the chart's timeframe. Today it is refused by name (L8 4b). ⭐ **CAPTURED AND GRADED 2026-11-17** (below, and L11 in the program doc). |
+
+**Q-RS7 CAPTURED AND GRADED (2026-11-17, batch `rs-weekly-2026-11-17`, after the close, newest week forming).**
+RS Rating on NYSE:RDDT 1W and NASDAQ:NVDA 1W (committed, MPL-2.0:
+`tests/fixtures/vendor/harness/rs-rating-fred6724-w-{rddt,nvda}-1w-2026-11-17.json`), and the two UCT
+probes on NYSE:RDDT 1W, `rs-spx-daily-w-rddt-1w-2026-11-17` (X01..X04 at `"D"`, X05 at `timeframe.period`)
+and `rs-seed-rsrating-w-rddt-1w-2026-11-17` (local only). They witness four rules, now served
+(`requestWitnesses.json` `periods.W`; program doc L11): R1 `SP:SPX` at `timeframe.period` reads the
+previous week's last daily close (139/139 settled weeks); R2 `SP:SPX` at `"D"` reads the
+previous-session bar at the week's last session (139/139); R3 the chart's own `"D"` close is the weekly
+close (139/139); R4 the seed at `"D"` reads the row of the week's Monday, `na` where none (140/140). Graded:
+RDDT 1W RS line exact on every settled week, NVDA 1W exact on every settled week from 2023-12-05 (earlier,
+Q-RS9's accepted S&P 500 history), both labels drawn (runtime-on objects MATCH). The one difference is the
+forming week, owed to Q-RS7b:
+
+| row | script | symbols / timeframe | settles |
+|---|---|---|---|
+| Q-RS7b | `tools/visual_conformance/probes/rs-spx-daily.pine` and the RS Rating source, DURING the session (a weekly chart whose newest week is forming and whose newest DAILY session is forming) | NYSE:RDDT 1W | What `SP:SPX` at `timeframe.period` and at `"D"` read on the FORMING week. After the close on 2026-11-17 both read the latest SPX value (7340.53), where the settled weeks read the previous week's close (R1) and the previous-session bar (R2); whether in session that is today's forming SPX value, or the previous session's, decides the forming-week rule (PR 2). |
 
 ## ⭐ TOP OF THE NEXT CAPTURE SESSION (added 2026-11-16)
 
