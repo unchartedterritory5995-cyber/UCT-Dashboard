@@ -199,6 +199,11 @@ export const LAKE_BEHIND_MAX_MS = 1200
  *  after the key (4/4), so a held copy painted alone at ~370 ms and the depth redrew the averages
  *  ~80 ms later. A lake already in the browser joins in tens of ms; only a cold load waits. */
 export const LAKE_JOIN_WAIT_MS = 550
+/** The edge warm of a list (edgeWarmList): its timeframes, how many of the list's tickers, and how long
+ *  after the list's own bars it starts. 60m first after the chart's own: the deepest and slowest cold. */
+export const EDGE_WARM_TFS = Object.freeze(['60', '30', '5'])
+export const EDGE_WARM_CAP = 150
+export const EDGE_WARM_DELAY_MS = 1500
 /** How long a typed text the daily pack does not know may wait for the lake's answer to "is it a
  *  ticker?" (its index: one edge round trip) before the warm gives up on it. */
 export const INTENT_LAKE_INDEX_WAIT_MS = 400
@@ -758,6 +763,46 @@ export function createPrefetch(o = {}) {
     prefetchBarsToIDB(list.slice(memTop), tf, { priority: true })
     if (tf !== 'D') prefetchBarsToIDB(list, 'D', { priority: true })
     warmMemFromIDB(list.slice(0, memTop), tf !== 'D' ? [tf, 'D'] : ['D'])
+    edgeWarmList(list, { chartTf: tf })
+  }
+
+  // ── the EDGE warm of a list's intraday history (2026-11-18) ──
+  // Owner's standard: a ticker opened on 1h (any intraday tf), zoomed all the way out, shows its whole
+  // history at once. Its pieces load in ~70 ms when this data center's edge already holds them and
+  // 300-950 ms when it does not (measured live), so every list a member opens warms the edge for its
+  // tickers' intraday depth: HEADs, no bodies (historyFeed.edgeWarm). One key at a time (4 pieces in
+  // flight), after the list's own bars, the chart's timeframe first; each key once per page.
+  const edgeQueue = []
+  const edgeQueued = new Set()
+  let edgeRunning = false
+  function edgeWarmList(tickers, { chartTf = 'D', cap = EDGE_WARM_CAP } = {}) {
+    const st = S()
+    if (!st?.lakeEdgeWarm || !tickers?.length) return
+    const list = [...new Set(tickers.filter(Boolean))].slice(0, cap)
+    const tfs = [...new Set([...(EDGE_WARM_TFS.includes(String(chartTf)) ? [String(chartTf)] : []), ...EDGE_WARM_TFS])]
+    const fresh = []
+    for (const tf of tfs) {
+      for (const sym of list) {
+        const k = keyFor(sym, tf)
+        if (!k || edgeQueued.has(k)) continue
+        let carries = false
+        try { carries = !!st.lakeCarries?.(k) } catch { carries = false }
+        if (!carries) continue
+        edgeQueued.add(k); fresh.push(k)
+      }
+    }
+    if (!fresh.length) return
+    edgeQueue.unshift(...fresh)   // the newest list first: it is the one on screen
+    if (edgeRunning) return
+    edgeRunning = true
+    setTimeout(async () => {
+      try {
+        while (edgeQueue.length) {
+          const k = edgeQueue.shift()
+          try { await S().lakeEdgeWarm(k) } catch { /* a warm only */ }
+        }
+      } finally { edgeRunning = false }
+    }, EDGE_WARM_DELAY_MS)
   }
 
   function prefetchListDeep(tickers, { tfs = DEEP_WARM_TFS, cap = DEEP_WARM_CAP, priority = false } = {}) {
@@ -898,7 +943,7 @@ export function createPrefetch(o = {}) {
     keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, prepareForDisplay, prepareDailyForDisplay, lakePending,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
-    prefetchBarOnIntent, warmTypedSymbol, createNeighborHold,
+    prefetchBarOnIntent, warmTypedSymbol, createNeighborHold, edgeWarmList,
     /** @internal */ _stats: () => ({ asked: asked.size, preparing: preparing.size, urgent: urgentCtl.size }),
   }
 }
@@ -930,6 +975,7 @@ export function prefetchReplayTimeframes(sym, cutoffIso, opts = {}) { return _f(
 export function prefetchBarOnIntent(sym, tf = 'D', opts = {}) { return _f().prefetchBarOnIntent(sym, tf, opts) }
 export function warmTypedSymbol(sym, tf = 'D') { return _f().warmTypedSymbol(sym, tf) }
 export function createNeighborHold() { return _f().createNeighborHold() }
+export function edgeWarmList(tickers, opts = {}) { return _f().edgeWarmList(tickers, opts) }
 
 // ⭐ THE WARMERS' REGISTRY (2026-11-17, utils/barsWarm.js). Under BARSTORE the store's warmers
 // stand in for the legacy ones on every list that warms through `barsWarm`, so a list's warm

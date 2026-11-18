@@ -71,11 +71,7 @@ export function createHistoryFeed({ source = createHistorySource() } = {}) {
     if (primed.size > PRIME_MAX_KEYS) primed.delete(primed.values().next().value)
     Promise.resolve().then(() => source.loadIndex(ls.sym)).then((index) => {
       if (!index || !source.warmPieces) return undefined
-      const all = periodsFor(index, ls.series, {})
-      let have = 0
-      let from = all.length
-      while (from > 0 && (all.length - from < pieces || have < bars)) { from--; have += all[from].bars || 0 }
-      return source.warmPieces(ls.sym, ls.series, all.slice(from))
+      return source.warmPieces(ls.sym, ls.series, depthPieces(index, ls.series, pieces, bars))
     }).catch(() => {})
   }
 
@@ -114,8 +110,38 @@ export function createHistoryFeed({ source = createHistorySource() } = {}) {
   function hasSymbol(sym) {
     return Promise.resolve().then(() => source.loadIndex(sym)).then((i) => !!i).catch(() => false)
   }
-  return { olderBars, prime, hasSymbol }
+  // ⭐ THE EDGE WARM (2026-11-18). Owner's standard: a ticker opened on 1h, zoomed out, shows its whole
+  // history at once. Measured live (cold ticker, 1h): index ~130 ms, then 8 pieces 300-950 ms because
+  // nothing in that data center had read them yet; once the edge holds them all 8 land in ~70 ms, so the
+  // whole depth joins inside the open's wait (LAKE_JOIN_WAIT_MS) and paints once. This loads the index
+  // into the page (kept for its life: the open skips that hop too) and HEADs the pieces of the chart's
+  // whole depth (the same pieces `prime` would fetch), so the edge keeps them; no body comes back.
+  // Resolves the pieces asked (0 when the lake has nothing, or the key was warmed on this page). Never rejects.
+  const edgeWarmed = new Set()
+  function edgeWarm(key, { signal } = {}) {
+    const ls = lakeSeriesOfKey(key)
+    if (!ls || !ls.series || !source.warmEdge || edgeWarmed.has(key)) return Promise.resolve(0)
+    edgeWarmed.add(key)
+    if (edgeWarmed.size > EDGE_WARM_MAX_KEYS) edgeWarmed.delete(edgeWarmed.values().next().value)
+    return Promise.resolve().then(() => source.loadIndex(ls.sym, { signal })).then((index) => {
+      if (!index || signal?.aborted) return 0
+      return source.warmEdge(ls.sym, ls.series, depthPieces(index, ls.series, PRIME_PIECES, lakeTargetBars(ls.tf)), { signal })
+    }).catch(() => { edgeWarmed.delete(key); return 0 })
+  }
+  return { olderBars, prime, hasSymbol, edgeWarm }
 }
+
+/** The newest pieces of `series` holding at least `bars` bars (and at least `pieces` pieces), oldest first. */
+function depthPieces(index, series, pieces, bars) {
+  const all = periodsFor(index, series, {})
+  let have = 0
+  let from = all.length
+  while (from > 0 && (all.length - from < pieces || have < bars)) { from--; have += all[from].bars || 0 }
+  return all.slice(from)
+}
+
+/** Keys `edgeWarm` remembers per page. */
+export const EDGE_WARM_MAX_KEYS = 2000
 
 /** Pieces `prime` warms per key: the newest two hold the first lake window of every series (a month
  *  of 1m, a quarter of 5m, a year of 15-60m each, against a ~6,000-bar window). */
