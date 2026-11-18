@@ -449,6 +449,15 @@ export const FUNCTIONS = [
   // `ERNS TOMORROW BMO`, `ERNS 11/19`.
   { code: 'ERNS', label: 'Earnings season (who reports, the priced move, past moves, the result)', group: 'Calendar',
     market: { panel: 'EarningsSeason', args: [{ kind: 'earningsDay', prop: 'day' }, { kind: 'earningsSession', prop: 'session' }] } },
+
+  // ── my history on a stock (2026-11-18) ──
+  // MYH: the member's OWN Journal record on one stock, read from the Journal's own routes (the
+  // session's user only): what they hold in it now, their closed trades on it with the Journal's
+  // own numbers, and the newest notes that name it. `NVDA MYH 2` picks the second Journal
+  // account, `NVDA MYH ALL` every account (PERF's words). Never the trader archive: WHO, HIS and
+  // CHK are other panels.
+  { code: 'MYH', label: 'My history on this stock (your trades, position and notes)', group: 'Security',
+    ticker: { panel: 'MyHistory', args: [{ kind: 'journalAccount', prop: 'account' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -719,6 +728,7 @@ const FUNCTION_WORDS = {
   TOPF: { example: 'TOPF OPEN', keywords: ['top flow picks', 'flow picks', 'pick by pick', 'how the picks did'] },
   ERNS: { example: 'ERNS TONIGHT', keywords: ['earnings season', 'who reports tonight', 'who reports tomorrow', 'earnings tonight',
     'reporting after the close', 'reporting before the open', 'priced move for earnings'] },
+  MYH: { example: 'NVDA MYH', keywords: ['my history', 'my trades', 'my record', 'trade history', 'my notes on a stock', 'have i traded it'] },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

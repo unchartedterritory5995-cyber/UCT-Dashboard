@@ -57,7 +57,9 @@ export const SHARE_POLICY = Object.freeze({
 
 const CLASS_CODES = {
   // The member's own records.
-  own: ['PERF', 'RSCH'],
+  // MYH is the member's own trades and note titles on one stock. Its holding rows mark an open
+  // position at a live price, and they are a list, never a table, so no price is in a share.
+  own: ['PERF', 'RSCH', 'MYH'],
   // UCT's own words: the function list, and the index of UCT's own lessons.
   uct: ['HELP', 'LEARN'],
   // Read straight from the SEC (EDGAR, the fails-to-deliver files).
