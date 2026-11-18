@@ -290,6 +290,14 @@ export function recordedSupplyOf(capture, dir = _supplyDir) {
     if (!forms[2] && !(typeof e.source === 'string' && e.source && typeof e.servedBy === 'string' && e.servedBy)) {
       bad(`other.${ticker} records bars without naming \`source\` and \`servedBy\``)
     }
+    // ⭐ RS RATING L11 PR 2 — the server's `newest_bar_is_forming` for this series, as the bars route
+    // answered beside the capture (the chart's cache entry carries it, `secondaryBars._read`): it decides
+    // what the chart's newest bar reads (`otherSymbols.newestOwnPeriodOf`). Optional; when present it is
+    // the route's tri-state exactly, and a record without it supplies an entry without it, as before.
+    if (Object.prototype.hasOwnProperty.call(e, 'newestBarIsForming')
+        && ![true, false, null].includes(e.newestBarIsForming)) {
+      bad(`other.${ticker}.newestBarIsForming must be the route's tri-state (true, false or null), not ${JSON.stringify(e.newestBarIsForming)}`)
+    }
     if (forms[1]) e.bars = outOfGitRows(ticker, e, bad)            // [] -> e.notOnThisMachine
   }
   for (const [field, e] of Object.entries(rec.symbol || {})) {
@@ -394,9 +402,12 @@ export function otherSymbolSupply(def, capture) {
         // SUPPLY-ATTRIBUTED (2026-11-17): the counterfactual run (`runOurSideWithSupply`) replaces these
         // bars for ONE run; every graded run reads the recorded supply as served
         const over = _supplyOverride && Array.isArray(_supplyOverride[storeKey]) ? _supplyOverride[storeKey] : null
-        secondary.set(cacheKey, { bars: over || rec.bars, status: 'available' })
+        const flagged = Object.prototype.hasOwnProperty.call(rec, 'newestBarIsForming')
+        secondary.set(cacheKey, { bars: over || rec.bars, status: 'available',
+          ...(flagged ? { newestBarIsForming: rec.newestBarIsForming } : {}) })
         notes.push(`other symbol ${ticker}: the bars our server serves, recorded beside the capture `
           + `(${rec.servedBy}; ${rec.source})`
+          + (flagged ? `; newest bar forming: ${rec.newestBarIsForming}` : '')
           + (held ? `; held at ${held.tf} on this ${tf} chart` : '')
           + (rec.rows ? `; kept out of git, read from the local supply store as ${rec.rows.file} (sha256 ${rec.rows.sha256.slice(0, 12)})` : ''))
       } else if (rec.notOnThisMachine) {
