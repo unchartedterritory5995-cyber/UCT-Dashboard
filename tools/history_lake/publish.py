@@ -43,6 +43,8 @@ except ImportError:  # script mode
     from build import BuildError, _json_bytes, _write_atomic  # type: ignore[no-redef]
 
 VDIR = f"v{piece.FORMAT_VERSION}"
+#: Fewer packs to check than this are checked in the publishing process itself (no process pool).
+POOL_MIN_CHECKED = 24
 
 
 def collect_packs(roots: Iterable[Path]) -> Dict[tuple, Path]:
@@ -101,7 +103,12 @@ def build_indexes(packs: Dict[tuple, Path], *, check: bool = True, log=print, jo
     out: Dict[str, dict] = {}
     work = [(key, path, check and (check_since is None or path.stat().st_mtime >= check_since))
             for key, path in packs.items()]
-    pool = ProcessPoolExecutor(max_workers=jobs) if jobs > 1 and len(work) > 1 else None
+    # ⛔ A pool only when there is real checking to share out (2026-11-17). An identity publish crashed
+    # (segfault, exit 139) right where the upload began after a 469-pack pool check; the same upload
+    # alone, and the same check alone, both ran clean. A daily run checks only the few packs it rebuilt:
+    # it reads them in this process and never puts the pool and the uploader in one process.
+    checked = sum(1 for _key, _path, c in work if c)
+    pool = ProcessPoolExecutor(max_workers=jobs) if jobs > 1 and checked > POOL_MIN_CHECKED else None
     try:
         results = pool.map(_read_pack, work, chunksize=1) if pool else map(_read_pack, work)
         for n, (series, period, entries) in enumerate(results, 1):

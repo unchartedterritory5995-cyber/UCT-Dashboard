@@ -204,6 +204,14 @@ def test_publish_checks_merges_stamps_and_uploads_in_order(raw, tmp_path):
     import os as _os
     import time as _time
     PUB.build_indexes(PUB.collect_packs([a]), check_since=_time.time() + 3600, log=lambda *_: None)
+    # a daily run's few rebuilt packs are checked without a process pool (never pool + uploader in one process)
+    real_pool = PUB.ProcessPoolExecutor
+    PUB.ProcessPoolExecutor = lambda *a, **k: (_ for _ in ()).throw(AssertionError("no pool for a few packs"))
+    try:
+        with pytest.raises(BLD.BuildError, match="disagree"):
+            PUB.build_indexes(PUB.collect_packs([a]), jobs=8, check_since=_os.path.getmtime(p) - 1, log=lambda *_: None)
+    finally:
+        PUB.ProcessPoolExecutor = real_pool
     with pytest.raises(BLD.BuildError, match="disagree"):
         PUB.build_indexes(PUB.collect_packs([a]), check_since=_os.path.getmtime(p) - 1, log=lambda *_: None)
     p.write_bytes(good)
