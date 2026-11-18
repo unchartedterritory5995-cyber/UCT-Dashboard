@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (770)
+## Member session reads (773)
 
 ### Limits
 
@@ -708,6 +708,8 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/ratings/{sym}` | paid | research | {sym} |
 | GET | `/api/research/rename-notice/{sym}` | paid | research | {sym} |
 | GET | `/api/research/seasonality/{sym}` | paid | research | {sym} |
+| GET | `/api/research/short-data/{ticker}` | paid | research | {ticker} |
+| GET | `/api/research/short-interest-list` | paid | research | rank, limit |
 | GET | `/api/risk-summary` | paid | member-workspace |  |
 | GET | `/api/rs-rankings` | paid | market-analytics |  |
 | GET | `/api/rs-rankings/{ticker}` | paid | market-analytics | {ticker} |
@@ -832,6 +834,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/upb/overview` | member | member-workspace |  |
 | GET | `/api/upb/sections/{section_id}/entries` | member | member-workspace | {section_id} |
 | GET | `/api/user-definitions` | paid | screener | graph=False, engine |
+| GET | `/api/user-definitions/assistant-memory` | paid | screener |  |
 | GET | `/api/user-definitions/capability-worker` | paid | screener |  |
 | GET | `/api/user-definitions/library` | paid | screener | limit=24, after |
 | GET | `/api/user-definitions/runtime-kill` | paid | screener |  |

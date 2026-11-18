@@ -129,6 +129,13 @@ export const UNVOL_SIDE_WORDS = Object.freeze({
 export const UNVOL_MIN_WORDS = Object.freeze({
   '2X': 2, 2: 2, '3X': 3, 3: 3, '5X': 5, 5: 5,
 })
+// the short interest list: a copy of the panel model's words (args.shortInterest.test.js pins it to its owner)
+export const SHORT_RANK_WORDS = Object.freeze({
+  DTC: 'dtc', DAYS: 'dtc', COVER: 'dtc',
+  UP: 'up', INCREASE: 'up', INCREASES: 'up', RISING: 'up', BUILDING: 'up',
+  DOWN: 'down', DECREASE: 'down', DECREASES: 'down', FALLING: 'down', COVERING: 'down',
+  FLOAT: 'float', PCT: 'float', PERCENT: 'float',
+})
 /** A typed `MM/DD` for ERNS is the nearest such day; past this many days away it is the next or the last year's. */
 export const EARNINGS_DAY_REACH = 183
 export const RS_SCREEN_ARG_WORDS = Object.freeze({
@@ -535,6 +542,17 @@ export const ARG_KINDS = {
     takes: 'a multiple (2X, 3X, 5X)',
     parse: (tok) => UNVOL_MIN_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
     describe: (v) => `${v}× its usual volume or more`,
+  },
+  // ── short interest (2026-11-18) ──
+  /** SHRTS's rank (panels/shortListModel.js SHORT_RANK_ARG_WORDS; pinned by args.shortInterest.test.js). */
+  shortRank: {
+    takes: 'a rank (DTC, UP, DOWN, FLOAT)',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(SHORT_RANK_WORDS, key) ? SHORT_RANK_WORDS[key] : null
+    },
+    describe: (v) => ({ dtc: 'most days to cover first', up: 'biggest increase in short interest first',
+      down: 'biggest decrease in short interest first', float: 'highest percent of float first' })[v] || v,
   },
 }
 
