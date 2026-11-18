@@ -45,10 +45,13 @@ beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); idb.entries.clear(); 
 afterEach(() => { vi.useRealTimers(); setPrefetchShowExtended(false) })
 
 describe('warmer promotion == chart paint verdict (fuzz)', () => {
-  it('holds for 250 random (clock, cache tail, density, session) cases', async () => {
+  it('holds for 600 random (clock, cache tail, density, session) cases', async () => {
     const r = rng(20261111)
     let promoted = 0, refused = 0
-    for (let i = 0; i < 250; i++) {
+    // 600, not 250 (2026-11-18): a copy that stops mid-session is not current while nothing of today
+    // is expected (marketSession.cacheViewComplete.test.js), so fewer random caches promote; 250
+    // left 14 promoted, under the floor below.
+    for (let i = 0; i < 600; i++) {
       const nowMin = 240 + Math.floor(r() * 960)                        // 04:00..20:00 on Wed
       const now = et(11, Math.floor(nowMin / 60), nowMin % 60) + Math.floor(r() * 60)
       vi.setSystemTime(now * 1000)
