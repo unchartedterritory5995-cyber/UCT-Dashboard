@@ -7144,6 +7144,241 @@
    ]
   },
   {
+   "id": "positive_volume_index",
+   "name": "Positive Volume Index",
+   "aliases": [
+    "positive volume index",
+    "positive volume index indicator"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "signal",
+     "label": "Signal length",
+     "default": 255,
+     "min": 2,
+     "max": 5000,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "pvi",
+     "label": "Positive Volume Index",
+     "type": "value",
+     "formula": "1000 * exp(cum(volume > volume[1] ? ln(close / close[1]) : 0))",
+     "says": "an index that moves only on days when volume rose",
+     "tree": {
+      "type": "op",
+      "name": "*",
+      "args": [
+       {
+        "type": "num",
+        "value": 1000
+       },
+       {
+        "type": "call",
+        "name": "exp",
+        "args": [
+         {
+          "type": "call",
+          "name": "cum",
+          "args": [
+           {
+            "type": "op",
+            "name": "?:",
+            "args": [
+             {
+              "type": "op",
+              "name": ">",
+              "args": [
+               {
+                "type": "series",
+                "name": "volume"
+               },
+               {
+                "type": "offset",
+                "value": 1,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "volume"
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "call",
+              "name": "ln",
+              "args": [
+               {
+                "type": "op",
+                "name": "/",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 },
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 0
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {}
+    },
+    {
+     "key": "signal",
+     "label": "Signal",
+     "type": "value",
+     "formula": "ema(1000 * exp(cum(volume > volume[1] ? ln(close / close[1]) : 0)), {signal})",
+     "says": "an EMA of the Positive Volume Index",
+     "tree": {
+      "type": "call",
+      "name": "ema",
+      "args": [
+       {
+        "type": "op",
+        "name": "*",
+        "args": [
+         {
+          "type": "num",
+          "value": 1000
+         },
+         {
+          "type": "call",
+          "name": "exp",
+          "args": [
+           {
+            "type": "call",
+            "name": "cum",
+            "args": [
+             {
+              "type": "op",
+              "name": "?:",
+              "args": [
+               {
+                "type": "op",
+                "name": ">",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "volume"
+                 },
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "volume"
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "call",
+                "name": "ln",
+                "args": [
+                 {
+                  "type": "op",
+                  "name": "/",
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   },
+                   {
+                    "type": "offset",
+                    "value": 1,
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "close"
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 0
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 255
+       }
+      ]
+     },
+     "sites": {
+      "signal": [
+       [
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::positive_volume_index",
+    "published": {
+     "by": "Paul Dysart and Norman Fosback",
+     "url": "https://en.wikipedia.org/wiki/Negative_volume_index",
+     "sources": [
+      {
+       "title": "Wikipedia: Negative volume index (the article covers the Positive Volume Index)",
+       "url": "https://en.wikipedia.org/wiki/Negative_volume_index",
+       "kind": "reference"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "Fosback's form: when volume is above the prior period's, PVI = prior PVI + prior PVI x the price change (prior PVI x (1 + change)); otherwise unchanged. The page gives the base as 'such as 100' and the signal as a one-year moving average, with no kind named.",
+     "note": "The twin of the Negative Volume Index entry, with the volume test reversed, and written the same way (1000 x e to the running total of the log of each higher-volume day's close over the prior close). Two choices follow that entry rather than the page: it starts at 1000 on the first bar of the chart's loaded history, and its signal is a 255-period EMA. Neither changes the index's shape; both are to be checked against TradingView's built-in when it is captured. A day of equal volume leaves it unchanged."
+    },
+    "capture": null
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:09b2ad3a469bfdd14274db24d3f0bf4761c7f8f809aa600e8c2a7ad33f3895f9",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
    "id": "ulcer_index",
    "name": "Ulcer Index",
    "aliases": [

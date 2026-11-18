@@ -560,6 +560,23 @@ def nvi_signal(bars, signal=255):
     return ema(negative_volume_index(bars), signal)
 
 
+def positive_volume_index(bars, signal=255):
+    """Fosback's, as published: on a HIGHER-volume bar, prior PVI + prior PVI x the price change;
+    otherwise unchanged (an equal-volume bar too). From 1000, as its twin. Written as that step,
+    bar by bar (the entry writes the same product as an exponential of a running total of logs)."""
+    c, v = col(bars, "c"), col(bars, "v")
+    out, pvi = [], 1000.0
+    for i in range(len(bars)):
+        if i > 0 and v[i] > v[i - 1]:
+            pvi = pvi + pvi * (c[i] - c[i - 1]) / c[i - 1]
+        out.append(pvi)
+    return out
+
+
+def pvi_signal(bars, signal=255):
+    return ema(positive_volume_index(bars), signal)
+
+
 def ulcer_index(bars, length=14):
     c = col(bars, "c")
     top = highest(c, length)
@@ -597,6 +614,7 @@ REFERENCES = {
     "force_index": {"force": force_index},
     "ease_of_movement": {"emv": ease_of_movement},
     "negative_volume_index": {"nvi": negative_volume_index, "signal": nvi_signal},
+    "positive_volume_index": {"pvi": positive_volume_index, "signal": pvi_signal},
     "ulcer_index": {"ulcer": ulcer_index},
     "trix": {"trix": trix_line},
 }
@@ -631,6 +649,7 @@ OTHER = {
     "force_index": {"length": 2},
     "ease_of_movement": {"length": 9, "divisor": 100000000},
     "negative_volume_index": {"signal": 100},
+    "positive_volume_index": {"signal": 100},
     "ulcer_index": {"length": 20},
     "trix": {"length": 15},
 }
