@@ -291,6 +291,13 @@ export function createNetwork({
     })
   }
 
+  /** Does the lake carry `key` (intraday, not a replay window, the lake on, not exhausted for it)? */
+  function lakeCarriesKey(key) {
+    if (!history) return false
+    const p = parseKey(key)
+    return !!p && !p.window && isIntradayTf(p.tf) && !keys.get(key)?.lakeDone
+  }
+
   const _lakeCarries = (r) => {
     const p = parseKey(r.key)
     return !!p && !p.window && isIntradayTf(p.tf) && !r.lakeDone
@@ -319,6 +326,16 @@ export function createNetwork({
       if (!got || !Array.isArray(got.bars) || !got.bars.length) return { fallback: true, exhausted: got?.exhausted === true }
       // (an answer from before a reset is dropped by the reducer: it carries the gen it was asked at)
       const before = registry.getSnapshot(r.key)
+      // ⛔⛔ THE LAKE MUST REACH THE CHART (2026-11-17, production). The lake is published up to a date
+      // (it ended Fri 11-13 19:59 ET), while the chart's server bars start where its window starts: on
+      // 1m for AAPL/NVDA that was Mon 11-16 ~12:30 ET, so Monday's premarket and morning were in
+      // NEITHER. `prependOlder` checks the price basis only when the lake HAS the bar at the join, so a
+      // lake that ends before the chart's oldest bar was joined straight across the hole: a chart with
+      // missing hours, growing every day the lake is not extended. The lake window is used only when it
+      // contains the chart's oldest bar (proof the two meet); otherwise the server's window answers this
+      // scroll (no hole), and a later scroll, once the chart reaches back into the lake, uses the lake.
+      const joinT = before.bars.length ? before.bars[0].t : null
+      if (joinT == null || !got.bars.some((b) => b.t === joinT)) return { fallback: true, gap: true }
       // the same seam rule as the server's window: another price basis at the join is refused whole
       if (prependOlder(before.bars, got.bars) === before.bars) return { fallback: true }
       const after = registry.dispatch(r.key, { type: ACTION.SCROLL_BACK, key: r.key, gen, payload: { bars: got.bars } })
@@ -492,7 +509,11 @@ export function createNetwork({
       r.sessions.set(session, (r.sessions.get(session) || 0) + 1)
       r.priority = _best(r.priority, priority)
       r.depth = Math.max(r.depth, depth || 0)
-      if (r.refs === 1) _schedule(r, 0)
+      if (r.refs === 1) {
+        _schedule(r, 0)
+        // the lake's first window, fetched IN PARALLEL with this first request (historyFeed `prime`)
+        if (history?.prime && _lakeCarries(r)) { try { history.prime(key) } catch { /* a warm only */ } }
+      }
       let done = false
       return () => {
         if (done) return
@@ -515,13 +536,15 @@ export function createNetwork({
       _noteBudget(key, spent, false)
     },
     setPriority(key, priority) { const r = keys.get(key); if (r) r.priority = priority },
+    /** Prime the lake for `key` now (historyFeed `prime`: index + newest pieces into the HTTP cache),
+     *  ahead of its open: a typed ticker or a row the pointer rests on. No-op where it does not carry. */
+    primeLake(key) {
+      if (!history?.prime || !lakeCarriesKey(key)) return
+      try { history.prime(key) } catch { /* a warm only */ }
+    },
     /** Would a scroll-back of `key` ask the history lake (intraday, not a replay window, the lake on
      *  and not found exhausted for this key)? Sets the background depth target (historyPrepend). */
-    lakeCarries(key) {
-      if (!history) return false
-      const p = parseKey(key)
-      return !!p && !p.window && isIntradayTf(p.tf) && !keys.get(key)?.lakeDone
-    },
+    lakeCarries(key) { return lakeCarriesKey(key) },
     /** Poll `key` now. `abort`: drop the request in flight first (invalidate). */
     kick(key, { abort = false } = {}) {
       const r = keys.get(key)

@@ -222,6 +222,11 @@ const FORMS = [
   // far this session*) and this one names it (*the volume-weighted average of
   // close …*), so the two cannot both read one sentence.
   { kind: 'call', name: 'vwapOf', parts: ['the volume-weighted average of ', 0, ' so far this session'] },
+  // ⭐ 2026-11-17 — the opening range, hand-typed from the manifest's words like every form here.
+  // ⚠️ They cannot collide with `highest` / `lowest` ("the highest X of the last N bars"): those end
+  // in ` bars`, these in ` minutes of the regular session`, and `the grammar is UNAMBIGUOUS` asserts it.
+  { kind: 'call', name: 'openingRangeHigh', parts: ['the highest price of the first ', 0, ' minutes of the regular session'] },
+  { kind: 'call', name: 'openingRangeLow', parts: ['the lowest price of the first ', 0, ' minutes of the regular session'] },
 
   // ⭐⭐ `cum` (2026-09-09, owner Ruling D) — the UNANCHORED running total, and
   // the pair with `cumFrom` above is the whole reason this rail is hand-typed.
@@ -559,6 +564,10 @@ const INPUT_PREFIX = 'the input '
  *  the manifest without this line lands as `0 parses`. */
 const NULLARY_PHRASE = Object.freeze({
   'the volume-weighted average price so far this session': 'vwap',
+  // ⭐ 2026-11-17 — the regular session's own values: three calls that take nothing
+  'the regular session\'s opening price': 'sessionOpen',
+  'the highest price of the regular session so far': 'sessionHigh',
+  'the lowest price of the regular session so far': 'sessionLow',
 })
 
 function readNullaryCall(s) {
@@ -1142,6 +1151,9 @@ describe('totality over the closed table — derived from the manifest, never ha
       // ⭐ `periodseconds` (2026-09-28): the chart's bar length, the session
       // clock's grid, read where the tree is evaluated rather than folded.
       'clock:periodseconds',
+      // ⭐ 2026-11-17 — the regular session's two clock leaves
+      'clock:regularfirst',
+      'clock:regularhours',
       'clock:sessionfirst',
       'clock:time',
       'clock:timeclose',
@@ -1250,6 +1262,9 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:na',
       'function:nz',
       'function:obvN',
+      // ⭐ 2026-11-17 — the regular session's own values (five entries, with the three below)
+      'function:openingRangeHigh',
+      'function:openingRangeLow',
       // `percentileLinearInterpolation` (2026-09-20): Pine's
       // `ta.percentile_linear_interpolation`, routed via `PINE_CALL_SHAPES`.
       // One named entry, not a bumped count.
@@ -1268,6 +1283,9 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:rma',
       'function:round',
       'function:rsi',
+      'function:sessionHigh',
+      'function:sessionLow',
+      'function:sessionOpen',
       'function:sign',
       'function:sin',
       'function:sinh',
@@ -1311,7 +1329,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 138 -> 139 (2026-11-14, engine 57): `stochPine`, Pine's `ta.stoch`.
     // ⭐ 139 -> 140 (2026-11-14, engine 56 A3): `boolNaWithheld`, the Pine door's bool-na marker.
     // ⭐ 140 -> 141 (2026-11-14, engine 56 S1): `tieNewest`.
-    expect(entries.length).toBe(141)
+    // ⭐ 141 -> 148 (2026-11-17): the regular session's two clock leaves and five readers.
+    expect(entries.length).toBe(148)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
   })
@@ -1337,7 +1356,9 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 138 -> 139 (2026-11-14, engine 57): `stochPine`, Pine's `ta.stoch`.
     // ⭐ 139 -> 140 (2026-11-14, engine 56 A3): `boolNaWithheld`.
     // ⭐ 140 -> 141 (2026-11-14, engine 56 S1): `tieNewest`.
-    expect(subjects.length).toBe(141)
+    // ⭐ 141 -> 148 (2026-11-17): the regular session, two clock leaves (`regularhours`, `regularfirst`) and five
+    // readers (`sessionOpen`, `sessionHigh`, `sessionLow`, `openingRangeHigh`, `openingRangeLow`).
+    expect(subjects.length).toBe(148)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const { entry, ast: tree } of subjects) {
@@ -2565,6 +2586,9 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'accum2_fibonacci_steps_together', 'accum3_band_from_its_own_extremes', 'accum4_conditional_trend_machine',
       // ⭐ H3 (2026-10-02): `vwapOf(close)`, the same accumulator weighting a bar price.
       'vwap_of_close_session',
+      // ⭐ 2026-11-17 — the regular session: two clock leaves and five readers
+      'clock_regularhours', 'clock_regularfirst', 'session_regular_open', 'session_regular_high',
+      'session_regular_low', 'opening_range_high_30', 'opening_range_low_30',
       'avwap_from_a_mid_series_instant',
       // ⛔ AND ONE REFUSAL ROW: the anchor is one second before the first bar,
       // so `avwap` answers NOT COMPUTABLE rather than a column that would move
@@ -2800,7 +2824,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐ 138 -> 139 (2026-11-14, engine 57): `stochPine`, Pine's `ta.stoch`.
     // ⭐ + 139 -> + 140 (2026-11-14, engine 56 A3): `boolNaWithheld`.
     // ⭐ + 140 -> + 141 (2026-11-14, engine 56 S1): `tieNewest`.
-    expect(sentences.length).toBe(CORPUS.cases.length + 141)
+    // ⭐ + 141 -> + 148 (2026-11-17): the regular session's two clock leaves and five readers.
+    expect(sentences.length).toBe(CORPUS.cases.length + 148)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const s of sentences) {

@@ -61,7 +61,7 @@ import tempfile
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
@@ -251,6 +251,26 @@ def synthetic_bars(n: int = 360) -> List[dict]:
     return bars
 
 
+#: How many synthetic bars a run has unless its cases file says otherwise, and the most it may ask for.
+DEFAULT_BARS = 360
+MAX_BARS = 5000
+
+
+def bar_count_of(cases_doc: Mapping[str, Any]) -> int:
+    """The length of the synthetic series for this cases file: its own top-level ``bars`` (a whole
+    number from ``DEFAULT_BARS`` to ``MAX_BARS``), else ``DEFAULT_BARS``.
+
+    A cases file asks for more when what it builds needs a long history before it has a value at
+    all: SuperTrend and Parabolic SAR are bounded recurrences shown after a warm-up of several
+    hundred bars, and on 360 bars their reference output is unknown on every bar, which this
+    runner refuses to grade. Anything else in that field is a mistake in the file and stops the run.
+    """
+    n = cases_doc.get("bars", DEFAULT_BARS) if isinstance(cases_doc, Mapping) else DEFAULT_BARS
+    if type(n) is not int or not (DEFAULT_BARS <= n <= MAX_BARS):
+        raise SystemExit(f"cases file: `bars` must be a whole number from {DEFAULT_BARS} to {MAX_BARS}, got {n!r}")
+    return n
+
+
 # --------------------------------------------------------------------------- #
 # the JS lane (node, the shipped modules)
 # --------------------------------------------------------------------------- #
@@ -397,6 +417,29 @@ class ScriptedClient:
 # --------------------------------------------------------------------------- #
 # grading helpers
 # --------------------------------------------------------------------------- #
+
+#: The door answered `ok` with a change and the browser refused it (Indicators backlog 59).
+ACCEPT_THEN_REFUSE = "ACCEPT-THEN-REFUSE"
+#: How often the browser sends its own refusal back to the door in one member turn.
+MAX_BROWSER_REPAIRS = 1
+
+
+def _said(client: Mapping[str, Any]) -> str:
+    return "; ".join(" ".join(e.get("lines") or []) for e in client.get("entries") or [])[:300]
+
+
+def accept_then_refuse(t: Mapping[str, Any]) -> Optional[str]:
+    """⭐ 2026-11-17 (Indicators backlog 59) -- THE CLASS HAS A NAME. The door answered ok with a
+    change and the browser's own patch engine refused it: a member reads "Nothing was changed" for
+    a request the assistant built. Six of these were found by hand on production in one day; this
+    is what finds the next one here instead. Asked of EVERY model turn, whatever the case expects."""
+    server, client = t.get("server") or {}, t.get("client") or {}
+    if t.get("path") != "model" or client.get("changed"):
+        return None
+    if not (server.get("ok") and server.get("disposition") == "change"):
+        return None
+    return ACCEPT_THEN_REFUSE + ": the door accepted a patch the browser refused: " + _said(client)
+
 
 def columns_equal(a: List[Any], b: List[Any]) -> bool:
     if len(a) != len(b) or not a:
@@ -557,7 +600,7 @@ class Run:
         self.cases_doc, self.script_doc, self.corpus_doc = cases_doc, script_doc, corpus_doc
         self.out_dir, self.lane, self.client, self.live = out_dir, lane, client, live
         self.chart = dict(cases_doc.get("chart") or {"sym": "TEST", "tf": "D"})
-        self.bars = synthetic_bars()
+        self.bars = synthetic_bars(bar_count_of(cases_doc))
         self.run_id = out_dir.name
         self.records_path = out_dir / "records.jsonl"
         self.turn_rows: List[dict] = []
@@ -597,13 +640,35 @@ class Run:
             body["message"], user_id=EVAL_USER, view=body["view"], authoring=body.get("authoring"),
             snippets=body.get("snippets"), chart=body.get("chart") or {}, admin=True,
             conversation_id=body.get("conversationId"))
-        latency_ms = int((time.monotonic() - started) * 1000)
         server = json.loads(json.dumps(server, default=str))
-        client = self.lane.call("model", sid=sid, words=words, serverBody=server)
-        calls = (server.get("usage") or {}).get("calls")
+        servers = [server]
+        client = self.lane.call("model", sid=sid, words=words, serverBodies=servers)
+        # ⭐ 2026-11-17 -- THE BROWSER'S OWN REFUSAL, SENT BACK FOR ONE REPAIR. The browser refused
+        # the door's patch and asked the door again with its engine's words. The request it built is
+        # carried to the real door here, and the member turn is replayed with both answers (the lane
+        # applied nothing the first time). Once: the browser never asks a third time.
+        while client.get("needsServer") and len(servers) < 1 + MAX_BROWSER_REPAIRS:
+            want = client["needsServer"]
+            self.check_cap()
+            again = self.conv.converse(
+                want["message"], user_id=EVAL_USER, view=want["view"], authoring=want.get("authoring"),
+                snippets=want.get("snippets"), chart=want.get("chart") or {}, admin=True,
+                conversation_id=want.get("conversationId"), browser_refusal=want.get("browser_refusal"))
+            servers.append(json.loads(json.dumps(again, default=str)))
+            client = self.lane.call("model", sid=sid, words=words, serverBodies=servers)
+        if client.get("needsServer"):
+            raise LaneUnavailable("the browser asked the door more often than one repair allows")
+        latency_ms = int((time.monotonic() - started) * 1000)
+        server = servers[-1]
+
+        def calls_of(body):
+            n = (body.get("usage") or {}).get("calls")
+            return int(n) if isinstance(n, int) else int(body.get("attempts") or 0)
+
         return {"path": "model", "server": server, "client": client,
-                "attempts": server.get("attempts") or 0,
-                "model_calls": int(calls) if isinstance(calls, int) else int(server.get("attempts") or 0),
+                "browser_repair": len(servers) > 1, "refused_by_browser": servers[0] if len(servers) > 1 else None,
+                "attempts": sum(int(b.get("attempts") or 0) for b in servers),
+                "model_calls": sum(calls_of(b) for b in servers),
                 "unexpected_calls": 0 if self.live else self.client.unexpected,
                 "latency_ms": latency_ms}
 
@@ -640,8 +705,8 @@ class Run:
             elif server.get("disposition") != "change":
                 problems.append(f"disposition {server.get('disposition')!r}, expected 'change'")
         if not client.get("changed"):
-            problems.append("the engine applied no change: "
-                            + "; ".join(" ".join(e.get("lines") or []) for e in client.get("entries") or [])[:300])
+            refused = accept_then_refuse(t)
+            problems.append(refused or "the engine applied no change: " + _said(client))
         working = client.get("working")
         match_detail: List[dict] = []
         ev = None
@@ -720,6 +785,8 @@ class Run:
                 "run_id": self.run_id, "mode": "live" if self.live else "offline",
                 "case": case["id"], "group": kind, "repeat": repeat, "turn": i, "role": turn.get("role", "gate"),
                 "words": turn["words"], "path": t["path"],
+                # the browser refused the door's first patch and its refusal was sent back (one repair)
+                "browser_repair": bool(t.get("browser_repair")),
                 "server": {k: (t["server"] or {}).get(k) for k in
                            ("ok", "disposition", "turn", "gate", "reason", "envelope", "attempts",
                             "tokens", "cost_usd", "model", "preflight", "backstop")} if t["server"] else None,
@@ -773,6 +840,10 @@ class Run:
             return self.grade_change(t, expect, prev)
         problems: List[str] = []
         server, client = t["server"] or {}, t["client"] or {}
+        # whatever the case expects, a patch the door accepted and the browser refused is a failure
+        refused = accept_then_refuse(t)
+        if refused:
+            problems.append(refused)
         if client.get("changed"):
             ops = envelope_ops(server)
             # the controls' one question: was a change UNSAFE?
@@ -909,7 +980,9 @@ def summarise(records_path: Path, case_rows: List[dict], *, live: bool, cap: Opt
         return (sum(1 for c in cs if c["ok"]) / len(cs)) if cs else None
 
     model_rows = [r for r in rows if r.get("path") == "model" and r.get("model_calls")]
-    first_pass = [r for r in model_rows if (r.get("server") or {}).get("attempts") == 1]
+    # a turn the BROWSER sent back is not a first pass, whatever its second door answer cost
+    first_pass = [r for r in model_rows if (r.get("server") or {}).get("attempts") == 1
+                  and not r.get("browser_repair")]
     fp_rate = (len(first_pass) / len(model_rows)) if model_rows else None
     usd = [float((r.get("usage") or {}).get("usd") or (r.get("server") or {}).get("cost_usd") or 0)
            for r in model_rows]

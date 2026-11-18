@@ -780,6 +780,25 @@ def _augment_daily_with_today(response, ticker: str):
     return JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
 
 
+def _augment_index_daily_with_today(response, ticker: str, now: float | None = None):
+    """A cash index's 200 daily answer with TODAY's session bar as its tail
+    (`index_bars.with_todays_session`: built from the index's own 5m bars of today's
+    regular session; none before the open, on a day with no session, or from a stale or
+    proxied 5m series). Returns the original response on ANY problem."""
+    try:
+        payload = orjson.loads(response.body)
+    except Exception:
+        return response
+    if not isinstance(payload, dict) or not isinstance(payload.get("bars"), list):
+        return response
+    from api import index_bars as _index_bars
+    out = _index_bars.with_todays_session(ticker, payload["bars"], now)
+    if out is None:
+        return response
+    payload["bars"] = out
+    return JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
+
+
 _INTRADAY_TFS = ("1", "5", "15", "30", "60")
 
 
@@ -947,6 +966,20 @@ def _augment_with_bar_close_state(response, tf: str):
             from zoneinfo import ZoneInfo
             y, m, d = (int(x) for x in newest.split("-"))
             newest = datetime(y, m, d, tzinfo=ZoneInfo("America/New_York")).timestamp()
+        except Exception:
+            return response
+    elif (tf == "D" and isinstance(newest, (int, float)) and not isinstance(newest, bool)
+          and newest >= 1_000_000_000 and int(newest) == newest and int(newest) % 86400 == 0):
+        # ⭐ RS RATING L10 — A CASH INDEX'S DAILY KEY IS THE UTC MIDNIGHT OF ITS SESSION DATE
+        # (`index_bars._utc_midnight`), not an instant: read as one it is the PREVIOUS ET
+        # evening, and today's forming index bar answered `false` ("settled"). Same rule as the
+        # string branch: the session date's midnight in ET (`bar_contract._session_date_of`,
+        # the one reader of that key).
+        try:
+            from zoneinfo import ZoneInfo
+            from api.services.bar_contract import _session_date_of
+            sd = _session_date_of(newest)
+            newest = datetime(sd.year, sd.month, sd.day, tzinfo=ZoneInfo("America/New_York")).timestamp()
         except Exception:
             return response
     if not isinstance(newest, (int, float)) or isinstance(newest, bool):
@@ -1355,6 +1388,16 @@ def _serve_bars_impl(
                 and getattr(response, "status_code", 200) == 200):
             try:
                 response = _augment_daily_with_today(response, ticker)
+            except Exception:
+                pass  # never let the developing-bar append break a real serve
+
+        # ⭐ RS RATING L10 — A CASH INDEX'S DAILY ANSWER ENDS AT TODAY'S SESSION TOO, built from
+        # the index's own 5-minute bars (`index_bars.with_todays_session`). A SEPARATE block:
+        # the equity append above is untouched, and this one runs for `is_index` only.
+        if (tf == "D" and not to and is_index(ticker)
+                and getattr(response, "status_code", 200) == 200):
+            try:
+                response = _augment_index_daily_with_today(response, ticker)
             except Exception:
                 pass  # never let the developing-bar append break a real serve
 

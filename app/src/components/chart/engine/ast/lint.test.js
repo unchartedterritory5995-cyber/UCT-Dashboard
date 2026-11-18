@@ -1055,7 +1055,8 @@ describe('the clock, linted — the window comes from the MANIFEST, not from thi
     const windowed = Object.entries(TABLE.clock).filter(([, s]) => s.lookback > 0)
     // ⭐ (2026-09-28, C8) `weekfirst` / `monthfirst` are the same rule over a
     // week and a month (`timeframe.change("W"/"M")`), and declare the same window.
-    expect(windowed.map(([n]) => n)).toEqual(['sessionfirst', 'weekfirst', 'monthfirst'])
+    // ⭐ (2026-11-17) `regularfirst`: the first bar of a REGULAR session reads the bar before it too.
+    expect(windowed.map(([n]) => n)).toEqual(['sessionfirst', 'weekfirst', 'monthfirst', 'regularfirst'])
     for (const [n] of windowed) expect(lint.maxLookback({ type: 'series', name: n }), n).toBe(1)
     // …and it agrees with the function that reads exactly the same history.
     expect(lint.maxLookback(parseFormula('change(close)').ast))

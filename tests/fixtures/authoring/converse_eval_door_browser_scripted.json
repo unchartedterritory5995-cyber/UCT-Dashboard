@@ -1,0 +1,1814 @@
+{
+ "contract": "uct.converse-eval.scripted/1",
+ "_": "Scripted answers for converse_eval_door_browser_cases.json: [the answer production gave, the repair].",
+ "usage": {
+  "input_tokens": 3000,
+  "output_tokens": 900
+ },
+ "turns": {
+  "door-marker-colour-states#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built a squeeze.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Squeeze",
+      "placement": "pane",
+      "primary": "mom",
+      "outputs": [
+       {
+        "key": "mom",
+        "label": "Momentum",
+        "tree": {
+         "type": "op",
+         "name": "-",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "call",
+           "name": "sma",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 20
+            }
+           ]
+          }
+         ]
+        }
+       },
+       {
+        "key": "dot",
+        "label": "Squeeze dot",
+        "tree": {
+         "type": "op",
+         "name": "*",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 0
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_marker",
+      "output": "dot",
+      "shape": "circle",
+      "position": "inBar"
+     },
+     {
+      "op": "set_color_states",
+      "output": "dot",
+      "states": [
+       {
+        "when": {
+         "type": "op",
+         "name": "<",
+         "args": [
+          {
+           "type": "call",
+           "name": "bbUpper",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 20
+            },
+            {
+             "type": "num",
+             "value": 2
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "kcUpper",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 20
+            },
+            {
+             "type": "num",
+             "value": 1.5
+            }
+           ]
+          }
+         ]
+        },
+        "color": "#F23645"
+       }
+      ],
+      "otherwise": "#089981"
+     }
+    ]
+   },
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built a squeeze.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Squeeze",
+      "placement": "pane",
+      "primary": "mom",
+      "outputs": [
+       {
+        "key": "mom",
+        "label": "Momentum",
+        "tree": {
+         "type": "op",
+         "name": "-",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "call",
+           "name": "sma",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 20
+            }
+           ]
+          }
+         ]
+        }
+       },
+       {
+        "key": "dot",
+        "label": "Squeeze dot",
+        "tree": {
+         "type": "op",
+         "name": "*",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 0
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_style",
+      "output": "dot",
+      "style": "line",
+      "width": 4
+     },
+     {
+      "op": "set_color_states",
+      "output": "dot",
+      "states": [
+       {
+        "when": {
+         "type": "op",
+         "name": "<",
+         "args": [
+          {
+           "type": "call",
+           "name": "bbUpper",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 20
+            },
+            {
+             "type": "num",
+             "value": 2
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "kcUpper",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 20
+            },
+            {
+             "type": "num",
+             "value": 1.5
+            }
+           ]
+          }
+         ]
+        },
+        "color": "#F23645"
+       }
+      ],
+      "otherwise": "#089981"
+     }
+    ]
+   }
+  ],
+  "door-calc-timeframe-marker#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built three weeks tight.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Three Weeks Tight",
+      "placement": "price",
+      "primary": "tight",
+      "outputs": [
+       {
+        "key": "tight",
+        "tree": {
+         "type": "op",
+         "name": "<=",
+         "args": [
+          {
+           "type": "op",
+           "name": "/",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "call",
+               "name": "highest",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 3
+                }
+               ]
+              },
+              {
+               "type": "call",
+               "name": "lowest",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 3
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "lowest",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 3
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 0.05
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_calculation_timeframe",
+      "timeframe": "W"
+     },
+     {
+      "op": "set_marker",
+      "output": "tight",
+      "shape": "circle",
+      "position": "aboveBar"
+     }
+    ]
+   },
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built three weeks tight.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Three Weeks Tight",
+      "placement": "price",
+      "primary": "tight",
+      "outputs": [
+       {
+        "key": "tight",
+        "tree": {
+         "type": "op",
+         "name": "<=",
+         "args": [
+          {
+           "type": "op",
+           "name": "/",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "tf",
+               "value": "W",
+               "args": [
+                {
+                 "type": "call",
+                 "name": "highest",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "num",
+                   "value": 3
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "tf",
+               "value": "W",
+               "args": [
+                {
+                 "type": "call",
+                 "name": "lowest",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "num",
+                   "value": 3
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "tf",
+             "value": "W",
+             "args": [
+              {
+               "type": "call",
+               "name": "lowest",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 3
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 0.05
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_marker",
+      "output": "tight",
+      "shape": "circle",
+      "position": "aboveBar"
+     }
+    ]
+   }
+  ],
+  "door-column-limit#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built the ribbon.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "EMA Ribbon",
+      "placement": "price",
+      "primary": "ema8",
+      "outputs": [
+       {
+        "key": "ema8",
+        "label": "EMA 8",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 8
+          }
+         ]
+        }
+       },
+       {
+        "key": "ema13",
+        "label": "EMA 13",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 13
+          }
+         ]
+        }
+       },
+       {
+        "key": "ema21",
+        "label": "EMA 21",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 21
+          }
+         ]
+        }
+       },
+       {
+        "key": "ema34",
+        "label": "EMA 34",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 34
+          }
+         ]
+        }
+       },
+       {
+        "key": "ema55",
+        "label": "EMA 55",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 55
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_color_states",
+      "output": "ema8",
+      "states": [
+       {
+        "when": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 8
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 13
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 13
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 21
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        "color": "#089981"
+       }
+      ],
+      "otherwise": "#787B86"
+     },
+     {
+      "op": "set_color_states",
+      "output": "ema13",
+      "states": [
+       {
+        "when": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 8
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 13
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 13
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 21
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        "color": "#089981"
+       }
+      ],
+      "otherwise": "#787B86"
+     },
+     {
+      "op": "set_color_states",
+      "output": "ema21",
+      "states": [
+       {
+        "when": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 8
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 13
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 13
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 21
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        "color": "#089981"
+       }
+      ],
+      "otherwise": "#787B86"
+     },
+     {
+      "op": "set_color_states",
+      "output": "ema34",
+      "states": [
+       {
+        "when": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 8
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 13
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 13
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 21
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        "color": "#089981"
+       }
+      ],
+      "otherwise": "#787B86"
+     },
+     {
+      "op": "set_color_states",
+      "output": "ema55",
+      "states": [
+       {
+        "when": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 8
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 13
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 13
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 21
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        "color": "#089981"
+       }
+      ],
+      "otherwise": "#787B86"
+     }
+    ]
+   },
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built the ribbon.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "EMA Ribbon",
+      "placement": "price",
+      "primary": "ema8",
+      "outputs": [
+       {
+        "key": "ema8",
+        "label": "EMA 8",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 8
+          }
+         ]
+        }
+       },
+       {
+        "key": "ema13",
+        "label": "EMA 13",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 13
+          }
+         ]
+        }
+       },
+       {
+        "key": "ema21",
+        "label": "EMA 21",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 21
+          }
+         ]
+        }
+       },
+       {
+        "key": "ema34",
+        "label": "EMA 34",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 34
+          }
+         ]
+        }
+       },
+       {
+        "key": "ema55",
+        "label": "EMA 55",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 55
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_color_states",
+      "channel": "barcolor",
+      "states": [
+       {
+        "when": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 8
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 13
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 13
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 21
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        "color": "#089981"
+       }
+      ],
+      "otherwise": "#787B86"
+     }
+    ]
+   }
+  ],
+  "door-table-cell-setting#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built the table.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Band table",
+      "placement": "price",
+      "primary": "band",
+      "inputs": [
+       {
+        "key": "mult",
+        "label": "Multiplier",
+        "default": 2
+       }
+      ],
+      "outputs": [
+       {
+        "key": "band",
+        "tree": {
+         "type": "op",
+         "name": "*",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "series",
+           "name": "mult"
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_table",
+      "position": "top_right",
+      "cells": [
+       {
+        "row": 0,
+        "col": 0,
+        "text": "Multiplier"
+       },
+       {
+        "row": 0,
+        "col": 1,
+        "output": "mult"
+       },
+       {
+        "row": 1,
+        "col": 0,
+        "text": "Band"
+       },
+       {
+        "row": 1,
+        "col": 1,
+        "output": "band",
+        "format": "decimal2"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built the table.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Band table",
+      "placement": "price",
+      "primary": "band",
+      "inputs": [
+       {
+        "key": "mult",
+        "label": "Multiplier",
+        "default": 2
+       }
+      ],
+      "outputs": [
+       {
+        "key": "band",
+        "tree": {
+         "type": "op",
+         "name": "*",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "series",
+           "name": "mult"
+          }
+         ]
+        }
+       },
+       {
+        "key": "multShown",
+        "tree": {
+         "type": "series",
+         "name": "mult"
+        },
+        "hidden": true
+       }
+      ]
+     },
+     {
+      "op": "set_table",
+      "position": "top_right",
+      "cells": [
+       {
+        "row": 0,
+        "col": 0,
+        "text": "Multiplier"
+       },
+       {
+        "row": 0,
+        "col": 1,
+        "output": "multShown"
+       },
+       {
+        "row": 1,
+        "col": 0,
+        "text": "Band"
+       },
+       {
+        "row": 1,
+        "col": 1,
+        "output": "band",
+        "format": "decimal2"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "door-calc-timeframe-other-symbol#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built Mansfield relative strength.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Mansfield RS",
+      "placement": "pane",
+      "primary": "rs",
+      "outputs": [
+       {
+        "key": "rs",
+        "label": "Mansfield RS",
+        "tree": {
+         "type": "op",
+         "name": "*",
+         "args": [
+          {
+           "type": "op",
+           "name": "-",
+           "args": [
+            {
+             "type": "op",
+             "name": "/",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "sym",
+                 "value": "SPY",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "call",
+               "name": "sma",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "/",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "sym",
+                   "value": "SPY",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 52
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 1
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 100
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_calculation_timeframe",
+      "timeframe": "W"
+     }
+    ]
+   },
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built Mansfield relative strength on 252 daily bars (52 weeks).",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Mansfield RS",
+      "placement": "pane",
+      "primary": "rs",
+      "outputs": [
+       {
+        "key": "rs",
+        "label": "Mansfield RS",
+        "tree": {
+         "type": "op",
+         "name": "*",
+         "args": [
+          {
+           "type": "op",
+           "name": "-",
+           "args": [
+            {
+             "type": "op",
+             "name": "/",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "sym",
+                 "value": "SPY",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "call",
+               "name": "sma",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "/",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "sym",
+                   "value": "SPY",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 252
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 1
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 100
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "browser-sends-its-refusal-back#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built the average.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Average",
+      "placement": "price",
+      "primary": "ema10",
+      "outputs": [
+       {
+        "key": "ema10",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 10
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_paint",
+      "output": "ema10",
+      "channel": "barcolor",
+      "color": "#089981"
+     }
+    ]
+   },
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built the average and coloured the candles.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Average",
+      "placement": "price",
+      "primary": "ema10",
+      "outputs": [
+       {
+        "key": "ema10",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 10
+          }
+         ]
+        }
+       },
+       {
+        "key": "above",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "call",
+           "name": "ema",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 10
+            }
+           ]
+          }
+         ]
+        },
+        "hidden": true
+       }
+      ]
+     },
+     {
+      "op": "set_paint",
+      "output": "above",
+      "channel": "barcolor",
+      "color": "#089981"
+     }
+    ]
+   }
+  ],
+  "ctl-other-symbol#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "Above the index",
+      "outputs": [
+       {
+        "key": "value",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "sym",
+           "value": "QQQ",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-screener-text#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "Technology",
+      "outputs": [
+       {
+        "key": "value",
+        "tree": {
+         "type": "textop",
+         "name": "==",
+         "args": [
+          {
+           "type": "symtext",
+           "name": "sector"
+          },
+          {
+           "type": "str",
+           "value": "Technology"
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-ambiguous#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "RSI overbought",
+      "outputs": [
+       {
+        "key": "value",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-ambiguous#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [],
+    "questions": [
+     {
+      "id": "q1",
+      "text": "What should confirm it?",
+      "choices": [
+       "volume above its 50-bar average",
+       "volume above 1.5x its 50-bar average"
+      ]
+     }
+    ],
+    "disposition": "clarify",
+    "reply": ""
+   }
+  ],
+  "ctl-rename-nothing#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "RSI overbought",
+      "outputs": [
+       {
+        "key": "value",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-rename-nothing#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [],
+    "questions": [
+     {
+      "id": "q1",
+      "text": "What would you like to call it?"
+     }
+    ],
+    "disposition": "clarify",
+    "reply": ""
+   }
+  ]
+ }
+}

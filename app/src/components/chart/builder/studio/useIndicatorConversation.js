@@ -33,7 +33,7 @@ import { readback, isDirty } from '../authoring'
 import { converseTurn, transcriptSnippets } from '../authoring/converseClient'
 import { writeSession, clearSession, holdInDock, releaseDock } from '../authoring/conversationSessions'
 import { logStudioAction } from '../authoring/studioTelemetry'
-import { keepAssistantName } from '../authoring/readableName'
+import { keepAssistantName, keepAssistantLabel } from '../authoring/readableName'
 // ⭐ M3 S1 — the turn / Undo / Save / restore steps live in `authoring/authoringSession.js`
 // (moved verbatim) so the dock and UCT Agent run ONE pipeline. This hook is the React
 // wrapper: it holds the state, numbers the transcript entries and keeps the session.
@@ -157,7 +157,7 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     try {
       return take(await modelTurn(before, () => stateRef.current, words,
         // ⭐ a new indicator keeps the assistant's name only where the derived one is unreadable
-        { snippets, gateCtx, converse: converseTracked, signal: ctl ? ctl.signal : null, keepCreateName: keepAssistantName }))
+        { snippets, gateCtx, converse: converseTracked, signal: ctl ? ctl.signal : null, keepCreateName: keepAssistantName, keepCreateLabel: keepAssistantLabel }))
     } finally {
       if (abortRef.current === ctl) abortRef.current = null
       setBusy(false)

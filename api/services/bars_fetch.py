@@ -2422,11 +2422,20 @@ def _is_intraday_stale(bars: list[dict], max_age_days: int = 5) -> bool:
     closes by `bars_sanitize.intraday_unadjusted_splits` (TERM-055) -- which DETECTS an
     intraday cliff for the adjustment-basis label; nothing heals one on the serve path.
     5-day window handles 3-day holiday weekends (Thu close → Mon = ~4 days).
+
+    ⭐ THE MODULE'S CLOCK, `_time.time()` — the one every other decision here reads and
+    every rail pins. ⚰️ It read `datetime.utcnow().timestamp()`: the wall clock, behind the
+    seam, so `tests/test_bar_contract.py` (fixture day 2026-11-11) went red on its own at
+    2026-11-16 15:05 UTC, when its rows turned 5 days old by the WALL clock while the pinned
+    clock said minutes. The heal then persisted nothing, sealed nothing, and every
+    `complete_through` read None — red on a date, not a commit. `utcnow()` is naive, and
+    `.timestamp()` reads a naive datetime as LOCAL time, so off a UTC host it was also wrong
+    by the UTC offset (6 h on a Central-time box); on a UTC host the two are the same instant.
     """
     if not bars:
         return True
     last_ts = bars[-1]["t"]  # unix seconds
-    age_days = (datetime.utcnow().timestamp() - last_ts) / 86400
+    age_days = (_time.time() - last_ts) / 86400
     return age_days > max_age_days
 
 

@@ -289,7 +289,7 @@ build-time flag with no per-user stage.
 | O1 | Enrol at sign-up and seed existing accounts once at boot, copying the pattern already on master for another feature | `rollout_gate.py`, sign-up, boot | remove the tag; no redeploy |
 | O2 | The door's client check accepts the cohort for admins as well as the browser switch | `createIndicatorFlag.js` | revert |
 | O3 | `CREATE_INDICATOR_COHORT_ENABLED=1` on web; the ledger row moves from pending to armed in the same change | env, `feature_flags.json` | unset: read first on every call, so new turns stop at once |
-| O4 | `VITE_PINE_EDITOR_STATUS=1` at build; request R2 (an admin-only stage) is no longer needed | `Dockerfile.web`, ledger | rebuild without it |
+| O4 | `VITE_PINE_EDITOR_STATUS=1` at build; request R2 (an admin-only stage) is no longer needed. **ARMED 2026-11-17** on `web` and on `web-front`: the bundle members load is built by `web-front`, which keeps its own copy of every `VITE_` variable, so the flag on `web` alone changed nothing a member sees. Seen on production with three pasted scripts, desktop and phone | `Dockerfile.web`, ledger | delete the variable on both services and redeploy `web-front` |
 | O5 | Rehearse the reversal of O3 once and record how long it takes to act. **REHEARSED on production 2026-11-17, on the owner's go (his words: do anything like that at any time while there are no users).** Closing took about 80 seconds: the variable deleted, the web service redeployed, a fresh boot serving. Confirmed as the synthetic member: the sign-in payload no longer listed the cohort, so the browser hides the door, and a turn answered 403 in 0.1 s with no model call. Restoring took about 6 minutes: on web, `--set` does not restart the running image, it starts a full build of the production branch, so a restore is also a deploy of whatever production holds. After it the member's turn answered again. Not tested: setting the variable with deploys skipped and then `railway redeploy`, which should restore in the 80 seconds closing took. The steps, and the trap: (1) `railway variable delete CREATE_INDICATOR_COHORT_ENABLED --service web`; (2) ⛔ that STAGES the change and does not restart the pod, so the feature is still on: `railway redeploy --service web --yes`; (3) confirm from the POD, not from `railway variables` (a fresh boot in `/api/health`, and a Create Indicator turn answering the closed sentence as the synthetic member); (4) to restore, `railway variables --service web --set CREATE_INDICATOR_COHORT_ENABLED=1` and confirm a boot the same way. The time to act is one web deploy, not "at once" as row O3 says: the variable is read on every call, from a process that has to restart to see it | - | - |
 | O6 | Set the per-member daily allowance and the shared interactive reserve on purpose. The reserve is one pool shared by every model feature, admins and this track's own measuring runs, and it is smaller than one admin's cap: a measuring run can pause the assistant for everyone for the day. **Both are set on the web service as of 2026-11-17** (read them with `railway variables --service web --kv`; the values are not written here). Admin turns and this track's measuring runs still count against the shared reserve, by the owner's ruling of 2026-10-07; today's measuring runs stayed inside it | env | set |
 | O7 | Split credit and authentication failures from transport failures, so an outage is not read as a billing problem (Indicators backlog item 4) | Indicators | - |
@@ -754,13 +754,16 @@ the deploy gate.
 | X1, X9, X6 | the New formula window opens with the cursor in "Describe it" on a desktop (#1594); "Create indicator" is the first row of the phone's Indicators sheet (#1596); a saved indicator's name keeps its line in the window's list (#1602); the formula reference speaks to a member in a member's words and no longer prints the engine's notes (#1605) | merged |
 | V1 (second part) | an indicator saved more than once lists its saved versions in the dock's History; "Use this version" makes one the draft again as one undoable step, with a line that was deleted since coming back as a new line | merged (#1633) |
 | S1 (second part) | the same number in several places is never merged; changing one offers to move the others of its kind that still hold the old value | merged (#1633) |
-| share | Share on each row of "Your indicators" (the builder's own panel in a window of its own); the row keeps its name with five doors (they sit on a second line); the panel says "indicator" for one | #1628 LIVE; the row and the words #1642 |
+| share | Share on each row of "Your indicators" (the builder's own panel in a window of its own); the row keeps its name with five doors (they sit on a second line); the panel says "indicator" for one | #1628 LIVE; the words #1642 LIVE; the row's second line in #1642 did nothing on production (the doors are a child of the name's box, not of the row) and was redone in #1656: LIVE (#1656), measured on the served page at 1200, 900 and 700 px: the name whole, the five doors on their own line, nothing overlapping |
 | X6 | the builder window is titled by where it opens: "Create indicator" / "Edit indicator" from a chart, "New formula" / "Edit formula" from the Screener (owner decision 2026-11-17) | #1642 |
 | H2 (remainder) | phone and tablet: one "Showing" control in the indicator library, every list with its count (the owner picked mock-up B) | #1642 |
 | O5 | the kill switch rehearsed on production: about 80 seconds to close, about 6 minutes to restore | DONE 2026-11-17 |
 | tool | the evaluation runner's own tests run on pull requests with node present, and a skip fails | merged (#1634) |
-| R4 | page side built to backlog 43 (one line under the name on the share preview, on library and Members cards, in the install note); it draws nothing until the server sends `headline` | built; merges after the engine's fields |
-| R5 | "Inspect a bar": the probe copy, the per-bar reader and the panel are built and tested against stand-ins for the engine's two exports | built; wired when the exports land |
+| R4 | **the verdict on a shared indicator**: the engine serves `headline`, `engine_version` and `headline_current` on a share link, the install answer and a library entry (#1646); the page says it in one line under the name (#1651); and the author's browser puts the status panel's sentence on record when a pasted script is saved, through the script door or the form, and when a saved script is reopened unchanged (#1654). Never a sentence about a different text than the one saved | LIVE (#1646, #1651, #1654). Seen on production 2026-11-17 as the synthetic admin: a pasted script saved from the chart posted its sentence for version 1 under engine 71, the share link answered with it, and the share page read "Runs on the chart and in alerts; screens and scans need a threshold, checked on engine 71". The check removed what it made |
+| R5 | **Inspect a bar**: under the script preview in the builder, the value of every named top-level variable on one bar of the chart, why an empty one is empty, and "line N" to its line. A probe copy through the script's own door, on the engine's two exports (`topLevelNames` #1647, `computeHeadless` #1649). The plan's proof is a test: on twenty scripts (53 variables) each inspected value equals the same expression written out by hand, on every bar of the 5,000-bar reference series | LIVE (#1670; a wording fix for scripts that read another symbol is #1685). Seen on production 2026-11-17 on a real daily chart (1,406 bars): each named variable with its line and value; its 50-bar average read 91.8878 where the chart's own SMA 50 legend showed 91.89; an early bar said "Its first value is on Jun 24, 2021, 37 bars after this one"; "line 6" took the editor to line 6 |
+| R6 | **a load budget for the library**: when a member lists an indicator the server measures a formula with the engine's headless export (a work count over the reference series, never a clock), files it as light, moderate or heavy (0.10 / 0.25 / 0.50 of the lane's ceiling) and refuses a listing over half the ceiling; the same gate runs when a listed indicator's link is moved to a new version. Cards and the share page say the class; the share page adds the time on the viewer's device. A pasted script is not run on the web server: "not measured yet" until the script service measures it. Switch `DEFINITION_LOAD_BUDGET_ENABLED` | LIVE and ARMED 2026-11-17 (#1662). The driver was run on the web server first (the same count twice, about 0.35 s each); then, as the synthetic admin, listing a two-output formula answered "light" (4 of 16,384) in about 2.5 s, the library card and the Members tab card said "Light to draw.", and the share page added "Drew 5,000 bars in 2.5 ms on this device". The check unlisted it afterwards. The engine session reviewed it and caught one real gap before merge (a re-share of a listed indicator skipped the budget) |
+| baseline | the live baseline of the evaluation runner, without a key on this machine: each case's first request sent through the production door as the synthetic admin, three rounds, and the real answers graded by the runner offline. All three rounds passed. It measures first requests only | DONE 2026-11-17 (requests, answers and spend kept outside this repository) |
+| explore | the exploratory rounds the owner asked for after the plan: this track's own requests sent through the production window as a member would, each answer read for whether the formula is right, not only whether it built. Round 1 (single requests across the kinds members ask for) found the SuperTrend / SAR door defect (#1680) and four smaller ones (#1692). A multi-turn round (build, then change it four ways, as the admin and as a member) found that the commonest edit cost two calls (#1699) and that names and labels were shown as formula text (#1693, #1702). Round 2 (harder single requests) found the class in Indicators backlog 59: the server door accepting what the browser then refuses (#1701, #1708, #1722). The opening-range gap became engine vocabulary (#1713). Each fix was proved able to fail and the served ones were seen on production | rounds DONE 2026-11-17 (requests and answers kept outside this repository); backlog 54 to 64 hold what was found and what is left |
 
 **The house set, second look (2026-11-16, production).** Of the five that did not draw on
 the first run: both relative-strength requests draw (the marker fix); volume bars coloured
@@ -779,20 +782,8 @@ Not finished, and why (as of the afternoon of 2026-11-17):
 - **L5, worked examples**: built, measured on and off through the production door, and left
   off: no gain (see the L5 row above).
 - **R1, run over a list from the chart**: done (see the R1 row above).
-- **R4 and R5**: the page sides are built (rows above); the engine's fields and its two exports
-  are being built on 2026-11-17 and each page side is wired when its piece is on master.
-- **The live baseline run** of the evaluation runner: the owner approved it on 2026-11-17 with a
-  hard stop; it needs a dedicated model key set on the machine by the owner
-  (`docs/indicators/E2E-EVAL-CREDENTIALS.md`), which is the one step still open.
-- **R6, a load budget on library cards**: designed with the engine's owner on 2026-11-17, and
-  waiting for one engine export. The verdict (refuse to publish) is a deterministic work count
-  over one seeded 5,000-bar reference series, never a clock, with the budget a fraction of the
-  engine's existing whole-run ceiling; the server computes it at publish (off the request path)
-  and keeps it on the listing row; the card shows a class (light, moderate, heavy) from that
-  count and the share preview adds the time it took on the viewer's own device. The engine
-  builds the headless export `(definition, bars) -> { lane, outputs, work }` and the reference
-  series; this track then builds the publish path, the refusal and the cards. Nothing is
-  shipped on the cards before the server sends the field.
+- **R4, R5 and R6**: built and merged on 2026-11-17 (rows above). What is left of each is stated in its row. For R6: the runtime lane (a pasted script) is measured only by the isolated script service, which is not deployed; until then such a listing says "not measured yet" and is never refused for load. The library holds no listings yet, so no card carries a class until a member lists a formula.
+- **The live baseline run**: DONE 2026-11-17 (the baseline row above). It measures first requests only; the second turns of the multi-turn cases still need a model key on the machine, or a longer walk through the door.
 - **H2, the remainder**: DONE 2026-11-17 (#1642). The owner saw the three mock-ups and picked B, one
   dropdown. The library sheet (the indicators surface on a phone and a tablet) has one "Showing"
   control naming every list with its count: all, on this chart, yours, UCT's, members', and each
@@ -826,11 +817,26 @@ Not finished, and why (as of the afternoon of 2026-11-17):
   head before a check and restore it after (`POST /api/workspace/doc/restore`).
 - A worktree copy of a shared file can be behind master. Committing it as it stands undoes
   someone else's change. Compare with master and refresh the file before editing it.
+- A `VITE_` build flag is set on `web` AND on `web-front`. The bundle members load is built by
+  `web-front` from its own copy of those variables. Confirm on the live page, not from the
+  variable list.
+- "Try the rule on the live page" means the live page. #1642's row fix was measured in a page
+  built by hand, whose markup was not the product's, and did nothing when served. #1656 was
+  measured by loading the candidate rules into the real Indicators window first.
+- A pull request's own checks do not run the engine folder, the builder folder or the app-wide
+  reachability rail unless it touches those paths. #1662 and #1670 were green everywhere they
+  were looked at and still turned two engine rails red on master (a path to the script lane with
+  no switch on it; a new test folder nobody had acknowledged). Before merging a change that
+  imports anything under `engine/` or adds a test folder under `chart/`, run
+  `src/components/chart/engine`, `src/components/chart/builder` and
+  `src/components/screener/reachable.test.js` on GitHub runners, and read every verdict line.
+- A budget, a limit or a check belongs on the door that changes the thing, not on the button
+  that usually leads to it. The load budget was first checked only at List; a re-share moved
+  the listed version past it. The engine's review caught it before it merged.
 
-**Next, in order:** check each merged change on production once its deploy gate has run (the
-evening's: L4, L6, L7, L8, the allowance line, moderation, Describe it instead, one name slice 2);
-then names and read-backs with the authoring owner, the house set a third time, and the owner's
-look.
+**Done since (2026-11-17, late):** Indicators backlog 59 in three parts: the door/browser rail (#1734), the sweep that measures the class (`tools/door_browser_sweep.py`, measure-only) and the general fix (#1738: the browser sends its own refusal back to the door for one repair). A correction on the record: "Mansfield relative strength versus SPY over 52 weeks" was reported fixed after #1680 from the door's answer alone; the window had refused it. It is #1730. A live result is the window's text, never the door's answer.
+
+**Next, in order:** see #1701, #1708, #1722, #1730, #1738 and #1713 on production with the requests that found them (the daily allowance is durable and renews at midnight Eastern, so re-checks queue for after it); backlog 63 and 64; the same request sent three times, to measure how often an answer changes; then names and read-backs with the authoring owner, the house set a third time, and the owner's look.
 
 **Open for the owner:**
 1. Look at each of the fourteen house indicators on a chart (Indicators, UCT tab) and say which

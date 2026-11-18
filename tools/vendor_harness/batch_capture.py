@@ -115,7 +115,11 @@ MIN_SALT_CHARS = 16
 #: the instrument (capture-procedure.md, "BAR 0 IS NOT REACHABLE ON A LONG-HISTORY
 #: SYMBOL"): the flag is asserted ONLY when the loaded history stopped growing AND
 #: its first bar falls on this date in the exchange's own timezone.
-KNOWN_LISTING = {"NYSE:RDDT": "2024-03-21"}
+KNOWN_LISTING = {
+    "NYSE:RDDT": "2024-03-21",
+    # Q-SD2 (2026-11-17): two sources agree, our /api/bars/ALAB?tf=D first bar and TradingView's first NASDAQ:ALAB 1D bar.
+    "NASDAQ:ALAB": "2024-03-20",
+}
 
 
 # ─── outcomes ────────────────────────────────────────────────────────────────

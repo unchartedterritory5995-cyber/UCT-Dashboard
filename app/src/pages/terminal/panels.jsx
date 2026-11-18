@@ -115,6 +115,9 @@ export const PANEL_IMPORTERS = {
   CallSearch: () => import('./panels/CallSearchPanel'),
   ExpectedMove: () => import('./panels/ExpectedMovePanel'),
   ThemeRotation: () => import('./panels/ThemeRotationPanel'),
+  // data wave 6 (2026-11-17)
+  IntradayUpdate: () => import('./panels/IntradayUpdatePanel'),
+  TopFlow: () => import('./panels/TopFlowPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),
   // wave 8, lane E: market reads (SENT)
   Sentiment: () => import('./panels/SentimentPanel'),

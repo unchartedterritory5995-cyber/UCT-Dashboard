@@ -422,6 +422,19 @@ export const FUNCTIONS = [
   // /api/theme-rotation), which no screen drew. `TROT OUT` = only the themes rotating out.
   { code: 'TROT', label: 'Theme rotation (themes rotating in and out)', group: 'Market',
     market: { panel: 'ThemeRotation', args: [{ kind: 'rotationSide', prop: 'side' }] } },
+
+  // ── data wave 6 (2026-11-17) ──
+  // IDAY: the AI-written intraday update (GET /api/intraday-update): the market phase and the
+  // session note ONLY, labelled as AI-written with the time it was written (owner ruling
+  // 2026-11-17: the update's stock candidates are not shown to members).
+  { code: 'IDAY', label: 'Intraday market update (AI-written)', group: 'Market',
+    market: { panel: 'IntradayUpdate' } },
+  // TOPF: every Top Flow pick, open and expired, with how its contract has done since it was
+  // picked (GET /api/top-flow/history); FREC keeps the aggregate record over the same picks.
+  // `TOPF EXPIRED BEAR PEAK`.
+  { code: 'TOPF', label: 'Top Flow picks (each pick and how its contract has done)', group: 'Options',
+    market: { panel: 'TopFlow', args: [{ kind: 'topFlowStatus', prop: 'status' }, { kind: 'topFlowDirection', prop: 'direction' },
+      { kind: 'topFlowSort', prop: 'sort' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -687,6 +700,8 @@ const FUNCTION_WORDS = {
   TSRC: { example: 'TSRC pricing power', keywords: ['search earnings calls', 'transcript search', 'who said', 'call mentions'] },
   EXMV: { example: 'NVDA EXMV', keywords: ['expected move', 'implied move', 'earnings straddle', 'priced move'] },
   TROT: { example: 'TROT IN', keywords: ['theme rotation', 'rotating in', 'rotating out', 'themes gaining rank'] },
+  IDAY: { keywords: ['intraday update', 'market update', 'midday update', 'session note'] },
+  TOPF: { example: 'TOPF OPEN', keywords: ['top flow picks', 'flow picks', 'pick by pick', 'how the picks did'] },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

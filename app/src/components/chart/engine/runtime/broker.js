@@ -2174,9 +2174,11 @@ export function makeBroker(cfg, data) {
     }
     return r.comment
   }
-  /** The `time` of bar `bar` as Pine reads it (UNIX milliseconds; the run's bar times are epoch seconds, the
-   *  unit `vm.js` turns into `time` the same way). A run that was handed no bar times refuses by name: a
-   *  trade's time is never a bar index in disguise. */
+  /** The `time` of bar `bar` as Pine reads it (UNIX milliseconds; the run's bar times are each bar's opening
+   *  instant in epoch seconds, which the product door derives from the ONE gate `time` reads,
+   *  `runtimeColumns.js::brokerBarTimes` over `indicators.js::barOpenInstants`, so a daily chart's ISO date keys
+   *  reach the broker as the instants `time` reads, never as dates). A run that was handed no bar times, or a time
+   *  that is not a number, refuses by name: a trade's time is never a bar index or a date in disguise. */
   const barTimeMs = (bar, fn) => {
     const t = timeOf(bar)
     if (!finite(t)) throw new BrokerRefusal(`\`${fn}\` reads the time of a bar this run was given no time for`)

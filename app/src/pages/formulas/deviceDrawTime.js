@@ -18,7 +18,19 @@
 //
 // The engine is loaded on demand, after the page has painted, so the share page's first open
 // carries none of it.
+//
+// ⛔⛔ THE ENGINE'S OWN SWITCH IS ASKED FIRST (`engine/memberPaneGate.js`). The headless export
+// brings the member script lane with it (`headlessCompute.js` imports `runtime/runtimeColumns.js`),
+// and that lane has one switch that must close EVERY path to it: with the switch off this module
+// never loads the engine, and answers BY NAME that this device's time was not measured
+// (`UNMEASURED_LANE_OFF`). It never makes up a number. The rail that holds this is the engine's:
+// `engine/__tests__/memberPaneGate.test.js`, which walks every import path from the app's entry.
 import { useEffect, useState } from 'react'
+import { memberPaneEnabled } from '../../components/chart/engine/memberPaneGate'
+
+/** Why there is no time: the engine's script lane is switched off in this build, so the engine was
+ *  not loaded. The page says so in words (`loadWords.deviceTimeLine`). */
+export const UNMEASURED_LANE_OFF = 'lane-off'
 
 /** A first run slower than this is not repeated. */
 export const SLOW_RUN_MS = 50
@@ -39,11 +51,15 @@ const clock = () => (typeof performance !== 'undefined' && performance.now ? per
 
 /**
  * Time one formula on this device.
- * @returns {Promise<null | { ms: number, bars: number }>}
+ * @returns {Promise<null | { ms: number, bars: number } | { unmeasured: string }>}
+ *   null: nothing to say (not a formula, or the run did not finish whole);
+ *   `{ unmeasured: UNMEASURED_LANE_OFF }`: the engine's switch is off, so nothing was run.
  */
-export async function measureDeviceDraw(definition, { load = loadEngine, now = clock } = {}) {
+export async function measureDeviceDraw(definition, { load = loadEngine, now = clock, laneOn = memberPaneEnabled() } = {}) {
   const compute = definition && definition.compute
   if (!compute || compute.kind !== 'ast') return null
+  // ⛔ before the engine is loaded: the switch closes this path too
+  if (laneOn !== true) return { unmeasured: UNMEASURED_LANE_OFF }
   let engine
   try {
     engine = await load()

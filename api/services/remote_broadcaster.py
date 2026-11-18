@@ -46,6 +46,34 @@ _KEEP_BUCKETS = 4
 _QUEUE_MAX = 64
 
 
+class _BarQueue(asyncio.Queue):
+    """One chart subscription's queue (one symbol and timeframe) that CONFLATES.
+
+    ⭐ 2026-11-17, measured on production: 304,113 of 1.68 M bar frames (18%) were dropped from full
+    64-slot queues in one session, and a connection that fell behind (web's loop stalls after a restart)
+    then drained up to 64 STALE frames, oldest first, before the newest price: trade -> browser p50
+    6-12 s for minutes. The drop-oldest rule could also drop a minute's FINAL bar.
+
+    A forming (non-final) frame is last-value-wins for its candle: when the newest frame still waiting
+    is a forming frame of the SAME candle (`bar.t`), the new frame takes its place instead of queueing
+    behind it. Order is otherwise untouched (a final is never replaced or overtaken, a new candle is
+    appended), so a slow reader gets the CURRENT value of the forming candle plus every final, and the
+    queue stays a few frames deep instead of filling."""
+
+    def conflate(self, msg: dict) -> bool:
+        if not self._queue:
+            return False
+        last = self._queue[-1]
+        lb = last.get("bar") if isinstance(last, dict) else None
+        nb = msg.get("bar") if isinstance(msg, dict) else None
+        if not isinstance(lb, dict) or not isinstance(nb, dict):
+            return False
+        if lb.get("final") or lb.get("t") is None or lb.get("t") != nb.get("t"):
+            return False
+        self._queue[-1] = msg
+        return True
+
+
 def _key_for(tf: str, session: str = "rth") -> str:
     from api.services.bar_broadcaster import _key_for as kf
     return kf(tf, session)
@@ -82,14 +110,14 @@ class RemoteBroadcaster:
         self._last_emit_wall: Optional[float] = None
         self.on_change: Callable[[], None] = lambda: None   # the feed client's "desired changed"
         self.counters = {"batches": 0, "bars_in": 0, "frames_out": 0, "dropped": 0,
-                         "prices_in": 0, "mirror_resets": 0}
+                         "conflated": 0, "prices_in": 0, "mirror_resets": 0}
 
     # ── subscription management (the SSE routes, the quote feed) ─────────────
 
     def subscribe(self, sym: str, tf: str, session: str = "rth", v2: bool = False) -> asyncio.Queue:
         sym = sym.upper()
         k = _key_for(tf, session)
-        q: asyncio.Queue = asyncio.Queue(maxsize=_QUEUE_MAX)
+        q: asyncio.Queue = _BarQueue(maxsize=_QUEUE_MAX)
         with self._lock:
             had_any = self._wanted(sym)
             self._subs.setdefault((sym, k), set()).add((q, bool(v2)))
@@ -294,7 +322,11 @@ class RemoteBroadcaster:
         return msg
 
     def _put(self, q: asyncio.Queue, msg: dict) -> None:
-        """Same-loop put; a full queue drops its oldest (BarBroadcaster._safe_put)."""
+        """Same-loop put. A forming frame of the candle already waiting replaces it (_BarQueue);
+        otherwise appended, and a still-full queue drops its oldest (BarBroadcaster._safe_put)."""
+        if isinstance(q, _BarQueue) and q.conflate(msg):
+            self.counters["conflated"] += 1
+            return
         try:
             q.put_nowait(msg)
         except asyncio.QueueFull:

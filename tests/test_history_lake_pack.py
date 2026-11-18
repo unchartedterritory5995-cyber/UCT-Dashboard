@@ -255,6 +255,34 @@ def test_upload_is_resumable_and_reports_progress(raw, tmp_path):
     assert any("1 already there" in m for m in logs)
 
 
+def test_a_pack_rebuilt_by_the_daily_refresh_is_sent_even_at_the_same_size(raw, tmp_path):
+    """A current period's pack is rebuilt in place each day: the bucket's same-size copy is NOT proof it
+    is the same pack. Packs written since the run started (`forced_keys`) are always sent; the rest
+    keep the resumable size check."""
+    import os
+    a = tmp_path / "a"
+    BLD.Builder(raw, a, quality=5, packs=True, **QUIET).run(ALL)
+    packs = PUB.collect_packs([a])
+    idx = PUB.build_indexes(packs, log=lambda *_: None)
+    items = sorted(packs.items())
+    assert len(items) >= 2
+    (old_k, old_path), (new_k, new_path) = items[0], items[1]
+    os.utime(old_path, (1_000_000, 1_000_000))                 # written long ago
+    since = new_path.stat().st_mtime
+    force = PUB.forced_keys(packs, since, prefix="hist/")
+    key = lambda k: f"hist/{PUB.pack.pack_relpath(*k)}"
+    assert key(new_k) in force and key(old_k) not in force
+    everything_there = lambda k, size: True                   # the bucket holds every key at its size
+    sent = []
+    PUB.upload(packs, idx, lambda k, path, ct: sent.append(k), lambda k, data, ct: None,
+               prefix="hist/", jobs=1, log=lambda *_: None, exists=everything_there, force=force)
+    assert key(new_k) in sent and key(old_k) not in sent
+    sent.clear()                                              # without `force`: the old behaviour
+    PUB.upload(packs, idx, lambda k, path, ct: sent.append(k), lambda k, data, ct: None,
+               prefix="hist/", jobs=1, log=lambda *_: None, exists=everything_there)
+    assert sent == []
+
+
 def test_an_index_put_that_fails_is_retried_on_its_own_and_the_rest_carry_on(raw, tmp_path):
     """2026-11-17: one of 36,676 index puts got R2's 'reduce your concurrent request rate for the same
     object' and the whole run died. A failing put is retried with a backoff; the others are not held up."""

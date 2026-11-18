@@ -82,10 +82,17 @@ describe('the doors on a member’s own indicator', () => {
     expect(within(dialog).getByRole('heading', { name: 'Share this indicator' })).toBeTruthy()
     expect(dialog.textContent).not.toMatch(/this formula/i)
     expect(within(dialog).getByTestId('library-block')).toBeTruthy()
-    expect(new Set(calls)).toEqual(new Set([
+    // ⛔ WAIT FOR THE READS; THE TEXT DOES NOT PROVE THEM. The panel says "private" from its FIRST
+    // render, and its two reads are effects React runs in a LATER task: when that text first shows,
+    // zero reads have been made (measured, every time). This used to check `calls` right after the
+    // text and passed only while React's effect task beat Testing Library's setTimeout(0) -- not on a
+    // busy runner (2026-11-17 run 44108868048, a 499-file shard: `Set{}`). The share read has LANDED
+    // when the panel offers to make a link (it refuses to before, so the disclosure cannot be skipped).
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: /Create a share link/ })).toBeEnabled())
+    await waitFor(() => expect(new Set(calls)).toEqual(new Set([
       `GET /api/user-definitions/${MINE.id}/share`,
       `GET /api/user-definitions/${MINE.id}/list`,
-    ]))
+    ])))
     expect(calls.some((c) => !c.startsWith('GET'))).toBe(false)
   })
 
