@@ -97,6 +97,15 @@ const setOption = (args, id = 'tn') => (c) => {
   must((c.board?.[0]?.widgets || []).find(w => w.id === id), `the News widget ${id}`)
   return [{ action: 'widget.setOption', target: must(c.board?.[0]?.ref, 'board'), args: { widget: id, ...args } }]
 }
+// AUDIT #1808: a confirmed save or delete offers NO Undo (AUDIT S1-C, board.js undoPatch): "undo" says there is nothing of mine to
+// undo, and the presets stay exactly as the confirmed change left them
+const noUndo = async (m, keep) => {
+  const out = await m.say('undo')
+  expect(out, 'the undo reply').toMatch(/in this session/)
+  expect(document.body.textContent, 'no Undo for a save or delete').toContain('There is nothing of mine to undo in this session.')
+  await new Promise(r => setTimeout(r, 50))
+  expect(optsOf(m).presets).toEqual(keep)
+}
 const ready = async (id = 'tn') => {
   await waitFor(() => expect(readOf(id).presets?.map(p => p.name)).toEqual(['Macro', 'Earnings Watch']))
   await waitFor(() => expect(shown(id)).toEqual(ALL))
@@ -190,6 +199,7 @@ describe('C3-140 save / rename / delete: the Filters menu\'s own Save, Rename an
     expect(saved).toMatchObject({ name: c.saves, query: 'tariff', categories: [] })
     expect(optsOf(m).presets.slice(0, 2)).toEqual([MACRO, EARN])
     expect(shown(), 'saving filters nothing new').toEqual([2])
+    await noUndo(m, [MACRO, EARN, saved])
   }, 60000)
 
   it.each(RENAME_HELD_OUT.map(c => [c.text, c]))('held-out "%s": that one preset has the new name, its filters unchanged; Undo renames it back', async (text, c) => {
@@ -215,6 +225,7 @@ describe('C3-140 save / rename / delete: the Filters menu\'s own Save, Rename an
     await m.apply()
     await waitFor(() => expect(names(m)).toEqual(['Macro', 'Earnings Watch'].filter(n => n !== c.deletes)))
     expect(optsOf(m).presets).toEqual([MACRO, EARN].filter(p => p.name !== c.deletes))
+    await noUndo(m, [MACRO, EARN].filter(p => p.name !== c.deletes))
   }, 60000)
 
   it('a full list (the menu\'s 12): a save is refused in words, nothing written', async () => {
