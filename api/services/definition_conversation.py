@@ -302,6 +302,8 @@ REFUSALS: Mapping[str, str] = {
         "the UCT Agent did not build that named indicator to UCT's checked formula, so nothing was changed"),
     "named:unchecked": (
         "that indicator is not in UCT's checked library yet, so the assistant will not build it by name"),
+    "named:withheld": (
+        "the UCT Agent kept putting a name on the chart that UCT has no checked formula for, so nothing was changed"),
     # ⭐ BATCH 2 -- linreg / correlation / vwma / roc / mom / Keltner with an unusable length
     "resolve:expansion": (
         "a formula function was given a length it cannot use (a whole number is needed)"),
@@ -1130,6 +1132,111 @@ NAMED_OWN_WORDS_RULE = ("UCT has NO checked formula for this name. Build ONLY th
 NAMED_GATE = "named:formula"
 NAMED_UNCHECKED_GATE = "named:unchecked"
 
+# ⭐ THE WITHHELD NAME (ruling 2026-11-18). A DISTINCTIVE well-known name with no library entry
+# ("Klinger Volume Oscillator", "QQE": `indicator_names.withheld_spellings`). Measured: such names
+# were either refused outright or, written in lower case, built from the assistant's recollection
+# UNDER THE NAME, as if UCT stood behind it. Now the build goes ahead and the NAME IS WITHHELD:
+#   * the assistant is told to build what the name is generally understood to compute, to name the
+#     indicator and every line by what it computes, and to say in plain words what it built;
+#   * the door refuses a patch that writes the name (or its abbreviation) on the chart anyway;
+#   * the door itself tells the member, on every output, that the name is not in the checked library.
+# We never put a name we have not checked on a member's chart; and nothing is refused that can be built.
+WITHHELD_SECTION = "unchecked_names"
+WITHHELD_GATE = "named:withheld"
+WITHHELD_RULE = ("a well-known indicator NAME that UCT has NO checked formula for. If the member describes the rule "
+                 "themselves, build exactly their description. Otherwise, if you know what this name is generally "
+                 "understood to compute and it can be built here, build that. EITHER WAY: (1) never write this name "
+                 "or its abbreviation on the chart: name the indicator and label every output by what it computes "
+                 "(for example 'Running signed volume', never the name); (2) in `reply`, say in one or two plain "
+                 "sentences exactly what you built, so the member can check it. If you do not know what it computes, "
+                 "or it cannot be built on a chart, emit no ops and say so in `note`")
+
+
+def withheld_in(terms: Any) -> List[Dict[str, Any]]:
+    """The withheld names a turn's terms name, as {id, name}: each once, in the order written."""
+    from api.services import indicator_names
+    found: List[Dict[str, Any]] = []
+    for t in terms or []:
+        if not isinstance(t, Mapping) or t.get("section") != WITHHELD_SECTION:
+            continue
+        if not any(f["id"] == t.get("name") for f in found):
+            found.append({"id": t.get("name"), "name": indicator_names.name_of(t.get("name"))})
+    return found
+
+
+#: Where a patch writes words a member reads on the chart (names, labels, a marker's text). A value
+#: under any other key is not a name; a formula never is.
+_WRITTEN_KEYS = frozenset({"name", "label", "text", "title"})
+_FORMULA_KEYS = frozenset({"tree", "when", "condition", "value", "with"})
+
+
+def _written_words(node: Any, out: Optional[List[str]] = None) -> List[str]:
+    out = [] if out is None else out
+    if isinstance(node, Mapping):
+        for key, value in node.items():
+            if key in _FORMULA_KEYS:
+                continue
+            if key in _WRITTEN_KEYS and isinstance(value, str):
+                out.append(value)
+            else:
+                _written_words(value, out)
+    elif isinstance(node, (list, tuple)):
+        for item in node:
+            _written_words(item, out)
+    return out
+
+
+def _own_words_of(name_id: Any) -> frozenset:
+    """The words that belong to a withheld name and to nothing else here: each word of its spellings
+    that is no word of the product's own vocabulary ("klinger", "schaff", "qstick"). A label that
+    holds one is that name in part ("Klinger line")."""
+    from api.services import indicator_names
+    vocabulary = dc._lexicon_vocabulary(CHART_LEXICON)
+    own = set()
+    for spelling in indicator_names.every_spelling(name_id):
+        for word in spelling.split():
+            stems, _cost = dc._stem_key(dc._form_tokens(word))
+            if len(word) >= 4 and not (stems and all(s in vocabulary for s in stems)):
+                own.add(word)
+    return frozenset(own)
+
+
+def check_withheld(envelope: Mapping[str, Any], withheld: Any, member_names: Any = ()) -> None:
+    """⛔ A WITHHELD NAME IS NEVER WRITTEN ON THE CHART. A change that names the indicator, a line or
+    a marker with the withheld name (in any spelling the catalogue holds, its abbreviation included,
+    or by a word that is the name's alone) is refused, with what to do as the repair's diagnostic.
+    The member's OWN name for the indicator ("call it Klinger") is theirs to give, and is left alone."""
+    if not withheld or envelope.get("disposition") != "change":
+        return
+    from api.services import indicator_names
+    own = {indicator_names.norm(n) for n in member_names or ()}
+    for words in _written_words(envelope.get("ops") or []):
+        plain = indicator_names.norm(words)
+        if plain in own:
+            continue
+        padded = f" {plain} "
+        for w in withheld:
+            whole = any(f" {spelling} " in padded for spelling in indicator_names.every_spelling(w["id"]))
+            if whole or any(word in _own_words_of(w["id"]) for word in plain.split()):
+                raise _Refused(
+                    WITHHELD_GATE,
+                    f'"{words}" writes the name {w["name"]} on the chart, and UCT has no checked formula for that '
+                    "name. Keep the formula; change the indicator's name and every label to say what it computes "
+                    "(for example what is averaged, summed or compared), with no form of that name or its abbreviation.",
+                    member=w["name"])
+
+
+def withheld_notes(envelope: Mapping[str, Any], withheld: Any) -> List[Dict[str, Any]]:
+    """What the member is told, by the door itself, on every output a turn built for a withheld
+    name: it is not in the checked library, so it is not offered under that name."""
+    if not withheld or envelope.get("disposition") != "change":
+        return []
+    names = " or ".join(w["name"] for w in withheld)
+    text = (f"{names} is not in UCT's checked library yet, so this is not offered under that name. It was built from "
+            "what the name is generally understood to mean. Check the formula before you rely on it.")
+    return [{"output": key, "text": text[:named_indicators.SENTENCE_MAX]}
+            for key, _tree in _patch_outputs(envelope) if isinstance(key, str)]
+
 
 def _named_term(e: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
     """What the assistant is handed for a library name: the formula as data, never a recollection."""
@@ -1332,6 +1439,9 @@ def _matched_term(t: Mapping[str, Any]) -> Dict[str, Any]:
         return {**out, **_named_term(named_indicators.entry(t.get("name")))}
     if t.get("section") == GENERIC_SECTION:
         return {**out, "rule": next(rule for key, rule in GENERIC_PHRASES.values() if key == t.get("name"))}
+    if t.get("section") == WITHHELD_SECTION:
+        from api.services import indicator_names
+        return {**out, "well_known_name": indicator_names.name_of(t.get("name")), "rule": WITHHELD_RULE}
     twin = CHART_TWINS.get(t.get("name")) if isinstance(t.get("name"), str) else None
     if twin is not None:
         out["chart_formula"] = dc.formula_for(twin)
@@ -2708,7 +2818,24 @@ def _chart_lexicon(base: Mapping[str, Any]) -> Dict[str, Any]:
             continue
         index[stems] = [{"kind": dc.TABLE_ENTRY, "key": entry_id, "section": named_indicators.SECTION,
                          "words": words, "cost": cost}]
+    # ⭐ THE WITHHELD NAMES (`indicator_names.withheld_spellings`): each is a term, so the planner's
+    # Title-Case rule finds it accounted for (it is no longer refused as an unknown name) and
+    # `_matched_term` hands the assistant the rule for it. ⛔ ADDED, NEVER REPLACED, and after the
+    # library: a spelling the library answers is the library's.
+    # ⛔ Their WORDS are no vocabulary (`names_only`): a withheld name is recognised whole, and
+    # "Fisher", "Williams" or "Swing" inside any other Title-Case name is still a foreign word.
+    from api.services import indicator_names
+    names_only = set()
+    for phrase, name_id in indicator_names.withheld_spellings():
+        words = dc._form_tokens(phrase)
+        stems, cost = dc._stem_key(words)
+        if stems in index:
+            continue
+        index[stems] = [{"kind": dc.TABLE_ENTRY, "key": name_id, "section": WITHHELD_SECTION,
+                         "words": words, "cost": cost}]
+        names_only.add(stems)
     return {"index": index, "max_words": max((len(k) for k in index), default=1),
+            "names_only": frozenset(names_only), "names_only_section": WITHHELD_SECTION,
             "collisions": {k: v for k, v in (base.get("collisions") or {}).items() if k in index
                            and index[k] is base["index"].get(k)}}
 
@@ -3496,7 +3623,9 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
     return {"refusal": None, "request_text": request_text, "notes": notes,
             "advisory": advisory, "other_sym": other_sym, "discussed": discussed,
             "not_understood": not_understood, "unavailable": unavailable,
-            "terms": understanding.get("terms") or [], "named": named, "own_words": own_words}
+            "terms": understanding.get("terms") or [], "named": named, "own_words": own_words,
+            "withheld": withheld_in(understanding.get("terms")),
+            "member_names": list(member_names or [])}
 
 
 def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
@@ -3560,6 +3689,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     unavailable = understood_turn["unavailable"]
     named = understood_turn.get("named") or []
     own_words = understood_turn.get("own_words") or []
+    withheld = understood_turn.get("withheld") or []
     # ⭐ L5 -- WORKED EXAMPLES (`worked_examples.py`): for a NEW indicator, the nearest one or two of
     # UCT's own checked builds ride along INSIDE <uct_language_notes> (data, by the instructions' own
     # rule; the cached instruction block is untouched). Dark for members; an admin turn can ask.
@@ -3652,9 +3782,11 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             envelope = check_envelope(candidate, revision, view)
             check_output_renames(envelope, message, view, turns)
             check_named(envelope, view, named)                 # a named indicator is its checked formula, or nothing
+            check_withheld(envelope, withheld, understood_turn.get("member_names"))   # an unchecked name is never written
             envelope = with_running_value_notes(envelope)      # the door says where a running value starts
             envelope = _with_door_notes(envelope, named_notes(envelope, view, named))
             envelope = _with_door_notes(envelope, own_words_notes(envelope, own_words))
+            envelope = _with_door_notes(envelope, withheld_notes(envelope, withheld))
             if envelope.get("disposition") == "change":
                 envelope = _with_door_notes(envelope, as_before_notes(as_before))
             if replayed and envelope.get("ops") == replayed[0].get("ops"):

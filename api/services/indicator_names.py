@@ -44,7 +44,8 @@ def _file() -> Tuple[Dict[str, Any], ...]:
     its record go on; a test fails)."""
     try:
         rows = json.loads(PATH.read_text(encoding="utf-8"))["names"]
-        return tuple({"id": r["id"], "name": r["name"], "aliases": tuple(r["aliases"])} for r in rows)
+        return tuple({"id": r["id"], "name": r["name"], "aliases": tuple(r["aliases"]),
+                      "distinctive": r.get("distinctive") is True} for r in rows)
     except Exception:                              # noqa: BLE001
         logger.exception("[indicator-names] the catalogue could not be read")
         return ()
@@ -72,6 +73,25 @@ def catalogue() -> Tuple[Dict[str, Any], ...]:
         if left:
             rows.append({**r, "aliases": left})
     return tuple(rows)
+
+
+def is_short_acronym(spelling: str) -> bool:
+    """A bare two- or three-letter word ("kvo", "jma"): several such are real tickers, so one is
+    never looked up as a name (the library's own rule for its spellings)."""
+    return " " not in spelling and len(spelling) <= 3
+
+
+def withheld_spellings() -> Tuple[Tuple[str, str], ...]:
+    """⭐ (spelling, id) for every DISTINCTIVE name the library has no entry for: the names the door
+    builds and withholds. A bare short acronym is never one of them."""
+    return tuple((a, r["id"]) for r in catalogue() if r["distinctive"]
+                 for a in r["aliases"] if not is_short_acronym(a))
+
+
+def every_spelling(entry_id: Any) -> Tuple[str, ...]:
+    """Every spelling the file holds for a row, acronyms included (what must not be written on a
+    chart when the name is withheld)."""
+    return next((r["aliases"] for r in _file() if r["id"] == entry_id), ())
 
 
 def now_in_library() -> Dict[str, str]:

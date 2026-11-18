@@ -295,3 +295,37 @@ of that size. Two definitions again, so no entry yet.
 Detrended Price Oscillator, length 20: TradingView's uncentred line is the close minus the average
 of 11 bars ago (length / 2 + 1), equal on every bar. ChartSchool's is the centred form, which
 leaves the last bars blank. It waits for a displacement the library can derive from the length.
+
+## The withheld name: a well-known name with no checked formula is built, and not under that name
+
+**What was measured first.** Of 140 well-known indicator names put to the door, 35 reached the
+assistant with nothing saying UCT has no formula for them, and were built from its recollection
+under the name, as if UCT stood behind it; 93 were refused before any call, including names whose
+arithmetic the engine can do.
+
+**The rule (ruling 2026-11-18).** The name catalogue marks 57 names `distinctive`: a coined word or
+a person's name for one specific calculation on price and volume (Klinger Volume Oscillator, Schaff
+Trend Cycle, Fisher Transform, QQE). For these, and only these:
+
+1. the name is a term of the chart door, so the request reaches the assistant with the rule to
+   build what the name is generally understood to compute, to name the indicator and every line by
+   what it computes, and to say in plain words what it built;
+2. the door refuses a change that writes the name on the chart anyway (a full spelling, its
+   abbreviation, or a word that belongs to that name alone, such as "Klinger"): one repair, and
+   wrong twice ends in a refusal;
+3. the door itself tells the member, on every output, that the name is not in the checked library
+   and to check the formula before relying on it;
+4. the member's own name for their indicator ("call it Klinger") is theirs to give.
+
+Left as they were: descriptive phrases a member may mean literally, drawing tools and patterns
+(Gann Fan, Elliott Wave), chart types (Renko), and anything that needs data a chart formula cannot
+read (market breadth). Those keep the unknown-name answer and its way forward. A library name is
+the library's. A bare two- or three-letter acronym is never looked up.
+
+**Its words are that name's and no other's.** A withheld name is recognised whole. Its words do
+not join the product's vocabulary, so "Fisher" inside any other Title-Case name is still a foreign
+word and that other name is still an unknown name.
+
+**Measured before it was turned on**, with no model call, over the requests on file: every request
+that fires the rule literally names that indicator (no misread), and no request's answer changed
+without one. The counts are in the report to the engine session, not here.

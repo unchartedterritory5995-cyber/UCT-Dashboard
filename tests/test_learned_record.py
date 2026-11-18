@@ -116,11 +116,11 @@ def test_a_held_name_refused_is_recorded_by_its_entry_with_no_call(store, conv, 
 
 def test_a_well_known_name_the_door_refuses_is_recorded_by_its_catalogue_id_and_not_its_words(store, conv, clean_env, model):
     client = model([])
-    r = conv.converse(f"Add the Klinger Volume Oscillator {SECRET}", user_id="u1", view=empty_view(0), chart=CHART)
+    r = conv.converse(f"Add the McClellan Oscillator {SECRET}", user_id="u1", view=empty_view(0), chart=CHART)
     assert r["ok"] is False and client.calls == []
-    assert learned(last_turn()) == {"unknown_name": "klinger_volume_oscillator"}
+    assert learned(last_turn()) == {"unknown_name": "mcclellan_oscillator"}
     dump = raw_dump()
-    assert SECRET not in dump and "Klinger" not in dump and "Oscillator" not in dump
+    assert SECRET not in dump and "McClellan" not in dump and "Oscillator" not in dump
 
 
 def test_a_refused_name_in_no_catalogue_row_is_other_and_its_words_are_dropped(store, conv, clean_env, model):
@@ -236,7 +236,8 @@ def test_the_catalogue_is_names_only_in_one_spelling_each_id_once():
     assert set(doc) == {"_", "names"} and len(doc["names"]) >= 100
     seen_ids, seen_spellings = set(), {}
     for row in doc["names"]:
-        assert set(row) == {"id", "name", "aliases"}, row                  # no formula, no description
+        assert set(row) - {"distinctive"} == {"id", "name", "aliases"}, row    # no formula, no description
+        assert row.get("distinctive", True) is True                           # the mark is `true` or absent
         assert names.ID.fullmatch(row["id"]) and row["id"] not in seen_ids and row["id"] != names.OTHER
         seen_ids.add(row["id"])
         assert row["aliases"] and row["aliases"][0] == names.norm(row["name"])
@@ -469,7 +470,7 @@ def test_an_empty_store_reports_zeros_and_nones_never_raises(store):
 
 def test_the_report_holds_no_words_only_ids_names_from_the_repo_and_counts(store, conv, clean_env, model):
     model([])
-    conv.converse(f"Add the Klinger Volume Oscillator {SECRET}", user_id="m1", view=empty_view(0), chart=CHART)
+    conv.converse(f"Add the McClellan Oscillator {SECRET}", user_id="m1", view=empty_view(0), chart=CHART)
     conv.converse(f"Add the Zorblat Wiggle Line {SECRET}", user_id="m1", view=empty_view(0), chart=CHART)
     text = json.dumps(tel.weekly_report(7))
     assert SECRET not in text and "orblat" not in text
