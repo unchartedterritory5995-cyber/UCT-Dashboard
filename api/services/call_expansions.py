@@ -312,7 +312,7 @@ def _sar_part(part: str) -> Callable[[List[Any]], Optional[Dict[str, Any]]]:
     return build
 
 
-#: ⭐ NUMBER PENDING (studio, 2026-11-18) -- the Fisher Transform, `callExpansions.js::fisherTree`
+#: ⭐ Engine 79 (#1871) (studio, 2026-11-18) -- the Fisher Transform, `callExpansions.js::fisherTree`
 #: mirrored node for node (the parity test requires the two byte-identical). What it is, what it was
 #: graded against and why it is offered on evidence is said there, once.
 FISHER_WARMUP = 300
@@ -353,7 +353,7 @@ def _fisher(a: List[Any]) -> Optional[Dict[str, Any]]:
     return fisher_tree(a[0])
 
 
-#: ⭐ NUMBER PENDING (studio, 2026-11-18) -- the Laguerre Filter and the Laguerre RSI,
+#: ⭐ Engine 79 (#1882) (studio, 2026-11-18) -- the Laguerre Filter and the Laguerre RSI,
 #: `callExpansions.js::laguerreStage` mirrored node for node. What they are, how the restart
 #: window is sized from gamma and what they were graded against is said there, once.
 LAGUERRE_MAX_GAMMA = 0.95
