@@ -96,6 +96,20 @@ def test_the_serve_path_uses_it_and_skips_the_stored_repairs(vol, monkeypatch):
     assert [b["c"] for b in out[:60]] == [32.0] * 60
 
 
+def test_a_split_after_the_rebuild_is_healed_over_the_rebuilt_history(vol, monkeypatch):
+    """The rebuild is on the basis of the day it was built. A served ticker that splits LATER: the store's bars
+    after the split are on the new basis, the rebuilt ones are not, and the chart would draw a cliff. The
+    serve-time split heal (the one detector) still runs over the rebuilt history."""
+    split_day = DAYS[60]
+    stored = [_bar(t, 2.0) for t in DAYS[:60]] + [_bar(t, 16.0) for t in DAYS[60:]]   # 2:1 on DAYS[60]
+    monkeypatch.setattr(S, "_reaches_store_head", lambda t, b, tf: True)
+    monkeypatch.setattr(S, "_meta_cached", lambda t: {"ipo": None, "splits": [(split_day, 2.0)]})
+    monkeypatch.setattr(S, "split_adjust_active", lambda: True)
+    monkeypatch.setattr(S, "_schedule_store_repair", lambda t, tf: None)
+    out = S.sanitize_daily_bars("ASB", [dict(b) for b in stored], "D")
+    assert {b["c"] for b in out} == {16.0}                       # 32 / 2 before the split, 16 after: no cliff
+
+
 def test_the_contract_carries_the_epoch(vol):
     from api.services import bar_contract as C
     out = C.compute("ASB", "D", None, [], meta={"rev": 7, "history_rev": 5})
