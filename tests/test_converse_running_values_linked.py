@@ -415,3 +415,43 @@ def test_TRUE_the_windowed_value_equals_the_same_formula_carried_from_the_first_
     got_short = ast_interpret.interpret(short, bars, {})
     off = max(abs(g - w) for g, w in zip(got_short[400:], want[400:]) if g is not None and w is not None and math.isfinite(g))
     assert off > 1e-4 * scale, (what, off)
+
+
+# ═══ 2026-11-18: the door refuses what the engine refuses ════════════════════
+
+def test_a_window_of_a_running_value_is_refused_at_the_door_with_the_way_out(conv, clean_env, model):
+    """⚰️ Found live: the second stage of an oscillator took the lowest and highest of the first
+    stage's running value over ten bars. The door accepted it, the browser's engine refused it, and
+    the request went round twice. Now the door refuses it, and the repair is told why and what to do."""
+    from tests.test_running_values_coupled import _second_stage
+    S1 = {"type": "series", "name": "state1"}
+    bad = _second_stage({"type": "call", "name": "lowest", "args": [S1, {"type": "num", "value": 10}]})
+    good = _second_stage({"type": "op", "name": "*", "args": [{"type": "num", "value": 2}, S1]})
+    build = lambda tree: env(0, [{"op": "create", "name": "Two stage smoother", "placement": "pane",  # noqa: E731
+                                  "outputs": [{"key": "line", "tree": tree}]}])
+    client = model([emits(build(bad)), emits(build(good))])
+    r = conv.converse("Smooth the close twice, the second time from the first", user_id="u1", view=empty_view(0))
+    assert r["ok"] is True and r["disposition"] == "change" and len(client.calls) == 2, r
+    told = str(client.calls[1]["messages"][-1]["content"])
+    assert "the engine cannot compute this accum2" in told and "sits inside lowest(...)" in told
+    assert "never inside a function that reads a window of bars" in told and "offer the part that can" in told
+    # twice: the member is told what it needed, in their words
+    model([emits(build(bad)), emits(build(bad))])
+    r = conv.converse("Smooth the close twice, the second time from the first", user_id="u1", view=empty_view(0))
+    assert r["ok"] is False and r["gate"] == conv.RUNNING_VALUE_GATE
+    assert "highest, lowest or average of a running value over a window" in r["reason"]
+
+
+def test_the_instructions_say_a_running_value_has_one_bar_of_its_past():
+    text = conv_module().system_prompt()
+    assert "NEVER put a state inside a function that reads a window of bars (lowest, highest, an average, a sum" in text
+    assert "A running value has one bar of its past, not a history" in text
+    assert "through arithmetic and ONE-BAR functions only (max, min, abs, ln, exp, sqrt)" in text
+    # the sentence that invited the answer is gone: earlier states are no longer read "any way at all" unqualified
+    assert "and EARLIER states any way at all" not in text
+
+
+def conv_module():
+    from api.services import definition_conversation
+    return definition_conversation
+
