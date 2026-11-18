@@ -392,7 +392,10 @@ columns at all, is M5 as listed.)
 **Engine number.** NUMBER PENDING (`scriptEngineVersion.js`), rewritten for this form: the translation is unchanged
 (the door mints the same run half, byte for byte), so the number marks a bind-time change; a bump re-translates saved
 scripts once, which mints a run half on a pane-on member's document saved without one. The change reaches every
-document that already carries a run half with no re-translation.
+document that already carries a run half with no re-translation. **Ruled (coordinator, 2026-11-18): it gets a number**,
+because it changes what members SEE (drawings at lost calls), so its evidence must be graded at the engine that draws
+it, and the once-per-bump re-translation is how a change reaches saved documents. It rides train e77; the train
+numbers the line.
 
 **Wider suites**: section 12.
 
@@ -436,6 +439,11 @@ SPY 1D, MATCH on the runtime-on lane, ledger); `intraday-power-3-visual` is iden
 default, and its intended use (an intraday chart) and its weekly option read a timeframe the chart does not hold (its
 two captures are 1D, so they witness only the identity case).
 
+**Ruled (coordinator, 2026-11-18):** both are identity-only at their defaults on daily charts, so they do not bind for
+admission (they do not count toward Q-REQ-OTHER-1). `intraday-power-3-visual` on an INTRADAY chart (its `D` and `W`
+reads from a 5-minute chart) would be a real binding capture: it is on the request unit's backlog as **Q-DAILY-2**
+(`PARITY-ROADMAP-2026-11-18.md`, section 7's probe rows), for when lower-timeframe charts are in scope.
+
 ## 12. Wider suites
 
 GitHub runners (`tools/remote_tests.py`, on `8509a6bc2d`):
@@ -451,3 +459,17 @@ GitHub runners (`tools/remote_tests.py`, on `8509a6bc2d`):
   `test_pine_parity_roadmap`, `test_engine53_stamp_served_ast`, `test_run_half_source_binding`,
   `test_runtime_objects_schema_parity`, `test_alert_runtime_lane`, `test_alert_lookback_window`,
   `test_script_engine_version_gate`, `test_saved_script_prebump`, `test_definition_load_budget`.
+
+## 13. Rulings on this evidence (coordinator, 2026-11-18) and where each open item lives
+
+- **Accepted**: the run-half form meets both conditions by construction; the rails prove it.
+- **Engine number**: yes, train e77 (section 9).
+- **request-other candidates**: identity-only at their defaults on daily charts, so they do not bind for admission;
+  Q-DAILY-2 is on the request unit's backlog (section 11).
+- **Open items, on the roadmap with their measurements** (`PARITY-ROADMAP-2026-11-18.md`, U-OBJ):
+  - the hosts that lost EVERY drawing (`atr-trailing-stop-by-ceyhun`, `liquidity-heatmap-swiftedge`) need a door-side
+    discriminator, a stored-document change, so a later unit;
+  - `volume-profile` and `fourier-extrapolator` stop at 205,101 steps against the 200,000 per-bar limit. The per-chart
+    CPU cost of the last bar at 250,000 is to be measured before anyone proposes raising it.
+- **Master** is not merged in (the coordinator's master hold). The usePreferences rail (section 12) clears at the
+  train's master merge.

@@ -647,6 +647,22 @@ computes needs one (`scriptEngineVersion.js`); an evidence-only unit (admission)
   evidence units below.
 - **Risk:** drawing count and position (DRAW-1's known DIVERGE classes: count-at-cap, conditional
   history of a drawing). Route (a) changes no stored document; route (b) does: engine number.
+- **Measured and built 2026-11-18 (PARITY UNIT 1, PR #1824, train e77;
+  `docs/pine/evidence/2026-11-18-objects-unit/EVIDENCE.md`).** The probe found the runtime lane builds 14 of the
+  55 (`objects` + `known-lists`) and the value lane stops the other 41. Route (a) was built first as a move to a
+  runtime document and WITHDRAWN (its server lanes went dark; off the listing its run blanked 256 of SPY's 1,800
+  host-drawn bars on `atr-support-and-resistance`). Built instead: the run half draws what the host program lost
+  (`runHalfObjectRail.js`, the lost-drawings rule; the document stays the host's): served 275 -> 277
+  (`atr-support-and-resistance`, `auto-trendlines-by-pivots`), two more on `request-other`. Open, each a later unit:
+  - **Hosts that lost EVERY drawing** (`committed:atr-trailing-stop-by-ceyhun`,
+    `reference:liquidity-heatmap-swiftedge`, both admitted; the run half refused `run-half:no-comparable-objects`).
+    Their document carries no object program, so the bind cannot tell them from a `removes` host (a lost removal,
+    whose run is measured to go silently empty: `fabio-style ... rddt 1d 2026-11-15`, 0 of TradingView's 52
+    objects). Needs a door-side discriminator: a stored-document change, engine number.
+  - **The per-bar step limit** (`committed:volume-profile`, `reference:fourier-extrapolator-of-price-w-projection-
+    forecast-loxx`, both admitted, closed bars): the run stops by name (`runtime:limit`: 205,101 steps on the last
+    bar against the 200,000 limit; TradingView draws 203 and 398 lines). ⛔ Measure the per-chart CPU cost of the
+    last bar at 250,000 steps before anyone proposes raising the limit.
 
 ### U-STRAT `strategy`: order simulation served to members (OWNER-GATED, in progress)
 
@@ -1161,13 +1177,13 @@ unit's rows.
 | `objects` | `committed:liquidity-heatmap-nephew-sam` | committedOther | committed, not runtime-on MATCH: re-grade after the unit |
 | `objects` | `committed:multicator-table` | committedOther | committed, not runtime-on MATCH: re-grade after the unit |
 | `objects` | `committed:sector-rotation` | committedOther | committed, not runtime-on MATCH: re-grade after the unit |
-| `objects` | `committed:supertrend-explorer` | none | NEW: NYSE:RDDT 1D + AMEX:SPY 1D |
+| `objects` | `committed:supertrend-explorer` | none | WITHDRAWN 2026-11-18: never-serve `other-feeds`, ruled by name (TradingView refuses it at its defaults, "Invalid symbol"; section 6) |
 | `objects` | `committed:trend-lines-supports-and-resistances` | committedOther | committed, not runtime-on MATCH: re-grade after the unit |
 | `objects` | `committed:volume-profile` | committedOther | committed, not runtime-on MATCH: re-grade after the unit |
 | `objects` | `reference:auto-trendlines-by-pivots-perfect-non-repainting-lines-spyqqq-daily-pr` | ledgerOnly | ledger row only: re-grade at e73 |
 | `objects` | `reference:crypto-correlation-matrix` | ledgerOnly | ledger row only: re-grade at e73 |
 | `objects` | `reference:cryptosignalscanner-rsi-overboughtoversold-divergence-indicator-new` | ledgerOnly | ledger row only: re-grade at e73 |
-| `objects` | `reference:custom-screener-with-alerts` | none | NEW: NYSE:RDDT 1D + AMEX:SPY 1D |
+| `objects` | `reference:custom-screener-with-alerts` | none | WITHDRAWN 2026-11-18: never-serve `other-feeds`, ruled by name (TradingView refuses it at its defaults, "Invalid symbol"; section 6) |
 | `objects` | `reference:dot-dynamics` | ledgerOnly | ledger row only: re-grade at e73 |
 | `objects` | `reference:dual-supertrend-ichimoku-and-dmi-color-weighted-by-dgt` | ledgerOnly | ledger row only: re-grade at e73 |
 | `objects` | `reference:dynamic-higher-timeframe-fibonacci-pivot-points` | ledgerOnly | ledger row only: re-grade at e73 |
@@ -1186,7 +1202,7 @@ unit's rows.
 | `objects` | `reference:range-filter-x-hull-suite` | ledgerOnly | ledger row only: re-grade at e73 |
 | `objects` | `reference:relative-strength-index-divergences-libertus` | ledgerOnly | ledger row only: re-grade at e73 |
 | `objects` | `reference:rsi-support-resistance-by-dgt` | ledgerOnly | ledger row only: re-grade at e73 |
-| `objects` | `reference:screener-for-40-instruments` | none | NEW: NYSE:RDDT 1D + AMEX:SPY 1D |
+| `objects` | `reference:screener-for-40-instruments` | none | WITHDRAWN 2026-11-18: never-serve `other-feeds`, ruled by name (TradingView refuses it at its defaults, "Invalid symbol"; section 6) |
 | `objects` | `reference:smart-money-concepts-probability-expo` | ledgerOnly | ledger row only: re-grade at e73 |
 | `objects` | `reference:support-and-resistance-step-4` | ledgerOnly | ledger row only: re-grade at e73 |
 | `objects` | `reference:support-and-resistance` | ledgerOnly | ledger row only: re-grade at e73 |
@@ -1207,7 +1223,14 @@ Probe rows this page adds (no sample script stands for them):
 - **Q-ANCHOR-1:** an all-time ratchet and `ta.cum` on SPY 1D and RDDT 1D, from the listing.
 - **Q-ANCHOR-2:** TradingView's history depth per intraday timeframe.
 - **Q-REQ-OTHER-1:** two community scripts the runtime lane draws that request another context, graded
-  runtime-on MATCH, to admit `request-other`.
+  runtime-on MATCH, to admit `request-other`. ⚠️ Coordinator ruling 2026-11-18: an identity-only request does not
+  bind for admission. `reference:intraday-power-3-visual` and `reference:support-resistance-fibonacci-retracement`
+  (both drawn by the run half since PARITY UNIT 1, their 1D captures MATCH) read the chart's own symbol and, at
+  their defaults on a daily chart, its own timeframe: they do not count toward this row.
+- **Q-DAILY-2** (U-DAILY, part of U-REQ; for when lower-timeframe charts are in scope): `reference:intraday-power-3-
+  visual` on AMEX:SPY 5m and NYSE:RDDT 5m, at its default (`D`) and at its weekly option (`W`): its four
+  `request.security` reads of the chart's own symbol at a higher timeframe the intraday chart does not hold. The
+  binding capture; its 1D captures witness only the identity case.
 
 ## 8. The machine twin and its rail
 
