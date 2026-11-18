@@ -28,6 +28,28 @@ def test_splits_are_taken_from_the_symbol_they_executed_under_inside_its_window(
     assert B.split_table(lin, "GEN", by_sym) == [["2020-06-01", 3.0], ["2024-03-01", 4.0]]
 
 
+def test_a_renamed_company_s_splits_filed_under_today_s_ticker_count_in_its_old_window():
+    """BALL traded as BLL until 2022; the vendor files its 2004 and 2017 splits under BALL."""
+    lin = {"since": "2022-01-25", "cut": False, "segments": [{"sym": "BLL", "from": "2003-09-10", "until": "2022-01-25"}]}
+    by_sym = {"BALL": [["2004-08-24", 2.0], ["2017-05-17", 2.0]]}
+    assert B.split_table(lin, "BALL", by_sym) == [["2004-08-24", 2.0], ["2017-05-17", 2.0]]
+
+
+def test_a_reused_ticker_s_splits_before_today_s_company_are_never_taken():
+    """FI: Frank's International's 2021 reverse split must never scale Fiserv (cut: another company held FI)."""
+    lin = {"since": "2023-06-07", "cut": True, "segments": [{"sym": "FISV", "from": "2003-09-10", "until": "2023-06-07"}]}
+    by_sym = {"FI": [["2021-06-01", 0.1]], "FISV": [["2005-06-01", 2.0]]}
+    assert B.split_table(lin, "FI", by_sym) == [["2005-06-01", 2.0]]
+
+
+def test_a_class_share_reads_its_splits_under_both_spellings_once():
+    by_sym = {"BF.B": [["2004-01-21", 2.0], ["2008-10-28", 1.25]],
+              "BFB": [["2004-01-21", 2.0], ["2012-08-13", 1.5]]}
+    assert B.splits_for("BF.B", by_sym) == [["2004-01-21", 2.0], ["2008-10-28", 1.25], ["2012-08-13", 1.5]]
+    assert B.split_table({"since": None, "segments": []}, "BF-B", by_sym)[-1] == ["2012-08-13", 1.5]
+    assert B.splits_for("AAPL", {"AAPL": [["2020-08-31", 4.0]], "AAPLX": [["2021-01-04", 9.0]]}) == [["2020-08-31", 4.0]]
+
+
 def _db(rows):
     con = sqlite3.connect(":memory:")
     con.execute("CREATE TABLE day (ticker TEXT, ymd INTEGER, o REAL, h REAL, l REAL, c REAL, v REAL)")

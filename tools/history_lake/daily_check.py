@@ -61,10 +61,11 @@ def main(argv=None) -> int:
     ap.add_argument("--root", default="D:/uct-history")
     ap.add_argument("--out", default="D:/uct-history/daily-v1/check.jsonl")
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--dir", default="series", help="series (step 2) or joined (step 3)")
     a = ap.parse_args(argv)
     import yfinance as yf
 
-    series_dir = Path(a.root) / "daily-v1" / "series"
+    series_dir = Path(a.root) / "daily-v1" / a.dir
     done = set()
     if os.path.exists(a.out):
         for line in open(a.out, encoding="utf-8"):

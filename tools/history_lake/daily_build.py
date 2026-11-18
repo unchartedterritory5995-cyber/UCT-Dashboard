@@ -74,14 +74,35 @@ def lineage(records: List[dict], syms: Iterable[str]) -> Dict[str, dict]:
     return out
 
 
+def splits_for(sym: str, by_sym: Dict[str, list]) -> list:
+    """A symbol's splits. ⚠️ The vendor's split reference files a class share's events under BOTH spellings
+    (2026-11-18: BF.B's 2004 and 2008 splits under `BF.B`, its 2012 / 2016 / 2018 ones under `BFB`; BF.A's
+    only under `BFA`, HEI.A's only under `HEIA`) while the day files always say `BF.A`. A dotted symbol reads
+    both, one split per execution date (the same event filed twice is never applied twice)."""
+    rows = list(by_sym.get(sym, ()))
+    if "." in sym:
+        seen = {r[0] for r in rows}
+        rows += [r for r in by_sym.get(sym.replace(".", ""), ()) if r[0] not in seen]
+    return sorted(rows)
+
+
 def split_table(lin: dict, t: str, by_sym: Dict[str, list]) -> list:
     """One [[execution_date, ratio], ...] for the whole lineage: each segment's splits inside its window,
     and T's own from `since` on."""
     rows = []
+    own = splits_for(app_to_vendor(t), by_sym)
     for seg in lin["segments"]:
-        rows += [r for r in by_sym.get(seg["sym"], ()) if seg["from"] <= r[0] < seg["until"]]
+        got = [r for r in splits_for(seg["sym"], by_sym) if seg["from"] <= r[0] < seg["until"]]
+        # ⚠️ The vendor files SOME of a renamed company's splits under its CURRENT ticker (2026-11-18: Ball's
+        # 2004 and 2017 2:1 splits sit under BALL, though it traded as BLL until 2022; Balchem's 2006 3:2s
+        # under BCPC, not BCP). Inside a segment's window T's own entries count too, but ONLY when no other
+        # company ever held T (`cut` False): FI's 2021 reverse split is Frank's International's, never Fiserv's.
+        if not lin.get("cut"):
+            seen = {r[0] for r in got}
+            got += [r for r in own if seg["from"] <= r[0] < seg["until"] and r[0] not in seen]
+        rows += got
     since = lin["since"]
-    rows += [r for r in by_sym.get(app_to_vendor(t), ()) if since is None or r[0] >= since]
+    rows += [r for r in own if since is None or r[0] >= since]
     return sorted(rows)
 
 
