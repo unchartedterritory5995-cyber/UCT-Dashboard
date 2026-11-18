@@ -21,7 +21,7 @@ Store readers (RS Rating, the screener build) read the store and are not changed
 WHERE THE DATA COMES FROM. The bars bucket (`DATA_SYNC_*`, the same bucket every service already pulls its
 bars from): `daily-rebuild/manifest.json` names the version, `end` and the served symbols; each symbol is
 `daily-rebuild/v<N>/<SYM>.json.gz`. A background thread syncs them to `<DATA_DIR>/bars_rebuild/` at boot and
-every few hours, manifest LAST, and the local copy is what is served (a restart serves at once, offline).
+every 15 minutes, manifest LAST, and the local copy is what is served (a restart serves at once, offline).
 The rollout widens by publishing a new manifest; no deploy.
 
 KILL SWITCH: `BARS_REBUILD_SERVE=0` (docs/feature_flags.json): nothing is synced, read or served.
@@ -46,7 +46,9 @@ MANIFEST_KEY = PREFIX + "manifest.json"
 #: Added to a rebuilt series' served history_rev, once per manifest version (a different scale from
 #: bars_identity's, so the two epochs never cancel or collide).
 EPOCH_STEP = 10_000_000
-SYNC_EVERY_S = 6 * 3600
+#: One manifest read per interval (a few hundred bytes); series are fetched only when new. A widened or
+#: narrowed rollout reaches every pod within this, with no deploy.
+SYNC_EVERY_S = 15 * 60
 DATE_TFS = ("D", "W", "M")
 _CACHE_MAX = 64
 
