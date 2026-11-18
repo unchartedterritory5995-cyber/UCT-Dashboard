@@ -48,6 +48,7 @@ import math
 import re
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
+from api.services import pine_compare as _pc
 from api.services.nyse_calendar import (
     NYSE_EARLY_CLOSES_YYYYMMDD,
     NYSE_HOLIDAYS_YYYYMMDD,
@@ -1332,7 +1333,8 @@ def _alma_col(series: Sequence[float], n: int, offset: Sequence[float],
     return out
 
 
-def _percentrank_at(series: Sequence[float], i: int, length: int) -> float:
+def _percentrank_at(series: Sequence[float], i: int, length: int,
+                    le: Optional[Callable[[float, float], bool]] = None) -> float:
     """``ta.percentrank(src, length)`` — ``100 * count(prior length bars <=
     current) / length``. NOT expressible via a running ``sum`` (each ``sum``
     term evaluates at its OWN bar; percentrank compares every prior term
@@ -1351,7 +1353,8 @@ def _percentrank_at(series: Sequence[float], i: int, length: int) -> float:
         # uptrick-volatility-weighted-cloud bars 100..141, connors-rsi bar 100).
         if _isnan(v):
             continue
-        if v <= cur:
+        # engine NUMBER PENDING -- ``le`` is ``pine_compare.pine_le`` for Pine's ``ta.percentrank``
+        if (le(v, cur) if le is not None else v <= cur):
             count += 1
     return 100.0 * count / length
 
@@ -1384,7 +1387,7 @@ def _bbw_col(series: Sequence[float], n: int, mult: float) -> List[float]:
     return out
 
 
-def _monotone_col(series: Sequence[float], n: int, rising: bool) -> List[float]:
+def _monotone_col(series: Sequence[float], n: int, rising: bool, pine: bool = False) -> List[float]:
     """``ta.rising`` / ``ta.falling`` -- a CARRIED COUNTER, not a window.
 
     ⛔⛔ THESE WERE FINITE-WINDOW MEMBERS UNTIL 2026-09-08 AND THE FAMILY WAS
@@ -1414,7 +1417,11 @@ def _monotone_col(series: Sequence[float], n: int, rising: bool) -> List[float]:
     prev = NAN
     for i, v in enumerate(series):
         if math.isfinite(v) and math.isfinite(prev):
-            step = (v > prev) if rising else (v < prev)
+            # engine NUMBER PENDING -- Pine's ``ta.rising`` / ``ta.falling`` compare within the epsilon
+            if pine:
+                step = _pc.pine_gt(v, prev) if rising else _pc.pine_lt(v, prev)
+            else:
+                step = (v > prev) if rising else (v < prev)
             count = count + 1 if step else 0
         # else: HOLD -- do not advance, do not reset.
         prev = v
@@ -2128,8 +2135,11 @@ def _r_01(outs: list, na: bool) -> Any:
     return _r_norm(min(outs) if outs else _R_EMPTY_LO, max(outs) if outs else _R_EMPTY_HI, na)
 
 
-def _r_op(name: str, values: list) -> Any:
-    """The interval extension of one operator over at least one range."""
+def _r_op(name: str, values: list, table: Optional[Mapping[str, Any]] = None) -> Any:
+    """The interval extension of one operator over at least one range.
+    ``table`` is the evaluation's own operator table (``binary_for``): its comparisons decide the interval
+    answer through ``pine_compare.compare_range`` (``interpret.js::rangeOp``)."""
+    table = _BINARY if table is None else table
     if name == "u-":
         A = _r_as(values[0])
         return _r_norm(-A[1], -A[0], A[2])
@@ -2149,20 +2159,8 @@ def _r_op(name: str, values: list) -> Any:
     if name in _R_ORDER or name in ("==", "!="):
         can_t, can_f = False, na
         if _r_has_number(A) and _r_has_number(B):
-            point = A[0] == A[1] and B[0] == B[1]
-            overlap = A[0] <= B[1] and B[0] <= A[1]
-            if name == ">":
-                can_t, can_f = A[1] > B[0], can_f or A[0] <= B[1]
-            elif name == "<":
-                can_t, can_f = A[0] < B[1], can_f or A[1] >= B[0]
-            elif name == ">=":
-                can_t, can_f = A[1] >= B[0], can_f or A[0] < B[1]
-            elif name == "<=":
-                can_t, can_f = A[0] <= B[1], can_f or A[1] > B[0]
-            elif name == "==":
-                can_t, can_f = overlap, can_f or not (point and A[0] == B[0])
-            else:
-                can_t, can_f = not (point and A[0] == B[0]), can_f or overlap
+            r = _pc.compare_range(name, (A[0], A[1]), (B[0], B[1]), table)
+            can_t, can_f = r[0], can_f or r[1]
         return _r_01(([0.0] if can_f else []) + ([1.0] if can_t else []), False)
     if not _r_has_number(A) or not _r_has_number(B):
         return _r_norm(_R_EMPTY_LO, _R_EMPTY_HI, na)
@@ -2976,6 +2974,28 @@ FN_V2: Dict[str, Callable[..., List[float]]] = {
 }
 
 
+#: engine NUMBER PENDING (Q-FCMP / Q-FCMP2) -- the twin of ``interpret.js::FN_PINE``: the built-ins whose
+#: inside compares with TradingView's epsilon, for a PINE document only (``opts["pineCompare"]``). Measured
+#: tolerant: ``ta.rising`` / ``ta.falling``, ``ta.percentrank`` and ``ta.dmi``'s legs (DI+ 27.576070967939575
+#: on AMEX:SPY 1D bar 5,333). Every other built-in stays exact, measured; a native document reads ``FN``.
+def _adx_pine(k: int):
+    def leg(h, l, c, n):  # noqa: E741
+        return _bind_shipped(_HLC, (h, l, c), len(c), lambda bars: compute_adx_raw(bars, n, gt=_pc.pine_gt)[k])
+    return leg
+
+
+FN_PINE: Dict[str, Callable[..., List[float]]] = {
+    "rising": lambda series, n: _monotone_col(series, n, True, pine=True),
+    "falling": lambda series, n: _monotone_col(series, n, False, pine=True),
+    "percentrank": lambda series, n: [
+        _percentrank_at(series, i, n, le=_pc.pine_le) if i >= n else NAN for i in range(len(series))
+    ],
+    "adx": _adx_pine(0),
+    "plusDI": _adx_pine(1),
+    "minusDI": _adx_pine(2),
+}
+
+
 # --------------------------------------------------------------------------- #
 # the entries that read the BAR, not a column
 # --------------------------------------------------------------------------- #
@@ -3468,8 +3488,7 @@ if set(BAR_READERS) != set(_BAR_FN):
 # decision and it is the one place JS and Python agree by luck (`NaN > x` is false
 # in both), so it is pinned rather than assumed.
 
-def _cmp(f: Callable[[float, float], bool]) -> Callable[[float, float], float]:
-    return lambda a, b: 0.0 if (_isnan(a) or _isnan(b)) else (1.0 if f(a, b) else 0.0)
+# (the six comparisons and their `na` -> 0 rule live in ``pine_compare.py`` since engine NUMBER PENDING)
 
 
 def _logical(f: Callable[[bool, bool], bool]) -> Callable[[float, float], float]:
@@ -3503,12 +3522,9 @@ _BINARY: Dict[str, Callable[[float, float], float]] = {
     "-": lambda a, b: a - b,
     "*": lambda a, b: a * b,
     "/": _binary_div,
-    ">": _cmp(lambda a, b: a > b),
-    "<": _cmp(lambda a, b: a < b),
-    ">=": _cmp(lambda a, b: a >= b),
-    "<=": _cmp(lambda a, b: a <= b),
-    "==": _cmp(lambda a, b: a == b),
-    "!=": _cmp(lambda a, b: a != b),
+    # engine NUMBER PENDING -- the six are ``pine_compare.EXACT_CMP`` (IEEE, ``na`` -> 0: these entries'
+    # own rule, byte for byte); ``_BINARY_PINE`` below swaps in TradingView's epsilon for a Pine document.
+    **_pc.EXACT_CMP,
     "&&": _logical(lambda a, b: a and b),
     "||": _logical(lambda a, b: a or b),
 }
@@ -3548,9 +3564,22 @@ _BINARY_V2: Dict[str, Callable[[float, float], float]] = dict(
     })
 
 
+#: engine NUMBER PENDING (ruling D1) -- the twin of ``interpret.js::BINARY_PINE``: a Pine document's
+#: evaluation compares with TradingView's absolute epsilon (``pine_compare.PINE_CMP``). Chosen by
+#: ``opts["pineCompare"] is True``, which ``semantics_opts_for`` sets for every Pine document and nothing else.
+_BINARY_PINE: Dict[str, Callable[[float, float], float]] = dict(_BINARY, **_pc.PINE_CMP)
+
+
+def pine_compare_on(opts: Any) -> bool:
+    """``interpret.js::pineCompareOn``."""
+    return isinstance(opts, Mapping) and opts.get("pineCompare") is True
+
+
 def binary_for(opts: Any) -> Dict[str, Callable[[float, float], float]]:
-    """The operator table THIS evaluation reads (``semantics_v2``)."""
-    return _BINARY_V2 if semantics_v2(opts) else _BINARY
+    """The operator table THIS evaluation reads (``semantics_v2``, then the Pine compare)."""
+    if semantics_v2(opts):
+        return _BINARY_V2
+    return _BINARY_PINE if pine_compare_on(opts) else _BINARY
 
 
 _UNARY: Dict[str, Callable[[float], float]] = {
@@ -6010,9 +6039,23 @@ def semantics_for(definition: Any) -> int:
 
 
 def semantics_opts_for(definition: Any) -> dict:
-    """The ``interpret`` opts that carry this document's semantics -- ``{}`` for 1."""
-    return ({"semantics": SEMANTICS_UNKNOWN_PROPAGATES}
-            if semantics_for(definition) == SEMANTICS_UNKNOWN_PROPAGATES else {})
+    """The ``interpret`` opts that carry this document's semantics -- ``{}`` for a native semantics-1
+    document, ``{"semantics": 2}`` for 2, and ``{"pineCompare": True}`` for a Pine document
+    (``user_definitions.is_pine_import``; engine NUMBER PENDING, Q-FCMP / Q-FCMP2, ruling D1).
+    Twin: ``definitionSemantics.js::semanticsOptsFor``."""
+    if semantics_for(definition) == SEMANTICS_UNKNOWN_PROPAGATES:
+        return {"semantics": SEMANTICS_UNKNOWN_PROPAGATES}
+    return pine_compare_opts_for(definition)
+
+
+def pine_compare_opts_for(definition: Any) -> dict:
+    """The two Pine-compare keys this document's evaluation carries -- ``{}`` for every non-Pine document.
+    ONE function for every server lane that builds its own opts (the scan sweep, the rule record, the
+    backtest, the alert lane through ``lane_opts_for``), so none can evaluate a Pine document with IEEE."""
+    from api.services import user_definitions
+    if user_definitions.is_pine_import(definition):
+        return {"pineCompare": True}
+    return {}
 
 
 def lane_opts_for(definition: Any) -> dict:
@@ -7316,6 +7359,9 @@ def _interpret_column(ast: Any, bars: List[dict],
             # ⭐ P0G -- owner decision C (``FN_V2``), semantics 2 only.
             if v2_fn and n["name"] in FN_V2:
                 return FN_V2[n["name"]](*args)
+            # engine NUMBER PENDING -- a Pine document's tolerant built-ins (``FN_PINE``)
+            if pine_compare_on(opts) and n["name"] in FN_PINE:
+                return FN_PINE[n["name"]](*args)
             # ENGINE 56 (S4-2) -- over a price the bar holds, the newest tied bar wins
             if n["name"] in FN_BAR_PRICE_NEWEST and is_bar_price_tree(n["args"][0]):
                 return FN_BAR_PRICE_NEWEST[n["name"]](*args)
@@ -7688,16 +7734,18 @@ def _interpret_column(ast: Any, bars: List[dict],
                     if not isinstance(c, (int, float)) or c != c:
                         return st
                     S = _r_as(st)
+                    # engine NUMBER PENDING: widened by the compare's slack (``interpret.js::refine``)
+                    slack = _pc.compare_slack(binary)
                     below = (op in ("<", "<=")) == branch
-                    lo = S[0] if below else max(S[0], c)
-                    hi = min(S[1], c) if below else S[1]
+                    lo = S[0] if below else max(S[0], c - slack)
+                    hi = min(S[1], c + slack) if below else S[1]
                     na = False
                     if S[2]:
                         k = column_at(ref["nz"], j) if ref["nz"] is not None else NAN
                         if k != k:
                             na = True if ref["nz"] is not None else (not branch)
                         else:
-                            na = (_BINARY[op](k, c) != 0) == branch
+                            na = (binary[op](k, c) != 0) == branch
                     return _r_norm(lo, hi, na)
 
                 def step_range(j: int, state: Any) -> Any:
@@ -7733,7 +7781,7 @@ def _interpret_column(ast: Any, bars: List[dict],
                                 v = (apply_op_step(n, values) if n["type"] == "op"
                                      else _POINTWISE[n["name"]](*values))
                             else:
-                                v = (_r_op(n["name"], values) if n["type"] == "op"
+                                v = (_r_op(n["name"], values, binary) if n["type"] == "op"
                                      else _r_call(n["name"], values))
                         memo[key] = v
                         return v
