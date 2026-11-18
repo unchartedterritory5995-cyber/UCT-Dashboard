@@ -296,9 +296,13 @@ def test_chart_door_function_words_and_refusals_that_stay():
     cheap = dc.plan("color it green when cheap", dc.INDICATOR_KIND, lexicon=conv.CHART_LEXICON)
     assert [n["phrase"] for n in cheap["not_understood"]] == ["cheap"]
     # every phrase is its own unique bucket (a tie would match nothing)
+    # (one of them is the LIBRARY'S since 2026-11-18: an entry that declares the engine function it
+    # is the indicator of takes that function's phrase; tests/test_library_stochastic.py holds the rule)
+    from api.services import named_indicators as ni
+    taken = {alias: e["id"] for e in ni.entries() if e.get("names_function") for alias in e["aliases"]}
     for phrase, key in conv.EXPANSION_PHRASES:
         stems, _ = dc._stem_key(dc._form_tokens(phrase))
-        assert [r["key"] for r in conv.CHART_LEXICON["index"][stems]] == [key]
+        assert [r["key"] for r in conv.CHART_LEXICON["index"][stems]] == [taken.get(phrase, key)]
 
 
 # --------------------------------------------------------------------------- #

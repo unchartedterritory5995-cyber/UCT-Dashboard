@@ -618,3 +618,35 @@ No Pine name was added: the translator has no entry for this function.
 **Its acronym.** DPO is admitted inside Create Indicator, a fifth beside the four above, under the
 same four conditions: it is the initials of this entry's name, of no other indicator UCT knows by
 name, and no word of the product's own.
+
+## Stochastic Oscillator: one entry for fast, slow and full, and a question for which
+
+The 36th entry, and the last name on the list slice 3's measurement produced.
+
+| | |
+|---|---|
+| Formula | %K = `sma(stoch(high, low, close, {K length}), {K smoothing})`; %D = the simple average of %K over `{D smoothing}` bars. K smoothing 1 is the FAST Stochastic, 3 the SLOW one, any other number the FULL one. Defaults 14, 3, 3 |
+| Published definition (tier b) | StockCharts ChartSchool, "Stochastic Oscillator (Fast, Slow, and Full)", read 2026-11-18: %K = (close - lowest low) / (highest high - lowest low) x 100 over 14 periods; Fast %D a 3-period simple average of it; Slow smooths %K by 3 first; Full by X. Credited to George C. Lane |
+| Value check (tier a) | `tests/test_named_indicators_values.py::stochastic_oscillator`: %K worked from the highs, lows and closes bar by bar, against the entry at the defaults and at (21, 1, 5); the fast %K is the textbook %K itself; with the close written first the same call fails |
+| Capture (tier c) | none yet. TradingView's built-in is being captured at (14, 1, 3) and (14, 3, 3); until it is graded the entry says nothing about TradingView |
+
+**Why it had no entry, and what members got.** "Stochastic Oscillator" was already the phrase of the
+engine's raw %K function, so the library could not answer it and the request reached the assistant
+as a bare function. It then built a Stochastic from recollection, and wrote the bar's fields in
+TradingView's order (close first), which this engine reads as a different number on every bar. "Add
+the Stochastic" and "a slow stochastic" were recognised by nothing.
+
+**The full name is the library's now.** An entry may declare the engine function it is the indicator
+of (`names_function`), and takes a phrase held by that function alone. This is the one case in which
+a phrase the lexicon already answers is replaced, and one entry uses it.
+
+**The bare word is never a spelling of it.** "Stochastic" is part of other names (Stochastic RSI,
+Stochastic Momentum Index) and of descriptions ("the stochastic of the RSI"); as a spelling of this
+entry it would answer all of them. The entry's spellings are its full name and "slow", "fast" and
+"full" with it.
+
+**Which one: asked, not assumed.** The slow Stochastic (14, 3, 3) is what members write; the fast one
+(14, 1, 3) is TradingView's default. They are different lines. A request that says neither a kind nor
+any number, by the full name or by the bare word, is asked "Which Stochastic?" (slow listed first),
+with no assistant call. The choice is remembered, used next time, and said each time.
+

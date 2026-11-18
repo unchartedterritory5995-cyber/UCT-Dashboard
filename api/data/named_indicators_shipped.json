@@ -87,6 +87,9 @@
   "squeeze_momentum": {
    "1": "sha256:bcbe0ed27cb47a7a75aac0ce6b172e1e158dc8bdc1a6619db3780edde9e7f911"
   },
+  "stochastic_oscillator": {
+   "1": "sha256:12ff335c48dd5a248a5f3639f13c0af19a61f353513abe200f7f7c796f814ac3"
+  },
   "stochastic_rsi": {
    "1": "sha256:1f81be2d9aa61bd1d5d98f7b80e95d8ffd7275e7472d4e4b62daa4f0d20d47ab"
   },

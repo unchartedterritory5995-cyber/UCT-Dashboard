@@ -1119,6 +1119,25 @@ def _breakout_open(understood: Mapping[str, Any], words: str, numbers: Any) -> b
     return not (understood.get("named") or understood.get("withheld"))
 
 
+#: The bare word, which is no spelling of the library entry (it is part of other names).
+_STOCHASTIC_WORD = re.compile(r"\bstochastics?\b(?!\s+(?:rsi|momentum|of)\b)", re.I)
+_STOCHASTIC_KIND = re.compile(r"\b(?:slow|fast|full)\b", re.I)
+STOCHASTIC_ENTRY = "stochastic_oscillator"
+
+
+def _stochastic_open(understood: Mapping[str, Any], words: str, numbers: Any) -> bool:
+    """⭐ WHICH STOCHASTIC (ruling 2026-11-18). The slow one (14, 3, 3) is what members write; the fast
+    one (14, 1, 3) is TradingView's default. They are different lines, so a request that says
+    neither a kind nor any number is asked. It is the Stochastic OSCILLATOR that is meant: the
+    library entry by name, or the bare word where it is not part of another name."""
+    if numbers or _STOCHASTIC_KIND.search(words):
+        return False
+    named = [e.get("id") for e in understood.get("named") or []]
+    if STOCHASTIC_ENTRY in named:
+        return True
+    return bool(_STOCHASTIC_WORD.search(words)) and not named and not understood.get("withheld")
+
+
 def open_questions(understood: Mapping[str, Any]) -> List[str]:
     """The registry questions this request leaves OPEN, in the order they are asked.
 
@@ -1146,6 +1165,8 @@ def open_questions(understood: Mapping[str, Any]) -> List[str]:
         found.add("benchmark")
     if _breakout_open(understood, words, numbers):
         found.add("breakout_window")
+    if _stochastic_open(understood, words, numbers):
+        found.add("stochastic_kind")
     found.update(open_acronyms(understood))
     return [qid for qid in clarify_registry() if qid in found]
 
@@ -1287,6 +1308,9 @@ def answer_value(question_id: str, answered: Mapping[str, Any], chart: Any) -> O
     if question.get("acronym"):
         label = meant_by(question, after)
         return (values[label], label) if label in values else None
+    if question_id == "stochastic_kind":
+        # the choice tapped, or the plain word for one (`pending_answer` writes its label beside it)
+        return next(((value, label) for label, value in values.items() if label in answered["answer"]), None)
     if question_id == "benchmark":
         # only one of the question's own symbols is kept; any other ticker settles the turn and is not remembered
         named = {t.lower() for t in conversation_preflight.named_tickers(answered["answer"], chart)}
@@ -3533,11 +3557,18 @@ def _chart_lexicon(base: Mapping[str, Any]) -> Dict[str, Any]:
     # answered "not available" and handed the request on. A library name (built, or held and
     # refused by name with the way forward) is the better answer, so it takes that bucket. A
     # bucket holding anything else is still never replaced.
+    # ⭐ AND THE PHRASE OF THE ENGINE FUNCTION IT IS THE INDICATOR OF (2026-11-18): "stochastic
+    # oscillator" was the phrase of the raw %K function, so the one name every member uses for the
+    # indicator reached the assistant as a bare function and was built from recollection. An entry
+    # that declares `names_function` takes a bucket holding ONLY that function. Nothing else.
     for phrase, entry_id in named_indicators.phrases():
         words = dc._form_tokens(phrase)
         stems, cost = dc._stem_key(words)
         if stems in index and not all(r.get("kind") == dc.EXCLUDED_ENTRY for r in index[stems]):
-            continue
+            mine = (named_indicators.entry(entry_id) or {}).get("names_function")
+            if not (mine and all(r.get("kind") == dc.TABLE_ENTRY and r.get("section") == ast_table.FUNCTIONS_SECTION
+                                 and r.get("key") == mine for r in index[stems])):
+                continue
         index[stems] = [{"kind": dc.TABLE_ENTRY, "key": entry_id, "section": named_indicators.SECTION,
                          "words": words, "cost": cost}]
     # ⭐ THE WITHHELD NAMES (`indicator_names.withheld_spellings`): each is a term, so the planner's

@@ -152,7 +152,8 @@ def test_what_the_library_claims_about_tradingview_is_what_was_graded():
     about TradingView, each for a stated reason: the McGinley Dynamic (UCT's 300-bar restart of the
     same formula is not bar-equal) and the Directional Movement Index (one floating-point tie on
     one bar of 8,509). Four are not TradingView built-ins and have no capture (the Laguerre pair
-    among them: TradingView ran OUR equations for those, which is not a grade against its own)."""
+    among them: TradingView ran OUR equations for those, which is not a grade against its own).
+    One IS a built-in and waits for its capture: the Stochastic Oscillator, on two tiers until then."""
     grade = {e["id"]: (e["evidence"]["capture"] or {}).get("grade") for e in ni.entries()}
     assert sorted(i for i, g in grade.items() if g == "EQUAL") == sorted([
         "awesome_oscillator", "chaikin_money_flow", "choppiness_index", "coppock_curve", "elder_ray",
@@ -181,7 +182,9 @@ def test_what_the_library_claims_about_tradingview_is_what_was_graded():
                                    "FORMULA EQUAL, ONE ROUNDING TIE DIFFERS"}
     assert grade["kaufman_adaptive_moving_average"] is None and grade["squeeze_momentum"] is None
     assert grade["laguerre_filter"] is None and grade["laguerre_rsi"] is None
-    assert sum(1 for g in grade.values() if g is None) == 4 and len(grade) == 35
+    assert grade["stochastic_oscillator"] is None and not ni.tiers(ENTRIES["stochastic_oscillator"])[2]
+    assert "TradingView" not in ni.member_sentence(ENTRIES["stochastic_oscillator"], ni.defaults(ENTRIES["stochastic_oscillator"]))
+    assert sum(1 for g in grade.values() if g is None) == 5 and len(grade) == 36
     assert not ni.tiers(ENTRIES["mcginley_dynamic"])[2] and "TradingView" not in ni.member_sentence(ENTRIES["mcginley_dynamic"], {})
     assert ni.tiers(ENTRIES["connors_rsi"])[2] and ni.tiers(ENTRIES["vortex_indicator"])[2]
 
