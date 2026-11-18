@@ -4636,6 +4636,14 @@
       "limit": "600/minute",
       "method": "GET",
       "params": "",
+      "path": "/api/research/treasury-yields",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
       "path": "/api/risk-summary",
       "rate_limit_family": "member-workspace",
       "tier": "paid"
@@ -5621,6 +5629,14 @@
       "method": "GET",
       "params": "graph=False, engine",
       "path": "/api/user-definitions",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/user-definitions/assistant-memory",
       "rate_limit_family": "screener",
       "tier": "paid"
     },
