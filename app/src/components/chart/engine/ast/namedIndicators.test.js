@@ -48,6 +48,10 @@ function differences(a, b, at = []) {
 // twelve, as the build tool's own pool has (tools/named_indicators_build.py): Know Sure Thing has nine settings
 const INT_PROBES = [211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271]
 const FLOAT_PROBES = [1.43, 2.43, 3.43, 4.43, 5.43, 6.43]
+// For a setting whose own range ends below those (a share between 0 and 1, such as the Laguerre
+// pair's gamma): a function that checks its argument refuses 1.43, and no place would be found.
+const SMALL_FLOAT_PROBES = [0.143, 0.243, 0.343, 0.443, 0.543, 0.643]
+const inside = (p, v) => (p.min === undefined || v >= p.min) && (p.max === undefined || v <= p.max)
 
 describe('the named-indicator library and the shipped parser', () => {
   it('is not empty, and every entry has text, a tree and sites for each output', () => {
@@ -72,7 +76,13 @@ describe('the named-indicator library and the shipped parser', () => {
       it(`${e.id}.${o.key}: other numbers land at exactly the stored sites`, () => {
         let ints = 0
         let floats = 0
-        const probes = Object.fromEntries(e.params.map((p) => [p.key, p.integer ? INT_PROBES[ints++] : FLOAT_PROBES[floats++]]))
+        let small = 0
+        const floatProbe = (p) => {
+          const v = FLOAT_PROBES[floats++]
+          return inside(p, v) ? v : SMALL_FLOAT_PROBES[small++]
+        }
+        const probes = Object.fromEntries(e.params.map((p) => [p.key, p.integer ? INT_PROBES[ints++] : floatProbe(p)]))
+        for (const p of e.params) expect(inside(p, probes[p.key]) || p.integer, `${p.key}: a probe outside its own range`).toBe(true)
         const byValue = new Map(Object.entries(probes).map(([k, v]) => [v, k]))
         const found = {}
         for (const [where, value] of differences(o.tree, written(at(o.formula, probes)))) {

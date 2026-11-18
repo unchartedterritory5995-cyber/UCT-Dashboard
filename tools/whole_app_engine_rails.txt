@@ -12,6 +12,8 @@
 # (HISTORY_WINDOW_BARS, Pine's history window) became a pine heavy trigger, which leaves these 68.
 # 2026-11-18: + ast/namedIndicators.test.js, which reads api/data/named_indicators.json (the named-indicator
 # library): a PR that changes the library and never touches the engine must run it.
+# 2026-11-18: + pineCompareCensus.test.js, which walks app/src for every `interpret()` call site and its declared
+# comparison role (Pine's tolerant compare): a new call site anywhere in the app must run it.
 src/components/chart/engine/__tests__/bindSymbolFields.rail.test.js
 src/components/chart/engine/__tests__/controlDoorCensus.test.js
 src/components/chart/engine/__tests__/dataSourcesRevalidate.test.jsx
@@ -38,6 +40,7 @@ src/components/chart/engine/__tests__/primitiveGate.test.js
 src/components/chart/engine/__tests__/r1StoreWriterCensus.test.js
 src/components/chart/engine/__tests__/runtimeObjectsSchemaParity.test.js
 src/components/chart/engine/__tests__/runtimeSwitchOn.test.js
+src/components/chart/engine/__tests__/secondaryLiveTail.test.jsx
 src/components/chart/engine/__tests__/secondarySourcesRevalidate.test.jsx
 src/components/chart/engine/__tests__/settingsBlobMigration.test.js
 src/components/chart/engine/__tests__/singleWriterIndex.test.js
@@ -69,6 +72,7 @@ src/components/chart/engine/hostKnownDivergence.test.js
 src/components/chart/engine/lineIdentity.test.js
 src/components/chart/engine/nativeRegistry.test.js
 src/components/chart/engine/paneLayout.test.js
+src/components/chart/engine/pineCompareCensus.test.js
 src/components/chart/engine/runtime/__tests__/brokerPinsLock.test.js
 src/components/chart/engine/runtime/__tests__/hostNeutralClosure.rail.test.js
 src/components/chart/engine/runtime/__tests__/i6aN4BlockIndent.test.js

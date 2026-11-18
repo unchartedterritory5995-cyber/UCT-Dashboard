@@ -245,7 +245,12 @@ def composed_schema() -> Dict[str, Any]:
         "those plain words; never describe how it is computed. fisher(length) is the Fisher "
         "Transform as UCT's checked library holds it (its trigger line is offset 1 of the same "
         "call): its first 300 bars of history have no value. Never write a Fisher Transform out "
-        "by hand. The others are exact closed forms over the table.")
+        "by hand. laguerre(source, gamma) is the Laguerre Filter and laguerreRsi(source, gamma) "
+        "the Laguerre RSI (0 to 1, not 0 to 100), as UCT's checked library holds them: gamma is "
+        "a plain number above 0 and at most 0.95 (the filter's usual is 0.8 over the bar's "
+        "midpoint, the RSI's 0.5 over the close), and the first bars of history have no value. "
+        "Never write a Laguerre filter out by hand. The others are exact closed forms over the "
+        "table.")
     # ⭐ SLICE 2 — THE MODEL MUST SAY WHAT ITS TURN IS. Optional in the shared
     # engine file (older envelopes and the engine's own tests carry none); required
     # of the model here, so mutation is never inferred from which fields happen to
@@ -684,7 +689,10 @@ CONVERSE_SYSTEM_PROMPT = (
     "question naming the options (for example a shorter length, or a different "
     "average), optionally with 2-4 `choices`. Never pick the number yourself.\n"
     "  * unsupported: the request needs something not offered here. Emit `ops: []` and "
-    "say so plainly in `reply`; you may suggest what IS possible. Never substitute "
+    "say so plainly in `reply`, in one sentence. Then offer, in one more sentence, the "
+    "CLOSEST THING TO WHAT WAS ASKED that can be built: the same indicator without the part "
+    "that cannot be written (one side of it only, a fixed length where a computed one was "
+    "asked), before naming any other indicator. Offer it, do not build it. Never substitute "
     "something different.\n"
     "    ANOTHER SYMBOL: a request that reads a symbol other than the chart's own "
     "(\"only when SPY's RSI is above 50\", \"use QQQ's close\") is a change written "
@@ -800,13 +808,14 @@ CONVERSE_SYSTEM_PROMPT = (
     "with `supertrendDirection` (TradingView's sign: -1 while the trend is UP, 1 while it is "
     "DOWN), and `sar(step, maxStep)` with `sarDirection` (1 while the dots are under price, -1 "
     "while they are above). \"SuperTrend 10, 3\" is ATR period 10 and factor "
-    "3: supertrend(3, 10). Nothing else can read its own earlier value: there is no name for "
-    "that, and a window is always a literal whole number, never a computed one (\"since it was "
-    "last hit\" is not a window). A stop or level that ratchets -- it only moves one way until "
-    "price crosses it -- and is not one of those two cannot be written: set disposition "
-    "unsupported, say it needs a line that remembers its own earlier value, and offer what can "
-    "be built instead: SuperTrend, Parabolic SAR, or a line a fixed distance under the highest "
-    "close of a FIXED window.\n"
+    "3: supertrend(3, 10). A window is always a literal whole number, never a computed one "
+    "(\"since it was last hit\" is not a window). A stop or level that only ever moves ONE way "
+    "(a stop that only rises under price, or only falls above it) is a RUNNING VALUE: write it "
+    "with accum, below. A stop that FLIPS to the other side when price crosses it, and is not "
+    "one of those two functions, cannot be written: set disposition unsupported, say in one "
+    "sentence that it would have to switch sides, and offer the same stop on ONE side (the "
+    "long side that only rises, or the short side that only falls) first, then SuperTrend or "
+    "Parabolic SAR.\n"
     "  A length the member gives in weeks, months or years is that much TIME, never that many "
     "bars of the chart: read it on that timeframe (\"over 52 weeks\" is 52 bars INSIDE a `tf` W "
     "read; a whole indicator in weeks is set_calculation_timeframe W), or, for a price extreme, "
@@ -1061,6 +1070,45 @@ _CROSS_SETTLED = re.compile(
     r"\b(?:close|closes|closed|closing|touch|touches|touched|intraday|intrabar|wick|wicks|trades?\s+through|high|low)\b", re.I)
 
 
+# ⭐ SLICE F (2026-11-18): TWO MORE CHOICES THAT CHANGE THE MATHS. Measured before they were written,
+# with these rules, over the 400 first requests on file: 14 use the words for relative strength or a
+# comparison with the market and 13 already settle it (most name the symbol); 2 use the words for a
+# breakout or a new high and 1 names its span. So each question is asked of one request in 400. Until
+# now the first was asked by the assistant in its own words (a paid call, nothing remembered) and the
+# second was the assistant's guess.
+#: Words that ask for a comparison with the market.
+_BENCHMARK_WORD = re.compile(
+    r"\b(?:relative strength|rs line|rs rating|relative performance|out-?perform\w*|under-?perform\w*|"
+    r"(?:versus|vs\.?|against|relative to|compared (?:to|with)|stronger than|weaker than|beat(?:s|ing)?|lag(?:s|ging)?) "
+    r"the (?:market|index))", re.I)
+#: A comparison the choices cannot answer (a sector, an industry, its peers), and the oscillator
+#: whose name merely holds the words: neither is this question's.
+_BENCHMARK_NOT_OURS = re.compile(r"\b(?:sector|industry|group|peers?|theme|relative strength index)\b", re.I)
+#: Words that ask for a breakout.
+_BREAKOUT_WORD = re.compile(r"\b(?:break(?:s|ing)?[ -]?outs?|broke out|new highs?|new lows?)\b", re.I)
+#: What a breakout is FROM, or the span it is over, said in words: then the level is that thing's.
+_BREAKOUT_SETTLED = re.compile(
+    r"\b(?:range|squeeze|bands?|channel|average|trend ?line|resistance|support|base|consolidation|pivot|vwap|cloud|"
+    r"(?:bull|bear|tight) flag|flag pattern|pennant|triangle|wedge|all[- ]time|ath|year|yearly|month|monthly|week|weekly|day|daily|session|opening|prior|"
+    r"previous|yesterday|earnings|gap)\b", re.I)
+
+
+def _benchmark_open(understood: Mapping[str, Any], words: str) -> bool:
+    """Relative strength, or a comparison with the market, and no symbol to compare with."""
+    if not _BENCHMARK_WORD.search(words) or _BENCHMARK_NOT_OURS.search(words):
+        return False
+    if understood.get("named") or understood.get("withheld") or understood.get("other_sym"):
+        return False
+    return not conversation_preflight.named_tickers(words, {"sym": understood.get("chart_sym")})
+
+
+def _breakout_open(understood: Mapping[str, Any], words: str, numbers: Any) -> bool:
+    """A breakout or a new high, with no number and nothing named that it breaks out of."""
+    if not _BREAKOUT_WORD.search(words) or _BREAKOUT_SETTLED.search(words) or numbers:
+        return False
+    return not (understood.get("named") or understood.get("withheld"))
+
+
 def open_questions(understood: Mapping[str, Any]) -> List[str]:
     """The registry questions this request leaves OPEN, in the order they are asked.
 
@@ -1084,6 +1132,10 @@ def open_questions(understood: Mapping[str, Any]) -> List[str]:
         found.add("average_length")
     if _CROSS_WORD.search(words) and _PRICE_WORD.search(words) and not _CROSS_SETTLED.search(words):
         found.add("cross_meaning")
+    if _benchmark_open(understood, words):
+        found.add("benchmark")
+    if _breakout_open(understood, words, numbers):
+        found.add("breakout_window")
     found.update(open_acronyms(understood))
     return [qid for qid in clarify_registry() if qid in found]
 
@@ -1211,12 +1263,12 @@ def answer_value(question_id: str, answered: Mapping[str, Any], chart: Any) -> O
         if chosen is None and any(e.get("id") == "kaufman_adaptive_moving_average" for e in after.get("named") or []):
             chosen = "kama"
         return next(((chosen, label) for label, value in values.items() if value == chosen), None)
-    if question_id == "average_length":
+    if question.get("number"):
         mine = (understand_turn(answered["answer"], chart).get("notes") or {}).get("member_numbers") or []
         number = mine[0].get("value") if mine else None
         if isinstance(number, (int, float)) and not isinstance(number, bool) and float(number).is_integer() \
                 and 1 <= number <= 960:
-            return int(number), str(int(number))
+            return int(number), _number_label(question, int(number))
         return None
     if question_id == "cross_meaning":
         said = answered["answer"].lower()
@@ -1225,6 +1277,10 @@ def answer_value(question_id: str, answered: Mapping[str, Any], chart: Any) -> O
     if question.get("acronym"):
         label = meant_by(question, after)
         return (values[label], label) if label in values else None
+    if question_id == "benchmark":
+        # only one of the question's own symbols is kept; any other ticker settles the turn and is not remembered
+        named = {t.lower() for t in conversation_preflight.named_tickers(answered["answer"], chart)}
+        return next(((value, label) for label, value in values.items() if value in named), None)
     return None
 
 
@@ -1314,10 +1370,13 @@ def offered_first(question: Dict[str, Any], memory: Any, usual: Any = None) -> D
     offered the question says why, in one more sentence."""
     entry = clarify_registry()[question["id"]]
     kept = memory.choice(question["id"]) if memory is not None and entry.get("remember") == "offer" else None
-    first: List[Tuple[str, str]] = [(kept["label"], f"{kept['label']} {LAST_MARK}")] if kept else []
+    # (a remembered number is shown as the choice that says more about it, where there is one)
+    mine = next((c for c in question["choices"] if kept and _leading_number(c) == _leading_number(kept["label"])
+                 and _leading_number(c) is not None), kept["label"] if kept else None)
+    first: List[Tuple[str, str]] = [(mine, f"{mine} {LAST_MARK}")] if kept else []
     habit = usual if isinstance(usual, Mapping) else {}
     for label in habit.get("labels") or []:
-        if label in question["choices"] or question["id"] == "average_length":
+        if label in question["choices"] or entry.get("number"):
             if all(label != have for have, _shown in first):
                 first.append((label, f"{label} {USUAL_MARK}"))
     if not first:
@@ -1338,13 +1397,26 @@ def offered_first(question: Dict[str, Any], memory: Any, usual: Any = None) -> D
 MEMORY_LENGTH_RANGE = (1, 960)
 
 
+def _leading_number(label: Any) -> Optional[int]:
+    """The whole number a choice starts with ("252 (about 52 weeks)" is 252), or None."""
+    found = re.match(r"\d+", str(label or ""))
+    return int(found.group()) if found else None
+
+
+def _number_label(question: Mapping[str, Any], number: int) -> str:
+    """How a number is shown for a number question: the choice that IS that number where there is
+    one (it may say more: "252 (about 52 weeks)"), else the number."""
+    return next((c for c in question.get("choices") or [] if _leading_number(c) == number), str(number))
+
+
 def memory_choices(question_id: str) -> List[Dict[str, Any]]:
     """The choices a member may keep for one question, as {label, value}."""
     question = clarify_registry()[question_id]
     values = question.get("values")
     if values:
         return [{"label": label, "value": values[label]} for label in question["choices"]]
-    return [{"label": label, "value": int(label)} for label in question["choices"] if label.isdigit()]
+    return [{"label": label, "value": _leading_number(label)} for label in question["choices"]
+            if _leading_number(label) is not None]
 
 
 def usual_sentence(question_id: str, definitions: Any) -> Optional[str]:
@@ -1377,7 +1449,7 @@ def memory_view(memory: Any, definitions: Any = None) -> Dict[str, Any]:
             "use": ("Used without asking, and said each time." if question.get("remember") == "default"
                     else "Asked each time, with yours listed first."),
             "choices": memory_choices(qid),
-            "any_number": qid == "average_length",
+            "any_number": bool(question.get("number")),
             "remembered": None if not mine else {
                 "label": mine["label"], "value": mine["value"], "last": mine["last"], "times": mine["times"],
                 "from": mine["from"]},
@@ -1391,11 +1463,11 @@ def set_memory(memory: Any, question_id: Any, value: Any) -> bool:
     question = clarify_registry().get(question_id) if isinstance(question_id, str) else None
     if question is None or isinstance(value, bool):
         return False
-    if question_id == "average_length":
+    if question.get("number"):
         lo, hi = MEMORY_LENGTH_RANGE
         if not isinstance(value, (int, float)) or not float(value).is_integer() or not (lo <= value <= hi):
             return False
-        return memory.remember(question_id, int(value), str(int(value)), source="settings")
+        return memory.remember(question_id, int(value), _number_label(question, int(value)), source="settings")
     label = next((c["label"] for c in memory_choices(question_id) if c["value"] == value), None)
     return label is not None and memory.remember(question_id, value, label, source="settings")
 
@@ -4314,7 +4386,9 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
             "not_understood": not_understood, "unavailable": unavailable,
             "terms": understanding.get("terms") or [], "named": named, "own_words": own_words,
             "withheld": withheld_in(understanding.get("terms")),
-            "member_names": list(member_names or [])}
+            "member_names": list(member_names or []),
+            # the chart's own symbol: naming it is not naming something to compare WITH
+            "chart_sym": chart.get("sym") if isinstance(chart, Mapping) else None}
 
 
 def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,

@@ -540,7 +540,17 @@ export function createPrefetch(o = {}) {
     // a key the lake cannot carry (no lake, D/W/M, a replay window, found exhausted) answers at once:
     // nothing waits on the cache read for it
     if (!S().lakeCarries?.(key)) return Promise.resolve(false)
-    return Promise.resolve(after).catch(() => {})
+    // ⭐ THE CACHE READ GOES FIRST, BUT FOR AT MOST HYDRATE_WAIT_MS (2026-11-18). Measured live (MDB 1h,
+    // never opened): the lake's pieces were in the browser at 862 ms, but the IDB read the load waited
+    // for answered at ~1,240 ms (the list warm writes to the same database), and the depth joined then.
+    // A read that answers within the bound still lands first (never overtaken); a later one is merged
+    // by the reducer's rule (applyLocal: a saved copy after the lake joins it only on a proven basis,
+    // otherwise replaces it). The same bound the handoff gives the read before it asks the server.
+    const bounded = Promise.race([
+      Promise.resolve(after).catch(() => {}),
+      new Promise((resolve) => setTimer(resolve, HYDRATE_WAIT_MS)),
+    ])
+    return bounded
       .then(() => S().lakeSeed?.(key) ?? false)
       .catch(() => false)
   }

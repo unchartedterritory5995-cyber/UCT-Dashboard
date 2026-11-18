@@ -81,37 +81,6 @@
    "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of average-day-range-adr-pivots-spy-1d-2026-11-15 DIVERGE (MATCH, or INCONCLUSIVE by name)"
   },
   {
-   "slug": "contraction-box-doji-lines",
-   "sha256": "e1800075f68502a1c26be72510646ffdb68967581c0aa2ada3b54c6d19155cf3",
-   "title": "Contraction Box & Doji Lines",
-   "source": "corpus/committed/contraction-box-doji-lines__1486658151.pine",
-   "reason": "on a captured AMEX:SPY 1D chart (capture contraction-box-doji-lines-spy-1d-2026-10-03) it draws something that differs from TradingView: lines count of lines held: TradingView 204, ours 205",
-   "evidence": {
-    "diverge": [
-     {
-      "capture": "contraction-box-doji-lines-spy-1d-2026-10-03",
-      "symbol": "AMEX:SPY",
-      "timeframe": "1D",
-      "kind": "drawn",
-      "firstDiverging": "lines count of lines held: TradingView 204, ours 205"
-     },
-     {
-      "capture": "contraction-box-doji-lines-spy-1d-2026-11-15",
-      "symbol": "AMEX:SPY",
-      "timeframe": "1D",
-      "kind": "drawn",
-      "firstDiverging": "lines count of lines held: TradingView 200, ours 201"
-     }
-    ],
-    "match": [
-     "contraction-box-doji-lines-rddt-1d-2026-09-28",
-     "contraction-box-doji-lines-rddt-1d-2026-11-15"
-    ],
-    "inconclusive": []
-   },
-   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of contraction-box-doji-lines-spy-1d-2026-10-03, contraction-box-doji-lines-spy-1d-2026-11-15 DIVERGE (MATCH, or INCONCLUSIVE by name)"
-  },
-  {
    "slug": "ema-ribbon-trend-filter-strixedge",
    "sha256": "66efe6b7bddbb2c216d663bae3ff4f35d91c23e92baa1e1f2c1153565e6aaf90",
    "title": "EMA Ribbon Trend Filter [StrixEDGE]",

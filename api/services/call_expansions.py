@@ -72,6 +72,15 @@ def _mom(a: List[Any]) -> Optional[Dict[str, Any]]:
     return _op("-", [a[0], {"type": "offset", "value": n, "args": [a[0]]}])
 
 
+def _dpo(a: List[Any]) -> Optional[Dict[str, Any]]:
+    """The Detrended Price Oscillator, TradingView's default (not centred) form: the source minus
+    its n-bar simple average as it stood floor(n / 2) + 1 bars ago (`callExpansions.js::dpo`)."""
+    n = _window(a[1], 1)
+    if n is None:
+        return None
+    return _op("-", [a[0], {"type": "offset", "value": n // 2 + 1, "args": [_call("sma", [a[0], _num(n)])]}])
+
+
 def _vwma(a: List[Any]) -> Optional[Dict[str, Any]]:
     n = _window(a[1], 1)
     if n is None:
@@ -344,10 +353,100 @@ def _fisher(a: List[Any]) -> Optional[Dict[str, Any]]:
     return fisher_tree(a[0])
 
 
+#: ⭐ NUMBER PENDING (studio, 2026-11-18) -- the Laguerre Filter and the Laguerre RSI,
+#: `callExpansions.js::laguerreStage` mirrored node for node. What they are, how the restart
+#: window is sized from gamma and what they were graded against is said there, once.
+LAGUERRE_MAX_GAMMA = 0.95
+LAGUERRE_WARMUPS = ((0.5, 64), (0.7, 128), (0.8, 192), (0.9, 400), (0.95, 800))
+#: A source may not itself be a running value: one never sits inside another.
+_RUNNING_NAMES = ("accum", "accum2", "accum3", "accum4", "supertrend", "supertrendDirection", "sar", "sarDirection",
+                  "fisher", "laguerre", "laguerreRsi")
+
+
+def _gamma(node: Any) -> Optional[float]:
+    if not isinstance(node, Mapping) or node.get("type") != "num":
+        return None
+    v = node.get("value")
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or v != v:
+        return None
+    return v if 0 < v <= LAGUERRE_MAX_GAMMA else None
+
+
+def laguerre_warmup(gamma: float) -> Optional[int]:
+    for most, bars in LAGUERRE_WARMUPS:
+        if gamma <= most:
+            return bars
+    return None
+
+
+def _holds_running_value(node: Any) -> bool:
+    stack = [node]
+    while stack:
+        n = stack.pop()
+        if isinstance(n, Mapping):
+            if n.get("type") == "call" and n.get("name") in _RUNNING_NAMES:
+                return True
+            stack.extend(n.get("args") or [])
+    return False
+
+
+def laguerre_stage(source: Any, gamma_node: Any, which: int) -> Optional[Dict[str, Any]]:
+    g = _gamma(gamma_node)
+    if g is None or not isinstance(source, Mapping) or _holds_running_value(source):
+        return None
+    warmup = laguerre_warmup(g)
+
+    def st(i: int) -> Dict[str, Any]:
+        return _series(f"state{i}")
+
+    def l0() -> Dict[str, Any]:
+        return _op("+", [_op("*", [_op("-", [_num(1), _num(g)]), source]), _op("*", [_num(g), st(1)])])
+
+    def nxt(now: Dict[str, Any], was: Dict[str, Any], own: Dict[str, Any]) -> Dict[str, Any]:
+        return _op("+", [_op("-", [was, _op("*", [_num(g), now])]), _op("*", [_num(g), own])])
+
+    def l1() -> Dict[str, Any]:
+        return nxt(l0(), st(1), st(2))
+
+    def l2() -> Dict[str, Any]:
+        return nxt(l1(), st(2), st(3))
+
+    def l3() -> Dict[str, Any]:
+        return nxt(l2(), st(3), st(4))
+
+    return _call("accum4", [_num(which), _num(warmup), source, source, source, source, l0(), l1(), l2(), l3()])
+
+
+def _laguerre(a: List[Any]) -> Optional[Dict[str, Any]]:
+    if laguerre_stage(a[0], a[1], 1) is None:
+        return None
+
+    def L(k: int) -> Dict[str, Any]:
+        return laguerre_stage(a[0], a[1], k)
+
+    total = _op("+", [_op("+", [_op("+", [L(1), _op("*", [_num(2), L(2)])]), _op("*", [_num(2), L(3)])]), L(4)])
+    return _op("/", [total, _num(6)])
+
+
+def _laguerre_rsi(a: List[Any]) -> Optional[Dict[str, Any]]:
+    if laguerre_stage(a[0], a[1], 1) is None:
+        return None
+
+    def L(k: int) -> Dict[str, Any]:
+        return laguerre_stage(a[0], a[1], k)
+
+    def gap(i: int) -> Dict[str, Any]:
+        return _call("abs", [_op("-", [L(i), L(i + 1)])])
+
+    gaps = _op("+", [_op("+", [gap(1), gap(2)]), gap(3)])
+    return _op("+", [_num(0.5), _op("/", [_op("*", [_num(0.5), _op("-", [L(1), L(4)])]), gaps])])
+
+
 #: name -> (min args, max args, signature, builder). Same order and words as the JS module.
 CALL_EXPANSIONS: Dict[str, tuple] = {
     "roc": (2, 2, "roc(source, length)", _roc),
     "mom": (2, 2, "mom(source, length)", _mom),
+    "dpo": (2, 2, "dpo(source, length)", _dpo),
     "vwma": (2, 2, "vwma(source, length)", _vwma),
     "linreg": (2, 3, "linreg(source, length, offset = 0)", _linreg),
     "correlation": (3, 3, "correlation(source1, source2, length)", _correlation),
@@ -362,6 +461,8 @@ CALL_EXPANSIONS: Dict[str, tuple] = {
     "sar": (2, 2, "sar(step, maxStep)", _sar_part("value")),
     "sarDirection": (2, 2, "sarDirection(step, maxStep)", _sar_part("direction")),
     "fisher": (1, 1, "fisher(length)", _fisher),
+    "laguerre": (2, 2, "laguerre(source, gamma)", _laguerre),
+    "laguerreRsi": (2, 2, "laguerreRsi(source, gamma)", _laguerre_rsi),
 }
 
 EXPANSION_NAMES = tuple(CALL_EXPANSIONS)
@@ -393,7 +494,11 @@ def expansion_problem(name: str, n_args: int) -> str:
                 f"computed from a bounded window of recent bars was measured to drift from the "
                 f"full-history SAR there; the chart's Parabolic SAR indicator runs from the "
                 f"first bar and takes any setting")
-    tail = " of at least 2" if name in ("linreg", "correlation") else ""
+    if name in ("laguerre", "laguerreRsi"):
+        return (f"{name} needs a gamma written as a number above 0 and at most {LAGUERRE_MAX_GAMMA} "
+                f"(above that the filter does not settle within the bars a chart formula may reach), and a "
+                f"source that is not itself a running value -- {sig}")
+    tail = " of at least 2" if name in ("linreg", "correlation", "fisher") else ""
     return f"{name} needs a whole-number length{tail} written as a number -- {sig}"
 
 

@@ -33,6 +33,7 @@ function phraseOf(hit, scope, named) {
     case 'vwma': return `the ${n}-bar volume-weighted average of ${say(a0)}`
     case 'roc': return `the ${n}-bar rate of change of ${say(a0)}, in percent`
     case 'mom': return `the ${n}-bar momentum of ${say(a0)}`
+    case 'dpo': return `the ${n}-bar Detrended Price Oscillator of ${say(a0)}`
     case 'kcMiddle': return `the ${n}-bar Keltner Channel middle line of ${say(a0)}`
     case 'kcUpper':
     case 'kcLower': return `the ${hit.name === 'kcUpper' ? 'upper' : 'lower'} Keltner Channel band of ${say(a0)} (${n} bars, ${say(a2)} × the average true range)`
@@ -43,6 +44,10 @@ function phraseOf(hit, scope, named) {
     case 'supertrendDirection': return `the Supertrend direction (factor ${fmt(numOf(a0))}, ${n}-bar ATR; −1 up, 1 down)`
     case 'sar': return `the Parabolic SAR (step ${fmt(numOf(a0))}, maximum ${n})`
     case 'sarDirection': return `the Parabolic SAR trend (step ${fmt(numOf(a0))}, maximum ${n}; 1 up, −1 down)`
+    // 2026-11-18: the functions that stand for linked running values read as the indicator they are
+    case 'fisher': return `the ${fmt(numOf(a0))}-bar Fisher Transform`
+    case 'laguerre': return `the Laguerre Filter of ${say(a0)} (gamma ${n})`
+    case 'laguerreRsi': return `the Laguerre RSI of ${say(a0)} (gamma ${n}; 0 to 1)`
     default: return hit.name
   }
 }

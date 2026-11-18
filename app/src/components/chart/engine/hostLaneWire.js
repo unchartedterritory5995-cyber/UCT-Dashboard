@@ -87,9 +87,11 @@ export function unpackRows(pack) {
  *  ⭐ RS RATING L11 — `requestCode` and `below` are the RUN's request (`runtime/requestSupply.js` sets
  *  them per request; the host lane's context never holds them): carried all the same, so a context
  *  that holds one answers the same on both threads, and one that does not stays without it (only a
- *  defined field is imaged, and `otherSymbols` asks `hasOwnProperty`). */
+ *  defined field is imaged, and `otherSymbols` asks `hasOwnProperty`). `chartNewestDay` (L11 PR 2) is
+ *  the chart's newest day, which `astColumnsFor` derives from the rows themselves (`withChartNewestDay`)
+ *  on whichever thread runs it: carried for the same reason, never needed. */
 export const HOST_CTX_FIELDS = Object.freeze(['tf', 'newestBarIsForming', 'historyFromListing', 'barIndexFromFirstBar', 'framed',
-  'requestCode', 'below'])
+  'requestCode', 'below', 'chartNewestDay'])
 /** The context fields that cross by their own rule (not plain). `workSink` is the headless export's
  *  counter and never on a chart's context. */
 export const HOST_CTX_CARRIED = Object.freeze(['symbol', 'secondary', 'exchangeOf', 'lowerTf', 'workSink'])

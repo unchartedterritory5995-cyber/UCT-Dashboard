@@ -8718,8 +8718,13 @@ export default function StockChart({
   // (a timeframe flip) re-ran it (measured 10-09, sandbox; OPEN-FINDINGS §6).
   // `useLowerTfSources` below takes `userDefsGeneration` for the same reason.
   const _otherSymbolsRevalidate = useMemo(() => ({ csView, userDefsGeneration }), [csView, userDefsGeneration])
+  // ⭐⭐ RS RATING L11 PR 2 — whether THIS chart's newest bar is forming, for the other-symbol live tail
+  // (`useSecondarySources.liveTailTick`): written below where the bars payload is bound (`data`), read at
+  // each tick through a stable getter, so it never re-runs the hook's effect
+  const _chartFormingRef = useRef(null)
+  const _chartFormingOf = useCallback(() => _chartFormingRef.current, [])
   const secondarySources = useSecondarySources(
-    _storedInstances, _defOf, resolvedTf, barCount, instFetcher, _otherSymbolsRevalidate)
+    _storedInstances, _defOf, resolvedTf, barCount, instFetcher, _otherSymbolsRevalidate, _chartFormingOf)
   // ⭐ C26 — our store's exchange for each other symbol a Pine document reads
   // (`request.security("AMEX:SPY", …)`), so the bind can match the spelling.
   const otherSymbolExchangeOf = useOtherSymbolExchanges(_storedInstances, _defOf, _otherSymbolsRevalidate)
@@ -8814,6 +8819,8 @@ export default function StockChart({
     _intradayDeepBackfillEnabled, _intradaySmoothSwitchEnabled, _persistHistorySoon,
     barsSwrOnErrorRetry, fetcher, _storeDevRef, _storeDevPaintRef,
   })
+  // ⭐⭐ RS RATING L11 PR 2 — the chart's own forming flag, for the other-symbol live tail (declared above)
+  _chartFormingRef.current = data?.newest_bar_is_forming === true
   // Mirror the exact array the drawing overlay indexes (its `bars` prop) so the
   // Ctrl+drag trendline below maps x → bar time the SAME way toChart does — its
   // point.time is then guaranteed to resolve in the overlay's timeToIndex.

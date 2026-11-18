@@ -249,6 +249,10 @@ const STRATEGY_CAPTURE_ROWS = Object.freeze({
   'w9-q-s1b-v4-shape-a-rddt-1d-2026-11-17': 'Q-S1b',
   'w9-q-s1b-v4-shape-b-rddt-1d-2026-11-17': 'Q-S1b',
   'w9-q-s1i-funds-rddt-1d-2026-11-17': 'Q-S1i',
+  // the community strategy (supertrend-strategy, corpus/committed, MPL-2.0), held out of the e73 filing while step 7
+  // could not pair a source's bound plots (#1770), re-filed at the engine that draws its fill anchor (#1788)
+  'supertrend-strategy-rddt-1d-2026-11-17': 'Q-SD1',
+  'supertrend-strategy-alab-1d-2026-11-17': 'Q-SD2',
 })
 
 function committedReportCaptures() {

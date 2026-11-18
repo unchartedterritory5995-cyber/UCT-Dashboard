@@ -1,6 +1,6 @@
 {
  "contract": "uct.converse-eval.cases/1",
- "_": "CLARIFY FIRST, as cases (Studio, 2026-11-18; owner direction: \"always clarify\"). The door asks its own questions (api/data/clarify_questions.json) with no model call when a choice that changes the maths is not settled, one at a time, and reads the member's answer as their first words plus the answer. Each registry question has a case: the request that leaves it open is ASKED (no model call, nothing built), and one of its own choices, sent as the next message, BUILDS in one call. `clarify-kind-then-length` leaves two open: both are asked, in order, and the build is one call. `clarify-nothing-open` says everything and is never asked. The three `clarify-acronym-*` cases are letters that could mean two indicators (DMI, ADL, AD): asked which, never guessed. The two `remembered-*` cases set what the member chose before (`remembers`) and hold the answer to what it must SAY (`says`): the door's 'as you chose before' sentence beside the assistant's own note, and beside a library build. If a later change to the instructions or the planner stops a question, or stops a choice from settling it, a case here fails.",
+ "_": "CLARIFY FIRST, as cases (Studio, 2026-11-18; owner direction: \"always clarify\"). The door asks its own questions (api/data/clarify_questions.json) with no model call when a choice that changes the maths is not settled, one at a time, and reads the member's answer as their first words plus the answer. Each registry question has a case: the request that leaves it open is ASKED (no model call, nothing built), and one of its own choices, sent as the next message, BUILDS in one call. `clarify-kind-then-length` leaves two open: both are asked, in order, and the build is one call. `clarify-nothing-open` says everything and is never asked. The three `clarify-acronym-*` cases are letters that could mean two indicators (DMI, ADL, AD): asked which, never guessed. The two `remembered-*` cases set what the member chose before (`remembers`) and hold the answer to what it must SAY (`says`): the door's 'as you chose before' sentence beside the assistant's own note, and beside a library build. If a later change to the instructions or the planner stops a question, or stops a choice from settling it, a case here fails. `clarify-benchmark` and `clarify-breakout-window` (slice F): relative strength with no symbol is asked which symbol, and a breakout with no number how many bars back; one of the question's own choices then builds in one call.",
  "chart": {
   "sym": "TEST",
   "tf": "D"
@@ -458,6 +458,108 @@
               {
                "type": "series",
                "name": "volume"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "clarify-benchmark",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Show relative strength",
+     "model_expected": false,
+     "expect": {
+      "kind": "clarify",
+      "max_model_calls": 0
+     }
+    },
+    {
+     "words": "S&P 500 (SPY)",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "op",
+         "name": "/",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "sym",
+           "value": "SPY",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "clarify-breakout-window",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Mark breakouts",
+     "model_expected": false,
+     "expect": {
+      "kind": "clarify",
+      "max_model_calls": 0
+     }
+    },
+    {
+     "words": "50",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "offset",
+           "value": 1,
+           "args": [
+            {
+             "type": "call",
+             "name": "highest",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "num",
+               "value": 50
               }
              ]
             }

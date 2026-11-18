@@ -168,6 +168,7 @@ import { compileMessagePattern, tostringPatternOf, literalTostringText } from '.
 // keeps paying for. The exchange-witness map lives there too: it is consulted per
 // BINDING, which is not a question a door that runs once per script can answer.
 import { TEXT_PREDICATE_FN, foldScalar } from './bind.js'
+import { constCompareFold, pineCompareAmbiguous, constantTreeValue } from '../pineCompare.js'
 // ⭐ THE SHARED WINDOW PREDICATE — from `parse.js`, the one module the SAVE
 // door, the bind stage and the repaint LINTER can all see. See L2 in
 // `bindFoldableAgreement.test.js` for why it cannot live beside the fold.
@@ -6073,6 +6074,9 @@ function nzWrappedBarssince(node) {
  *  answer on exactly the bars it matters most (a symbol with no pivot yet),
  *  so this returns false and the script stays honestly refused. */
 function nzSentinelSound(op, sentinel, k) {
+  // ⭐ engine 78 (#1858) — a sentinel within Pine's epsilon of `k` compares differently under the exact and
+  // the tolerant rule, so the rewrite is not proven sound there
+  if (pineCompareAmbiguous(sentinel, k)) return false
   const impliedTrue = op === '>' || op === '>='
   let actual
   if (op === '<') actual = sentinel < k
@@ -9933,6 +9937,50 @@ export class Resolver {
   }
 
   /** The `var x = <seed>` + `x := …` binding behind a plain name, or null. */
+  /** ⭐⭐ engine 78 (#1858) (Q-FCMP2) — THE v1-v4 COMPILE-TIME COMPARISON. TradingView's v1-v4 compiler
+   *  compares two compile-time CONSTANTS exactly (the form twins' T50; vw-fcmp-const-v4 C01-C04, C10-C14:
+   *  literals, named literals, sums of them, a function or a `?:` that yields one, int against float), while
+   *  an input, a series or a reassigned name is compared at run time, tolerantly (C05-C09), as is everything
+   *  in v5 / v6. `pineCompare.js::constCompareFold` answers the rule; this proves the operands:
+   *    · each RESOLVED side is a constant expression — numbers and `+ - * /` over them, nothing else (a
+   *      declared input is a `series` leaf here, a bar read a `series`, a call a `call`); and
+   *    · no NAME either PINE side reads is reassigned (`this.mutated`: `rv := …` folds to its last value in
+   *      the resolved tree, and Pine compares it at run time) or bound to an input call (an undeclared input
+   *      also resolves to its literal).
+   *  The 0/1, or `null` (nothing to fold: the run's own compare answers). */
+  constCompareOf(mapped, node, rl, rr) {
+    if (!['>', '<', '>=', '<=', '==', '!='].includes(mapped)) return null
+    const a = constantTreeValue(rl)
+    const b = constantTreeValue(rr)
+    if (a === null || b === null) return null
+    const fold = constCompareFold(mapped, a, b, this.pineVersion)
+    if (fold === null) return null
+    const seen = new Set()
+    const runtimeName = (n, env, depth = 0) => {
+      if (!n || typeof n !== 'object' || depth > 64) return false
+      if (Array.isArray(n)) return n.some((x) => runtimeName(x, env, depth + 1))
+      if (n.type === 'name' && typeof n.name === 'string') {
+        if (this.mutated.has(n.name)) return true
+        const bound = env && typeof env.get === 'function' ? env.get(n.name) : undefined
+        if (bound && bound.kind === 'expr' && bound.node) {
+          if (bound.node.type === 'call' && typeof bound.node.name === 'string'
+            && (bound.node.name === 'input' || bound.node.name.startsWith('input.'))) return true
+          if (seen.has(bound)) return false
+          seen.add(bound)
+          return runtimeName(bound.node, bound.env instanceof Map ? bound.env : env, depth + 1)
+        }
+        return false
+      }
+      for (const [key, v] of Object.entries(n)) {
+        if (key === 'tok' || key === 'binding' || !v || typeof v !== 'object') continue
+        if (runtimeName(v, env, depth + 1)) return true
+      }
+      return false
+    }
+    if (runtimeName(node.left, this.env) || runtimeName(node.right, this.env)) return null
+    return fold
+  }
+
   stateBindingOf(node) {
     if (!node || node.type !== 'name') return null
     const b = this.env.get(node.name)
@@ -11637,10 +11685,17 @@ export class Resolver {
         if (probed) {
           const pl = this.resolveProbed(node.left, probed)
           const pr = this.resolveProbed(node.right, probed)
+          // ⭐⭐ engine 78 (#1858) — the v1-v4 constant fold, on this path too (`constCompareOf`)
+          const constFoldP = this.constCompareOf(mapped, node, pl, pr)
+          if (constFoldP !== null) return cNum(constFoldP)
           return boolNaOperator(mapped, pl, pr, this.pineVersion, foldLogicalIdentity(mapped, pl, pr, this.table), node.left, node.right)
         }
         const rl = this.resolve(node.left)
         const rr = this.resolve(node.right)
+        // ⭐⭐ engine 78 (#1858) (Q-FCMP2) — v1-v4 compare two COMPILE-TIME CONSTANTS exactly; everything
+        // else (and v5 / v6) is the run's tolerant compare. See `constCompareOf`.
+        const constFold = this.constCompareOf(mapped, node, rl, rr)
+        if (constFold !== null) return cNum(constFold)
         return boolNaOperator(mapped, rl, rr, this.pineVersion, foldLogicalIdentity(mapped, rl, rr, this.table), node.left, node.right)
       }
       case 'ternary': {
@@ -14135,12 +14190,14 @@ export class Resolver {
       const lowerWhy = lower ? ` Below the chart's own timeframe: ${lower.why}.` : ''
       // ⭐ RS RATING L11 (Q-RS7 R3) — this chart's own symbol read at "D" on a weekly chart is served for a
       // bare `close` only (`dailyOnWeeklyTargetOf`); anything else is named here, not as a resample.
-      if (code === 'D' && this.basePeriod === 'W' && this.ownSymbolNameOf(positional[0]) !== null) {
+      // ⭐ L13 (Q-RS-M) — a monthly chart the same.
+      if (code === 'D' && (this.basePeriod === 'W' || this.basePeriod === 'M') && this.ownSymbolNameOf(positional[0]) !== null) {
+        const period = this.basePeriod === 'W' ? 'week' : 'month'
         return {
-          why: 'on a weekly chart a daily read of this chart’s own symbol is served for a bare `close` only '
-            + '(a week’s last daily close is its weekly close: witnessed on NYSE:RDDT 1W, capture-queue row '
-            + 'Q-RS7); this one reads another expression or looks ahead, which needs the symbol’s daily bars, '
-            + 'and a weekly chart holds none beside its own weekly bars.',
+          why: `on a ${period}ly chart a daily read of this chart’s own symbol is served for a bare \`close\` only `
+            + `(a ${period}’s last daily close is its close: witnessed on NYSE:RDDT 1W and 1M, capture-queue rows `
+            + 'Q-RS7 and Q-RS-M); this one reads another expression or looks ahead, which needs the symbol’s daily bars, '
+            + `and a ${period}ly chart holds none beside its own ${period}ly bars.`,
         }
       }
       if (code && !TF_RESAMPLABLE.includes(code)) {
@@ -14852,10 +14909,11 @@ export class Resolver {
         })
         folded = code
         code = null
-      } else if (code === 'D' && this.basePeriod === 'W') {
+      } else if (code === 'D' && (this.basePeriod === 'W' || this.basePeriod === 'M')) {
         // ⭐⭐ RS RATING L11 (Q-RS7) — A DAILY READ ON A WEEKLY CHART (`dailyOnWeeklyTargetOf`):
         // this chart's own `close` (R3), or another symbol's daily series held and sampled per
         // week by the supply (R2 / R4); anything else declines as it always did.
+        // ⭐ L13 (Q-RS-M) — and on a MONTHLY chart, per month (R3 witnessed 32 of 32 RDDT months).
         return this.dailyOnWeeklyTargetOf(node, args, placed, positional, own, other, venue)
       } else if (isLowerTfRequest(code, this.basePeriod)) {
         // ⭐⭐ C41 — A TIMEFRAME BELOW THE CHART'S OWN. Whether it is served is
@@ -14921,7 +14979,7 @@ export class Resolver {
         column: node.tok ? node.tok.column : null,
         requested: 'D',
         base: this.basePeriod,
-        foldedTo: 'the chart’s own close (a week’s last daily close is its weekly close)',
+        foldedTo: `the chart’s own close (a ${this.basePeriod === 'M' ? 'month' : 'week'}’s last daily close is its ${this.basePeriod === 'M' ? 'monthly' : 'weekly'} close)`,
       })
       return { own, other: null, venue: null, code: null, live: false, positional, folded: this.basePeriod }
     }
@@ -20677,13 +20735,19 @@ function staticBinary(op, l, r, truncate = null) {
       if (truncate === false) return { n: a / b }
       return Number.isInteger(a / b) ? { n: a / b } : null
     }
-    case '<': return { b: a < b }
-    case '>': return { b: a > b }
-    case '<=': return { b: a <= b }
-    case '>=': return { b: a >= b }
+    // ⭐ engine 78 (#1858) — two numbers equal only within Pine's epsilon are NOT static here: the exact
+    // and the tolerant answer differ, and which one the script meant depends on its version and on whether
+    // they are constants (`pineCompare.js::constCompareFold`). The dynamic path decides it.
+    case '<': return pineCompareAmbiguous(a, b) ? null : { b: a < b }
+    case '>': return pineCompareAmbiguous(a, b) ? null : { b: a > b }
+    case '<=': return pineCompareAmbiguous(a, b) ? null : { b: a <= b }
+    case '>=': return pineCompareAmbiguous(a, b) ? null : { b: a >= b }
     default: return null
   }
 }
+/** ⭐ engine 78 (#1858) — `staticBinary` for its rail only (`pineCompareSites.test.js`: an ambiguous pair is
+ *  not static). No product caller. */
+export const __staticBinaryForTests = (op, l, r, truncate = null) => staticBinary(op, l, r, truncate)
 /** A string one occurrence of which can overlap the next (a prefix that is also a suffix). */
 const selfOverlaps = (t) => { for (let k = 1; k < t.length; k += 1) if (t.slice(0, k) === t.slice(t.length - k)) return true; return false }
 function staticBuiltin(name, v) {
@@ -23883,6 +23947,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (node.op === '==' || node.op === '!=') {
         const r = staticEnumValue(node.right, scope, frame, depth + 1)
         if (!r) return null
+        // ⭐ engine 78 (#1858) — and two numbers equal only within the epsilon are not static (`staticBinary`)
+        if ('n' in l && 'n' in r && pineCompareAmbiguous(l.n, r.n)) return null
         const eq = staticKey(l) === staticKey(r)
         return { b: node.op === '==' ? eq : !eq }
       }

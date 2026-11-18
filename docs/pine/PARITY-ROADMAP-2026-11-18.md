@@ -1341,6 +1341,12 @@ Probe rows this page adds (no sample script stands for them):
   visual` on AMEX:SPY 5m and NYSE:RDDT 5m, at its default (`D`) and at its weekly option (`W`): its four
   `request.security` reads of the chart's own symbol at a higher timeframe the intraday chart does not hold. The
   binding capture; its 1D captures witness only the identity case.
+- **Q-FCMP3-1 / -2** (Pine's tolerant compare, engine 78 (#1858), `feat/pine-tolerant-compare-engine`; flagged
+  until read, coordinator ruling 2026-11-18): `tools/visual_conformance/probes/vw-fcmp-arrays.pine` on AMEX:SPY 1D
+  from the listing and NYSE:RDDT 1D. `array.lastindexof` and `array.binary_search` / `_leftmost` / `_rightmost` are
+  UNMEASURED near a tie and stay EXACT in the engine until these rows are read (no change from today). If they read
+  tolerant, they move onto `pineCompare.js` as `array.indexof` / `array.includes` did. Request:
+  `docs/pine/capture-queue-2026-11-18-float-tolerance-form.md`, section Q-FCMP3.
 
 ## 8. The machine twin and its rail
 

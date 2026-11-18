@@ -25,6 +25,7 @@ import crypto from 'node:crypto'
 import REQUEST_WITNESSES from '../../requestWitnesses.json'
 import { witnessedBarsOf } from '../../otherSymbols'
 import { isoDay } from '../../ast/interpret'
+import { isTradingDay, sessionAt, closeTime } from '../../../../../lib/marketClock/sessionCalendar.js'
 import { recordedSupplyOf, runOurSideWithSupply } from './ourSide'
 
 const HARNESS_DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
@@ -149,6 +150,77 @@ export function otherSymbolUnsettledOf(capture, { dir = HARNESS_DIR } = {}) {
         }))
       },
     }
+  }
+  return null
+}
+
+// ─── SUPPLY BEHIND THE CAPTURE (coordinator ruling, 2026-11-18) ──────────────────────────────────────
+//
+// A capture whose newest bar is FORMING read another symbol's newest session. When the supply recorded beside
+// it was recorded EARLIER and holds no row of that session, our side cannot answer that bar from it: no rule
+// reproduces a value the supply does not contain. That ONE bar grades INCONCLUSIVE by name and the plot's
+// verdict follows from the other bars (`compare.mjs`, `behindBars`; the counterfactual compare gets the same
+// mask). ⛔ Only the newest bar, only when it is forming, only when the supply's newest held row is STRICTLY
+// before the session the capture read, and only for a symbol whose witness row is aligned by exchange
+// session (`SUPPLY_BEHIND_ALIGNMENTS`: a row per NYSE session; a sparse series such as the RS seed,
+// `same-date-gaps-na`, is stale by design and never qualifies). The session is derived from the capture's own
+// `capturedAtUTC` and the NYSE calendar (`lib/marketClock/sessionCalendar.js`), never guessed.
+// ⚰️ MEASURED (2026-11-18): rs-rating-fred6724-w-{rddt,nvda}-1w-2026-11-17 were captured 2026-11-17T21:16Z
+// beside an SPX supply recorded 2026-11-16T23:13Z (newest row 2026-11-16). TradingView's forming week read
+// the 2026-11-17 close (7340.53); ours read the previous week's 7561.67 (37.8408 / 36.7341 = 7561.67 / 7340.53).
+
+/** Witness-row alignments that hold a row per exchange session (see the header). */
+export const SUPPLY_BEHIND_ALIGNMENTS = new Set(['previous-session'])
+
+const ET_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' })
+
+/** The NYSE session a capture taken at `capturedAtUTC` read as its newest, 'YYYY-MM-DD', or null: that ET day
+ *  when it is a trading day whose regular session had opened (in session, after the close, or later that
+ *  evening), else the trading day before it. */
+export function sessionReadAt(capturedAtUTC) {
+  const ms = Date.parse(String(capturedAtUTC || ''))
+  if (!Number.isFinite(ms)) return null
+  const day = ET_DAY.format(new Date(ms))
+  if (isTradingDay(day)) {
+    const s = sessionAt(ms)
+    const close = closeTime(day)
+    if (s === 'rth' || s === 'post' || (close && ms >= close.getTime())) return day
+  }
+  let t = Date.parse(`${day}T12:00:00Z`)
+  for (let k = 0; k < 15; k += 1) {
+    t -= 86400000
+    const d = new Date(t).toISOString().slice(0, 10)
+    if (isTradingDay(d)) return d
+  }
+  return null
+}
+
+/** The pure rule: a supply-behind record, or null (see the header). */
+export function supplyBehindRecord({ capturedAtUTC, newestBarIsForming, symbol, alignment, newestRowDay, recordedAtUTC = null }) {
+  if (newestBarIsForming !== true || !SUPPLY_BEHIND_ALIGNMENTS.has(alignment)) return null
+  const session = sessionReadAt(capturedAtUTC)
+  if (!session || typeof newestRowDay !== 'string' || !(newestRowDay < session)) return null
+  return {
+    symbol, recordedAtUTC, newestRow: newestRowDay, session, capturedAtUTC,
+    sentence: `the ${symbol} supply recorded beside this capture (recorded ${recordedAtUTC || 'at an unstated time'}, `
+      + `newest row ${newestRowDay}) predates session ${session}, which this capture's forming newest bar read `
+      + `(captured ${capturedAtUTC}): our side cannot answer that bar from it`,
+  }
+}
+
+/** SUPPLY BEHIND THE CAPTURE for one capture: the record of the first recorded supply symbol it applies to, or null. */
+export function supplyBehindOf(capture) {
+  if (!capture || capture.newestBarIsForming !== true) return null
+  let rec
+  try { rec = recordedSupplyOf(capture) } catch { return null }
+  if (!rec || !rec.other) return null
+  for (const [store, e] of Object.entries(rec.other)) {
+    if (!e || !Array.isArray(e.bars) || !e.bars.length) continue
+    const row = witnessRowFor(store)
+    if (!row) continue
+    const r = supplyBehindRecord({ capturedAtUTC: capture.capturedAtUTC, newestBarIsForming: capture.newestBarIsForming,
+      symbol: store, alignment: row.alignment, newestRowDay: isoDay(e.bars[e.bars.length - 1].t), recordedAtUTC: e.recordedAtUTC || null })
+    if (r) return r
   }
   return null
 }

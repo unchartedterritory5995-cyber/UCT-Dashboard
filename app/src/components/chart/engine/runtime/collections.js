@@ -28,6 +28,7 @@ import { buildMapFns, isMap, MAP_WRITES } from './maps.js'
 import { RuntimeLimitError } from './limits.js'
 import { isDrawingHandle } from './handles.js'
 import { isUdtRecord } from './records.js'
+import { pineEq } from '../pineCompare.js'
 import { buildMatrixFns, isMatrix, MATRIX_WRITES } from './matrices.js'
 
 export class CollectionError extends Error {
@@ -354,7 +355,20 @@ const unmeasuredReduction = (name) => ({
  *  equals `na` here. ⛔ JS `Array#includes` would answer TRUE (SameValueZero);
  *  both members compare with `indexOf`'s strict equality, under which NaN
  *  matches nothing — the measured answer. */
-const indexOfValue = (arr, v) => ((typeof v === 'number' && Number.isNaN(v)) ? -1 : arr.indexOf(v))
+//  ⭐⭐ engine 78 (#1858) (Q-FCMP2 vw-fcmp-builtins-v2 B27 / B28 / Z12): a NUMBER is found where it is equal
+//  within TradingView's epsilon (`pineCompare.js::pineEq`): `array.indexof([1.0, 2.0], 1 + 3e-14)` is 0 and
+//  `array.includes` true, at 9e-11 too. Text, colours and handles keep strict equality. ⛔ `array.lastindexof`
+//  is NOT changed: no capture has read it, and a built-in is not the operator rule (crossover, sort and max
+//  stay exact, measured).
+const indexOfValue = (arr, v) => {
+  if (typeof v !== 'number') return arr.indexOf(v)
+  if (Number.isNaN(v)) return -1
+  for (let i = 0; i < arr.length; i += 1) {
+    const x = arr[i]
+    if (typeof x === 'number' && x === x && pineEq(x, v)) return i
+  }
+  return -1
+}
 
 /** ⭐⭐ C11 — THE MEMBERS THE NINE C11 SCRIPTS WRITE, each Pine's documented
  *  behaviour and nothing inferred. ⛔ `array.slice` is deliberately ABSENT: its

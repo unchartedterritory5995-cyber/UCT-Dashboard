@@ -743,6 +743,98 @@
     "disposition": "clarify",
     "reply": ""
    }
+  ],
+  "clarify-benchmark#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Added relative strength against SPY: the close divided by SPY's close.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Relative strength vs SPY",
+      "placement": "pane",
+      "primary": "rs",
+      "outputs": [
+       {
+        "key": "rs",
+        "tree": {
+         "type": "op",
+         "name": "/",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "sym",
+           "value": "SPY",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "clarify-breakout-window#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Marked closes above the highest high of the 50 bars before.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Close above 50 bar high",
+      "placement": "price",
+      "primary": "breakout",
+      "outputs": [
+       {
+        "key": "breakout",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "offset",
+           "value": 1,
+           "args": [
+            {
+             "type": "call",
+             "name": "highest",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "num",
+               "value": 50
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
   ]
  }
 }
