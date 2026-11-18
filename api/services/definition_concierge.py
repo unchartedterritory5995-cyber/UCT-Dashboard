@@ -69,6 +69,7 @@ import os
 import re
 import threading
 from datetime import datetime
+from decimal import Decimal
 from types import MappingProxyType
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 from zoneinfo import ZoneInfo
@@ -1063,6 +1064,11 @@ def _assert_textop_within_schema(node: Mapping[str, Any], defs: Mapping[str, Any
 
 
 _SPELLABLE = re.compile(r"^-?[0-9]+(\.[0-9]+)?$")
+#: The smallest positive number both lanes write without an exponent (the browser's own limit).
+SMALLEST_SPELLABLE = 1e-6
+SMALLEST_SPELLABLE_TEXT = "0.000001"
+#: The largest number both lanes write alike (2^53, the browser's last exact whole number).
+LARGEST_SPELLABLE = 2 ** 53
 
 
 def _spell_number(value: Any) -> str:
@@ -1087,12 +1093,32 @@ def _spell_number(value: Any) -> str:
             "schema:number",
             f"{value!r} -- a negative literal is written as a unary-minus node, "
             "because that is the only shape the parser can produce")
+    if value > LARGEST_SPELLABLE:
+        # ⭐ THE OTHER END, found while fixing the small one. Past 2^53 the two lanes write a whole
+        # number DIFFERENTLY: Python prints its exact digits ("123456789012345683968"), the browser
+        # its shortest digits and zeros ("123456789012345680000"), and from 1e21 an exponent.
+        raise _Refused(
+            "schema:number",
+            f"{value!r} -- a number this large is written differently by the browser; "
+            f"nothing past {LARGEST_SPELLABLE} can be written in a formula")
     if isinstance(value, float) and value.is_integer():
         text = str(int(value))
     else:
         text = str(value)
+        if "e-" in text and value >= SMALLEST_SPELLABLE:
+            # ⭐ THE TWO LANES AGREE HERE, AND ONLY THEIR NOTATION DIFFERS (2026-11-18). Python
+            # switches to an exponent below 0.0001 ("1e-06"); ECMAScript's String(n) does not until
+            # below 0.000001 ("0.000001"). Both print the same shortest digits, so in between the
+            # browser's spelling is those digits written out. Found live: an assistant keeps a
+            # division off zero with 0.000001, and every such answer was refused twice.
+            # `tests/test_number_spelling.py` holds this to the browser's own String(n).
+            text = format(Decimal(text), "f")
     if not _SPELLABLE.match(text):
-        raise _Refused("schema:number", f"{value!r} spells as {text!r}")
+        raise _Refused(
+            "schema:number",
+            f"{value!r} spells as {text!r} -- write it as a plain decimal no smaller than "
+            f"{SMALLEST_SPELLABLE_TEXT} and with no exponent; to keep a division off zero, test the "
+            "divisor instead of adding a tiny number to it")
     return text
 
 

@@ -7387,6 +7387,178 @@
    ]
   },
   {
+   "id": "laguerre_filter",
+   "name": "Laguerre Filter",
+   "aliases": [
+    "laguerre filter",
+    "ehlers laguerre filter",
+    "laguerre filter indicator"
+   ],
+   "placement": "overlay",
+   "params": [
+    {
+     "key": "gamma",
+     "label": "Gamma",
+     "default": 0.8,
+     "min": 0.01,
+     "max": 0.95,
+     "integer": false
+    }
+   ],
+   "outputs": [
+    {
+     "key": "filter",
+     "label": "Laguerre Filter",
+     "type": "value",
+     "formula": "laguerre((high + low) / 2, {gamma})",
+     "says": "four smoothing stages of the bar's midpoint, averaged with weights 1, 2, 2 and 1",
+     "tree": {
+      "type": "call",
+      "name": "laguerre",
+      "args": [
+       {
+        "type": "op",
+        "name": "/",
+        "args": [
+         {
+          "type": "op",
+          "name": "+",
+          "args": [
+           {
+            "type": "series",
+            "name": "high"
+           },
+           {
+            "type": "series",
+            "name": "low"
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 2
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 0.8
+       }
+      ]
+     },
+     "sites": {
+      "gamma": [
+       [
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::laguerre_filter",
+    "published": {
+     "by": "John Ehlers (as published by MotiveWave)",
+     "url": "https://docs.motivewave.com/studies/k-l",
+     "sources": [
+      {
+       "title": "MotiveWave Studies: Laguerre Filter",
+       "url": "https://docs.motivewave.com/studies/k-l",
+       "kind": "reference"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "MotiveWave's page, crediting Ehlers ('Time Warp - Without Space Travel'): l0 = alpha x price + (1 - alpha) x the previous l0; l1 = -(1 - alpha) x l0 + the previous l0 + (1 - alpha) x the previous l1, and l2 and l3 the same one stage on; the filter is (l0 + 2 x l1 + 2 x l2 + l3) / 6. Price is the midpoint and alpha is 0.2 by default; a missing previous value is read as the price.",
+     "note": "Written with Ehlers' own gamma, the share each stage KEEPS: gamma is 1 - the page's alpha, so the default 0.8 is the page's 0.2. It is the function laguerre(source, gamma), four linked running values. Every one of them is a plain-number mix of the four, so where they started provably stops mattering; they are restarted a number of bars back that is sized from gamma (192 at 0.8), and a chart's first bars up to that number have no value. A gamma above 0.95 is not offered: the filter then remembers further back than a chart formula may reach. TradingView has no Laguerre Filter of its own; this engine's restart was checked against TradingView running these same equations carried from the first bar (equal on every bar to 1 part in a quadrillion), which is evidence about the restart, not a second opinion on the equations."
+    },
+    "capture": null
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:3c4b4bf980ac37564d40e883c217f80e85bb88ab4989b78c0fe98d9ec93c3b16",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "laguerre_rsi",
+   "name": "Laguerre RSI",
+   "aliases": [
+    "laguerre rsi",
+    "ehlers laguerre rsi",
+    "laguerre rsi indicator"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "gamma",
+     "label": "Gamma",
+     "default": 0.5,
+     "min": 0.01,
+     "max": 0.95,
+     "integer": false
+    }
+   ],
+   "outputs": [
+    {
+     "key": "lrsi",
+     "label": "Laguerre RSI",
+     "type": "value",
+     "formula": "laguerreRsi(close, {gamma})",
+     "says": "of the gaps between four smoothing stages of the close, the share where an earlier stage is on top",
+     "tree": {
+      "type": "call",
+      "name": "laguerreRsi",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "num",
+        "value": 0.5
+       }
+      ]
+     },
+     "sites": {
+      "gamma": [
+       [
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::laguerre_rsi",
+    "published": {
+     "by": "John Ehlers (as published by MotiveWave)",
+     "url": "https://docs.motivewave.com/studies/k-l",
+     "sources": [
+      {
+       "title": "MotiveWave Studies: Laguerre RSI",
+       "url": "https://docs.motivewave.com/studies/k-l",
+       "kind": "reference"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "MotiveWave's page, crediting Ehlers ('Time Warp - Without Space Travel'): l0 = (1 - gamma) x price + gamma x the previous l0; l1 = -gamma x l0 + the previous l0 + gamma x the previous l1, and l2 and l3 the same one stage on. For each neighbouring pair of stages the gap between them goes to cu when the earlier stage is at or above the later one and to cd otherwise; rsi = cu / (cu + cd) when that sum is not 0. Price is the close and gamma is 0.5 by default.",
+     "note": "The page does not say that cu and cd start from 0 on each bar; this entry takes them so (carried instead, they would be running totals and the result would not be an oscillator). It runs 0 to 1, as published, not 0 to 100. It is the function laguerreRsi(source, gamma), written as 0.5 + 0.5 x (l0 - l3) / (the sum of the three gaps' sizes): the gaps telescope, so that is cu / (cu + cd), the same number. The four linked running values are a plain-number mix of each other, so where they started provably stops mattering; they are restarted a number of bars back that is sized from gamma (64 at 0.5). A gamma above 0.95 is not offered. TradingView has no Laguerre RSI of its own; this engine's restart was checked against TradingView running these same equations carried from the first bar (equal on every bar to 2 parts in 100 billion), which is evidence about the restart, not a second opinion on the equations."
+    },
+    "capture": null
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:766d1ab76b4e17f1c86692e01cf43789c3497e0a3f65fdd0421400eb4c9c5c52",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
    "id": "fisher_transform",
    "name": "Fisher Transform",
    "aliases": [

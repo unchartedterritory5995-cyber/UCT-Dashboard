@@ -190,6 +190,8 @@ from api.services.pine_capabilities import (  # noqa: E402
     FEATURES, KEYWORD_FEATURE, METHOD_CALL_RX, PINE_JS, conditional_ta_in, engine_order_calls, features_of,
     join_continuations, order_calls_in, strip_code, usage_of, version_of,
 )
+# ⭐ the kill list's ONE rule (a held kill kills nothing), the server's own (`runtime_killed_hashes` below reads it)
+from api.services.runtime_definitions import kill_entry_is_served  # noqa: E402
 
 
 class Inventory:
@@ -352,7 +354,9 @@ def runtime_killed_hashes(path=RUNTIME_KILLLIST):
     ⛔ Fails LOUD when unreadable: a census that silently read "nothing is killed" would count every
     killed script as served, which is the defect this exists to stop."""
     with open(path, encoding="utf-8") as f:
-        return {e["sha256"] for e in json.load(f)["scripts"]}
+        # ⭐ (2026-11-18) a HELD kill (`status: pending`) kills nothing, by the server's ONE rule
+        # (`runtime_definitions.kill_entry_is_served`): the door still draws the script, so it still transfers
+        return {e["sha256"] for e in json.load(f)["scripts"] if kill_entry_is_served(e)}
 
 
 def is_runtime_killed(src, killed):

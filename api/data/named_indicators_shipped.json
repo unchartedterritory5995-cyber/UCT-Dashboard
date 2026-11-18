@@ -53,6 +53,12 @@
   "know_sure_thing": {
    "1": "sha256:369ce2136a66978afa1e88dc9f46c36ca58b9f644f4edab6094341f791a8af8b"
   },
+  "laguerre_filter": {
+   "1": "sha256:3c4b4bf980ac37564d40e883c217f80e85bb88ab4989b78c0fe98d9ec93c3b16"
+  },
+  "laguerre_rsi": {
+   "1": "sha256:766d1ab76b4e17f1c86692e01cf43789c3497e0a3f65fdd0421400eb4c9c5c52"
+  },
   "mass_index": {
    "1": "sha256:fc7dae0155197a50974582ffd9774ab0f9ef50080792e5ec3d9c5d54c17b0734"
   },

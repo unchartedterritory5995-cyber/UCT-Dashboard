@@ -15,6 +15,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { fisherTree, FISHER_WARMUP, FISHER_NOTE } from './callExpansions'
+import { laguerreStage, laguerreWarmup, LAGUERRE_WARMUPS, LAGUERRE_MAX_GAMMA, expansionProblem } from './callExpansions'
+import { describeTree } from '../../builder/authoring/expansionWords'
 
 const pineTree = (body) => {
   const out = translatePine(`//@version=5\nindicator("t")\n${body}\n`)
@@ -104,6 +106,96 @@ describe('fisher(length): the Fisher Transform, NUMBER PENDING', () => {
     expect(CALL_EXPANSIONS.fisher.signature).toBe('fisher(length)')
     expect(CALL_EXPANSIONS.fisher.vendorNote).toBe(FISHER_NOTE)
     expect(FISHER_NOTE).toBe('This Fisher Transform starts each value 300 bars back on every bar, so the first 300 bars of a chart\'s history have no value. After that it is equal to TradingView\'s Fisher Transform on captured charts.')
+  })
+})
+
+describe('laguerre(source, gamma) and laguerreRsi(source, gamma): NUMBER PENDING', () => {
+  const num = (value) => ({ type: 'num', value })
+  const CLOSE = { type: 'series', name: 'close' }
+  const here = path.dirname(fileURLToPath(import.meta.url))
+  const graded = JSON.parse(fs.readFileSync(path.resolve(here, '../../../../../../tests/fixtures/ast/laguerre_graded.json'), 'utf8')).graded
+  const expand = (name, ...args) => expandCalls({ type: 'call', name, args })
+
+  it('⛔ each is exactly the tree that was graded', () => {
+    expect(Object.keys(graded).sort()).toEqual(['laguerre(hl2, 0.8)', 'laguerreRsi(close, 0.5)'])
+    for (const [name, row] of Object.entries(graded)) expect(astHash(expandCalls(row.call)), name).toBe(row.hash)
+    // and the short name a member types parses to the same tree
+    expect(astHash(parseFormula('laguerre((high + low) / 2, 0.8)').ast)).toBe(graded['laguerre(hl2, 0.8)'].hash)
+    expect(astHash(parseFormula('laguerreRsi(close, 0.5)').ast)).toBe(graded['laguerreRsi(close, 0.5)'].hash)
+    // CONTROL: another gamma or another source is another tree
+    const hashes = Object.values(graded).map((r) => r.hash)
+    expect(hashes).not.toContain(astHash(expand('laguerre', CLOSE, num(0.8))))
+    expect(hashes).not.toContain(astHash(expand('laguerreRsi', CLOSE, num(0.51))))
+  })
+
+  it('a stage is the published recurrence, written out', () => {
+    // L0 = (1 - g) * src + g * L0[1];  L1 = -g * L0 + L0[1] + g * L1[1]
+    const g = 0.6
+    const l0 = `(1 - ${g}) * close + ${g} * state1`
+    const l1 = `state1 - ${g} * (${l0}) + ${g} * state2`
+    const l2 = `state2 - ${g} * (${l1}) + ${g} * state3`
+    const l3 = `state3 - ${g} * (${l2}) + ${g} * state4`
+    const written = parseFormula(`accum4(4, 128, close, close, close, close, ${l0}, ${l1}, ${l2}, ${l3})`)
+    expect(written.ok, written.error).toBe(true)
+    expect(astHash(laguerreStage(CLOSE, num(g), 4))).toBe(astHash(written.ast))
+  })
+
+  it('the restart window is sized from gamma, and a gamma that cannot settle within reach is declined', () => {
+    expect(LAGUERRE_WARMUPS).toEqual([[0.5, 64], [0.7, 128], [0.8, 192], [0.9, 400], [0.95, 800]])
+    expect([0.2, 0.5, 0.51, 0.7, 0.8, 0.81, 0.9, 0.95].map(laguerreWarmup)).toEqual([64, 64, 128, 128, 192, 400, 400, 800])
+    expect(LAGUERRE_MAX_GAMMA).toBe(0.95)
+    for (const bad of [num(0), num(-0.5), num(0.96), num(1), { type: 'series', name: 'g' }]) expect(laguerreStage(CLOSE, bad, 1)).toBeNull()
+    expect(() => expand('laguerre', CLOSE, num(0.97))).toThrow(ExpansionRefusal)
+    expect(expansionProblem({ type: 'call', name: 'laguerreRsi', args: [CLOSE, num(0.97)] })).toBe(
+      'laguerreRsi needs a gamma written as a number above 0 and at most 0.95 (above that the filter does not settle within the bars a chart formula may reach), and a source that is not itself a running value — laguerreRsi(source, gamma)')
+    expect(expansionProblem({ type: 'call', name: 'fisher', args: [num(1)] })).toBe('fisher needs a whole-number length of at least 2 written as a number — fisher(length)')
+  })
+
+  it('a source that is itself a running value is declined: one never sits inside another', () => {
+    const smoother = parseFormula('accum(close, self + 0.1 * (close - self), 300)').ast
+    expect(laguerreStage(smoother, num(0.5), 1)).toBeNull()
+    expect(laguerreStage({ type: 'call', name: 'fisher', args: [num(9)] }, num(0.5), 1)).toBeNull()
+    // CONTROL: an ordinary formula is a source
+    expect(laguerreStage(parseFormula('ema(close, 5)').ast, num(0.5), 1)).not.toBeNull()
+  })
+
+  it('each reads back as its call, alone or inside other maths, and a near miss does not', () => {
+    const filter = expand('laguerre', CLOSE, num(0.8))
+    const rsi = expand('laguerreRsi', CLOSE, num(0.5))
+    expect(recogniseExpansion(filter)).toEqual({ name: 'laguerre', args: [CLOSE, num(0.8)] })
+    expect(recogniseExpansion(rsi)).toEqual({ name: 'laguerreRsi', args: [CLOSE, num(0.5)] })
+    const both = { type: 'op', name: '>', args: [rsi, num(0.8)] }
+    expect(collapseExpansions(both)).toEqual({ type: 'op', name: '>', args: [{ type: 'call', name: 'laguerreRsi', args: [CLOSE, num(0.5)] }, num(0.8)] })
+    // a source that is a formula comes back as that formula
+    const hl2 = parseFormula('(high + low) / 2').ast
+    expect(collapseExpansions(expand('laguerre', hl2, num(0.8)))).toEqual({ type: 'call', name: 'laguerre', args: [hl2, num(0.8)] })
+    // one weight moved: not the Laguerre Filter, and left as the formula it is
+    const near = JSON.parse(JSON.stringify(filter))
+    near.args[1] = num(5)
+    expect(recogniseExpansion(near)).toBeNull()
+  })
+
+  it('each is read back in words as the indicator it is, never as its arithmetic or its function name', () => {
+    expect(describeTree(parseFormula('fisher(9)').ast)).toBe('the 9-bar Fisher Transform')
+    expect(describeTree(parseFormula('laguerre(open, 0.8)').ast)).toContain('the Laguerre Filter of ')
+    expect(describeTree(parseFormula('laguerre(open, 0.8)').ast)).toContain('(gamma 0.8)')
+    const rsi = describeTree(parseFormula('laguerreRsi(close, 0.5) > 0.8').ast)
+    expect(rsi).toContain('the Laguerre RSI of ')
+    expect(rsi).toContain('(gamma 0.5; 0 to 1)')
+    for (const text of [rsi, describeTree(parseFormula('fisher(9)').ast)]) {
+      expect(text).not.toMatch(/accum|state[1-4]|laguerreRsi|fisher\(/)
+    }
+  })
+
+  it('⛔ adds NO Pine name', () => {
+    expect(Object.prototype.hasOwnProperty.call(BUILTIN_CALL_TREE, 'laguerre')).toBe(false)
+    expect(Object.prototype.hasOwnProperty.call(BUILTIN_CALL_TREE, 'laguerreRsi')).toBe(false)
+    const undefinedCall = translatePine(['//@version=5', 'indicator("t")', 'plot(laguerre(close, 0.8))', ''].join(String.fromCharCode(10)))
+    expect(undefinedCall.refusal).toBeTruthy()
+    expect((undefinedCall.outputs || []).every((o) => !o.ast)).toBe(true)
+    const own = translatePine(['//@version=5', 'indicator("t")', 'laguerre(x, g) => x * g', 'plot(laguerre(close, 2))', ''].join(String.fromCharCode(10)))
+    expect(own.refusal).toBe(null)
+    expect(own.outputs.map((o) => o.ast)).toEqual([{ type: 'op', name: '*', args: [CLOSE, num(2)] }])
   })
 })
 

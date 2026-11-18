@@ -477,6 +477,93 @@ export function primeSecondaryBars(symbol, tf, bars, payload) {
   return entry
 }
 
+/** ⭐⭐ RS RATING L11 PR 2 — HOW MANY NEWEST ROWS A TAIL REFRESH ASKS FOR: enough to overlap held rows a
+ *  fortnight old, a sliver of the 12,500-session SP:SPX history the chart holds. */
+export const TAIL_BARS = 10
+
+/** Bar times compare as numbers (intraday, an index's daily key) or as ISO dates (a daily stock bar). */
+function _timeBefore(a, b) {
+  return typeof a === 'number' && typeof b === 'number' ? a < b : String(a) < String(b)
+}
+function _sameRow(a, b) {
+  return !!a && !!b && a.t === b.t && a.o === b.o && a.h === b.h && a.l === b.l && a.c === b.c && a.v === b.v
+}
+
+/**
+ * The held rows with a fetched TAIL (the series' newest rows, ascending) laid over them: every held row
+ * before the tail's first, then the tail. `null` when the tail does not OVERLAP the held rows (its first
+ * row is not one of them): the sessions between are unknown and only a full fetch can supply them.
+ */
+export function mergeTail(held, tail) {
+  if (!Array.isArray(held) || !held.length || !Array.isArray(tail) || !tail.length) return null
+  const first = tail[0] && tail[0].t
+  let i = held.length - 1
+  while (i >= 0 && _timeBefore(first, held[i].t)) i -= 1
+  if (i < 0 || held[i].t !== first) return null
+  return held.slice(0, i).concat(tail)
+}
+
+/**
+ * ⭐⭐ RS RATING L11 PR 2 — KEEP A FORMING SERIES CURRENT: re-read its newest rows (`TAIL_BARS`) and lay
+ * them over the held entry, carrying the route's `newest_bar_is_forming` for its newest bar.
+ *
+ * WHY: `ensureSecondaryBars` caches one fetch per window for the page's life, right for a history and
+ * wrong for a series whose session is in progress. SP:SPX fetched at 10:00 kept 10:00's forming row (and
+ * `forming: true`) all day; fetched before the open it never held today's row at all. What the chart's
+ * newest bar reads of it (`otherSymbols.newestOwnPeriodOf`) is only as current as this entry.
+ *
+ * ⛔ The held entry stays until the merged one replaces it, and it is REPLACED ONLY WHEN SOMETHING MOVED
+ * (a row or the flag): an unchanged answer keeps the very same object, so nothing recomputes.
+ * ⛔ A tail that does not overlap (a page held open past `TAIL_BARS` sessions) is a FULL refetch.
+ * ⛔ Throttled per window (`REFRESH_MIN_MS`, shared with `refreshSecondaryBars`) and deduped in flight.
+ * @returns {boolean} whether a fetch was started
+ */
+export function refreshSecondaryTail(symbol, tf, bars, fetcher) {
+  const url = secondaryBarsUrl(symbol, tf, bars)
+  const tailUrl = secondaryBarsUrl(symbol, tf, TAIL_BARS)
+  if (!url || !tailUrl || url === tailUrl || _inflight.has(url) || _inflight.has(tailUrl)) return false
+  const held = _cache.get(url)
+  if (!held || held.status !== SOURCE_STATUS.AVAILABLE || !held.bars.length) return false
+  const now = Date.now()
+  if (now - (_lastRefresh.get(url) || 0) < REFRESH_MIN_MS) return false
+  _lastRefresh.set(url, now)
+  const get = typeof fetcher === 'function' ? fetcher : _defaultFetch
+  let moved = false
+  const p = Promise.resolve()
+    .then(() => get(tailUrl))
+    .then((payload) => {
+      const tail = _read(payload)
+      const cur = _cache.get(url) || held
+      if (!tail.bars.length) return cur
+      const merged = mergeTail(cur.bars, tail.bars)
+      if (!merged) {
+        _lastRefresh.delete(url)
+        refreshSecondaryBars(symbol, tf, bars, fetcher)
+        return cur
+      }
+      const flagged = Object.prototype.hasOwnProperty.call(tail, 'newestBarIsForming')
+      const sameFlag = flagged ? cur.newestBarIsForming === tail.newestBarIsForming
+        : !Object.prototype.hasOwnProperty.call(cur, 'newestBarIsForming')
+      const from = merged.length - tail.bars.length
+      const sameRows = merged.length === cur.bars.length
+        && tail.bars.every((row, k) => _sameRow(row, cur.bars[from + k]))
+      if (sameFlag && sameRows) return cur
+      const next = { ...cur, bars: merged, status: SOURCE_STATUS.AVAILABLE }
+      if (flagged) next.newestBarIsForming = tail.newestBarIsForming
+      else delete next.newestBarIsForming
+      _cache.set(url, next)
+      moved = true
+      return next
+    })
+    .catch(() => _cache.get(url) || held)
+    .finally(() => {
+      _inflight.delete(tailUrl)
+      if (moved) _notify(url)
+    })
+  _inflight.set(tailUrl, p)
+  return true
+}
+
 /** How many requests are in flight — a test seam for the dedup rail. */
 export function inflightCount() {
   return _inflight.size

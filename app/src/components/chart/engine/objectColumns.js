@@ -41,13 +41,14 @@ import {
   runtimeErrorStopOf,
 } from './astColumns.js'
 import { bindConstsFor } from './ast/bind'
-import { otherSymbolRefusalOfTree } from './otherSymbols'
+import { otherSymbolRefusalOfTree, withChartNewestDay } from './otherSymbols'
 import { periodReadsObjectRefusal } from './periodReads'
 import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
 // ⭐ C43 — a cycle on purpose (that module reads `unknownMask` below): both sides
 // use each other only inside functions, and importing it here is what registers
 // the stop into the plot lane for every pane the binder draws.
 import { runtimeErrorStopFor } from './runtimeErrorStop'
+import { semanticsOptsFor } from './definitionSemantics.js'
 import { foldBound } from './ast/bind'
 import { barOpenInstant } from '../indicators.js'
 import { registeredObjectRuntimeValues, inputsAtDefaults, registeredObjectComputeFor } from './objectRuntimeSeam.js'
@@ -154,6 +155,10 @@ export { PREFIX_PROBE, probeValuesOf }
  *  `interpret.js::structuralMaps` memoises on) makes the memo see them as one.
  *  Pure: a node is copied only when an argument was replaced, never mutated.
  *  ⛔ Its lifetime is ONE pass, like the memo it feeds. */
+/** ⭐⭐ engine 78 (#1858) — the Pine-compare key of an options object (`interpret.js::binaryFor`), or
+ *  nothing: every evaluation this module makes carries its document's comparison rule. */
+export const pineCompareOptsOf = (o) => (o && o.pineCompare === true ? { pineCompare: true } : {})
+
 export function makeInterner() {
   const byKey = new Map()
   const idOf = new Map()
@@ -514,6 +519,7 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
         continue
       }
       const iopts = { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null,
+        ...pineCompareOptsOf(opts),
         ...(opts.historyFromListing === true ? { historyFromListing: true } : {}),
         ...(opts.historyFromListing === true && opts.naConditionFalse === true ? { naConditionFalse: true } : {}),
         ...(bix || {}),
@@ -547,7 +553,7 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
   // ⭐ C48 — a value read from a `var` its block fills on only some bars (above).
   withholdBlockRuns(program, { columns, failed, refusals, unknown, barCount: Array.isArray(bars) ? bars.length : 0 },
     (guard) => interpret(intern(fold(guard)), bars, opts.inputs || {}, opts.budget, undefined, {
-      tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null,
+      tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null, ...pineCompareOptsOf(opts),
       ...(opts.historyFromListing === true ? { historyFromListing: true } : {}),
       ...(opts.historyFromListing === true && opts.naConditionFalse === true ? { naConditionFalse: true } : {}),
       ...(bix || {}),
@@ -691,6 +697,9 @@ export function objectReaderFor(definition, bars, opts = {}) {
   const evalOpts = {
     inputs,
     budget: definition.compute && definition.compute.budget,
+    // ⭐⭐ engine 78 (#1858) — the document's comparison rule (`definitionSemantics.js::semanticsOptsFor`:
+    // a Pine document compares within TradingView's epsilon), read by every evaluation of this reader
+    ...pineCompareOptsOf(semanticsOptsFor(definition)),
     tf: opts.tf,
     newestBarIsForming: opts.newestBarIsForming ?? null,
     // ⭐ C12w — the listing exception, decided by the SAME gate the plot lane
@@ -711,7 +720,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
     // and the plot beside it can never be served two different instruments.
     symbols: undefined,
   }
-  const otherSymbols = otherSymbolsFor(definition, opts)
+  const otherSymbols = otherSymbolsFor(definition, withChartNewestDay(opts, bars))   // ⭐ RS RATING L11 PR 2
   if (otherSymbols) evalOpts.symbols = otherSymbols.symbols
   // ⭐⭐ ENGINE 55 — and which it REFUSED: an object tree reading one is refused by name
   // (`refusals`, with the bind's code), the plot lane's `columnErrors` rule.
@@ -801,6 +810,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
         continue
       }
       const iopts = { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming,
+        ...pineCompareOptsOf(evalOpts),
         ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}),
         ...(evalOpts.naConditionFalse === true ? { naConditionFalse: true } : {}),
         ...(bix || {}),
@@ -829,7 +839,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
   // (`withholdBlockRuns`), on the V1 form too.
   withholdBlockRuns(bound, { columns, failed, refusals, unknown, barCount },
     (guard) => interpret(intern(fold(guard)), bars, evalOpts.inputs, evalOpts.budget, undefined, {
-      tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming,
+      tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming, ...pineCompareOptsOf(evalOpts),
       ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}),
       ...(evalOpts.naConditionFalse === true ? { naConditionFalse: true } : {}),
       ...(bix || {}),

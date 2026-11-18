@@ -17,6 +17,8 @@ import { applyTurn, newAuthoringState } from './index'
 import { settingsOf, settingPatch, settingRefusal } from './derivedSettings'
 import { noLongerChecked } from './readback'
 import { CHECKED_LIBRARY, libraryParts, libraryOutputOf, settingsWords, namedByTitle } from './checkedLibrary'
+import { compactView } from './compactView'
+import { parameterSlots } from './slots'
 
 const CASES = JSON.parse(fs.readFileSync(
   path.resolve(globalThis.process.cwd(), '..', 'tests/fixtures/authoring/checked_library_cases.json'), 'utf8')).cases
@@ -101,6 +103,42 @@ function turn(state, ops) {
 const library = (id) => { const e = ENTRY.get(id); return { e, ...make([createOp(e)], e.name) } }
 const captions = (state) => settingsOf(state.working).map((s) => [s.caption, s.value, s.slots.length])
 
+describe('a library indicator\'s lines are labelled by the library', () => {
+  // (the view marks a label as text a member or the library wrote: read the text itself)
+  const text = (v) => (v && typeof v === 'object' && 'untrusted_text' in v ? v.untrusted_text : v)
+  const labels = (state) => compactView(state.working, {}, GATE).definition.outputs.map((o) => text(o.label))
+  /** As the assistant often sends it: with no labels at all. */
+  const bare = (e) => make([{ op: 'create', name: e.name, placement: 'pane',
+    outputs: e.outputs.map((o) => ({ key: o.key.replace(/_/g, ''), tree: o.tree })) }], e.name)
+
+  it('the Fisher Transform\'s second line is "Trigger" (it read "previous FISHER 9")', () => {
+    expect(labels(bare(ENTRY.get('fisher_transform')).state).slice(1)).toEqual(['Trigger'])
+    expect(labels(bare(ENTRY.get('directional_movement_index')).state).slice(1)).toEqual(['-DI', 'ADX'])
+  })
+
+  it.each(CHECKED_LIBRARY.filter((e) => e.outputs.length > 1).map((e) => [e.name, e]))('%s: every line after the first carries its own library label', (_n, e) => {
+    // (the first line follows the indicator's name, as plot 1 always does)
+    expect(labels(bare(e).state).slice(1)).toEqual(e.outputs.slice(1).map((o) => o.label))
+  })
+
+  it('a formula that only USES a library output inside other maths is named by its maths', () => {
+    const fisher = ENTRY.get('fisher_transform').outputs[0].tree
+    const above = { type: 'op', name: '>', args: [fisher, { type: 'num', value: 2 }] }
+    const got = make([{ op: 'create', name: 'x', placement: 'pane',
+      outputs: [{ key: 'line', tree: fisher }, { key: 'hot', tree: above }] }])
+    expect(labels(got.state)[1]).not.toBe('Fisher')
+    expect(labels(got.state)[1]).toContain('above 2')
+  })
+
+  it('a function\'s number is read by what it is, not as "argument 1"', () => {
+    const roles = (id) => parameterSlots(library(id).state.working).filter((s) => s.kind === 'number').map((s) => s.label)
+    expect(roles('fisher_transform')).toEqual(['fisher length', 'bars ago', 'fisher length'])     // the line, and the trigger one bar back
+    expect(roles('laguerre_rsi')).toEqual(['laguerreRsi gamma'])
+    expect(roles('laguerre_filter')).toContain('laguerre gamma')
+    for (const id of ['fisher_transform', 'laguerre_rsi', 'laguerre_filter']) for (const r of roles(id)) expect(r).not.toMatch(/argument/)
+  })
+})
+
 describe('Inputs: a library indicator shows the entry\'s own settings', () => {
   it('KAMA has three (it showed eight), each holding every place it sits; On Balance Volume has none (it showed one)', () => {
     expect(captions(library('kaufman_adaptive_moving_average').state)).toEqual([
@@ -126,7 +164,9 @@ describe('Inputs: a library indicator shows the entry\'s own settings', () => {
       let { state } = library(e.id)
       for (const p of e.params) {
         const setting = settingsOf(state.working).find((s) => s.library.param === p.key)
-        const next = p.integer ? (p.default + 3 <= p.max ? p.default + 3 : p.default - 1) : p.default + 0.25
+        // (a 0-to-1 setting such as the Laguerre Filter's gamma has no room above its default: step down)
+        const step = p.integer ? 3 : 0.25
+        const next = p.default + step <= p.max ? p.default + step : p.default - (p.integer ? 1 : step)
         const patch = settingPatch(state, setting, next)
         expect(patch.ops.length).toBe(setting.slots.length)                 // ONE patch, one edit per place
         state = applyTurn(state, patch, { gateCtx: GATE }).state

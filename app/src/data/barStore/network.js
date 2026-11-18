@@ -201,9 +201,19 @@ export function createNetwork({
     // ⭐ DEPTH WITHOUT A SCROLL: a chart that subscribes gets one window of older bars from the
     // lake as soon as its first answer lands, so zooming out finds them already there. Charts
     // only (a warm or a one-shot ask has no refs), and only where the lake can answer.
+    // ⭐ ...and where the entry is SHALLOWER than a lake load already left it (a saved copy on another
+    // basis replaced the lake's rows before this answer, reducer applyLocal), the depth comes back in
+    // ONE join (lakeSeed), not in scroll-back windows; the window is the fallback when that join adds
+    // nothing, and the path of a key the lake was never asked for.
     if (history && r.refs > 0 && _lakeCarries(r)) {
       const s = registry.getSnapshot(r.key)
-      if (s.bars.length) api.scrollBack(r.key, { priority: 'background' }).catch(() => {})
+      if (s.bars.length) {
+        const window = () => api.scrollBack(r.key, { priority: 'background' }).catch(() => {})
+        if (lakeSettled.has(r.key) && api.lakePending(r.key)) {   // a load left it deeper than it is now
+          Promise.resolve().then(() => api.lakeSeed(r.key)).catch(() => false)
+            .then((joined) => { if (!joined) return window() })
+        } else window()
+      }
     }
     for (const cb of [...(answerSubs.get(r.key) || [])]) { try { cb() } catch { /* ignore */ } }
   }
@@ -605,10 +615,17 @@ export function createNetwork({
         .catch(() => false)
         .finally(() => {
           if (lakeSeeds.get(key) === p) lakeSeeds.delete(key)
-          const held = registry.peek(key)?.bars.length
+          const cur = registry.peek(key)
+          const held = cur?.bars.length
           if (held == null) return          // nothing to join into: still due when the key is built
+          // Before a server answer a settle never LOWERS the depth an earlier load reached (review of
+          // #1884): a load refused by a saved copy that replaced the lake's rows would otherwise mark
+          // the depth done while the chart is shallow, and it would come back in scroll-back steps.
+          // An answered entry settles at what it holds (the answer proved it): no load loops.
+          const prev = lakeSettled.get(key)
+          const depth = !cur.restSeen && prev != null ? Math.max(prev, held) : held
           lakeSettled.delete(key)
-          lakeSettled.set(key, held)
+          lakeSettled.set(key, depth)
           if (lakeSettled.size > LAKE_SETTLED_MAX) lakeSettled.delete(lakeSettled.keys().next().value)
         })
       lakeSeeds.set(key, p)
