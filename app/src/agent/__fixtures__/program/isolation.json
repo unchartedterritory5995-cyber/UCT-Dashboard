@@ -7,10 +7,14 @@
     "confluence.board",
     "earnings.callSearch",
     "earnings.expectedMove",
+    "earnings.reactions",
+    "flow.record",
+    "flow.topPicks",
     "highsLows.session",
     "highsLows.yearly",
     "leaders.longRun",
     "levels.darkpool",
+    "levels.gamma",
     "ratings",
     "rs.leadership",
     "themes.rotation"
@@ -26,10 +30,14 @@
     "stock.callSearch",
     "stock.confluenceBoard",
     "stock.darkPoolLevels",
+    "stock.earningsReactions",
     "stock.expectedMove",
+    "stock.flowRecord",
+    "stock.gammaLevels",
     "stock.longRunLeaders",
     "stock.sessionHighsLows",
     "stock.themeRotation",
+    "stock.topFlowPicks",
     "stock.yearlyHighsLows"
   ]
 }
