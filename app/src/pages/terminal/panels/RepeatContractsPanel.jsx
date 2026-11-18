@@ -35,6 +35,7 @@ import {
   REPEAT_CODE, REPEAT_MIN_HITS, REPEAT_ORDERS, dayRead, dayReadUrl, directionWords, leanPhrase, normRepeatDate, normRepeatOrder,
   orderRows, previousWeekday, repeatCommandArgs, repeatContractsUrl, repeatRead,
 } from './repeatContractsModel'
+import ListAlertSwitch from './ListAlertSwitch'
 import styles from './marketPanels.module.css'
 
 export {
@@ -264,6 +265,8 @@ export default function RepeatContractsPanel({ date: dateProp = null, order: ord
           </div>
         ) : null}
       </div>
+      {/* "Alert me when a stock I follow appears here" (a new repeat-hit contract). Draws nothing until the server says the alerts are on. */}
+      <ListAlertSwitch kind="repeat_contracts" />
       {/* Keyed by day: a new day is a new read, so one day's numbers are never drawn under another day's date. */}
       <DayRead key={`read-${date || 'today'}`} date={date} />
       <Contracts key={`list-${date || 'today'}`} code={code} date={date} order={order} onDate={(d) => pick({ date: d })} />

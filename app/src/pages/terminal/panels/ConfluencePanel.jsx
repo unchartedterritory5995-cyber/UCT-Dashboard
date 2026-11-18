@@ -31,6 +31,7 @@ import {
   CONFLUENCE_CODE, CONFLUENCE_DAYS, CONFLUENCE_LEANS, CONFLUENCE_URL, bandGroups, confluenceCommandArgs, confluenceRead, leanRows,
   leanWords, normConfluenceLean,
 } from './confluenceModel'
+import ListAlertSwitch from './ListAlertSwitch'
 import styles from './marketPanels.module.css'
 
 export {
@@ -248,6 +249,8 @@ export default function ConfluencePanel({ lean: leanProp = null }) {
           ))}
         </div>
       </div>
+      {/* "Alert me when a stock I follow appears here" (the confluence board). Draws nothing until the server says the alerts are on. */}
+      <ListAlertSwitch kind="confluence" />
       <Board code={code} lean={lean} onLean={pick} />
     </div>
   )

@@ -34,6 +34,7 @@ import {
   BREADTH_LATEST_URL, BREADTH_LIVE_URL, HIGHS52_CODE, HIGHS52_SIDES, countsSentence, drillRead, highs52CommandArgs, highs52Mode,
   latestSessionDate, liveDrillUrl, normSide52, settledSentence, storedDrillUrl,
 } from './highs52Model'
+import ListAlertSwitch from './ListAlertSwitch'
 import styles from './marketPanels.module.css'
 import bars from './barCells.module.css'
 
@@ -332,6 +333,8 @@ export default function Highs52Panel({ side: sideProp = null }) {
           ))}
         </div>
       </div>
+      {/* "Alert me when a stock I follow appears here" (new 52-week highs). Draws nothing until the server says the alerts are on. */}
+      <ListAlertSwitch kind="highs52" />
       {/* Keyed by session: a new session is a new pair of reads, so a live list is never drawn under a finished day's date. */}
       {state || <Highs52Board key={`${view.mode}:${view.date}`} side={side} view={view} fallback={fallback} staleNote={staleNote} />}
     </div>
