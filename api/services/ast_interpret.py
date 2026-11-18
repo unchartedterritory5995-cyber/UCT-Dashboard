@@ -7735,10 +7735,7 @@ def _interpret_column(ast: Any, bars: List[dict],
                         return st
                     S = _r_as(st)
                     # engine NUMBER PENDING: widened by the compare's slack (``interpret.js::refine``)
-                    slack = _pc.compare_slack(binary)
-                    below = (op in ("<", "<=")) == branch
-                    lo = S[0] if below else max(S[0], c - slack)
-                    hi = min(S[1], c + slack) if below else S[1]
+                    lo, hi = _pc.compare_narrow(op, branch, S[0], S[1], c, binary)
                     na = False
                     if S[2]:
                         k = column_at(ref["nz"], j) if ref["nz"] is not None else NAN

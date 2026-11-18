@@ -26,8 +26,8 @@ The straddle rows refute that remark: TradingView's runtime does not round.
 ONE AUTHORITY PER LANGUAGE:
 
 - `app/src/components/chart/engine/pineCompare.js` declares `PINE_EQ_EPSILON = 1e-10` and `PINE_EQ_INCLUSIVE = true`,
-  and provides `PINE_CMP` / `EXACT_CMP`, `pineCompareAmbiguous`, `constCompareFold`, `compareRange` and
-  `compareSlack`. It imports nothing.
+  and provides `PINE_CMP` / `EXACT_CMP`, `pineCompareAmbiguous`, `constCompareFold`, `compareRange`,
+  `compareSlack` and `compareNarrow` (the state narrowing `refine` applies). It imports nothing.
 - `api/services/pine_compare.py` READS the two declarations. If they are unreadable, the import fails, so the
   server never evaluates Pine with IEEE comparison.
 
@@ -46,7 +46,7 @@ PINE DOCUMENTS ONLY (D1):
 | `objectRuntime.js` `{v:'cmp'}` guards | `PINE_CMP` |
 | doors: `astColumns`, `objectColumns` (5 calls), `runtimeErrorStop`, `pineRuntimeFrontend` columns | carry `pineCompare` |
 | server lanes: scan sweep (2), rule record (2), backtest router + receipt id, alert lane (`lane_opts_for`) | `pine_compare_opts_for` |
-| range proofs: `rangeOp`, `refine` (JS and Python `_r_op`, `refine`) | `compareRange` with the evaluation's table, and a widened `compareSlack` |
+| range proofs: `rangeOp`, `refine` (JS and Python `_r_op`, `refine`) | `compareRange` with the evaluation's table; `refine` narrows through `compareNarrow`, widened by `compareSlack` |
 | bind folds (`bind.js`, `ast_bind.py`), `pine.js` `staticBinary` / static `==` / `nzSentinelSound` | an ambiguous pair is NOT folded or decided statically; the run decides it |
 | v1-v4 constant fold | `pine.js::constCompareOf` (host, both resolve paths) and `pineRuntimeFrontend` `irConstValue` (constant columns and parameterless pure functions included) fold an ambiguous constant pair to its exact 0/1. Every other tree keeps its shape |
 | built-ins | `FN_PINE` / `CARRIED_PINE` (rising, falling, percentrank, adx / plusDI / minusDI), `computeADX(bars, n, {gt})`, runtime `array.indexof` / `includes`. Python twins `FN_PINE`, `compute_adx_raw(gt=)` |
@@ -89,38 +89,93 @@ byte-equal by sha256 (never `git checkout`). The harness is
 | M25 a Pine server lane loses its rule (`definition_record`) | `tests/test_pine_compare_census.py`. Re-proved after the same rebuild (a call, not a mention) |
 | M26 `semanticsOptsFor` never Pine | `pineCompare.test.js` |
 | M27 `semantics_opts_for` never Pine | `tests/test_pine_compare.py` |
+| M28 the object runtime's `{v:'cmp'}` guard compares exactly | `pineCompareSites.test.js` (a label 3e-14 above 1 is not above 1) |
+| M29 `compareSlack` 0 for the Pine table (JS) | `pineCompareSites.test.js` (the narrowing soundness grid drops a state) |
+| M30 `compare_slack` 0 for the Pine table (Python) | `tests/test_pine_compare_sites.py` (the same grid) |
+| M31 `staticBinary` decides an ambiguous pair | `pineCompareSites.test.js` |
+| M32 the backtest receipt id ignores `pineCompare` | `tests/test_pine_compare_sites.py` (a Pine receipt id never equals an IEEE one) |
+| M33 a vector names the wrong capture | `pineCompareProvenance.test.js` (every vector is its committed capture's reading) |
+| M34 the VM's six from the IEEE table | `pineCompareRuntime.test.js` (the runtime lane driven over every committed probe, every row, every bar) |
+| M35 `binaryFor` never Pine | `__tests__/vendorHarness/vendorHarness.fcmpAcceptance.test.js` (both lanes, committed captures) |
+| M36 `computeADX` ignores `opts.gt` | `pineCompareBuiltins.test.js` (ta.dmi on every bar of both committed captures: 25,472 SPY cells, 1,949 RDDT) |
+| M37 the lifted runtime kill entry put back | `tests/test_pine_capability_admission.py::test_RT1_the_contraction_box_kill_is_lifted_on_its_own_condition` |
+| M38 the lifted host known-divergence entry put back | `tests/test_pine_host_known_divergence.py` (the list is the derivation) + the lift rail above |
 
-NOT RAILED BY A BEHAVIOURAL TEST:
-
-- The object runtime's `{v:'cmp'}` guards. They read `PINE_CMP` by construction, and no committed capture has a
-  near-tie drawing guard.
-- `refine`'s widened slack. It is wider than the truth, which is sound; no fixture separates it.
-- `staticBinary`'s decline of an ambiguous pair.
-- The backtest receipt id carrying `pineCompare`.
+The four sites the first build left without a behavioural rail (the object guards, the narrowing slack, the static
+decline, the receipt id) each have one now (M28-M32), at the coordinator's ruling.
 
 
 ## 4. The corpus, both lanes
 
-The full vendor-harness corpus, both lanes (production and runtime-on), is graded by this PR's `pine heavy` run.
-The baseline is the e77 train run (`f4b71c2bc1`, the merge base `f5def8bc3c`). Every verdict move is listed in the
-PR description. A MATCH that moved to DIVERGE would have stopped the work.
+The full vendor-harness corpus (every capture under `tests/fixtures/vendor`), both lanes (production and runtime-on),
+graded by this PR's `pine heavy` run and diffed against the e77 train run (44311044277, head `f4b71c2bc1`) item by item:
+every plot, the objects, the paints. The PR description carries the final run's table.
+
+First PR run (44319610649, head `7fbb1b81e1`): NOTHING MOVED FROM MATCH TO DIVERGE, and no item moved from MATCH or
+INCONCLUSIVE to DIVERGE.
+
+| capture | production | runtime-on |
+|---|---|---|
+| `contraction-box-doji-lines-spy-1d-2026-10-03` | DIVERGE (lines 204 / ours 205) to MATCH | DIVERGE to MATCH |
+| `contraction-box-doji-lines-spy-1d-2026-11-15` | DIVERGE (lines 200 / ours 201) to MATCH | DIVERGE to MATCH |
+| `adx-and-di-for-v4-spy-1d-2026-11-17` | INCONCLUSIVE (`pine:state`, unchanged) | DIVERGE to MATCH |
+
+- The contraction lines were read as "the collector one creation apart" (DIV-1). They were a near-tie comparison:
+  compared within the epsilon, ours makes exactly TradingView's lines. Their pins were re-pinned
+  (`vendorHarness.f4SpyDrawings.test.js`; the CAP3 signature was rewritten by `cap3SpyGaps.measure.test.js`, never by
+  hand).
+- **LIFTED from the host lane's known-divergence list** (`hostKnownDivergence.json`), at the coordinator's ruling
+  (2026-11-18). Its `liftWhen` is met: the engine fix, then a production re-grade (run 44319610649) in which both
+  named SPY captures grade MATCH. Both RDDT captures were already MATCH.
+  - The two re-graded records were spliced verbatim from that run's production `verdicts.json` into
+    `docs/pine/vendor-harness/production/verdicts.json`. No other record moved.
+  - The list and its queue doc were then re-derived (`host_divergence.py --write`: 29 to 28 listed).
+  - The coverage ratchet was re-measured (`coverage_ratchet.py --write`, both lanes: +1 each, the script).
+  - The two door rails moved their witness to `heat-map-seasons`, which is still listed.
+- **LIFTED from the runtime kill list too** (`api/data/pine_runtime_killlist.json`, 15 to 14), at the coordinator's
+  ruling. Its `liftWhen` is an engine fix to the line count, then a runtime-on re-grade to MATCH on both SPY captures,
+  and the same run met it.
+  - The two runtime-on records were spliced verbatim into `docs/pine/vendor-harness/runtime-on/verdicts.json`.
+  - The kill rail re-proves the list from that evidence. `test_DRAW1_every_newly_admitted_object_script_with_a_DIVERGE_capture_is_killed`
+    no longer finds the script.
+  - The new `test_RT1_the_contraction_box_kill_is_lifted_on_its_own_condition` holds the lift to both re-grades: line
+    counts 204/204 and 200/200, and every paired record agrees.
+- No held kill entry for adx-and-di-for-v4 is on master (`api/data/pine_runtime_killlist.json`), so there is none to
+  remove.
+
+`hostParity` HP-1 (and its V8 twin) is RED BY DESIGN until the engine number is assigned. Five `dmi_manual` cases
+(a hand-written DMI's `up > down`, now compared within the epsilon on the runtime lane) changed their digest, and the
+tool's rule is that the coordinator rewrites `expected-digests.json` with `--write` at the bump.
+
+ACCEPTANCE, on the committed captures (Q-FCMP `56330c15e071`, Q-FCMP2 `d0641f7651fb` rows 1-8 and `6f854939fa72` rows
+9-16, all promoted in this branch):
+
+- `vendorHarness.fcmpAcceptance.test.js` grades all 14 graded probes on BOTH lanes. On each, every row agrees with
+  TradingView on every bar, and no row is DIVERGE.
+- Every non-constant row is MATCH. The rows that compare two literals are the same on every bar, so our pane draws
+  them with no series (`hidden (constant)`, the pre-existing pane rule, as rt1-na-test's A05 and rt3-na-logic's B07).
+  They grade INCONCLUSIVE on colour with their values agreeing, and they are named in the rail: Q-FCMP F01-F04 and
+  F11-F12, form T49-T50, const C01-C04 and C09-C14. Making those rows MATCH would need the pane rule changed, which
+  this branch does not do.
+- The member door draws all 14 on the host lane, with the runtime pane on too. So
+  `runtime/__tests__/pineCompareRuntime.test.js` drives the RUNTIME lane over the same 14 captures: every row, every
+  bar, no cell off.
+- The two built-in probes per symbol are refused by name (`pine:collection`). Their numbers are railed directly:
+  ta.dmi on every bar of both captures, plus rising / falling / percentrank / indexof / includes.
+- Every vector in `tests/fixtures/ast/pine_compare_vectors.json` is checked against its committed capture
+  (`pineCompareProvenance.test.js`).
 
 
 ## 5. Not done, and why
 
-- **D6, the result-identity suffix: HELD, with a finding.** Saved-scan alert subscriptions (`screen_alert_subs`) are
-  keyed by the result identity. `screen_alert_integrity.py` already records that a suffix change (`~s2`)
-  DISCONNECTS every existing subscription: "a subscription made with the bare tree hash reads a key nothing is
-  written to". Re-keying is owner decision D11 Phase A2. So `~e` on Pine documents would silence every member's
-  Pine screen alert, and this build does not add it.
-  - The count needs read-only production queries, which this branch cannot run:
-    - `user_definitions.db`: Pine documents, `json_extract(definition,'$.meta.recurrenceOrigin')='pine'` or
-      `importedFrom.dialect='pine'`;
-    - scan results filed under their identities;
-    - `screen_alert_subs` rows on those hashes.
-  - Without the suffix, a Pine document's stored scan results are recomputed under the same key on the sweep's
-    next pass, at its own pacing.
-- `array.lastindexof`: no capture yet; it stays exact.
-
-ACCEPTANCE: Q-FCMP, packet `56330c15e071`, promoted in this branch (both fixtures and ledger rows), MATCH on every
-row on both lanes.
+- **D6, the result-identity suffix: NOT ADDED (coordinator ruling, 2026-11-18).**
+  - Saved-scan alert subscriptions (`screen_alert_subs`) are keyed by the result identity, so a suffix (`~e`)
+    would disconnect every member's Pine screen alert. `screen_alert_integrity.py` records the same for `~s2`, and
+    re-keying is owner decision D11 Phase A2.
+  - The difference shows only where two values sit within 1e-10 of each other. A Pine document's stored scan results
+    are therefore recomputed under the SAME key on the sweep's next pass, at its own pacing; one stale pass is the
+    cost.
+- **`array.lastindexof` and the three binary searches stay EXACT** (no change from today). They have no capture yet.
+  `tools/visual_conformance/probes/vw-fcmp-arrays.pine` measures them, filed as Q-FCMP3-1 / -2 in
+  `docs/pine/capture-queue-2026-11-18-float-tolerance-form.md` and flagged on the parity roadmap until it is read.
+- Phase 2 (native formulas tolerant too) is a separate PR, decided on a measurement (ruling D1).

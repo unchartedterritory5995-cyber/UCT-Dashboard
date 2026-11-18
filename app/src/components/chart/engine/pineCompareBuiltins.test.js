@@ -2,8 +2,8 @@
 //
 // ⭐⭐ engine NUMBER PENDING (Q-FCMP2) — the BUILT-INS that compare inside with Pine's epsilon, and the ones that
 // do not, as vw-fcmp-builtins-v2 measured them; each kernel for a Pine document and, unchanged, for a native one.
-// The TradingView readings here are the capture's own numbers (vw-fcmp-builtins-spy-1d, B32-B34, and
-// vw-fcmp-builtins-v2-spy-1d); the bars are the committed Q-FCMP capture's (AMEX:SPY 1D from the listing).
+// TradingView's ta.dmi readings are READ OFF the committed capture (vw-fcmp-builtins-spy-1d-2026-11-18 and
+// -rddt-1d, B32-B34, every bar), with that capture's own bars (AMEX:SPY 1D from the listing, NYSE:RDDT 1D).
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { computeADX } from '../indicators.js'
@@ -11,18 +11,46 @@ import { pineGt } from './pineCompare.js'
 import { interpret, FN, FN_PINE, CARRIED, CARRIED_PINE } from './ast/interpret.js'
 import { ARRAY_FNS } from './runtime/collections.js'
 
-const SPY = JSON.parse(readFileSync('../tests/fixtures/vendor/harness/vw-float-compare-tolerance-spy-1d-2026-11-18.json', 'utf8'))
-const BARS = SPY.bars.rows.map(([t, o, h, l, c, v]) => ({ t, o, h, l, c, v }))
+const capture = (sym) => JSON.parse(readFileSync(`../tests/fixtures/vendor/harness/vw-fcmp-builtins-${sym}-1d-2026-11-18.json`, 'utf8'))
+const barsOf = (cap) => cap.bars.rows.map(([t, o, h, l, c, v]) => ({ t, o, h, l, c, v }))
+const colOf = (cap, title) => {
+  const at = cap.plotValues.fields.indexOf(cap.study.plots.find((p) => p.title === title).id)
+  return cap.plotValues.rows.map((r) => r[at])
+}
+const SPY = capture('spy')
+const BARS = barsOf(SPY)
+/** TradingView's built-in ta.dmi(14, 14) as [DI+, DI-, ADX] per bar, read off the capture (B32-B34). */
+const dmiOf = (cap) => {
+  const [p, m, a] = ['B32_dmi_diplus', 'B33_dmi_diminus', 'B34_dmi_adx'].map((t) => colOf(cap, t))
+  return p.map((v, i) => [v, m[i], a[i]])
+}
+
+/** Cells (bar, leg) where `r` (computeADX's shape) is not TradingView's; `null` cells (na) are not compared. */
+function offCells(r, tv) {
+  const off = []
+  tv.forEach((row, i) => row.forEach((v, k) => {
+    if (v === null) return
+    const o = [r.plusDI, r.minusDI, r.adx][k][i]
+    const ours = o ? o.value : NaN
+    if (!(Math.abs(ours - v) <= 1e-9 * Math.max(1, Math.abs(v)))) off.push([i, k])
+  }))
+  return off
+}
 
 describe('ta.dmi compares +DM / -DM within the epsilon (TradingView DI+ on SPY bar 5,333 is the tie)', () => {
-  // TradingView's built-in ta.dmi(14, 14), read off vw-fcmp-builtins-spy-1d-2026-11-18 (B32-B34)
-  const TV = {
-    5332: [28.94116781399634, 15.841167324696508, 16.591027084823384],
-    5333: [27.576070967939575, 15.093971230475914, 17.49542564792106],
-    5453: [16.445609431545687, 23.372807305190733, 15.777428411753908],
-    8508: [21.54461215049009, 36.73596933376465, 15.161839956000872],
-  }
+  const TV = dmiOf(SPY)
   const close = (a, b) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b))
+  it('the Pine comparison reads TradingView on EVERY bar of both committed captures (SPY 8,509, RDDT 668)', () => {
+    expect(TV.filter((row) => row.every((v) => v !== null)).length).toBeGreaterThan(8400)
+    expect(offCells(computeADX(BARS, 14, { gt: pineGt }), TV)).toEqual([])
+    const rddt = capture('rddt')
+    expect(offCells(computeADX(barsOf(rddt), 14, { gt: pineGt }), dmiOf(rddt))).toEqual([])
+  })
+  it('the control: IEEE is off TradingView on SPY (759 cells, from bar 5,333)', () => {
+    const off = offCells(computeADX(BARS, 14), TV)
+    expect(off.length).toBe(759)
+    expect(Math.min(...off.map(([i]) => i))).toBe(5333)
+  })
   it('the bars hold the tie: up and down moves 2.84e-14 apart on bars 5,333 and 5,453', () => {
     for (const i of [5333, 5453]) {
       const up = BARS[i].h - BARS[i - 1].h
@@ -31,13 +59,9 @@ describe('ta.dmi compares +DM / -DM within the epsilon (TradingView DI+ on SPY b
       expect(Math.abs(up - down)).toBeLessThan(1e-13)
     }
   })
-  it('the Pine comparison reads TradingView on every rail bar', () => {
-    const r = computeADX(BARS, 14, { gt: pineGt })
-    for (const [i, [p, m, a]] of Object.entries(TV)) {
-      expect(close(r.plusDI[i].value, p), `DI+ ${i}`).toBe(true)
-      expect(close(r.minusDI[i].value, m), `DI- ${i}`).toBe(true)
-      expect(close(r.adx[i].value, a), `ADX ${i}`).toBe(true)
-    }
+  it('the rail value: TradingView DI+ at SPY bar 5,333 is 27.576070967939575, and the Pine comparison reads it', () => {
+    expect(TV[5333][0]).toBe(27.576070967939575)
+    expect(close(computeADX(BARS, 14, { gt: pineGt }).plusDI[5333].value, TV[5333][0])).toBe(true)
   })
   it('the native ADX keeps IEEE (and so differs from bar 5,333: the control)', () => {
     const r = computeADX(BARS, 14)

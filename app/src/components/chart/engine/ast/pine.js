@@ -20742,6 +20742,9 @@ function staticBinary(op, l, r, truncate = null) {
     default: return null
   }
 }
+/** ⭐ engine NUMBER PENDING — `staticBinary` for its rail only (`pineCompareSites.test.js`: an ambiguous pair is
+ *  not static). No product caller. */
+export const __staticBinaryForTests = (op, l, r, truncate = null) => staticBinary(op, l, r, truncate)
 /** A string one occurrence of which can overlap the next (a prefix that is also a suffix). */
 const selfOverlaps = (t) => { for (let k = 1; k < t.length; k += 1) if (t.slice(0, k) === t.slice(t.length - k)) return true; return false }
 function staticBuiltin(name, v) {

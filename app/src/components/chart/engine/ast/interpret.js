@@ -60,7 +60,7 @@ import {
 // `export function` bindings are hoisted; `budget.js`'s header states the whole
 // contract and `budget.test.js` proves it from a graph whose ENTRY is that file.
 import { assertBudget, REFUSALS as BUDGET_REFUSALS } from './budget.js'
-import { EXACT_CMP, PINE_CMP, compareRange, compareSlack, pineGt, pineLt, pineLe } from '../pineCompare.js'
+import { EXACT_CMP, PINE_CMP, compareRange, compareNarrow, pineGt, pineLt, pineLe } from '../pineCompare.js'
 import { barIndexVerdict, thresholdUnknown, readsBarIndex, readsRunningTotal, FIRST_BAR_TEST } from './barIndexShift.js'
 
 // ⭐⭐ THE LANE'S ONE ANSWER TO "DOES THIS TREE YIELD A YES/NO", IMPORTED RATHER
@@ -9187,10 +9187,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       // ⭐ engine NUMBER PENDING: under the Pine compare a branch reaches up to `compareSlack` past `c`
       // (`s > c` is FALSE for `s` within the epsilon above `c`), so the bound is widened by it: wider is
       // sound, narrower would drop a state the run can be in. IEEE's slack is 0, as before.
-      const slack = compareSlack(binary)
-      const below = (op === '<' || op === '<=') === branch
-      const lo = below ? S.lo : Math.max(S.lo, c - slack)
-      const hi = below ? Math.min(S.hi, c + slack) : S.hi
+      const { lo, hi } = compareNarrow(op, branch, S.lo, S.hi, c, binary)
       let na = false
       if (S.na) {
         // `na` compares as 0 (`cmp`); inside `nz(self, k)` it reads as `k` — and a

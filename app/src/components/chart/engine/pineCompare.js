@@ -166,3 +166,12 @@ export function compareRange(op, A, B, cmpTable) {
 export function compareSlack(cmpTable) {
   return cmpTable && cmpTable['=='] === EXACT_CMP['=='] ? 0 : 2 * PINE_EQ_EPSILON
 }
+
+/** ⭐ THE STATE NARROWING `interpret.js::refine` applies: the states `s` in `[lo, hi]` for which `s OP c`
+ *  (`OP` one of `<` `<=` `>` `>=`) can answer `branch`, as `{lo, hi}` — never narrower than the truth under
+ *  `cmpTable` (railed by a soundness grid, `pineCompare.test.js`). */
+export function compareNarrow(op, branch, lo, hi, c, cmpTable) {
+  const slack = compareSlack(cmpTable)
+  const below = (op === '<' || op === '<=') === branch
+  return below ? { lo, hi: Math.min(hi, c + slack) } : { lo: Math.max(lo, c - slack), hi }
+}

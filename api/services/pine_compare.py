@@ -154,3 +154,12 @@ def compare_range(op: str, A: Tuple[float, float], B: Tuple[float, float],
 def compare_slack(table: Dict[str, Callable[[float, float], float]]) -> float:
     """``pineCompare.js::compareSlack``: 0 for IEEE, twice the epsilon for the Pine compare."""
     return 0.0 if table.get("==") is EXACT_CMP["=="] else 2.0 * PINE_EQ_EPSILON
+
+
+def compare_narrow(op: str, branch: bool, lo: float, hi: float, c: float,
+                   table: Dict[str, Callable[[float, float], float]]) -> Tuple[float, float]:
+    """``pineCompare.js::compareNarrow``: the states in ``[lo, hi]`` for which ``s OP c`` can answer
+    ``branch`` (``ast_interpret.refine``), never narrower than the truth under ``table``."""
+    slack = compare_slack(table)
+    below = (op in ("<", "<=")) == branch
+    return (lo, min(hi, c + slack)) if below else (max(lo, c - slack), hi)

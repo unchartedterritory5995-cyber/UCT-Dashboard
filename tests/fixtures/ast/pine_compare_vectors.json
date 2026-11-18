@@ -1,6 +1,6 @@
 {
  "schema": "uct.pine-compare-vectors/v1",
- "readme": "TradingView's own readings of Pine's six comparison operators on literal pairs (series operands), from the probe captures (Q-FCMP promoted with this table; Q-FCMP2 runs fcmp2 / fcmp2b, to be promoted): Q-FCMP (docs/pine/capture-queue-2026-11-18-float-compare.md) and Q-FCMP2 (docs/pine/capture-queue-2026-11-18-float-tolerance-form.md). `code` = 1*(a==b) + 2*(a!=b) + 4*(a<b) + 8*(a<=b) + 16*(a>b) + 32*(a>=b); `eq` = 1 when a == b. `null` is na. Read by BOTH app/src/components/chart/engine/pineCompare.test.js and tests/test_pine_compare.py: one table, two implementations. Literals are stored as the doubles TradingView parsed (JSON round-trips a double).",
+ "readme": "TradingView's own readings of Pine's six comparison operators on literal pairs (series operands), from the committed probe captures (each row checked against its capture by app/src/components/chart/engine/pineCompareProvenance.test.js): Q-FCMP (docs/pine/capture-queue-2026-11-18-float-compare.md) and Q-FCMP2 (docs/pine/capture-queue-2026-11-18-float-tolerance-form.md). `code` = 1*(a==b) + 2*(a!=b) + 4*(a<b) + 8*(a<=b) + 16*(a>b) + 32*(a>=b); `eq` = 1 when a == b. `null` is na. Read by BOTH app/src/components/chart/engine/pineCompare.test.js and tests/test_pine_compare.py: one table, two implementations. Literals are stored as the doubles TradingView parsed (JSON round-trips a double).",
  "vectors": [
   {
    "id": "Q-FCMP F01/F02 (0.1+0.2) vs 0.3",
