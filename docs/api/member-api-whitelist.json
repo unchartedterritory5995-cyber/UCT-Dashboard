@@ -540,6 +540,14 @@
       "limit": "600/minute",
       "method": "GET",
       "params": "date",
+      "path": "/api/calendar/earnings-season",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "date",
       "path": "/api/calendar/enrichment",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -1269,6 +1277,14 @@
       "method": "GET",
       "params": "{ticker}, quarter",
       "path": "/api/earnings/call-recap/{ticker}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "month",
+      "path": "/api/earnings/call-themes",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -4965,6 +4981,14 @@
       "method": "GET",
       "params": "",
       "path": "/api/screener/grammar",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/screener/layout-gallery",
       "rate_limit_family": "screener",
       "tier": "paid"
     },
