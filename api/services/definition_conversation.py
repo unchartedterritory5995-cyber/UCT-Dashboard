@@ -252,12 +252,27 @@ def composed_schema() -> Dict[str, Any]:
     return schema
 
 
+#: ⭐ 2026-11-18 -- A NOTE SAYS WHO SAID IT. The door's own notes ("Built to UCT's checked formula
+#: ...", "as you chose before") carry ``by: "uct"`` so the window prints them as statements, never
+#: as something the assistant assumed. Three rules hold it:
+#:   * ONLY THE DOOR WRITES IT: the property is marked door-only in the contract, the assistant's
+#:     copy of the schema leaves it out (`_strip_meta`), and it is taken off the assistant's answer
+#:     before anything reads it (`_own_notes_only`);
+#:   * IT IS SENT ONLY TO A BROWSER THAT ACCEPTS IT (`ACCEPTS_NOTE_BY` in the request's `accepts`):
+#:     a tab on an older build never meets a field its validator refuses;
+#:   * it changes nothing the door decides: notes are compared by output and text, as before.
+NOTE_BY = "uct"
+ACCEPTS_NOTE_BY = "note.by"
+DOOR_ONLY = "x-uct-door-only"
+
+
 def _strip_meta(node: Any) -> Any:
-    """The tool copy of the schema: no ``$schema``/``$id`` and no ``x-*``
-    annotations. Validation keywords are untouched."""
+    """The tool copy of the schema: no ``$schema``/``$id``, no ``x-*`` annotations, and no property
+    marked door-only (the assistant is never offered it). Validation keywords are untouched."""
     if isinstance(node, dict):
         return {k: _strip_meta(v) for k, v in node.items()
-                if k not in ("$schema", "$id") and not k.startswith("x-")}
+                if k not in ("$schema", "$id") and not k.startswith("x-")
+                and not (isinstance(v, dict) and v.get(DOOR_ONLY) is True)}
     if isinstance(node, list):
         return [_strip_meta(v) for v in node]
     return node
@@ -907,7 +922,37 @@ def open_questions(understood: Mapping[str, Any]) -> List[str]:
         found.add("average_length")
     if _CROSS_WORD.search(words) and _PRICE_WORD.search(words) and not _CROSS_SETTLED.search(words):
         found.add("cross_meaning")
+    found.update(open_acronyms(understood))
     return [qid for qid in clarify_registry() if qid in found]
+
+
+def meant_by(question: Mapping[str, Any], understood: Mapping[str, Any]) -> Optional[str]:
+    """Which of an acronym question's choices a request NAMES, if any: the choice whose catalogue
+    row the door recognises in it (a library entry, or a withheld name)."""
+    from api.services import indicator_names
+    in_library = indicator_names.now_in_library()
+    recognised = {e.get("id") for e in understood.get("named") or []} | {w.get("id") for w in understood.get("withheld") or []}
+    for label, row in (question.get("rows") or {}).items():
+        if row in recognised or in_library.get(row) in recognised:
+            return label
+    return None
+
+
+def open_acronyms(understood: Mapping[str, Any]) -> List[str]:
+    """⭐ AN ACRONYM THAT COULD MEAN TWO INDICATORS (ruling 2026-11-18). The acronym questions this
+    request leaves open: it writes the letters, as a whole word, and names neither indicator they
+    could mean. ("DMI" names two rows UCT knows by name; guessing one would put the wrong indicator
+    on the chart under a name the member did type.)"""
+    words = str(understood.get("request_text") or "")
+    found: List[str] = []
+    for qid, q in clarify_registry().items():
+        letters = q.get("acronym")
+        if not letters:
+            continue
+        pattern = rf"(?<![A-Za-z0-9.]){re.escape(letters.upper() if q.get('capitals_only') else letters)}(?![A-Za-z0-9]|\.[A-Za-z0-9])"
+        if re.search(pattern, words, 0 if q.get("capitals_only") else re.I) and meant_by(q, understood) is None:
+            found.append(qid)
+    return found
 
 
 def door_question(understood: Mapping[str, Any], view: Any) -> Optional[str]:
@@ -973,8 +1018,15 @@ def pending_answer(message: str, turns: List[Dict[str, str]], chart: Any) -> Opt
     if not original or len(combined) > MAX_MESSAGE_CHARS:
         return None
     before, after = understand_turn(original, chart), understand_turn(combined, chart)
-    if before["refusal"] is not None or after["refusal"] is not None:
+    if before["refusal"] is not None:
         return None
+    if after["refusal"] is not None:
+        # ⭐ ONE OF AN ACRONYM'S MEANINGS MAY BE A NAME UCT DOES NOT BUILD ("ADL" -> Advance Decline
+        # Line). Choosing it IS the answer: the turn is read as the request plus that name, and
+        # goes on to that name's own answer (the way forward), never back to the question.
+        question = clarify_registry()[asked]
+        chose = question.get("acronym") and any(choice in answer for choice in question["choices"])
+        return {"question": asked, "message": combined, "answer": answer} if chose and asked in open_questions(before) else None
     if asked in open_questions(before) and asked not in open_questions(after):
         return {"question": asked, "message": combined, "answer": answer}
     return None
@@ -1008,6 +1060,9 @@ def answer_value(question_id: str, answered: Mapping[str, Any], chart: Any) -> O
         said = answered["answer"].lower()
         chosen = "close" if re.search(r"\bclos", said) else "touch" if _CROSS_SETTLED.search(said) else None
         return next(((chosen, label) for label, value in values.items() if value == chosen), None)
+    if question.get("acronym"):
+        label = meant_by(question, after)
+        return (values[label], label) if label in values else None
     return None
 
 
@@ -1365,10 +1420,16 @@ def check_named(envelope: Mapping[str, Any], view: Any, named: Any) -> None:
 
 
 def named_notes(envelope: Mapping[str, Any], view: Any, named: Any) -> List[Dict[str, Any]]:
-    """One assumption per output this patch builds to a library formula: what it was built to and
-    how that formula was checked, in the member's words."""
-    return [{"output": key, "text": named_indicators.member_sentence(e, got)}
-            for key, e, got in _named_outputs(envelope, view, named)]
+    """What this patch built to a library formula and how that formula was checked, in the member's
+    words: ONE assumption per indicator, on the first output that holds it.
+
+    ⭐ 2026-11-18, read in the live window: it was one per OUTPUT, so the Directional Movement Index
+    said the same sentence three times in a row (+DI, -DI, ADX). Outputs built with different
+    numbers still get a sentence each, because the sentences differ."""
+    said: Dict[str, str] = {}
+    for key, e, got in _named_outputs(envelope, view, named):
+        said.setdefault(named_indicators.member_sentence(e, got), key)
+    return [{"output": key, "text": text} for text, key in said.items()]
 
 
 def _named_outputs(envelope: Mapping[str, Any], view: Any, named: Any) -> List[Tuple[str, Dict[str, Any], Any]]:
@@ -1441,6 +1502,25 @@ def asked_names(message: Any, refused: Any = ()) -> List[str]:
     return ids
 
 
+def _own_notes_only(envelope: Any) -> Any:
+    """The patch with ``by`` taken off every note. Used on whatever did NOT come from the door this
+    turn: the assistant's answer (it may not sign a note as UCT's), and a patch the browser sends
+    back for repair (so the assistant re-reads its own answer as it wrote it)."""
+    if not isinstance(envelope, Mapping) or not isinstance(envelope.get("assumptions"), list):
+        return envelope
+    if not any(isinstance(a, Mapping) and "by" in a for a in envelope["assumptions"]):
+        return envelope
+    out = dict(envelope)
+    out["assumptions"] = [{k: v for k, v in a.items() if k != "by"} if isinstance(a, Mapping) else a
+                          for a in envelope["assumptions"]]
+    return out
+
+
+def accepts_note_by(accepts: Any) -> bool:
+    """Did the browser say it accepts a note's ``by``? (A list holding that word; anything else is no.)"""
+    return isinstance(accepts, list) and ACCEPTS_NOTE_BY in accepts
+
+
 def _with_door_notes(envelope: Dict[str, Any], notes: List[Dict[str, Any]]) -> Dict[str, Any]:
     """The patch with the door's own notes ahead of what it already carries (never more than the
     contract allows; a note already there for that output, word for word, is not repeated)."""
@@ -1449,7 +1529,8 @@ def _with_door_notes(envelope: Dict[str, Any], notes: List[Dict[str, Any]]) -> D
     have = [a for a in (envelope.get("assumptions") or []) if isinstance(a, Mapping)]
     # (a note may have NO `output`: "as you chose before" is about the whole indicator. Read it with
     # .get: indexed, it raised on any turn whose patch already carried an assumption.)
-    fresh = [n for n in notes if not any(a.get("output") == n.get("output") and a.get("text") == n["text"] for a in have)]
+    fresh = [{**n, "by": NOTE_BY}
+             for n in notes if not any(a.get("output") == n.get("output") and a.get("text") == n["text"] for a in have)]
     out = dict(envelope)
     out["assumptions"] = (fresh + have)[:MAX_ASSUMPTIONS]
     return out
@@ -2976,7 +3057,7 @@ def browser_refusal(raw: Any, revision: int, view: Any) -> Optional[Tuple[Dict[s
     try:
         if len(json.dumps(envelope)) > MAX_INPUT_CHARS // 4:
             return None
-        checked = check_envelope(dict(envelope), revision, view)
+        checked = check_envelope(_own_notes_only(dict(envelope)), revision, view)
     except Exception:                              # noqa: BLE001 -- not ours: an ordinary turn
         return None
     if checked.get("disposition") != "change" or not checked.get("ops"):
@@ -3106,7 +3187,8 @@ def with_running_value_notes(envelope: Dict[str, Any]) -> Dict[str, Any]:
         return envelope
     have = [a for a in (envelope.get("assumptions") or []) if isinstance(a, Mapping)]
     said = {a.get("text") for a in have}
-    merged = [n for n in notes if n["text"] not in said or not any(a.get("output") == n["output"] and a.get("text") == n["text"] for a in have)] + have
+    merged = [{**n, "by": NOTE_BY} for n in notes
+              if n["text"] not in said or not any(a.get("output") == n["output"] and a.get("text") == n["text"] for a in have)] + have
     out = dict(envelope)
     out["assumptions"] = merged[:MAX_ASSUMPTIONS]
     return out
@@ -3304,8 +3386,11 @@ def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
 def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
              snippets: Any = None, chart: Any = None, admin: bool = False,
              conversation_id: Any = None, examples: Any = False,
-             browser_refusal: Any = None, memory: Any = None) -> Dict[str, Any]:
+             browser_refusal: Any = None, memory: Any = None, accepts: Any = None) -> Dict[str, Any]:
     """One conversational turn. NEVER raises.
+
+    ``accepts`` is what the browser said it accepts beyond the first contract (`ACCEPTS_NOTE_BY`).
+    Without it the answer is exactly what an older tab has always been sent.
 
     ``memory`` is this member's remembered choices (`indicator_memory.Memory`), or None for a turn
     that remembers nothing and uses nothing remembered (every test that does not ask for one).
@@ -3344,6 +3429,8 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
                                     refused_by_browser=browser_refusal, memory=memory)
         else:
             result = {"ok": False, "gate": "rate:busy", "reason": dc.REFUSALS["rate:busy"]}
+    if not accepts_note_by(accepts) and isinstance(result.get("envelope"), Mapping):
+        result["envelope"] = _own_notes_only(result["envelope"])      # an older tab: the answer it always got
     latency_ms = int((time.monotonic() - started) * 1000)
     outcome = result.get("turn") if result.get("ok") else result.get("gate")
     try:
@@ -3798,6 +3885,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
 
         tool_input = _tool_input(msg)
         candidate, wrapper = _unwrap_input(tool_input)
+        candidate = _own_notes_only(candidate)             # the assistant may not sign a note as UCT's
         if wrapper:
             # shape only: the wrapper NAME and the attempt, never its content
             logger.info("[converse] unwrapped %r on attempt=%d", wrapper, attempts)

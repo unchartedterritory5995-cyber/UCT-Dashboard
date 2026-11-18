@@ -191,6 +191,367 @@
     ]
    }
   ],
+  "clarify-acronym-dmi#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Added the ADX line of the Directional Movement Index.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Directional Movement Index",
+      "placement": "pane",
+      "primary": "adx",
+      "outputs": [
+       {
+        "key": "adx",
+        "label": "ADX",
+        "tree": {
+         "type": "call",
+         "name": "adx",
+         "args": [
+          {
+           "type": "series",
+           "name": "high"
+          },
+          {
+           "type": "series",
+           "name": "low"
+          },
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 14
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "remembered-kind-with-a-note#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Added a 20 bar exponential average.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "EMA 20",
+      "placement": "price",
+      "primary": "ema",
+      "outputs": [
+       {
+        "key": "ema",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 20
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "assumptions": [
+     {
+      "output": "ema",
+      "text": "Drawn on the price pane."
+     }
+    ]
+   }
+  ],
+  "remembered-acronym-library-build#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Added the ADX line of the Directional Movement Index.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Directional Movement Index",
+      "placement": "pane",
+      "primary": "adx",
+      "outputs": [
+       {
+        "key": "adx",
+        "label": "ADX",
+        "tree": {
+         "type": "call",
+         "name": "adx",
+         "args": [
+          {
+           "type": "series",
+           "name": "high"
+          },
+          {
+           "type": "series",
+           "name": "low"
+          },
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 14
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "clarify-acronym-adl#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Added the Accumulation Distribution Line.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Accumulation Distribution Line",
+      "placement": "pane",
+      "primary": "adl",
+      "outputs": [
+       {
+        "key": "adl",
+        "label": "Accumulation Distribution Line",
+        "tree": {
+         "type": "call",
+         "name": "cum",
+         "args": [
+          {
+           "type": "op",
+           "name": "?:",
+           "args": [
+            {
+             "type": "op",
+             "name": "==",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 0
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "-",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    },
+                    {
+                     "type": "series",
+                     "name": "low"
+                    }
+                   ]
+                  },
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "high"
+                    },
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "op",
+                 "name": "-",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "high"
+                  },
+                  {
+                   "type": "series",
+                   "name": "low"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "series",
+               "name": "volume"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "clarify-acronym-ad#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Added the Accumulation Distribution Line.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Accumulation Distribution Line",
+      "placement": "pane",
+      "primary": "adl",
+      "outputs": [
+       {
+        "key": "adl",
+        "label": "Accumulation Distribution Line",
+        "tree": {
+         "type": "call",
+         "name": "cum",
+         "args": [
+          {
+           "type": "op",
+           "name": "?:",
+           "args": [
+            {
+             "type": "op",
+             "name": "==",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 0
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "-",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    },
+                    {
+                     "type": "series",
+                     "name": "low"
+                    }
+                   ]
+                  },
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "high"
+                    },
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "op",
+                 "name": "-",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "high"
+                  },
+                  {
+                   "type": "series",
+                   "name": "low"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "series",
+               "name": "volume"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
   "ctl-other-symbol#0": [
    {
     "contract": "uct.authoring.patch/1",

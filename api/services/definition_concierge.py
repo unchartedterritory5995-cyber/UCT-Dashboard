@@ -276,8 +276,10 @@ REFUSALS: Mapping[str, str] = {
         "this request needs something the UCT Agent cannot draft yet"),
     # ⭐ P0 (2026-10-05). Any unexpected failure after the model call. Logged
     # with its traceback; the member gets a controlled answer, never a 500.
+    # ⭐ 2026-11-18 (ruling): it says what is true and what to do. It is OURS, so it never asks the
+    # member to rephrase; the window says this same sentence (`memberWords.INTERNAL`).
     "internal:error": (
-        "the UCT Agent hit an internal problem and drafted nothing"),
+        "That didn't work on our side and nothing was changed. Try again in a moment."),
 }
 
 #: ⭐ P0 (2026-10-05) — node types this door CANNOT FINISH, each with the honest
