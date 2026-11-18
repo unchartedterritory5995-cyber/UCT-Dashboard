@@ -483,8 +483,8 @@ describe('W9-T5 pin before serve (D1): nothing T5 adds serves without its own pi
       expect(err, err && err.message).toBeUndefined()
     })
   }
-  it('the D7 scorecard stays derived: 41 of every named rule (the size is pinned once, strategiesAreRuled.test.js)', () => {
+  it('the D7 scorecard stays derived: 42 of every named rule (the size is pinned once, strategiesAreRuled.test.js)', () => {
     for (const r of T5_RULES) expect(BROKER_RULE_IDS).toContain(r)
-    expect(strategyScorecardWording()).toMatch(new RegExp(`^41 of ${BROKER_RULE_IDS.length} broker rules are pinned`))
+    expect(strategyScorecardWording()).toMatch(new RegExp(`^42 of ${BROKER_RULE_IDS.length} broker rules are pinned`))
   })
 })

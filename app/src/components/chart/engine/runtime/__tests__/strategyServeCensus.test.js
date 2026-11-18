@@ -246,6 +246,11 @@ describe('the serve census over corpus/committed, broker gate on', () => {
       }
       expect(rows.find((x) => x.key === 'supertrend-strategy__rcRbtoBiKG')).toMatchObject({ at: 'report' })
     }
+    // ⭐ NOTHING TAKEN AWAY (owner rule): in session every strategy draws exactly the plots it draws on the closed chart,
+    // whether its backtest is served there or refused by name with its plots kept
+    for (const r of rows) {
+      expect(r.plotsDrawn, r.key).toBe(results.grantedDaily.find((x) => x.key === r.key).plotsDrawn)
+    }
     // CONTROL: the same bars CLOSED serve them, so the forming bar alone moves them
     expect(results.grantedDaily.filter((r) => r.state === 'served').map((r) => r.key).sort()).toEqual([...ARMED_COMMITTED])
   })
