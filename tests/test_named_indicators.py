@@ -146,9 +146,9 @@ def test_the_evidence_says_what_was_read_and_where():
 
 
 def test_what_the_library_claims_about_tradingview_is_what_was_graded():
-    """Twenty-eight entries are TradingView built-ins and were graded against them in three batches
+    """Twenty-nine entries are TradingView built-ins and were graded against them in four batches
     (2026-11-18; the method and grades are in docs/indicators/evidence/2026-11-18-named-library/).
-    Twenty-four are equal on every bar; two are equal after their first bars. Two claim NOTHING
+    Twenty-five are equal on every bar; two are equal after their first bars. Two claim NOTHING
     about TradingView, each for a stated reason: the McGinley Dynamic (UCT's 300-bar restart of the
     same formula is not bar-equal) and the Directional Movement Index (one floating-point tie on
     one bar of 8,509). Two are not TradingView built-ins and have no capture."""
@@ -163,7 +163,9 @@ def test_what_the_library_claims_about_tradingview_is_what_was_graded():
         "aroon", "on_balance_volume", "accumulation_distribution_line", "price_volume_trend",
         "percentage_price_oscillator", "know_sure_thing", "mass_index", "force_index", "ease_of_movement", "ulcer_index",
         # after the rulings of 2026-11-18: the Negative Volume Index in its compounding form (version 2), and TRIX
-        "negative_volume_index", "trix"])
+        "negative_volume_index", "trix",
+        # the fourth batch: the Positive Volume Index, both lines on every bar
+        "positive_volume_index"])
     assert sorted(i for i, g in grade.items() if g == "EQUAL AFTER WARM-UP") == ["chandelier_exit", "connors_rsi"]
     assert grade["mcginley_dynamic"] == "FORMULA EQUAL, RESTART DIFFERS"
     assert grade["directional_movement_index"] == "FORMULA EQUAL, ONE ROUNDING TIE DIFFERS"
