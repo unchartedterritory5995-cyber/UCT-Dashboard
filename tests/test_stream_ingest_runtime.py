@@ -128,6 +128,26 @@ def test_other_failures_and_disconnect_gap():
         mr.MaxConnLadder(ladder=(5.0,))
 
 
+def test_min_gap_comes_from_the_env_with_a_floor(monkeypatch):
+    """INGEST_RECONNECT_MIN_GAP_S (2026-11-18, the second stocks connection): the wait
+    after a disconnect or a clean close. Unset or junk keeps the 10 s default; nothing
+    takes it under the 1 s floor; and it is what a policy built at boot uses."""
+    import importlib
+    for raw, want in (("", 10.0), ("2", 2.0), ("0", 1.0), ("-5", 1.0), ("soon", 10.0)):
+        monkeypatch.setenv("INGEST_RECONNECT_MIN_GAP_S", raw)
+        assert mr._min_gap_from_env() == want, raw
+    monkeypatch.setenv("INGEST_RECONNECT_MIN_GAP_S", "2")
+    fresh = importlib.reload(mr)
+    try:
+        p = fresh.MaxConnLadder(monotonic=lambda: 10_000.0)
+        assert p.disconnect_delay(ConnectionError("reset"), 1) == 2.0
+        assert p.normal_close_delay() == 2.0
+        assert p.auth_failed_delay("max_connections") == 30      # a kick still climbs the ladder
+    finally:
+        monkeypatch.delenv("INGEST_RECONNECT_MIN_GAP_S")
+        importlib.reload(mr)
+
+
 def test_bar_stream_default_policy_is_the_historic_waits():
     d = bs._DefaultReconnectPolicy()
     assert d.auth_failed_delay("max_connections") == 60

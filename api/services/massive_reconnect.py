@@ -1,11 +1,16 @@
 """How long the stream-ingest Massive reader waits before it connects again (ingest PR4b).
 
-Massive allows about ONE stocks connection per key (INGEST-PROCESS-DESIGN, "DECIDED
-11-13"): a second connection is refused with `max_connections`, or kicks the first.
-And a session that just closed stays counted on Massive's side for 10-30 s, so a
-reconnect straight into it is refused too. This policy is what keeps one refusal from
-turning into a reconnect storm. It is the options worker's ladder (api/massive_ws_worker.py,
-MAXCONN_LADDER and the young-process cap), ported here as a pure object:
+Massive counts stocks connections per key and kicks the oldest one past the limit with
+`max_connections`. The limit was ONE until 2026-11-18, when a second connection was added
+(measured that day: a second socket on the key coexisted with ingest's once ingest's
+session re-authenticated after the add-on). A session that just closed stays counted on
+Massive's side for 10-30 s, so with one connection a reconnect straight into it was
+refused; with two, that leftover session fits under the limit, which is what lets
+`INGEST_RECONNECT_MIN_GAP_S` (the `min_gap_s` below) come down from its 10 s default.
+
+This policy is what keeps one refusal from turning into a reconnect storm. It is the
+options worker's ladder (api/massive_ws_worker.py, MAXCONN_LADDER and the young-process
+cap), ported here as a pure object:
 
   * `max_connections` (at auth, as a status frame while streaming, which is how a
     KICK arrives, or in the disconnect reason): wait 30, 60, 120, 300, then 600 s on
@@ -16,8 +21,8 @@ MAXCONN_LADDER and the young-process cap), ported here as a pure object:
     deployment's session still being reaped, not a real lockout.
   * any other auth failure: 60 s (what bar_stream has always done).
   * any other disconnect, and a clean close by the server: the reader's own
-    exponential backoff, but never under `min_gap_s` (Massive's guidance: leave
-    10-30 s between connections).
+    exponential backoff, but never under `min_gap_s` (Massive's guidance for one
+    connection: leave 10-30 s between connections).
 
 No rung and no cap is below 30 s. Time is injected (`monotonic`), so every decision
 is reproducible in a test. The web pod's reader does NOT use this: bar_stream's
@@ -25,6 +30,7 @@ default policy keeps its behaviour exactly as it was.
 """
 from __future__ import annotations
 
+import os
 import time
 from typing import Callable
 
@@ -35,8 +41,24 @@ YOUNG_UPTIME_S = 900.0
 YOUNG_CAP_S = 60.0
 #: Other auth failures (a bad key, an unexpected status): bar_stream's historic wait.
 AUTH_FAILURE_S = 60.0
-#: The shortest wait before any reconnect after a disconnect.
-MIN_GAP_S = 10.0
+#: The shortest wait before any reconnect after a disconnect or a clean close by the server.
+#: `INGEST_RECONNECT_MIN_GAP_S` sets it (default 10, Massive's 10-30 s guidance for ONE
+#: connection); it is never under MIN_GAP_FLOOR_S, so a dead endpoint cannot be hammered.
+#: With the second stocks connection (2026-11-18) a just-closed session no longer blocks
+#: the next one, so stream-ingest runs it at 2 s.
+MIN_GAP_FLOOR_S = 1.0
+
+
+def _min_gap_from_env() -> float:
+    raw = os.environ.get("INGEST_RECONNECT_MIN_GAP_S", "").strip()
+    try:
+        value = float(raw) if raw else 10.0
+    except ValueError:
+        value = 10.0
+    return max(MIN_GAP_FLOOR_S, value)
+
+
+MIN_GAP_S = _min_gap_from_env()
 #: A connection that stayed up this long clears the max_connections strikes.
 HEALTHY_S = 120.0
 
