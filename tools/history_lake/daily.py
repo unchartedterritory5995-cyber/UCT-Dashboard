@@ -264,6 +264,9 @@ def _publish_and_verify(root: Path, tree: str, bucket: str, prefix: str, through
             "--upload", "--bucket", bucket, "--prefix", prefix]
     if built_at is not None:
         pub += ["--force-since", f"{built_at - 1:.0f}"]
+    events = root / "ref" / "ticker_events.jsonl"
+    if events.exists():                 # reused tickers cut, renamed companies stitched (identity.py)
+        pub += ["--ticker-events", str(events)]
     if not dry_run and runner(_locked("lake-daily-publish", pub, 4 * 3600), log, low_priority=True) != 0:
         return finish(EXIT_FAILED, reason="publish failed (the next run publishes again: packs already sent are skipped)")
 
