@@ -47,12 +47,16 @@ CASES = [
     ("sarDirection", [n(0.02), n(0.2)]), ("sarDirection", [n(0.1), n(0.5)]),
     # (2026-11-18) the Fisher Transform over accum2, at the two lengths it was graded at and two more
     ("fisher", [n(9)]), ("fisher", [n(20)]), ("fisher", [n(2)]), ("fisher", [n(10.0)]),
+    # (2026-11-18) the Detrended Price Oscillator: an odd and an even length (the bars-back count is
+    # floor(n / 2) + 1, so 21 and 20 both read 11 back), the shortest, and a source that is a formula
+    ("dpo", [CLOSE, n(21)]), ("dpo", [CLOSE, n(20)]), ("dpo", [CLOSE, n(1)]), ("dpo", [HL2, n(9)]),
     # (2026-11-18) the Laguerre Filter and the Laguerre RSI over accum4: the two graded settings, and one
     # gamma in each of the other restart tiers
     ("laguerre", [HL2, n(0.8)]), ("laguerreRsi", [CLOSE, n(0.5)]),
     ("laguerre", [CLOSE, n(0.6)]), ("laguerre", [CLOSE, n(0.85)]), ("laguerreRsi", [CLOSE, n(0.95)]),
     ("laguerreRsi", [HL2, n(0.2)]),
     # declined (null) in both lanes
+    ("dpo", [CLOSE, n(0)]), ("dpo", [CLOSE, n(20.5)]),
     ("fisher", [n(1)]), ("fisher", [n(9.5)]), ("fisher", [{"type": "series", "name": "len"}]),
     # a gamma that is 0, past the largest that settles, or not a number; a source that is itself a running value
     ("laguerre", [CLOSE, n(0)]), ("laguerre", [CLOSE, n(0.96)]), ("laguerreRsi", [CLOSE, n(1)]),
@@ -81,7 +85,7 @@ def test_the_two_lanes_build_byte_identical_trees():
     server = [ce.expand_call({"type": "call", "name": name, "args": args}) for name, args in CASES]
     assert json.dumps(server, sort_keys=True) == json.dumps(browser, sort_keys=True)
     # 9 -> 14 (2026-10-30): five SAR settings outside the measured domain.
-    assert sum(1 for t in server if t is None) == 24    # declined in both: 15, fisher's 3, the Laguerre pair's 6
+    assert sum(1 for t in server if t is None) == 26    # declined in both: 15, dpo's 2, fisher's 3, the Laguerre pair's 6
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not on PATH")
@@ -112,6 +116,23 @@ def test_the_fisher_transform_is_exactly_the_tree_that_was_graded():
     tree = ce.expand_call({"type": "call", "name": "fisher", "args": [n(9)]})
     assert tree["name"] == "accum2" and [a.get("value") for a in tree["args"][:4]] == [2, ce.FISHER_WARMUP, 0, 0]
     assert ce.FISHER_WARMUP == 300
+
+
+def test_dpo_reads_its_average_half_the_length_plus_one_bars_back():
+    """TradingView's default (not centred) form, which the captures show equal on every bar at an odd
+    and an even length: the source minus its n-bar simple average as it stood floor(n / 2) + 1 bars
+    ago. The count is DERIVED from the length; that is the whole reason this is a function."""
+    def dpo(length, source=CLOSE):
+        return ce.expand_call({"type": "call", "name": "dpo", "args": [source, n(length)]})
+    for length, back in ((21, 11), (20, 11), (14, 8), (15, 8), (2, 2), (1, 1), (200, 101)):
+        assert dpo(length) == {"type": "op", "name": "-", "args": [
+            CLOSE, {"type": "offset", "value": back, "args": [{"type": "call", "name": "sma", "args": [CLOSE, n(length)]}]}]}, length
+    # the average is of the SAME source the function was given
+    assert dpo(9, HL2)["args"][1]["args"][0]["args"][0] == HL2 and dpo(9, HL2)["args"][0] == HL2
+    # CONTROL: it is not momentum (which reads the SOURCE back), and not the textbook form (the price back)
+    mom = ce.expand_call({"type": "call", "name": "mom", "args": [CLOSE, n(11)]})
+    assert dpo(21) != mom and dpo(21)["args"][0] == CLOSE and dpo(21)["args"][1]["type"] == "offset"
+    assert ce.CALL_EXPANSIONS["dpo"][2] == "dpo(source, length)"
 
 
 def test_the_laguerre_pair_is_exactly_the_trees_that_were_graded():

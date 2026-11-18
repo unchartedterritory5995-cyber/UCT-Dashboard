@@ -629,6 +629,15 @@ def fisher_trigger(bars, length=9):
     return [NAN] + fisher_transform(bars, length)[:-1]
 
 
+def detrended_price_oscillator(bars, length=21):
+    """TradingView's default (not centred) form, written with its own integer division: the close
+    minus the `length`-bar simple average as it stood `length // 2 + 1` bars ago."""
+    c = col(bars, "c")
+    back = length // 2 + 1
+    avg = [sum(c[i - length + 1:i + 1]) / length if i >= length - 1 else NAN for i in range(len(c))]
+    return [c[i] - avg[i - back] if i - back >= 0 and ok(avg[i - back]) else NAN for i in range(len(c))]
+
+
 def _laguerre_stages(src, gamma):
     """Ehlers' four Laguerre stages, carried ONCE from the first bar the way a chart keeps them
     (the engine restarts them a number of bars back instead). A missing previous value is the
@@ -712,6 +721,7 @@ REFERENCES = {
     "negative_volume_index": {"nvi": negative_volume_index, "signal": nvi_signal},
     "positive_volume_index": {"pvi": positive_volume_index, "signal": pvi_signal},
     "fisher_transform": {"fisher": fisher_transform, "trigger": fisher_trigger},
+    "detrended_price_oscillator": {"dpo": detrended_price_oscillator},
     "laguerre_filter": {"filter": laguerre_filter},
     "laguerre_rsi": {"lrsi": laguerre_rsi},
     "ulcer_index": {"ulcer": ulcer_index},
@@ -750,6 +760,7 @@ OTHER = {
     "negative_volume_index": {"signal": 100},
     "positive_volume_index": {"signal": 100},
     "fisher_transform": {"length": 20},
+    "detrended_price_oscillator": {"length": 20},
     "laguerre_filter": {"gamma": 0.6},
     "laguerre_rsi": {"gamma": 0.7},
     "ulcer_index": {"length": 20},
@@ -877,6 +888,21 @@ def test_the_fisher_transform_restarted_300_bars_back_equals_the_carried_one():
             assert _worst(fisher_transform(bars, length), full) < 1e-12
             # CONTROL: a restart far too short to forget its start does show
             assert _worst(fisher_transform(bars, length, window=6), full) > 1e-3
+
+
+def test_the_detrended_price_oscillator_derives_its_bars_back_from_its_length_at_odd_and_even_lengths():
+    """21 and 20 both read the average 11 bars back (integer division), 14 and 15 both 8. The engine's
+    function and this file's own arithmetic must agree at each, and a count one off must not."""
+    bars = _bars(11)
+    for length in (21, 20, 14, 15, 2, 1):
+        call = {"type": "call", "name": "dpo", "args": [{"type": "series", "name": "close"}, {"type": "num", "value": length}]}
+        tree = call_expansions.expand_calls(call)
+        assert tree["args"][1]["value"] == length // 2 + 1
+        _compare(ast_interpret.interpret(tree, bars), detrended_price_oscillator(bars, length), f"dpo {length}")
+        off = json.loads(json.dumps(tree))
+        off["args"][1]["value"] += 1
+        with pytest.raises(AssertionError):
+            _compare(ast_interpret.interpret(off, bars), detrended_price_oscillator(bars, length), "control")
 
 
 def test_the_laguerre_pair_restarted_equals_the_stages_carried_from_the_first_bar():

@@ -127,6 +127,16 @@ Nothing this track adds may reach the entry chunk.
 **Machine rules.** One heavy job at a time through the heavy lock, named test files, one
 worker, a sparse worktree. Tests of this track's own code stay engine-free.
 
+**Before a push: a local failure is compared with a recorded list, test by test.** The sparse
+worktree has no script corpus and no workflow files, so about ninety browser tests under
+`engine/ast` and a dozen door tests fail in it for that reason alone. On 2026-11-18 two NEW
+failures in `engine/ast/namedIndicators.test.js` were read as more of the same and went to the
+remote lane, which was red for them. The rule since: keep the list of tests that fail on an
+unchanged tree (file AND test name), and after a change compare the new list with it. A failing
+test that is not on the list is this change's until shown otherwise; "that directory always fails
+here" is not a reading of it. The remote lane stays the verdict; this is what keeps a known red
+from being sent to it.
+
 ## 5. One name, one verdict
 
 **One name.** The member-facing word is **indicator**, everywhere: the Builder's title, the
