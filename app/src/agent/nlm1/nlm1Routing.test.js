@@ -233,6 +233,8 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     // the strip under the chart), or a tab only the company panel has
     chartFeatures: ['add the company panel', 'collapse the company info on this chart', 'remove the profile panel', 'show the earnings strip',
       'add the fundamentals strip to the nvda chart', 'take the strip under the chart off', 'switch to the ownership tab', 'open the news tab of the company panel'],
+    // chartShare.export: a screenshot, a PNG / image download, or SHARING a chart (a share link, the Share menu)
+    chartShare: ['take a screenshot of this chart', 'download the nvda chart as a png', 'give me a share link for this chart', 'open the share menu'],
     // chartReplay: the bar replay as a thing played — a playback verb governing "the replay", the replay bar / speed, a step "in the replay"
     chartReplay: ['play the replay', 'pause the bar replay', 'step the replay forward 10 bars', 'set the replay speed to 5x', 'next bar in the replay', 'open the time machine'],
   }
@@ -276,6 +278,14 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
   ('"%s": not the UCT Intelligence indicator', (msg) => {
     expect(wordsSelect('uctIntelligence', msg)).toBe(false)
     expect(sentOf(msg).has('uctIntelligence')).toBe(false)
+  })
+  // chartShare.export NEGATIVE controls: the builder's Screenshot door (indicator authoring), the Journal, a chart's link GROUP and
+  // a share PRICE never send the Share group, v1 or the v2 first call
+  it.each(['recreate this indicator from a screenshot', 'send this chart to my journal', 'link this chart to the left one',
+    'show the share price on the chart', 'turn on shared chart settings'])
+  ('"%s": not the chart Share menu', (msg) => {
+    expect(wordsSelect('chartShare', msg)).toBe(false)
+    expect(sentOf(msg).has('chartShare')).toBe(false)
   })
   it.each(wordsOnly.flatMap(g => (OWN_WORDS[g.id] || []).map(m => [g.id, m])))('%s on its own words: "%s"', (id, msg) => {
     expect(wordsSelect(id, msg)).toBe(true)

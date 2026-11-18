@@ -22,6 +22,9 @@ import { allCapabilityNames } from './capabilities'
 import { CHART_SETTING_DESCRIPTORS } from '../components/chart/chartSettingsDescriptors'
 
 const knownSettings = () => CHART_SETTING_DESCRIPTORS.filter(d => d.agent === 'known' && d.label).map(d => d.label)
+// (#1234) the chart's light/dark palette in the member's words — never "theme" (a UCT chart theme is chart.applyTheme) and never
+// "light / dark mode" (the APP's theme, settings.appTheme, which the Agent does)
+const PALETTE_WORDS = /\b(?:light|dark)[\s-]?palette\b|\bshift\s*\+\s*t\b/
 const sample = (xs, n = 6) => (xs.length > n ? `${xs.slice(0, n).join(', ')} and ${xs.length - n} more` : xs.join(', '))
 
 /**
@@ -116,10 +119,19 @@ export const TOPICS = [
     planned: null,
   },
   {
+    // #1234 (AUDIT hold): the chart's light/dark palette stays the member's own switch — Shift+T on the chart (R2 and the owner
+    // keep it read-only for the Agent; settings.theme is a KNOWN descriptor, never written here). Asked or commanded, the
+    // honest answer is where it is, never a change.
+    id: 'chartPalette', title: 'The chart’s light/dark palette',
+    words: [PALETTE_WORDS],
+    caps: [], productHas: true,
+    how: 'It is switched with Shift+T on the chart itself (press Shift+T again to switch back).',
+  },
+  {
     id: 'chartSettings', title: 'Chart appearance and settings',
-    words: [/\b(chart )?settings?\b/, /\b(theme|colou?rs?|background|candles?|grid|crosshair|legend|watermark|labels?|markers?|countdown|swing)\b/, /\b(volume ?profile|vpvr)\b/],
-    caps: ['chart.setSetting', 'chart.applyTheme', 'chart.applyThemeAll', 'chart.applyTemplate', 'chartSetup.saveTemplate', 'chartSetup.deleteTemplate', 'chartSetup.copyLook', 'chart.resetDefaults', 'chart.setBackground', 'chart.setCandleColors', 'volume.setState', 'volumeProfile.set', 'chartSetup.openSettings', 'chartMenu.resetWatermark'], productHas: true,
-    canDo: 'apply any UCT chart theme to one chart or to every chart on the board, apply, save or delete your chart templates, make one chart look like another (its indicators stay), restore a chart’s default settings (your indicators stay), set a solid background or candle colors, show/hide/remove Volume, turn a chart’s Volume Profile on or off and set its bins (8–50) and colors, and change the approved display settings (grid and its color, crosshair and its color, scale text, legend, watermark and its size/weight/lines/color, labels, event markers, swing labels, prev-day lines and their style/width/color, countdown, title, color mode, thin bars, inverted scale) — each with Undo; put a dragged watermark back in its place (Undo too); and open a chart’s own Chart Settings dialog for you (nothing changes, so no Undo)',
+    words: [/\b(chart )?settings?\b/, /\b(theme|colou?rs?|background|candles?|grid|crosshair|legend|watermark|labels?|markers?|countdown|swing)\b/, /\b(volume ?profile|vpvr)\b/, /\bscreen[\s-]?shots?\b|\bshare (?:link|url|menu)\b/],
+    caps: ['chart.setSetting', 'chart.applyTheme', 'chart.applyThemeAll', 'chart.applyTemplate', 'chartSetup.saveTemplate', 'chartSetup.deleteTemplate', 'chartSetup.copyLook', 'chart.resetDefaults', 'chart.setBackground', 'chart.setCandleColors', 'volume.setState', 'volumeProfile.set', 'chartSetup.openSettings', 'chartMenu.resetWatermark', 'chartShare.export'], productHas: true,
+    canDo: 'apply any UCT chart theme to one chart or to every chart on the board, apply, save or delete your chart templates, make one chart look like another (its indicators stay), restore a chart’s default settings (your indicators stay), set a solid background or candle colors, show/hide/remove Volume, turn a chart’s Volume Profile on or off and set its bins (8–50) and colors, and change the approved display settings (grid and its color, crosshair and its color, scale text, legend, watermark and its size/weight/lines/color, labels, event markers, swing labels, prev-day lines and their style/width/color, countdown, title, color mode, thin bars, inverted scale) — each with Undo; put a dragged watermark back in its place (Undo too); open a chart’s own Chart Settings dialog for you (nothing changes, so no Undo); and download a chart as a PNG or open its Share menu, where your click on Copy Share URL copies its link (a browser lets only a click copy; nothing changes, so no Undo)',
     known: () => knownSettings(),
     planned: null,
   },
@@ -248,7 +260,8 @@ export function answerTopic(t, reg = registeredSet()) {
   if (status === 'available' || status === 'partial') {
     lines.push(`${LEAD[status]} ${t.title}: I can ${t.canDo}.`)
   } else if (status === 'known') {
-    lines.push(`${LEAD[status]} ${t.title} is in UCT, but I can't do it for you yet.`)
+    lines.push(t.how ? `No — ${t.title} is the member’s own switch in UCT, and I can’t change it for you. ${t.how}`
+      : `${LEAD[status]} ${t.title} is in UCT, but I can't do it for you yet.`)
   } else if (status === 'planned') {
     lines.push(`${LEAD[status]} ${t.title} isn't something UCT Agent can do today.`)
   } else {
@@ -301,6 +314,9 @@ const CAN_YOU = /^(?:(?:can|could|will|would) (?:you|uct agent)|are you able to|
 export function fastDiscovery(raw) {
   const q = String(raw || '').trim().toLowerCase().replace(/\s+/g, ' ')
   if (OVERVIEW.test(q)) return { topic: 'overview' }
+  // (#1234) the light/dark palette, asked OR commanded ("switch this chart to the light palette", "dark palette please"): the
+  // Agent never writes it, so the answer is where the member's own switch is (Shift+T) — said here, never left to a model
+  if (PALETTE_WORDS.test(q)) return { topic: 'chartPalette' }
   const w = WHAT_WITH.exec(q)
   if (w) { const t = matchTopic(w[1]); return { topic: t ? t.id : 'other' } }
   const c = CAN_YOU.exec(q)

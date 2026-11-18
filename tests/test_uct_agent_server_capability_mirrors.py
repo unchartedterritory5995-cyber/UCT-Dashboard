@@ -181,6 +181,15 @@ def test_the_guard_still_passes_ordinary_company_and_earnings_prose():
         assert guard.suspicious(text) is False, text
 
 
+def test_the_chart_share_action_is_a_CHART_action_withheld_bare():
+    # chartShare.export acts on ONE chart's Share popover (Download PNG / the menu opened): the chart domain, never history
+    assert v2.domain_for("chartShare.export") == "chart"
+    assert guard.suspicious(_bare("chartShare.export")) is True
+    for text in ("Share the chart with a screenshot after the close.", "Export the chart as a PNG and post it.",
+                 "The share link opens the same chart for whoever clicks it."):
+        assert guard.suspicious(text) is False, text
+
+
 # ── Phase 2 market intelligence: rs.compare is SERVER-GATED (registered only while the server serves `rs.leadership`), so it is
 #    not in manifest.golden.json and the ratchets above cannot see it — pinned by name here instead ──
 def test_the_rs_compare_capability_is_a_DATA_action_withheld_bare_and_local_only():

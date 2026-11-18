@@ -11728,6 +11728,74 @@
       ]
     },
     {
+      "id": "chartShare.export.image",
+      "source": "Charts family 11-13: the chart Share popover's Download PNG (StockChart handleDownload: composeScreenshot + downloadBlob); no Undo",
+      "capabilities": [
+        "chartShare.export"
+      ],
+      "board": "SHARE",
+      "needs": [
+        "chartShare.export"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartShare.export",
+            "target": "$charts[0]",
+            "args": {
+              "output": "image"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "shareDownloads": [
+          "NVDA-D.png"
+        ],
+        "shareOpen": false,
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "take a screenshot of this chart",
+        "download this chart as a png",
+        "save the chart as an image"
+      ]
+    },
+    {
+      "id": "chartShare.export.link",
+      "source": "Charts family 11-13: the chart Share popover opened for the member's own Copy Share URL click (a browser lets only a click copy); no Undo",
+      "capabilities": [
+        "chartShare.export"
+      ],
+      "board": "SHARE",
+      "needs": [
+        "chartShare.export"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "chartShare.export",
+            "target": "$charts[0]",
+            "args": {
+              "output": "link"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "shareDownloads": [],
+        "shareOpen": true,
+        "receipt": true,
+        "refusal": false
+      },
+      "phrasings": [
+        "give me a share link for this chart",
+        "share this chart",
+        "open the share menu on this chart"
+      ]
+    },
+    {
       "id": "chartSetup.stepBars",
       "source": "C1-032 (pl-exec4): the Time Navigator's one-bar step buttons",
       "capabilities": [

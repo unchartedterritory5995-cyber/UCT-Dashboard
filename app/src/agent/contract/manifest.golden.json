@@ -6753,6 +6753,39 @@
    "shape": null
   },
   {
+   "name": "chartShare.export",
+   "domain": "chartShare",
+   "target": "chart",
+   "summary": "Download ONE chart as a PNG (its Share → Download PNG) and/or open its Share menu, where Copy Share URL copies its link — a browser lets only a click copy, so the Agent never copies. Nothing on the chart changes; no Undo.",
+   "hints": "target = the chart. output: image = download a PNG / screenshot; link = a share link (opens the Share menu); both. For the Journal, use widget.sendToJournal.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "output": {
+      "type": "string",
+      "enum": [
+       "image",
+       "link",
+       "both"
+      ]
+     }
+    },
+    "required": [
+     "output"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false,
+   "argAliases": null,
+   "coerce": null,
+   "defaults": null,
+   "defaultsWhen": null,
+   "shape": null
+  },
+  {
    "name": "chartReplay.playback",
    "domain": "chartReplay",
    "target": "chart",
@@ -7582,6 +7615,7 @@
        "customIndicator",
        "indicators",
        "drawings",
+       "chartPalette",
        "chartSettings",
        "charts",
        "savedScreens",

@@ -30,6 +30,8 @@ import { isEconomicId } from '../../components/chart/engine/econMark'
 import { getExtSessionCached } from '../../utils/extSession'
 import { unknownSymbols } from '../agentClient'
 import { watermarkSpot } from '../derivedOpts'
+// chartShare.export: its refusal / failure sentences, said by the chart kind's commit (the Share popover's doors)
+import { NO_SHARE, NO_PNG } from './chartShare'
 import { mergeChartSettings, CHART_TYPE_OPTIONS } from '../../components/chart/chartDefaults'
 import { NATIVE_TFS, tfLabel as productTfLabel } from '../../components/chart/timeframes'
 import { TF_ORDER } from '../../components/chart/keyboardShortcuts'
@@ -388,6 +390,8 @@ export const chartKind = {
     canOpenSettings: snap.canOpenSettings === true, settingsOpen: !!snap.settingsOpen, openSettings: null,
     // C1-178: the right-click "Ask AI about {sym}" door (absent = none)
     canAskAi: snap.canAskAi === true, askAi: null,
+    // chartShare.export: the chart's Share popover doors (absent = none) and what is asked of them ({ image, link } | null)
+    canShare: snap.canShare === true, share: null,
     // chartFeatures.*: the widget's Company Info panel / Earnings Strip as ChartWidget's normalizeDock reads them (null = this
     // chart has no dock here: a Multi Chart cell, a pop-out); `dockTabs` = the chart tabs that share it (it is per WIDGET)
     canDock: snap.canDock === true, dock: snap.canDock === true ? normalizeDock(snap.dock) : null, dockTabs: snap.dockTabs || 1 }),
@@ -404,6 +408,7 @@ export const chartKind = {
     if (after.viewDo != null) p.viewDo = after.viewDo
     if (after.openSettings === true) p.openSettings = true
     if (after.askAi === true) p.askAi = true
+    if (after.share) p.share = { ...after.share }
     // chartFeatures.*: a dock the product's transforms changed (they hand back the SAME object when nothing changes)
     if (after.dock !== before.dock) p.dock = after.dock
     return Object.keys(p).length ? p : null
@@ -412,7 +417,7 @@ export const chartKind = {
   // the Time Navigator's own goToDate, then wait for the view to arrive (a jump past the loaded
   // history loads it first) — the receipt only claims what the chart then shows.
   async commit(host, ref, patch) {
-    const { goto, replay, volPanePref, viewDo, openSettings, askAi, favoriteTools, ...rest } = patch
+    const { goto, replay, volPanePref, viewDo, openSettings, askAi, favoriteTools, share, ...rest } = patch
     let ok = true
     if (Object.keys(rest).length) ok = host.charts.commit(ref, rest)
     // The drag's own pref (setPref → true only once the server accepted it); '' clears it, as Reset does (ChartsWorkspace)
@@ -463,6 +468,22 @@ export const chartKind = {
       if (typeof host.charts.askAi !== 'function' || !host.charts.read(ref)?.canAskAi) return false
       setTimeout(() => whenVisible(() => host.charts.askAi(ref)), ASK_AI_DELAY_MS)
     }
+    // chartShare.export, LAST: the chart's own Share popover doors, after anything else asked of this chart (the PNG is the chart
+    // as it then draws: a history load in flight is waited for, capped at 6s). The PNG counts only once the door made one.
+    if (share && ok) {
+      if (!host.charts.read(ref)?.canShare) throw Object.assign(new Error(NO_SHARE), { complete: true })
+      if (share.image) {
+        const t0 = Date.now()
+        do await new Promise(r => setTimeout(r, 60))
+        while (Date.now() - t0 < 6000 && host.charts.read(ref)?.view?.loading)
+        if (!await host.charts.shareDownload?.(ref)) throw Object.assign(new Error(NO_PNG), { complete: false })
+      }
+      if (share.link) {
+        if (!host.charts.shareOpen?.(ref)) return false
+        const t0 = Date.now()
+        while (Date.now() - t0 < 2000 && !host.charts.read(ref)?.shareOpen) await new Promise(r => setTimeout(r, 50))
+      }
+    }
     return ok
   },
   landed(snap, patch) {
@@ -477,6 +498,8 @@ export const chartKind = {
     if ('favoriteTools' in patch && !sameJson(snap.favoriteTools, patch.favoriteTools)) return false
     if ('viewDo' in patch && !viewDone(snap.view, patch.viewDo)) return false
     if ('openSettings' in patch && !snap.settingsOpen) return false
+    // chartShare.export: the Share popover is open (its own state, read back); a PNG is checked by its door in commit
+    if (patch.share?.link && !snap.shareOpen) return false
     // chartFeatures.*: the widget's opts.dock read back exactly as written (an Undo's null = the key gone)
     if ('dock' in patch && !sameJson(snap.dock ?? null, patch.dock ?? null)) return false
     // C1-178: leaving the page happens after the receipt (app.open's rule): there is nothing on the chart to read back
@@ -488,6 +511,8 @@ export const chartKind = {
     if ('openSettings' in item.patch && Object.keys(item.patch).length === 1) return null
     // C1-178: Ask AI opens a page; nothing on the chart changed, and leaving the page has no Undo (as app.open)
     if ('askAi' in item.patch && Object.keys(item.patch).length === 1) return null
+    // chartShare.export: a download and an opened menu change nothing on the chart; with a real change, that change keeps its Undo
+    if ('share' in item.patch && Object.keys(item.patch).length === 1) return null
     const p = {}
     if ('settings' in item.patch) p.settings = item.before.stored ?? null
     if ('tf' in item.patch) p.tf = item.before.tf

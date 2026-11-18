@@ -35,11 +35,12 @@ _INJECTION = re.compile(
     # #1106 right-click parity: the chartMenu domain (chartMenu.askAi / chartMenu.resetWatermark as bare names); stricter only
     # chartFeatures (Company Info panel + Earnings Strip): chartFeatures.companyPanel / earningsStrip as bare names; stricter only
     r"|drawing|widget|board|settings|definition|pane|volume|app|guide|stock|news|breadth|playbook|research|multiChart|periodSort|chartMenu"
+    # chartShare (the chart's Share popover): chartShare.export as a bare name (its verb "export" is already withheld); stricter only
     # Phase 2 market intelligence: the rs domain (rs.compare as a bare name; verb "compare" is already withheld); stricter only
     # chartReplay (the bar replay's playback): chartReplay.playback as a bare name; stricter only
     # Phase 2 COT research: the cot domain (cot.positioning as a bare name; verb "position" is already withheld); stricter only
     # Phase 2 history: the history domain (history.afterEvent as a bare name; verb "after"); stricter only
-    r"|chartFeatures|chartReplay|cot|history|rs)"
+    r"|chartFeatures|chartShare|chartReplay|cot|history|rs)"
     r"\.(add|remove|delete|create|clear|rename|open|set|run|save|apply|show|hide|update|move|resize|toggle|swap|duplicate"
     # #1030 ratchet: master actions added by #1077/#1073/#1027 (chartSetup.stepBars/autoScale/compareGroup,
     # watchlist.arrangeColumns/exportList): their verbs join the withheld set (stricter only)
