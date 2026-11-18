@@ -25,7 +25,7 @@
 // comparison modes, the interpreted-parse echo, a published ranking fed by server-side
 // command counts, Alt+1..4 panel focus, and ⭐ EVERY COMMAND IS A URL: `?cmd=` reflects the
 // focused panel and re-runs on load and on back/forward (the URL-state block below).
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import ErrorBoundary from '../../components/ErrorBoundary'
@@ -47,6 +47,7 @@ import { applyArgs, argsEcho } from './args'
 import { planAlert, setAlert } from './alertCommand'
 import { marketWideNote } from './grammar'
 import { COMMAND_PANELS, FLUSH_PANELS, LIST_OPENS, panelComponent, panelNameFor, URL_OWNING_PANELS } from './panels'
+import { watchPanelFit } from './panelFit'
 import useTerminalLayout from './useTerminalLayout'
 import useCommandHistory from './commandHistory'
 import {
@@ -290,6 +291,10 @@ export function Panel({
   // share/shareRule.js allows. It reads this body element when the member picks an item, so what
   // is shared is what is on screen; the header's own title and freshness report name it.
   const bodyRef = useRef(null)
+  // The body also carries `data-fit`, the fit tier of the panel's OWN width (panelFit.js: one shared
+  // observer for the board). Panel stylesheets key their narrow-panel rules on it, so a table fits a
+  // narrow panel on a wide screen and not only a phone.
+  useLayoutEffect(() => watchPanelFit(bodyRef.current), [])
   const share = shareDecision(r.fn, r.variant)
   const shareMeta = useMemo(() => ({ code: panel.code, command: title, label: r.fn?.label || '', sym: r.sym || '', report: freshness }),
     [panel.code, title, r.fn, r.sym, freshness])
