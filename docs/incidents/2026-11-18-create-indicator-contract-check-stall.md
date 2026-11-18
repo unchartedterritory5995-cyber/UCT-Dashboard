@@ -97,6 +97,28 @@ by node. The whole door suite (36 files, 1,489 tests) was run locally before the
   treats a formula as opaque (under 1 ms at any depth) and the browser's engine refuses the bad
   piece in under 1 ms at any depth.
 
+## Confirmed on the live pod
+
+At 12:39Z, on the pod serving `d009487b15` (#1841), with the builders' test account, through the
+product's own route. Nothing was saved.
+
+| step | result |
+|---|---|
+| A request carrying a patch 7 levels deep with one invalid piece at the bottom | answered in 5.0 s (about ten minutes before the fix) |
+| The same account's next request, sent straight after | answered in 0.06 s with the door's own question; not "still working" |
+| A valid colour rule ("colour it green while it rises") | built in 4.5 s, and the patch holds a colour rule |
+
+The first step is the incident's own trigger, sent on purpose. The script that sends it refuses to
+run unless the pod reports a commit that contains the fix.
+
+## What was found while looking
+
+Listing every test file that touches the door against what the remote lanes had run showed that
+30 of 67 were in no list. Running them found one test that had been failing on master since the
+morning: it guards the chart lexicon, the named-indicator library had changed the rule it checks on
+purpose, and nothing ran the file. The door's lanes now run one generated list, so a new test file
+joins by itself.
+
 ## What we learned
 
 - **A check that is fast on every valid input can still be unbounded on an invalid one.** Tests
