@@ -1,5 +1,5 @@
 {
-  "fingerprint": "pipeline:master -> production=6 master commits not promoted yet (oldest landed 54 min ago): the deploy checks FAILED on eb2c6675c9, so nothing new goes live until a fix lands on master",
-  "posted_at": "2026-11-18T04:46:01.040446+00:00",
+  "fingerprint": "pipeline:master -> production=7 master commits not promoted yet (oldest landed 70 min ago): the deploy checks FAILED on ba33e18bc7, so nothing new goes live until a fix lands on master",
+  "posted_at": "2026-11-18T05:01:54.455083+00:00",
   "reason": "new stuck item"
 }
