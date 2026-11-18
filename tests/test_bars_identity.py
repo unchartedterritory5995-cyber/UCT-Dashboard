@@ -94,6 +94,21 @@ def test_other_symbols_and_intraday_are_untouched():
     assert BI.apply("META", bars, "5", lambda s, tf: []) is bars
 
 
+def test_gen_serves_only_its_own_company():
+    """2026-11-18, production GEN daily against the company's own series (an independent vendor's
+    GEN = Symantec, NortonLifeLock, Gen Digital): GenOn Energy and a $64-82 security 2010-12-06 ..
+    2013-04-11, Genesis Healthcare 2015-02-03 .. 2021-03-25; everything else agrees to 2%."""
+    t = BI._table()["symbols"]
+    assert [(w["from"], w["until"], w["source"]) for w in t["GEN"]] == [
+        (day("2010-12-06"), day("2013-04-12"), None), (day("2015-02-03"), day("2021-03-26"), None)]
+    served = [{"t": d, "o": c, "h": c, "l": c, "c": c, "v": 1} for d, c in (
+        ("2010-12-03", 17.09), ("2010-12-06", 3.72), ("2012-12-17", 63.94), ("2013-04-11", 70.0),
+        ("2013-04-12", 22.1), ("2015-02-02", 24.94), ("2015-02-03", 8.76), ("2021-03-25", 0.42),
+        ("2021-03-26", 21.61))]
+    out = BI.apply("GEN", served, "D", lambda s, tf: [])
+    assert [b["t"] for b in out] == ["2010-12-03", "2013-04-12", "2015-02-02", "2021-03-26"]
+
+
 def test_history_epoch_moves_only_a_corrected_date_series():
     v = BI._table()["version"]
     assert v >= 1
@@ -106,7 +121,14 @@ def test_the_table_names_the_measured_windows():
     t = BI._table()["symbols"]
     assert t["META"] == [{"from": day("2021-06-30"), "until": day("2022-01-31"), "source": "FB"}]
     assert t["CALY"][0]["source"] == "MODG"
-    assert {s for s, ws in t.items() if any(w["source"] is None and w["from"] is None for w in ws)} == {"CCC", "MSGE", "STRC"}
+    # 2026-11-18 census (every universe daily series as production served it): an earlier listing in
+    # front of today's, behind the NEWEST listing break, which the chart's cutoff did not cut (it judged
+    # only the largest gap). The windows carry the table epoch so a browser's older copy is replaced.
+    census = {"ACT", "ADPT", "ALF", "AMR", "BOX", "CAI", "CRC", "FIG", "FRSH", "FSBC", "GIW", "MDA",
+              "NINE", "PBA", "RVI", "SE", "SLS", "SOLS", "SUNC", "TLN", "VAL", "VIA"}
+    assert {s for s, ws in t.items() if any(w["source"] is None and w["from"] is None for w in ws)} == \
+        {"CCC", "MSGE", "STRC"} | census
+    assert t["ADPT"] == [{"from": None, "until": day("2019-06-27"), "source": None}]
 
 
 def test_the_serve_path_applies_it(monkeypatch):

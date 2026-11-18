@@ -88,6 +88,45 @@ class TestListingCutoff:
         out = bs.sanitize_daily_bars("XYZ", old + new, "D")
         assert out[0]["t"] == "2026-04-02"
 
+    # ⚰️ 2026-11-18, production: ADPT (three securities, the largest gap the OLDEST) served
+    # Adeptus Health 2014-06 .. 2017-04 at $1.41 in front of Adaptive Biotech (2019-06-27, $40.30).
+    def test_three_securities_the_series_starts_at_the_newest_break(self, monkeypatch):
+        monkeypatch.setattr(bs, "_meta_cached", lambda t: None)
+        first = _series(datetime.date(2000, 1, 3), 30, price=5.0)
+        middle = _series(datetime.date(2014, 6, 25), 40, price=1.41)     # 14-year gap before it
+        current = _series(datetime.date(2019, 6, 27), 25, price=40.3)    # 2-year gap, 28x
+        out = bs.sanitize_daily_bars("ADPT", first + middle + current, "D")
+        assert out[0]["t"] == "2019-06-27" and len(out) == 25
+
+    def test_a_smaller_newer_break_cuts_after_a_larger_older_one(self, monkeypatch):
+        # A larger gap that is NOT a break (a same-price halt) and a newer, smaller one that is:
+        # the series starts after the newer.
+        monkeypatch.setattr(bs, "_meta_cached", lambda t: None)
+        a = _series(datetime.date(2020, 1, 2), 30, price=20.0)
+        b = _series(datetime.date(2020, 6, 1), 30, price=21.0)          # ~120 days, ~1.05x: a halt
+        c = _series(datetime.date(2020, 9, 1), 20, price=100.0)         # ~45 days, ~4.8x: a break
+        out = bs.sanitize_daily_bars("NEWER", a + b + c, "D")
+        assert out[0]["t"] == "2020-09-01" and len(out) == 20
+
+    def test_the_ipo_aligned_gap_cuts_even_when_an_older_gap_is_larger(self):
+        old = _series(datetime.date(2005, 1, 3), 30, price=10.0)
+        mid = _series(datetime.date(2015, 1, 5), 30, price=11.0)        # 10 years after `old`
+        new = _series(datetime.date(2015, 4, 1), 20, price=12.0)        # ~60 days, same price, listing day
+        _seed("ALIGN", ipo="2015-04-01", splits=[])
+        out = bs.sanitize_daily_bars("ALIGN", old + mid + new, "D")
+        assert out[0]["t"] == "2015-04-01" and len(out) == 20
+
+    def test_the_chart_and_the_store_readers_start_a_series_on_the_same_bar(self, monkeypatch):
+        # One rule: the store readers' `listing_break.start_index` and the chart agree.
+        from api.services import listing_break as lb
+        monkeypatch.setattr(bs, "_meta_cached", lambda t: None)
+        bars = (_series(datetime.date(2001, 1, 2), 25, price=3.0) + _series(datetime.date(2009, 3, 2), 25, price=30.0)
+                + _series(datetime.date(2009, 8, 3), 25, price=31.0) + _series(datetime.date(2012, 5, 1), 25, price=2.0))
+        ts = [int(b["t"].replace("-", "")) for b in bars]
+        i = lb.start_index(ts, [b["c"] for b in bars])
+        out = bs.sanitize_daily_bars("ONE", [dict(b) for b in bars], "D")
+        assert out[0]["t"] == bars[i]["t"] == "2012-05-01"
+
 
 # ── Split self-heal ─────────────────────────────────────────────────────────
 class TestSplitAdjust:
