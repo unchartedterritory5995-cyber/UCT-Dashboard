@@ -53,7 +53,7 @@ import { ActionsMenu, CalendarPopover, DayBar, DayList, FilterMenu, HealthPopove
 import SavedHeadlines from './TradeExchangeNewsSaved'
 import { TXN_SOUND_OPTIONS, txnClampLines, txnSettingsFor, txnWidgetStyleVars } from './tradeExchangeNewsSettings'
 import { categoriesLabel, cleanCategories, cleanPresets, coverageNotice, dayLabel, dayRequest, feedHealth, groupRelated, searchNeedles,
-  liveStatus, presetPatch, presetSnapshot, quoteSymbols, viewHealth, visibleItems } from './tradeExchangeNewsModel'
+  liveStatus, MAX_PRESETS, presetPatch, presetSnapshot, quoteSymbols, viewHealth, visibleItems } from './tradeExchangeNewsModel'
 import useTradeExchangeNewsDay from './useTradeExchangeNewsDay'
 import * as library from '../../../lib/tradeExchangeNewsLibrary'
 import { sendHeadlineToNotebook } from '../../../lib/tradeExchangeNewsNotebook'
@@ -444,8 +444,10 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
   }
 
   // UCT Agent: the watchlist choices, and the search box (read back as typed; written through its own setter, as typing does)
+  // C3-140: the Filters menu's presets — the one applied (its check mark: opts.presetId, while that preset exists), the list
+  // ({ id, name }), applied / saved / renamed / deleted by the menu's own handlers and nothing else
   useWidgetDoor(() => ({
-    options: () => ({ watchlist: listOptions.map(o => ({ value: o.value || null, label: o.label })) }),
+    options: () => ({ watchlist: listOptions.map(o => ({ value: o.value || null, label: o.label })), preset: presets.map(p => ({ value: p.id, label: p.name })) }),
     // ⭐ UCT Agent newsLibrary.* (read-only, 2026-11-15): the rows THIS widget renders (`rows`, as drawn — nothing is
     // computed for the Agent) and the one the member has open (its ⋯ menu or Explain, else the single expanded row), so a
     // headline is named by its id from what the member sees or clicked. The door writes nothing here.
@@ -454,11 +456,22 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
       const one = !open && expanded.size === 1 ? rows.find(r => expanded.has(r.seq))?.id ?? null : null
       return {
         search: queryRaw,
+        preset: presets.some(p => p.id === opts?.presetId) ? opts.presetId : null,
+        presets: presets.map(p => ({ id: p.id, name: p.name })),
         visible: rows.slice(0, 20).map(r => ({ id: r.id, time: r.received_at_ms ?? null, tickers: r.tickers || [], text: String(r.content || '').slice(0, AGENT_DOOR_TEXT_MAX) })),
         selected: open ?? one,
       }
     },
-    write: (key, v) => { if (key === 'search') setQueryRaw(String(v ?? '').slice(0, 80)) },
+    write: (key, v) => {
+      if (key === 'search') setQueryRaw(String(v ?? '').slice(0, 80))
+      else if (key === 'preset') { const p = presets.find(x => x.id === v); if (p) applyPreset(p) }
+      else if (key === 'presets' && v && typeof v === 'object') {
+        const name = String(v.name ?? '').trim()
+        if (v.op === 'create' && name && name.length <= 40 && presets.length < MAX_PRESETS) savePreset(name)
+        else if (v.op === 'rename' && v.id && name && name.length <= 40) renamePreset(v.id, name)
+        else if (v.op === 'delete' && v.id) deletePreset(v.id)
+      }
+    },
   }))
 
   return (

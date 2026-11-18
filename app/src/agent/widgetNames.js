@@ -22,7 +22,13 @@ const HOLDINGS_WHY = 'This chart isn’t showing an ETF or a UCT index, so it ha
 const SEARCH_WORDS = ['search', 'find', 'look', 'lookup', 'query', 'clear']
 export const AGENT_CONTROLS = {
   // C3-138 (round 7): the News (Trade Exchange) widget's own "Search headlines" box, through its door (its own setQueryRaw)
-  tradeExchangeNews: [{ key: 'search', type: 'text', door: true, default: '', max: 80, words: SEARCH_WORDS }],
+  // C3-140 (agent/pl/news-filter-presets): apply one of the member's saved filter presets, as the Filters menu's own preset row
+  // does (applyPreset: the preset's categories, Linked, watchlist and display into opts, AND its search into the box). The opts
+  // go back whole on Undo (inOpts); the box is the widget's own state, so `carries` names it: Undo types the member's search
+  // back through its own door, and an Undo after the member typed again is stale (the box is in its fingerprint).
+  // Saving, renaming and deleting a preset is the `presets` item list (ITEM_LISTS below).
+  tradeExchangeNews: [{ key: 'search', type: 'text', door: true, default: '', max: 80, words: SEARCH_WORDS },
+    { key: 'preset', type: 'enum', from: 'door', door: true, inOpts: true, carries: ['search'], words: ['preset', 'presets', 'filters'] }],
   // C3-108 (pl-widget): leave a scan, back to the Scanner widget's picker, as its own "change scan" does (ScannerWidget onBack:
   // scanKey and scanName cleared). Picking a scan stays widget.showScan.
   scanner: [{ key: 'scan', type: 'enum', options: ['picker'], default: 'picker', path: 'scanKey', labels: { picker: 'the scan picker' },
@@ -146,6 +152,12 @@ export const ITEM_LISTS = {
   watchlist: [{ key: 'looks', noun: 'look', nouns: ['look', 'template'], ops: ['create', 'delete'], named: true }],
   // C3-202: the Notebook widget's notes; its New control creates a blank one and opens it
   notebook: [{ key: 'notes', noun: 'note', nouns: ['note', 'notebook', 'blank', 'new'], ops: ['create'], blank: 'Untitled note' }],
+  // C3-140 (agent/pl/news-filter-presets): the News (Trade Exchange) widget's saved filter presets (its Filters menu → Presets):
+  // save the widget's current filters under a name (its Save: a second preset of a taken name is refused here, never made),
+  // rename one, delete one. `max` = the menu's own limit (tradeExchangeNewsModel MAX_PRESETS: the Save box is gone at 12);
+  // `nameMax` = its name box's maxLength (TradeExchangeNewsParts, pinned by agentNewsPresets.test.js). Applying one is `preset`.
+  tradeExchangeNews: [{ key: 'presets', noun: 'filter preset', nouns: ['preset', 'filter', 'filters'], ops: ['create', 'rename', 'delete'],
+    named: true, unique: true, max: 12, nameMax: 40 }],
 }
 /** The board's widgets that the message reaches by one of their OWN item names, beside an item word (set, preset, rename, delete). */
 export function itemNamedTypes(message, items) {
