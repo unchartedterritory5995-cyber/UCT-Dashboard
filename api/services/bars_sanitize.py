@@ -853,6 +853,14 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
         if _reb.active(ticker):
             rebuilt = _reb.apply(ticker, bars, tf, head=_reaches_store_head(ticker, bars, tf))
             if rebuilt is not None:
+                # ⛔ EXCEPT the split heal. The rebuild is on the basis of the day it was built; a split
+                # after that puts the store's newer bars on a new basis and the rebuilt ones not, and the
+                # chart would draw the cliff. The one detector finds it the same way it does in the store.
+                meta = _meta_cached(ticker)
+                if meta and meta.get("splits") and split_adjust_active():
+                    unadjusted = unadjusted_splits(rebuilt, meta["splits"])
+                    if unadjusted:
+                        rebuilt = _apply_split_adjust(rebuilt, meta["splits"], unadjusted)
                 return rebuilt
     except Exception as e:  # noqa: BLE001 - the stored path below still serves
         _log.warning("rebuilt history skipped for %s tf=%s: %s", ticker, tf, e)
