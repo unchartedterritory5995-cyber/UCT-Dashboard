@@ -36,7 +36,7 @@ import { helperKeysOfRows, sameTree } from './colorRules'
 import { tableSpecOf } from './tables'
 import PREFLIGHT_RULES from './preflightRules.json'
 import { recogniseExpansion, collapseExpansions } from '../../engine/ast/callExpansions'
-import { libraryParts, namedByTitle } from './checkedLibrary'
+import { libraryParts, libraryOutputOf, namedByTitle } from './checkedLibrary'
 
 const OP_WORDS = Object.freeze({
   '>': '>', '<': '<', '>=': '≥', '<=': '≤', '==': '=', '!=': '≠',
@@ -370,7 +370,24 @@ function calculatorName(model) {
 export function derivedRowName(row, model = null) {
   const t = model ? tableNames(model) : null
   const label = t && row ? t.labelOf.get(row.key) : null
-  return label ? clip(label, LABEL_MAX) : formulaRowName(row)
+  if (label) return clip(label, LABEL_MAX)
+  const library = libraryLabelOf(row, model)
+  return library ? clip(library, LABEL_MAX) : formulaRowName(row)
+}
+
+/** ⭐ 2026-11-18 — A LIBRARY OUTPUT IS NAMED BY THE LIBRARY. A line that IS one of a checked
+ *  indicator's outputs carries that output's own label ("Trigger", "Signal", "+DI"). Found live:
+ *  the Fisher Transform's trigger line read "previous FISHER 9", its arithmetic, beside a line the
+ *  window called by the indicator's name. Only a WHOLE formula that is the output counts; a formula
+ *  that merely uses one inside other maths is still named by its maths. */
+function libraryLabelOf(row, model) {
+  if (!row || !row.ast) return null
+  try {
+    const inputs = ((model && model.memberInputs) || []).map((x) => x && x.key)
+    const part = libraryOutputOf(collapseExpansions(row.ast), inputs)
+    const label = part && part.output && part.output.label
+    return typeof label === 'string' && label.trim() ? label.trim() : null
+  } catch { return null }
 }
 
 /**

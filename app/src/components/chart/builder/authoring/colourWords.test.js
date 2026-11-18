@@ -7,6 +7,18 @@
 import { describe, it, expect } from 'vitest'
 import COLOUR_WORDS from './colourWords.json'
 import { colourWords } from './readback'
+import { LINE_COLORS } from './applyPatch'
+
+describe('the colours a new line is given', () => {
+  it('are each read back by a name, never as a hex code (it read "#4ade80 line" beside "UCT gold line")', () => {
+    const words = LINE_COLORS.map(colourWords)
+    expect(words).toEqual(['UCT gold', 'green', 'pink', 'blue', 'orange'])
+    for (const w of words) expect(w).not.toMatch(/#/)
+    expect(new Set(words).size).toBe(words.length)                  // a member can tell the lines apart by name
+    // CONTROL: a value nobody named is still shown exactly as stored, never guessed at
+    expect(colourWords('#123456')).toBe('#123456')
+  })
+})
 
 describe('colourWords.json', () => {
   it('every word a member can say is written with a value the read-back names that same word', () => {
@@ -30,7 +42,7 @@ describe('colourWords.json', () => {
     expect(colourWords('#ffd700')).toBe('gold')
     expect(colourWords('#2962FFFF')).toBe('blue')
     expect(colourWords('#C9A84C')).toBe('UCT gold')
-    expect(Object.keys(COLOUR_WORDS.names).length).toBe(44)
+    expect(Object.keys(COLOUR_WORDS.names).length).toBe(48)
   })
 
   it('a value nobody named is shown as itself, never as a nearest guess', () => {
