@@ -2,7 +2,7 @@
 
 `web` starts uvicorn on `0.0.0.0`, IPv4. This project's private network is IPv6, so no
 other service can open a connection to `web` (recorded in `api/flow_worker_main.py` and
-`api/schwab_token_replica.py`: a private pull from `web` was deployed and disproved).
+the retired `api/schwab_token_replica.py`: a private pull from `web` was deployed and disproved).
 
 Changing the bind to `::` is not the fix: on this platform that made a listener
 IPv6-ONLY, and `web`'s public traffic arrives over IPv4. So the public socket stays

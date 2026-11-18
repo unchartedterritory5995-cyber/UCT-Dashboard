@@ -16,7 +16,7 @@ Integration in main.py:
 from fastapi import APIRouter, HTTPException, Query, Depends
 # 2026-07-20 security pass: these were UNAUTHENTICATED + internet-reachable.
 # /bulk-fetch is called by the Live Flow page (any logged-in user); the rest are
-# admin/maintenance jobs that hit the paid Schwab API and mutate OI snapshots.
+# admin/maintenance jobs that call the paid options feed and mutate OI snapshots.
 from api.flow_admin_auth import require_flow_admin, require_flow_user
 from pydantic import BaseModel
 from typing import Optional, List
@@ -181,11 +181,11 @@ def confirm_trades(trades: List[ConfirmRequest],
 # operator views historical alerts where most rows have priorOI=null, this
 # endpoint fills them in by:
 #   1. Checking contract_oi_snapshots for any recent matches (last 5 days)
-#   2. For misses, calling Schwab in a single batch via _fetch_oi_all_async
+#   2. For misses, fetching OI (Massive) in a single batch via _fetch_oi_all_async
 #   3. Persisting all results with source='ondemand-bulk'
 #
 # Returns a map keyed by ticker|cp|strike|exp (ISO) so the frontend can
-# match results back to displayed rows. Schwab batch endpoint groups by
+# match results back to displayed rows. The fetch groups by
 # ticker internally — so 50 contracts on 10 tickers = 10 API calls.
 class BulkFetchOIContract(BaseModel):
     """One contract to fetch OI for. Matches what LiveFlow alerts contain."""
@@ -212,6 +212,8 @@ class BulkFetchOIResult(BaseModel):
 class BulkFetchOIResponse(BaseModel):
     results: List[BulkFetchOIResult]
     cache_hits: int
+    # Historical key name, kept so the response shape does not change: the number of
+    # contracts sent to the OI fetch (Massive since 2026-11-17; Schwab was retired).
     schwab_calls: int
 
 
@@ -259,9 +261,9 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract],
 
     Two-stage like the worker's _enrich_with_oi:
       1. DB cache check (today's snapshot) — instant, no API
-      2. Schwab batch for the misses — single options chain call per
+      2. One OI fetch (Massive) for the misses — single options chain call per
          distinct ticker, OI per strike returned
-    Persists Schwab results to contract_oi_snapshots so future page loads
+    Persists fetched results to contract_oi_snapshots so future page loads
     show OI without needing a re-fetch.
 
     Hard cap: 100 contracts per request. Beyond that, frontend should
@@ -274,7 +276,7 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract],
     today_iso = date.today().isoformat()
 
     results: List[BulkFetchOIResult] = []
-    schwab_needed: List[tuple] = []  # [(c, ck, exp_mdy), ...]
+    fetch_needed: List[tuple] = []  # [(c, ck, exp_mdy), ...]
     cache_hit_persist: List[tuple] = []  # [(ck, oi, source), ...] for backfill
     cache_hits = 0
     dropped_bad_format = 0
@@ -303,7 +305,7 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract],
             # on today's alert rows may still be empty.
             cache_hit_persist.append((ck, existing[0], "cache"))
         else:
-            schwab_needed.append((c, ck, exp_mdy))
+            fetch_needed.append((c, ck, exp_mdy))
 
     if dropped_bad_format:
         logger.warning(
@@ -314,8 +316,8 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract],
 
     logger.info(
         "[oi-snapshot bulk-fetch] in: %d contracts, cache_hits: %d, "
-        "schwab_needed: %d, dropped: %d",
-        len(contracts), cache_hits, len(schwab_needed), dropped_bad_format
+        "fetch_needed: %d, dropped: %d",
+        len(contracts), cache_hits, len(fetch_needed), dropped_bad_format
     )
 
     schwab_calls = 0
@@ -325,14 +327,14 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract],
     # endpoint reads flow.OI directly and sees the old empty values,
     # causing the "appear then disappear" UI flicker.
     all_to_backfill = list(cache_hit_persist)
-    if schwab_needed:
+    if fetch_needed:
         payload = [(c.ticker, c.cp, c.strike, exp_mdy)
-                   for c, _, exp_mdy in schwab_needed]
+                   for c, _, exp_mdy in fetch_needed]
         try:
-            schwab_results = await oi_snapshots._fetch_oi_all_async(payload)
+            fetched_results = await oi_snapshots._fetch_oi_all_async(payload)
             schwab_calls = len(payload)
         except Exception as e:
-            logger.exception(f"[oi-snapshot bulk-fetch] Schwab call failed: {e}")
+            logger.exception(f"[oi-snapshot bulk-fetch] OI fetch failed: {e}")
             # Still backfill cache hits before returning
             if all_to_backfill:
                 _backfill_flow_oi(all_to_backfill)
@@ -343,17 +345,17 @@ async def bulk_fetch_oi(contracts: List[BulkFetchOIContract],
         # Diagnostic: log what came back from _fetch_oi_all_async
         # (which now includes Massive fallback automatically)
         resolved_count = sum(
-            1 for _, oi in schwab_results if oi is not None and oi > 0
+            1 for _, oi in fetched_results if oi is not None and oi > 0
         )
         logger.info(
             "[oi-snapshot bulk-fetch] _fetch_oi_all_async returned: "
             "%d resolved of %d requested",
-            resolved_count, len(schwab_results)
+            resolved_count, len(fetched_results)
         )
 
         # Persist + accumulate
         to_persist = []
-        for (orig_c, ck, _), (_, oi) in zip(schwab_needed, schwab_results):
+        for (orig_c, ck, _), (_, oi) in zip(fetch_needed, fetched_results):
             if oi is not None and oi > 0:
                 results.append(BulkFetchOIResult(
                     ticker=orig_c.ticker, cp=orig_c.cp,
@@ -589,7 +591,7 @@ def backfill_flow_oi_for_date(
 # ── Diagnostic endpoint for Massive OI integration ───────────────────────
 # Hits Massive's snapshot endpoint directly and returns the raw response
 # (truncated). Use to verify URL/auth/response shape when troubleshooting
-# why the Massive fallback isn't filling Schwab gaps.
+# why the Massive OI read isn't resolving contracts.
 #
 # Usage from browser:
 #   /api/oi-snapshot/test-massive/QCOM

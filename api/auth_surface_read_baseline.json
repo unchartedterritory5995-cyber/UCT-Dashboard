@@ -528,12 +528,6 @@
   },
   {
    "method": "GET",
-   "path": "/api/schwab/callback",
-   "kind": "public",
-   "reason": "OAuth redirect target: reached from the provider before any session exists."
-  },
-  {
-   "method": "GET",
    "path": "/api/screener/shared/{share_token}",
    "kind": "public",
    "reason": "Screener share link: the token is the access decision."

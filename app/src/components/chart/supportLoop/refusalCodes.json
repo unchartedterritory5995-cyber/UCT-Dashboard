@@ -35,6 +35,8 @@
   "enum:points",
   "enum:points-unwitnessed",
   "enum:unreadable",
+  "host-lane:worker-run",
+  "host-lane:worker-unresponsive",
   "import:internal-error",
   "interpret:bind-time-text",
   "interpret:node",
