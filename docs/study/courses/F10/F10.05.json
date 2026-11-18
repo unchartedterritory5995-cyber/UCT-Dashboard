@@ -2,7 +2,7 @@
  "unit": "F10.05",
  "track": "F10",
  "title": "Trims, trails and scaling out",
- "teaches": "We buy the full size at one price with one stop and never add to it; we scale OUT: the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the stop moved to breakeven after it, and the rest trails a rising average; never average down; and what scaling out costs and what it buys.",
+ "teaches": "We buy the full size at one price with one stop: no starter piece, never an add to a loser, and an add to a working winner is rare, a feel call, never the plan; we scale OUT: the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the stop moved to breakeven after it, and the rest trails a rising average; never average down; and what scaling out costs and what it buys.",
  "skills": [
   {
    "id": "orders.scaling",
@@ -625,6 +625,24 @@
    "source": "h2",
    "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
    "claim": "Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser.",
+   "claim": "The full size goes on at one price with one stop: no starter piece, and never an add to a loser."
+  },
+  {
+   "id": "aw2",
+   "source": "hw",
+   "quote": "Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "Adding to a working winner on strength happens, but rarely, as a feel call, never as the plan."
+  },
+  {
+   "id": "aw_r",
+   "source": "h2",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -664,16 +682,18 @@
    "key": "w3",
    "title": "Scaling out, and what it costs",
    "steps": [
-    "Scaling out means selling part of a winner and letting the rest ride.",
-    "Our way: the first sell is a judgment, usually day 3 or later. Stop to breakeven; the rest trails a rising average.",
-    "It isn't free. In Bulkowski's tests, scaling out made less when the stock ran all the way.",
-    "It pays when the stock comes back before your target. You're trading some upside for a gain in hand."
+    "You're up nicely on a winner. Scaling out means you sell part of it and let the rest ride.",
+    "First sell's a judgment call, rarely before day 3, into a push. Stop can go to breakeven. The rest trails.",
+    "It isn't free. On a stock that runs straight to its target, selling half halfway made less than holding it all.",
+    "It pays when the stock comes back on you. You gave up some upside for a gain you get to keep."
    ],
    "facts": [
     "f21",
     "f18",
     "h01",
-    "h02",
+    "r01",
+    "r02",
+    "r03",
     "h03",
     "h04",
     "h05",
@@ -686,16 +706,19 @@
    "key": "w4",
    "title": "One price, one stop",
    "steps": [
-    "We buy the full size at one price, with one stop. No starter piece, no adding as it works.",
-    "The size is set before the buy, from the stop, and goes in as one market order.",
-    "What we scale is the exit: a first sell by judgment, usually day 3 or later, then a trail."
+    "We buy the full size at one price, with one stop. No starter piece, and we never add to a loser.",
+    "The stop sets the size before the buy. Then it all goes in as one market order.",
+    "Adding to a working winner on strength happens, but it's rare and a feel call, never the plan.",
+    "What we do scale is the exit. Sell some into strength, rarely before day 3, and trail the rest."
    ],
    "facts": [
-    "h11",
+    "aw1",
     "h12",
     "h10",
-    "h02",
-    "h04"
+    "r01",
+    "r02",
+    "h04",
+    "aw2"
    ]
   }
  ],
@@ -706,30 +729,31 @@
    "rung": 1,
    "format": "mcq",
    "term": "averaging up",
-   "q": "You own a stock and buy more shares at a higher price than you paid before. What's that called?",
+   "q": "A friend bought 200 shares at $40. It's working, so he buys 100 more at $46. What did he just do?",
    "choices": [
-    "Averaging up",
-    "Averaging down",
-    "Dollar-cost averaging",
-    "Scaling out"
+    "Averaged up on a winner",
+    "Averaged down on a loser",
+    "Dollar-cost averaged in",
+    "Scaled out of the trade"
    ],
-   "answer": "Averaging up",
-   "why": "Averaging up. It means buying more shares of a stock you already own, at a higher price than before. That raises your average cost per share. Averaging down is the reverse: buying more after the price falls. We do neither. Our rule puts the full size on at one price, with one stop.",
-   "lesson_line": "Buying more of a winner at a higher price is averaging up.",
+   "answer": "Averaged up on a winner",
+   "why": "He averaged up. He bought more of a stock he already owns, at a higher price than his first buy. That drags his average cost up from $40 toward $46. Plenty of traders press a winner this way as a habit. We don't plan it. Our full size goes on at one price, with one stop, and the size came from that stop. Add above it and a normal pullback now costs more than you planned. Adding to a working winner does happen, but it's rare and a feel call.",
+   "lesson_line": "Adding above your first buy is averaging up. For us it's rare, never the plan.",
    "facts": [
     "f23",
     "f42",
     "f25",
     "f50",
     "f21",
-    "h11"
+    "aw1",
+    "aw2"
    ],
    "wrong": {
-    "Averaging down": "That's buying more after the price falls below what you paid.",
-    "Dollar-cost averaging": "That's investing equal amounts on a schedule, whatever the price does.",
-    "Scaling out": "That's selling part of a position, not buying more."
+    "Averaged down on a loser": "That's buying more after the price drops below your buy. This one went up.",
+    "Dollar-cost averaged in": "That's the same money in on a set schedule, whatever the price. He bought because it was working.",
+    "Scaled out of the trade": "Scaling out is selling part. He bought more."
    },
-   "simple": "Averaging up. You buy more of a stock you already own, at a higher price than your first buy.",
+   "simple": "He averaged up, buying more above his first price. We buy the full size once, and an add is rare.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -737,24 +761,25 @@
      "fixed before (term case)"
     ]
    },
-   "batch": "wave6"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q02",
    "skill": "orders.scaling",
    "rung": 1,
    "format": "tf",
-   "q": "Pyramiding means buying more of a stock as it falls below your first buy.",
+   "q": "A trader buys more of a stock every time it drops below his first buy. That's called pyramiding.",
    "answer": "False",
-   "why": "False. Pyramiding adds to a position as it performs well, usually in smaller and smaller pieces. Buying more as a stock falls below your first buy is averaging down. That lowers your average cost instead. We do neither: the full size goes on at one price, with one stop.",
-   "lesson_line": "Pyramiding means adding to a winner. Adding to a loser has another name: averaging down.",
+   "why": "False. That's averaging down, the opposite. Pyramiding adds to a stock while it's working, each add smaller than the last. Averaging down adds while it's going against you. It feels like a bargain. Really you're putting more money behind the trade that's proving you wrong. We never average down. The whole size goes on at one price, with one stop. Adding to a winner happens, but it's rare, a feel call.",
+   "lesson_line": "Pyramiding adds to a winner. Buying the drops is averaging down.",
    "facts": [
     "f29",
     "f30",
     "f25",
-    "h11"
+    "aw1",
+    "aw2"
    ],
-   "simple": "False. Pyramiding means adding to a stock that is working, while buying more as it falls is averaging down.",
+   "simple": "False. Buying as it falls is averaging down, pyramiding adds as it works, and we never average down.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -762,22 +787,23 @@
      "fixed before (lesson line)"
     ]
    },
-   "batch": "wave6"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q03",
    "skill": "orders.scaling",
    "rung": 2,
    "format": "tf",
-   "q": "Averaging down on a losing trade is the same thing as dollar-cost averaging.",
+   "q": "Buying more of a red trade because it dropped is the same thing as dollar-cost averaging.",
    "answer": "False",
-   "why": "False. Dollar-cost averaging puts equal amounts in at regular intervals, whatever the price does. Averaging down buys more of a stock because it fell below your price, which lowers your average cost. One is a schedule set in advance. The other is a reaction to a loss. A schedule can still buy on a dip, but that does not make them the same.",
-   "lesson_line": "A schedule is a plan. Averaging down is a reaction to a loss.",
+   "why": "False, and don't let the name fool you. Dollar-cost averaging puts the same money in on a set schedule, whatever the price does. Averaging down is buying more because the stock went against you. One's a plan made in advance. The other's a reaction to a loss. On a swing trade, our answer to a red trade is the stop, not more shares.",
+   "lesson_line": "A schedule is a plan. Buying more of a loser is a reaction.",
    "facts": [
     "f50",
-    "f25"
+    "f25",
+    "h13"
    ],
-   "simple": "False. Dollar-cost averaging buys on a set schedule, while averaging down buys more because the price fell below yours.",
+   "simple": "False. Dollar-cost averaging buys on a set schedule, while averaging down buys because the stock went against you.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -785,14 +811,14 @@
      "stable definitions, a Tier 1 SEC fact plus Investopedia"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q04",
    "skill": "orders.scaling",
    "rung": 2,
    "format": "fill",
-   "q": "Finish O'Neil's rule.",
+   "q": "O'Neil had one line on averaging. What's the missing word?",
    "sentence": "The only averaging that makes sense is averaging ___.",
    "bank": [
     "up",
@@ -801,16 +827,17 @@
     "daily"
    ],
    "answer": "up",
-   "why": "Up. O'Neil's advice on averaging down was simple: don't do it, because it is throwing good money after bad. The only averaging he accepted was averaging up. Hirsch lists averaging down into losing positions among the deadly sins of managing positions. Our own rule goes further. The full size goes on at one price with one stop, and we add in neither direction.",
-   "lesson_line": "O'Neil's rule: average up, never down.",
+   "why": "Up. O'Neil's view on averaging down was simple: don't. He called it throwing good money after bad. The only averaging he'd accept was averaging up, adding to a stock that's proving you right. We buy the full size once, at one price with one stop. No starter piece, no scaling in. Adding to a working winner is rare for us, a feel call, never the plan. The part we share with him matters most: never add to a loser.",
+   "lesson_line": "Never add to a loser. O'Neil said it, and we live by it.",
    "facts": [
     "f08",
     "f09",
     "f12",
     "f40",
-    "h11"
+    "aw1",
+    "aw2"
    ],
-   "simple": "Up. O'Neil said never average down, and the only averaging that makes sense to him is averaging up.",
+   "simple": "Up. O'Neil said never average down, and we never add to a loser either.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -818,7 +845,10 @@
      "the why adds the owner's rule A5 (no adding)"
     ]
    },
-   "batch": "wave6"
+   "batch": "rulings-2026-11-17",
+   "deeper": {
+    "counter": "Hirsch makes the same point from the other side: he lists averaging down into losing positions among the deadly sins of managing positions."
+   }
   },
   {
    "key": "q05",
@@ -840,30 +870,32 @@
    "rung": 2,
    "format": "mcq",
    "term": "scaling out",
-   "q": "You sell part of a winning position at a gain and let the rest keep running. What's that called?",
+   "q": "You sell part of a winner into strength and keep the rest on, with a stop under it. What's that called?",
    "choices": [
-    "Scaling out",
-    "Stopping out",
-    "Averaging down",
-    "Pyramiding"
+    "Scaling out of it",
+    "Stopping out of it",
+    "Averaging down on it",
+    "Pyramiding into it"
    ],
-   "answer": "Scaling out",
-   "why": "Scaling out. You close a trade in pieces instead of all at once, so the shares you keep can ride the move further. Pyramiding goes the other way: it adds shares. Stopping out is your stop being hit, not a planned sale. When we sell the first piece is a judgment, usually day 3 or later, and the rest rides a trail.",
-   "lesson_line": "Scaling out: sell some, let the rest ride.",
+   "answer": "Scaling out of it",
+   "why": "Scaling out. You close the trade in pieces instead of all at once. The piece you sell puts a gain in your pocket. The rest stays on for the bigger move, with a stop that rises behind it. That's how we hold winners. Our first sell is a judgment, and we very rarely make it before day 3. Then the rest trails the 9 or 20 EMA.",
+   "lesson_line": "Sell some, let the rest ride. That's scaling out.",
    "facts": [
     "f21",
     "f31",
     "r01",
+    "r02",
+    "h05",
     "f29",
     "f25",
     "f49"
    ],
    "wrong": {
-    "Stopping out": "That's your stop getting hit, not a planned sale into a gain.",
-    "Averaging down": "That's buying more after a drop, not selling.",
-    "Pyramiding": "That's adding shares to a winner. It goes the other way."
+    "Stopping out of it": "That's your stop getting hit. A stop-out isn't a planned sale into a gain.",
+    "Averaging down on it": "That's buying more after a drop. You sold here.",
+    "Pyramiding into it": "Pyramiding adds shares to a winner. You took shares off."
    },
-   "simple": "Scaling out. You sell part of a winner and let the rest of the shares keep riding.",
+   "simple": "Scaling out. You sell part of a winner and let the rest ride with a stop behind it.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -871,7 +903,7 @@
      "fixed before (term case)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
@@ -879,7 +911,7 @@
    "rung": 3,
    "format": "fill",
    "house": true,
-   "q": "Finish our rule for holding winners.",
+   "q": "One line sums up how we hold a winner. What's the missing word?",
    "sentence": "Hold your winners by selling partials into ___ and trailing the rising moving averages.",
    "bank": [
     "strength",
@@ -888,14 +920,14 @@
     "earnings"
    ],
    "answer": "strength",
-   "why": "Strength. Our rule: hold winners by selling partials into strength and trailing the rising moving averages. You sell part while the stock is still rising and looks strong, not after it rolls over. IBD and O'Neil teach the same timing: sell while it is advancing and still looks strong. IBD says this runs contrary to human nature.",
-   "lesson_line": "Sell partials into strength. The rest rides on a rising stop.",
+   "why": "Strength. You sell part while the stock is still pushing higher and looks great to everyone. That's when buyers are there to take your shares. Wait until it rolls over and you're selling into weakness, with everyone else heading for the door. It feels wrong to sell a stock that's working. Do it anyway, then trail the rest under the rising averages.",
+   "lesson_line": "Sell into strength, trail the rest. Don't wait for it to roll over.",
    "facts": [
     "h01",
     "f06",
     "f10"
    ],
-   "simple": "Strength. We sell part while the stock is still rising and looks strong, not after it turns down.",
+   "simple": "Strength. We sell part while the stock is rising and buyers are there, then trail the rest under the rising averages.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -903,7 +935,10 @@
      "rests on the owner's rule (sizing_rule.md section 6, A11)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "counter": "IBD says the best way to sell is while the stock is on the way up and looks strong to everyone, and admits that runs contrary to human nature. O'Neil taught the same timing."
+   }
   },
   {
    "key": "q08",
@@ -941,15 +976,15 @@
    "rung": 3,
    "format": "mcq",
    "house": true,
-   "q": "How does our plan decide the first sell?",
+   "q": "Your trade's working and you're thinking about taking some off. What decides when that first sell goes in?",
    "choices": [
-    "A judgment, usually from day 3 on",
-    "A fixed third at 3R every time",
-    "Half of it, once the stock doubles",
-    "Some once up 20% to 25%"
+    "Judgment, usually day 3 or later",
+    "A third at 3R, every single time",
+    "Half of it once the stock doubles",
+    "Some once it's up 20% to 25%"
    ],
-   "answer": "A judgment, usually from day 3 on",
-   "why": "A judgment, usually from day 3 on. The first sell depends on a variety of factors, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. R is only the measuring stick: your entry minus your stop.",
+   "answer": "Judgment, usually day 3 or later",
+   "why": "Judgment. There's no fixed price for it, and I won't pretend there is. I very rarely sell on day 1 of the buy. Day 3 is the earliest I'd look at it most of the time. The spot I like is into a 3, 5 or 7 day push, or somewhere around 5 to 10R. How the stock's acting decides it. R is just the ruler, your entry minus your stop.",
    "lesson_line": "First sell: a judgment, usually day 3 or later. R is the ruler, not the trigger.",
    "facts": [
     "r01",
@@ -960,11 +995,11 @@
     "f14"
    ],
    "wrong": {
-    "A fixed third at 3R every time": "That was the old rule. The first sell is a judgment, not a fixed third at 3R.",
-    "Half of it, once the stock doubles": "That's Hirsch's rule for a stock that doubles. Ours is a judgment, not a set rule like that.",
-    "Some once up 20% to 25%": "That echoes IBD's profit-taking zone. Ours ignores a set percent and follows how the trade is working."
+    "A third at 3R, every single time": "That's a formula. Our first sell is a judgment, often into a 3, 5 or 7 day push.",
+    "Half of it once the stock doubles": "Some traders sell half on a double. We don't wait on a fixed number like that.",
+    "Some once it's up 20% to 25%": "That's IBD's profit-taking zone. We go by how the trade is acting, not a set percent."
    },
-   "simple": "A judgment call, usually from day 3 on, because it depends on the trade and not on one fixed price.",
+   "simple": "Judgment, not a fixed price. It rarely comes before day 3, and how the stock acts into a push decides it.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -973,7 +1008,7 @@
      "fixed before (rewritten 2026-11-09)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q10",
@@ -1021,16 +1056,16 @@
    "skill": "orders.scaling",
    "rung": 4,
    "format": "scenario",
-   "story": "You bought at $50 with a stop at $47. It's now $47.50 and still sliding. A friend says buy more here to lower your average.",
-   "q": "How do you respond?",
+   "story": "You bought at $50 with your stop at $48.50, just under the low of the day. It's $49 now and still sliding. A friend says buy more to lower your average.",
+   "q": "What's your move?",
    "choices": [
     "Stick to the stop, add nothing",
     "Buy more, it's cheaper now",
-    "Hold, but lower the stop to $45",
-    "Buy more right at the stop"
+    "Hold, but drop the stop to $47",
+    "Buy more right at $48.50"
    ],
    "answer": "Stick to the stop, add nothing",
-   "why": "Stick to the stop and add nothing. Buying here puts more money behind a trade that is proving you wrong. O'Neil called averaging down throwing good money after bad. A lower average also means a bigger position in a falling stock. Our rule is plain: we never add, and the stop only moves up, never down. If $47 hits, you're out.",
+   "why": "Stick to the stop and add nothing. The stock is proving you wrong, and buying more puts more money behind being wrong. Sure, more shares at $49 lower your average. They also make you bigger in a stock that's falling. If $48.50 goes, you're out. That's the loss you planned when you bought at $50, and it's small. Our stop only moves up, never down.",
    "lesson_line": "Never add to a loser. The stop is the plan.",
    "facts": [
     "f08",
@@ -1039,17 +1074,17 @@
     "f27",
     "f28",
     "f39",
-    "h11",
+    "aw1",
     "h13"
    ],
    "wrong": {
-    "Buy more, it's cheaper now": "Cheaper isn't better. Most of us can't tell a dip from the start of a much bigger drop.",
-    "Hold, but lower the stop to $45": "That widens the loss you planned. Our stop only moves up, never down or wider.",
-    "Buy more right at the stop": "If $47 hits, you're out anyway, now with more shares and a bigger loss."
+    "Buy more, it's cheaper now": "Cheaper isn't better. You can't tell a dip from the start of a bigger drop, and more shares make that drop cost more.",
+    "Hold, but drop the stop to $47": "That widens the loss you planned. Our stop only moves up, never down or wider.",
+    "Buy more right at $48.50": "If $48.50 breaks you're out anyway, now with more shares and a bigger loss."
    },
-   "simple": "Stick to the stop and add nothing. Buying more puts more money into a trade that is proving you wrong.",
+   "simple": "Add nothing and let the stop do its job. Buying more puts more money behind a trade that's proving you wrong.",
    "deeper": {
-    "trap": "The friend's math is right: more shares at $47.50 do lower your average. That is the trap. A lower average only helps if the stock turns back up. Most people can't tell a temporary dip from the start of a much bigger drop. The extra shares make that bigger drop cost more."
+    "trap": "The friend's math is right: more shares at $49 do lower your average. That's the trap. A lower average only helps if the stock turns back up. You can't tell a dip from the start of a bigger drop, and the extra shares make that drop cost more. O'Neil called averaging down throwing good money after bad."
    },
    "tier": "core",
    "risk": {
@@ -1058,14 +1093,14 @@
      "fixed before (choice variety rewrite)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q13",
    "skill": "orders.scaling",
    "rung": 5,
    "format": "mcq",
-   "q": "You bought 100 shares at $50. At $40 you buy 100 more. What price gets you back to break even?",
+   "q": "You bought 100 shares at $50. It drops to $40 and you buy 100 more. Where's your breakeven now?",
    "answer": "$45.00",
    "calc": {
     "fn": "avg_price",
@@ -1083,15 +1118,15 @@
     }
    },
    "prefix": "$",
-   "why": "Your new average cost is the total spent divided by the total shares. 100 shares at $50 and 100 at $40 average out to $45. The bar to break even came down. But now twice the shares ride on a stock that has been falling. We don't average down: the full size goes on once, with one stop.",
-   "lesson_line": "Averaging down lowers the bar and raises the bet. The stock still has to turn.",
+   "why": "$45. Half your shares cost $50 and half cost $40, so your average sits right in the middle. That's the trap of averaging down. The bar to get back to even dropped. But now twice the shares ride on a stock that's been falling, so every dollar lower costs you double. We'd have been out long before $40, at our stop. That's why we never end up here.",
+   "lesson_line": "Averaging down lowers the bar and doubles the bet. The stock still has to turn.",
    "facts": [
     "f26",
     "f28",
     "f39",
-    "h11"
+    "aw_r"
    ],
-   "simple": "$45. That is your new average cost, so the stock only has to climb back to $45 to break even.",
+   "simple": "$45, right between $50 and $40. But now you hold twice the shares in a falling stock.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1099,7 +1134,7 @@
      "computed key (avg_price)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$50.00",
     "$40.00",
@@ -1107,9 +1142,9 @@
     "$90.00"
    ],
    "wrong": {
-    "$50.00": "That is your first price. The second buy lowered your average.",
-    "$40.00": "That is only the second price. Your average includes both buys.",
-    "$90.00": "Added the two prices and forgot to divide by the number of buys."
+    "$50.00": "That's your first price. The second buy pulled the average down.",
+    "$40.00": "That's only the second buy. The average counts both.",
+    "$90.00": "You added the two prices and forgot to divide by two."
    }
   },
   {
@@ -1117,7 +1152,7 @@
    "skill": "orders.scaling",
    "rung": 5,
    "format": "mcq",
-   "q": "You just sold part of a winner. What's the plan for the shares you kept?",
+   "q": "You just sold part of a winner into a strong push. What's the plan for the shares you kept?",
    "choices": [
     "Let them ride on a trailing stop",
     "Keep the original stop under them",
@@ -1125,25 +1160,26 @@
     "Hold them with no stop at all"
    ],
    "answer": "Let them ride on a trailing stop",
-   "why": "Let them ride on a trailing stop. The partial banks some gain, and the rest stays on for more of the move. Hirsch's version: harvest gains, then set trailing stops. Ours: the stop can move to breakeven at the first sell, and what is left trails the 9 EMA or 20 EMA. The stop rises as the stock does.",
+   "why": "Let them ride on a trailing stop. The sale put a gain in your pocket, and the rest is there for the bigger move. Now protect it. The stop can come up to breakeven at the first sell. Then the rest trails the 9 EMA on a fast mover or the 20 EMA on a steadier one. A close below the line sells it.",
    "lesson_line": "Sell some, then trail the rest. The stop rises as the stock does.",
    "facts": [
     "f18",
     "f16",
     "f21",
     "f51",
-    "h11",
+    "aw1",
     "h03",
     "h05",
     "h01",
-    "rd21"
+    "rd21",
+    "aw2"
    ],
    "wrong": {
-    "Keep the original stop under them": "On a winner, that stop sits well below. Our stop can move up to breakeven at the first sell, so a reversal costs far less.",
-    "Buy more on the next dip": "We don't add to a position. The shares you kept have one job: ride the trail.",
-    "Hold them with no stop at all": "A winner can still reverse. The rest needs a stop that rises with it."
+    "Keep the original stop under them": "On a winner that stop sits way below. Bring it up to breakeven at the first sell, and a reversal costs you far less.",
+    "Buy more on the next dip": "Adding isn't the plan. You just sold some into strength. The shares you kept have one job: ride the trail.",
+    "Hold them with no stop at all": "A winner can still turn on you. The rest needs a stop that rises with it."
    },
-   "simple": "Let them ride on a trailing stop. The sale banks some gain, and the rest stays on for more of the move.",
+   "simple": "Let them ride on a trailing stop. Bring it up to breakeven, then trail the rising average.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1151,14 +1187,17 @@
      "fixed before (note rewritten to A5)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "rulings-2026-11-17",
+   "deeper": {
+    "counter": "Hirsch's version: harvest gains, then set trailing stops on what's left."
+   }
   },
   {
    "key": "q15",
    "skill": "orders.scaling",
    "rung": 6,
    "format": "mcq",
-   "q": "You bought 100 shares at $30. It doubles to $60. How many shares do you sell to get your whole cost back?",
+   "q": "You own 100 shares from $30. It's doubled to $60, and you want your money off the table. How many shares do you sell?",
    "answer": "50 shares",
    "calc": {
     "fn": "arith",
@@ -1170,14 +1209,14 @@
     }
    },
    "suffix": "shares",
-   "why": "Your cost is the 100 shares you bought at $30. At $60, each share is worth twice what you paid. So half the shares bring back your whole cost. That is Hirsch's rule: sell half on a double and let the rest ride. It is his rule, not ours. Our first sell is a judgment, usually on day 3 or later.",
-   "lesson_line": "Half on a double gets your cost back. The rest rides on the gain.",
+   "why": "50 shares. Your cost was 100 shares at $30. At $60 every share is worth twice what you paid. So half of them, 50 shares, brings back the whole amount. Now you can't lose your own money on this trade, only some of the gain. Some traders sell half on a double for exactly that reason. We pick the first sell by judgment, but this is handy math to have.",
+   "lesson_line": "On a double, half the shares pay you back. The rest rides on profit.",
    "facts": [
     "f14",
     "r01",
     "r02"
    ],
-   "simple": "50 shares. At $60 each share is worth twice what you paid, so selling half gets your cost back.",
+   "simple": "50 shares. At $60 each share is worth twice what you paid, so selling half gets your whole cost back.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -1186,7 +1225,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "100 shares",
     "50 shares",
@@ -1194,9 +1233,9 @@
     "25 shares"
    ],
    "wrong": {
-    "100 shares": "Divided your cost by the $30 entry price. Use today's $60 price.",
-    "30 shares": "Used the $30 entry price as a share count.",
-    "25 shares": "Halved twice. Half the shares, not a quarter, return the cost."
+    "100 shares": "That sells everything. At $60 you only need half the shares to get your cost back.",
+    "30 shares": "You used the $30 price as a share count.",
+    "25 shares": "You halved it twice. Half the shares, not a quarter, return the cost."
    },
    "visual": {
     "kind": "ladder",
@@ -1225,15 +1264,15 @@
    "skill": "orders.scaling",
    "rung": 6,
    "format": "tf",
-   "q": "A stop moved up to your breakeven can still lose you money on the shares you kept.",
+   "q": "Your stop sits at breakeven on the shares you kept. A bad gap down can still hand you a loss on them.",
    "answer": "True",
-   "why": "True. A stop order becomes a market order once its price is reached. The fill can be markedly different from the stop price. So a breakeven stop order can fill below your entry when a stock gaps down through it. Even Investopedia calls the rest only almost risk-free.",
+   "why": "True. A stop order only names the price where the sale starts. Once it's hit, it becomes a market order and fills at whatever's there. If the stock opens well under your entry, you're starting the day with a loss on those shares. Our gap rule lets the first half hour set a new stop, but it can't put you back above your entry. It's rare, but it happens. That's why a tight stop never licenses a monster position.",
    "lesson_line": "Breakeven on paper isn't breakeven in a gap.",
    "facts": [
     "f49",
     "f22"
    ],
-   "simple": "True. A stop order turns into a market order, so a gap down can fill it below breakeven.",
+   "simple": "True. A gap can open below your breakeven stop, so those shares start the day at a loss.",
    "deeper": {
     "trap": "Breakeven on paper is not breakeven in a gap. A stop order at your entry only names the price that starts the sale. If the stock opens below it, the market order fills at whatever the market pays at that moment."
    },
@@ -1244,7 +1283,7 @@
      "Tier 1 FINRA quote reconfirmed on its page 2026-11-12"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
@@ -1302,8 +1341,8 @@
    "skill": "orders.scaling",
    "rung": 7,
    "format": "scenario",
-   "story": "You buy 200 shares at $10, then sell 100 at $12.50 and 100 at $15. A friend buys 200 at $10 and sells all 200 at $15.",
-   "q": "Leaving out commissions, who made more?",
+   "story": "You buy 200 shares at $10. You sell 100 at $12.50 and the last 100 at $15. A friend buys 200 at $10 and sells all of them at $15.",
+   "q": "Leaving out commissions, who came out ahead?",
    "choices": [
     "Your friend, by $250",
     "You did, by selling early",
@@ -1322,7 +1361,7 @@
      "top": 15
     }
    },
-   "why": "Your friend, by $250. Your first 100 shares stopped earning at $12.50. Your friend's kept earning all the way to $15. When a stock runs all the way to the target, scaling out makes less. Bulkowski's first test found the same. That is the cost of a gain in hand.",
+   "why": "Your friend, by $250. He made $5 a share on all 200 shares. You made $5 on only 100 of yours. Your other 100 earned $2.50 and stopped earning at $12.50. When a stock runs all the way, scaling out leaves money on the table. That's the price of a gain in hand, and I'm fine paying it.",
    "lesson_line": "Scaling out gives up some of a big run. That's the price of a gain in hand.",
    "facts": [
     "f33",
@@ -1334,9 +1373,9 @@
     "You did, by selling early": "Backwards. Selling early capped the gain on half your shares.",
     "The same profit for both": "Only if you'd sold both halves at $15. You sold one at $12.50."
    },
-   "simple": "Your friend made $250 more. Your first 100 shares stopped earning at $12.50 while the friend's kept going to $15.",
+   "simple": "Your friend made $250 more. Your first 100 shares stopped earning at $12.50 while his kept going to $15.",
    "deeper": {
-    "trap": "The trap is judging scaling out by this one ending. Here the stock ran all the way to the target, so the partial cost you. A trade that turns back before the target is a different story, so scaling out is a trade-off, not free profit."
+    "trap": "The trap is judging scaling out by this one ending. Here the stock ran all the way, so the partial cost you. A trade that turns back first is a different story, so scaling out is a trade-off, not free profit. Bulkowski's first test found the same."
    },
    "tier": "extended",
    "risk": {
@@ -1346,7 +1385,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "ladder",
     "side": "long",
@@ -1444,8 +1483,8 @@
    "skill": "orders.scaling",
    "rung": 8,
    "format": "scenario",
-   "story": "You buy 200 shares at $10. It rallies to $12.50, where you sell 100. Then it falls back and your breakeven stop sells the rest at $10.",
-   "q": "Leaving out commissions, what did the partial do against holding all 200 to that stop?",
+   "story": "You buy 200 shares at $10. It runs to $12.50 and you sell 100. Then it falls back, and your breakeven stop sells the other 100 at $10.",
+   "q": "Compared with holding all 200 to that stop, what did the partial do for you?",
    "choices": [
     "Made you $250 more",
     "Made no difference",
@@ -1464,21 +1503,21 @@
      "s": 200
     }
    },
-   "why": "Made you $250 more. Held as one lot, all 200 shares round-trip to nothing at $10. The partial sold 100 shares at $12.50 before the stock came back. That is the only profit in the trade. Bulkowski's third test found the same: scaling out works better when price falls back to the stop.",
-   "lesson_line": "Partials pay when the stock comes back. That's what you buy with the upside you give up.",
+   "why": "It made you $250 more. Hold all 200 and the whole trade round-trips to nothing at $10. The partial took $2.50 a share on 100 shares before the stock came back. That's the only money this trade made. Scaling out costs you when a stock runs all the way. It pays you when the stock comes back. You won't know which one you've got, so I like a gain in hand.",
+   "lesson_line": "Partials pay when the stock comes back. That's what the upside you give up buys you.",
    "facts": [
     "f35",
     "f36",
     "f49"
    ],
    "wrong": {
-    "Made no difference": "Holding all 200 made nothing. Your partial at $12.50 was real profit.",
+    "Made no difference": "Holding all 200 made nothing. Your partial at $12.50 was real money.",
     "Made you $500 more": "Only 100 shares sold at $12.50, not all 200.",
     "Left you worse off": "Backwards. The partial is the only profit in this trade."
    },
    "simple": "It made you $250 more. Holding all 200 to the $10 stop made nothing, while the partial banked a gain.",
    "deeper": {
-    "trap": "Two things hide here. Bulkowski's own numbers include commissions, which is why his gain is $220. And a breakeven stop order is not a promise. Once triggered it fills at market, so a gap through $10 could turn the last 100 shares into a loss."
+    "trap": "Two things hide here. Bulkowski's third test found the same thing, and his own numbers include commissions, which is why his gain is $220. And a breakeven stop order is not a promise. Once triggered it fills at market, so a gap through $10 could turn the last 100 shares into a loss."
    },
    "tier": "expert",
    "risk": {
@@ -1488,7 +1527,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "ladder",
     "side": "long",
@@ -1595,17 +1634,17 @@
    "skill": "orders.scaling",
    "rung": 9,
    "format": "scenario",
-   "story": "You hold a full position in a leader. It has run hard for two weeks and sits far above its moving averages. Your stop is well below.",
-   "q": "What's your move?",
+   "story": "You hold a full position in a leader. It's run hard for two weeks and sits way above its rising averages. Your stop is far below.",
+   "q": "What's the play here?",
    "choices": [
-    "Sell a portion, trail the rest",
+    "Sell some, trail the rest",
     "Add more while it's running",
-    "Lower the stop for room",
-    "Sell all, it can't go higher"
+    "Lower the stop for more room",
+    "Sell it all, it can't go higher"
    ],
-   "answer": "Sell a portion, trail the rest",
-   "why": "Sell a portion, trail the rest. You lock in some of the run while it's strong and keep shares on for more. Our rule: sell some into strength and trail the rest under the rising averages. Hirsch cuts to a two-thirds or even one-third position when a stock is extended short term. Schwab's version: sell a portion and let the remainder ride.",
-   "lesson_line": "When it's stretched, sell some into strength. Let the rest show how far it can go.",
+   "answer": "Sell some, trail the rest",
+   "why": "Sell some, trail the rest. Two weeks of hard running, way above its averages: that's a stock stretched into strength. Buyers are there, so it's a good time to sell some. You lock in part of the run and keep shares on in case it keeps going. Bring the stop up behind it and trail the rest under the rising averages. You never have to guess the top.",
+   "lesson_line": "When it's stretched, sell some into strength. Let the rest show you how far it can go.",
    "facts": [
     "f15",
     "f18",
@@ -1613,18 +1652,18 @@
     "f11",
     "h01",
     "h04",
-    "h11",
+    "aw1",
     "h13",
     "r01"
    ],
    "wrong": {
-    "Add more while it's running": "We never add to a position. And buying an extended stock is chasing: O'Neil warns those buys get shaken out on normal pullbacks.",
-    "Lower the stop for room": "Our stop only moves up, never down. On a winner, lowering it hands back more of the gain.",
-    "Sell all, it can't go higher": "That bets on a top. Our rule sells only some into strength and trails the rest."
+    "Add more while it's running": "Not into a stretch like this. Buying a stock this extended is chasing, the kind of buy a normal pullback shakes out.",
+    "Lower the stop for more room": "Our stop only moves up, never down. On a winner, lowering it just hands back more of the gain.",
+    "Sell it all, it can't go higher": "That's a bet on the top. Sell some into strength and let the trail decide the rest."
    },
-   "simple": "Sell part of it and trail the rest. You bank some of the run and keep shares on for more.",
+   "simple": "Sell some into the strength and trail the rest. You bank part of the run and keep shares on for more.",
    "deeper": {
-    "trap": "The trap is reading 'extended' as a signal to buy more or to sell everything. For us it is neither. A stretched stock is a place to sell some into strength. The first sell is a judgment, not a fixed third at 3R."
+    "trap": "The trap is reading 'extended' as a signal to buy more or to sell everything. For us it's neither. A stretched stock is a place to sell some into strength. Hirsch cuts to a two-thirds or even one-third position when a stock is extended short term, and Schwab says sell a portion and let the remainder ride."
    },
    "tier": "expert",
    "risk": {
@@ -1634,7 +1673,7 @@
      "fixed before (Hirsch wording)"
     ]
    },
-   "batch": "wave6"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q26",
@@ -1642,15 +1681,16 @@
    "rung": 1,
    "format": "tf",
    "house": true,
-   "q": "Our rule is to buy the full position at one price, with one stop.",
+   "q": "We buy the whole position at one price, with one stop. Adding to a winner later is rare, and never part of the plan.",
    "answer": "True",
-   "why": "True. The whole size goes on at one price, with one stop. We don't start with a small piece, and we don't add as it works. What we scale is the exit, never the entry.",
-   "lesson_line": "Full size, one price, one stop. No adding.",
+   "why": "True. The full size goes on at one price, with one stop. No starter piece, no scaling in. Here's why. The size came from the stop. Your entry minus your stop set how many shares fit the risk you chose. Adding to a working winner on strength does happen, but it's rare and a feel call. Never planned, and never to a loser. We scale the exit, not the entry.",
+   "lesson_line": "Full size, one price, one stop. We scale out, not in.",
    "facts": [
-    "h11",
-    "h12"
+    "aw1",
+    "h12",
+    "aw2"
    ],
-   "simple": "True. We put the whole position on at one price with one stop, and we never add to it.",
+   "simple": "True. The stop set the size, so it goes on once, and adding to a winner is rare, a feel call.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1658,7 +1698,7 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "wave6"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q27",
@@ -1666,26 +1706,26 @@
    "rung": 2,
    "format": "mcq",
    "house": true,
-   "q": "When does our stop move up to breakeven?",
+   "q": "The trade's moving your way, and your stop still sits under the entry day's low. When does it come up to breakeven?",
    "choices": [
-    "Once it's 2R to 5R up",
-    "The day after you buy",
-    "Never, it never moves",
-    "As soon as it's 1R up"
+    "Between 2R and 5R, or the first sell",
+    "The day after you buy, no matter what",
+    "Never, the stop stays where it is",
+    "As soon as it's 1R in your favor"
    ],
-   "answer": "Once it's 2R to 5R up",
-   "why": "Once it's 2R to 5R up. Our rule moves the stop to breakeven once the trade is 2R to 5R ahead, ideally. From there the stop only moves up, never down or wider. The one exception is the gap rule.",
-   "lesson_line": "Stop to breakeven once the trade is 2R to 5R ahead. After that it only moves up, except under the gap rule.",
+   "answer": "Between 2R and 5R, or the first sell",
+   "why": "Somewhere between 2R and 5R, or when you make the first sell. That's a judgment, not one fixed number. Move it too soon, at 1R, and a normal wiggle takes you out of a good trade for nothing. Give it real room first. Once it's at breakeven, the trade can't turn into a real loser short of a gap. From there the stop only moves up.",
+   "lesson_line": "Give it room first. Breakeven comes between 2R and 5R, or at the first sell.",
    "facts": [
     "h03",
     "h13"
    ],
    "wrong": {
-    "The day after you buy": "Too early. The move comes once the trade is 2R to 5R ahead, not on a date.",
-    "As soon as it's 1R up": "Too early for us. Our rule waits until the trade is 2R to 5R ahead.",
-    "Never, it never moves": "Our stop never moves down or wider, except under the gap rule. But it does move up: at 2R to 5R it goes to breakeven."
+    "The day after you buy, no matter what": "A date isn't the signal. Give the trade room first, 2R to 5R or the first sell.",
+    "As soon as it's 1R in your favor": "Too tight, too soon. One normal pullback and you're out at breakeven on a good trade.",
+    "Never, the stop stays where it is": "Our stop never moves down, but it does move up. Breakeven comes at 2R to 5R or the first sell."
    },
-   "simple": "Once it's 2R to 5R up. That is when our rule moves the stop to your entry.",
+   "simple": "Between 2R and 5R, or at the first sell. Too soon and a normal wiggle shakes you out of a good trade.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1694,7 +1734,7 @@
      "fixed in final check: key is B19's own window, not the 3R course convention"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q28",
@@ -1735,15 +1775,15 @@
    "rung": 3,
    "format": "tf",
    "house": true,
-   "q": "We enter with a limit order, to control the price we pay.",
+   "q": "Your setup triggers. You put in a limit order at the trigger price so you don't pay a cent more than planned.",
    "answer": "False",
-   "why": "False. Our entries are market orders, not limit orders. When the setup triggers, the buy goes in at market. The order that waits is the stop: a real stop order with the broker, not one kept in your head.",
+   "why": "False. We buy at market. When it triggers, I want to be in, and a market order gets me in. A limit at the trigger can sit there unfilled while the stock runs away without you. Then you're either chasing it or you've missed it. The order that waits is the stop: a real stop order with the broker, never one kept in your head.",
    "lesson_line": "Entries at market. The stop is the order that waits.",
    "facts": [
     "h10",
     "h14"
    ],
-   "simple": "False. Our entries are market orders, and the stop order is the one that waits with the broker.",
+   "simple": "False. We enter at market so we're in when it triggers, and the stop is the order that waits.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1751,7 +1791,7 @@
      "rests on the owner's rulebook (E57, D41)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q29",
@@ -1759,7 +1799,7 @@
    "rung": 4,
    "format": "mcq",
    "house": true,
-   "q": "Entry $50, stop $47.50. Where is the 3R price?",
+   "q": "You buy at $50 with your stop at $47.50. Where's 3R on this trade?",
    "answer": "$57.50",
    "calc": {
     "fn": "arith",
@@ -1770,14 +1810,14 @@
     }
    },
    "prefix": "$",
-   "why": "One R is the distance from the $50 entry down to the $47.50 stop. Three times that, added above the entry, is the 3R price: $57.50. It is a measuring mark, not an order to sell. When you sell is a judgment, usually day 3 or later.",
-   "lesson_line": "Know the 3R price before you buy. It is a mark on the trade, not a sell order.",
+   "why": "$57.50. One R is your risk per share: $50 minus $47.50 is $2.50. Three of those is $7.50. Add that to your $50 entry and you're at $57.50. Mark it before you buy. It's a ruler, not a sell order. It tells you how much the trade has paid you for the risk you took. The first sell is still judgment, and rarely before day 3.",
+   "lesson_line": "Know your 3R price before you buy. It's a mark on the ruler, not a sell order.",
    "facts": [
     "r01",
     "r02",
     "f17"
    ],
-   "simple": "$57.50. Three times the gap between your $50 entry and $47.50 stop, added to the entry, is the 3R price.",
+   "simple": "$57.50. Take three times your risk from $50 down to $47.50 and add it to the $50 entry.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1786,7 +1826,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$53.00",
     "$55.00",
@@ -1794,9 +1834,9 @@
     "$57.50"
    ],
    "wrong": {
-    "$55.00": "That is only two times the risk. 3R takes three times it.",
-    "$42.50": "Went three times the risk below the entry. 3R sits above it.",
-    "$53.00": "Added a flat $3.00, not three times the risk."
+    "$55.00": "That's only 2R. You need three times the $2.50 risk.",
+    "$42.50": "You went three R below the entry. 3R sits above it.",
+    "$53.00": "You added a flat $3. 3R is three times your risk, not $3."
    }
   },
   {
@@ -1805,7 +1845,7 @@
    "rung": 5,
    "format": "mcq",
    "house": true,
-   "q": "Entry $80, stop $77. Where does the 5R mark sit?",
+   "q": "Entry $80, stop $77, and the stock keeps running. Where does 5R sit?",
    "answer": "$95.00",
    "calc": {
     "fn": "arith",
@@ -1816,13 +1856,13 @@
     }
    },
    "prefix": "$",
-   "why": "One R is the distance from the $80 entry down to the $77 stop. Five times that, added above the entry, is 5R: $95. That is a mark on the ruler, not an order to sell. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. What is left trails.",
-   "lesson_line": "5R is a mark on the ruler, not a sell order. A later sell is a judgment.",
+   "why": "$95. Your risk is $80 minus $77, $3 a share. Five R is $15. Add it to $80 and you're at $95. Around 5R is often a good place to sell some, more so into a 3, 5 or 7 day push. But it's a mark, not an order. Whatever you keep trails, so a big winner can keep going.",
+   "lesson_line": "5R is a mark on the ruler, not a sell order. The sell is a judgment.",
    "facts": [
     "r01",
     "r03"
    ],
-   "simple": "$95. Five times the gap between your $80 entry and $77 stop, added to the entry, is the 5R mark.",
+   "simple": "$95. Five times your risk from $80 down to $77, added to the $80 entry, puts 5R there.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -1831,7 +1871,7 @@
      "computed key"
     ]
    },
-   "batch": "sweep-2026-11-14",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$95.00",
     "$98.00",
@@ -1839,9 +1879,9 @@
     "$400.00"
    ],
    "wrong": {
-    "$98.00": "Counted six times the risk instead of five.",
-    "$110.00": "Counted the risk per share twice before multiplying by five.",
-    "$400.00": "Multiplied the $80 entry by five instead of the risk."
+    "$98.00": "That's six times the $3 risk, not five.",
+    "$110.00": "You counted the risk twice over. One R here is $3.",
+    "$400.00": "That's five times the entry. R is your risk, the $3 between entry and stop."
    }
   },
   {
@@ -1850,16 +1890,16 @@
    "rung": 5,
    "format": "mcq",
    "house": true,
-   "q": "What is left is trailing. Which line do we trail under, and what makes us sell?",
+   "q": "You've sold some and the rest is trailing. Which line do you trail, and what gets you out?",
    "choices": [
-    "The 9 or 20 EMA; close below it",
-    "The 50 SMA; any dip below it",
-    "The 200 SMA; a close below it",
-    "A 10% trailing stop from the high"
+    "A close under the 9 or 20 EMA",
+    "Any dip at all under the 50-day",
+    "A close under the 200-day line",
+    "A 10% drop from the highest price"
    ],
-   "answer": "The 9 or 20 EMA; close below it",
-   "why": "The 9 EMA or 20 EMA, and a close below it. The 9 EMA suits fast movers, the 20 EMA steadier ones. An intraday dip under the line is not a sale; a close below it is. The trail follows a moving average, not a fixed percent.",
-   "lesson_line": "Trail the 9 EMA or 20 EMA. A close below it sells what is left.",
+   "answer": "A close under the 9 or 20 EMA",
+   "why": "A close under the 9 or 20 EMA. Use the 9 EMA on a fast mover and the 20 EMA on a steadier one. A dip under the line during the day doesn't sell. A close below it does. Leaders shake out intraday all the time, and the close tells you if buyers stepped back in. Put both EMAs on your daily chart so the line is always in front of you.",
+   "lesson_line": "Trail the 9 or 20 EMA. A close below it sells what's left.",
    "facts": [
     "h05",
     "h01",
@@ -1867,11 +1907,11 @@
     "rd21"
    ],
    "wrong": {
-    "A 10% trailing stop from the high": "That's a percent trail. Ours follows a moving average, the 9 EMA or 20 EMA, and a close below it sells.",
-    "The 50 SMA; any dip below it": "Our default lines are the 9 EMA and 20 EMA. And a dip isn't a close.",
-    "The 200 SMA; a close below it": "Our default lines are the 9 EMA for fast movers and the 20 EMA for steadier ones, not the 200 SMA."
+    "Any dip at all under the 50-day": "Wrong line and wrong signal. Our trail is the 9 or 20 EMA, and it takes a close below, not a dip.",
+    "A close under the 200-day line": "By then you've handed back most of the move. We trail the 9 or 20 EMA.",
+    "A 10% drop from the highest price": "That's a percent trail. Ours follows a moving average, the 9 or 20 EMA."
    },
-   "simple": "The 9 EMA or 20 EMA. A close below that line sells what is left.",
+   "simple": "A close under the 9 or 20 EMA. A dip during the day doesn't count, the close does.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1880,7 +1920,7 @@
      "fixed before (200-day note)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q32",
@@ -1888,28 +1928,28 @@
    "rung": 6,
    "format": "scenario",
    "house": true,
-   "story": "You bought at $20 with the stop at $19. By noon on the same day, the stock trades at $23, 3R, on news.",
-   "q": "What do you do about the first sell?",
+   "story": "You bought at $20 with your stop at $19. By noon the same day it's $23 on news. That's already 3R.",
+   "q": "Do you make your first sell?",
    "choices": [
-    "Hold; we rarely sell on day 1",
-    "Sell a third now, it is at 3R",
+    "Hold, we rarely sell on day 1",
+    "Sell a third now, it's at 3R",
     "Sell it all, a gain is a gain",
     "Sell half now and lift the stop"
    ],
-   "answer": "Hold; we rarely sell on day 1",
-   "why": "Hold. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. The 3R price is a mark, not an order to sell. Selling into a 3, 5 or 7 day push is often best.",
-   "lesson_line": "We rarely sell on day 1. The first sell usually waits until day 3 or later.",
+   "answer": "Hold, we rarely sell on day 1",
+   "why": "Hold. We very rarely sell on day 1 of the buy. You risked $1 a share from $20 to $19, and by noon you're up $3. That's a stock telling you it wants to go. Selling into it caps your best trade on its first day. We usually wait until day 3 at the earliest, and a 3, 5 or 7 day push is often where the first sell goes.",
+   "lesson_line": "We rarely sell on day 1. Let a strong stock show you what it's got.",
    "facts": [
     "r01",
     "r02",
     "r03"
    ],
    "wrong": {
-    "Sell a third now, it is at 3R": "That was the old fixed rule. The first sell is a judgment, and we rarely sell on day 1.",
-    "Sell it all, a gain is a gain": "That cuts a winner short. Selling into a 3, 5 or 7 day push is often best.",
-    "Sell half now and lift the stop": "Day 1 is too early to sell by rule. We usually wait until day 3 at the earliest."
+    "Sell it all, a gain is a gain": "That cuts your best trade short on its first day. Let it show you what it's got.",
+    "Sell half now and lift the stop": "Day 1 is too early. We usually wait until day 3 at the earliest.",
+    "Sell a third now, it's at 3R": "3R is a mark, not a sell order. And we rarely sell on day 1."
    },
-   "simple": "Hold, because we very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest.",
+   "simple": "Hold, we very rarely sell on day 1 and wait for day 3 or later, into a push.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1918,7 +1958,7 @@
      "fixed before (facts)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q33",
@@ -1926,8 +1966,8 @@
    "rung": 7,
    "format": "scenario",
    "house": true,
-   "story": "You bought a setup 11 trading days ago. It never hit the stop, but it's only up about half an R and going nowhere.",
-   "q": "What does our rule say?",
+   "story": "You bought a setup 11 trading days ago. It never came near the stop, but it's up only about half an R and going nowhere.",
+   "q": "What's the call here?",
    "choices": [
     "Sell it, the time stop hit",
     "Hold until the stop or 3R",
@@ -1935,22 +1975,23 @@
     "Widen the stop and wait"
    ],
    "answer": "Sell it, the time stop hit",
-   "why": "Sell it. A trade still under 1R after 10 trading days is sold: that is our time stop. This one is about half an R up after 11 trading days, so it goes. The money goes back to work on a setup that is moving. Dead money has a cost even when it never hits the stop.",
+   "why": "Sell it. That's our time stop: a trade still under 1R after 10 trading days gets sold. This one's at half an R on day 11, so it goes. Dead money has a cost even when it never hits the stop. That money could be in a stock that's moving. If it sets up again later, you can buy it again as a new trade.",
    "lesson_line": "Under 1R after 10 trading days: sell. Dead money has a cost.",
    "facts": [
     "h07",
-    "h11",
+    "aw_r",
     "h03",
-    "h13"
+    "h13",
+    "h15"
    ],
    "wrong": {
-    "Hold until the stop or 3R": "That is for a trade that moves. After 10 trading days under 1R, the time stop ends it.",
+    "Hold until the stop or 3R": "3R isn't an exit we wait for. And under 1R after 10 trading days, the time stop ends it.",
     "Widen the stop and wait": "The stop never moves down or wider. And waiting is the problem here, not the fix.",
-    "Move the stop up to breakeven": "Our breakeven move comes at 2R to 5R, and this trade is under 1R. The time stop sells it instead."
+    "Move the stop up to breakeven": "Breakeven comes at 2R to 5R. This trade is under 1R, so the time stop sells it."
    },
-   "simple": "Sell it. Our time stop sells any trade still under 1R after 10 trading days.",
+   "simple": "Sell it. It's gone 11 days without real progress, so the time stop frees the money for a stock that's moving.",
    "deeper": {
-    "trap": "The trap is that nothing looks wrong. The stop never hit and the trade is green. But our time stop measures progress, not losses. A trade still under 1R after 10 trading days is sold, so the money can go to a setup that is moving."
+    "trap": "The trap is that nothing looks wrong. The stop never hit and the trade is green. But the time stop measures progress, not losses. A trade still under 1R after 10 trading days is sold, so the money can go to a setup that's moving."
    },
    "tier": "extended",
    "risk": {
@@ -1959,7 +2000,7 @@
      "rests on the owner's rulebook (C33)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q34",
@@ -1967,16 +2008,16 @@
    "rung": 7,
    "format": "tf",
    "house": true,
-   "q": "A stock gaps down through your stop at the open. Our rule: the low of the first 30-minute bar becomes the new stop.",
+   "q": "Your stock gaps down through your stop at the open. The low of the first 30-minute bar becomes your new stop.",
    "answer": "True",
-   "why": "True. On a gap down through your stop, the first 30 minutes of the day decide. The low of the first 30-minute bar becomes the new stop. There is a ceiling: if the first 30 minutes already take the loss past 2R, you get out. This is the one exception to our rule that the stop only moves up.",
+   "why": "True. That's our gap rule. Rather than dump it into the opening panic, you let the first 30 minutes show you where it holds. Their low becomes the new stop. There's a ceiling: if those 30 minutes already put the loss past 2R, you get out. It's the one time a stop moves down. Every other time it only moves up.",
    "lesson_line": "Gap through the stop: the first 30-minute low is the new stop. Past 2R, you're out.",
    "facts": [
     "h08",
     "h09",
     "h13"
    ],
-   "simple": "True. When a stock gaps down through your stop, the low of the first 30 minutes becomes the new stop.",
+   "simple": "True. On a gap through your stop, the first 30 minutes decide, and their low is your new stop.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -1985,7 +2026,7 @@
      "open question for the owner: how the broker stop order (D41) meets the gap rule"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q36",
@@ -1993,8 +2034,8 @@
    "rung": 8,
    "format": "scenario",
    "house": true,
-   "story": "You bought your full size at $30, stop $28.50. It's at $33 and a friend says add half again, it's working.",
-   "q": "What do you do?",
+   "story": "You bought your full size at $30, stop $28.50. Two days later it's at $33, and a friend says add half again, it's working.",
+   "q": "Do you add?",
    "choices": [
     "Add nothing, manage the trade",
     "Add half, it's proving you right",
@@ -2002,24 +2043,26 @@
     "Sell it all and rebuy bigger"
    ],
    "answer": "Add nothing, manage the trade",
-   "why": "Add nothing. The whole size went on at $30 with one stop, and we never add. Manage the trade instead. The first sell is a judgment, and he usually waits until day 3 at the earliest. More shares bought higher would only raise what a reversal costs.",
-   "lesson_line": "Full size at one price. An add is not our trade.",
+   "why": "Add nothing. You put the full size on at $30, with one stop at $28.50, and that stop set your size. Add half at $33 and your average climbs. A pullback to $30 now costs you on the new shares. Adding to a working winner does happen, but it's rare and a feel call, never the plan. Manage what you have instead. At $33 you're twice your risk ahead, so a breakeven stop is now on the table.",
+   "lesson_line": "Full size at one price. Then you manage it. An add is rare, never the plan.",
    "facts": [
-    "h11",
+    "aw1",
     "h12",
+    "h03",
     "r01",
     "r02",
     "f24",
-    "f02"
+    "f02",
+    "aw2"
    ],
    "wrong": {
-    "Add half, it's proving you right": "Averaging up is a real method and other traders use it. It isn't ours: the full size went on at one price, with one stop.",
-    "Add half, raise the stop on all": "Raising the stop is fine on its own. Adding isn't, and more shares bought higher raise what a reversal costs.",
+    "Add half, it's proving you right": "Working isn't reason enough on its own. Your job now is managing what you have, not growing it.",
+    "Add half, raise the stop on all": "Raising the stop is fine. The add isn't. More shares bought higher raise what a reversal costs.",
     "Sell it all and rebuy bigger": "That's an add with extra steps. Our size was set from the stop at the entry."
    },
-   "simple": "Add nothing. We buy the full size once, at one price with one stop, and then only manage it.",
+   "simple": "Add nothing. Your size went on once, from the stop, and buying more higher raises what a pullback costs.",
    "deeper": {
-    "counter": "Averaging up is a real method. IBD uses later buy points to add to a position it already holds. It isn't ours. Our size is set once, from the stop at the entry, so the risk you planned is the risk you carry."
+    "counter": "Averaging up is a real method. IBD uses later buy points to add to a position it already holds. We don't plan a trade that way. Our size is set once, from the stop at the entry, so the risk you planned is the risk you carry."
    },
    "tier": "expert",
    "risk": {
@@ -2028,7 +2071,7 @@
      "rests on the owner's rulebook (A5, B19)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q37",
@@ -2036,8 +2079,8 @@
    "rung": 9,
    "format": "scenario",
    "house": true,
-   "story": "You bought 300 shares at $40, stop $38, in one order. By day 5 it has run to $46, 3R, and it sits well above its rising 9 EMA.",
-   "q": "What does our plan do now?",
+   "story": "You bought 300 shares at $40, stop $38. By day 5 it's run to $46, a strong 5 day push, well above its rising 9 EMA.",
+   "q": "What's the plan now?",
    "choices": [
     "Sell some at $46, trail the rest",
     "Sell all 300 at $46, one target",
@@ -2053,24 +2096,24 @@
      "stop": 38
     }
    },
-   "why": "Sell some at $46, trail the rest. On a $40 entry with a $38 stop, $46 is 3R, a mark on the trade and not an order. Selling into a 3, 5 or 7 day push is often best, and this is day 5. What is left rides the rising 9 EMA and sells on a close below it.",
-   "lesson_line": "Entry, stop, then a first sell on judgment, often into a 3, 5 or 7 day push. Trail the rest.",
+   "why": "Sell some at $46 and trail the rest. Your risk was $2 a share, $40 minus $38. At $46 you're up $6, 3R. That alone isn't the reason. The 5 day push is. Selling into a 3, 5 or 7 day push is often best, and this is that spot. The rest rides the rising 9 EMA and sells on a close below it. How much to sell is your call.",
+   "lesson_line": "Sell some into the push. Trail the rest.",
    "facts": [
     "r01",
     "r02",
     "r03",
     "h05",
-    "h11",
+    "aw1",
     "rd21"
    ],
    "wrong": {
-    "Sell all 300 at $46, one target": "That banks everything at one price. We sell some into strength and trail the rest.",
-    "Hold all 300 and never sell a share": "That banks nothing into a 5 day push. We sell some into strength and trail the rest.",
-    "Add 100 more shares at $46": "We never add. The whole size goes on at one price with one stop."
+    "Sell all 300 at $46, one target": "That banks everything at one price. Sell some into strength and trail the rest.",
+    "Hold all 300 and never sell a share": "That banks nothing into a 5 day push. Sell some into strength and trail the rest.",
+    "Add 100 more shares at $46": "Not into a 5 day push this stretched. That's where we sell some, not where we buy more."
    },
-   "simple": "Sell some at $46 and trail the rest, because a 5 day push is a good place for a first sell.",
+   "simple": "Sell some at $46 into the 5 day push and trail the rest under the rising 9 EMA.",
    "deeper": {
-    "example": "Count it in R. $46 is 3R. It is a mark, not a sell order. The first sell is a judgment into a 3, 5 or 7 day push, or at about 5 to 10R. The rest has no target: it rides the 9 EMA until a close below it."
+    "example": "Count it in R. $46 is 3R, a mark and not a sell order. The first sell is a judgment into a 3, 5 or 7 day push, or at about 5 to 10R. The rest has no target: it rides the 9 EMA until a close below it."
    },
    "tier": "expert",
    "risk": {
@@ -2080,7 +2123,7 @@
      "computed key"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "rulings-2026-11-17"
   }
  ],
  "conflicts": [
@@ -2119,25 +2162,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer before key: averaging up (f23 Investopedia + f42 Bulkowski, two Tier 2 publishers agree). Choices balanced, key not longest; each wrong note has a fact (f25, f50, f21). Why's 'we do neither' rests on h11. Bulkowski reliance is the open owner flag, not a defect here."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q02": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q03": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "False is right (f50, f25). Plan vs reaction is a clean line. Ends on the stop as our answer."
   },
   "q04": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep agreed: O'Neil's averaging principle (rule 13), a standing rule a trader acts on; the why defines the term and notes our no-adding rule."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q05": {
    "status": "cut",
@@ -2149,13 +2192,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ok"
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q07": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep agreed: our own rule for holding winners (rule 13); 'weakness' and 'pullbacks' are live distractors so the blank is not a giveaway."
+   "notes": "Sentence matches h01 word for word. Why gives the reason (buyers are there to take your shares)."
   },
   "q08": {
    "status": "cut",
@@ -2166,8 +2209,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pronoun He -> We only; key already agrees with D-013; r01-r03 quotes verbatim."
+   "fixed": true,
+   "notes": "Right answer and wrong notes are true to the 2026-11-12 ruling. Stem 'How do we decide' read like a quiz, and 'almost never before day 3' overstated 'very rarely on day 1, usually day 3 at the earliest'. Rewritten in his voice."
   },
   "q10": {
    "status": "cut",
@@ -2183,33 +2226,33 @@
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "kept text agrees (never add to a loser); swapped the old 'no adding' fact h11 for aw1"
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 45.0. $50 first price, $40 second price, $90 summed prices. Why shows the average."
+   "notes": "(100x50 + 100x40) / 200 = $45, right (f26). Wrong notes are real slips. Reason: twice the shares in a falling stock."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Breakeven now 'can move at the first sell', what is left trails 9 EMA or 20 EMA, no fixed thirds; consistent with D-013 and D-021."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "bought/now prices, shares held; slot '50 shares'"
+   "notes": "100 x 30 / 60 = 50, right. Sell-half-on-a-double is framed as some traders' rule (f14), first sell stays judgment."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer: True (f49 Tier 1 FINRA: a triggered stop is a market order, the fill can be markedly different). True under the B20 gap rule too, so the D41/B20 tension (owner flag 1) cannot flip it. f22 'almost risk-free' quoted fairly."
+   "fixed": true,
+   "notes": "True is right (f49). Fixed a clash with our gap rule (h08): 'that's about where you get out' on a gap contradicts q34, where the first 30-minute low becomes the new stop. Now says the loss is there either way."
   },
   "q17": {
    "status": "cut",
@@ -2226,8 +2269,8 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Label 'Friend's extra profit' tells the member the friend made more, which is the question ('who made more?'). The slot's key is too long to show, so the label is all the member sees. Neutral label for what the calc computes (friend profit minus ours)."
+   "fixed": false,
+   "notes": "200x5 - 100x2.50 - 100x5 = $250, right. Honest trade-off line in his voice."
   },
   "q20": {
    "status": "cut",
@@ -2245,7 +2288,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "breakeven stop equals entry; 'Partial vs holding all' names the difference computed; key 'Made you $250 more' fits 18 chars and fills the slot"
+   "notes": "100 x 2.50 = $250 vs nothing holding all 200, right (f35, f36). Good mentor close."
   },
   "q23": {
    "status": "cut",
@@ -2263,8 +2306,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: sell a portion, trail the rest (A11, h01; Hirsch f15 and Schwab f18 agree, attributed). Every wrong note grounded (h11, f11, h13). Minor: the story gives no R level, so the item rests on A11 rather than the 3R/5R ladder; the deeper names the set levels. 'Sell it all, it can't go higher' is a lone absolute in a wrong choice, a weak tell, kept because it is a real misconception.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "w4": {
    "status": "pass",
@@ -2274,15 +2316,15 @@
   },
   "q26": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right: B19 / h03 says breakeven at 2R to 5R, ideally. All four choices are 21 characters, no tell, and no second defensible answer. Three problems, all in the teaching text. (1) The why and the 'Never' wrong-note say the stop 'only moves up' / 'never moves down or wider' with no exception. The same lesson's q34 and h13 teach the gap rule (B20) as the one exception, where the new stop can sit below the old one. (2) The why's last sentence ('a gap can still fill you below it') states q16's answer (True, a breakeven stop can still lose money). It also conflicts with q34: under B20 a gap th"
+   "fixed": false,
+   "notes": "2R to 5R or the first sell (h03) as judgment, not fixed 2R. Wrong notes clear."
   },
   "q28": {
    "status": "cut",
@@ -2294,55 +2336,55 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: False (h10, E57: 'Entries are market orders'). The stop clause rests on h14 (D41). The statement is a real belief, not silly."
+   "notes": "False is right: entries are market orders (h10), real stop with the broker (h14). Sounds like him."
   },
   "q29": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 57.5. Choices real (55 = 2R, 42.50 below, 53 flat $3). Why fine. Moved the answer to slot 1."
+   "fixed": false,
+   "notes": "50 + 3 x 2.50 = 57.50, steps shown. R as a ruler, first sell judgment. Right."
   },
   "q30": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-keyed to a pure R-math question (5R mark = $95), 'second trim' and 'another third' gone; distractors are real slips ($98 six times, $110 doubled risk, $400 entry x5)."
+   "notes": "80 - 77 = 3, x5 = 15, 80 + 15 = 95, right. 5 to 10R often best (r03) said as a mark, not an order."
   },
   "q31": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Renamed to 9/20 EMA and 50/200 SMA, 'last third' -> 'what is left'; close-below exit is fine."
+   "notes": "Close under 9 or 20 EMA (h05, rd21), not a 10-day or 21-day. Right, and gives the how (put both on the daily)."
   },
   "q32": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Hold on day 1 at 3R matches D-013 (r02); pronouns now we; no fixed-third key."
+   "notes": "$20 stop $19 is 5%, inside our max; $23 is 3R. Hold, rarely sell on day 1 (r02). Right."
   },
   "q33": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Keep is right (time stop). Softened the distractor note that called hold-until-3R the plan for a moving trade."
+   "notes": "Time stop (h07): day 11, half an R, sell. Right. Tightened the 'Hold until the stop or 3R' note, which implied 3R is an exit for a moving trade."
   },
   "q34": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Gap rule (h08, h09) with the 2R ceiling and the one-exception line (h13). Right."
   },
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "ok"
+   "fixed": true,
+   "notes": "answer still right: a friend's nudge two days in isn't a reason; the writer said 'rare, a feel call' three times in one question, now once in why; 'Adding isn't.' read as absolute"
   },
   "q37": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Rising 9 EMA in story, why and deeper; first sell stays a day-5 judgment into a push; consistent with D-013 and D-021."
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   }
  }
 }

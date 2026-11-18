@@ -535,7 +535,7 @@
    "title": "Three kinds of expiry",
    "steps": [
     "Every option has a deadline. Standard monthlies expire on the third Friday of the month.",
-    "Weeklies exist on a limited set of names. Most expire on a Friday, but read the date.",
+    "Weeklies are only listed on some names, so open the chain and see. Most expire on a Friday. Read the date.",
     "LEAPS sit at the long end, with expiries up to three years out."
    ],
    "facts": [
@@ -550,9 +550,9 @@
    "key": "w2",
    "title": "What time costs you",
    "steps": [
-    "More time costs more. A later expiry on the same strike has a higher price and a higher break-even.",
-    "On an at-the-money option, decay is gradual at first, then picks up fast in about the last 30 days.",
-    "It runs on weekends too, and it runs whether the stock moves or not."
+    "More time costs more. Same strike, later expiry: a higher price and a higher break-even.",
+    "On an at-the-money option, decay starts slow. In about the last 30 days it picks up fast.",
+    "It runs on weekends too. And it runs whether the stock moves or not."
    ],
    "facts": [
     "f35",
@@ -569,9 +569,9 @@
    "key": "w3",
    "title": "Match the expiry to the plan",
    "steps": [
-    "Start with how long the move should take. That's your plan's window.",
-    "Then buy past it. I want to sell with time left, before the last month.",
-    "Check the calendar too. If earnings land before your expiry, you're paying for the report."
+    "Figure out how long the move should take. That's your window.",
+    "Then buy past it, with room. Time value drains fast in about the last 30 days.",
+    "Check the calendar too. Earnings before your expiry means you're paying up for the report."
    ],
    "facts": [
     "f18",
@@ -590,7 +590,7 @@
    "skill": "options.expiry",
    "rung": 1,
    "format": "mcq",
-   "q": "Standard monthly stock options expire on which day?",
+   "q": "You're looking at a monthly call on the chain, not a weekly. Which day does that monthly expire?",
    "choices": [
     "The third Friday of the month",
     "The last Friday of the month",
@@ -598,18 +598,19 @@
     "The last trading day of the month"
    ],
    "answer": "The third Friday of the month",
-   "why": "The third Friday of the month. OIC says the regular monthly expiration is typically the third Friday. Fidelity says monthly options expire on the third Friday of the expiration month. Weeklies and other dates are listed around it. It is not the last Friday or the last trading day of the month.",
-   "lesson_line": "Monthly options expire on the third Friday of the month.",
+   "why": "Third Friday. That's when the regular monthlies expire. Not the last Friday, and not month-end. Put that date in your plan the day you buy. The move has to come before it, because a move after expiry pays you nothing.",
+   "lesson_line": "Monthlies expire the third Friday. Know the date before you buy.",
    "facts": [
     "f2",
-    "f39"
+    "f39",
+    "f11"
    ],
    "wrong": {
-    "The last Friday of the month": "Month end isn't the standard date. Monthlies use the third Friday, a week or more earlier.",
-    "The first Friday of the month": "Too early. The standard monthly expiry is the third Friday.",
-    "The last trading day of the month": "That isn't the standard date for stock options. Monthlies expire on the third Friday."
+    "The last Friday of the month": "Month-end isn't the date. Monthlies go out on the third Friday, a week or more earlier.",
+    "The first Friday of the month": "Too early. The monthly is the third Friday.",
+    "The last trading day of the month": "That's not how stock options work. The monthly expires on the third Friday."
    },
-   "simple": "It's the third Friday, because that is the standard monthly expiry date for stock options.",
+   "simple": "The third Friday, because that's the set date for monthly stock options.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -617,22 +618,22 @@
      "stable rule, OIC (Tier 1) and Fidelity agree"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
    "skill": "options.expiry",
    "rung": 1,
    "format": "tf",
-   "q": "Every stock that has options also has weekly options.",
+   "q": "If a stock has options, it has weekly options too.",
    "answer": "False",
-   "why": "False. OIC says each exchange can list weeklies on only a limited number of classes. Fidelity agrees: weeklys exist only for a limited number of stocks. Many optionable stocks have monthly expiries and no weeklies at all. Check the chain before you plan a short trade on one.",
-   "lesson_line": "Check the chain first. Weeklies exist only on a limited set of names.",
+   "why": "False. Weeklies only get listed on a limited set of names. Plenty of stocks have monthlies and nothing shorter. So before you plan a quick trade around a weekly, open the chain and see what's actually there. If the nearest expiry is a month out, that's what you're working with.",
+   "lesson_line": "Open the chain first. A lot of names don't have weeklies.",
    "facts": [
     "f1",
     "f41"
    ],
-   "simple": "False, because weeklies are listed on only a limited number of stocks, so many optionable stocks have none.",
+   "simple": "False, because weeklies are listed on only a limited number of stocks.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -640,14 +641,14 @@
      "which names carry weeklies changes over time"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
    "skill": "options.expiry",
    "rung": 2,
    "format": "mcq",
-   "q": "What should decide your expiry first?",
+   "q": "You've got a breakout lined up and you want a call on it. How do you pick the expiry?",
    "choices": [
     "How long the move should take",
     "Which expiry is the cheapest",
@@ -655,8 +656,8 @@
     "The longest expiry you can afford"
    ],
    "answer": "How long the move should take",
-   "why": "How long the move should take. Fidelity says to forecast how long the trade will likely take before you pick the expiry. OIC's deck puts the forecast first, then the expiry. The option has to still be open when the move comes; a rally after expiration does no good. Cost matters too: a later expiry costs more and lifts the break-even. So buy the time the move needs, plus room. Not the cheapest, and not the longest you can afford. The strike is a separate choice, tied to how far the stock goes.",
-   "lesson_line": "Forecast the time first. The expiry has to cover it.",
+   "why": "How long the move should take. An option is a bet on direction and on time. Be right a week after it expires and you get nothing. So I start with the clock, how long this should take to work. Then I buy past that, with room. Price matters, but the cheapest expiry is the shortest one. The longest you can afford pays for time you won't use. The strike is a separate call, about how far the stock goes.",
+   "lesson_line": "Clock first. Figure out how long the move takes, then buy past it.",
    "facts": [
     "f38",
     "f18",
@@ -667,11 +668,11 @@
     "f11"
    ],
    "wrong": {
-    "Which expiry is the cheapest": "Cost matters, but the cheapest expiry is usually the shortest. Know how much time you need first.",
-    "How far the strike is from the stock": "That's the strike question, tied to how far you think the stock goes. The expiry comes from how long it takes.",
-    "The longest expiry you can afford": "More time costs more and lifts the break-even. Buy the time the move needs, plus room, not the most you can pay."
+    "Which expiry is the cheapest": "The cheapest one is the shortest one. Know how much time you need first, then see what it costs.",
+    "How far the strike is from the stock": "That's the strike question, about how far the stock goes. The expiry comes from how long it takes.",
+    "The longest expiry you can afford": "More time costs more and raises your break-even. Buy what the move needs plus room, not the most you can pay."
    },
-   "simple": "Start with how long you think the move will take, because the option must still be alive when it comes.",
+   "simple": "Start with how long the move should take, because the option has to still be alive when it comes.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -679,24 +680,24 @@
      "stable method, Fidelity and two OIC/OCC decks agree"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q04",
    "skill": "options.expiry",
    "rung": 2,
    "format": "tf",
-   "q": "When expiry Friday is a market holiday, stock options last trade on the Thursday before.",
+   "q": "When expiry Friday is a market holiday, your stock options stop trading on the Thursday before.",
    "answer": "True",
-   "why": "True. When expiry Friday is a market holiday, stock options last trade on the Thursday before. OIC and Cboe state it for weeklies, and Fidelity for expiring stock options. Saxo's options brief recorded it for real: the June monthly expiry moved from Friday June 19 to Thursday June 18 for Juneteenth. This is the rule for stock options. Check the calendar when you buy, not on the day.",
-   "lesson_line": "Holiday Fridays steal a day. Check the calendar when you buy, not on the day.",
+   "why": "True. No trading on the holiday, so expiry moves up a day. It doesn't wait for Monday. When Juneteenth landed on the June expiry, the monthly moved from Friday the 19th to Thursday the 18th. If your plan was to sell on expiry day, you just lost a day you thought you had. Check the calendar when you buy, not that morning.",
+   "lesson_line": "Holiday Fridays steal a day. Check the calendar when you buy.",
    "facts": [
     "f42",
     "f52",
     "f4",
     "f27"
    ],
-   "simple": "True, because when expiry Friday is a market holiday, the last trading day moves up one day to Thursday.",
+   "simple": "True, because when expiry Friday is a holiday, the last trading day moves up to Thursday.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -705,7 +706,7 @@
      "fixed before (now says stock options)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q05",
@@ -742,7 +743,7 @@
    "skill": "options.expiry",
    "rung": 3,
    "format": "mcq",
-   "q": "What are LEAPS?",
+   "q": "Someone in chat says they bought LEAPS for a long hold on a name. What did they buy?",
    "term": "LEAPS",
    "choices": [
     "Long-dated options, up to 3 years out",
@@ -751,8 +752,8 @@
     "Options you must hold until they expire"
    ],
    "answer": "Long-dated options, up to 3 years out",
-   "why": "Long-dated options, up to 3 years out. Cboe says LEAPS have the same characteristics as standard options, with expiration dates up to three years in the future. They suit a longer time horizon. More time costs more, so a LEAPS costs more than a monthly on the same strike. You can still sell one before expiry, like any listed option.",
-   "lesson_line": "LEAPS buy you years, not weeks. You pay for every one of them.",
+   "why": "Long-dated options, up to 3 years out. Same contract as any other option, just a much later expiry. You can sell one any trading day, same as a monthly. The catch is cost. More time means a bigger premium, so a LEAPS costs more than a monthly on the same strike. They make sense when your plan really runs that long, and only then.",
+   "lesson_line": "LEAPS buy you years, and you pay for every one of them.",
    "facts": [
     "f24",
     "f25",
@@ -761,11 +762,11 @@
     "f12"
    ],
    "wrong": {
-    "Options that expire every week": "Those are weeklies, the short end of the range. LEAPS are the long end.",
-    "Options that expire the same day": "That's the very shortest end. LEAPS sit at the other end, years out.",
-    "Options you must hold until they expire": "No. LEAPS have the same characteristics as standard options. You can sell one on any trading day before it expires."
+    "Options that expire every week": "Those are weeklies, the short end. LEAPS are the long end.",
+    "Options that expire the same day": "That's the very shortest end. LEAPS sit years out.",
+    "Options you must hold until they expire": "Not at all. They trade like any option, so you can sell one any trading day before expiry."
    },
-   "simple": "LEAPS are long-dated options with up to 3 years left, and they work just like regular options.",
+   "simple": "LEAPS are long-dated options, up to 3 years out, and they trade like any other option.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -774,22 +775,22 @@
      "fixed before (key reworded)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
    "skill": "options.expiry",
    "rung": 3,
    "format": "tf",
-   "q": "Every optionable stock lists at least its next two monthly expiries.",
+   "q": "A stock with no weeklies still has at least its next two monthly expiries listed.",
    "answer": "True",
-   "why": "True. OIC says all stocks and ETFs with options list at least the two near-term expiration months. They also list two months from their quarterly cycle. So a stock with no weeklies still has its next two monthlies to pick from. Weeklies are extra, on a limited set of names.",
-   "lesson_line": "No weeklies doesn't mean no choice. The next two months are always there.",
+   "why": "True. Every stock and ETF with options lists at least the two nearest months, plus a couple more from its quarterly cycle. So no weeklies doesn't mean no choice. You've still got this month and next to work with, and often more further out. Pick from what's there, using how long your trade should take.",
+   "lesson_line": "No weeklies doesn't mean no choice. This month and next are always there.",
    "facts": [
     "f5",
     "f41"
    ],
-   "simple": "True, because OIC says every stock and ETF with options lists at least the two nearest expiration months.",
+   "simple": "True, because every stock with options lists at least the two nearest months.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -798,23 +799,23 @@
      "a listing rule that can change over time"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
    "skill": "options.expiry",
    "rung": 3,
    "format": "mcq",
-   "q": "Your trade plan has a deadline, and so does your option. Which deadline should come first?",
+   "q": "You're planning a swing and buying a call for it. How should your plan's end line up with the option's expiry?",
    "choices": [
-    "The plan's, with weeks to spare",
-    "The option's, so it forces you out",
-    "The same day, to pay for no extra time",
-    "The plan's, by just a day or two"
+    "Plan ends first, with weeks to spare",
+    "Option expires first, forcing you out",
+    "Same day, so you pay for no extra time",
+    "Plan ends first, by a day or two"
    ],
-   "answer": "The plan's, with weeks to spare",
-   "why": "The plan's, with weeks to spare. OIC says time value starts to drain fast around 30 days before expiry. It also says a rally after expiration does no good. Selling while time value is left can get back some or all of the cost. So the option should outlast your plan by a margin. No source names an exact margin. Being out before the last month is a judgment call, not a sourced rule.",
-   "lesson_line": "The plan ends first. The option should still have a month on it when I'm done.",
+   "answer": "Plan ends first, with weeks to spare",
+   "why": "Plan ends first, with weeks to spare. Time value starts draining fast around 30 days before expiry. I want to be done before that stretch, while the option still has time value I can sell. Cut it to a day or two and you're holding through the fastest decay. Let expiry force you out and it often does your selling with nothing left. There's no magic number here. Out before the last month is my judgment, and it's a good place to start.",
+   "lesson_line": "The plan ends first. I want a month left on the option when I'm done.",
    "facts": [
     "f8",
     "f11",
@@ -823,11 +824,11 @@
     "f23"
    ],
    "wrong": {
-    "The option's, so it forces you out": "Then expiry does your selling, often with nothing left. A move after expiry pays nothing.",
-    "The same day, to pay for no extra time": "Then you hold through the fastest decay, and a late move has no time to finish.",
-    "The plan's, by just a day or two": "Too close. Time value drains fast in about the last 30 days, so leave weeks, not days."
+    "Option expires first, forcing you out": "Then expiry does your selling, often with nothing left. A move after expiry pays you nothing.",
+    "Same day, so you pay for no extra time": "Then you hold right through the fastest decay, and a late move has no time to finish.",
+    "Plan ends first, by a day or two": "Too close. Time value drains fast in about the last 30 days, so leave weeks, not days."
    },
-   "simple": "Your plan should end first, with weeks to spare, so you can sell while the option still has time value.",
+   "simple": "Your plan should end first, with weeks to spare, so you can still sell time value.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -836,14 +837,14 @@
      "fixed before (a wrong choice reworded)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q09",
    "skill": "options.expiry",
    "rung": 4,
    "format": "mcq",
-   "q": "You buy a call with 45 days left for a 3-week plan. How many days will be left when the plan ends?",
+   "q": "You buy a call with 45 days left. Your plan runs 3 weeks. How many days are left on it when the plan's done?",
    "answer": "24 days",
    "suffix": "days",
    "calc": {
@@ -854,14 +855,14 @@
      "plan_days": 21
     }
    },
-   "why": "24 days. 45 days left minus a 21-day plan (3 weeks) leaves 24. OIC says time value starts to drain fast around 30 days before expiry. So you would end the plan inside that stretch. To sell with about a month left, buy further out.",
-   "lesson_line": "Subtract the plan from the days left. If under a month remains at the end, buy further out.",
+   "why": "24 days. 3 weeks is 21 days, and 45 minus 21 is 24. That's a problem. Time value starts draining fast around 30 days out, so you'd finish the plan already inside that stretch. If the trade's slow, you're paying the most decay right when you need the time. I'd go further out, so there's still about a month left when the plan ends.",
+   "lesson_line": "Take the plan off the days left. Under a month at the end means buy further out.",
    "facts": [
     "f8",
     "f17",
     "f38"
    ],
-   "simple": "24 days are left, and that is already inside the last 30 days, when time value drains fast.",
+   "simple": "24 days, which is already inside the last 30 days, when time value drains fast.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -869,7 +870,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "42 days",
     "66 days",
@@ -877,9 +878,9 @@
     "21 days"
    ],
    "wrong": {
-    "66 days": "Adds the plan to the days left instead of subtracting.",
-    "42 days": "Takes 3 weeks off as if it were 3 days.",
-    "21 days": "Gives the length of the plan, not the days left after it."
+    "66 days": "Added the plan to the days left. Take it away instead: 45 minus 21.",
+    "42 days": "Took off 3 days, not 3 weeks. Three weeks is 21 days.",
+    "21 days": "That's the length of the plan, not what's left after it."
    },
    "visual": {
     "kind": "size",
@@ -910,16 +911,16 @@
    "skill": "options.expiry",
    "rung": 4,
    "format": "mcq",
-   "q": "Before you buy, how do you know exactly when your option expires?",
+   "q": "You're about to buy a call off the chain. How do you know for sure when it expires?",
    "choices": [
     "Read the date on the contract",
     "Go by the third Friday",
     "Go by the coming Friday",
-    "Add 30 days to your buy date"
+    "Count 30 days from your buy date"
    ],
    "answer": "Read the date on the contract",
-   "why": "Read the date on the contract. OIC says to check the explicit calendar day of expiration in any contract you trade. The option symbol includes the date. Don't assume a pattern. Monthlies use the third Friday and most weeklies a Friday. Daily and midweek series add other weekdays.",
-   "lesson_line": "Never assume the expiry. Read the date off the contract.",
+   "why": "Read the date on the contract. It's right there in the option symbol. Don't go by a pattern. Monthlies land on the third Friday and most weeklies on a Friday, but daily and midweek series expire on other weekdays. And an option doesn't run a set number of days from when you buy it. Every contract has its own fixed date. Read it, then write it in your plan.",
+   "lesson_line": "Never assume the expiry. Read it off the contract.",
    "facts": [
     "f3",
     "f47",
@@ -927,11 +928,11 @@
     "f1"
    ],
    "wrong": {
-    "Go by the third Friday": "That's only the standard monthly. Weeklies and other expiries land on other dates.",
-    "Go by the coming Friday": "Many contracts expire weeks or months out, and some on other weekdays.",
-    "Add 30 days to your buy date": "Options don't run a set term from your buy. Each contract has a fixed expiry date, and the symbol includes it."
+    "Go by the third Friday": "That's only the monthly. Weeklies and other series land on other dates.",
+    "Go by the coming Friday": "Plenty of contracts run weeks or months out, and some expire on other weekdays.",
+    "Count 30 days from your buy date": "Options don't run a set term from your buy. Each contract has a fixed date, and the symbol shows it."
    },
-   "simple": "Read the expiry date printed on the contract, because expiries fall on many different days.",
+   "simple": "Read the date on the contract, because expiries fall on a lot of different days.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -939,23 +940,23 @@
      "fixed before (wrong choices reworded)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q11",
    "skill": "options.expiry",
    "rung": 4,
    "format": "mcq",
-   "q": "A company reports earnings on April 28. You see April 17 and May 15 expiries. Which expiries carry the report in their price?",
+   "q": "A stock reports on April 28. The chain shows April 17 and May 15 expiries. Which one has the report priced in?",
    "choices": [
     "Only the May 15 expiry",
-    "Only the April 17 one",
+    "Only the April 17 expiry",
     "Every expiry listed",
-    "None until the report"
+    "Neither, until the report is out"
    ],
    "answer": "Only the May 15 expiry",
-   "why": "Only the May 15 expiry. An expiry carries the report only if it is still open when the report lands. The April 17 options expire before the April 28 report, so they can't carry it. Implied volatility tends to rise ahead of expected news and is usually high into earnings. Fidelity says a report inside an expiry can explain why that month's implied volatility is much higher. Check the calendar before you pick.",
-   "lesson_line": "An expiry carries the report only if it's still open when the report lands. Check the calendar.",
+   "why": "Only May 15. An option carries the report only if it's still alive when the report hits. April 17 is gone before April 28, so it can't carry it. May 15 is still open, so the report is in its price. Implied volatility runs high into earnings, and that makes the May options more expensive. That's you paying for the report. Check the date on the earnings calendar in our app before you pick.",
+   "lesson_line": "An expiry carries the report only if it's still open when the report lands.",
    "facts": [
     "f23",
     "f40",
@@ -965,11 +966,11 @@
     "f48"
    ],
    "wrong": {
-    "Only the April 17 one": "It expires before the April 28 report. The report can't move an option that's already gone.",
-    "Every expiry listed": "The April 17 options expire before the report, so they can't carry it. Only expiries still open on April 28 do.",
-    "None until the report": "Options price the report ahead of time. Implied volatility is usually high going into earnings, so the May price carries it."
+    "Every expiry listed": "April 17 expires before the report, so it can't carry it. Only expiries still open on April 28 do.",
+    "Only the April 17 expiry": "It expires before the April 28 report. A report can't move an option that's already gone.",
+    "Neither, until the report is out": "The market prices it ahead of time. Implied volatility runs high into earnings, so May already carries it."
    },
-   "simple": "The May 15 options, because they are still open when the April 28 report comes out.",
+   "simple": "The May 15 options, because they're still open when the April 28 report comes out.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -977,16 +978,16 @@
      "the key follows from the dates in the question; several sources agree on earnings volatility"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q12",
    "skill": "options.expiry",
    "rung": 5,
    "format": "tf",
-   "q": "Every listed option expires on a Friday.",
+   "q": "Any option you buy will expire on a Friday.",
    "answer": "False",
-   "why": "False. Monthlies and most weeklies usually end on a Friday, and a Friday holiday moves them to Thursday. Some products expire on other days. Cboe lists Monday and Wednesday SPXW expiries. Schwab says that with daily, midweek and weekly options, expiration happens every day of the week. Friday is common, but not every expiry lands on one.",
+   "why": "False. Monthlies and most weeklies end on a Friday, and a holiday pulls them to Thursday. But plenty don't. Cboe lists Monday and Wednesday SPXW expiries. With daily and midweek series, some option expires every day of the week. Friday's common. It's not a promise, so read the date before you buy.",
    "lesson_line": "Friday is common, not guaranteed. Read the date.",
    "facts": [
     "f47",
@@ -994,7 +995,7 @@
     "f1",
     "f42"
    ],
-   "simple": "False, because some products now expire on other weekdays, and some option expires on every weekday.",
+   "simple": "False, because some options now expire on other weekdays, so you read the date.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1003,15 +1004,15 @@
      "fixed before"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q13",
    "skill": "options.expiry",
    "rung": 5,
    "format": "scenario",
-   "story": "The stock sits at 50 and volatility holds steady. The Options Industry Council's model prices the at-the-money call at $2.95 with 50 days left, $2.28 with 30, and $1.32 with 10.",
-   "q": "You own one call with 30 days left and one with 50. The stock sits still for 20 days. Which loses more?",
+   "story": "Stock at 50, volatility steady. In the options industry's pricing model, the at-the-money call is $2.95 with 50 days left, $2.28 with 30, and $1.32 with 10.",
+   "q": "You own the 30-day call and the 50-day call. The stock goes nowhere for 20 days. Which one costs you more?",
    "choices": [
     "The 30-day call, down $0.96",
     "The 50-day call, down $0.67",
@@ -1027,7 +1028,7 @@
      "finish": 1.32
     }
    },
-   "why": "The 30-day call, down $0.96. In OIC's model it falls from $2.28 to $1.32 as it slides into its last 10 days. The 50-day call falls from $2.95 to $2.28, down $0.67. Same 20 quiet days, different cost: decay speeds up as expiry gets close. A stock sitting still is exactly when an at-the-money call decays the most.",
+   "why": "The 30-day call, down $0.96. It slides from $2.28 to $1.32 as it goes into its last 10 days. The 50-day call only drops from $2.95 to $2.28, down $0.67. Same 20 quiet days, very different bill. Decay speeds up as expiry gets close, and an at-the-money call gets hit hardest when the stock sits still. That's why I don't want to sit in the last month waiting on a move.",
    "lesson_line": "Same stock, same quiet weeks. The shorter expiry pays more for the wait.",
    "facts": [
     "f20",
@@ -1036,11 +1037,11 @@
     "f7"
    ],
    "wrong": {
-    "The 50-day call, down $0.67": "It loses less. It ends with 30 days left, before the steepest stretch.",
-    "Both lose the same over 20 days": "The same days don't cost the same. Decay speeds up as expiry gets close.",
-    "No loss, since the stock sat still": "Time decay runs whether the stock moves or not. Theta is the premium lost per day with everything else held still."
+    "The 50-day call, down $0.67": "It loses less. It ends with 30 days left, before the steep stretch.",
+    "Both lose the same over 20 days": "Same days, different cost. Decay speeds up as expiry gets close.",
+    "No loss, since the stock sat still": "Decay runs whether the stock moves or not. A quiet stock is when an at-the-money call bleeds most."
    },
-   "simple": "The 30-day call loses more, because time drains faster as an option nears its end, even with the stock still.",
+   "simple": "The 30-day call, because time drains faster near the end, even when the stock sits still.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1048,7 +1049,7 @@
      "computed key from model numbers"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "At-the-money call prices",
@@ -1083,17 +1084,17 @@
    "skill": "options.expiry",
    "rung": 5,
    "format": "scenario",
-   "story": "It's early January and a stock trades at 50. The March 50 call costs $2. The May 50 call costs $4. Your plan needs about three weeks to work.",
-   "q": "Which expiry fits the plan better?",
+   "story": "It's early January. The stock trades at 50. The March 50 call costs $2 and the May 50 call costs $4. Your plan needs about three weeks to work.",
+   "q": "Which one do you buy?",
    "choices": [
-    "March: enough time, half the cost",
-    "May: more time for the same max loss",
-    "May: its break-even is lower",
-    "March: it holds the most time value"
+    "March, enough time at half the cost",
+    "May, more time for the same max loss",
+    "May, its break-even is lower",
+    "March, it holds the most time value"
    ],
-   "answer": "March: enough time, half the cost",
-   "why": "March: enough time, half the cost. From early January, a March expiry covers a three-week plan with weeks to spare. Fidelity's example prices the March 50 call at $2 and the May 50 call at $4. The break-even rises with the premium: $52 for March, $54 for May. More time costs more and lifts the break-even, so buy what the plan needs plus room. Decay still runs the whole time; you just sell before the steep last month.",
-   "lesson_line": "Buy the time the plan needs, with room to spare. Extra months cost real money.",
+   "answer": "March, enough time at half the cost",
+   "why": "March. From early January it covers a three-week plan with weeks to spare, and it's half the price. Break-even is the strike plus what you paid: $52 for March, $54 for May. So May costs you $2 more and needs the stock $2 higher just to break even. You'd be paying for months the plan won't use. Decay runs either way. You just sell well before March gets into its last month.",
+   "lesson_line": "Buy the time the plan needs, plus room. Extra months cost real money.",
    "facts": [
     "f36",
     "f37",
@@ -1105,11 +1106,11 @@
     "f19"
    ],
    "wrong": {
-    "May: its break-even is lower": "It's higher. May breaks even at $54, March at $52.",
-    "May: more time for the same max loss": "Not the same. The most you can lose is the premium: $4 on May, $2 on March.",
-    "March: it holds the most time value": "It's the other way. More time means a bigger premium, so May holds more. March wins on cost, not time."
+    "May, its break-even is lower": "It's higher. May breaks even at $54, March at $52.",
+    "May, more time for the same max loss": "Not the same. The most you can lose is what you paid: $4 on May, $2 on March.",
+    "March, it holds the most time value": "Backwards. More time means a bigger premium, so May holds more. March wins on cost."
    },
-   "simple": "March fits better, because it gives the three weeks you need with room left, at half the price of May.",
+   "simple": "March, because it covers the three weeks with room left, at half the price of May.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1118,14 +1119,14 @@
      "fixed before (story date)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q15",
    "skill": "options.expiry",
    "rung": 6,
    "format": "mcq",
-   "q": "A 5-day at-the-money call costs $0.93. The 50-day one costs $2.95, with ten times the time. How many times the 5-day price is it?",
+   "q": "An at-the-money call costs $0.93 with 5 days left and $2.95 with 50. That's ten times the time. How many times the price?",
    "answer": "3.2x",
    "suffix": "x",
    "calc": {
@@ -1137,16 +1138,16 @@
     },
     "round": 1
    },
-   "why": "3.2. Divide 2.95 by 0.93 and round to one decimal. In OIC's model of an at-the-money call, 50 days costs only about three times what 5 days costs. Yet it has ten times the time. So per day, the shortest options carry the dearest time. Weeklies are cheaper in dollars, not per day.",
+   "why": "3.2x. Divide 2.95 by 0.93 and you get about 3.2. Ten times the time for only about three times the price. Flip that around. Per day, the shortest options are the most expensive time you can buy. Weeklies look cheap because the dollar number is small. Per day of time, they're the dearest thing on the chain.",
    "lesson_line": "Per day, short-dated time is the most expensive time. Weeklies are cheap only in dollars.",
    "facts": [
     "f20",
     "f43",
     "f19"
    ],
-   "simple": "It costs about 3.2 times as much, so short-dated time costs more per day than long-dated time.",
+   "simple": "About 3.2 times, so per day, short-dated time costs more than long-dated time.",
    "deeper": {
-    "example": "Same model, longer rows: 75 days costs $3.61 and 150 days costs $5.10. Double the time, and the price does not double. Each extra day of a longer option costs less than a day of a short one."
+    "example": "The numbers are from the Options Industry Council's model of an at-the-money 50 call. Same model, longer rows: 75 days costs $3.61 and 150 days costs $5.10. Double the time, and the price doesn't double. Each extra day of a longer option costs less than a day of a short one."
    },
    "tier": "extended",
    "risk": {
@@ -1156,7 +1157,7 @@
      "fixed before (question clarified)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "3.2x",
     "3.9x",
@@ -1164,9 +1165,9 @@
     "31.7x"
    ],
    "wrong": {
-    "10.0x": "Assumes the price grows in step with the time. Ten times the time, ten times the price.",
+    "10.0x": "Assumes price grows in step with time. It doesn't: ten times the time costs far less than ten times the price.",
     "3.9x": "Added the two prices instead of dividing them.",
-    "31.7x": "Slips a decimal place."
+    "31.7x": "Slipped a decimal place."
    },
    "visual": {
     "kind": "move",
@@ -1190,8 +1191,8 @@
    "skill": "options.expiry",
    "rung": 6,
    "format": "scenario",
-   "story": "It's Monday. A stock looks ready to break out. You buy the at-the-money call that expires Friday, not the one 60 days out, because it's cheaper.",
-   "q": "What did you give up for the lower price?",
+   "story": "It's Monday. A stock looks ready to break out. You buy the at-the-money call that expires Friday instead of the one 60 days out, because it's cheaper.",
+   "q": "What did you give up to save that money?",
    "choices": [
     "Time for the move to show up",
     "A lower break-even price",
@@ -1199,7 +1200,7 @@
     "The right to buy the shares"
    ],
    "answer": "Time for the move to show up",
-   "why": "Time for the move to show up. Fidelity says weeklies sell at a lower premium because they have less time. The disclosure document warns a holder can lose the whole premium in a short time. With days, not weeks, there is little room to fix a trade that goes wrong. You did get a lower break-even, and both calls cap the loss at what you paid.",
+   "why": "Time for the move to show up. A weekly's cheap because it has days, not weeks. If the breakout comes next Tuesday, you were right and you still lose. The whole premium can be gone by Friday, and there's almost no time to fix it if it starts wrong. You did get a lower break-even, and both calls cap your loss at what you paid. What you gave up is the clock.",
    "lesson_line": "A cheap weekly can still go to zero by Friday. Pay for the time the setup needs.",
    "facts": [
     "f43",
@@ -1212,10 +1213,10 @@
    ],
    "wrong": {
     "The right to buy the shares": "A weekly is a normal option in every way but one: the expiry.",
-    "A lower break-even price": "You got that. A cheaper premium means a lower break-even, but only if the move comes by Friday.",
-    "Protection if the stock gaps down": "Both calls cap your loss at what you paid. Neither one can lose more."
+    "A lower break-even price": "You got that. Cheaper premium, lower break-even, but only if the move comes by Friday.",
+    "Protection if the stock gaps down": "Both calls cap your loss at what you paid. Neither can lose more."
    },
-   "simple": "You gave up time for the move to happen, because the cheap weekly can lose its whole price by Friday.",
+   "simple": "You gave up time for the move, because a cheap weekly can lose its whole price by Friday.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1223,7 +1224,7 @@
      "fixed before (why reworded)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
@@ -1231,7 +1232,7 @@
    "rung": 7,
    "format": "scenario",
    "story": "A stock sets up for a breakout. Your plan: out after 2 weeks if it hasn't worked, and a winner may run about 4 weeks. You want an at-the-money call.",
-   "q": "Which expiry fits that plan best?",
+   "q": "Which expiry do you buy?",
    "choices": [
     "About 60 days out",
     "About 30 days out",
@@ -1239,7 +1240,7 @@
     "A two-year LEAPS call"
    ],
    "answer": "About 60 days out",
-   "why": "About 60 days out. A winner held about 4 weeks still leaves about a month on a 60-day call. OIC says time value starts to drain fast around 30 days before expiry. So you exit before that stretch, with time value left to sell. No source sets 60 days as a rule; it is the best fit among these. A 30-day call would run out with a 4-week winner. A weekly ends in days. A two-year LEAPS puts far more premium at risk.",
+   "why": "About 60 days out. Hold a winner 4 weeks and a 60-day call still has about a month left when you sell. That keeps you out of the last 30 days, where decay picks up fast, with time value left to sell. 60 isn't a magic number. It's the one here that clears the plan with room. A 30-day call runs out under a 4-week winner. The weekly's gone before your 2-week check. A two-year LEAPS puts far more premium on the line for time you won't use.",
    "lesson_line": "Buy past your plan. I want to be out before the last month.",
    "facts": [
     "f8",
@@ -1251,13 +1252,13 @@
     "f12"
    ],
    "wrong": {
-    "About 30 days out": "A 4-week winner would ride it almost to expiry, through the fastest decay. A move after expiry pays nothing.",
-    "This Friday's weekly": "It expires in days, before even your 2-week check. A late breakout pays nothing.",
-    "A two-year LEAPS call": "Plenty of time, but you put far more premium at risk for years the plan won't use."
+    "About 30 days out": "A 4-week winner rides it almost to expiry, right through the fastest decay.",
+    "This Friday's weekly": "It's gone before your 2-week check even comes. A late breakout pays nothing.",
+    "A two-year LEAPS call": "Plenty of time, but far more premium on the line for years the plan won't use."
    },
-   "simple": "About 60 days out, because a 4-week winner still sells with about a month left, before the fastest decay.",
+   "simple": "About 60 days out, because a 4-week winner still sells with about a month left.",
    "deeper": {
-    "trap": "The trap is buying the expiry that matches the plan to the day. A 30-day call held for a 4-week winner spends the whole hold in the stretch OIC says drains fastest. If the breakout comes late, little time value is left to sell."
+    "trap": "The trap is buying the expiry that matches the plan to the day. A 30-day call held for a 4-week winner spends the whole hold in the stretch where decay is fastest. If the breakout comes late, there's little time value left to sell."
    },
    "tier": "extended",
    "risk": {
@@ -1267,15 +1268,15 @@
      "story fitted to our rules C33 and C35 in wave7"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
    "skill": "options.expiry",
    "rung": 7,
    "format": "scenario",
-   "story": "A stock is breaking out of a long base. Your plan is to hold for 3 to 6 months if it works. You want a call, not shares.",
-   "q": "Which expiry fits that plan?",
+   "story": "A stock is breaking out of a long base. If it works, you plan to hold it 3 to 6 months. You want a call, not shares.",
+   "q": "How far out do you buy?",
    "choices": [
     "About a year out",
     "About 60 days out",
@@ -1283,8 +1284,8 @@
     "Rolling weekly calls"
    ],
    "answer": "About a year out",
-   "why": "About a year out. A 3 to 6 month plan needs an option that outlasts six months with room left. A year-out call does that, so you can sell well before the last month of fast decay. Cboe offers LEAPS for a longer time horizon. A 60-day call expires partway through, and this month's expiry is gone in weeks. Rolling weeklies means paying for the fastest-decaying time again and again.",
-   "lesson_line": "A longer plan needs a longer option. Long-dated calls exist for exactly this.",
+   "why": "About a year out. Your hold could run six months, so the option has to outlast that with room left over. A year-out call does, and you sell long before it gets near the fast-decay stretch. That's what long-dated calls are for. A 60-day call dies partway through your plan. This month's is gone in weeks. Rolling weeklies means paying for the most expensive time on the chain, over and over.",
+   "lesson_line": "A longer plan needs a longer option. That's what long-dated calls are for.",
    "facts": [
     "f25",
     "f24",
@@ -1295,13 +1296,13 @@
     "f44"
    ],
    "wrong": {
-    "About 60 days out": "It expires partway through your plan. You'd have to sell or roll before the trade is done.",
-    "This month's expiry": "Your plan runs months. This one is gone in weeks.",
-    "Rolling weekly calls": "Short-dated time decays the fastest, and each weekly can expire worthless before the move. You'd pay that cost over and over."
+    "About 60 days out": "It expires partway through your plan. You'd have to sell or roll before the trade's done.",
+    "This month's expiry": "Your plan runs months. This one's gone in weeks.",
+    "Rolling weekly calls": "Short-dated time decays fastest, and each weekly can expire worthless before the move. You pay that over and over."
    },
-   "simple": "About a year out, because it covers a hold of up to six months and still leaves time to sell.",
+   "simple": "About a year out, because it covers a six-month hold and still leaves time to sell.",
    "deeper": {
-    "counter": "A two-year LEAPS would also cover this plan. It isn't wrong, just more premium for time the plan won't use. Fidelity: the farther out the expiry, the more the option costs. Buy past the plan, not as far as you can."
+    "counter": "A two-year LEAPS would also cover this plan. It isn't wrong, just more premium for time you won't use. The farther out the expiry, the more the option costs. Buy past the plan, not as far as you can."
    },
    "tier": "extended",
    "risk": {
@@ -1311,25 +1312,25 @@
      "fixed before (why reworded)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
    "skill": "options.expiry",
    "rung": 7,
    "format": "tf",
-   "q": "Buying more months on a call protects you from losing the whole premium.",
+   "q": "Buy enough months on a call and you can't lose the whole premium.",
    "answer": "False",
-   "why": "False. More time slows the daily bleed, but it does not protect the premium. OIC says a call held to expiration with the stock below the strike expires worthless, so the whole premium is lost. The disclosure document warns a holder can lose the entire amount paid. Months left only means the loss can take longer. Our rule treats the premium paid as the stop.",
+   "why": "False. More time slows the daily bleed. It doesn't put a floor under you. If the stock's still under the strike at expiry, the call expires worthless, a year out or a week out. You just lose it slower. That's why we treat the premium paid as the stop on any option. Size it like all of it can go, because it can.",
    "lesson_line": "Time buys you room, not safety. Any call can go to zero.",
    "facts": [
     "f13",
     "f16",
     "h02"
    ],
-   "simple": "False, because any call held to expiry with the stock below the strike ends worthless, however much time it had.",
+   "simple": "False, because a call that ends below the strike is worthless, however much time it had.",
    "deeper": {
-    "trap": "A long-dated call feels safe because it loses little each day. But slow decay is not a floor. If the stock is still below the strike at expiry, the call expires worthless, just later. Our rule treats the whole premium as the stop, so all of it is what you risk."
+    "trap": "A long-dated call feels safe because it loses little each day. Slow decay isn't a floor. If the stock is still below the strike at expiry, the call expires worthless, just later. We treat the whole premium as the stop, so all of it is what you risk."
    },
    "tier": "extended",
    "risk": {
@@ -1338,15 +1339,15 @@
      "the why states our rule B25 (the owner's rulebook)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
    "skill": "options.expiry",
    "rung": 8,
    "format": "scenario",
-   "story": "You plan a 2-week swing. The stock reports earnings in 3 weeks. One expiry is 17 days out, before the report. The next is 45 days out.",
-   "q": "Which expiry, and what's the plan for the report?",
+   "story": "You plan a 2-week swing with a call. The stock reports earnings in 3 weeks. One expiry is 17 days out, before the report. The next is 45 days out.",
+   "q": "Which expiry, and what's your plan for the report?",
    "choices": [
     "45 days, and sell before the report",
     "17 days, it ends before the report",
@@ -1354,8 +1355,8 @@
     "A LEAPS, to ride out the report"
    ],
    "answer": "45 days, and sell before the report",
-   "why": "45 days, and sell before the report. Your 2-week plan ends before the report in 3 weeks. The 45-day expiry leaves weeks of room after the plan. Our rule: hold through a report only if the trade is up 5R. R is your initial risk, set by your stop, and on an option our stop is the premium paid. Stocks often move sharply on a report, and implied volatility can collapse right after it. OCC's deck says to check the calendar for earnings before you buy. The 17-day call barely outlasts your plan.",
-   "lesson_line": "Check the report date before you buy. We hold through a report only when the trade is up 5R.",
+   "why": "45 days, and you're out before the report. Your 2-week plan ends about a week before it, so there's no reason to hold through. We only hold through a report when the trade's already up 5R. R is the risk you took at the start, and on an option that's the premium paid. Earnings can gap a stock either way, and implied volatility can collapse right after. The 17-day call barely outlives your plan, so you'd hold it through its fastest decay. Check the report date on the earnings calendar before you buy.",
+   "lesson_line": "Check the report date before you buy. We hold through a report only when we're up 5R.",
    "facts": [
     "f23",
     "f8",
@@ -1368,13 +1369,13 @@
     "h02"
    ],
    "wrong": {
-    "17 days, it ends before the report": "It barely outlasts your 2 weeks, so you'd hold it through the fastest decay.",
-    "45 days, and hold past the report": "Your plan ends in 2 weeks, before the report. Our rule holds through a report only when the trade is up 5R.",
-    "A LEAPS, to ride out the report": "More time doesn't shield you from the report. Implied volatility can collapse right after it, and the stock can gap either way."
+    "17 days, it ends before the report": "It barely outlives your 2 weeks, so you'd sit in its fastest decay the whole back half.",
+    "45 days, and hold past the report": "Your plan's done in 2 weeks, before the report. We only hold through one when the trade's up 5R.",
+    "A LEAPS, to ride out the report": "More time doesn't shield you from the report. The stock can gap either way, and implied volatility can collapse after."
    },
-   "simple": "Buy the 45-day call and sell before the report, so the plan has room and you skip the earnings risk.",
+   "simple": "The 45-day call, out before the report, so the plan has room and you skip the earnings risk.",
    "deeper": {
-    "trap": "The trap is the cheaper 17-day call. It does end before the report, so it dodges earnings. But it leaves almost no time after a 2-week plan, so you'd hold it through its fastest decay. A slow start leaves little time value to sell."
+    "trap": "The trap is the cheaper 17-day call. It ends before the report, so it dodges earnings. But it leaves almost no time after a 2-week plan, so you'd hold it through its fastest decay. A slow start leaves little time value to sell."
    },
    "tier": "expert",
    "risk": {
@@ -1385,7 +1386,7 @@
      "fixed before (lesson line re-asked as our rule)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
@@ -1393,7 +1394,7 @@
    "rung": 8,
    "format": "scenario",
    "story": "June 1, 2027 is a Tuesday. US markets are closed on Friday, June 18, 2027 for Juneteenth.",
-   "q": "You own June monthly calls on a stock. When is your last day to trade them?",
+   "q": "You hold June monthly calls on a stock. What's your last day to trade them?",
    "choices": [
     "Thursday, June 17",
     "Friday, June 18",
@@ -1401,7 +1402,7 @@
     "Wednesday, June 16"
    ],
    "answer": "Thursday, June 17",
-   "why": "Thursday, June 17. June 1 is a Tuesday, so June's third Friday is the 18th. NYSE and Cboe list June 18, 2027 as Juneteenth observed. When expiry Friday is a market holiday, stock options last trade on the Thursday before. Saxo recorded the same move in 2026, from Friday, June 19 to Thursday, June 18. Holiday schedules can change, so re-check the exchange calendar.",
+   "why": "Thursday, June 17. June 1 is a Tuesday, so June's third Friday is the 18th. That's Juneteenth observed, and the market's closed. When expiry Friday is a holiday, stock options stop trading the Thursday before. Not the next Monday. Expiry doesn't wait for the market to reopen. If your plan was to sell on expiry day, mark the 17th the day you buy. Holiday calendars can change, so check the exchange's schedule.",
    "lesson_line": "Holiday expiries come a day early. Mark it when you buy.",
    "facts": [
     "f31",
@@ -1414,11 +1415,11 @@
     "f27"
    ],
    "wrong": {
-    "Friday, June 18": "Markets are closed that day, so your stock options can't trade.",
-    "Monday, June 21": "Expiry doesn't wait for the market to reopen. A Friday holiday moves it earlier, to Thursday.",
-    "Wednesday, June 16": "That's a day too early for stock options. A Friday holiday moves the last trading day up to Thursday."
+    "Friday, June 18": "The market's closed that day, so your options can't trade.",
+    "Monday, June 21": "Expiry doesn't wait for the market to reopen. A Friday holiday pulls it earlier, to Thursday.",
+    "Wednesday, June 16": "A day too early. A Friday holiday moves the last trading day to Thursday, not Wednesday."
    },
-   "simple": "Thursday, June 17, because June 18 is the third Friday and a market holiday, so trading ends a day early.",
+   "simple": "Thursday, June 17, because the third Friday is a holiday, so trading ends a day early.",
    "deeper": {
     "trap": "The trap is assuming expiry waits for the market to reopen. For stock options it moves earlier, not to the next week. If you planned to sell on expiry day, you lose a day you thought you had. Mark the Thursday when you buy."
    },
@@ -1430,14 +1431,14 @@
      "fixed before (stock options, wrong notes)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q22",
    "skill": "options.expiry",
    "rung": 9,
    "format": "scenario",
-   "story": "You'll risk $300 on a breakout. One at-the-money call 60 days out costs $3.00, or $300 a contract. This Friday's at-the-money weekly costs $1.00, so you could buy three.",
+   "story": "You'll risk $300 on a breakout. The at-the-money call 60 days out costs $3.00, so $300 a contract. This Friday's at-the-money weekly costs $1.00, so you could buy three.",
    "q": "What changes if you buy the three weeklies instead?",
    "choices": [
     "Same $300 at risk, far less time",
@@ -1446,8 +1447,8 @@
     "A higher break-even on each contract"
    ],
    "answer": "Same $300 at risk, far less time",
-   "why": "Same $300 at risk, far less time. Three weeklies at $1.00 cost $300, the same as one 60-day call at $3.00. Fidelity says weeklies are cheaper because they have less time. All three can expire worthless by Friday. The disclosure document warns a holder can lose the whole premium in a short time. Our rule treats the premium paid as the stop, so the stop is the full $300 either way.",
-   "lesson_line": "Cheap contracts aren't small risk. Buying more of less time is still the whole budget at stake.",
+   "why": "Same $300 at risk, far less time. Three weeklies at $1.00 is 3 times $1.00 times 100 shares, $300. One 60-day call at $3.00 is also $300. Cheaper contracts don't shrink the risk. They shrink the time. All three can go to zero by Friday. The premium paid is the stop, so the full $300 is on the line either way. The only question is how long you give the move. I'd rather give it weeks.",
+   "lesson_line": "Cheap contracts aren't small risk. You just bought less time with the same money.",
    "facts": [
     "f43",
     "f16",
@@ -1458,9 +1459,9 @@
     "h02"
    ],
    "wrong": {
-    "Three times the profit, same risk": "The payoff hangs on the move landing by Friday. Miss the timing by a week and the whole $300 is gone.",
-    "Less risk, since each one is cheaper": "You still put the full $300 on the line. The lower price buys less time, not less risk.",
-    "A higher break-even on each contract": "It's lower. Each weekly costs $1.00, not $3.00, so its break-even sits closer to the strike. The catch is the time."
+    "Three times the profit, same risk": "Only if the move lands by Friday. Miss it by a week and the whole $300 is gone.",
+    "Less risk, since each one is cheaper": "You still put the full $300 on the line. A lower price buys less time, not less risk.",
+    "A higher break-even on each contract": "It's lower. Each weekly costs $1.00, not $3.00, so it breaks even closer to the strike. The catch is the time."
    },
    "calc": {
     "fn": "arith",
@@ -1471,7 +1472,7 @@
      "multiplier": 100
     }
    },
-   "simple": "You still risk the same $300, but the weeklies give the move only days instead of weeks to happen.",
+   "simple": "You still risk the same $300, but the move gets days instead of weeks to happen.",
    "deeper": {
     "trap": "More contracts feel like more upside for the same money. But the payoff needs the move by Friday. Being right next week pays nothing on a weekly, while the 60-day call still has weeks to work. Same dollars at risk, much less time to be right."
    },
@@ -1484,7 +1485,7 @@
      "fixed before (story and a wrong note)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "The weeklies",
@@ -1514,16 +1515,16 @@
    "rung": 3,
    "format": "mcq",
    "house": true,
-   "q": "On an option trade, what does our rule treat as the stop?",
+   "q": "You buy a call instead of the shares. Where's your stop on that trade?",
    "choices": [
     "The full premium you paid",
-    "Half the premium paid",
+    "Cut it at half the premium",
     "The stock's day low",
     "A close below break-even"
    ],
    "answer": "The full premium you paid",
-   "simple": "The full premium, because our rule makes the premium you paid the stop on an option.",
-   "why": "The full premium you paid. Our rule for options is short: the premium paid is the stop. A call buyer cannot lose more than the price paid for it. We trade shares; options are only a defined-risk alternative. On shares, our default stop sits a few cents under the day's low or the prior day's low.",
+   "simple": "The full premium, because on an option the premium you paid is the stop.",
+   "why": "The full premium you paid. On an option, the premium is the stop. A call can't lose more than you paid, and it can lose every cent of it. So count the whole thing as at risk and size from there. We trade shares first. An option is just a defined-risk way to play the idea. On shares, the stop goes a few cents under the low of the day or the prior day's low. On a call, you know your stop the moment you buy.",
    "lesson_line": "On an option, the premium paid is the stop. Count all of it as at risk.",
    "facts": [
     "h02",
@@ -1532,9 +1533,9 @@
     "h04"
    ],
    "wrong": {
-    "Half the premium paid": "Our rule doesn't cut at half. The premium paid is the stop, so all of it is at risk.",
-    "The stock's day low": "That's near our share stop, a few cents under the day's low or the prior day's low. On an option, the premium paid is the stop.",
-    "A close below break-even": "Our rule names no exit like that. The premium paid is the stop, so all of it is at risk."
+    "The stock's day low": "That's close to our stop on shares, a few cents under the low of the day. On an option, the premium paid is the stop.",
+    "A close below break-even": "Break-even is where the call starts paying at expiry. It's not a stop. The premium paid is.",
+    "Cut it at half the premium": "Selling early is your call, but it isn't the stop. Size it as if the whole premium can go."
    },
    "tier": "core",
    "risk": {
@@ -1544,7 +1545,7 @@
      "new question in wave7"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1582,26 +1583,26 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Third Friday keyed by f2 (OIC, Tier 1) and f39. Key 29 chars, not the longest. Sentences under 22 words. No holiday pre-answer left."
+   "fixed": true,
+   "notes": "Truth ok (third Friday, f2/f39). Why opened textbook ('the standard monthly date ... weeklies get listed around it', vague). Rewritten to say what the date means for the trade."
   },
   "q02": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Plain claim, false key right (f1/f41); why says what to do at the screen."
   },
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "f38/f18 put the time forecast before the expiry; f35/f37 make 'longest you can afford' wrong; strike note fits f18. No tell (lengths 29/28/36/33)."
+   "fixed": true,
+   "notes": "Stem leaned: 'Before you look at a single price' rules out the cheapest-expiry choice for you. Stem now gives the moment without the hint. Why kept (first person, reason, how)."
   },
   "q04": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "True key right; the real 2026 Juneteenth move (f52) worked in; 19 and 18 are in f52's quote."
   },
   "q05": {
    "status": "cut",
@@ -1611,115 +1612,111 @@
   },
   "q06": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Chat moment, key from f24/f46; why gives the cost catch and when it fits."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided True cold. f5 re-opened on OIC's LEAPS FAQ 2026-11-12: 'All stocks & ETFs will have options listed for at least the two near-term expiration months' is on the page (Tier 1, enough alone). The page's 'deviations' are extra months, not fewer. 'Every' on a True key balances q02/q12 (both 'Every', both False), so no absolute-word tell. The stem no longer hints at q02. Why, simple and lesson line stay inside f5 and f41."
+   "notes": "True from f5; why ends with the how."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided 'the plan's, with weeks to spare' cold. Key 31 chars, not the longest (38). The near-key 'by just a day or two' is a real misunderstanding, wrong by f8 (OIC Theta, re-opened: 'around 30 days'). f11, f12 re-opened on OIC Long Call and are verbatim. 'Weeks' is judgment, and the why says so; recorded in conflicts. Fits C33/C35 (swing of days to a few weeks). It hints at q17's principle but does not answer q17, which still needs the 4-week winner applied."
+   "notes": "Plain choices, judgment owned ('no magic number ... my judgment'); 30 days from f8."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Roles, numbers, format and label checked against the question."
+   "notes": "45 - 21 = 24 recomputed; steps shown; says what to do (go further out)."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "f3 (OIC) keys reading the contract date; f47/f2/f1 back the other weekdays. Parallel choice forms, key not longest. Stem does not answer q12.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Key right (f3); right answer no longer the longest; ends with the how."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key follows from the dates in the stem; f40/f48/f51 back the IV note. No banned forms, lengths 22/24/25/23.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "April 17 expires before April 28, May 15 is open; key right. Earnings calendar in our app named."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "f26/f47 key False; holiday sentence backed by f42/f4; no verbatim q10 key."
+   "fixed": true,
+   "notes": "False key right (f26/f47). Stem 'If an option is listed, it expires on a Friday' reads stiff; now one plain claim a member might believe."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Roles, numbers, format and label checked against the question."
+   "notes": "2.28 - 1.32 = 0.96 and 2.95 - 2.28 = 0.67 recomputed (f20). Reads like a mentor ('very different bill')."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided March cold: from early January a March expiry outlasts a 3-week plan by weeks, at $2 against $4. f36, f37 re-opened on Fidelity's article and are verbatim; breakevens $52/$54 are in f36. Each May choice and the March time-value choice is wrong by the story's own numbers (max loss = premium, f14; at-the-money with stock at 50 so the whole premium is time value, more for May, f19/f35). Lengths 34/36/28/35, key not longest. Minor: f6 (weekend decay) is cited but unused; harmless."
+   "notes": "Break-evens 52 and 54 from f36; $2 difference from the story; key right; max-loss wrong note right (f14)."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Roles, numbers, format and label checked against the question."
+   "notes": "2.95 / 0.93 = 3.17, rounds to 3.2; 3.9 = 2.95 + 0.93; 31.7 = decimal slip. Deeper 75d 3.61 / 150d 5.10 are in f20's quote."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "f43/f16/f44 key time; break-even and loss-cap notes backed by f37/f14. Key not longest (28 vs 33). Different angle from q22."
+   "notes": "'If the breakout comes next Tuesday, you were right and you still lose.' is his register. Break-even note correctly says you got that."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story fits C33 (exit if not working) and C35 (winner held longer while it works). 60-day key is judgment on f8/f11/f12, stated as such. Distractors grounded."
+   "notes": "60 - 28 leaves about a month; 30-day and weekly wrongs correct; judgment owned."
   },
   "q18": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Year-out call covers a 3-6 month hold; 60-day dies mid-plan; deeper counter keeps LEAPS not wrong, just dear."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False by f13/f16; B25 (h02) stated as our rule. No absolute left in the statement."
+   "notes": "False key right (f13); ties to the premium-paid stop (B25) and sizing."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key fits B22 (h01) since the plan ends before the report and no 5R is given; R now taught from f53 and tied to B25 (h02). 17-day wrong by f8. Lengths 35/34/36/31.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "B22 stated right (hold through only at 5R), R defined, 21 - 14 = about a week; 17-day call barely outlives the plan."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided Thursday June 17 cold: June 1 Tuesday gives Fridays 4, 11, 18, so the 18th is the third Friday; NYSE (re-opened: 2027 'Friday, June 18 (Juneteenth ... observed)') closes it, so stock options last trade Thursday. Monthly holiday rule has two Tier 2 publishers (Fidelity f42 re-opened verbatim; Saxo f52 re-opened verbatim). June 1, 2027 = Tuesday checked (Jan 1, 2027 Friday per NYSE, +151 days). 17 and 18 are in the choices/story, so grounded. 'Wednesday, June 16' is the AM-settled index trap, correctly wrong since the stem says a stock."
+   "notes": "Jan 1 2027 is a Friday (f30), so June 1 2027 is a Tuesday and the Fridays are 4, 11, 18. June 18 holiday (f31), last trade Thursday June 17 (f42). Recomputed, right."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Roles, numbers, format and label checked against the question."
+   "fixed": true,
+   "notes": "3 x 1.00 x 100 = 300 recomputed; why shows the steps. Lesson line 'More of less time is still the whole budget at stake' was clunky, not something he'd say."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right: B25 (h02) 'The premium paid is the stop.' But the why and the 'low of the day' note state the share stop as only 'a few cents under the day's low', while A3 (h04) says 'under the day's low or the prior day's low'. Half the house rule taught as the whole. Fixed both to say the full rule. Choices, key and other notes unchanged. Mild overlap: the key hints q19 (whole premium at risk) but does not answer it.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Key right (B25), shares stop right (A3, few cents under the low of the day or prior day's low), A6 right. Truth: the half-premium wrong note said 'We don't cut at half', a rule we never made (B25: no further rules). Now says selling early is your call but it isn't the stop. Break-even note made to teach instead of 'we don't use an exit like that'."
   }
  }
 }
