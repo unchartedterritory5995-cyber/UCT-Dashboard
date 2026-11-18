@@ -50,60 +50,65 @@
           "held": "1",
           "alsoHeld": "D",
           "reads": {
-            "period": "latest-at-or-before"
+            "period": "latest-at-or-before",
+            "D": "session-completed"
           },
           "queue_row": "Q-L12-1",
           "probe": "tools/visual_conformance/probes/rs-spx-daily.pine",
           "witness": "rs-spx-daily-is-rddt-1-2026-11-18 (l12-is-2026-11-18 batch, local; Q-L12-1)",
-          "how": "TradingView's X05 on NYSE:RDDT 1 (an EXTENDED-hours chart, captured in session 2026-11-18T15:15Z): each regular-hours bar shares its open time with an SPX bar and reads THAT bar; pre-market bars read the previous official daily close, post-market bars the day's official close (read from the held daily closes). `latest-at-or-before` (the index's own bars of the chart's timeframe and its official daily closes held beside them, `SPX@D`); before our store's first SPX row a chart bar is unknown (withheld), not na. Measured against our /api/bars/SPX?tf=1 rows recorded 15:17:44Z (7 days, yfinance's cap): 2,339 of 2,343 regular bars equal to the 2-decimal print; the four others are three yfinance prints off by 0.02 / 0.20 / 0.07 and our newest stored bar (11-18 09:35, a partial print served as settled: fixed by #1868); pre-market 399 previous close, post-market 431 day close.",
+          "how": "TradingView's X05 on NYSE:RDDT 1 (an EXTENDED-hours chart, captured in session 2026-11-18T15:15Z): each regular-hours bar shares its open time with an SPX bar and reads THAT bar; pre-market bars read the previous official daily close, post-market bars the day's official close (read from the held daily closes). `latest-at-or-before` (the index's own bars of the chart's timeframe and its official daily closes held beside them, `SPX@D`); before our store's first SPX row a chart bar is unknown (withheld), not na. Measured against our /api/bars/SPX?tf=1 rows recorded 15:17:44Z (7 days, yfinance's cap): 2,339 of 2,343 regular bars equal to the 2-decimal print; the four others are three yfinance prints off by 0.02 / 0.20 / 0.07 and our newest stored bar (11-18 09:35, a partial print served as settled: fixed by #1868); pre-market 399 previous close, post-market 431 day close. ⭐ U-DAILY (L12 PR 2): SP:SPX read at \"D\" above this chart (the rs-spx probe's X01..X04 on the same l12-is captures): a bar opening before its session's close reads the PREVIOUS session's daily row (every pre-market and regular bar), a bar from the close the session's own (every post-market bar on 15 / 30 / 60m; on 1m / 5m the first post bars on some days still the previous one, the official print's own lag). `session-completed`, from the held daily rows (`SPX@D`).",
           "captured": "2026-11-18"
         },
         "5": {
           "held": "5",
           "alsoHeld": "D",
           "reads": {
-            "period": "latest-at-or-before"
+            "period": "latest-at-or-before",
+            "D": "session-completed"
           },
           "queue_row": "Q-L12-1",
           "probe": "tools/visual_conformance/probes/rs-spx-daily.pine",
           "witness": "rs-spx-daily-pm-rddt-5-2026-11-18, rs-rating-fred6724-pm-rddt-5-2026-11-18 (l12-pm-2026-11-18 batch, local; Q-L12-1)",
-          "how": "TradingView's request.security(\"SP:SPX\", timeframe.period, close) (X05) on NYSE:RDDT 5 (an EXTENDED-hours chart, the rig layout's own session; captured pre-open 2026-11-18T14:2xZ, the newest bars settled): every regular-hours bar shares its open time with an SPX 5m bar and reads THAT bar (4,617 of 4,620 equal our /api/bars/SPX?tf=5 rows to 0.005; three tiny yfinance prints off), the session's last bar (15:55) reading its own close (= ours, 60 of 60 days). Extended-hours bars read the latest SPX value: pre-market the previous official daily close, post-market the day's official close (1,698 of 1,698); both read from the held daily closes. Fred RS's RS line = close / that SPX close x 3360 on all 4,680 shared bars. `latest-at-or-before` (the index's own bars of the chart's timeframe and its official daily closes held beside them, `SPX@D`); before our store's first SPX 5m row (60 days: yfinance's cap) a chart bar is unknown (withheld), not na.",
+          "how": "TradingView's request.security(\"SP:SPX\", timeframe.period, close) (X05) on NYSE:RDDT 5 (an EXTENDED-hours chart, the rig layout's own session; captured pre-open 2026-11-18T14:2xZ, the newest bars settled): every regular-hours bar shares its open time with an SPX 5m bar and reads THAT bar (4,617 of 4,620 equal our /api/bars/SPX?tf=5 rows to 0.005; three tiny yfinance prints off), the session's last bar (15:55) reading its own close (= ours, 60 of 60 days). Extended-hours bars read the latest SPX value: pre-market the previous official daily close, post-market the day's official close (1,698 of 1,698); both read from the held daily closes. Fred RS's RS line = close / that SPX close x 3360 on all 4,680 shared bars. `latest-at-or-before` (the index's own bars of the chart's timeframe and its official daily closes held beside them, `SPX@D`); before our store's first SPX 5m row (60 days: yfinance's cap) a chart bar is unknown (withheld), not na. ⭐ U-DAILY (L12 PR 2): SP:SPX read at \"D\" above this chart (the rs-spx probe's X01..X04 on the same l12-is captures): a bar opening before its session's close reads the PREVIOUS session's daily row (every pre-market and regular bar), a bar from the close the session's own (every post-market bar on 15 / 30 / 60m; on 1m / 5m the first post bars on some days still the previous one, the official print's own lag). `session-completed`, from the held daily rows (`SPX@D`).",
           "captured": "2026-11-18"
         },
         "15": {
           "held": "15",
           "alsoHeld": "D",
           "reads": {
-            "period": "latest-at-or-before"
+            "period": "latest-at-or-before",
+            "D": "session-completed"
           },
           "queue_row": "Q-L12-1",
           "probe": "tools/visual_conformance/probes/rs-spx-daily.pine",
           "witness": "rs-spx-daily-is-rddt-15-2026-11-18 (l12-is-2026-11-18 batch, local; Q-L12-1)",
-          "how": "TradingView's X05 on NYSE:RDDT 15 (EXTENDED-hours, captured in session 2026-11-18T15:13Z): each regular-hours bar shares its open time with an SPX bar and reads THAT bar; pre-market bars read the previous official daily close, post-market bars the day's official close (read from the held daily closes). `latest-at-or-before` (the index's own bars of the chart's timeframe and its official daily closes held beside them, `SPX@D`); before our store's first SPX row a chart bar is unknown (withheld), not na. Against our /api/bars/SPX?tf=15 rows (60 days, yfinance's cap): 1,534 of 1,535 regular bars equal; the other is our newest stored bar (11-18 09:30, its 09:35 print 7350.26 where TradingView's settled bar is 7323.32: #1868); pre-market 967 previous close, post-market 817 day close.",
+          "how": "TradingView's X05 on NYSE:RDDT 15 (EXTENDED-hours, captured in session 2026-11-18T15:13Z): each regular-hours bar shares its open time with an SPX bar and reads THAT bar; pre-market bars read the previous official daily close, post-market bars the day's official close (read from the held daily closes). `latest-at-or-before` (the index's own bars of the chart's timeframe and its official daily closes held beside them, `SPX@D`); before our store's first SPX row a chart bar is unknown (withheld), not na. Against our /api/bars/SPX?tf=15 rows (60 days, yfinance's cap): 1,534 of 1,535 regular bars equal; the other is our newest stored bar (11-18 09:30, its 09:35 print 7350.26 where TradingView's settled bar is 7323.32: #1868); pre-market 967 previous close, post-market 817 day close. ⭐ U-DAILY (L12 PR 2): SP:SPX read at \"D\" above this chart (the rs-spx probe's X01..X04 on the same l12-is captures): a bar opening before its session's close reads the PREVIOUS session's daily row (every pre-market and regular bar), a bar from the close the session's own (every post-market bar on 15 / 30 / 60m; on 1m / 5m the first post bars on some days still the previous one, the official print's own lag). `session-completed`, from the held daily rows (`SPX@D`).",
           "captured": "2026-11-18"
         },
         "30": {
           "held": "30",
           "alsoHeld": "D",
           "reads": {
-            "period": "latest-at-or-before"
+            "period": "latest-at-or-before",
+            "D": "session-completed"
           },
           "queue_row": "Q-L12-1",
           "probe": "tools/visual_conformance/probes/rs-spx-daily.pine",
           "witness": "rs-spx-daily-is-rddt-30-2026-11-18, rs-rating-fred6724-is-rddt-30-2026-11-18 (l12-is-2026-11-18 batch, local; Q-L12-1)",
-          "how": "TradingView's X05 on NYSE:RDDT 30 (EXTENDED-hours, captured in session 2026-11-18T15:12Z): each regular-hours bar shares its open time with an SPX bar and reads THAT bar; pre-market bars read the previous official daily close, post-market bars the day's official close (read from the held daily closes). `latest-at-or-before` (the index's own bars of the chart's timeframe and its official daily closes held beside them, `SPX@D`); before our store's first SPX row a chart bar is unknown (withheld), not na. Against our /api/bars/SPX?tf=30 rows (60 days): 767 of 768 regular bars equal; the other is our newest stored bar (11-18 09:30, a partial print: #1868); pre-market 567 previous close, post-market 458 day close.",
+          "how": "TradingView's X05 on NYSE:RDDT 30 (EXTENDED-hours, captured in session 2026-11-18T15:12Z): each regular-hours bar shares its open time with an SPX bar and reads THAT bar; pre-market bars read the previous official daily close, post-market bars the day's official close (read from the held daily closes). `latest-at-or-before` (the index's own bars of the chart's timeframe and its official daily closes held beside them, `SPX@D`); before our store's first SPX row a chart bar is unknown (withheld), not na. Against our /api/bars/SPX?tf=30 rows (60 days): 767 of 768 regular bars equal; the other is our newest stored bar (11-18 09:30, a partial print: #1868); pre-market 567 previous close, post-market 458 day close. ⭐ U-DAILY (L12 PR 2): SP:SPX read at \"D\" above this chart (the rs-spx probe's X01..X04 on the same l12-is captures): a bar opening before its session's close reads the PREVIOUS session's daily row (every pre-market and regular bar), a bar from the close the session's own (every post-market bar on 15 / 30 / 60m; on 1m / 5m the first post bars on some days still the previous one, the official print's own lag). `session-completed`, from the held daily rows (`SPX@D`).",
           "captured": "2026-11-18"
         },
         "60": {
           "held": "60",
           "alsoHeld": "D",
           "reads": {
-            "period": "latest-at-or-before"
+            "period": "latest-at-or-before",
+            "D": "session-completed"
           },
           "queue_row": "Q-L12-1",
           "probe": "tools/visual_conformance/probes/rs-spx-daily.pine",
           "witness": "rs-spx-daily-pm-rddt-60-2026-11-18, rs-rating-fred6724-pm-rddt-60-2026-11-18, rs-rating-fred6724-pm-nvda-60-2026-11-18 (l12-pm-2026-11-18 batch, local; Q-L12-1)",
-          "how": "TradingView's X05 on NYSE:RDDT 60, an EXTENDED-hours chart (bars hour-aligned 04:00..19:00 ET): each bar reads the SPX hourly bar that OPENED at or before it in its session (the 10:00 bar the 09:30 SPX bar, ... the 15:00 bar the 14:30 bar), 360 of 360 equal our /api/bars/SPX?tf=60 rows; pre-market the previous official daily close, post-market the day's official close (60 of 60 days). On a REGULAR-hours chart (the product's default) every bar opens with an SPX bar (09:30, 10:30, ...), so the same rule reads the SAME bar; the regular-hours 60m grid itself is not separately captured (the rig layout autosaves, so its session is never switched). `latest-at-or-before` (the index's own bars of the chart's timeframe and its official daily closes held beside them, `SPX@D`); before our store's first SPX 60m row (yfinance: 730 days) a chart bar is unknown.",
+          "how": "TradingView's X05 on NYSE:RDDT 60, an EXTENDED-hours chart (bars hour-aligned 04:00..19:00 ET): each bar reads the SPX hourly bar that OPENED at or before it in its session (the 10:00 bar the 09:30 SPX bar, ... the 15:00 bar the 14:30 bar), 360 of 360 equal our /api/bars/SPX?tf=60 rows; pre-market the previous official daily close, post-market the day's official close (60 of 60 days). On a REGULAR-hours chart (the product's default) every bar opens with an SPX bar (09:30, 10:30, ...), so the same rule reads the SAME bar; the regular-hours 60m grid itself is not separately captured (the rig layout autosaves, so its session is never switched). `latest-at-or-before` (the index's own bars of the chart's timeframe and its official daily closes held beside them, `SPX@D`); before our store's first SPX 60m row (yfinance: 730 days) a chart bar is unknown. ⭐ U-DAILY (L12 PR 2): SP:SPX read at \"D\" above this chart (the rs-spx probe's X01..X04 on the same l12-is captures): a bar opening before its session's close reads the PREVIOUS session's daily row (every pre-market and regular bar), a bar from the close the session's own (every post-market bar on 15 / 30 / 60m; on 1m / 5m the first post bars on some days still the previous one, the official print's own lag). `session-completed`, from the held daily rows (`SPX@D`).",
           "captured": "2026-11-18"
         }
       }

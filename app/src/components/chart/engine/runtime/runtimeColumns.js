@@ -1990,3 +1990,30 @@ export function runtimeObjectValues(rt, bars, ctx = {}) {
 
 // ⭐ C18 — importing this lane is what makes it available to the object reader.
 registerObjectRuntimeValues(runtimeObjectValues)
+
+
+/** ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — does `source`, built for a `tf` chart as the run builds it, read THIS chart's
+ *  own symbol at "D" above the chart (a request target `{own, above}`, `pine.js`)? The chart fetches its daily
+ *  rows only then (`useSecondarySources`, `OWN_DAILY_KEY`). Memoised per (timeframe, source); a build that fails
+ *  answers false (the run refuses it by name on its own). Only an intraday timeframe can say yes. */
+const _ownDailyMemo = new Map()
+export function runtimeReadsOwnDaily(source, tf) {
+  const t = tf == null ? '' : String(tf)
+  if (!['1', '5', '15', '30', '60'].includes(t) || typeof source !== 'string' || !source) return false
+  const k = `${t}|${source}`
+  if (_ownDailyMemo.has(k)) return _ownDailyMemo.get(k)
+  let yes = false
+  try {
+    const built = buildRuntimeIr(source, {
+      bars: [], inputs: {}, objectsInRun: true, pane: true, plotColours: true, basePeriod: t, tf: t,
+      ...runtimeClockOpts(false, { tf: t }),
+    })
+    yes = !!(built && built.ok && ((built.ir && built.ir.requests) || [])
+      .some((r) => r && r.target && r.target.own === true && r.target.above === true))
+  } catch (err) {
+    yes = false
+  }
+  if (_ownDailyMemo.size >= 64) _ownDailyMemo.clear()
+  _ownDailyMemo.set(k, yes)
+  return yes
+}

@@ -196,6 +196,12 @@ export const WITNESS_PERIOD_READS = Object.freeze({
   // the chart's timeframe AND its daily rows (the official closes: an intraday bar's last print is the 15:59
   // trade, never the closing auction, 0 of 59 days equal). `atOrBeforeGridOf`.
   AT_OR_BEFORE: 'latest-at-or-before',
+  // ⭐⭐ RS RATING L12 PR 2 (U-DAILY, `l12-is-2026-11-18`, the rs-spx probe's X01..X04) — a DAILY read ABOVE an
+  // intraday chart: each chart bar reads the daily row its session had COMPLETED: a bar opening before the
+  // session's close reads the previous session's row (pre-market and regular bars: every one, 1 / 5 / 15 / 30 /
+  // 60m), a bar from the close on the session's own (post-market: 1m 2,258, 5m 4,015, 15m 5,056, 30m 4,959, 60m
+  // 2,617; the first 1m / 5m post bars on some days still the previous one, the official print's own lag).
+  SESSION_COMPLETED: 'session-completed',
 })
 /** ⭐ RS RATING L12 — the intraday chart timeframes a block may stand on, and their bar step in minutes. */
 const INTRADAY_STEP_MIN = Object.freeze({ 1: 1, 5: 5, 15: 15, 30: 30, 60: 60 })
@@ -211,7 +217,9 @@ const PERIOD_READS_OF = Object.freeze({
   // ⭐ RS RATING L12 — each intraday timeframe is held at ITSELF (the index's own bars of the chart's period)
   // and ALSO at D (its official daily closes, for the extended-hours bars)
   ...Object.fromEntries(Object.keys(INTRADAY_STEP_MIN).map((tf) => [tf,
-    Object.freeze({ held: tf, alsoHeld: 'D', folds: [WITNESS_PERIOD_READS.AT_OR_BEFORE], samples: [] })])),
+    Object.freeze({ held: tf, alsoHeld: 'D', folds: [WITNESS_PERIOD_READS.AT_OR_BEFORE], samples: [],
+      // ⭐ RS RATING L12 PR 2 — the reads at the SECOND held timeframe (a daily read above the chart)
+      above: [WITNESS_PERIOD_READS.SESSION_COMPLETED] })])),
 })
 const LAST_ROW_SAMPLES = Object.freeze([WITNESS_PERIOD_READS.WEEK_LAST_ROW, WITNESS_PERIOD_READS.MONTH_LAST_ROW])
 /** The chart's period code a read belongs to (`'W'` / `'M'`), or null. */
@@ -291,7 +299,8 @@ export function periodBlockServes(block, chartTf) {
   const reads = block.reads
   if (!reads || typeof reads !== 'object' || !Object.keys(reads).length) return false
   return Object.entries(reads).every(([code, how]) => (code === 'period' ? of.folds.includes(how)
-    : code === of.held && of.samples.includes(how)))
+    : code === of.held ? of.samples.includes(how)
+      : !!of.alsoHeld && code === of.alsoHeld && Array.isArray(of.above) && of.above.includes(how)))
 }
 
 /**
@@ -323,6 +332,10 @@ export function witnessReadOf(row, chartTf, code) {
     fold = reads.period || null
   } else if (String(code) === block.held) {
     sample = reads[block.held] || null
+  } else if (block.alsoHeld && String(code) === block.alsoHeld && reads[block.alsoHeld]) {
+    // ⭐ RS RATING L12 PR 2 — a daily read above an intraday chart: the SECOND held series, sampled per bar
+    return { held: block.alsoHeld, key: heldSecondaryKey(row.store, block.alsoHeld, tf), fold: null,
+      sample: reads[block.alsoHeld], alsoKey: null }
   }
   if (!fold && !sample) return null
   return { held: block.held, key: heldSecondaryKey(row.store, block.held, tf), fold, sample,
@@ -659,6 +672,32 @@ export function atOrBeforeGridOf(bars, daily, tf, { dailyForming = false } = {})
     if (d > lastHeld) break
   }
   return out
+}
+
+/** ⭐ RS RATING L12 PR 2 — daily rows keyed by their SESSION DATE (`isoDay`), in order, unplaced. */
+export function sessionKeyedRowsOf(bars) {
+  const out = []
+  let last = ''
+  for (const b of bars || []) {
+    const day = b && isoDay(b.t)
+    if (!day || day <= last) continue
+    last = day
+    out.push(b.t === day ? b : { ...b, t: day })
+  }
+  return out
+}
+/** ⭐ RS RATING L12 PR 2 — on a series of daily rows: whether its newest row is a session still in progress. */
+export const SERIES_NEWEST_FORMING = Symbol('rs:newest-forming')
+/** ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — the chart's secondary key for THIS chart symbol's own daily rows, fetched
+ *  when a run reads its own symbol at "D" above an intraday chart (`useSecondarySources`). ⛔ Not a held key's
+ *  shape (`heldKeyParts` reads `<TICKER>@D`, and `SELF` is a listing): it can never be mistaken for a ticker. */
+export const OWN_DAILY_KEY = 'OWN~D'
+/** ⭐ RS RATING L12 PR 2 — the ET session date of unix seconds (exported for the supply's per-bar placement). */
+export const etSessionDayOf = (t) => etDayOf(t)
+/** ⭐ RS RATING L12 PR 2 — unix seconds of `day`'s regular-session close (13:00 on a half-day), or null. */
+export function sessionCloseOf(day) {
+  const c = closeTime(day)
+  return c ? c.getTime() / 1000 : null
 }
 
 /** The fold a `period` read names (`previous-week` / `previous-month` / `latest-at-or-before`) over the held
@@ -1196,7 +1235,13 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
         also = { daily: rowsD, tf, dailyForming: second.newestBarIsForming === true }
       }
       const own = newestOwnPeriodOf(ctx, entry)
-      symbols[ticker] = read.fold ? periodFoldOf(read.fold, held, own, also) : witnessedBarsOf(row, held, own)
+      // ⭐ RS RATING L12 PR 2 — a daily read above an intraday chart is handed its daily rows as they are, keyed by
+      // session date; the run places them per chart bar (`requestSupply.js::aboveChartRead`)
+      symbols[ticker] = read.sample === WITNESS_PERIOD_READS.SESSION_COMPLETED ? sessionKeyedRowsOf(held)
+        : read.fold ? periodFoldOf(read.fold, held, own, also) : witnessedBarsOf(row, held, own)
+      if (read.sample === WITNESS_PERIOD_READS.SESSION_COMPLETED) {
+        Object.defineProperty(symbols[ticker], SERIES_NEWEST_FORMING, { value: entry.newestBarIsForming === true, enumerable: false })
+      }
       if (read.sample) samples[ticker] = read.sample
       served.push(ticker)
       continue
@@ -1311,7 +1356,14 @@ export function otherSymbolRefusalOfTree(tree, decision) {
  *  fetched both first, it drew. */
 export function otherSymbolsSignature(def, secondary, chartTf) {
   const requests = otherSymbolRequestsOf(def)
-  if (!requests.length) return ''
+  // ⭐ RS RATING L12 PR 2 — this chart symbol's own daily rows (`OWN_DAILY_KEY`, a run's daily read above an
+  // intraday chart) landing, moving or flipping its forming flag is a recompute too
+  const ownE = secondary && typeof secondary.get === 'function' ? secondary.get(OWN_DAILY_KEY) : null
+  const ownBars = ownE && Array.isArray(ownE.bars) ? ownE.bars : null
+  const ownLast = ownBars && ownBars.length ? ownBars[ownBars.length - 1] : null
+  const ownSig = ownE ? `|own:${ownE.status || ''}:${ownBars ? ownBars.length : 0}:${ownLast ? `${ownLast.t}/${ownLast.c}` : ''}`
+    + `${ownE.newestBarIsForming === true ? ':forming' : ''}` : ''
+  if (!requests.length) return ownSig
   // ⭐ RS RATING L6b — a witnessed spelling's series is held under its row's store key
   // ⭐ RS RATING L11 — and, on a chart that holds it at another timeframe, under its held key
   // (`SPX@D` on a weekly chart: `heldFetchOf`, the key the chart's fetch files it under)
@@ -1331,5 +1383,5 @@ export function otherSymbolsSignature(def, secondary, chartTf) {
     // ⭐ RS RATING L12 — every held key of the ticker (an intraday chart's daily rows landing is a recompute)
     return `${t}:${e ? e.status || '' : '-'}:${bars ? bars.length : 0}:${last ? `${last.t}/${last.c}` : ''}`
       + `${e && e.newestBarIsForming === true ? ':forming' : ''}`
-  }).join('+')).join(',')
+  }).join('+')).join(',') + ownSig
 }

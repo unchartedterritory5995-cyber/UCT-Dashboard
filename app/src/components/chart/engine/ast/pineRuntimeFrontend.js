@@ -7069,6 +7069,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⭐ RS RATING L11 — a daily read of another symbol on a weekly chart (`pine.js::
         // dailyOnWeeklyTargetOf`): supplied held and sampled per week (`requestSupply.js`)
         ...(hostTarget.below === true ? { below: true } : {}),
+        // ⭐ RS RATING L12 PR 2 (U-DAILY) — a daily read above an intraday chart (`pine.js`): supplied from the
+        // symbol's held daily rows, each chart bar reading the session it had completed (`requestSupply.js`)
+        ...(hostTarget.above === true ? { above: true } : {}),
       }) : ownUnread ? Object.freeze({
         // ⭐ RS RATING L8 (4b) — the chart's own symbol at a timeframe the host does not read:
         // `code` is the literal as written, never a served code; `unread` refuses it in the supply
