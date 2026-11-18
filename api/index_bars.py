@@ -479,7 +479,48 @@ def _kick_bg_refresh(sym: str, tf: str) -> None:
 #: is served when the vendor answers nothing or another request is already refreshing it. A daily / weekly / monthly
 #: copy, and a short miss of an intraday TTL, keep stale-while-revalidate.
 COLD_STALE_S = 3600
+_now = time.time                    # the serve clock (a rail pins it)
 _INTRADAY_UI_TFS = frozenset({"1", "5", "15", "30", "60", "1h"})
+
+
+#: ⭐ RS RATING L12 (2026-11-18) — A NEWEST BAR STORED WHILE IT WAS FORMING IS A PARTIAL PRINT. A refresh in session
+#: stores the vendor's newest bar as it stands (the 15m 10:15 bar at 10:17:37 ET, close 7338.74); `newest_bar_is_forming`
+#: is derived at SERVE time from the bar's own time (`routers/bars._augment_with_bar_close_state`), so once that bar's
+#: period ends the stored copy hands it out as SETTLED with its partial close until the next refresh. Measured: an
+#: in-session SPX 15m copy served the 09:30 bar at 7350.26 (the print at ~09:35) where TradingView's settled bar is
+#: 7323.32, and production at 11:01 ET served the 10:15 bar at 7338.74 (final 7335.67, the refresh 25 s later).
+#: That bar is WITHHELD (the bars before it are served); the refresh brings the bar with its own close. A bar still
+#: forming at serve time is kept (it IS the forming bar), and so is one that had ended when the copy was stored.
+#: A bar ends at its step, or at its session's close (a 60m index bar opening 15:30 ends at 16:00).
+_INTRADAY_STEP_S = {"1": 60, "5": 300, "15": 900, "30": 1800, "60": 3600, "1h": 3600}
+
+
+def _intraday_bar_end(t, tf: str):
+    """Unix seconds at which the intraday bar opening at `t` ends, or None (not an intraday bar)."""
+    step = _INTRADAY_STEP_S.get(tf)
+    if not step or not isinstance(t, (int, float)) or isinstance(t, bool):
+        return None
+    end = float(t) + step
+    try:
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        from api.services.session_calendar import close_time
+        close = close_time(datetime.fromtimestamp(float(t), ZoneInfo("America/New_York")).date())
+        if close is not None and close.timestamp() > float(t):
+            end = min(end, close.timestamp())
+    except Exception:  # noqa: BLE001 - the step alone still bounds the bar
+        pass
+    return end
+
+
+def _settled_partial_withheld(series: list, tf: str, saved_at, now: float) -> list:
+    """`series` without a newest bar that was still forming when the copy was stored and has ended since (see above)."""
+    if not series or saved_at is None or not isinstance(series[-1], dict):
+        return series
+    end = _intraday_bar_end(series[-1].get("t"), tf)
+    if end is not None and float(saved_at) < end <= float(now):
+        return series[:-1]
+    return series
 
 
 def _cold_stale(tf: str, saved_at, now: float) -> bool:
@@ -601,7 +642,7 @@ def fetch_index_bars(ticker: str, tf: str = "D", bars: int = 600,
     except Exception:
         pass
 
-    out = series or []
+    out = _settled_partial_withheld(series or [], tf, info.get("saved_at"), _now())
     if since is not None:
         out = [b for b in out if b["t"] > since]
     if len(out) > bars:

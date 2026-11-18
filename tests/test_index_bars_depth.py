@@ -314,3 +314,60 @@ def test_D6d_one_refresh_at_a_time_a_second_request_serves_stale(monkeypatch):
         with index_bars._bg_lock:
             index_bars._bg_inflight.discard("SPX_15")
     _clear_mem("SPX", "15")
+
+
+
+# -- D7 (RS RATING L12): a newest bar stored while it formed is a partial print once it has ended --------------------
+
+def _d7_et(hh, mm, ss=0, day=18):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    return datetime(2026, 11, day, hh, mm, ss, tzinfo=ZoneInfo("America/New_York")).timestamp()
+
+
+def _d7_row(t, c):
+    return {"t": int(t), "o": c, "h": c, "l": c, "c": c, "v": 0}
+
+
+S15 = [_d7_row(_d7_et(9, 45), 7354.63), _d7_row(_d7_et(10, 0), 7340.98), _d7_row(_d7_et(10, 15), 7338.74)]   # production at 10:17:37 ET
+
+
+def test_D7a_a_bar_forming_when_stored_and_ended_since_is_withheld():
+    out = index_bars._settled_partial_withheld(S15, "15", _d7_et(10, 17, 37), _d7_et(11, 1))
+    assert out == S15[:-1]                                   # the 10:15 bar (its 10:17 print) is not served as settled
+
+
+def test_D7b_the_bar_still_forming_at_serve_is_kept():
+    assert index_bars._settled_partial_withheld(S15, "15", _d7_et(10, 17, 37), _d7_et(10, 20)) == S15
+
+
+def test_D7c_a_bar_that_had_ended_when_stored_is_kept():
+    assert index_bars._settled_partial_withheld(S15, "15", _d7_et(10, 30, 5), _d7_et(11, 1)) == S15
+    assert index_bars._settled_partial_withheld(S15, "15", _d7_et(10, 30), _d7_et(11, 1)) == S15     # stored AT its end
+
+
+def test_D7d_a_60m_bar_ends_at_the_session_close_not_its_step():
+    s60 = [_d7_row(_d7_et(14, 30), 7319.31), _d7_row(_d7_et(15, 30), 7340.63)]
+    # stored 16:05 ET (after the 16:00 close): the 15:30 bar had ended, kept the next morning
+    assert index_bars._settled_partial_withheld(s60, "60", _d7_et(16, 5), _d7_et(9, 0, day=19)) == s60
+    # stored 15:50 (still forming): withheld once the close has passed
+    assert index_bars._settled_partial_withheld(s60, "60", _d7_et(15, 50), _d7_et(16, 1)) == s60[:-1]
+
+
+def test_D7e_a_daily_copy_and_an_unstamped_copy_are_untouched():
+    d = [{"t": 1794873600, "o": 1, "h": 1, "l": 1, "c": 7340.53, "v": 0}]
+    assert index_bars._settled_partial_withheld(d, "D", 1794873600, 1794960000) == d
+    assert index_bars._settled_partial_withheld(S15, "15", None, _d7_et(11, 1)) == S15
+
+
+def test_D7f_the_serve_applies_it(monkeypatch):
+    from api.services.cache import cache
+    monkeypatch.setattr(index_bars, "_refresh", lambda s, tf: [])            # no vendor answers: the stored copy is served
+    monkeypatch.setattr(index_bars, "_kick_bg_refresh", lambda s, tf: None)
+    monkeypatch.setattr(index_bars, "_now", lambda: _d7_et(11, 1))
+    cache.set("idxbars_SPX_15", {"saved_at": _d7_et(10, 17, 37), "series": S15, "proxy": False}, ttl=3600)
+    try:
+        got = index_bars.fetch_index_bars("SPX", "15", bars=5000)
+        assert [r["t"] for r in got["bars"]] == [r["t"] for r in S15[:-1]]
+    finally:
+        cache.set("idxbars_SPX_15", None, ttl=1)
