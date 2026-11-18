@@ -20,7 +20,7 @@
      "label": "Efficiency length",
      "default": 10,
      "min": 2,
-     "max": 200,
+     "max": 5000,
      "integer": true
     },
     {
@@ -28,7 +28,7 @@
      "label": "Fast length",
      "default": 2,
      "min": 1,
-     "max": 100,
+     "max": 5000,
      "integer": true
     },
     {
@@ -36,7 +36,7 @@
      "label": "Slow length",
      "default": 30,
      "min": 2,
-     "max": 400,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -46,6 +46,7 @@
      "label": "KAMA",
      "type": "value",
      "formula": "accum(close, self + pow(abs(close - close[{er_length}]) / sum(abs(close - close[1]), {er_length}) * (2 / ({fast} + 1) - 2 / ({slow} + 1)) + 2 / ({slow} + 1), 2) * (close - self), 300)",
+     "says": "a moving average that speeds up when price moves cleanly and slows down when it chops",
      "tree": {
       "type": "call",
       "name": "accum",
@@ -370,7 +371,7 @@
      "label": "Length",
      "default": 14,
      "min": 2,
-     "max": 400,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -380,6 +381,7 @@
      "label": "McGinley Dynamic",
      "type": "value",
      "formula": "accum(close, self + (close - self) / ({length} * pow(close / self, 4)), 300)",
+     "says": "a moving average that adjusts its own speed to how fast price is moving",
      "tree": {
       "type": "call",
       "name": "accum",
@@ -523,7 +525,7 @@
      "label": "RSI length",
      "default": 3,
      "min": 2,
-     "max": 100,
+     "max": 5000,
      "integer": true
     },
     {
@@ -531,7 +533,7 @@
      "label": "Streak RSI length",
      "default": 2,
      "min": 2,
-     "max": 100,
+     "max": 5000,
      "integer": true
     },
     {
@@ -539,7 +541,7 @@
      "label": "Rank length",
      "default": 100,
      "min": 2,
-     "max": 900,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -549,6 +551,7 @@
      "label": "Connors RSI",
      "type": "value",
      "formula": "(rsi(close, {rsi_length}) + rsi(accum(0, close > close[1] ? (self > 0 ? self + 1 : 1) : close < close[1] ? (self < 0 ? self - 1 : -1) : 0, 100), {streak_length}) + percentrank(roc(close, 1), {rank_length})) / 3",
+     "says": "the average of a short RSI, an RSI of the up/down streak, and the percent rank of the latest change",
      "tree": {
       "type": "op",
       "name": "/",
@@ -855,7 +858,7 @@
      "label": "Length",
      "default": 22,
      "min": 1,
-     "max": 400,
+     "max": 5000,
      "integer": true
     },
     {
@@ -863,15 +866,15 @@
      "label": "ATR length",
      "default": 22,
      "min": 1,
-     "max": 400,
+     "max": 5000,
      "integer": true
     },
     {
      "key": "multiplier",
      "label": "ATR multiplier",
      "default": 3.0,
-     "min": 0.1,
-     "max": 20,
+     "min": 0.001,
+     "max": 1000,
      "integer": false
     }
    ],
@@ -881,6 +884,7 @@
      "label": "Chandelier Exit long",
      "type": "value",
      "formula": "highest(high, {length}) - {multiplier} * atr(high, low, close, {atr_length})",
+     "says": "a trailing stop a multiple of ATR below the highest high",
      "tree": {
       "type": "op",
       "name": "-",
@@ -960,6 +964,7 @@
      "label": "Chandelier Exit short",
      "type": "value",
      "formula": "lowest(low, {length}) + {multiplier} * atr(high, low, close, {atr_length})",
+     "says": "a trailing stop a multiple of ATR above the lowest low",
      "tree": {
       "type": "op",
       "name": "+",
@@ -1092,7 +1097,7 @@
      "label": "Length",
      "default": 20,
      "min": 1,
-     "max": 400,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -1102,6 +1107,7 @@
      "label": "Chaikin Money Flow",
      "type": "value",
      "formula": "sum(high == low ? 0 : ((close - low) - (high - close)) / (high - low) * volume, {length}) / sum(volume, {length})",
+     "says": "volume weighted by where each close sat in its bar's range, as a share of all volume in the period",
      "tree": {
       "type": "op",
       "name": "/",
@@ -1290,7 +1296,7 @@
      "label": "Fast length",
      "default": 7,
      "min": 1,
-     "max": 300,
+     "max": 5000,
      "integer": true
     },
     {
@@ -1298,7 +1304,7 @@
      "label": "Middle length",
      "default": 14,
      "min": 1,
-     "max": 300,
+     "max": 5000,
      "integer": true
     },
     {
@@ -1306,7 +1312,7 @@
      "label": "Slow length",
      "default": 28,
      "min": 1,
-     "max": 600,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -1316,6 +1322,7 @@
      "label": "Ultimate Oscillator",
      "type": "value",
      "formula": "100 * (4 * sum(close - min(low, close[1]), {fast}) / sum(max(high, close[1]) - min(low, close[1]), {fast}) + 2 * sum(close - min(low, close[1]), {middle}) / sum(max(high, close[1]) - min(low, close[1]), {middle}) + sum(close - min(low, close[1]), {slow}) / sum(max(high, close[1]) - min(low, close[1]), {slow})) / 7",
+     "says": "buying pressure over three lookbacks, weighted 4, 2 and 1, on a 0 to 100 scale",
      "tree": {
       "type": "op",
       "name": "/",
@@ -1786,7 +1793,7 @@
      "label": "Fast length",
      "default": 5,
      "min": 1,
-     "max": 300,
+     "max": 5000,
      "integer": true
     },
     {
@@ -1794,7 +1801,7 @@
      "label": "Slow length",
      "default": 34,
      "min": 2,
-     "max": 600,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -1804,6 +1811,7 @@
      "label": "Awesome Oscillator",
      "type": "value",
      "formula": "sma((high + low) / 2, {fast}) - sma((high + low) / 2, {slow})",
+     "says": "a fast simple average of the bar's midpoint minus a slow one",
      "tree": {
       "type": "op",
       "name": "-",
@@ -1944,7 +1952,7 @@
      "label": "WMA length",
      "default": 10,
      "min": 1,
-     "max": 300,
+     "max": 5000,
      "integer": true
     },
     {
@@ -1952,7 +1960,7 @@
      "label": "Long rate of change",
      "default": 14,
      "min": 1,
-     "max": 600,
+     "max": 5000,
      "integer": true
     },
     {
@@ -1960,7 +1968,7 @@
      "label": "Short rate of change",
      "default": 11,
      "min": 1,
-     "max": 600,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -1970,6 +1978,7 @@
      "label": "Coppock Curve",
      "type": "value",
      "formula": "wma(roc(close, {long_roc}) + roc(close, {short_roc}), {wma_length})",
+     "says": "a weighted average of two rates of change added together",
      "tree": {
       "type": "call",
       "name": "wma",
@@ -2092,7 +2101,7 @@
      "label": "Long length",
      "default": 25,
      "min": 1,
-     "max": 400,
+     "max": 5000,
      "integer": true
     },
     {
@@ -2100,7 +2109,7 @@
      "label": "Short length",
      "default": 13,
      "min": 1,
-     "max": 400,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -2110,6 +2119,7 @@
      "label": "True Strength Index",
      "type": "value",
      "formula": "100 * ema(ema(close - close[1], {long}), {short}) / ema(ema(abs(close - close[1]), {long}), {short})",
+     "says": "double-smoothed price change as a percent of double-smoothed absolute price change",
      "tree": {
       "type": "op",
       "name": "/",
@@ -2295,7 +2305,7 @@
      "label": "Length",
      "default": 14,
      "min": 1,
-     "max": 600,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -2305,6 +2315,7 @@
      "label": "VI+",
      "type": "value",
      "formula": "sum(abs(high - low[1]), {length}) / sum(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), {length})",
+     "says": "upward movement over the period divided by true range",
      "tree": {
       "type": "op",
       "name": "/",
@@ -2453,6 +2464,7 @@
      "label": "VI-",
      "type": "value",
      "formula": "sum(abs(low - high[1]), {length}) / sum(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), {length})",
+     "says": "downward movement over the period divided by true range",
      "tree": {
       "type": "op",
       "name": "/",
@@ -2654,7 +2666,7 @@
      "label": "Length",
      "default": 14,
      "min": 2,
-     "max": 600,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -2664,6 +2676,7 @@
      "label": "Choppiness Index",
      "type": "value",
      "formula": "100 * log10(sum(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), {length}) / (highest(high, {length}) - lowest(low, {length}))) / log10({length})",
+     "says": "the period's bar-by-bar range against its high-to-low range, 0 to 100: high is choppy, low is trending",
      "tree": {
       "type": "op",
       "name": "/",
@@ -2910,7 +2923,7 @@
      "label": "Length",
      "default": 13,
      "min": 1,
-     "max": 400,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -2920,6 +2933,7 @@
      "label": "Bull Power",
      "type": "value",
      "formula": "high - ema(close, {length})",
+     "says": "the high minus an EMA of the close",
      "tree": {
       "type": "op",
       "name": "-",
@@ -2958,6 +2972,7 @@
      "label": "Bear Power",
      "type": "value",
      "formula": "low - ema(close, {length})",
+     "says": "the low minus an EMA of the close",
      "tree": {
       "type": "op",
       "name": "-",
@@ -3049,15 +3064,15 @@
      "label": "BB length",
      "default": 20,
      "min": 2,
-     "max": 400,
+     "max": 5000,
      "integer": true
     },
     {
      "key": "bb_mult",
      "label": "BB multiplier",
      "default": 2.0,
-     "min": 0.1,
-     "max": 10,
+     "min": 0.001,
+     "max": 50,
      "integer": false
     },
     {
@@ -3065,15 +3080,15 @@
      "label": "KC length",
      "default": 20,
      "min": 2,
-     "max": 400,
+     "max": 5000,
      "integer": true
     },
     {
      "key": "kc_mult",
      "label": "KC multiplier",
      "default": 1.5,
-     "min": 0.1,
-     "max": 10,
+     "min": 0.001,
+     "max": 1000,
      "integer": false
     }
    ],
@@ -3083,6 +3098,7 @@
      "label": "Squeeze momentum",
      "type": "value",
      "formula": "linreg(close - ((highest(high, {kc_length}) + lowest(low, {kc_length})) / 2 + sma(close, {kc_length})) / 2, {kc_length}, 0)",
+     "says": "how far the close sits from the middle of its recent range, as a fitted straight-line value",
      "tree": {
       "type": "call",
       "name": "linreg",
@@ -3215,6 +3231,7 @@
      "label": "Squeeze on",
      "type": "condition",
      "formula": "sma(close, {bb_length}) - {bb_mult} * stdev(close, {bb_length}) > sma(close, {kc_length}) - {kc_mult} * sma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), {kc_length}) && sma(close, {bb_length}) + {bb_mult} * stdev(close, {bb_length}) < sma(close, {kc_length}) + {kc_mult} * sma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), {kc_length})",
+     "says": "true while the Bollinger Bands sit inside the Keltner Channels",
      "tree": {
       "type": "op",
       "name": "&&",
@@ -3623,7 +3640,7 @@
      "label": "Length",
      "default": 9,
      "min": 1,
-     "max": 400,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -3633,6 +3650,7 @@
      "label": "DEMA",
      "type": "value",
      "formula": "2 * ema(close, {length}) - ema(ema(close, {length}), {length})",
+     "says": "an EMA with most of its lag removed: twice the EMA minus the EMA of the EMA",
      "tree": {
       "type": "op",
       "name": "-",
@@ -3769,7 +3787,7 @@
      "label": "Length",
      "default": 9,
      "min": 1,
-     "max": 300,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -3779,6 +3797,7 @@
      "label": "TEMA",
      "type": "value",
      "formula": "3 * ema(close, {length}) - 3 * ema(ema(close, {length}), {length}) + ema(ema(ema(close, {length}), {length}), {length})",
+     "says": "an EMA with its lag removed in three steps",
      "tree": {
       "type": "op",
       "name": "+",
@@ -3986,7 +4005,7 @@
      "label": "Length",
      "default": 9,
      "min": 1,
-     "max": 600,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -3996,6 +4015,7 @@
      "label": "Chande Momentum Oscillator",
      "type": "value",
      "formula": "100 * (sum(max(close - close[1], 0), {length}) - sum(max(close[1] - close, 0), {length})) / (sum(max(close - close[1], 0), {length}) + sum(max(close[1] - close, 0), {length}))",
+     "says": "up moves minus down moves over the period, as a percent of all movement (-100 to 100)",
      "tree": {
       "type": "op",
       "name": "/",
@@ -4269,7 +4289,7 @@
      "label": "RSI length",
      "default": 14,
      "min": 2,
-     "max": 400,
+     "max": 5000,
      "integer": true
     },
     {
@@ -4277,7 +4297,7 @@
      "label": "Stochastic length",
      "default": 14,
      "min": 1,
-     "max": 400,
+     "max": 5000,
      "integer": true
     },
     {
@@ -4285,7 +4305,7 @@
      "label": "K",
      "default": 3,
      "min": 1,
-     "max": 100,
+     "max": 5000,
      "integer": true
     },
     {
@@ -4293,7 +4313,7 @@
      "label": "D",
      "default": 3,
      "min": 1,
-     "max": 100,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -4303,6 +4323,7 @@
      "label": "K",
      "type": "value",
      "formula": "sma(stoch(rsi(close, {rsi_length}), rsi(close, {rsi_length}), rsi(close, {rsi_length}), {stoch_length}), {k_smooth})",
+     "says": "where the RSI sits in its own recent range (0 to 100), smoothed",
      "tree": {
       "type": "call",
       "name": "sma",
@@ -4401,6 +4422,7 @@
      "label": "D",
      "type": "value",
      "formula": "sma(sma(stoch(rsi(close, {rsi_length}), rsi(close, {rsi_length}), rsi(close, {rsi_length}), {stoch_length}), {k_smooth}), {d_smooth})",
+     "says": "an average of the %K line",
      "tree": {
       "type": "call",
       "name": "sma",
@@ -4573,7 +4595,7 @@
      "label": "Length",
      "default": 25,
      "min": 2,
-     "max": 400,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -4583,6 +4605,7 @@
      "label": "Aroon Up",
      "type": "value",
      "formula": "aroonUp({length})",
+     "says": "how recently the period's highest high was made (100 is this bar)",
      "tree": {
       "type": "call",
       "name": "aroonUp",
@@ -4606,6 +4629,7 @@
      "label": "Aroon Down",
      "type": "value",
      "formula": "aroonDown({length})",
+     "says": "how recently the period's lowest low was made (100 is this bar)",
      "tree": {
       "type": "call",
       "name": "aroonDown",
@@ -4629,6 +4653,7 @@
      "label": "Aroon Oscillator",
      "type": "value",
      "formula": "aroonUp({length}) - aroonDown({length})",
+     "says": "Aroon Up minus Aroon Down",
      "tree": {
       "type": "op",
       "name": "-",
@@ -4731,7 +4756,7 @@
      "label": "Length",
      "default": 14,
      "min": 2,
-     "max": 200,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -4741,6 +4766,7 @@
      "label": "+DI",
      "type": "value",
      "formula": "plusDI(high, low, close, {length})",
+     "says": "upward movement as a percent of true range, smoothed",
      "tree": {
       "type": "call",
       "name": "plusDI",
@@ -4776,6 +4802,7 @@
      "label": "-DI",
      "type": "value",
      "formula": "minusDI(high, low, close, {length})",
+     "says": "downward movement as a percent of true range, smoothed",
      "tree": {
       "type": "call",
       "name": "minusDI",
@@ -4811,6 +4838,7 @@
      "label": "ADX",
      "type": "value",
      "formula": "adx(high, low, close, {length})",
+     "says": "how strong the trend is, whichever way it points",
      "tree": {
       "type": "call",
       "name": "adx",
@@ -4894,6 +4922,7 @@
      "label": "On Balance Volume",
      "type": "value",
      "formula": "cum(close > close[1] ? volume : close < close[1] ? 0 - volume : 0)",
+     "says": "a running total of volume, added on up closes and subtracted on down closes",
      "tree": {
       "type": "call",
       "name": "cum",
@@ -5032,6 +5061,7 @@
      "label": "Accumulation Distribution Line",
      "type": "value",
      "formula": "cum((high == low ? 0 : ((close - low) - (high - close)) / (high - low) * volume))",
+     "says": "a running total of volume weighted by where the close sat in the bar's range",
      "tree": {
       "type": "call",
       "name": "cum",
@@ -5181,6 +5211,7 @@
      "label": "Price Volume Trend",
      "type": "value",
      "formula": "cum(nz((close - close[1]) / close[1] * volume, 0))",
+     "says": "a running total of volume multiplied by the percent change in price",
      "tree": {
       "type": "call",
       "name": "cum",
@@ -5300,7 +5331,7 @@
      "label": "Fast length",
      "default": 12,
      "min": 2,
-     "max": 200,
+     "max": 5000,
      "integer": true
     },
     {
@@ -5308,7 +5339,7 @@
      "label": "Slow length",
      "default": 26,
      "min": 3,
-     "max": 400,
+     "max": 5000,
      "integer": true
     },
     {
@@ -5316,7 +5347,7 @@
      "label": "Signal length",
      "default": 9,
      "min": 2,
-     "max": 100,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -5326,6 +5357,7 @@
      "label": "PPO",
      "type": "value",
      "formula": "(ema(close, {fast}) - ema(close, {slow})) / ema(close, {slow}) * 100",
+     "says": "a fast EMA minus a slow EMA, as a percent of the slow one",
      "tree": {
       "type": "op",
       "name": "*",
@@ -5419,6 +5451,7 @@
      "label": "Signal",
      "type": "value",
      "formula": "ema((ema(close, {fast}) - ema(close, {slow})) / ema(close, {slow}) * 100, {signal})",
+     "says": "an EMA of the PPO line",
      "tree": {
       "type": "call",
       "name": "ema",
@@ -5530,6 +5563,7 @@
      "label": "Histogram",
      "type": "value",
      "formula": "(ema(close, {fast}) - ema(close, {slow})) / ema(close, {slow}) * 100 - ema((ema(close, {fast}) - ema(close, {slow})) / ema(close, {slow}) * 100, {signal})",
+     "says": "the PPO line minus its signal line",
      "tree": {
       "type": "op",
       "name": "-",
@@ -5786,7 +5820,7 @@
      "label": "First rate of change",
      "default": 10,
      "min": 1,
-     "max": 200,
+     "max": 5000,
      "integer": true
     },
     {
@@ -5794,7 +5828,7 @@
      "label": "Second rate of change",
      "default": 15,
      "min": 1,
-     "max": 200,
+     "max": 5000,
      "integer": true
     },
     {
@@ -5802,7 +5836,7 @@
      "label": "Third rate of change",
      "default": 20,
      "min": 1,
-     "max": 200,
+     "max": 5000,
      "integer": true
     },
     {
@@ -5810,7 +5844,7 @@
      "label": "Fourth rate of change",
      "default": 30,
      "min": 1,
-     "max": 400,
+     "max": 5000,
      "integer": true
     },
     {
@@ -5818,7 +5852,7 @@
      "label": "First average",
      "default": 10,
      "min": 1,
-     "max": 100,
+     "max": 5000,
      "integer": true
     },
     {
@@ -5826,7 +5860,7 @@
      "label": "Second average",
      "default": 10,
      "min": 1,
-     "max": 100,
+     "max": 5000,
      "integer": true
     },
     {
@@ -5834,7 +5868,7 @@
      "label": "Third average",
      "default": 10,
      "min": 1,
-     "max": 100,
+     "max": 5000,
      "integer": true
     },
     {
@@ -5842,7 +5876,7 @@
      "label": "Fourth average",
      "default": 15,
      "min": 1,
-     "max": 100,
+     "max": 5000,
      "integer": true
     },
     {
@@ -5850,7 +5884,7 @@
      "label": "Signal length",
      "default": 9,
      "min": 2,
-     "max": 100,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -5860,6 +5894,7 @@
      "label": "KST",
      "type": "value",
      "formula": "sma(roc(close, {roc1}), {sma1}) + 2 * sma(roc(close, {roc2}), {sma2}) + 3 * sma(roc(close, {roc3}), {sma3}) + 4 * sma(roc(close, {roc4}), {sma4})",
+     "says": "four smoothed rates of change added with weights 1, 2, 3 and 4",
      "tree": {
       "type": "op",
       "name": "+",
@@ -6080,6 +6115,7 @@
      "label": "Signal",
      "type": "value",
      "formula": "sma(sma(roc(close, {roc1}), {sma1}) + 2 * sma(roc(close, {roc2}), {sma2}) + 3 * sma(roc(close, {roc3}), {sma3}) + 4 * sma(roc(close, {roc4}), {sma4}), {signal})",
+     "says": "an average of the KST line",
      "tree": {
       "type": "call",
       "name": "sma",
@@ -6373,7 +6409,7 @@
      "label": "Sum length",
      "default": 25,
      "min": 2,
-     "max": 200,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -6383,6 +6419,7 @@
      "label": "Mass Index",
      "type": "value",
      "formula": "sum(ema(high - low, 9) / ema(ema(high - low, 9), 9), {length})",
+     "says": "the smoothed bar range divided by its own smoothing, summed over the period: it rises as ranges widen",
      "tree": {
       "type": "call",
       "name": "sum",
@@ -6518,7 +6555,7 @@
      "label": "Length",
      "default": 13,
      "min": 1,
-     "max": 200,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -6528,6 +6565,7 @@
      "label": "Force Index",
      "type": "value",
      "formula": "ema((close - close[1]) * volume, {length})",
+     "says": "the change in price multiplied by volume, smoothed with an EMA",
      "tree": {
       "type": "call",
       "name": "ema",
@@ -6627,7 +6665,7 @@
      "label": "Length",
      "default": 14,
      "min": 1,
-     "max": 200,
+     "max": 5000,
      "integer": true
     },
     {
@@ -6645,6 +6683,7 @@
      "label": "Ease of Movement",
      "type": "value",
      "formula": "sma(volume == 0 ? 0 : ((high + low) / 2 - (high[1] + low[1]) / 2) * (high - low) / (volume / {divisor}), {length})",
+     "says": "how far the bar's midpoint moved for the volume it took, averaged over the period",
      "tree": {
       "type": "call",
       "name": "sma",
@@ -6858,7 +6897,7 @@
      "label": "Signal length",
      "default": 255,
      "min": 2,
-     "max": 400,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -6868,6 +6907,7 @@
      "label": "Negative Volume Index",
      "type": "value",
      "formula": "1000 * exp(cum(volume < volume[1] ? ln(close / close[1]) : 0))",
+     "says": "an index that moves only on days when volume fell",
      "tree": {
       "type": "op",
       "name": "*",
@@ -6953,6 +6993,7 @@
      "label": "Signal",
      "type": "value",
      "formula": "ema(1000 * exp(cum(volume < volume[1] ? ln(close / close[1]) : 0)), {signal})",
+     "says": "an EMA of the Negative Volume Index",
      "tree": {
       "type": "call",
       "name": "ema",
@@ -7103,6 +7144,370 @@
    ]
   },
   {
+   "id": "positive_volume_index",
+   "name": "Positive Volume Index",
+   "aliases": [
+    "positive volume index",
+    "positive volume index indicator"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "signal",
+     "label": "Signal length",
+     "default": 255,
+     "min": 2,
+     "max": 5000,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "pvi",
+     "label": "Positive Volume Index",
+     "type": "value",
+     "formula": "1000 * exp(cum(volume > volume[1] ? ln(close / close[1]) : 0))",
+     "says": "an index that moves only on days when volume rose",
+     "tree": {
+      "type": "op",
+      "name": "*",
+      "args": [
+       {
+        "type": "num",
+        "value": 1000
+       },
+       {
+        "type": "call",
+        "name": "exp",
+        "args": [
+         {
+          "type": "call",
+          "name": "cum",
+          "args": [
+           {
+            "type": "op",
+            "name": "?:",
+            "args": [
+             {
+              "type": "op",
+              "name": ">",
+              "args": [
+               {
+                "type": "series",
+                "name": "volume"
+               },
+               {
+                "type": "offset",
+                "value": 1,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "volume"
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "call",
+              "name": "ln",
+              "args": [
+               {
+                "type": "op",
+                "name": "/",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 },
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 0
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {}
+    },
+    {
+     "key": "signal",
+     "label": "Signal",
+     "type": "value",
+     "formula": "ema(1000 * exp(cum(volume > volume[1] ? ln(close / close[1]) : 0)), {signal})",
+     "says": "an EMA of the Positive Volume Index",
+     "tree": {
+      "type": "call",
+      "name": "ema",
+      "args": [
+       {
+        "type": "op",
+        "name": "*",
+        "args": [
+         {
+          "type": "num",
+          "value": 1000
+         },
+         {
+          "type": "call",
+          "name": "exp",
+          "args": [
+           {
+            "type": "call",
+            "name": "cum",
+            "args": [
+             {
+              "type": "op",
+              "name": "?:",
+              "args": [
+               {
+                "type": "op",
+                "name": ">",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "volume"
+                 },
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "volume"
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "call",
+                "name": "ln",
+                "args": [
+                 {
+                  "type": "op",
+                  "name": "/",
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   },
+                   {
+                    "type": "offset",
+                    "value": 1,
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "close"
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 0
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 255
+       }
+      ]
+     },
+     "sites": {
+      "signal": [
+       [
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::positive_volume_index",
+    "published": {
+     "by": "Paul Dysart and Norman Fosback",
+     "url": "https://en.wikipedia.org/wiki/Negative_volume_index",
+     "sources": [
+      {
+       "title": "Wikipedia: Negative volume index (the article covers the Positive Volume Index)",
+       "url": "https://en.wikipedia.org/wiki/Negative_volume_index",
+       "kind": "reference"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "Fosback's form: when volume is above the prior period's, PVI = prior PVI + prior PVI x the price change (prior PVI x (1 + change)); otherwise unchanged. The page gives the base as 'such as 100' and the signal as a one-year moving average, with no kind named.",
+     "note": "The twin of the Negative Volume Index entry, with the volume test reversed, and written the same way (1000 x e to the running total of the log of each higher-volume day's close over the prior close). Two choices follow that entry rather than the page: it starts at 1000 on the first bar of the chart's loaded history, and its signal is a 255-period EMA. Both are what TradingView's built-in does, which the capture settles. A day of equal volume leaves it unchanged."
+    },
+    "capture": {
+     "id": "studio-builtins-2026-11-18",
+     "against": "TradingView built-in: Positive volume index",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars, from the listing"
+     ],
+     "grade": "EQUAL",
+     "detail": "Both lines are equal on every bar the chart has a value for (the index on all 8,509; its 255-bar EMA on 8,255, absent on the same bars). It starts at 1000 on the first bar and moves only when volume is strictly above the bar before."
+    }
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:09b2ad3a469bfdd14274db24d3f0bf4761c7f8f809aa600e8c2a7ad33f3895f9",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "fisher_transform",
+   "name": "Fisher Transform",
+   "aliases": [
+    "fisher transform",
+    "ehlers fisher transform",
+    "fisher transform indicator"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "length",
+     "label": "Length",
+     "default": 9,
+     "min": 2,
+     "max": 5000,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "fisher",
+     "label": "Fisher",
+     "type": "value",
+     "formula": "fisher({length})",
+     "says": "where the bar's midpoint sits in its recent range, smoothed and stretched so that turns stand out",
+     "tree": {
+      "type": "call",
+      "name": "fisher",
+      "args": [
+       {
+        "type": "num",
+        "value": 9
+       }
+      ]
+     },
+     "sites": {
+      "length": [
+       [
+        0
+       ]
+      ]
+     }
+    },
+    {
+     "key": "trigger",
+     "label": "Trigger",
+     "type": "value",
+     "formula": "fisher({length})[1]",
+     "says": "the Fisher line one bar earlier",
+     "tree": {
+      "type": "offset",
+      "value": 1,
+      "args": [
+       {
+        "type": "call",
+        "name": "fisher",
+        "args": [
+         {
+          "type": "num",
+          "value": 9
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {
+      "length": [
+       [
+        0,
+        0
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::fisher_transform",
+    "published": {
+     "by": "John Ehlers (as published by Tulip Indicators)",
+     "url": "https://tulipindicators.org/fisher",
+     "sources": [
+      {
+       "title": "Tulip Indicators: Fisher Transform (fisher)",
+       "url": "https://tulipindicators.org/fisher",
+       "kind": "reference"
+      },
+      {
+       "title": "Tulip Indicators: fisher.c (LGPL v3)",
+       "url": "https://raw.githubusercontent.com/TulipCharts/tulipindicators/master/indicators/fisher.c",
+       "kind": "reference"
+      },
+      {
+       "title": "TradingView Help: Fisher Transform",
+       "url": "https://www.tradingview.com/support/solutions/43000589141-fisher-transform/",
+       "kind": "reference"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "Tulip Indicators' page, citing Ehlers (Stocks & Commodities V.20:11, 'Using the Fisher Transform'): hl = (high + low) / 2; val = 0.33 x 2 x ((hl - min) / (max - min) - 0.5) + 0.67 x the previous val, min and max over n bars of hl; fisher = 0.5 x log((1 + val) / (1 - val)) + 0.5 x the previous fisher; the signal is the previous bar's fisher. Its source code adds what the page leaves out: val above 0.99 becomes 0.999 and below -0.99 becomes -0.999. TradingView's help page gives only the transform, half the log of (1 + X) / (1 - X).",
+     "note": "Vendors differ under this name (another publishes 0.5 and 0.5 smoothing with a quarter of the log and a 0.9999 cap). This entry is the form TradingView's built-in computes, which the capture settles bar for bar. It is written as the function fisher(length), which stands for the whole recurrence. The value it feeds back is SNAPPED, a choice on its own value, so by its shape nothing proves that where it started stops mattering, and Create Indicator refuses that shape written out by hand; the function is offered on the capture. It is recomputed from 300 bars back on every bar: the first 300 bars of a chart's history have no value, where TradingView's has one. With 300 bars of restart, a length past 659 reaches further back than any formula may, and is refused for that as any formula is."
+    },
+    "capture": {
+     "id": "studio-builtins-2026-11-18",
+     "against": "TradingView built-in: Fisher transform",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars, from the listing"
+     ],
+     "grade": "EQUAL AFTER WARM-UP",
+     "detail": "Graded at lengths 9 and 20. Both lines are equal on every bar this entry has a value for (8,209 bars at each length; the largest relative difference is 3 parts in 10 quadrillion). This entry has no value on the first 300 bars of the chart's history, where TradingView's has one from the first full range: it is recomputed from 300 bars back on every bar. The trigger is the Fisher line one bar earlier."
+    }
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:a486a62e10e82b0697be9b39773e6f902e0f50310ac4669e01631c63959b2900",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
    "id": "ulcer_index",
    "name": "Ulcer Index",
    "aliases": [
@@ -7116,7 +7521,7 @@
      "label": "Length",
      "default": 14,
      "min": 2,
-     "max": 200,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -7126,6 +7531,7 @@
      "label": "Ulcer Index",
      "type": "value",
      "formula": "sqrt(sum(pow((close - highest(close, {length})) / highest(close, {length}) * 100, 2), {length}) / {length})",
+     "says": "the depth of pullbacks from the period's highest close, as a root-mean-square percent",
      "tree": {
       "type": "call",
       "name": "sqrt",
@@ -7302,7 +7708,7 @@
      "label": "Length",
      "default": 18,
      "min": 2,
-     "max": 200,
+     "max": 5000,
      "integer": true
     }
    ],
@@ -7312,6 +7718,7 @@
      "label": "TRIX",
      "type": "value",
      "formula": "10000 * change(ema(ema(ema(ln(close), {length}), {length}), {length}))",
+     "says": "the one-bar change of a triple-smoothed EMA of the log of price, times 10,000",
      "tree": {
       "type": "op",
       "name": "*",

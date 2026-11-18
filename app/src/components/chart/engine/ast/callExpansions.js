@@ -315,6 +315,57 @@ export function sarTrees(stepNode, maxNode, warmup = SAR_WARMUP) {
  * name → `{ min, max, describe, build(args) → tree | null }`. `args` are canonical
  * trees; `describe` is the formula-reference line for the vocabulary list.
  */
+// ─── ⭐⭐ FISHER TRANSFORM — NUMBER PENDING (studio, 2026-11-18) ────────────────
+//
+// TradingView's built-in, as a capture reads it (SPY daily from its listing, 8,509 bars, lengths
+// 9 and 20) and as Tulip Indicators publishes it, citing Ehlers:
+//
+//   x      = (hl2 − lowest(hl2, n)) / (highest(hl2, n) − lowest(hl2, n))
+//   value  = 0.66 · (x − 0.5) + 0.67 · value[1]         (a missing value[1] is read as 0)
+//   value  = 0.999 if value > 0.99, −0.999 if value < −0.99      ← a SNAP, not a clamp
+//   fisher = 0.5 · ln((1 + value) / (1 − value)) + 0.5 · fisher[1]
+//
+// Two running values replaced together (`accum2`): the first is `value`, the second the Fisher
+// line, which needs `value` as it is on THIS bar and so writes its update out again. The snap is a
+// choice on its own value, so nothing in its SHAPE proves that where it started stops mattering;
+// it is offered on evidence instead, like `supertrend` and `sar`. GRADED: this exact tree, through
+// this engine, with each value restarted FISHER_WARMUP bars back, equals TradingView's Fisher line
+// on every bar it has a value for at both lengths (8,209 of 8,209; largest relative difference 3
+// parts in 10 quadrillion). It has no value on a chart's first FISHER_WARMUP bars, where
+// TradingView's has one from the first full range. The capture is vendor data and is not in the
+// repository; `callExpansions.test.js` holds this builder to the fingerprint of the tree that was
+// graded, so the evidence cannot drift from the code.
+//
+// ⛔ NO PINE NAME. Pine has no `ta.fisher`; `pine.js::BUILTIN_CALL_TREE` gets no entry for it, and
+// the translator's output is unchanged by this function existing.
+//
+// The trigger line TradingView draws beside it is `fisher(n)[1]`: the same function, one bar back.
+export const FISHER_WARMUP = 300
+export const FISHER_NOTE = `This Fisher Transform starts each value ${FISHER_WARMUP} bars back on every bar, so the first ${FISHER_WARMUP} bars of a chart's history have no value. After that it is equal to TradingView's Fisher Transform on captured charts.`
+
+export function fisherTree(lengthNode, warmup = FISHER_WARMUP) {
+  const n = windowOf(lengthNode, 2)
+  if (!Number.isFinite(n)) return null
+  // every use is a fresh node: a stored tree shares nothing
+  const hl2 = () => cOp('/', [cOp('+', [cSeries('high'), cSeries('low')]), cNum(2)])
+  const lo = () => cCall('lowest', [hl2(), cNum(n)])
+  const hi = () => cCall('highest', [hl2(), cNum(n)])
+  const x = () => cOp('/', [cOp('-', [hl2(), lo()]), cOp('-', [hi(), lo()])])
+  const raw = () => cOp('+', [
+    cOp('*', [cNum(0.66), cOp('-', [x(), cNum(0.5)])]),
+    cOp('*', [cNum(0.67), cCall('nz', [cSeries('state1'), cNum(0)])]),
+  ])
+  const value = () => cOp('?:', [
+    cOp('>', [raw(), cNum(0.99)]), cNum(0.999),
+    cOp('?:', [cOp('<', [raw(), cNum(-0.99)]), cNum(-0.999), raw()]),
+  ])
+  const fisher = cOp('+', [
+    cOp('*', [cNum(0.5), cCall('ln', [cOp('/', [cOp('+', [cNum(1), value()]), cOp('-', [cNum(1), value()])])])]),
+    cOp('*', [cNum(0.5), cCall('nz', [cSeries('state2'), cNum(0)])]),
+  ])
+  return cCall('accum2', [cNum(2), cNum(warmup), cNum(0), cNum(0), value(), fisher])
+}
+
 export const CALL_EXPANSIONS = Object.freeze({
   // ta.roc(src, n) = 100 * (src - src[n]) / src[n], grouped left (pine.js note).
   roc: {
@@ -459,6 +510,12 @@ export const CALL_EXPANSIONS = Object.freeze({
     min: 2, max: 2, signature: 'sarDirection(step, maxStep)', describe: 'the Parabolic SAR trend: 1 in an up-trend (the stop below price), −1 in a down-trend',
     vendorNote: SAR_NOTE,
     build: (a) => { const t = sarTrees(a[0], a[1]); return t ? t.direction : null },
+  },
+  // Fisher Transform — `fisherTree` above. NUMBER PENDING.
+  fisher: {
+    min: 1, max: 1, signature: 'fisher(length)', describe: 'the Fisher Transform as TradingView computes it: where the bar\'s midpoint sits in its range over `length` bars, smoothed, stretched with a log and smoothed again. Its trigger line is `fisher(length)` one bar earlier',
+    vendorNote: FISHER_NOTE,
+    build: (a) => fisherTree(a[0]),
   },
 })
 
@@ -688,6 +745,12 @@ function candidates(t) {
         out.push(['sarDirection', [stepNode, maxNode]])
       }
     }
+  }
+  // fisher: an `accum2` whose first update ranges something with `lowest(…, n)`; the length is
+  // read off that. Rebuilt and compared below, so a guess here can only miss, never misname.
+  if (isCall(t, 'accum2') && t.args.length === 6) {
+    const low = findNode(t.args[4], (n) => isCall(n, 'lowest') && n.args.length === 2)
+    if (low) out.push(['fisher', [low.args[1]]])
   }
   return out
 }

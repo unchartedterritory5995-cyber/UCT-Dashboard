@@ -2024,6 +2024,53 @@
    ]
   },
   {
+   "id": "named-fisher",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Add the Fisher Transform",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "fisher",
+         "args": [
+          {
+           "type": "num",
+           "value": 9
+          }
+         ]
+        }
+       },
+       {
+        "type": "series",
+        "tree": {
+         "type": "offset",
+         "value": 1,
+         "args": [
+          {
+           "type": "call",
+           "name": "fisher",
+           "args": [
+            {
+             "type": "num",
+             "value": 9
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
    "id": "held-own-words",
    "group": "example",
    "turns": [

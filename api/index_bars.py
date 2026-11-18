@@ -87,7 +87,11 @@ TF_MAP = {
 PERIOD_MAP = {
     "1m":  "7d",
     "2m":  "60d", "5m":  "60d", "15m": "60d", "30m": "60d",
-    "60m": "60d", "90m": "60d",
+    # ⭐ RS RATING L12 (2026-11-18): yfinance serves 730 days of 60m bars (^GSPC: 5,077 from 2023-12-20, read
+    # 2026-11-18); asking 60 days gave an hourly chart of an index, and Fred RS's RS line on any 1h chart
+    # (SP:SPX at the chart's own period), only its last 60 sessions. The finer intervals stay at yfinance's own
+    # 60-day cap.
+    "60m": "730d", "90m": "60d",
     # ⭐ RS RATING L9: daily reads the FULL period and is cut at `_daily_window_start`, the
     # same span the FMP primary reads, so primary and fallback answer alike (it was "5y").
     "1d":  "max", "5d":  "5y",  "1wk": "10y", "1mo": "max", "3mo": "max",
@@ -120,6 +124,11 @@ def index_symbols() -> list[str]:
 
 
 # ── yfinance fetch (the only slow tier) ──────────────────────────────────────
+def _quote(v) -> float:
+    """A yfinance price as its 2-decimal quote (yfinance carries float32-wide values: 7340.6298828125)."""
+    return round(float(v), 2)
+
+
 def _fetch_yf(yahoo_sym: str, interval: str, period: str,
               divisor: float) -> List[Dict[str, Any]]:
     """Pull the FULL available series from yfinance → [{t,o,h,l,c,v}] (unix-sec t,
@@ -148,10 +157,15 @@ def _fetch_yf(yahoo_sym: str, interval: str, period: str,
     for idx, row in df.iterrows():
         try:
             t = int(idx.timestamp())
-            o = float(row["Open"]) / divisor
-            h = float(row["High"]) / divisor
-            l = float(row["Low"]) / divisor
-            c = float(row["Close"]) / divisor
+            # ⭐ RS RATING L12 (2026-11-18): yfinance hands an index level as a float32-wide value (7340.6298828125 for
+            # the 7340.63 print), ~1e-7 off the quote TradingView reads; Fred RS's RS line on a 5m chart then differed
+            # from TradingView's on every bar (4,677 of 4,680 equal once rounded). Rounded to the source's own quote
+            # (cents: every yfinance symbol here, the indices and the ETF proxies, quotes 2 decimals) BEFORE the divisor,
+            # so DJX (^DJI / 100) and XSP (^GSPC / 10) keep their extra digits.
+            o = _quote(row["Open"]) / divisor
+            h = _quote(row["High"]) / divisor
+            l = _quote(row["Low"]) / divisor
+            c = _quote(row["Close"]) / divisor
             v_raw = row.get("Volume", 0)
             v = int(v_raw) if v_raw == v_raw else 0
         except (KeyError, ValueError, TypeError, AttributeError):
@@ -456,10 +470,86 @@ def _kick_bg_refresh(sym: str, tf: str) -> None:
             _bg_inflight.discard(key)
 
 
+#: ⭐ RS RATING L12 (2026-11-18): an INTRADAY copy this old, answered stale-while-revalidate, hands a chart an index a
+#: session or more behind: /api/bars/SPX?tf=15 served 2026-11-16 15:00 ET on 2026-11-18's first request (nobody had
+#: asked for it since), and only the NEXT request was current. Fred RS on a 15m chart then withheld its newest bars.
+#: Past this age the request refreshes the series itself, the stock path's "cold-stale -> synchronous first paint"
+#: rule (`bars_fetch._is_cold_stale_intraday`) applied to indices. Bounded by `yf_util.bounded_call`; a cold ^GSPC
+#: read measured 2026-11-18: 15m 0.17 s median (1.27 s worst of 3), 5m 0.19 s, 1m 0.16 s, 30m 0.16 s. The stale copy
+#: is served when the vendor answers nothing or another request is already refreshing it. A daily / weekly / monthly
+#: copy, and a short miss of an intraday TTL, keep stale-while-revalidate.
+COLD_STALE_S = 3600
+_now = time.time                    # the serve clock (a rail pins it)
+_INTRADAY_UI_TFS = frozenset({"1", "5", "15", "30", "60", "1h"})
+
+
+#: ⭐ RS RATING L12 (2026-11-18) — A NEWEST BAR STORED WHILE IT WAS FORMING IS A PARTIAL PRINT. A refresh in session
+#: stores the vendor's newest bar as it stands (the 15m 10:15 bar at 10:17:37 ET, close 7338.74); `newest_bar_is_forming`
+#: is derived at SERVE time from the bar's own time (`routers/bars._augment_with_bar_close_state`), so once that bar's
+#: period ends the stored copy hands it out as SETTLED with its partial close until the next refresh. Measured: an
+#: in-session SPX 15m copy served the 09:30 bar at 7350.26 (the print at ~09:35) where TradingView's settled bar is
+#: 7323.32, and production at 11:01 ET served the 10:15 bar at 7338.74 (final 7335.67, the refresh 25 s later).
+#: That bar is WITHHELD (the bars before it are served); the refresh brings the bar with its own close. A bar still
+#: forming at serve time is kept (it IS the forming bar), and so is one that had ended when the copy was stored.
+#: A bar ends at its step, or at its session's close (a 60m index bar opening 15:30 ends at 16:00).
+_INTRADAY_STEP_S = {"1": 60, "5": 300, "15": 900, "30": 1800, "60": 3600, "1h": 3600}
+
+
+def _intraday_bar_end(t, tf: str):
+    """Unix seconds at which the intraday bar opening at `t` ends, or None (not an intraday bar)."""
+    step = _INTRADAY_STEP_S.get(tf)
+    if not step or not isinstance(t, (int, float)) or isinstance(t, bool):
+        return None
+    end = float(t) + step
+    try:
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        from api.services.session_calendar import close_time
+        close = close_time(datetime.fromtimestamp(float(t), ZoneInfo("America/New_York")).date())
+        if close is not None and close.timestamp() > float(t):
+            end = min(end, close.timestamp())
+    except Exception:  # noqa: BLE001 - the step alone still bounds the bar
+        pass
+    return end
+
+
+def _settled_partial_withheld(series: list, tf: str, saved_at, now: float) -> list:
+    """`series` without a newest bar that was still forming when the copy was stored and has ended since (see above)."""
+    if not series or saved_at is None or not isinstance(series[-1], dict):
+        return series
+    end = _intraday_bar_end(series[-1].get("t"), tf)
+    if end is not None and float(saved_at) < end <= float(now):
+        return series[:-1]
+    return series
+
+
+def _cold_stale(tf: str, saved_at, now: float) -> bool:
+    return tf in _INTRADAY_UI_TFS and now - float(saved_at or 0) > COLD_STALE_S
+
+
+def _refresh_in_request(sym: str, tf: str) -> list:
+    """The series refreshed inside this request, or [] (another request holds the refresh, or no vendor answered:
+    the caller serves its stale copy). Shares `_bg_inflight` with the background refresh, so one fetch runs at a time."""
+    key = f"{sym}_{tf}"
+    with _bg_lock:
+        if key in _bg_inflight:
+            return []
+        _bg_inflight.add(key)
+    try:
+        return _refresh(sym, tf) or []
+    except Exception as e:  # noqa: BLE001 - recorded by _refresh; the stale copy is still a chart
+        logger.info(f"[index_bars] in-request refresh {sym} {tf} failed: {e}")
+        return []
+    finally:
+        with _bg_lock:
+            _bg_inflight.discard(key)
+
+
 def _cached_series(sym: str, tf: str, info: Optional[dict] = None):
     """Return (series, tier). Never blocks on yfinance when ANY cached data exists —
-    stale data is served immediately and a background refresh is kicked. `info`, when
-    given, is told when the served copy was stored (`info["saved_at"]`, None if none)."""
+    stale data is served immediately and a background refresh is kicked — EXCEPT an intraday copy older than
+    `COLD_STALE_S`, refreshed in the request (RS RATING L12). `info`, when given, is told when the served copy
+    was stored (`info["saved_at"]`, None if none)."""
     from api.services.cache import cache
     ttl = _TTL.get(tf, 300)
     now = time.time()
@@ -473,6 +563,11 @@ def _cached_series(sym: str, tf: str, info: Optional[dict] = None):
         info["saved_at"] = mem.get("saved_at")
         if now - mem.get("saved_at", 0) <= ttl:
             return mem["series"], "index-mem"
+        if _cold_stale(tf, mem.get("saved_at"), now):
+            fresh = _refresh_in_request(sym, tf)
+            if fresh:
+                info["saved_at"] = (cache.get(mkey) or {}).get("saved_at")
+                return fresh, "index-yf"
         _kick_bg_refresh(sym, tf)          # stale but usable → serve + revalidate
         return mem["series"], "index-mem-stale"
 
@@ -482,6 +577,11 @@ def _cached_series(sym: str, tf: str, info: Optional[dict] = None):
         cache.set(mkey, disk, ttl=max(ttl, 60))
         if now - disk.get("saved_at", 0) <= ttl:
             return disk["series"], "index-disk"
+        if _cold_stale(tf, disk.get("saved_at"), now):
+            fresh = _refresh_in_request(sym, tf)
+            if fresh:
+                info["saved_at"] = (cache.get(mkey) or {}).get("saved_at")
+                return fresh, "index-yf"
         _kick_bg_refresh(sym, tf)
         return disk["series"], "index-disk-stale"
 
@@ -542,7 +642,7 @@ def fetch_index_bars(ticker: str, tf: str = "D", bars: int = 600,
     except Exception:
         pass
 
-    out = series or []
+    out = _settled_partial_withheld(series or [], tf, info.get("saved_at"), _now())
     if since is not None:
         out = [b for b in out if b["t"] > since]
     if len(out) > bars:

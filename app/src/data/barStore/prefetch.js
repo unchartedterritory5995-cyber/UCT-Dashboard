@@ -199,6 +199,15 @@ export const LAKE_BEHIND_MAX_MS = 1200
  *  after the key (4/4), so a held copy painted alone at ~370 ms and the depth redrew the averages
  *  ~80 ms later. A lake already in the browser joins in tens of ms; only a cold load waits. */
 export const LAKE_JOIN_WAIT_MS = 550
+/** The edge warm of a list (edgeWarmList): the chart timeframes that warm (the chart's own, then 60m,
+ *  the deepest and slowest cold), the rows per list, the keys per page (each ~1 index GET + 2-23 HEADs),
+ *  and how long after the latest list it starts. */
+export const EDGE_WARM_TFS = Object.freeze(['60', '30', '5'])
+export const EDGE_WARM_CAP = 40
+export const EDGE_WARM_PAGE_BUDGET = 200
+export const EDGE_WARM_DELAY_MS = 1500
+/** historyFeed.edgeWarm's answer when the edge refused the member (401/403): the warm stops for the page. */
+export const EDGE_WARM_REFUSED = -1
 /** How long a typed text the daily pack does not know may wait for the lake's answer to "is it a
  *  ticker?" (its index: one edge round trip) before the warm gives up on it. */
 export const INTENT_LAKE_INDEX_WAIT_MS = 400
@@ -531,7 +540,17 @@ export function createPrefetch(o = {}) {
     // a key the lake cannot carry (no lake, D/W/M, a replay window, found exhausted) answers at once:
     // nothing waits on the cache read for it
     if (!S().lakeCarries?.(key)) return Promise.resolve(false)
-    return Promise.resolve(after).catch(() => {})
+    // ⭐ THE CACHE READ GOES FIRST, BUT FOR AT MOST HYDRATE_WAIT_MS (2026-11-18). Measured live (MDB 1h,
+    // never opened): the lake's pieces were in the browser at 862 ms, but the IDB read the load waited
+    // for answered at ~1,240 ms (the list warm writes to the same database), and the depth joined then.
+    // A read that answers within the bound still lands first (never overtaken); a later one is merged
+    // by the reducer's rule (applyLocal: a saved copy after the lake joins it only on a proven basis,
+    // otherwise replaces it). The same bound the handoff gives the read before it asks the server.
+    const bounded = Promise.race([
+      Promise.resolve(after).catch(() => {}),
+      new Promise((resolve) => setTimer(resolve, HYDRATE_WAIT_MS)),
+    ])
+    return bounded
       .then(() => S().lakeSeed?.(key) ?? false)
       .catch(() => false)
   }
@@ -695,7 +714,7 @@ export function createPrefetch(o = {}) {
           }
           // the chart's own target: deeper where the lake carries the key (historyPrepend)
           const lakeCarries = !!S().lakeCarries?.(k)
-          if (!s?.restSeen || !s.bars?.length || s.status === STATUS.UNAVAILABLE || s.depth >= prefetchTargetBars(lakeCarries)) break
+          if (!s?.restSeen || !s.bars?.length || s.status === STATUS.UNAVAILABLE || s.depth >= prefetchTargetBars(lakeCarries, parseKey(k)?.tf)) break
           // ⭐ Where the lake carries it, the WHOLE depth in one load (store.lakeSeed), so the flip paints
           // the row as deep as the chart will ever hold it (2026-11-17: two windows left it at ~13,000 of
           // 20,000, and the chart's own deepening then showed in view). Server windows otherwise.
@@ -758,6 +777,67 @@ export function createPrefetch(o = {}) {
     prefetchBarsToIDB(list.slice(memTop), tf, { priority: true })
     if (tf !== 'D') prefetchBarsToIDB(list, 'D', { priority: true })
     warmMemFromIDB(list.slice(0, memTop), tf !== 'D' ? [tf, 'D'] : ['D'])
+    edgeWarmList(list, { chartTf: tf })
+  }
+
+  // ── the EDGE warm of a list's intraday history (2026-11-18) ──
+  // Owner's standard: a ticker opened on 1h (any intraday tf), zoomed all the way out, shows its whole
+  // history at once. Its pieces load in ~70 ms when this data center's edge already holds them and
+  // 300-950 ms when it does not (measured live), so a list a member views on an INTRADAY chart warms
+  // the edge for its top rows: HEADs, no bodies (historyFeed.edgeWarm). Bounded (review of #1880):
+  //  - only intraday callers (a daily list such as Market Map warms nothing), and only the chart's own
+  //    timeframe plus 60m (the deepest), for the first EDGE_WARM_CAP rows;
+  //  - a new list REPLACES the queue (the old list is off screen); EDGE_WARM_PAGE_BUDGET keys per page;
+  //  - one key at a time, EDGE_WARM_DELAY_MS after the latest list (its own bars go first);
+  //  - a hidden tab pauses it; a 401/403 (no entitlement) stops it for the page.
+  const edgeQueue = []
+  const edgeDone = new Set()
+  let edgeRunning = false
+  let edgeBlocked = false
+  let edgeSpent = 0
+  let edgeListAt = 0
+  const edgeHidden = () => { try { return typeof document !== 'undefined' && document.visibilityState === 'hidden' } catch { return false } }
+  function edgeWarmList(tickers, { chartTf = 'D', cap = EDGE_WARM_CAP } = {}) {
+    const st = S()
+    const tf0 = String(chartTf)
+    if (edgeBlocked || !st?.lakeEdgeWarm || !tickers?.length || !EDGE_WARM_TFS.includes(tf0)) return
+    const list = [...new Set(tickers.filter(Boolean))].slice(0, cap)
+    const fresh = []
+    for (const tf of [...new Set([tf0, '60'])]) {
+      for (const sym of list) {
+        const k = keyFor(sym, tf)
+        if (!k || edgeDone.has(k) || fresh.includes(k)) continue
+        let carries = false
+        try { carries = !!st.lakeCarries?.(k) } catch { carries = false }
+        if (carries) fresh.push(k)
+      }
+    }
+    // the list on screen replaces the one before it; the same list sent again (a retime, a refresh)
+    // neither restarts the delay nor reorders the queue
+    const same = fresh.length === edgeQueue.length && fresh.every((k, i) => k === edgeQueue[i])
+    if (!same) {
+      edgeQueue.length = 0
+      edgeQueue.push(...fresh)
+      edgeListAt = Date.now()
+    }
+    if (edgeRunning || !fresh.length) return
+    edgeRunning = true
+    const pause = (ms) => new Promise((r) => setTimeout(r, ms))
+    ;(async () => {
+      try {
+        while (edgeQueue.length && !edgeBlocked && edgeSpent < EDGE_WARM_PAGE_BUDGET) {
+          const wait = edgeListAt + EDGE_WARM_DELAY_MS - Date.now()
+          if (wait > 0) { await pause(wait); continue }
+          if (edgeHidden()) break      // the next list a visible page opens resumes it
+          const k = edgeQueue.shift()
+          if (edgeDone.has(k)) continue
+          edgeDone.add(k); edgeSpent++
+          let r = 0
+          try { r = await S().lakeEdgeWarm(k) } catch { r = 0 }
+          if (r === EDGE_WARM_REFUSED) edgeBlocked = true
+        }
+      } finally { edgeRunning = false }
+    })()
   }
 
   function prefetchListDeep(tickers, { tfs = DEEP_WARM_TFS, cap = DEEP_WARM_CAP, priority = false } = {}) {
@@ -898,7 +978,7 @@ export function createPrefetch(o = {}) {
     keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, prepareForDisplay, prepareDailyForDisplay, lakePending,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
-    prefetchBarOnIntent, warmTypedSymbol, createNeighborHold,
+    prefetchBarOnIntent, warmTypedSymbol, createNeighborHold, edgeWarmList,
     /** @internal */ _stats: () => ({ asked: asked.size, preparing: preparing.size, urgent: urgentCtl.size }),
   }
 }
@@ -930,6 +1010,7 @@ export function prefetchReplayTimeframes(sym, cutoffIso, opts = {}) { return _f(
 export function prefetchBarOnIntent(sym, tf = 'D', opts = {}) { return _f().prefetchBarOnIntent(sym, tf, opts) }
 export function warmTypedSymbol(sym, tf = 'D') { return _f().warmTypedSymbol(sym, tf) }
 export function createNeighborHold() { return _f().createNeighborHold() }
+export function edgeWarmList(tickers, opts = {}) { return _f().edgeWarmList(tickers, opts) }
 
 // ⭐ THE WARMERS' REGISTRY (2026-11-17, utils/barsWarm.js). Under BARSTORE the store's warmers
 // stand in for the legacy ones on every list that warms through `barsWarm`, so a list's warm

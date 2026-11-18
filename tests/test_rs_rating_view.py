@@ -38,6 +38,7 @@ from api.services.screener import snapshot_db
 from api.services.signature import registry_defs as rd
 from api.services.signature import rs_provider as rsp
 from tests.test_indicator_golden import _rs_event_inputs, load_case
+from tests.test_rs_phase3_math import MANSFIELD_FLOAT_COLUMNS, _mansfield_float_pinned
 from tests.test_rs_columns_provider import _hermetic_reads, _no_cache  # noqa: F401 - fixtures by name
 
 NB = "\u00a0"
@@ -423,7 +424,13 @@ def test_rev_5_owes_no_alert_migration_phase1_and_mansfield_stay_byte_identical(
     for col, exp in ev["expected"].items():
         assert json.dumps(got[col]) == json.dumps(exp) == json.dumps(again[col]), col
     for col in rsmod.PHASE2A_COLUMNS:
-        assert json.dumps(man[col]) == json.dumps(mf["expected"][col]) == json.dumps(man2[col]), col
+        # the float column within its golden tolerance, every discrete column byte for byte (re-pin 2026-11-18,
+        # `tests/test_rs_phase3_math.py::MANSFIELD_FLOAT_COLUMNS`); the second run equals the first byte for byte
+        if col in MANSFIELD_FLOAT_COLUMNS:
+            assert _mansfield_float_pinned(man[col], mf["expected"][col], mf["relTol"]), col
+        else:
+            assert json.dumps(man[col]) == json.dumps(mf["expected"][col]), col
+        assert json.dumps(man2[col]) == json.dumps(man[col]), col
     alert_src = (ROOT / "api/services/alert_rs_series.py").read_text(encoding="utf-8")
     assert "ratingLine" not in alert_src and "ratingMa" not in alert_src and "ratingHistory" not in alert_src
     rel_src = (ROOT / "api/services/relative_strength.py").read_text(encoding="utf-8")

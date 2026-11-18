@@ -146,9 +146,9 @@ def test_the_evidence_says_what_was_read_and_where():
 
 
 def test_what_the_library_claims_about_tradingview_is_what_was_graded():
-    """Twenty-eight entries are TradingView built-ins and were graded against them in three batches
+    """Thirty entries are TradingView built-ins and were graded against them in four batches
     (2026-11-18; the method and grades are in docs/indicators/evidence/2026-11-18-named-library/).
-    Twenty-four are equal on every bar; two are equal after their first bars. Two claim NOTHING
+    Twenty-five are equal on every bar; three are equal after their first bars. Two claim NOTHING
     about TradingView, each for a stated reason: the McGinley Dynamic (UCT's 300-bar restart of the
     same formula is not bar-equal) and the Directional Movement Index (one floating-point tie on
     one bar of 8,509). Two are not TradingView built-ins and have no capture."""
@@ -163,8 +163,12 @@ def test_what_the_library_claims_about_tradingview_is_what_was_graded():
         "aroon", "on_balance_volume", "accumulation_distribution_line", "price_volume_trend",
         "percentage_price_oscillator", "know_sure_thing", "mass_index", "force_index", "ease_of_movement", "ulcer_index",
         # after the rulings of 2026-11-18: the Negative Volume Index in its compounding form (version 2), and TRIX
-        "negative_volume_index", "trix"])
-    assert sorted(i for i, g in grade.items() if g == "EQUAL AFTER WARM-UP") == ["chandelier_exit", "connors_rsi"]
+        "negative_volume_index", "trix",
+        # the fourth batch: the Positive Volume Index, both lines on every bar
+        "positive_volume_index"])
+    # the Fisher Transform is recomputed from 300 bars back on every bar: equal on every bar it has a
+    # value for, at two lengths, with no value on the first 300 bars of a chart's history
+    assert sorted(i for i, g in grade.items() if g == "EQUAL AFTER WARM-UP") == ["chandelier_exit", "connors_rsi", "fisher_transform"]
     assert grade["mcginley_dynamic"] == "FORMULA EQUAL, RESTART DIFFERS"
     assert grade["directional_movement_index"] == "FORMULA EQUAL, ONE ROUNDING TIE DIFFERS"
     for silent in ("mcginley_dynamic", "directional_movement_index"):
@@ -310,7 +314,7 @@ def test_nothing_near_it_counts(change, why):
 
 
 @pytest.mark.parametrize("value, why", [
-    (1, "under the parameter's minimum"), (401, "over its maximum"), (14.5, "not a whole number"),
+    (1, "under the parameter's minimum"), (5001, "over its maximum"), (14.5, "not a whole number"),
     (True, "not a number"), ("14", "text"), (None, "nothing"),
 ])
 def test_a_parameters_number_must_be_one_it_can_take(value, why):
@@ -392,7 +396,7 @@ def test_the_assistant_is_handed_the_formula_as_data(conv):
     (o,) = term["outputs"]
     assert o["tree"] == MCG_OUT["tree"] and o["label"] == "McGinley Dynamic" and o["type"] == "value"
     assert o["formula"] == "accum(close, self + (close - self) / (14 * pow(close / self, 4)), 300)"
-    assert term["numbers"] == [{"name": "Length", "in_the_formula": "14", "min": 2, "max": 400, "whole_number": True}]
+    assert term["numbers"] == [{"name": "Length", "in_the_formula": "14", "min": 2, "max": 5000, "whole_number": True}]
     # the whole turn stays well inside what one turn may carry, for the largest entry too
     biggest = conv.understand_turn("Add the Squeeze Momentum Indicator", CHART)
     assert len(json.dumps(biggest["notes"])) < conv.MAX_INPUT_CHARS // 4
@@ -434,7 +438,7 @@ def test_NEVER_APPROXIMATED_a_substitute_is_refused_twice_and_nothing_is_built(c
     told = client.calls[1]["messages"][-1]["content"][0]["content"]
     assert "[named:formula]" in told and "ONE checked formula" in told
     assert "mcginley = accum(close, self + (close - self) / (14 * pow(close / self, 4)), 300)" in told
-    assert "Length 14 (2 to 400)" in told
+    assert "Length 14 (2 to 5000)" in told
 
 
 def test_a_substitute_then_the_formula_is_one_repair(conv, clean_env, model):
@@ -445,7 +449,7 @@ def test_a_substitute_then_the_formula_is_one_repair(conv, clean_env, model):
     assert any("Kaufman Adaptive Moving Average" in a["text"] for a in r["envelope"]["assumptions"])
 
 
-@pytest.mark.parametrize("values, why", [({"length": 1}, "under its minimum"), ({"length": 999}, "over its maximum")])
+@pytest.mark.parametrize("values, why", [({"length": 1}, "under its minimum"), ({"length": 5001}, "over its maximum")])
 def test_a_number_the_parameter_cannot_take_is_not_the_formula(conv, clean_env, model, values, why):
     bad = env(0, [create("mcginley_dynamic", values)])
     model([emits(bad), emits(bad)])
@@ -560,3 +564,43 @@ def test_CONTROL_the_same_words_without_the_entry_are_the_unknown_name_rule(conv
     client = model([])
     r = conv.converse("Add the Zeta Wave", user_id="u1", view=empty_view(0))
     assert r["gate"] == "concept:ungrounded" and client.calls == []
+
+
+# ── a parameter's range is what the MATHS allows, not a round cap (ruling 2026-11-18) ──
+
+def test_a_parameters_range_is_its_validity_range_and_nothing_tighter():
+    """The formula is what is checked, not each value: any value the maths can take is still UCT's
+    checked formula. A count of bars may be as long as the chart's own history window (a longer
+    one can never have a value); the Bollinger multiplier keeps TradingView's own input limits; a
+    multiplier TradingView leaves unlimited needs only to be positive."""
+    from api.services.bars_window import HISTORY_WINDOW_BARS
+    assert HISTORY_WINDOW_BARS == 5000
+    floats = {}
+    for e in ni.entries():
+        for p in e["params"]:
+            if p["integer"] and p["key"] != "divisor":
+                assert p["max"] == HISTORY_WINDOW_BARS and 1 <= p["min"] <= 3, (e["id"], p["key"])
+            elif p["integer"]:
+                assert (e["id"], p["key"], p["min"]) == ("ease_of_movement", "divisor", 1)
+            else:
+                floats[(e["id"], p["key"])] = (p["min"], p["max"])
+    assert floats == {("squeeze_momentum", "bb_mult"): (0.001, 50), ("squeeze_momentum", "kc_mult"): (0.001, 1000),
+                      ("chandelier_exit", "multiplier"): (0.001, 1000)}
+    # so a long length is still the checked indicator (it was refused over 400)
+    kama = ENTRIES["kaufman_adaptive_moving_average"]
+    tree = create("kaufman_adaptive_moving_average", {"slow": 1200})["outputs"][0]["tree"]
+    assert ni.output_in(tree, kama, kama["outputs"][0])["slow"] == 1200.0
+
+
+def test_every_output_says_what_it_is_in_one_phrase():
+    """The read-back of a library indicator says this phrase, not the formula in words."""
+    seen = set()
+    for e in ni.entries():
+        for o in e["outputs"]:
+            says = o.get("says")
+            assert isinstance(says, str) and 20 <= len(says) <= 120, (e["id"], o["key"], says)
+            assert says == says.strip() and not says.endswith(".") and len(says.splitlines()) == 1, (e["id"], o["key"])
+            assert says not in seen, ("two outputs say the same thing", says)
+            seen.add(says)
+    assert ENTRIES["on_balance_volume"]["outputs"][0]["says"] == (
+        "a running total of volume, added on up closes and subtracted on down closes")

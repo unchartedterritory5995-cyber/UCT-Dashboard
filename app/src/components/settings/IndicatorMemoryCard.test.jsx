@@ -68,6 +68,25 @@ describe('What Create Indicator remembers', () => {
     expect(screen.getByTestId('memory-from-average_length').textContent).toBe('Asked each time, with yours listed first. You set this here on 17 Nov.')
     expect(screen.getByTestId('memory-from-cross_meaning').textContent).toBe('Not asked yet. It will ask the first time this comes up.')
     expect(screen.getByText('Forget everything').disabled).toBe(false)
+    // no habit sent: no line about one
+    expect(screen.queryByTestId('memory-usual-average_kind')).toBeNull()
+  })
+
+  it('what the member USUALLY uses is shown in the server\'s own words, on the row it belongs to', async () => {
+    const usual = 'From your saved indicators: Exponential (EMA), in 7 of 9. Offered first when it asks; nothing is stored.'
+    const data = view(null, L21, null)
+    data.questions[0] = { ...data.questions[0], usual }
+    data.questions[1] = { ...data.questions[1], usual: '' }          // an empty one is no line
+    data.questions[2] = { ...data.questions[2], usual: { text: 'x' } }   // nor is anything that is not text
+    server([data])
+    render(<IndicatorMemoryCard />)
+    await flush()
+    expect(screen.getByTestId('memory-usual-average_kind').textContent).toBe(usual)
+    expect(row('average_kind').contains(screen.getByTestId('memory-usual-average_kind'))).toBe(true)
+    expect(screen.queryByTestId('memory-usual-average_length')).toBeNull()
+    expect(screen.queryByTestId('memory-usual-cross_meaning')).toBeNull()
+    // it is a line of text, never a control: the dropdown still says the door will ask
+    expect(within(row('average_kind')).getByRole('button').textContent).toMatch(new RegExp(ASK_LABEL))
   })
 
   it('changing a choice sends that question and one of its own values, and shows what the server kept', async () => {

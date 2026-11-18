@@ -164,8 +164,8 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.chgUp { color: var(--gain); }
-.chgDown { color: var(--loss); }
+.chgUp { color: var(--success-ink); }
+.chgDown { color: var(--danger-ink); }
 
 /* The timeframe pill — top-right of the strip (moved up from the bottom
    toolbar 2026-09-11 so that row can carry shortcut tools). The primary
@@ -674,20 +674,20 @@
 }
 .alertBtn:disabled { opacity: 0.4; cursor: default; }
 .alertBtnUp {
-  color: var(--gain);
+  color: var(--success-ink);
   border-color: color-mix(in srgb, var(--gain) 55%, transparent);
   background: color-mix(in srgb, var(--gain) 10%, transparent);
 }
 .alertBtnUp:active { background: color-mix(in srgb, var(--gain) 20%, transparent); }
 .alertBtnDown {
-  color: var(--loss);
+  color: var(--danger-ink);
   border-color: color-mix(in srgb, var(--loss) 55%, transparent);
   background: color-mix(in srgb, var(--loss) 10%, transparent);
 }
 .alertBtnDown:active { background: color-mix(in srgb, var(--loss) 20%, transparent); }
 
-.alertOk { color: var(--gain); font-size: 13px; }
-.alertErr { color: var(--loss); font-size: 13px; }
+.alertOk { color: var(--success-ink); font-size: 13px; }
+.alertErr { color: var(--danger-ink); font-size: 13px; }
 
 /* ── Landscape immersive (phone rotated) ───────────────────────────────────
  * TradingView's rotate-to-fullscreen: while the chart shell is mounted, a
@@ -817,8 +817,8 @@
    is what restarts the animation on consecutive same-direction ticks. */
 .priceFlashUp { animation: priceFlashUp 0.7s ease-out; }
 .priceFlashDown { animation: priceFlashDown 0.7s ease-out; }
-@keyframes priceFlashUp { 0%, 40% { color: var(--gain); } }
-@keyframes priceFlashDown { 0%, 40% { color: var(--loss); } }
+@keyframes priceFlashUp { 0%, 40% { color: var(--success-ink); } }
+@keyframes priceFlashDown { 0%, 40% { color: var(--danger-ink); } }
 
 /* Active-indicator count badge on the toolbar's ƒx button — chart state
    visible without opening the sheet. */
@@ -1092,7 +1092,7 @@
 .swatchOn::before { box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--text-bright); }
 .swatchesStacked { gap: 0; justify-content: flex-start; margin-left: -7px; }
 
-.removeRow .rowLabel { color: var(--loss); }
+.removeRow .rowLabel { color: var(--danger-ink); }
 
 /* ── Study editor: groups, help text, dimming, presets (UCT RS Phase 2a, 2a-11) ─
    One field = .paramField, a column: the .paramRow line (label + control,
@@ -1249,7 +1249,7 @@
   color: var(--text-dim);
   cursor: pointer;
 }
-.layoutDel:active { color: var(--loss, #ef4444); }
+.layoutDel:active { color: var(--danger-ink, #ef4444); }
 
 /* COV-06 phone door: the per-layout Version history control (same footprint as
    delete, not destructive) and a host that holds the shared history/Recently
@@ -1287,7 +1287,7 @@
   font-size: 12px;
   cursor: pointer;
 }
-.layoutConfirmYes { color: var(--loss, #ef4444); border-color: color-mix(in srgb, var(--loss, #ef4444) 45%, transparent); }
+.layoutConfirmYes { color: var(--danger-ink, #ef4444); border-color: color-mix(in srgb, var(--loss, #ef4444) 45%, transparent); }
 .layoutConfirmNo { color: var(--text-dim); }
 
 /* Firm-published rows are read-only for a member: the badge is the reason the
@@ -1342,7 +1342,7 @@
 }
 .layoutPrimary:disabled { opacity: 0.45; cursor: default; }
 
-.layoutErr { color: var(--loss, #ef4444); font-size: 12.5px; }
+.layoutErr { color: var(--danger-ink, #ef4444); font-size: 12.5px; }
 .layoutNote { color: var(--text-dim); font-size: 12px; line-height: 1.5; padding: 4px 12px 10px; }
 
 /* ─── symbol search: disambiguation (item 5) ───────────────────────────────

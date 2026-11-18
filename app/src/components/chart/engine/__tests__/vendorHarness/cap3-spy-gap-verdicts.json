@@ -567,18 +567,12 @@
       "script": "corpus/committed/contraction-box-doji-lines__1486658151.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [],
         "objects": [
-          "DIVERGE",
-          [
-            [
-              "lines",
-              204,
-              205
-            ]
-          ]
+          "MATCH",
+          []
         ],
         "paints": null
       },

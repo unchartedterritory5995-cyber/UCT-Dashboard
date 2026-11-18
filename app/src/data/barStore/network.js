@@ -38,7 +38,7 @@
 // owner). No other barStore file spells the endpoint.
 
 import { barsLaneRequest, barsBeforeUrl, promoteLaneRequest } from '../../utils/prefetchBars'
-import { historyWindowUrl, prependOlder, etDateOf, HISTORY_WINDOW_BARS, LAKE_WINDOW_BARS, LAKE_PREFETCH_TARGET_BARS } from '../../utils/historyPrepend'
+import { historyWindowUrl, prependOlder, etDateOf, HISTORY_WINDOW_BARS, LAKE_WINDOW_BARS, lakeTargetBars } from '../../utils/historyPrepend'
 import {
   nextTailPollMs, createTailPollState, intradayDedupMs, INTRADAY_POLL_MS, REPAIR_DEDUP_MS,
   tailRetriesExhausted,
@@ -178,7 +178,10 @@ export function createNetwork({
   /** key → per-key slot + loop state */
   const keys = new Map()
   const lakeSeeds = new Map()      // key -> the lake load in flight (lakeSeed), shared by its callers
-  const lakeSettled = new Set()    // keys whose lake load has finished this page (whatever it added)
+  // key -> bars its entry held when its lake load finished on this page (whatever it added). A copy
+  // now shallower than that was evicted and rebuilt, so its depth is due again; a load that found no
+  // entry to join into never settles (review of #1795).
+  const lakeSettled = new Map()
   const LAKE_SETTLED_MAX = 2000
   let requests = 0
   /** key → Set<cb>: listeners of the key's catch-up budget (DELAYED badge, `tailExhausted`). */
@@ -198,9 +201,19 @@ export function createNetwork({
     // ⭐ DEPTH WITHOUT A SCROLL: a chart that subscribes gets one window of older bars from the
     // lake as soon as its first answer lands, so zooming out finds them already there. Charts
     // only (a warm or a one-shot ask has no refs), and only where the lake can answer.
+    // ⭐ ...and where the entry is SHALLOWER than a lake load already left it (a saved copy on another
+    // basis replaced the lake's rows before this answer, reducer applyLocal), the depth comes back in
+    // ONE join (lakeSeed), not in scroll-back windows; the window is the fallback when that join adds
+    // nothing, and the path of a key the lake was never asked for.
     if (history && r.refs > 0 && _lakeCarries(r)) {
       const s = registry.getSnapshot(r.key)
-      if (s.bars.length) api.scrollBack(r.key, { priority: 'background' }).catch(() => {})
+      if (s.bars.length) {
+        const window = () => api.scrollBack(r.key, { priority: 'background' }).catch(() => {})
+        if (lakeSettled.has(r.key) && api.lakePending(r.key)) {   // a load left it deeper than it is now
+          Promise.resolve().then(() => api.lakeSeed(r.key)).catch(() => false)
+            .then((joined) => { if (!joined) return window() })
+        } else window()
+      }
     }
     for (const cb of [...(answerSubs.get(r.key) || [])]) { try { cb() } catch { /* ignore */ } }
   }
@@ -545,6 +558,12 @@ export function createNetwork({
       if (!history?.prime || !lakeCarriesKey(key)) return
       try { history.prime(key) } catch { /* a warm only */ }
     },
+    /** Warm the EDGE's copy of `key`'s whole lake depth (historyFeed `edgeWarm`: index into the page,
+     *  pieces HEADed, no body). Resolves the pieces asked; 0 where the lake does not carry. */
+    lakeEdgeWarm(key, opts) {
+      if (!history?.edgeWarm || !lakeCarriesKey(key)) return Promise.resolve(0)
+      try { return Promise.resolve(history.edgeWarm(key, opts)).catch(() => 0) } catch { return Promise.resolve(0) }
+    },
     /**
      * ⭐ LAKE FIRST PAINT (2026-11-17). A chart with nothing saved in this browser waits on the bar
      * server's first answer, and a cold read there can take seconds (FROG 5m: `bars(sqlite)=1523`,
@@ -570,7 +589,7 @@ export function createNetwork({
     // painted only when rows were actually added.
     //
     // ⭐ ONE LOAD, THE WHOLE DEPTH (2026-11-17, owner: "it shows a good chunk, then the rest a quick
-    // blink later"). The lake's newest LAKE_PREFETCH_TARGET_BARS come in ONE load (the background
+    // blink later"). The lake's newest lakeTargetBars(tf) come in ONE load (the background
     // depth the chart would otherwise reach in steps after the first paint), and a load that lands
     // AFTER the server's answer still joins: the reducer adds only the rows older than what is held,
     // and only where the shared bars prove the held basis. Resolves 'seed' (rows added before any
@@ -578,11 +597,12 @@ export function createNetwork({
     // (the handoff and the chart's subscribe share it), none once the key is that deep.
     lakeSeed(key) {
       if (!history?.olderBars || !lakeCarriesKey(key)) return Promise.resolve(false)
-      if ((registry.peek(key)?.bars.length ?? 0) >= LAKE_PREFETCH_TARGET_BARS) return Promise.resolve(false)
+      const target = lakeTargetBars(parseKey(key)?.tf)
+      if ((registry.peek(key)?.bars.length ?? 0) >= target) return Promise.resolve(false)
       const running = lakeSeeds.get(key)
       if (running) return running
       const p = Promise.resolve()
-        .then(() => history.olderBars(key, Math.floor(now() / 1000) + 1, { bars: LAKE_PREFETCH_TARGET_BARS }))
+        .then(() => history.olderBars(key, Math.floor(now() / 1000) + 1, { bars: target }))
         .then((got) => {
           const cur = registry.peek(key)
           if (!got || !Array.isArray(got.bars) || !got.bars.length || !cur) return false
@@ -595,8 +615,18 @@ export function createNetwork({
         .catch(() => false)
         .finally(() => {
           if (lakeSeeds.get(key) === p) lakeSeeds.delete(key)
-          lakeSettled.add(key)
-          if (lakeSettled.size > LAKE_SETTLED_MAX) lakeSettled.delete(lakeSettled.values().next().value)
+          const cur = registry.peek(key)
+          const held = cur?.bars.length
+          if (held == null) return          // nothing to join into: still due when the key is built
+          // Before a server answer a settle never LOWERS the depth an earlier load reached (review of
+          // #1884): a load refused by a saved copy that replaced the lake's rows would otherwise mark
+          // the depth done while the chart is shallow, and it would come back in scroll-back steps.
+          // An answered entry settles at what it holds (the answer proved it): no load loops.
+          const prev = lakeSettled.get(key)
+          const depth = !cur.restSeen && prev != null ? Math.max(prev, held) : held
+          lakeSettled.delete(key)
+          lakeSettled.set(key, depth)
+          if (lakeSettled.size > LAKE_SETTLED_MAX) lakeSettled.delete(lakeSettled.keys().next().value)
         })
       lakeSeeds.set(key, p)
       return p
@@ -606,8 +636,10 @@ export function createNetwork({
      *  handoff's fast path then waits for the join instead of painting a shallow copy (prefetch). */
     lakePending(key) {
       if (!history?.olderBars || !lakeCarriesKey(key)) return false
-      if ((registry.peek(key)?.bars.length ?? 0) >= LAKE_PREFETCH_TARGET_BARS) return false
-      return !lakeSettled.has(key)
+      const held = registry.peek(key)?.bars.length ?? 0
+      if (held >= lakeTargetBars(parseKey(key)?.tf)) return false
+      const settled = lakeSettled.get(key)
+      return settled == null || held < settled
     },
     /** Would a scroll-back of `key` ask the history lake (intraday, not a replay window, the lake on
      *  and not found exhausted for this key)? Sets the background depth target (historyPrepend). */

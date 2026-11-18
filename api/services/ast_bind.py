@@ -59,6 +59,7 @@ import re
 from typing import Any, Mapping
 
 from api.services.ast_interpret import TABLE, _is_number, _refuse
+from api.services.pine_compare import pine_compare_ambiguous as _pine_compare_ambiguous
 
 
 def _load_symbol_scope() -> dict:
@@ -104,6 +105,8 @@ _FOLD_CALLS = {
     "sqrt": lambda a: math.sqrt(a) if a >= 0 else float("nan"),
     "pow": lambda a, b: float(a) ** float(b),
 }
+
+_CMP_OPS = frozenset((">", "<", ">=", "<=", "==", "!="))
 
 _BINARY = {
     "+": lambda a, b: a + b,
@@ -543,6 +546,10 @@ def fold_scalar(node: Any, consts: Mapping[str, Any]) -> float:
         if name == "!" and len(vals) == 1:
             return 0.0 if vals[0] else 1.0
         if name in _BINARY and len(vals) == 2:
+            # engine 78 (#1858) -- ``bind.js::foldScalar``: two numbers equal to TradingView only within
+            # its epsilon are not folded (the exact and the tolerant answer differ there).
+            if name in _CMP_OPS and _pine_compare_ambiguous(vals[0], vals[1]):
+                raise NotFoldable(f"{name!r} of two numbers equal only within Pine's comparison epsilon")
             return _BINARY[name](vals[0], vals[1])
         raise NotFoldable(f"operator {name!r}")
 

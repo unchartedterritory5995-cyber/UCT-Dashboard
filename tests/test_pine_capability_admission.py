@@ -826,8 +826,38 @@ def test_RT1_the_trend_targets_kill_is_lifted_on_its_own_condition():
 #: capability evidence alone. Every script that uses either family, is admitted, and has a committed
 #: capture grading DIVERGE on EITHER lane is on the committed kill list until its own `liftWhen`.
 DRAW1_NEW_OBJECT_FAMILIES = {"obj:box", "obj:table"}
-DRAW1_KILLED_SLUGS = {"contraction-box-doji-lines", "heat-map-seasons", "htf-candle-footprint-cartel-console",
+#: (contraction-box-doji-lines was the eighth: lifted on its own condition, below.)
+DRAW1_KILLED_SLUGS = {"heat-map-seasons", "htf-candle-footprint-cartel-console",
                       "sonarlab-order-blocks", "vw-object-gc-a", "vw-object-gc-b", "vw-object-gc-c"}
+
+
+#: The contraction-box-doji-lines kill (DRAW-1: SPY daily held one line more than TradingView, 205 vs 204 and 201 vs
+#: 200) was LIFTED by engine 78 (#1858) (Pine's tolerant compare, #1858): the extra line was a near-tie comparison,
+#: not the collector. Its `liftWhen` was "an engine fix to the line count, then a runtime-on re-grade to MATCH on
+#: -spy-1d-2026-10-03 and -2026-11-15"; both re-graded MATCH in #1858's own pine-heavy run 44319610649.
+CONTRACTION_LIFT = ("contraction-box-doji-lines-spy-1d-2026-10-03", "contraction-box-doji-lines-spy-1d-2026-11-15")
+
+
+def test_RT1_the_contraction_box_kill_is_lifted_on_its_own_condition():
+    src = (ROOT / "corpus" / "committed" / "contraction-box-doji-lines__1486658151.pine").read_text(encoding="utf-8")
+    assert rt.source_hash(src) not in rt.committed_kills() and not rt.killed(None, src)
+    v = _verdicts()
+    for cid in CONTRACTION_LIFT:
+        r = v[cid]
+        text = json.loads((ROOT / r["file"]).read_text(encoding="utf-8"))["source"]["text"]
+        assert rt.source_hash(text) == rt.source_hash(src), cid
+        assert r["verdict"] == "MATCH" and r["objects"]["verdict"] == "MATCH", cid
+        # the count that held the kill: every family's count agrees, lines included
+        counts = {c["family"]: c for c in r["objects"]["counts"]}
+        assert counts["lines"]["agree"] is True and counts["lines"]["vendor"] == counts["lines"]["ours"], cid
+        assert all(c["agree"] for c in counts.values()), cid
+        o = r["objectsV2"]
+        # every paired record agrees field by field; x is not witnessed everywhere (a capture taken before U13,
+        # or TradingView's off-chart timepoint), which is INCONCLUSIVE by name and never a difference
+        assert o["verdictWithoutX"] == "MATCH" and o["pairedNothing"] is False and not o["x"]["differing"], cid
+    # ...and the production lane's re-grade lifted its host known-divergence entry the same way
+    from api.services import host_known_divergence as hkd
+    assert hkd.refused(src) is None and rt.source_hash(src) not in hkd.committed()
 
 
 def _draw1_unkilled_diverging(kills: dict) -> list:

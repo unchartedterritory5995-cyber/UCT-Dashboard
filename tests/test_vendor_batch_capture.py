@@ -294,3 +294,58 @@ def test_grade_runs_the_corpus_harness_over_a_run_and_writes_both_files(first, t
     assert by["alpha"] == "MATCH" and by["charlie"] == "DIVERGE", by
     summary = (run_dir / "summary.md").read_text(encoding="utf-8")
     assert "## Batch outcomes" in summary and "REFUSED_BY_TV" in summary
+
+
+# ── the rig's persisted state (coordinator, 2026-11-18) ──────────────────────
+def _verify_rows(run_dir):
+    return [e for e in _ledger(run_dir) if e["event"] == "batch-verify"]
+
+
+def test_a_batch_ends_by_reading_the_rig_on_a_fresh_load(tmp_path):
+    page, code, res, _ = _only(tmp_path, "x", 'indicator("X")\nplot(close)\n', {})
+    assert res["outcome"] == bc.CAPTURED and code == 0
+    assert page.names("reload") == ["reload"]
+    (v,) = _verify_rows(tmp_path / "run")
+    assert v["ok"] is True and v["read"] is True and v["studies"] == []
+    assert v["got"] == v["want"] == {"symbol": "NASDAQ:AAPL", "resolution": "5"}
+
+
+def test_a_study_that_persisted_past_its_removal_fails_the_batch_loud(tmp_path):
+    """The measured rig: the editor add is saved, the widget-API removal is not (run l12-is-2026-11-18)."""
+    manifest, beh = bd.make_manifest(tmp_path, [("x", 'indicator("X")\nplot(close)\n', {})])
+    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()}, autosave="tradingview")
+    logged = []
+    clock = bd.FakeClock(page)
+    from pine_vendor_capture import acquire
+    assert acquire(page, 5) == 0
+    rd = bc.RunDir(tmp_path / "run", "selfcheck")
+    code = bc.run_batch(page, manifest, rd, bd.fast_opts(), clock, bc.NodeVerifier(), log=logged.append)
+    assert rd.results()["x"]["outcome"] == bc.CAPTURED          # the capture itself is good
+    assert rd.results()["x"]["cleanup"]["removed"]              # and its teardown removed the study in the page
+    assert code == bc.RIG_DIRTY
+    (v,) = _verify_rows(tmp_path / "run")
+    assert v["ok"] is False and [s["name"] for s in v["studies"]] == ["X"]
+    assert any("RIG LEFT DIRTY" in str(m) for m in logged)
+    # ⛔ read only: nothing is removed or set after the fresh load
+    after = [n for k, n, _ in page.calls[[i for i, c in enumerate(page.calls) if c[0] == "reload"][0]:] if k == "evaluate"]
+    assert "REMOVE" not in after and "SET_RESOLUTION" not in after and "SET_SYMBOL" not in after
+
+
+def test_a_resolution_that_did_not_persist_fails_the_batch_loud(tmp_path):
+    manifest, beh = bd.make_manifest(tmp_path, [("x", 'indicator("X")\nplot(close)\n', {})])
+    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()},
+                              persisted={"studies": [], "symbol": "NASDAQ:AAPL", "resolution": "1D"})
+    code, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
+    assert rd.results()["x"]["outcome"] == bc.CAPTURED and code == bc.RIG_DIRTY
+    (v,) = _verify_rows(tmp_path / "run")
+    assert v["ok"] is False and v["studies"] == [] and v["got"]["resolution"] == "1D" and v["want"]["resolution"] == "5"
+
+
+def test_a_batch_that_stopped_at_its_own_start_gate_keeps_its_code(tmp_path):
+    manifest, _ = bd.make_manifest(tmp_path, [("x", 'indicator("X")\nplot(close)\n', {})])
+    stranger = {"id": "owner1", "name": "Owner's study", "sha": "0" * 64, "source": "", "reads": 0}
+    page = bd.RecordingTVPage(studies=[stranger])
+    code, rd, _ = bd.run(page, manifest, tmp_path / "run")
+    assert code == 1                                            # GATE_FAILED stays the batch's answer
+    (v,) = _verify_rows(tmp_path / "run")
+    assert v["ok"] is False and [s["name"] for s in v["studies"]] == ["Owner's study"]

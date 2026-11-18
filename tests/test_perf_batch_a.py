@@ -41,13 +41,18 @@ def test_get_rs_for_ticker_never_recomputes(monkeypatch):
         def get(self, k):
             return self.v
 
+    # ⚰️ This patched `rs.cache`, the shared LRU. 28c4082f87 (09-30) moved the RS list into its own two-slot
+    # `rs._rs_cache`, so the patch reached nothing: the warm half read a real cold cache and failed, and the
+    # cold half passed vacuously. Patch the cache the reader actually reads (`fast_rank_map`), with the
+    # nightly overlay off so only the hourly list is in play.
+    monkeypatch.delenv("RS_RANK_IBD_ENABLED", raising=False)
     # cold cache → None, and compute must NOT be called
-    monkeypatch.setattr(rs, "cache", FakeCache(None))
+    monkeypatch.setattr(rs, "_rs_cache", FakeCache(None))
     assert rs.get_rs_for_ticker("AAPL") is None
     assert calls["compute"] == 0
 
     # warm cache → returns the item, still no recompute
-    monkeypatch.setattr(rs, "cache", FakeCache([{"ticker": "AAPL", "rs_rank": 88}]))
+    monkeypatch.setattr(rs, "_rs_cache", FakeCache([{"ticker": "AAPL", "rs_rank": 88}]))
     got = rs.get_rs_for_ticker("aapl")
     assert got and got["rs_rank"] == 88
     assert calls["compute"] == 0

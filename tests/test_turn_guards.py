@@ -88,8 +88,8 @@ def test_the_caps_leave_four_times_the_largest_formula_on_file(conv):
     assert len(formulas) > 200
     most = max(size_of(t)[0] for _, t in formulas)
     deepest = max(size_of(t)[1] for _, t in formulas)
-    assert (most, deepest) == (70, 12)                                       # measured 2026-11-18; a change is seen
-    assert most * 4 <= conv.MAX_FORMULA_NODES == 300 and deepest * 4 <= conv.MAX_FORMULA_DEPTH == 48
+    assert (most, deepest) == (107, 16)                                      # 70 and 12 before linked running values; a change is seen
+    assert most * 4 <= conv.MAX_FORMULA_NODES == 600 and deepest * 4 <= conv.MAX_FORMULA_DEPTH == 64
     for where, tree in formulas:
         assert conv.answer_size_problem(answer(tree)) is None, where
     # the property names typed in the check are the contract's own
@@ -120,11 +120,11 @@ def test_the_caps_leave_four_times_the_largest_formula_on_file(conv):
 
 def test_a_formula_over_either_cap_is_named(conv):
     assert conv.answer_size_problem(answer(chain(conv.MAX_FORMULA_DEPTH))) is None
-    assert conv.answer_size_problem(answer(chain(conv.MAX_FORMULA_DEPTH + 1))) == "a formula nests more than 48 levels deep"
-    wide = call("max", *[copy.deepcopy(GOOD) for _ in range(99)])           # 1 + 99 x 3 = 298 nodes
-    assert size_of(wide)[0] == 298 and conv.answer_size_problem(answer(wide)) is None
-    wide["args"].append(copy.deepcopy(GOOD))                                 # 301
-    assert conv.answer_size_problem(answer(wide)) == "a formula holds more than 300 nodes"
+    assert conv.answer_size_problem(answer(chain(conv.MAX_FORMULA_DEPTH + 1))) == "a formula nests more than 64 levels deep"
+    wide = call("max", *[copy.deepcopy(GOOD) for _ in range(199)])          # 1 + 199 x 3 = 598 nodes
+    assert size_of(wide)[0] == 598 and conv.answer_size_problem(answer(wide)) is None
+    wide["args"].append(copy.deepcopy(GOOD))                                 # 601
+    assert conv.answer_size_problem(answer(wide)) == "a formula holds more than 600 nodes"
     # each formula is counted on its own: eight outputs at 200 nodes each are eight formulas
     big = call("max", *[copy.deepcopy(GOOD) for _ in range(66)])
     several = env(0, [{"op": "create", "name": "x", "placement": "price",
@@ -134,7 +134,7 @@ def test_a_formula_over_either_cap_is_named(conv):
     odd = S("close")
     for _ in range(conv.MAX_FORMULA_DEPTH + 2):
         odd = {"type": "op", "name": "+", "inside": odd}
-    assert conv.answer_size_problem(answer(odd)) == "a formula nests more than 48 levels deep"
+    assert conv.answer_size_problem(answer(odd)) == "a formula nests more than 64 levels deep"
     # values are counted BEFORE they are walked, whatever they are: a long list of plain numbers too
     assert conv.answer_size_problem({"ops": [[0] * (conv.MAX_ANSWER_ITEMS - 2)]}) is None
     assert conv.answer_size_problem({"ops": [[0] * (conv.MAX_ANSWER_ITEMS + 1)]}) == "the answer holds more than 20000 values"
@@ -172,6 +172,85 @@ def test_through_the_door_it_is_refused_by_name_before_anything_walks_it(store, 
     assert r["reason"] == "the UCT Agent wrote a formula too large to check, so nothing was changed"
     assert "envelope" not in r and last_turn()["failure_class"] == "model_invalid"
     monkeypatch.undo()
+
+
+# ── the same guard AFTER the mend that inlines the outputs a formula reads ──
+
+def stage_oscillator():
+    """The largest legitimate inlined answer on file: four hidden filter stages (each one value of
+    the same four linked running values) and one line drawn from all four, written with the
+    stages' KEYS. The door writes each stage's formula into every place the line reads it."""
+    from tests.test_converse_running_values_linked import laguerre
+
+    def stage(k):
+        tree = laguerre(0.5)
+        tree["args"][0] = num(k)
+        return tree
+    up = lambda p, q: op("?:", op(">=", S(p), S(q)), op("-", S(p), S(q)), num(0))  # noqa: E731
+    dn = lambda p, q: op("?:", op("<", S(p), S(q)), op("-", S(q), S(p)), num(0))  # noqa: E731
+    cu = op("+", op("+", up("l0", "l1"), up("l1", "l2")), up("l2", "l3"))
+    cd = op("+", op("+", dn("l0", "l1"), dn("l1", "l2")), dn("l2", "l3"))
+    outs = [{"key": f"l{k - 1}", "label": f"Stage {k}", "hidden": True, "tree": stage(k)} for k in (1, 2, 3, 4)]
+    outs.append({"key": "line", "label": "Oscillator", "tree": op("/", cu, op("+", cu, cd))})
+    return env(0, [{"op": "create", "name": "Four-stage oscillator", "placement": "pane", "primary": "line", "outputs": outs}],
+               reply="Built it.")
+
+
+def inlined_nodes(answer_):
+    return sum(size_of(o["tree"])[0] for o in answer_["ops"][0]["outputs"])
+
+
+def test_the_inlined_cap_leaves_four_times_the_largest_inlined_answer_on_file(conv):
+    written = stage_oscillator()
+    assert conv.answer_size_problem(written) is None and size_of(written["ops"][0]["outputs"][-1]["tree"])[0] == 80
+    mended, names = conv.mend(written, empty_view(0))
+    assert names == [conv.MEND_OUTPUT_REF]
+    total = inlined_nodes(mended)
+    assert total == 3364 and size_of(mended["ops"][0]["outputs"][-1]["tree"])[0] == 3032      # what is checked and held
+    assert total * 4 <= conv.MAX_INLINED_NODES == 15000
+    assert conv.check_envelope(mended, 0, empty_view(0))                                     # and it IS a legitimate answer
+
+
+def reads_many(times):
+    """Output `a` is a hundred averages (311 nodes, ten to a call as the contract allows); output
+    `b` reads `a` `times` times."""
+    a = call("max", *[call("max", *[copy.deepcopy(GOOD) for _ in range(10)]) for _ in range(10)])
+    assert size_of(a)[0] == 311
+    b = S("a")
+    for _ in range(times - 1):
+        b = op("+", b, S("a"))
+    return env(0, [{"op": "create", "name": "x", "placement": "price",
+                    "outputs": [{"key": "a", "tree": a}, {"key": "b", "tree": b}]}])
+
+
+def test_an_answer_whose_inlined_form_is_over_the_cap_is_refused_by_name_while_the_mend_writes_it(store, conv, clean_env, model):
+    under = reads_many(40)                            # 311 nodes read 40 times: about 12,800 once inlined
+    mended, names = conv.mend(under, empty_view(0))
+    assert names == [conv.MEND_OUTPUT_REF] and inlined_nodes(mended) < conv.MAX_INLINED_NODES
+    over = reads_many(50)                             # ... 50 times: about 16,000
+    assert conv.answer_size_problem(over) is None     # AS WRITTEN it is small: 311 nodes and 99
+    started = time.monotonic()
+    with pytest.raises(conv._Refused) as caught:
+        conv.mend(over, empty_view(0))
+    assert time.monotonic() - started < 2.0           # stopped at the cap, not after building it
+    assert caught.value.gate == "envelope:formula-size"
+    assert caught.value.detail == ("the answer holds more than 15000 formula nodes once the outputs its formulas read are "
+                                   "written into them")
+    # through the door: one model call, the member's sentence, nothing built, and the next request is answered
+    client = model([emits(over), emits(answer(copy.deepcopy(GOOD)))])
+    r = conv.converse("Add an adaptive average", user_id="u1", view=empty_view(0), chart=CHART)
+    assert r["ok"] is False and r["gate"] == "envelope:formula-size" and len(client.calls) == 1
+    assert r["reason"] == "the UCT Agent wrote a formula too large to check, so nothing was changed"
+    assert "envelope" not in r and last_turn()["failure_class"] == "model_invalid"
+    r = conv.converse("Add a 20 day EMA", user_id="u1", view=empty_view(0), chart=CHART)
+    assert r["ok"] is True and len(client.calls) == 2
+
+
+def test_any_other_trouble_inside_a_mend_still_costs_nothing(conv, monkeypatch):
+    """A mend never costs the turn: only the size cap is allowed out of it."""
+    monkeypatch.setattr(conv, "_mend_output_refs", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    written = stage_oscillator()
+    assert conv.mend(written, empty_view(0)) == (written, [])
 
 
 # ═══ 2. the length of a turn ════════════════════════════════════════════════

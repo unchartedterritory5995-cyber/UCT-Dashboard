@@ -59,6 +59,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             tools/live_check.py
+            tools/ci_inventory.py
             tools/deploy_freeze.py
             api/services/measurement_window.py
             docs/feature_flags.json

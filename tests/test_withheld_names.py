@@ -159,7 +159,7 @@ def test_a_word_that_only_contains_the_name_is_not_the_name(conv):
     assert caught.value.gate == "named:withheld"
     # a word that is the name's alone is the name in part; a word the product also uses is not
     assert conv._own_words_of("klinger_volume_oscillator") == frozenset({"klinger"})
-    assert "fisher" in conv._own_words_of("fisher_transform") and "index" not in conv._own_words_of("stochastic_momentum_index")
+    assert "schaff" in conv._own_words_of("schaff_trend_cycle") and "index" not in conv._own_words_of("stochastic_momentum_index")
     with pytest.raises(conv._Refused):
         conv.check_withheld(build(label="Klinger line"), [KLINGER])
     conv.check_withheld(build(label="Volume oscillator, 34 against 55"), [KLINGER])     # the product's own words: fine
@@ -188,24 +188,61 @@ def test_the_pieces(conv):
 
 def test_the_words_of_a_withheld_name_are_not_vocabulary(conv):
     vocabulary = dc._lexicon_vocabulary(conv.CHART_LEXICON)
-    for word in ("klinger", "fisher", "schaff", "qstick"):
+    for word in ("klinger", "laguerre", "schaff", "qstick"):
         stems, _cost = dc._stem_key(dc._form_tokens(word))
         assert not all(s in vocabulary for s in stems), word
     # so another name that borrows one is still an unknown name ...
-    r = conv.understand_turn("Add the Fisher Momentum Ribbon", CHART)
-    assert r["refusal"] is not None and r["refusal"]["not_understood"][0]["phrase"] == "Fisher Momentum Ribbon"
+    r = conv.understand_turn("Add the Schaff Momentum Ribbon", CHART)
+    assert r["refusal"] is not None and r["refusal"]["not_understood"][0]["phrase"] == "Schaff Momentum Ribbon"
     r = conv.understand_turn("Add the Brannock Klinger Oscillator", CHART)
     assert r["refusal"] is not None
     # ... while the name itself, whole, is accounted for, with the product's own words beside it
-    r = conv.understand_turn("Add the Fisher Transform Of The Close", CHART)
-    assert r["refusal"] is None and [w["id"] for w in r["withheld"]] == ["fisher_transform"]
+    r = conv.understand_turn("Add the Schaff Trend Cycle Of The Close", CHART)
+    assert r["refusal"] is None and [w["id"] for w in r["withheld"]] == ["schaff_trend_cycle"]
+    # (the Fisher Transform stood here until it joined the checked library, 2026-11-18: a name
+    # leaves this list by being checked, and is then a library name)
+    r = conv.understand_turn("Add the Fisher Transform", CHART)
+    assert r["refusal"] is None and r["withheld"] == [] and [e["id"] for e in r["named"]] == ["fisher_transform"]
 
 
 def test_the_planner_shared_with_the_screener_is_unchanged(conv):
     """`names_only` is the CHART door's lexicon. The shared one has none, and refuses as before."""
     assert "names_only" not in dc.LEXICON and "names_only_section" not in dc.LEXICON
     assert not (set(conv.CHART_LEXICON["names_only"]) & set(dc.LEXICON["index"]))
-    for words in ("Add the Klinger Volume Oscillator", "add the fisher transform"):
+    for words in ("Add the Klinger Volume Oscillator", "add the schaff trend cycle"):
         told = dc.plan(words, dc.INDICATOR_KIND)
         assert all(t.get("section") != conv.WITHHELD_SECTION for t in told.get("terms") or []), words
     assert dc.plan("Add the Qstick", dc.INDICATOR_KIND) == dc.plan("Add the Qstick", dc.INDICATOR_KIND, lexicon=dc.LEXICON)
+
+
+# ═══ after a live round (2026-11-18) ═════════════════════════════════════════
+
+def test_a_recognisable_variant_of_the_name_is_the_name_and_the_repair_says_which_word(conv):
+    """A build for the Fractal Adaptive Moving Average named "Fractal Dimension Adaptive Average"
+    writes the name. Ruling: that is the name (its own word, in nearly the same order);
+    the rule exists so a member never reads a checked-sounding name on an unchecked formula. The
+    repair names the word that gave it away and asks for what the indicator DOES, in other words."""
+    frama = [{"id": "fractal_adaptive_moving_average", "name": "Fractal Adaptive Moving Average"}]
+    with pytest.raises(conv._Refused) as caught:
+        conv.check_withheld(build(name="Fractal Dimension Adaptive Average", label="Adaptive average of close"), frama)
+    said = caught.value.detail
+    assert caught.value.gate == "named:withheld"
+    assert "(\"fractal\" is that name's own)" in said
+    assert 'say what it DOES, in other words (for example "an average that speeds up in trends and slows in ranges")' in said
+    assert "none of its own words" in said
+    # the whole name written out needs no word pointed at
+    with pytest.raises(conv._Refused) as whole:
+        conv.check_withheld(build(name="Fractal Adaptive Moving Average (16)"), frama)
+    assert "is that name's own" not in whole.value.detail and "say what it DOES" in whole.value.detail
+    # CONTROL: a name by what it does passes
+    conv.check_withheld(build(name="An average that speeds up in trends and slows in ranges", label="Adaptive average"), frama)
+
+
+def test_the_not_in_the_library_sentence_is_said_once_not_once_per_output(conv):
+    two = env(0, [{"op": "create", "name": "Volume force", "placement": "pane",
+                   "outputs": [{"key": "fast", "label": "Fast", "tree": TREE}, {"key": "slow", "label": "Slow", "tree": TREE},
+                               {"key": "gap", "label": "Gap", "tree": TREE}]}])
+    notes = conv.withheld_notes(two, [KLINGER])
+    assert len(notes) == 1 and notes[0]["output"] == "fast"
+    assert notes[0]["text"].startswith("Klinger Volume Oscillator is not in UCT's checked library yet")
+
