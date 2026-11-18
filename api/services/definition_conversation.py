@@ -245,7 +245,12 @@ def composed_schema() -> Dict[str, Any]:
         "those plain words; never describe how it is computed. fisher(length) is the Fisher "
         "Transform as UCT's checked library holds it (its trigger line is offset 1 of the same "
         "call): its first 300 bars of history have no value. Never write a Fisher Transform out "
-        "by hand. The others are exact closed forms over the table.")
+        "by hand. laguerre(source, gamma) is the Laguerre Filter and laguerreRsi(source, gamma) "
+        "the Laguerre RSI (0 to 1, not 0 to 100), as UCT's checked library holds them: gamma is "
+        "a plain number above 0 and at most 0.95 (the filter's usual is 0.8 over the bar's "
+        "midpoint, the RSI's 0.5 over the close), and the first bars of history have no value. "
+        "Never write a Laguerre filter out by hand. The others are exact closed forms over the "
+        "table.")
     # ⭐ SLICE 2 — THE MODEL MUST SAY WHAT ITS TURN IS. Optional in the shared
     # engine file (older envelopes and the engine's own tests carry none); required
     # of the model here, so mutation is never inferred from which fields happen to

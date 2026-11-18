@@ -73,6 +73,25 @@ await esbuild.build({ entryPoints: [entry], outfile, bundle: true, platform: 'no
 #: enough to pass every window guard; a text that already holds one of them is refused.
 INT_PROBES = (131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191)    # twelve: Know Sure Thing has nine
 FLOAT_PROBES = (1.37, 2.37, 3.37, 4.37, 5.37, 6.37)
+#: For a setting whose own range ends below those (a share between 0 and 1, such as the Laguerre
+#: pair's gamma): a formula that checks its argument would refuse 1.37 and show no place at all.
+SMALL_FLOAT_PROBES = (0.137, 0.237, 0.337, 0.437, 0.537, 0.637)
+
+
+def probe_for(param: Dict[str, Any], ints: Any, floats: Any, small: Any) -> Any:
+    """The probe number for one setting: the next of its kind, or, when that falls outside the
+    setting's own range, the next small one that falls inside it."""
+    if param.get("integer"):
+        return next(ints)
+    value = next(floats)
+    lo, hi = param.get("min"), param.get("max")
+    inside = lambda v: (lo is None or v >= lo) and (hi is None or v <= hi)
+    if inside(value):
+        return value
+    for v in small:
+        if inside(v):
+            return v
+    return value
 
 
 def parse_texts(texts: Dict[str, str]) -> Dict[str, Any]:
@@ -179,8 +198,8 @@ def derive(doc: Dict[str, Any], shipped: Any = None) -> Tuple[Dict[str, Any], Li
     texts: Dict[str, str] = {}
     probes: Dict[str, Dict[str, Any]] = {}
     for e in doc["indicators"]:
-        ints, floats = iter(INT_PROBES), iter(FLOAT_PROBES)
-        probes[e["id"]] = {p["key"]: (next(ints) if p.get("integer") else next(floats)) for p in e["params"]}
+        ints, floats, small = iter(INT_PROBES), iter(FLOAT_PROBES), iter(SMALL_FLOAT_PROBES)
+        probes[e["id"]] = {p["key"]: probe_for(p, ints, floats, small) for p in e["params"]}
         defaults = {p["key"]: p["default"] for p in e["params"]}
         for o in e["outputs"]:
             for v in probes[e["id"]].values():

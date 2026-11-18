@@ -126,7 +126,9 @@ describe('Inputs: a library indicator shows the entry\'s own settings', () => {
       let { state } = library(e.id)
       for (const p of e.params) {
         const setting = settingsOf(state.working).find((s) => s.library.param === p.key)
-        const next = p.integer ? (p.default + 3 <= p.max ? p.default + 3 : p.default - 1) : p.default + 0.25
+        // (a 0-to-1 setting such as the Laguerre Filter's gamma has no room above its default: step down)
+        const step = p.integer ? 3 : 0.25
+        const next = p.default + step <= p.max ? p.default + step : p.default - (p.integer ? 1 : step)
         const patch = settingPatch(state, setting, next)
         expect(patch.ops.length).toBe(setting.slots.length)                 // ONE patch, one edit per place
         state = applyTurn(state, patch, { gateCtx: GATE }).state
