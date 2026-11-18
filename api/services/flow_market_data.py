@@ -19,8 +19,10 @@ WHAT A NUMBER MEANS, WHERE THE TWO VENDORS DIFFER (said once, here):
     record this falls back to the day's close, then the previous close.
   * An option contract's `mark`. Schwab sent its own mark. Massive: the bid/ask midpoint, else the
     last trade (the same rule `api/top_flow_tracker.py` records with).
-  * An option contract's `iv`. Schwab sent a percent (35.2). Massive sends a fraction (0.352) and it
-    is passed through as sent, as the Massive fill in POST /api/schwab/options-quotes always has.
+  * An option contract's `iv`. Schwab sent a percent (35.2); Massive sends a fraction (0.352).
+    GET /api/schwab/options-quote keeps the percent it always returned (`massive_option_quote`
+    multiplies by 100). The Massive fill in POST /api/schwab/options-quotes passes the fraction
+    through as sent, as it has since 2026-07-20; that route is not changed here.
   * `bid` and `ask` of one contract: the Massive helper returns the midpoint, not the two sides,
     so they are null. Null, never 0: 0 would read as "no bid".
 """
@@ -47,6 +49,15 @@ def _positive(v):
     except (TypeError, ValueError):
         return None
     return f if f > 0 else None
+
+
+def _percent(fraction):
+    """A fraction as a percent (0.352 -> 35.2); None, a non-number or a NaN stays None."""
+    try:
+        f = float(fraction)
+    except (TypeError, ValueError):
+        return None
+    return round(f * 100, 4) if f == f else None
 
 
 def _last_price(t: dict):
@@ -186,8 +197,8 @@ async def massive_option_quote(symbol: str, strike: float, exp_date: str, cp: st
     """One contract's quote from Massive's single-contract options snapshot, in the keys
     GET /api/schwab/options-quote has always returned. `exp_date` is 'YYYY-MM-DD' and must be the
     contract's own expiry (the Schwab read matched the nearest expiry within five days; this one
-    does not guess). See the module docstring for what `mark` and `iv` mean and why `bid`, `ask`
-    are null."""
+    does not guess). See the module docstring for what `mark` means and why `bid`, `ask` are
+    null. `iv` is a percent."""
     sym = str(symbol or "").upper().strip()
     cpl = "C" if str(cp or "").upper().startswith("C") else "P"
     exp_mdy = _iso_to_mdy(exp_date)
@@ -221,7 +232,8 @@ async def massive_option_quote(symbol: str, strike: float, exp_date: str, cp: st
         "mark": mark,
         "volume": f.get("volume"),
         "openInterest": f.get("oi"),
-        "iv": f.get("iv"),
+        # a PERCENT, as this route always returned (Massive sends a fraction: x 100; null stays null)
+        "iv": _percent(f.get("iv")),
         "delta": f.get("delta"),
         "gamma": f.get("gamma"),
         "theta": f.get("theta"),

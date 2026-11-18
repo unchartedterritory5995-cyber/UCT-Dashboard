@@ -390,8 +390,18 @@ def test_one_quote_massive_answers_in_the_keys_the_route_always_had(monkeypatch)
                              "iv": 0.3, "delta": 0.5, "gamma": 0.01, "theta": -0.1})
     assert list(out) == QUOTE_KEYS
     assert out == {"symbol": "AAPL", "strike": 200.0, "expDate": FUTURE_ISO, "cp": "C", "bid": None, "ask": None,
-                   "last": 6.1, "mark": 6.25, "volume": 320.0, "openInterest": 1500, "iv": 0.3, "delta": 0.5,
+                   "last": 6.1, "mark": 6.25, "volume": 320.0, "openInterest": 1500, "iv": 30.0, "delta": 0.5,
                    "gamma": 0.01, "theta": -0.1, "underlyingPrice": 231.4}
+
+
+@pytest.mark.parametrize("sent,served", [(0.352, 35.2), (0.3, 30.0), (1.25, 125.0), (0.0712, 7.12), (0, 0.0),
+                                         (None, None), ("n/a", None), (float("nan"), None)])
+def test_one_quote_iv_is_the_percent_the_route_always_returned(monkeypatch, sent, served):
+    """Schwab sent `volatility` as a percent (35.2) and this route passed it through as `iv`. Massive sends a
+    fraction (0.352). The number's meaning must not change: x 100, and what Massive did not send stays null."""
+    out = _one(monkeypatch, {"mid": 6.25, "last": 6.1, "iv": sent})
+    assert out["iv"] == served and (served is None or isinstance(out["iv"], float))
+    assert fmd._percent(sent) == served
 
 
 def test_one_quote_what_massive_did_not_send_is_null_never_zero(monkeypatch):

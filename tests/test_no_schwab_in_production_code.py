@@ -27,6 +27,9 @@ THE ALLOW-LIST IS SHORT AND EACH ENTRY SAYS WHY:
     kept as the historical record of each data class's licensing class.
   * the member brokerage code (`api/services/journal_two/`, `api/routers/broker_sync.py`): there
     "Schwab" is a MEMBER'S BROKER (SnapTrade sync, CSV import presets), not this app's data vendor.
+  * `api/services/uct_agent/marketdata/flow_top_picks.py`: it READS the `src` label of Top Flow daily
+    prices recorded before November 2026 (absent or "schwab" = recorded from Schwab then). One file,
+    by its full path; the other Agent adapters are not allowed the key.
 
 The checker is a pure function over {path: source}, so the rails at the bottom drive it with
 sources that MUST fail. A checker that cannot fail proves nothing.
@@ -46,6 +49,9 @@ ALLOWED_ENV = frozenset({"SCHWAB_NARRATIVE_MODEL", "SCHWAB_NARRATIVE_COST_CAP_DA
 VENDOR_KEY_ALLOWED = ("api/services/provider_licensing_class.py",     # the retired register rows
                       "api/schwab_router.py",                         # the router's historical tag
                       "api/services/journal_two/",                    # a member's broker, not our vendor
+                      # reads the `src` LABEL of Top Flow prices recorded before November 2026 (absent or
+                      # "schwab" = recorded from Schwab then); it calls nothing
+                      "api/services/uct_agent/marketdata/flow_top_picks.py",
                       "api/routers/broker_sync.py")
 LOGIN_ROUTE = re.compile(r"/api/schwab/(login|callback|refresh|status)\b|schwab-token")
 _ENV_NAME = re.compile(r"SCHWAB_[A-Z0-9_]+\Z")
