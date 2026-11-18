@@ -202,6 +202,14 @@ export const WITNESS_PERIOD_READS = Object.freeze({
   // 60m), a bar from the close on the session's own (post-market: 1m 2,258, 5m 4,015, 15m 5,056, 30m 4,959, 60m
   // 2,617; the first 1m / 5m post bars on some days still the previous one, the official print's own lag).
   SESSION_COMPLETED: 'session-completed',
+  // ⭐⭐ RS RATING L12 PR 2 (Q-L12-2, `l12-now-2026-11-18`, the rs-seed probe) — a Pine SEED on an INTRADAY chart
+  // (a read AT D, held at D: a seed is served daily only): each row, dated D, is stamped D 00:00 UTC and read on the
+  // FIRST chart bar opening at or after that instant (in EST the previous session's 19:00 bar, 19:05 / 19:15 where
+  // the 5m chart has no 19:00 bar; in EDT, 20:00 ET being past the extended session, the next session's 04:00 bar);
+  // several rows on one bar (a weekend's), the NEWEST; every other bar `na`. RDDT 5m 20,681 of 20,681 and 60m
+  // 10,353 of 10,353 bars, values and na, three fields; "the oldest wins" is off on the 2 weekend bars, a bar that
+  // CONTAINS the instant on 21, ET midnight on 18. `utcMidnightAtOrAfterOf`.
+  UTC_MIDNIGHT_AT_OR_AFTER: 'utc-midnight-at-or-after',
 })
 /** ⭐ RS RATING L12 — the intraday chart timeframes a block may stand on, and their bar step in minutes. */
 const INTRADAY_STEP_MIN = Object.freeze({ 1: 1, 5: 5, 15: 15, 30: 30, 60: 60 })
@@ -219,8 +227,19 @@ const PERIOD_READS_OF = Object.freeze({
   ...Object.fromEntries(Object.keys(INTRADAY_STEP_MIN).map((tf) => [tf,
     Object.freeze({ held: tf, alsoHeld: 'D', folds: [WITNESS_PERIOD_READS.AT_OR_BEFORE], samples: [],
       // ⭐ RS RATING L12 PR 2 — the reads at the SECOND held timeframe (a daily read above the chart)
-      above: [WITNESS_PERIOD_READS.SESSION_COMPLETED] })])),
+      above: [WITNESS_PERIOD_READS.SESSION_COMPLETED],
+      // ⭐ RS RATING L12 PR 2 (Q-L12-2) — the OTHER shape a block on an intraday chart may take: a series that
+      // exists only as daily rows (a Pine seed), held at D alone and read AT D (`request.seed` IS
+      // `request.security(<seed>, "D", …)`, `pine.js::seedAsSecurity`), each row landed on one of the chart's bars
+      daily: Object.freeze({ held: 'D', folds: [], samples: [WITNESS_PERIOD_READS.UTC_MIDNIGHT_AT_OR_AFTER] }) })])),
 })
+/** The shape a block names on its chart timeframe: the timeframe's own, or (an intraday chart) its `daily` one. */
+function blockShapeOf(block, chartTf) {
+  const of = PERIOD_READS_OF[chartTf]
+  if (!of || !block) return null
+  if (block.held === of.held) return of
+  return of.daily && block.held === of.daily.held ? of.daily : null
+}
 const LAST_ROW_SAMPLES = Object.freeze([WITNESS_PERIOD_READS.WEEK_LAST_ROW, WITNESS_PERIOD_READS.MONTH_LAST_ROW])
 /** The chart's period code a read belongs to (`'W'` / `'M'`), or null. */
 function periodCodeOfRead(how) {
@@ -292,8 +311,8 @@ function witnessPendingWhy(row) {
 export function periodBlockServes(block, chartTf) {
   if (!block || typeof block !== 'object') return false
   if (!(typeof block.witness === 'string' && block.witness.trim() && typeof block.captured === 'string' && block.captured.trim())) return false
-  const of = PERIOD_READS_OF[chartTf]
-  if (!of || block.held !== of.held) return false
+  const of = blockShapeOf(block, chartTf)
+  if (!of) return false
   // ⭐ RS RATING L12 — a block held at a second timeframe too names exactly the one its chart timeframe holds
   if ((of.alsoHeld || null) !== (block.alsoHeld || null)) return false
   const reads = block.reads
@@ -472,7 +491,10 @@ const NEWEST_BAR_READS_OWN_PERIOD = (entry) => !!(entry && entry.newestBarIsForm
 export function withChartNewestDay(ctx, bars) {
   const n = Array.isArray(bars) ? bars.length : 0
   const day = n ? isoDay(bars[n - 1] && bars[n - 1].t) : null
-  return { ...(ctx || {}), chartNewestDay: day || null }
+  // ⭐ RS RATING L12 PR 2 (Q-L12-2) — and the chart's bars themselves, for the one fold that lands a row on the
+  // first chart bar at or after its instant (`utcMidnightAtOrAfterOf`): the real bars, never a grid (a 5m chart
+  // with no 19:00 bar reads the row at 19:05)
+  return { ...(ctx || {}), chartNewestDay: day || null, chartBars: Array.isArray(bars) ? bars : null }
 }
 
 /** The key of `day`'s period on a `tf` chart (a daily chart's day, a weekly chart's ISO week), or null. */
@@ -672,6 +694,72 @@ export function atOrBeforeGridOf(bars, daily, tf, { dailyForming = false } = {})
     if (d > lastHeld) break
   }
   return out
+}
+
+/** ⭐⭐ RS RATING L12 PR 2 (Q-L12-2 / Q-L12-3, `l12-now-2026-11-18`, `l12-seed3-now-2026-11-18`) — a Pine SEED on an
+ *  INTRADAY chart (`WITNESS_PERIOD_READS.UTC_MIDNIGHT_AT_OR_AFTER`): each held row, dated D, stamped D 00:00 UTC and
+ *  read on the FIRST chart bar opening at or after that instant; several rows on one bar (a weekend's), the newest;
+ *  every other bar `na` (`SERIES_GAPS_READ_NA`: known, never withheld). Keyed by that chart bar's own `t`, so the
+ *  exact-time alignment places it (`interpret.js::requestAlignment`, the host's `sym`). Witnessed on NYSE:RDDT 1 / 5
+ *  / 15 / 30 / 60m: 22,216 / 20,681 / 21,018 / 19,830 / 10,353 bars, values and na, three fields.
+ *  ⭐ THE CHART'S FIRST BAR (inferred, not captured: every capture's history began before the seed's): TradingView
+ *  lands a row there only if its instant falls after the bar BEFORE it, which this chart does not hold. Read as
+ *  the extended-hours grid slot before it (`gridSlotBefore`): exact on a chart that trades in every slot; a row
+ *  at or before that slot landed on an earlier bar and is not placed.
+ *  ⛔ `chart.bars` not in hand, or not strictly increasing unix seconds: null (the bind refuses by name).
+ *  ⛔ A row whose day cannot be read is dropped, never guessed. */
+export function utcMidnightAtOrAfterOf(held, chart) {
+  const bars = chart && Array.isArray(chart.bars) ? chart.bars : null
+  const step = chart ? INTRADAY_STEP_MIN[String(chart.tf)] : undefined
+  if (!bars || !step) return null
+  const times = new Array(bars.length)
+  for (let i = 0; i < bars.length; i += 1) {
+    const t = bars[i] && bars[i].t
+    if (typeof t !== 'number' || !Number.isFinite(t) || (i && t <= times[i - 1])) return null
+    times[i] = t
+  }
+  const out = []
+  Object.defineProperty(out, SERIES_GAPS_READ_NA, { value: true, enumerable: false })
+  if (!times.length) return out
+  const from = gridSlotBefore(times[0], step)
+  const landed = new Map()
+  let lastDay = ''
+  for (const r of held || []) {
+    const day = r && isoDay(r.t)
+    if (!day || day <= lastDay) continue
+    lastDay = day
+    const inst = Date.parse(`${day}T00:00:00Z`) / 1000
+    if (!(inst > from)) continue
+    let lo = 0
+    let hi = times.length
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (times[mid] < inst) lo = mid + 1
+      else hi = mid
+    }
+    if (lo < times.length) landed.set(lo, r)               // rows arrive oldest first: the newest wins
+  }
+  for (const i of [...landed.keys()].sort((a, b) => a - b)) out.push({ ...landed.get(i), t: times[i] })
+  return out
+}
+
+/** The extended-hours grid slot before the bar opening at `t` (unix seconds) on a `step`-minute chart: the slot
+ *  `step` minutes earlier, or, for a session's first slot (04:00 ET), the previous session's last one. */
+function gridSlotBefore(t, step) {
+  const day = etDayOf(t)
+  const mid = etMidnightOf(day)
+  if (mid !== null && t - mid <= EXT_OPEN_MIN * 60) {
+    let d = day
+    for (let k = 0; k < 10; k += 1) {
+      d = isoDayPlus(d, -1)
+      if (d && isTradingDay(d)) {
+        const pm = etMidnightOf(d)
+        if (pm !== null) return pm + (EXT_END_MIN - step) * 60
+        break
+      }
+    }
+  }
+  return t - step * 60
 }
 
 /** ⭐ RS RATING L12 PR 2 — daily rows keyed by their SESSION DATE (`isoDay`), in order, unplaced. */
@@ -1235,10 +1323,20 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
         also = { daily: rowsD, tf, dailyForming: second.newestBarIsForming === true }
       }
       const own = newestOwnPeriodOf(ctx, entry)
+      // ⭐ RS RATING L12 PR 2 (Q-L12-2) — a seed on an intraday chart lands each row on one of the chart's own bars
+      // (`utcMidnightAtOrAfterOf`): a read not handed them is refused by name, never placed on a guessed grid
+      const landed = read.sample === WITNESS_PERIOD_READS.UTC_MIDNIGHT_AT_OR_AFTER
+        ? utcMidnightAtOrAfterOf(held, { bars: ctx.chartBars, tf }) : null
+      if (read.sample === WITNESS_PERIOD_READS.UTC_MIDNIGHT_AT_OR_AFTER && !landed) {
+        no(ticker, OTHER_SYMBOL_REFUSAL.WITNESS_TIMEFRAME, `\`${row.spelling}\` on a \`${tf}\` chart lands each row on the `
+          + 'first chart bar opening at or after its date\'s 00:00 UTC, and this read is not handed the chart\'s bars, so '
+          + 'what it reads is not computed')
+        continue
+      }
       // ⭐ RS RATING L12 PR 2 — a daily read above an intraday chart is handed its daily rows as they are, keyed by
       // session date; the run places them per chart bar (`requestSupply.js::aboveChartRead`)
-      symbols[ticker] = read.sample === WITNESS_PERIOD_READS.SESSION_COMPLETED ? sessionKeyedRowsOf(held)
-        : read.fold ? periodFoldOf(read.fold, held, own, also) : witnessedBarsOf(row, held, own)
+      symbols[ticker] = landed || (read.sample === WITNESS_PERIOD_READS.SESSION_COMPLETED ? sessionKeyedRowsOf(held)
+        : read.fold ? periodFoldOf(read.fold, held, own, also) : witnessedBarsOf(row, held, own))
       if (read.sample === WITNESS_PERIOD_READS.SESSION_COMPLETED) {
         Object.defineProperty(symbols[ticker], SERIES_NEWEST_FORMING, { value: entry.newestBarIsForming === true, enumerable: false })
       }

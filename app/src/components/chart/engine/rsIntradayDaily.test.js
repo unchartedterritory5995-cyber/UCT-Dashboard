@@ -118,6 +118,24 @@ describe("this chart's own symbol at D: the previous session, the session's last
   })
 })
 
+describe('⛔ the read is the RUN\'s request wherever it is used, never a column (Fred RS: `closeDa / closeDa[n63]`)', () => {
+  // ⚰️ The chart's own read translated (for the columnar lane) to a plain gated `close`, which looked pure: bound as a
+  // substituted macro, its history `y[n]` became a column the daily gate withheld whole, and the build refused
+  // `runtime:request`; an expression over either read (`na(x) ? 1 : 0`) refused `pine:request` before both of the run's
+  // resolvers read `above` (`pineRuntimeFrontend.js::needsRuntime`, `isAboveRequest`).
+  it('history, an input offset, an inline offset and a derived expression all read the served rows', () => {
+    const last = ROWS.length - 1
+    const own = run(['y = request.security(syminfo.tickerid, "D", close)', 'plot(y / y[5])', 'plot(na(y) ? 1 : 0)'], ctxOf(), ROWS)
+    expect(own.x[last]).toBeCloseTo(92 / 91, 12)          // the newest bar its own session's, 5 bars back the previous
+    const n = run(['n = input.int(5)', 'y = request.security(syminfo.tickerid, "D", close)', 'plot(y / y[n])'])
+    expect(n.x[last]).toBeCloseTo(92 / 91, 12)
+    const inline = run(['plot(request.security(syminfo.tickerid, "D", close)[5])'])
+    expect(inline.x[last]).toBe(91)
+    const spx = run(['x = request.security("SP:SPX", "D", close)', 'plot(na(x) ? 1 : 0)'])
+    expect(Array.from(spx.x).every((v) => v === 0)).toBe(true)
+  })
+})
+
 describe('SP:SPX at D: the session it had completed', () => {
   it('in the run: before the close the previous session, from the close the session\'s own', () => {
     const cols = run(SPX_SRC)

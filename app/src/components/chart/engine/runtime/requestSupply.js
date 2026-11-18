@@ -26,7 +26,7 @@
 
 import { requestAlignment, TF_RESAMPLABLE, TF_LADDER } from '../ast/interpret.js'
 import { resolveOtherSymbols, otherSymbolPending, periodSampleOf, belowChartSeriesOf, withChartNewestDay,
-  OWN_DAILY_KEY, SERIES_NEWEST_FORMING, etSessionDayOf, sessionCloseOf, sessionKeyedRowsOf } from '../otherSymbols.js'
+  OWN_DAILY_KEY, SERIES_NEWEST_FORMING, etSessionDayOf, sessionCloseOf, sessionKeyedRowsOf, WITNESS_PERIOD_READS } from '../otherSymbols.js'
 import { isTradingDay } from '../../../../lib/marketClock/sessionCalendar.js'
 
 export const REQUEST_GUARD = 'runtime:request'
@@ -79,6 +79,8 @@ function decideOther(target, ctx) {
     tf: ctx && ctx.tf,
     // ⭐ RS RATING L11 PR 2 — the chart's newest bar reads its own period (`newestOwnPeriodOf`)
     chartNewestDay: ctx && ctx.chartNewestDay,
+    // ⭐ RS RATING L12 PR 2 (Q-L12-2) — the chart's bars, for a seed's intraday fold (`utcMidnightAtOrAfterOf`)
+    chartBars: ctx && ctx.chartBars,
     requestCode: target.code == null ? null : String(target.code),
     ...(target.below === true ? { below: true } : {}),
   }) }
@@ -139,7 +141,19 @@ function aboveChartRead(target, rows, ctx) {
     daily = decision.symbols[ticker]
     other = ticker
     const sample = decision.samples ? decision.samples[ticker] : null
-    if (!Array.isArray(daily) || sample !== 'session-completed') {
+    if (Array.isArray(daily) && sample === WITNESS_PERIOD_READS.UTC_MIDNIGHT_AT_OR_AFTER) {
+      // ⭐⭐ RS RATING L12 PR 2 (Q-L12-2) — a Pine SEED: the bind already landed each row on one of THIS chart's bars
+      // (`otherSymbols.js::utcMidnightAtOrAfterOf`, keyed by that bar's `t`); a bar no row landed on reads `na`, a
+      // known gap (index -1, nothing withheld), exactly as the seed's daily read does (`same-date-gaps-na`)
+      const at = new Map(daily.map((r, j) => [r.t, j]))
+      const index = new Int32Array(n).fill(-1)
+      for (let i = 0; i < n; i += 1) {
+        const j = rows[i] ? at.get(rows[i].t) : undefined
+        if (j !== undefined) index[i] = j
+      }
+      return { runBars: daily, index, withheld: new Float64Array(n), other: ticker }
+    }
+    if (!Array.isArray(daily) || sample !== WITNESS_PERIOD_READS.SESSION_COMPLETED) {
       return { refusal: `This indicator reads \`${ticker}\` at \`"D"\` above this chart, and no daily read of it `
         + 'is witnessed here, so nothing is drawn bar by bar rather than a guess' }
     }

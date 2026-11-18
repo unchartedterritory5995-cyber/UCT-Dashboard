@@ -119,7 +119,12 @@
       "timeframes": [
         "D",
         "W",
-        "M"
+        "M",
+        "1",
+        "5",
+        "15",
+        "30",
+        "60"
       ],
       "queue_row": "Q-RS2",
       "probe": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
@@ -150,6 +155,61 @@
           "witness": "rs-seed-rsrating-m-rddt-1m-2026-11-18 (rs-monthly-2026-11-18c batch, local; Q-RS-M)",
           "captured": "2026-11-18",
           "how": "TradingView's request.seed('seed_fred6725_rs_rating','RSRATING', close/open/high) on NYSE:RDDT 1M (33 months, captured 2026-11-18T13:0xZ): each month reads the row dated its FIRST SESSION: November 2026 reads 75 (the 2026-11-02 row, Monday, the month's first session), not Sunday 2026-11-01's 92.81 although the seed holds calendar-day rows; October 2026 reads na, its first session 2026-10-01 having no row (the series begins 2026-10-13, 190.9); every earlier month na (`month-first-session`, the row's `same-date-gaps-na` read sampled; the session from `lib/marketClock/sessionCalendar.js`)."
+        },
+        "1": {
+          "held": "D",
+          "reads": {
+            "D": "utc-midnight-at-or-after"
+          },
+          "queue_row": "Q-L12-3",
+          "probe": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
+          "witness": "rs-seed-rsrating-n-rddt-1-2026-11-18 (l12-seed3-now-2026-11-18 batch, local; Q-L12-3)",
+          "captured": "2026-11-18",
+          "how": "TradingView's request.seed('seed_fred6725_rs_rating','RSRATING', close/open/high) on NYSE:RDDT 1m (extended-hours chart, captured 2026-11-18 after the close): each row, dated D, reads on the FIRST chart bar opening at or after D 00:00 UTC (in EST the previous session's 19:00 bar, or the next bar where the chart has none at 19:00; in EDT the next session's 04:00 bar), several rows on one bar the NEWEST (a weekend's: the Monday row), every other bar na. 22,216 of 22,216 graded bars, values and na, against pine_seed_store's rows recorded beside the capture (`utc-midnight-at-or-after`); 'the oldest wins' is off on the 2 weekend bars, a bar that CONTAINS the instant and ET midnight are off on 17 to 27."
+        },
+        "5": {
+          "held": "D",
+          "reads": {
+            "D": "utc-midnight-at-or-after"
+          },
+          "queue_row": "Q-L12-2",
+          "probe": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
+          "witness": "rs-seed-rsrating-n-rddt-5-2026-11-18 (l12-now-2026-11-18 batch, local; Q-L12-2)",
+          "captured": "2026-11-18",
+          "how": "TradingView's request.seed('seed_fred6725_rs_rating','RSRATING', close/open/high) on NYSE:RDDT 5m (extended-hours chart, captured 2026-11-18 after the close): each row, dated D, reads on the FIRST chart bar opening at or after D 00:00 UTC (in EST the previous session's 19:00 bar, or the next bar where the chart has none at 19:00; in EDT the next session's 04:00 bar), several rows on one bar the NEWEST (a weekend's: the Monday row), every other bar na. 20,681 of 20,681 graded bars, values and na, against pine_seed_store's rows recorded beside the capture (`utc-midnight-at-or-after`); 'the oldest wins' is off on the 2 weekend bars, a bar that CONTAINS the instant and ET midnight are off on 17 to 27."
+        },
+        "15": {
+          "held": "D",
+          "reads": {
+            "D": "utc-midnight-at-or-after"
+          },
+          "queue_row": "Q-L12-3",
+          "probe": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
+          "witness": "rs-seed-rsrating-n-rddt-15-2026-11-18 (l12-seed3-now-2026-11-18 batch, local; Q-L12-3)",
+          "captured": "2026-11-18",
+          "how": "TradingView's request.seed('seed_fred6725_rs_rating','RSRATING', close/open/high) on NYSE:RDDT 15m (extended-hours chart, captured 2026-11-18 after the close): each row, dated D, reads on the FIRST chart bar opening at or after D 00:00 UTC (in EST the previous session's 19:00 bar, or the next bar where the chart has none at 19:00; in EDT the next session's 04:00 bar), several rows on one bar the NEWEST (a weekend's: the Monday row), every other bar na. 21,018 of 21,018 graded bars, values and na, against pine_seed_store's rows recorded beside the capture (`utc-midnight-at-or-after`); 'the oldest wins' is off on the 2 weekend bars, a bar that CONTAINS the instant and ET midnight are off on 17 to 27."
+        },
+        "30": {
+          "held": "D",
+          "reads": {
+            "D": "utc-midnight-at-or-after"
+          },
+          "queue_row": "Q-L12-3",
+          "probe": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
+          "witness": "rs-seed-rsrating-n-rddt-30-2026-11-18 (l12-seed3-now-2026-11-18 batch, local; Q-L12-3)",
+          "captured": "2026-11-18",
+          "how": "TradingView's request.seed('seed_fred6725_rs_rating','RSRATING', close/open/high) on NYSE:RDDT 30m (extended-hours chart, captured 2026-11-18 after the close): each row, dated D, reads on the FIRST chart bar opening at or after D 00:00 UTC (in EST the previous session's 19:00 bar, or the next bar where the chart has none at 19:00; in EDT the next session's 04:00 bar), several rows on one bar the NEWEST (a weekend's: the Monday row), every other bar na. 19,830 of 19,830 graded bars, values and na, against pine_seed_store's rows recorded beside the capture (`utc-midnight-at-or-after`); 'the oldest wins' is off on the 2 weekend bars, a bar that CONTAINS the instant and ET midnight are off on 17 to 27."
+        },
+        "60": {
+          "held": "D",
+          "reads": {
+            "D": "utc-midnight-at-or-after"
+          },
+          "queue_row": "Q-L12-2",
+          "probe": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
+          "witness": "rs-seed-rsrating-n-rddt-60-2026-11-18 (l12-now-2026-11-18 batch, local; Q-L12-2)",
+          "captured": "2026-11-18",
+          "how": "TradingView's request.seed('seed_fred6725_rs_rating','RSRATING', close/open/high) on NYSE:RDDT 60m (extended-hours chart, captured 2026-11-18 after the close): each row, dated D, reads on the FIRST chart bar opening at or after D 00:00 UTC (in EST the previous session's 19:00 bar, or the next bar where the chart has none at 19:00; in EDT the next session's 04:00 bar), several rows on one bar the NEWEST (a weekend's: the Monday row), every other bar na. 10,353 of 10,353 graded bars, values and na, against pine_seed_store's rows recorded beside the capture (`utc-midnight-at-or-after`); 'the oldest wins' is off on the 2 weekend bars, a bar that CONTAINS the instant and ET midnight are off on 17 to 27."
         }
       }
     }
