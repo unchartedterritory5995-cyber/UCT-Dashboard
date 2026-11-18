@@ -604,3 +604,23 @@ def test_a_case_that_expects_no_particular_change_still_fails_on_the_class():
     import types
     safe = types.SimpleNamespace(unsafe=lambda *_a: None)                   # the one thing an applied change asks of the run
     assert ce.Run.grade_turn(safe, {"id": "x"}, {"expect": {"kind": "safe-change-allowed", "named_symbols": ["SPY"]}}, applied, None) == {"ok": True, "problems": []}
+
+
+# ─── conventions the instructions teach, as cases ─────────────────────────────────────────────────
+
+CONVENTION_CASES = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_convention_cases.json"
+CONVENTION_SCRIPT = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_convention_scripted.json"
+
+
+@needs_node
+def test_for_the_first_time_in_n_bars_builds_marks_and_computes_in_one_call(tmp_path):
+    """"For the first time in N bars", spelled the way the instructions teach it
+    (`tests/test_converse_first_time_convention.py`): the door accepts it on the first call, the
+    browser applies it as a marker, and it is true on at least one synthetic bar."""
+    proc, _work, out = _run(tmp_path, "--cases", str(CONVENTION_CASES), "--script", str(CONVENTION_SCRIPT))
+    assert proc.returncode == 0, proc.stdout[-3000:]
+    assert _last_line(proc.stdout).startswith("VERDICT: PASS"), proc.stdout[-1500:]
+    (row,) = [r for r in _records(out) if r.get("case") == "conv-first-time-in-n"]
+    assert row["grade"]["ok"] is True, row["grade"].get("problems")
+    assert row["server"]["attempts"] == 1 and row["browser_repair"] is False
+    assert row["client"]["changed"] is True
