@@ -48,6 +48,15 @@ export function isStrategyStateWord(word) {
 
 const SINK_CALLS = new Set(['plot', 'plotshape', 'plotchar', 'plotcandle', 'plotbar', 'plotarrow',
   'fill', 'bgcolor', 'barcolor', 'hline', 'alertcondition', 'alert'])
+
+/** ⛔ W9-OQ-N2 — sinks that refuse (or withhold) their own row. ONE authority: the host lane (`pine.js`) and the
+ *  disarmed run (`strategyDisarmOf`) both read it from here. */
+export const STRATEGY_TAINT_ROW_SINKS = Object.freeze(new Set(['plot', 'plotshape', 'plotchar', 'plotcandle', 'plotbar',
+  'plotarrow', 'alertcondition', 'bgcolor', 'barcolor']))
+/** ⛔ W9-OQ-N2 — sinks with no row and no object of their own (a `fill` band, `alert()`, `hline`):
+ *  a broker value reaching one refuses the script. Every OTHER tainted sink is a drawing, and the
+ *  host's object pass withholds that one drawing step by name. */
+export const STRATEGY_TAINT_SCRIPT_SINKS = Object.freeze(new Set(['fill', 'alert', 'hline']))
 const DRAWING_NS = /^(?:line|label|box|table|polyline|linefill)\./
 // ⛔ The method form of every drawing call that changes what is on screen: the setters, a table's
 // cell writes, and the REMOVALS (`lbl.delete()`, `t.clear()`), which must be sinks in method form
@@ -283,4 +292,55 @@ export function strategyTaintSinks(stmts) {
   }
   walk(stmts, null, true)
   return sinks
+}
+
+/**
+ * ⭐⭐ NUMBER PENDING (fix/strategy-disarmed-taint) — WHAT A STRATEGY RUN WITHOUT ITS BROKER MAY DRAW.
+ *
+ * When a strategy's broker run refuses by name on a chart (an unpinned rule, an open question, [B-START]), the
+ * program runs again with NO broker (`vm.js` `brokerDisarmed`, `runtimeColumns.js::disarmedAfter`) so the member
+ * keeps what the host lane draws for it today (owner rule: an admission never takes away what a member sees). In
+ * that run a broker read yields `na`, ONLY so the order logic around it can finish; it never decides what is drawn.
+ * WHAT is drawn is decided HERE, statically, by the host lane's own analysis and rules (W9-OQ-N2,
+ * `strategyTaintSinks` and the two sink classes above):
+ *   - a tainted ROW sink (a plot, a paint, an alertcondition) is WITHHELD by name: each runtime output its call
+ *     emitted (a plot's colour output too, through `of`), matched on the call's line and name;
+ *   - a tainted sink with NO ROW of its own (a `fill` band, `alert()`, `hline`), or a tainted DRAWING, keeps the
+ *     broker's refusal: nothing is drawn rather than part of it (coordinator ruling 2026-11-18, condition (b));
+ *   - so does a trace that failed (`taint` null), and a tainted row sink no output can be matched to.
+ * @param {Map|null} taint  `strategyTaintSinks(stmts)` on the build's original statements; null when it threw
+ * @param {Array<{call: string, of?: number}>} outputs  the runtime build's outputs
+ * @param {Array<number|null>} lines  per output, the source line its call is on (null when unknown)
+ * @returns {{refused: null | {word: ?string, name: ?string, line: ?number, why: string},
+ *            withheld: Array<{index: number, word: string, name: string, line: number}>}}
+ */
+export function strategyDisarmOf(taint, outputs, lines) {
+  const refuse = (v, why) => ({ refused: { word: (v && v.word) || null, name: (v && v.name) || null,
+    line: v && v.tok && Number.isInteger(v.tok.line) ? v.tok.line : null, why }, withheld: [] })
+  if (!(taint instanceof Map)) return refuse(null, 'untraced')
+  for (const v of taint.values()) {
+    if (STRATEGY_TAINT_SCRIPT_SINKS.has(v.name)) return refuse(v, 'no-row')
+    if (!STRATEGY_TAINT_ROW_SINKS.has(v.name)) return refuse(v, 'drawing')
+  }
+  const withheld = []
+  if (!taint.size) return { refused: null, withheld }
+  const list = Array.isArray(outputs) ? outputs : []
+  const matched = new Set()
+  for (let i = 0; i < list.length; i++) {
+    const o = list[i]
+    const src = o && o.call === 'colour' && Number.isInteger(o.of) ? o.of : i
+    const call = list[src] && list[src].call
+    if (!STRATEGY_TAINT_ROW_SINKS.has(call)) continue
+    const line = Array.isArray(lines) ? lines[src] : null
+    for (const [k, v] of taint) {
+      if (v.name !== call) continue
+      if (!Number.isInteger(line)) return refuse(v, 'unplaced')
+      if (v.tok.line !== line) continue
+      matched.add(k)
+      withheld.push({ index: i, word: v.word, name: v.name, line })
+      break
+    }
+  }
+  for (const [k, v] of taint) if (!matched.has(k)) return refuse(v, 'unmatched')
+  return { refused: null, withheld }
 }

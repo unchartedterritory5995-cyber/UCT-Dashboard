@@ -86,8 +86,11 @@ export class VmError extends Error {
 /** ⭐⭐ Engine 76 (#1803, fix/strategy-refusal-keeps-plots) — the broker operations a DISARMED run (`brokerDisarmed`)
  *  treats as placing nothing: the order commands (`broker.js::BROKER_ORDER_OPS`, every void `strategy.*` op). */
 const DISARMED_NO_OPS = new Set(BROKER_ORDER_OPS)
-/** A disarmed run reached a READ of a broker value: what it computes needs the broker, so it cannot stand in
- *  for the broker run (the caller keeps the broker's own refusal). */
+/** A disarmed run reached a broker read it cannot answer `na` for (a TEXT read: an order id or comment), so it
+ *  cannot stand in for the broker run (the caller keeps the broker's own refusal). ⚰️ Until NUMBER PENDING
+ *  (fix/strategy-disarmed-taint) EVERY read stopped the run, and a strategy whose ORDER logic reads
+ *  `strategy.position_size` (macd-shortlong-strategy-for-tradingview-input-optimizer: six plain MACD plots) lost every
+ *  plot the host lane draws for it. */
 export class DisarmedBrokerRead extends Error {
   constructor(fn) {
     super(`\`${fn}\` reads the strategy broker, which a run without its broker does not hold`)
@@ -348,11 +351,14 @@ export function execute(program, ctx, limits, opts) {
   // (`opts.entry`) is another symbol's bars and never trades this chart's broker.
   const brokerOps = program.brokerOps || []
   let broker = null
-  // ⭐⭐ Engine 76 (#1803, fix/strategy-refusal-keeps-plots) — A DISARMED RUN (`opts.brokerDisarmed`): the
-  // program's plots and paints computed with NO broker, as the host lane computes them (every bar, the forming
-  // one included). An order command places nothing; a read of a broker VALUE stops the run (`DisarmedBrokerRead`),
-  // so only a program whose outputs never need the broker runs to its end. Asked by `runtimeColumns.js` after the
-  // broker run refused by name: the member keeps the plots, and the backtest alone is refused.
+  // ⭐⭐ Engine 76 (#1803, fix/strategy-refusal-keeps-plots), NUMBER PENDING (fix/strategy-disarmed-taint) — A DISARMED RUN
+  // (`opts.brokerDisarmed`): the program's plots and paints computed with NO broker, as the host lane computes them
+  // (every bar, the forming one included). An order command places nothing; a NUMBER read of a broker value is `na`,
+  // only so the order logic around it can finish: it never decides what is drawn. What is drawn was decided
+  // statically, before this run, by the host lane's own taint (`strategyTaint.js::strategyDisarmOf`, the program's
+  // `broker.disarm`): every output a broker value reaches is withheld by name by the caller. A TEXT read stops the
+  // run (`DisarmedBrokerRead`). Asked by `runtimeColumns.js` after the broker run refused by name: the member keeps
+  // the plots no broker value reaches, and the backtest alone is refused.
   const disarmed = !!(opts && opts.brokerDisarmed === true)
   if (program.broker && !disarmed && !(opts && opts.entry !== undefined)) {
     // [B-START] a backtest is path-dependent: served only from TradingView's own first bar.
@@ -1074,8 +1080,10 @@ export function execute(program, ctx, limits, opts) {
         case 100 /* OP.BROKER */: {
           const bop = brokerOps[a]
           if (!broker && disarmed) {
-            // an order command (and the symbol hand-off) places nothing in a disarmed run; any read stops it
+            // an order command (and the symbol hand-off) places nothing in a disarmed run; a number read is `na`
+            // (what it reaches is withheld by the static taint); a text read stops it
             if (bop.returns === 'void' && (bop.fn === '#symbol' || DISARMED_NO_OPS.has(bop.fn))) { sp -= b; break }
+            if (bop.returns === 'number') { sp -= b; stack[sp++] = NaN; break }
             throw new DisarmedBrokerRead(bop.fn)
           }
           if (!broker) {
