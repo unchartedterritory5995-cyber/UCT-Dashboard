@@ -126,6 +126,9 @@ on:
 # run joins the same group and cancels the superseded one (its tree is no longer the PR's); a re-arm of the same PR does
 # the same. A base (master) move fires no event, so it cancels nothing: re-arm. Push runs keep `agent-ci-<ref>`, the exact
 # group string they had before.
+# The repository_dispatch branch uses the RAW client_payload.pr (concurrency cannot read step outputs), so a Contents:write
+# holder could cancel another PR's evidence run by sending its number: denial of service only (a cancelled run is never
+# evidence, and that holder can already push). AUDIT accepted this (P2d).
 concurrency:
   group: ${{ github.event_name == 'pull_request' && format('agent-ci-pr-{0}', github.event.pull_request.number) || github.event_name == 'repository_dispatch' && format('agent-ci-pr-{0}', github.event.client_payload.pr) || format('agent-ci-{0}', github.ref) }}
   cancel-in-progress: true
@@ -178,6 +181,21 @@ jobs:
           sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
           python -m pip install --quiet --upgrade pip
           python -m pip install --quiet -r requirements.txt pytest httpx
+      # P2d (AUDIT): one line naming the merge-base mode the baseline rail below will use, from the REAL merge_base_mode()
+      # in the same environment (no payload value, no expression in the shell; a missing origin/master prints empty)
+      - name: Print the capreg merge-base mode
+        run: |
+          python -c '
+          import importlib.util, os, sys
+          spec = importlib.util.spec_from_file_location("capreg_baseline", "tests/test_uct_agent_capreg_baseline.py")
+          m = importlib.util.module_from_spec(spec)
+          sys.modules["capreg_baseline"] = m
+          spec.loader.exec_module(m)
+          head = (m._git("rev-parse", "HEAD") or "").strip()
+          om = (m._git("rev-parse", "origin/master") or "").strip()
+          ev = os.environ.get("GITHUB_EVENT_NAME", "")
+          print(f"merge_base_mode={m.merge_base_mode()} event={ev} head={head} origin_master={om}")
+          '
       - name: pytest tests/test_uct_agent*.py
         env:
           PYTEST_ADDOPTS: ${{ github.event_name != 'push' && '--junitxml=evidence-pytest.xml' || '' }}   # P2: '' on push
@@ -337,6 +355,22 @@ jobs:
         if: matrix.clock == 'post'
         with:
           python-version: '3.12'
+      # P2d (AUDIT): one line naming the merge-base mode the baseline rail below will use, from the REAL merge_base_mode()
+      # in the same environment (no payload value, no expression in the shell; a missing origin/master prints empty)
+      - name: Print the capreg merge-base mode
+        if: matrix.clock == 'post'
+        run: |
+          python -c '
+          import importlib.util, os, sys
+          spec = importlib.util.spec_from_file_location("capreg_baseline", "tests/test_uct_agent_capreg_baseline.py")
+          m = importlib.util.module_from_spec(spec)
+          sys.modules["capreg_baseline"] = m
+          spec.loader.exec_module(m)
+          head = (m._git("rev-parse", "HEAD") or "").strip()
+          om = (m._git("rev-parse", "origin/master") or "").strip()
+          ev = os.environ.get("GITHUB_EVENT_NAME", "")
+          print(f"merge_base_mode={m.merge_base_mode()} event={ev} head={head} origin_master={om}")
+          '
       - name: Baseline lock (removing or weakening a baseline entry needs a recorded decision)
         if: matrix.clock == 'post'
         env:

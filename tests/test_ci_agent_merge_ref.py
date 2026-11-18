@@ -10,6 +10,8 @@ event (a small evaluator for the GitHub expression subset agent-ci.yml uses; any
     the dispatched merge commit;
   * the self-protection is intact: agent-ci.yml and the new tools are Agent paths, the payload never reaches a shell,
     and agent-ci-required still runs the default branch's copy.
+  * P2d (2026-11-18, AUDIT): every job / leg that runs the capreg baseline pytest first prints ONE line naming the
+    merge-base mode, from the real merge_base_mode() (python -c, same env), with no payload and no expression in it.
   * P2c (2026-11-18, AUDIT): the re-arm is `repository_dispatch` type agent-ci-evidence, the ONE re-arm path (the trigger
     set is pinned exactly); client_payload is attacker-controlled: every job validates it FIRST, in bash, through env:,
     and the job reads only that step's outputs; GITHUB_SHA (master's tip there) is never the commit under test; and a
@@ -17,6 +19,8 @@ event (a small evaluator for the GitHub expression subset agent-ci.yml uses; any
 """
 from __future__ import annotations
 
+import copy
+import fnmatch
 import os
 import pathlib
 import re
@@ -600,3 +604,121 @@ def test_dispatch_inputs_never_reach_a_shell():
         for step in job.get("steps") or []:
             assert "inputs." not in (step.get("run") or ""), f"{jid}: an input is interpolated into a shell: {step.get('name')}"
     assert "workflow_dispatch" not in ON
+
+
+# ---------------------------------------------------------------------------------------------- P2d: the mode line
+CAPREG_TEST = "tests/test_uct_agent_capreg_baseline.py"
+MODE_LINE = re.compile(r"^merge_base_mode=(strict|lenient|skip-master) event=(\S*) head=([0-9a-f]{40}|) origin_master=([0-9a-f]{40}|)$")
+
+
+def _runs_capreg_pytest(step) -> bool:
+    run = step.get("run") or ""
+    return "pytest" in run and any(fnmatch.fnmatchcase(CAPREG_TEST, w) for w in run.split() if w.startswith("tests/"))
+
+
+def _is_mode_print(step) -> bool:
+    return "merge_base_mode" in (step.get("run") or "") or step.get("name") == "Print the capreg merge-base mode"
+
+
+def _mode_code(run: str):
+    m = re.search(r"python -c '\n(.*?)\n'", run, re.S)
+    return m.group(1) if m else None
+
+
+def mode_print_violations(doc) -> list[str]:
+    """Every leg of every job whose capreg-baseline pytest step runs (for any event) runs the mode print step BEFORE it,
+    and that step calls the real merge_base_mode() through python -c with no payload and no `${{` in its shell."""
+    bad, legs_seen = [], 0
+    for jid, job in doc["jobs"].items():
+        steps = job.get("steps") or []
+        for leg in _legs(job):
+            for event in ("push", "pull_request", "repository_dispatch"):
+                c = ctx(event, matrix=leg)
+                if not _job_runs(job, c):
+                    continue
+                live = [(i, s) for i, s in enumerate(steps) if _runs(s.get("if"), c)]
+                for i, s in live:
+                    if not _runs_capreg_pytest(s):
+                        continue
+                    legs_seen += 1
+                    prints = [j for j, p in live if _is_mode_print(p)]
+                    if not prints:
+                        bad.append(f"{jid} {leg} {event}: no mode print step before the capreg pytest")
+                    elif not any(j < i for j in prints):
+                        bad.append(f"{jid} {leg} {event}: the mode print step comes after the capreg pytest")
+    for jid, job in doc["jobs"].items():
+        for s in job.get("steps") or []:
+            if not _is_mode_print(s):
+                continue
+            run = s.get("run") or ""
+            code = _mode_code(run)
+            if code is None or not run.lstrip().startswith("python -c"):
+                bad.append(f"{jid}: the mode print is not a python -c call")
+                continue
+            if "client_payload" in repr(s) or "${{" in run:
+                bad.append(f"{jid}: the mode print reads the payload or an expression")
+            if CAPREG_TEST not in code or "exec_module" not in code or not re.search(r"\bm\.merge_base_mode\(\)", code):
+                bad.append(f"{jid}: the mode print does not call the real merge_base_mode()")
+            if re.search(r"merge_base_mode=(strict|lenient|skip-master)", code):
+                bad.append(f"{jid}: the mode print hard-codes a mode")
+    if legs_seen < 2:
+        bad.append(f"only {legs_seen} capreg pytest legs seen: the rail is not looking at them")
+    return bad
+
+
+def test_P2d_every_capreg_pytest_leg_prints_the_merge_base_mode_first():
+    assert mode_print_violations(DOC) == []
+    # the two places agent-ci runs the baseline rail: the server job's tests/test_uct_agent*.py and the capreg post leg
+    jobs = {jid for jid, job in DOC["jobs"].items() if any(_runs_capreg_pytest(s) for s in job.get("steps") or [])}
+    assert jobs == {"server", "capability-regression-clock"}, jobs
+
+
+def _mutants():
+    def drop(doc, jid):
+        doc["jobs"][jid]["steps"] = [s for s in doc["jobs"][jid]["steps"] if not _is_mode_print(s)]
+
+    def after(doc, jid):
+        st = doc["jobs"][jid]["steps"]
+        i = next(k for k, s in enumerate(st) if _is_mode_print(s))
+        p = st.pop(i)
+        j = next(k for k, s in enumerate(st) if _runs_capreg_pytest(s))
+        st.insert(j + 1, p)
+
+    def hard(doc, jid):
+        s = next(s for s in doc["jobs"][jid]["steps"] if _is_mode_print(s))
+        s["run"] = "python -c '\nprint(\"merge_base_mode=strict event=x head= origin_master=\")\n'\n"
+
+    def payload(doc, jid):
+        s = next(s for s in doc["jobs"][jid]["steps"] if _is_mode_print(s))
+        s["run"] = s["run"].replace('os.environ.get("GITHUB_EVENT_NAME", "")', '"${{ github.event.client_payload.pr }}"')
+
+    def wrong_leg(doc, jid):        # the print is skipped in a leg / event where the capreg pytest still runs
+        s = next(s for s in doc["jobs"][jid]["steps"] if _is_mode_print(s))
+        s["if"] = "matrix.clock == 'rth'" if jid == "capability-regression-clock" else "github.event_name == 'push'"
+    return [drop, after, hard, payload, wrong_leg]
+
+
+@pytest.mark.parametrize("jid", ["server", "capability-regression-clock"])
+@pytest.mark.parametrize("mutate", _mutants(), ids=lambda f: f.__name__)
+def test_P2d_the_mode_print_rail_catches_each_mutant(mutate, jid):
+    doc = copy.deepcopy(DOC)
+    mutate(doc, jid)
+    assert mode_print_violations(doc), f"{mutate.__name__} on {jid} went unnoticed"
+
+
+def test_P2d_the_mode_print_runs_and_names_the_real_mode():
+    """Run the step's own python -c here, in this checkout, for a dispatch and a PR environment: it prints exactly one
+    line, and the mode it prints is the one merge_base_mode() computes for that same environment."""
+    from tests import test_uct_agent_capreg_baseline as cb
+    step = next(s for s in DOC["jobs"]["capability-regression-clock"]["steps"] if _is_mode_print(s))
+    code = _mode_code(step["run"])
+    base = {k: v for k, v in os.environ.items() if not k.startswith("GITHUB_")}
+    for event, ref in (("repository_dispatch", "refs/heads/master"), ("pull_request", "refs/pull/1700/merge")):
+        env = dict(base, GITHUB_EVENT_NAME=event, GITHUB_REF=ref)
+        out = subprocess.run([sys.executable, "-c", code], cwd=ROOT, env=env, capture_output=True, text=True, timeout=120)
+        assert out.returncode == 0, out.stderr
+        lines = out.stdout.splitlines()
+        assert len(lines) == 1 and MODE_LINE.match(lines[0]), out.stdout
+        m = MODE_LINE.match(lines[0])
+        assert m.group(1) == cb.merge_base_mode({"GITHUB_EVENT_NAME": event, "GITHUB_REF": ref}), lines[0]
+        assert m.group(2) == event and m.group(3) == (cb._git("rev-parse", "HEAD") or "").strip()
