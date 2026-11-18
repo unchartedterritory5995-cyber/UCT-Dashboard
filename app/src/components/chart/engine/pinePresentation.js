@@ -83,6 +83,91 @@ const COLUMN_LABEL = /^out\d+$/
 const GENERIC_STYLE_LABEL = /^(Line width|Color|Colour)$/
 const EMPTY = Object.freeze({ onInputs: new Set(), switches: new Set(), order: new Map(), extra: new Map() })
 const _presMemo = new WeakMap()
+const _plotTitleMemo = new WeakMap()
+
+/** The input key a plot's `color` / `width` reads, from `$refs` or a `$key` value. */
+const refOf = (p, field) => (p && p.$refs && typeof p.$refs[field] === 'string' ? p.$refs[field]
+  : p && typeof p[field] === 'string' && p[field].startsWith('$') ? p[field].slice(1) : null)
+
+/** ONE plot's OWN title: its label, never a column key `outN`, never the import's stand-in (below); else
+ *  null, an untitled plot. */
+function ownTitleOfPlot(p, standIn = null) {
+  return p && typeof p.label === 'string' && p.label && !COLUMN_LABEL.test(p.label)
+    && !(standIn && standIn(p.label)) ? p.label : null
+}
+
+/** ONE plot's name: its own title (`ownTitleOfPlot`), else the group of the script colour it draws in,
+ *  else TradingView's `Plot`. */
+function titleOfPlot(p, links, byName, standIn = null) {
+  const colourKey = refOf(p, 'color')
+  const linked = colourKey && links[colourKey] ? byName.get(links[colourKey]) : null
+  const own = ownTitleOfPlot(p, standIn)
+  return own || (linked && linked.group) || 'Plot'
+}
+
+const PLOT_CALL = /\bplot(?:shape|char|arrow|candle|bar)?\s*\(/
+const STRING_LIT = /(["'])((?:\\.|(?!\1).)*)\1/g
+/**
+ * ⭐ THE IMPORT'S STAND-IN: an untitled first plot is labelled with the INDICATOR's name when a Pine
+ * script is imported, which is not a title the script gave it (TradingView's Style tab calls it `Plot`).
+ * A label is that stand-in when it is the document's name and no `plot*(…)` line of the source writes it
+ * as a string. Null for a document with no Pine source: an author's document, and ⚠️ a Pine import that
+ * kept only its formula (no run half), where nothing can tell the stand-in from a title equal to the name,
+ * so the label is kept (it names the plot, it is never a column key).
+ */
+function importStandIn(def) {
+  const src = pineSourceOf(def)
+  const meta = isObj(def) && isObj(def.meta) ? def.meta : {}
+  const name = typeof meta.name === 'string' && meta.name ? meta.name
+    : isObj(def) && typeof def.name === 'string' ? def.name : null
+  if (!src || !name) return null
+  const written = new Set()
+  for (const line of String(src).split('\n')) {
+    if (!PLOT_CALL.test(line)) continue
+    for (const m of line.matchAll(STRING_LIT)) written.add(m[2])
+  }
+  return (label) => label === name && !written.has(label)
+}
+
+/**
+ * ⭐⭐ A PLOT'S NAME ON THE SETTINGS FORM, plot key -> name, by the rule its own style settings are
+ * named by (`pineFieldPresentation`'s `<name> colour` / `<name> width`): its own title, else the group
+ * of the script colour it draws in, else `Plot`, which is what TradingView's Style tab calls an untitled
+ * plot. ⚰️ The host's plot-style row printed the column key instead ("out2 style"). Memoised per
+ * document; a document with no Pine source has no colour links, so it reads title-or-`Plot`.
+ */
+export function plotTitlesOf(def) {
+  if (!isObj(def)) return new Map()
+  if (_plotTitleMemo.has(def)) return _plotTitleMemo.get(def)
+  const decls = Array.isArray(def.inputs) ? pineInputDeclarations(pineSourceOf(def)) : []
+  const byName = new Map(decls.map((d) => [d.name, d]))
+  let links = {}
+  if (decls.length) { try { links = hostColourLinks(def) } catch { links = {} } }
+  const standIn = importStandIn(def)
+  const out = new Map()
+  for (const p of (Array.isArray(def.plots) ? def.plots : [])) {
+    if (isObj(p) && typeof p.key === 'string') out.set(p.key, titleOfPlot(p, links, byName, standIn))
+  }
+  _plotTitleMemo.set(def, out)
+  return out
+}
+
+/**
+ * ⭐ HEADLESS (Studio R6) — each plot's OWN title, plot key -> title or null, by the same rule
+ * `plotTitlesOf` names a titled plot by (`ownTitleOfPlot`): what a headless output carries as its
+ * `title` (`headlessCompute.js`), where an untitled plot is `null`, never the form's stand-in (a
+ * colour group, or `Plot`). ⚠️ A Pine import that kept no script cannot tell the import's stand-in from
+ * a title equal to its name (`importStandIn`), so that label is kept, as the form keeps it.
+ */
+export function plotOwnTitlesOf(def) {
+  const out = new Map()
+  if (!isObj(def)) return out
+  const standIn = importStandIn(def)
+  for (const p of (Array.isArray(def.plots) ? def.plots : [])) {
+    if (isObj(p) && typeof p.key === 'string') out.set(p.key, ownTitleOfPlot(p, standIn))
+  }
+  return out
+}
 
 /**
  * What the settings FORM shows for a Pine document, read off the (installed) document, memoised per document:
@@ -107,14 +192,10 @@ export function pineFieldPresentation(def) {
   const order = new Map()
   const extra = new Map()
   // an untitled plot's own style keys: titled from the group of the script colour that plot draws in
-  const refOf = (p, field) => (p && p.$refs && typeof p.$refs[field] === 'string' ? p.$refs[field]
-    : p && typeof p[field] === 'string' && p[field].startsWith('$') ? p[field].slice(1) : null)
   const plotTitle = new Map()
+  const standIn = importStandIn(def)
   for (const p of (Array.isArray(def.plots) ? def.plots : [])) {
-    const colourKey = refOf(p, 'color')
-    const linked = colourKey && links[colourKey] ? byName.get(links[colourKey]) : null
-    const own = p && typeof p.label === 'string' && p.label && !COLUMN_LABEL.test(p.label) ? p.label : null
-    const title = own || (linked && linked.group) || 'Plot'
+    const title = titleOfPlot(p, links, byName, standIn)
     for (const field of ['color', 'width']) {
       const k = refOf(p, field)
       if (k) plotTitle.set(k, { title, field })

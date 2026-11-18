@@ -42,7 +42,9 @@ const emit = () => { for (const fn of [...listeners]) { try { fn() } catch { /* 
 /** `opts`: NAMED, so later fields merge by name (r5 N-h) — `families` (partly held
  *  back, `withheldBy['objects:collector']`), `familiesAll` (withheld whole), `why`
  *  (DIV-3 r2: family → the member's sentence for a family a named guard withheld). */
-export function setObjectRenderDrops(instanceId, dropped, held, scope = '', { families = [], familiesAll = [], why = null } = {}) {
+/** ⭐ `servedByRun`: this instance's drawings ARE the run half's (the binder drew them from the bar-by-bar
+ *  run on this chart), so the host lane's withheld-drawings note is not this chart's truth (2026-11-17). */
+export function setObjectRenderDrops(instanceId, dropped, held, scope = '', { families = [], familiesAll = [], why = null, servedByRun = false } = {}) {
   if (!instanceId) return
   const d = Number.isInteger(dropped) && dropped > 0 ? dropped : 0
   const h = Number.isInteger(held) && held >= d ? held : d
@@ -55,7 +57,8 @@ export function setObjectRenderDrops(instanceId, dropped, held, scope = '', { fa
     : []
   const own = scoped(scope)
   const had = own ? own.get(instanceId) : undefined
-  if (!d && !fams.length && !all.length && !whyE.length) {
+  const served = servedByRun === true
+  if (!d && !fams.length && !all.length && !whyE.length && !served) {
     if (had) {
       own.delete(instanceId)
       if (!own.size) drops.delete(scope || '')
@@ -64,10 +67,11 @@ export function setObjectRenderDrops(instanceId, dropped, held, scope = '', { fa
     return
   }
   const entry = { dropped: d, held: h, ...(fams.length ? { families: fams } : {}), ...(all.length ? { familiesAll: all } : {}),
-    ...(whyE.length ? { why: Object.fromEntries(whyE) } : {}) }
+    ...(whyE.length ? { why: Object.fromEntries(whyE) } : {}), ...(served ? { servedByRun: true } : {}) }
   if (had && had.dropped === d && had.held === h
     && (had.families || []).join(',') === fams.join(',') && (had.familiesAll || []).join(',') === all.join(',')
-    && JSON.stringify(had.why || {}) === JSON.stringify(entry.why || {})) return
+    && JSON.stringify(had.why || {}) === JSON.stringify(entry.why || {})
+    && (had.servedByRun === true) === served) return
   if (own) own.set(instanceId, entry)
   else drops.set(scope || '', new Map([[instanceId, entry]]))
   emit()

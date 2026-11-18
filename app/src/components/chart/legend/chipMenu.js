@@ -319,6 +319,12 @@ export function chipMenuItems(chip, def, h, caps = {}) {
     rows.push({ key: 'edit-formula', label: 'Edit formula', icon: 'edit',
       onClick: () => h.onEditFormula(chip.instanceId) })
   }
+  // ⭐ R1 (Studio plan) — RUN IT OVER A LIST, from the indicator itself. Opens the Screener's existing
+  // run flow on this indicator (`screener/scanLink`); the Screener says whether it can scan and why not.
+  if (userDef && typeof h.onRunOverList === 'function') {
+    rows.push({ key: 'run-list', label: 'Run over a list', icon: 'search',
+      onClick: () => h.onRunOverList(chip.instanceId) })
+  }
   // ⭐⭐ SAVED-SCRIPT AUTO-UPGRADE — ONE quiet row, only for the member's own Pine
   // script saved before its source was kept (`savedScriptUpgrade.needsScriptForUpgrade`):
   // engine fixes cannot reach it until it is saved once from its script. A menu row,

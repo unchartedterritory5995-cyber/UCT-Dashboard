@@ -3173,7 +3173,7 @@ export default function DarkPool({embedded}){
       // Mark attempted up front so the auto-fetch effect doesn't re-queue
       // these symbols while requests are still in flight.
       tickers.forEach(t => mktcapAttemptedRef.current.add(t));
-      // Chunk by 50 (matches schwab_router's per-request cap)
+      // Chunk by 50 (matches the mktcap-batch route's per-request cap)
       const batches = [];
       for (let i = 0; i < tickers.length; i += 50) {
         batches.push(tickers.slice(i, i + 50));

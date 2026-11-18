@@ -310,6 +310,14 @@ export default function MobileChartsApp({
     paneRef.current?.openSettings(door && door.isConnected ? { currentTarget: door } : undefined)
   }, [])
   const browseLibrary = useCallback(() => { toolbarApiRef.current?.openIndicatorLibrary?.() }, [])
+  // ⭐ 2026-11-17 — the sheet's first row. The chart's own Create Indicator door (the dock, as a bottom
+  // sheet here); where that door does not open (a chart that cannot be edited), the library, which
+  // says why.
+  const createIndicator = useCallback(() => {
+    let opened = false
+    try { opened = toolbarApiRef.current?.openCreateIndicator?.() === true } catch { opened = false }
+    if (!opened) toolbarApiRef.current?.openIndicatorLibrary?.()
+  }, [])
   // Tools → "Draw on chart": the discoverable door onto the drawing toolbar,
   // which starts collapsed on phone (clean canvas, a chevron nobody new would
   // find). Expands through the toolbar's own persisting setter.
@@ -645,6 +653,7 @@ export default function MobileChartsApp({
         historyKey={chartWidget?.id ? `chart:${chartWidget.id}` : null}
         historyUserId={historyUserId}
         onBrowseLibrary={browseLibrary}
+        onCreateIndicator={createIndicator}
         onOpenSettings={openSettings}
         className={sheetTheme}
         initialEditing={sheetEditing}

@@ -186,6 +186,9 @@ _READS = frozenset({"GET", "HEAD", ""})
 _METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE", "OPTIONS"})
 #: Minutes this soon after the process started are reported apart from the settled ones.
 AFTER_BOOT_S = 300
+#: The same split, finer (2026-11-17): the slow window after a restart measured ~18 minutes, so
+#: `settled` (anything past 5 min) mixed minutes 5-18 with the truly settled ones. Lower bounds in s.
+UPTIME_BANDS = ((0, "0-5m"), (300, "5-10m"), (600, "10-20m"), (1200, "20m+"))
 
 
 def record(path: str, status: int, ms: float, now: float | None = None, method: str = "GET") -> None:
@@ -426,6 +429,7 @@ def summary(hours: int = 24, top: int = 60, now: float | None = None) -> dict[st
     # while its caches warm, and that tail was being read as a property of whole routes.
     phases = {"after_boot": {"g": new_hist(), "s": new_sampler(), "minutes": 0},
               "settled": {"g": new_hist(), "s": new_sampler(), "minutes": 0}}
+    bands = {name: {"g": new_hist(), "s": new_sampler(), "minutes": 0} for _, name in UPTIME_BANDS}
     for row in rows:
         merge(total, row["g"])
         merge_sampler(total_s, row.get("s") or new_sampler())
@@ -433,6 +437,12 @@ def summary(hours: int = 24, top: int = 60, now: float | None = None) -> dict[st
         merge(phase["g"], row["g"])
         merge_sampler(phase["s"], row.get("s") or new_sampler())
         phase["minutes"] += 1
+        if row.get("up") is not None:
+            # the first minute after a boot starts before the process did: its `up` is negative
+            band = bands[[name for lo, name in UPTIME_BANDS if max(0, row["up"]) >= lo][-1]]
+            merge(band["g"], row["g"])
+            merge_sampler(band["s"], row.get("s") or new_sampler())
+            band["minutes"] += 1
         hour = by_hour.setdefault(row["m"] // 60, {"g": new_hist(), "s": new_sampler()})
         merge(hour["g"], row["g"])
         merge_sampler(hour["s"], row.get("s") or new_sampler())
@@ -461,6 +471,8 @@ def summary(hours: int = 24, top: int = 60, now: float | None = None) -> dict[st
         "verdict": verdict, "all": _hist_row(total), "threads": _sampler_row(total_s),
         "since_restart": {name: {"minutes": v["minutes"], **_hist_row(v["g"]), **_sampler_row(v["s"])}
                           for name, v in phases.items()},
+        "since_restart_bands": {name: {"minutes": v["minutes"], **_hist_row(v["g"]), **_sampler_row(v["s"])}
+                                for name, v in bands.items()},
         "by_hour": [{"hour": time.strftime("%Y-%m-%d %H:00", time.gmtime(h * 3600)), **_hist_row(v["g"]),
                      **_sampler_row(v["s"])} for h, v in sorted(by_hour.items())],
         "routes": [{"route": cls, **_hist_row(h), "share_of_time_pct": round(100.0 * h[1] / all_ms, 1)}

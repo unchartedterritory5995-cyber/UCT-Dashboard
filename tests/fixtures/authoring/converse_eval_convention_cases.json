@@ -1,0 +1,254 @@
+{
+ "contract": "uct.converse-eval.cases/1",
+ "_": "CONVENTIONS THE INSTRUCTIONS TEACH, as cases (Studio, 2026-11-18). `conv-first-time-in-n`: \"for the first time in N bars\" is the condition now and not once on the N bars before, spelled cond && (offset 1 of barssince(cond, N)) >= N. On production the request \"a new 52 week high for the first time in at least 30 days\" ended in a refusal (Indicators backlog 63). The scripted answer is the taught spelling; the case holds that the door accepts it, the browser applies it as a marker, and the engine computes it true on at least one bar and never twice in a run. Controls are the standard ones.",
+ "chart": {
+  "sym": "TEST",
+  "tf": "D"
+ },
+ "cases": [
+  {
+   "id": "conv-first-time-in-n",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Arrow when price closes at a new 50 day high for the first time in at least 20 days.",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": ">=",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "call",
+             "name": "highest",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 50
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">=",
+           "args": [
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "call",
+               "name": "barssince",
+               "args": [
+                {
+                 "type": "op",
+                 "name": ">=",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "call",
+                   "name": "highest",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    },
+                    {
+                     "type": "num",
+                     "value": 50
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 20
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 20
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ],
+      "presentation": {
+       "marker": true
+      },
+      "readback_mentions": [
+       "50",
+       "20"
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-unknown-name",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Add the Gann Fan",
+     "model_expected": false,
+     "expect": {
+      "kind": "refused",
+      "max_model_calls": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-other-symbol",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Highlight when the close is above the SPY close",
+     "expect": {
+      "kind": "safe-change-allowed",
+      "named_symbols": [
+       "SPY"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-screener-text",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Highlight it when the sector is Technology",
+     "expect": {
+      "kind": "none"
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-ambiguous",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Show RSI 14 above 70.",
+     "role": "setup",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "words": "add volume confirmation",
+     "expect": {
+      "kind": "clarify",
+      "name_fixed": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-rename-nothing",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Show RSI 14 above 70.",
+     "role": "setup",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "words": "rename it",
+     "expect": {
+      "kind": "none",
+      "name_fixed": true
+     }
+    }
+   ]
+  }
+ ]
+}

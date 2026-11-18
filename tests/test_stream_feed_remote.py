@@ -173,6 +173,62 @@ def test_a_full_subscriber_queue_drops_its_oldest():
     asyncio.run(go())
 
 
+def test_a_slow_reader_gets_the_CURRENT_value_of_the_forming_candle_not_a_backlog():
+    """⭐ 2026-11-17: 18% of bar frames were dropped from full queues in one session, and a reader that
+    fell behind drained up to 64 stale frames before the newest price (6-12 s behind). Forming frames of
+    one candle are last-value-wins: the queue holds ONE, the newest, and nothing is dropped."""
+    async def go():
+        rb, c, _ = make_rb()
+        q = rb.subscribe("ZZA", "1", v2=True)
+        for i in range(100):
+            rb.apply_batch(batch(i + 1, [("ZZA", "1", bar(T0, 10.0 + i / 100))]))
+        assert q.qsize() == 1
+        assert rb.counters["dropped"] == 0 and rb.counters["conflated"] == 99
+        assert drain(q)[0]["bar"]["c"] == 10.99
+        assert rb.get_status()["conflated_total"] == 99
+    asyncio.run(go())
+
+
+def test_quotes_are_not_served_as_live_while_ingest_says_its_vendor_socket_is_down():
+    """⛔ 2026-11-17 audit: status batches keep arriving while ingest's Massive socket is DOWN, so "a
+    batch arrived" kept the frozen quote served as live and the quote feed never fell back."""
+    rb, c, _ = make_rb()
+    rb.subscribe("ZZA", "1", v2=True)
+    rb.apply_batch(batch(1, prices={"ZZA": {"price": 5.0, "ts": T0}}))
+    assert rb.get_last_price("ZZA")["price"] == 5.0
+    rb.apply_batch(fp.Batch(epoch=1, seq=2, status={"epoch": 1, "connect": False, "closing": False, "clients": 1}))
+    assert rb.feed_fresh() is False and rb.get_last_price("ZZA") is None     # the caller falls back
+    assert rb.get_status()["vendor_up"] is False
+    rb.apply_batch(fp.Batch(epoch=1, seq=3, status={"epoch": 1, "connect": True, "closing": False, "clients": 1}))
+    assert rb.feed_fresh() is True and rb.get_last_price("ZZA")["price"] == 5.0
+    # a batch WITHOUT a status leaves ingest's last word in place
+    rb.apply_batch(batch(4, prices={"ZZA": {"price": 6.0, "ts": T0 + 1000}}))
+    assert rb.get_last_price("ZZA")["price"] == 6.0
+
+
+def test_a_final_is_never_replaced_or_overtaken_and_order_is_kept():
+    async def go():
+        rb, c, _ = make_rb()
+        q = rb.subscribe("ZZA", "1", v2=True)
+        seq = iter(range(1, 100))
+        put = lambda t, cl, final=False: rb.apply_batch(batch(next(seq), [("ZZA", "1", bar(t, cl, final=final))]))
+        put(T0, 10.0)                 # forming, candle 1
+        put(T0, 10.1, final=True)     # its final takes the forming frame's place (same candle)
+        put(T0 + MIN, 11.0)           # candle 2 forming: appended behind the final
+        put(T0 + MIN, 11.1)           # replaces candle 2's forming frame
+        put(T0, 10.2, final=True)     # a late correction of candle 1: appended, never merged backwards
+        put(T0 + MIN, 11.2)           # candle 2 again: a final sits last, so it is appended
+        got = [(m["bar"]["t"], m["bar"]["c"], bool(m["bar"].get("final"))) for m in drain(q)]
+        assert got == [(T0, 10.1, True), (T0 + MIN, 11.1, False), (T0, 10.2, True), (T0 + MIN, 11.2, False)]
+        assert rb.counters["dropped"] == 0
+        # a correction of the SAME candle right behind its final: both finals are delivered
+        put(T0 + 2 * MIN, 12.0, final=True)
+        put(T0 + 2 * MIN, 12.5, final=True)
+        got = [(m["bar"]["t"], m["bar"]["c"]) for m in drain(q)]
+        assert got == [(T0 + 2 * MIN, 12.0), (T0 + 2 * MIN, 12.5)]
+    asyncio.run(go())
+
+
 # ── the remote-mode guards ────────────────────────────────────────────────────
 
 def test_feed_source_is_local_unless_remote_is_asked(monkeypatch):
@@ -248,7 +304,12 @@ def test_feed_client_end_to_end_with_the_ingest_service(monkeypatch):
     from api.services import ingest_feed_server as ifs
     monkeypatch.setenv("PUSH_SECRET", SECRET)
     monkeypatch.setattr(ifs, "BATCH_INTERVAL_S", 0.01)
+    monkeypatch.setattr(ifs, "STATUS_INTERVAL_S", 0.02)
     monkeypatch.setattr(fc, "RECONNECT_MIN_S", 0.05)
+    # No Massive socket in a test: ingest reports its vendor socket through this property, in every
+    # status batch (`connect`), and web serves quotes as live only while it says up.
+    vendor = {"up": True}
+    monkeypatch.setattr(ir.IngestRuntime, "vendor_connected", property(lambda self: vendor["up"]))
     port = _free_port()
     owners = {"bars": {"ZZA": frozenset({"AM", "A", "T"})}}
 
@@ -279,6 +340,12 @@ def test_feed_client_end_to_end_with_the_ingest_service(monkeypatch):
         rt.on_bar("ZZA", {"t": T0 + 1000, "p": 10.5, "s": 100, "c": []}, "T")
         await _until(lambda: not q.empty() and rb.get_last_price("ZZA") is not None)
         assert q.get_nowait()["bar"]["c"] == 10.5 and rb.get_last_price("ZZA")["price"] == 10.5
+        # ingest's Massive socket drops: over the real wire, the quote stops being served as live
+        vendor["up"] = False
+        await _until(lambda: rb.get_last_price("ZZA") is None)
+        assert rb.get_status()["vendor_up"] is False
+        vendor["up"] = True
+        await _until(lambda: rb.get_last_price("ZZA") is not None)
         epoch1 = srv.epoch
 
         stop.set()                                     # ingest restarts: a new process, a new epoch
@@ -361,6 +428,58 @@ def test_feed_client_resets_on_a_new_epoch_and_resyncs_on_a_gap(monkeypatch):
         await asyncio.wait_for(task, 2)
     asyncio.run(go())
 
+
+
+ODD = ["US:A50", "^VIX", "spy", "TOOLONGTICKER1"]   # namespaced, index, lower case, too long
+
+
+def test_an_odd_symbol_in_the_desired_set_never_costs_the_feed(monkeypatch, caplog):
+    """⛔⛔ PRODUCTION 2026-11-17, 10:39-11:49 CT. One subscribed symbol outside the ticker rule made
+    `fp.encode` raise MalformedMessage before the session counted as connected; the client retried
+    every 10 s with the same set, 409 times, and no live bar or quote reached any chart on the pod
+    for 70 minutes. Now the session connects, the good symbols are sent and fed, the odd ones are
+    left out and NAMED."""
+    monkeypatch.setattr(fc, "RECONNECT_MIN_S", 0.01)
+    sent = []
+    scripts = [[batch(1, [("ZZA", "1", bar(T0, 10.0))])]]
+
+    def connect(url, **kw):
+        return _ScriptedConn(scripts.pop(0) if scripts else [], sent)
+
+    owners = {"bars": {"ZZA": frozenset({"AM"}), **{s: frozenset({"AM"}) for s in ODD}}}
+
+    async def go():
+        rb, c, _ = make_rb()
+        client = fc.FeedClient(rb, url="ws://x/internal/feed", secret=SECRET, client_id="w",
+                               owners_fn=lambda: owners, connect=connect)
+        rb.subscribe("ZZA", "1", v2=True)
+        stop = asyncio.Event()
+        task = asyncio.create_task(client.run(stop))
+        await _until(lambda: client.counters["connects"] == 1 and rb.get_partial("ZZA", "1") is not None)
+        assert client.counters["disconnects"] == 0, "the session must not fail on an odd symbol"
+        desired = [m for m in sent if isinstance(m, fp.Desired)]
+        assert desired and set(desired[0].owners["bars"]) == {"ZZA"}
+        assert client.counters["unsendable_syms"] == len(ODD)
+        stop.set()
+        await asyncio.wait_for(task, 2)
+    with caplog.at_level("WARNING"):
+        asyncio.run(go())
+    named = " ".join(r.getMessage() for r in caplog.records if "left out of the desired set" in r.getMessage())
+    assert all(repr(s) in named for s in ODD), named
+
+
+def test_an_odd_symbol_is_left_out_of_every_part_of_the_desired_set():
+    rb, c, _ = make_rb()
+    client = fc.FeedClient(rb, url="ws://x/internal/feed", secret=SECRET, client_id="w",
+                           owners_fn=lambda: {"bars": {"ZZA": frozenset({"AM"}), "US:A50": frozenset({"AM"})}})
+    d = client._sendable(fp.Desired(gen=1, owners={"bars": {"ZZA": frozenset({"AM"}), "US:A50": frozenset({"AM"})}},
+                                    keys=frozenset({("ZZA", "1"), ("^VIX", "1")}),
+                                    nhnl_seeds={"ZZA": {"h": 1}, "spy": {"h": 2}}, tas_syms=frozenset({"ZZA", "TOOLONGTICKER1"})))
+    assert set(d.owners["bars"]) == {"ZZA"} and d.keys == frozenset({("ZZA", "1")})
+    assert set(d.nhnl_seeds) == {"ZZA"} and d.tas_syms == frozenset({"ZZA"})
+    fp.encode(d)                                  # the message is sendable now
+    clean = fp.Desired(gen=1, owners={"bars": {"ZZA": frozenset({"AM"})}}, keys=frozenset({("ZZA", "1")}))
+    assert client._sendable(clean) is clean       # nothing odd: the very same message, untouched
 
 
 def test_a_key_readded_before_ingest_was_told_still_gets_its_snapshot():

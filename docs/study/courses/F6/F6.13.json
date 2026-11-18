@@ -107,6 +107,14 @@
    "title": "Cash Secured Short Put (Options Strategy Guide; article copyright 2013 Cboe, reprinted by Fidelity)",
    "url": "https://www.fidelity.com/learning-center/investment-products/options/options-strategy-guide/shortput-cashsecured",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-17"
   }
  ],
  "facts": [
@@ -577,17 +585,29 @@
    "source": "s5",
    "quote": "With put options, the holder obtains the right to sell a stock, and the seller takes on the obligation to buy the stock.",
    "claim": "A put buyer gets the right to sell; the put seller takes on the obligation to buy."
+  },
+  {
+   "id": "h01",
+   "source": "s13",
+   "quote": "Options occasionally; no further rules. The premium paid is the stop.",
+   "claim": "We use options only now and then, with no extra rules: the premium paid is the stop."
+  },
+  {
+   "id": "h03",
+   "source": "s13",
+   "quote": "Trade shares; options are only a defined-risk alternative.",
+   "claim": "We trade shares; options are only a defined-risk alternative."
   }
  ],
  "walkthroughs": [
   {
    "key": "w1",
-   "title": "Selling a call against your shares",
+   "title": "Selling a call against shares",
    "steps": [
-    "You own 100 shares and sell one call against them. That's a covered call.",
-    "The premium comes in now, and it's yours whatever happens.",
-    "In return, you agree to sell your shares at the strike if you're assigned.",
-    "So write it at a strike where you'd be glad to sell, with the premium on top."
+    "Say a friend owns 100 shares and sells one call against them. That's a covered call. His trade, not ours.",
+    "The premium comes in now, and he keeps it whatever happens.",
+    "In return, he has to sell his shares at the strike if he's assigned.",
+    "So the strike plus the premium has to be a price he'd be glad to sell at."
    ],
    "facts": [
     "f57",
@@ -601,10 +621,10 @@
    "key": "w2",
    "title": "Where the cap is",
    "steps": [
-    "The stock is at 50. You sell the 50 call for 4.",
-    "It runs to 58 and you're assigned. You get 50 for the shares plus the 4 you kept.",
-    "That's 4 a share less than selling at 58. Above the strike, the gain went to the call buyer.",
-    "If the stock falls instead, the drop is still yours. The premium only softens it."
+    "His stock's at 50. He sells the 50 call for 4.",
+    "It runs to 58 and he's assigned. He gets 50 for the shares, plus the 4 he kept.",
+    "That's 4 a share less than just selling at 58. Everything over the strike went to the call buyer.",
+    "If the stock falls instead, the drop is still all his. The premium only softens it."
    ],
    "facts": [
     "f38",
@@ -617,10 +637,10 @@
    "key": "w3",
    "title": "The cash-secured put",
    "steps": [
-    "You sell a put and set aside the cash to buy the shares at the strike.",
-    "If the stock drops under the strike, you can be assigned and you buy.",
-    "Your real cost is the strike minus the premium you kept.",
-    "Only sell it on a stock you'd own at that price, however far it falls."
+    "Now the put side. He sells a put and parks the cash to buy the shares at the strike.",
+    "If the stock drops under the strike, he can be assigned, and he buys.",
+    "His real cost is the strike minus the premium he kept.",
+    "So he only sells it on a stock he'd own at that price, however far it falls."
    ],
    "facts": [
     "f21",
@@ -636,94 +656,98 @@
    "skill": "options.income",
    "rung": 1,
    "format": "mcq",
-   "q": "In options, what is a covered call?",
+   "q": "A friend says he sells covered calls on the stocks he holds. What's he actually doing?",
    "choices": [
-    "Buying a call to protect your shares",
-    "Selling a call on shares you own",
-    "Selling a call on shares you don't own",
+    "Buying calls to protect his shares",
+    "Selling calls on shares he owns",
+    "Selling calls on shares he doesn't own",
     "Buying a call and a put together"
    ],
-   "answer": "Selling a call on shares you own",
+   "answer": "Selling calls on shares he owns",
    "term": "Covered call",
-   "why": "Selling a call on shares you own. FINRA defines it as selling a call while owning the underlying stock, for premium income. One standard contract covers 100 shares, so one call needs 100 shares behind it. If you're assigned, you deliver stock you already hold. It is not a purchase, and it is not a call and a put bought together.",
-   "lesson_line": "Covered means the shares are already in your account. One call for every 100 shares.",
+   "why": "He's selling calls on shares he already owns. The premium comes in now. In return he's on the hook to sell his shares at the strike if he's assigned. One contract covers 100 shares, so every call he sells needs 100 shares behind it. That's what covered means: if the call gets exercised, the stock's already in his account. That's the seller's side, not ours. We trade shares, and when we use an option we buy it, so the premium is the stop.",
+   "lesson_line": "Covered means the shares are already in the account. One call for every 100 shares.",
    "facts": [
     "f57",
     "f34",
     "f58",
     "f60",
-    "f36"
+    "f36",
+    "h01",
+    "h03"
    ],
    "wrong": {
-    "Buying a call to protect your shares": "A covered call is a sale, not a purchase. You sell the call and collect the premium.",
-    "Selling a call on shares you don't own": "That's an uncovered, or naked, call. Its loss is theoretically unlimited.",
-    "Buying a call and a put together": "That's a straddle when the strike and expiry match. A covered call is your shares plus one sold call."
+    "Buying a call and a put together": "With the same strike and expiry, that's a straddle. A covered call is his shares plus one sold call.",
+    "Buying calls to protect his shares": "Backwards. He sells the call and takes the premium in. Nobody's paying for protection here.",
+    "Selling calls on shares he doesn't own": "That's a naked call. Nothing covers it, and the loss on a big run is theoretically unlimited."
    },
-   "simple": "A covered call means you sell a call on shares you already own, so you can deliver them if assigned.",
+   "simple": "He sells a call against shares he already owns, so he can hand them over if he's assigned.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
    "skill": "options.income",
    "rung": 1,
    "format": "tf",
-   "q": "Selling a covered call adds to the downside risk of owning the shares.",
+   "q": "Your friend owns ZQRT and sells a covered call on it. That call adds to his risk if ZQRT drops.",
    "answer": "False",
-   "why": "False. The downside risk comes from holding the stock, and you took that risk when you bought it. OIC says the short call does not increase it. The premium trims it a little, as a small cushion. What the call changes is the upside: you give up the gain above the strike.",
-   "lesson_line": "A covered call sells away upside. It adds no downside, and it removes very little.",
+   "why": "False. The downside comes from owning the stock, and he took that on the day he bought it. The call doesn't add to it. The premium takes a little off, a small cushion and nothing more. What the call changes is the top side. Above the strike, the gain belongs to the call buyer. So you're not looking at more risk. You're looking at less reward for the same risk.",
+   "lesson_line": "A covered call sells away upside. It adds no downside, and it takes very little off.",
    "facts": [
     "f14",
     "f4",
     "f37"
    ],
-   "simple": "False, because the risk of a drop comes from owning the stock, and selling the call does not add to it.",
+   "simple": "False. The risk of a drop comes from owning the shares, and selling the call doesn't add to it.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
    "skill": "options.income",
    "rung": 1,
    "format": "mcq",
-   "q": "In options, what is a cash-secured put?",
+   "q": "A friend sells an ZQRT put and tells you it's cash-secured. What does that mean?",
    "choices": [
-    "Buying a put on shares you own",
-    "Selling a put with no cash behind it",
-    "Selling a put with cash ready to buy",
-    "Selling a put on shares you already own"
+    "He bought a put on shares he owns",
+    "He sold a put with no cash behind it",
+    "He sold a put with cash ready to buy",
+    "He sold a put on shares he owns"
    ],
-   "answer": "Selling a put with cash ready to buy",
+   "answer": "He sold a put with cash ready to buy",
    "term": "Cash-secured put",
-   "why": "Selling a put with cash ready to buy. You sell the put, collect the premium, and set aside enough cash to buy the shares at the strike. If you're assigned, that cash pays for the shares. A put with no cash set aside is not cash-secured. The cash does not remove the risk: you can still lose if the stock falls.",
-   "lesson_line": "Cash-secured means the money to buy the shares is set aside when you sell the put.",
+   "why": "He sold the put and parked the cash to buy the shares. That put can make him buy 100 shares at the strike, so the cash covers the strike times 100 for each contract. If he's assigned, that money pays for the stock. Here's what people miss. The cash only means he can pay. It doesn't make the trade safe. If ZQRT keeps falling, he still buys at the strike and the loss is his. He'd better want that stock at that price, however far it drops. That's the seller's side, not our trade.",
+   "lesson_line": "Cash-secured means the money to buy the shares is parked the day the put is sold.",
    "facts": [
     "f21",
     "f44",
     "f63",
     "f30",
-    "f45"
+    "f45",
+    "f58",
+    "f24"
    ],
    "wrong": {
-    "Buying a put on shares you own": "Here you sell the put and collect the premium. You don't buy one.",
-    "Selling a put with no cash behind it": "Then it isn't cash-secured. A cash-secured writer has the money set aside before any assignment comes.",
-    "Selling a put on shares you already own": "A sold put can make you buy shares, not sell them. Shares you hold don't pay for that. Cash set aside does."
+    "He bought a put on shares he owns": "He sold the put and took the premium in. Buying one is a different trade.",
+    "He sold a put with no cash behind it": "Then it isn't cash-secured. The money's set aside before any assignment shows up.",
+    "He sold a put on shares he owns": "A sold put can make him buy shares, not sell them. Shares he holds don't pay for that. Cash does."
    },
-   "simple": "A cash-secured put means you sell a put and keep enough cash set aside to buy the shares if you are assigned.",
+   "simple": "He sold a put and set the cash aside to buy the shares at the strike if he's assigned.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q04",
@@ -761,16 +785,16 @@
    "skill": "options.income",
    "rung": 2,
    "format": "mcq",
-   "q": "What is the main reason to sell a covered call?",
+   "q": "A friend sells covered calls on his long-term holdings every month. What's the main thing he's after?",
    "choices": [
-    "To collect premium income",
-    "To protect against a big drop",
-    "To make more on a big rally",
-    "To get the right to buy shares"
+    "Premium income",
+    "Protection from a big drop",
+    "More profit on a big rally",
+    "The right to buy more shares"
    ],
-   "answer": "To collect premium income",
-   "why": "To collect premium income. OIC names it the primary motive, and the premium is yours whatever happens. It is not real protection: it is only a small cushion, and losses can still be substantial. Nor is it a way to make more on a rally. While the call is open, you give up much of the upside.",
-   "lesson_line": "A covered call is an income trade. Its hedge is small and its upside is capped.",
+   "answer": "Premium income",
+   "why": "Premium income. That's the whole point, and the premium's his whatever the stock does. Don't mistake it for protection. It's a small cushion, and in a big drop the loss is still big. It's no rally play either. While the call's open he gives up most of the upside. If you're after big moves, covered calls won't do much for you. And big moves are exactly what we buy leaders for.",
+   "lesson_line": "A covered call is an income trade. Small hedge, capped upside.",
    "facts": [
     "f2",
     "f4",
@@ -779,33 +803,33 @@
     "f67"
    ],
    "wrong": {
-    "To protect against a big drop": "The premium is only a small cushion. In a big drop, the loss can still be substantial.",
-    "To make more on a big rally": "The call caps your upside. In a big rally, you give up much of the gain.",
-    "To get the right to buy shares": "Selling the call gets you no shares. It is an obligation to sell yours at the strike, for the premium."
+    "Protection from a big drop": "The premium's a small cushion. In a big drop, the loss can still be substantial.",
+    "More profit on a big rally": "The call caps his gain at the strike. In a big rally, most of it goes to the call buyer.",
+    "The right to buy more shares": "Selling a call gets him no shares. It's a duty to sell his own at the strike."
    },
-   "simple": "The main reason is the premium income, because the call caps your gains and only softens a drop a little.",
+   "simple": "He wants the premium. The call caps his gains and only softens a drop a little.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q06",
    "skill": "options.income",
    "rung": 3,
    "format": "mcq",
-   "q": "Which view fits selling a covered call?",
+   "q": "A friend wants to sell calls against his ZQRT shares. Which outlook fits that trade?",
    "choices": [
     "A big breakout coming soon",
     "Steady or slightly rising",
     "A sharp drop coming soon",
-    "Rising, and you'd hate to sell"
+    "Rising, and he'd hate to sell"
    ],
    "answer": "Steady or slightly rising",
-   "why": "Steady or slightly rising. OIC says the writer wants a steady or slightly rising price for at least the term of the option. The strategy does not fit a very bullish or a very bearish view. In a big rally, the call caps your gain at the strike. In a sharp drop, you still own the shares and the premium only cushions a little. And the call can take your shares at the strike, so it fits only if you'd accept that sale.",
-   "lesson_line": "Covered calls fit calm or a slow grind higher, not a big move.",
+   "why": "Steady or slightly rising. A covered call gets paid when not much happens. A slow grind keeps his shares and his premium. A big breakout runs past the strike, and that gain goes to the call buyer. A sharp drop is still his, less a small cushion. And if he'd hate to lose the shares in a rally, he shouldn't write it. The call can take them at the strike. Notice it's the opposite of what we look for. We buy a stock because we think it's about to move.",
+   "lesson_line": "Covered calls fit a quiet stock. We buy stocks we think are about to move.",
    "facts": [
     "f3",
     "f5",
@@ -816,33 +840,33 @@
     "f12"
    ],
    "wrong": {
-    "A big breakout coming soon": "The call caps your gain at the strike. A big move up mostly goes to the call buyer.",
-    "A sharp drop coming soon": "You still own the shares, so a sharp drop is yours. The premium only cushions a little.",
-    "Rising, and you'd hate to sell": "If you'd regret losing the shares in a rally, think hard first. The call can take them at the strike."
+    "A big breakout coming soon": "The call caps him at the strike. A big move up mostly goes to the call buyer.",
+    "A sharp drop coming soon": "He still owns the shares, so the drop is his. The premium only cushions a little.",
+    "Rising, and he'd hate to sell": "Then don't write it. The call can take his shares at the strike in that rally."
    },
-   "simple": "Covered calls fit a stock you expect to stay steady or rise slowly, since big moves either way work against you.",
+   "simple": "It fits a stock you expect to sit still or grind up slowly. Big moves either way hurt the seller.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
    "skill": "options.income",
    "rung": 3,
    "format": "tf",
-   "q": "A cash-secured put is mainly a way to try to buy a stock you want.",
+   "q": "A cash-secured put is mainly a way to get into a stock you want, at a lower price than today's.",
    "answer": "True",
-   "why": "True. OIC calls it primarily a stock acquisition strategy for a price-sensitive investor. The goal is to be assigned and buy below today's price, at the strike minus the premium. If the put is never assigned, you keep the premium. That does not make the income worthless: the premium helps the result in any event.",
-   "lesson_line": "A cash-secured put fits only a stock you'd be happy to own at that strike.",
+   "why": "True. The put seller wants to get assigned. He picks a strike under today's price, and if the stock dips there, he buys it. His real cost is the strike minus the premium he kept. If it never dips, he keeps the premium and owns nothing. The premium helps either way, but the plan is the shares. It only fits a stock he'd be glad to own at that strike. For us, that's the seller's side, not our trade.",
+   "lesson_line": "A cash-secured put only fits a stock you'd be happy to own at that strike.",
    "facts": [
     "f76",
     "f22",
     "f27"
    ],
-   "simple": "True, because the goal is to be assigned and buy the stock below today's price, and the premium helps either way.",
+   "simple": "True. The goal is to get assigned and buy the stock below today's price, and the premium helps either way.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -851,15 +875,15 @@
      "Fidelity's 2026 article leads with income instead (conflicts note)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
    "skill": "options.income",
    "rung": 3,
    "format": "scenario",
-   "story": "XYZ trades at 48. You sell one XYZ 45 put and want it cash-secured.",
-   "q": "How much cash do you set aside?",
+   "story": "ZQRT trades at 48. A friend sells one ZQRT 45 put and wants it cash-secured.",
+   "q": "How much cash does he need to park?",
    "choices": [
     "$4,500",
     "$4,800",
@@ -875,8 +899,8 @@
      "shares": 100
     }
    },
-   "why": "$4,500. A put is cash-secured when you deposit cash equal to the strike for every share it can make you buy. One contract covers 100 shares, so it is 45 times 100. Today's price of 48 does not set it: assigned, you pay the strike. OIC's own example backs one 60 put with a $6,000 T-bill, the same rule.",
-   "lesson_line": "Secure the put at the strike, not at today's price. That's what you'd pay if assigned.",
+   "why": "$4,500. Assigned, he buys 100 shares at the 45 strike. 45 times 100 is $4,500, so that's the cash he parks. Today's 48 doesn't matter. Assigned, he pays the strike, not the market. Park the full strike and he's got no margin to worry about. The premium he took in is just extra on top.",
+   "lesson_line": "Secure the put at the strike, not today's price. That's what gets paid if assigned.",
    "facts": [
     "f44",
     "f25",
@@ -885,13 +909,13 @@
     "f74"
    ],
    "wrong": {
-    "$4,800": "That's today's price times 100. Assigned, you'd pay the 45 strike, not 48.",
-    "$45": "That's one share. One contract covers 100 shares.",
-    "Just the premium": "The premium comes in to you. The cash set aside is what pays for the shares."
+    "$4,800": "That's today's 48 times 100. Assigned, he pays the 45 strike.",
+    "$45": "That's one share. One contract is 100 shares.",
+    "Just the premium": "The premium comes in to him. The cash is what pays for the shares."
    },
-   "simple": "You set aside $4,500, because the put can make you buy 100 shares at the 45 strike.",
+   "simple": "He needs $4,500, because the put can make him buy 100 shares at the 45 strike.",
    "deeper": {
-    "trap": "One older guide, a Cboe article Fidelity reprints, lets the premium you receive count toward the cash. The OCC disclosure document, OIC and Fidelity's newer article all hold cash equal to the full strike for each share. Set aside the full amount and the premium is extra, not part of the reserve."
+    "trap": "One older guide, a Cboe article Fidelity reprints, lets the premium received count toward the cash. The OCC disclosure document, the OIC and Fidelity's newer article all hold cash equal to the full strike for each share. Park the full amount and the premium is extra, not part of the reserve."
    },
    "tier": "core",
    "risk": {
@@ -901,7 +925,7 @@
      "an older 2013 guide lets the premium count toward the cash (conflicts note, f74)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "The cash-secured put",
@@ -960,8 +984,8 @@
    "key": "q10",
    "skill": "options.income",
    "rung": 4,
-   "format": "mcq",
-   "q": "You buy a stock at 48 and sell the 50 call for 1.50. What is the most you can make per share at expiry?",
+   "format": "scenario",
+   "q": "What's the most he can make per share by expiry?",
    "answer": "$3.50",
    "prefix": "$",
    "calc": {
@@ -973,13 +997,13 @@
      "premium": 1.5
     }
    },
-   "why": "$3.50. OIC's maximum gain is the strike minus the stock purchase price plus the premium received: 50 minus 48 plus 1.50. You reach it once the stock is at the strike at expiry. Above 50, the trade does no better, and the extra goes to the call buyer.",
-   "lesson_line": "Covered call max profit: strike minus cost plus premium. Know it before you sell.",
+   "why": "$3.50. Work it out. The shares can earn 50 minus 48, that's 2, before the call caps them. Add the 1.50 premium and you get 3.50. He hits that once ZQRT sits at 50 at expiry. Above 50 he makes nothing more. The extra goes to whoever bought his call. Know that ceiling before anyone sells one, because it's the whole upside he signed up for.",
+   "lesson_line": "Covered call max profit: strike minus cost plus premium. Know it before the call goes on.",
    "facts": [
     "f6",
     "f9"
    ],
-   "simple": "The most you can make is $3.50 a share: the 50 strike minus the 48 you paid, plus the 1.50 premium.",
+   "simple": "At most $3.50 a share: the 50 strike minus the 48 he paid, plus the 1.50 premium.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -987,7 +1011,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$2.00",
     "$1.50",
@@ -995,8 +1019,8 @@
     "$3.50"
    ],
    "wrong": {
-    "$2.00": "Forgets the 1.50 premium you received.",
-    "$1.50": "Counts only the premium and ignores the gain on the shares up to 50.",
+    "$2.00": "Forgets the 1.50 premium he took in.",
+    "$1.50": "Counts only the premium and skips the gain on the shares up to 50.",
     "$0.50": "Takes the premium off instead of adding it."
    },
    "visual": {
@@ -1023,41 +1047,42 @@
      }
     ],
     "find": {
-     "label": "Most we make",
+     "label": "Most he makes",
      "as": "per_share"
     }
-   }
+   },
+   "story": "A friend buys ZQRT at 48 and sells the 50 call against it for 1.50."
   },
   {
    "key": "q11",
    "skill": "options.income",
    "rung": 5,
    "format": "tf",
-   "q": "With a covered call, you start losing money at expiry once the stock closes below the strike.",
+   "q": "A covered call seller is losing money at expiry as soon as the stock closes below the strike.",
    "answer": "False",
-   "why": "False. At expiry you lose money only once the stock is below your cost minus the premium. OIC's break-even is the starting stock price minus the premium received. The strike is your ceiling, not your floor. Just under the strike you can still be in profit, only less of it.",
-   "lesson_line": "Break-even is your cost minus the premium. The strike is your ceiling, not your floor.",
+   "why": "False. He only loses once the stock is under what he paid minus the premium. That's his break-even. The strike is his ceiling, not his floor. Say the strike sits above his cost and the stock closes just under it. The call expires, he keeps the shares and the premium, and he's still up. He made less than his max, that's all. Keep your break-even and your ceiling straight and you'll read these trades right.",
+   "lesson_line": "Break-even is the cost minus the premium. The strike is the ceiling, not the floor.",
    "facts": [
     "f16",
     "f9"
    ],
-   "simple": "False, because you only start to lose below what you paid for the shares minus the premium, not below the strike.",
+   "simple": "False. He only starts losing below his cost minus the premium, not below the strike.",
    "deeper": {
-    "counter": "Say the strike sits above what you paid. If the stock closes a little under the strike, the call expires and you keep the shares. They are still worth more than you paid, and you kept the premium too. You made less than the most you could, but you are not losing."
+    "counter": "Say the strike sits above what he paid. If the stock closes a little under the strike, the call expires and he keeps the shares. They're still worth more than he paid, and he kept the premium too. He made less than the most he could, but he isn't losing."
    },
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q12",
    "skill": "options.income",
    "rung": 5,
-   "format": "mcq",
-   "q": "XYZ is at 47. You sell the 45 put for 1.20, and later you're assigned. What is your real cost per share?",
+   "format": "scenario",
+   "q": "What did the shares really cost him?",
    "answer": "$43.80",
    "prefix": "$",
    "calc": {
@@ -1068,14 +1093,14 @@
      "premium": 1.2
     }
    },
-   "why": "$43.80. Assigned, you pay the 45 strike, and the 1.20 premium you kept comes off: 45 minus 1.20. OIC calls this the effective purchase price, the strike less the premium. It is also the trade's break-even. Today's price of 47 does not enter into it.",
+   "why": "$43.80. Assigned, he pays the 45 strike. He already pocketed 1.20 for selling the put, so that comes off: 45 minus 1.20 is 43.80. That's his real cost, and it's his break-even. Where ZQRT traded when he sold, 47, doesn't enter into it. Under 43.80 he's losing money on the shares. When you see a short put, work out that number first. It tells you where the seller's really in.",
    "lesson_line": "Strike minus premium is the put seller's real cost if assigned, and the break-even.",
    "facts": [
     "f23",
     "f51",
     "f33"
    ],
-   "simple": "Your real cost is $43.80 a share, because you pay the 45 strike but the 1.20 premium you kept lowers it.",
+   "simple": "$43.80 a share. He pays the 45 strike, and the 1.20 premium he kept brings it down.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1083,7 +1108,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$46.20",
     "$45.00",
@@ -1092,8 +1117,8 @@
    ],
    "wrong": {
     "$46.20": "Adds the premium to the strike instead of taking it off.",
-    "$45.80": "Starts from today's price of 47 instead of the strike.",
-    "$45.00": "Stops at the strike and forgets the 1.20 premium you kept."
+    "$45.80": "Starts from the 47 ZQRT traded at, not the strike.",
+    "$45.00": "Stops at the strike and forgets the 1.20 he kept."
    },
    "visual": {
     "kind": "size",
@@ -1113,39 +1138,40 @@
      }
     ],
     "find": {
-     "label": "Our real cost",
+     "label": "His real cost",
      "as": "per_share"
     }
-   }
+   },
+   "story": "ZQRT is at 47. A friend sells the 45 put for 1.20. A few weeks later ZQRT slips under 45 and he's assigned."
   },
   {
    "key": "q13",
    "skill": "options.income",
    "rung": 5,
    "format": "tf",
-   "q": "At expiry, a covered call can keep gaining as the stock finishes further above the strike.",
+   "q": "At expiry, a covered call seller makes more the further the stock finishes above the strike.",
    "answer": "False",
-   "why": "False. OIC says a covered call reaches its peak profit at the strike and does no better however high the stock goes. You are assigned at the strike, so every dollar above it goes to the call buyer. The premium you kept is the same whether the stock ends just above the strike or far above it.",
-   "lesson_line": "The strike is your ceiling. Past it, the gain goes to the call buyer.",
+   "why": "False. At the strike, the trade's done everything it can. He's assigned, he sells at the strike, and every dollar above it goes to the call buyer. The premium is the same whether the stock ends a dime over or way over. That's the real cost of a covered call, and it shows up on exactly the stocks we want to own, the ones that run.",
+   "lesson_line": "The strike is the ceiling. Past it, the gain goes to the call buyer.",
    "facts": [
     "f9",
     "f37",
     "f5"
    ],
-   "simple": "False, because at the strike the trade has made all it can, and any gain above it goes to the call buyer.",
+   "simple": "False. At the strike the trade has made all it can, and any gain above it goes to the call buyer.",
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q14",
    "skill": "options.income",
    "rung": 6,
    "format": "mcq",
-   "q": "You write your covered call at a higher strike, further out of the money. What changes?",
+   "q": "A friend moves his covered call up to a higher strike, further out of the money. What does that do to his trade?",
    "choices": [
     "More upside, more premium",
     "More upside, less premium",
@@ -1153,32 +1179,32 @@
     "Less upside, less premium"
    ],
    "answer": "More upside, less premium",
-   "why": "More upside, less premium. A higher, further out-of-the-money strike keeps more of the stock's upside before the cap. The trade-off is less premium income, which means a smaller cushion if the stock falls. Whatever strike you pick, strike plus premium should be a price you'd be glad to sell at.",
-   "lesson_line": "Strike choice is a trade-off. Higher strike, more room to run, less income.",
+   "why": "More upside, less premium. The higher strike gives the stock more room to run before the cap. But a call that far out pays less, so his cushion on a drop shrinks too. Nothing's free here. Whatever strike he picks, the strike plus the premium has to be a price he's happy to sell at. That's where his shares go if he's assigned. So he picks the exit first and the strike second. Chase the fattest premium and you can end up selling at a price you hate.",
+   "lesson_line": "Higher strike, more room to run, less income. Pick the exit you'd accept first.",
    "facts": [
     "f10",
     "f11",
     "f12"
    ],
    "wrong": {
-    "More upside, more premium": "Nothing is free. The further out-of-the-money call pays less premium.",
-    "Less upside, more premium": "That's the other direction: a lower strike, closer to the stock.",
-    "Less upside, less premium": "A higher strike keeps more of the stock's upside, not less. Only the premium shrinks."
+    "More upside, more premium": "Nothing's free. The call further out pays less premium.",
+    "Less upside, more premium": "That's the other direction, a lower strike closer to the stock.",
+    "Less upside, less premium": "A higher strike keeps more of the upside, not less. Only the premium shrinks."
    },
-   "simple": "A higher strike leaves you more room to gain, but the call pays you less, so your cushion on a drop shrinks.",
+   "simple": "A higher strike leaves more room to gain, but the call pays less, so the cushion on a drop shrinks.",
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q15",
    "skill": "options.income",
    "rung": 6,
-   "format": "mcq",
-   "q": "You buy a stock at 40 and sell a covered call for 1.50. What is the most you can lose per share?",
+   "format": "scenario",
+   "q": "What's the most he can lose per share?",
    "choices": [
     "$1.50",
     "$38.50",
@@ -1194,7 +1220,7 @@
      "premium": 1.5
     }
    },
-   "why": "$38.50. OIC's maximum loss is the stock purchase price minus the premium received, and it is substantial: 40 minus 1.50. That is the case where the stock goes to zero. The strike you pick does not change it. The risk is not unlimited, because your shares cover the call.",
+   "why": "$38.50. If ZQRT goes to zero, he loses the 40 he paid, and the 1.50 premium is all that comes back: 40 minus 1.50. So the risk is basically the whole stock. The strike he picked doesn't change that. It isn't unlimited, because his shares cover the call. But safe it isn't. The premium is no stop. On a shares trade we know where we're out before we get in.",
    "lesson_line": "A covered call's worst case is the stock's worst case, less the premium.",
    "facts": [
     "f7",
@@ -1202,11 +1228,11 @@
     "f60"
    ],
    "wrong": {
-    "$1.50": "That's the premium you took in. Your real risk is the shares.",
-    "Unlimited": "That's an uncovered call. Your shares cover this one, so your risk is the stock's drop.",
-    "$40": "The premium you kept takes 1.50 off that."
+    "$1.50": "That's the premium he took in. His real risk is the shares.",
+    "Unlimited": "That's a naked call. His shares cover this one, so his risk is the stock's drop.",
+    "$40": "Close, but the premium he kept takes 1.50 off that."
    },
-   "simple": "At most you lose $38.50 a share: the stock can go to zero, and the 1.50 premium trims your 40 cost.",
+   "simple": "At most $38.50 a share. The stock can go to zero, and the 1.50 premium only trims his 40 cost.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1214,7 +1240,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "The covered call",
@@ -1233,18 +1259,19 @@
      }
     ],
     "find": {
-     "label": "Most we can lose",
+     "label": "Most he can lose",
      "as": "per_share"
     }
-   }
+   },
+   "story": "A friend buys ZQRT at 40 and sells a covered call on it for 1.50. He calls it safe income."
   },
   {
    "key": "q16",
    "skill": "options.income",
    "rung": 6,
    "format": "scenario",
-   "story": "You sold a covered call that is deep in the money, with a week to expiry. The stock goes ex-dividend tomorrow for its regular quarterly dividend. The dividend is bigger than the call's time value.",
-   "q": "What should you be ready for?",
+   "story": "A friend sold a covered call that's deep in the money, a week to expiry. ZQRT goes ex-dividend tomorrow, its regular quarterly dividend. The dividend is bigger than the call's time value left.",
+   "q": "What should he be ready for?",
    "choices": [
     "Early assignment, without the dividend",
     "No early assignment, dividend yours",
@@ -1252,8 +1279,8 @@
     "Early assignment, dividend yours"
    ],
    "answer": "Early assignment, without the dividend",
-   "why": "Early assignment, without the dividend. A call holder who exercises before the ex-date is entitled to the dividend. Here the call is in the money and the dividend beats its time value left. So the owner has reason to exercise early. Assignment can come days or weeks before expiry. A regular quarterly cash dividend does not change the option's terms. Early exercise is likely, not certain. The only sure way to avoid it is to buy the call back.",
-   "lesson_line": "Before an ex-date, a short in-the-money call is at risk when the dividend beats its time value left.",
+   "why": "Early assignment, and no dividend. Sit in the call owner's seat. If he exercises today, before the ex-date, he owns the shares in time and the dividend goes to him. The dividend is worth more than the time value he gives up. So the call owner has every reason to exercise. Your friend should expect to lose the shares before the dividend. It's likely, not certain. Assignment can come days or weeks before expiry, and the notice can show up a day or more late. A regular quarterly dividend doesn't change the option's terms either. If your friend wants to keep the shares, the only sure way is to buy the call back first.",
+   "lesson_line": "Short an in-the-money call into an ex-date and the dividend can cost you the shares.",
    "facts": [
     "f52",
     "f53",
@@ -1266,13 +1293,13 @@
     "f48"
    ],
    "wrong": {
-    "No early assignment, dividend yours": "Assignment can come days or weeks before expiry. Here the call owner has reason to exercise early.",
-    "The strike cut by the dividend": "A regular cash dividend doesn't change the option's terms. That's why the call owner exercises to get it.",
-    "Early assignment, dividend yours": "The holder who exercises before the ex-date is entitled to the dividend. You may only hear of the assignment later."
+    "No early assignment, dividend yours": "Assignment can come days or weeks before expiry. Here the call owner has a reason to go early.",
+    "The strike cut by the dividend": "A regular cash dividend doesn't change the option's terms. That's why the call holder exercises to get it.",
+    "Early assignment, dividend yours": "The holder who exercises before the ex-date gets the dividend. Your friend may only hear later."
    },
-   "simple": "Expect to be assigned early and lose the dividend, since the call owner gains more by exercising than by holding.",
+   "simple": "Expect early assignment and no dividend. The call owner gets more by exercising than by holding.",
    "deeper": {
-    "trap": "Owning the shares the day before the ex-date does not lock in the dividend. An assigned writer may not hear of the assignment until one or more days later. By then the call owner exercised in time and is entitled to the dividend. Check every short in-the-money call before an ex-date."
+    "trap": "Owning the shares the day before the ex-date doesn't lock in the dividend. An assigned writer may not hear of the assignment until one or more days later. By then the call owner exercised in time and the dividend is his. Check every short in-the-money call before an ex-date."
    },
    "tier": "extended",
    "risk": {
@@ -1281,15 +1308,15 @@
      "fixed before (2026-11-09 story now says regular quarterly dividend)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
    "skill": "options.income",
    "rung": 6,
    "format": "scenario",
-   "story": "XYZ trades at 50. A trader would gladly own it at 45, but not higher. The 45 put pays 1.10 and the 50 put pays 3.20.",
-   "q": "Which trade matches that trader's plan?",
+   "story": "ZQRT trades at 50. A friend would gladly own it at 45, but not a cent higher. The 45 put pays 1.10. The 50 put pays 3.20.",
+   "q": "Which trade fits his plan?",
    "choices": [
     "Sell the 50 put",
     "Buy shares at 50",
@@ -1297,8 +1324,8 @@
     "Buy the 45 put"
    ],
    "answer": "Sell the 45 put",
-   "why": "Sell the 45 put. Assigned, the trader pays the 45 strike, and the 1.10 premium kept brings the real cost below 45. OIC says the strike less the premium should be a desirable purchase price. The 50 put pays more, but assigned it costs 50 less 3.20, above 45. If the stock never dips, the premium is kept.",
-   "lesson_line": "A put seller's strike should be a price they'd gladly pay, however low the stock goes.",
+   "why": "Sell the 45 put. Assigned, he pays the 45 strike, and the 1.10 he kept brings his real cost under 45. That's the price he said he wanted. The 50 put pays more, and that's the temptation. But assigned, it costs him 50 less 3.20, still above 45. If ZQRT never dips, he keeps the 1.10 and owns nothing. Fine by his plan. One thing I'd check. He has to be fine owning ZQRT at 45 however low it goes, because the put doesn't stop at his price.",
+   "lesson_line": "A put seller's strike has to be a price they'd gladly pay, however low the stock goes.",
    "facts": [
     "f27",
     "f24",
@@ -1306,25 +1333,25 @@
     "f78"
    ],
    "wrong": {
-    "Sell the 50 put": "Assigned, the trader pays 50 less 3.20. That's still above the 45 they wanted.",
-    "Buy shares at 50": "That pays 50 today, above the 45 the trader wanted.",
-    "Buy the 45 put": "A put buyer gets the right to sell. The put seller is the one who takes on the duty to buy."
+    "Sell the 50 put": "Assigned, he pays 50 less 3.20. That's still above the 45 he wanted.",
+    "Buy shares at 50": "That pays 50 today, above the 45 he said was his price.",
+    "Buy the 45 put": "A put buyer gets the right to sell. He wants the seller's duty to buy."
    },
-   "simple": "Sell the 45 put, because if assigned the trader pays 45 minus the 1.10 premium, a price already accepted.",
+   "simple": "Sell the 45 put. Assigned, he pays 45 minus the 1.10 premium, a price he already said yes to.",
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
    "skill": "options.income",
    "rung": 7,
    "format": "scenario",
-   "story": "You bought XYZ at 40 and sold the 42.50 call for 1.80. At expiry XYZ is at 49, and you're assigned.",
-   "q": "What do you take in per share for the shares and the call together?",
+   "story": "A friend bought ZQRT at 40 and sold the 42.50 call for 1.80. At expiry ZQRT is at 49, and he's assigned.",
+   "q": "What does he take in per share, shares and call together?",
    "choices": [
     "$49",
     "$50.80",
@@ -1340,8 +1367,8 @@
      "premium": 1.8
     }
    },
-   "why": "$44.30. An assigned call writer's net price is the strike plus the premium from the call's sale: 42.50 plus 1.80. The market price of 49 no longer matters once you're assigned. Against your 40 cost, that is the most this trade could make.",
-   "lesson_line": "Assigned, your exit is strike plus premium. Whatever the stock does past the strike isn't yours.",
+   "why": "$44.30. Assigned, he sells at the 42.50 strike, and he already has the 1.80 premium: 42.50 plus 1.80 is 44.30. ZQRT at 49 doesn't matter anymore. Against his 40 cost, that's the most this trade could ever make. The run from 42.50 to 49 went to the call buyer. You only feel that cost when the stock rips.",
+   "lesson_line": "Assigned, the exit is strike plus premium. The run past the strike isn't yours.",
    "facts": [
     "f50",
     "f70",
@@ -1350,13 +1377,13 @@
     "f40"
    ],
    "wrong": {
-    "$49": "That's the market price. Assigned, you sell at the 42.50 strike.",
-    "$50.80": "That adds the premium to the market price. The call buyer gets your shares at 42.50.",
-    "$42.50": "That's only the strike. You also kept the 1.80 premium."
+    "$49": "That's the market price. Assigned, he sells at the 42.50 strike.",
+    "$50.80": "That adds the premium to the market price. The call buyer gets his shares at 42.50.",
+    "$42.50": "That's only the strike. He also kept the 1.80 premium."
    },
-   "simple": "You take in $44.30 a share, the 42.50 strike plus the 1.80 premium, and the run past the strike is not yours.",
+   "simple": "He takes in $44.30 a share, the 42.50 strike plus the 1.80 premium. The run past the strike isn't his.",
    "deeper": {
-    "example": "The OCC disclosure document has the same case. A writer sold the 50 call for 4 with the stock at 50. The stock ran to 58 and he was assigned. He got the 50 strike plus the 4 premium. That is 4 a share less than the 58 he could have sold at without the call."
+    "example": "The OCC disclosure document has the same case. A writer sold the 50 call for 4 with the stock at 50. The stock ran to 58 and he was assigned. He got the 50 strike plus the 4 premium. That's 4 a share less than the 58 he could have sold at without the call."
    },
    "tier": "extended",
    "risk": {
@@ -1365,7 +1392,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "Assigned on the call",
@@ -1384,7 +1411,7 @@
      }
     ],
     "find": {
-     "label": "What we take in",
+     "label": "What he takes in",
      "as": "per_share"
     }
    }
@@ -1394,7 +1421,7 @@
    "skill": "options.income",
    "rung": 7,
    "format": "scenario",
-   "story": "You just bought a breakout at 44. You think it can run to 54 over the next few weeks. The 45 call pays 3.",
+   "story": "You bought the ZQRT breakout at 44, and you think it can run to 54 over the next few weeks. The 45 call pays 3.",
    "q": "Do you sell the 45 call against your shares?",
    "choices": [
     "Yes, it's free money on the way up",
@@ -1411,24 +1438,25 @@
      "premium": 3
     }
    },
-   "why": "No. Strike plus premium caps your exit: 45 plus 3. You expect 54, so you'd sell away most of the move you bought it for. OIC says covered calls don't fit a very bullish view. The call adds no downside risk, and the 3 premium is only a small cushion if the breakout fails.",
-   "lesson_line": "If you expect a big move, don't sell it away for a small premium.",
+   "why": "No. Sell that call and your exit's capped at 45 plus 3, that's 48. You bought this breakout for a run to 54. You'd be handing most of it to the call buyer for 3 bucks. And the 3 doesn't protect you much. If the breakout fails, it drops right through that cushion. We bought the shares for the move, so let a working leader work. Selling calls isn't our trade anyway. We trade shares.",
+   "lesson_line": "If you bought it for a big move, don't sell the move away for a small premium.",
    "facts": [
     "f68",
     "f69",
     "f3",
     "f13",
     "f19",
-    "f14"
+    "f14",
+    "h03"
    ],
    "wrong": {
     "Yes, it's free money on the way up": "It isn't free. The 3 costs you everything above 45, and you expect 54.",
     "Yes, it protects the breakout": "The cushion is only the 3 premium. A failed breakout drops right through it.",
-    "No, it adds risk below 44": "Not for that reason. The call adds no downside risk. The cost is the capped upside."
+    "No, it adds risk below 44": "Right answer, wrong reason. The call adds no downside. The cost is the capped upside."
    },
-   "simple": "No, because the call caps your exit at 48 when you expect 54, so you'd sell most of the move.",
+   "simple": "No. The call caps your exit at 48 when you expect 54, so you'd sell away most of the move.",
    "deeper": {
-    "trap": "The trap is judging the premium against the stock's price. Judge it against the move you expect. In Fidelity's version of this example, the call caps the sale at $48.00 a share. That is a profit of $4.00 a share, while the forecast runs to 54. A big expected move is a reason not to sell the call."
+    "trap": "The trap is judging the premium against the stock's price. Judge it against the move you expect. In Fidelity's version of this example, the call caps the sale at $48.00 a share. That's a profit of $4.00 a share, while the forecast runs to 54. A big expected move is a reason not to sell the call."
    },
    "tier": "extended",
    "risk": {
@@ -1438,7 +1466,7 @@
      "fixed before (2026-11-09 wrong-note reworded)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "The breakout and the call",
@@ -1451,7 +1479,7 @@
      },
      {
       "key": "our_run_target",
-      "label": "Our run target",
+      "label": "Your run target",
       "value": 54.0,
       "fmt": "$"
      },
@@ -1463,7 +1491,7 @@
      },
      {
       "key": "call_premium",
-      "label": "Call premium we'd collect",
+      "label": "Call premium on offer",
       "value": 3.0,
       "fmt": "$"
      }
@@ -1478,8 +1506,8 @@
    "key": "q20",
    "skill": "options.income",
    "rung": 7,
-   "format": "mcq",
-   "q": "Bought at 50, sold the 55 call for 2. The stock closes at 70 at expiry. How much more per share would the shares alone have made?",
+   "format": "scenario",
+   "q": "How much more per share would the shares alone have made him?",
    "answer": "$13",
    "prefix": "$",
    "calc": {
@@ -1492,16 +1520,16 @@
      "premium": 2
     }
    },
-   "why": "$13. The shares alone made 70 minus 50. The covered call stopped at strike minus cost plus premium: 55 minus 50 plus 2. The difference is the gain above the strike that went to the call buyer, less the 2 premium you were paid.",
-   "lesson_line": "The premium is your pay for the upside above the strike. Know that price before you sell.",
+   "why": "$13. The shares alone made 70 minus 50, that's 20. The covered call stopped at 55 minus 50 plus 2, that's 7. 20 minus 7 is 13. That 13 is what the premium really cost him: the run above 55, less the 2 he got paid. Here's the trade-off in one picture. The premium is small and certain. The cost only shows up when the stock runs, and runners are the stocks we're trying to own.",
+   "lesson_line": "The premium is the price of the run above the strike. Know it before the call goes on.",
    "facts": [
     "f37",
     "f6",
     "f71"
    ],
-   "simple": "The shares alone would have made $13 more a share, because the call stopped your gain at the 55 strike.",
+   "simple": "$13 more a share. The call stopped his gain at the 55 strike while ZQRT ran to 70.",
    "deeper": {
-    "trap": "The trap is judging a covered call by the premium alone. The premium is a sure, small gain. The cost shows up only when the stock runs. In a big rally, the shares alone beat the covered call by everything above the strike, less the premium."
+    "trap": "The trap is judging a covered call by the premium alone. The premium's a sure, small gain. The cost shows up only when the stock runs. In a big rally, the shares alone beat the covered call by everything above the strike, less the premium."
    },
    "tier": "extended",
    "risk": {
@@ -1510,7 +1538,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$13",
     "$15",
@@ -1518,9 +1546,9 @@
     "$20"
    ],
    "wrong": {
-    "$15": "Counts the move above the strike and forgets the premium you were paid.",
+    "$15": "Counts the run above the strike and forgets the 2 he was paid.",
     "$17": "Adds the premium instead of taking it off.",
-    "$20": "Gives the whole gain on the shares, not how much more they made."
+    "$20": "That's the whole gain on the shares, not how much more they made."
    },
    "visual": {
     "kind": "size",
@@ -1555,7 +1583,8 @@
      "label": "Shares alone made more by",
      "as": "per_share"
     }
-   }
+   },
+   "story": "A friend bought ZQRT at 50 and sold the 55 call for 2. ZQRT ran and closed at 70 on expiry day."
   },
   {
    "key": "q21",
@@ -1579,8 +1608,8 @@
    "skill": "options.income",
    "rung": 8,
    "format": "scenario",
-   "story": "XYZ is at 50. You sell the 50 put for 3. XYZ drops to 40, and you're assigned.",
-   "q": "Against the market price, how much are you down per share?",
+   "story": "ZQRT is at 50. A friend sells the 50 put for 3. ZQRT drops to 40, and he's assigned.",
+   "q": "Against the market price, how far underwater is he per share?",
    "choices": [
     "$7",
     "$10",
@@ -1597,8 +1626,8 @@
      "market": 40
     }
    },
-   "why": "$7. Assigned, you buy at the 50 strike, and the 3 premium brings your real cost to 47. The stock trades at 40, so you are 7 a share under. This is the OCC disclosure document's own example. A cash-secured put carries a stock owner's downside, and the premium is small pay for it.",
-   "lesson_line": "A cash-secured put carries a stock owner's downside. The premium only softens it.",
+   "why": "$7. Assigned, he buys at 50. The 3 premium brings his real cost to 47. ZQRT trades at 40, so he's 7 a share under. That's the OCC's own example, and it's the whole risk in one line. He took a stock owner's downside for 3 bucks. Parking the cash didn't make it safe. It just meant he could pay. Compare that to a shares trade where you'd have been stopped out long before 40.",
+   "lesson_line": "A short put carries a stock owner's downside. The premium only softens it.",
    "facts": [
     "f46",
     "f47",
@@ -1607,13 +1636,13 @@
     "f26"
    ],
    "wrong": {
-    "$10": "That ignores the 3 premium you kept, which lowers your cost.",
-    "$3": "That's the premium, and you received it. The loss is on the shares you had to buy.",
+    "$10": "That ignores the 3 premium he kept, which lowers his cost.",
+    "$3": "That's the premium, and it came in to him. The loss is on the shares he had to buy.",
     "$4": "That takes the premium off twice."
    },
-   "simple": "You're down $7 a share, since you paid 50 less the 3 premium and the stock now trades at 40.",
+   "simple": "Down $7 a share. He paid 50 less the 3 premium, and ZQRT now trades at 40.",
    "deeper": {
-    "trap": "Setting the cash aside does not make the trade safe. It only means you can pay when assigned. If the stock falls to zero, you still buy it at the strike. The premium is the most you can make, and it is small next to that risk."
+    "trap": "Setting the cash aside doesn't make the trade safe. It only means the seller can pay when assigned. If the stock falls to zero, he still buys it at the strike. The premium is the most he can make, and it's small next to that risk."
    },
    "tier": "expert",
    "risk": {
@@ -1622,7 +1651,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "The assigned put",
@@ -1647,7 +1676,7 @@
      }
     ],
     "find": {
-     "label": "We are down",
+     "label": "He is down",
      "as": "per_share"
     }
    }
@@ -1657,18 +1686,18 @@
    "skill": "options.income",
    "rung": 8,
    "format": "tf",
-   "q": "With the same strike and expiry, a cash-secured put has the same risk profile as a covered call.",
+   "q": "A cash-secured put and a covered call at the same strike and expiry carry the same basic risk shape.",
    "answer": "True",
-   "why": "True. OIC says the cash-secured put has a risk profile identical to the covered call. Both earn a capped reward and both carry a stock owner's downside. The match is in the shape of the result at expiry. A covered call's dollar result also depends on what you paid for the shares.",
-   "lesson_line": "Treat a cash-secured put like owning the shares. Same downside, capped reward.",
+   "why": "True. The OIC calls the risk profile identical. Both get paid a premium, both cap the reward, and both leave the seller holding a stock owner's downside. The match is the shape at expiry. The covered call's dollar result still depends on what was paid for the shares. So if a friend tells you short puts are risky but covered calls are safe, he's describing the same trade twice.",
+   "lesson_line": "Short put, covered call. Same downside, capped reward.",
    "facts": [
     "f31",
     "f32",
     "f45"
    ],
-   "simple": "True, because both leave you with a stock owner's risk of a drop, while your gain is capped.",
+   "simple": "True. Both leave the seller with a stock owner's risk of a drop, while the gain is capped.",
    "deeper": {
-    "counter": "Same shape, different starting point. A covered call writer already owns the shares, so a drop below the price paid is a loss on stock already held. A put writer buys only if assigned, at the strike. OIC's point is the shape of the payoff at expiry, not that every dollar matches."
+    "counter": "Same shape, different starting point. A covered call writer already owns the shares, so a drop below the price paid is a loss on stock already held. A put writer buys only if assigned, at the strike. The OIC's point is the shape of the payoff at expiry, not that every dollar matches."
    },
    "tier": "expert",
    "risk": {
@@ -1678,15 +1707,15 @@
      "'identical' holds for the shape only (conflicts note)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q24",
    "skill": "options.income",
    "rung": 9,
    "format": "scenario",
-   "story": "You own 100 XYZ shares with one covered call open. XYZ breaks down through your stop.",
-   "q": "How do you get out?",
+   "story": "A friend owns 100 ZQRT with one covered call open. ZQRT breaks down through his stop.",
+   "q": "How does he get out?",
    "choices": [
     "Buy the call back, then sell the shares",
     "Sell the shares, and leave the call open",
@@ -1694,8 +1723,8 @@
     "Sell a second call for more premium"
    ],
    "answer": "Buy the call back, then sell the shares",
-   "why": "Buy the call back, then sell the shares. While the call is open you're not free to sell the stock. That would leave the call uncovered, with unlimited risk. You exit a sold option with a closing purchase. A second call on the same shares is uncovered too. Holding both keeps the drop, and the premium is only a small cushion.",
-   "lesson_line": "With a covered call on, an exit has two legs. The call closes first.",
+   "why": "Buy the call back, then sell the shares. While that call's open, the shares are what cover it. Sell the shares first and the call is naked, with no cap on the loss if ZQRT snaps back hard. So he closes the call with a buy, then sells the stock. Two legs, call first. Holding both doesn't work, because the premium is a small cushion and the drop past his stop is all his. You treat the stop the same as on any trade. It's the exit.",
+   "lesson_line": "With a covered call on, the exit has two legs. The call closes first.",
    "facts": [
     "f17",
     "f59",
@@ -1704,9 +1733,9 @@
     "f15"
    ],
    "wrong": {
-    "Sell the shares, and leave the call open": "Then the call is uncovered. If the stock snaps back hard, its loss has no cap.",
-    "Hold both, the premium covers the drop": "The premium is a small cushion. Past your stop, the drop is yours.",
-    "Sell a second call for more premium": "A second call on the same shares is uncovered. More premium, unlimited risk."
+    "Sell the shares, and leave the call open": "Then the call's naked. If ZQRT snaps back hard, that loss has no cap.",
+    "Hold both, the premium covers the drop": "The premium's a small cushion. Past his stop, the drop is his.",
+    "Sell a second call for more premium": "A second call on the same shares is naked. More premium, unlimited risk."
    },
    "simple": "Buy the call back first, then sell the shares, or the call is left naked with no cap on losses.",
    "deeper": {
@@ -1717,15 +1746,15 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q25",
    "skill": "options.income",
    "rung": 9,
    "format": "scenario",
-   "story": "XYZ is at 48. You sell the 45 put for 1.20, hoping to buy a dip. It never dips and runs to 60 by expiry.",
-   "q": "How did that do against just buying 100 shares at 48?",
+   "story": "ZQRT is at 48. A friend sells the 45 put for 1.20, hoping to buy the dip. It never dips and runs to 60 by expiry.",
+   "q": "How did that work out next to just buying 100 shares at 48?",
    "choices": [
     "Better, paid $120 to wait",
     "Lost $120 on the put",
@@ -1741,8 +1770,8 @@
      "shares": 100
     }
    },
-   "why": "Kept $120, but the shares beat it. The put expired worthless, so the 1.20 premium on 100 shares is yours. But the stock ran from 48 to 60 without you. OIC says the outright stock buyer is better off when the put is not assigned and the stock keeps rallying. A short put's most gain is the premium.",
-   "lesson_line": "If owning the stock matters more than the price, a short put can leave you behind.",
+   "why": "He kept $120, but the shares crushed it. The put expired worthless, so 1.20 on 100 shares is his. Meanwhile ZQRT went from 48 to 60 without him. A short put's best case is the premium. That's the catch with getting paid to wait for a dip. The good ones don't always come back. If you want the stock, buy the stock, with a stop.",
+   "lesson_line": "Waiting for a dip with a short put can leave you watching the stock run.",
    "facts": [
     "f28",
     "f29",
@@ -1752,13 +1781,13 @@
     "f76"
    ],
    "wrong": {
-    "Lost $120 on the put": "You sold the put, so the $120 came in to you. It expired worthless and you kept all of it.",
-    "The same, both made money": "Both made money, but not the same. A short put's gain stops at the premium.",
-    "Better, paid $120 to wait": "You did get the $120, but only that. The shares made far more."
+    "Lost $120 on the put": "He sold the put, so the $120 came in to him. It expired worthless and he kept all of it.",
+    "The same, both made money": "Both made money, not the same. A short put's gain stops at the premium.",
+    "Better, paid $120 to wait": "He got the $120, and only that. The shares made far more."
    },
-   "simple": "You kept the $120 premium but missed the run from 48 to 60, so just buying the shares did far better.",
+   "simple": "He kept the $120 but missed the run from 48 to 60, so buying the shares did far better.",
    "deeper": {
-    "trap": "Getting paid to wait sounds like a free edge. It is a trade: if the stock runs, you keep only the premium and miss the move. If owning the stock matters more than the price, buying the shares fits better. OIC calls the short put mainly a strategy for a price-sensitive investor."
+    "trap": "Getting paid to wait sounds like a free edge. It's a trade: if the stock runs, the seller keeps only the premium and misses the move. If owning the stock matters more than the price, buying the shares fits better. The OIC calls the short put mainly a strategy for a price-sensitive investor."
    },
    "tier": "expert",
    "risk": {
@@ -1768,7 +1797,7 @@
      "fixed before (2026-11-09 choice reworded)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "Put against shares",
@@ -1828,21 +1857,21 @@
   },
   "q01": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Truth ok: covered = short call backed by 100 shares a contract (f57, f34, f58); naked call unlimited (f60); straddle wording matches f36. Seller's side named as not ours, with the premium-is-the-stop line from his options rule (h01, h03)."
   },
   "q02": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "False alarm (the call 'adds' risk). Nothing to change. Voice 4."
   },
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right before looking (f21, f44, f63; OIC page re-fetched 2026-11-12, f21/f24/f27 verbatim). Choices 30-39 chars, key not longest, no silly choice. Defect: the why says 'set aside cash equal to the strike price'. For a 45 put a learner reads that as $45, which is q08's own wrong choice ('$45: that's one share'). f44 is the disclosure document's wording, but the lesson needs the plain reading: enough cash to buy the shares at the strike. Reworded the why; no new numbers. Everything else unchanged."
+   "fixed": false,
+   "notes": "Truth ok (f21, f44, f63, f45, f24). Good mentor turn: 'The cash only means he can pay. It doesn't make the trade safe.' Seller's side flagged."
   },
   "q04": {
    "status": "cut",
@@ -1853,26 +1882,26 @@
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key on f2 (Tier 1). New wrong note rests on f67. Choices similar length, key shortest. No unsupported number."
+   "fixed": true,
+   "notes": "Truth of the key ok (f2, f4, f5, f15, f19). But the closing 'That's why I'd never cap a leader I bought for a run' puts an absolute rule in his mouth that he never gave (his options rule is only: occasionally, buy, premium is the stop). Replaced with the f19 point tied to why we buy leaders, no invented 'never'."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f3 before looking. The new distractor is wrong on f13 plus f12/f67; its wrong note matches f13's 'think carefully' without overclaiming. Lengths 24-30, key not longest. Minor overlap with q05's why and q19 is teach-then-test, not a giveaway."
+   "notes": "Steady or slightly rising keyed on f3; each wrong outlook explained (f5, f37, f13). The contrast line 'We buy a stock because we think it's about to move' sounds like him."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True on f76 (Tier 1); the Fidelity income framing is in conflicts. Lesson line on f24, general, not an imperative."
+   "notes": "True keyed on f76/f22; strike minus premium cost (f23 via f27). Seller's side named."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Roles, numbers, format and label checked against the question."
+   "fixed": true,
+   "notes": "Truth ok: 45 x 100 = 4,500 recomputed; 4,800 = 48 x 100; 45 = one share. But the why read like a source survey ('The OIC's own example does the same thing... One older guide lets the premium count...'). That belongs in deeper, which already carries it. New why gives the verdict, the steps, and the reason to park the full strike from f44 (no margin exposure). Facts unchanged."
   },
   "q09": {
    "status": "cut",
@@ -1889,69 +1918,68 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Sold call's premium: say collected"
+   "fixed": false,
+   "notes": "3.50 recomputed (50 - 48 + 1.50); 2.00, 1.50, 0.50 are named mistakes. Steps shown, ceiling explained (f6, f9)."
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "False keyed right: break-even is cost minus premium (f16), the strike is the ceiling (f9). Worked through without new numbers."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Roles, numbers, format and label checked against the question."
+   "notes": "43.80 recomputed (45 - 1.20); 46.20, 45.80 (47 - 1.20), 45.00 are real slips. Break-even tied to f33/f51."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False on f9. Stem no longer an absolute. q10's why already says the trade does no better above the strike; accepted as teach-then-test (q10 computes, q13 tests the concept)."
+   "notes": "False keyed on f9/f37; ties the cap to the runners we want to own. Short and direct."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Full 2x2 grid removes the mirror tell; key on f10 and f11 (Tier 1). Wrong notes are the converse of f10/f11, sound."
+   "fixed": true,
+   "notes": "Key right (f10, f11, f12). The closing 'I'd never let a premium pick my exit' speaks as if he sells calls himself and invents a 'never' rule. Replaced with a plain consequence line from f12/f13."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Sold call's premium: say collected"
+   "fixed": false,
+   "notes": "38.50 recomputed (40 - 1.50, f7/f8); 'Unlimited' correctly tied to a naked call (f60). 'The premium is no stop. On a shares trade we know where we're out before we get in' is right on his rules."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from f72, f73, f41 (dividend beats time value, ITM, holder who exercises before ex-date gets the dividend). Regular quarterly dividend means no terms change (f43, f77). Convergence points to a wrong choice, not the key. Why says 'likely, not certain'.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Key right (f72, f73, f41, f43/f77, f53, f48, f20; 'likely, not certain' per rule 11). But 'he' switched between the friend and the call owner mid-paragraph, so it took a second read. Rewritten so each 'he' is clear and the order runs: why the owner exercises, what the friend should expect, the only sure way out."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "My answer before the key: sell the 45 put. The 50 put works out to 50 - 3.20 = 46.80, above the trader's 'not higher' limit, so it has one defensible answer. Choices 15-16 chars. Two choices say 45, so the key does not echo the story alone. Buy-the-put is a wrong-direction choice, refuted by f78. The lesson line covers only the obligation (f24 'no matter how low the market goes', verbatim), not holding a falling stock, so it does not clash with A4/A13. 'A trader' is not taught as our rule (A6/B25). The owner flag on selling options stands at the lesson level. Its why ('if the stock never dips,"
+   "notes": "Sell the 45 put keyed on f27/f24/f23; 50 less 3.20 lands above 45, stated without a new number. 'One thing I'd check' line fits his voice."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Sold call's premium: say collected"
+   "fixed": false,
+   "notes": "44.30 recomputed (42.50 + 1.80, f50/f70); 49, 50.80 (49 + 1.80), 42.50 are named slips. Deeper carries the OCC 50/4/58 example correctly."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Find label 'Our exit is capped at' gives away the verdict (it caps the exit); say what the calc is, strike plus premium as a price if called away"
+   "fixed": false,
+   "notes": "The one trade the member holds; right answer is to not sell the call. 45 + 3 = 48 recomputed (f68/f69). 'Let a working leader work' and 'We trade shares' sound like him, and no invented rule."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Sold call's premium: say collected"
+   "fixed": false,
+   "notes": "13 recomputed: (70 - 50) - (55 - 50 + 2) = 20 - 7 = 13; 15, 17, 20 are named slips. Ties the cost to runners."
   },
   "q21": {
    "status": "cut",
@@ -1969,25 +1997,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Roles, numbers, format and label checked against the question."
+   "notes": "7 recomputed (50 - 3 = 47, 47 - 40 = 7, f46/f47); 10, 4 (premium off twice), 3 are named slips. 'He took a stock owner's downside for 3 bucks' and the stop contrast are good mentor lines."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True on f31 (Tier 1, OIC's own term 'risk profile'). Why and deeper limit it to shape. Housekeeping: the conflicts entry still quotes the old stem 'the same basic risk'; it now reads 'the same risk profile'."
+   "notes": "True keyed on f31, with the expiry-shape caveat kept in deeper. The OIC is named because the question is about its 'identical' claim. Closing line about the same trade twice is how he'd say it."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key on f17 and f59. Lesson line descriptive. Choices 35-40, key not longest. Agrees with A4 (the stop is the exit)."
+   "notes": "Close the call first, then the shares (f17, f59); naked-call risk (f49, f35). The stop is treated as the exit, consistent with our rules."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'Premium we keep' echoes the answer 'Kept $120'; neutral label for premium x 100"
+   "fixed": false,
+   "notes": "120 recomputed (1.20 x 100). Key and wrongs right (f28, f29, f65, f26). 'If you want the stock, buy the stock, with a stop' is the best line in the lesson."
   }
  }
 }

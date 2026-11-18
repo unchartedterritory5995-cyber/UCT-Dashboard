@@ -107,6 +107,14 @@ class EngineStatusIn(BaseModel):
     reason: str = Field(..., min_length=1, max_length=2000)
 
 
+class StatusHeadlineIn(BaseModel):
+    """⭐ STUDIO R4 — the owner's status-panel headline for their live version, and the script
+    engine that computed it (`svc.record_status_headline`). Bounded on every field."""
+    version: int = Field(..., ge=1)
+    engine: int = Field(..., ge=1)
+    headline: str = Field(..., min_length=1, max_length=svc.MAX_STATUS_HEADLINE_CHARS)
+
+
 # ── WS-I Part 2: the runtime-admission door's INVOCATION bound (review B1c, 2026-11-13) ──────
 # The same shape as `_charge_propose` below it in spirit: one sliding window per member, charged
 # BEFORE any work, per process (exact while web is one uvicorn process; per instance after a
@@ -576,6 +584,15 @@ class ConverseIn(BaseModel):
     #: SLICE 2 — the chart the member is on: ``{sym, tf}`` only, for the
     #: deterministic pre-flight (another symbol / timeframe). Strings, bounded.
     chart: Optional[dict] = None
+    #: ⭐ 2026-11-17 — the browser refused the patch this door offered for this same turn:
+    #: ``{envelope, errors}``, the patch and the browser engine's own words. Untrusted and
+    #: optional; `definition_conversation.browser_refusal` decides whether it is used, and a
+    #: malformed one is ignored (an ordinary turn), never a 422.
+    browser_refusal: Optional[Any] = None
+    #: ⭐ 2026-11-18 — what this build of the browser accepts beyond the first contract
+    #: (``["note.by"]``). Optional and untrusted: an older tab omits it and gets the answer it
+    #: always got; anything that is not a list of known words is ignored, never a 422.
+    accepts: Optional[Any] = None
 
 
 def require_create_indicator_access(user: dict = Depends(require_paid)) -> dict:
@@ -619,7 +636,7 @@ def converse_definition(body: ConverseIn, user: dict = Depends(require_paid),
     global member budget, checked before every model call.
     """
     _charge_propose(str(user["id"]))
-    from api.services import definition_conversation
+    from api.services import definition_conversation, indicator_memory
     # ⭐ P2X owner decision 1: an ADMIN (the `require_admin` rule, role ==
     # 'admin') gets the conversation's admin allowance
     # (`definition_conversation.conversation_cap_usd`). Every other bound --
@@ -631,7 +648,61 @@ def converse_definition(body: ConverseIn, user: dict = Depends(require_paid),
         body.message, user_id=user["id"], view=body.view,
         authoring=body.authoring, snippets=body.snippets, chart=chart,
         admin=(user.get("role") == "admin"), conversation_id=body.conversationId,
-        examples=body.examples is True)
+        examples=body.examples is True, browser_refusal=body.browser_refusal,
+        accepts=body.accepts,
+        # ⭐ what THIS member chose when the door asked before (their own account row, no one else's)
+        memory=indicator_memory.Memory(user["id"]),
+        # ⭐ and what they USUALLY use, read from their own saved indicators only when the door asks
+        saved=svc.list_for_user)
+
+
+def _saved_or_none(user_id: Any):
+    """This member's own saved indicators for the Settings card's "usual" lines, or None when the
+    store cannot be read (the card then shows no such line; nothing else about it changes)."""
+    try:
+        return svc.list_for_user(user_id)
+    except Exception:                              # noqa: BLE001
+        return None
+
+
+class AssistantMemoryIn(BaseModel):
+    """One remembered choice the member sets themselves: a question's id and one of that
+    question's own values (a choice id, or a whole number for a length)."""
+    question: str = Field(..., min_length=1, max_length=32)
+    value: Union[int, float, str] = Field(...)
+
+
+@router.get("/assistant-memory")
+def assistant_memory(user: dict = Depends(require_paid),
+                     _dark: dict = Depends(require_admin_dark_rollout)):
+    """WHAT CREATE INDICATOR REMEMBERS about this member (their own account row, no one else's):
+    every question it can remember an answer to, and their answer where they have one."""
+    from api.services import definition_conversation, indicator_memory
+    return definition_conversation.memory_view(indicator_memory.Memory(user["id"]), _saved_or_none(user["id"]))
+
+
+@router.put("/assistant-memory")
+def set_assistant_memory(body: AssistantMemoryIn, user: dict = Depends(require_paid),
+                         _dark: dict = Depends(require_admin_dark_rollout)):
+    """The member changes a remembered choice. The value must be one of that question's own
+    (checked against the registry); anything else is refused and nothing is written."""
+    from api.services import definition_conversation, indicator_memory
+    memory = indicator_memory.Memory(user["id"])
+    if not definition_conversation.set_memory(memory, body.question, body.value):
+        raise HTTPException(status_code=400, detail="That is not one of this question's choices.")
+    return definition_conversation.memory_view(memory, _saved_or_none(user["id"]))
+
+
+@router.delete("/assistant-memory")
+def forget_assistant_memory(question: Optional[str] = Query(None, max_length=32),
+                            user: dict = Depends(require_paid),
+                            _dark: dict = Depends(require_admin_dark_rollout)):
+    """Forget one remembered choice (`?question=`), or everything (no parameter): the row is
+    removed and nothing else holds a copy."""
+    from api.services import definition_conversation, indicator_memory
+    memory = indicator_memory.Memory(user["id"])
+    memory.forget(question)
+    return definition_conversation.memory_view(memory, _saved_or_none(user["id"]))
 
 
 @router.get("/library")
@@ -838,6 +909,26 @@ def record_engine_status(def_id: str, body: EngineStatusIn,
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+@router.post("/{def_id}/status-headline")
+def record_status_headline(def_id: str, body: StatusHeadlineIn,
+                           user: dict = Depends(require_paid)):
+    """⭐ STUDIO R4 (Indicators backlog 43) — the owner's browser records the headline its status
+    panel shows for the LIVE version of the caller's own definition, with the engine that computed
+    it. The share preview, the install answer and the library entry then carry it for the version a
+    link pins (`svc.share_headlines`). Append-only; the document is never touched. 404 for a
+    definition that is not the caller's or not live, 409 for a version that is no longer live."""
+    try:
+        return svc.record_status_headline(user["id"], def_id, version=body.version,
+                                          engine=body.engine, headline=body.headline)
+    except svc.SaveConflict as exc:
+        return JSONResponse(status_code=409,
+                            content={"detail": str(exc), "conflict": exc.as_dict()})
+    except svc.ForkRefused as exc:
+        raise HTTPException(status_code=404, detail="Not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @router.post("/{def_id}/fork")
 def fork_definition(def_id: str,
                     user: dict = Depends(require_paid),
@@ -970,7 +1061,13 @@ def definition_history(def_id: str, user: dict = Depends(require_paid),
 #: and for the same shape of reason: the request conflicts with what the thing IS.
 _SHARE_STATUS = {"not-found": 404, "revoked": 410, "gone": 410,
                  "table-version": 409, "requirements": 409,
-                 "taken-down": 403, "listing-limit": 409}
+                 "taken-down": 403, "listing-limit": 409,
+                 # ⭐ STUDIO R6: over the library's load budget (`load_budget`), measured
+                 # by the server at listing. A conflict the owner resolves by simplifying.
+                 "load-budget": 409,
+                 # the measurement could not be MADE in time (no free slot, or stopped at its
+                 # time limit): nothing was listed or re-pinned; asking again is the remedy.
+                 "load-busy": 503}
 
 
 def _share_http(exc: "svc.ShareRefused") -> HTTPException:

@@ -21,6 +21,8 @@ import { useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { fetchDefinitionLibrary, installSharedDefinition, moderateListing } from '../../hooks/useUserDefinitions'
 import { AuthContext } from '../../context/AuthContext'
 import { WHAT_TO_DO } from '../../pages/formulas/shareRefusal'
+import { sharedVerdict } from '../../pages/formulas/sharedVerdict'
+import { loadLine } from '../../pages/formulas/loadWords'
 import ownStyles from './IndicatorMembersTab.module.css'
 
 /** The engine's three repaint verdicts in a chooser's words (the page's own map). */
@@ -128,7 +130,9 @@ export default function IndicatorMembersTab({
     const r = await install(token)
     if (r.ok) {
       const defId = (r.row && (r.row.def_id || (r.row.definition && r.row.definition.id))) || null
-      setState((p) => ({ ...p, [token]: { defId } }))
+      // ⭐ R4: the install's row carries the saved version's verdict; kept to say it once, on install
+      const verdict = sharedVerdict(r.row)
+      setState((p) => ({ ...p, [token]: { defId, verdict: verdict ? verdict.headline : null } }))
       return
     }
     setState((p) => ({ ...p, [token]: { error: r.error, todo: WHAT_TO_DO[r.reason] || null } }))
@@ -182,6 +186,14 @@ export default function IndicatorMembersTab({
                   </span>
                   {e.description ? <span className={styles.resSub}>{e.description}</span> : null}
                   {facts ? <span className={styles.resMeta} data-testid="members-entry-facts">{facts}</span> : null}
+                  {/* ⭐ R4: the author's verdict for the listed version, when the listing carries it */}
+                  {sharedVerdict(e) ? (
+                    <span className={styles.resMeta} data-testid="members-entry-verdict">{sharedVerdict(e).sentence}</span>
+                  ) : null}
+                  {/* ⭐ R6: how heavy the listed version is to draw, as the server measured it */}
+                  {loadLine(e.load) ? (
+                    <span className={styles.resMeta} data-testid="members-entry-load" data-load={loadLine(e.load).code}>{loadLine(e.load).text}</span>
+                  ) : null}
                   {e.licence ? (
                     <span className={styles.resMeta} data-testid="members-entry-licence">
                       Licence, from its original script: {e.licence}
@@ -193,7 +205,7 @@ export default function IndicatorMembersTab({
                   ) : null}
                   {done ? (
                     <span className={styles.resMeta} data-testid="members-installed-note" role="status">
-                      Installed. Your copy is under “Your indicators”.
+                      Installed{st.verdict ? `: ${st.verdict}` : ''}. Your copy is under “Your indicators”.
                     </span>
                   ) : null}
                   {st && st.error ? (

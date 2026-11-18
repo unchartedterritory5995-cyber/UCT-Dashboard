@@ -135,15 +135,39 @@ describe('isIntradayTailStale — session completeness (gate ON)', () => {
   })
 })
 
-describe('isIntradayTailStale — completeness gate OFF (default) is byte-identical', () => {
+describe('isIntradayTailStale — completeness gate opted OUT (per browser) keeps the old behavior', () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    try { localStorage.removeItem('uct.intradayComplete.enabled') } catch { /* jsdom */ }
+    try { localStorage.setItem('uct.intradayComplete.enabled', '0') } catch { /* jsdom */ }
     vi.setSystemTime(new Date('2026-08-19T21:00:00Z'))  // Wed 17:00 EDT (after close)
   })
-  afterEach(() => vi.useRealTimers())
+  afterEach(() => {
+    vi.useRealTimers()
+    try { localStorage.removeItem('uct.intradayComplete.enabled') } catch { /* jsdom */ }
+  })
 
   it('FRESH: a today 13:30 mid-session partial stays fresh with the gate off (old behavior)', () => {
     expect(isIntradayTailStale(sec('2026-08-19T17:30:00Z'), '5')).toBe(false)
+  })
+})
+
+// ⭐ RAMPED TO 100 (2026-11-17): the rule is ON for every member unless a browser opts out. Measured
+// that night at 00:36 ET: first paints held copies ending at 11:05 the day before, called current.
+describe('session completeness is ON by default (ramped 2026-11-17)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    try { localStorage.removeItem('uct.intradayComplete.enabled'); localStorage.removeItem('uct.intradayComplete.bucket') } catch { /* jsdom */ }
+  })
+  afterEach(() => vi.useRealTimers())
+
+  it('after the close: a mid-session tail of today is STALE with no opt-in', () => {
+    vi.setSystemTime(new Date('2026-08-19T21:00:00Z'))                          // Wed 17:00 EDT
+    expect(isIntradayTailStale(sec('2026-08-19T17:30:00Z'), '5')).toBe(true)
+  })
+
+  it('overnight (after midnight ET, before the next open): yesterday 11:05 is BEHIND, yesterday 15:55 is fresh', () => {
+    vi.setSystemTime(new Date('2026-08-20T04:36:00Z'))                          // Thu 00:36 EDT
+    expect(classifyIntradayTail(sec('2026-08-19T15:05:00Z'), '5')).toBe('behind')   // Wed 11:05 EDT
+    expect(classifyIntradayTail(sec('2026-08-19T19:55:00Z'), '5')).toBe('fresh')    // Wed 15:55 EDT
   })
 })

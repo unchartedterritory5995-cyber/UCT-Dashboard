@@ -6,6 +6,7 @@ import { chipValueText as formatChipValue } from '../engine/readout'
 import { inkCssColour } from '../engine/objectColour'
 import { RowActs } from './LegendRow'
 import { LEGEND_ROW_VALUES_MAX } from './legendRows'
+import { rowMenuAnchor } from './legendMenuPlace'
 import rowStyles from './LegendRow.module.css'
 
 /**
@@ -126,11 +127,12 @@ import rowStyles from './LegendRow.module.css'
  *
  *  ⚠️ `+ 3` CLEARS THE ROW rather than covering the label the menu is about.
  *  `ContextPopover` still clamps to the viewport from there, so an item near the
- *  bottom edge flips up exactly as it always did. */
+ *  bottom edge flips up exactly as it always did. When that flip would cover the
+ *  chip itself, the chart moves the menu beside it (`legendMenuPlace.js`). */
 function anchorOf(e) {
   const el = e && e.currentTarget
   const r = el && typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect() : null
-  if (r) return { x: r.left, y: r.bottom + 3 }
+  if (r) return rowMenuAnchor(r)
   return { x: e?.clientX ?? 0, y: e?.clientY ?? 0 }
 }
 

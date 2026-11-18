@@ -177,6 +177,20 @@ const HAND_TYPED_BASELINE = [
   // initial search query, validated against a ticker pattern and dropped otherwise,
   // never a `/charts` deep link and never a second source of truth for a chart symbol.
   'pages/DarkPool.jsx',
+  // The headless COT renderer behind Discord's /cot (fb7bb57b77, 2026-10-19), the ChartRender.jsx
+  // door above for the COT Data page: the bot's renderer opens it with `?symbol=&lookback=&token=`,
+  // it draws one picture of one contract and is never a member's page, so there is no /charts
+  // authority to route through and nothing to strip.
+  'pages/CotRender.jsx',
+  // `isNotebookListAddress` (1edb49e133): `sp.get('ticker')` only asks whether the Notebook LIST's
+  // address carries a filter (the same `?ticker=` list filter NotebookTab.jsx reads, the finding
+  // filed above), so JournalLayout can fold its phone header from the first paint. The value is
+  // never used and never reaches a chart: a boolean about the list's own address.
+  'pages/journal-2-0/lib/journalToolsDoor.js',
+  // Test-only fake of the /api/bars SERVER (52e4018f77, "Never imported by product code"):
+  // `parseBarsUrl` reads `tf` off the REQUEST url a test's fetch was called with, the server's own
+  // query param. Not the page's location, not a deep link, and it cannot ship (it imports vitest).
+  'data/barStore/testing/fakeBarsServer.js',
 ]
 
 describe('S4 CP2 — the deep-link ruling has a derived rail behind it', () => {

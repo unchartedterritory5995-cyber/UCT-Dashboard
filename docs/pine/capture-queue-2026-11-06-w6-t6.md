@@ -4,6 +4,12 @@ Every row names the refusal it keeps (`runtime:loop`, sentence in quotes) until 
 The served half needs no capture: it is graded against `vw-forin-collections-rddt-1d-2026-10-01`
 (`vendorHarness.w6ForInRuntime.test.js`, every row on every bar and every object).
 
+⭐ 2026-11-16 (imp, `capture-queue-2026-11-16-imp.md`): on the RUNTIME lane Q-W6T6-G is graded, G01-G07
+MATCH (`vendorHarness.impForInGRows.test.js`): remove / pop / unshift / insert / clear and a reassignment
+are served; G07 (a helper) is proven but held (Q-IMP-H). W6-F1's "inside a function body" and "the body
+hands the element `x` to a function that may write through it" (field writes only) are served there; the
+host lane's rows below are unchanged.
+
 | id | probe | symbol / tf | refusal kept | unblocks | owner |
 |---|---|---|---|---|---|
 | Q-W6T6-G (grade only) | `vw-forin-collections-2.pine`, captured as `vw-forin-collections-2-rddt-1d-2026-10-02` (captured: G01-G07, S01-S04, P01) | `NYSE:RDDT 1D` | "the body changes `x`, the list it walks, by more than push / shift / set" (host `forInRefused`, the same sentence from `forInRule.js`) | `remove` / `pop` / `unshift` / `insert` / `clear` / a reassignment / a helper handed the list | a lane that grades it. Today the harness reads it INCONCLUSIVE because the member door refuses the probe's reassignment (`pine:reassign`); the rule table is one entry (`FOR_IN_LIVE_WITNESSED`) once graded |

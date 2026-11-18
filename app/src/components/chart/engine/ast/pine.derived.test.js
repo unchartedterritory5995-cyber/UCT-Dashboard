@@ -330,6 +330,15 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     //   nothing can be mistranslated onto it, and a pasted `ta.tieNewest(x)` reads x.
     tieNewest: 'no Pine name collides — the door\'s own identity mark on a v4 / v5'
       + ' highestbars / lowestbars source (newest of a tie, S1 witnessed)',
+    // ⭐ 2026-11-17 — OURS ALONE: the regular session's own values. Pine has no `ta.sessionHigh`,
+    //   `ta.sessionLow`, `ta.sessionOpen`, `ta.openingRangeHigh` or `ta.openingRangeLow` (a Pine
+    //   author writes them as a `var` reset on `session.isfirstbar_regular`, which is the witness
+    //   in `sessionRegularWitness.test.js`), so nothing can be mistranslated onto them.
+    sessionOpen: 'no Pine name collides — the regular session\'s first open; Pine spells it with a var',
+    sessionHigh: 'no Pine name collides — the running regular-session high; Pine spells it with a var',
+    sessionLow: 'no Pine name collides — the running regular-session low; Pine spells it with a var',
+    openingRangeHigh: 'no Pine name collides — the first N minutes\' high, frozen; Pine spells it with a var',
+    openingRangeLow: 'no Pine name collides — the first N minutes\' low, frozen; Pine spells it with a var',
   })
 
   it('⛔⛔ EVERY declared name, offered under `ta.` — a door that OPENS lands RED', () => {

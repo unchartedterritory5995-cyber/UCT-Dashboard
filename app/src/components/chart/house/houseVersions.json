@@ -1,0 +1,139 @@
+{
+ "_": "THE HOUSE SET'S VERSIONS. One list per house indicator, oldest first; the last entry is what houseIndicators.json holds today. `maths` is the definition's whole-maths fingerprint (compute.treesHash, or compute.fn for an indicator of one formula). THE RULE: a house indicator's maths never changes under the same version. A change is a NEW entry here with the next version and the reason, and the definition's own `version` moves with it; an earlier entry is never rewritten. A member's copy is their own definition and is never rewritten by a new version (IndicatorHouseTab.jsx). Held by tests/test_house_up_day.py. `pine` lists the house set's Pine entries (house/housePineIndicators.json) by `script`, the sha256 of the script's bytes, which never change under the same version (a Pine entry's maths moves with the engine, so its identity is its script; held by IndicatorHouseTab.fredRs.test.jsx).",
+ "indicators": {
+  "distribution_day_count": [
+   {
+    "version": 1,
+    "maths": "sha256:471cb4a382a6d29bb1dfbe82c64964e373f0357bd108af12bdff08ae086c480f",
+    "since": "2026-11-16",
+    "why": "as first built and value-checked"
+   }
+  ],
+  "relative_strength_vs_spy": [
+   {
+    "version": 1,
+    "maths": "sha256:9c7498b236dd26326b9ddf031b0f7550d31e08fc4cdfa4a7264627fc9e58d60d",
+    "since": "2026-11-16",
+    "why": "as first built and value-checked"
+   }
+  ],
+  "rs_new_high_vs_spy": [
+   {
+    "version": 1,
+    "maths": "sha256:f764df7f9b37c3ad25f6383f7786e74d412b116550d2211243e3f2427f42167d",
+    "since": "2026-11-16",
+    "why": "as first built and value-checked"
+   }
+  ],
+  "atr_extension": [
+   {
+    "version": 1,
+    "maths": "sha256:8b0cd18e229dd2fb645a6f1cca365dbaa84bf58580e69d32cebf12f221505c94",
+    "since": "2026-11-16",
+    "why": "as first built and value-checked"
+   }
+  ],
+  "percent_distance_from_10_week_ma": [
+   {
+    "version": 1,
+    "maths": "sha256:ecbf2d0c035e2332be29540d05810cf0d998d86de627eb8229e3cac426fb49d1",
+    "since": "2026-11-16",
+    "why": "as first built and value-checked"
+   }
+  ],
+  "volume_with_50_average": [
+   {
+    "version": 1,
+    "maths": "sha256:ecc98210d5ffc055f0dfed8d05e99a920b47a4ae29e7bda301bd3fa88ea881aa",
+    "since": "2026-11-16",
+    "why": "as first built and value-checked"
+   },
+   {
+    "version": 2,
+    "maths": "sha256:545c218d2e2ad59351d8445234ad68afa9efe126e6d69a5de05f7e49aaa19913",
+    "since": "2026-11-18",
+    "why": "an up day is a close above the PREVIOUS close, a down day a close below it (owner ruling); version 1 compared the close with the open, which is an up bar"
+   }
+  ],
+  "tight_weekly_closes": [
+   {
+    "version": 1,
+    "maths": "sha256:9e843d4411b1ebc8d6e990585882c99bf4c1437aacf8db14794b639f321db852",
+    "since": "2026-11-16",
+    "why": "as first built and value-checked"
+   }
+  ],
+  "gap_up_on_volume": [
+   {
+    "version": 1,
+    "maths": "sha256:dda9d9890ea8d828968941abf0ee89a766a1768b0e603aa08cc4e007fd157770",
+    "since": "2026-11-16",
+    "why": "as first built and value-checked"
+   }
+  ],
+  "inside_outside_bars": [
+   {
+    "version": 1,
+    "maths": "sha256:2d6c4ad9e687c89fd0bf64e1fa4bd662441f46ec7219dea5c5ec405d16011370",
+    "since": "2026-11-16",
+    "why": "as first built and value-checked"
+   }
+  ],
+  "average_daily_range": [
+   {
+    "version": 1,
+    "maths": "sha256:5c18e6759ca6c4a96d73400d02c8acab24ca66056532c3492e1932d3be002004",
+    "since": "2026-11-16",
+    "why": "as first built and value-checked"
+   }
+  ],
+  "previous_week_high_low": [
+   {
+    "version": 1,
+    "maths": "sha256:5cea001f9ef914cb588acad5b5968fb2410b14d98fe2e59f93cc91b8595c061a",
+    "since": "2026-11-16",
+    "why": "as first built and value-checked"
+   }
+  ],
+  "flat_base": [
+   {
+    "version": 1,
+    "maths": "sha256:6665f543177879aa89ec640e75b8d2465fbb57b28c406460e8c16b010094ab5a",
+    "since": "2026-11-16",
+    "why": "as first built and value-checked"
+   }
+  ],
+  "up_down_volume_ratio_50": [
+   {
+    "version": 1,
+    "maths": "sha256:42f9952edc15261367518a5d551c951d3716ad213446af755704d63be605af29",
+    "since": "2026-11-16",
+    "why": "as first built and value-checked"
+   },
+   {
+    "version": 2,
+    "maths": "sha256:89bed4da59c7b28b405eaf88c948e090e50898e519911a9b0e57b0dbdf36ba2a",
+    "since": "2026-11-18",
+    "why": "an up day is a close above the PREVIOUS close, a down day a close below it (owner ruling); version 1 compared the close with the open, which is an up bar"
+   }
+  ],
+  "follow_through_day": [
+   {
+    "version": 1,
+    "maths": "sha256:0d15ac7c0d35186076747e7d5d3171c125ea38451280090bfd17524f40cbb41e",
+    "since": "2026-11-16",
+    "why": "as first built and value-checked"
+   }
+  ]
+ },
+ "pine": {
+  "fred-rs": [
+   {
+    "version": 1,
+    "script": "sha256:caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0",
+    "since": "2026-11-18",
+    "why": "Fred6724's RS Rating as first shipped, byte for byte the script every TradingView parity capture was graded on"
+   }
+  ]
+ }
+}

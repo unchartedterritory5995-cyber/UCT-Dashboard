@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import usePreferences from '../../../hooks/usePreferences'
 import useChartSurfaceSettings from '../../../components/chart/pane/useChartSurfaceSettings'
 import { WorkspaceContext } from '../../charts/WorkspaceContext'
@@ -32,7 +33,9 @@ import {
 // show the desktop widget on a phone either, it shows MobileChartsApp (symbol strip, clean canvas,
 // bottom toolbar, indicator / type / alert / tools sheets), bound to the same chart widget.
 const noop = () => {}
-export default function ScreenerChartWidget({ sym, priceLines = null, phone = false }) {
+// `newsMode` (the scan board; 'under' everywhere else): 'portal' draws the News widget into
+// `newsTarget` (the board's News widget or its details card), 'off' leaves it out.
+export default function ScreenerChartWidget({ sym, priceLines = null, phone = false, newsMode = 'under', newsTarget = null }) {
   const { prefs, setPrefMerged, loading } = usePreferences()
   const chartsTheme = prefs?.charts_theme || 'default'
   // The member's own /charts chart (named default chart widget, else the first with settings,
@@ -145,10 +148,17 @@ export default function ScreenerChartWidget({ sym, priceLines = null, phone = fa
               <WidgetHost widget={widget} onOptsChange={onOptsChange} onReplaceWidget={onReplaceWidget}
                 onColorChange={noop} />
             </div>
-            <div className={styles.deskNews} data-testid="pane-news">
-              <WidgetHost widget={news} onOptsChange={onNewsOptsChange} onReplaceWidget={onReplaceNews}
-                onColorChange={noop} />
-            </div>
+            {newsMode === 'under' && (
+              <div className={styles.deskNews} data-testid="pane-news">
+                <WidgetHost widget={news} onOptsChange={onNewsOptsChange} onReplaceWidget={onReplaceNews}
+                  onColorChange={noop} />
+              </div>
+            )}
+            {newsMode === 'portal' && newsTarget && createPortal(
+              <div className={styles.deskNewsFree} data-testid="pane-news">
+                <WidgetHost widget={news} onOptsChange={onNewsOptsChange} onReplaceWidget={onReplaceNews}
+                  onColorChange={noop} />
+              </div>, newsTarget)}
           </div>
         )}
       </ChartHostOverlayContext.Provider>

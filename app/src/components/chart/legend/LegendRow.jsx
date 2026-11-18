@@ -48,6 +48,7 @@ import styles from './LegendRow.module.css'
 import { inkCssColour } from '../engine/objectColour'
 import UIcon from '../../ui/UIcon'
 import { LEGEND_ROW_VALUES_MAX } from './legendRows'
+import { rowMenuAnchor } from './legendMenuPlace'
 
 /**
  * ⭐⭐ UCT SIGNATURE ROW CONTROLS (owner-approved lab "2 · Chart legend", L1 · Rows,
@@ -232,13 +233,14 @@ export default function LegendRow({
   //
   // ⭐ AND THE ANCHOR IS THE ROW, NOT THE POINTER — `currentTarget` is the row on
   // every path, so a keyboard activation lands in the same place a click does.
-  // `ContextPopover` clamps from there, so a row near the bottom still flips up.
+  // `ContextPopover` clamps from there, so a row near the bottom still flips up; and when
+  // that would cover this row, the chart moves the menu beside it (`legendMenuPlace.js`).
   const fire = (e) => {
     e.stopPropagation()
     e.preventDefault?.()
     const el = e.currentTarget
     const r = el && typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect() : null
-    onOpen(rowId, r ? { x: r.left, y: r.bottom + 3 } : { x: e.clientX ?? 0, y: e.clientY ?? 0 })
+    onOpen(rowId, r ? rowMenuAnchor(r) : { x: e.clientX ?? 0, y: e.clientY ?? 0 })
   }
 
   /** The semantics of a menu trigger, or nothing at all.

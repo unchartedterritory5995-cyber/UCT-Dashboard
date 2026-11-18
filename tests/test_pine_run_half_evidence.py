@@ -64,7 +64,7 @@ RS_SHA = "caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0"
 RS_RECAPTURES = [f"rs-rating-fred6724-{s}-1d-2026-11-16" for s in ("rddt", "alab", "crwv")]
 # SETTINGS PARITY (2c): RS Rating taken with settings moved (set A / set B / set C: the colours), graded
 # at those settings
-RS_SETTINGS = [f"rs-rating-fred6724-{v}-{s}-1d-2026-11-16" for v in ("seta", "setb", "setc", "setd") for s in ("rddt", "alab")]
+RS_SETTINGS = [f"rs-rating-fred6724-{v}-{s}-1d-2026-11-16" for v in ("seta", "setb", "setc", "setd", "sete2") for s in ("rddt", "alab")]
 
 
 def test_E1b_the_committed_list_serves_RS_Ratings_run_half_evidence_and_only_that():
@@ -80,10 +80,10 @@ def test_E1b_the_committed_list_serves_RS_Ratings_run_half_evidence_and_only_tha
     rs = next(s for s in doc["scripts"] if s["slug"] == "rs-rating-fred6724")
     assert rs["sha256"] == RS_SHA
     assert [c["id"] for c in rs["captures"]] == RS_RECAPTURES + RS_SETTINGS
-    assert [c["objectsV2"] for c in rs["captures"]] == ["MATCH_SUBSTITUTED"] * 11
+    assert [c["objectsV2"] for c in rs["captures"]] == ["MATCH_SUBSTITUTED"] * 13
     assert all(c["objectsV2Substituted"] == ["syminfo.industry"] == c["substituted"] for c in rs["captures"])
     # the three defaults captures carry no moved setting; each settings capture names its own
-    assert [bool(c.get("inputs")) for c in rs["captures"]] == [False] * 3 + [True] * 8
+    assert [bool(c.get("inputs")) for c in rs["captures"]] == [False] * 3 + [True] * 10
     ev = rt.run_half_evidence()
     assert [e["sha256"] for e in ev] == [RS_SHA], "exactly this script, and no other record"
     assert [c["capture"] for c in ev[0]["captures"]] == RS_RECAPTURES + RS_SETTINGS
@@ -96,6 +96,8 @@ def test_E1b_the_committed_list_serves_RS_Ratings_run_half_evidence_and_only_tha
     assert rt.run_half_settings_admits(ev[0], ["colorRS"]) == (True, [])
     # the comparison symbol (set D, AMEX:SPY): the label sits on the RS line, which reads it
     assert rt.run_half_settings_admits(ev[0], ["lineTicker"]) == (True, [])
+    # the see-through dot colours (set E2): the new-high and new-low dots are drawn in them
+    assert rt.run_half_settings_admits(ev[0], ["blueDotCol", "redDotCol"]) == (True, [])
     assert rt.run_half_settings_admits(ev[0], ["colMa2"]) == (False, ["colMa2"])
     rows_all = {r["id"]: r for r in json.loads(VERDICTS.read_text(encoding="utf-8"))["results"]}
     for cid in RS_SETTINGS:
