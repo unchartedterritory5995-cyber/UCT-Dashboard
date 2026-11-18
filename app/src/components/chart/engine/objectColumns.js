@@ -41,7 +41,7 @@ import {
   runtimeErrorStopOf,
 } from './astColumns.js'
 import { bindConstsFor } from './ast/bind'
-import { otherSymbolRefusalOfTree } from './otherSymbols'
+import { otherSymbolRefusalOfTree, withChartNewestDay } from './otherSymbols'
 import { periodReadsObjectRefusal } from './periodReads'
 import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
 // ⭐ C43 — a cycle on purpose (that module reads `unknownMask` below): both sides
@@ -720,7 +720,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
     // and the plot beside it can never be served two different instruments.
     symbols: undefined,
   }
-  const otherSymbols = otherSymbolsFor(definition, opts)
+  const otherSymbols = otherSymbolsFor(definition, withChartNewestDay(opts, bars))   // ⭐ RS RATING L11 PR 2
   if (otherSymbols) evalOpts.symbols = otherSymbols.symbols
   // ⭐⭐ ENGINE 55 — and which it REFUSED: an object tree reading one is refused by name
   // (`refusals`, with the bind's code), the plot lane's `columnErrors` rule.

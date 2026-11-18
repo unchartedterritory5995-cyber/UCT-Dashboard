@@ -356,7 +356,10 @@ function requestSupplyKey(compute, ctx) {
   for (const [k, e] of sec.entries()) {
     const bars = e && Array.isArray(e.bars) ? e.bars : []
     const last = bars.length ? bars[bars.length - 1] : null
-    parts.push(`${k}:${(e && e.status) || ''}:${bars.length}:${last ? `${last.t}/${last.c}` : ''}`)
+    // ⭐ RS RATING L11 PR 2 — whether its session is in progress decides what the chart's newest bar reads
+    // (`otherSymbols.newestOwnPeriodOf`): the close flips it with the bars unchanged, and that is a new run
+    parts.push(`${k}:${(e && e.status) || ''}:${bars.length}:${last ? `${last.t}/${last.c}` : ''}`
+      + `${e && e.newestBarIsForming === true ? ':forming' : ''}`)
   }
   return `|req${parts.sort().join(',')}`
 }
