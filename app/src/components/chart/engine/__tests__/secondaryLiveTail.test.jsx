@@ -16,6 +16,7 @@ import {
   secondaryBarsUrl, TAIL_BARS, REFRESH_MIN_MS,
 } from '../secondaryBars'
 import { useSecondarySources, liveTailTick, LIVE_TAIL_MS } from '../useSecondarySources'
+import { setDeskHidden, __resetDeskVisibility } from '../../../../lib/deskVisibility'
 
 const days = (n, last = '2026-11-17') => {
   const out = []
@@ -152,6 +153,19 @@ describe('liveTailTick — which entries a tick re-reads', () => {
     expect(liveTailTick(['SPX'], 'D', 600, fetcher, true)).toBe(0)
     expect(fetcher).not.toHaveBeenCalled()
     spy.mockRestore()
+  })
+
+  it('⛔ a hidden DESK re-reads nothing, though the page still reports visible (speed rule 6)', () => {
+    // the desktop shell keeps a minimized window `visible`; `deskVisibility.isAppVisible` folds the desk in
+    primeSecondaryBars('SPX', 'D', 600, { bars: HELD, newest_bar_is_forming: true })
+    expect(document.visibilityState).not.toBe('hidden')
+    const fetcher = vi.fn()
+    setDeskHidden(true)
+    try {
+      expect(liveTailTick(['SPX'], 'D', 600, fetcher, true)).toBe(0)
+      expect(fetcher).not.toHaveBeenCalled()
+    } finally { __resetDeskVisibility() }
+    expect(liveTailTick(['SPX'], 'D', 600, fetcher, true)).toBe(1)      // CONTROL: the desk back, it re-reads
   })
 })
 

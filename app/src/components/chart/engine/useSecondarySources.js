@@ -41,6 +41,7 @@ export function ensureChartSources(keys, tf, barCount, fetcher) {
   return out
 }
 import { lowerTfWindowsNeeded } from './lowerTf'
+import { isAppVisible } from '../../../lib/deskVisibility'
 
 /** ⭐⭐ RS RATING L11 PR 2 — how often a forming series is re-read (`secondaryBars.refreshSecondaryTail`). */
 export const LIVE_TAIL_MS = 60000
@@ -48,9 +49,11 @@ export const LIVE_TAIL_MS = 60000
 /** ⭐⭐ RS RATING L11 PR 2 — one tick of the live tail: every held entry of this chart whose session is in
  *  progress (`newestBarIsForming === true`), and every one while the CHART's own newest bar is forming (a
  *  page opened before the open holds an index series with no row for today, flagged settled, and only a
- *  re-read finds today's), re-reads its newest rows. Nothing while the tab is hidden. Exported for its rail. */
+ *  re-read finds today's), re-reads its newest rows. Nothing while the member cannot see the app
+ *  (`deskVisibility.isAppVisible`: a hidden tab, or the desktop desk hidden, where a minimized window still
+ *  reports `visible`; speed rule 6). Exported for its rail. */
 export function liveTailTick(keys, tf, barCount, fetcher, chartForming) {
-  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return 0
+  if (!isAppVisible()) return 0
   let started = 0
   for (const k of Array.isArray(keys) ? keys : []) {
     const held = heldKeyParts(k)
