@@ -381,6 +381,7 @@ export const GROUPS = [
   // Terminal data wave 2: five more local-only stock.* answers (52-week highs / lows, theme rotation, the confluence board,
   // the expected move, the earnings call search) ride here the same way: capabilities/terminalDataWave2.js adds each one's
   // words (WAVE2_ROUTE_WORDS) only while that capability is registered (pinned in agentTerminalDataWave2.test.js).
+  // Terminal data wave 3's four stock.* answers are NOT in this group: see `marketBoards` at the end of the catalog.
   { id: 'data', title: 'Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)', domains: ['stock', 'news', 'research', 'history'],
     // CG-21 (corpus #774): "news" — not the News WIDGET ("add a news widget")
     words: [/\bnews\b(?! (?:widget|panel|tab|window)s?\b)/, /\b(headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sectors?|industry|market cap|float|why is|what does .+ do|what'?s driving|what is driving|off (its|the) (52[\s-]?week )?highs?)\b/,
@@ -533,6 +534,17 @@ export const GROUPS = [
   // capability is registered (the server serves `catalysts.board`), so on a dark server routing is byte-identical to the base.
   { id: 'catalysts', title: 'UCT catalyst board: what moved / is moving the market, why a stock is up or down (stored catalysts + headlines), catalysts for your tickers or watchlist',
     domains: [], actions: ['news.movers'], fillLast: true, wordsOnly: true,
+    words: [] },
+  // Terminal data wave 3 (stock.gammaLevels / stock.topFlowPicks / stock.flowRecord / stock.earningsReactions): one stock's gamma
+  // walls, UCT's Top Flow picks, the Flow Record and a day's earnings reactions in their OWN group, WORDS-ONLY and fillLast (as cot /
+  // rs / catalysts): never a filler, so no existing group and no unrecognised request changes. They are listed by `actions` because
+  // their `stock` domain would put them in the `data` group, and that group has no room: with every dark kind served it already holds
+  // 20 actions, and four more put it past the routing budget whenever drawings or lists ride along (measured: two wave 1 / wave 2
+  // corpus phrasings stopped routing). `words` stays EMPTY here: capabilities/terminalDataWave3.js arms each capability's own words
+  // only while it is registered (the server serves its kind), so on a dark server this group never matches and routing is
+  // byte-identical to the base (pinned in agentTerminalDataWave3.test.js).
+  { id: 'marketBoards', title: 'Gamma walls of a stock (call wall, put wall, zero gamma), UCT\'s Top Flow picks and Flow Record win rates, how a day\'s earnings reporters moved',
+    domains: [], actions: ['stock.gammaLevels', 'stock.topFlowPicks', 'stock.flowRecord', 'stock.earningsReactions'], fillLast: true, wordsOnly: true,
     words: [] },
 ]
 // chartReplay: the replay bar's bare playback words, which route there ONLY while a chart's bar replay is on (namedGroups)

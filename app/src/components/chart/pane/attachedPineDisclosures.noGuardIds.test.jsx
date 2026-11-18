@@ -28,6 +28,8 @@ const FIXTURE_NOTES = [
   { name: 'Strategy', note: 'refused here (`strategy:commission-type`).' },
   { name: 'Enum', note: 'An input option is not offered (enum:unknown-member): pick another.' },
   { name: 'Runtime', note: 'its run computed nothing on this chart (runtime:history-start)' },
+  // HOST WORKER (2026-11-17): the host lane's worker held a job past its watchdog (`hostLaneAsync.js`)
+  { name: 'Host lane', note: 'the background worker that computes this script did not answer, so nothing is drawn (host-lane:worker-unresponsive)' },
 ]
 const registry = {
   getDefinition: (id) => (id === 'd1' ? { meta: { name: 'Fixture', disclosures: FIXTURE_NOTES } } : id === 'd2' ? runDef : null),

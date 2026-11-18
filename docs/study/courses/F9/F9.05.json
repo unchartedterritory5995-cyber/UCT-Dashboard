@@ -2,7 +2,7 @@
  "unit": "F9.05",
  "track": "F9",
  "title": "Heat and the book",
- "teaches": "Add up what every open trade loses if its stop is hit and read the total as a single percent of the account, keep that total under a cap you set, and never add to a losing trade: our size goes on at one price with one stop.",
+ "teaches": "Add up what every open trade loses if its stop is hit and read the total as a single percent of the account, treat that total as a guide that moves with the market rather than a hard cap, and never add to a losing trade: our size goes on at one price with one stop.",
  "skills": [
   {
    "id": "risk.heat",
@@ -128,6 +128,14 @@
    "title": "The house sizing rule, section 5: Portfolio layer (the owner quoted, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#5-portfolio-layer",
    "accessed": "2026-11-09"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-17)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-17"
   }
  ],
  "facts": [
@@ -376,6 +384,24 @@
    "source": "s13",
    "quote": "The market reading as a guide (A10): Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
    "claim": "Our rule F65: the market reading guides how much we carry, from full risk in Green down to mostly cash in Red."
+  },
+  {
+   "id": "h09",
+   "source": "s13",
+   "quote": "Sell some into strength and trail the rest under the rising averages.",
+   "claim": "Our rule A11: we sell some of a winner into strength and trail the rest under the rising averages."
+  },
+  {
+   "id": "h10",
+   "source": "s13",
+   "quote": "With a ceiling: if the first 30 minutes take the loss past 2R, get out.",
+   "claim": "Our gap rule (B20, G70): on a gap against the stop, if the first 30 minutes take the loss past 2R, we get out."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -383,25 +409,26 @@
    "key": "w1",
    "title": "Add up your stops",
    "steps": [
-    "Every open trade with a stop is a bet. The bet is what you lose if that stop is hit.",
-    "Add up the bets on all your open trades, as a percent of the account. That's your total open risk.",
-    "Ed Seykota and Dave Druz call it the heat of the portfolio. 2% on each of five trades is 10%.",
-    "So is 5% on each of two. They found that setting this level matters far more than fine-tuning your trade timing."
+    "Every open trade with a stop is a bet. The bet is what you lose if that stop gets hit.",
+    "Add up the bets on everything you hold, as a percent of the account. That's your total open risk.",
+    "Seykota and Druz call it heat. 2% on each of five trades is 10%. So is 5% on each of two.",
+    "They found that level matters way more than entry timing. Ours moves with the market, a guide, not a hard cap."
    ],
    "facts": [
     "f01",
     "f02",
     "f03",
-    "f04"
+    "f04",
+    "h03"
    ]
   },
   {
    "key": "w2",
    "title": "Five names, one bet",
    "steps": [
-    "FINRA's warning: stocks in the same industry tend to be highly correlated. What hits one is likely to hit the others.",
-    "So five bank stocks aren't five small bets. On bad news for banks, their stops can all go the same day.",
-    "A stop is a trigger, not a promised price. If the whole group gaps down, fills can land past your stops."
+    "Stocks in the same industry tend to move together. What hits one is likely to hit the others.",
+    "So five chip stocks aren't five small bets. One bad headline for semis and all five stops can go the same day.",
+    "And a stop is a trigger, not a price. If the whole group gaps down, you can fill well past your stops."
    ],
    "facts": [
     "f13",
@@ -432,7 +459,7 @@
    "skill": "risk.heat",
    "rung": 1,
    "format": "mcq",
-   "q": "What does your total open risk measure?",
+   "q": "You've got five trades on, each with a stop in. What does your total open risk tell you?",
    "choices": [
     "Your loss if every stop is hit",
     "What your worst trade could lose",
@@ -440,8 +467,8 @@
     "The money tied up in open trades"
    ],
    "answer": "Your loss if every stop is hit",
-   "why": "Your loss if every stop is hit. Seykota and Druz compare a trade with a stop to a bet: the more money risked, the larger the bet. Add the bets on every open trade and read the total as a percent of the account. It looks forward. Losses already taken are not in it, and neither is the money sitting in the positions.",
-   "lesson_line": "Total open risk is every stop's loss added up, as a percent of the account.",
+   "why": "Your loss if every stop is hit. Every trade with a stop is a bet, and the bet is what that stop costs you. Add up all five and put it as a percent of the account. That's your total open risk. It looks forward. Losses you already took aren't in it, and neither is the money sitting in the stocks. You don't have to do it by hand either. The Portfolio Risk page adds it up from the entry and stop on every open position in your journal.",
+   "lesson_line": "Add up what every stop costs you. That one number is what your book has on the line.",
    "facts": [
     "f01",
     "f02",
@@ -449,17 +476,17 @@
     "f06"
    ],
    "wrong": {
-    "What your worst trade could lose": "That's one trade. Total open risk adds up every open trade's loss at its stop.",
-    "Your losses so far this month": "Those losses are already taken. Total open risk looks forward: what the open trades can still cost.",
-    "The money tied up in open trades": "That's the value of your positions, not the risk. Schwab's example puts up to 5% in one position but risks only up to 1% on it."
+    "What your worst trade could lose": "That's one trade. You want all of them added up, every stop at once.",
+    "Your losses so far this month": "That money's already gone. Open risk looks ahead, at what your open trades can still cost you.",
+    "The money tied up in open trades": "That's what the positions are worth, not what's at risk. Schwab's example puts up to 5% in one position and risks only 1% on it."
    },
-   "simple": "It is what you would lose if every open trade hit its stop, added up as a share of your account.",
+   "simple": "It's what you'd lose if every open trade hit its stop, added up as a share of your account.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
@@ -536,7 +563,7 @@
    "skill": "risk.heat",
    "rung": 3,
    "format": "mcq",
-   "q": "Four open trades risk 1%, 0.5%, 1% and 0.75% of your account at their stops. What's your total open risk?",
+   "q": "Four trades on. At their stops they'd cost you 1%, 0.5%, 1% and 0.75% of the account. How much is on the line?",
    "answer": "3.25%",
    "calc": {
     "fn": "arith",
@@ -549,14 +576,14 @@
     }
    },
    "suffix": "%",
-   "why": "3.25%. Add what each trade loses at its stop: 1% plus 0.5% plus 1% plus 0.75%. That is 3.25%. You add the risks, not the money in each position.",
-   "lesson_line": "Add every open trade's risk. That one number is what's on the line.",
+   "why": "3.25%. Just add them up. 1 plus 0.5 is 1.5. Plus 1 is 2.5. Plus 0.75 is 3.25. You add what each stop costs you, not what each position is worth. I want that number in my head before I put on the next trade, not after.",
+   "lesson_line": "Add every stop's cost, every time. The small ones count too.",
    "facts": [
     "f02",
     "f03",
     "f05"
    ],
-   "simple": "It is 3.25%, because you add the four risks: 1 plus 0.5 plus 1 plus 0.75.",
+   "simple": "It's 3.25%, because you add up what all four stops cost: 1 plus 0.5 plus 1 plus 0.75.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -564,7 +591,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "0.81%",
     "2.75%",
@@ -572,9 +599,9 @@
     "3.25%"
    ],
    "wrong": {
-    "0.81%": "Averaged the four risks instead of adding them.",
-    "2.75%": "Left out the 0.5% trade.",
-    "32.5%": "Decimal slip: moved the decimal one place."
+    "0.81%": "That's the average of the four. You need the total, so add them up.",
+    "2.75%": "You dropped the 0.5% trade. Every open trade counts, the small ones too.",
+    "32.5%": "Decimal slip. Four stops this size can't add up to a third of the account."
    },
    "visual": {
     "kind": "size",
@@ -616,15 +643,16 @@
    "skill": "risk.heat",
    "rung": 3,
    "format": "tf",
-   "q": "The SEC's investor guide counts four or five stocks as a diversified stock portfolio.",
+   "q": "You hold six stocks, inside the 5 to 10 we like to carry. The SEC's investor guide would call that a diversified portfolio.",
    "answer": "False",
-   "why": "False. The SEC's guide says the stock part of your portfolio won't be diversified if you own only four or five individual stocks. It says you need at least a dozen carefully selected stocks to be truly diversified.",
-   "lesson_line": "Four or five stocks isn't a diversified portfolio. The SEC's guide points to at least a dozen.",
+   "why": "False. The SEC's guide says four or five stocks isn't diversified. It wants at least a dozen before it calls a portfolio truly diversified, and six falls short. That's fine with us. We hold 5 to 10 names on purpose. But with that few names, the mix won't save you on a bad day. The stop on every name, and the small risk you take on each one, do that job.",
+   "lesson_line": "We run concentrated on purpose. The stop on every name protects you, not the mix.",
    "facts": [
     "f16",
-    "f17"
+    "f17",
+    "h05"
    ],
-   "simple": "False, because the SEC guide says four or five stocks is not diversified and points to at least a dozen.",
+   "simple": "False. The SEC's guide wants at least a dozen stocks to be truly diversified, and six is short of that.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -633,22 +661,23 @@
      "final check: house inference about position size dropped; keys only the SEC fact"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
    "skill": "risk.heat",
    "rung": 3,
    "format": "tf",
-   "q": "A stock that beats the rest of your holdings grows into a bigger share of the account, with no new buys.",
+   "q": "You never added a share, but your best stock ran while the rest sat flat. It's now a bigger part of your account than when you bought it.",
    "answer": "True",
-   "why": "True. FINRA names concentration due to asset performance. One holding does very well next to the rest and grows into a bigger share of the account. No new buying is needed. FINRA defines concentration risk as amplified losses that may occur from a large part of your holdings in one investment.",
-   "lesson_line": "A big winner can quietly become your biggest position. Watch its size as it grows.",
+   "why": "True. Your stake grows with the stock, no buying needed. FINRA calls it concentration due to performance. Say it went in as one of several equal positions. It runs, the others sit still, and now it's the biggest slice you own. That's a good problem, it's your winner. But it now moves your whole account more than anything else you hold. So know its weight. When we sell some into strength, that also trims the weight back, and we trail the rest under the rising averages.",
+   "lesson_line": "A big winner grows into your biggest bet on its own. Know its weight.",
    "facts": [
     "f15",
-    "f12"
+    "f12",
+    "h09"
    ],
-   "simple": "True, because a stock that does better than the rest grows into a bigger part of the account without new buys.",
+   "simple": "True. A stock that beats the rest grows into a bigger part of your account with no new buys.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -657,21 +686,21 @@
      "statement reworded in wave9 so the key is not given away by the hedge word can"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
    "skill": "risk.heat",
    "rung": 4,
    "format": "mcq",
-   "q": "Account A has four trades risking 1.5% each. Account B has three trades risking 2% each. Which has more total open risk?",
+   "q": "You run four trades at 1.5% risk each. A friend runs three at 2% each. Who has more on the line?",
    "choices": [
-    "Both have 6% at risk",
-    "A, it has more trades",
-    "B, its trades are bigger",
-    "Can't say without stops"
+    "Same for both, 6% each",
+    "You, you've got more trades",
+    "Your friend, bigger bets",
+    "Can't tell without stops"
    ],
-   "answer": "Both have 6% at risk",
+   "answer": "Same for both, 6% each",
    "calc": {
     "fn": "arith",
     "args": {
@@ -680,18 +709,18 @@
      "r": 1.5
     }
    },
-   "why": "Both have 6% at risk. Four times 1.5% is 6%, and three times 2% is 6%. Total open risk counts what is lost at the stops, not how many trades carry it. Seykota and Druz make the same point: 2% on each of five and 5% on each of two both total 10%.",
-   "lesson_line": "Count the total at risk, not the number of trades.",
+   "why": "Same for both, 6% each. Four times 1.5 is 6. Three times 2 is 6. More trades doesn't mean more risk, and bigger bets don't either. What counts is the total you'd lose if every stop hit. So if you want bigger bets, you carry fewer of them, and the total stays where you want it.",
+   "lesson_line": "Count what's on the line, not how many trades you have.",
    "facts": [
     "f03",
     "f02"
    ],
    "wrong": {
-    "A, it has more trades": "More trades isn't more risk by itself. Each one is smaller, and the total comes out the same.",
-    "B, its trades are bigger": "Bigger single trades, but fewer of them. The total comes out the same.",
-    "Can't say without stops": "The stops are already counted. Each risk figure is the loss at that trade's stop, so both totals come to 6%."
+    "You, you've got more trades": "More trades isn't more risk by itself. Each one's smaller, and the total's the same 6%.",
+    "Your friend, bigger bets": "Bigger bets, but fewer of them. Three at 2% still comes to 6%.",
+    "Can't tell without stops": "The stops are already in there. Each risk number is what that trade loses at its stop."
    },
-   "simple": "Both have 6% at risk, because four times 1.5% and three times 2% give the same total.",
+   "simple": "Same for both. Four at 1.5% and three at 2% each come to 6%.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -700,32 +729,32 @@
      "fixed before"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
-    "title": "Two accounts",
+    "title": "Two books",
     "rows": [
      {
       "key": "r1",
-      "label": "Account A: trades",
+      "label": "Your trades",
       "value": 4,
       "fmt": "count"
      },
      {
       "key": "r2",
-      "label": "Account A: risk each",
+      "label": "Your risk each",
       "value": 1.5,
       "fmt": "%"
      },
      {
       "key": "r3",
-      "label": "Account B: trades",
+      "label": "Friend's trades",
       "value": 3,
       "fmt": "count"
      },
      {
       "key": "r4",
-      "label": "Account B: risk each",
+      "label": "Friend's risk each",
       "value": 2,
       "fmt": "%"
      }
@@ -734,6 +763,9 @@
      "label": "Total open risk, each",
      "as": "pct"
     }
+   },
+   "deeper": {
+    "example": "Ed Seykota and Dave Druz, who named this total, made the same point. In their example 2% on each of five trades and 5% on each of two both come to 10% of the account. They found that the total you choose matters far more than fine-tuning your trade timing."
    }
   },
   {
@@ -764,7 +796,7 @@
    "skill": "risk.heat",
    "rung": 4,
    "format": "mcq",
-   "q": "You risk 0.5% of the account per trade. Your cap on total open risk is 5%. How many such trades fit within the cap?",
+   "q": "You risk 0.5% a trade and keep total open risk at 5% or less. How many trades can you carry at once?",
    "answer": "10 trades",
    "calc": {
     "fn": "arith",
@@ -775,14 +807,15 @@
     }
    },
    "suffix": "trades",
-   "why": "10 trades. Divide the cap by the risk per trade. 5% divided by 0.5% is 10. Ten trades fill the cap exactly.",
-   "lesson_line": "Your risk per trade and your cap decide how many names you can carry.",
+   "why": "10 trades. Divide your limit by what each trade risks. 5 over 0.5 is 10, and ten trades at 0.5% fill the 5% exactly. That lands right at the top of the 5 to 10 names we like to hold. The two numbers trade off. More names means less risk on each one. More risk on each means fewer names. Pick them together when you write your plan, not one trade at a time.",
+   "lesson_line": "Your risk per trade and your limit decide how many names you can carry.",
    "facts": [
     "f02",
     "f03",
-    "f05"
+    "f05",
+    "h05"
    ],
-   "simple": "Ten trades fit, because 5% divided by 0.5% per trade is 10.",
+   "simple": "Ten trades fit, because 5% split into 0.5% pieces is 10.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -790,7 +823,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "2.5 trades",
     "10 trades",
@@ -798,13 +831,13 @@
     "100 trades"
    ],
    "wrong": {
-    "2.5 trades": "Multiplied 5% by 0.5% instead of dividing.",
-    "5 trades": "Used the cap number as the trade count.",
-    "100 trades": "Decimal slip: moved the decimal one place."
+    "2.5 trades": "You multiplied 5 by 0.5. Divide instead: your limit over the risk on each trade.",
+    "5 trades": "That's the limit's number, not a trade count. 5 over 0.5 is 10.",
+    "100 trades": "Decimal slip. 5 over 0.5 is 10, not 100."
    },
    "visual": {
     "kind": "size",
-    "title": "The cap",
+    "title": "Your limit",
     "rows": [
      {
       "key": "r1",
@@ -814,7 +847,7 @@
      },
      {
       "key": "r2",
-      "label": "Cap on open risk",
+      "label": "Your limit on open risk",
       "value": 5,
       "fmt": "%"
      }
@@ -831,7 +864,7 @@
    "skill": "risk.heat",
    "rung": 5,
    "format": "mcq",
-   "q": "Account $80,000. Four open trades would lose $600, $450, $800 and $350 at their stops. What's your total open risk?",
+   "q": "$80,000 account. Four open trades would lose $600, $450, $800 and $350 at their stops. What's your total open risk?",
    "answer": "2.75%",
    "calc": {
     "fn": "arith",
@@ -845,14 +878,14 @@
     }
    },
    "suffix": "%",
-   "why": "2.75%. Add the four stop losses: $600 + $450 + $800 + $350. Divide the total by the $80,000 account and multiply by 100 to get 2.75%.",
-   "lesson_line": "Dollars at risk over account size. Redo it after every new trade.",
+   "why": "2.75%. Dollars first. $600 + $450 + $800 + $350 is $2,200. Then put it against the account. $2,200 out of $80,000 is 2.75%. Work it in dollars, then turn it into a percent. Redo it every time a new trade goes on, because that's when the number moves.",
+   "lesson_line": "Dollars first, then the percent. Redo it after every new trade.",
    "facts": [
     "f02",
     "f01",
     "f06"
    ],
-   "simple": "It is 2.75%, because the four stop losses add up and you divide by the $80,000 account.",
+   "simple": "It's 2.75%, because the four stops add up to $2,200, and that's 2.75% of $80,000.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -860,7 +893,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "27.5%",
     "3.75%",
@@ -868,9 +901,9 @@
     "2.75%"
    ],
    "wrong": {
-    "27.5%": "Decimal slip: moved the decimal one place.",
-    "3.75%": "Counted the $800 trade twice.",
-    "3.5%": "Counted the $600 trade twice."
+    "27.5%": "Decimal slip. $2,200 is a small slice of $80,000, not over a quarter of it.",
+    "3.75%": "You counted the $800 trade twice. Each stop counts once.",
+    "3.5%": "You counted the $600 trade twice. Each stop counts once."
    },
    "visual": {
     "kind": "size",
@@ -918,13 +951,13 @@
    "skill": "risk.heat",
    "rung": 5,
    "format": "scenario",
-   "story": "Your rule caps total open risk at 6%. Your open trades risk 5% now. A new setup would risk 1.5% at your usual size.",
-   "q": "How do you fit it within the cap?",
+   "story": "You keep total open risk at 6% or less. Right now 5% is on the line. A new setup triggers, and at your usual size it would risk 1.5%.",
+   "q": "How do you take it and stay inside your limit?",
    "choices": [
     "Size it down to 1%, same stop",
     "Same size, move the stop closer",
     "Buy half now, add the rest later",
-    "Raise the cap to 7% this once"
+    "Raise your limit to 7% this once"
    ],
    "answer": "Size it down to 1%, same stop",
    "calc": {
@@ -935,22 +968,22 @@
      "current": 5
     }
    },
-   "why": "Size it down to 1%, same stop. Your cap is 6% and 5% is already at risk, so 1% of room is left. You buy fewer shares and keep the stop where the chart says it belongs. StockCharts' advice: place your stops where they'll work and adjust the position. The SEC says to pick a stop with normal short-term swings in mind, and a squeezed stop ignores them.",
-   "lesson_line": "To fit the cap, change the size. Never squeeze the stop.",
+   "why": "Size it down to 1%, same stop. Your limit is 6% and 5% is already out there, so you've got 1% of room. Buy fewer shares so the trade risks 1%. Leave the stop right where the chart says you're wrong. The stop comes first and the size comes from the stop, never the other way around. Squeeze the stop to fit more shares and normal noise shakes you out of a good trade.",
+   "lesson_line": "To fit your limit, cut the shares. Never squeeze the stop.",
    "facts": [
     "f30",
     "f20",
     "f02",
-    "h01"
+    "aw1"
    ],
    "wrong": {
-    "Same size, move the stop closer": "That squeezes the stop to fit the math. Put the stop where it works and adjust the size instead.",
-    "Buy half now, add the rest later": "Once the rest goes on, the full 1.5% sits on top of your 5%, past your 6%. And our size goes on at one price with one stop; we never add.",
-    "Raise the cap to 7% this once": "The cap is the rule. Bending it for one good-looking setup is how total risk creeps up."
+    "Same size, move the stop closer": "That bends the stop to fit the math. Now it sits inside the normal swings, and a routine dip takes you out.",
+    "Buy half now, add the rest later": "Once the rest goes on, the full 1.5% sits on top of your 5%, past your limit. And there's no starter piece. Our size goes on at one price, with one stop.",
+    "Raise your limit to 7% this once": "Your limit moves with the market, not with one setup you like. Raise it for every good-looking trade and your total risk creeps up."
    },
-   "simple": "Buy fewer shares so the trade risks 1%, and leave the stop where it belongs.",
+   "simple": "Buy fewer shares so it risks 1%, and leave the stop where it belongs.",
    "deeper": {
-    "trap": "The trap is the stop. With 1% of room and a 1.5% plan, it is tempting to pull the stop up until the math works. That stop now sits inside normal swings, and a routine dip can take you out. Keep the honest stop and cut the shares instead."
+    "trap": "The trap is the stop. You've got 1% of room and a 1.5% plan, so it's tempting to pull the stop up until the math works. That stop now sits inside normal swings, and a routine dip takes you out. Keep the honest stop and cut the shares. StockCharts says it plainly: place your stops where they'll work and adjust the position."
    },
    "tier": "extended",
    "risk": {
@@ -961,14 +994,14 @@
      "final check: dropped 'the cap can stretch', which q23 and A10 make defensible"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "rulings-2026-11-17",
    "visual": {
     "kind": "size",
-    "title": "The cap",
+    "title": "Your limit",
     "rows": [
      {
       "key": "r1",
-      "label": "Cap on open risk",
+      "label": "Your limit on open risk",
       "value": 6,
       "fmt": "%"
      },
@@ -986,7 +1019,7 @@
      }
     ],
     "find": {
-     "label": "Room left under the cap",
+     "label": "Room left under the limit",
      "as": "pct"
     }
    }
@@ -996,16 +1029,17 @@
    "skill": "risk.heat",
    "rung": 5,
    "format": "tf",
-   "q": "In a broad selloff, holding stocks from several different groups keeps them from falling together.",
+   "q": "The market's breaking down. You own a chip stock, a bank, a software name and a retailer. Four groups means they won't all fall together.",
    "answer": "False",
-   "why": "False. Writing in a bear market, StockCharts' Arthur Hill showed even leading groups giving way to broad selling as correlations rose. He added that a bear market raises risk across stock funds. Schwab notes that correlations shift over time, so groups that moved apart before can fall together.",
-   "lesson_line": "When the whole market sells, groups that moved apart can fall together.",
+   "why": "False. When the whole market sells, almost everything goes with it. In a bear market even the leading groups give way, because stocks start trading more alike. How closely stocks move together shifts over time, and in a selloff it tightens up. So four different groups won't save you. Your stops and how much you've got on will. That's why a Red market reading means mostly cash for us.",
+   "lesson_line": "When the whole market sells, different groups fall together. Your stops protect you, not the mix.",
    "facts": [
     "f28",
     "f29",
-    "f08"
+    "f08",
+    "h08"
    ],
-   "simple": "False, because in a bear market even leading groups gave way to broad selling as stocks moved more alike.",
+   "simple": "False. In a broad selloff even leading groups get sold, so different groups can all fall at once.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1013,14 +1047,17 @@
      "statement and key flipped in wave9 so the key is not given away by the hedge word can"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "StockCharts' Arthur Hill watched this in a bear market. Groups that had held up gave way to broad selling as correlations kept rising. He added that a bear market raises risk across stocks and greatly reduces the chance of picking winners."
+   }
   },
   {
    "key": "q14",
    "skill": "risk.heat",
    "rung": 6,
    "format": "mcq",
-   "q": "You own three chip stocks. To spread your risk, you buy a semiconductor ETF too. What does the ETF do to your chip exposure?",
+   "q": "You own three chip stocks. To spread out, you also buy a semiconductor ETF. What does that do to your chip exposure?",
    "choices": [
     "Adds more of the same risk",
     "Spreads it across the market",
@@ -1028,19 +1065,19 @@
     "Leaves it about the same"
    ],
    "answer": "Adds more of the same risk",
-   "why": "Adds more of the same risk. FINRA's concentration guide gives this kind of mix as an example: companies in an industry plus a fund of that same industry. Stocks in one industry tend to be highly correlated. So the fund tends to fall when your chip stocks fall.",
-   "lesson_line": "A fund of the same industry adds to your exposure. It doesn't spread it.",
+   "why": "Adds more of the same risk. A semiconductor ETF is a basket of chip stocks. Stocks in one industry tend to move together, so the fund tends to fall right when your three names do. FINRA uses this kind of mix as its example of concentration: companies in an industry plus a fund of that same industry. You didn't spread anything. You bought a fourth chip position.",
+   "lesson_line": "A fund of the same group adds to your bet. It doesn't spread it.",
    "facts": [
     "f14",
     "f13",
     "f12"
    ],
    "wrong": {
-    "Spreads it across the market": "A semiconductor fund holds chip stocks, not the whole market. FINRA lists companies plus a fund of the same industry as concentration.",
-    "Hedges it against a drop": "A fund you own tends to rise and fall with chip stocks. It tends to add to a drop, not offset it.",
-    "Leaves it about the same": "You put more money into the same industry. FINRA counts that as more concentration, not the same."
+    "Spreads it across the market": "A chip fund holds chip stocks, not the market. You doubled down on the same group.",
+    "Hedges it against a drop": "You own it, so it falls when chips fall. A hedge has to gain when your stocks drop.",
+    "Leaves it about the same": "You put more money into the same industry. That's more chip exposure, not the same."
    },
-   "simple": "It adds more chip risk, because a chip fund tends to rise and fall with the chip stocks you already own.",
+   "simple": "It adds chip risk, because a chip fund tends to rise and fall with the chip stocks you own.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1049,7 +1086,7 @@
      "re-asked in wave9 as FINRA's same-industry fund example, away from the correlation rule the owner struck on 2026-11-09 (see owner_flags)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q15",
@@ -1105,32 +1142,32 @@
    "rung": 7,
    "format": "scenario",
    "house": true,
-   "story": "You bought your full size at $40 with the stop at $38. It's at $38.80, under your entry but above the stop. A friend says buy more while it's cheap.",
-   "q": "What do you do?",
+   "story": "You bought your full size at $40 with the stop at $38. Two days later it's $38.80, under your entry but above the stop. A friend says buy more while it's cheap.",
+   "q": "What's the play?",
    "choices": [
-    "Hold it and add no more shares",
+    "Hold it and leave it alone",
     "Add more, it's cheaper now",
     "Add more and lower the stop",
-    "Sell now, it's below entry"
+    "Sell now, it's under entry"
    ],
-   "answer": "Hold it and add no more shares",
-   "why": "Hold it and add no more shares. Our rule: the full size goes on at one price with one stop, and we never add. At $38.80 the trade is under the $40 entry but above the $38 stop, so the plan still stands. The stop is the exit, not a friend's tip and not the entry price. Adding here is averaging down, first on Hirsch's list of deadly sins. Roze calls pyramiding down potentially suicidal.",
-   "lesson_line": "We never add, least of all to a loser. The stop decides, not the discount.",
+   "answer": "Hold it and leave it alone",
+   "why": "Hold it and leave it alone. At $38.80 you're down a bit, but the $38 stop hasn't been touched, so the plan still stands. Nothing's wrong until $38 says so. Cheaper here just means it's going against you. We put the full size on at one price with one stop, and we never add to a loser. Buy more at $38.80 and that same $38 stop now covers more shares, so a hit costs more than you planned. The stop is your exit. Not your entry price, and not a friend's tip.",
+   "lesson_line": "We never add to a loser. The stop decides when you're wrong.",
    "facts": [
-    "h01",
     "h02",
     "h04",
     "f09",
-    "f27"
+    "f27",
+    "aw1"
    ],
    "wrong": {
-    "Add more, it's cheaper now": "Cheaper here means losing. Buying more of a loser is averaging down, first on Hirsch's list of deadly sins. And we never add.",
-    "Add more and lower the stop": "That breaks two rules at once. Our stop only moves up, never down or wider. And our size went on at one price, with no adding.",
-    "Sell now, it's below entry": "Below entry isn't the exit. Our stop is the exit, and at $38.80 it hasn't been hit."
+    "Add more, it's cheaper now": "That's averaging down. It's cheaper only because it's going against you, and we never add to a loser.",
+    "Add more and lower the stop": "Two mistakes at once. Our stop only moves up, never down. And we never add to a loser.",
+    "Sell now, it's under entry": "Your entry isn't your exit. The stop is, and $38 hasn't been hit."
    },
-   "simple": "Hold and add nothing, because our full size went on at one price with one stop and we never add.",
+   "simple": "Hold it and add nothing. Your full size went on at one price with one stop, and $38 hasn't been hit.",
    "deeper": {
-    "trap": "The trap is the word cheaper. At $38.80 the stock is cheaper than your $40 entry only because it is moving against you. Buy more there and the same $38 stop now covers more shares, so a hit costs more than your plan. Our size went on once, at one price, and the stop is the exit."
+    "trap": "The trap is the word cheaper. At $38.80 the stock is cheaper than your $40 entry only because it's moving against you. Buy more there and the same $38 stop covers more shares, so a hit costs more than your plan. Fidelity's Jeffrey Hirsch puts averaging down first on his list of deadly sins, and Gatis Roze calls pyramiding down potentially suicidal."
    },
    "tier": "extended",
    "risk": {
@@ -1139,26 +1176,27 @@
      "rests on the owner's rulebook (A4, A5)"
     ]
    },
-   "batch": "wave9"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q18",
    "skill": "risk.heat",
    "rung": 7,
    "format": "tf",
-   "q": "If every trade risks only 0.5% of the account, you don't need to track the total.",
+   "q": "Every trade you take risks just 0.5% of the account. With risk that small, you don't need to track the total.",
    "answer": "False",
-   "why": "False. Small risks add up. Seykota and Druz: 2% on each of five trades is 10% in total. Trades in one industry tend to fall together, so their stops can go on the same day. And a stop is a trigger, not a guaranteed fill. Add up the total every time you open a trade.",
-   "lesson_line": "Small per trade isn't small in total. Add it up every time.",
+   "why": "False. Small risks stack up. We hold 5 to 10 names, and ten trades at 0.5% each is 5% on the line. Stocks in one group tend to fall together, so a lot of those stops can go the same day. And a stop is a trigger, not a promised fill, so a gap can cost you more. Add up the total every time a new trade goes on. The Portfolio Risk page does it for you from the stops in your journal.",
+   "lesson_line": "Small on each trade isn't small in total. Add it up every time.",
    "facts": [
     "f02",
     "f03",
     "f13",
-    "f18"
+    "f18",
+    "h05"
    ],
-   "simple": "False, because many small risks add up to a big total, and trades in one group can all fall together.",
+   "simple": "False. Lots of small risks add up to a big total, and stocks in one group can all fall at once.",
    "deeper": {
-    "counter": "Say every trade risks 0.5%. That sounds tiny, but the count is what grows. Every new trade adds its 0.5% to the total, and trades in one industry can fall on the same news. Keep a running total and check it each time you open a trade."
+    "counter": "Risking 0.5% sounds tiny, and on one trade it is. The count is what grows. Every new trade adds its 0.5% to the total, and trades in one industry can fall on the same news. Keep a running total and check it each time you open a trade."
    },
    "tier": "extended",
    "risk": {
@@ -1167,15 +1205,15 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
    "skill": "risk.heat",
    "rung": 8,
    "format": "scenario",
-   "story": "Your limit on total open risk is 6%. Five trades risk 1% each, and two of them are chip stocks. Your sixth setup is another chip stock at 1%.",
-   "q": "If you take it, how much of your total open risk sits in chip stocks?",
+   "story": "You keep total open risk at 6% or less. Five trades are on at 1% each, and two of them are chip stocks. Your sixth setup is another chip stock, also at 1%.",
+   "q": "If you take it, how much of your open risk rides on chips?",
    "choices": [
     "3%, all three chips",
     "1%, only the new one",
@@ -1191,19 +1229,19 @@
      "r": 1
     }
    },
-   "why": "3%, all three chips. You already hold two chip stocks at 1% each, and the new one adds 1% more. FINRA says stocks in one industry tend to be highly correlated. What happens to one is likely to happen to the others. Know how much of your risk one group's news can reach.",
-   "lesson_line": "Know how much of your risk sits in one group, not just the total.",
+   "why": "3%, all three chips. Two chip stocks at 1% each is 2%. The new one adds 1%, so 3% of your 6% rides on one group. That's half your risk. Stocks in one industry tend to move together, so a bad day for chips can hit all three stops at once. There's no magic number for how much goes in one group. It's judgment. But know the number before you click buy, not after.",
+   "lesson_line": "Know how much of your risk one group's news can reach.",
    "facts": [
     "f02",
     "f13",
     "f12"
    ],
    "wrong": {
-    "1%, only the new one": "That counts only the new trade. The two chip stocks you already hold are at risk too.",
-    "2%, the two you hold": "That leaves out the new trade. Taking it adds 1% more on chips.",
-    "6%, your whole total": "That's all six trades. Only three of them are chip stocks."
+    "1%, only the new one": "That's just the new trade. The two chips you already own are on the line too.",
+    "2%, the two you hold": "You left out the new one. Taking it adds 1% more on chips.",
+    "6%, your whole total": "That's all six trades. Only three of them are chips."
    },
-   "simple": "It is 3%, because the two chip stocks you hold and the new one each risk 1%.",
+   "simple": "It's 3%, because the two chips you hold and the new one each risk 1%.",
    "deeper": {
     "trap": "The trap is counting only the new trade. Your sixth setup risks 1%, but two chip stocks are already open. If chips gap down together, all three stops can go on the same day."
    },
@@ -1215,7 +1253,7 @@
      "re-asked in wave9 as arithmetic: the old key leaned on the correlation rule the owner struck on 2026-11-09 (see owner_flags)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "The chip stocks",
@@ -1244,7 +1282,7 @@
    "skill": "risk.heat",
    "rung": 8,
    "format": "mcq",
-   "q": "Account $50,000, cap 5% total open risk. Five trades risk $500, $400, $450, $300 and $350. How much can a sixth trade risk?",
+   "q": "Your account is $50,000 and you keep open risk to 5%. Five trades risk $500, $400, $450, $300 and $350. How much can a sixth risk?",
    "answer": "$500",
    "calc": {
     "fn": "arith",
@@ -1260,16 +1298,16 @@
     }
    },
    "prefix": "$",
-   "why": "$500. The cap is 5% of $50,000, which is $2,500. The five trades risk $500 plus $400 plus $450 plus $300 plus $350, which is $2,000. $2,500 minus $2,000 is $500.",
-   "lesson_line": "Before a new name, find the room: the cap minus what's already at risk.",
+   "why": "$500. Turn your limit into dollars first. 5% of $50,000 is $2,500. Then add what's already out there. $500 + $400 + $450 + $300 + $350 is $2,000. $2,500 minus $2,000 leaves $500, and that's the most the sixth trade can risk. If its honest stop needs more than that at your normal size, buy fewer shares. Don't squeeze the stop.",
+   "lesson_line": "Before a new name, find the room: your limit minus what's already on the line.",
    "facts": [
     "f02",
     "f03",
     "f06"
    ],
-   "simple": "It can risk $500, because that is all the room left under the 5% cap.",
+   "simple": "It can risk $500, because that's all the room left under your 5% limit.",
    "deeper": {
-    "trap": "The trap is mixing units. The cap is a percent and the trades are in dollars. Turn the cap into dollars first, using the $50,000 account, then subtract the dollars already at risk. Taking dollars away from 5% gives nonsense."
+    "trap": "The trap is mixing units. Your limit is a percent and the trades are in dollars. Turn the limit into dollars first, using the $50,000 account, then take away what's already at risk."
    },
    "tier": "expert",
    "risk": {
@@ -1278,7 +1316,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$400",
     "$2,500",
@@ -1286,9 +1324,9 @@
     "$500"
    ],
    "wrong": {
-    "$2,500": "Gave the whole 5% cap, not what is left.",
-    "$2,000": "Gave what the five trades already risk.",
-    "$400": "Used the average risk of the five trades."
+    "$2,500": "That's your whole limit. $2,000 of it is already in use.",
+    "$2,000": "That's what the five trades already risk, not the room that's left.",
+    "$400": "That's the average of the five. You want what's left under your limit."
    },
    "visual": {
     "kind": "size",
@@ -1302,7 +1340,7 @@
      },
      {
       "key": "r2",
-      "label": "Cap on open risk",
+      "label": "Your limit on open risk",
       "value": 5,
       "fmt": "%"
      },
@@ -1348,17 +1386,17 @@
    "skill": "risk.heat",
    "rung": 9,
    "format": "scenario",
-   "story": "The market is in a downtrend and your stops keep getting hit. You're at 2% total open risk with a 6% limit you set. A decent setup shows up.",
-   "q": "What's the sound move?",
+   "story": "The market's in a downtrend and your stops keep getting hit. You're at 2% open risk against a 6% limit you set. A decent setup shows up.",
+   "q": "What do you do with it?",
    "choices": [
-    "Be picky and keep exposure low",
+    "Stay picky and keep it light",
     "Use the room under the limit",
     "Size up to win back losses",
-    "Wider stops, same shares"
+    "Same shares, wider stops"
    ],
-   "answer": "Be picky and keep exposure low",
-   "why": "Be picky and keep exposure low. In a bear market, StockCharts' Arthur Hill says the chance of picking winners is greatly reduced. Fidelity's Hirsch suggests limiting new buys when the outlook turns negative. Our rule: never force a trade to have something on, because cash is a position. The room under your limit is not a reason to buy.",
-   "lesson_line": "A limit is a ceiling, not a target. In a weak market, use less of it.",
+   "answer": "Stay picky and keep it light",
+   "why": "Stay picky and keep it light. Stops getting hit in a downtrend is the market telling you something. In a bear market the odds of picking winners drop a lot. Room under your limit isn't a reason to buy. It's permission, not an order. Decent isn't good enough here. I'd save that room for the setup that really stands out. We never force a trade just to have something on. Cash is a position.",
+   "lesson_line": "Room under your limit is permission, not an order. In a weak market, use less of it.",
    "facts": [
     "f29",
     "f11",
@@ -1366,13 +1404,13 @@
     "h07"
    ],
    "wrong": {
-    "Use the room under the limit": "Room under the limit isn't a reason to buy. Our rule: never force a trade to have something on.",
-    "Size up to win back losses": "That's chasing losses with bigger bets, in a market where the odds of picking winners are worse.",
-    "Wider stops, same shares": "A wider stop on the same shares puts more money at risk, in a market where winners are harder to pick. If a stop needs room, adjust the position."
+    "Use the room under the limit": "Room isn't a reason to buy. We never force a trade just to have something on.",
+    "Size up to win back losses": "That's chasing losses with bigger bets, right when winners are hardest to find.",
+    "Same shares, wider stops": "A wider stop on the same shares just puts more money at risk, in the worst market for it."
    },
    "simple": "Take only your best setups and keep risk low, because a falling market makes winners harder to find.",
    "deeper": {
-    "trap": "The trap is the open room. You are at 2% against a 6% limit, so a decent setup seems free to take. But your stops keep getting hit while the odds of picking winners are lower. Room under a limit is permission, never an order. Save it for the setups that stand out."
+    "trap": "The trap is the open room. You're at 2% against a 6% limit, so a decent setup feels free to take. But your stops keep getting hit while the odds are worse. Fidelity's Jeffrey Hirsch says the same: when the outlook turns negative, limit new buys."
    },
    "tier": "expert",
    "risk": {
@@ -1381,15 +1419,15 @@
      "rests on the owner's rulebook (D44)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q22",
    "skill": "risk.heat",
    "rung": 9,
    "format": "scenario",
-   "story": "One position is 20% of your account, with the stop 5% under entry. That's 1% at risk. It opens 15% below your entry on news.",
-   "q": "At the open, about how much is the account down on this position?",
+   "story": "One position is 20% of your account, with the stop 5% under your entry. That's 1% at risk. Bad news hits overnight and it opens 15% below your entry.",
+   "q": "At the open, about how much is the account down on it?",
    "choices": [
     "1%",
     "2%",
@@ -1405,22 +1443,23 @@
      "drop_pct": 15
     }
    },
-   "why": "3%. The stock opened 15% under entry, past the stop 5% under entry. A stop is a trigger, not a promised price, so it cannot stop a gap. 15% off a position that is 20% of the account is 3% of the account, against a 1% plan. Balsara notes the at-risk number holds only if price does not gap through the stop.",
-   "lesson_line": "Total open risk assumes fills at your stops. Size so a gap past them hurts but doesn't sink you.",
+   "why": "About 3%. It opened 15% under your entry, way past a stop 5% under. A stop can't catch a gap. It's a trigger that turns into a market order, and you get filled wherever it trades. 15% of a position that's 20% of the account is 3% of the account. You planned on 1%, so that's about 3R, three times your planned risk. Our gap rule: the low of the first 30 minutes becomes your stop, but past 2R you're out. You're already past it. A tight stop never earns you a giant position, because the bigger the position, the more a gap costs.",
+   "lesson_line": "Your stop can't catch a gap. Size so a gap hurts but doesn't sink you.",
    "facts": [
     "f18",
     "f19",
     "f33",
-    "h06"
+    "h06",
+    "h10"
    ],
    "wrong": {
-    "1%": "That's the plan, not the open. A stop is a trigger, not a promised price.",
-    "2%": "Counted only the fall past the stop.",
-    "0.3%": "Decimal slip: moved the decimal one place."
+    "1%": "That's the plan, not the open. A gap jumps right over the stop.",
+    "2%": "That's only the drop past the stop. Count the whole 15% from your entry.",
+    "0.3%": "Decimal slip. 15% of 20 is 3, not 0.3."
    },
-   "simple": "3%, because the stock opened 15% down, past the stop, on a position worth 20% of the account.",
+   "simple": "About 3%, because it opened 15% down, past the stop, on a position worth 20% of the account.",
    "deeper": {
-    "trap": "The trap is treating the stop as a floor. Here the stop was 5% away, so the plan risked 1%. The gap skipped it and cost 3%. Our rulebook caps how big a position can get, even with a tight stop, because a gap can jump the stop. The bigger the position, the more a gap costs."
+    "trap": "The trap is treating the stop as a floor. The plan risked 1% and the gap cost 3%. A tight stop never justifies a bigger position, because a gap can jump the stop. The bigger the position, the more a gap costs you."
    },
    "tier": "expert",
    "risk": {
@@ -1430,7 +1469,7 @@
      "fixed before"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "The gap",
@@ -1460,10 +1499,10 @@
    "rung": 3,
    "format": "tf",
    "house": true,
-   "q": "Under our rulebook, the total open risk we carry changes with the market.",
+   "q": "Our market filter in the app drops from Green to Yellow. The total risk we carry should come down with it.",
    "answer": "True",
-   "why": "True. Our rulebook calls total open risk a guide that varies, not a hard cap. Our market reading guides it: Green, full risk per grade; Yellow, smaller and fewer; Red, mostly cash.",
-   "simple": "True, because our rulebook treats total open risk as a guide that moves with the market, not a hard cap.",
+   "why": "True. The market reading is the app's market filter: Green, Yellow, Orange, Red. Total open risk isn't a fixed cap for us. It's a guide that moves with that reading. Green, full risk per grade. Yellow, smaller and fewer. Orange, only A+ setups. Red, mostly cash. When the market stops backing breakouts, you carry less, so a rough patch costs you less.",
+   "simple": "True. Our total open risk is a guide, not a fixed cap, and it comes down as the market reading weakens.",
    "lesson_line": "Our total open risk is a guide. It shrinks as the market weakens.",
    "facts": [
     "h03",
@@ -1478,7 +1517,7 @@
      "final check: moved to rung 3 as the earlier checker asked"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1515,9 +1554,9 @@
   },
   "q01": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Cold check: key right, wrong notes name each mistake, Schwab 5%/1% from f06's quote. Portfolio Risk page is real (/portfolio-heat sums entry-to-stop risk from journal positions). Voice is plain and direct."
   },
   "q02": {
    "status": "cut",
@@ -1540,26 +1579,26 @@
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Bare 'First trade 1%' could read as a position size; say it is each trade's risk."
+   "fixed": false,
+   "notes": "Recomputed 1+0.5+1+0.75 = 3.25; 0.81 = average, 2.75 drops the 0.5, 32.5 decimal slip. Steps shown from the calc."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Own answer False from f16 (SEC, Tier 1; page 403s to the fetcher today, confirmed by the earlier checker). Key right, no second answer. Broken part is the teaching added on top: 'So each position's size does the protecting' and the lesson line 'Your position sizes have to do the protecting' are an inference no fact says. f07 (Schwab) is about diversification, and our rulebook protects through the stop and the risk per trade (A3, A4, A5), while allowing positions up to 40% (A7) and a 200% book (B24). Telling members size is the protection overreaches and sits badly beside A7. Fix: keep only the"
+   "notes": "Truth: the writer brought back the overreach an earlier checker flagged ('your sizing does that job', 'so our best ideas carry real size'): no fact says why we hold 5 to 10, and our rules allow positions up to 40% (A7), so size is not the protection. Rewritten: the stop on every name and the small risk on each one protect you (A3, A1). Key False stands on f16/f17."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer True: an outperforming holding's weight rises with no trades. f15 and f12 confirmed live on FINRA. No hedge tell."
+   "fixed": true,
+   "notes": "Key True on f15. 'That's one reason we sell some into strength' claimed a reason our rule doesn't give; now it says what selling some does to the weight, which is plain arithmetic, and keeps A11 (h09) as our practice."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Calc computes A only (4 x 1.5 = 6) but B is also 6 (3 x 2), so 'each' is true of the slot; counts and per-trade risks labelled per account."
+   "fixed": true,
+   "notes": "Recomputed 4 x 1.5 = 6 and 3 x 2 = 6. Seykota and Druz moved from the why to deeper (the question tests the sum, not their principle), and the why now ends on what you do with it. 'Heat' kept out (unit conflict note)."
   },
   "q09": {
    "status": "cut",
@@ -1571,31 +1610,31 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Per-trade risk and cap clear; slot '10 trades' equals the key."
+   "notes": "5 / 0.5 = 10; wrong notes right (2.5 = product, 5 = the limit, 100 = slip). 'Your limit' respects A10. Ties to our 5 to 10 names (h05) and the count/risk trade-off."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Account and each stop-out loss given in dollars; slot 2.75% matches key."
+   "notes": "600+450+800+350 = 2,200; 2,200 / 80,000 = 2.75%. 3.75% = $800 twice (3,000), 3.5% = $600 twice (2,800), 27.5% slip. All checked."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Label 'Room left under the cap' is exactly cap minus current (1%); the question's size-down answer is not handed over."
+   "notes": "Agrees: no starter piece, one price one stop. 6 - 5 = 1% room, right. Voice 4."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer False: Hill (confirmed live) shows XLE, TAN and XLU, different groups, succumbing to broad selling as correlations rose; f29 confirmed verbatim. A single counterexample suffices for the absolute statement, so the key is safe even if the absolute wording is a mild tf tell; the accurate wording was kept over a hedged one."
+   "fixed": true,
+   "notes": "Key False on f28/f29. Arthur Hill moved out of the why into deeper (rule 13); the why now says it in our words with the reason (stocks trade more alike in a selloff, f08) and what protects you (stops, exposure, Red = mostly cash, h08)."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer 'Adds more of the same risk' before reading the key. f14 and f13 confirmed live on FINRA under 'Concentration due to correlated assets' (Tier 1). Choices 26/28/24/24 chars, key not longest; no silly choice; every wrong note hedged with 'tends'. Not the struck correlation-counting rule: it states a FINRA fact, not a sizing rule, and nothing contradicts E54 (leveraged ETFs preferred). Minor: its why restates q03's answer (industry stocks tend to move together), but q03 sits at rung 2 and plays first; the same FINRA fact is the lesson's teaching, so left as is."
+   "notes": "Kept: chip ETF 'adds more of the same risk' is exposure, not shares. Voice 5."
   },
   "q15": {
    "status": "cut",
@@ -1613,45 +1652,43 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer Hold, from A5 (no adding) and A4 (stop is the exit); h01, h02, h04 match sizing_rule.md verbatim. 'Sell now, it's below entry' is a real misconception and ends the lone-Hold tell. Gap exception B20 does not apply.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Agrees: never add to a loser; $38.80 under the $40 entry, $38 stop untouched, hold is right. Voice 4."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "New deeper uses only the question's 0.5% and f13; no new numbers."
+   "notes": "Key False. Ten at 0.5% = 5% (h05's 5 to 10). Reasons (groups fall together f13, a stop is a trigger f18) and the app's Portfolio Risk page."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "The answer (3%) includes the NEW chip trade, but the card shows only the 2 held and the label does not say the sixth is added."
+   "fixed": false,
+   "notes": "2 x 1% + 1% = 3%, half of the 6% total. Honest that no group cap is ours (the 40% sector flag was struck, sizing_rule section 5); does not count the theme as one trade, which he ruled wrong."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Bare 'First trade $500' could read as a position size; say it is the risk."
+   "fixed": false,
+   "notes": "5% of 50,000 = 2,500; 500+400+450+300+350 = 2,000; room 500; $400 = average. Steps shown; the how (fewer shares, keep the stop) is ours."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer 'Be picky' from f29 (confirmed live), f11 and D44 (h07 matches sizing_rule.md). Choices balanced, no silly choice. 4% gone; no ungrounded number.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Key right (f29, D44 h07). The lesson line 'A limit is a ceiling' fights A10 (a guide, not a hard cap); rewritten in his framing."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Position size 20% needs its base (of the account); the result is percent of the account. Stop 5% and 1% rightly omitted."
+   "notes": "Recomputed 15% x 20% = 3% of the account against a 1% plan = 3R. The gap rule was half-told: B20 says the low of the first 30 minutes becomes the new stop, with the 2R ceiling (h10). Now both parts, R defined in the question's own numbers, and 'that's why a tight stop' no longer reads as if this 5% stop were tight."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Own answer True from h03 (A10) and h08 (F65), both verbatim in sizing_rule.md section 9. Key, why and lines are right. But the earlier checker's rung fix was recorded and never applied: it is plain recall of a rule (a Learn item), still at rung 6. With rung 3 the live questions spread 6/6/6 (Learn/Practise/Prove). Its tension with q12's 'the cap can stretch' is fixed on q12's side."
+   "fixed": false,
+   "notes": "Key True on h03 (A10) and h08 (F65); says what the market reading is (rule 19) and the colors match his ruling. No working words left."
   }
  }
 }

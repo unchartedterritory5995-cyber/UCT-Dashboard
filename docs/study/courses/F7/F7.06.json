@@ -832,10 +832,10 @@
    "key": "w1",
    "title": "Who sets the rate",
    "steps": [
-    "The fed funds rate is what banks pay to borrow reserves from each other overnight.",
-    "The Fed's FOMC sets a target range for it at eight scheduled meetings a year.",
-    "The goal is the dual mandate: maximum employment and stable prices, with inflation at 2% a year.",
-    "T-bill yields track that rate closely. Long-term yields also price where it's expected to go."
+    "Banks lend each other reserves overnight. The rate they pay is the fed funds rate, the one Fed headlines are about.",
+    "The Fed's FOMC sets a target range for it. They meet eight times a year on the calendar.",
+    "What they're after is the dual mandate: maximum employment and stable prices, with inflation at 2% a year.",
+    "T-bill yields move right with that rate. Longer yields also price where it's expected to go."
    ],
    "facts": [
     "f9",
@@ -851,10 +851,10 @@
    "key": "w2",
    "title": "Reading the curve",
    "steps": [
-    "The yield curve lines up Treasury yields from the shortest maturity to the longest.",
-    "Normally it slopes up. January 3, 2022: the 2-year paid 0.78% and the 10-year 1.63%.",
-    "The 2s10s is the 10-year yield minus the 2-year. Below zero, the curve is inverted between those two points.",
-    "December 30, 2022: the 2-year paid 4.41% and the 10-year 3.88%. Inverted."
+    "Line up Treasury yields from the shortest maturity to the longest. That's the yield curve.",
+    "Normally it slopes up. January 3, 2022, the 2-year paid 0.78% and the 10-year paid 1.63%.",
+    "The 2s10s is the 10-year yield minus the 2-year. Below zero, the curve is inverted there.",
+    "Fast forward to December 30, 2022. The 2-year paid 4.41%, the 10-year 3.88%. Inverted."
    ],
    "facts": [
     "f81",
@@ -870,10 +870,10 @@
    "key": "w3",
    "title": "2022, the year of hikes",
    "steps": [
-    "The Fed's range started 2022 at 0% to 0.25% and ended at 4.25% to 4.5%, after seven hikes.",
-    "Markets didn't wait. Yields rose and stocks fell before the first hike in March.",
-    "The tech-heavy Nasdaq lost 33.1% on the year.",
-    "Growth stocks often lean on profits years out. A higher rate shrinks what those are worth today."
+    "2022. The Fed's range starts the year at 0% to 0.25% and ends at 4.25% to 4.5%. Seven hikes.",
+    "The market didn't wait for them. Yields rose and stocks fell before the first hike in March.",
+    "By year-end the tech-heavy Nasdaq was down 33.1%.",
+    "Why tech got hit harder: growth stocks lean on profits years out. A higher rate shrinks what those are worth today."
    ],
    "facts": [
     "f67",
@@ -894,7 +894,7 @@
    "skill": "history.fed_rates",
    "rung": 1,
    "format": "mcq",
-   "q": "Who sets the target range for the federal funds rate?",
+   "q": "It's Fed day, 2:00 p.m., and a new target range for fed funds just came out. Who set it?",
    "choices": [
     "The Fed's FOMC",
     "The Treasury",
@@ -902,8 +902,8 @@
     "Bank trading"
    ],
    "answer": "The Fed's FOMC",
-   "why": "The Fed's FOMC. It sets the target range for trading in the federal funds market. Changing that target is its main policy tool. Daily trading between banks then sets the effective rate, a volume-weighted median of real overnight trades. Neither Congress nor the Treasury sets the range.",
-   "lesson_line": "The FOMC sets the target range. Daily trading in fed funds sets the effective rate.",
+   "why": "The FOMC, the Fed's rate-setting committee. It sets the target range, and moving that target is its main tool. Then banks trade fed funds with each other overnight. The volume-weighted median of those trades is the effective rate. So the committee sets the range, and the banks trade inside it. Congress gave the Fed its goals. It doesn't pick the number, and neither does Treasury. Every rate headline you read on Fed day traces back to that one committee.",
+   "lesson_line": "The FOMC sets the range. The banks trade inside it.",
    "facts": [
     "f34",
     "f10",
@@ -911,11 +911,11 @@
     "f4"
    ],
    "wrong": {
-    "The Treasury": "Treasury doesn't set it. The FOMC establishes the target range for trading in the fed funds market.",
-    "Congress": "The Federal Reserve Act sets the Fed's goals. Setting the target range is the FOMC's job.",
-    "Bank trading": "Bank trading sets the effective rate each day. The target range it trades against is the FOMC's call."
+    "The Treasury": "Treasury borrows by selling bonds and bills. It doesn't set the Fed's rate.",
+    "Congress": "Congress wrote the Fed's goals into the Federal Reserve Act. The number itself is the FOMC's call.",
+    "Bank trading": "Close, but that's the effective rate, set by trading each day. The range it trades in is the FOMC's call."
    },
-   "simple": "The Fed's rate-setting group, the FOMC, sets the target range at its meetings.",
+   "simple": "The FOMC, the Fed's rate-setting committee, sets the target range. Banks then trade inside it.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -923,7 +923,7 @@
      "fixed before (q01 why and notes, 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
@@ -931,7 +931,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "Federal funds rate",
-   "q": "What is the federal funds rate?",
+   "q": "A headline says the Fed raised the federal funds rate. Which rate did it actually move?",
    "choices": [
     "The overnight bank borrowing rate",
     "The 10-year Treasury yield",
@@ -939,27 +939,28 @@
     "The Fed's yearly inflation goal"
    ],
    "answer": "The overnight bank borrowing rate",
-   "why": "The overnight bank borrowing rate. Banks pay it to borrow reserve balances overnight. Other banks lend them from the balances they keep at the Fed. The FOMC's main tool is its target for this rate. It is not a long-term yield, a mortgage rate or the inflation goal.",
-   "lesson_line": "Fed funds is the overnight rate between banks. It's the rate the Fed targets.",
+   "why": "The overnight rate banks pay to borrow from each other. Banks keep reserve balances at the Fed, and they lend those balances to each other overnight. That's the rate the Fed targets, and moving that target is its main tool. T-bill yields move right along with it. It's not your mortgage rate or the 10-year yield. Those are long-term rates, and they price where policy is headed, not just where it sits tonight. So when you hear the Fed hiked, it's the overnight rate that moved. The long end does its own thing.",
+   "lesson_line": "Fed funds is the overnight bank rate. That's the one the Fed sets.",
    "facts": [
     "f9",
     "f1",
     "f10",
     "f6",
-    "f12"
+    "f12",
+    "f11"
    ],
    "wrong": {
-    "The 10-year Treasury yield": "That's a long-term market yield. The Fed targets the overnight rate, not the 10-year.",
-    "The 30-year mortgage rate": "Mortgages are long-term loans. Their rates price where policy is expected to go, not just the overnight rate.",
-    "The Fed's yearly inflation goal": "That's the goal for inflation, what policy aims at. Fed funds is a rate banks pay to borrow."
+    "The 10-year Treasury yield": "That's a long-term market yield. The Fed targets the overnight rate, and the 10-year moves on expectations.",
+    "The 30-year mortgage rate": "Mortgages are long loans. Their rates price where policy is expected to go, not just tonight's rate.",
+    "The Fed's yearly inflation goal": "That's the target for inflation, what policy aims at. Fed funds is a rate banks pay to borrow."
    },
-   "simple": "It's the rate banks pay each other to borrow money overnight, and it's the rate the Fed aims at.",
+   "simple": "It's the rate banks charge each other to borrow overnight. That's the rate the Fed aims at.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
@@ -996,17 +997,17 @@
    "skill": "history.fed_rates",
    "rung": 2,
    "format": "tf",
-   "q": "The FOMC holds twelve regularly scheduled meetings a year.",
+   "q": "The Fed has a scheduled rate meeting every month, twelve a year.",
    "answer": "False",
-   "why": "False. The FOMC holds eight regularly scheduled meetings a year, plus other meetings as needed. So not every month has a scheduled meeting, but an unscheduled one can still happen.",
-   "lesson_line": "Eight scheduled meetings a year, plus extra ones when needed. The dates are on the Fed's calendar page.",
+   "why": "False, it's eight. The FOMC has eight scheduled meetings a year, plus extra ones if it needs them. So plenty of months have no Fed day at all. The dates are posted well ahead on the Fed's calendar page, so put them on yours. I don't have a Fed-day rule, honestly. I trade those days like any other day. I just want to know one's coming, so a fast afternoon doesn't surprise me.",
+   "lesson_line": "Eight scheduled meetings a year, plus extras if needed. The dates are on the Fed's calendar.",
    "facts": [
     "f3",
     "f2",
     "f30",
     "f31"
    ],
-   "simple": "False, it has eight planned meetings a year, not twelve, and it can add extra ones.",
+   "simple": "False. The Fed has eight planned meetings a year, not twelve, and it can add extra ones.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1014,24 +1015,26 @@
      "the meeting schedule is a practice that can change (checked live 2026-11-12)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q05",
    "skill": "history.fed_rates",
    "rung": 2,
    "format": "tf",
-   "q": "The Fed's inflation goal is zero percent a year.",
+   "q": "Zero inflation is the Fed's goal.",
    "answer": "False",
-   "why": "False. The FOMC's goal is inflation of 2% a year, measured by the PCE price index. Aiming a little above zero keeps interest rates modestly higher in normal times. That gives the FOMC more room to cut rates when the economy weakens.",
-   "lesson_line": "The Fed wants 2% inflation, not zero. That buffer gives it room to cut in a downturn.",
+   "why": "False. The goal is 2% a year, measured by the PCE price index. It isn't zero for a reason. Aiming a little above zero keeps rates a bit higher in normal times. That leaves the Fed room to cut when the economy weakens. If rates already sat near zero, there'd be nothing left to cut. Here's why you care. When the Fed says inflation is well above 2%, hikes are likely on the way. It said exactly that in January 2022, and the first hike landed in March.",
+   "lesson_line": "The Fed wants 2%, not zero. That cushion leaves it room to cut.",
    "facts": [
     "f6",
     "f7",
     "f8",
-    "f20"
+    "f20",
+    "f21",
+    "f67"
    ],
-   "simple": "False, the Fed aims for 2% inflation a year, which keeps rates high enough to leave room to cut.",
+   "simple": "False. The Fed aims for 2% inflation, which keeps rates high enough to leave room to cut.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1039,7 +1042,7 @@
      "the inflation goal is a policy that can change (checked live 2026-11-12)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q06",
@@ -1047,7 +1050,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "2s10s",
-   "q": "What does the 2s10s measure?",
+   "q": "Someone in the chat says \"the 2s10s just went negative.\" What are they measuring?",
    "choices": [
     "10-year yield minus 2-year yield",
     "2-year yield minus 10-year yield",
@@ -1055,8 +1058,8 @@
     "Average of the 2- and 10-year yields"
    ],
    "answer": "10-year yield minus 2-year yield",
-   "why": "10-year yield minus 2-year yield. FRED's 10-Year Minus 2-Year series is built exactly that way, and Fed researchers call it the 2s10s. It measures the slope between those two points, not the level of rates. Below zero, the curve is inverted between those two points.",
-   "lesson_line": "Long minus short. Positive is the normal slope, negative is inverted.",
+   "why": "The 10-year yield minus the 2-year yield. Long minus short. FRED builds its 10-year minus 2-year series exactly that way, and Fed researchers call it the 2s10s. It tells you the slope between those two points, not how high rates are. Above zero is the normal upward slope. Below zero, the 2-year pays more than the 10-year, so the curve is inverted there. To check it yourself, pull up FRED's T10Y2Y chart.",
+   "lesson_line": "Long minus short. Above zero is normal, below zero is inverted.",
    "facts": [
     "f32",
     "f33",
@@ -1066,9 +1069,9 @@
     "f91"
    ],
    "wrong": {
-    "2-year yield minus 10-year yield": "That flips the sign. The convention is long minus short, so an inversion reads negative.",
+    "2-year yield minus 10-year yield": "That flips the sign. It's long minus short, so an inversion reads negative.",
     "Fed funds minus the 10-year yield": "Some researchers pair the 10-year with fed funds, but that's a different spread. The 2s10s uses two Treasury yields.",
-    "Average of the 2- and 10-year yields": "An average gives the level of rates. The 2s10s is the gap between them, the slope."
+    "Average of the 2- and 10-year yields": "An average tells you the level of rates. The 2s10s is the gap between them, the slope."
    },
    "simple": "It's the 10-year yield minus the 2-year yield, the gap between long and short rates.",
    "tier": "core",
@@ -1078,17 +1081,17 @@
      "fixed before (q06 why, 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
    "skill": "history.fed_rates",
    "rung": 3,
    "format": "tf",
-   "q": "An inverted yield curve means short-term Treasury yields sit above long-term ones.",
+   "q": "When the curve is inverted, short-term Treasurys pay more than long-term ones.",
    "answer": "True",
-   "why": "True. Treasury calls it inverted when longer maturities yield less than shorter ones. A normal curve slopes up, with longer maturities yielding more. Different spreads can invert at different times, so a curve can be inverted between some maturities and not others.",
-   "lesson_line": "Inverted: short pays more than long. It's the reverse of the usual slope.",
+   "why": "True. Normally the curve slopes up, so you get paid more to lend for longer. Inverted flips that, and the short maturities yield more than the long ones. One catch though. Different spreads can invert at different times. A curve can be inverted between two points and still normal between two others. So when someone tells you the curve inverted, ask them which part.",
+   "lesson_line": "Inverted means short pays more than long. Always ask which part.",
    "facts": [
     "f42",
     "f43",
@@ -1097,20 +1100,20 @@
     "f82",
     "f53"
    ],
-   "simple": "True, inverted means short-term bonds pay more than long-term ones, the reverse of the usual shape.",
+   "simple": "True. Inverted means short-term bonds pay more than long-term ones, the reverse of normal.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
    "skill": "history.fed_rates",
    "rung": 3,
    "format": "fill",
-   "q": "Fill in the blank.",
+   "q": "You're holding a few swings into a Fed decision day. When does the statement hit?",
    "sentence": "On Fed day, the FOMC statement comes out at ___ Eastern.",
    "bank": [
     "2:00 p.m.",
@@ -1119,13 +1122,13 @@
     "4:00 p.m."
    ],
    "answer": "2:00 p.m.",
-   "why": "2:00 p.m. Eastern. The FOMC is the Fed committee that sets the fed funds rate, and its decision statement comes out at 2:00 p.m. Eastern on decision day. That is neither at the open nor at the close, so a trader checks the clock on Fed days. One Fed statement reads 'For release at 2:00 p.m. EDT'. Another reads 'For release at 2:00 p.m. EST'.",
-   "lesson_line": "Scheduled FOMC statements come out at 2:00 p.m. Eastern, EST or EDT by season.",
+   "why": "2:00 p.m. Eastern, EST or EDT depending on the season. That's when the statement drops on a decision day. Not the open, not the close, right in the middle of the afternoon. Prices can move fast in the minutes after. Your stops are already in, so there's nothing special to do. Just know the clock, so a 2:00 spike doesn't catch you guessing what happened.",
+   "lesson_line": "Fed statements hit at 2:00 p.m. Eastern. Know the time, then trade your setups.",
    "facts": [
     "f23",
     "f24"
    ],
-   "simple": "The Fed's statement comes out at 2:00 p.m. Eastern time on decision day.",
+   "simple": "The Fed's statement comes out at 2:00 p.m. Eastern on decision day.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1133,14 +1136,14 @@
      "release time is a practice that can change (checked live on the October 28, 2026 statement)"
     ]
    },
-   "batch": "fills"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q09",
    "skill": "history.fed_rates",
    "rung": 4,
    "format": "mcq",
-   "q": "The Fed raises its target range by 75 basis points. How many percentage points is that?",
+   "q": "The Fed just hiked 75 basis points. How many percentage points did the rate go up?",
    "answer": "0.75 points",
    "calc": {
     "fn": "arith",
@@ -1149,13 +1152,14 @@
      "bp": 75
     }
    },
-   "why": "0.75. A basis point is 1/100 of a percentage point. So 75 basis points is 75 divided by 100, or 0.75 percentage points. It is a move in the rate itself, not a change of 75% in the rate.",
-   "lesson_line": "100 basis points make one percentage point. A 25 basis point move is a quarter point.",
+   "why": "0.75 points. A basis point is one hundredth of a percentage point. So 75 divided by 100 is 0.75. On TV you'll hear it called three-quarters of a point, same thing. It's a move in the rate itself, not a 75% jump in the rate. The Fed made this exact move in 2022. One 75 basis point hike took the range from 1.50-1.75% to 2.25-2.50%.",
+   "lesson_line": "100 basis points make one point. A 25 basis point move is a quarter point.",
    "facts": [
     "f17",
-    "f18"
+    "f18",
+    "f67"
    ],
-   "simple": "It is 0.75 points, because 100 basis points make one percentage point.",
+   "simple": "It's 0.75 points. 100 basis points make one point.",
    "deeper": {
     "example": "The Fed's own table shows one: a 75 basis point hike took the target range from 1.50-1.75% to 2.25-2.50%. Each end rose 0.75 percentage points."
    },
@@ -1166,7 +1170,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "7.5 points",
     "0.075 points",
@@ -1174,9 +1178,9 @@
     "0.75 points"
    ],
    "wrong": {
-    "7.5 points": "Moved the decimal one place too few.",
-    "0.075 points": "Moved the decimal one place too many.",
-    "75 points": "Left the basis points as they were."
+    "7.5 points": "Moved the decimal one place too few. 75 over 100 is 0.75.",
+    "0.075 points": "Moved the decimal one place too many. 75 over 100 is 0.75.",
+    "75 points": "Left the basis points as they were. Divide by 100 to get points."
    },
    "suffix": ""
   },
@@ -1185,7 +1189,7 @@
    "skill": "history.fed_rates",
    "rung": 4,
    "format": "mcq",
-   "q": "January 3, 2022: the 2-year Treasury yields 0.78% and the 10-year 1.63%. What is the 2s10s?",
+   "q": "January 3, 2022. The 2-year Treasury yields 0.78% and the 10-year 1.63%. Where's the 2s10s?",
    "answer": "0.85 points",
    "calc": {
     "fn": "arith",
@@ -1195,12 +1199,14 @@
      "two": 0.78
     }
    },
-   "why": "0.85. The 2s10s is the 10-year yield minus the 2-year yield: 1.63 minus 0.78 is 0.85 percentage points. It is positive, so the curve sloped up between those two points, the normal shape.",
-   "lesson_line": "Always long minus short. A positive 2s10s is the normal, upward slope.",
+   "why": "0.85 points, and positive. Long minus short: 1.63 minus 0.78 is 0.85. Positive means the curve sloped up between those two points, the normal shape. Remember where you are on the calendar. The Fed's rate still sat near zero, and the hikes hadn't started. Keep this number in mind, because by the end of that year the spread was below zero.",
+   "lesson_line": "Always long minus short. Above zero is the normal, upward slope.",
    "facts": [
     "f39",
     "f33",
-    "f82"
+    "f82",
+    "f19",
+    "f41"
    ],
    "simple": "It's 0.85, the 10-year's 1.63 minus the 2-year's 0.78, so the curve sloped up.",
    "tier": "core",
@@ -1210,7 +1216,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "2.41 points",
     "0.85 points",
@@ -1218,9 +1224,9 @@
     "-0.85 points"
    ],
    "wrong": {
-    "-0.85 points": "Subtracted the 10-year from the 2-year.",
-    "2.41 points": "Added the two yields.",
-    "1.63 points": "Used only the 10-year yield."
+    "-0.85 points": "Flipped it. That's the 2-year minus the 10-year. Always long minus short.",
+    "2.41 points": "Added the two yields. The spread is a gap, so you subtract.",
+    "1.63 points": "That's just the 10-year yield. You still have to take off the 2-year."
    },
    "visual": {
     "kind": "size",
@@ -1251,9 +1257,9 @@
    "skill": "history.fed_rates",
    "rung": 4,
    "format": "tf",
-   "q": "In a Fed hiking cycle, the 10-year yield tends to rise as much as the Fed's target rate.",
+   "q": "When the Fed hikes hard, the 10-year yield climbs about as much as the Fed's rate.",
    "answer": "False",
-   "why": "False. The Fed moves the short end. Long-term rates price where policy and the economy are expected to go, not just today's rate. In a tightening they tend to rise less than short rates. In 2022 the top of the Fed's range went from 0.25% to 4.5%, while the 10-year went from 1.63% to 3.88%.",
+   "why": "False. The Fed moves the short end. The 10-year prices where policy and the economy are expected to go, so in a tightening it rises less. 2022 shows it clearly. The top of the Fed's range went from 0.25% to 4.5%, a 4.25 point climb. The 10-year went from 1.63% to 3.88%, about half the Fed's move. That gap between the short end and the long end is exactly what flattens the curve when the Fed hikes.",
    "lesson_line": "The Fed moves the short end. The long end moves on expectations.",
    "facts": [
     "f12",
@@ -1264,13 +1270,13 @@
     "f39",
     "f41"
    ],
-   "simple": "False, long-term yields move on where rates are expected to go, so they tend to rise less than the Fed's rate.",
+   "simple": "False. The 10-year moves on where rates are expected to go, so it climbs less than the Fed's rate.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q12",
@@ -1278,16 +1284,16 @@
    "rung": 5,
    "format": "scenario",
    "story": "The curve starts with a normal upward slope. The Fed hikes at meeting after meeting. The 2-year yield climbs fast. The 10-year rises far less.",
-   "q": "What happens to the 2s10s?",
+   "q": "Where's the 2s10s heading?",
    "choices": [
-    "It shrinks; the curve flattens",
-    "It widens; the curve steepens",
-    "Stays put; both yields rose",
-    "It inverts as soon as hikes start"
+    "Shrinks, the curve flattens",
+    "Widens, the curve steepens",
+    "Stays put, both yields rose",
+    "Inverts as soon as hikes start"
    ],
-   "answer": "It shrinks; the curve flattens",
-   "why": "It shrinks, and the curve flattens. The 2s10s is the 10-year yield minus the 2-year yield, so when the 2-year rises more, the gap narrows. Fed tightening flattens the curve. It inverts only if the 2-year climbs past the 10-year.",
-   "lesson_line": "Fed hiking cycles flatten the curve, and sometimes invert it.",
+   "answer": "Shrinks, the curve flattens",
+   "why": "It shrinks, and the curve flattens. The 2s10s is the 10-year minus the 2-year. When the 2-year runs and the 10-year lags, that gap gets smaller. That's what Fed hiking does. Short yields chase the Fed, and long yields move on expectations. It only inverts if the 2-year actually climbs past the 10-year, so flattening comes first. You can watch it happen on FRED's 10-year minus 2-year chart as the line slides toward zero.",
+   "lesson_line": "Hiking cycles flatten the curve. Keep hiking and it can invert.",
    "facts": [
     "f50",
     "f48",
@@ -1297,9 +1303,9 @@
     "f33"
    ],
    "wrong": {
-    "It widens; the curve steepens": "Steepening means the 10-year gains on the 2-year. Here the 2-year is the one running.",
-    "Stays put; both yields rose": "The 2s10s is a gap, not a level. When the 2-year rises more, the gap shrinks.",
-    "It inverts as soon as hikes start": "Not at once. Tightening flattens the curve first. It inverts only if the 2-year yield climbs above the 10-year."
+    "Widens, the curve steepens": "Steepening means the 10-year gains on the 2-year. Here the 2-year is the one running.",
+    "Stays put, both yields rose": "The 2s10s is a gap, not a level. When the 2-year rises more, the gap shrinks.",
+    "Inverts as soon as hikes start": "Not right away. It flattens first, and it only inverts once the 2-year climbs above the 10-year."
    },
    "simple": "The gap shrinks, because the 2-year yield rises much faster than the 10-year yield.",
    "deeper": {
@@ -1312,14 +1318,14 @@
      "fixed before (q12 story, 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q13",
    "skill": "history.fed_rates",
    "rung": 5,
    "format": "mcq",
-   "q": "The Fed's range was 0-0.25% in January 2022 and 4.25-4.50% by December. How far did the top end rise?",
+   "q": "The Fed's range starts 2022 at 0-0.25% and ends the year at 4.25-4.50%. How much did the top end climb?",
    "answer": "4.25 points",
    "calc": {
     "fn": "arith",
@@ -1329,7 +1335,7 @@
      "top_start": 0.25
     }
    },
-   "why": "4.25 percentage points. The top end went from 0.25% in January to 4.50% in December: 4.50 minus 0.25. It took seven hikes. The bottom end rose by the same amount, from 0 to 4.25%.",
+   "why": "4.25 points. The top end went from 0.25% to 4.50%, and 4.50 minus 0.25 is 4.25. It took seven hikes: 25, 50, 75, 75, 75, 75 and 50 basis points. Add those up and you land on the same 4.25 points. It left the Fed's rate at its highest in 15 years. Keep that in your head as the backdrop for what happened to growth stocks that year.",
    "lesson_line": "In 2022 the Fed went from near zero to 4.25-4.5% in seven hikes, its highest in 15 years.",
    "facts": [
     "f19",
@@ -1350,7 +1356,7 @@
      "fixed before (q13 wording, 2026-11-09)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "4.50 points",
     "4.75 points",
@@ -1358,9 +1364,9 @@
     "0.425 points"
    ],
    "wrong": {
-    "4.50 points": "Used only the December top end.",
-    "4.75 points": "Added the January top end instead of subtracting it.",
-    "0.425 points": "Decimal slip."
+    "4.50 points": "That's just December's top end. Subtract where it started, 0.25.",
+    "4.75 points": "You added the 0.25 instead of subtracting it.",
+    "0.425 points": "Decimal slip. 4.50 minus 0.25 is 4.25."
    },
    "suffix": "",
    "visual": {
@@ -1392,7 +1398,7 @@
    "skill": "history.fed_rates",
    "rung": 5,
    "format": "mcq",
-   "q": "Rates jumped in 2022, and fast-growing companies still losing money got hit hard. What made them so exposed?",
+   "q": "Rates jump in 2022, and fast growers that still lose money get crushed. Why were they hit so hard?",
    "choices": [
     "Most of their profit is years away",
     "They pay the biggest dividends",
@@ -1400,8 +1406,8 @@
     "The Fed targeted tech stocks"
    ],
    "answer": "Most of their profit is years away",
-   "why": "Most of their profit is years away. Higher rates shrink what future cash flows are worth today, so valuations can fall. Growth stocks that get more of their value from expected future earnings often feel that more. In 2022, investors stopped paying up for unprofitable growth and wanted cash generation.",
-   "lesson_line": "Distant profits get discounted harder when rates rise. That's a big part of why 2022 hit unprofitable growth so hard.",
+   "why": "Most of their profit is years away. Here's how it works. A higher rate shrinks what future cash flows are worth today. If most of a company's value sits in earnings years out, that discount hits it harder. In 2022 the market said it plainly: stop paying up for unprofitable growth, show me cash. The tech-heavy Nasdaq lost 33.1% that year. The lesson for you is where to look. When rates rip, don't cling to last cycle's winners. Find what's still holding up.",
+   "lesson_line": "Far-off profits get discounted harder when rates rise. That's why 2022 crushed unprofitable growth.",
    "facts": [
     "f63",
     "f64",
@@ -1414,12 +1420,13 @@
     "f80",
     "f16",
     "f65",
-    "f28"
+    "f28",
+    "f68"
    ],
    "wrong": {
-    "They pay the biggest dividends": "Companies still losing money have little to pay out. The hit comes from discounting profits still years away.",
-    "Their sales drop as rates rise": "Rate changes usually take at least a year to reach the wider economy. Stock prices react much sooner, through valuations.",
-    "The Fed targeted tech stocks": "No. The Fed tightens to cool economic activity and keep inflation in check. Growth stocks feel it through valuations."
+    "They pay the biggest dividends": "Companies still losing money have little to pay out. The hit came through valuations.",
+    "Their sales drop as rates rise": "Rate changes usually take at least 12 months to reach the wider economy. Stocks react way sooner, through valuations.",
+    "The Fed targeted tech stocks": "The Fed doesn't pick sectors. It hikes to cool the economy, and growth stocks feel it through valuations."
    },
    "simple": "Their profits are far off, and higher rates make far-off profits worth less today.",
    "deeper": {
@@ -1432,17 +1439,17 @@
      "fixed before (q14 stem and why, 2026-11-09); sources differ on growth-stock sensitivity (see conflicts)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q15",
    "skill": "history.fed_rates",
    "rung": 6,
    "format": "tf",
-   "q": "Treasury yields rose and broad stock indexes fell before the Fed's first hike of 2022.",
+   "q": "Before the Fed's first hike of 2022, Treasury yields were already rising and stocks were already falling.",
    "answer": "True",
-   "why": "True. The Fed's June report says the expected rate path started rising in the prior year's third quarter. Treasury and corporate yields rose with it, and broad stock indexes fell, before the first hike in March.",
-   "lesson_line": "Markets trade the expected path. By the time the Fed moves, much of it is priced.",
+   "why": "True, and this SPY chart shows the stock side of it. The first hike didn't come until March. But the market started pricing it in during the third quarter of the year before. Treasury yields, corporate bond yields and mortgage rates all started climbing. Broad stock indexes fell. So by the time the Fed moved, a lot of the damage was done. Price leads the news. I'd rather read what the market is doing than wait for the Fed to announce it.",
+   "lesson_line": "Price leads the news. By the time the Fed moves, a lot is already priced.",
    "facts": [
     "f25",
     "f90",
@@ -1450,7 +1457,7 @@
     "f27",
     "f21"
    ],
-   "simple": "True, markets moved months early, as yields rose and stocks fell before the first hike.",
+   "simple": "True. Markets moved early, so yields rose and stocks fell before the first hike.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1458,7 +1465,7 @@
      "fixed before (q15 facts, 2026-11-09)"
     ]
    },
-   "batch": "history-charts-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "SPY",
     "asof": "2022-03-15",
@@ -1471,8 +1478,8 @@
    "skill": "history.fed_rates",
    "rung": 6,
    "format": "scenario",
-   "story": "Fed funds futures imply a 50 basis point cut. The Fed cuts 25 basis points. Stocks drop.",
-   "q": "Why can a rate cut push stocks lower?",
+   "story": "Fed funds futures are pricing a 50 basis point cut. At 2:00 the Fed cuts 25 instead. Stocks sell off.",
+   "q": "Why would a rate cut sink stocks?",
    "choices": [
     "The bigger cut was already priced in",
     "Any cut means the economy is failing",
@@ -1480,8 +1487,8 @@
     "Stocks fall whenever the Fed acts"
    ],
    "answer": "The bigger cut was already priced in",
-   "why": "The bigger cut was already priced in. Futures implied a 50 basis point cut, so prices already reflected it. A 25 basis point cut was less easing than expected, so stocks fell. Markets react to the surprise, not to the move itself.",
-   "lesson_line": "Markets trade the surprise, not the headline. What futures priced sets the bar.",
+   "why": "The bigger cut was already priced in. The market mostly trades the surprise, not the cut. Futures said 50, so prices already had 50 baked in. The Fed gave 25. That's less easing than everyone bet on, so stocks likely reprice lower. It works the other way too: a surprise cut has tended to lift stocks. Before any Fed day, check CME's FedWatch. It turns fed funds futures into odds for each move, so you know what's priced.",
+   "lesson_line": "Markets trade the surprise, not the headline. What's priced sets the bar.",
    "facts": [
     "f78",
     "f79",
@@ -1492,11 +1499,11 @@
     "f8"
    ],
    "wrong": {
-    "Any cut means the economy is failing": "A cut can come with a weak economy, but here the market wanted more. The miss versus 50 is the news.",
-    "Lower rates make stocks less attractive": "The Fed says the opposite: lower rates can make stocks more attractive. The problem was the size.",
-    "Stocks fall whenever the Fed acts": "No. Markets are unlikely to react to a move they already expected, and a surprise cut has tended to lift stocks."
+    "Any cut means the economy is failing": "A cut can come with a weak economy, but that's not the story here. The miss versus 50 is the news.",
+    "Lower rates make stocks less attractive": "Backwards. Lower rates can make stocks more attractive. The problem was the size.",
+    "Stocks fall whenever the Fed acts": "A move the market already expected barely registers, and a surprise cut has tended to lift stocks."
    },
-   "simple": "Traders had already bet on a bigger cut, so the smaller cut let them down and stocks fell.",
+   "simple": "Traders had already bet on a bigger cut, so the smaller one let them down and stocks fell.",
    "deeper": {
     "example": "Flip it. Fed research looked at surprise 25 basis point cuts. On average, such a cut went with about a one percent rise in broad stock indexes. Same kind of cut, opposite reaction: what matters is the gap between what was priced and what came."
    },
@@ -1507,7 +1514,7 @@
      "fixed before (q16 story, 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
@@ -1515,16 +1522,16 @@
    "rung": 7,
    "format": "scenario",
    "story": "Treasury's yield curve for July 6, 2022: 3-month 1.90%, 2-year 2.97%, 10-year 2.93%.",
-   "q": "What is the curve doing?",
+   "q": "What's the curve telling you here?",
    "choices": [
-    "2s10s inverted; 10y-3m positive",
+    "2s10s inverted, 10y-3m positive",
     "Both spreads are inverted",
-    "Normal: long yields beat short",
-    "Only the 10y-3m spread is inverted"
+    "Normal, long yields beat short",
+    "10y-3m inverted, 2s10s positive"
    ],
-   "answer": "2s10s inverted; 10y-3m positive",
-   "why": "The 2s10s is inverted, the 10y-3m isn't. The 10-year at 2.93% sits just under the 2-year at 2.97%, so the 2s10s is below zero. It is far above the 3-month at 1.90%, so the 10y-3m spread is positive. Different spreads can invert at different times.",
-   "lesson_line": "When you hear the curve inverted, ask which spread. The 2s10s often flips first.",
+   "answer": "2s10s inverted, 10y-3m positive",
+   "why": "The 2s10s is inverted, the 10y-3m isn't. Work it through. The 10-year at 2.93% sits just under the 2-year at 2.97%, so the 2s10s is below zero. But the 10-year is way above the 3-month at 1.90%, so that spread is still positive. Same curve, same day, two different answers. The 2s10s tends to flip first, and more often. So when you see a headline that the curve inverted, ask which spread they mean.",
+   "lesson_line": "When you hear the curve inverted, ask which spread. The 2s10s flips first.",
    "facts": [
     "f40",
     "f53",
@@ -1533,11 +1540,11 @@
     "f37"
    ],
    "wrong": {
-    "Normal: long yields beat short": "Not against the 2-year. The 10-year at 2.93% is below the 2-year at 2.97%.",
-    "Only the 10y-3m spread is inverted": "It's the other way round. The 10-year beats the 3-month but trails the 2-year.",
-    "Both spreads are inverted": "The 10-year at 2.93% still yields more than the 3-month at 1.90%. That spread is positive."
+    "Both spreads are inverted": "The 10-year at 2.93% still pays more than the 3-month at 1.90%. That one's positive.",
+    "Normal, long yields beat short": "Not against the 2-year. The 10-year at 2.93% is under the 2-year at 2.97%.",
+    "10y-3m inverted, 2s10s positive": "You mixed them up. The 10-year beats the 3-month but trails the 2-year."
    },
-   "simple": "The 2s10s is inverted because the 10-year pays a bit less than the 2-year, but it still beats the 3-month.",
+   "simple": "The 10-year pays a bit less than the 2-year, so the 2s10s is inverted, but it still beats the 3-month.",
    "deeper": {
     "trap": "A headline that says the curve inverted may mean only the 2s10s. On this day the 10-year still paid more than the 3-month. The 2s10s tends to turn negative earlier and more often than the 10-year minus 3-month, so always ask which spread."
    },
@@ -1548,14 +1555,14 @@
      "key rests on one Treasury row (f40)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
    "skill": "history.fed_rates",
    "rung": 7,
    "format": "mcq",
-   "q": "The New York Fed's recession-probability model is built on which spread?",
+   "q": "You pull up the New York Fed's recession-odds model. Which spread is it built on?",
    "choices": [
     "10-year minus 3-month",
     "10-year minus 2-year",
@@ -1563,7 +1570,7 @@
     "10-year minus fed funds"
    ],
    "answer": "10-year minus 3-month",
-   "why": "10-year minus 3-month. The New York Fed's model uses the 10-year bond rate minus the 3-month bill rate. It turns that spread into the odds of a recession twelve months ahead. Market analysts more often watch the 10-year minus 2-year, and some researchers use the 10-year minus fed funds.",
+   "why": "The 10-year minus the 3-month. The New York Fed takes the 10-year bond rate minus the 3-month bill rate. It turns that spread into the odds of a recession twelve months out. That's not the spread you hear about most. Market folks mostly watch the 10-year minus the 2-year, and some researchers use the 10-year against fed funds. Why you care: the 2s10s flips earlier and more often than the 10y-3m. Two people can look at the curve and see different things, so know which one you're reading.",
    "lesson_line": "Headlines watch the 2s10s. The New York Fed's model uses the 10-year minus the 3-month.",
    "facts": [
     "f36",
@@ -1578,7 +1585,7 @@
    "wrong": {
     "10-year minus 2-year": "That's the market's favorite, not the model's input. It tends to invert earlier and more often.",
     "30-year minus 10-year": "That's the far end of the curve. The model pairs the 10-year with a short bill rate.",
-    "10-year minus fed funds": "Some researchers favor that pair. The New York Fed's model uses the 3-month bill rate instead."
+    "10-year minus fed funds": "Some researchers like that pair. The New York Fed's model uses the 3-month bill rate instead."
    },
    "simple": "It uses the 10-year rate minus the 3-month bill rate to estimate the odds of a recession.",
    "deeper": {
@@ -1593,14 +1600,14 @@
      "fixed before (q18 distractor, 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
    "skill": "history.fed_rates",
    "rung": 7,
    "format": "mcq",
-   "q": "2022: the Fed hiked seven times. Which of these fell hardest on the year?",
+   "q": "2022: the Fed hikes seven times. Which of these took the worst beating on the year?",
    "choices": [
     "The Nasdaq Composite",
     "The S&P 500 index",
@@ -1608,7 +1615,7 @@
     "S&P 500 energy stocks"
    ],
    "answer": "The Nasdaq Composite",
-   "why": "The Nasdaq Composite. The tech-heavy index lost 33.1% in 2022, its steepest drop since 2008. The S&P 500 lost 19.4%, or 18.1% with dividends, and the Dow lost 8.8%. Energy stocks went the other way, up 59%.",
+   "why": "The Nasdaq Composite. The tech-heavy index lost 33.1%, its steepest drop since 2008. The S&P 500 lost 19.4%, or 18.1% with dividends. The Dow held up best of the three, down 8.8%. Energy stocks went the other way, up 59% as oil jumped above $120. That's what a rate-hike bear market looks like. The high-priced tech names got sold the hardest. If you were hunting for strength that year, you weren't finding it in tech.",
    "lesson_line": "In 2022's rate-hike bear market, tech and growth took the worst of it.",
    "facts": [
     "f68",
@@ -1623,8 +1630,8 @@
     "f67"
    ],
    "wrong": {
-    "The Dow industrials": "The Dow held up best of the three, down 8.8%.",
-    "S&P 500 energy stocks": "Energy went the other way, up 59% in 2022 as oil spiked above $120.",
+    "The Dow industrials": "The Dow held up best of the three indexes, down 8.8%.",
+    "S&P 500 energy stocks": "Energy went the other way, up 59% in 2022 as oil jumped above $120.",
     "The S&P 500 index": "It fell 19.4%, or 18.1% with dividends. Bad, but the tech-heavy Nasdaq fell 33.1%."
    },
    "simple": "The tech-heavy Nasdaq fell the most, down 33.1%, as rising rates hit tech and growth stocks.",
@@ -1638,14 +1645,14 @@
      "fixed before (q19 notes, 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
    "skill": "history.fed_rates",
    "rung": 8,
    "format": "scenario",
-   "story": "The 2s10s dips below zero for one session, then bounces back. A friend says the recession is locked in.",
+   "story": "The 2s10s closes below zero for one session, then pops right back. Someone in the chat says the recession is locked in.",
    "q": "How much weight do you give that dip?",
    "choices": [
     "Little, brief dips often mislead",
@@ -1654,8 +1661,8 @@
     "Heavy, it means recession"
    ],
    "answer": "Little, brief dips often mislead",
-   "why": "Little. New York Fed research says inversions in daily or intraday data often prove to be false signals. Inversions that hold on monthly or quarterly averages are more reliable. Even a lasting one is a warning, not a recession start date.",
-   "lesson_line": "One day below zero often misleads. Inversions that hold on monthly averages are more reliable.",
+   "why": "Not much. One day under zero is the kind of reading New York Fed research says often turns out false. Inversions that hold on monthly or quarterly averages are the ones worth respecting. Even a lasting inversion is a warning, not a start date. It mostly reflects what the market already expects. So I'm not changing how I trade over one print. Price, the leaders and the market reading in our app tell me far more.",
+   "lesson_line": "One day under zero proves nothing. Respect inversions that hold on monthly averages.",
    "facts": [
     "f55",
     "f83",
@@ -1664,11 +1671,11 @@
     "f59"
    ],
    "wrong": {
-    "Full weight, any dip counts": "New York Fed research found daily inversions often prove false. Inversions that hold on monthly or quarterly averages count more.",
+    "Full weight, any dip counts": "Daily inversions often prove false. The ones that hold on monthly or quarterly averages count more.",
     "A recession began today": "An inversion is a warning, not a start date. The New York Fed's model gives recession odds twelve months ahead.",
-    "Heavy, it means recession": "Not for one session. Daily inversions often prove false, and Fed Board researchers say inversions are no standalone recession call."
+    "Heavy, it means recession": "Not off one session. Fed Board researchers say an inversion is no standalone recession call."
    },
-   "simple": "Give it little weight, because a one-day dip below zero often turns out to be a false alarm.",
+   "simple": "Give it little weight. A one-day dip below zero often turns out to be a false alarm.",
    "deeper": {
     "trap": "One session below zero is the kind of daily reading the research calls often false. Look for an inversion that holds on monthly or quarterly averages. Even then it is a warning, not a date."
    },
@@ -1679,7 +1686,7 @@
      "fixed before (q20 lesson line, 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
@@ -1687,7 +1694,7 @@
    "rung": 8,
    "format": "scenario",
    "story": "Over 2022 the 2-year Treasury yield rose from 0.78% to 4.41%. The 10-year rose from 1.63% to 3.88%.",
-   "q": "Where did the 2s10s end the year?",
+   "q": "Where did the 2s10s finish the year?",
    "choices": [
     "-0.53, inverted",
     "+0.53, normal slope",
@@ -1703,7 +1710,7 @@
      "two": 4.41
     }
    },
-   "why": "-0.53, inverted. The 2s10s is the 10-year yield minus the 2-year yield: 3.88 minus 4.41 is -0.53. The 2-year rose far more than the 10-year over the year, so the 10-year ended below it.",
+   "why": "-0.53, inverted. Long minus short: 3.88 minus 4.41 is -0.53. The 2-year went from 0.78% to 4.41% as it chased the Fed. The 10-year only went from 1.63% to 3.88%. The short end ran right past the long end, and the curve flipped upside down. You started the year at +0.85, so the spread fell 1.38 points in twelve months. That's the flattening you learned about, carried all the way through zero.",
    "lesson_line": "Short yields chased the Fed in 2022. That's what turned the curve upside down.",
    "facts": [
     "f39",
@@ -1713,8 +1720,8 @@
    ],
    "wrong": {
     "+0.53, normal slope": "That's 2-year minus 10-year. The 2s10s is long minus short, so it's negative.",
-    "+0.85, unchanged": "That's where it started the year, 1.63 minus 0.78. The ending yields give a different answer.",
-    "-1.38, far inverted": "That's how far the spread fell over the year, from +0.85. The year-end level is what you read."
+    "+0.85, unchanged": "That's where it started the year, 1.63 minus 0.78. The year-end yields give a different answer.",
+    "-1.38, far inverted": "That's how far the spread fell over the year, from +0.85. The year-end level is what you want."
    },
    "simple": "It ended at -0.53, because the 2-year yield rose past the 10-year yield.",
    "tier": "expert",
@@ -1724,7 +1731,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "The yields at year end",
@@ -1753,7 +1760,7 @@
    "skill": "history.fed_rates",
    "rung": 9,
    "format": "scenario",
-   "story": "The Fed hikes 25 basis points, exactly as futures priced. Its statement signals more hikes ahead than the market expected.",
+   "story": "The Fed hikes 25 basis points, exactly what futures priced. But the statement signals more hikes ahead than the market expected.",
    "q": "What's the real news for stocks?",
    "choices": [
     "The higher expected path of rates",
@@ -1762,8 +1769,8 @@
     "The hike makes stocks more attractive"
    ],
    "answer": "The higher expected path of rates",
-   "why": "The higher expected path of rates. The 25 basis point hike was already priced, and markets are unlikely to react to moves they expected. The statement's signal of more hikes shifted expectations. Expected changes in the Fed's target move asset prices too.",
-   "lesson_line": "A priced-in hike is old news. The surprise can be the path of future rates.",
+   "why": "The higher expected path of rates. The 25 basis point hike was old news. Futures had it priced, and markets barely react to a move they already expected. The surprise was in the statement. More hikes ahead than people thought means a higher path of rates, and that moves prices on its own. Higher expected rates shrink what future cash flows are worth today. So don't stop at a headline like \"Fed hikes as expected.\" Read what they said about what comes next.",
+   "lesson_line": "A priced-in hike is old news. The surprise is the path.",
    "facts": [
     "f14",
     "f13",
@@ -1774,9 +1781,9 @@
     "f63"
    ],
    "wrong": {
-    "The 25 basis point hike itself": "It was fully priced. Fed research says markets are unlikely to react to moves they already expected.",
+    "The 25 basis point hike itself": "It was fully priced. Markets barely react to a move they already expected.",
     "Nothing, the hike was expected": "The hike was, the path wasn't. A shift in the expected path moves prices on its own.",
-    "The hike makes stocks more attractive": "Backwards. The Fed says lower rates can make stocks more attractive. A higher path of rates is the headwind here."
+    "The hike makes stocks more attractive": "Backwards. Lower rates can make stocks more attractive. A higher path of rates is the headwind here."
    },
    "simple": "The hike was already expected, so the news was the Fed hinting at more hikes than traders thought.",
    "deeper": {
@@ -1787,7 +1794,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q23",
@@ -1796,8 +1803,8 @@
    "format": "tf",
    "q": "After the 2s10s inverted in July 2022, a US recession followed within a year.",
    "answer": "False",
-   "why": "False. The 2s10s inverted in early July 2022 and stayed inverted without a break. Reuters reported the run beat the 1978 record of 624 days, and no recession had come. NBER's latest business-cycle call is still the April 2020 trough. An inversion is a warning, not a timer.",
-   "lesson_line": "An inversion is a warning, not a timer. The 2022 one ran a record stretch with no recession.",
+   "why": "False, and it's a good one to remember. The 2s10s inverted in early July 2022 and stayed inverted for a record run. It outlasted the old record, a 624-day inversion in 1978. And no recession came. NBER's latest call is still the April 2020 trough, so none has been dated since. An inversion is a warning, not a timer. Don't build a trade, or a pile of cash, around a countdown the curve never promised.",
+   "lesson_line": "An inversion is a warning, not a timer.",
    "facts": [
     "f40",
     "f85",
@@ -1806,7 +1813,7 @@
     "f45",
     "f59"
    ],
-   "simple": "False, the curve stayed inverted from July 2022 for a record run, and no recession came.",
+   "simple": "False. The curve stayed inverted from July 2022 for a record run, and no recession came.",
    "deeper": {
     "counter": "This does not make inversions useless. Fed Board researchers say an inverted spread is not a standalone recession call: it largely reflects what markets already expect. Read the curve with other evidence, never as a countdown."
    },
@@ -1817,7 +1824,7 @@
      "rests on NBER's dating, which can change (checked live 2026-11-12: latest call still July 19, 2021)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q24",
@@ -1826,7 +1833,7 @@
    "format": "tf",
    "q": "From June 2022 into early 2023, broad stock indexes rose on net while the Fed was still hiking.",
    "answer": "True",
-   "why": "True. The Fed's March 2023 report says broad stock indexes were volatile but rose moderately, on net, from June 2022. It points to easing inflation and resilient earnings. Meanwhile the Fed kept hiking, to 4.25-4.5% in December 2022. Rising rates don't automatically mean falling stocks.",
+   "why": "True, and you can see it on this SPY chart. The Fed's own report says broad indexes rose moderately, on net, from June 2022, with plenty of chop along the way. Inflation showed signs of easing and earnings held up. Meanwhile the Fed kept hiking, all the way to 4.25-4.5% in December. Rising rates don't automatically mean falling stocks. The market looks ahead, and it can turn before the Fed stops. That's why I don't wait for the Fed's all-clear. I watch price.",
    "lesson_line": "The market looks ahead. It can turn up before the Fed stops hiking.",
    "facts": [
     "f29",
@@ -1835,7 +1842,7 @@
     "f65",
     "f77"
    ],
-   "simple": "True, stocks rose on net from June 2022 even while the Fed kept raising rates.",
+   "simple": "True. Stocks rose on net from June 2022, even while the Fed kept raising rates.",
    "deeper": {
     "trap": "On net matters. The Fed's report says indexes were volatile while they rose. A market can trend up through a hiking cycle and still swing hard along the way."
    },
@@ -1846,7 +1853,7 @@
      "fixed before (q24 why, 2026-11-09)"
     ]
    },
-   "batch": "history-charts-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "SPY",
     "asof": "2023-02-28",
@@ -1888,15 +1895,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided FOMC before reading the key; f34 re-read live on the NY Fed EFFR page (verbatim), f35 verbatim. Trading sets the effective rate, not the range, so 'Banks, by trading' is wrong without ambiguity. Key is the shortest choice. The why no longer gives away q04's meeting count. A small leak remains: the 'Banks, by trading' choice and the effective-rate sentence show that fed funds trades between banks, which points to q02's key. w1 step 1 already teaches this before any question, and removing it would mean dropping a real distractor, so it was left as is.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "FOMC sets the range, EFFR is the volume-weighted median of trades (f34, f35); Congress/Treasury notes true (f4). Stem gives a Fed-day situation and does not lead. Plain, verdict first."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key right (f9, f1 Tier 1). Answer is 33 chars, so it fits a Word Match tile; the four choices are 31-33 chars. The inflation-goal note no longer gives q05's 2%. The mortgage note rests on f12. Gives away nothing later in the lesson.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Truth: 'So when you hear the Fed hiked, the short end moved first' contradicts q15 and f25/f90 (yields rose from Q3 2021, months before the first hike). Also 'the ones that come up short borrow from the ones with extra' is more than f1 says. Rewrote those lines; added f11 (T-bills move with fed funds)."
   },
   "q03": {
    "status": "cut",
@@ -1907,130 +1912,128 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "False is right (f2, f3, f30). Twelve is a specific wrong count, with no absolute or hedge to cue the answer. The q01 giveaway is closed by the q01 fix. w1 still teaches eight, which is fine for a lesson."
+   "fixed": true,
+   "notes": "Stem was a claim with a 'so' clause bolted on (rule 26); now one plain claim. The Fed-day line was word for word the same as q08's; kept C32 here (he has no Fed-day rule, trades it like any other day) in fresh words, and q08 now says something different."
   },
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "False is right (f6). Zero is a specific wrong value. The why rests on f6, f7 and f8. The q03 and q02 giveaways are closed by those fixes."
+   "fixed": true,
+   "notes": "Rule 11: 'When the Fed says inflation is well above 2%, hikes are coming' stated a reaction as certain. Softened to likely; tied to the January 2022 statement (f20) and the March hike (f21)."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (f32, f33, f57). The fed funds note now rests on the full quote in f91. Choice lengths are balanced and every sentence is 22 words or fewer."
+   "notes": "Real chat situation, non-leading. Long minus short per FRED T10Y2Y (f32, f33), 2s10s per Fed researchers (f57). Where to check it is real. Reads like him."
   },
   "q07": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "One plain claim, True per f42/f43/f47. 'Ask which part' is backed by f53."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Keep. The FOMC statement lands at 2:00 p.m. Eastern, a time a trader plans a Fed day around. New why defines the FOMC and states the use; no new numbers."
+   "fixed": true,
+   "notes": "2:00 p.m. Eastern correct (f23 EDT, f24 EST). The C32 line repeated q04 word for word, a stamped template; rewrote the close so it teaches the practical point (your plan is already set, know the clock) without repeating q04."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc; answer shows it; wrong choices are real mistakes and clearly apart; no tell; why walks the steps."
+   "notes": "75 / 100 = 0.75 shown. The July 2022 example (1.50-1.75% to 2.25-2.50%) matches f18. Wrong notes on the decimal slips are correct (7.5 = one place, 0.075 = three places)."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Yields are rates, not prices: a ladder prints '0.78' and '1.63' with no % sign and calls them levels on a price ruler. Size tiles show the % unit; label and key unchanged (key '0.85 points')."
+   "fixed": false,
+   "notes": "1.63 - 0.78 = 0.85 shown; range still near zero (f19); year-end below zero (f41). Wrong notes correct (sum 2.41, flipped sign, 10-year alone)."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "False is right (f49, f12). The 2022 numbers come from f67, f39 and f41, checked against the Treasury columns: 10-year 1.63 and 3.88. The hedge 'tends to' sits on a False statement, so it does not cue the key. The why does not give away q21, whose own story prints its inputs."
+   "fixed": true,
+   "notes": "Numbers right (4.5 - 0.25 = 4.25; 1.63 to 3.88 is about half). Cut the filler close 'you'll see it again in this lesson' and made the last line say what the gap does."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Shrinks/flattens follows from f33 arithmetic and f50. The longest choice is a distractor. 'As soon as' is a distractor absolute. The trap note is plain arithmetic. All three wrong notes are present."
+   "notes": "Semicolon choices now plain; answer kept (shrinks, flattens) per f49/f50. Stem does not lead. Wrong notes clear."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Fed rates are not prices; a ladder drops the % unit. Size tiles with % for the two top ends; label 'Rise in the top end' and key '4.25 points' unchanged."
+   "fixed": false,
+   "notes": "4.50 - 0.25 = 4.25 shown; seven hikes sum to 425 bp = 4.25 (f18); highest in 15 years (f88). 4.75 note (added instead of subtracting) correct."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key rests on f64, f63 and f89, and the 2022 context on f73. Choice lengths run 34 to 36 characters. The notes rest on f80, f16 and f65, and the counter on f76 and f28. Small note: 'largest cash dividends' is easy to rule out once the stem says they lose money. It stands for a real bond-proxy misconception, so it was kept.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Why is good (f63, f73, f68) with a real mentor line on looking for what holds up. Wrong note dropped f80's 'usually': 'Rate changes take at least 12 months' stated as absolute. Restored."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "cold re-read 2026-11-15 (session lead): the chart and the words agree; check_course_charts 0 problems; the outcome the words name confirmed in the closes"
+   "notes": "True per f25, f90, f26, f27; first hike in March (f21). 'Price leads the news' is his register. SPY chart window ends 2022-03-15, after the January top, so the fall is on screen."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key decided independently from the story (futures implied 50, Fed gave 25). It rests on f79 (Investopedia) and f61 (Fed Board research), two publishers that agree. f60 re-read live on the FEDS abstract. Choices are 33-39 chars and the key is not the longest. The absolutes ('Any', 'whenever') are only in distractors. 'Markets react to the surprise, not to the move itself' is a fair paraphrase of f61 in context. Could not re-fetch Investopedia (it blocks this client); f78 and f79 were confirmed by the earlier checker."
+   "fixed": true,
+   "notes": "Rule 11: 'The market doesn't react to the cut itself' and 'stocks reprice lower' stated as certain; f61 says unlikely to respond. Softened; FedWatch line kept (f46), surprise-cut line kept (f60)."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Worked it out first: 2.93-2.97 = -0.04 (2s10s inverted), 2.93-1.90 = +1.03 (positive). The f40 row maps cleanly to Treasury's columns (1Mo 1.36, 2Mo 1.70, 3Mo 1.90, 2Yr 2.97, 10Yr 2.93); the Jan and Dec rows map the same way. Key is not the longest choice. The wrong notes use only the story's numbers, and the trap rests on f54. Does not give away q18 (the NY Fed model's spread is not named) or q23."
+   "notes": "July 6, 2022 row (f40): 10-year 2.93 under 2-year 2.97, over 3-month 1.90. Answer right; the new mirror distractor is a named mix-up and clearly wrong. 2s10s flips first (f54)."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key rests on f37 (Tier 1). 'Twelve months' and 'monthly averages' rest on f38, analysts on f51 and f84, fed funds on f91. The new trap does not repeat f54. No other question names the model's spread."
+   "notes": "10-year minus 3-month (f37), twelve months ahead (f38); market watches 2s10s (f51, f84); fed funds pairing (f52, f91). Plain, gives the why you care."
   },
   "q19": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Nasdaq -33.1% steepest since 2008 (f68, f74); S&P -19.4%/-18.1% (f69); Dow -8.8% (f70); energy +59%, oil above $120 (f72). Closing line on where strength wasn't is his kind of read."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "f55 re-read verbatim in the NY Fed PDF (ci12-5): 'inversions in daily or intraday data often prove to be false signals'. It agrees with f83 (Investopedia), so two publishers support the key. The key (32 chars) is the shortest choice, and the hedges are split ('often' in the key, 'usually' in a distractor). The wrong notes rest on f38 and f59. The lesson line is now grounded in f55. Small note: the deeper trap mostly repeats the why, which is acceptable. Does not answer q23.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Daily inversions often false, monthly/quarterly averages more reliable (f55, NY Fed research); not a standalone call (f59). Story is a real chat moment; choices untouched and fine. Ends on what he actually watches."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Year-end yields are rates, not prices; a ladder shows '4.41' and '3.88' unit-less on a price ruler. Size tiles with %; label 'The 2s10s at year end'; key '-0.53, inverted' fills the slot."
+   "fixed": false,
+   "notes": "3.88 - 4.41 = -0.53 shown; 0.85 to -0.53 is a 1.38 drop (matches the distractor). Wrong notes correct."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key rests on f14, f13 and f61. The story no longer prints 2:00 p.m. The longest choice is a distractor. The notes rest on f61, f13 and f15, and the trap on f63. It builds on q16 and does not give its answer away: q16 is about the size of the move, q22 about the path."
+   "notes": "Path over the move (f13, f14, f61); higher rates shrink present value (f63). Practical line: read past the headline."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "False is right. f85 gives the run since early July 2022, f86 no recession, f92 the 624-day 1978 record, f45 the NBER call. The 2024 year was dropped because it sits only in a title. The answer depends on NBER dating, and the risk is already recorded."
+   "fixed": true,
+   "notes": "Truth: 'stayed inverted without a break' had no end point; f85 only says it was unbroken as of March 2024. Bounded it to 'a record run' (f92). The close 'I trade what price and the leaders are doing' was the fourth price-over-Fed close in a row (q15, q20, q24); replaced with a different judgment line."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "cold re-read 2026-11-15 (session lead): the chart and the words agree; check_course_charts 0 problems; the outcome the words name confirmed in the closes"
+   "notes": "True per the Fed's March 2023 report (f29); Fed hiked to 4.25-4.5% in December (f22). SPY chart window to 2023-02-28 shows the rise. 'Rising rates don't automatically mean falling stocks' backed by f65."
   }
  }
 }

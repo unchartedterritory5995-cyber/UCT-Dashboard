@@ -32,10 +32,15 @@ import {
 } from './ast/interpret'
 import { barIndexClass } from './ast/barIndexShift'
 import { RECURRENCES } from './ast/parse.js'
+// ⭐ HOST WORKER — the helpers from where they live (`astColumns.js`, `ast/bind`), not through the chart
+// registry's re-exports (the same functions), and the registry's `computeFor` through its seam: this
+// module's closure is then host-neutral, so the host object lane can be evaluated in a worker
+// (`hostLaneAsync.js`, `tools/pine_runtime_closure.mjs`).
 import {
-  resolveInputs, treeScalars, bindConstsFor, historyFromListingFor, listingOptsFor, barIndexAbsoluteFor, varOriginAbsoluteFor, otherSymbolsFor, lowerTfFor, computeFor,
+  resolveInputs, treeScalars, historyFromListingFor, listingOptsFor, barIndexAbsoluteFor, varOriginAbsoluteFor, otherSymbolsFor, lowerTfFor,
   runtimeErrorStopOf,
-} from './nativeRegistry'
+} from './astColumns.js'
+import { bindConstsFor } from './ast/bind'
 import { otherSymbolRefusalOfTree } from './otherSymbols'
 import { periodReadsObjectRefusal } from './periodReads'
 import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
@@ -45,7 +50,7 @@ import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
 import { runtimeErrorStopFor } from './runtimeErrorStop'
 import { foldBound } from './ast/bind'
 import { barOpenInstant } from '../indicators.js'
-import { registeredObjectRuntimeValues, inputsAtDefaults } from './objectRuntimeSeam.js'
+import { registeredObjectRuntimeValues, inputsAtDefaults, registeredObjectComputeFor } from './objectRuntimeSeam.js'
 
 // ─── ⭐⭐ C18 — THE RUNTIME LANE, FOR THE VALUES ONLY AN IMPERATIVE RUN COMPUTES ──
 //
@@ -637,8 +642,9 @@ export function objectReaderFor(definition, bars, opts = {}) {
   // stopped: the run is the authority there, and it is memoised per bars array.
   if (definition.compute && definition.compute.kind === 'runtime') {
     let cols = null
+    const computeFor = registeredObjectComputeFor()
     try {
-      cols = computeFor(definition, bars, opts.inputs, {
+      cols = computeFor && computeFor(definition, bars, opts.inputs, {
         tf: opts.tf, symbol: opts.symbol, newestBarIsForming: opts.newestBarIsForming ?? null,
         ...(opts.historyFromListing === true ? { historyFromListing: true } : {}),
       })
