@@ -211,6 +211,8 @@ export function otherSymbolsDecision(def, ctx) {
     tf: ctx && ctx.tf,
     // ⭐ RS RATING L11 PR 2 — the chart's newest bar reads its own period (`newestOwnPeriodOf`)
     chartNewestDay: ctx && ctx.chartNewestDay,
+    // ⭐ RS RATING L12 PR 2 (Q-L12-2) — the chart's bars, for a seed's intraday fold (`utcMidnightAtOrAfterOf`)
+    chartBars: ctx && ctx.chartBars,
   })
 }
 

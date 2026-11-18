@@ -8723,8 +8723,9 @@ export default function StockChart({
   // each tick through a stable getter, so it never re-runs the hook's effect
   const _chartFormingRef = useRef(null)
   const _chartFormingOf = useCallback(() => _chartFormingRef.current, [])
+  // ⭐ RS RATING L12 PR 2 (U-DAILY) — and this chart's symbol, for a run that reads its own daily rows
   const secondarySources = useSecondarySources(
-    _storedInstances, _defOf, resolvedTf, barCount, instFetcher, _otherSymbolsRevalidate, _chartFormingOf)
+    _storedInstances, _defOf, resolvedTf, barCount, instFetcher, _otherSymbolsRevalidate, _chartFormingOf, sym)
   // ⭐ C26 — our store's exchange for each other symbol a Pine document reads
   // (`request.security("AMEX:SPY", …)`), so the bind can match the spelling.
   const otherSymbolExchangeOf = useOtherSymbolExchanges(_storedInstances, _defOf, _otherSymbolsRevalidate)

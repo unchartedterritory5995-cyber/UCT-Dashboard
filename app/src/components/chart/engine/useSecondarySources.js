@@ -21,7 +21,8 @@
 // network traffic for series that will never be bound.
 import { useEffect, useMemo, useState } from 'react'
 import { symbolsNeeded } from './sourceRef'
-import { fetchableOtherSymbols, isPineOriginDoc, heldKeyParts, heldDepthOf } from './otherSymbols'
+import { fetchableOtherSymbols, isPineOriginDoc, heldKeyParts, heldDepthOf, OWN_DAILY_KEY } from './otherSymbols'
+import { runtimeReadsOwnDaily } from './runtime/runtimeColumns'
 import { instanceDocumentForFetch } from './symbolInputs'
 import { ensureAll, ensureSecondaryBars, subscribe, cachedBars, refreshSecondaryTail } from './secondaryBars'
 
@@ -29,10 +30,17 @@ import { ensureAll, ensureSecondaryBars, subscribe, cachedBars, refreshSecondary
  *  own timeframe and depth (`ensureAll`, as before), a HELD key (`SPX@D` on a weekly chart,
  *  `otherSymbols.js::heldKeyParts`) at its held timeframe, deep enough for the chart's weekly bars
  *  (`heldDepthOf`). One map, keyed as `symbolsNeeded` named them. */
-export function ensureChartSources(keys, tf, barCount, fetcher) {
+export function ensureChartSources(keys, tf, barCount, fetcher, chartSymbol = null) {
   const list = Array.isArray(keys) ? keys : []
-  const out = ensureAll(list.filter((k) => !heldKeyParts(k)), tf, barCount, fetcher)
+  const out = ensureAll(list.filter((k) => !heldKeyParts(k) && k !== OWN_DAILY_KEY), tf, barCount, fetcher)
   for (const k of list) {
+    // ⭐ RS RATING L12 PR 2 — this chart symbol's own daily rows (`OWN_DAILY_KEY`), as deep as a held daily read
+    if (k === OWN_DAILY_KEY) {
+      if (!chartSymbol) continue
+      const own = ensureSecondaryBars(String(chartSymbol).trim().toUpperCase(), 'D', heldDepthOf(barCount, tf), fetcher)
+      if (own) out.set(k, own)
+      continue
+    }
     const held = heldKeyParts(k)
     if (!held) continue
     const entry = ensureSecondaryBars(held.symbol, held.tf, heldDepthOf(barCount, tf), fetcher)
@@ -52,11 +60,13 @@ export const LIVE_TAIL_MS = 60000
  *  re-read finds today's), re-reads its newest rows. Nothing while the member cannot see the app
  *  (`deskVisibility.isAppVisible`: a hidden tab, or the desktop desk hidden, where a minimized window still
  *  reports `visible`; speed rule 6). Exported for its rail. */
-export function liveTailTick(keys, tf, barCount, fetcher, chartForming) {
+export function liveTailTick(keys, tf, barCount, fetcher, chartForming, chartSymbol = null) {
   if (!isAppVisible()) return 0
   let started = 0
   for (const k of Array.isArray(keys) ? keys : []) {
-    const held = heldKeyParts(k)
+    // ⭐ RS RATING L12 PR 2 — this chart symbol's own daily rows ride the tail as a held daily key does
+    if (k === OWN_DAILY_KEY && !chartSymbol) continue
+    const held = k === OWN_DAILY_KEY ? { symbol: String(chartSymbol).trim().toUpperCase(), tf: 'D' } : heldKeyParts(k)
     const symbol = held ? held.symbol : k
     const at = held ? held.tf : tf
     const depth = held ? heldDepthOf(barCount, tf) : barCount
@@ -93,12 +103,29 @@ function sameEntries(a, b) {
  *   at each live-tail tick (`liveTailTick`)
  * @returns {Map<string,{bars,status}>|null} null when this chart needs none
  */
-export function useSecondarySources(instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf) {
+/** ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — does any instance's run read this chart symbol's own daily rows on a `tf`
+ *  chart (its run half's script, or a runtime document's, built for `tf`: `runtimeReadsOwnDaily`)? */
+export function ownDailyNeeded(instances, defOf, tf) {
+  for (const inst of Array.isArray(instances) ? instances : []) {
+    const def = inst && defOf ? defOf(inst.defId) : null
+    const c = def && def.compute
+    if (!c) continue
+    const src = c.runtimeObjects && typeof c.runtimeObjects.source === 'string' ? c.runtimeObjects.source
+      : (c.kind === 'runtime' && typeof c.source === 'string' ? c.source : null)
+    if (src && runtimeReadsOwnDaily(src, tf)) return true
+  }
+  return false
+}
+
+export function useSecondarySources(instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf, chartSymbol = null) {
   const [state, setState] = useState(EMPTY)
 
   useEffect(() => {
     // ⭐ RS RATING L11 — named for THIS chart's timeframe (a weekly chart holds SP:SPX and the seed at D)
-    const symbols = symbolsNeeded(instances ? instances() : null, defOf, tf)
+    const listed = instances ? instances() : null
+    const symbols = symbolsNeeded(listed, defOf, tf)
+    // ⭐ RS RATING L12 PR 2 — and this chart symbol's own daily rows, for a run that reads them above the chart
+    if (chartSymbol && ownDailyNeeded(listed, defOf, tf)) symbols.push(OWN_DAILY_KEY)
     const key = `${symbols.join(',')}|${tf}|${barCount}`
     let alive = true
 
@@ -109,7 +136,7 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
       // null-key-means-no-traffic idiom `compareSwrUrl` and
       // `useSignatureIndicators` already use. It returns the SHARED empty state,
       // so "needs nothing" is one stable identity rather than a new object.
-      const map = symbols.length ? ensureChartSources(symbols, tf, barCount, fetcher) : null
+      const map = symbols.length ? ensureChartSources(symbols, tf, barCount, fetcher, chartSymbol) : null
       setState((prev) => {
         if (!map) return prev.map === null ? prev : EMPTY
         return prev.key === key && sameEntries(prev.map, map) ? prev : { key, map }
@@ -125,7 +152,7 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
     // ⭐⭐ RS RATING L11 PR 2 — a forming series is re-read while this chart is up (`liveTailTick`); a
     // changed entry notifies, and `apply` above hands the chart the new one
     const timer = setInterval(() => {
-      liveTailTick(symbols, tf, barCount, fetcher, typeof chartFormingOf === 'function' ? chartFormingOf() : null)
+      liveTailTick(symbols, tf, barCount, fetcher, typeof chartFormingOf === 'function' ? chartFormingOf() : null, chartSymbol)
     }, LIVE_TAIL_MS)
     return () => { alive = false; unsub(); clearInterval(timer) }
   }, [instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf])

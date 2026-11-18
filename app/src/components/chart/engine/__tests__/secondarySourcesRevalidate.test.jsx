@@ -60,7 +60,8 @@ describe('the other-symbol supply re-asks when the definitions land', () => {
     const SRC = STOCKCHART_SRC
     expect(SRC).toMatch(/const _otherSymbolsRevalidate = useMemo\(\(\) => \(\{ csView, userDefsGeneration \}\), \[csView, userDefsGeneration\]\)/)
     // (⭐ RS RATING L11 PR 2 — then the chart's forming getter, railed in secondaryLiveTail.test.jsx)
-    expect(SRC).toMatch(/useSecondarySources\(\s*_storedInstances, _defOf, resolvedTf, barCount, instFetcher, _otherSymbolsRevalidate, _chartFormingOf\)/)
+    // ⭐ RS RATING L12 PR 2 — and the chart's symbol last (its own daily rows, for a run that reads them)
+    expect(SRC).toMatch(/useSecondarySources\(\s*_storedInstances, _defOf, resolvedTf, barCount, instFetcher, _otherSymbolsRevalidate, _chartFormingOf, sym\)/)
     expect(SRC).toMatch(/useOtherSymbolExchanges\(_storedInstances, _defOf, _otherSymbolsRevalidate\)/)
   })
 })

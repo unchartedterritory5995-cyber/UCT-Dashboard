@@ -2722,6 +2722,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
       basePeriod: basePeriodOf(opts),
       newestBarIsForming: opts.newestBarIsForming === true
         || !!(opts.interpretOpts && opts.interpretOpts.newestBarIsForming === true),
+      // ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — the RUN's resolvers read a daily read above an intraday chart (`above`),
+      // the request reader below and this one alike: an expression built on such a read (`na(s) ? 1 : 0`, Fred RS's
+      // seed loop) is folded by this resolver, and one that declined the read refused the whole build
+      // (`pine:request`) though the request itself was served. ⛔ The HOST translator never sets it (C49, C23,
+      // ruling 3.5 keep their refusals there).
+      aboveDailyReads: true,
       ...objectDoorOpts,
     }
     : { pineVersion, pineScript: true, pineV1, declWords, ...objectDoorOpts }
@@ -2729,6 +2735,23 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const r = new Resolver(env, TABLE, new Map(), resolverOpts)
     if (inputs && typeof inputs === 'object') r.inputValues = inputs
     return r
+  }
+  /** ⭐ RS RATING L12 PR 2 — is this call a request the run reads ABOVE an intraday chart (`pine.js`'s `above`
+   *  target, minted only by this lane's resolvers)? Memoised per node; a reading that throws is "no" (the request
+   *  path names its refusal). */
+  const aboveRequestMemo = new WeakMap()
+  const isAboveRequest = (node) => {
+    if (!node || node.type !== 'call' || (node.name !== 'request.security' && node.name !== 'security')) return false
+    if (aboveRequestMemo.has(node)) return aboveRequestMemo.get(node)
+    let yes = false
+    try {
+      const t = makeResolver().requestTargetOf(node)
+      yes = !!(t && t.above === true)
+    } catch {
+      yes = false
+    }
+    aboveRequestMemo.set(node, yes)
+    return yes
   }
 
   /** A resolver that does NOT see the member's values.
@@ -4083,6 +4106,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  ready rather than acted on. */
   const needsRuntime = (node, scope) => {
     if (!node || typeof node !== 'object') return false
+    // ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — A DAILY READ ABOVE AN INTRADAY CHART IS THE RUN'S REQUEST, NEVER A
+    // COLUMN. The run's supply hands it per site (`requestSupply.js::aboveChartRead`); the columnar lane holds no
+    // daily series, and its translation of the chart's OWN read is a plain gated `close`
+    // (`pine.js::requestBaseNode`), which looked pure: `closeDa = request.security(syminfo.tickerid, 'D', close)`
+    // became a substituted macro and Fred RS's `closeDa[n63]` a column the gate withheld whole
+    // (`runtime:request`). Another symbol's read only escaped by its `sym` tree reading as state.
+    if (isAboveRequest(node)) return true
     // ⭐⭐ W4-T8 — A WINDOW WHOSE v6 `series int` LENGTH THE FOLD CANNOT SETTLE IS A RUNTIME CALL.
     // Left to the columnar lane it refuses `pine:window` ("a Pine length has to reach the engine as a
     // plain whole number"), so `ta.highest(high, bar_index % 7 + 1)` never reached the window path.
@@ -6901,7 +6931,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const identity = (() => {
       let t = null
       try {
-        targetReader = new Resolver(env, TABLE, new Map(), { ...resolverOpts, basePeriod: lanePeriod })
+        // ⭐ RS RATING L12 PR 2 — this reader alone reads a daily read above an intraday chart (`above`)
+        targetReader = new Resolver(env, TABLE, new Map(), { ...resolverOpts, basePeriod: lanePeriod, aboveDailyReads: true })
         t = targetReader.requestTargetOf(node)
       } catch { return null } // a refusal on the way is "not the identity": the path below names it
       if (t && t.lower !== true && !reachesSlotThroughEnv(t.positional[0], scope)
@@ -7130,6 +7161,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⭐ RS RATING L11 — a daily read of another symbol on a weekly chart (`pine.js::
         // dailyOnWeeklyTargetOf`): supplied held and sampled per week (`requestSupply.js`)
         ...(hostTarget.below === true ? { below: true } : {}),
+        // ⭐ RS RATING L12 PR 2 (U-DAILY) — a daily read above an intraday chart (`pine.js`): supplied from the
+        // symbol's held daily rows, each chart bar reading the session it had completed (`requestSupply.js`)
+        ...(hostTarget.above === true ? { above: true } : {}),
       }) : ownUnread ? Object.freeze({
         // ⭐ RS RATING L8 (4b) — the chart's own symbol at a timeframe the host does not read:
         // `code` is the literal as written, never a served code; `unread` refuses it in the supply
