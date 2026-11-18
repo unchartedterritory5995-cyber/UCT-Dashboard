@@ -107,6 +107,12 @@ BIG_ALLOWLIST = {
     # a stock's 60-minute window) is 5.1 MB. Same corpus and same reason as the S9 / S12 lines above; a
     # capture cannot be trimmed after the fact (its receipt, an fnv1a over its characters, binds every bar).
     "tests/fixtures/vendor/harness/vw-w4-session-daymask-btcusd-60-2026-11-16.json",
+    # 2026-11-17 (capture night, commit 9ab9a7b457 "tonight's captures filed at e73"): one AMEX:SPY 1D capture is
+    # 10.2 MB and turned the master deploy gate red for every deploy from 03:59Z to 05:30Z on 2026-11-18 (five
+    # master commits, none promoted). Same corpus and same reason as the S9 / S12 / BTCUSD lines above: a capture
+    # cannot be trimmed after the fact. Allow-listed by another session to unblock deploys, not by the capture
+    # programme: if that programme splits or shrinks this capture, delete this line.
+    "tests/fixtures/vendor/harness/heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-spy-1d-2026-11-17.json",
 }
 # A `.env*` may be tracked only when it carries no value — a template.
 ENV_ALLOWLIST = {".env.example"}
