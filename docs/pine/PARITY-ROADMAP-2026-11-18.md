@@ -648,6 +648,23 @@ computes needs one (`scriptEngineVersion.js`); an evidence-only unit (admission)
   evidence units below.
 - **Risk:** drawing count and position (DRAW-1's known DIVERGE classes: count-at-cap, conditional
   history of a drawing). Route (a) changes no stored document; route (b) does: engine number.
+- **Also this unit: a runtime document's drawings owned by its own run** (added 2026-11-18, coordinator
+  ruling after the `admit:obj:linefill` re-grade, #1804). AlgoAlpha Trend Targets reaches the runtime lane,
+  but the member door keeps the HOST object program (64 ops) in the runtime document: the run owns its
+  drawings only where the host program would draw nothing (`memberPaneDefinition.js::runtimeLaneDefinition`
+  -> `runtimeOwnObjectsOf`). So its lines, labels and linefills are the host lane's (`objectsLane` host), and
+  the script is evidence for no object family. Its run DOES build with its drawings
+  (`probeRuntimeProgram(source, { objectsInRun: true })` succeeds at engine 75), and so do k-clustering's and
+  vdubus-pattern-gen-v2's, both host-drawn today. The smallest honest change: let the run own the drawings
+  where it builds them and draws the same objects as the host program (route-by-cost's same-surface test,
+  applied to the objects), measured capture by capture before any member sees it; no stored document changes.
+  Witness owed: AlgoAlpha AMEX:SPY 1D from the listing. Its 2026-11-17 capture, not from the listing, DIVERGES
+  on a `barcolor` at bar 200; the 2026-11-15 one, from the listing, grades MATCH. With AlgoAlpha's linefills on
+  its own run, FVG Finder and AlgoAlpha are the two scripts `admit:obj:linefill` needs (capture requests for
+  vdubus-pattern-gen-v2, k-clustering and FVG Finder SPY sent 2026-11-18). Taken the same day (run `adm-2026-11-18`):
+  AlgoAlpha SPY 1D from the listing grades MATCH on the runtime-on lane (the 11-17 DIVERGE was its history start), and
+  FVG Finder SPY 1D shows a second objects wall: once the line collector runs at the 500 cap, TradingView holds 289
+  linefills and we hold 250 (every one paired agrees), the linefill analogue of `obj:box`'s count-at-cap carve-out.
 
 ### U-STRAT `strategy`: order simulation served to members (OWNER-GATED, in progress)
 
@@ -769,6 +786,31 @@ census cannot see it** (on a daily chart, "D" is the chart's own timeframe).
   SPY and RDDT (queue row Q-DAILY-1).
 - **Risk:** early closes and half-days (the vendor calendar settles them); realtime repainting of the
   forming day (closed-bar scope). Engine number: yes.
+
+### U-HTF-CALENDAR `htf-calendar` (part of U-REQ): a short week or month before TradingView's exchange calendar begins
+
+Added 2026-11-18 (coordinator ruling, from capture A1 `support-and-resistance-multi-time-frame-spy-1d-2026-11-18`,
+run `adm-2026-11-18`, local). It is NOT a feed wall: TradingView's weekly and monthly values are folds of its own
+daily bars on every bar of that capture (480 of 480 distinct "Resistance Weekly" values, 57 / 57 weekly lows, 159 /
+159 monthly highs, 9 / 9 monthly lows equal a period's fold of the daily rows TradingView drew).
+- **TradingView:** with look-ahead off, a completed week or month appears on the daily chart on that period's LAST
+  session, except a period that ends early, before TradingView knows the exchange's holidays: then it appears one bar
+  later, on the next period's first session. Measured over the 60 short weeks (last session not a Friday) on AMEX:SPY
+  1D from 1993: every one through 2001 whose value changes is shown on the NEXT bar (10: Good Friday 1995 / 1998,
+  3 July 1997 / 1998, 24 and 31 December 1998, 23 December 1999, 31 March 1994, 10 September 2001), and every one from
+  2004 on is shown on its LAST bar (14). One month: May 1999 (its last session Friday 28 May, Memorial Day the 31st).
+  2002-2003 holds no short week whose value changes, so the calendar's first year is between those.
+- **Ours today:** `interpret.js::requestAlignment` / `tfMergeReads` show every completed period on its last session,
+  whatever the year, so the early short periods read one bar EARLY: Resistance Weekly differs on 7 bars, Support
+  Weekly on 2, Resistance Monthly on 1 (patrick-54's grade: 8,509 bars, daily S/R equal everywhere).
+- **Smallest honest change:** none to the data. A period-close rule keyed by the exchange calendar's first year
+  (a short period before it closes on the next bar), stated once in the host alignment the run's supply already
+  shares; the first year is owed to a capture (Q-HTF-CAL-1: a short week in 2002 and 2003, AMEX:SPY 1D).
+- **Evidence:** A1 SPY (above) for the rule; A1 RDDT (NYSE:RDDT 1D, listed 2024) MATCH on both lanes reaches no
+  early short period. Until the rule lands, a weekly or monthly request capture of a symbol whose history starts
+  before 2004 is not request-other evidence unless none of its plotted values changes on such a period; the counted
+  request-other captures (fair-value-gap RDDT, PA ZigZag RDDT / SPY, all the chart's own period) read no period at all.
+- **Risk:** a wrong bar on old history only; never the newest bar. Engine number: yes (a value moves).
 
 ### U-ANCHOR `first-bar-anchor`: a running value anchored at the first bar
 
