@@ -470,10 +470,45 @@ def _kick_bg_refresh(sym: str, tf: str) -> None:
             _bg_inflight.discard(key)
 
 
+#: ⭐ RS RATING L12 (2026-11-18): an INTRADAY copy this old, answered stale-while-revalidate, hands a chart an index a
+#: session or more behind: /api/bars/SPX?tf=15 served 2026-11-16 15:00 ET on 2026-11-18's first request (nobody had
+#: asked for it since), and only the NEXT request was current. Fred RS on a 15m chart then withheld its newest bars.
+#: Past this age the request refreshes the series itself, the stock path's "cold-stale -> synchronous first paint"
+#: rule (`bars_fetch._is_cold_stale_intraday`) applied to indices. Bounded by `yf_util.bounded_call`; a cold ^GSPC
+#: read measured 2026-11-18: 15m 0.17 s median (1.27 s worst of 3), 5m 0.19 s, 1m 0.16 s, 30m 0.16 s. The stale copy
+#: is served when the vendor answers nothing or another request is already refreshing it. A daily / weekly / monthly
+#: copy, and a short miss of an intraday TTL, keep stale-while-revalidate.
+COLD_STALE_S = 3600
+_INTRADAY_UI_TFS = frozenset({"1", "5", "15", "30", "60", "1h"})
+
+
+def _cold_stale(tf: str, saved_at, now: float) -> bool:
+    return tf in _INTRADAY_UI_TFS and now - float(saved_at or 0) > COLD_STALE_S
+
+
+def _refresh_in_request(sym: str, tf: str) -> list:
+    """The series refreshed inside this request, or [] (another request holds the refresh, or no vendor answered:
+    the caller serves its stale copy). Shares `_bg_inflight` with the background refresh, so one fetch runs at a time."""
+    key = f"{sym}_{tf}"
+    with _bg_lock:
+        if key in _bg_inflight:
+            return []
+        _bg_inflight.add(key)
+    try:
+        return _refresh(sym, tf) or []
+    except Exception as e:  # noqa: BLE001 - recorded by _refresh; the stale copy is still a chart
+        logger.info(f"[index_bars] in-request refresh {sym} {tf} failed: {e}")
+        return []
+    finally:
+        with _bg_lock:
+            _bg_inflight.discard(key)
+
+
 def _cached_series(sym: str, tf: str, info: Optional[dict] = None):
     """Return (series, tier). Never blocks on yfinance when ANY cached data exists —
-    stale data is served immediately and a background refresh is kicked. `info`, when
-    given, is told when the served copy was stored (`info["saved_at"]`, None if none)."""
+    stale data is served immediately and a background refresh is kicked — EXCEPT an intraday copy older than
+    `COLD_STALE_S`, refreshed in the request (RS RATING L12). `info`, when given, is told when the served copy
+    was stored (`info["saved_at"]`, None if none)."""
     from api.services.cache import cache
     ttl = _TTL.get(tf, 300)
     now = time.time()
@@ -487,6 +522,11 @@ def _cached_series(sym: str, tf: str, info: Optional[dict] = None):
         info["saved_at"] = mem.get("saved_at")
         if now - mem.get("saved_at", 0) <= ttl:
             return mem["series"], "index-mem"
+        if _cold_stale(tf, mem.get("saved_at"), now):
+            fresh = _refresh_in_request(sym, tf)
+            if fresh:
+                info["saved_at"] = (cache.get(mkey) or {}).get("saved_at")
+                return fresh, "index-yf"
         _kick_bg_refresh(sym, tf)          # stale but usable → serve + revalidate
         return mem["series"], "index-mem-stale"
 
@@ -496,6 +536,11 @@ def _cached_series(sym: str, tf: str, info: Optional[dict] = None):
         cache.set(mkey, disk, ttl=max(ttl, 60))
         if now - disk.get("saved_at", 0) <= ttl:
             return disk["series"], "index-disk"
+        if _cold_stale(tf, disk.get("saved_at"), now):
+            fresh = _refresh_in_request(sym, tf)
+            if fresh:
+                info["saved_at"] = (cache.get(mkey) or {}).get("saved_at")
+                return fresh, "index-yf"
         _kick_bg_refresh(sym, tf)
         return disk["series"], "index-disk-stale"
 

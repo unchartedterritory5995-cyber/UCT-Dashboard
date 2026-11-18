@@ -11,6 +11,7 @@ TradingView, ours `na` before 2021-11-15). Now:
   D4 `INDEX_FMP_LOOKBACK_DAYS`, when set, still decides the span, for both.
 """
 import datetime as dt
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -245,3 +246,71 @@ def test_D5_a_yfinance_index_level_is_its_2_decimal_quote_before_the_divisor(mon
     assert out[0]["c"] == 7340.63 and out[0]["o"] == 7329.98
     xsp = index_bars._fetch_yf("^GSPC", "5m", "60d", 10.0)
     assert xsp[0]["c"] == 734.063                       # the quote / 10, not round(734.06298828125, 2)
+
+
+
+# -- D6 (RS RATING L12): a COLD intraday copy is refreshed in the request -------------------------------------------
+
+def _seed_mem(sym, tf, age_s, rows):
+    from api.services.cache import cache
+    cache.set(f"idxbars_{sym}_{tf}", {"saved_at": time.time() - age_s, "series": rows, "proxy": False}, ttl=3600)
+
+
+def _clear_mem(sym, tf):
+    from api.services.cache import cache
+    cache.set(f"idxbars_{sym}_{tf}", None, ttl=1)
+
+
+OLD = [{"t": 1794859200, "o": 1, "h": 1, "l": 1, "c": 1, "v": 0}]
+NEW = [{"t": 1794859200, "o": 1, "h": 1, "l": 1, "c": 1, "v": 0}, {"t": 1794949200, "o": 2, "h": 2, "l": 2, "c": 2, "v": 0}]
+
+
+def test_D6a_a_cold_intraday_copy_is_refreshed_in_the_request(monkeypatch):
+    calls, kicked = [], []
+    monkeypatch.setattr(index_bars, "_refresh", lambda s, tf: calls.append((s, tf)) or NEW)
+    monkeypatch.setattr(index_bars, "_kick_bg_refresh", lambda s, tf: kicked.append((s, tf)))
+    _seed_mem("SPX", "15", 2 * 3600, OLD)
+    series, tier = index_bars._cached_series("SPX", "15")
+    assert calls == [("SPX", "15")] and tier == "index-yf" and series == NEW and kicked == []
+    _clear_mem("SPX", "15")
+
+
+def test_D6b_a_vendor_that_answers_nothing_serves_the_stale_copy(monkeypatch):
+    monkeypatch.setattr(index_bars, "_refresh", lambda s, tf: [])
+    monkeypatch.setattr(index_bars, "_kick_bg_refresh", lambda s, tf: None)
+    _seed_mem("SPX", "15", 2 * 3600, OLD)
+    series, tier = index_bars._cached_series("SPX", "15")
+    assert series == OLD and tier == "index-mem-stale"
+    def boom(s, tf):
+        raise RuntimeError("vendor down")
+    monkeypatch.setattr(index_bars, "_refresh", boom)
+    series, tier = index_bars._cached_series("SPX", "15")
+    assert series == OLD and tier == "index-mem-stale"
+    _clear_mem("SPX", "15")
+
+
+def test_D6c_a_short_miss_and_a_daily_copy_keep_stale_while_revalidate(monkeypatch):
+    calls, kicked = [], []
+    monkeypatch.setattr(index_bars, "_refresh", lambda s, tf: calls.append((s, tf)) or NEW)
+    monkeypatch.setattr(index_bars, "_kick_bg_refresh", lambda s, tf: kicked.append((s, tf)))
+    _seed_mem("SPX", "15", 600, OLD)                     # past the 300 s TTL, under an hour
+    assert index_bars._cached_series("SPX", "15") == (OLD, "index-mem-stale")
+    _seed_mem("SPX", "D", 3 * 86400, OLD)                # a daily copy days old
+    assert index_bars._cached_series("SPX", "D") == (OLD, "index-mem-stale")
+    assert calls == [] and kicked == [("SPX", "15"), ("SPX", "D")]
+    _clear_mem("SPX", "15"); _clear_mem("SPX", "D")
+
+
+def test_D6d_one_refresh_at_a_time_a_second_request_serves_stale(monkeypatch):
+    calls = []
+    monkeypatch.setattr(index_bars, "_refresh", lambda s, tf: calls.append((s, tf)) or NEW)
+    monkeypatch.setattr(index_bars, "_kick_bg_refresh", lambda s, tf: None)
+    _seed_mem("SPX", "15", 2 * 3600, OLD)
+    with index_bars._bg_lock:
+        index_bars._bg_inflight.add("SPX_15")
+    try:
+        assert index_bars._cached_series("SPX", "15") == (OLD, "index-mem-stale") and calls == []
+    finally:
+        with index_bars._bg_lock:
+            index_bars._bg_inflight.discard("SPX_15")
+    _clear_mem("SPX", "15")
