@@ -82,6 +82,8 @@ describe('plain names over the expressiveness formulas', () => {
     ['laguerreRsi(close, 0.5)', 'Laguerre RSI 0.5'],
     ['laguerreRsi(close, 0.5) > 0.8', 'Laguerre RSI 0.5 above 0.8'],
     ['laguerre(open, 0.8)', 'Laguerre Filter 0.8 (Open)'],
+    ['dpo(close, 21)', 'Detrended Price Oscillator 21'],
+    ['dpo(close, 21) > 0', 'Detrended Price Oscillator 21 above 0'],
     ['close > sma(close, 50) ? close : na', 'Close when Close above SMA 50'],
     ['if(close > open, high, low)', 'High when Close above Open, else Low'],
     ['close > open and volume > 1000000', 'Close above Open and Volume above 1000000'],

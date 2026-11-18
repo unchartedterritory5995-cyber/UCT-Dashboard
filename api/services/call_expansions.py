@@ -72,6 +72,15 @@ def _mom(a: List[Any]) -> Optional[Dict[str, Any]]:
     return _op("-", [a[0], {"type": "offset", "value": n, "args": [a[0]]}])
 
 
+def _dpo(a: List[Any]) -> Optional[Dict[str, Any]]:
+    """The Detrended Price Oscillator, TradingView's default (not centred) form: the source minus
+    its n-bar simple average as it stood floor(n / 2) + 1 bars ago (`callExpansions.js::dpo`)."""
+    n = _window(a[1], 1)
+    if n is None:
+        return None
+    return _op("-", [a[0], {"type": "offset", "value": n // 2 + 1, "args": [_call("sma", [a[0], _num(n)])]}])
+
+
 def _vwma(a: List[Any]) -> Optional[Dict[str, Any]]:
     n = _window(a[1], 1)
     if n is None:
@@ -437,6 +446,7 @@ def _laguerre_rsi(a: List[Any]) -> Optional[Dict[str, Any]]:
 CALL_EXPANSIONS: Dict[str, tuple] = {
     "roc": (2, 2, "roc(source, length)", _roc),
     "mom": (2, 2, "mom(source, length)", _mom),
+    "dpo": (2, 2, "dpo(source, length)", _dpo),
     "vwma": (2, 2, "vwma(source, length)", _vwma),
     "linreg": (2, 3, "linreg(source, length, offset = 0)", _linreg),
     "correlation": (3, 3, "correlation(source1, source2, length)", _correlation),

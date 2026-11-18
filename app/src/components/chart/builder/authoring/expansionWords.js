@@ -33,6 +33,7 @@ function phraseOf(hit, scope, named) {
     case 'vwma': return `the ${n}-bar volume-weighted average of ${say(a0)}`
     case 'roc': return `the ${n}-bar rate of change of ${say(a0)}, in percent`
     case 'mom': return `the ${n}-bar momentum of ${say(a0)}`
+    case 'dpo': return `the ${n}-bar Detrended Price Oscillator of ${say(a0)}`
     case 'kcMiddle': return `the ${n}-bar Keltner Channel middle line of ${say(a0)}`
     case 'kcUpper':
     case 'kcLower': return `the ${hit.name === 'kcUpper' ? 'upper' : 'lower'} Keltner Channel band of ${say(a0)} (${n} bars, ${say(a2)} × the average true range)`

@@ -8016,6 +8016,99 @@
      "why": "first entry"
     }
    ]
+  },
+  {
+   "id": "detrended_price_oscillator",
+   "name": "Detrended Price Oscillator",
+   "aliases": [
+    "detrended price oscillator",
+    "detrended price oscillator indicator",
+    "detrended oscillator"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "length",
+     "label": "Length",
+     "default": 21,
+     "min": 1,
+     "max": 5000,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "dpo",
+     "label": "DPO",
+     "type": "value",
+     "formula": "dpo(close, {length})",
+     "says": "the close minus where its simple average stood half the length plus one bars ago",
+     "tree": {
+      "type": "call",
+      "name": "dpo",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "num",
+        "value": 21
+       }
+      ]
+     },
+     "sites": {
+      "length": [
+       [
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::detrended_price_oscillator",
+    "published": {
+     "by": "StockCharts ChartSchool (the page credits no author)",
+     "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/detrended-price-oscillator-dpo",
+     "sources": [
+      {
+       "title": "StockCharts ChartSchool: Detrended Price Oscillator (DPO)",
+       "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/detrended-price-oscillator-dpo",
+       "kind": "reference"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "The price less an X-period simple moving average that is displaced X/2 + 1 periods (11 for 20), so that the average sits in the middle of its look-back period; the page says the oscillator is itself displaced to the left, so its last values do not line up with the latest prices. 20 periods by default.",
+     "note": "THIS ENTRY FOLLOWS TRADINGVIEW'S BUILT-IN in its default (not centred) form, not the page's: the close minus its simple average AS IT STOOD floor(length / 2) + 1 bars ago, drawn on the bar it is computed on. The captures show that is what TradingView plots, equal on every bar, at an odd length (21, 11 bars back) and an even one (20, also 11). The textbook form the page describes reads the PRICE that many bars back against today's average and is drawn shifted into the past (TradingView's Centered option): a different number on every bar. The bars-back count is derived from the length, which is why the formula is the function dpo(source, length). The default length, 21, is TradingView's."
+    },
+    "capture": {
+     "id": "builtin3-2026-11-18",
+     "against": "TradingView built-in: Detrended price oscillator",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars",
+      "NYSE:RDDT 1D, 668 bars"
+     ],
+     "grade": "EQUAL",
+     "detail": "Equal on every bar both charts have a value for. Graded at length 21 (run builtin2-2026-11-18, the same two charts) and at length 20 (this run), Centered off at both. One bar more or less of displacement disagrees on nearly every bar, and so does the Centered capture."
+    },
+    "follows": {
+     "whose": "TradingView's default form",
+     "what": "the close minus its simple average from half the length plus one bars ago",
+     "others": "The textbook form is drawn shifted into the past and differs."
+    }
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:5f88703a6eecb03e7d1c096e833235e0de57c86c404d7d0b44f92ea1d708e074",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ],
+   "acronyms": [
+    "dpo"
+   ]
   }
  ],
  "held": [

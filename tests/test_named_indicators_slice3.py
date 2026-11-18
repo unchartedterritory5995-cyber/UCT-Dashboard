@@ -256,8 +256,13 @@ def test_only_an_entry_graded_equal_may_say_it_follows_a_capture():
     e = copy.deepcopy(ENTRIES["trix"])
     e["evidence"]["capture"] = None
     assert ni.follows_a_capture(e) is None
-    # and no other entry claims it
-    assert [x["id"] for x in ni.entries() if ni.follows_a_capture(x)] == ["trix"]
+    # and only one other entry claims it: the Detrended Price Oscillator, whose page describes the
+    # centred form while the entry is TradingView's default one (equal on every bar at two lengths)
+    assert [x["id"] for x in ni.entries() if ni.follows_a_capture(x)] == ["trix", "detrended_price_oscillator"]
+    dpo = ENTRIES["detrended_price_oscillator"]
+    said = ni.member_sentence(dpo, ni.defaults(dpo))
+    assert "(length 21)" in said and "it follows TradingView's default form" in said and len(said) <= ni.SENTENCE_MAX
+    assert "published by" not in said
 
 
 # ═══ 3. one spelling, one indicator ══════════════════════════════════════════

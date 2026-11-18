@@ -63,7 +63,9 @@ def conflicts(acronym, entry_id=None):
 # ═══ (1) one indicator, and nothing else ═════════════════════════════════════
 
 def test_the_admitted_acronyms_are_these_and_each_names_one_indicator_only():
-    assert sorted(ADMITTED) == [("kst", "know_sure_thing"), ("obv", "on_balance_volume"),
+    # (2026-11-18) DPO joined with its entry: the same four conditions, checked by the same code below
+    assert sorted(ADMITTED) == [("dpo", "detrended_price_oscillator"), ("kst", "know_sure_thing"),
+                                ("obv", "on_balance_volume"),
                                 ("ppo", "percentage_price_oscillator"), ("pvt", "price_volume_trend")]
     for acronym, entry_id in ADMITTED:
         assert conflicts(acronym, entry_id) == [], (acronym, conflicts(acronym, entry_id))

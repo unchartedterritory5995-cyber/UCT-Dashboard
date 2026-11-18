@@ -28,6 +28,9 @@
   "coppock_curve": {
    "1": "sha256:beefe7aca98b9f24d66da5211174dff401c6a224b5dc96a0a4e16b000b3c48b1"
   },
+  "detrended_price_oscillator": {
+   "1": "sha256:5f88703a6eecb03e7d1c096e833235e0de57c86c404d7d0b44f92ea1d708e074"
+  },
   "directional_movement_index": {
    "1": "sha256:89e51e37a7c2236198bb5f30b488b35f34c8a1a7dfa2f8a0136c02a0830d1e91"
   },

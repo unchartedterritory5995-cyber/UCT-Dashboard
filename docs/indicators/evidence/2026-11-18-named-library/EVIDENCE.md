@@ -582,3 +582,39 @@ each tree that was compared. Both builders are held to it and to each other byte
 **What it costs.** The first bars of a chart's history, up to the restart window, have no value.
 
 No Pine name was added: Pine has no Laguerre function, and the translator has no entry for these.
+
+## Detrended Price Oscillator: a function because one number is derived from another
+
+The 35th entry. It was left out of slice 3 for one reason: how far back it reads is DERIVED from
+its length (half the length, plus one), and a library entry records where each setting's number
+sits with no way to say that.
+
+| | |
+|---|---|
+| Formula | `dpo(close, length)`, length 21. The function writes: the source minus its `length`-bar simple average AS IT STOOD floor(length / 2) + 1 bars ago (`callExpansions.js`, mirrored on the server). An exact closed form over the table, as `roc` and `mom` are; it reads back as its call and has one number in Inputs |
+| Whose form it is | TradingView's built-in in its DEFAULT (not centred) form. The entry FOLLOWS that capture (the rule TRIX set: only an entry graded equal on every bar may) |
+| Page read (2026-11-18) | StockCharts ChartSchool, "Detrended Price Oscillator (DPO)". It describes the TEXTBOOK form: the average displaced X/2 + 1 periods so that it sits in the middle of its look-back, with the oscillator itself displaced to the left. TradingView's own help article for the indicator could not be fetched (404), so nothing here quotes it |
+| Value check (tier a) | `tests/test_named_indicators_values.py::detrended_price_oscillator`: the same arithmetic written out with integer division, against the entry at lengths 21, 20, 14, 15, 2 and 1; a count one off fails |
+| Capture (tier c) | EQUAL. Lengths 21 (run builtin2-2026-11-18) and 20 (run builtin3-2026-11-18), Centered off, on SPY daily from its listing (8,509 bars) and RDDT (668): equal on every bar both have a value for, largest relative difference 0 |
+
+**The two forms are different numbers.** The textbook form compares the price half-the-length-plus-one
+bars back with today's average and is drawn shifted that many bars into the past (TradingView's
+Centered option). The default form compares today's price with the average as it stood that many
+bars ago, and is drawn on the bar it is computed on. This entry is the default form: it is what a
+member comparing charts will see, and it puts nothing on bars that have already closed.
+
+**The floor is pinned on an odd and an even length.** 21 and 20 both read the average 11 bars back.
+Graded through this engine at both, on both charts, and controlled: one bar more or less of
+displacement disagrees on all but a handful of 8,478 bars, and the Centered capture disagrees on
+every bar.
+
+**Why a function and not a derived place.** Teaching the library that one number is a function of
+another would change the build tool, the case generator, the window's Inputs and the door, in two
+languages, for one entry. The expansion module already holds exact closed forms that are read back
+as their call (ruling 2026-11-18, the route chosen).
+
+No Pine name was added: the translator has no entry for this function.
+
+**Its acronym.** DPO is admitted inside Create Indicator, a fifth beside the four above, under the
+same four conditions: it is the initials of this entry's name, of no other indicator UCT knows by
+name, and no word of the product's own.

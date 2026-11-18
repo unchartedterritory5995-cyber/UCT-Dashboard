@@ -474,6 +474,20 @@ export const CALL_EXPANSIONS = Object.freeze({
     },
   },
   // ta.vwma = sma(src·volume, n) / sma(volume, n) — TradingView's published closed form.
+  // ⭐ 2026-11-18 — the Detrended Price Oscillator, in TradingView's DEFAULT (not centred) form:
+  // the source minus its n-bar simple average AS IT STOOD floor(n / 2) + 1 bars ago. The bars-back
+  // count is DERIVED from the length, which is why this is a function: a library entry records
+  // where each setting's number sits and has no way to say "half of that one, plus one". An exact
+  // closed form over the table, as roc and mom are. (The textbook form reads the PRICE that many
+  // bars back against today's average and is drawn shifted into the past: another number.)
+  dpo: {
+    pending: true, min: 2, max: 2, signature: 'dpo(source, length)', describe: 'Detrended Price Oscillator (TradingView\'s default form): source − its n-bar simple average as it stood floor(n ÷ 2) + 1 bars ago',
+    build: (a) => {
+      const n = windowOf(a[1], 1)
+      if (!Number.isFinite(n)) return null
+      return cOp('-', [a[0], { type: 'offset', value: Math.floor(n / 2) + 1, args: [cCall('sma', [a[0], cNum(n)])] }])
+    },
+  },
   vwma: {
     min: 2, max: 2, signature: 'vwma(source, length)', describe: 'volume-weighted moving average: sma(source × volume) ÷ sma(volume)',
     build: (a) => {
@@ -606,11 +620,11 @@ export const CALL_EXPANSIONS = Object.freeze({
   },
   // Laguerre Filter and Laguerre RSI — `laguerreStage` above. NUMBER PENDING.
   laguerre: {
-    min: 2, max: 2, signature: 'laguerre(source, gamma)', describe: 'the Laguerre Filter (Ehlers): four smoothing stages of `source`, each keeping `gamma` of itself, averaged with weights 1, 2, 2, 1. A larger gamma is smoother and slower',
+    pending: true, min: 2, max: 2, signature: 'laguerre(source, gamma)', describe: 'the Laguerre Filter (Ehlers): four smoothing stages of `source`, each keeping `gamma` of itself, averaged with weights 1, 2, 2, 1. A larger gamma is smoother and slower',
     build: (a) => laguerreFilterTree(a),
   },
   laguerreRsi: {
-    min: 2, max: 2, signature: 'laguerreRsi(source, gamma)', describe: 'the Laguerre RSI (Ehlers), 0 to 1: of the gaps between the four Laguerre stages of `source`, the share where an earlier stage is above the later one',
+    pending: true, min: 2, max: 2, signature: 'laguerreRsi(source, gamma)', describe: 'the Laguerre RSI (Ehlers), 0 to 1: of the gaps between the four Laguerre stages of `source`, the share where an earlier stage is above the later one',
     build: (a) => laguerreRsiTree(a),
   },
 })
@@ -786,6 +800,10 @@ function candidates(t) {
   }
   if (isOp(t, '-', 2) && t.args[1] && t.args[1].type === 'offset') {
     out.push(['mom', [t.args[0], cNum(t.args[1].value)]])
+    // dpo: the same outline with an average read back (confirmed by rebuilding: the count must be
+    // the one that length derives, and the average must be of the same source)
+    const avg = t.args[1].args && t.args[1].args[0]
+    if (isCall(avg, 'sma') && avg.args.length === 2) out.push(['dpo', [t.args[0], avg.args[1]]])
   }
   if (isOp(t, '/', 2) && isCall(t.args[1], 'sma') && isCall(t.args[0], 'sma') && isOp(t.args[0].args[0], '*', 2)) {
     out.push(['vwma', [t.args[0].args[0].args[0], t.args[1].args[1]]])

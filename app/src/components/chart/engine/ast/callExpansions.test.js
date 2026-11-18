@@ -109,6 +109,49 @@ describe('fisher(length): the Fisher Transform, NUMBER PENDING', () => {
   })
 })
 
+describe('dpo(source, length): the Detrended Price Oscillator, TradingView\'s default form', () => {
+  const num = (value) => ({ type: 'num', value })
+  const CLOSE = { type: 'series', name: 'close' }
+  const dpo = (length, source = CLOSE) => expandCalls({ type: 'call', name: 'dpo', args: [source, num(length)] })
+
+  it('is the source minus its simple average as it stood floor(n / 2) + 1 bars ago', () => {
+    for (const [length, back] of [[21, 11], [20, 11], [14, 8], [15, 8], [2, 2], [1, 1], [200, 101]]) {
+      expect(astHash(dpo(length)), `length ${length}`).toBe(astHash(parseFormula(`close - sma(close, ${length})[${back}]`).ast))
+    }
+    // a member typing the short name gets the same tree
+    expect(astHash(parseFormula('dpo(close, 21)').ast)).toBe(astHash(dpo(21)))
+    // CONTROL: one bar more or less is another formula, and so is the textbook (price read back) form
+    expect(astHash(dpo(21))).not.toBe(astHash(parseFormula('close - sma(close, 21)[10]').ast))
+    expect(astHash(dpo(21))).not.toBe(astHash(parseFormula('close[11] - sma(close, 21)').ast))
+  })
+
+  it('a length that is not a whole number of at least 1 is declined with the sentence', () => {
+    for (const bad of [num(0), num(20.5), { type: 'series', name: 'len' }]) {
+      expect(() => expandCalls({ type: 'call', name: 'dpo', args: [CLOSE, bad] })).toThrow(ExpansionRefusal)
+    }
+    expect(expansionProblem({ type: 'call', name: 'dpo', args: [CLOSE, num(0)] })).toBe('dpo needs a whole-number length written as a number — dpo(source, length)')
+  })
+
+  it('reads back as its call, with the length as its one number; a near miss stays the formula it is', () => {
+    expect(recogniseExpansion(dpo(21))).toEqual({ name: 'dpo', args: [CLOSE, num(21)] })
+    expect(recogniseExpansion(dpo(20))).toEqual({ name: 'dpo', args: [CLOSE, num(20)] })
+    const hl2 = parseFormula('(high + low) / 2').ast
+    expect(collapseExpansions(dpo(9, hl2))).toEqual({ type: 'call', name: 'dpo', args: [hl2, num(9)] })
+    const above = { type: 'op', name: '>', args: [dpo(21), num(0)] }
+    expect(collapseExpansions(above)).toEqual({ type: 'op', name: '>', args: [{ type: 'call', name: 'dpo', args: [CLOSE, num(21)] }, num(0)] })
+    // the count a length does NOT derive, or an average of ANOTHER source: not the oscillator
+    expect(recogniseExpansion(parseFormula('close - sma(close, 21)[10]').ast)).toBeNull()
+    expect(recogniseExpansion(parseFormula('close - sma(open, 21)[11]').ast)).toBeNull()
+    // and plain momentum is still not renamed by default
+    expect(recogniseExpansion(parseFormula('close - close[11]').ast)).toBeNull()
+  })
+
+  it('is said in words and named as the indicator, and adds NO Pine name', () => {
+    expect(describeTree(parseFormula('dpo(close, 21)').ast)).toContain('the 21-bar Detrended Price Oscillator of ')
+    expect(Object.prototype.hasOwnProperty.call(BUILTIN_CALL_TREE, 'dpo')).toBe(false)
+  })
+})
+
 describe('laguerre(source, gamma) and laguerreRsi(source, gamma): NUMBER PENDING', () => {
   const num = (value) => ({ type: 'num', value })
   const CLOSE = { type: 'series', name: 'close' }
