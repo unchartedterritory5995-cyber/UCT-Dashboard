@@ -116,17 +116,23 @@ export function createHistoryFeed({ source = createHistorySource() } = {}) {
   // whole depth joins inside the open's wait (LAKE_JOIN_WAIT_MS) and paints once. This loads the index
   // into the page (kept for its life: the open skips that hop too) and HEADs the pieces of the chart's
   // whole depth (the same pieces `prime` would fetch), so the edge keeps them; no body comes back.
-  // Resolves the pieces asked (0 when the lake has nothing, or the key was warmed on this page). Never rejects.
+  // Resolves the pieces asked (0 when the lake has nothing, or the key was warmed on this page), or
+  // EDGE_WARM_REFUSED (-1) when the edge refused the member (401/403). Never rejects.
+  // The warm's signal never reaches loadIndex: that promise is shared with a chart's own read, which an
+  // aborted warm must not reject (review of #1880).
   const edgeWarmed = new Set()
   function edgeWarm(key, { signal } = {}) {
     const ls = lakeSeriesOfKey(key)
-    if (!ls || !ls.series || !source.warmEdge || edgeWarmed.has(key)) return Promise.resolve(0)
+    if (!ls || !ls.series || !source.warmEdge || edgeWarmed.has(key) || signal?.aborted) return Promise.resolve(0)
     edgeWarmed.add(key)
     if (edgeWarmed.size > EDGE_WARM_MAX_KEYS) edgeWarmed.delete(edgeWarmed.values().next().value)
-    return Promise.resolve().then(() => source.loadIndex(ls.sym, { signal })).then((index) => {
+    return Promise.resolve().then(() => source.loadIndex(ls.sym)).then((index) => {
       if (!index || signal?.aborted) return 0
       return source.warmEdge(ls.sym, ls.series, depthPieces(index, ls.series, PRIME_PIECES, lakeTargetBars(ls.tf)), { signal })
-    }).catch(() => { edgeWarmed.delete(key); return 0 })
+    }).catch((err) => {
+      edgeWarmed.delete(key)
+      return err?.status === 401 || err?.status === 403 ? -1 : 0
+    })
   }
   return { olderBars, prime, hasSymbol, edgeWarm }
 }

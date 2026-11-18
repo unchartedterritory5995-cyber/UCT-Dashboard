@@ -22,6 +22,8 @@ export const HEADER_NAME = 'X-Ubh-Header'
  *  before the depth could join; a 23-year 1h series (50,000 bars) paid three rounds. 24 asks a whole
  *  50k-bar 60m / 40k-bar 30m depth in one round; the pieces are 20-60 KB each. */
 export const MAX_PARALLEL = 24
+/** Symbols whose index a page keeps (least recently used forgotten first). */
+export const INDEX_CACHE_MAX = 150
 
 /** The app's chart timeframe -> the lake series. 60m has two series: regular-session buckets
  *  (09:30-aligned) and extended-hours buckets (clock hours). */
@@ -126,6 +128,7 @@ export function createHistorySource(o = {}) {
   function loadIndex(sym, { signal } = {}) {
     const symbol = lakeSymbol(sym)
     let p = indexes.get(symbol)
+    if (p) { indexes.delete(symbol); indexes.set(symbol, p) }   // most recently used last
     if (!p) {
       p = (async () => {
         const res = await get(`${base}/v1/index/${encodeSymbol(symbol)}.json`, signal)
@@ -138,6 +141,8 @@ export function createHistorySource(o = {}) {
         return doc
       })()
       indexes.set(symbol, p)
+      // bounded (review of #1880: list warms load indexes too); a forgotten index is only read again
+      if (indexes.size > INDEX_CACHE_MAX) indexes.delete(indexes.keys().next().value)
       p.catch(() => { if (indexes.get(symbol) === p) indexes.delete(symbol) })   // an error is not kept
     }
     return p

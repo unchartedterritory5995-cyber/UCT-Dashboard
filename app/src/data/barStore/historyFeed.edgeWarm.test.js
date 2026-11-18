@@ -70,6 +70,35 @@ describe('the edge warm', () => {
     expect(await createHistoryFeed({ source: live }).edgeWarm(keyOf({ sym: 'AAA', tf: '5' }), { signal: ac.signal })).toBe(0)
     await flush()
     expect(source.warmEdge).not.toHaveBeenCalled()
+    expect(live.loadIndex).not.toHaveBeenCalled()                       // an aborted warm asks nothing at all
     expect(live.warmEdge).not.toHaveBeenCalled()
+  })
+
+  it('E4 an edge that refuses the member (401/403) answers -1, so the list warm stops', async () => {
+    const { HistoryError } = await import('../historyLake/source')
+    for (const status of [401, 403]) {
+      const src = { loadIndex: vi.fn(async () => { throw new HistoryError('no', { status }) }), warmEdge: vi.fn() }
+      expect(await createHistoryFeed({ source: src }).edgeWarm(keyOf({ sym: 'AAA', tf: '60' }))).toBe(-1)
+    }
+    const src = { loadIndex: vi.fn(async () => { throw new HistoryError('down', { status: 503 }) }), warmEdge: vi.fn() }
+    expect(await createHistoryFeed({ source: src }).edgeWarm(keyOf({ sym: 'AAA', tf: '60' }))).toBe(0)
+  })
+
+  it('E5 the page keeps at most INDEX_CACHE_MAX indexes, the least recently used forgotten first', async () => {
+    const { INDEX_CACHE_MAX } = await import('../historyLake/source')
+    const fetch = vi.fn(async (url) => {
+      const sym = /s-([A-Z0-9]+)\.json/.exec(url)?.[1]
+      return { ok: true, status: 200, json: async () => ({ ...index(sym), symbol: sym }) }
+    })
+    const src = createHistorySource({ fetch })
+    const syms = Array.from({ length: INDEX_CACHE_MAX }, (_, i) => `S${i}`)
+    for (const s of syms) await src.loadIndex(s)
+    await src.loadIndex('S0')                                           // used again: now the newest
+    await src.loadIndex('EXTRA')                                        // one more: S1 is forgotten
+    const calls = fetch.mock.calls.length
+    await src.loadIndex('S0')
+    expect(fetch.mock.calls.length).toBe(calls)
+    await src.loadIndex('S1')
+    expect(fetch.mock.calls.length).toBe(calls + 1)
   })
 })
