@@ -82,6 +82,8 @@ export function initialState(key, ctx = {}) {
     source: null, restSeen: false, needsFull: true, error: null, invalidatedFor: null,
     gen: 0, pendingHistoryRev: null, depthFloor: 0, localHoleFrom: null, liveGapFrom: null,
     lakeOnly: false,
+    // ⭐⭐ (2026-11-18) the route's `newest_bar_is_forming` WITH the bar it describes ({t, forming}), or null
+    newestForming: null,
   }
   s.status = deriveStatus(s, { ...ctx, session: ctx.session ?? p.session ?? 'rth' })
   return Object.freeze(s)
@@ -369,7 +371,7 @@ function isForeign(state, obj) {
 // ── snapshot finalize (identity-stable, frozen, status) ──────────────────────
 
 const BASE_FIELDS = ['completeThrough', 'verifiedThrough', 'seriesRev', 'historyRev', 'cacheKey', 'adjBasis', 'grid', 'restFrom', 'sealedSpans']
-const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom', 'gen', 'pendingHistoryRev', 'depthFloor', 'localHoleFrom', 'liveGapFrom', 'lakeOnly']
+const META_FIELDS = ['tailStatus', 'source', 'restSeen', 'needsFull', 'error', 'invalidatedFor', 'deltaFrom', 'gen', 'pendingHistoryRev', 'depthFloor', 'localHoleFrom', 'liveGapFrom', 'lakeOnly', 'newestForming']
 
 function _sameFields(a, b) {
   if (!a || !b) return false
@@ -521,6 +523,21 @@ function staleReason(state, p, action) {
 // ── REST answers ─────────────────────────────────────────────────────────────
 
 const _hasContract = (p) => p && (p.contract != null || 'complete_through' in p || 'developing' in p)
+
+/** ⭐⭐ (2026-11-18) THE ROUTE'S TRI-STATE FOR THE NEWEST BAR OF THIS ANSWER (`newest_bar_is_forming`, which
+ *  `api/routers/bars.py` computes from the bar it describes, at request time), kept WITH that bar's time: the
+ *  snapshot says it only about that bar (`adapter.js::newestBarIsFormingOf`). ⚰️ The store dropped it, so every
+ *  chart on this source handed its runs "unknown" at every hour, and a strategy read its closed newest bar as
+ *  forming. An answer that states none keeps the last one, which still names its own bar. Identity-stable. */
+function _formingOf(p, state) {
+  const f = p.newest_bar_is_forming
+  const rows = Array.isArray(p.bars) ? p.bars : null
+  const last = rows && rows.length ? rows[rows.length - 1] : null
+  const t = last && typeof last === 'object' ? normT(last.t ?? last.time, state.tf) : NaN
+  if (typeof f !== 'boolean' || !finite(t)) return state.newestForming ?? null
+  const held = state.newestForming
+  return held && held.t === t && held.forming === f ? held : Object.freeze({ t, forming: f })
+}
 
 function applyRest(state, action, ctx, kind) {
   const p = action.payload || {}
@@ -725,6 +742,7 @@ function applyRest(state, action, ctx, kind) {
     // A full answer re-proves what it carries: a local hole it did not fill is the server's.
     localHoleFrom: kind === 'full' ? null : state.localHoleFrom,
     liveGapFrom: null,   // the server answered: what it still lacks is its truth (P3-S2b)
+    newestForming: _formingOf(p, state),
   }, ctx)
 }
 
