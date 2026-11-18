@@ -87,7 +87,11 @@ TF_MAP = {
 PERIOD_MAP = {
     "1m":  "7d",
     "2m":  "60d", "5m":  "60d", "15m": "60d", "30m": "60d",
-    "60m": "60d", "90m": "60d",
+    # ⭐ RS RATING L12 (2026-11-18): yfinance serves 730 days of 60m bars (^GSPC: 5,077 from 2023-12-20, read
+    # 2026-11-18); asking 60 days gave an hourly chart of an index, and Fred RS's RS line on any 1h chart
+    # (SP:SPX at the chart's own period), only its last 60 sessions. The finer intervals stay at yfinance's own
+    # 60-day cap.
+    "60m": "730d", "90m": "60d",
     # ⭐ RS RATING L9: daily reads the FULL period and is cut at `_daily_window_start`, the
     # same span the FMP primary reads, so primary and fallback answer alike (it was "5y").
     "1d":  "max", "5d":  "5y",  "1wk": "10y", "1mo": "max", "3mo": "max",
