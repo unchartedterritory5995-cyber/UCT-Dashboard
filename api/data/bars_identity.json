@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "generated": "2026-11-17",
+  "how": "Every symbol another company held before (52, from the vendor's ticker events, tools/history_lake/identity.py) was checked against production's daily series for a price break at the edges of the other company's window. These five serve another company inside a window. `source`: the symbol the current company traded as during the window (its bars replace the window's); null: it did not trade yet (the window is dropped). `from` null: everything before `until`. Dates are ET trading dates, `until` exclusive.",
+  "symbols": {
+    "META": [
+      {"from": "2021-06-30", "until": "2022-01-31", "source": "FB",
+       "why": "Roundhill Metaverse ETF (now METV) traded as META: $15.12 on 2021-06-30 after Meta's $351.89 on 2021-06-29; Meta (as FB) again $313.26 on 2022-01-31"}
+    ],
+    "CALY": [
+      {"from": "2023-07-13", "until": "2024-10-10", "source": "MODG",
+       "why": "another company (now CALI) traded as CALY: $50.05 on 2023-07-14 after Callaway's $20.31; Callaway (as MODG) $9.91 on 2024-10-10"}
+    ],
+    "CCC": [
+      {"from": null, "until": "2021-02-01", "source": null,
+       "why": "Churchill Capital, then Clarivate (now CLVT) traded as CCC until 2021-01-29 ($28.94); CCC Intelligent Solutions' lineage from 2021-02-01 ($13.79)"}
+    ],
+    "MSGE": [
+      {"from": null, "until": "2023-04-21", "source": null,
+       "why": "the earlier MSG Entertainment (now Sphere, SPHR) traded as MSGE from 2020-04 to 2023-04-20; the current MSGE from 2023-04-21"}
+    ],
+    "STRC": [
+      {"from": null, "until": "2025-07-30", "source": null,
+       "why": "another security traded as STRC at $1.6-2.5 (2021-09 to 2024-04); Strategy's preferred from 2025-07-30 ($94.50)"}
+    ]
+  }
+}

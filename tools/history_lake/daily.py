@@ -263,7 +263,10 @@ def _publish_and_verify(root: Path, tree: str, bucket: str, prefix: str, through
     pub += ["--out", str(root / "publish"), "--splits", str(root / "ref" / "splits.json"), "--as-of", through,
             "--upload", "--bucket", bucket, "--prefix", prefix]
     if built_at is not None:
-        pub += ["--force-since", f"{built_at - 1:.0f}"]
+        # packs rebuilt by this run: always sent, and the only ones whose pieces are checked
+        pub += ["--force-since", f"{built_at - 1:.0f}", "--check-since", f"{built_at - 1:.0f}"]
+    else:
+        pub += ["--no-check"]           # nothing rebuilt: every pack was checked when it was written
     events = root / "ref" / "ticker_events.jsonl"
     if events.exists():                 # reused tickers cut, renamed companies stitched (identity.py)
         pub += ["--ticker-events", str(events)]

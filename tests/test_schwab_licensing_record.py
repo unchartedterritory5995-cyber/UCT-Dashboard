@@ -17,10 +17,17 @@ not licensed for member display; api/services/provider_licensing_class.py had no
 still showed the pre-answer class; and the Flow Scoreboard rows (T-27, X-12) named the OPRA
 tape as the source of gains that are computed from Schwab snapshots.
 
-THEN, THE SAME DAY, the owner ruled (verbatim) "Move Flow Record to Massive": the daily price
-recording behind the Flow Record reads Massive first and keeps Schwab only as the backup for a
-contract Massive has no price for; past results stay as recorded. That ruling moved one job and
-nothing else here. The T-27 / X-12 rail below holds the rows to the order the code runs.
+THEN, THE SAME DAY, the owner ruled (verbatim) "Move Flow Record to Massive", and later that day
+(verbatim) "Move it, fix the status and remove schwab from everything". SCHWAB IS RETIRED FROM THE
+PRODUCT: no production code reads it (tests/test_no_schwab_in_production_code.py is the standing
+rail). What this file holds now:
+
+  * the register keeps every Schwab row and every class it recorded (nothing deleted, no class
+    changed), and each row carries a dated note that says Schwab was retired on 2026-11-17, with the
+    owner's words;
+  * the licensing table keeps its four Schwab rows as the historical record, each marked retired;
+  * the Flow Record reads Massive only, in the code and in the T-27 / X-12 rows;
+  * the two flags that chose a Schwab source are retired in the ledger, and the code reads neither.
 
 Stdlib only, no network, no app import beyond the licensing table (which imports nothing).
 """
@@ -116,50 +123,62 @@ def _named_calls(fn: ast.AST) -> list[tuple[int, str]]:
     return [(n.lineno, n.func.id) for n in ast.walk(fn) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)]
 
 
-def test_the_flow_scoreboard_rows_name_the_sources_in_the_order_the_code_reads_them():
+OWNER_WORDS = 'Move it, fix the status and remove schwab from everything'
+
+
+def test_the_register_says_schwab_was_retired_and_deletes_nothing():
+    """The dated-note convention: a note is appended, the earlier text and every class stay."""
+    for rid, header, cell in (("T-77", T_HEADER, "Use"), ("T-78", T_HEADER, "Use"),
+                              ("X-09", X3B_HEADER, "What leaves")):
+        text = _row(rid, header)[cell]
+        assert "RETIRED 2026-11-17" in text, rid
+        assert OWNER_WORDS in text, rid                                   # quoted verbatim
+        assert "class is left as recorded" in text, rid
+    t77 = _row("T-77", T_HEADER)
+    assert "Massive's options snapshot only" in t77["Use"]
+    assert "one process-wide OAuth token" in t77["Driver clause"]          # the history is still there
+    assert "no new Schwab snapshot is stored" in _row("T-78", T_HEADER)["Use"]
+    assert "is the owner's to delete" in _row("T-78", T_HEADER)["Use"]     # the token file, never touched here
+    t79 = _row("T-79", T_HEADER)
+    assert "2026-11-17 note" in t79["Use"] and "derived from Massive, not Schwab" in t79["Use"]
+    assert "**derived from Schwab chains**" in _row("X-09", X3B_HEADER)["What leaves"]   # kept, with the note after it
+
+
+def test_the_flow_record_reads_massive_only_in_the_code_and_in_its_rows():
     """T-27 / X-12 said the gains come "from the OPRA tape"; then, from the code, from Schwab;
-    then the owner ruled "Move Flow Record to Massive" (2026-11-17). The tracker now fills each
-    pick's daily price and open interest from Massive first and from Schwab only as the backup.
-    Read that order from the code, then from the rows. (The behaviour itself is driven with both
-    vendors faked in tests/test_top_flow_snapshot_source.py.)"""
-    tree = ast.parse((REPO / "api" / "top_flow_tracker.py").read_text(encoding="utf-8"))
-    # the declared default is Massive first; Schwab only is the other value (the rollback)
-    table = next(n.value for n in tree.body if isinstance(n, ast.Assign)
-                 and any(getattr(t, "id", "") == "TOP_FLOW_MODE_FLAGS" for t in n.targets))
-    assert ast.literal_eval(table) == {"TOP_FLOW_SNAPSHOT_SOURCE": ("massive", ("massive", "schwab"))}
-    # the sweep asks Massive before it asks Schwab ...
+    then Massive first with Schwab as backup; then (same day) Massive only. Read that from the
+    code, then from the rows, which keep every earlier sentence. (The behaviour itself is driven
+    with Massive faked in tests/test_top_flow_snapshot_source.py.)"""
+    src = (REPO / "api" / "top_flow_tracker.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    assert not [n for n in tree.body if isinstance(n, ast.Assign)
+                and any(getattr(t, "id", "") == "TOP_FLOW_MODE_FLAGS" for t in n.targets)]
     sweep = _tracker_fn(tree, "_snapshot_prices")
-    calls = _named_calls(sweep)
-    massive_at = min(line for line, name in calls if name == "_massive_entries")
-    schwab_at = min(line for line, name in calls if name == "get_batch_option_quotes")
-    assert massive_at < schwab_at
-    # ... through the two readers the rows name
-    massive_fn = _tracker_fn(tree, "_massive_entries")
-    imports = {(n.module, a.name) for fn in (sweep, massive_fn) for n in ast.walk(fn)
-               if isinstance(n, ast.ImportFrom) for a in n.names}
+    assert "_massive_chunk" in {name for _, name in _named_calls(sweep)}
+    massive_fn = _tracker_fn(tree, "_massive_chunk")
+    imports = {(n.module, a.name) for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) for a in n.names}
     assert ("api.massive_oi_snapshots", "_fetch_fields_all_async") in imports
-    assert ("api.schwab_service", "get_batch_option_quotes") in imports
+    assert not [m for m, _ in imports if "schwab" in (m or "").lower()]
     assert "_fetch_fields_all_async" in {name for _, name in _named_calls(massive_fn)}
-    assert "get_batch_option_quotes" not in {name for _, name in _named_calls(massive_fn)}
+    assert "get_batch_option_quotes" not in src
     for rid, header, what, provider in (("T-27", T_HEADER, "Use", "Provider · data class"),
                                         ("X-12", X3B_HEADER, "What leaves", "Provider · data")):
         row = _row(rid, header)
-        assert "Massive OPRA" in row[provider] and "Schwab" in row[provider], rid
-        assert "Massive `/v3/snapshot/options` (the T-28 data class) first, with Schwab as the backup" in row[provider], rid
-        assert "results recorded before the change are Schwab" in row[provider], rid
+        assert "Massive OPRA" in row[provider], rid
+        assert "Changed again on 2026-11-17" in row[provider] and "Massive only; no Schwab read remains" in row[provider], rid
         use = row[what]
-        assert 'owner ruling, verbatim: "Move Flow Record to Massive"' in use, rid
-        first = use.index("reads Massive first (`api.massive_oi_snapshots._fetch_fields_all_async`)")
-        backup = use.index("(`api.schwab_service.get_batch_option_quotes`) only for a contract Massive has no price for")
-        assert first < backup, rid
-        assert "`TOP_FLOW_SNAPSHOT_SOURCE=schwab` is the rollback" in use, rid
-        # history kept: the OPRA wording, and the note that said Schwab (true of results up to the change)
+        assert "Changed again on 2026-11-17" in use and OWNER_WORDS in use, rid
+        assert "the daily snapshot reads Massive only" in use, rid
+        assert "Results recorded from Schwab stay as recorded" in use, rid
+        # history kept: the OPRA wording, the Schwab note, the first ruling and its rollback line
         assert 'was "contract-price gains from the OPRA tape"' in use, rid
         assert "read from Schwab (`api/top_flow_tracker.py::snapshot_prices`" in use, rid
-        assert "those stay as recorded" in use, rid
+        assert 'owner ruling, verbatim: "Move Flow Record to Massive"' in use, rid
+        assert "`TOP_FLOW_SNAPSHOT_SOURCE=schwab` is the rollback" in use, rid
+        assert use.index("is the rollback") < use.index("Changed again on 2026-11-17"), rid
 
 
-# ── the licensing table states the register's class, and switches nothing on ──
+# ── the licensing table keeps the register's class as a retired record, and switches nothing on ──
 
 def test_every_schwab_row_in_the_table_is_the_class_its_register_row_has_in_force():
     schwab = {dc: e for (v, dc), e in plc.all_entries().items() if v == "schwab"}
@@ -168,6 +187,8 @@ def test_every_schwab_row_in_the_table_is_the_class_its_register_row_has_in_forc
         assert e.register_row in ("T-77", "T-78", "T-79"), dc
         assert _leading_class(_row(e.register_row, T_HEADER)["Class in force"]) == e.licensing_class, dc
     assert schwab["gex_public_recordings"].licensing_class == "R"       # T-79 is not loosened
+    for dc, e in schwab.items():
+        assert e.note.startswith("RETIRED 2026-11-17"), dc                # a record, not a live read
     # equity quotes have no register row: unregistered, so Unknown -- never inferred from the option rows
     assert plc.licensing_class_for("schwab", "quotes") == "U"
     assert plc.entry_for("schwab", "quotes").register_row == "n/a"
@@ -197,36 +218,34 @@ def test_no_running_code_looks_a_schwab_pair_up_so_the_rows_open_no_gate():
     assert readers == []
 
 
-# ── the two GEX notes state the recorded position, and no default moved ───────
+# ── the two source switches are retired, and nothing reads them ───────────────
 
-_UNLICENSED = re.compile(r"not a licen[cs]e to redisplay|personal retail login")
-
-
-def _gex_comment() -> str:
-    src = (REPO / "api" / "gex_service.py").read_text(encoding="utf-8")
-    start = src.index("Chain source (LCQ-02")
-    return src[start:src.index("GEX_SOURCE_ENV =", start)]
+def _ledger() -> dict:
+    return json.loads((REPO / "docs" / "feature_flags.json").read_text(encoding="utf-8"))
 
 
-def _gex_flag() -> dict:
-    return json.loads((REPO / "docs" / "feature_flags.json").read_text(encoding="utf-8"))["flags"]["GEX_CHAIN_SOURCE"]
-
-
-def test_the_gex_notes_state_the_recorded_position_not_the_retired_one():
-    for name, text in (("api/gex_service.py", _gex_comment()), ("GEX_CHAIN_SOURCE note", _gex_flag()["note"])):
-        prose = _prose(text)
-        assert not _UNLICENSED.search(prose), name
-        for cite in ("t-77", "t-78", "esc-10", "answered by the owner 2026-09-19: schwab confirmed",
-                     "closed and approved by the owner 2026-09-26", "t-79", "not a licence gate"):
-            assert cite in prose, (name, cite)
-        assert re.search(r"agreement document itself is not captured in (this|the) repo", prose), name
-
-
-def test_the_note_fix_moved_no_default():
-    flag = _gex_flag()
-    assert flag["default"] == "schwab" and flag["values"] == ["schwab", "massive", "shadow"]
-    assert flag["status"] == "armed" and flag["where"] == ["web"]
+def test_the_gex_chain_is_massive_in_the_code_and_the_switch_is_retired_in_the_ledger():
     tree = ast.parse((REPO / "api" / "gex_service.py").read_text(encoding="utf-8"))
-    table = next(n.value for n in tree.body if isinstance(n, ast.Assign)
-                 and any(getattr(t, "id", "") == "GEX_CHAIN_MODE_FLAGS" for t in n.targets))
-    assert ast.literal_eval(table) == {"GEX_CHAIN_SOURCE": ("schwab", ("schwab", "massive", "shadow"))}
+    assigned = {getattr(t, "id", "") for n in tree.body if isinstance(n, ast.Assign) for t in n.targets}
+    assert not assigned & {"GEX_CHAIN_MODE_FLAGS", "GEX_SOURCE_ENV", "GEX_SOURCES", "GEX_MODES", "CHAINS_URL"}
+    fn = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "chain_source")
+    returns = [n.value.value for n in ast.walk(fn) if isinstance(n, ast.Return)]
+    assert returns == ["massive"]                                        # one source, no environment read
+    doc = _ledger()
+    for name in ("GEX_CHAIN_SOURCE", "TOP_FLOW_SNAPSHOT_SOURCE"):
+        assert name not in doc["flags"], name
+        row = doc["retired"][name]
+        assert row["retired"] == "2026-11-17" and row["state"] == "always massive", name
+        assert OWNER_WORDS in row["note"], name
+        assert "member_facing" not in row, name
+    note = _prose(doc["retired"]["GEX_CHAIN_SOURCE"]["note"])
+    assert "since 2026-09-30" in note and "inert" in note               # production's set value, said plainly
+    assert "the gex arithmetic is unchanged" in note
+
+
+def test_the_three_schwab_login_gates_are_retired_as_removed():
+    doc = _ledger()
+    for name in ("SCHWAB_AUTO_REFRESH_ENABLED", "SCHWAB_TOKEN_PUSH_ENABLED", "SCHWAB_TOKEN_REPLICA_RECEIVE_ENABLED"):
+        assert name not in doc["flags"], name
+        row = doc["retired"][name]
+        assert row["retired"] == "2026-11-17" and row["state"] == "removed" and "inert" in row["note"], name

@@ -661,6 +661,14 @@ def split_adjust_active() -> bool:
     return _ENABLED and _bsr.enabled()
 
 
+def _identity_source(symbol: str, tf: str) -> list[dict]:
+    """A source symbol's stored D/W/M bars, formatted, NOT sanitized (no ticker: its own listing
+    cutoff would drop exactly the earlier life being borrowed, e.g. FB's Meta years)."""
+    from api.services import bars_fetch as _bf
+    rows = _bf._sqlite.get_bars(symbol, tf, 20000)
+    return _bf._fmt_sqlite_bars(rows, tf, None) if rows else []
+
+
 # ── Public entry point ──────────────────────────────────────────────────────
 def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
     """Normalize a D/W/M bars list (list of {t,o,h,l,c,v}, ascending by t).
@@ -672,6 +680,12 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
     try:
         meta = _meta_cached(ticker)                      # None on cold miss (+warm)
         bars = _apply_listing_cutoff(bars, meta)
+        # Another company's bars INSIDE the series (bars_identity: META's 2021-06-30 .. 2022-01-28
+        # was the Roundhill ETF at ~$15): replaced by the company's own bars under the symbol it
+        # traded as then, or dropped. Before the split repair, so a filled window is adjusted with
+        # the rest of the series.
+        from api.services import bars_identity as _bid
+        bars = _bid.apply(ticker, bars, tf, _identity_source)
         # 🔴 THE KILL SWITCH HAS TO REACH HERE, AND FOR WEEKS IT DID NOT.
         # `BARS_SPLIT_REPAIR_ENABLED=0` was set after the split heuristic was found
         # to fire on ordinary flat days, and the incident report recorded the damage

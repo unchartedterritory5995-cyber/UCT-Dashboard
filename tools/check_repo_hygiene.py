@@ -77,6 +77,11 @@ BIG_ALLOWLIST = {
     "tests/fixtures/vendor/harness/elliot-wave-detector-pro-spy-60-2026-11-14.json",
     "tests/fixtures/vendor/harness/renderingnature-smc-reversal-engine-v71-spy-60-2026-11-14.json",
     "tests/fixtures/vendor/harness/zigzag-ma-pattern-recognition-spy-60-2026-11-14.json",
+    # 2026-11-18: one e73 capture fixture (10.2 MB, filed by 9ab9a7b457 "evidence: tonight's captures filed at e73",
+    # read by vendorHarness.b1Paints.test.js and the evidence ledger) turned the master deploy gate red at 04:15 UTC
+    # and held every deploy for 90 minutes. Same corpus and same reason as the S9 lines above; listed to unblock the
+    # gate, and the capture program may shrink or split it and delete this line.
+    "tests/fixtures/vendor/harness/heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-spy-1d-2026-11-17.json",
     # 2026-11-15: five S12 capture-ahead fixtures (Units DATA-BACKED and DATA-LTF, AMEX:SPY 1D from 1993, 8,507
     # bars, 38-60 plots each) are 5.2-7.1 MB; same corpus and same reason as the S9 lines above.
     "tests/fixtures/vendor/harness/advanced-custom-multi-ma-signals-emasmavwmavwap-spy-1d-2026-11-15.json",
@@ -102,6 +107,12 @@ BIG_ALLOWLIST = {
     # a stock's 60-minute window) is 5.1 MB. Same corpus and same reason as the S9 / S12 lines above; a
     # capture cannot be trimmed after the fact (its receipt, an fnv1a over its characters, binds every bar).
     "tests/fixtures/vendor/harness/vw-w4-session-daymask-btcusd-60-2026-11-16.json",
+    # 2026-11-17 (capture night, commit 9ab9a7b457 "tonight's captures filed at e73"): one AMEX:SPY 1D capture is
+    # 10.2 MB and turned the master deploy gate red for every deploy from 03:59Z to 05:30Z on 2026-11-18 (five
+    # master commits, none promoted). Same corpus and same reason as the S9 / S12 / BTCUSD lines above: a capture
+    # cannot be trimmed after the fact. Allow-listed by another session to unblock deploys, not by the capture
+    # programme: if that programme splits or shrinks this capture, delete this line.
+    "tests/fixtures/vendor/harness/heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-spy-1d-2026-11-17.json",
 }
 # A `.env*` may be tracked only when it carries no value — a template.
 ENV_ALLOWLIST = {".env.example"}
