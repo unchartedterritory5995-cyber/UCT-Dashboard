@@ -170,7 +170,7 @@
    "group": "example",
    "turns": [
     {
-     "words": "Show how extended price is above its 50 day moving average, measured in multiples of the 14 day ATR, and colour the line red above 7 and orange above 4.",
+     "words": "Show how extended price is above its 50 day simple moving average, measured in multiples of the 14 day ATR, and colour the line red above 7 and orange above 4.",
      "expect": {
       "kind": "change",
       "outputs": [
@@ -1276,11 +1276,11 @@
    ]
   },
   {
-   "id": "ctl-mcginley",
+   "id": "ctl-unknown-name",
    "group": "control",
    "turns": [
     {
-     "words": "Add the McGinley Dynamic",
+     "words": "Add the Gann Fan",
      "model_expected": false,
      "expect": {
       "kind": "refused",

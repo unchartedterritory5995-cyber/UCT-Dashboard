@@ -1,0 +1,14 @@
+//@version=6
+indicator("Running value witness", overlay=false)
+// A DECAYING shape: the McGinley Dynamic, length 14, seeded at the close, carried from the first bar.
+var float md = na
+md := na(md[1]) ? close : md[1] + (close - md[1]) / (8.4 * math.pow(close / md[1], 4))
+// A PATH-DEPENDENT shape: how many days in a row the close has been up, carried from the first bar.
+var int streak = 0
+streak := close > close[1] ? streak + 1 : 0
+// A second path-dependent shape: a level that only rises (the highest close so far, less 10%).
+var float ratchet = na
+ratchet := na(ratchet[1]) ? close * 0.9 : math.max(ratchet[1], close * 0.9)
+plot(md, "McGinley 14")
+plot(streak, "Up streak")
+plot(ratchet, "Ratchet")
