@@ -12,6 +12,7 @@ import process from 'node:process'
 import { computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers } from '../runtimeColumns.js'
 import {
   runtimeInputSpecsOf, withTimeframeInputs, runtimeInputValues, runtimeBuildInputs, TIMEFRAME_MENU, isTimeframeText,
+  __serveEveryTimeframeSettingForTests, __resetTimeframeSettingForTests, movedTimeframeRefusal,
 } from '../runtimeInputs.js'
 import { stripParamInputs } from '../../paramInputs.js'
 import { projectMemberDocument } from '../../memberDocumentProjection.js'
@@ -20,7 +21,7 @@ import { __permitRuntimePaneForTests } from '../../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, __resetRuntimeAdmission } from '../../runtimeKill'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 
-beforeEach(() => { resetRuntimeSessions(); resetRuntimeLedgers() })
+beforeEach(() => { resetRuntimeSessions(); resetRuntimeLedgers(); __resetTimeframeSettingForTests() })
 
 /** The flag NAMES are read off their gate modules, never typed (the corpus test's rule). */
 const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
@@ -131,7 +132,27 @@ describe('the setting, declared on load (never minted, never stored)', () => {
   })
 })
 
+describe('a member who moves it is refused by name, and the default still draws (no evidence admits a move yet)', () => {
+  it('moved to 1W on a member surface: refused by name, never drawn', () => {
+    const why = refusalOf(() => run(withTimeframeInputs(runtimeDoc(SCRIPT('1D'))), { tf: '1W' }))
+    expect(why).not.toBe(null)
+    expect(why.message).toContain(movedTimeframeRefusal('tf', '1W'))
+  })
+
+  it('handed as a plain value only, the same refusal', () => {
+    const why = refusalOf(() => computeRuntimeColumns(runtimeDoc(SCRIPT('1D')), CHART, ctxOf({ tf: '1M' })))
+    expect(why && why.message).toContain(movedTimeframeRefusal('tf', '1M'))
+  })
+
+  it("CONTROL: the author's default handed back is no move, and draws", () => {
+    expect(col(computeRuntimeColumns(runtimeDoc(SCRIPT('1D')), CHART, ctxOf({ tf: '1D' })))).toEqual(CHART.map((b) => b.c))
+    expect(col(run(withTimeframeInputs(runtimeDoc(SCRIPT('1D'))), {}))).toEqual(CHART.map((b) => b.c))
+  })
+})
+
 describe('the run reads the member\'s timeframe exactly as it reads the same timeframe written in the source', () => {
+  // the runtime-on harness lane's own switch: the mechanism the evidence would admit
+  beforeEach(() => { __serveEveryTimeframeSettingForTests() })
   it('at the default nothing is handed, and the run is the author\'s (CONTROL)', () => {
     const def = withTimeframeInputs(runtimeDoc(SCRIPT('1D')))
     expect(runtimeInputValues(def, { tf: '1D' })).toEqual({})
@@ -164,6 +185,7 @@ describe('the run reads the member\'s timeframe exactly as it reads the same tim
 })
 
 describe('a timeframe the supply does not serve is refused by name, with the supply\'s own sentence', () => {
+  beforeEach(() => { __serveEveryTimeframeSettingForTests() })
   it('60 on a daily chart (below it): refused, never drawn at the default', () => {
     const why = refusalOf(() => run(withTimeframeInputs(runtimeDoc(SCRIPT('1D'))), { tf: '60' }))
     expect(why).not.toBe(null)
@@ -179,5 +201,26 @@ describe('a timeframe the supply does not serve is refused by name, with the sup
     const why = refusalOf(() => computeRuntimeColumns(def, CHART, ctxOf({ tf: 'weekly' })))
     expect(why).not.toBe(null)
     expect(why.message).toMatch(/not a timeframe written as text/)
+  })
+})
+
+describe('the runtime-on lane\'s moved-timeframe grant is a test seam only', () => {
+  it('no member surface imports `__serveEveryTimeframeSettingForTests`', () => {
+    const root = path.resolve(process.cwd(), 'src')
+    const hits = []
+    const walk = (d) => {
+      for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+        const p = path.join(d, e.name)
+        if (e.isDirectory()) { if (e.name !== 'node_modules') walk(p); continue }
+        if (!/\.(js|jsx|mjs)$/.test(e.name) || /\.test\.(js|jsx)$/.test(e.name) || p.includes(`${path.sep}__tests__${path.sep}`)) continue
+        if (e.name === 'runtimeInputs.js') continue
+        if (fs.readFileSync(p, 'utf8').includes('__serveEveryTimeframeSettingForTests')) hits.push(path.relative(root, p))
+      }
+    }
+    walk(root)
+    expect(hits).toEqual([])
+    // CONTROL: the walk reads files (the harness lane, a test file, is where the grant lives)
+    expect(fs.readFileSync(path.join(root, 'components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js'), 'utf8'))
+      .toContain('__serveEveryTimeframeSettingForTests')
   })
 })

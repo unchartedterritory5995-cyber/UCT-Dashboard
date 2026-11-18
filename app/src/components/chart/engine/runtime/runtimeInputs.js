@@ -767,6 +767,26 @@ export function runtimeBuildInputs(def, values) {
   return { inputs, inputDefaults }
 }
 
+// ⭐⭐ SETTINGS PARITY (timeframe) — A MOVED TIMEFRAME IS DRAWN ONLY ON RECORDED EVIDENCE, the rule a run
+// half's moved settings follow (`runHalfSettingsAdmitted`). The first captures at a moved timeframe
+// (PA ZigZag at 1W / 1M, run rozz-2026-11-18) DIVERGE on 9 of 10 items, so no script is admitted: a member
+// who moves one is refused by name (`pineRuntimeFrontend.js::applyMemberDefault`), never shown an
+// unwitnessed picture. The runtime-on harness lane grades them anyway (`__serveEveryTimeframeSettingForTests`),
+// so the evidence that would admit one is measured on every run.
+let _serveMovedTimeframes = false
+/** Is a timeframe setting moved off its author's default drawn? Never on a member surface yet. */
+export function movedTimeframeServed() { return _serveMovedTimeframes }
+/** Rails / the runtime-on harness lane only. */
+export function __serveEveryTimeframeSettingForTests() { _serveMovedTimeframes = true }
+/** Rails only. */
+export function __resetTimeframeSettingForTests() { _serveMovedTimeframes = false }
+/** The one sentence a member reads when they move a timeframe setting. */
+export function movedTimeframeRefusal(name, value) {
+  return '`' + name + '` is set to ' + JSON.stringify(value) + ": a timeframe setting moved off its author's default "
+    + 'is drawn only where a TradingView capture at that timeframe grades MATCH, and none does yet for this script, '
+    + 'so nothing is drawn rather than an unwitnessed picture (its default draws as before)'
+}
+
 const _timeframeSpecs = new Map()
 const TIMEFRAME_SPECS_MEMO = 64
 

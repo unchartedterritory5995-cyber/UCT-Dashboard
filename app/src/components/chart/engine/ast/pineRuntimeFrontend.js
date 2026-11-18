@@ -84,7 +84,7 @@ import { strategyRepaintConstruct } from './strategyRepaint.js'
 import {
   RUNTIME_SOURCES as MEMBER_SOURCES, textInputKindOf, textInputIsMemberSet, isTimeInputCall,
   timeInputDefaultOf, isTimeValue, isSessionString, constantVarsOf, foldConstantVarsIntoInputs,
-  isTimeframeText,
+  isTimeframeText, movedTimeframeServed, movedTimeframeRefusal,
 } from '../runtime/runtimeInputs.js'
 import { TEXT_FNS, producesText, compileTimeFormat } from '../runtime/text.js'
 import { canonicalZone, dateStringMs, INSTANT_FIELDS } from '../runtime/clockFns.js'
@@ -1698,6 +1698,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         throw new RuntimeRefusal('runtime:statement', '`' + name + '` was given ' + JSON.stringify(given)
           + ', which is not a timeframe written as text (as TradingView writes one: 60, 1D, 1W, 1M)', at)
       }
+      // ⛔ a value MOVED off the author's default is drawn only on recorded evidence (`movedTimeframeServed`);
+      // the author's own default handed back is no move at all
+      const moved = !(dv && dv.type === 'string' && dv.value === given)
+      if (moved && !movedTimeframeServed()) throw new RuntimeRefusal('runtime:statement', movedTimeframeRefusal(name, given), at)
       node = { type: 'string', value: given }
     } else if (kind === 'string') {
       if (typeof given !== 'string') throw new RuntimeRefusal('runtime:statement', '`' + name + '` was given a value that is not text', at)
