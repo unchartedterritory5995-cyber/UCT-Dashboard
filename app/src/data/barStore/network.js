@@ -548,6 +548,12 @@ export function createNetwork({
       if (!history?.prime || !lakeCarriesKey(key)) return
       try { history.prime(key) } catch { /* a warm only */ }
     },
+    /** Warm the EDGE's copy of `key`'s whole lake depth (historyFeed `edgeWarm`: index into the page,
+     *  pieces HEADed, no body). Resolves the pieces asked; 0 where the lake does not carry. */
+    lakeEdgeWarm(key, opts) {
+      if (!history?.edgeWarm || !lakeCarriesKey(key)) return Promise.resolve(0)
+      try { return Promise.resolve(history.edgeWarm(key, opts)).catch(() => 0) } catch { return Promise.resolve(0) }
+    },
     /**
      * ⭐ LAKE FIRST PAINT (2026-11-17). A chart with nothing saved in this browser waits on the bar
      * server's first answer, and a cold read there can take seconds (FROG 5m: `bars(sqlite)=1523`,
