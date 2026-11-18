@@ -1,6 +1,8 @@
 # Parity unit 1 (`objects`): the attached-dirty rows asked of the runtime lane, and the dirty route (2026-11-18)
 
-Branch `feat/parity-objects`, cut from `origin/master` `158b4918d4` (`SCRIPT_ENGINE_VERSION = 73`). The unit is
+Branch `feat/parity-objects`, cut from `origin/master` `158b4918d4` (`SCRIPT_ENGINE_VERSION = 73`) and measured there;
+master (`f428ec1dc5`, engine 75) is merged in afterwards, and every moved script's door answer and its 15 captures'
+runtime-on records are re-checked on the merged tree (identical). The unit is
 U-OBJ of the measured roadmap (`docs/pine/PARITY-ROADMAP-2026-11-18.md`, PR #1766, section 5 and the build order
 step 1): 45 sole scripts (44 servable; `reference:cobra039s-crypto-market-visualizer` is never-serve, other
 feeds), and the `known-lists` unit's 10 scripts, 8 of which pair with it. The roadmap's own warning: 44 is an
@@ -46,8 +48,8 @@ member door, per script, with the flags production runs (objects-only pane armed
 Each door ran twice: with the test grant (every script graded: the runtime lane's own answer) and with
 production's lists (the committed kill list and graded allowlist latched, capability admission on, the server's
 verdict for the source latched). The admission column is the server's answer from the committed registry
-(`pine_capabilities.capabilities_of` against `admitted_capabilities()`, the kill list). ⚠️ For 12 reference sources
-stored with CRLF line ends the probe latched the verdict under the LF text's hash, so the door found no verdict and
+(`pine_capabilities.capabilities_of` against `admitted_capabilities()`, the kill list). ⚠️ For the 11 admitted reference
+sources stored with CRLF line ends the probe latched the verdict under the LF text's hash, so the door found no verdict and
 answered "still being checked"; for those the production answer is the grant answer of an admitted script (the
 allowlist and the verdict are the only difference between the two list states, and both run halves' binds use the
 production run-half evidence, which is empty for every script here). The table therefore gives the grant column
@@ -156,8 +158,9 @@ admitted. (A script freed of its first wall may hold another behind it; the cens
 **The real size.** Of the roadmap's 44 servable sole scripts, 5 are served by a door change alone (section 3), 3
 more by admission alone (`request-other` 2, `obj:linefill` 1), 2 more by the run's drawing being shown to MATCH
 where the host withholds the whole drawing (section 4), and the other 34 need an engine unit the roadmap
-already ranks elsewhere (request 17, built-ins 8, dynamic history 5, conditional history 4, statements 3, fills 2,
-and five single walls), most of them behind `request-other` as well. The unit is not 44 scripts of drawing-object
+already ranks elsewhere (the table's rows, which also hold the 10 `known-lists` scripts: request 17, built-ins 8,
+dynamic history 5, conditional history 4, statements 3, fills 2, and five single walls), most of them behind
+`request-other` as well. The unit is not 44 scripts of drawing-object
 work: the drawing objects themselves are drawn by the runtime lane in every script it builds; what stops the rest
 is the value lane in front of them.
 
@@ -278,7 +281,7 @@ and the value capabilities each script uses), exactly as it admits every other r
 | `committed:atr-support-and-resistance` | yes | rddt 1d 2026-09-28, spy 1d 2026-10-03: MATCH (all 11 items; objects v1 MATCH, 20 boxes + 20 lines paired; v2 INCONCLUSIVE, no x table) |
 | `reference:auto-trendlines-by-pivots-perfect-non-repainting-lines-spyqqq-daily-pr` | yes (closed bars) | rddt 1d 2026-11-15 (ledger): MATCH |
 | `reference:liquidity-heatmap-swiftedge` | yes | rddt 1d 2026-11-15 (ledger): MATCH |
-| `committed:volume-profile` | yes (closed bars) | rddt, spy: INCONCLUSIVE: the run stops at its limit, by name (TradingView 203 lines) |
+| `committed:volume-profile` | yes (closed bars) | rddt, spy: INCONCLUSIVE: the run stops at its per-bar step limit, by name (`runtime:limit`: 205,101 steps on the last bar, the limit 200,000; "nothing is drawn rather than part of it"); TradingView 203 lines |
 | `reference:fourier-extrapolator-of-price-w-projection-forecast-loxx` | yes (closed bars) | rddt (ledger): INCONCLUSIVE: the run stops at its limit, by name (TradingView 398 lines) |
 | `reference:intraday-power-3-visual` | no: `request-other` | rddt + spy (ledger): MATCH |
 | `reference:support-resistance-fibonacci-retracement` | no: `request-other` | rddt + spy (ledger): MATCH |
@@ -349,6 +352,14 @@ one; control unmutated green): M1 the run's own drawings not required, M2 the au
 the route ignores the runtime pane gate, M4 the moved document does not carry the hidden rows (3 red), M5 a withheld
 paint is not a loss, M6 the plot surface not compared, M7 the carve-out dropped (2 red), M8 the door does not pass
 the object gate's answer: **8 of 8 red**.
+
+**Wider suites** (GitHub runners, `tools/remote_tests.py`, on `f9983533a9`): vitest `src/components/chart`, `src/hooks`,
+`StockChart.noticeScopeUnmount`, `screener/reachable` (6 shards) and pytest `test_pine_capability_admission`,
+`test_pine_allowlist_measured_verdicts`, `test_pine_capabilities`, `test_pine_run_half_evidence`,
+`test_pine_coverage_ratchet`, `test_pine_host_known_divergence`, `test_runtime_definitions`, `test_ci_pine_heavy`,
+`test_pine_parity_roadmap`: all green but ONE test this branch does not touch,
+`src/hooks/usePreferences.additionsOnly.test.js` ("NO NEW opaque-key call site": `pages/screener/focus/board/
+useScanBoard.js`, two opaque `setPref` sites with one baselined, a file master's `0bb48a7f5a` brought in).
 
 ## 10. The capture queue (one batch, for patrick-54)
 
