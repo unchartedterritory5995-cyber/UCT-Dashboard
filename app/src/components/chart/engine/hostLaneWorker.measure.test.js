@@ -233,3 +233,105 @@ describe.skipIf(!RT_OUT)('a cheap document: the worker round trip against the co
 })
 
 function rows5kOf(all) { return all.slice(-N_BARS) }
+
+// ─── WHAT A DOCUMENT UNDER THE RECURRENCE BUDGET COSTS, AGAINST WHAT A COUNT COULD SEE (opt-in) ─────
+//
+// docs/pine/evidence/2026-11-18-host-lane-worker-followups/EVIDENCE.md, section B. The follow-up asked
+// for the ONE estimate (`hostLaneCost.js`) to count WINDOW work (window functions × window length ×
+// bars), calibrated against measured ms, so that the 8 documents under the recurrence budget that cost
+// a long task or more (92 ms to 1.3 s at 5,000 bars) move to the worker. Before any estimate is
+// written, this records, for every host document under the budget (member door, runtime pane off):
+//
+//   ms        its values (`astLaneColumns`), 5,000 bars, median of three after a warm run
+//   window    the window steps a bar the brief's count reads off its trees, two ways: the evaluator's
+//             own window table (`FINITE_WINDOW`: sma, wma, stdev, sum, dev, median, highest, lowest,
+//             highestbars, lowestbars) and every call with a lookback that is not carried state
+//             (`CARRIED`, `CARRIED2` and the carried builtins); each distinct unit once (the memo)
+//   units     the nodes the evaluator EVALUATES over the run, masks and probes included: its own
+//             counter (`interpret.js::evalNode`, `opts.workSink`), read through a sink that only
+//             counts (the headless export's ceiling, `MAX_EVALUATION_UNITS`, is not what is measured
+//             here), at 64, 600 and 5,000 bars
+//
+//   cd app && HOST_WORKER_WINDOW_OUT=<file.json> node node_modules/vitest/vitest.mjs run \
+//     src/components/chart/engine/hostLaneWorker.measure.test.js --maxWorkers=1 --testTimeout=7200000
+const WINDOW_OUT = process.env.HOST_WORKER_WINDOW_OUT
+describe.skipIf(!WINDOW_OUT)('a document under the recurrence budget: its cost against what a count can see (opt-in)', () => {
+  it('records ms, window steps a bar and the evaluator\'s own unit count for every host document under the budget', async () => {
+    const I = await import('./ast/interpret')
+    const table = JSON.parse(fs.readFileSync(path.join(REPO, 'app', 'src', 'components', 'chart', 'engine', 'ast', 'closedTable.json'), 'utf8')).functions
+    const finiteWindow = new Set(Object.keys(I.FINITE_WINDOW))
+    const carried = new Set([...Object.keys(I.CARRIED), ...Object.keys(I.CARRIED2),
+      'ema', 'rma', 'rsi', 'atr', 'atrPine', 'adx', 'plusDI', 'minusDI', 'macd', 'cum', 'barssince', 'valuewhen',
+      'valuewhenOccurrence', 'change', 'crossOver', 'crossUnder'])
+    const windowSteps = (root) => {
+      const { idOf } = I.structuralMaps(root)
+      const seen = new Set()
+      const stack = [root]
+      let table1 = 0
+      let every = 0
+      while (stack.length) {
+        const n = stack.pop()
+        if (!n || typeof n !== 'object' || Array.isArray(n)) continue
+        const sid = idOf.get(n)
+        if (seen.has(sid)) continue
+        seen.add(sid)
+        if (n.type === 'call' && table[n.name] && !table[n.name].recurrence) {
+          let lb = 0
+          try { lb = I.ownLookback(n, table[n.name]) } catch { lb = 0 }
+          if (finiteWindow.has(n.name)) table1 += lb
+          if (!carried.has(n.name)) every += lb
+        }
+        if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+      }
+      return { finiteWindow: table1, everyWindow: every }
+    }
+    const cap = JSON.parse(fs.readFileSync(SERIES, 'utf8'))
+    const all = cap.bars.rows
+    const corpus = path.join(REPO, 'corpus', 'committed')
+    const files = fs.readdirSync(corpus).filter((f) => f.endsWith('.pine')).sort()
+    const out = []
+    try {
+      for (const f of files) {
+        const slug = f.replace(/\.pine$/, '')
+        if (ONLY && !ONLY.has(slug) && !ONLY.has(slug.replace(/__.*$/, ''))) continue
+        views.off()
+        let door
+        try { door = enterMemberDoor(fs.readFileSync(path.join(corpus, f), 'utf8')) } catch { registry.uninstallUserDefinition(HARNESS_DEF_ID); continue }
+        const def = door.def
+        try {
+          if (!def || !def.compute || def.compute.kind !== 'ast') continue
+          const plan = astLanePlan(def, freshBars(all.slice(-N_BARS)), undefined, { ...CTX_5000 })
+          const doc = plan.def || def
+          const cost = hostLaneCostOf(doc)
+          if (cost.over) continue
+          const c = doc.compute
+          const trees = c.trees ? Object.values(c.trees).filter((t) => t && typeof t === 'object') : [c.ast]
+          const root = trees.length === 1 ? trees[0] : { type: 'op', name: '+', args: trees }
+          const row = { file: slug, recurrenceStepsPerBar: cost.stepsPerBar, window: windowSteps(root), units: {} }
+          for (const n of [64, 600, N_BARS]) {
+            let units = 0
+            // counts every `workSink.units += 1` and reads back 0, so the headless ceiling never fires
+            const sink = { get units() { return 0 }, set units(_v) { units += 1 } }
+            const t0 = performance.now()
+            try { astLaneColumns(def, freshBars(all.slice(-n)), undefined, { ...CTX_5000, workSink: sink }) } catch { units = -1 }
+            row.units[n] = units
+            if (n === 64) row.dryRun64Ms = Number((performance.now() - t0).toFixed(2))
+          }
+          row.values5000 = measure(all.slice(-N_BARS), (bars) => astLaneColumns(def, bars, undefined, { ...CTX_5000 }))
+          out.push(row)
+          // eslint-disable-next-line no-console
+          console.log(`[host-worker window] ${slug}: ${row.values5000.ms} ms, window ${JSON.stringify(row.window)}, units ${JSON.stringify(row.units)}`)
+        } finally {
+          registry.uninstallUserDefinition(HARNESS_DEF_ID)
+        }
+      }
+    } finally {
+      __resetHostKnownDivergence()
+      __ignoreHostKnownDivergenceForTests()
+      __permitRuntimePaneForTests()
+      __allowEveryRuntimeScriptForTests()
+    }
+    fs.writeFileSync(WINDOW_OUT, JSON.stringify({ measuredOn: new Date().toISOString(), node: process.version, rows: out }, null, 1))
+    expect(out.length).toBeGreaterThan(0)
+  })
+})

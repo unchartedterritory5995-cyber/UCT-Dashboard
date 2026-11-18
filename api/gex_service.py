@@ -13,7 +13,8 @@ Two modes:
     strategies) gets a negative contribution — i.e., its OI doesn't
     create a "ceiling" because dealers aren't actually short those calls.
 
-Fetches Schwab /chains for greeks + OI, then aggregates per strike.
+Reads the Massive options snapshot for greeks + OI (the one chain source since
+2026-11-17), then aggregates per strike.
 
 Level classification (new): classify_gex_state() produces semantic labels
 based on spot-relative position. The call_wall above spot is a Ceiling,
@@ -30,7 +31,6 @@ import os
 import httpx
 from typing import Optional, Dict
 
-from api import schwab_service as schwab
 from api.dealer_positioning import (
     get_positioning_for_ticker,
     get_attribution_days_for_ticker,
@@ -38,8 +38,6 @@ from api.dealer_positioning import (
 )
 
 logger = logging.getLogger("gex")
-
-CHAINS_URL = "https://api.schwabapi.com/marketdata/v1/chains"
 
 # ── Wall-search distance cap (2026-07-23) ────────────────────────────────────
 # The call/put wall used to be the global max/min over the ENTIRE chain for the
@@ -56,78 +54,32 @@ CHAINS_URL = "https://api.schwabapi.com/marketdata/v1/chains"
 WALL_MAX_DIST_PCT = float(os.environ.get("GEX_WALL_MAX_DIST_PCT", "15.0"))
 
 
-# ── Chain source (LCQ-02, 2026-09-29) ─────────────────────────────────────────
-# LICENSING POSITION ON RECORD (comment corrected 2026-11-17; no new ruling is made here). Until
-# then this comment said the Schwab read was not licensed for member display. That contradicted
-# the record: the owner approved showing Schwab-sourced option data to members. Licensing
-# register rows T-77 / T-78 (scenario LA):
-# "ANSWERED BY THE OWNER 2026-09-19: Schwab confirmed — Commercial/Redistribution tier with
-# display to non-account-holders"; ESC-10: "CLOSED AND APPROVED BY THE OWNER 2026-09-26"
-# (docs/terminal-research/09-security-licensing-cost/licensing-register.md); owner, verbatim,
-# 2026-09-26: "consider finnhub and schwab closed and approved"
-# (docs/terminal-research/12-decisions/DECISION_CARDS_2026-09-26.md). The agreement document
-# itself is NOT captured in this repo. Still restricted, and not loosened by any of this:
-# Schwab-derived GEX inside PUBLIC recordings (T-79, class R, pending T-18).
-# The register's old remedy, re-sourcing the chain from Massive (its A8), was "RETIRED
-# 2026-09-19: ESC-10 answered". So GEX_CHAIN_SOURCE is NOT a licence gate. It only picks which
-# chain the arithmetic below reads: `schwab` is the code default and the rollback, `massive` is
-# what production runs, `shadow` compares the two.
+# ── Chain source ──────────────────────────────────────────────────────────────
+# MASSIVE ONLY. The gamma-exposure arithmetic below reads one chain: the licensed Massive options
+# snapshot. Production has run on it since 2026-09-30 22:43Z (owner ruling, "Switch GEX to Massive
+# now"); on 2026-11-17 the owner retired Schwab from the product ("Move it, fix the status and
+# remove schwab from everything"), so the Schwab read, the `shadow` comparison mode, the
+# /api/gex/source-parity route and the GEX_CHAIN_SOURCE switch that chose between them are gone.
+# A GEX_CHAIN_SOURCE value left on Railway is inert (docs/feature_flags.json, `retired`).
 # Measured 2026-09-29 against our own Massive key: the options snapshot carries greeks, IV and
-# OI on 88/88 near-the-money SPY contracts. `massive` builds a chain in SCHWAB'S OWN SHAPE
-# (callExpDateMap / putExpDateMap keyed "YYYY-MM-DD:dte" -> strike -> [contract]) so every line
-# of the GEX arithmetic below runs unchanged on either source.
-# ⛔ CODE DEFAULT IS `schwab`. (Production has run `massive` since 2026-09-30 22:43Z by owner
-# ruling -- see GEX_CHAIN_SOURCE in docs/feature_flags.json. That is a SET value, not this default.)
-# `shadow` (2026-10-02) serves Schwab exactly and computes Massive OFF the served path, logging a
-# per-strike diff (`[gex-shadow]`, api/services/gex_massive.py) so the owner can compare first.
-GEX_SOURCE_ENV = "GEX_CHAIN_SOURCE"
-GEX_SOURCES = ("schwab", "massive")          # the two CHAINS a result can come from
-GEX_MODES = GEX_SOURCES + ("shadow",)        # what the variable may say
-# The vocabulary the flag ledger reads (feature_flag_index.mode_flags derives it by AST).
-# Keyed by the LITERAL name: feature_flag_index reads *_MODE_FLAGS keys as string constants.
-GEX_CHAIN_MODE_FLAGS = {"GEX_CHAIN_SOURCE": ("schwab", ("schwab", "massive", "shadow"))}
-assert GEX_SOURCE_ENV in GEX_CHAIN_MODE_FLAGS and GEX_CHAIN_MODE_FLAGS[GEX_SOURCE_ENV][1] == GEX_MODES
+# OI on 88/88 near-the-money SPY contracts. The walk builds the chain in the shape the arithmetic
+# was written against (callExpDateMap / putExpDateMap keyed "YYYY-MM-DD:dte" -> strike ->
+# [contract]), so every line of the GEX arithmetic below is unchanged.
 MASSIVE_STRIKE_BAND_PCT = 15.0   # the same band WALL_MAX_DIST_PCT searches
 _MASSIVE_MAX_PAGES = 48          # 48 x 250 contracts
 _MASSIVE_BUDGET_S = 25.0
 
 
 def chain_source() -> str:
-    default, _allowed = GEX_CHAIN_MODE_FLAGS[GEX_SOURCE_ENV]
-    v = (os.environ.get(GEX_SOURCE_ENV) or default).strip().lower()
-    return v if v in _allowed else default
-
-
-async def _fetch_chain_schwab(ticker: str, from_date: str, to_date: str) -> tuple:
-    """(data, error): Schwab /chains exactly as get_gex_data has always called it."""
-    token = await schwab.get_valid_token()
-    if not token:
-        return None, "Schwab not authenticated"
-    schwab_ticker = ticker
-    if ticker in {"SPX", "NDX", "VIX", "RUT", "DJX", "XSP", "XND"}:
-        schwab_ticker = "$" + ticker
-    params = {
-        "symbol": schwab_ticker,
-        "contractType": "ALL",
-        "strikeCount": 60,
-        "includeUnderlyingQuote": "true",
-        "fromDate": from_date,
-        "toDate": to_date,
-    }
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            r = await client.get(CHAINS_URL, headers={"Authorization": f"Bearer {token}"}, params=params)
-            if r.status_code != 200:
-                logger.error(f"[gex] Schwab chains failed: {r.status_code} {r.text[:200]}")
-                return None, f"Schwab API error: {r.status_code}"
-            return r.json(), None
-    except Exception as e:
-        logger.error(f"[gex] fetch failed: {e}")
-        return None, str(e)
+    """The chain every GEX result is computed from. Kept as a function because each result names
+    it (`chainSource`) and the options positioning surfaces ask it."""
+    return "massive"
 
 
 def to_schwab_shape(results: list, spot: float, today) -> dict:
-    """Massive snapshot rows -> Schwab's /chains shape (the only fields GEX reads)."""
+    """Massive snapshot rows -> the chain shape the GEX arithmetic reads (the only fields GEX
+    reads). The shape, and this function's name, are the ones Schwab's /chains response had:
+    the arithmetic was written against it and is kept line for line."""
     from datetime import date as _date
     out = {"underlyingPrice": spot, "callExpDateMap": {}, "putExpDateMap": {}}
     for c in results:
@@ -148,8 +100,8 @@ def to_schwab_shape(results: list, spot: float, today) -> dict:
             "openInterest": c.get("open_interest"),
             "gamma": g.get("gamma"),
             "delta": g.get("delta"),
-            # Schwab's own key for the session's contract volume. GEX never reads it; the options
-            # positioning surfaces (NOPE) do. Absent stays None, never 0.
+            # The chain shape's key for the session's contract volume. GEX never reads it; the
+            # options positioning surfaces (NOPE) do. Absent stays None, never 0.
             "totalVolume": (c.get("day") or {}).get("volume"),
         })
     return out
@@ -163,7 +115,7 @@ async def _fetch_chain_massive(ticker: str, from_date: str, to_date: str) -> tup
 
 
 async def _walk_chain_massive(ticker: str, from_date: str, to_date: str) -> tuple:
-    """(data, error): the licensed Massive snapshot, in Schwab's shape. Strikes within
+    """(data, error): the licensed Massive snapshot, in the chain shape above. Strikes within
     MASSIVE_STRIKE_BAND_PCT of spot (the band the wall search uses); paginated under a page
     and wall-clock budget. A truncated walk is REPORTED (`massive_truncated`), never silent."""
     import time as _time
@@ -230,7 +182,7 @@ def contract_gex(gamma: float, oi: float, spot: float) -> float:
 
 
 def _parse_schwab_exp_key(exp_key: str) -> Optional[str]:
-    """Schwab returns expiration keys like '2026-07-17:39' (ISO date + DTE).
+    """The chain shape's expiration keys look like '2026-07-17:39' (ISO date + DTE).
     Convert to M/D/YYYY format used in contract_keys."""
     try:
         iso_date = exp_key.split(":", 1)[0]
@@ -400,8 +352,7 @@ def classify_gex_state(
     }
 
 
-async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = False,
-                       source: Optional[str] = None) -> dict:
+async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = False) -> dict:
     """
     Fetch full options chain and compute GEX per strike.
 
@@ -419,9 +370,7 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
               Falls back to naive for any contract without DP data.
     """
     ticker = ticker.upper().strip()
-    src = source if source in GEX_SOURCES else chain_source()
-    if src == "shadow":
-        return await _get_gex_shadow(ticker, dte_filter, adjusted)
+    src = chain_source()
 
     dte_map = {
         "0dte": 0, "1dte": 1, "2dte": 2, "3dte": 3,
@@ -437,8 +386,7 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
     from_date = now_et.strftime("%Y-%m-%d")
     to_date = (now_et + timedelta(days=days)).strftime("%Y-%m-%d")
 
-    fetch = _fetch_chain_massive if src == "massive" else _fetch_chain_schwab
-    data, err = await fetch(ticker, from_date, to_date)
+    data, err = await _fetch_chain_massive(ticker, from_date, to_date)
     if err:
         return {"error": err, "chain_source": src}
 
@@ -719,69 +667,6 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
         "contractsMissingGreeksOrOi": missing_contracts,
         "strikesUncomputable": strikes_uncomputable,
     }
-
-
-async def _get_gex_shadow(ticker: str, dte_filter: str, adjusted: bool) -> dict:
-    """GEX_CHAIN_SOURCE=shadow: serve SCHWAB exactly; compute Massive OFF the served path and
-    log the per-strike diff. The Massive side starts concurrently (so it rides the same moment)
-    but the response never waits on it, and its failure can only reach the log."""
-    from api.services import gex_massive
-
-    massive_task = gex_massive.spawn_shadow(
-        get_gex_data(ticker, dte_filter, adjusted=adjusted, source="massive"))
-    served = await get_gex_data(ticker, dte_filter, adjusted=adjusted, source="schwab")
-
-    async def _compare():
-        try:
-            other = await massive_task
-        except Exception as e:  # noqa: BLE001 -- the shadow side may only ever log
-            other = {"error": f"shadow failed: {e}"}
-        gex_massive.log_shadow(gex_massive.shadow_record(ticker, dte_filter, adjusted, served, other))
-
-    if massive_task is not None:
-        gex_massive.spawn_shadow(_compare())
-    out = dict(served)
-    out["chainMode"] = "shadow"
-    return out
-
-
-def _wall_strike(w) -> Optional[float]:
-    return (w or {}).get("strike") if isinstance(w, dict) else None
-
-
-async def get_gex_source_parity(ticker: str, dte_filter: str = "week") -> dict:
-    """LCQ-02: GEX from Schwab and from Massive, side by side, BEFORE any member sees Massive.
-
-    Reports the headline numbers from each, the difference, and per-strike agreement over the
-    strikes both sources carry (sign agreement of net GEX, and the rank correlation of |GEX|).
-    No verdict: whether this is close enough to switch `GEX_CHAIN_SOURCE` is the owner's call."""
-    a = await get_gex_data(ticker, dte_filter, source="schwab")
-    b = await get_gex_data(ticker, dte_filter, source="massive")
-    out = {"ticker": ticker.upper(), "dteFilter": dte_filter, "schwab_error": a.get("error"),
-           "massive_error": b.get("error")}
-    def head(x):
-        return {"spot": x["spot"], "totalGex": x["totalGex"], "zeroGamma": x["zeroGamma"],
-                "callWall": _wall_strike(x["callWall"]), "putWall": _wall_strike(x["putWall"]),
-                "strikes": len(x["strikes"]), "regime": x.get("regime")}
-
-    # ⛔ One side failing must not hide the other. On 2026-09-30 Schwab was not
-    # authenticated and this returned only the two error fields, so Massive's
-    # numbers -- the thing under review -- were unreadable in production.
-    if a.get("error") or b.get("error"):
-        if not a.get("error"):
-            out["schwab"] = head(a)
-        if not b.get("error"):
-            out["massive"] = head(b)
-            out["massive_truncated"] = b.get("chainTruncated")
-        return out
-
-    from api.services import gex_massive
-    out.update(schwab=head(a), massive=head(b),
-               massive_truncated=b.get("chainTruncated"),
-               **gex_massive.agreement(a, b),
-               same_call_wall=_wall_strike(a["callWall"]) == _wall_strike(b["callWall"]),
-               same_put_wall=_wall_strike(a["putWall"]) == _wall_strike(b["putWall"]))
-    return out
 
 
 async def get_gex_compare(ticker: str, dte_filter: str = "all") -> dict:

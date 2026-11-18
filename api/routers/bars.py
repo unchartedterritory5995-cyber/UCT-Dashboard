@@ -47,7 +47,7 @@ from api.services.bars_fetch import (
 # Re-export module for any consumer that imports `from api.routers import bars`
 from api.services import bars_fetch as _bars_fetch  # noqa: F401
 
-# Cash-settled indexes (SPX, NDX, VIX, RUT, DJX, XSP, XND) — Schwab's
+# Cash-settled indexes (SPX, NDX, VIX, RUT, DJX, XSP, XND) — the equity bar
 # /pricehistory silently returns empty for these, so route through yfinance.
 # See api/index_bars.py for the symbol map and divisor logic.
 from api.index_bars import is_index, fetch_index_bars
@@ -1189,10 +1189,10 @@ def _serve_bars_impl(
     _meta_pre = None
     try:
         try:
-            # Schwab /pricehistory doesn't serve cash-settled indexes — silently
+            # The equity bar path doesn't serve cash-settled indexes — silently
             # returns empty bar arrays for SPX/NDX/VIX/RUT/DJX/XSP/XND. Route
             # these through yfinance instead (SPX → ^GSPC, etc.). Equity and ETF
-            # tickers (SPY, TSLA, AAPL, ...) fall through to the existing Schwab
+            # tickers (SPY, TSLA, AAPL, ...) fall through to the existing equity
             # path unchanged.
             # DELISTED entity (dead company — Yahoo, Enron, Bear Stearns): serve its
             # FROZEN historical bars from an isolated path that fetches the provider symbol

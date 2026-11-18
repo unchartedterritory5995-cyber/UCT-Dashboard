@@ -30,7 +30,7 @@ import path from 'node:path'
 import process from 'node:process'
 import {
   foldStrategyGrade, strategyRanView, strategyLaneGradeOf, holdsStrategyReport, strategyBrokerFlag,
-  assertStrategyLaneMeasured, STRATEGY_SLOT_MAP,
+  assertStrategyLaneMeasured, STRATEGY_SLOT_MAP, laneValueOutputsOf,
 } from './strategyLane.js'
 import { gradeStrategyCapture } from './strategyHarness.js'
 import { gradeCapture, loadCapture, HARNESS_DIR } from './harness'
@@ -185,6 +185,27 @@ describe('SL5 the strategy lane assertion can fail', () => {
   it('GREEN: runtime-on with the gate on and a broker run; production with none', () => {
     expect(assertStrategyLaneMeasured({ requested: LANE_RUNTIME_ON, brokerGate: true, graded: 3, brokerRuns: 2 })).toMatch(/broker gate ON/)
     expect(assertStrategyLaneMeasured({ requested: LANE_PRODUCTION, brokerGate: false, graded: 3, brokerRuns: 0 })).toMatch(/broker gate off/)
+  })
+})
+
+// ⚰️ (2026-11-17) supertrend-strategy's `mPlot`, a fill anchor the member pane does not carry, was read as `na` on
+// every bar and graded DIVERGE at step 7 against TradingView's `ohlc4`.
+describe('SL8 our value outputs, as the lane hands them to the grade', () => {
+  const capture = { bars: { rows: [[100, 1, 1, 1, 1, 0], [200, 1, 1, 1, 1, 0]] } }
+  it('the value calls, in order, with their call; a carried column is its points (NaN read as na)', () => {
+    const ours = { plots: [
+      { kind: 'plot', column: [1.5, NaN] }, { kind: 'plotcandle', column: [1, 1] }, { kind: 'plotshape', column: [NaN, 2] },
+    ] }
+    expect(laneValueOutputsOf(ours, capture)).toEqual([
+      { kind: 'plot', points: [{ time: 100, value: 1.5 }, { time: 200, value: null }] },
+      { kind: 'plotshape', points: [{ time: 100, value: null }, { time: 200, value: 2 }] },
+    ])
+  })
+  it('⛔ an output our side carried NO column for is named missing, never a series of `na`', () => {
+    const ours = { plots: [{ kind: 'plot', column: null, missingReason: 'the member pane did not carry this output (hidden helper)' }] }
+    expect(laneValueOutputsOf(ours, capture)).toEqual([
+      { kind: 'plot', points: null, missing: 'the member pane did not carry this output (hidden helper)' },
+    ])
   })
 })
 

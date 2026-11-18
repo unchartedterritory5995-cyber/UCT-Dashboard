@@ -413,6 +413,11 @@ export const FUNCTIONS = [
   // of calls (GET /api/earnings/transcript-search and /transcript-trend). `TSRC pricing power`.
   { code: 'TSRC', label: 'Search every earnings call', group: 'Market',
     market: { panel: 'CallSearch', args: [{ kind: 'callQuery', prop: 'q', rest: true }] } },
+  // CEOS: what CEOs are saying. The phrases new and rising across a month of earnings calls
+  // (GET /api/earnings/call-themes, worked out once a day); a phrase opens TSRC on it.
+  // `CEOS RISING`, `CEOS NEW 2026-10`.
+  { code: 'CEOS', label: 'What CEOs are saying (phrases rising across earnings calls)', group: 'Market',
+    market: { panel: 'CallThemes', args: [{ kind: 'callThemesList', prop: 'list' }, { kind: 'callThemesMonth', prop: 'month' }] } },
   // EXMV: what the options market priced before each earnings report beside what the stock then
   // did, and the coming report's priced move (GET /api/research/expected-move/{sym} and
   // /api/earnings-intel/{sym}).
@@ -435,6 +440,15 @@ export const FUNCTIONS = [
   { code: 'TOPF', label: 'Top Flow picks (each pick and how its contract has done)', group: 'Options',
     market: { panel: 'TopFlow', args: [{ kind: 'topFlowStatus', prop: 'status' }, { kind: 'topFlowDirection', prop: 'direction' },
       { kind: 'topFlowSort', prop: 'sort' }] } },
+
+  // ── the earnings season screen (owner pick, 2026-11-17) ──
+  // ERNS: one day's reporters, before the open and after the close: the move options priced
+  // before each report, how the stock moved on its past reports, and the result and move once it
+  // lands (GET /api/calendar/earnings-season, which only reads what the server already holds).
+  // EMOV is the scoreboard of who HAS reported; this is the day ahead too. `ERNS TONIGHT`,
+  // `ERNS TOMORROW BMO`, `ERNS 11/19`.
+  { code: 'ERNS', label: 'Earnings season (who reports, the priced move, past moves, the result)', group: 'Calendar',
+    market: { panel: 'EarningsSeason', args: [{ kind: 'earningsDay', prop: 'day' }, { kind: 'earningsSession', prop: 'session' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -698,10 +712,13 @@ const FUNCTION_WORDS = {
   PCHG: { example: 'PCHG QTD SECTORS', keywords: ['period change', 'performance between dates', 'since a date', 'best this quarter', 'custom range',
     'sector performance', 'industry performance', 'theme performance'] },
   TSRC: { example: 'TSRC pricing power', keywords: ['search earnings calls', 'transcript search', 'who said', 'call mentions'] },
+  CEOS: { example: 'CEOS RISING', keywords: ['what ceos are saying', 'rising phrases', 'earnings call themes', 'new themes', 'buzzwords'] },
   EXMV: { example: 'NVDA EXMV', keywords: ['expected move', 'implied move', 'earnings straddle', 'priced move'] },
   TROT: { example: 'TROT IN', keywords: ['theme rotation', 'rotating in', 'rotating out', 'themes gaining rank'] },
   IDAY: { keywords: ['intraday update', 'market update', 'midday update', 'session note'] },
   TOPF: { example: 'TOPF OPEN', keywords: ['top flow picks', 'flow picks', 'pick by pick', 'how the picks did'] },
+  ERNS: { example: 'ERNS TONIGHT', keywords: ['earnings season', 'who reports tonight', 'who reports tomorrow', 'earnings tonight',
+    'reporting after the close', 'reporting before the open', 'priced move for earnings'] },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

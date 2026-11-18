@@ -30,11 +30,24 @@
 // keeps the instance's notices and drawings as they stand until the values land.
 //
 // ⭐⭐ A NEWER REQUEST SUPERSEDES AN OLDER ONE. One job in the worker at a time; at most ONE waiting
-// job per pane (a newer one replaces it, and the replaced one is forgotten, never answered). A job
-// already in the worker finishes and is remembered for ITS bars array only (`_memo`, keyed by that
-// array and everything else the values read): a chart asks with its current bars, so a superseded
-// answer is never painted, and as a stale picture it serves only a request with its own pane
-// signature.
+// job per pane (a newer one replaces it, and the replaced one is forgotten, never answered).
+//
+// ⭐⭐ AND A RUNNING ONE (docs/pine/evidence/2026-11-18-host-lane-worker-followups/EVIDENCE.md): when a
+// pane asks again while its own job is in the worker, the running job stops at once and the newer
+// one starts on a fresh worker; the stopped job is forgotten, never answered, never painted
+// (`supersedeRunning`). ⛔ BY TERMINATING THE WORKER, NOT A CHECKPOINT: a worker computing a job
+// cannot read a message until the job ends, so a cooperative stop needs a `SharedArrayBuffer` flag
+// the evaluator polls, and the page is not cross-origin isolated (no COOP / COEP: measured on
+// production, `crossOriginIsolated === false`), where no such buffer exists. A cancel is not a
+// failure: it never counts toward `HOST_WORKER_MAX_STARTS`.
+// ⭐ ONE EXCEPTION, THE PANE'S FIRST PICTURE: a running job whose answer the pane would draw while the
+// newer one computes (the same document, settings, symbol and timeframe, and nothing of them drawn
+// yet: the 600-bar first paint when the deep history arrives) is not thrown away. Its worker is
+// RETIRED: it finishes that one job, its answer is drawn (re-aligned on bar time, as a poll's last
+// picture is), and it is terminated; the newer job starts at once on a fresh worker beside it. At
+// most one worker is retiring; a job that would need a second is stopped. An answer that lands after
+// a NEWER job of its pane already landed is dropped (`_landedSeq`): a picture is only ever replaced by
+// a newer one.
 //
 // ⭐ CHEAP DOCUMENTS STAY ON THE MAIN THREAD: a document under the estimate's budget, and every
 // request that is not a chart's (`validateEventColumns`, the vendor harness, a probe), is answered
@@ -65,7 +78,9 @@ import { packRows, ctxImageOf, answerFromImage, errorFromImage } from './hostLan
  *  the dev PC (evidence section 4), and a member's machine may be several times slower; what this
  *  stops is a worker that will never answer, not a long compute. */
 export const HOST_WORKER_WATCHDOG_MS = 180000
-/** How many workers one tab starts before it computes every host document on the main thread. */
+/** How many workers one tab may LOSE (a crash, an unreadable message, a watchdog stop) before it
+ *  computes every host document on the main thread. ⛔ A worker stopped or retired because a newer
+ *  request superseded its job is not lost (`supersedeRunning`). */
 export const HOST_WORKER_MAX_STARTS = 3
 /** How many documents the worker keeps (the chart's thread mirrors the order it evicts in). */
 export const HOST_WORKER_DOCS = 32
@@ -102,10 +117,14 @@ export function hostLaneStopOf(cols) {
 let _factory = null          // test seam: () => Worker-like
 let _worker = null
 let _starts = 0
+let _lost = 0                // workers lost to a failure (the `HOST_WORKER_MAX_STARTS` budget)
 let _broken = false
 let _inFlight = null
+let _retiring = null         // {worker, job, timer}: a superseded worker finishing its pane's first picture
 let _nextId = 1
 let _nextDoc = 1
+let _nextSeq = 1             // the order jobs were asked in
+const _landedSeq = new Map() // pane -> the newest job of it that landed (an older answer is dropped)
 let _watchdog = null
 const _queue = []            // jobs not yet posted, at most one per pane
 const _workerDocs = new Map() // docId -> true, in the order the worker keeps them
@@ -114,13 +133,15 @@ let _memo = new WeakMap()    // bars array -> Map(key -> entry)
 const _last = new Map()      // `${pane}\u0001${sig}` -> the pane's latest picture
 let _realigned = new WeakMap() // picture columns -> {rows, answer}
 let _costs = new WeakMap()   // specialised document -> hostLaneCostOf
-const _stats = { posted: 0, landed: 0, superseded: 0, toMain: 0, refused: 0, starts: 0, workerMs: 0, lastFallback: null }
+const _stats = { posted: 0, landed: 0, superseded: 0, cancelled: 0, retired: 0, dropped: 0, toMain: 0, refused: 0,
+  starts: 0, lost: 0, workerMs: 0, lastFallback: null }
 
 const clock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
 
 /** What this tab's host worker has done (diagnostics, the probe and the rails). */
 export function hostLaneStats() {
-  return { ..._stats, broken: _broken, inFlight: !!_inFlight, queued: _queue.length, docs: _workerDocs.size }
+  return { ..._stats, broken: _broken, inFlight: !!_inFlight, retiring: !!_retiring, queued: _queue.length,
+    docs: _workerDocs.size }
 }
 
 /** Test seam (the byte-equality rail only): send EVERY host document a chart asks for to the
@@ -136,11 +157,16 @@ export function setHostLaneWorkerFactory(fn) {
 /** Test seam: forget the worker, the jobs, the memo and the pictures. */
 export function resetHostLaneAsync() {
   disarm()
-  if (_worker) { try { _worker.terminate() } catch { /* gone */ } }
+  if (_worker) { stopWorker(_worker) }
   _worker = null
+  if (_retiring) { clearTimeout(_retiring.timer); stopWorker(_retiring.worker) }
+  _retiring = null
   _starts = 0
+  _lost = 0
   _broken = false
   _inFlight = null
+  _nextSeq = 1
+  _landedSeq.clear()
   _queue.length = 0
   _workerDocs.clear()
   _docIds = new WeakMap()
@@ -456,6 +482,7 @@ function objectsPending(opane, sig) {
 // ─── the queue and the worker ──────────────────────────────────────────────────────────────────────
 
 function submit(job) {
+  job.seq = _nextSeq++
   const at = _queue.findIndex((j) => j.pane === job.pane)
   if (at >= 0) {
     // ⛔ SUPERSEDED BEFORE IT WAS POSTED: never answered, and its memo entry is forgotten, so the
@@ -466,7 +493,94 @@ function submit(job) {
   } else {
     _queue.push(job)
   }
+  supersedeRunning(job)
   pump()
+}
+
+/** ⭐ Would `older`'s answer be drawn while `newer` computes? Only as the pane's FIRST picture of
+ *  `newer`'s signature (the same document, settings, symbol and timeframe, nothing of it drawn yet):
+ *  the values' stale picture (`pictureOf`) and the drawings' kept layer (`objectsPending`) are each
+ *  the last answer of that signature, so with one already there `older` would only replace a
+ *  picture `newer` replaces in turn, and with another signature it is never drawn at all. */
+function paintsWhileNewerComputes(older, newer) {
+  if (older.pane !== newer.pane || older.sig !== newer.sig) return false
+  if (older.kind === 'objects') return _objServed.get(older.pane) !== older.sig
+  return !_last.has(`${older.pane}\u0001${older.sig}`)
+}
+
+/** ⭐⭐ A NEWER REQUEST OF A PANE STOPS THAT PANE'S RUNNING JOB (see the header): terminated at once
+ *  and forgotten, or, when its answer is the pane's first picture, its worker retired (it finishes that
+ *  one job, is drawn, and is terminated), so the newer job starts now on a fresh worker either way. */
+function supersedeRunning(newer) {
+  if (_retiring && _retiring.job.pane === newer.pane && !paintsWhileNewerComputes(_retiring.job, newer)) {
+    stopRetiring()
+  }
+  const run = _inFlight
+  if (!run || run.pane !== newer.pane) return
+  if (!_retiring && paintsWhileNewerComputes(run, newer)) retireRunning()
+  else cancelRunning()
+}
+
+/** A worker that will not be asked anything again: its doors closed, then terminated. */
+function stopWorker(w) {
+  if (!w) return
+  w.onmessage = null
+  w.onerror = null
+  w.onmessageerror = null
+  try { w.terminate() } catch { /* already gone */ }
+}
+
+/** ⛔ The running job, superseded: its worker is terminated (it cannot be told to stop: see the
+ *  header) and the job forgotten (never answered, never painted). The documents that worker held go
+ *  with it: the fresh worker starts holding none (`workerOf`). Not a failure. */
+function cancelRunning() {
+  const job = _inFlight
+  disarm()
+  _inFlight = null
+  stopWorker(_worker)
+  _worker = null
+  if (job) forget(job)
+  _stats.cancelled += 1
+}
+
+/** ⭐ The running job is the pane's first picture: its worker finishes it on its own, beside the
+ *  fresh worker the newer job starts on, and is terminated when it answers (or fails, or outruns the
+ *  watchdog: then the job is forgotten and the newer one draws). */
+function retireRunning() {
+  const job = _inFlight
+  const worker = _worker
+  disarm()
+  _inFlight = null
+  _worker = null
+  const r = { worker, job, timer: null }
+  r.timer = setTimeout(() => { if (_retiring === r) stopRetiring() }, HOST_WORKER_WATCHDOG_MS)
+  worker.onmessage = (event) => { if (_retiring === r) retiredLanded(event && event.data) }
+  worker.onerror = () => { if (_retiring === r) stopRetiring() }
+  worker.onmessageerror = () => { if (_retiring === r) stopRetiring() }
+  _retiring = r
+  _stats.retired += 1
+}
+
+/** The retiring worker's job, stopped unanswered (superseded after all, failed, or past the watchdog). */
+function stopRetiring() {
+  const r = _retiring
+  if (!r) return
+  _retiring = null
+  clearTimeout(r.timer)
+  stopWorker(r.worker)
+  forget(r.job)
+  _stats.cancelled += 1
+}
+
+function retiredLanded(reply) {
+  const r = _retiring
+  if (!r || !reply || reply.id !== r.job.id) return
+  _retiring = null
+  clearTimeout(r.timer)
+  stopWorker(r.worker)
+  // a retiring worker is never handed a document again: one it no longer holds is not resent
+  if (reply.missing) { forget(r.job); _stats.cancelled += 1; return }
+  settleLanded(r.job, reply)
 }
 
 function forget(job) {
@@ -505,10 +619,13 @@ function killWorker(kind) {
   disarm()
   const job = _inFlight
   _inFlight = null
-  if (_worker) { try { _worker.terminate() } catch { /* already gone */ } }
+  stopWorker(_worker)
   _worker = null
   _workerDocs.clear()
-  if (_starts >= HOST_WORKER_MAX_STARTS) _broken = true
+  // ⛔ LOST, not superseded: only a failure counts toward the budget (a cancel never comes here)
+  _lost += 1
+  _stats.lost = _lost
+  if (_lost >= HOST_WORKER_MAX_STARTS) _broken = true
   if (job) {
     if (kind === 'unresponsive') {
       settleEntry(job, { state: 'refused', guard: HOST_WORKER_UNRESPONSIVE_GUARD, sentence: unresponsiveSentence() })
@@ -579,6 +696,7 @@ function post(job) {
   }
   job.id = id
   job.startedAt = clock()
+  job.worker = _starts   // which worker took it (the probe's timeline: a fresh one after a cancel)
   _inFlight = job
   try {
     w.postMessage(msg, transfer)
@@ -608,6 +726,23 @@ function landed(reply) {
     pump()
     return
   }
+  settleLanded(job, reply)
+  pump()
+}
+
+/** One landed answer, from the current worker or a retiring one: settled in the memo, the pane's
+ *  picture taken, a timeline entry, and the chart told. ⛔ An answer whose pane already drew a NEWER
+ *  job's is dropped (only a retiring worker can answer that late): never settled, never drawn. */
+function settleLanded(job, reply) {
+  const newest = _landedSeq.get(job.pane)
+  if (Number.isFinite(newest) && newest > job.seq) {
+    forget(job)
+    _stats.dropped += 1
+    return
+  }
+  _landedSeq.delete(job.pane)
+  _landedSeq.set(job.pane, job.seq)
+  while (_landedSeq.size > 4 * STALE_PANES) _landedSeq.delete(_landedSeq.keys().next().value)
   _stats.landed += 1
   if (Number.isFinite(reply.ms)) _stats.workerMs += reply.ms
   if (reply.ok && job.kind === 'objects') {
@@ -623,9 +758,8 @@ function landed(reply) {
     if (typeof performance !== 'undefined' && typeof performance.measure === 'function') {
       // one timeline entry per landed job (the probe reads them), never an unbounded buffer
       if (_stats.landed % 200 === 0 && typeof performance.clearMeasures === 'function') performance.clearMeasures('host-lane:worker-run')
-      performance.measure('host-lane:worker-run', { start: job.startedAt, end: clock(), detail: { kind: job.kind, workerMs: reply.ms, ok: !!reply.ok, bars: job.postRows.length } })
+      performance.measure('host-lane:worker-run', { start: job.startedAt, end: clock(), detail: { kind: job.kind, workerMs: reply.ms, ok: !!reply.ok, bars: job.postRows.length, worker: job.worker } })
     }
   } catch { /* a timeline entry is a diagnostic, never a failure */ }
   notifyColumnsLanded(`host:${job.key}`)
-  pump()
 }

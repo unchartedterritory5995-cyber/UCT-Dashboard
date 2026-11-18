@@ -9,6 +9,10 @@
 //      the first load shows nothing until the values land (the pane's loading state);
 //   3. a superseded result never paints: a newer request of a pane replaces its waiting one, and a
 //      symbol switch never draws the old symbol's values, before or after the old job lands;
+//   3b. a superseded RUNNING job stops at once (its worker terminated, a fresh one takes the newer job),
+//      except the pane's first picture, which finishes on a retired worker and is drawn; a late older
+//      answer is dropped; a cancel is never a failure; no worker state outlives its worker
+//      (docs/pine/evidence/2026-11-18-host-lane-worker-followups/EVIDENCE.md);
 //   4. a worker that fails never blanks a pane: no worker, a crash, a refused post -> the main thread
 //      (values equal to today's); past the watchdog -> refused BY NAME, said on the strip;
 //   5. what the worker computes is the main thread's function on the main thread's arguments: every
@@ -249,17 +253,19 @@ describe('2b. the landing repaints a noop plan (StockChart leaves a series untou
 })
 
 // ─── 3. a superseded result never paints ───────────────────────────────────────────────────────────
-describe('3. a newer request supersedes an older one', () => {
+describe('3. a newer request supersedes an older one, waiting or running', () => {
   it('only the newest waiting job of a pane is ever posted; the replaced one is forgotten, not pending forever', () => {
+    // two panes share the one worker: pane q's job holds it while pane p asks three times
     const def = doorDef(COSTLY)
     const a1 = barsOf(daily.slice(-302, -2))
     const a2 = barsOf(daily.slice(-301, -1))
     const a3 = barsOf(daily.slice(-300))
-    registry.computeFor(def, a1, undefined, pane())   // in the worker
-    registry.computeFor(def, a2, undefined, pane())   // waiting
-    registry.computeFor(def, a3, undefined, pane())   // replaces a2
+    registry.computeFor(def, a1, undefined, pane('q'))   // in the worker (another pane's)
+    registry.computeFor(def, a2, undefined, pane())      // waiting
+    registry.computeFor(def, a3, undefined, pane())      // replaces a2
     expect(hostLaneStats().posted).toBe(1)
     expect(hostLaneStats().superseded).toBe(1)
+    expect(hostLaneStats().cancelled, 'another pane\'s request stopped a running job').toBe(0)
     workers.drain()
     expect(hostLaneStats().posted).toBe(2)            // a1, then a3: a2 never
     expect(firstDifference(registry.computeFor(def, a3, undefined, { ...CTX }), registry.computeFor(def, a3, undefined, pane()))).toBeNull()
@@ -270,7 +276,7 @@ describe('3. a newer request supersedes an older one', () => {
     expect(isHostLanePending(registry.computeFor(def, a2, undefined, pane()))).toBe(false)
   })
 
-  it('a symbol switch never draws the old symbol\'s values, before or after the old job lands', () => {
+  it('a symbol switch stops the old symbol\'s RUNNING job at once: never answered, never drawn; the new symbol computes on a fresh worker', () => {
     const def = doorDef(COSTLY)
     const aapl = barsOf(daily.slice(-300))
     registry.computeFor(def, aapl, undefined, pane())
@@ -279,21 +285,146 @@ describe('3. a newer request supersedes an older one', () => {
     // a poll's job for AAPL is in the worker when the member switches to MSFT
     const aaplPoll = barsOf(daily.slice(-301, -1))
     registry.computeFor(def, aaplPoll, undefined, pane())
+    expect(workers.made.length).toBe(1)
     const msft = barsOf(daily.slice(-300)).map((r) => ({ ...r, c: r.c * 1.5, h: r.h * 1.5, l: r.l * 1.5, o: r.o * 1.5 }))
     const mctx = { ...pane(), sym: 'MSFT', symbol: MSFT }
     const before = registry.computeFor(def, msft, undefined, mctx)
     expect(isHostLanePending(before)).toBe(true)
     expect(Object.keys(before), 'the old symbol\'s values were drawn on the new symbol').toEqual([])
-    // the AAPL poll lands first (it was in the worker): MSFT is still not drawn from it
-    expect(workers.answerOne()).toBe(true)
-    expect(hostLaneStats().landed).toBe(2)
-    const between = registry.computeFor(def, msft, undefined, mctx)
-    expect(isHostLanePending(between)).toBe(true)
-    expect(Object.keys(between), 'a superseded AAPL result painted on the MSFT chart').toEqual([])
+    // ⭐ the AAPL poll's worker is stopped NOW, not when it finishes; MSFT is on a fresh worker
+    expect(workers.made[0].terminated, 'the superseded running job kept its worker computing').toBe(true)
+    expect(workers.made.length).toBe(2)
+    expect(workers.made[1].inbox.length).toBe(1)
+    expect(hostLaneStats()).toMatchObject({ cancelled: 1, retired: 0, lost: 0, broken: false })
+    // the stopped job is never answered: only MSFT lands
     workers.drain()
+    expect(hostLaneStats().landed).toBe(2)            // AAPL's first, then MSFT
     const msftDone = registry.computeFor(def, msft, undefined, mctx)
     expect(isHostLanePending(msftDone)).toBe(false)
     expect(firstDifference(registry.computeFor(def, msft, undefined, { ...CTX, sym: 'MSFT', symbol: MSFT }), msftDone)).toBeNull()
+    // the stopped job's entry was forgotten: AAPL's poll bars asked again are a new job, not pending forever
+    expect(isHostLanePending(registry.computeFor(def, aaplPoll, undefined, pane()))).toBe(true)
+    workers.drain()
+    expect(isHostLanePending(registry.computeFor(def, aaplPoll, undefined, pane()))).toBe(false)
+  })
+})
+
+// ─── 3b. a superseded RUNNING job (docs/pine/evidence/2026-11-18-host-lane-worker-followups) ─────────
+describe('3b. a running job its pane superseded: stopped, or (the first picture) finished on a retired worker', () => {
+  const first = () => barsOf(daily.slice(-300))             // the first paint
+  const deep = () => barsOf(daily.slice(-900))              // the deep history: the same newest bars and more
+
+  it('the first picture is never thrown away: its worker is retired, the deep job starts at once beside it, and the first picture is drawn', () => {
+    const def = doorDef(COSTLY)
+    const a = first()
+    const b = deep()
+    expect(Object.keys(registry.computeFor(def, a, undefined, pane()))).toEqual([])   // the loading state
+    expect(isHostLanePending(registry.computeFor(def, b, undefined, pane()))).toBe(true)
+    // ⭐ the 600-bar job keeps computing on its own worker; the deep job did not wait behind it
+    expect(workers.made.length).toBe(2)
+    expect(workers.made[0].terminated, 'the first picture was thrown away').toBe(false)
+    expect(workers.made[1].inbox.length, 'the deep job waited behind the running one').toBe(1)
+    expect(hostLaneStats()).toMatchObject({ retired: 1, cancelled: 0, retiring: true, inFlight: true, lost: 0 })
+    // the first picture lands: drawn (re-aligned on bar time) while the deep job computes, and its
+    // worker is terminated
+    expect(workers.answerFrom(0)).toBe(true)
+    expect(workers.made[0].terminated, 'the retired worker outlived its one job').toBe(true)
+    expect(hostLaneStats().retiring).toBe(false)
+    const firstDone = registry.computeFor(def, a, undefined, { ...CTX })
+    const meanwhile = registry.computeFor(def, b, undefined, pane())
+    expect(isHostLanePending(meanwhile)).toBe(true)
+    const keys = Object.keys(firstDone)
+    expect(keys.length).toBeGreaterThan(0)
+    expect(Object.keys(meanwhile).sort(), 'the first picture was not drawn while the deep job computed').toEqual([...keys].sort())
+    let compared = 0
+    const off = b.length - a.length
+    for (const k of keys) {
+      for (let j = 0; j < a.length; j += 1) {
+        expect(Object.is(meanwhile[k][off + j], firstDone[k][j]), `${k}[${off + j}]`).toBe(true)
+        if (Number.isFinite(firstDone[k][j])) compared += 1
+      }
+    }
+    expect(compared).toBeGreaterThan(50)
+    // the deep job lands: equal to today's
+    expect(workers.answerFrom(1)).toBe(true)
+    const done = registry.computeFor(def, b, undefined, pane())
+    expect(isHostLanePending(done)).toBe(false)
+    expect(firstDifference(registry.computeFor(def, b, undefined, { ...CTX }), done)).toBeNull()
+  })
+
+  it('a symbol switch during the first load stops the old symbol\'s first job: it would never be drawn, so it is not retired', () => {
+    const def = doorDef(COSTLY)
+    registry.computeFor(def, first(), undefined, pane())     // AAPL's first paint, nothing drawn yet
+    const msft = first().map((r) => ({ ...r, c: r.c * 1.5, h: r.h * 1.5, l: r.l * 1.5, o: r.o * 1.5 }))
+    const mctx = { ...pane(), sym: 'MSFT', symbol: MSFT }
+    expect(Object.keys(registry.computeFor(def, msft, undefined, mctx))).toEqual([])
+    expect(workers.made[0].terminated, 'the old symbol\'s first job kept computing (retired)').toBe(true)
+    expect(hostLaneStats()).toMatchObject({ cancelled: 1, retired: 0, retiring: false })
+    workers.drain()
+    expect(firstDifference(registry.computeFor(def, msft, undefined, { ...CTX, sym: 'MSFT', symbol: MSFT }),
+      registry.computeFor(def, msft, undefined, mctx))).toBeNull()
+  })
+
+  it('an older answer that lands after a newer one of its pane is dropped: a picture is only replaced by a newer one', () => {
+    const def = doorDef(COSTLY)
+    const a = first()
+    const b = deep()
+    registry.computeFor(def, a, undefined, pane())
+    registry.computeFor(def, b, undefined, pane())
+    expect(workers.answerFrom(1)).toBe(true)                  // the deep job lands FIRST
+    expect(isHostLanePending(registry.computeFor(def, b, undefined, pane()))).toBe(false)
+    expect(workers.answerFrom(0)).toBe(true)                  // then the retired first paint
+    expect(workers.made[0].terminated).toBe(true)
+    expect(hostLaneStats().dropped, 'the late older answer was taken').toBe(1)
+    // a poll: the stale picture it draws is the DEEP one (it holds bars the first paint never held)
+    const poll = barsOf(daily.slice(-899))
+    const polled = registry.computeFor(def, poll, undefined, pane())
+    expect(isHostLanePending(polled)).toBe(true)
+    const deepDone = registry.computeFor(def, b, undefined, { ...CTX })
+    // a bar the deep history holds and the first paint never did (b[j] is poll[j - 1])
+    let k = null
+    let j = -1
+    for (const x of Object.keys(deepDone)) {
+      const at = deepDone[x].findIndex((v, i) => i >= 1 && i < b.length - a.length && Number.isFinite(v))
+      if (at >= 0) { k = x; j = at; break }
+    }
+    expect(k, 'non-vacuity: the deep answer draws a bar the first paint never held').toBeTruthy()
+    expect(Object.is(polled[k][j - 1], deepDone[k][j]), 'an older answer replaced the newer picture').toBe(true)
+  })
+
+  it('a poll superseded while it computes is stopped (the pane keeps its last picture); a cancel is never a failure', () => {
+    const def = doorDef(COSTLY)
+    const a = first()
+    registry.computeFor(def, a, undefined, pane())
+    workers.drain()
+    expect(isHostLanePending(registry.computeFor(def, a, undefined, pane()))).toBe(false)   // drawn
+    let last = null
+    for (let k = 1; k <= HOST_WORKER_MAX_STARTS + 2; k += 1) {
+      const poll = barsOf(daily.slice(-300 - k, -k))
+      const got = registry.computeFor(def, poll, undefined, pane())
+      expect(isHostLanePending(got)).toBe(true)
+      expect(Object.keys(got).length, `poll ${k}: the pane went blank`).toBeGreaterThan(0)
+      last = poll
+    }
+    // every superseded poll's worker was stopped at once, and the tab never gave up on the worker
+    expect(workers.made.slice(0, -1).every((w) => w.terminated), 'a superseded poll kept computing').toBe(true)
+    expect(hostLaneStats()).toMatchObject({ cancelled: HOST_WORKER_MAX_STARTS + 1, retired: 0, lost: 0, broken: false })
+    workers.drain()
+    const done = registry.computeFor(def, last, undefined, pane())
+    expect(isHostLanePending(done)).toBe(false)
+    expect(firstDifference(registry.computeFor(def, last, undefined, { ...CTX }), done)).toBeNull()
+  })
+
+  it('no worker state leaks across a stop: the fresh worker is handed the document in its first message', () => {
+    const def = doorDef(COSTLY)
+    registry.computeFor(def, first(), undefined, pane())
+    workers.drain()
+    registry.computeFor(def, barsOf(daily.slice(-301, -1)), undefined, pane())
+    expect(workers.made[0].inbox[0].def, 'non-vacuity: the warm worker held the document').toBeUndefined()
+    registry.computeFor(def, barsOf(daily.slice(-302, -2)), undefined, pane())   // stops that poll
+    expect(workers.made[0].terminated).toBe(true)
+    expect(workers.made[1].inbox[0].def, 'the fresh worker was not handed the document').toBeTruthy()
+    expect(hostLaneStats().docs).toBe(1)
   })
 })
 

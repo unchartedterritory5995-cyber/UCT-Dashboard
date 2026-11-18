@@ -1076,7 +1076,7 @@ export function legendChips(bindings, seriesData, registry, instances, opts) {
     const kept = mine.filter((c) => !(c.sparse === true && c.value == null))
     out.push(...(kept.length ? kept : mine.slice(0, 1)).map((c) => { const o = { ...c }; delete o.sparse; return o }))
   }
-  return out
+  return withInstanceSuffixes(out)
 
   function pushInstanceChips(inst) {
     if (!inst || typeof inst !== 'object' || typeof inst.instanceId !== 'string') return
@@ -1149,6 +1149,39 @@ export function legendChips(bindings, seriesData, registry, instances, opts) {
       }, def, inputs, opts))
     }
   }
+}
+
+/**
+ * ⭐⭐ A LABEL-ONLY CHIP CARRIES ITS INSTANCE'S SIBLING SUFFIX (the Fred RS 10-member sweep, 2026-11-18).
+ *
+ * `disambiguateSiblings` numbers only the chips that computed (`engineChips`); a plot that computed
+ * nothing (Fred RS's three averages, `na` until switched on) is named here from the instance's own
+ * name, unnumbered. With one copy every chip of the instance reads `Fred RS` and `legendRows` folds
+ * them into one row; with two, the drawn chips read `Fred RS #1` / `Fred RS #2` and the empty ones
+ * still `Fred RS`, so each copy grew a second, valueless `Fred RS` row (TradingView: one row a copy).
+ * A label-only chip whose label is the BASE a numbered chip of the same instance was suffixed from
+ * takes that suffix too, so the instance's chips share one name again. Nothing else moves: an
+ * instance no chip of which was numbered, and a chip with another name, are left exactly as they are.
+ */
+function withInstanceSuffixes(chips) {
+  const byInstance = new Map()
+  for (const c of chips) {
+    if (!c || typeof c.suffix !== 'string' || !c.suffix || typeof c.label !== 'string' || !c.label.endsWith(c.suffix)) continue
+    const base = c.label.slice(0, c.label.length - c.suffix.length)
+    if (!byInstance.has(c.instanceId)) byInstance.set(c.instanceId, new Map())
+    byInstance.get(c.instanceId).set(base, c.suffix)
+  }
+  if (!byInstance.size) return chips
+  for (const c of chips) {
+    if (!c || (typeof c.suffix === 'string' && c.suffix) || typeof c.label !== 'string') continue
+    const suffix = byInstance.has(c.instanceId) ? byInstance.get(c.instanceId).get(c.label) : undefined
+    if (!suffix) continue
+    const label = `${c.label}${suffix}`
+    if (c.text === c.label) c.text = label
+    c.label = label
+    c.suffix = suffix
+  }
+  return chips
 }
 
 // ─── PART E · TELLING TWO COPIES OF ONE DEFINITION APART ─────────────

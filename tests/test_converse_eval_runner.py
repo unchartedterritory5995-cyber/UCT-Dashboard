@@ -101,7 +101,8 @@ def test_the_negative_controls_pass_for_the_RIGHT_reason(offline_run):
     """Not merely "no change": each control is refused at the door it names."""
     _proc, _work, out = offline_run
     rows = {r["case"]: r for r in _records(out) if r["group"] == "control" and r.get("role") == "gate"}
-    assert rows["ctl-mcginley"]["model_calls"] == 0 and rows["ctl-mcginley"]["server"]["gate"] == "concept:ungrounded"
+    # an UNKNOWN Title-Case name (it was the McGinley Dynamic until that joined the named-indicator library)
+    assert rows["ctl-unknown-name"]["model_calls"] == 0 and rows["ctl-unknown-name"]["server"]["gate"] == "concept:ungrounded"
     assert rows["ctl-other-symbol"]["server"]["gate"] == "unsupported:symbol-unasked"
     assert rows["ctl-screener-text"]["server"]["gate"] == "unsupported:node"
     assert rows["ctl-ambiguous"]["server"]["disposition"] == "clarify"
@@ -180,8 +181,8 @@ def test_the_spend_cap_STOPS_the_run_and_reports_it_incomplete(tmp_path):
 @needs_node
 def test_the_corpus_refused_pins_run_offline_and_model_phrases_are_live_only(tmp_path):
     corpus = {"chart": {"sym": "TEST", "tf": "D"}, "cases": [
-        {"message": "Add the McGinley Dynamic", "refused": "McGinley Dynamic"},
-        {"message": "show the Awesome Oscillator", "refused": "Awesome Oscillator"},
+        {"message": "Add the Gann Fan", "refused": "Gann Fan"},
+        {"message": "show the Klinger Oscillator", "refused": "Klinger Oscillator"},
         {"message": "show the Relative Strength Index 14", "model": True, "terms": ["rsi"]}]}
     path = tmp_path / "corpus.json"
     path.write_text(json.dumps(corpus), encoding="utf-8")
@@ -604,3 +605,226 @@ def test_a_case_that_expects_no_particular_change_still_fails_on_the_class():
     import types
     safe = types.SimpleNamespace(unsafe=lambda *_a: None)                   # the one thing an applied change asks of the run
     assert ce.Run.grade_turn(safe, {"id": "x"}, {"expect": {"kind": "safe-change-allowed", "named_symbols": ["SPY"]}}, applied, None) == {"ok": True, "problems": []}
+
+
+# ─── conventions the instructions teach, as cases ─────────────────────────────────────────────────
+
+CONVENTION_CASES = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_convention_cases.json"
+CONVENTION_SCRIPT = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_convention_scripted.json"
+
+
+@needs_node
+def test_for_the_first_time_in_n_bars_builds_marks_and_computes_in_one_call(tmp_path):
+    """"For the first time in N bars", spelled the way the instructions teach it
+    (`tests/test_converse_first_time_convention.py`): the door accepts it on the first call, the
+    browser applies it as a marker, and it is true on at least one synthetic bar."""
+    proc, _work, out = _run(tmp_path, "--cases", str(CONVENTION_CASES), "--script", str(CONVENTION_SCRIPT))
+    assert proc.returncode == 0, proc.stdout[-3000:]
+    assert _last_line(proc.stdout).startswith("VERDICT: PASS"), proc.stdout[-1500:]
+    (row,) = [r for r in _records(out) if r.get("case") == "conv-first-time-in-n"]
+    assert row["grade"]["ok"] is True, row["grade"].get("problems")
+    assert row["server"]["attempts"] == 1 and row["browser_repair"] is False
+    assert row["client"]["changed"] is True
+
+
+# ─── ONE running value at the door ────────────────────────────────────────────────────────────────
+
+RUNNING_CASES = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_running_cases.json"
+RUNNING_SCRIPT = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_running_scripted.json"
+RUNNING_IDS = {"run-streak", "run-ratchet-stop", "run-smoother", "run-kama", "run-mcginley"}
+
+
+def test_the_running_value_cases_are_five_examples_a_new_control_and_the_standard_ones():
+    """No bundler needed: what the fixture holds."""
+    doc = json.loads(io.open(RUNNING_CASES, encoding="utf-8").read())
+    script = json.loads(io.open(RUNNING_SCRIPT, encoding="utf-8").read())["turns"]
+    assert {c["id"] for c in doc["cases"] if c["group"] == "example"} == RUNNING_IDS
+    for cid in RUNNING_IDS:
+        (answer,) = script[f"{cid}#0"]
+        text = json.dumps(answer["ops"])
+        assert '"name": "accum"' in text and '"name": "self"' in text and "accum2" not in text, cid
+    controls = {c["id"]: c for c in doc["cases"] if c["group"] == "control"}
+    new = controls.pop("ctl-two-running-values")
+    assert new["turns"][0]["expect"]["gate_prefix"] == "unsupported:running-value"
+    assert all("accum2" in json.dumps(a["ops"]) for a in script["ctl-two-running-values#0"])
+    base = {c["id"]: c for c in json.loads(io.open(ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_cases.json", encoding="utf-8").read())["cases"]}
+    assert controls == {k: v for k, v in base.items() if v["group"] == "control"}
+    assert doc["bars"] > ce.DEFAULT_BARS                                   # a 300-bar running value needs the history
+
+
+@needs_node
+def test_a_running_value_builds_applies_and_computes_in_one_call_and_two_stay_closed(tmp_path):
+    """A streak, a stop that only rises, a smoother, Kaufman's adaptive average and the McGinley
+    Dynamic: each accepted by the door in one call, applied by the browser's own patch engine, and
+    computed by the engine to the reference. The door's own note is on each. Two running values
+    that feed each other are refused by name, twice, and nothing is built."""
+    proc, _work, out = _run(tmp_path, "--cases", str(RUNNING_CASES), "--script", str(RUNNING_SCRIPT))
+    assert proc.returncode == 0, proc.stdout[-3000:]
+    assert _last_line(proc.stdout).startswith("VERDICT: PASS"), proc.stdout[-1500:]
+    assert ce.ACCEPT_THEN_REFUSE not in proc.stdout
+    rows = {r["case"]: r for r in _records(out) if r.get("case") in RUNNING_IDS | {"ctl-two-running-values"}}
+    for cid in RUNNING_IDS:
+        r = rows[cid]
+        assert r["grade"]["ok"] is True, (cid, r["grade"].get("problems"))
+        assert r["server"]["attempts"] == 1 and r["browser_repair"] is False and r["client"]["changed"] is True, cid
+        # ONE note about where the value starts (the two that NAME a library indicator carry that
+        # indicator's own note ahead of it)
+        (note,) = [a for a in r["server"]["envelope"]["assumptions"] if "bars back on every bar" in a["text"]]
+        assert note["output"], cid
+    running_note = lambda cid: next(a["text"] for a in rows[cid]["server"]["envelope"]["assumptions"]  # noqa: E731
+                                    if "bars back on every bar" in a["text"])
+    assert "starting point no longer matters" in running_note("run-smoother")
+    for cid in RUNNING_IDS - {"run-smoother"}:
+        assert "counts and levels restart" in running_note(cid), cid
+    for cid, name in (("run-kama", "Kaufman Adaptive Moving Average"), ("run-mcginley", "McGinley Dynamic")):
+        assert rows[cid]["server"]["envelope"]["assumptions"][0]["text"].startswith(f"Built to UCT's checked formula for {name}"), cid
+    closed = rows["ctl-two-running-values"]
+    assert closed["grade"]["ok"] is True and closed["server"]["ok"] is False
+    assert closed["server"]["gate"] == "unsupported:running-value" and closed["client"]["changed"] is False
+
+
+# ─── the named-indicator library ──────────────────────────────────────────────────────────────────
+
+NAMED_CASES = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_named_cases.json"
+NAMED_SCRIPT = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_named_scripted.json"
+NAMED_LIBRARY = ROOT / "api" / "data" / "named_indicators.json"
+
+
+def test_the_named_cases_answer_with_the_librarys_own_formulas_and_one_substitute():
+    """No bundler needed: what the fixture holds."""
+    from api.services import named_indicators as ni
+    doc = json.loads(io.open(NAMED_CASES, encoding="utf-8").read())
+    script = json.loads(io.open(NAMED_SCRIPT, encoding="utf-8").read())["turns"]
+    examples = [c for c in doc["cases"] if c["group"] == "example" and c["id"].startswith("named-")]
+    assert len(examples) >= 11
+    assert [c["id"] for c in doc["cases"] if c["group"] == "example" and not c["id"].startswith("named-")] == ["held-own-words"]
+    for c in examples:
+        (answer,) = script[f"{c['id']}#0"]
+        (made,) = [o for o in answer["ops"] if o["op"] == "create"]
+        e = next(e for e in ni.entries() if e["name"] == made["name"])
+        trees = [o["tree"] for o in made["outputs"]]
+        # (as a set: one line's formula can sit inside another's, as Stochastic RSI's K sits inside its D)
+        assert {k for _i, k, _v in ni.held(trees, e)} == {o["key"] for o in e["outputs"]}, c["id"]
+    own = next(c for c in examples if c["id"] == "named-chandelier-own-number")
+    assert "2.5" in own["turns"][0]["words"] and '"value": 2.5' in json.dumps(script["named-chandelier-own-number#0"])
+    controls = {c["id"]: c for c in doc["cases"] if c["group"] == "control"}
+    substitute = controls.pop("ctl-named-substitute")
+    assert substitute["turns"][0]["expect"]["gate_prefix"] == "named:formula"
+    # ONLY THE NAME IS WITHHELD: a held name alone is a control; with the member's own rule it is an example
+    held = controls.pop("ctl-held-name")["turns"][0]
+    assert held["expect"] == {"kind": "refused", "gate_prefix": "named:unchecked", "max_model_calls": 0}
+    # OWNER RULING 2026-11-18: a moving average with no kind named is a question the door asks itself
+    which = controls.pop("ctl-which-average")["turns"][0]
+    assert which["expect"] == {"kind": "clarify", "max_model_calls": 0} and "ctl-which-average#0" not in script
+    assert "moving average" in which["words"] and not any(k in which["words"].lower() for k in ("simple", "exponential", "sma", "ema"))
+    held_ids = {e["id"] for e in ni.held_names()}
+    assert [i for a, i in ni.phrases() if a in held["words"].lower() and i in held_ids] == ["pocket_pivot"]
+    own = next(c for c in doc["cases"] if c["id"] == "held-own-words")["turns"][0]
+    assert "pocket pivot" in own["words"] and own["expect"]["kind"] == "change"
+    (own_answer,) = script["held-own-words#0"]
+    assert "accum" not in json.dumps(own_answer["ops"]) and "Pocket" not in json.dumps(own_answer["ops"])
+    wrong = script["ctl-named-substitute#0"]
+    assert len(wrong) == 2 and all('"name": "ema"' in json.dumps(a["ops"]) and "accum" not in json.dumps(a["ops"]) for a in wrong)
+    base = {c["id"]: c for c in json.loads(io.open(ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_cases.json", encoding="utf-8").read())["cases"]}
+    assert controls == {k: v for k, v in base.items() if v["group"] == "control"}
+    # the standard control is an UNKNOWN name, and not one the library holds
+    unknown = controls["ctl-unknown-name"]["turns"][0]
+    assert unknown["expect"]["max_model_calls"] == 0
+    assert not any(alias in unknown["words"].lower() for alias, _id in ni.phrases())
+
+
+@needs_node
+def test_a_named_indicator_is_built_to_its_checked_formula_in_one_call_and_a_substitute_is_refused(tmp_path):
+    """"Add the McGinley Dynamic" was refused before any model call until 2026-11-18. Now each
+    library name is accepted by the door in one call, applied by the browser's own patch engine,
+    computed by the engine to the library's formula, and carries the door's note saying what it
+    was built to. Asked for the McGinley Dynamic and answered with an exponential average, twice:
+    refused, and nothing is built."""
+    proc, _work, out = _run(tmp_path, "--cases", str(NAMED_CASES), "--script", str(NAMED_SCRIPT))
+    assert proc.returncode == 0, proc.stdout[-3000:]
+    assert _last_line(proc.stdout).startswith("VERDICT: PASS"), proc.stdout[-1500:]
+    assert ce.ACCEPT_THEN_REFUSE not in proc.stdout
+    rows = {r["case"]: r for r in _records(out)}
+    named = [cid for cid in rows if cid.startswith("named-")]
+    assert len(named) >= 9
+    for cid in named:
+        r = rows[cid]
+        assert r["grade"]["ok"] is True, (cid, r["grade"].get("problems"))
+        assert r["server"]["attempts"] == 1 and r["browser_repair"] is False and r["client"]["changed"] is True, cid
+        notes = [a["text"] for a in r["server"]["envelope"]["assumptions"]]
+        assert notes and notes[0].startswith("Built to UCT's checked formula for "), (cid, notes[:1])
+    assert "atr multiplier 2.5" in rows["named-chandelier-own-number"]["server"]["envelope"]["assumptions"][0]["text"]
+    refused = rows["ctl-named-substitute"]
+    assert refused["grade"]["ok"] is True and refused["server"]["ok"] is False
+    assert refused["server"]["gate"] == "named:formula" and refused["client"]["changed"] is False
+    unknown = rows["ctl-unknown-name"]
+    assert unknown["model_calls"] == 0 and unknown["server"]["gate"] == "concept:ungrounded"
+    # a held name alone: refused by name, no call. The same name with the member's own rule: built, and labelled theirs.
+    held = rows["ctl-held-name"]
+    assert held["grade"]["ok"] is True and held["model_calls"] == 0 and held["server"]["gate"] == "named:unchecked"
+    assert "in your own words" in held["server"]["reason"] and held["client"]["changed"] is False
+    asked = rows["ctl-which-average"]
+    assert asked["grade"]["ok"] is True and asked["model_calls"] == 0 and asked["client"]["changed"] is False
+    assert asked["server"]["disposition"] == "clarify" and asked["server"]["attempts"] == 0
+    assert asked["server"]["envelope"]["questions"][0]["text"] == "Which kind of moving average?"
+    own = rows["held-own-words"]
+    assert own["grade"]["ok"] is True and own["server"]["attempts"] == 1 and own["client"]["changed"] is True
+    (label,) = own["server"]["envelope"]["assumptions"]
+    assert label["text"].startswith("Built from your own description, as your own formula.") and "Pocket Pivot" in label["text"]
+
+
+# ─── clarify first: the door's own questions ──────────────────────────────────────────────────────
+
+CLARIFY_CASES = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_clarify_cases.json"
+CLARIFY_SCRIPT = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_clarify_scripted.json"
+CLARIFY_REGISTRY = ROOT / "api" / "data" / "clarify_questions.json"
+
+
+def test_every_registry_question_has_a_case_that_asks_it_and_a_choice_that_answers_it():
+    """No bundler needed: what the fixture holds. A question added to the registry without a case
+    here fails, so a later change cannot silently stop it being asked."""
+    registry = json.loads(io.open(CLARIFY_REGISTRY, encoding="utf-8").read())["questions"]
+    doc = json.loads(io.open(CLARIFY_CASES, encoding="utf-8").read())
+    script = json.loads(io.open(CLARIFY_SCRIPT, encoding="utf-8").read())["turns"]
+    cases = {c["id"]: c for c in doc["cases"] if c["group"] == "example"}
+    for q in registry:
+        case = cases["clarify-" + q["id"].replace("_", "-")]
+        ask, answer = case["turns"]
+        assert ask["expect"] == {"kind": "clarify", "max_model_calls": 0} and ask["model_expected"] is False
+        assert answer["words"] in q["choices"], (q["id"], answer["words"])          # answered by one of its OWN choices
+        assert answer["expect"]["kind"] == "change" and answer["expect"]["max_model_calls"] == 1
+        assert f"{case['id']}#0" not in script and len(script[f"{case['id']}#1"]) == 1   # no answer armed for the question turn
+    both = cases["clarify-kind-then-length"]["turns"]
+    assert [t["expect"]["kind"] for t in both] == ["clarify", "clarify", "change"]
+    assert cases["clarify-nothing-open"]["turns"][0]["expect"]["kind"] == "change"
+    controls = {c["id"]: c for c in doc["cases"] if c["group"] == "control"}
+    base = {c["id"]: c for c in json.loads(io.open(ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_cases.json", encoding="utf-8").read())["cases"]}
+    assert controls == {k: v for k, v in base.items() if v["group"] == "control"}
+
+
+@needs_node
+def test_the_door_asks_one_question_at_a_time_and_an_answer_builds(tmp_path):
+    """Through the door AND the browser's own session code, with the conversation sent the way the
+    real box sends it: each registry question is asked with no model call and nothing built; one of
+    its choices, sent as the next message, builds in ONE call. Two open questions are asked in
+    order. A request that says everything is never asked."""
+    proc, _work, out = _run(tmp_path, "--cases", str(CLARIFY_CASES), "--script", str(CLARIFY_SCRIPT))
+    assert proc.returncode == 0, proc.stdout[-3000:]
+    assert _last_line(proc.stdout).startswith("VERDICT: PASS"), proc.stdout[-1500:]
+    rows = {}
+    for r in _records(out):
+        rows.setdefault(r["case"], []).append(r)
+    for cid, want in (("clarify-average-kind", "Which kind of moving average?"),
+                      ("clarify-average-length", "How many bars should the average use?"),
+                      ("clarify-cross-meaning", "When should a cross count?")):
+        asked, answered = rows[cid]
+        assert asked["model_calls"] == 0 and asked["server"]["disposition"] == "clarify" and asked["client"]["changed"] is False
+        assert asked["server"]["envelope"]["questions"][0]["text"] == want and len(asked["server"]["envelope"]["questions"]) == 1
+        assert answered["model_calls"] == 1 and answered["grade"]["ok"] is True and answered["client"]["changed"] is True, cid
+    first, second, built = rows["clarify-kind-then-length"]
+    assert [r["model_calls"] for r in (first, second, built)] == [0, 0, 1]
+    assert first["server"]["envelope"]["questions"][0]["id"] == "average_kind"
+    assert second["server"]["envelope"]["questions"][0]["id"] == "average_length"
+    assert built["grade"]["ok"] is True and built["client"]["changed"] is True
+    (direct,) = rows["clarify-nothing-open"]
+    assert direct["model_calls"] == 1 and direct["server"]["disposition"] == "change"

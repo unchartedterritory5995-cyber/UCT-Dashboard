@@ -47,7 +47,15 @@ export function standInWorkers() {
     if (w.onmessage) w.onmessage({ data: structuredClone(reply, { transfer }) })
     return true
   }
-  return { factory, made, drain, posted, answerOne }
+  /** Answer exactly ONE message, the oldest worker `i` holds (in the order the workers were made). */
+  const answerFrom = (i) => {
+    const w = made[i]
+    if (!w || w.terminated || !w.inbox.length) return false
+    const { reply, transfer } = answerHostLaneJob(w.inbox.shift(), w.docs)
+    if (w.onmessage) w.onmessage({ data: structuredClone(reply, { transfer }) })
+    return true
+  }
+  return { factory, made, drain, posted, answerOne, answerFrom }
 }
 
 /** Every own property of a column map (enumerable or not), compared as the chart reads them:
