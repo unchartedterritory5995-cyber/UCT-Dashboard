@@ -695,19 +695,30 @@ def test_the_named_cases_answer_with_the_librarys_own_formulas_and_one_substitut
     from api.services import named_indicators as ni
     doc = json.loads(io.open(NAMED_CASES, encoding="utf-8").read())
     script = json.loads(io.open(NAMED_SCRIPT, encoding="utf-8").read())["turns"]
-    examples = [c for c in doc["cases"] if c["group"] == "example"]
-    assert len(examples) >= 9 and all(c["id"].startswith("named-") for c in examples)
+    examples = [c for c in doc["cases"] if c["group"] == "example" and c["id"].startswith("named-")]
+    assert len(examples) >= 11
+    assert [c["id"] for c in doc["cases"] if c["group"] == "example" and not c["id"].startswith("named-")] == ["held-own-words"]
     for c in examples:
         (answer,) = script[f"{c['id']}#0"]
         (made,) = [o for o in answer["ops"] if o["op"] == "create"]
         e = next(e for e in ni.entries() if e["name"] == made["name"])
         trees = [o["tree"] for o in made["outputs"]]
-        assert [k for _i, k, _v in ni.held(trees, e)] == [o["key"] for o in e["outputs"]], c["id"]
+        # (as a set: one line's formula can sit inside another's, as Stochastic RSI's K sits inside its D)
+        assert {k for _i, k, _v in ni.held(trees, e)} == {o["key"] for o in e["outputs"]}, c["id"]
     own = next(c for c in examples if c["id"] == "named-chandelier-own-number")
     assert "2.5" in own["turns"][0]["words"] and '"value": 2.5' in json.dumps(script["named-chandelier-own-number#0"])
     controls = {c["id"]: c for c in doc["cases"] if c["group"] == "control"}
     substitute = controls.pop("ctl-named-substitute")
     assert substitute["turns"][0]["expect"]["gate_prefix"] == "named:formula"
+    # ONLY THE NAME IS WITHHELD: a held name alone is a control; with the member's own rule it is an example
+    held = controls.pop("ctl-held-name")["turns"][0]
+    assert held["expect"] == {"kind": "refused", "gate_prefix": "named:unchecked", "max_model_calls": 0}
+    held_ids = {e["id"] for e in ni.held_names()}
+    assert [i for a, i in ni.phrases() if a in held["words"].lower() and i in held_ids] == ["pocket_pivot"]
+    own = next(c for c in doc["cases"] if c["id"] == "held-own-words")["turns"][0]
+    assert "pocket pivot" in own["words"] and own["expect"]["kind"] == "change"
+    (own_answer,) = script["held-own-words#0"]
+    assert "accum" not in json.dumps(own_answer["ops"]) and "Pocket" not in json.dumps(own_answer["ops"])
     wrong = script["ctl-named-substitute#0"]
     assert len(wrong) == 2 and all('"name": "ema"' in json.dumps(a["ops"]) and "accum" not in json.dumps(a["ops"]) for a in wrong)
     base = {c["id"]: c for c in json.loads(io.open(ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_cases.json", encoding="utf-8").read())["cases"]}
@@ -744,3 +755,11 @@ def test_a_named_indicator_is_built_to_its_checked_formula_in_one_call_and_a_sub
     assert refused["server"]["gate"] == "named:formula" and refused["client"]["changed"] is False
     unknown = rows["ctl-unknown-name"]
     assert unknown["model_calls"] == 0 and unknown["server"]["gate"] == "concept:ungrounded"
+    # a held name alone: refused by name, no call. The same name with the member's own rule: built, and labelled theirs.
+    held = rows["ctl-held-name"]
+    assert held["grade"]["ok"] is True and held["model_calls"] == 0 and held["server"]["gate"] == "named:unchecked"
+    assert "in your own words" in held["server"]["reason"] and held["client"]["changed"] is False
+    own = rows["held-own-words"]
+    assert own["grade"]["ok"] is True and own["server"]["attempts"] == 1 and own["client"]["changed"] is True
+    (label,) = own["server"]["envelope"]["assumptions"]
+    assert label["text"].startswith("Built from your own description, as your own formula.") and "Pocket Pivot" in label["text"]

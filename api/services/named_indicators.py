@@ -54,16 +54,33 @@ def library() -> Dict[str, Any]:
 
 
 def entries() -> List[Dict[str, Any]]:
+    """The indicators with a formula."""
     return list(library()["indicators"])
 
 
+def held_names() -> List[Dict[str, Any]]:
+    """⭐ HELD NAMES: indicators UCT knows BY NAME and has no checked formula for (the definition
+    could not be confirmed on a page read, or it belongs to another store). Each is refused by
+    name, in any spelling, with the way forward: `describe` is the rule in plain words, as an
+    example of what the member can ask for instead. A held name has no formula here at all, so
+    there is nothing a model could be handed and nothing it could approximate from."""
+    return list(library().get("held") or [])
+
+
 def entry(entry_id: Any) -> Optional[Dict[str, Any]]:
-    return next((e for e in entries() if e["id"] == entry_id), None)
+    return next((e for e in entries() + held_names() if e["id"] == entry_id), None)
 
 
 def phrases() -> Tuple[Tuple[str, str], ...]:
-    """Every (words a member uses, entry id), the name itself included."""
-    return tuple((alias, e["id"]) for e in entries() for alias in e["aliases"])
+    """Every (words a member uses, entry id), the name itself included, held names too."""
+    return tuple((alias, e["id"]) for e in entries() + held_names() for alias in e["aliases"])
+
+
+def way_forward(e: Mapping[str, Any]) -> str:
+    """What a member is told when they name something UCT will not build by name yet."""
+    example = f" (for example: {e['describe']})" if e.get("describe") else ""
+    return (f"{e['name']} isn't in UCT's checked library yet. Describe the rule itself in your own words{example} "
+            "and the assistant will build exactly that, as your own formula.")
 
 
 # ── text ─────────────────────────────────────────────────────────────────────
@@ -125,7 +142,7 @@ CAPTURE_SAID = {
 
 def tiers(e: Mapping[str, Any]) -> Tuple[bool, bool, bool]:
     """(value-checked, published definition read, graded equal to a TradingView capture)."""
-    ev = e.get("evidence") or {}
+    ev = e.get("evidence") or {}                             # a held name has none
     published = ev.get("published") or {}
     capture = ev.get("capture") or {}
     return (bool(ev.get("value_check")),

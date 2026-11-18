@@ -173,7 +173,7 @@ def main(argv=None) -> int:
     with io.open(ni.PATH, "w", encoding="utf-8", newline="\n") as fh:
         fh.write(text)
     print(f"wrote {ni.PATH.relative_to(ROOT)}: {len(built['indicators'])} indicators, "
-          f"{sum(len(e['outputs']) for e in built['indicators'])} formulas")
+          f"{sum(len(e['outputs']) for e in built['indicators'])} formulas, {len(built.get('held') or [])} held names")
     return 0
 
 

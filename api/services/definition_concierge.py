@@ -2564,7 +2564,65 @@ def _is_name_word(word: str) -> bool:
     return len(word) > 1 and word[0].isupper() and not word.isupper()
 
 
-def _named_phrases(prompt: str, already_found: List[dict]) -> List[dict]:
+#: ⭐ 2026-11-18 -- THE WHOLE-PHRASE RULE (opt-in, `plan(strict_names=True)`; the chart door uses it).
+#: A NAME is short: a Title-Case run longer than this is a sentence typed in capitals, and keeps
+#: the older rule.
+NAME_MAX_WORDS = 4
+#: Words capitalised by grammar or habit, never by being part of a name.
+_NAME_GRAMMAR = frozenset("a an the of on in to for with and or but vs at by from as than".split())
+#: The words a request OPENS with. Only these are excused for standing first in a sentence with a
+#: capital ("Add Bollinger Bands"). Any other first word is read as part of the name, so a name
+#: typed alone ("Klinger Volume Oscillator") is still caught. A closed list on purpose: a missing
+#: opener costs one request a rephrase; excusing every first word let every bare name through.
+_SENTENCE_OPENERS = frozenset("""add show plot draw create make build give put use display highlight mark get want
+need try set turn change switch apply overlay graph chart include insert load open see view find calculate compute
+track watch compare replace remove delete hide rename color colour paint shade label call name please can could
+would let i we also and then now just ok okay yes no hey hi with for when if on in the a an my this that what how
+why does do is are explain tell describe""".split())
+_VOCABULARY: Dict[int, Tuple[Any, frozenset]] = {}
+
+
+def _lexicon_vocabulary(lexicon: Mapping[str, Any]) -> frozenset:
+    """Every word (by stem) any phrase of this lexicon is made of: the product's own vocabulary."""
+    held = _VOCABULARY.get(id(lexicon))
+    if held is None or held[0] is not lexicon:
+        held = (lexicon, frozenset(stem_ for key in lexicon["index"] for stem_ in key))
+        _VOCABULARY[id(lexicon)] = held
+    return held[1]
+
+
+def _foreign_words(text: str, words: List[Any], lexicon: Mapping[str, Any]) -> List[str]:
+    """The words of one Title-Case run that NOTHING accounts for: not a request's opening word
+    standing first in its sentence (capitalised by grammar: "Add Bollinger Bands"), not a grammar
+    word, and not a word of the product's own vocabulary. (A word that is part of something
+    already understood needs no clause of its own: every word of a lexicon phrase IS vocabulary.)
+
+    ⭐ MEASURED BEFORE IT WAS WRITTEN (2026-11-18, 604 requests: the plain-English corpus, every
+    evaluation case, 102 live-round requests and 140 indicator ideas in three spellings). Counting
+    ANY unaccounted word as foreign refused 43 of 138 Title-Case descriptions ("Previous Week High
+    And Low", "Linear Regression Slope"); with a hand list of verbs it still needed the list. This
+    form flips NO real request and newly refuses the same 10 of 138 Title-Case names however they
+    are written (alone, after "Add the", mid-sentence), nine of them real named indicators (Chande
+    Momentum Oscillator, Klinger Volume Oscillator, TD Sequential ...). The one description it
+    catches holds a word the product has never used ("Interquartile")."""
+    vocabulary = _lexicon_vocabulary(lexicon)
+    out: List[str] = []
+    for w in words:
+        word = w.group(0)
+        before = text[:w.start()].rstrip()
+        if (not before or before[-1] in ".!?;:\n") and word.lower() in _SENTENCE_OPENERS:
+            continue
+        if word.lower() in _NAME_GRAMMAR:
+            continue
+        stems, _cost = _stem_key(_form_tokens(word))
+        if stems and all(st in vocabulary for st in stems):
+            continue
+        out.append(word)
+    return out
+
+
+def _named_phrases(prompt: str, already_found: List[dict],
+                   strict_lexicon: Optional[Mapping[str, Any]] = None) -> List[dict]:
     """Runs of two-or-more proper-noun-shaped words `prompt` contains that no
     existing match already accounts for.
 
@@ -2599,7 +2657,12 @@ def _named_phrases(prompt: str, already_found: List[dict]) -> List[dict]:
         if j - i >= 2:
             start, end = words[i].start(), words[j - 1].end()
             phrase = text[start:end]
-            if not any(start < f["end"] and f["start"] < end for f in already_found):
+            overlaps = any(start < f["end"] and f["start"] < end for f in already_found)
+            # ⭐ THE WHOLE-PHRASE RULE (`strict_lexicon`): one known word inside a short Title-Case
+            # name no longer accounts for the name. "Schaff Trend Cycle" knows "trend"; it is
+            # still a name nobody here has a formula for.
+            if not overlaps or (strict_lexicon is not None and j - i <= NAME_MAX_WORDS
+                                and _foreign_words(text, words[i:j], strict_lexicon)):
                 out.append({"kind": NAMED_ENTRY, "key": phrase, "section": None,
                             "start": start, "end": end, "matched_as": phrase})
             i = j
@@ -2818,8 +2881,14 @@ def _starter_named(text: Any) -> Optional[Mapping[str, Any]]:
 def plan(prompt: str, kind: str = INDICATOR_KIND, *,
          vocab: Optional[Mapping[str, Any]] = None,
          table: Optional[Mapping[str, Any]] = None,
-         lexicon: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+         lexicon: Optional[Dict[str, Any]] = None,
+         strict_names: bool = False,
+         name_refusal: Optional[str] = None) -> Dict[str, Any]:
     """What this door understood, what it did not, and what the model will be told.
+
+    ``strict_names`` turns on the whole-phrase rule for unknown names (`_foreign_words`); off, the
+    planner is exactly what it was. ``name_refusal`` is the caller's own sentence for an unknown
+    name (``{name}`` is the phrase); without it, this door's.
 
     ⭐ PURE. No model call, no clock, no network -- which is why the corpus rail
     can drive hundreds of real member phrasings through it for nothing, and why a
@@ -2854,7 +2923,9 @@ def plan(prompt: str, kind: str = INDICATOR_KIND, *,
     # `_clauses` must not split a named phrase across a clause boundary --
     # both already do exactly that for every OTHER match kind, for free, once
     # a named-phrase span is part of `found`.
-    found = sorted(found + _named_phrases(text, found), key=lambda m: m["start"])
+    # (a known word INSIDE an unknown name needs no removing: the name's clause is refused whole, and
+    # nothing in a refused clause is reported as understood)
+    found = sorted(found + _named_phrases(text, found, lex if strict_names else None), key=lambda m: m["start"])
     written = _numbers_in(text, found)
     clauses = _clauses(text, found + written)
 
@@ -2900,7 +2971,7 @@ def plan(prompt: str, kind: str = INDICATOR_KIND, *,
             refusals_by_clause.setdefault(index, []).append({
                 "phrase": match["matched_as"],
                 "gate": concept_vocabulary.GATE_UNGROUNDED,
-                "reason": (
+                "reason": name_refusal.format(name=match["matched_as"]) if name_refusal else (
                     f'"{match["matched_as"]}" is not one of this door\'s supported '
                     "functions or concepts, so there is no formula to expand it "
                     "into. Name a supported indicator, or ask for it to be added "

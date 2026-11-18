@@ -99,10 +99,57 @@ What it decided:
 - **A level carried from the listing cannot be reproduced** at any window the engine allows. This is a
   known limit of a windowed running value. The door says so on every output built from one.
 
-## Names that were held out, and why
+## Slice 2: four more entries (same day)
 
-| name | why it is not in the library yet |
+Double Exponential Moving Average, Triple Exponential Moving Average, Chande Momentum Oscillator and
+Stochastic RSI. Each has tier (a) (an independent calculation, at its defaults and at other numbers) and
+tier (b) (the pages read are in the entry). All four are TradingView built-ins; their captures are
+queued, and until they are graded the entries carry no capture and claim nothing about TradingView.
+Where sources give different default lengths, the entry's note says which it uses and why (TradingView's
+built-in default, since that is the chart a member compares against).
+
+## Held names: known by name, no checked formula
+
+These are in the library file under `held`. Each has **no formula at all**. Named alone, each is refused
+by name, in any spelling, before any model call, and the refusal is the way forward: describe the rule
+in your own words. Named beside the member's own description of the rule, the description is built and
+labelled as the member's own formula.
+
+| name | why it has no checked formula yet |
 |---|---|
 | TTM Squeeze | John Carter's own formula was not confirmed on a page read. The sources that describe it disagree about the channel's range. The Squeeze Momentum Indicator is in the library under its own author's name. |
-| Pocket Pivot | The authors' rules page states the volume rule only. Whether the day must itself be an up day was not confirmed on that page. |
+| Pocket Pivot | The authors' rules page states the volume rule only. Whether the day must itself be an up day, and how a down-volume day is defined, were not confirmed on their pages. UCT's own readers use "an up day on more volume than any down day of the prior 10"; a chart formula should be proved equal to that before it is offered under the name. |
 | Mansfield Relative Strength | The Screener already has a column of that name; a chart formula for it belongs with the Screener's columns (`chart_twins`), proved equal to that column. |
+
+## The whole-phrase rule for unknown names: measured before it was written
+
+**The gap.** A Title-Case run of words the planner does not know is refused before any model call. But
+the rule fired only when *no* word of the run was known, so a name with one ordinary word in it
+("Schaff Trend Cycle", "Klinger Volume Oscillator") passed, and reached a model free to improvise.
+
+**The corpus.** 877 distinct requests: the plain-English phrasing corpus (34), every evaluation case's
+words (45), the requests of the live rounds (102), the worked examples (5), and 140 indicator ideas each
+written five ways (as its plain description, after "Add", after "Add the" in Title Case, mid-sentence in
+Title Case, and alone in Title Case).
+
+**What was tried, and what each cost.** New refusals among requests that pass today:
+
+| rule | real requests (186) | Title-Case idea names (138) | what went wrong |
+|---|---|---|---|
+| any unaccounted word makes the run unknown | 0 | 43 | refuses plain descriptions: "Previous Week High And Low", "Linear Regression Slope" |
+| ... except words of the product's own vocabulary | 0 | 15 | still catches sentences typed in capitals |
+| ... and only runs of at most four words | 0 | 10 | none of these; but excusing *every* first word of a sentence let every name typed alone through |
+| ... and only a closed list of request openers is excused for standing first (**shipped**) | 0 | 10 | the same 10 however they are written |
+
+**The 10.** Chande Momentum Oscillator, Detrended Price Oscillator, Double EMA, Triple EMA, Zero-Lag EMA,
+EMA Ribbon, Klinger Volume Oscillator, Minervini Trend Template, TD Sequential Setup Count, and one plain
+description ("Median With Interquartile Band", which holds a word the product has never used). Three of
+them (Double EMA, Triple EMA, Chande Momentum Oscillator) went into the library in the same change, so
+they are built to a checked formula rather than refused.
+
+**Where it applies.** The chart conversation door only (`plan(strict_names=True)`). The Screener door's
+planner is unchanged. An unknown name's refusal on the chart door now ends with the way forward:
+describe the rule in your own words.
+
+**What it does not do.** A name written in lowercase is not a Title-Case run and is not caught by this
+rule; a held or library name is caught in any spelling, because it is looked up, not guessed from shape.

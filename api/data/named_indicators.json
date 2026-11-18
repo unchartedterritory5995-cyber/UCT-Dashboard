@@ -1,5 +1,5 @@
 {
- "_": "THE NAMED-INDICATOR LIBRARY. One entry per named indicator: the ONE checked formula the assistant builds when a member names it (api/services/named_indicators.py says how). A person writes `formula` (with {param} where a parameter's number goes), `params`, `aliases` and `evidence`; tools/named_indicators_build.py writes `tree`, `sites` and each newest version's `maths`. THE RULE: an entry's maths never changes under the same version; a change is a new entry in its `versions` with the reason. `evidence.published` is what was READ, on the date in `read`, at the pages listed; `says` is the definition in those pages' terms. Aliases are never a bare two- or three-letter acronym.",
+ "_": "THE NAMED-INDICATOR LIBRARY. One entry per named indicator: the ONE checked formula the assistant builds when a member names it (api/services/named_indicators.py says how). A person writes `formula` (with {param} where a parameter's number goes), `params`, `aliases` and `evidence`; tools/named_indicators_build.py writes `tree`, `sites` and each newest version's `maths`. THE RULE: an entry's maths never changes under the same version; a change is a new entry in its `versions` with the reason. `evidence.published` is what was READ, on the date in `read`, at the pages listed; `says` is the definition in those pages' terms. Aliases are never a bare two- or three-letter acronym. `held` lists names UCT knows and has NO checked formula for: each is refused by name with the way forward (`describe` is the rule in plain words, an example of what the member can ask for instead).",
  "contract": "uct.named-indicators/1",
  "indicators": [
   {
@@ -3604,6 +3604,958 @@
      "why": "first entry"
     }
    ]
+  },
+  {
+   "id": "double_exponential_moving_average",
+   "name": "Double Exponential Moving Average",
+   "aliases": [
+    "double exponential moving average",
+    "double ema",
+    "double exponential average",
+    "dema"
+   ],
+   "placement": "overlay",
+   "params": [
+    {
+     "key": "length",
+     "label": "Length",
+     "default": 9,
+     "min": 1,
+     "max": 400,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "dema",
+     "label": "DEMA",
+     "type": "value",
+     "formula": "2 * ema(close, {length}) - ema(ema(close, {length}), {length})",
+     "tree": {
+      "type": "op",
+      "name": "-",
+      "args": [
+       {
+        "type": "op",
+        "name": "*",
+        "args": [
+         {
+          "type": "num",
+          "value": 2
+         },
+         {
+          "type": "call",
+          "name": "ema",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "num",
+            "value": 9
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "call",
+        "name": "ema",
+        "args": [
+         {
+          "type": "call",
+          "name": "ema",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "num",
+            "value": 9
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 9
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {
+      "length": [
+       [
+        0,
+        1,
+        1
+       ],
+       [
+        1,
+        0,
+        1
+       ],
+       [
+        1,
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::double_exponential_moving_average",
+    "published": {
+     "by": "Patrick G. Mulloy",
+     "url": "https://www.tradingview.com/support/solutions/43000589132/",
+     "sources": [
+      {
+       "title": "TradingView help center: Double EMA (DEMA)",
+       "url": "https://www.tradingview.com/support/solutions/43000589132/",
+       "kind": "vendor documentation"
+      },
+      {
+       "title": "StockCharts ChartSchool: Double Exponential Moving Average (DEMA)",
+       "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/double-exponential-moving-average-dema",
+       "kind": "reference"
+      },
+      {
+       "title": "Wikipedia: Double exponential moving average",
+       "url": "https://en.wikipedia.org/wiki/Double_exponential_moving_average",
+       "kind": "reference"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "EMA1 = EMA(price, n); EMA2 = EMA(EMA1, n); DEMA = 2 x EMA1 - EMA2. Mulloy, Technical Analysis of Stocks & Commodities, January 1994.",
+     "note": "Length 9 is TradingView's default; StockCharts uses 20."
+    },
+    "capture": null
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:c1182383600b08664f54263386f7602451c27854bdc08f191f0683cdb9722ea6",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "triple_exponential_moving_average",
+   "name": "Triple Exponential Moving Average",
+   "aliases": [
+    "triple exponential moving average",
+    "triple ema",
+    "triple exponential average",
+    "tema"
+   ],
+   "placement": "overlay",
+   "params": [
+    {
+     "key": "length",
+     "label": "Length",
+     "default": 9,
+     "min": 1,
+     "max": 300,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "tema",
+     "label": "TEMA",
+     "type": "value",
+     "formula": "3 * ema(close, {length}) - 3 * ema(ema(close, {length}), {length}) + ema(ema(ema(close, {length}), {length}), {length})",
+     "tree": {
+      "type": "op",
+      "name": "+",
+      "args": [
+       {
+        "type": "op",
+        "name": "-",
+        "args": [
+         {
+          "type": "op",
+          "name": "*",
+          "args": [
+           {
+            "type": "num",
+            "value": 3
+           },
+           {
+            "type": "call",
+            "name": "ema",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "num",
+              "value": 9
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "*",
+          "args": [
+           {
+            "type": "num",
+            "value": 3
+           },
+           {
+            "type": "call",
+            "name": "ema",
+            "args": [
+             {
+              "type": "call",
+              "name": "ema",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "num",
+                "value": 9
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 9
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "call",
+        "name": "ema",
+        "args": [
+         {
+          "type": "call",
+          "name": "ema",
+          "args": [
+           {
+            "type": "call",
+            "name": "ema",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "num",
+              "value": 9
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 9
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 9
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {
+      "length": [
+       [
+        0,
+        0,
+        1,
+        1
+       ],
+       [
+        0,
+        1,
+        1,
+        0,
+        1
+       ],
+       [
+        0,
+        1,
+        1,
+        1
+       ],
+       [
+        1,
+        0,
+        0,
+        1
+       ],
+       [
+        1,
+        0,
+        1
+       ],
+       [
+        1,
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::triple_exponential_moving_average",
+    "published": {
+     "by": "Patrick G. Mulloy",
+     "url": "https://www.tradingview.com/support/solutions/43000591346/",
+     "sources": [
+      {
+       "title": "TradingView help center: Triple EMA (TEMA)",
+       "url": "https://www.tradingview.com/support/solutions/43000591346/",
+       "kind": "vendor documentation"
+      },
+      {
+       "title": "StockCharts ChartSchool: Triple Exponential Moving Average (TEMA)",
+       "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/triple-exponential-moving-average-tema",
+       "kind": "reference"
+      },
+      {
+       "title": "Wikipedia: Triple exponential moving average",
+       "url": "https://en.wikipedia.org/wiki/Triple_exponential_moving_average",
+       "kind": "reference"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "EMA1 = EMA(price); EMA2 = EMA(EMA1); EMA3 = EMA(EMA2), one period; TEMA = 3 x EMA1 - 3 x EMA2 + EMA3.",
+     "note": "Length 9 is TradingView's default; StockCharts uses 20."
+    },
+    "capture": null
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:1932845b10f0ceca3ee8dab050f55506f64d6edf4ec143ee598b8701d9605a67",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "chande_momentum_oscillator",
+   "name": "Chande Momentum Oscillator",
+   "aliases": [
+    "chande momentum oscillator",
+    "chande momentum",
+    "chande oscillator",
+    "chande's momentum oscillator"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "length",
+     "label": "Length",
+     "default": 9,
+     "min": 1,
+     "max": 600,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "cmo",
+     "label": "Chande Momentum Oscillator",
+     "type": "value",
+     "formula": "100 * (sum(max(close - close[1], 0), {length}) - sum(max(close[1] - close, 0), {length})) / (sum(max(close - close[1], 0), {length}) + sum(max(close[1] - close, 0), {length}))",
+     "tree": {
+      "type": "op",
+      "name": "/",
+      "args": [
+       {
+        "type": "op",
+        "name": "*",
+        "args": [
+         {
+          "type": "num",
+          "value": 100
+         },
+         {
+          "type": "op",
+          "name": "-",
+          "args": [
+           {
+            "type": "call",
+            "name": "sum",
+            "args": [
+             {
+              "type": "call",
+              "name": "max",
+              "args": [
+               {
+                "type": "op",
+                "name": "-",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 },
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 0
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 9
+             }
+            ]
+           },
+           {
+            "type": "call",
+            "name": "sum",
+            "args": [
+             {
+              "type": "call",
+              "name": "max",
+              "args": [
+               {
+                "type": "op",
+                "name": "-",
+                "args": [
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 },
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 0
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 9
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": "+",
+        "args": [
+         {
+          "type": "call",
+          "name": "sum",
+          "args": [
+           {
+            "type": "call",
+            "name": "max",
+            "args": [
+             {
+              "type": "op",
+              "name": "-",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "offset",
+                "value": 1,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 0
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 9
+           }
+          ]
+         },
+         {
+          "type": "call",
+          "name": "sum",
+          "args": [
+           {
+            "type": "call",
+            "name": "max",
+            "args": [
+             {
+              "type": "op",
+              "name": "-",
+              "args": [
+               {
+                "type": "offset",
+                "value": 1,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               },
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 0
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 9
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {
+      "length": [
+       [
+        0,
+        1,
+        0,
+        1
+       ],
+       [
+        0,
+        1,
+        1,
+        1
+       ],
+       [
+        1,
+        0,
+        1
+       ],
+       [
+        1,
+        1,
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::chande_momentum_oscillator",
+    "published": {
+     "by": "Tushar Chande",
+     "url": "https://www.tradingview.com/support/solutions/43000589109/",
+     "sources": [
+      {
+       "title": "TradingView help center: Chande Momentum Oscillator",
+       "url": "https://www.tradingview.com/support/solutions/43000589109/",
+       "kind": "vendor documentation"
+      },
+      {
+       "title": "Fidelity learning center: Chande Momentum Oscillator",
+       "url": "https://www.fidelity.com/learning-center/trading-investing/technical-analysis/technical-indicator-guide/cmo",
+       "kind": "reference"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "CMO = 100 x (Su - Sd) / (Su + Sd): Su is the sum of the close-to-close gains over the period, Sd the sum of the losses (as positive numbers). Plain sums; no smoothing.",
+     "note": "Length 9 is TradingView's built-in default; its help page and Fidelity say 20 is usual."
+    },
+    "capture": null
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:a5b290aa0c6220283a3e776bf2ce0ec1838f3d93359bc165918351cbfa592c95",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "stochastic_rsi",
+   "name": "Stochastic RSI",
+   "aliases": [
+    "stochastic rsi",
+    "stoch rsi",
+    "stochrsi",
+    "stochastic relative strength index"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "rsi_length",
+     "label": "RSI length",
+     "default": 14,
+     "min": 2,
+     "max": 400,
+     "integer": true
+    },
+    {
+     "key": "stoch_length",
+     "label": "Stochastic length",
+     "default": 14,
+     "min": 1,
+     "max": 400,
+     "integer": true
+    },
+    {
+     "key": "k_smooth",
+     "label": "K",
+     "default": 3,
+     "min": 1,
+     "max": 100,
+     "integer": true
+    },
+    {
+     "key": "d_smooth",
+     "label": "D",
+     "default": 3,
+     "min": 1,
+     "max": 100,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "k",
+     "label": "K",
+     "type": "value",
+     "formula": "sma(stoch(rsi(close, {rsi_length}), rsi(close, {rsi_length}), rsi(close, {rsi_length}), {stoch_length}), {k_smooth})",
+     "tree": {
+      "type": "call",
+      "name": "sma",
+      "args": [
+       {
+        "type": "call",
+        "name": "stoch",
+        "args": [
+         {
+          "type": "call",
+          "name": "rsi",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "num",
+            "value": 14
+           }
+          ]
+         },
+         {
+          "type": "call",
+          "name": "rsi",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "num",
+            "value": 14
+           }
+          ]
+         },
+         {
+          "type": "call",
+          "name": "rsi",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "num",
+            "value": 14
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 14
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 3
+       }
+      ]
+     },
+     "sites": {
+      "rsi_length": [
+       [
+        0,
+        0,
+        1
+       ],
+       [
+        0,
+        1,
+        1
+       ],
+       [
+        0,
+        2,
+        1
+       ]
+      ],
+      "stoch_length": [
+       [
+        0,
+        3
+       ]
+      ],
+      "k_smooth": [
+       [
+        1
+       ]
+      ]
+     }
+    },
+    {
+     "key": "d",
+     "label": "D",
+     "type": "value",
+     "formula": "sma(sma(stoch(rsi(close, {rsi_length}), rsi(close, {rsi_length}), rsi(close, {rsi_length}), {stoch_length}), {k_smooth}), {d_smooth})",
+     "tree": {
+      "type": "call",
+      "name": "sma",
+      "args": [
+       {
+        "type": "call",
+        "name": "sma",
+        "args": [
+         {
+          "type": "call",
+          "name": "stoch",
+          "args": [
+           {
+            "type": "call",
+            "name": "rsi",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "num",
+              "value": 14
+             }
+            ]
+           },
+           {
+            "type": "call",
+            "name": "rsi",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "num",
+              "value": 14
+             }
+            ]
+           },
+           {
+            "type": "call",
+            "name": "rsi",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "num",
+              "value": 14
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 14
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 3
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 3
+       }
+      ]
+     },
+     "sites": {
+      "rsi_length": [
+       [
+        0,
+        0,
+        0,
+        1
+       ],
+       [
+        0,
+        0,
+        1,
+        1
+       ],
+       [
+        0,
+        0,
+        2,
+        1
+       ]
+      ],
+      "stoch_length": [
+       [
+        0,
+        0,
+        3
+       ]
+      ],
+      "k_smooth": [
+       [
+        0,
+        1
+       ]
+      ],
+      "d_smooth": [
+       [
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::stochastic_rsi",
+    "published": {
+     "by": "Tushar Chande and Stanley Kroll",
+     "url": "https://www.tradingview.com/support/solutions/43000502333/",
+     "sources": [
+      {
+       "title": "TradingView help center: Stochastic RSI (STOCH RSI)",
+       "url": "https://www.tradingview.com/support/solutions/43000502333/",
+       "kind": "vendor documentation"
+      },
+      {
+       "title": "StockCharts ChartSchool: StochRSI",
+       "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/stochrsi",
+       "kind": "reference"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "StochRSI = (RSI - lowest RSI) / (highest RSI - lowest RSI) over the lookback (Chande and Kroll, The New Technical Trader, 1994). TradingView draws it 0 to 100 as K, a 3-bar simple average of that, and D, a 3-bar simple average of K.",
+     "note": "The original is one line from 0 to 1 with no smoothing; this is TradingView's K and D form, 0 to 100."
+    },
+    "capture": null
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:1f81be2d9aa61bd1d5d98f7b80e95d8ffd7275e7472d4e4b62daa4f0d20d47ab",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  }
+ ],
+ "held": [
+  {
+   "id": "pocket_pivot",
+   "name": "Pocket Pivot",
+   "aliases": [
+    "pocket pivot",
+    "pocket pivots",
+    "pocket pivot point",
+    "pocket pivot buy point"
+   ],
+   "why": "The authors' own rules page states the volume rule only. Whether the day must itself be an up day, and how a down-volume day is defined, were not confirmed on a page read. UCT's own readers (the Screener's Bar Character, Chart IQ) use 'an up day on more volume than any down day of the prior 10'; a chart formula should be proved equal to that before it is offered under the name.",
+   "describe": "an up day on more volume than any down day of the last 10 days",
+   "since": "2026-11-18"
+  },
+  {
+   "id": "ttm_squeeze",
+   "name": "TTM Squeeze",
+   "aliases": [
+    "ttm squeeze",
+    "ttm squeeze indicator",
+    "carter squeeze",
+    "john carter squeeze"
+   ],
+   "why": "John Carter's own formula was not confirmed on a page read; the sources that describe it disagree about the channel's range. The Squeeze Momentum Indicator is in the library under its own author's name.",
+   "describe": "the Bollinger Bands inside the Keltner Channels",
+   "since": "2026-11-18"
+  },
+  {
+   "id": "mansfield_relative_strength",
+   "name": "Mansfield Relative Strength",
+   "aliases": [
+    "mansfield relative strength",
+    "mansfield relative performance",
+    "mansfield relative strength indicator"
+   ],
+   "why": "The Screener has a column of this name. A chart formula for it belongs with the Screener's columns (chart_twins), proved equal to that column; until then there is no checked chart formula.",
+   "describe": "the price divided by SPY, as a percent above or below its own 200-day average",
+   "since": "2026-11-18"
   }
  ]
 }

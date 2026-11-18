@@ -351,7 +351,51 @@ def squeeze_on(bars, bb_length=20, bb_mult=2.0, kc_length=20, kc_mult=1.5):
     return out
 
 
+def dema(bars, length=9):
+    e1 = ema(col(bars, "c"), length)
+    e2 = ema(e1, length)
+    return [2 * a - b if ok(a) and ok(b) else NAN for a, b in zip(e1, e2)]
+
+
+def tema(bars, length=9):
+    e1 = ema(col(bars, "c"), length)
+    e2 = ema(e1, length)
+    e3 = ema(e2, length)
+    return [3 * a - 3 * b + c if ok(a) and ok(b) and ok(c) else NAN for a, b, c in zip(e1, e2, e3)]
+
+
+def chande_momentum_oscillator(bars, length=9):
+    c = col(bars, "c")
+    up = [NAN] + [max(c[i] - c[i - 1], 0.0) for i in range(1, len(c))]
+    down = [NAN] + [max(c[i - 1] - c[i], 0.0) for i in range(1, len(c))]
+    su, sd = rolling_sum(up, length), rolling_sum(down, length)
+    return [100.0 * (a - b) / (a + b) if ok(a) and ok(b) and (a + b) else NAN for a, b in zip(su, sd)]
+
+
+def _stoch_of(xs, n):
+    out = []
+    for i in range(len(xs)):
+        w = xs[i - n + 1:i + 1] if i >= n - 1 else []
+        if len(w) != n or not all(ok(v) for v in w) or max(w) == min(w):
+            out.append(NAN)
+            continue
+        out.append(100.0 * (xs[i] - min(w)) / (max(w) - min(w)))
+    return out
+
+
+def stoch_rsi_k(bars, rsi_length=14, stoch_length=14, k_smooth=3, d_smooth=3):
+    return sma(_stoch_of(rsi(col(bars, "c"), rsi_length), stoch_length), k_smooth)
+
+
+def stoch_rsi_d(bars, rsi_length=14, stoch_length=14, k_smooth=3, d_smooth=3):
+    return sma(stoch_rsi_k(bars, rsi_length, stoch_length, k_smooth), d_smooth)
+
+
 REFERENCES = {
+    "double_exponential_moving_average": {"dema": dema},
+    "triple_exponential_moving_average": {"tema": tema},
+    "chande_momentum_oscillator": {"cmo": chande_momentum_oscillator},
+    "stochastic_rsi": {"k": stoch_rsi_k, "d": stoch_rsi_d},
     "kaufman_adaptive_moving_average": {"kama": kama},
     "mcginley_dynamic": {"mcginley": mcginley},
     "connors_rsi": {"crsi": connors_rsi},
@@ -370,6 +414,10 @@ REFERENCES = {
 
 #: Other numbers for the second pass: each inside the parameter's own range, none a default.
 OTHER = {
+    "double_exponential_moving_average": {"length": 21},
+    "triple_exponential_moving_average": {"length": 14},
+    "chande_momentum_oscillator": {"length": 20},
+    "stochastic_rsi": {"rsi_length": 10, "stoch_length": 20, "k_smooth": 5, "d_smooth": 4},
     "kaufman_adaptive_moving_average": {"er_length": 14, "fast": 3, "slow": 20},
     "mcginley_dynamic": {"length": 9},
     "connors_rsi": {"rsi_length": 4, "streak_length": 3, "rank_length": 60},

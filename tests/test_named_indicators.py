@@ -332,7 +332,10 @@ def test_a_members_own_setting_may_drive_a_parameter_and_only_a_declared_one():
 def test_every_entry_holds_itself_and_no_other_entry():
     for e in ni.entries():
         trees = [o["tree"] for o in e["outputs"]]
-        assert [k for _i, k, _v in ni.held(trees, e)] == [o["key"] for o in e["outputs"]], e["id"]
+        found = ni.held(trees, e)
+        assert {k for _i, k, _v in found} == {o["key"] for o in e["outputs"]}, e["id"]
+        # each tree holds its OWN output (one line's formula may also sit inside another's: Stochastic RSI's K in its D)
+        assert all((i, o["key"]) in {(i_, k) for i_, k, _v in found} for i, o in enumerate(e["outputs"])), e["id"]
         for other in ni.entries():
             if other["id"] != e["id"]:
                 assert ni.held(trees, other) == [], (e["id"], other["id"])
@@ -344,7 +347,10 @@ CHART = {"symbol": "NVDA", "timeframe": "D"}
 
 
 def test_every_alias_reaches_its_entry_however_it_is_capitalised(conv):
+    built = {e["id"] for e in ni.entries()}                      # (held names: tests/test_named_indicators_held.py)
     for phrase, entry_id in ni.phrases():
+        if entry_id not in built:
+            continue
         for words in (phrase, phrase.title(), phrase.upper()):
             got = conv.understand_turn(f"add the {words}", CHART)
             assert got["refusal"] is None, (words, got["refusal"])
@@ -506,7 +512,7 @@ def test_a_name_not_checked_yet_is_refused_by_name_before_any_call(conv, clean_e
     client = model([])
     r = conv.converse("Add the Zeta Wave", user_id="u1", view=empty_view(0))
     assert r["ok"] is False and r["gate"] == "named:unchecked" and client.calls == []
-    assert "Zeta Wave" in r["reason"] and "not been checked yet" in r["reason"]
+    assert r["reason"].startswith("Zeta Wave isn't in UCT's checked library yet.") and "in your own words" in r["reason"]
     client = model([])
     assert conv.converse("add the zeta wave oscillator in a pane", user_id="u2", view=empty_view(0))["gate"] == "named:unchecked"
     assert client.calls == []

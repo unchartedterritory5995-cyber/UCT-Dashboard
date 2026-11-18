@@ -1772,6 +1772,289 @@
     ]
    }
   ],
+  "named-stoch-rsi#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built the Stochastic RSI.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Stochastic RSI",
+      "placement": "pane",
+      "primary": "k",
+      "outputs": [
+       {
+        "key": "k",
+        "tree": {
+         "type": "call",
+         "name": "sma",
+         "args": [
+          {
+           "type": "call",
+           "name": "stoch",
+           "args": [
+            {
+             "type": "call",
+             "name": "rsi",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 14
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "rsi",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 14
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "rsi",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 14
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 3
+          }
+         ]
+        }
+       },
+       {
+        "key": "d",
+        "tree": {
+         "type": "call",
+         "name": "sma",
+         "args": [
+          {
+           "type": "call",
+           "name": "sma",
+           "args": [
+            {
+             "type": "call",
+             "name": "stoch",
+             "args": [
+              {
+               "type": "call",
+               "name": "rsi",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 14
+                }
+               ]
+              },
+              {
+               "type": "call",
+               "name": "rsi",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 14
+                }
+               ]
+              },
+              {
+               "type": "call",
+               "name": "rsi",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 14
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 14
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 3
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 3
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "named-triple-ema#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built the Triple Exponential Moving Average.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Triple Exponential Moving Average",
+      "placement": "price",
+      "primary": "tema",
+      "outputs": [
+       {
+        "key": "tema",
+        "tree": {
+         "type": "op",
+         "name": "+",
+         "args": [
+          {
+           "type": "op",
+           "name": "-",
+           "args": [
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "num",
+               "value": 3
+              },
+              {
+               "type": "call",
+               "name": "ema",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 9
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "num",
+               "value": 3
+              },
+              {
+               "type": "call",
+               "name": "ema",
+               "args": [
+                {
+                 "type": "call",
+                 "name": "ema",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "num",
+                   "value": 9
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 9
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "ema",
+           "args": [
+            {
+             "type": "call",
+             "name": "ema",
+             "args": [
+              {
+               "type": "call",
+               "name": "ema",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 9
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 9
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 9
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
   "ctl-named-substitute#0": [
    {
     "contract": "uct.authoring.patch/1",
@@ -1831,6 +2114,51 @@
           {
            "type": "num",
            "value": 14
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "held-own-words#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built your rule.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Volume above its 10 day high",
+      "placement": "pane",
+      "primary": "rule",
+      "outputs": [
+       {
+        "key": "rule",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "series",
+           "name": "volume"
+          },
+          {
+           "type": "call",
+           "name": "highest",
+           "args": [
+            {
+             "type": "series",
+             "name": "volume"
+            },
+            {
+             "type": "num",
+             "value": 10
+            }
+           ]
           }
          ]
         }

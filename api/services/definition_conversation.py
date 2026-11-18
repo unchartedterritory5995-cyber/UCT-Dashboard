@@ -301,7 +301,7 @@ REFUSALS: Mapping[str, str] = {
     "named:formula": (
         "the UCT Agent did not build that named indicator to UCT's checked formula, so nothing was changed"),
     "named:unchecked": (
-        "that indicator is in UCT's library but its formula has not been checked yet, so the assistant will not build it"),
+        "that indicator is not in UCT's checked library yet, so the assistant will not build it by name"),
     # ⭐ BATCH 2 -- linreg / correlation / vwma / roc / mom / Keltner with an unusable length
     "resolve:expansion": (
         "a formula function was given a length it cannot use (a whole number is needed)"),
@@ -833,6 +833,13 @@ NAMED_RULE = ("a NAMED indicator: UCT builds it to ONE checked formula. For each
               "what the member asked cannot be this formula, emit no ops and say so in `note`")
 NAMED_UNCHECKED_RULE = ("in UCT's library but its formula is NOT CHECKED YET: you may discuss it, never "
                         "author with it")
+#: What a member is told for a Title-Case name nothing here knows: the way forward, not a dead end.
+UNKNOWN_NAME_REASON = ('"{name}" is not an indicator UCT knows by name. Describe the rule itself in your own '
+                       "words (what it measures, over how many bars) and the assistant will build exactly that.")
+#: A name with no checked formula, beside the member's OWN description of the rule.
+NAMED_OWN_WORDS_RULE = ("UCT has NO checked formula for this name. Build ONLY the rule the member's own words "
+                        "describe, exactly as they describe it. Add nothing you know about the name beyond their "
+                        "words. If their words do not state a rule you can build, emit no ops and say so in `note`")
 NAMED_GATE = "named:formula"
 NAMED_UNCHECKED_GATE = "named:unchecked"
 
@@ -874,6 +881,42 @@ def named_in(terms: Any) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         else:
             unchecked.append({"entry": e, "wrote": t.get("matched_as")})
     return ready, unchecked
+
+
+def described_in_own_words(plain: str, chart: Any) -> bool:
+    """Did the member DESCRIBE a rule beside the unchecked name(s) they wrote? Asked of what is
+    left of the message once those names are taken out.
+
+    ⭐ A SMALL, MEASURED TEST, NOT A JUDGEMENT OF MEANING (2026-11-18, fourteen wordings): the rest
+    must name at least one thing a formula reads (a vocabulary term, or a ticker) and at least two
+    of {terms, tickers, the member's numbers} in all. "Mansfield relative strength versus SPY over
+    52 weeks" is a description (a ticker and a number); "Add the Pocket Pivot", "pocket pivot
+    marker in a lower pane" and "TTM Squeeze 20 2 1.5" (numbers and no rule) are not. Both ways of
+    being wrong are soft: a description judged missing gets the way forward; one judged present is
+    built from the member's words alone and labelled as their own formula."""
+    found = dc._matches(plain, CHART_LEXICON)
+    cut = sorted(((f["start"], f["end"]) for f in found if f.get("section") == named_indicators.SECTION
+                  and not named_indicators.passes(named_indicators.entry(f["key"]) or {})), reverse=True)
+    rest = plain
+    for a, b in cut:
+        rest = rest[:a] + " " + rest[b:]
+    if not rest.strip():
+        return False
+    understanding = dc.plan(rest, dc.INDICATOR_KIND, lexicon=CHART_LEXICON)
+    reads = len(understanding.get("terms") or []) + len(understanding.get("concepts") or []) + len(
+        conversation_preflight.named_tickers(rest, chart))
+    return reads >= 1 and reads + len(understanding.get("numbers") or []) >= 2
+
+
+def own_words_notes(envelope: Mapping[str, Any], own_words: Any) -> List[Dict[str, Any]]:
+    """What the member is told about every output of a turn that named an unchecked indicator and
+    described the rule: it is THEIR formula. UCT has checked none under that name."""
+    if not own_words:
+        return []
+    names = " or ".join(e["name"] for e in own_words)
+    text = f"Built from your own description, as your own formula. UCT has not checked a formula for {names}."
+    return [{"output": key, "text": text[:named_indicators.SENTENCE_MAX]}
+            for key, _tree in _patch_outputs(envelope) if isinstance(key, str)]
 
 
 def _patch_outputs(envelope: Mapping[str, Any]) -> List[Tuple[Any, Any]]:
@@ -2323,10 +2366,15 @@ def _chart_lexicon(base: Mapping[str, Any]) -> Dict[str, Any]:
     # its entry, so the planner's Title-Case rule finds it already accounted for and `_matched_term`
     # hands the assistant the ONE checked formula. ⛔ ADDED, NEVER REPLACED, as above; a name that
     # could not be added is a failing test (`tests/test_named_indicators.py`), never a silent skip.
+    # ⭐ A BUCKET THAT ONLY SAYS "NOT AVAILABLE" MAY BE TAKEN (slice 2): "pocket pivot" was already a
+    # phrase here, as one value of a Screener TEXT column no formula can read; on this door that
+    # answered "not available" and handed the request on. A library name (built, or held and
+    # refused by name with the way forward) is the better answer, so it takes that bucket. A
+    # bucket holding anything else is still never replaced.
     for phrase, entry_id in named_indicators.phrases():
         words = dc._form_tokens(phrase)
         stems, cost = dc._stem_key(words)
-        if stems in index:
+        if stems in index and not all(r.get("kind") == dc.EXCLUDED_ENTRY for r in index[stems]):
             continue
         index[stems] = [{"kind": dc.TABLE_ENTRY, "key": entry_id, "section": named_indicators.SECTION,
                          "words": words, "cost": cost}]
@@ -3036,7 +3084,10 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
     # (`derivedName.memberCueNames`, one shared rule in `preflightRules.json`).
     member_names, unnamed = conversation_preflight.naming_split(message)
     plain = _product_nouns_plain(unnamed if member_names else message)
-    understanding = dc.plan(plain, dc.INDICATOR_KIND, lexicon=CHART_LEXICON) if plain.strip() else \
+    # ⭐ 2026-11-18 -- THE WHOLE-PHRASE RULE, on this door: a short Title-Case name with an unknown word
+    # in it is an unknown name even when another of its words is known (`dc._foreign_words`).
+    understanding = dc.plan(plain, dc.INDICATOR_KIND, lexicon=CHART_LEXICON, strict_names=True,
+                            name_refusal=UNKNOWN_NAME_REASON) if plain.strip() else \
         {"understood": "", "not_understood": [], "unavailable": [], "concepts": []}
     not_understood = understanding["not_understood"]
     unavailable = understanding["unavailable"]
@@ -3059,14 +3110,25 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
     # ⭐ THE NAMED-INDICATOR LIBRARY -- a name whose formula is not checked yet is refused BY NAME
     # on an authoring turn (never handed to a model that could approximate it); on a question it is
     # discussed, and the advisory backstop below keeps that turn from coming back as a change.
+    # ⭐ ONLY THE NAME IS WITHHELD. With the member's own description of the rule beside it, the
+    # turn goes on: the assistant is told to build that description and nothing else, and the door
+    # labels the result as the member's own formula (`own_words_notes`).
     named, unchecked = named_in(understanding.get("terms"))
+    own_words: List[Dict[str, Any]] = []
     if unchecked and not advisory:
-        return {"refusal": _refusal(NAMED_UNCHECKED_GATE, member=unchecked[0]["entry"]["name"],
-                                    not_understood=not_understood, unavailable=unavailable)}
-    if unchecked:
-        discussed = discussed + [{"phrase": u["wrote"], "gate": NAMED_UNCHECKED_GATE} for u in unchecked]
+        if not described_in_own_words(plain, chart):
+            return {"refusal": {"ok": False, "gate": NAMED_UNCHECKED_GATE,
+                                "reason": named_indicators.way_forward(unchecked[0]["entry"]),
+                                "not_understood": not_understood, "unavailable": unavailable}}
+        own_words = [u["entry"] for u in unchecked]
+    elif unchecked:
+        discussed = discussed + [{"phrase": u["wrote"], "gate": NAMED_UNCHECKED_GATE,
+                                  "reason": named_indicators.way_forward(u["entry"])} for u in unchecked]
 
     notes = _language_notes(understanding)
+    for term in notes["matched_terms"] if own_words else ():
+        if term.get("rule") == NAMED_UNCHECKED_RULE:
+            term["rule"] = NAMED_OWN_WORDS_RULE
     if discussed:
         notes["not_understood"] = []
         notes["not_in_vocabulary"] = [{"phrase": n.get("phrase"), "rule": NOT_IN_VOCABULARY_RULE}
@@ -3078,7 +3140,7 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
     return {"refusal": None, "request_text": request_text, "notes": notes,
             "advisory": advisory, "other_sym": other_sym, "discussed": discussed,
             "not_understood": not_understood, "unavailable": unavailable,
-            "terms": understanding.get("terms") or [], "named": named}
+            "terms": understanding.get("terms") or [], "named": named, "own_words": own_words}
 
 
 def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
@@ -3107,6 +3169,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     not_understood = understood_turn["not_understood"]
     unavailable = understood_turn["unavailable"]
     named = understood_turn.get("named") or []
+    own_words = understood_turn.get("own_words") or []
     # ⭐ L5 -- WORKED EXAMPLES (`worked_examples.py`): for a NEW indicator, the nearest one or two of
     # UCT's own checked builds ride along INSIDE <uct_language_notes> (data, by the instructions' own
     # rule; the cached instruction block is untouched). Dark for members; an admin turn can ask.
@@ -3201,6 +3264,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             check_named(envelope, view, named)                 # a named indicator is its checked formula, or nothing
             envelope = with_running_value_notes(envelope)      # the door says where a running value starts
             envelope = _with_door_notes(envelope, named_notes(envelope, view, named))
+            envelope = _with_door_notes(envelope, own_words_notes(envelope, own_words))
             if replayed and envelope.get("ops") == replayed[0].get("ops"):
                 raise _Refused("envelope:reference",
                                f"this is the patch the app already refused ({replayed[1]}); change it")
