@@ -37,7 +37,15 @@ SECRET = "zanzibar-private-words"
 
 
 def last_turn():
-    return rows("converse_turn")[-1][1]
+    """The newest recorded turn, BY ROW ID: two turns written in the same second have no order
+    the store promises otherwise."""
+    conn = auth_db.get_connection()
+    try:
+        (props,) = conn.execute(
+            "SELECT props FROM landing_events WHERE event = 'converse_turn' ORDER BY id DESC LIMIT 1").fetchone()
+    finally:
+        conn.close()
+    return json.loads(props) if props else {}
 
 
 def learned(p):
@@ -211,7 +219,7 @@ def test_a_set_that_cannot_be_read_refuses_the_value_and_never_raises(monkeypatc
     monkeypatch.setitem(tel._VALUE_RULES["converse_turn"], "asked", tel._ids_of(tel._clarify_ids, many=False))
     assert tel.sanitize_props("converse_turn", {"asked": "average_kind", "calls": 1}) == {"calls": 1}
     assert tel.log_event("u1", "converse_turn", asked="average_kind", calls=1) is True   # the row is still written
-    assert rows("converse_turn")[-1][1] == {"calls": 1}
+    assert last_turn() == {"calls": 1}
 
 
 def test_the_client_may_not_send_any_of_them():
@@ -311,7 +319,7 @@ def turn(user, *, days_ago=0, admin=False, built=False, **fields):
             conn.close()
 
 
-def test_names_asked_for_are_ranked_by_distinct_members_and_say_how_many_were_built_anyway(store):
+def test_names_asked_for_are_ranked_by_distinct_members_and_each_is_split_by_what_happened(store):
     for u in ("m1", "m2", "m3", "m4"):
         turn(u, unknown_name="klinger_volume_oscillator")
     turn("m1", unknown_name="klinger_volume_oscillator")                    # one member asking twice is one member
@@ -321,12 +329,16 @@ def test_names_asked_for_are_ranked_by_distinct_members_and_say_how_many_were_bu
     r = tel.weekly_report(7)
     asked = r["names"]["asked_for"]
     assert [n["id"] for n in asked] == ["klinger_volume_oscillator", "on_balance_volume", "aroon"]   # `other` is no row
-    assert [(n["id"], n["members"], n["turns"], n["built"]) for n in asked[:2]] == [
-        ("klinger_volume_oscillator", 4, 5, 0), ("on_balance_volume", 3, 3, 2)]
-    assert asked[0]["name"] == "Klinger Volume Oscillator" and asked[0]["in_library"] is None
-    assert asked[2] == {"id": "aroon", "name": "Aroon", "members": tel.FEWER, "turns": None, "built": None,
-                        "builders_turns": 0, "in_library": None, "in_library_since": None}
-    assert r["names"]["not_in_the_catalogue"] == {"members": tel.FEWER, "turns": None, "built": None, "builders_turns": 0}
+    assert asked[0] == {"id": "klinger_volume_oscillator", "name": "Klinger Volume Oscillator", "members": 4, "turns": 5,
+                        "refused": 5, "built_unchecked": 0, "built_from_library": 0, "builders_turns": 0,
+                        "in_library": None, "in_library_since": None}
+    # built with no formula of ours behind the name: the recollection gap, apart from the refusals
+    assert (asked[1]["members"], asked[1]["turns"], asked[1]["refused"], asked[1]["built_unchecked"],
+            asked[1]["built_from_library"]) == (3, 3, 1, 2, 0)
+    assert asked[2] == {"id": "aroon", "name": "Aroon", "members": tel.FEWER, "turns": None, "refused": None,
+                        "built_unchecked": None, "built_from_library": None, "builders_turns": 0,
+                        "in_library": None, "in_library_since": None}
+    assert r["names"]["not_in_the_catalogue"] == {"members": tel.FEWER, "turns": None, "builders_turns": 0}
     assert r["withheld_below_members"] == 3
 
 
@@ -337,8 +349,9 @@ def test_a_row_about_one_or_two_members_withholds_its_numbers_and_three_shows_th
     turn("admin-1", admin=True, unknown_name="zig_zag")                    # the builders' own: a shown row of 0 members
     by = {n["id"]: n for n in tel.weekly_report(7)["names"]["asked_for"]}
     assert by["gann_fan"]["members"] == by["renko"]["members"] == "fewer than 3"
-    assert by["gann_fan"]["turns"] is None and by["renko"]["built"] is None
-    assert (by["kagi"]["members"], by["kagi"]["turns"]) == (3, 3)
+    for key in ("turns", "refused", "built_unchecked", "built_from_library"):
+        assert by["gann_fan"][key] is None and by["renko"][key] is None, key
+    assert (by["kagi"]["members"], by["kagi"]["turns"], by["kagi"]["refused"]) == (3, 3, 3)
     # a withheld row sits after EVERY row that shows a number (a row of 0 members too), and the
     # withheld rows are in name order whatever order they arrived in: the order says nothing
     assert [n["id"] for n in tel.weekly_report(7)["names"]["asked_for"]] == ["kagi", "zig_zag", "gann_fan", "renko"]
@@ -346,12 +359,14 @@ def test_a_row_about_one_or_two_members_withholds_its_numbers_and_three_shows_th
 
 def test_the_builders_own_turns_are_counted_apart_and_never_as_members(store):
     for _ in range(5):
-        turn("admin-1", admin=True, unknown_name="qqe")
+        turn("admin-1", admin=True, unknown_name="qqe", built=True)
     turn("m1", unknown_name="qqe")
     (row,) = tel.weekly_report(7)["names"]["asked_for"]
-    assert row["members"] == tel.FEWER and row["builders_turns"] == 5
-    conn_only_admins = tel._counted([("a", {"access": "admin"})] * 4)
-    assert conn_only_admins == {"members": 0, "turns": 0, "built": 0, "builders_turns": 4}
+    assert row["members"] == tel.FEWER and row["builders_turns"] == 5 and row["built_unchecked"] is None
+    assert tel._counted([("a", {"access": "admin"})] * 4) == {"members": 0, "turns": 0, "builders_turns": 4}
+    # a split counts the members' turns only, never the builders'
+    rows = [("a", {"access": "admin", "x": 1})] * 4 + [(f"m{i}", {"access": "cohort", "x": i % 2}) for i in range(3)]
+    assert tel._counted(rows, odd=lambda p: p["x"] == 1) == {"members": 3, "turns": 3, "odd": 1, "builders_turns": 4}
 
 
 def test_held_names_and_library_builds_are_reported_by_entry(store):
@@ -361,20 +376,47 @@ def test_held_names_and_library_builds_are_reported_by_entry(store):
     turn("m4", named_built="mcginley_dynamic", built=True)
     r = tel.weekly_report(7)
     assert r["names"]["held_and_refused"] == [
-        {"id": "pocket_pivot", "name": "Pocket Pivot", "members": 3, "turns": 3, "built": 0, "builders_turns": 0}]
+        {"id": "pocket_pivot", "name": "Pocket Pivot", "members": 3, "turns": 3, "builders_turns": 0}]
     assert [(b["id"], b["members"], b["turns"]) for b in r["named_built"]] == [
         ("mcginley_dynamic", 4, 4), ("connors_rsi", 3, 3)]
     assert r["named_built"][0]["name"] == "McGinley Dynamic"
 
 
-def test_a_name_the_library_has_since_gained_says_so(store, monkeypatch):
-    for u in ("m1", "m2", "m3"):
-        turn(u, unknown_name="klinger_volume_oscillator")
+def test_a_name_the_library_has_since_gained_says_so_and_its_library_builds_are_the_third_count(store, monkeypatch):
+    """Before the library had it: two refused, one built unchecked. Since: four built to the
+    checked formula. One row, three counts, so the queue and the gap and the cure read apart."""
+    turn("m1", unknown_name="klinger_volume_oscillator")
+    turn("m2", unknown_name="klinger_volume_oscillator")
+    turn("m3", unknown_name="klinger_volume_oscillator", built=True)
+    for u in ("m1", "m2", "m3", "m4"):
+        turn(u, named_built="mcginley_dynamic", built=True)                  # the entry standing in for it below
     monkeypatch.setattr(names, "now_in_library", lambda: {"klinger_volume_oscillator": "mcginley_dynamic"})
     (row,) = tel.weekly_report(7)["names"]["asked_for"]
+    assert (row["members"], row["turns"]) == (4, 7)
+    assert (row["refused"], row["built_unchecked"], row["built_from_library"]) == (2, 1, 4)
     assert row["in_library"] == "mcginley_dynamic"
     assert row["in_library_since"] == ni.entry("mcginley_dynamic")["versions"][0]["since"]
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", row["in_library_since"])
+
+
+def test_a_name_the_library_gained_shows_its_builds_even_when_nobody_asked_while_it_was_unknown(store, monkeypatch):
+    for u in ("m1", "m2", "m3"):
+        turn(u, named_built="mcginley_dynamic", built=True)
+    monkeypatch.setattr(names, "now_in_library", lambda: {"klinger_volume_oscillator": "mcginley_dynamic",
+                                                          "gann_fan": "connors_rsi"})
+    (row,) = tel.weekly_report(7)["names"]["asked_for"]                     # gann_fan's entry was not built: no row
+    assert row["id"] == "klinger_volume_oscillator"
+    assert (row["refused"], row["built_unchecked"], row["built_from_library"]) == (0, 0, 3)
+
+
+def test_a_turn_is_never_counted_under_two_outcomes(store, monkeypatch):
+    """A record that carries both the name and its library entry is one turn, counted once."""
+    for u in ("m1", "m2", "m3"):
+        turn(u, unknown_name="klinger_volume_oscillator", named_built="mcginley_dynamic", built=True)
+    monkeypatch.setattr(names, "now_in_library", lambda: {"klinger_volume_oscillator": "mcginley_dynamic"})
+    (row,) = tel.weekly_report(7)["names"]["asked_for"]
+    assert row["turns"] == 3
+    assert row["refused"] + row["built_unchecked"] + row["built_from_library"] == 3
 
 
 def test_questions_this_window_against_the_one_before_and_per_indicator_built(store):
@@ -405,7 +447,7 @@ def test_questions_this_window_against_the_one_before_and_per_indicator_built(st
 def test_an_empty_store_reports_zeros_and_nones_never_raises(store):
     r = tel.weekly_report(7)
     assert r["names"] == {"asked_for": [], "held_and_refused": [],
-                          "not_in_the_catalogue": {"members": 0, "turns": 0, "built": 0, "builders_turns": 0}}
+                          "not_in_the_catalogue": {"members": 0, "turns": 0, "builders_turns": 0}}
     assert r["questions"]["this"]["questions_per_built"] is None and r["named_built"] == []
     assert r["second_calls"] == {"repair_gates": {}, "browser_refusals": {}, "repair_rate": None}
     assert r["demand"]["ranked"] == []
@@ -425,7 +467,7 @@ def test_the_report_in_plain_words_says_what_the_report_says(store):
     for u in ("m1", "m2", "m3", "m4"):
         turn(u, unknown_name="klinger_volume_oscillator")
     for u in ("m1", "m2", "m3"):
-        turn(u, unknown_name="on_balance_volume", built=True)
+        turn(u, unknown_name="on_balance_volume", built=u != "m3")
         turn(u, named_held="pocket_pivot")
         turn(u, named_built="mcginley_dynamic", built=True)
     turn("m1", unknown_name="aroon,other")
@@ -439,13 +481,13 @@ def test_the_report_in_plain_words_says_what_the_report_says(store):
     text = tel.weekly_report_text(tel.weekly_report(7))
     for line in (
         "Create Indicator: the last 7 days",
-        "  Indicators built: 7 (the 7 days before: 1)",
+        "  Indicators built: 6 (the 7 days before: 1)",
         "  Questions asked: 3 (the 7 days before: 1): 2 by the door (no AI call), 1 by the assistant",
-        "  Questions per indicator built: 0.429 (the 7 days before: 1.0)",
-        "  Built using a remembered choice: 1 of 7",
+        "  Questions per indicator built: 0.5 (the 7 days before: 1.0)",
+        "  Built using a remembered choice: 1 of 6",
         "  Asked 2 times: Which kind of moving average?",
-        "  Klinger Volume Oscillator: 4 members, 4 requests",
-        "  On Balance Volume: 3 members, 3 requests; 3 built anyway, from the assistant's own knowledge",
+        "  Klinger Volume Oscillator: 4 members, 4 requests; 4 refused",
+        "  On Balance Volume: 3 members, 3 requests; 1 refused; 2 built unchecked, from the assistant's own recollection",
         "  Aroon: fewer than 3 members; 1 by the builders' own accounts",
         "  Names in no list: fewer than 3 members",
         "  Pocket Pivot: 3 members, 3 requests",
@@ -458,10 +500,12 @@ def test_the_report_in_plain_words_says_what_the_report_says(store):
 def test_the_report_in_plain_words_says_when_the_library_has_gained_a_name(store, monkeypatch):
     for u in ("m1", "m2", "m3"):
         turn(u, unknown_name="klinger_volume_oscillator")
+        turn(u, named_built="mcginley_dynamic", built=True)
     monkeypatch.setattr(names, "now_in_library", lambda: {"klinger_volume_oscillator": "mcginley_dynamic"})
     since = ni.entry("mcginley_dynamic")["versions"][0]["since"]
     text = tel.weekly_report_text(tel.weekly_report(7))
-    assert f"  Klinger Volume Oscillator: 3 members, 3 requests; in the library since {since}" in text
+    assert (f"  Klinger Volume Oscillator: 3 members, 6 requests; 3 refused; 3 built from the library; "
+            f"in the library since {since}") in text
 
 
 def test_the_report_in_plain_words_on_an_empty_store(store):

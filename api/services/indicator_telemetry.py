@@ -760,18 +760,40 @@ def _is_built(p: dict) -> bool:
     return p.get("failure_class") == "ok" and p.get("disposition") == "change"
 
 
-def _counted(rows: list) -> dict:
-    """{members, turns, built, builders_turns} for one report row over `(member, props)` pairs.
-    ``members`` counts distinct members WHO ARE NOT ADMINS; with one or two of them the row's
-    member numbers are withheld (``FEWER``). The builders' own turns (admin accounts) are theirs
-    to see and are counted apart."""
+def _counted(rows: list, **splits) -> dict:
+    """{members, turns, builders_turns, and one count per split} for one report row over
+    `(member, props)` pairs. ``members`` counts distinct members WHO ARE NOT ADMINS; with one or
+    two of them every member number of the row is withheld (``FEWER`` and None). The builders'
+    own turns (admin accounts) are theirs to see and are counted apart. A split is a named test of
+    one turn's props; its count is over the members' turns only."""
     cohort = [(u, p) for u, p in rows if p.get("access") != "admin"]
     members = len({u for u, _ in cohort})
     small = 0 < members < SMALL
     return {"members": FEWER if small else members,
             "turns": None if small else len(cohort),
-            "built": None if small else sum(1 for _, p in cohort if _is_built(p)),
+            **{name: None if small else sum(1 for _, p in cohort if test(p)) for name, test in splits.items()},
             "builders_turns": len(rows) - len(cohort)}
+
+
+def _name_row(asked: list, from_library: list) -> dict:
+    """⭐ ONE NAME, THREE OUTCOMES (ruling 2026-11-18), so the library's queue and the recollection
+    gap read apart:
+
+      refused             the request named it and nothing was built
+      built_unchecked     the request named it and something WAS built, from the assistant's own
+                          recollection: no formula of ours stands behind the name
+      built_from_library  built to the library's checked formula (once the library has the name)
+
+    ``asked`` are the turns that named it while it was unknown; ``from_library`` the turns that
+    built its library entry. A turn is in one list only."""
+    seen = {id(p) for _, p in asked}
+    library = [(u, p) for u, p in from_library if id(p) not in seen]
+    marks = {id(p) for _, p in library}
+    return _counted(
+        asked + library,
+        refused=lambda p: not _is_built(p),                    # a library build is always a build
+        built_unchecked=lambda p: id(p) not in marks and _is_built(p),
+        built_from_library=lambda p: id(p) in marks)
 
 
 def _ranked(rows: list) -> list:
@@ -841,26 +863,27 @@ def weekly_report(days: int = 7) -> dict:
         return next((v.get("since") for v in e.get("versions") or [] if v.get("since")), None)
 
     asked: dict = {}
+    held: dict = {}
+    built: dict = {}
     for u, p in this:
         for nid in (p.get("unknown_name") or "").split(","):
             if nid:
                 asked.setdefault(nid, []).append((u, p))
-    names = []
-    for nid, sel in asked.items():
-        if nid == indicator_names.OTHER:
-            continue
-        entry_id = in_library.get(nid)
-        names.append({"id": nid, "name": indicator_names.name_of(nid), **_counted(sel),
-                      "in_library": entry_id, "in_library_since": since(entry_id) if entry_id else None})
-    held: dict = {}
-    built: dict = {}
-    for u, p in this:
         for hid in (p.get("named_held") or "").split(","):
             if hid:
                 held.setdefault(hid, []).append((u, p))
         for bid in (p.get("named_built") or "").split(","):
             if bid:
                 built.setdefault(bid, []).append((u, p))
+    names = []
+    # every catalogue name asked for, and every one the library has gained that was built this window
+    for nid in list(asked) + [n for n, e in in_library.items() if n not in asked and e in built]:
+        if nid == indicator_names.OTHER:
+            continue
+        entry_id = in_library.get(nid)
+        names.append({"id": nid, "name": indicator_names.name_of(nid),
+                      **_name_row(asked.get(nid, []), built.get(entry_id, []) if entry_id else []),
+                      "in_library": entry_id, "in_library_since": since(entry_id) if entry_id else None})
 
     def library_rows(cells):
         return _ranked([{"id": k, "name": (named_indicators.entry(k) or {}).get("name"), **_counted(v)}
@@ -930,8 +953,11 @@ def weekly_report_text(report: dict) -> str:
     out += ["", "NAMES ASKED FOR THAT ARE NOT BUILT BY NAME (the library's queue)"]
     for row in names["asked_for"]:
         line = f"  {row['name'] or row['id']}: {people(row, 'requests')}"
-        if isinstance(row["built"], int) and row["built"]:
-            line += f"; {row['built']} built anyway, from the assistant's own knowledge"
+        for key, words in (("refused", "refused"),
+                           ("built_unchecked", "built unchecked, from the assistant's own recollection"),
+                           ("built_from_library", "built from the library")):
+            if row[key]:
+                line += f"; {row[key]} {words}"
         if row["in_library"]:
             line += f"; in the library since {row['in_library_since'] or 'it was added'}"
         out.append(line)
