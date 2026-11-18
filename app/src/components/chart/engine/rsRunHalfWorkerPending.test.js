@@ -21,6 +21,7 @@ import * as registry from './nativeRegistry'
 import { memberPaneDefinition } from '../builder/memberPane/memberPaneDefinition'
 import { runtimeColumnsFor, resetRuntimeSessions, resetRuntimeLedgers, setRuntimeRunner, onRuntimeColumnsLanded } from './runtime/runtimeColumns'
 import { workerRunner, resetRuntimeAsync } from './runtime/runtimeAsync'
+import { errorImageOf, errorFromImage } from './runtime/errorImage'
 import { runHalfOf } from './runtime/runtimeObjects'
 import { __permitRuntimePaneForTests } from './runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, setRuntimeKillList, runtimeSourceHash } from './runtimeKill'
@@ -136,6 +137,19 @@ describe('L10b — a run waiting for the seed stays pending across the worker', 
     const def = libraryDef()
     const states = await runHalfStatesThroughWorker(def, new Map([['SPX', SPX_IN], [SEED_KEY, SEED_IN]]))
     expect(states[states.length - 1]).toBe('served:null')
+  })
+
+  it('⛔⛔ THE RULE: every plain field crosses, a field nobody named included; an object field does not', async () => {
+    const thrown = Object.assign(new Error('waiting'), { guard: 'runtime:request', pending: true, limit: 'ops', bar: 41,
+      notNamedAnywhereYet: 'crosses', aCount: 0, aFlag: false, nothing: null, cause: { deep: true } })
+    // the worker's side, then the structured clone the browser makes, then the main thread's side
+    const back = errorFromImage(structuredClone(errorImageOf(thrown)))
+    expect(back).toBeInstanceOf(Error)
+    expect(back.message).toBe('waiting')
+    expect(back.name).toBe('Error')
+    for (const k of ['guard', 'pending', 'limit', 'bar', 'notNamedAnywhereYet', 'aCount', 'aFlag']) expect(back[k], k).toBe(thrown[k])
+    expect(back.cause).toBeUndefined()
+    expect('nothing' in back).toBe(false)
   })
 
   it('the main thread keeps a worker error\'s `pending` (the rebuilt error is still a wait)', async () => {
