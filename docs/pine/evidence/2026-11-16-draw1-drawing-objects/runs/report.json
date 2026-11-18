@@ -2,17 +2,17 @@
  "populations": {
   "capture": {
    "scripts": 867,
-   "admitted": 442,
+   "admitted": 446,
    "runtimeLane": 72,
-   "hostLane": 244,
+   "hostLane": 248,
    "refused": 126,
    "coreOnly": 44
   },
   "committed": {
    "scripts": 266,
-   "admitted": 100,
+   "admitted": 101,
    "runtimeLane": 25,
-   "hostLane": 47,
+   "hostLane": 48,
    "refused": 28,
    "coreOnly": 4
   },
@@ -392,6 +392,74 @@
    "production": "MATCH",
    "caps": [
     "core"
+   ]
+  },
+  {
+   "capture": "contraction-box-doji-lines-rddt-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:box",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "contraction-box-doji-lines-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:box",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "contraction-box-doji-lines-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:box",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "contraction-box-doji-lines-spy-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:box",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "var"
    ]
   },
   {
