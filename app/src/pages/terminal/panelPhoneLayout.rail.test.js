@@ -15,8 +15,14 @@
 // ── THE RULES (each a relationship between a panel's JSX and its own stylesheet) ─────────────
 //   R1  a <table> sits inside an element whose className names `.tableBox`, and that stylesheet
 //       gives `.tableBox` `overflow-x: auto` — the table scrolls in its box, the page never does.
-//   R2  a cell or column flagged `phoneHide` resolves to a stylesheet that hides `.phoneHide`
-//       inside the canonical PHONE query `@media (max-width: 640px)`.
+//   R2  a cell or column flagged `phoneHide` resolves to a stylesheet that hides `.phoneHide` WHERE
+//       THE TABLE FOLDS: the top-level rule whose selector is the fold list, then ` .phoneHide`. The
+//       list is `narrow` (a phone screen, read in JS from the canonical PHONE query, or a panel at
+//       most 460px wide) or a step of the fold ladder together with that step on the table's own
+//       box (`data-fold`). The shell writes the mark on each panel body and the steps live in ONE
+//       place (panelFit.js, FOLD_STEPS). Hidden only inside a screen query fails, and so does a
+//       rule that misses a step or folds on a step without the table naming it
+//       (panelPhoneFit.rail.test.js holds the mechanism).
 //   R3  a table five or more columns wide folds at least one away on a phone (R2's flag), so a
 //       390px panel keeps the symbol and the numbers that matter in view.
 //   R4  that stylesheet's `.table` draws digits with `font-variant-numeric: tabular-nums`.
@@ -31,10 +37,13 @@ import path from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
+import { FOLD_STEPS, foldWord } from './panelFit'
 
 const TERMINAL = path.join(process.cwd(), 'src', 'pages', 'terminal')
 const PANELS_DIR = path.join(TERMINAL, 'panels')
 const PHONE_MQ = '(max-width: 640px)'
+/** The selector that folds a column away: in a narrow panel, or from the table's own step of the ladder down. */
+const NARROW_HIDE = `:where([data-fit~='narrow'], ${FOLD_STEPS.map((s) => `[data-fit~='${foldWord(s)}'] [data-fold='${s}']`).join(', ')}) .phoneHide`
 
 /** ⚠️ CRLF normalised at the door — `core.autocrlf` is on in this checkout. */
 const read = (abs) => fs.readFileSync(abs, 'utf8').replace(/\r\n/g, '\n')
@@ -56,6 +65,20 @@ function registryPanels() {
 const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '')
 const norm = (s) => s.replace(/\s+/g, ' ').trim()
 
+/** A selector list split at its top-level commas (a comma inside `:where( … )` separates nothing here). */
+function splitTop(list) {
+  const out = []
+  let depth = 0
+  let at = 0
+  for (let i = 0; i < list.length; i += 1) {
+    if (list[i] === '(') depth += 1
+    else if (list[i] === ')') depth -= 1
+    else if (list[i] === ',' && depth === 0) { out.push(list.slice(at, i)); at = i + 1 }
+  }
+  out.push(list.slice(at))
+  return out
+}
+
 /** Splits a stylesheet into top-level rules and @media blocks (one level deep is all we use). */
 function cssBlocks(cssRaw) {
   const css = stripComments(cssRaw)
@@ -75,7 +98,7 @@ function cssBlocks(cssRaw) {
     }
     const inner = css.slice(open + 1, j - 1)
     if (head.startsWith('@media')) media.push({ query: norm(head.slice(6)), ...cssBlocks(inner) })
-    else rules.push({ selectors: head.split(',').map(norm), body: norm(inner) })
+    else rules.push({ selectors: splitTop(head).map(norm), body: norm(inner) })
     i = j
   }
   return { rules, media }
@@ -200,8 +223,8 @@ function violations(a, name) {
   for (const [ns, cls] of a.refs) {
     if (!a.styles[ns]) continue // `c.phoneHide` on a column object is a flag, not a class
     const css = sheet(ns)
-    if (cls === 'phoneHide' && !(css && declares(phoneRules(css), '.phoneHide', /display: none/))) {
-      out.push(`${name}: ${ns}.phoneHide is not hidden inside @media ${PHONE_MQ}`)
+    if (cls === 'phoneHide' && !(css && declares(css.rules, NARROW_HIDE, /display: none/))) {
+      out.push(`${name}: ${ns}.phoneHide is not hidden where the table folds (${NARROW_HIDE})`)
     }
     if (cls === 'wrapCell' && !(css && declares(css.rules, '.table td.wrapCell', /white-space: normal/))) {
       out.push(`${name}: ${ns}.wrapCell does not let the cell wrap`)
@@ -266,7 +289,8 @@ describe('terminal panels: phone layout rail — controls that must fail', () =>
     .table { font-variant-numeric: tabular-nums; }
     .table td.wrapCell { white-space: normal; }
     .stage { min-height: 16rem; }
-    @media (max-width: 640px) { .phoneHide { display: none; } .form { grid-template-columns: 1fr; } }
+    ${NARROW_HIDE} { display: none; }
+    @media (max-width: 640px) { .form { grid-template-columns: 1fr; } }
   `
   const run = (jsxSrc, css = GOOD_CSS) => violations(analyse(jsxSrc, FILE, () => css), 'Fixture')
   const HEAD = "import s from './x.module.css'\n"
@@ -283,9 +307,22 @@ describe('terminal panels: phone layout rail — controls that must fail', () =>
     expect(run(`${HEAD}export default () => <div className={s.tableBox}><table /></div>`, GOOD_CSS.replace('overflow-x: auto;', '')).join())
       .toMatch(/overflow-x/)
   })
-  it('R2: phoneHide hidden only on a non-canonical query fails', () => {
-    const css = GOOD_CSS.replace('(max-width: 640px)', '(max-width: 600px)')
-    expect(run(`${HEAD}export default () => <td className={s.phoneHide} />`, css).join()).toMatch(/phoneHide is not hidden/)
+  it('R2: phoneHide hidden only on the SCREEN, on another word, without the mark, or off the fold ladder fails', () => {
+    const cell = `${HEAD}export default () => <td className={s.phoneHide} />`
+    const HIDE = `${NARROW_HIDE} { display: none; }`
+    expect(GOOD_CSS).toContain(HIDE)
+    expect(run(cell)).toEqual([])
+    const onScreen = GOOD_CSS.replace(HIDE, '').replace('.form {', '.phoneHide { display: none; } .form {')
+    expect(run(cell, onScreen).join()).toMatch(/phoneHide is not hidden where the table folds/)
+    expect(run(cell, GOOD_CSS.replace("'narrow'", "'snug'")).join()).toMatch(/phoneHide is not hidden/)
+    expect(run(cell, GOOD_CSS.replace(HIDE, `${NARROW_HIDE} { color: red; }`)).join()).toMatch(/phoneHide is not hidden/)
+    // the first cut: every table folds in a narrow panel and the ladder is not there
+    expect(run(cell, GOOD_CSS.replace(HIDE, ":where([data-fit~='narrow']) .phoneHide { display: none; }")).join()).toMatch(/phoneHide is not hidden/)
+    // one step missing from the list
+    const step = FOLD_STEPS[2]
+    expect(run(cell, GOOD_CSS.replace(`, [data-fit~='${foldWord(step)}'] [data-fold='${step}']`, '')).join()).toMatch(/phoneHide is not hidden/)
+    // a step that folds every table, whether or not the table names it
+    expect(run(cell, GOOD_CSS.replace(` [data-fold='${step}']`, '')).join()).toMatch(/phoneHide is not hidden/)
   })
   it('R3: a five-column table that folds nothing fails, also when its columns are a mapped array', () => {
     const plain = WIDE.replace(' className={s.phoneHide}', '')

@@ -715,7 +715,14 @@ class Run:
         ev = self.lane.call("evaluate", **{"def": out["working"], "bars": self.bars})
         if not ev["valid"]:
             raise LaneUnavailable(f"a reference definition does not validate: {ev['errors']}")
-        for k, col in ev["columns"].items():
+        # ⭐ A REFERENCE THAT READS ANOTHER SYMBOL cannot be valued here: the bars are the chart's own
+        # symbol's, so its column is unknown on every bar. It is matched BY HASH ALONE (its column is
+        # withheld from `match_outputs`), never by two columns that are equal because both are empty.
+        elsewhere = {o.get("key") or f"o{i}" for i, o in enumerate(outputs) if sym_tickers(o["tree"])}
+        for k, col in list(ev["columns"].items()):
+            if k in elsewhere:
+                ev["columns"][k] = None
+                continue
             if ev["hashes"].get(k) and not any(v not in (None,) for v in col):
                 raise LaneUnavailable(f"reference output {k} is all-unknown on the synthetic bars")
         return ev

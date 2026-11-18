@@ -1,4 +1,4 @@
-// ⭐⭐ NUMBER PENDING (bt, 2026-11-16) — A KNOB MAY NEVER COST THE SCRIPT ITS INSTALL.
+// ⭐⭐ Engine 66 (#1473) (bt, 2026-11-16) — A KNOB MAY NEVER COST THE SCRIPT ITS INSTALL.
 //
 // A declared member input is a `series` leaf named for the input, and the install budget counts
 // DISTINCT series names (`engine/ast/budget.js::seriesRefs`, cap `maxSeriesRefs`), so a column the

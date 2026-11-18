@@ -1231,7 +1231,7 @@ def _load_alert_baseline() -> dict:
 # a rounding change, a period change, a plumbing change — or on a silent revert
 # to the rolling lane, which would make the two halves swap and both fail.
 #
-# ⭐⭐ SMA-EXACT (NUMBER PENDING, docs/pine/evidence/2026-11-16-sma-exact-sum/EVIDENCE.md):
+# ⭐⭐ SMA-EXACT (Engine 65 (#1484), docs/pine/evidence/2026-11-16-sma-exact-sum/EVIDENCE.md):
 # the CURRENT lane is now the EXACTLY ROUNDED window sum (``math.fsum``), the one
 # TradingView's ``ta.sma`` equals on every bar of every capture from 2026-11-14 on;
 # the full-window left-to-right re-sum this block called "surviving" is retired in

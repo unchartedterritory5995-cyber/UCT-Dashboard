@@ -20,6 +20,7 @@ first bar is measured and held, because that distance is what the door tells the
 """
 from __future__ import annotations
 
+import json
 import math
 
 import pytest
@@ -628,6 +629,59 @@ def fisher_trigger(bars, length=9):
     return [NAN] + fisher_transform(bars, length)[:-1]
 
 
+def detrended_price_oscillator(bars, length=21):
+    """TradingView's default (not centred) form, written with its own integer division: the close
+    minus the `length`-bar simple average as it stood `length // 2 + 1` bars ago."""
+    c = col(bars, "c")
+    back = length // 2 + 1
+    avg = [sum(c[i - length + 1:i + 1]) / length if i >= length - 1 else NAN for i in range(len(c))]
+    return [c[i] - avg[i - back] if i - back >= 0 and ok(avg[i - back]) else NAN for i in range(len(c))]
+
+
+def _laguerre_stages(src, gamma):
+    """Ehlers' four Laguerre stages, carried ONCE from the first bar the way a chart keeps them
+    (the engine restarts them a number of bars back instead). A missing previous value is the
+    price, as the published page reads it."""
+    out, prev = [], None
+    for x in src:
+        if not ok(x):
+            out.append((NAN, NAN, NAN, NAN))
+            continue
+        p0, p1, p2, p3 = prev if prev is not None else (x, x, x, x)
+        l0 = (1 - gamma) * x + gamma * p0
+        l1 = -gamma * l0 + p0 + gamma * p1
+        l2 = -gamma * l1 + p1 + gamma * p2
+        l3 = -gamma * l2 + p2 + gamma * p3
+        prev = (l0, l1, l2, l3)
+        out.append(prev)
+    return out
+
+
+def laguerre_filter(bars, gamma=0.8):
+    mid = [(h + l) / 2 for h, l in zip(col(bars, "h"), col(bars, "l"))]
+    return [(a + 2 * b + 2 * c + d) / 6 if ok(a) else NAN for a, b, c, d in _laguerre_stages(mid, gamma)]
+
+
+def laguerre_rsi(bars, gamma=0.5):
+    """As PUBLISHED: each neighbouring pair's gap goes to cu when the earlier stage is at or above
+    the later one and to cd otherwise, both starting from 0 on every bar; cu / (cu + cd). (The
+    library's function writes the same number another way, from the first and last stage. This is
+    the check that the two are the same.)"""
+    out = []
+    for stages in _laguerre_stages(col(bars, "c"), gamma):
+        if not ok(stages[0]):
+            out.append(NAN)
+            continue
+        cu = cd = 0.0
+        for a, b in zip(stages, stages[1:]):
+            if a >= b:
+                cu += a - b
+            else:
+                cd += b - a
+        out.append(cu / (cu + cd) if cu + cd != 0 else NAN)
+    return out
+
+
 def ulcer_index(bars, length=14):
     c = col(bars, "c")
     top = highest(c, length)
@@ -667,6 +721,9 @@ REFERENCES = {
     "negative_volume_index": {"nvi": negative_volume_index, "signal": nvi_signal},
     "positive_volume_index": {"pvi": positive_volume_index, "signal": pvi_signal},
     "fisher_transform": {"fisher": fisher_transform, "trigger": fisher_trigger},
+    "detrended_price_oscillator": {"dpo": detrended_price_oscillator},
+    "laguerre_filter": {"filter": laguerre_filter},
+    "laguerre_rsi": {"lrsi": laguerre_rsi},
     "ulcer_index": {"ulcer": ulcer_index},
     "trix": {"trix": trix_line},
 }
@@ -703,6 +760,9 @@ OTHER = {
     "negative_volume_index": {"signal": 100},
     "positive_volume_index": {"signal": 100},
     "fisher_transform": {"length": 20},
+    "detrended_price_oscillator": {"length": 20},
+    "laguerre_filter": {"gamma": 0.6},
+    "laguerre_rsi": {"gamma": 0.7},
     "ulcer_index": {"length": 20},
     "trix": {"length": 15},
 }
@@ -828,6 +888,69 @@ def test_the_fisher_transform_restarted_300_bars_back_equals_the_carried_one():
             assert _worst(fisher_transform(bars, length), full) < 1e-12
             # CONTROL: a restart far too short to forget its start does show
             assert _worst(fisher_transform(bars, length, window=6), full) > 1e-3
+
+
+def test_the_detrended_price_oscillator_derives_its_bars_back_from_its_length_at_odd_and_even_lengths():
+    """21 and 20 both read the average 11 bars back (integer division), 14 and 15 both 8. The engine's
+    function and this file's own arithmetic must agree at each, and a count one off must not."""
+    bars = _bars(11)
+    for length in (21, 20, 14, 15, 2, 1):
+        call = {"type": "call", "name": "dpo", "args": [{"type": "series", "name": "close"}, {"type": "num", "value": length}]}
+        tree = call_expansions.expand_calls(call)
+        assert tree["args"][1]["value"] == length // 2 + 1
+        _compare(ast_interpret.interpret(tree, bars), detrended_price_oscillator(bars, length), f"dpo {length}")
+        off = json.loads(json.dumps(tree))
+        off["args"][1]["value"] += 1
+        with pytest.raises(AssertionError):
+            _compare(ast_interpret.interpret(off, bars), detrended_price_oscillator(bars, length), "control")
+
+
+def test_the_laguerre_pair_restarted_equals_the_stages_carried_from_the_first_bar():
+    """The references above carry the four stages from the first bar; the library's functions restart
+    them a number of bars back that is sized from gamma. The rails above hold the two equal at each
+    entry's default and at another gamma. Here, the gammas at the top of each restart tier (where the
+    filter remembers longest for its window), and a CONTROL: with the restart cut to 12 bars the
+    same comparison fails, so it is the window's length that makes them equal."""
+    bars = _walk(11, n=1400)
+    mid = {"type": "op", "name": "/", "args": [{"type": "op", "name": "+", "args": [
+        {"type": "series", "name": "high"}, {"type": "series", "name": "low"}]}, {"type": "num", "value": 2}]}
+    close = {"type": "series", "name": "close"}
+
+    def cut(node, bars_back):
+        if isinstance(node, dict):
+            if node.get("type") == "call" and node.get("name") == "accum4":
+                node["args"][1] = {"type": "num", "value": bars_back}
+            for a in node.get("args") or []:
+                cut(a, bars_back)
+        return node
+
+    for gamma in (0.5, 0.7, 0.8, 0.9, 0.95):
+        for name, source, reference in (("laguerre", mid, laguerre_filter), ("laguerreRsi", close, laguerre_rsi)):
+            call = {"type": "call", "name": name, "args": [source, {"type": "num", "value": gamma}]}
+            tree = call_expansions.expand_calls(call)
+            want = reference(bars, gamma=gamma)
+            _compare(ast_interpret.interpret(tree, bars), want, f"{name} at gamma {gamma}", rel=1e-7)
+            short = ast_interpret.interpret(cut(json.loads(json.dumps(tree)), 12), bars)
+            with pytest.raises(AssertionError):
+                _compare(short, want, "control", rel=1e-7)
+
+
+def test_the_laguerre_rsi_reference_is_the_published_sums_and_they_start_from_zero_each_bar():
+    """The page does not say the up and down sums restart on every bar; the entry takes them so, and
+    this is where that is held, on two bars worked by hand at gamma 0.5 from a flat 10.
+
+    Close 12: the stages are 11, 9.5, 10.25, 9.875. The gaps are +1.5, -0.75, +0.375, so cu is 1.875
+    and cd is 0.75. Close 8 next: the stages are 9.5, 11, 9.125, 10.625; the gaps are -1.5, +1.875,
+    -1.5, so cu is 1.875 and cd is 3. Carried from the bar before instead, the sums would be 3.75 and
+    3.75, and the answer one half."""
+    bar = lambda c: {"o": c, "h": c, "l": c, "c": c, "v": 1}
+    flat = [bar(10.0)] * 4
+    assert not ok(laguerre_rsi(flat)[-1])                       # all four stages equal: no value, as published
+    got = laguerre_rsi(flat + [bar(12.0), bar(8.0)])
+    assert _laguerre_stages([10.0, 12.0, 8.0], 0.5)[1:] == [(11.0, 9.5, 10.25, 9.875), (9.5, 11.0, 9.125, 10.625)]
+    assert got[-2] == pytest.approx(1.875 / 2.625)
+    assert got[-1] == pytest.approx(1.875 / 4.875) and got[-1] != pytest.approx(0.5)
+    assert all(0.0 <= v <= 1.0 for v in laguerre_rsi(_bars(29)) if ok(v))
 
 
 def test_the_fisher_references_snap_is_a_snap_and_not_a_clamp():

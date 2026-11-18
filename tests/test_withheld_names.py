@@ -188,7 +188,7 @@ def test_the_pieces(conv):
 
 def test_the_words_of_a_withheld_name_are_not_vocabulary(conv):
     vocabulary = dc._lexicon_vocabulary(conv.CHART_LEXICON)
-    for word in ("klinger", "laguerre", "schaff", "qstick"):
+    for word in ("klinger", "camarilla", "schaff", "qstick"):
         stems, _cost = dc._stem_key(dc._form_tokens(word))
         assert not all(s in vocabulary for s in stems), word
     # so another name that borrows one is still an unknown name ...

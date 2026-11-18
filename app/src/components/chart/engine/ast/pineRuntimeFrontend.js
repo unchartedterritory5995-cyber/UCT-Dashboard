@@ -1860,7 +1860,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   /** ⭐ W4 T1 — the v1–v4 spellings of a data request (`request.*` from v5). */
   const LEGACY_REQUEST_CALLS = new Set(['security', 'security_lower_tf', 'financial'])
-  /** ⭐ NUMBER PENDING (bt) — bare v1–v4 names of a `math.*` call-tree expansion (`callTreeExpansion`):
+  /** ⭐ Engine 66 (#1473) (bt) — bare v1–v4 names of a `math.*` call-tree expansion (`callTreeExpansion`):
    *  the migration guide's `math` table renames `avg()` to `math.avg()`. */
   const LEGACY_MATH_CALL_TREE = new Set(['avg'])
 
@@ -3174,7 +3174,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // a `?:` arm (an expression): the check runs first, then the arm is the value
     return { ...ternary(binary('==', everyBarRunsCall(rec.needs, 'that arm'), num(1)), body, naValue()), lazy: true }
   }
-  // ─── ⭐⭐⭐ HIST-S3 (NUMBER PENDING) — THE HOST LANE'S ENGINE-58 GATE, AS A RUN-TIME CHECK ───
+  // ─── ⭐⭐⭐ HIST-S3 (Engine 64 (#1450)) — THE HOST LANE'S ENGINE-58 GATE, AS A RUN-TIME CHECK ───
   //
   // A call written in a block (or a `?:` arm) keeps the history of the bars that block RUNS on
   // (C48). The every-bar reading of it is exact exactly when the block's runs ARE the chart's
@@ -3775,7 +3775,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       let arms = null
       let test = null
       if (node.type === 'ternary') {
-        // ⭐⭐ HIST-S1 (NUMBER PENDING) — BEFORE PINE v4 A `?:` RUNS BOTH ARMS ON EVERY BAR.
+        // ⭐⭐ HIST-S1 (Engine 64 (#1450)) — BEFORE PINE v4 A `?:` RUNS BOTH ARMS ON EVERY BAR.
         // WITNESSED: `vw-ternary-arm-legacy-{v1,v2,v3}(-cum)-rddt-1d-2026-11-15` (run s17, probe
         // P2: `change`, `sma`, `ema`, `rma`, `barssince`, `cum` in the else arm equal their
         // every-bar values on every bar; a lazy arm misses from bar 4). So the arm's history is
@@ -6438,7 +6438,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const callTreeExpansion = (node) => {
     const name = String(node && node.name || '')
     if (definedNames.has(name) || isUserFn(name)) return null
-    // ⭐ NUMBER PENDING (bt) — THE v1–v4 SPELLING OF `math.avg` IS THE BARE `avg`. The v4→v5
+    // ⭐ Engine 66 (#1473) (bt) — THE v1–v4 SPELLING OF `math.avg` IS THE BARE `avg`. The v4→v5
     // migration guide's `math` table: "`avg()` | `math.avg()`". Before v5 the bare name is Pine's
     // own (no version line = v1, as `LEGACY_REQUEST_CALLS` reads it), so it takes the same
     // expansion; a script's own `avg` never reaches here (the guard above).
@@ -8359,7 +8359,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       const rebuilt = rebuiltSessionClockCall(node, scope)
       return rebuilt ? column(columnOf(rebuilt, at)) : null
     }
-    // ⭐ NUMBER PENDING (bt) — `timeframe.in_seconds([tf])` with a timeframe fixed before bar 0 (a
+    // ⭐ Engine 66 (#1473) (bt) — `timeframe.in_seconds([tf])` with a timeframe fixed before bar 0 (a
     // parameter a call site fixes, an input at its value, `""`, the chart's own name) is the
     // COLUMNAR lane's own answer (`pine.js::timeframeCallOf`, lengths measured on vw-time-tf
     // T10–T15), rebuilt with a literal argument exactly as `time(tf, …)` is above — one reader
@@ -8884,7 +8884,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // `request.security(sym, tf, x)` could disagree inside one script.
         // ⛔ AND A BINDING STILL WINS, exactly as it does for the clock fields
         // above and in `ownTimeframeOf`: a script may write `period = "60"`.
-        // ⭐ NUMBER PENDING (bt) — a v4+ script's unbound bare `period` is no Pine name (`legacyPeriodUndeclared`).
+        // ⭐ Engine 66 (#1473) (bt) — a v4+ script's unbound bare `period` is no Pine name (`legacyPeriodUndeclared`).
         if (legacyPeriodUndeclared(node.name, pineVersion) && scope.lookup(node.name) === null && !env.has(node.name)) {
           throw legacyPeriodRefusal(node.tok)
         }
@@ -10220,7 +10220,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             const hoisted = hoistCommittedSeries(srcNode, scope, node.name)
             if (hoisted) { varSlot = hoisted.slot; srcLabel = hoisted.label }
           }
-          // ⭐⭐ HIST-S2 (NUMBER PENDING) — A WINDOW THAT KEEPS ITS OWN RING NEEDS NO COMMITTED
+          // ⭐⭐ HIST-S2 (Engine 64 (#1450)) — A WINDOW THAT KEEPS ITS OWN RING NEEDS NO COMMITTED
           // SERIES. Only the `propagate` policy (`dev`) reads the source's committed bar ring
           // (`vm.js` `OP.WINDOW`, its last branch); `skip` (sma / stdev / sum / median), `ffill`
           // (wma) and `finite` (highest / lowest / highestbars / lowestbars) each append the value

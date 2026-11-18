@@ -3783,6 +3783,28 @@
   },
   "knobs": {
     "_readme": "X-16 (TERMINAL-NEXT ledger hygiene, 2026-10-02). Env vars that DECIDE behaviour but that `flags` cannot hold, because its rail admits only names the AST index classifies as a gate (ENABLED/DISABLE/_ON), a visibility flag or a *_MODE_FLAGS entry: a CUTOVER switch, a SAMPLE RATE, and a gate that lives in ANOTHER REPO. Each row says where it is read and what its unset value does. tests/test_flag_ledger_knobs.py holds every `repo: uct-dashboard` row to the AST scan (a name the code no longer reads fails) and every row to the same status vocabulary as `flags`.",
+    "CONVERSE_ADMIN_CAP_DAILY": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/definition_conversation.py (CONVERSE_ADMIN_CAP_ENV, read on every Create Indicator turn; never below the member allowance)",
+      "kind": "config",
+      "status": "armed",
+      "default": "10",
+      "where": ["web"],
+      "railway_value": "30",
+      "last_changed": "2026-11-18T19:28Z",
+      "owner_decision": "2026-11-18: raised from the default 10 to 30 for the Studio track's live-check programme, under the owner's standing go-ahead to raise the live-spend cap to 30-50 for that work and to make production switches while there are no members. Coordinator: keep it while the live checks continue.",
+      "note": "The daily allowance, in US dollars, of an ADMIN account at the Create Indicator door (the conversation route). Only accounts with the admin role read it: the owner's, and the synthetic admin test account that automated production checks sign in as. Why it was raised: on 2026-11-18 both synthetic test accounts had spent their day (rounds of well-known names measured before and after three instruction changes), and no live before-and-after could run until midnight Eastern. The allowance is counted from the cost ledger, not from the web process, so a restart does not free it. REVERT TO THE DEFAULT (delete the variable, then redeploy web: a delete alone does not restart it) when the live-check programme pauses."
+    },
+    "CONVERSE_USER_CAP_DAILY": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/definition_conversation.py (CONVERSE_USER_CAP_ENV, read on every Create Indicator turn; unset falls back to the formula assistant's CONCIERGE_USER_CAP_DAILY)",
+      "kind": "config",
+      "status": "armed",
+      "default": "unset (the formula assistant's allowance, 0.75)",
+      "where": ["web"],
+      "railway_value": "3",
+      "note": "The daily allowance, in US dollars, of a MEMBER at the Create Indicator door. Read on production 2026-11-18 and recorded here for the first time; this entry did not change it. A member who reaches it is told so by name and can go on the next day; nothing is cut off mid-answer."
+    },
     "PINE_RUNTIME_RUN_TELEMETRY": {
       "repo": "uct-dashboard",
       "read_at": "api/routers/pine_runtime_telemetry.py::run_telemetry_enabled (read per batch; only the literal off disables)",

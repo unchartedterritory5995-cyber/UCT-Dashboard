@@ -893,7 +893,7 @@ export function notePeriodRead(name, version) { recordPeriodRead(name, version) 
  *  shadowing CONTROL, not by review — for the second time. */
 export const OWN_TF_NAMES = new Set(['timeframe.period', 'period'])
 
-/** ⭐⭐ NUMBER PENDING (bt) — BARE `period` IS PINE v1–v3's, AND ONLY THEIRS. TradingView's v4 compiler
+/** ⭐⭐ Engine 66 (#1473) (bt) — BARE `period` IS PINE v1–v3's, AND ONLY THEIRS. TradingView's v4 compiler
  *  refuses it — "Compilation error: Undeclared identifier 'period';" (capture-session reading
  *  2026-11-16, recorded in the header of the captured `vw-w4-session-default-days-v4` source) — and
  *  neither the v4 nor the v5 reference holds a bare `period` (only `timeframe.period`). Reading it as
@@ -1426,7 +1426,7 @@ export function derivedSeriesTree(name, table) {
   if (!own(DERIVED_SERIES, name)) return null
   const parts = DERIVED_SERIES[name]
   if (parts.some((p) => !own((table && table.series) || {}, p))) return null
-  // ⭐⭐ `hlcc4` IS `(high + low + 2 * close) / 4`, AS TRADINGVIEW COMPUTES IT (NUMBER PENDING,
+  // ⭐⭐ `hlcc4` IS `(high + low + 2 * close) / 4`, AS TRADINGVIEW COMPUTES IT (Engine 65 (#1489),
   // 2026-11-16). The reference writes `(high + low + close + close) / 4`, and a left-to-right sum
   // of four terms rounds twice where TradingView's rounds once, so the two differ in the last
   // binary digit on some bars. WITNESSED: `h3-vwap-source-spy-1d-2026-10-02` S08
@@ -2839,11 +2839,11 @@ const BUILTIN_RULED = Object.freeze({
   // names that are not symbol-scoped.
 })
 
-/** ⭐ NUMBER PENDING (bt) — `chart.*` names ruled BY NAME, beside `BUILTIN_RULED`. The refusal ENDS with the
+/** ⭐ Engine 66 (#1473) (bt) — `chart.*` names ruled BY NAME, beside `BUILTIN_RULED`. The refusal ENDS with the
  *  name (`… — \`chart.bg_color\``), the shape the object lane's subject reader takes (`noteGuardRefusal`,
  *  `REFUSED_SUBJECT`), so a dropped drawing op still names what stopped it. */
 const CHART_RULED = Object.freeze({
-  // ⭐ NUMBER PENDING (bt) — THE FOUR `chart.*` NAMES THE CORPUS READS, RULED. The two visible-bar
+  // ⭐ Engine 66 (#1473) (bt) — THE FOUR `chart.*` NAMES THE CORPUS READS, RULED. The two visible-bar
   // times are the VIEWPORT: TradingView's user manual (Time, "Visible bar times"): "Each time the
   // visible window changes, the script re-executes automatically to update the variables' values
   // on all available bars." This engine computes an indicator once for the bars, not once per
@@ -12818,7 +12818,7 @@ export class Resolver {
           `${REFUSALS['pine:named-argument']} — on \`${name}\``, locate(node.tok))
       }
       if (name === 'na' && arity === 1) {
-        // ⭐ NUMBER PENDING (bt) — `na(time(tf, <wrapping session>))` READS MEMBERSHIP ONLY, so the
+        // ⭐ Engine 66 (#1473) (bt) — `na(time(tf, <wrapping session>))` READS MEMBERSHIP ONLY, so the
         // session clock hands back its membership tree (`?:(inside, 1, na)`) instead of the value tree:
         // the same `na` on every bar, with fewer series references (no `time`, no `periodseconds`).
         // Measured: `session-hilo`'s background paint reads two wrapping sessions and their `[1]`
@@ -13710,7 +13710,7 @@ export class Resolver {
     if (!tfNode || !sessNode) throw no('it needs both a timeframe and a session')
 
     // ── 1. THE TIMEFRAME: the chart's own, and only that. ────────────────────
-    // ⭐ NUMBER PENDING (bt) — `""` IS THE CHART'S OWN TIMEFRAME. The reference (`time`, argument
+    // ⭐ Engine 66 (#1473) (bt) — `""` IS THE CHART'S OWN TIMEFRAME. The reference (`time`, argument
     // `timeframe`): "If the value is an empty string, the function uses the script's main
     // timeframe." The runtime lane already reads it so (W4 T3, `rebuiltSessionClockCall`); this
     // lane refused it as "another timeframe", so a script asking `time("", sess)` was answered on
@@ -13767,7 +13767,7 @@ export class Resolver {
     if (m[5]) {
       days = [...new Set(m[5].split('').map(Number))].sort()
     } else if (this.pineVersion === 4) {
-      // ⭐ NUMBER PENDING (bt) — A v4 SESSION WITH NO DAY LIST IS MONDAY TO FRIDAY, and two texts
+      // ⭐ Engine 66 (#1473) (bt) — A v4 SESSION WITH NO DAY LIST IS MONDAY TO FRIDAY, and two texts
       // say so exactly: the v4 reference (`time`): "If the days aren't specified, the session is
       // considered to have been set from Monday to Friday (Saturday and Sunday are excluded as the
       // weekend days)", and the v4→v5 migration guide: "The default set of days for `session`
@@ -13784,7 +13784,7 @@ export class Resolver {
         + '(Monday–Friday) to say which you mean.')
     }
     if (days && days.length === 7) days = null
-    // ⭐⭐ NUMBER PENDING (bt) — A WINDOW WHOSE END IS NOT AFTER ITS START, as TradingView answered
+    // ⭐⭐ Engine 66 (#1473) (bt) — A WINDOW WHOSE END IS NOT AFTER ITS START, as TradingView answered
     // it on BITSTAMP:BTCUSD (a symbol with a bar every hour of every day) and as the user manual's
     // session table states it ("0000-0000:1234567 — a 7-day, 24-hour session beginning at midnight";
     // "0000-0000:23456 — a 24-hour session beginning at midnight, but only Monday to Friday";
@@ -13816,7 +13816,7 @@ export class Resolver {
       if (tz === SESSION_EXCHANGE_TZ || tz === 'America/New_York') {
         offset = null
       } else {
-        // ⭐ NUMBER PENDING (bt) — "UTC" IS THE SAME NOTATION AS "GMT", and the minutes form too.
+        // ⭐ Engine 66 (#1473) (bt) — "UTC" IS THE SAME NOTATION AS "GMT", and the minutes form too.
         // The user manual (Time, "Time zone strings"): "UTC (or GMT) offset notation, e.g.,
         // "UTC-5", "UTC+05:30", "GMT+0100"". The fixed-offset ARITHMETIC is the one measured on
         // "GMT-4" / "GMT-5" (S11, S12); only the spelling widens. `UTC+530` (three digits) is no

@@ -138,6 +138,7 @@ const ARG_SAMPLE = {
   earningsDay: 'TOMORROW', earningsSession: 'AMC',
   groupName: 'XLK',
   unvolSide: 'DOWN', unvolMin: '3X',
+  shortRank: 'FLOAT',
 }
 
 afterEach(cleanup)

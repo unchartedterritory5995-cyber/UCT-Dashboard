@@ -55,6 +55,18 @@ CASES = {
     "acronym_ad": (
         ["Add AD", "show AD in a lower pane"],
         ["Add the Accumulation Distribution Line", "an ad for my chart", "add ADX", "Add ADL"]),      # capitals only; ADL is its own
+    # slice F: what relative strength is measured against, and how far back a breakout looks
+    "benchmark": (
+        ["Show relative strength", "Plot the RS line", "show NVDA's relative strength", "mark when it outperforms the market",
+         "show its strength versus the market"],
+        ["Show relative strength versus SPY", "relative strength vs QQQ", "price relative to XLK",
+         "relative strength vs its sector",                      # a comparison the choices cannot answer: the assistant's
+         "Add the Relative Strength Index", "add a 14 day RSI", "relative volume"]),
+    "breakout_window": (
+        ["Mark breakouts", "mark new highs", "Mark breakouts on high volume", "flag new lows", "show when it breaks out"],
+        ["Mark 20 day breakouts", "mark new 52-week highs", "new all-time highs", "flag when it breaks out of its base",
+         "breakout from a squeeze", "mark when price breaks out above the 50 day EMA", "opening range breakout",
+         "Add a 50 day EMA"]),
 }
 
 
@@ -67,7 +79,8 @@ def understood(conv, words):
 def test_the_registry_is_data_and_every_question_fits_the_contract(conv):
     registry = conv.clarify_registry()
     assert list(registry) == ["average_kind", "average_length", "cross_meaning",
-                              "acronym_dmi", "acronym_adl", "acronym_ad"]             # the order asked
+                              "acronym_dmi", "acronym_adl", "acronym_ad",
+                              "benchmark", "breakout_window"]                        # the order asked
     assert set(registry) == set(CASES), "a question with no cases here, or cases with no question"
     limits = json.loads(conv._raw_schema_text())["x-uct-limits"]
     for qid, q in registry.items():
@@ -123,7 +136,12 @@ def test_a_typed_answer_settles_it_too(conv):
                               ("average_kind", "add a 50 day moving average", "the hull one"),
                               ("average_length", "Add an EMA", "21"),
                               ("average_length", "Add an EMA", "make it 8 bars"),
-                              ("cross_meaning", "alert me when price crosses above the 50 day EMA", "on the close")):
+                              ("cross_meaning", "alert me when price crosses above the 50 day EMA", "on the close"),
+                              ("benchmark", "Show relative strength", "spy"),
+                              ("benchmark", "Show relative strength", "the nasdaq"),
+                              ("benchmark", "Show relative strength", "against XLK please"),     # any listed symbol
+                              ("breakout_window", "Mark breakouts", "30"),
+                              ("breakout_window", "Mark breakouts", "over 100 bars")):
         said = [{"role": "member", "text": words}, {"role": "assistant", "text": conv.clarify_question(qid)["text"]}]
         combined = conv.with_pending_answers(typed, said, CHART)
         assert typed in combined and combined != typed, (qid, typed)

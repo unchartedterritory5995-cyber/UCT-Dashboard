@@ -127,6 +127,16 @@ Nothing this track adds may reach the entry chunk.
 **Machine rules.** One heavy job at a time through the heavy lock, named test files, one
 worker, a sparse worktree. Tests of this track's own code stay engine-free.
 
+**Before a push: a local failure is compared with a recorded list, test by test.** The sparse
+worktree has no script corpus and no workflow files, so about ninety browser tests under
+`engine/ast` and a dozen door tests fail in it for that reason alone. On 2026-11-18 two NEW
+failures in `engine/ast/namedIndicators.test.js` were read as more of the same and went to the
+remote lane, which was red for them. The rule since: keep the list of tests that fail on an
+unchanged tree (file AND test name), and after a change compare the new list with it. A failing
+test that is not on the list is this change's until shown otherwise; "that directory always fails
+here" is not a reading of it. The remote lane stays the verdict; this is what keeps a known red
+from being sent to it.
+
 ## 5. One name, one verdict
 
 **One name.** The member-facing word is **indicator**, everywhere: the Builder's title, the
@@ -470,8 +480,7 @@ screenshot and logs) were read from their public pages and not used hands-on.
 | A separate community feed | not planned; the Members tab is the library |
 | Side-by-side instruction versions; model routing | section 7, L9 |
 | Ehlers Super Smoother, Instantaneous Trendline and Cyber Cycle as named, checked indicators | a published statement of each recurrence can be READ (2026-11-18: the author's own site refuses automated fetches and no page that could be read states them). They are not written from memory. Until then each is built from a member's words with the name withheld, where its shape settles |
-| Laguerre Filter and Laguerre RSI as named, checked indicators | their value side is graded: the published equations were read (2026-11-18), a probe was written from them and captured on TradingView, and the entry's own formula has yet to be graded against that capture |
-| A setting as a coefficient of linked running values (a Laguerre gamma in the Inputs panel) | the settle bound is recomputed for the member's value when it is bound, not read once from the numbers |
+| A setting as a coefficient of linked running values written out by hand (a gamma the member can change inside their own accum2 to accum4) | the settle bound is recomputed for the member's value when it is bound, not read once from the numbers. (The Laguerre pair does not wait on this: `laguerre` and `laguerreRsi` take gamma as their argument and size their own restart from it, so their gamma is an Inputs field today) |
 
 This track will not: edit engine-owned files or bump the engine version; add a second
 scripting language, runtime or authoring door; save or apply anything without a press; show

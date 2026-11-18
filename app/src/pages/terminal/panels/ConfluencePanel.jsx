@@ -153,7 +153,7 @@ function Board({ code, lean, onLean }) {
           {count(counts.all)} {plural(counts.all, 'stock is', 'stocks are')} on the board in the other direction.
         </PanelState>
       ) : groups.map((g) => (
-        <div className={styles.tableBox} key={g.band}>
+        <div className={styles.tableBox} data-fold="530" key={g.band}>
           <table className={styles.table} data-testid={`terminal-confl-band-${g.band}`}
             aria-label={`Confluence board, ${view.bands[g.band].name}, ${g.rows.length} ${plural(g.rows.length, 'stock', 'stocks')}`}>
             <caption className={styles.caption}>
@@ -165,9 +165,9 @@ function Board({ code, lean, onLean }) {
                 <th scope="col" className={styles.phoneWrap} title="Which way the open option premium leans, and whether the last 5 trading days are still adding to it">Direction</th>
                 <th scope="col" className={styles.phoneWrap}
                   title="Bullish premium less bearish premium on option contracts that are still open, then the part of the open premium that sits in long-dated contracts and its share of all of it">Open option premium</th>
-                <th scope="col" className={`${styles.wrapCell} ${styles.phoneTight}`}
+                <th scope="col" className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`}
                   title="Dollars traded in the dark pool over the window, the average price paid there, and the last dark pool session's price against that average">Dark pool</th>
-                <th scope="col" className={`${styles.phoneHide} ${styles.wrapCell}`} title="The stock's largest open contract by premium">Largest contract</th>
+                <th scope="col" className={`${styles.phoneHide} ${styles.wrapCell} ${styles.snugTight}`} title="The stock's largest open contract by premium">Largest contract</th>
               </tr>
             </thead>
             <tbody>
@@ -188,14 +188,14 @@ function Board({ code, lean, onLean }) {
                       {r.leapSharePct == null ? null : ` (${formatPercent(r.leapSharePct, { decimals: 0 })})`}
                     </span>
                   </td>
-                  <td className={`${styles.wrapCell} ${styles.phoneTight}`}>
+                  <td className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`}>
                     {money(r.darkPool)}
                     {r.avgPrice == null ? null : <span className={styles.muted}>{` avg${NBSP}${price(r.avgPrice)}`}</span>}
                     {r.lastVsAvgPct == null ? null : (
                       <span className={tone(r.lastVsAvgPct)}>{` last${NBSP}${formatPercent(r.lastVsAvgPct, { decimals: 1, signed: true })}`}</span>
                     )}
                   </td>
-                  <td className={`${styles.phoneHide} ${styles.wrapCell}`}>{unbroken(contractText(r))}</td>
+                  <td className={`${styles.phoneHide} ${styles.wrapCell} ${styles.snugTight}`}>{unbroken(contractText(r))}</td>
                 </tr>
               ))}
             </tbody>

@@ -1299,7 +1299,7 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   } })
 }
 
-/** ⭐⭐ ROUTE BY COST (NUMBER PENDING, docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md) —
+/** ⭐⭐ ROUTE BY COST (Engine 73 (#1711), docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md) —
  *  THE HOST LANE'S ANSWER, OR THE SAME SCRIPT DRAWN BY THE RUNTIME LANE WHEN THE HOST ONE IS TOO DEAR.
  *
  *  The host lane computes on the member's main thread, inside the chart's paint, for every new bars
@@ -2466,7 +2466,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   }
   const notes = [{
     name: 'Drawn bar by bar',
-    // ⭐ ROUTE BY COST (NUMBER PENDING) — a script moved for its cost says so (`drawnBecause`); every
+    // ⭐ ROUTE BY COST (Engine 73 (#1711)) — a script moved for its cost says so (`drawnBecause`); every
     // other caller keeps the sentence it always had.
     note: 'This script is drawn by running it bar by bar, the way TradingView does, '
       + `${drawnBecause || 'because a single formula per line cannot hold it'}. Its settings can be changed `

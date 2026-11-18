@@ -122,7 +122,7 @@ describe('RT1 → RT3 — a `?:` whose test is `na` reads as false from v4; only
   // ⭐ RT3: the runtime lane now reads an `na` condition as TradingView does
   // from v4 (`interpret.js::pineBool`, one rule for both lanes), so the two v4
   // captures below are drawn by the runtime run exactly as TradingView draws
-  // them. H1 served both from the host lane first; ⭐ ROUTE BY COST (NUMBER PENDING,
+  // them. H1 served both from the host lane first; ⭐ ROUTE BY COST (Engine 73 (#1711),
   // docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md) now serves both from the RUNTIME
   // lane for a viewer whose runtime pane is on (their recurrences hold the main thread for
   // seconds on the host lane, and the run draws the same picture), so the run graded here

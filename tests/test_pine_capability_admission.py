@@ -16,6 +16,7 @@ And: with the variable OFF (the default) every answer is the one before Part 2.
 from __future__ import annotations
 
 import copy
+import datetime
 import json
 import logging
 from pathlib import Path
@@ -148,7 +149,10 @@ def test_the_committed_admitted_set_is_the_evidence_supported_one():
         "obj:table",
         # DRAW-1 (coordinator ruling 2026-11-16): box.* on its x-graded evidence, with the count-at-cap
         # carve-out (`objectPool.js` COUNT_AT_CAP_FAMILIES): a box family whose collector ran is withheld by name
-        "obj:box"])
+        "obj:box",
+        # (2026-11-18) strategy() run by the simulated broker: Q-SD1 / Q-SD2 (supertrend-strategy, community) and
+        # W9-Q-S1p, MATCH runtime-on with the broker armed; a backtest is still served only on pinned broker rules
+        "strategy-decl"])
 
 
 # ═══ flag OFF: the answers before Part 2 ═══════════════════════════════════════
@@ -696,7 +700,7 @@ def _x_verdict(o: dict):
 KILL_DOC = ROOT / "api" / "data" / "pine_runtime_killlist.json"
 
 
-def _kill_entry_problems(s: dict, v: dict) -> list:
+def _kill_entry_problems(s: dict, v: dict, today: datetime.date | None = None) -> list:
     """Why one kill entry is not held to its graded evidence: a committed capture of THAT source whose
     runtime-on grade is not MATCH, a reason in the member's words, and the condition that lifts it."""
     out = []
@@ -714,6 +718,38 @@ def _kill_entry_problems(s: dict, v: dict) -> list:
         out.append(f"{s.get('slug')}: its source file is another source")
     if not (s.get("reason") and s.get("liftWhen")):
         out.append(f"{s.get('slug')}: no reason or no liftWhen")
+    # ⭐ (2026-11-18) a HELD kill carries a hard expiry, and is red on its own once past it
+    if s.get("status") == rt.KILL_PENDING:
+        out.extend(_held_kill_expiry_problems(s, today))
+    elif s.get("status") is not None:
+        out.append(f"{s.get('slug')}: status {s.get('status')!r} is not a status this list knows")
+    return out
+
+
+def _held_kill_expiry_problems(s: dict, today: datetime.date | None = None) -> list:
+    """A held kill (`status: pending`) names an ISO `expires` date, and today is not past it."""
+    today = today or datetime.date.today()
+    try:
+        expires = datetime.date.fromisoformat(str(s.get("expires")))
+    except ValueError:
+        return [f"{s.get('slug')}: a held kill with no readable `expires` date"]
+    if today > expires:
+        return [f"{s.get('slug')}: a held kill past its expiry ({expires.isoformat()}): serve the kill or lift it"]
+    return []
+
+
+def held_kill_captures(rt_verdicts: dict, today: datetime.date | None = None) -> dict:
+    """The REACH stops a held kill may carry: ``{capture: slug}`` for each `status: pending` entry of the committed
+    kill list (`rt.pending_kills`, the one authority) that is not past its expiry and whose named capture's
+    runtime-on record grades what the entry says (DIVERGE). Nothing else is ever accepted this way."""
+    recs = {r["id"]: r for r in rt_verdicts["results"]}
+    out = {}
+    for s in rt.pending_kills().values():
+        ev = s.get("evidence") or {}
+        r = recs.get(ev.get("capture"))
+        if _held_kill_expiry_problems(s, today) or r is None or r["verdict"] != ev.get("verdict") or ev.get("verdict") != "DIVERGE":
+            continue
+        out[ev["capture"]] = s.get("slug")
     return out
 
 
@@ -726,7 +762,11 @@ def test_RT1_every_committed_kill_is_held_to_its_graded_evidence():
     v = _verdicts()
     for s in doc["scripts"]:
         assert _kill_entry_problems(s, v) == [], s["slug"]
-        assert s["sha256"] in rt.kill_list()
+        if s.get("status") == rt.KILL_PENDING:
+            # a HELD kill is recorded, never served: the script still draws
+            assert s["sha256"] not in rt.kill_list() and s["sha256"] in rt.pending_kills(), s["slug"]
+        else:
+            assert s["sha256"] in rt.kill_list()
     # CONTROL: an entry whose capture grades MATCH (the lifted parabolic-sar entry, as it stood) is red;
     # the same entry on a capture that DIVERGES is green
     src = SYNTHETIC_KILL_SOURCE.read_text(encoding="utf-8")
@@ -737,6 +777,12 @@ def test_RT1_every_committed_kill_is_held_to_its_graded_evidence():
     moved = copy.deepcopy(v)
     moved["parabolic-sar-spy-1d-2026-11-15"]["verdict"] = "DIVERGE"
     assert _kill_entry_problems(entry, moved) == []
+    # CONTROL (2026-11-18): the same entry HELD is green until its expiry, red the day after, red with no date
+    held = dict(entry, status=rt.KILL_PENDING, expires="2026-11-21")
+    assert _kill_entry_problems(held, moved, today=datetime.date(2026, 11, 21)) == []
+    assert any("past its expiry" in p for p in _kill_entry_problems(held, moved, today=datetime.date(2026, 11, 22)))
+    assert any("no readable `expires`" in p for p in _kill_entry_problems(dict(held, expires=None), moved))
+    assert any("not a status" in p for p in _kill_entry_problems(dict(entry, status="paused"), moved))
 
 
 #: The by-name rails need a killed script, and the committed kill list is empty since parabolic-sar's kill
@@ -1147,8 +1193,10 @@ def withheld_whole(record: dict) -> bool:
         r.get("state") in ("notDrawn", "withheld") for r in (paints.get("rows") or [{"state": "x"}]))
 
 
-def reach_rule_violations(report: dict, rt_verdicts: dict, prod_verdicts: dict) -> list:
+def reach_rule_violations(report: dict, rt_verdicts: dict, prod_verdicts: dict, today: datetime.date | None = None) -> list:
     rton = {r["id"]: r["verdict"] for r in rt_verdicts["results"]}
+    # ⭐ (2026-11-18) a HELD kill's one named capture, re-proved from its record and only until its expiry
+    held = held_kill_captures(rt_verdicts, today)
     records = {r["id"]: r for r in rt_verdicts["results"]}
     prod = {r["id"]: r["verdict"] for r in prod_verdicts["results"]}
     out = []
@@ -1157,6 +1205,8 @@ def reach_rule_violations(report: dict, rt_verdicts: dict, prod_verdicts: dict) 
     for c in report["captures"]:
         if c["lane"] == "runtime" and rton.get(c["capture"]) != "MATCH" and rton.get(c["capture"]) != "INCONCLUSIVE":
             if c["capture"] in WITHHELD_WHOLE and withheld_whole(records.get(c["capture"])):
+                continue
+            if c["capture"] in held:
                 continue
             out.append(f"{c['capture']}: drawn by the runtime lane and graded {rton.get(c['capture'])}")
     for cid, v in prod.items():
@@ -1201,7 +1251,9 @@ def test_REACH_the_committed_reach_run_is_the_committed_registrys():
     # ⭐ COND-TA: the reach run lists a runtime-lane DIVERGE as a stop whatever its shape; the only
     # stops a committed run may carry are the captures named in WITHHELD_WHOLE, each re-proved from
     # its own verdict record by `reach_rule_violations` (the next test). Any other stop is red here.
-    assert {s["capture"] for s in report["stops"]} <= set(WITHHELD_WHOLE), report["stops"]
+    # ⭐ (2026-11-18) ...and the one named capture of each HELD kill on the committed kill list, until its expiry
+    held = held_kill_captures(json.loads(VERDICTS_RT.read_text(encoding="utf-8")))
+    assert {s["capture"] for s in report["stops"]} <= set(WITHHELD_WHOLE) | set(held), report["stops"]
     assert report["matchToDiverge"] == []
     assert sum(1 for c in report["captures"] if c["lane"] == "runtime") >= 10   # not vacuous
     if held_absent:
@@ -1214,6 +1266,53 @@ def test_REACH_no_runtime_lane_DIVERGE_and_no_MATCH_to_DIVERGE():
     problems = reach_rule_violations(report, json.loads(VERDICTS_RT.read_text(encoding="utf-8")),
                                      json.loads(VERDICTS_PROD.read_text(encoding="utf-8")))
     assert problems == [], problems
+
+
+def held_kills_or_synthetic(rtv: dict, tmp_path, monkeypatch) -> dict:
+    """The committed list's HELD kills; when it holds none (adx-and-di-for-v4 was LIFTED at engine 78: Q-FCMP ruled
+    TOLERANCE, #1858, and its SPY capture re-graded MATCH), ONE synthetic held entry in a tmp kill list naming a real
+    committed capture that grades DIVERGE, so the rule is still shown both ways. Read through `rt.pending_kills`."""
+    pending = rt.pending_kills()
+    if pending:
+        return pending
+    rec = next(r for r in rtv["results"] if r["verdict"] == "DIVERGE" and r["id"] not in WITHHELD_WHOLE
+               and (ROOT / r["file"]).is_file())
+    src = json.loads((ROOT / rec["file"]).read_text(encoding="utf-8"))["source"]["text"]
+    entry = {"slug": "synthetic-held", "status": rt.KILL_PENDING,
+             "expires": (datetime.date.today() + datetime.timedelta(days=3)).isoformat(),
+             "sha256": rt.source_hash(src), "source": rec["file"], "reason": "SYNTHETIC", "liftWhen": "SYNTHETIC",
+             "evidence": {"capture": rec["id"], "verdict": "DIVERGE"}}
+    f = tmp_path / "held-killlist.json"
+    f.write_text(json.dumps({"_readme": ["tmp, synthetic"], "scripts": [entry]}), encoding="utf-8")
+    monkeypatch.setattr(rt, "KILLLIST_PATH", str(f))
+    return rt.pending_kills()
+
+
+def test_REACH_a_held_kill_is_one_named_stop_until_its_expiry_and_nothing_else(tmp_path, monkeypatch):
+    """(coordinator ruling 2026-11-18) A HELD kill (`status: pending` on the committed kill list) lets the REACH rule
+    carry its ONE named capture as a stop, re-proved from that capture's record, and only until `expires`. CONTROLS:
+    the day after expiry it is a stop again; the same capture graded MATCH (the held entry no longer true) is not
+    accepted; another DIVERGE capture of the same script is not accepted."""
+    rtv = json.loads(VERDICTS_RT.read_text(encoding="utf-8"))
+    prodv = json.loads(VERDICTS_PROD.read_text(encoding="utf-8"))
+    pending = held_kills_or_synthetic(rtv, tmp_path, monkeypatch)
+    assert pending, "no held kill, committed or synthetic (vacuous)"
+    for s in pending.values():
+        cid = s["evidence"]["capture"]
+        expires = datetime.date.fromisoformat(s["expires"])
+        report = {"captures": [{"capture": cid, "lane": "runtime"}]}
+        assert held_kill_captures(rtv, expires) == {cid: s["slug"]}
+        assert all(cid not in p for p in reach_rule_violations(report, rtv, prodv, today=expires))
+        late = expires + datetime.timedelta(days=1)
+        assert any(cid in p for p in reach_rule_violations(report, rtv, prodv, today=late))
+        healed = copy.deepcopy(rtv)
+        for r in healed["results"]:
+            if r["id"] == cid:
+                r["verdict"] = "MATCH"
+        assert cid not in held_kill_captures(healed, expires)
+    other = next(r["id"] for r in rtv["results"] if r["verdict"] == "DIVERGE"
+                 and r["id"] not in WITHHELD_WHOLE and r["id"] not in held_kill_captures(rtv))
+    assert any(other in p for p in reach_rule_violations({"captures": [{"capture": other, "lane": "runtime"}]}, rtv, prodv))
 
 
 def test_REACH_the_rule_can_fail():
@@ -1249,8 +1348,10 @@ def test_REACH_a_whole_run_withholding_is_named_and_re_proved_and_nothing_else_r
             if r["id"] == cid:
                 r["plots"][0] = dict(r["plots"][0], verdict="DIVERGE", reason="2 bars differ")
         assert any(cid in p for p in reach_rule_violations(report, drifted, prodv))
-    # a DIVERGE capture NOT named never reads as withheld whole, whatever its record
-    other = next(r["id"] for r in rtv["results"] if r["verdict"] == "DIVERGE" and r["id"] not in WITHHELD_WHOLE)
+    # a DIVERGE capture NOT named never reads as withheld whole, whatever its record (a held kill's capture is the
+    # other named exception, `test_REACH_a_held_kill_is_one_named_stop_until_its_expiry_and_nothing_else`)
+    other = next(r["id"] for r in rtv["results"] if r["verdict"] == "DIVERGE" and r["id"] not in WITHHELD_WHOLE
+                 and r["id"] not in held_kill_captures(rtv))
     assert any(other in p for p in reach_rule_violations({"captures": [{"capture": other, "lane": "runtime"}]}, rtv, prodv))
 
 

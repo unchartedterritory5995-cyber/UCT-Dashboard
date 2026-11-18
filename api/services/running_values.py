@@ -55,6 +55,9 @@ FUNCTIONS: Mapping[str, int] = {"accum2": 2, "accum3": 3, "accum4": 4}
 STATES: Tuple[str, ...] = ("state1", "state2", "state3", "state4")
 
 LINEAR, CASCADE, PATH, MALFORMED = "linear", "cascade", "path-dependent", "malformed"
+#: The engine itself will not compute it, whatever its numbers: a running value read where the engine
+#: holds no value for it (`engine_objection`).
+UNREADABLE = "unreadable"
 
 
 def _is(node: Any, kind: str) -> bool:
@@ -86,6 +89,41 @@ def parts(node: Any) -> Optional[Dict[str, Any]]:
     if output is None or warmup is None or not (1 <= output <= k) or warmup < 1:
         return None
     return {"k": k, "output": output, "warmup": warmup, "seeds": args[2:2 + k], "updates": args[2 + k:]}
+
+
+def engine_objection(update: Any, k: int) -> Optional[str]:
+    """Why THE ENGINE will not compute this update, or None. ⭐ THE ENGINE IS THE AUTHORITY, AND IT IS
+    ASKED, NOT RESTATED: this walks the update the way `ast_interpret` plans one and uses the
+    engine's own predicates (`_is_stateful_call`, `is_pointwise`). One previous set of values is
+    carried per step, not a history, so a running value may be read through operators and one-bar
+    functions only: never under a bar offset, never inside another running value, never inside a
+    function that reads a window of bars.
+
+    ⚰️ Found live, 2026-11-18. A second stage that took `lowest(... state1 ..., 10)` was called a
+    chain here ("earlier states, any way at all") and refused by the browser's engine: the door
+    accepted what the engine does not compute, and the member's request went round twice."""
+    from api.services import ast_interpret as engine
+    stack = [update]
+    while stack:
+        x = stack.pop()
+        if not isinstance(x, Mapping) or not reads(x, k) or _is(x, "series"):
+            continue
+        if _is(x, "offset"):
+            return ("a running value sits under a bar offset; only last bar's values are carried, so it is written "
+                    "state1, never state1[1]")
+        if _is(x, "call"):
+            name = str(x.get("name"))
+            try:
+                nested = engine._is_stateful_call(x)
+                one_bar = (not nested) and engine.is_pointwise(engine._fn_spec(name))
+            except Exception:                              # noqa: BLE001 -- a name the engine does not know reads no bar
+                nested, one_bar = False, False
+            if nested:
+                return f"a running value sits inside a nested {name}(...)"
+            if not one_bar:
+                return f"a running value sits inside {name}(...), which reads a window of bars rather than one"
+        stack.extend(_args(x))
+    return None
 
 
 def reads(node: Any, k: int) -> Set[int]:
@@ -292,6 +330,10 @@ def classify(node: Any, settled: float = 1e-4, cap: int = 960) -> Dict[str, Any]
         if reads(seed, k):
             return {**base, "shape": MALFORMED, "needs": None,
                     "why": f"starting value {i + 1} reads a running value, and there is none before the start"}
+    for i, update in enumerate(updates):
+        objection = engine_objection(update, k)
+        if objection:
+            return {**base, "shape": UNREADABLE, "needs": None, "why": f"in update {i + 1}, {objection}"}
     rows = [affine(u, k) for u in updates]
     if all(r is not None for r in rows):
         needs = _powers_settle(rows, settled, cap)                # type: ignore[arg-type]

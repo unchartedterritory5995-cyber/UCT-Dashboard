@@ -189,15 +189,17 @@
 .up { color: var(--success-ink); }
 .down { color: var(--danger-ink); }
 
-/* PHONE: the less-used columns fold away so a 390px panel keeps sym, last and % change. */
-@media (max-width: 640px) {
-  .phoneHide {
-    display: none;
-  }
-  .table td.wrapCell,
-  .table th.wrapCell {
-    min-width: 6rem;
-  }
+/* FOLD: the less-used columns fold away so the table keeps sym, last and % change. A table folds on
+   a phone screen, in a panel at most 460px wide, or in a panel no wider than the step on its own
+   `data-fold` (the fold ladder, see marketPanels.module.css and ../panelFit.js). `:where()` adds no
+   specificity, so each rule sorts as it did in the old phone query. */
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .phoneHide {
+  display: none;
+}
+
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td.wrapCell,
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table th.wrapCell {
+  min-width: 6rem;
 }
 
 /* TOUCH TIER (phone + tablet): finger targets, as MOST (moversPanel.module.css). */

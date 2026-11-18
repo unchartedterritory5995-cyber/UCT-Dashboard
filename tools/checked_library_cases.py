@@ -31,7 +31,12 @@ def another(p):
     """A different number the parameter can take."""
     step = 1 if p["integer"] else 0.5
     v = p["default"] + step
-    return v if v <= p["max"] else p["default"] - step
+    if v <= p["max"]:
+        return v
+    if p["default"] - step >= p["min"]:
+        return p["default"] - step
+    # a range narrower than the step on both sides (a share between 0 and 1): halfway to its maximum
+    return round((p["default"] + p["max"]) / 2, 6)
 
 
 cases = []
