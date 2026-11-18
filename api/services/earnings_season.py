@@ -533,6 +533,46 @@ def _build_bg(key: str, date_str: Optional[str], done: threading.Event) -> None:
         done.set()
 
 
+def held_day(date_str: Optional[str] = None) -> tuple[Optional[dict], str]:
+    """READ ONLY: what this module already HOLDS for one day (or for the next day with a reporter
+    when none is given), as `(answer, how)`. It NEVER starts the background build and never waits
+    on one, so a caller that must not cause work (the Agent's `earnings.season` kind, inside a
+    turn) reads through here and never through `get_day`.
+
+      (answer, 'fresh')       the held answer, inside its freshness: an `ok` day, or what a build
+                              stored in its place (`no_day`, or `unavailable` for a few seconds)
+      (answer, 'last_good')   the last good answer, past its freshness and still servable. It is
+                              NOT marked `refreshing`: this read starts no build to replace it
+      (None, 'not_held')      nothing is held for the day
+      (answer, 'refused')     `bad_date` or `out_of_range`, by the same checks as `get_day`
+    """
+    if date_str is not None:
+        ds = _iso(date_str) if isinstance(date_str, str) and _ISO_DAY.match(date_str) else None
+        if ds is None:
+            return {"status": "bad_date", "date": None}, "refused"
+        today_d = today_et()
+        first, last = week_window(today_d)
+        if not first <= date.fromisoformat(ds) <= last:
+            return {"status": "out_of_range", "date": ds, "today": today_d.isoformat(),
+                    "range": {"from": first.isoformat(), "to": last.isoformat()}}, "refused"
+        date_str = ds
+    key = date_str or NEXT_KEY
+    held = _answer(key)
+    if held is not None and held.get("status") == "ok":
+        return held, "fresh"
+    with _lock:
+        old = _old.get(key)
+        if old is not None and old[0] <= time.time():
+            _old.pop(key, None)
+            old = None
+    if old is not None:
+        # a failed rebuild is held for a few seconds; the last good answer is worth more
+        return old[1], "last_good"
+    if held is not None:
+        return held, "fresh"
+    return None, "not_held"
+
+
 def get_day(date_str: Optional[str] = None, *, wait_s: Optional[float] = None) -> dict:
     """The answer for one day (`YYYY-MM-DD`), or for the next day with a reporter when none is
     given. NEVER builds on the caller's thread: the held answer, else the last good one marked
