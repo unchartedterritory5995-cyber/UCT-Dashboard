@@ -5,7 +5,7 @@ Coordinator ruling 2 (after #1805): build the five-step design, run lane only, o
 grade moves, proved on the full corpus on both lanes; (b) a member who moves the setting to a value the supply
 cannot serve gets the existing refusal by name, and what they saw at the default is never silently replaced;
 (c) the settings panel offers only the author's `options` or TradingView's list. Branch
-`feat/pine-timeframe-input-setting`. It rides train e76 if green when e76 is cut, else e77.
+`feat/pine-timeframe-input-setting`. It rides train e77 (coordinator, 2026-11-18).
 
 ## 1. The answer
 
@@ -20,9 +20,14 @@ cannot serve gets the existing refusal by name, and what they saw at the default
   admit one is measured on every run.
 - **(a) holds:** the full vendor-harness corpus (915 captures), both lanes, master `076cf3a878` against the branch
   `764c1c744e`: `verdicts.json` and `summary.md` byte-identical on both.
-- **Member-facing today:** a runtime document whose script has an `input.timeframe` shows it in its settings (7 of the
-  679 sample scripts are admitted by capability with one). Moved, the pane says why it draws nothing; at the default
-  it draws exactly as before. A host document, and a run half, show nothing new.
+- **Member-facing today (coordinator UI ruling, 2026-11-18):** a runtime document whose script has an
+  `input.timeframe` shows it in its settings READ-ONLY at its default, with one line: "Changing this script's
+  timeframe isn't available yet: our weekly and monthly results for it don't match TradingView yet."
+  (`TIMEFRAME_LOCKED_SENTENCE`; the projected spec's `locked` becomes the field's `disabled` in
+  `indicatorRegistry.fieldFromInput`, so the control is inert on the settings modal, the instance dialog and the
+  phone sheet, and the line is its visible tip). It becomes a live menu when the evidence gate opens. A value moved
+  anyway (a stored instance, a server call) is refused by name in the run. 7 of the 679 sample scripts are admitted
+  by capability with one. A host document, and a run half, show nothing new.
 
 ## 2. What was built
 
@@ -70,7 +75,8 @@ captures are its witnesses.
 
 ## 4. Rails and mutation proofs
 
-`runtime/__tests__/timeframeInputSetting.test.js` (18), `tests/test_runtime_timeframe_alert.py` (4). Mutants, each
+`runtime/__tests__/timeframeInputSetting.test.js` (20), `IndicatorSettingsDialog.timeframeLocked.test.jsx` (1: the
+setting listed, inert, at its default, with the line; Length beside it live), `tests/test_runtime_timeframe_alert.py` (4). Mutants, each
 restored from a saved copy and checked byte-equal (never `git checkout`), one heavy-lock hold:
 
 | mutant | file | result |

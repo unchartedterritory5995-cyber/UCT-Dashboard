@@ -780,6 +780,11 @@ export function movedTimeframeServed() { return _serveMovedTimeframes }
 export function __serveEveryTimeframeSettingForTests() { _serveMovedTimeframes = true }
 /** Rails only. */
 export function __resetTimeframeSettingForTests() { _serveMovedTimeframes = false }
+/** ⭐ The line a member reads beside a timeframe setting while no evidence admits a move (coordinator UI
+ *  ruling 2026-11-18): the setting is shown READ-ONLY at its default, never as a control that refuses. */
+export const TIMEFRAME_LOCKED_SENTENCE = "Changing this script's timeframe isn't available yet: our weekly and "
+  + "monthly results for it don't match TradingView yet."
+
 /** The one sentence a member reads when they move a timeframe setting. */
 export function movedTimeframeRefusal(name, value) {
   return '`' + name + '` is set to ' + JSON.stringify(value) + ": a timeframe setting moved off its author's default "
@@ -814,8 +819,11 @@ export function withTimeframeInputs(def) {
   const specs = timeframeSpecsOf(compute.source)
   if (!specs.length) return def
   const taken = new Set(have.map((i) => i && i.key))
+  // ⛔ while no evidence admits a move, the setting is READ-ONLY at its default with one line saying why
+  // (`locked`, read by `indicatorRegistry.fieldFromInput`; the same line is its visible tip)
+  const lock = movedTimeframeServed() ? {} : { locked: TIMEFRAME_LOCKED_SENTENCE, tooltip: TIMEFRAME_LOCKED_SENTENCE }
   const add = specs.filter((s) => !taken.has(s.key))
-    .map((s) => ({ ...s, options: s.options.map((p) => [...p]), fromTimeframe: true }))
+    .map((s) => ({ ...s, options: s.options.map((p) => [...p]), fromTimeframe: true, ...lock }))
   if (!add.length) return def
   return { ...def, inputs: [...have, ...add] }
 }

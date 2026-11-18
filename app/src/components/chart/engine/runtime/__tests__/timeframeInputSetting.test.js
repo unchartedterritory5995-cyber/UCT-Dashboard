@@ -13,7 +13,9 @@ import { computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers } from
 import {
   runtimeInputSpecsOf, withTimeframeInputs, runtimeInputValues, runtimeBuildInputs, TIMEFRAME_MENU, isTimeframeText,
   __serveEveryTimeframeSettingForTests, __resetTimeframeSettingForTests, movedTimeframeRefusal,
+  TIMEFRAME_LOCKED_SENTENCE,
 } from '../runtimeInputs.js'
+import { fieldsForInstance } from '../../../indicatorRegistry.js'
 import { stripParamInputs } from '../../paramInputs.js'
 import { projectMemberDocument } from '../../memberDocumentProjection.js'
 import { validateDefinition } from '../../defSchema.js'
@@ -132,6 +134,26 @@ describe('the setting, declared on load (never minted, never stored)', () => {
   })
 })
 
+describe('while no evidence admits a move, the setting is READ-ONLY at its default, with one line', () => {
+  it('every settings surface gets the field inert, with the sentence as its reason and its visible tip', () => {
+    const def = withTimeframeInputs(runtimeDoc(SCRIPT('1D')))
+    const spec = def.inputs.find((s) => s.key === 'tf')
+    expect(spec.locked).toBe(TIMEFRAME_LOCKED_SENTENCE)
+    expect(TIMEFRAME_LOCKED_SENTENCE).toBe("Changing this script's timeframe isn't available yet: our weekly and monthly "
+      + "results for it don't match TradingView yet.")
+    const field = fieldsForInstance(def, { instanceId: 'i1', inputs: {} }).all.find((f) => f.key === 'tf')
+    expect(field).toMatchObject({ type: 'select', disabled: TIMEFRAME_LOCKED_SENTENCE, tooltip: TIMEFRAME_LOCKED_SENTENCE })
+    expect(fieldsForInstance(def, { instanceId: 'i1', inputs: {} }).values.tf).toBe('1D')
+  })
+
+  it('CONTROL: once the evidence gate opens (the harness seam here), the same setting is a live menu', () => {
+    __serveEveryTimeframeSettingForTests()
+    const def = withTimeframeInputs(runtimeDoc(SCRIPT('1D')))
+    expect(def.inputs.find((s) => s.key === 'tf').locked).toBeUndefined()
+    expect(fieldsForInstance(def, { instanceId: 'i1', inputs: {} }).all.find((f) => f.key === 'tf').disabled).toBeUndefined()
+  })
+})
+
 describe('a member who moves it is refused by name, and the default still draws (no evidence admits a move yet)', () => {
   it('moved to 1W on a member surface: refused by name, never drawn', () => {
     const why = refusalOf(() => run(withTimeframeInputs(runtimeDoc(SCRIPT('1D'))), { tf: '1W' }))
@@ -204,6 +226,9 @@ describe('a timeframe the supply does not serve is refused by name, with the sup
   })
 })
 
+/** A USE of the seam: an import that names it, or a call of it. */
+const SEAM_USE = /import\s*\{[^}]*\b__serveEveryTimeframeSettingForTests\b[^}]*\}|\b__serveEveryTimeframeSettingForTests\s*\(/
+
 describe('the runtime-on lane\'s moved-timeframe grant is a test seam only', () => {
   it('no member surface imports `__serveEveryTimeframeSettingForTests`', () => {
     const root = path.resolve(process.cwd(), 'src')
@@ -214,11 +239,16 @@ describe('the runtime-on lane\'s moved-timeframe grant is a test seam only', () 
         if (e.isDirectory()) { if (e.name !== 'node_modules') walk(p); continue }
         if (!/\.(js|jsx|mjs)$/.test(e.name) || /\.test\.(js|jsx)$/.test(e.name) || p.includes(`${path.sep}__tests__${path.sep}`)) continue
         if (e.name === 'runtimeInputs.js') continue
-        if (fs.readFileSync(p, 'utf8').includes('__serveEveryTimeframeSettingForTests')) hits.push(path.relative(root, p))
+        // an IMPORT or a CALL is a use; a sentence naming the seam (the engine ledger's) is not
+        if (SEAM_USE.test(fs.readFileSync(p, 'utf8'))) hits.push(path.relative(root, p))
       }
     }
     walk(root)
     expect(hits).toEqual([])
+    // CONTROL: the pattern says yes to a use and no to a mention
+    expect(SEAM_USE.test("import { __serveEveryTimeframeSettingForTests } from './runtime/runtimeInputs.js'")).toBe(true)
+    expect(SEAM_USE.test('  __serveEveryTimeframeSettingForTests()')).toBe(true)
+    expect(SEAM_USE.test('the harness lane alone grades it (`__serveEveryTimeframeSettingForTests`)')).toBe(false)
     // CONTROL: the walk reads files (the harness lane, a test file, is where the grant lives)
     expect(fs.readFileSync(path.join(root, 'components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js'), 'utf8'))
       .toContain('__serveEveryTimeframeSettingForTests')
