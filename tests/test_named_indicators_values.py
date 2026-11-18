@@ -710,7 +710,32 @@ def ulcer_index(bars, length=14):
     return [math.sqrt(t / length) if ok(t) else NAN for t in rolling_sum(squared, length)]
 
 
+def pocket_pivot(bars):
+    """Written from the six tests as the entry's evidence states them, with plain loops: not the
+    Screener's detector (that comparison is tests/test_library_pocket_pivot.py) and not the engine."""
+    c, h, l, v = col(bars, "c"), col(bars, "h"), col(bars, "l"), col(bars, "v")
+    out = []
+    for i in range(len(c)):
+        if i < 199:
+            out.append(NAN)
+            continue
+        down = [v[j] for j in range(i - 10, i) if c[j] < c[j - 1]]
+
+        def average(n):
+            return sum(c[i - n + 1:i + 1]) / n
+
+        fires = (c[i] > c[i - 1]
+                 and h[i] > l[i] and (c[i] - l[i]) / (h[i] - l[i]) >= 0.5
+                 and bool(down) and v[i] > max(down)
+                 and c[i] >= average(50) and c[i] >= average(200)
+                 and l[i] <= average(10)
+                 and c[i] > c[i - 105])
+        out.append(1.0 if fires else 0.0)
+    return out
+
+
 REFERENCES = {
+    "pocket_pivot": {"pocket_pivot": pocket_pivot},
     "double_exponential_moving_average": {"dema": dema},
     "triple_exponential_moving_average": {"tema": tema},
     "chande_momentum_oscillator": {"cmo": chande_momentum_oscillator},
@@ -752,6 +777,7 @@ REFERENCES = {
 
 #: Other numbers for the second pass: each inside the parameter's own range, none a default.
 OTHER = {
+    "pocket_pivot": {},                                   # its numbers are the detector's: none is a setting
     "double_exponential_moving_average": {"length": 21},
     "triple_exponential_moving_average": {"length": 14},
     "chande_momentum_oscillator": {"length": 20},

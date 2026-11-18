@@ -164,10 +164,22 @@ def tiers(e: Mapping[str, Any]) -> Tuple[bool, bool, bool]:
             bool(capture.get("id") and capture.get("grade") in CAPTURE_SAID))
 
 
+def follows_house(e: Mapping[str, Any]) -> Optional[Mapping[str, Any]]:
+    """⭐ `evidence.house` when this entry FOLLOWS UCT'S OWN READER (ruling 2026-11-18): the product
+    already computes this indicator in one place (a Screener detector), and the entry is the chart
+    formula of THAT, proved equal to it bar for bar by the test it names. {reader, proof, whose,
+    what}. It stands where a published definition would: there is one authority, and it is ours."""
+    house = (e.get("evidence") or {}).get("house")
+    if not isinstance(house, Mapping):
+        return None
+    return house if all(isinstance(house.get(k), str) and house[k] for k in ("reader", "proof", "whose", "what")) else None
+
+
 def passes(e: Mapping[str, Any]) -> bool:
-    """May the assistant build it? Value-checked AND a published definition read, or better."""
+    """May the assistant build it? Value-checked AND a published definition read (or better), or
+    value-checked and proved equal to UCT's own reader."""
     checked, published, _captured = tiers(e)
-    return checked and published
+    return checked and (published or follows_house(e) is not None)
 
 
 def follows_a_capture(e: Mapping[str, Any]) -> Optional[Mapping[str, Any]]:
@@ -188,7 +200,12 @@ def member_sentence(e: Mapping[str, Any], values: Mapping[str, Any]) -> str:
     _checked, _published, captured = tiers(e)
     by = (e["evidence"].get("published") or {}).get("by")
     follows = follows_a_capture(e)
-    if follows:
+    house = follows_house(e)
+    if house and not follows:
+        # ⭐ THE HOUSE'S OWN READER IS THE DEFINITION: the member is told whose it is and that the
+        # chart agrees with it bar for bar. ⛔ It says nothing about any vendor.
+        proof = f"it follows {house['whose']} ({house['what']}), and is equal to it bar for bar"
+    elif follows:
         # ⭐ THE CAPTURE IS THE DEFINITION (ruling 2026-11-18, TRIX): the pages read describe another
         # form, so the member is told whose form this is, what it is, and that others differ.
         proof = (f"it follows {follows['whose']}, {follows['what']}, and is equal to it on captured charts. "

@@ -663,4 +663,7 @@
 {"entry":"detrended_price_oscillator","output":"dpo","kind":"length over its maximum","set":{"length":5001},"expect":null},
 {"entry":"detrended_price_oscillator","output":"dpo","kind":"length not a whole number","set":{"length":21.5},"expect":null},
 {"entry":"detrended_price_oscillator","output":"dpo","kind":"length driven by the member's own input","series":"length","inputs":["myOwnSetting"],"expect":{"length":null}},
-{"entry":"detrended_price_oscillator","output":"dpo","kind":"length is a series that is not a declared input","series":"length","expect":null}]}
+{"entry":"detrended_price_oscillator","output":"dpo","kind":"length is a series that is not a declared input","series":"length","expect":null},
+{"entry":"pocket_pivot","output":"pocket_pivot","kind":"defaults","expect":{}},
+{"entry":"pocket_pivot","output":"pocket_pivot","kind":"inside a larger formula","wrap":true,"expect":null,"expect_inside":{}},
+{"entry":"pocket_pivot","output":"pocket_pivot","kind":"a number that is not a parameter was changed","bump":[[0,0,0,0,0,0,1,1],7],"expect":null}]}
