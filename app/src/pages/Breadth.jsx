@@ -10,9 +10,9 @@ import TickerPopup from '../components/TickerPopup'
 import MarketBreadth from '../components/tiles/MarketBreadth'
 import { SkeletonTileContent } from '../components/Skeleton'
 import { useAuth } from '../context/AuthContext'
-import { formatETFull, formatETTime } from '../utils/timeAgo'
+import { formatETFull } from '../utils/timeAgo'
 import { explainMustShowAge } from '../components/provenance/freshnessAge'
-import Menu, { MenuItem } from './screener/focus/Menu'
+import Menu, { SigMenuItem as MenuItem } from './breadth/SigMenu'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
 import { useLiveBreadth } from '../hooks/useLiveBreadth'
 import { drillTarget } from './breadth/liveDrill'
@@ -989,7 +989,10 @@ export default function Breadth() {
   const lastStamp = storedRows[0]?._created_at ? storedRows[0]._created_at + 'Z' : null
   const statusFresh = !!liveBreadth?.data
     || (lastStamp != null && explainMustShowAge({ asOf: lastStamp, dataClass: 'end_of_day' }).reason === 'within_threshold')
-  const statusTime = lastStamp ? formatETTime(lastStamp).replace(/\s+[A-Z]{2,5}$/, '') : ''
+  // The clock part of `lastUpdated` ("Aug 24, 2026, 7:24 PM EDT" → "7:24 PM").
+  // ⛔ Not formatETTime: no main-bundle code uses it, so importing it here would
+  // keep it (and its export) in the entry chunk — +280 B on the notebook budget.
+  const statusTime = lastUpdated ? (/,\s*([^,]+?)\s+[A-Z]{2,5}$/.exec(lastUpdated)?.[1] ?? '') : ''
   const statusCount = isViewsTab
     ? (rows.length > 0
         ? (windowMismatch ? 'Updating…' : `${rows.length} trading days shown`)
@@ -1246,7 +1249,7 @@ export default function Breadth() {
                     />
                   )}
                 </div>
-                {/* ⋯ — the Signature floating menu the Screener uses (focus/Menu):
+                {/* ⋯ — the Signature floating menu (breadth/SigMenu, twin of the Screener's):
                     Share (branded snapshot) and Export CSV. */}
                 <div className={customizeStyles.anchor}>
                   <Menu
@@ -1353,8 +1356,8 @@ export default function Breadth() {
                       title={isMa ? maStackTitle(col) : `${col.label} — column options`}
                       className={`${styles.th} ${styles.colLabel} ${groupStartKeys.has(col.key) ? styles.groupStart : ''} ${isMa ? styles.thMa : ''}`}
                     >
-                      {/* The header opens a small Signature menu (the Screener's
-                          focus/Menu): Enter/Space opens it, Esc closes it and
+                      {/* The header opens a small Signature menu (breadth/SigMenu:
+                          Enter/Space opens it, Esc closes it and
                           focus returns here. */}
                       <Menu
                         label={isMa ? `${maStackTitle(col)} — column options` : `${col.label} column options`}

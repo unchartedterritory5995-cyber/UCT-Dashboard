@@ -141,7 +141,6 @@
 .menuRight { left: auto; right: 0; }
 .menuItem { display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: left; background: transparent; border: 0; color: var(--scr-text); padding: 7px 10px; border-radius: 6px; font: inherit; font-family: var(--font-sans); font-size: 13px; font-weight: 500; line-height: 1.3; cursor: pointer; min-height: 32px; }
 .menuItem:hover, .menuItem:focus-visible { background: var(--scr-card); color: var(--scr-bright); outline: none; }
-.menuItem:disabled { opacity: 0.38; cursor: default; background: transparent; color: var(--scr-text); }
 .menuDanger { color: var(--danger-ink); }
 .menuHint { color: var(--scr-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
 .menuDivider { height: 1px; background: var(--scr-line); margin: 4px 6px; }
