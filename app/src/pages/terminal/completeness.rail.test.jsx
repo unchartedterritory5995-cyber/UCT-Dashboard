@@ -136,6 +136,7 @@ const ARG_SAMPLE = {
   callThemesList: 'RISING', callThemesMonth: '2026-10',
   topFlowStatus: 'EXPIRED', topFlowDirection: 'BEAR', topFlowSort: 'PEAK',
   earningsDay: 'TOMORROW', earningsSession: 'AMC',
+  groupName: 'XLK',
   unvolSide: 'DOWN', unvolMin: '3X',
 }
 

@@ -505,6 +505,23 @@ export const ARG_KINDS = {
     parse: (tok) => EARNINGS_SESSION_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
     describe: (v) => (v === 'bmo' ? 'before the open' : 'after the close'),
   },
+  // ── sector and theme drill-down (2026-11-18) ──
+  /** GRP's group, by NAME or by sector fund: a REST kind (`rest: true`), every word the range does
+   *  not take, joined (`GRP AI / GPU CHIPS`, `GRP AEROSPACE & DEFENSE`, `GRP XLK`). A leading
+   *  SECTOR, INDUSTRY or THEME pins the kind; the PANEL (panels/groupDrillModel.js parseGroupQuery,
+   *  resolveGroup) reads that word and resolves the name against the lists it loads, because the
+   *  groups are data, not a constant. A range word is never a name word, so a second one (`GRP XLK
+   *  3M 1Y`) is said to be not applied instead of becoming part of the name. Upper case, as typed:
+   *  the resolver ignores case and punctuation. */
+  groupName: {
+    takes: 'a sector fund, a sector, an industry or a theme (GRP XLK, GRP THEME AI / GPU CHIPS)',
+    parse: (tok) => {
+      const t = String(tok ?? '').replace(/\s+/g, ' ').trim().toUpperCase()
+      if (!t || Object.prototype.hasOwnProperty.call(PERIOD_RANGE_WORDS, t)) return null
+      return t
+    },
+    describe: (v) => `group "${v}"`,
+  },
   // ── unusual volume (2026-11-18) ──
   /** UNVOL's two picks (panels/unusualVolumeModel.js; pinned by args.unusualVolume.test.js): which
    *  way the stock is going on the day, and how far above its usual volume it must be. No word

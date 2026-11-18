@@ -88,6 +88,16 @@ function phraseArgs(code, words) {
   return words.filter((w) => !isDeclaredArg(code, w)).length >= 2
 }
 
+/** `GRP TECH`, `GRP LIVE ENTERTAINMENT`: a market-only code whose REST argument is a NAME
+ *  (`phrase: true` on the spec, functions.js) reads every word after it as that name, even a word
+ *  that is itself a function code. Without this the canonical order (`TICKER FUNC`) would read
+ *  `GRP TECH` as the TECH function on a ticker called GRP. Only a code that takes no ticker and is
+ *  not a real ticker itself can say so; `$GRP TECH` still forces the ticker reading. */
+function takesPhrase(code) {
+  const fn = BY_CODE[String(code || '').toUpperCase()]
+  return !!fn && !fn.ticker && !isTickerCollision(code) && (fn.market?.args || []).some((s) => s.rest && s.phrase)
+}
+
 /** Parse result `type`s that open something a channel can target: a function (every code
  *  resolves to a panel/door/surface) and `ask` (ASK's own panel/door — `ASK <question>` is
  *  refused ONLY when the question itself failed to parse, never because ASK "isn't a panel
@@ -355,6 +365,11 @@ function parseCore(raw) {
   if (!forced && FIRST === 'HELP') {
     return { ok: true, type: 'function', code: 'HELP', sym: null,
       args: second ? [second.toUpperCase()] : [] }
+  }
+
+  // `GRP TECH`: a code whose argument is a name keeps every word after it (see `takesPhrase`).
+  if (second && !forced && isCode(FIRST) && takesPhrase(FIRST)) {
+    return { ok: true, type: 'function', code: canonicalCode(FIRST), sym: null, args: [second, ...rest] }
   }
 
   // W9-4: `PEER CAL` / `GP CAL`: both words are codes, but only the second is a real ticker

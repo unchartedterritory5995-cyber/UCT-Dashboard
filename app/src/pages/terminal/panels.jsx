@@ -123,6 +123,8 @@ export const PANEL_IMPORTERS = {
   UnusualVolume: () => import('./panels/UnusualVolumePanel'),
   // MYH: the member's own Journal record on one stock (trades, position, notes); no new route
   MyHistory: () => import('./panels/MyHistoryPanel'),
+  // GRP: one sector, industry or theme and its stocks ranked, with RS and flow; no new route
+  GroupDrill: () => import('./panels/GroupDrillPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),
