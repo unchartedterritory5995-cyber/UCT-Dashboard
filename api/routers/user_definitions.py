@@ -632,7 +632,7 @@ def converse_definition(body: ConverseIn, user: dict = Depends(require_paid),
     global member budget, checked before every model call.
     """
     _charge_propose(str(user["id"]))
-    from api.services import definition_conversation
+    from api.services import definition_conversation, indicator_memory
     # ⭐ P2X owner decision 1: an ADMIN (the `require_admin` rule, role ==
     # 'admin') gets the conversation's admin allowance
     # (`definition_conversation.conversation_cap_usd`). Every other bound --
@@ -644,7 +644,9 @@ def converse_definition(body: ConverseIn, user: dict = Depends(require_paid),
         body.message, user_id=user["id"], view=body.view,
         authoring=body.authoring, snippets=body.snippets, chart=chart,
         admin=(user.get("role") == "admin"), conversation_id=body.conversationId,
-        examples=body.examples is True, browser_refusal=body.browser_refusal)
+        examples=body.examples is True, browser_refusal=body.browser_refusal,
+        # ⭐ what THIS member chose when the door asked before (their own account row, no one else's)
+        memory=indicator_memory.Memory(user["id"]))
 
 
 @router.get("/library")

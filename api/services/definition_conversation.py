@@ -932,17 +932,27 @@ def _question_asked_in(text: Any) -> Optional[str]:
 
 
 def with_pending_answers(message: str, turns: List[Dict[str, str]], chart: Any) -> str:
+    """The message to read this turn as: the request plus the answer when it answers one of the
+    door's own questions (`pending_answer`), else the message itself."""
+    got = pending_answer(message, turns, chart)
+    return got["message"] if got else message
+
+
+def pending_answer(message: str, turns: List[Dict[str, str]], chart: Any) -> Optional[Dict[str, Any]]:
     """⭐ AN ANSWER IS THE REQUEST PLUS THE ANSWER. When the last thing said to the member was one of
     the door's own questions and this message SETTLES it, the turn is read as the words they
     first wrote and what they have answered since: "Add a moving average. Exponential (EMA). 50".
     So the next open question is asked, or the build goes ahead with everything they said.
 
     A message that does not settle the question is a new request and stands alone (the member
-    changed their mind; nothing is asked twice)."""
+    changed their mind; nothing is asked twice).
+
+    Returns ``{question, message, answer}`` (the question settled, the whole request, the answer
+    as read), or None."""
     j = len(turns) - 1
     asked = _question_asked_in(turns[j]["text"]) if j >= 1 and turns[j]["role"] == "assistant" else None
     if asked is None:
-        return message
+        return None
     said: List[str] = []
     while j >= 1 and turns[j]["role"] == "assistant" and _question_asked_in(turns[j]["text"]) \
             and turns[j - 1]["role"] == "member":
@@ -959,13 +969,93 @@ def with_pending_answers(message: str, turns: List[Dict[str, str]], chart: Any) 
             break
     combined = f"{original}. {answer}"
     if not original or len(combined) > MAX_MESSAGE_CHARS:
-        return message
+        return None
     before, after = understand_turn(original, chart), understand_turn(combined, chart)
     if before["refusal"] is not None or after["refusal"] is not None:
-        return message
+        return None
     if asked in open_questions(before) and asked not in open_questions(after):
-        return combined
-    return message
+        return {"question": asked, "message": combined, "answer": answer}
+    return None
+
+
+# ⭐ LEARN THE MEMBER (owner direction, 2026-11-18; `indicator_memory.py`). An ANSWER to one of the
+# door's questions is remembered in the member's own account. Next time that choice is open the
+# door uses it and SAYS so, instead of asking again. Only closed values are kept: a choice's own
+# value or a number, never a word the member typed.
+
+def answer_value(question_id: str, answered: Mapping[str, Any], chart: Any) -> Optional[Tuple[Any, str]]:
+    """What the member CHOSE, as (closed value, the label it is shown by), or None when their
+    answer is not one of the question's own choices (then nothing is remembered)."""
+    question = clarify_registry()[question_id]
+    values = question.get("values") or {}
+    after = understand_turn(answered["message"], chart)
+    if question_id == "average_kind":
+        names = [t.get("name") for t in after.get("terms") or []]
+        chosen = next((n for n in names if n in AVERAGE_TERMS), None)
+        if chosen is None and any(e.get("id") == "kaufman_adaptive_moving_average" for e in after.get("named") or []):
+            chosen = "kama"
+        return next(((chosen, label) for label, value in values.items() if value == chosen), None)
+    if question_id == "average_length":
+        mine = (understand_turn(answered["answer"], chart).get("notes") or {}).get("member_numbers") or []
+        number = mine[0].get("value") if mine else None
+        if isinstance(number, (int, float)) and not isinstance(number, bool) and float(number).is_integer() \
+                and 1 <= number <= 960:
+            return int(number), str(int(number))
+        return None
+    if question_id == "cross_meaning":
+        said = answered["answer"].lower()
+        chosen = "close" if re.search(r"\bclos", said) else "touch" if _CROSS_SETTLED.search(said) else None
+        return next(((chosen, label) for label, value in values.items() if value == chosen), None)
+    return None
+
+
+def remembered_defaults(message: str, understood: Dict[str, Any], view: Any, chart: Any,
+                        memory: Any) -> Tuple[str, Dict[str, Any], List[Tuple[str, str]]]:
+    """The request with the member's REMEMBERED choices added where the door would otherwise ask:
+    (the message, how it reads now, [(question id, the choice used)]). Only a question whose
+    registry entry says `remember: default`, and only while the remembered choice still SETTLES
+    the question (one the door no longer reads is asked again)."""
+    used: List[Tuple[str, str]] = []
+    if memory is None:
+        return message, understood, used
+    for _ in clarify_registry():
+        asking = door_question(understood, view)
+        if asking is None:
+            break
+        question, kept = clarify_registry()[asking], memory.choice(asking)
+        if question.get("remember") != "default" or not kept:
+            break
+        joined = f"{message.strip().rstrip('.')}. {kept['label']}"
+        if len(joined) > MAX_MESSAGE_CHARS:
+            break
+        again = understand_turn(joined, chart)
+        if again["refusal"] is not None or asking in open_questions(again):
+            break                                    # it no longer settles the question: ask
+        message, understood = joined, again
+        used.append((asking, kept["label"]))
+    return message, understood, used
+
+
+def offered_first(question: Dict[str, Any], memory: Any) -> Dict[str, Any]:
+    """The question with the member's LAST answer first (`remember: offer`): a length they used
+    before is the likeliest again, but it is never applied without being chosen."""
+    entry = clarify_registry()[question["id"]]
+    kept = memory.choice(question["id"]) if memory is not None and entry.get("remember") == "offer" else None
+    if not kept:
+        return question
+    mine = f"{kept['label']} (your last)"
+    rest = [c for c in question["choices"] if c != kept["label"]]
+    return {**question, "choices": ([mine] + rest)[:6]}
+
+
+def as_before_notes(used: List[Tuple[str, str]]) -> List[Dict[str, Any]]:
+    """What the member is told when the door used a remembered choice instead of asking."""
+    notes = []
+    for qid, label in used:
+        question = clarify_registry()[qid]
+        words = (question.get("said") or {}).get(label, label)      # the choice as it reads in a sentence
+        notes.append({"text": question["as_before"].format(choice=words)[:named_indicators.SENTENCE_MAX]})
+    return notes
 
 
 #: ⭐ THE NAMED-INDICATOR LIBRARY -- the rules the model reads beside a name the member wrote.
@@ -2972,8 +3062,11 @@ def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
 def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
              snippets: Any = None, chart: Any = None, admin: bool = False,
              conversation_id: Any = None, examples: Any = False,
-             browser_refusal: Any = None) -> Dict[str, Any]:
+             browser_refusal: Any = None, memory: Any = None) -> Dict[str, Any]:
     """One conversational turn. NEVER raises.
+
+    ``memory`` is this member's remembered choices (`indicator_memory.Memory`), or None for a turn
+    that remembers nothing and uses nothing remembered (every test that does not ask for one).
 
     ``{ok: True, disposition: 'change'|'answer'|'clarify'|'unsupported', reply,
     turn: 'question'|'patch'|'noop', envelope, not_understood, unavailable, tokens,
@@ -3006,7 +3099,7 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
             result = _converse_turn(message, user_id=user_id, view=view, authoring=authoring,
                                     snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls,
                                     trace=trace, admin=admin, examples=examples is True,
-                                    refused_by_browser=browser_refusal)
+                                    refused_by_browser=browser_refusal, memory=memory)
         else:
             result = {"ok": False, "gate": "rate:busy", "reason": dc.REFUSALS["rate:busy"]}
     latency_ms = int((time.monotonic() - started) * 1000)
@@ -3298,7 +3391,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
                    calls: List[Dict[str, Any]],
                    trace: Optional[Dict[str, Any]] = None,
                    admin: bool = False, examples: bool = False,
-                   refused_by_browser: Any = None) -> Dict[str, Any]:
+                   refused_by_browser: Any = None, memory: Any = None) -> Dict[str, Any]:
     trace = trace if trace is not None else {}
     try:
         message, view, state, turns = _bounded_inputs(message, view, authoring, snippets)
@@ -3306,18 +3399,25 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         return {"ok": False, "gate": refused.gate, "reason": refused.reason}
     revision = view["revision"]
 
-    message = with_pending_answers(message, turns, chart)       # an answer is the request plus the answer
+    answered = pending_answer(message, turns, chart)            # an answer is the request plus the answer
+    if answered:
+        message = answered["message"]
+        chose = answer_value(answered["question"], answered, chart) if memory is not None else None
+        if chose is not None:
+            memory.remember(answered["question"], chose[0], chose[1])
     understood_turn = understand_turn(message, chart)
     if understood_turn["refusal"] is not None:
         if understood_turn["refusal"].get("preflight"):
             logger.info("[converse] preflight %s (no model call)", understood_turn["refusal"]["gate"])
         return understood_turn["refusal"]
+    # what this member chose before stands in for the question (and is said, below)
+    message, understood_turn, as_before = remembered_defaults(message, understood_turn, view, chart, memory)
     asking = door_question(understood_turn, view)
     if asking is not None:
         # ⭐ THE DOOR ASKS, with no model call: the same question every time, for nothing. ONE
         # question; the next open one is asked on the next turn (`with_pending_answers`).
         question = {"contract": PATCH_CONTRACT, "baseRevision": revision, "ops": [], "disposition": "clarify",
-                    "questions": [clarify_question(asking)]}
+                    "questions": [offered_first(clarify_question(asking), memory)]}
         try:
             question = check_envelope(question, revision, view)
         except _Refused:                           # never: the question is this door's own. If it ever is, the model asks.
@@ -3432,6 +3532,8 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             envelope = with_running_value_notes(envelope)      # the door says where a running value starts
             envelope = _with_door_notes(envelope, named_notes(envelope, view, named))
             envelope = _with_door_notes(envelope, own_words_notes(envelope, own_words))
+            if envelope.get("disposition") == "change":
+                envelope = _with_door_notes(envelope, as_before_notes(as_before))
             if replayed and envelope.get("ops") == replayed[0].get("ops"):
                 raise _Refused("envelope:reference",
                                f"this is the patch the app already refused ({replayed[1]}); change it")
@@ -3500,6 +3602,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             turn = "noop"
         reply = envelope.get("reply")
         return {
+            **({"remembered": [qid for qid, _label in as_before]} if as_before else {}),
             "ok": True,
             "disposition": envelope["disposition"],
             "reply": reply.strip() if isinstance(reply, str) else "",
