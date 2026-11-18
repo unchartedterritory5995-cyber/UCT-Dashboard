@@ -139,6 +139,15 @@ weekly or monthly capture of a symbol whose history reaches before 2004 is not r
 plotted value changes on such a period; the captures counted so far (fair-value-gap RDDT, PA ZigZag RDDT / SPY) read the
 chart's own period only and depend on none of it.
 
+**The switch year, read 2026-11-18 (Q-HTF-CAL-1a / 1b, packet `39001cc9653b`, promoted as licence `probe`).** Our
+probe's own weekly and monthly close with look-ahead off (A02 / A05) on AMEX:SPY 1D (8,509 bars from the 1993 listing)
+and NASDAQ:QQQ 1D (6,967 bars from the 1999 listing) settles the gap between 2001 and 2004 above: **TradingView's
+calendar begins in 2000 on both exchanges.** Every short week and month through 1999 is shown on the NEXT bar (SPY 13
+weeks and 2 months, QQQ 2 weeks and 1 month), every one from 2000 on its LAST bar (46 weeks and 7 months on each,
+20 April 2000 the first), except the week of 10 September 2001 (11-14 September closed without notice), shown on the
+NEXT bar on both. So the boundary in the rule above is 2000, not 2004, plus that one week; the roadmap entry
+U-HTF-CALENDAR carries the year-by-year read.
+
 Counted for `request-other` after the follow-up: unchanged (4 captures, 2 scripts, both the identity request: HELD).
 The PA ZigZag 1W / 1M captures (`rozz-2026-11-18`) reach the run through the timeframe setting (#1831) and DIVERGE
 there on 9 of 10 items, so no binding capture exists yet.
