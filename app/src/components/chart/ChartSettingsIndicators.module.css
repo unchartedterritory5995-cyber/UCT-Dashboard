@@ -279,6 +279,16 @@
 .insAdd { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 .bHead { display: flex; align-items: center; gap: 8px; padding: 16px 52px 10px 18px; min-height: 54px; box-sizing: border-box; }
 .bTitle { margin: 0; flex: 1 1 auto; font-size: 15px; font-weight: 700; color: var(--ci-bright); }
+/* Describe first: the plain-words box, its examples and the other ways to start one. */
+.describeBlock { padding: 0 18px 2px; }
+.describeBar { margin: 0; height: 40px; }
+.describeBar input { font-size: 13px; }
+.describeChips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.describeChips .pill { font-weight: 500; }
+.describeAlt { margin: 8px 18px 10px; color: var(--ci-faint); font: 500 12px var(--font-sans, inherit); }
+.describeAlt button { border: 0; background: none; padding: 2px 0; color: var(--ci-label); font: inherit; cursor: pointer; }
+.describeAlt button:hover { color: var(--ci-bright); text-decoration: underline; }
+.describeAlt button:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 2px; border-radius: 3px; }
 .winClose {
   position: absolute; top: 15px; right: 14px; z-index: 2; width: 26px; height: 26px; display: grid; place-items: center; border: 0;
   border-radius: 7px; background: rgba(248, 247, 243, 0.06); color: var(--ci-dim); cursor: pointer; padding: 0;
@@ -338,6 +348,20 @@
 .resRefusedWhy { font-size: 11px; color: var(--ci-faint); }
 .resRefusedLede { margin: 0 4px 8px; font-size: 11.5px; color: var(--ci-faint); }
 .resActions { display: flex; gap: 4px; flex: 0 0 auto; }
+/* A member's own row carries five doors (Modify, Edit formula, Custom copy, Run over a list, Share).
+   On the name's line they took all of its room: on production the name was cut to nothing and the
+   labels slid under the buttons. They sit on a line of their own, under the name, and wrap if the
+   window is narrow.
+   ⛔ THE DOORS ARE A CHILD OF `.resMain`, NOT OF THE ROW (the row is mark, `.resMain`, "+ Add"). So it
+   is `.resMain` that wraps: the name and its labels keep the first line, the doors take a whole
+   second one, already aligned under the name. The first attempt wrapped the ROW and gave the doors a
+   full-width basis inside a `.resMain` that could not wrap, which squeezed the name to zero width on
+   production (2026-11-17, read off the live page's own markup). */
+.resRowOwn { padding-bottom: 8px; }
+.resRowOwn .resMain { flex-wrap: wrap; row-gap: 0; }
+.resRowOwn .resActions { flex: 1 0 100%; flex-wrap: wrap; margin-top: -4px; }
+/* "+ Add" and "On chart" stay on the name's line instead of centring between the two */
+.resRowOwn .resAdd, .resRowOwn .resActive { align-self: flex-start; margin-top: 5px; }
 .resAction { height: 24px; padding: 0 8px; font-size: 11.5px; }
 .resActive { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; margin-left: auto; }
 .resActiveTag { font-size: 11px; font-weight: 500; color: var(--ci-dim); display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
@@ -349,6 +373,23 @@
 }
 .resRow:hover .resAdd { background: rgba(248, 247, 243, 0.08); color: var(--ci-bright); }
 .indEmpty { color: var(--ci-faint); padding: 24px 4px; text-align: center; }
+/* ── "Not quite it?" — the UCT Agent row under a search (UCT Signature R2, owner Option 1).
+   ⛔ Gold on the ✦ only (`.spark`); the row, its arrow and the links are neutral. */
+.agentRow {
+  display: flex; align-items: center; gap: 12px; width: 100%; box-sizing: border-box; padding: 12px 14px; text-align: left;
+  border: 1px solid #2a2c31; border-radius: 9px; background: #16171a; color: var(--ci-text); font: inherit; cursor: pointer;
+}
+.agentRow:hover { background: #1b1c20; border-color: var(--ci-border); }
+.agentRow:focus-visible, .agentAltLink:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
+.agentRow .spark { font-size: 15px; }
+.agentMain { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.agentName { font-size: 13px; font-weight: 600; color: var(--ci-bright); overflow-wrap: anywhere; }
+.agentSub { font-size: 11.5px; color: var(--ci-faint); }
+.agentArrow { flex: 0 0 auto; color: var(--ci-label); font-size: 14px; }
+.agentAlt { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 8px 2px 2px; font-size: 12px; color: var(--ci-faint); }
+.agentAltLink { border: 0; background: none; padding: 0; color: var(--ci-label); font: inherit; cursor: pointer; }
+.agentAltLink:hover { color: var(--ci-bright); }
+.indEmptyAction { margin-top: 12px; display: flex; justify-content: center; }
 .insSearching { color: var(--ci-faint); padding: 10px 12px; background: var(--ci-card); border-radius: 9px; }
 .insUnavailable { padding: 18px 6px; color: var(--ci-dim); }
 .insUnavailableLede { font-weight: 600; color: var(--ci-text); }

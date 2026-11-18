@@ -12,6 +12,9 @@ and `serve_bars_history` — so the two can never diverge. Selected by the
 railway.json dispatcher when `BARS_API_ENABLED=1`.
 
 ⛔ Does NOT run the prewarmer, R2 uploader, Massive WS, or reconciliation/audit.
+⭐ It DOES run the cash-index warm loop (`index_bars.start_index_warm`, 7 symbols, date
+   series + the 5m one today's daily bar is built from): the index store is per volume,
+   and members read this pod's (2026-11-17).
 ⛔ NEVER opens a Massive WS (~1 conn/key — a second kicks web's live feed offline).
 ⛔ Only READS + newer-wins MERGES the local db. NEVER force_resync / replace-pull.
 
@@ -253,8 +256,20 @@ async def _lifespan(app: FastAPI):
         bars_live_store.start()
     except Exception as e:  # noqa: BLE001
         _log.warning("[bars-api] live store start failed (non-fatal): %s", e)
+    try:
+        # ⭐ THE CASH-INDEX STORE MEMBERS READ IS THIS POD'S. `index_bars` keeps SPX/NDX/VIX/
+        # RUT/DJX/XSP/XND in `<DATA_DIR>/index_bars_cache`, per volume, and the edge sends
+        # `/api/bars/<sym>` here. Web's warm loop warms web's volume only, so until
+        # 2026-11-17 this tier's daily copies moved only when a read kicked them (RUT, DJX,
+        # XSP answered a 10-22 tail on 11-17). Same loop, same vendors, same pacing.
+        from api import index_bars
+        index_bars.start_index_warm(tfs=index_bars.SERVING_TIER_WARM_TFS)
+        _log.info("[bars-api] index warm loop started: %s",
+                  ",".join(index_bars.SERVING_TIER_WARM_TFS))
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] index warm loop start failed (non-fatal): %s", e)
     _log.info("[bars-api] serving tier UP — /api/bars + /api/bars-history "
-              "(no warmers, no uploader, no WS)")
+              "(no universe warmers, no uploader, no WS; index warm on)")
     yield
 
 

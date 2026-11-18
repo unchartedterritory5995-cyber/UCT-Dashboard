@@ -26,6 +26,7 @@ import { render, screen, cleanup, fireEvent, act, within } from '@testing-librar
 import { SWRConfig } from 'swr'
 
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { reconcileParams } from './paramEdit'
 import { FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { PINE_DEBOUNCE_MS } from './PineBox'
@@ -171,7 +172,7 @@ function mountFresh() {
   )
 }
 
-const formulaField = () => screen.getByLabelText('Formula')
+const formulaField = () => formulaBox()
 const pineField = () => screen.getByTestId('pine-box').querySelector('textarea')
 const tab = (name) => screen.getByRole('tab', { name })
 
@@ -186,7 +187,7 @@ async function settleFormula() {
 }
 
 async function paste(script) {
-  fireEvent.click(tab(/^import$/i))
+  openSource('pine')
   fireEvent.change(pineField(), { target: { value: script } })
   await settlePine()
 }
@@ -212,7 +213,7 @@ async function repasteIntoSaved(script) {
   await settleFormula()
   const note = screen.queryByTestId('param-carry-note')
   const noteText = note ? note.textContent : null
-  fireEvent.click(screen.getByRole('button', { name: /save changes/i }))
+  fireEvent.click(screen.getByTestId('sheet-save'))
   await flush()
   const put = H.requests.find((r) => r.method === 'PUT')
   expect(put, 'the edit PUT never fired').toBeTruthy()

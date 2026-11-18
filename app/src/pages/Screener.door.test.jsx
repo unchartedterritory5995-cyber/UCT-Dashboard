@@ -35,6 +35,7 @@ import { AST_LANE_TIER, clearUserDefinitions } from '../components/chart/engine/
 import { BUILDER_INPUTS, BUILDER_INPUT_SCOPE } from '../components/chart/builder/builderInputs'
 import { STARTERS, STARTER_LIST } from '../components/chart/builder/StarterLibrary'
 import { USER_DEFINITIONS_KEY } from '../hooks/useUserDefinitions'
+import { openSource } from '../testing/builder/builderStart.testkit.js'
 import { RESULTS_ENDPOINT } from '../components/screener/ScanResults'
 import { SPY_WINDOW } from './screener/ScreensManager'
 
@@ -226,9 +227,11 @@ describe('🔴 the authoring door on the route a member navigates to', () => {
     // file renders a dialog; only `Sheet` (through the real `BuilderSheet`) does.
     const dialog = await screen.findByRole('dialog', {}, { timeout: 8000 })
     expect(dialog).toBeInTheDocument()
-    // The door's whole promise: it opened on CONDITIONS, not the Library.
+    // The door's whole promise: it opened STRAIGHT INTO THE EDITOR on CONDITIONS —
+    // not on the start page, and not on the Formula tab (Direction A).
     expect(screen.getByRole('tab', { name: /conditions/i })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('tab', { name: /library/i })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByRole('tab', { name: /formula/i })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.queryByTestId('start-library')).toBeNull()
     // …and the concierge got a window, from the screener's own default.
     await waitFor(() => expect(H.requests.some((r) => r.url === SPY_WINDOW)).toBe(true))
     // ⭐ AND IT IS STILL ON CONDITIONS ONCE EVERY EFFECT HAS RUN. The check above
@@ -238,8 +241,9 @@ describe('🔴 the authoring door on the route a member navigates to', () => {
     // Library a frame later, with nothing red.
     expect(screen.getByRole('tab', { name: /conditions/i })).toHaveAttribute('aria-selected', 'true')
 
-    // A savable formula the way a member gets one without typing: the library.
-    await user.click(screen.getByRole('tab', { name: /library/i }))
+    // A savable formula the way a member gets one without typing: a UCT setup
+    // (‹ back to the start page, then "A UCT setup").
+    openSource('library')
     // ⛔ THE STARTER IS TAKEN OFF THE SHIPPED LIST, never named here — the
     // catalogue REFUSES an entry whose frozen tree disagrees with the parser,
     // so a hand-typed name could be one this build does not ship.
@@ -289,8 +293,9 @@ describe('🔴 the authoring door on the route a member navigates to', () => {
     // claim lives in the case BELOW, where nothing can repair the mode.
     await waitFor(() => expect(screen.getByRole('tab', { name: /formula/i }))
       .toHaveAttribute('aria-selected', 'true'))
-    expect(screen.getByRole('tab', { name: /library/i })).toHaveAttribute('aria-selected', 'false')
-    expect(screen.getByRole('tab', { name: /conditions/i })).toHaveAttribute('aria-selected', 'false')
+    // …and a plain saved formula has no Source tab to be on instead (Direction A).
+    expect(screen.queryByRole('tab', { name: /^setup$/i })).toBeNull()
+    expect(screen.queryByRole('tab', { name: /conditions/i })).toBeNull()
     // The row's OWN source is what came back — `compute.source`, not a tree
     // re-printed into text.
     expect(await screen.findByDisplayValue(SCAN_SOURCE)).toBeInTheDocument()
@@ -376,7 +381,8 @@ describe('🔴 the authoring door on the route a member navigates to', () => {
       'This formula was stored without its source text, so it cannot be edited here.',
     )).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /formula/i })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('tab', { name: /library/i })).toHaveAttribute('aria-selected', 'false')
+    // the editor, never the start page's gallery
+    expect(screen.queryByTestId('start-library')).toBeNull()
   }, 30000)
 })
 
@@ -397,12 +403,12 @@ describe('🔴 Edit and Delete from the screener go through the ONE store door',
     await user.click(await screen.findByRole('button', { name: `Edit ${SCREEN_NAME}` }))
 
     const dialog = await screen.findByRole('dialog', {}, { timeout: 8000 })
-    expect(dialog).toHaveTextContent('Edit formula')
+    expect(dialog).toHaveAccessibleName('Edit formula')
     // The row's own stored text and name came back — not a re-print of the tree.
     expect(screen.getByLabelText('Formula')).toHaveValue(SCAN_SOURCE)
     expect(screen.getByLabelText('Name')).toHaveValue(SCREEN_NAME)
 
-    const save = screen.getByRole('button', { name: /^Save changes/ })
+    const save = screen.getByRole('button', { name: /^Save$/ })
     await waitFor(() => expect(save).toBeEnabled(), { timeout: 6000 })
     await user.click(save)
 

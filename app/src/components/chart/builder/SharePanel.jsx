@@ -51,7 +51,11 @@ export const LIBRARY_SOURCE_SENTENCE =
   'Publishing this script to the library shows its Pine source code to every member.'
 
 
-export default function SharePanel({ defId, defName, onInstalled }) {
+/** ⭐ `noun`: what the thing being shared is called where this panel is opened. "indicator" on a
+ *  chart (the builder's Share tab there, and the Share window of a row of "Your indicators");
+ *  "formula", the default, from the Screener. Seen on production 2026-11-17: a window titled
+ *  "Share <an indicator's name>" opened on "Share this formula. This formula is private." */
+export default function SharePanel({ defId, defName, onInstalled, noun = 'formula' }) {
   const [token, setToken] = useState(null)
   const [includesSource, setIncludesSource] = useState(false)
   // ⛔ (review of #1227) nothing that makes a link is offered until the share state has been READ
@@ -119,8 +123,13 @@ export default function SharePanel({ defId, defName, onInstalled }) {
     setBusy(true); setError('')
     const r = await publishToLibrary(defId)
     setBusy(false)
-    if (!r.ok) { setError(r.error); return }
-    setListing({ listed: true, requested: true, shared: true })
+    if (!r.ok) {
+      // the server's sentence, plus the one thing the member can do about it
+      setError(`${r.error}${WHAT_TO_DO[r.reason] ? ` ${WHAT_TO_DO[r.reason]}` : ''}`)
+      if (r.reason === 'taken-down') setListing((l) => ({ ...(l || {}), listed: false, takenDown: true }))
+      return
+    }
+    setListing((l) => ({ listed: true, requested: true, shared: true, licence: (l && l.licence) || null }))
     // ⭐ PUBLISHING MINTS THE LINK WHEN THERE ISN'T ONE — a listing nobody can
     // open is a broken row — so the share half of this panel has to learn about it
     // here, or it would keep saying "This formula is private" about something now
@@ -198,7 +207,7 @@ export default function SharePanel({ defId, defName, onInstalled }) {
   return (
     <div className={styles.panel}>
       <section className={styles.block}>
-        <h3 className={styles.heading}>Share this formula</h3>
+        <h3 className={styles.heading}>Share this {noun}</h3>
         {token ? (
           <>
             <p className={styles.note}>
@@ -225,7 +234,7 @@ export default function SharePanel({ defId, defName, onInstalled }) {
         ) : (
           <>
             <p className={styles.note}>
-              This formula is private. Nothing is shared until you create a link.
+              This {noun} is private. Nothing is shared until you create a link.
             </p>
             {sourceLine}
             <button type="button" className={styles.btn} onClick={mint} disabled={busy || !defId || !shareRead}>
@@ -264,17 +273,27 @@ export default function SharePanel({ defId, defName, onInstalled }) {
                   their head, which is the same conflation the schema refuses to
                   make. And it says what publishing will do to the link, because
                   publishing mints one. */}
-              {listing && listing.requested && !listing.shared
-                ? 'This was in the library, but your share link is off — so nothing can open it. Publishing again will turn the link back on.'
-                : 'Nothing is listed until you say so. A share link is private to whoever you send it to; the library is public to every member.'}
+              {listing && listing.takenDown
+                ? 'UCT took this out of the library, so it cannot be listed again. Your copy and any link you sent still work.'
+                : listing && listing.requested && !listing.shared
+                  ? 'This was in the library, but your share link is off — so nothing can open it. Publishing again will turn the link back on.'
+                  : 'Nothing is listed until you say so. A share link is private to whoever you send it to; the library is public to every member.'}
             </p>
             {librarySourceLine}
+            {/* ⭐ THE LICENCE LINE ON PUBLISH (Studio plan, section 8). A script copied from
+                someone else keeps the licence its author gave it, and publishing makes it
+                public, so the member reads it before pressing. */}
+            <p className={styles.note} data-testid="library-licence">
+              {listing && listing.licence
+                ? `Its script says it is under the ${listing.licence}. Publish it only if that licence lets you share it.`
+                : 'Publish only what you have the right to share. A script copied from someone else keeps the licence its author gave it.'}
+            </p>
             <button
               type="button"
               className={styles.btn}
               data-testid="library-publish"
               onClick={publish}
-              disabled={busy || !defId || !shareRead}
+              disabled={busy || !defId || !shareRead || !!(listing && listing.takenDown)}
             >
               <UIcon name="upload" size={14} /> Publish to the library
             </button>
@@ -299,9 +318,9 @@ export default function SharePanel({ defId, defName, onInstalled }) {
 
         {preview ? (
           <div className={styles.preview}>
-            <p className={styles.previewName}>{preview.definition?.meta?.name || 'Untitled formula'}</p>
+            <p className={styles.previewName}>{preview.definition?.meta?.name || `Untitled ${noun}`}</p>
             <p className={styles.note}>
-              Version {preview.origin_version} of someone else&rsquo;s formula. Installing
+              Version {preview.origin_version} of someone else&rsquo;s {noun}. Installing
               makes your own copy that you can edit freely.
             </p>
             <button type="button" className={styles.btn} onClick={install} disabled={busy}>
@@ -352,4 +371,5 @@ SharePanel.propTypes = {
   defId: PropTypes.string,
   defName: PropTypes.string,
   onInstalled: PropTypes.func,
+  noun: PropTypes.oneOf(['formula', 'indicator']),
 }

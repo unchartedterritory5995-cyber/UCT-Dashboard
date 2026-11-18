@@ -424,6 +424,12 @@ def _definition_tree(def_id: str, user_id: Any, plot: Optional[str] = None) -> t
     if engine_why:
         raise HTTPException(status_code=409, detail=f"definition {def_id!r} is withheld: {engine_why}")
     doc = row.get("definition") if isinstance(row.get("definition"), dict) else {}
+    # ⭐⭐ CBC-FMT -- a `calc_bars_count` document (`meta.calcBarsCount`) is computed on the
+    # chart's last N bars only; a replay computes every bar it reads. 409 by name, either kind.
+    from api.services import alert_user_series as _aus
+    calc_bars_why = _aus.calc_bars_window_refusal(doc)
+    if calc_bars_why:
+        raise HTTPException(status_code=409, detail=f"definition {def_id!r} is withheld: {calc_bars_why}")
     compute = doc.get("compute") if isinstance(doc.get("compute"), dict) else {}
     if runtime_definitions.is_runtime(doc):
         return _runtime_descriptor(row, doc, compute, def_id, user_id, plot)

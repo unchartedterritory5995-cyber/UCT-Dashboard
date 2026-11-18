@@ -31,7 +31,12 @@ import { useUserDefinitions, useInstalledUserDefinitions } from '../../hooks/use
 import * as engineRegistry from './engine/nativeRegistry'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import UIcon from '../ui/UIcon'
-import { HEADER_FIELDS, HEADER_FIELD_BY_KEY, headerFieldKeys, SIGN_POS, SIGN_NEG } from './headerFields'
+import { HEADER_FIELDS, SIGN_POS, SIGN_NEG } from './headerFields'
+import { headerStatKeys, statLabelsOf, withStatLabel, headerStatTogglePatch, movedHeaderStats, headerStatMetaOf, statStylesFor, withHeaderStatStyle } from './headerStatCatalog'
+import { STAT_SIZES, STAT_SIZE_LABELS, STAT_WEIGHTS, STAT_WEIGHT_LABELS, STAT_WEIGHT_VALUE, DEFAULT_BOX_COLOR } from './headerStatStyle'
+import { customStatsOf, customStatKey, addCustomStatPatch, customStatAddRefusal } from './headerCustomStats'
+import { customStatLabel, customStatSigned, customStatOutputRefusal } from './engine/customStatCompute'
+import { HeaderStatList, HeaderStatPicker } from './HeaderStatPicker'
 import styles from './ChartSettingsModal.module.css'
 import useFocusTrap from '../mobile/useFocusTrap'
 import { inertBackground, MODAL_Z } from '../mobile/backgroundInert'
@@ -44,6 +49,16 @@ import { keepIndicatorState } from './indicatorPreservation'
 import { recordIndicatorChange } from './indicatorHistoryStore'
 import TypeGlyph from './ChartTypeGlyph'
 import ChoiceMenu from './ChoiceMenu'
+import { APPEARANCE_SECTION_KEYS } from './chartAppearance'
+import Switch from '../ui/Switch'
+import { PANE_LOOK } from './pane/paneLook'
+import { headerColors } from './pane/headerDefaultColors'
+import {
+  candlePartsOf, priceLineOf, gridLinesOf, gridPatchFor, rightMarginOf, priceDecimalsOf, timeFormatOf, scaleTimePatch,
+  sessionBreaksOf, preMarketLevelsOf, nextEarningsMarkerOf, timeZoneOf, extendedHoursOf, priceAlertLinesOf,
+  myTradeMarkersOf,
+  PRICE_LINE_STYLES, GRID_LINES, TIME_FORMATS, TIME_ZONES, PRICE_DECIMALS, RIGHT_MARGIN_MIN, RIGHT_MARGIN_MAX,
+} from './chartViewOptions'
 
 // A user's saved chart-settings templates live in ONE global pref so they're
 // available from every chart/tab/grid cell. Applying a template routes through
@@ -218,12 +233,9 @@ const TAB_LABEL = Object.fromEntries(SETTINGS_TABS.map(([id, label]) => [id, lab
 // "Reset this section" (owner 11-15): the settings keys each section's own controls write. A reset puts
 // ONLY these back to CHART_DEFAULTS. Indicators has no entry (its rows are the Indicators project's,
 // with their own undo) so it shows no reset button yet.
-const SECTION_RESET_KEYS = {
-  price: ['chartType', 'candleColorMode', 'candles', 'countdown'],
-  canvas: ['bgMode', 'background', 'bgGradient', 'grid', 'crosshair', 'textSize', 'textColor', 'showPriceLabels', 'showMaLabels', 'watermark'],
-  header: ['header'],
-  markers: ['swingLabels', 'markers', 'prevDayLevels', 'darkPool'],
-}
+// (11-16) ONE table with "Apply to all charts": chartAppearance.js owns it, so the keys a section resets and the keys
+// the look-copy carries can never disagree.
+const SECTION_RESET_KEYS = APPEARANCE_SECTION_KEYS
 
 const SETTINGS_TARGET_TAB = {
   candles: 'price',
@@ -235,6 +247,11 @@ const SETTINGS_TARGET_TAB = {
   // The chart header's "Add to Chart" control: Indicators, already in the add
   // surface (ChartSettingsIndicators `openAdd`).
   add: 'indicators',
+  // A chart-header stat's menu (owner 11-17): "Header settings…" opens Header & legend; "Add a stat…" opens its stat
+  // picker; "Add an indicator value…" opens the picker's custom-stat page.
+  header: 'header',
+  'header:add': 'header',
+  'header:custom': 'header',
 }
 // When the on-chart OHLCV legend shows. ⚠️ The VALUES are not written here —
 // `LEGEND_MODES` is the enumeration, and this only supplies each one's label and
@@ -305,6 +322,8 @@ export default function ChartSettingsModal({
   onCreateFormula = null,
   // ⭐ P2 Track B — Create Indicator's door; passed through to the Indicators tab.
   onCreateIndicator = null,
+  // (door) => void: the builder's doors ('pine' | 'image' | 'formula'); passed to the Indicators tab.
+  onOpenBuilderDoor = null,
   // ⭐ PHASE 4 — the definition's own doors (modify / edit formula / custom copy).
   definitionDoors = null,
   // ⭐ UCT RS Phase 4 (4-11) — the Indicators tab's FIRST add of a definition with a
@@ -314,6 +333,11 @@ export default function ChartSettingsModal({
   // Optional `{ current: Element }` -- the control that opened this modal (the
   // gear). Focus returns there on close; without it, to whatever held focus at open.
   returnFocusRef = null,
+  // ⭐ "Apply to all charts" (owner 11-16, was Soon) — the Charts workspace's door, `{ count(), apply() }`:
+  // `count()` = how many OTHER charts the open layout holds, `apply()` copies this chart's look onto them
+  // (chartAppearance.js decides what "look" means) and returns how many changed. ABSENT PROP ⇒ ABSENT DOOR:
+  // a chart outside a workspace layout shows no such control.
+  applyToAllCharts = null,
 }) {
   const panelRef = useRef(null)
   const dialogRef = useRef(null)      // the `role="dialog"` layer (the backdrop) -- focus target + trap container
@@ -396,36 +420,13 @@ export default function ChartSettingsModal({
   const [tplName, setTplName] = useState('')
   const tplInputRef = useRef(null)
   useEffect(() => { if (savingTpl && tplInputRef.current) { tplInputRef.current.focus(); tplInputRef.current.select() } }, [savingTpl])
-  // Info Row field-picker menu (Header tab) — pops out to the RIGHT of the modal (like the
-  // color panel) so it never gets clipped by the modal's bottom.
-  const [fieldMenuOpen, setFieldMenuOpen] = useState(false)
-  const [fieldQuery, setFieldQuery] = useState('')
-  const [fieldMenuPos, setFieldMenuPos] = useState(null)
-  const fieldWrapRef = useRef(null)
-  const fieldMenuRef = useRef(null)
-  useEffect(() => {
-    if (!fieldMenuOpen) return
-    const onDown = (e) => {
-      const inWrap = fieldWrapRef.current && fieldWrapRef.current.contains(e.target)
-      const inMenu = fieldMenuRef.current && fieldMenuRef.current.contains(e.target)
-      if (!inWrap && !inMenu) setFieldMenuOpen(false)
-    }
-    document.addEventListener('mousedown', onDown, true)   // capture: beats the panel's stopPropagation
-    return () => document.removeEventListener('mousedown', onDown, true)
-  }, [fieldMenuOpen])
-  useLayoutEffect(() => {
-    if (!fieldMenuOpen || !panelRef.current) { setFieldMenuPos(null); return }
-    const r = panelRef.current.getBoundingClientRect()
-    // Top-align the field menu to the settings modal's top edge, and give it enough
-    // height that every field shows without scrolling (H tracks the full list); if it
-    // would spill past the viewport bottom, nudge it up.
-    const W = 290, gap = 12, H = Math.min(760, window.innerHeight - 24)
-    let left = r.right + gap
-    if (left + W > window.innerWidth - 8) left = Math.max(8, r.left - W - gap)  // flip left if tight
-    let top = r.top
-    if (top + H > window.innerHeight - 8) top = Math.max(8, window.innerHeight - 8 - H)
-    setFieldMenuPos({ left, top })
-  }, [fieldMenuOpen, pos])
+  // Info row stat picker (Header & legend, owner 11-16): an inline sub-page INSIDE the window (HeaderStatPicker.jsx),
+  // never a portal. Any other section, or closing the window, puts the section back on its main page.
+  const [statPickerOpen, setStatPickerOpen] = useState(false)
+  useEffect(() => { setStatPickerOpen(false) }, [activeTab, open])
+  // opened from a header stat's "Add a stat…" / "Add an indicator value…" (after the reset above, same commit)
+  const statPickerStart = open && (scrollTo === 'header:custom' ? 'custom' : scrollTo === 'header:add' ? 'list' : null)
+  useEffect(() => { if (statPickerStart && activeTab === 'header') setStatPickerOpen(true) }, [statPickerStart, activeTab])
 
   const persistTemplates = (arr) => setPref(CHART_TEMPLATES_KEY, JSON.stringify(arr.slice(0, MAX_CHART_TEMPLATES)))
   const commitSaveTemplate = () => {
@@ -450,7 +451,21 @@ export default function ChartSettingsModal({
   }
   const deleteTemplate = (id) => persistTemplates(chartTemplatesAfterDelete(templates, id))
 
-  useEffect(() => { if (!open) { setPos(null); setConfirmReset(false); setConfirmSectionReset(null); setTplMenuOpen(false); setSavingTpl(false); setTplName(''); setThemesOpen(false) } }, [open]) // re-center + reset transient UI on each open
+  // "Apply to all charts": null → the button; 'confirm' → the inline confirm; { done: n } → "Applied to n charts".
+  const [applyAll, setApplyAll] = useState(null)
+  const applyAllTimerRef = useRef(null)
+  const applyAllBtnRef = useRef(null)
+  const applyAllConfirmRef = useRef(null)
+  const applyAllPrevRef = useRef(null)
+  useEffect(() => () => { if (applyAllTimerRef.current) clearTimeout(applyAllTimerRef.current) }, [])
+  // Keyboard: the confirm takes focus when it opens; Cancel / Apply hands it back to the button it replaced.
+  useEffect(() => {
+    const prev = applyAllPrevRef.current
+    applyAllPrevRef.current = applyAll
+    if (applyAll === 'confirm') applyAllConfirmRef.current?.focus()
+    else if (prev === 'confirm') applyAllBtnRef.current?.focus()
+  }, [applyAll])
+  useEffect(() => { if (!open) { setPos(null); setConfirmReset(false); setConfirmSectionReset(null); setTplMenuOpen(false); setSavingTpl(false); setTplName(''); setThemesOpen(false); setApplyAll(null) } }, [open]) // re-center + reset transient UI on each open
 
   // Restore all chart settings to defaults. Two-click confirm (button shows
   // "Confirm?" for a moment) so an accidental tap can't wipe custom colors.
@@ -739,6 +754,16 @@ export default function ChartSettingsModal({
       return
     }
     // Per-field Info Row colors: `hdrf:<colorKey>` → header.colors[colorKey].
+    // Per-stat looks (owner 11-17): `hdrs:<statKey>:label|box` → header.statStyle[statKey].labelColor|boxColor —
+    // the same keys the header stat's own menu writes (headerStatStyle.js).
+    if (target.startsWith('hdrs:')) {
+      const at = target.lastIndexOf(':')
+      const key = target.slice(5, at)
+      const field = target.slice(at + 1) === 'box' ? 'boxColor' : 'labelColor'
+      const h = settings?.header || {}
+      onChange?.({ ...settings, header: { ...h, statStyle: withHeaderStatStyle(h, key, { [field]: hex }) }, preset: 'custom' })
+      return
+    }
     if (target.startsWith('hdrf:')) {
       const key = target.slice(5)
       const h = settings?.header || {}
@@ -782,7 +807,9 @@ export default function ChartSettingsModal({
   // registry on every render of an open modal. What makes the list ARRIVE is the
   // `useInstalledUserDefinitions` subscription up top, not a memo key down here.
   const allLanes = { ...engineRegistry, listDefinitions: engineRegistry.listAllDefinitions }
-  const indRows = listAllIndicators(settings, allLanes, { volumePaneFixed })
+  // `volumePaneByDefault` (/charts): the Volume row's Separate pane toggle shows the
+  // member's Display in choice, defaulting ON — see `listIndicators`.
+  const indRows = listAllIndicators(settings, allLanes, { volumePaneFixed, volumePaneByDefault: volumeOpts?.volumePaneByDefault === true })
   const indRowById = (id) => indRows.find((r) => r.id === id)
   /** One writer for every row: `patchFor` for the hand-written ones, and
    *  `instanceControls` for the engine-owned ones — the same writer the toolbar
@@ -811,6 +838,11 @@ export default function ChartSettingsModal({
       const { rowId, field } = splitIndTarget(t)
       return indRowById(rowId)?.values?.[field] || '#c9a84c'
     }
+    if (t.startsWith('hdrs:')) {
+      const at = t.lastIndexOf(':')
+      const look = statStylesFor(settings?.header || {})[t.slice(5, at)] || {}
+      return t.slice(at + 1) === 'box' ? (look.boxColor || DEFAULT_BOX_COLOR) : (look.labelColor || '#cfcac0')
+    }
     if (t.startsWith('hdrf:')) {
       const key = t.slice(5)
       const ov = settings?.header?.colors?.[key]
@@ -838,9 +870,10 @@ export default function ChartSettingsModal({
       case 'watermark': return joinHexA(watermark.color || '#a8a290', (watermark.opacity == null || watermark.opacity === 0.07) ? 0.82 : watermark.opacity)
       // Header/legend colors: the stored value, else the item's built-in default so
       // the swatch reads as the current on-screen color before the user changes it.
-      case 'hdrDayUp': return hdrColors.dayChangeUp || '#1ae51a'
-      case 'hdrDayDown': return hdrColors.dayChangeDown || '#ff3b47'
-      case 'hdrTitle': return hdrColors.title || '#c9a84c'
+      // Title / day change: the header's own authority (white; the chart's candle up / down colours — owner 11-16).
+      case 'hdrDayUp': return headerColors(settings).dayChangeUp
+      case 'hdrDayDown': return headerColors(settings).dayChangeDown
+      case 'hdrTitle': return headerColors(settings).title
       case 'hdrMarketCap': return hdrColors.marketCap || '#c9a84c'
       case 'hdrNextEarnings': return hdrColors.nextEarnings || '#6ba3be'
       case 'hdrUctRating': return hdrColors.uctRating || '#1ae51a'  // price-candle up-green
@@ -862,7 +895,23 @@ export default function ChartSettingsModal({
   }
   const setSetting = (patch) => onChange?.({ ...settings, ...patch, preset: 'custom' })
   const setBgMode = (m) => { if (m !== bgMode) setSetting({ bgMode: m }) }
-  const setGridVisible = (v) => setSetting({ grid: { ...grid, visible: v } })
+  // ── The seven rows that were "Soon" (owner 11-15), now real. One reader each (chartViewOptions.js): an
+  // absent key reads as today's look, so the dialog shows exactly what the chart draws. ──
+  const parts = candlePartsOf(settings)
+  const setPart = (key, on) => setSetting({ candles: { ...candles, [key]: on } })
+  const priceLine = priceLineOf(settings, !PANE_LOOK.hidePriceLine)
+  const gridLines = gridLinesOf(settings)
+  const rightMargin = rightMarginOf(settings)
+  const priceDecimals = priceDecimalsOf(settings)
+  const timeFormat = timeFormatOf(settings)
+  const timeZone = timeZoneOf(settings)
+  const extendedHours = extendedHoursOf(settings)
+  const setScaleTime = (field, value) => setSetting(scaleTimePatch(settings, field, value))
+  // A live on/off: the shared Switch primitive (never a new hand-rolled `role="switch"` copy).
+  const liveSwitch = (label, on, onToggle) => (
+    <Switch aria-label={label} checked={on} className={styles.toggle} checkedClassName={styles.toggleOn}
+      knobClassName={styles.toggleKnob} onClick={onToggle} />
+  )
   const setWmVisible = (v) => setSetting({ watermark: { ...watermark, visible: v } })
   const setWmLine = (key, v) => setSetting({ watermark: { ...watermark, lines: { ...(watermark.lines || {}), [key]: v } } })
   const setWmAlign = (v) => setSetting({ watermark: { ...watermark, align: v } })
@@ -892,10 +941,47 @@ export default function ChartSettingsModal({
   const toggleBarField = (id) => setHeader({ barInfo: withBarInfoField(settings, id, !barInfo.includes(id)) })
   // Info Row — the picked fields (migrates a legacy show* blob); the picker menu state
   // lives up top with the other hooks (this code runs after the `!open` early return).
-  const infoFields = headerFieldKeys(header)
-  const toggleInfoField = (key) => setHeader({
-    fields: infoFields.includes(key) ? infoFields.filter((k) => k !== key) : [...infoFields, key],
-  })
+  // (owner 11-16) any library stat (headerStatCatalog.js), in the member's order, each with an optional short rename.
+  const infoFields = headerStatKeys(header)
+  const statLabels = statLabelsOf(header)
+  const toggleInfoField = (key) => setHeader(headerStatTogglePatch(header, key))
+  // Custom stats (owner 11-16, headerCustomStats.js): each one's live name / sign from its definition (the stored
+  // name when the definition is not installed), so the list, the picker and the swatches name it like the chart does.
+  const customMeta = {}
+  for (const c of customStatsOf(header)) {
+    const def = engineRegistry.getDefinition(c.defId)
+    if (!def) continue
+    let names = null
+    try { names = customStatLabel(def, c) } catch { names = null }
+    const why = customStatOutputRefusal(def, c.plotKey, engineRegistry)
+    customMeta[customStatKey(c.id)] = {
+      label: (names && names.label) || c.name, signed: customStatSigned(def),
+      desc: why ? `Custom stat · ${why}` : `Custom stat · ${(names && names.title) || c.name || 'an indicator'}, its value on the newest bar`,
+    }
+  }
+  const infoStatMeta = (key) => headerStatMetaOf(header, key, customMeta)
+  const statLooks = statStylesFor(header)
+  const addCustomInfoField = (entry) => {
+    const patch = addCustomStatPatch(header, entry, infoFields)
+    if (patch.customStats) setHeader(patch)
+  }
+  const customInfoRefusal = (entry) => customStatAddRefusal(header, entry)
+  const moveInfoField = (from, to) => setHeader({ fields: movedHeaderStats(header, from, to) })
+  const renameInfoField = (key, label) => {
+    const next = withStatLabel(header, key, label)
+    if (JSON.stringify(next) === JSON.stringify(statLabels)) return   // a blur with no change writes nothing
+    setHeader({ statLabels: next })
+  }
+  // "Reset to UCT default" in the picker: the stats go back to today's row (no `fields`, no renames).
+  const resetInfoFields = () => {
+    const { fields: _f, statLabels: _l, customStats: _c, statStyle: _s, ...rest } = header
+    if (!('fields' in header) && !('statLabels' in header) && !('customStats' in header) && !('statStyle' in header)) return
+    // a custom stat's color goes with it (its id can be reused by the next custom stat)
+    if (rest.colors && Object.keys(rest.colors).some((k) => k.startsWith('cx:'))) {
+      rest.colors = Object.fromEntries(Object.entries(rest.colors).filter(([k]) => !k.startsWith('cx:')))
+    }
+    setSetting({ header: rest })
+  }
   const hdrColors = header.colors || {}
   // Markers tab.
   const swing = settings?.swingLabels || {}
@@ -941,6 +1027,21 @@ export default function ChartSettingsModal({
     )
   }
 
+  // ── "Apply to all charts" (owner 11-16, was Soon) ─────────────────────────────────────────────
+  // One click asks, inline (never window.confirm): "Apply these settings to N other charts in this layout?" → Apply /
+  // Cancel. Apply hands the copy to the workspace (one layout write, saved like any manual change) and says
+  // "Applied to N charts" for a moment. With no other chart in the layout the button is disabled and says why.
+  const otherCharts = applyToAllCharts && typeof applyToAllCharts.count === 'function' ? applyToAllCharts.count() : null
+  const chartsWord = (n) => `${n} ${n === 1 ? 'chart' : 'charts'}`
+  const confirmApplyAll = () => {
+    if (applyAllTimerRef.current) clearTimeout(applyAllTimerRef.current)
+    let n = 0
+    try { n = Number(applyToAllCharts?.apply?.()) || 0 } catch { n = 0 }
+    setApplyAll({ done: n })
+    applyAllTimerRef.current = setTimeout(() => setApplyAll(null), 2600)
+  }
+  const applyAllHintId = `${soonDescId}-applyall`
+
   // ── "Soon" rows (owner 11-15, the approved Chart Settings Lab) ──────────────────────────────
   // Settings the owner approved that the chart cannot do yet, shown VISIBLE BUT DISABLED with a
   // small "Soon" tag so the window matches the lab. ⛔ They write NOTHING: no handler, no settings
@@ -962,10 +1063,6 @@ export default function ChartSettingsModal({
   )
   const soonSwatch = (bg, label) => (
     <span key={label} className={`${styles.cSwatch} ${styles.soonSwatch}`} style={{ background: bg }} title={`${label} · ${SOON}`} aria-hidden="true" />
-  )
-  const soonChoice = (label, value, opts) => (
-    <ChoiceMenu ariaLabel={label} ariaNote="(coming soon)" title={SOON} disabled value={value}
-      options={opts.map(([v, l]) => ({ value: v, label: l }))} />
   )
   const soonLabel = (label, hint) => (
     <span className={styles.fieldLabel}>{label}{soonTag}{hint && <span className={styles.fieldHint}>{hint}</span>}</span>
@@ -1036,11 +1133,38 @@ export default function ChartSettingsModal({
         </div>
 
           <div className={styles.sideFoot} onPointerDown={e => e.stopPropagation()}>
-          {/* Apply to all charts (Soon): off = this chart only, the behaviour today. */}
-          <div className={`${styles.scopeTg} ${styles.soonRow}`} data-soon="" title={SOON}>
-            <button type="button" {...soonAttrs('Apply to all charts')} data-soon-control="" className={`${styles.softBox} ${styles.scopeBox}`} />
-            <span className={styles.scopeLbl}>Apply to all charts</span>{soonTag}
-          </div>
+          {/* Apply to all charts (owner 11-16, was Soon): this chart's look → every other chart in this layout.
+              Absent off the Charts workspace (no door). Confirm and result are inline, in the rail's foot. */}
+          {otherCharts != null && (
+            <div className={styles.applyAll} data-apply-all="">
+              {applyAll === 'confirm' ? (
+                <div className={styles.applyAllConfirm} role="group" aria-label="Apply to all charts">
+                  <span className={styles.applyAllText}>{`Apply these settings to ${otherCharts} other ${otherCharts === 1 ? 'chart' : 'charts'} in this layout?`}</span>
+                  <div className={styles.applyAllBtns}>
+                    <button type="button" ref={applyAllConfirmRef} className={styles.applyAllYes} onClick={confirmApplyAll}>Apply</button>
+                    <button type="button" className={styles.applyAllNo} onClick={() => setApplyAll(null)}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  ref={applyAllBtnRef}
+                  data-guide="chartSettings.applyAll"
+                  className={styles.tplBtn}
+                  disabled={otherCharts < 1}
+                  aria-describedby={otherCharts < 1 ? applyAllHintId : undefined}
+                  title={otherCharts < 1 ? 'There are no other charts in this layout' : 'Copy this chart’s look to every other chart in this layout. Symbols, timeframes, indicators and drawings stay as they are.'}
+                  onClick={() => { if (applyAllTimerRef.current) clearTimeout(applyAllTimerRef.current); setApplyAll('confirm') }}
+                ><UIcon name="copy" size={14} gold={false} aria-hidden="true" /><span>Apply to all charts</span></button>
+              )}
+              {otherCharts < 1 && applyAll !== 'confirm' && (
+                <span id={applyAllHintId} className={styles.applyAllHint}>No other charts in this layout</span>
+              )}
+              {applyAll && typeof applyAll === 'object' && (
+                <span className={styles.applyAllDone} role="status">{`Applied to ${chartsWord(applyAll.done)}`}</span>
+              )}
+            </div>
+          )}
           <div className={styles.tplMenuWrap}>
             <button
               data-guide="chartSettings.templates"
@@ -1189,35 +1313,41 @@ export default function ChartSettingsModal({
                   {colorSwatch('bgBottom', 'Gradient Bottom')}
                 </div>
               </>)}
-              {soonRow('Shade pre / post-market', {
-                hint: 'tints the background outside regular hours',
-                toggle: ['Shade pre / post-market', true],
-                right: [soonSwatch('#1b2230', 'Pre-market shading'), soonSwatch('#221c2c', 'Post-market shading')],
-              })}
+              {/* Shade pre / post-market (owner 11-16, was Soon): the EXISTING per-chart `extendedHoursShading` — the
+                  toolbar's "Extended hours" / EXT-RTH toggle and this row are one switch, so they always agree. ON shows
+                  the pre/post-market bars with their shading on intraday charts; OFF = regular session only. Per chart
+                  (never copied by "Apply to all charts", never reset by "Reset this section"). */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Shade pre / post-market <span className={styles.fieldHint}>extended-hours bars + shading, intraday · same as the toolbar's Extended hours</span></span>
+                {liveSwitch('Shade pre / post-market', extendedHours, () => setSetting({ extendedHoursShading: !extendedHours }))}
+              </div>
             </div>
           </section>
 
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Grid</div>
             <div className={styles.card}>
+              {/* One control for the grid (owner 11-15): Off / Horizontal / Vertical / Both. `grid.visible` stays
+                  the on/off master (Off writes visible:false, so older blobs and UCT Agent's grid.visible read the
+                  same); `grid.lines` says which lines when it is on. */}
               <div className={styles.field}>
-                <span className={styles.fieldLabel}>Show grid lines</span>
-                <button aria-label="Show grid lines"
-                  type="button"
-                  role="switch"
-                  aria-checked={grid.visible !== false}
-                  className={`${styles.toggle} ${grid.visible !== false ? styles.toggleOn : ''}`}
-                  onClick={() => setGridVisible(grid.visible === false)}
-                ><span className={styles.toggleKnob} /></button>
+                <span className={styles.fieldLabel}>Lines</span>
+                <ChoiceMenu ariaLabel="Grid lines" value={gridLines}
+                  options={GRID_LINES.map(([v, l]) => ({ value: v, label: l }))}
+                  onChange={(v) => setSetting({ grid: gridPatchFor(grid, v) })} />
               </div>
-              {grid.visible !== false && (
+              {gridLines !== 'off' && (
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Line color</span>
                   {colorSwatch('grid', 'Grid')}
                 </div>
               )}
-              {soonRow('Lines', { right: soonChoice('Grid lines', 'both', [['off', 'Off'], ['h', 'Horizontal'], ['v', 'Vertical'], ['both', 'Both']]) })}
-              {soonRow('Session breaks', { hint: 'a line at each new trading day, intraday', toggle: ['Session breaks', false] })}
+              {/* Session breaks (owner 11-15, was Soon): `sessionBreaks`, absent = off. Drawn by sessionMarks.js on
+                  intraday charts only, in the grid's own colour. */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Session breaks <span className={styles.fieldHint}>a line at each new trading day, intraday</span></span>
+                {liveSwitch('Session breaks', sessionBreaksOf(settings), () => setSetting({ sessionBreaks: !sessionBreaksOf(settings) }))}
+              </div>
             </div>
           </section>
 
@@ -1255,24 +1385,48 @@ export default function ChartSettingsModal({
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Margins</div>
             <div className={styles.card}>
-              {soonRow('Right margin', {
-                hint: 'space between the last candle and the price scale',
-                right: (<>
-                  <input type="range" min={0} max={20} step={1} value={5} readOnly disabled aria-disabled="true"
-                    aria-label="Right margin (coming soon)" title={SOON} aria-describedby={soonDescId}
-                    data-soon-control="" className={styles.soonRange} />
-                  <span className={styles.soonValue}>5 bars</span>
-                </>),
-              })}
+              {/* Right margin: Auto = the chart's own padding (6 bars on /charts); dragging sets bars. */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Right margin <span className={styles.fieldHint}>space between the last candle and the price scale</span></span>
+                <div className={styles.hdrRowCtl}>
+                  <input type="range" min={RIGHT_MARGIN_MIN} max={RIGHT_MARGIN_MAX} step={1}
+                    value={rightMargin ?? PANE_LOOK.rightPadBars} aria-label="Right margin"
+                    aria-valuetext={rightMargin == null ? 'Auto' : `${rightMargin} bars`}
+                    className={styles.marginRange}
+                    onChange={(e) => setScaleTime('rightMargin', Number(e.target.value))} />
+                  <span className={styles.marginValue}>{rightMargin == null ? 'Auto' : `${rightMargin} bar${rightMargin === 1 ? '' : 's'}`}</span>
+                  {rightMargin != null && (
+                    <button type="button" className={styles.marginAuto} title="Back to the chart's own margin"
+                      onClick={() => setScaleTime('rightMargin', null)}>Auto</button>
+                  )}
+                </div>
+              </div>
             </div>
           </section>
 
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Scale &amp; time</div>
             <div className={styles.card}>
-              {soonRow('Time zone', { right: soonChoice('Time zone', 'exchange', [['exchange', 'Exchange (New York)'], ['local', 'Your time'], ['utc', 'UTC'], ['chicago', 'Chicago'], ['london', 'London'], ['tokyo', 'Tokyo']]) })}
-              {soonRow('Time format', { right: soonChoice('Time format', '12', [['12', '12-hour'], ['24', '24-hour']]) })}
-              {soonRow('Price decimals', { right: soonChoice('Price decimals', 'auto', [['auto', 'Auto'], ['0', '0'], ['1', '1'], ['2', '2'], ['3', '3'], ['4', '4']]) })}
+              {/* Time zone (owner 11-16, was Soon): `scaleTime.timeZone`, absent = Exchange (New York). Display only —
+                  the intraday time-axis labels and the crosshair time; bars and every session rule stay New York. */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Time zone <span className={styles.fieldHint}>intraday axis + crosshair times</span></span>
+                <ChoiceMenu ariaLabel="Time zone" value={timeZone}
+                  options={TIME_ZONES.map(([v, l]) => ({ value: v, label: l }))}
+                  onChange={(v) => setScaleTime('timeZone', v)} />
+              </div>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Time format</span>
+                <ChoiceMenu ariaLabel="Time format" value={timeFormat}
+                  options={TIME_FORMATS.map(([v, l]) => ({ value: v, label: l }))}
+                  onChange={(v) => setScaleTime('timeFormat', v)} />
+              </div>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Price decimals</span>
+                <ChoiceMenu ariaLabel="Price decimals" value={priceDecimals ?? 'auto'}
+                  options={PRICE_DECIMALS.map(([v, l]) => ({ value: v, label: l }))}
+                  onChange={(v) => setScaleTime('priceDecimals', v === 'auto' ? null : Number(v))} />
+              </div>
             </div>
           </section>
 
@@ -1411,6 +1565,7 @@ export default function ChartSettingsModal({
             volumeRef={volumeRef}
             onCreateFormula={onCreateFormula}
             onCreateIndicator={onCreateIndicator}
+            onOpenBuilderDoor={onOpenBuilderDoor}
             /* Subscribed up here, for the reason written beside the hooks: this
                component builds `indRows`, so it is the one that has to re-render
                when a member's formulas install. Handing the two results down is
@@ -1430,7 +1585,12 @@ export default function ChartSettingsModal({
           />
           )}
 
-          {activeTab === 'header' && (<>
+          {activeTab === 'header' && statPickerOpen && (
+            <HeaderStatPicker styles={styles} keys={infoFields} onToggle={toggleInfoField} onReset={resetInfoFields} onDone={() => setStatPickerOpen(false)}
+              metaOf={infoStatMeta} onAddCustom={addCustomInfoField} customAddRefusal={customInfoRefusal}
+              startBuilding={statPickerStart === 'custom'} />
+          )}
+          {activeTab === 'header' && !statPickerOpen && (<>
           {/* TITLE — the ticker/company label + its color + the day-change readout that
               sits right beside it (all "the title line", so they're grouped together). */}
           <section className={styles.section}>
@@ -1508,42 +1668,64 @@ export default function ChartSettingsModal({
             </div>
           </section>
 
-          {/* INFO ROW — an "Add Field" button (beside the label) opens the searchable field
-              menu (pops out to the RIGHT of the modal). Every selected field then lists here
-              with a color swatch. */}
+          {/* INFO ROW (owner 11-16) — the chosen stats in header order: drag (or ↑ / ↓) to reorder, click a name to
+              rename it (≤16 characters, empty = the stat's own name), a colour swatch per stat (two for a signed one).
+              "Choose stats" opens the picker as a sub-page of this section (HeaderStatPicker.jsx). */}
           <section className={styles.section}>
             <div className={styles.infoRowHead}>
-              <span className={styles.sectionLabel} style={{ padding: 0 }}>Stats beside the ticker</span>
+              <span className={styles.sectionLabel} style={{ padding: 0 }}>Stats beside the ticker <span className={styles.sectionHint}>{infoFields.length} shown</span></span>
               <button
                 type="button"
-                ref={fieldWrapRef}
                 className={styles.addFieldBtn}
-                onClick={() => setFieldMenuOpen((o) => !o)}
-                aria-haspopup="menu"
-                aria-expanded={fieldMenuOpen}
-              ><UIcon name="plus" size={12} gold={false} aria-hidden="true" />Add a stat</button>
+                onClick={() => setStatPickerOpen(true)}
+              ><UIcon name="plus" size={12} gold={false} aria-hidden="true" />Choose stats</button>
             </div>
-            {infoFields.length > 0 && (
-              <div className={styles.card}>
-                {infoFields.map((k) => {
-                  const f = HEADER_FIELD_BY_KEY[k]
-                  if (!f) return null
-                  // Signed fields (% change, $ change, N-day…) get TWO swatches: the left
-                  // colors positive values, the right colors negative values.
-                  return (
-                    <div className={styles.field} key={k}>
-                      <span className={styles.fieldLabel}>{f.label}</span>
-                      <div className={styles.hdrRowCtl}>
-                        {f.signed ? (<>
-                          {colorSwatch(`hdrf:${f.colorKey}:pos`, `${f.label} — positive`)}
-                          {colorSwatch(`hdrf:${f.colorKey}:neg`, `${f.label} — negative`)}
-                        </>) : colorSwatch(`hdrf:${f.colorKey}`, `${f.label} color`)}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+            <HeaderStatList
+              styles={styles}
+              keys={infoFields}
+              labels={statLabels}
+              onRename={renameInfoField}
+              onMove={moveInfoField}
+              onRemove={toggleInfoField}
+              metaOf={infoStatMeta}
+              styledKeys={new Set(Object.keys(statLooks))}
+              renderStyle={(f) => {
+                const look = statLooks[f.key] || {}
+                const size = look.size || 'm'
+                const setLook = (patch) => setHeader({ statStyle: withHeaderStatStyle(header, f.key, patch) })
+                return (<>
+                  <span className={styles.statStyleItem}>Label color {colorSwatch(`hdrs:${f.key}:label`, `${f.label} label color`)}
+                    {look.labelColor && <button type="button" className={styles.statStyleReset} onClick={() => setLook({ labelColor: null })} aria-label={`${f.label} label color: back to default`}>Default</button>}
+                  </span>
+                  <span className={styles.statStyleItem}>Box {liveSwitch(`${f.label} shaded box`, !!look.box, () => setLook({ box: !look.box }))}
+                    {look.box && colorSwatch(`hdrs:${f.key}:box`, `${f.label} box color`)}
+                  </span>
+                  <span className={styles.statStyleItem}>Size
+                    <span className={styles.statSizes} role="group" aria-label={`${f.label} text size`}>
+                      {STAT_SIZES.map((z) => (
+                        <button key={z} type="button" aria-pressed={size === z} aria-label={`${f.label} size ${STAT_SIZE_LABELS[z]}`}
+                          className={`${styles.statSize} ${size === z ? styles.statSizeOn : ''}`}
+                          onClick={() => { if (z !== size) setLook({ size: z }) }}>{STAT_SIZE_LABELS[z]}</button>
+                      ))}
+                    </span>
+                  </span>
+                  <span className={styles.statStyleItem}>Thickness
+                    <span className={styles.statSizes} role="group" aria-label={`${f.label} text thickness`}>
+                      {STAT_WEIGHTS.map((w) => (
+                        <button key={w} type="button" aria-pressed={(look.weight || 'regular') === w} aria-label={`${f.label} thickness ${STAT_WEIGHT_LABELS[w]}`}
+                          title={STAT_WEIGHT_LABELS[w]} style={{ fontWeight: STAT_WEIGHT_VALUE[w] }}
+                          className={`${styles.statSize} ${(look.weight || 'regular') === w ? styles.statSizeOn : ''}`}
+                          onClick={() => { if (w !== (look.weight || 'regular')) setLook({ weight: w }) }}>A</button>
+                      ))}
+                    </span>
+                  </span>
+                </>)
+              }}
+              renderColors={(f) => (f.signed ? (<>
+                {colorSwatch(`hdrf:${f.colorKey}:pos`, `${f.label} — positive`)}
+                {colorSwatch(`hdrf:${f.colorKey}:neg`, `${f.label} — negative`)}
+              </>) : colorSwatch(`hdrf:${f.colorKey}`, `${f.label} color`))}
+            />
           </section>
           {/* Timeframes/Favorites are managed on the chart's own timeframe menu (the
               ⌄ button) — star to favorite there; no separate settings section. */}
@@ -1569,7 +1751,13 @@ export default function ChartSettingsModal({
                   </div>
                 </div>
               ))}
-              {soonRow('Next earnings date', { hint: 'a marker ahead of the last bar, so you see it coming', toggle: ['Next earnings date', false] })}
+              {/* Next earnings date (owner 11-16, was Soon): `nextEarningsMarker`, absent = off. A muted grey "E" chip at the
+                  bottom of the price pane on the bar where the next report falls — ahead of the last bar (logical index from
+                  the trading calendar), every timeframe (nextEarningsMark.js). No date known → nothing. */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Next earnings date <span className={styles.fieldHint}>a marker ahead of the last bar, so you see it coming</span></span>
+                {liveSwitch('Next earnings date', nextEarningsMarkerOf(settings), () => setSetting({ nextEarningsMarker: !nextEarningsMarkerOf(settings) }))}
+              </div>
             </div>
           </section>
 
@@ -1648,27 +1836,34 @@ export default function ChartSettingsModal({
                   </div>
                 )
               })}
-              {soonRow('Pre-market high & low', {
-                hint: "today's pre-market range, on intraday charts",
-                toggle: ['Pre-market high & low', true],
-                right: [soonSwatch('#7fb4ff', 'Pre-market levels')],
-              })}
+              {/* Pre-market high & low (owner 11-15, was Soon): `preMarketLevels`, absent = off. Two dashed lines at the
+                  latest session's 04:00–09:30 ET high and low, labelled "PM high" / "PM low" on the price scale, drawn
+                  only while extended-hours bars are loaded (sessionMarks.js). */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Pre-market high &amp; low <span className={styles.fieldHint}>today's pre-market range, on intraday charts with extended hours</span></span>
+                {liveSwitch('Pre-market high & low', preMarketLevelsOf(settings), () => setSetting({ preMarketLevels: !preMarketLevelsOf(settings) }))}
+              </div>
             </div>
           </section>
 
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Your activity</div>
             <div className={styles.card}>
-              {soonRow('My trades', {
-                hint: 'your buys and sells from the Journal',
-                toggle: ['My trades', true],
-                right: [soonSwatch('#1ae51a', 'Buy'), soonSwatch('#c41f2d', 'Sell')],
-              })}
-              {soonRow('Price alerts', {
-                hint: 'a line at each of your alert prices',
-                toggle: ['Price alerts', true],
-                right: [soonSwatch('#6ba3be', 'Alert line')],
-              })}
+              {/* My trades (owner 11-16, was Soon — the last Markers Soon row): `myTradeMarkers`, absent = off. A small
+                  up-arrow under each bar holding one of the member's Journal buys on this symbol and a down-arrow over
+                  each holding a sell, in the chart's own candle colours at reduced strength; hovering one reads
+                  "Bought 100 @ 12.34 · <date time>" (myTradeMarkers.js). Read-only; nothing is fetched while it is off. */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>My trades <span className={styles.fieldHint}>your buys and sells from the Journal</span></span>
+                {liveSwitch('My trades', myTradeMarkersOf(settings), () => setSetting({ myTradeMarkers: !myTradeMarkersOf(settings) }))}
+              </div>
+              {/* Price alerts (owner 11-16, was Soon): `priceAlertLines`, absent = off. A muted dashed line labelled "Alert"
+                  on the price scale at each of the member's ACTIVE price alerts on this symbol, from the existing alerts
+                  list (priceAlertLines.js). Read-only: an alert that goes off or is deleted takes its line with it. */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Price alerts <span className={styles.fieldHint}>a line at each of your alert prices</span></span>
+                {liveSwitch('Price alerts', priceAlertLinesOf(settings), () => setSetting({ priceAlertLines: !priceAlertLinesOf(settings) }))}
+              </div>
             </div>
           </section>
 
@@ -1728,19 +1923,18 @@ export default function ChartSettingsModal({
                     <div className={styles.hdrRowCtl}>{colorSwatch('one', 'Color')}</div>
                   </div>
                 ) : isCandleType ? (<>
-                  {/* The on/off square on each part is Soon (shown on: every part draws today); the
-                      swatches beside it stay live. */}
-                  <div className={`${styles.field} ${styles.soonPart}`} data-soon-part="">
-                    <span className={styles.fieldLabel}>Body{soonTag}</span>
-                    <div className={styles.hdrRowCtl}>{colorSwatch('bodyUp', 'Body Up')}{colorSwatch('bodyDown', 'Body Down')}{soonToggle('Show body', true)}</div>
+                  {/* Each part: its up + down swatches, then an on/off (absent = on, every part draws). */}
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>Body</span>
+                    <div className={styles.hdrRowCtl}>{colorSwatch('bodyUp', 'Body Up')}{colorSwatch('bodyDown', 'Body Down')}{liveSwitch('Show body', parts.body, () => setPart('showBody', !parts.body))}</div>
                   </div>
-                  <div className={`${styles.field} ${styles.soonPart}`} data-soon-part="">
-                    <span className={styles.fieldLabel}>Borders{soonTag}</span>
-                    <div className={styles.hdrRowCtl}>{colorSwatch('borderUp', 'Border Up')}{colorSwatch('borderDown', 'Border Down')}{soonToggle('Show borders', true)}</div>
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>Borders</span>
+                    <div className={styles.hdrRowCtl}>{colorSwatch('borderUp', 'Border Up')}{colorSwatch('borderDown', 'Border Down')}{liveSwitch('Show borders', parts.borders, () => setPart('showBorders', !parts.borders))}</div>
                   </div>
-                  <div className={`${styles.field} ${styles.soonPart}`} data-soon-part="">
-                    <span className={styles.fieldLabel}>Wick{soonTag}</span>
-                    <div className={styles.hdrRowCtl}>{colorSwatch('wickUp', 'Wick Up')}{colorSwatch('wickDown', 'Wick Down')}{soonToggle('Show wick', true)}</div>
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>Wick</span>
+                    <div className={styles.hdrRowCtl}>{colorSwatch('wickUp', 'Wick Up')}{colorSwatch('wickDown', 'Wick Down')}{liveSwitch('Show wick', parts.wick, () => setPart('showWick', !parts.wick))}</div>
                   </div>
                 </>) : (
                   <div className={styles.field}>
@@ -1765,12 +1959,22 @@ export default function ChartSettingsModal({
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Price line</div>
             <div className={styles.card}>
-              {soonRow('Last price line', {
-                hint: 'across the chart at the latest price',
-                toggle: ['Last price line', true],
-                right: soonChoice('Last price line style', 'dashed', [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']]),
-              })}
-              {soonRow('Price label on the scale', { hint: 'the latest price on the right-hand scale', toggle: ['Price label on the scale', true] })}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Last price line <span className={styles.fieldHint}>across the chart at the latest price</span></span>
+                <div className={styles.hdrRowCtl}>
+                  {priceLine.visible && (
+                    <ChoiceMenu ariaLabel="Last price line style" value={priceLine.style}
+                      options={PRICE_LINE_STYLES.map(([v, l]) => ({ value: v, label: l }))}
+                      onChange={(v) => setSetting({ candles: { ...candles, priceLineStyle: v } })} />
+                  )}
+                  {liveSwitch('Last price line', priceLine.visible, () => setSetting({ candles: { ...candles, priceLine: !priceLine.visible } }))}
+                </div>
+              </div>
+              {/* The price series' last-value label IS `showPriceLabels` (also Canvas → Price scale → Price labels). */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Price label on the scale <span className={styles.fieldHint}>the latest price on the right-hand scale</span></span>
+                {liveSwitch('Price label on the scale', settings.showPriceLabels !== false, () => setSetting({ showPriceLabels: settings.showPriceLabels === false }))}
+              </div>
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>Countdown to bar close <span className={styles.fieldHint}>under the price label</span></span>
                 <button
@@ -1811,43 +2015,6 @@ export default function ChartSettingsModal({
               onStyle: (s) => setSetting({ crosshair: { ...crosshair, style: s } }),
             } : null}
           />
-        </div>,
-        document.body,
-      )}
-      {/* Field picker — portaled to the RIGHT of the modal (like the color panel) so it
-          never gets clipped by the modal's bottom. */}
-      {fieldMenuOpen && fieldMenuPos && createPortal(
-        <div
-          ref={fieldMenuRef}
-          data-chart-settings-popout
-          className={styles.fieldMenu}
-          style={{ position: 'fixed', left: fieldMenuPos.left, top: fieldMenuPos.top, right: 'auto', zIndex: 9200 }}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <label className={styles.fieldFind}>
-            <UIcon name="search" size={13} gold={false} aria-hidden="true" />
-            <input aria-label="Find a stat"
-              className={styles.fieldSearch}
-              placeholder="Find a stat…"
-              value={fieldQuery}
-              onChange={(e) => setFieldQuery(e.target.value)}
-              autoFocus
-            />
-          </label>
-          <div className={styles.fieldList} role="menu" aria-label="Stats beside the ticker">
-            {HEADER_FIELDS
-              .filter((f) => !fieldQuery || f.label.toLowerCase().includes(fieldQuery.toLowerCase()))
-              .map((f) => {
-                const on = infoFields.includes(f.key)
-                return (
-                  <button key={f.key} type="button" role="menuitemcheckbox" aria-checked={on}
-                    className={`${styles.fieldItem} ${on ? styles.fieldItemOn : ''}`} onClick={() => toggleInfoField(f.key)}>
-                    <span className={styles.fieldItemLabel}>{f.label}</span>
-                    {on && <span className={styles.fieldCheck} aria-hidden="true">✓</span>}
-                  </button>
-                )
-              })}
-          </div>
         </div>,
         document.body,
       )}

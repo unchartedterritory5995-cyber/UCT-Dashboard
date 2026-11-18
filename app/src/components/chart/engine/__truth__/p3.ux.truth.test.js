@@ -115,7 +115,7 @@ describe('P3 UX — the readback says the definition in a trader\'s words', () =
     expect(slotWords('constant in *')).toBe('multiplier')
     expect(slotWords('threshold of < (negated)')).toBe('threshold (negated)')
     const quoted = readback(run([create('close > open')]).state.working, { assumptions: [{ text: 'you meant daily bars' }] })
-    expect(quoted.assumptions).toEqual(['UCT Intelligence assumed: "you meant daily bars"'])
+    expect(quoted.assumptions).toEqual(['The UCT Agent assumed: "you meant daily bars"'])
   })
 
   it('9 COMPLETE — DID: outputs, look, alert, header value, assumptions and the unknown-bar rule are all still in the lines (EXACT, nothing dropped by the voice change)', () => {
@@ -152,7 +152,7 @@ describe('P3 UX — refusals in member words, the code kept for support', () => 
     const odd = { ...d, compute: { ...d.compute, importedStage: { kind: 'foreign' } } }
     const r = applyPatch(odd, env({ revision: 0 }, [{ op: 'rename_definition', name: 'y' }]))
     const m = memberError(r.errors[0])
-    expect(m.text).toBe('This indicator has parts UCT Intelligence cannot reproduce yet, so it cannot be changed by conversation. You can still edit it manually.')
+    expect(m.text).toBe('This indicator has parts the UCT Agent cannot reproduce yet, so it cannot be changed by conversation. You can still edit it manually.')
     expect(m.text).not.toMatch(/compute|importedStage/)
     expect(m.detail).toMatch(/authoring:unrepresentable: .*compute\.importedStage/)
   })
@@ -162,7 +162,7 @@ describe('P3 UX — refusals in member words, the code kept for support', () => 
     const bad = applyPatch(s.working, env(s, [{ op: 'set_slot', slot: 'nope#9', value: 3 }]), { revision: s.revision })
     expect(bad.status).toBe('refused')
     const m = memberError(bad.errors[0])
-    expect(m.text).toMatch(/^UCT Intelligence proposed a change that does not fit this indicator/)
+    expect(m.text).toMatch(/^The UCT Agent proposed a change that does not fit this indicator/)
     expect(memberError({ code: 'schema:type', message: 'patch.ops[0].tree: expected object' }).text).toBe(m.text)
   })
 
@@ -198,8 +198,8 @@ describe('P3 UX — the conversation says up front what it cannot edit', () => {
       expect(conversationEditability(def).editable).toBe(!kindOrFidelity)
     }
     expect(conversationEditability(native)).toMatchObject({ editable: false, code: 'authoring:kind',
-      text: 'This indicator is built in a form UCT Intelligence cannot edit yet. You can still edit it manually.' })
+      text: 'This indicator is built in a form the UCT Agent cannot edit yet. You can still edit it manually.' })
     expect(conversationEditability(imported)).toMatchObject({ editable: false, code: 'authoring:unrepresentable',
-      text: 'This indicator was imported in a form UCT Intelligence cannot edit yet. You can still edit it manually.' })
+      text: 'This indicator was imported in a form the UCT Agent cannot edit yet. You can still edit it manually.' })
   })
 })

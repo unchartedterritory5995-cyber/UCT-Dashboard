@@ -385,7 +385,139 @@ the program branch merged with master `fd670de1ee`. Graded on three captures; NO
   An admitted RS Rating would therefore draw on a member's chart and be refused by name on alerts
   and scans.
 
+**ADMITTED FOR ITS PLOTS; THE LABELS ARE NOT (2026-11-16, engine 58, corrected the same day).**
+The registry blockers named above are gone: `switch` and `max_bars_back` are conformant since #1347
+(U1 + U3) and `conditional-ta` since #1409 (COND-TA). The record is in
+`api/data/pine_runtime_allowlist.json`: slug `rs-rating-fred6724`, sha256 `caa94fe31a87...5af0`
+(the original source), `admission: "substituted"`, `substituted: ["syminfo.industry"]`, the 11
+census capabilities, and the three captures RDDT / ALAB / CRWV, each `MATCH_SUBSTITUTED` with the
+runtime pane on and **`objectsV2: "INCONCLUSIVE"`**.
+
+- ⚰️ **The correction.** #1410 merged the record with `objectsV2: "MATCH_SUBSTITUTED"` on all
+  three captures. That value was copied from this document and from snapshot rows graded BEFORE
+  U13 (#1335), when objects v2 did not grade x. Graded on master `d615e76494` with master's own
+  harness, all three are: capture MATCH_SUBSTITUTED, objects v1 MATCH, **objects v2 INCONCLUSIVE**
+  (`verdictWithoutX` MATCH; x: 0 graded, 2 not resolvable, "the capture records no x table (taken
+  before U13)"). The record claimed evidence the harness does not reproduce. The landing train's
+  re-grade found it; the record now says what is graded.
+- **What each grade covers.**
+  - Objects v1 (what `runtimeAllowlistParity.test.js` reads): counts, texts and colours. No
+    coordinates.
+  - Objects v2 with x witnessed is what admits a run half (`run_half_entry_admits`,
+    `runHalfEvidenceAdmits`).
+  - A capture that records no x table can never admit one.
+- **What a permitted account gets** (`PINE_RUNTIME_STAGE` is `admins` on production, so today
+  that is admins only): the RS line and its three averages, with `syminfo.industry` disclosed as
+  UCT data. The two labels ("RS Rating" and the rating number) are withheld by name
+  (`pine:object-removal-lost`): the run half that draws them is not admitted.
+- **What the grade proves, and what it does not** (narrowed 2026-11-16; the earlier wording here,
+  "equal to TradingView's on every bar of the three captures", was true and read wider than it is).
+  - **Proved:** on RDDT, ALAB and CRWV 1D the RS line and its three averages equal TradingView's on
+    every bar (666 / 667 / 411). All three stocks listed after 2023-12-05, so no bar of the proof
+    is older than that date.
+  - **Not equal, and a member sees it:** the plots are served on every symbol, not only the graded
+    three. On NVDA 1D the RS line differs from TradingView's on **1,292 of 6,997 bars**, every one
+    of them before 2023-12-05 (first 1999-01-28, last 2023-12-04); the other 5,705 are exact. The
+    largest difference is 1.83% of the value (maxRel 1.8326e-2, maxAbs 1.78e-2). Re-derived
+    2026-11-16 from the harness's own statistics on master `d615e76494` (both lanes agree). The
+    2026-11-15 grade also recorded that 89 of the 1,292 exceed 0.01% and that the largest falls on
+    2006-01-20; those two figures were NOT re-derived on the 16th. The three averages agree on all
+    6,997 bars.
+  - **Cause as recorded, not proved bar by bar:** the S&P 500 history. We serve FMP `^GSPC`;
+    TradingView reads `SP:SPX`. Q-RS3's probe (`rs-spx-daily`), which would compare the two series
+    directly, grades INCONCLUSIVE because no supply is recorded for it. Tracked as Q-RS9.
+  - **Not part of the proof at all:** the member's own stock bars. The harness feeds our engine
+    TradingView's chart bars from the capture, so the grade says our arithmetic and our SPX and
+    seed supply reproduce TradingView's output on TradingView's bars. Whether our stored bars for
+    a stock equal TradingView's is a separate question this grade does not answer.
+  - **The rating seed is proved separately:** Q-RS2's probe grades MATCH on all 666 RDDT bars in
+    both lanes (values, na pattern and bars-since), now that its supply is recorded
+    (`tests/fixtures/vendor-supply/rs-seed-rsrating-rddt-1d-2026-11-15.json`). Before that record
+    it graded DIVERGE only because nothing was supplied.
+- **What an ordinary member gets today:** the same four plots and no labels, for a second reason
+  as well: the run half is declined `run-half:pane-off` ("the per-bar runtime pane is not on
+  here") until the runtime stage is raised from `admins`. Measured on master, the committed
+  allowlist latched.
+- **What an admin actually sees (real browser, 2026-11-16, engine 59, build `8cdb0af178`).** The
+  smoke account in its own headless browser, production `/charts`, RDDT 1D, the committed source
+  pasted through "paste a TradingView script" (textarea sha256 = the allowlisted hash), added to
+  the chart:
+  - the RS line is drawn (legend "RS Rating 43.57") and the three averages are listed with no
+    value (off at default inputs, as in the captures); one plot is hidden by the author;
+  - no label is drawn, and the note under the chart says so in two sentences (the drawings
+    sentence ending "...that run hasn't been checked against TradingView for this script", and
+    the `syminfo.industry` sentence).
+  - ⚠️ **The RS line was mostly off screen**: 43.57 under a price scale of about 80 to 220. The
+    values were right and not visible. Fixed by the price-scale join (engine 61, NUMBER PENDING):
+    an imported `overlay = true` script's plots take part in the price pane's autoscale, as
+    TradingView's do by default. With that build swapped into the same browser session the scale
+    reads about 20 to 220 and the whole line is in view under the bars. Rests on TradingView's
+    documented default; no capture records a visible price range (Q-RS10).
+  - ⚠️ **For the seconds the SPX and seed bars took to load, the note named a wrong cause** ("the
+    script reads another symbol or timeframe, which this chart cannot hand that run"). A run
+    waiting for bars is now held with no cause worded (same PR).
+- **What finishes it.** Q-RS8 (`docs/pine/capture-queue-2026-11-14-rs-rating.md`): re-take the
+  three captures with the current `tv_capture.js`, which records the x table. If objects v2 then
+  grades MATCH_SUBSTITUTED with x witnessed, the record's `objectsV2` is set from THAT grade and
+  the labels are admitted for permitted accounts. Raising the runtime stage for members is the
+  owner's act.
+- **Still not served either way.** A member's own EDITED copy (admitted only by capability, and
+  `request-other` has no registry row); alerts and scans (the server lane refuses the script by
+  name, HP-7 above). SPY is ungraded (owner ruling).
+- **Served, and different from TradingView:** the RS line on bars before 2023-12-05 (NVDA above;
+  any stock with history that old is exposed the same way). Q-RS9 holds it for the owner's ruling.
+- ⛔ **Checklist line, from this mistake:** an allowlist record's capture fields (`verdict`,
+  `objectsV2`, `objectsV2Substituted`) are copied ONLY from a grade taken on the tree being merged,
+  never from a document or a spliced snapshot row.
+
+**THE LABELS ARE ADMITTED (Q-RS8, 2026-11-16, graded on master `b7cd7a0e63`, engine 60).**
+
+- **Re-captured.** The owner signed in to the capture rig once. RS Rating (the committed source,
+  default inputs) and the `rs-syminfo-industry` probe were re-taken on NYSE:RDDT, NASDAQ:ALAB and
+  NASDAQ:CRWV 1D, each from the listing, with the capture tool that records the object x table
+  (`objects.xIndex`, `uct.object-x-index/v1`). Six captures, committed beside the 2026-11-15 ones
+  (which stay as history): `rs-rating-fred6724-{rddt,alab,crwv}-1d-2026-11-16` and
+  `rs-syminfo-industry-{rddt,alab,crwv}-1d-2026-11-16`. Their chart bars end on the same session
+  as the earlier captures' (2026-11-13) and TradingView draws the same ratings (16 / 76 / 13).
+- **Supply.** `tests/fixtures/vendor-supply/rs-rating-fred6724-{rddt,alab,crwv}-1d-2026-11-16.json`:
+  the 2026-11-15 records copied unchanged (the same FMP `^GSPC` rows under the same ruling, the
+  same seed replay), with the industry read off the probe re-taken in the same session.
+- **Graded with master's own corpus harness, a run of exactly these captures, both lanes.**
+
+  | capture | runtime-on | objects v1 | objects v2 | production lane |
+  |---|---|---|---|---|
+  | `rs-rating-fred6724-rddt-1d-2026-11-16` | MATCH_SUBSTITUTED, 666 bars on each of the 4 plots | MATCH | MATCH_SUBSTITUTED: 18 graded fields agree; x: 2 graded, 2 agreeing, 0 differing (exact bar) | DIVERGE: the plots agree, the drawing is withheld by name (`pine:object-removal-lost`) |
+  | `rs-rating-fred6724-alab-1d-2026-11-16` | MATCH_SUBSTITUTED, 667 bars | MATCH | MATCH_SUBSTITUTED, x 2 of 2 exact | DIVERGE, the same reason |
+  | `rs-rating-fred6724-crwv-1d-2026-11-16` | MATCH_SUBSTITUTED, 411 bars | MATCH | MATCH_SUBSTITUTED, x 2 of 2 exact | DIVERGE, the same reason |
+
+  The three probes grade INCONCLUSIVE in both lanes, as the 2026-11-15 probes do (they are read
+  for TradingView's industry string, not graded as indicators).
+- **The record** (`api/data/pine_runtime_allowlist.json`) now names the three 2026-11-16 captures,
+  each `objectsV2: "MATCH_SUBSTITUTED"`, `objectsV2Substituted: ["syminfo.industry"]`, copied from
+  that grade. The run-half rule is met (three distinct captures, names equal, pane on), so
+  `run_half_evidence` serves exactly this script's three captures and nothing else.
+- **What changes on a chart.** For an account the runtime pane is on for (`PINE_RUNTIME_STAGE`,
+  `admins` on production today), RS Rating's run half is admitted: the "RS Rating" label and the
+  rating number are drawn by the per-bar run, at the script's own settings, on a chart that starts
+  at the listing. Everything else the run half checks still applies (a changed setting, a chart
+  that does not start at the listing, a column that disagrees: each withholds by its own
+  sentence). For an account the pane is not on for, nothing changes: `run-half:pane-off`.
+- **Controls kept.** `test_E1c`: a record built on the 2026-11-15 captures (no x table, objects v2
+  INCONCLUSIVE) serves nothing and admits nothing, and claiming the grade for them is caught by
+  name.
+
 ## Owner rulings
+
+- **2026-11-16, the S&P 500 history difference (Q-RS9):** told that the RS line on bars before
+  2023-12-05 differs from TradingView's (NVDA: 1,292 of 6,997 bars, at most 1.83%) and asked to
+  accept it or treat it as the measured need for a better index source: "I am fine with all of
+  that". Recorded as: accepted as it is. FMP stays the primary index source; no Massive Indices
+  upgrade. The difference stays disclosed in this document.
+- **2026-11-16, the runtime stage:** the same sentence covered raising `PINE_RUNTIME_STAGE` for
+  members once the labels are proven and live. Not yet acted on. The stage is not an RS Rating
+  switch (it turns the per-bar pane on for every admitted script for the accounts in that
+  stage), so it is put back to the owner in those words, with the ladder (`admins` -> `cohort`
+  -> `all`), before anyone changes it.
 
 - **2026-11-14, SPX source for members:** "We have the highest plan for FMP, I am fine using
   Yahoo, and only want to upgrade to massive if it is needed."

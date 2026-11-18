@@ -1,0 +1,12 @@
+//@version=6
+indicator("vw-w6-array-pnr-at-101", overlay = false)
+
+// PROVENANCE: written 2026-11-16 by the UDT coverage unit, split out of tools/visual_conformance/probes/vw-w6-array-members.pine
+// (row Q01) after capture run ac6 stopped that file earlier, on V02. One question per file: a runtime error here IS
+// this file's reading (record its text and the bar it names). No licence-held text.
+// QUESTION: `array.percentile_nearest_rank` over (1, 2, 4, 8) at 101: a value, `na`, or a runtime error? The runtime
+// lane stops by name there today (W6-A1: the nearest-rank method is defined for 0 < p <= 100).
+// CAPTURE: AMEX:SPY 1D, inputs at defaults, AFTER THE CLOSE. A00 is the control (it must plot on every bar).
+plot(bar_index, "A00_bar_index_CONTROL")
+pe = array.from(1.0, 2.0, 4.0, 8.0)
+plot(array.percentile_nearest_rank(pe, 101), "Q01_pnr_at_101")

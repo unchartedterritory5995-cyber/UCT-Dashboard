@@ -33,6 +33,7 @@ from api.services import rollout_gate
 # while WORKSPACE_DOC_STORE_ENABLED is unset.
 from api.services import workspace_doc_store
 from api.services import board_bound
+from api.services import save_timing
 from api.services.request_ip import client_ip
 from api.services.auth_service import (
     create_user,
@@ -683,6 +684,9 @@ SCREENER_FLAGS = {
     "SCREENER_NEW_TODAY_ENABLED": False,      # enablement: "New today" markers (spec 2026-10-16 s1)
     "SCREENER_PREMARKET_ENABLED": False,      # enablement: pre-market sweep + columns + starters
     "SCREENER_FOCUS_PHONE_ENABLED": False,    # enablement: Focus layout on phones (spec 2026-10-16 s3)
+    "SCREENER_SCAN_BOARD_ENABLED": False,     # enablement: the Screener as a customizable widget board (desktop)
+    "SCREENER_LAYOUT_GALLERY_ENABLED": False,  # enablement: sharing scan-board layouts with the community
+    "SCREENER_SCAN_BOARD_TABLET_ENABLED": False,  # enablement: the scan board on tablets (needs the board flag too)
 }
 
 
@@ -1214,14 +1218,19 @@ def logout(response: Response, token: str = Depends(get_session_token)):
     if token:
         delete_session(token)
     response.delete_cookie("uct_session", path="/")
+    # The chart edge entitlement dies with the session: a logged-out browser (a shared
+    # computer) must not keep reading /api/bars, /api/hist or the live stream until expiry.
+    for path in chart_edge_token.COOKIE_PATHS:
+        response.delete_cookie(chart_edge_token.COOKIE_NAME, path=path)
     return {"ok": True}
 
 
 @router.get("/me")
 def me(response: Response, user: dict = Depends(get_current_user)):
     plan = get_user_plan(user["id"])
-    # ⭐ THE REFRESH POINT. The app polls this, so the chart edge token is
-    # re-minted (or revoked) here on the cadence the client already runs.
+    # ⭐ THE REFRESH POINT. The app calls this at boot, on tab focus, on a cross-tab ping,
+    # and (lib/barsStreamManager) every EDGE_REFRESH_MS while a live chart stream is open,
+    # so the chart edge token is re-minted (or revoked) before it expires.
     _set_chart_edge_cookie(response, user, plan)
     sub = get_subscription(user["id"])
     return {
@@ -3060,6 +3069,12 @@ _PREFERENCE_KEYS = {
     # RS screens (unit U5): "1" once the member dismissed the first-visit line above an RS
     # screen's list (`focus/rsScreens.js` RS_NOTE_PREF). Added in the same commit as its writer.
     "screener_rs_note_seen": _PREF_OPAQUE,
+    # The scan board (2026-11-17, SCREENER_SCAN_BOARD_ENABLED): the member's board, its saved layouts
+    # and its switches, one JSON document (`focus/board/boardModel.js` BOARD_PREF, written by
+    # `useScanBoard`). Widget ids and grid boxes only; the client cleans it on every read. Added in
+    # the same change as its writer, so a saved layout never answers 400.
+    "screener_scan_board": _PREF_OPAQUE,
+    "screener_scan_board_tablet": _PREF_OPAQUE,
     # Written server-side by `ticker_tag_service.set_shared_tag_colors`, not
     # through this endpoint — listed so a client that ever writes it directly
     # is not refused for a key the product already owns.
@@ -3531,8 +3546,20 @@ _WORKSPACE_DOC_HEADERS = {
 
 @router.post("/preferences")
 def upsert_preference(req: SetPreferenceRequest, user: dict = Depends(get_current_user)):
+    # Speed follow-up 2026-11-16: a save slower than save_timing.SLOW_S logs its steps (wall and
+    # this thread's CPU per step; the key and the value's size, nothing about the member).
+    ph = save_timing.Phases()
+    try:
+        return _upsert_preference(req, user, ph)
+    finally:
+        ph.report(req.key, len(req.value or ""))
+
+
+def _upsert_preference(req: SetPreferenceRequest, user: dict, ph: "save_timing.Phases"):
     _validate_preference(req.key, req.value)
+    ph.mark("validate")
     enforce_board_bound(user["id"], req.key, req.value)
+    ph.mark("bound")
     # ⛔ REVISION SAFETY (Charts board keys, while the document store is armed). A stale copy of a
     # board key — an older tab, another device — must never overwrite newer work:
     #   * a write naming its base version commits only if the key is unchanged since then
@@ -3546,13 +3573,16 @@ def upsert_preference(req: SetPreferenceRequest, user: dict = Depends(get_curren
             try:
                 res = workspace_doc_store.write_pref_checked(
                     user["id"], req.key, req.value, base_version=req.base_version, prefs_reader=get_user_preferences)
+                ph.mark("doc_checked")
             except workspace_doc_store.VersionConflict as exc:
                 raise HTTPException(status_code=409, detail={
                     "code": "workspace_conflict", "key": req.key, "head_version": exc.head_version,
                     "message": "Your workspace was changed in another window or device. This change was not saved."})
             if res["appended"]:
                 set_user_preference(user["id"], req.key, req.value)
+                ph.mark("write")
                 workspace_doc_store.mark_writeback_done(user["id"], res["board"], [res["version"]])
+                ph.mark("doc_done")
             return {"ok": True, "version": res["version"]}
         if workspace_doc_store.key_is_guarded(user["id"], req.key):
             raise HTTPException(status_code=409, detail={
@@ -3568,8 +3598,11 @@ def upsert_preference(req: SetPreferenceRequest, user: dict = Depends(get_curren
         set_user_preference(user["id"], req.key, merged)
         return {"ok": True, "value": merged}
     ticket = workspace_doc_store.begin_pref_write(user["id"], req.key, get_user_preferences)
+    ph.mark("doc_begin")
     set_user_preference(user["id"], req.key, req.value)
+    ph.mark("write")
     workspace_doc_store.finish_pref_write(ticket, req.value)
+    ph.mark("doc_finish")
     return {"ok": True}
 
 
@@ -3617,17 +3650,20 @@ def _set_chart_edge_cookie(response: Response, user: dict, plan: str):
         # sign-in.
         token = None
 
+    # One cookie per Worker route that enforces the entitlement (/api/bars, /api/hist): the same
+    # token under each path, and the revocation clears every one of them (chart_edge_token.COOKIE_PATHS).
     if not token:
-        response.delete_cookie(chart_edge_token.COOKIE_NAME,
-                               path=chart_edge_token.COOKIE_PATH)
+        for path in chart_edge_token.COOKIE_PATHS:
+            response.delete_cookie(chart_edge_token.COOKIE_NAME, path=path)
         return
 
-    response.set_cookie(
-        key=chart_edge_token.COOKIE_NAME,
-        value=token,
-        httponly=True,          # the edge reads it; page scripts never do
-        secure=COOKIE_SECURE,
-        samesite="lax",         # same-site XHR from the app; matches the session cookie
-        path=chart_edge_token.COOKIE_PATH,   # /api/bars only — see the module docstring
-        max_age=chart_edge_token.ttl_seconds(),
-    )
+    for path in chart_edge_token.COOKIE_PATHS:
+        response.set_cookie(
+            key=chart_edge_token.COOKIE_NAME,
+            value=token,
+            httponly=True,          # the edge reads it; page scripts never do
+            secure=COOKIE_SECURE,
+            samesite="lax",         # same-site XHR from the app; matches the session cookie
+            path=path,              # one Worker route each, nothing wider — see the module docstring
+            max_age=chart_edge_token.ttl_seconds(),
+        )

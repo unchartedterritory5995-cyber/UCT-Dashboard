@@ -4776,6 +4776,37 @@ _CREAM_TIERS = ("alpha_leaps", "alpha", "ask_accum")
 _CREAM_SINGLE_TIERS = ("size", "leaps", "bullish", "bearish")
 _cream_cache: dict = {}
 _cream_lock = threading.Lock()
+# How long today's Cream of the Crop is served before one background build refreshes it. A
+# build is one whole-day tape scan PER TIER, minutes of work in mid-session, so this is long
+# on purpose: the list moves slowly and the build must not compete with the tape all day.
+_CREAM_TODAY_TTL = int(os.environ.get("CREAM_TODAY_TTL_S", "900"))
+_cream_building: set = set()            # the dates a background build is running for
+_cream_building_lock = threading.Lock()
+
+
+def _cream_build_in_background(today: str) -> bool:
+    """Start ONE background build of `today`'s Cream of the Crop unless one is already
+    running for that date. True when this call started it. The build takes the shared fill
+    semaphore like every other heavy tape scan, and fills `_cream_cache` when it lands. A
+    failed build fills nothing: the next request starts another."""
+    with _cream_building_lock:
+        if today in _cream_building:
+            return False
+        _cream_building.add(today)
+
+    def _run():
+        try:
+            with _recent_fill_sem:                    # bound concurrent heavy scans
+                payload = compute_cream(today)
+            _cream_cache[today] = (time.time(), payload)
+        except Exception:
+            logging.getLogger(__name__).exception("[cream] background build failed for %s", today)
+        finally:
+            with _cream_building_lock:
+                _cream_building.discard(today)
+
+    threading.Thread(target=_run, name="cream-build", daemon=True).start()
+    return True
 
 
 def _cream_ck(sym, cp, strike, exp):
@@ -5030,11 +5061,28 @@ def compute_cream(today: str, top_n=None, min_voi=None,
 @router.get("/cream")
 def cream_preview(target_date: str = Query(default=None)):
     """Read-only Cream of the Crop preview (JSON). The day's highest-conviction
-    aggregate builds, filtered + ranked — no Discord post. See compute_cream."""
+    aggregate builds, filtered + ranked — no Discord post. See compute_cream.
+
+    NEVER computes on the request. Measured on production 2026-11-17 mid-session: a cold
+    build did not answer within 120 s (it is one whole-day tape scan per tier, queued behind
+    the tape's own scans), so the caller got the edge's 502 and never a list. The route
+    answers what it holds and lets ONE background build do the work:
+      * a build inside its TTL                    -> that build, with `built_at`
+      * an older build                            -> that build, `stale: true`, and a
+                                                     background build is started
+      * nothing held yet (boot, a new day, a      -> `{status: "computing", date}` and a
+        past date first asked for)                   background build is started; the
+                                                     caller asks again
+    `built_at` is epoch seconds: when the list the caller is reading was built."""
     today = _resolve_date(target_date)
-    ttl = 60 if today == _today_mdyyyy() else _HISTORICAL_TTL
-    return _cached_single_flight(_cream_cache, today, _cream_lock, ttl,
-                                 lambda: compute_cream(today))
+    ttl = _CREAM_TODAY_TTL if today == _today_mdyyyy() else _HISTORICAL_TTL
+    hit = _cream_cache.get(today)
+    if hit is not None and time.time() - hit[0] < ttl:
+        return {**hit[1], "built_at": int(hit[0])}
+    _cream_build_in_background(today)
+    if hit is not None:
+        return {**hit[1], "built_at": int(hit[0]), "stale": True}
+    return {"status": "computing", "date": today}
 
 
 @router.post("/cream/post")

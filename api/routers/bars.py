@@ -435,6 +435,37 @@ def _econ_refusal(ticker: str) -> JSONResponse:
     return resp
 
 
+#: How long a browser may keep "this is not a bars symbol". The answer is a property of the
+#: NAME, so it cannot go stale; an hour bounds any future change of heart.
+_THEME_INDEX_REFUSAL_MAX_AGE_S = 3600
+
+
+def is_theme_index_symbol(ticker) -> bool:
+    """Is this a THEME-INDEX identity (`$IDX:<THEME>`, any case)?
+
+    A theme index is a synthetic equal-weight series built from a theme's holdings
+    (api/services/theme_index.py) and read through `/api/theme-index/{slug}`. It has no
+    rows in bars.db and no provider carries it, so on this lane it could only ever answer
+    "warming": measured on production 2026-11-16, one pass through the app's pages made
+    123 requests of `/api/bars/$IDX:<theme>`, every one answered 503 `error: warming` with
+    `Retry-After: 3` (or an empty 200), and the "warming" answer invites the page to ask
+    again. It also kicked a background provider fetch for a symbol that cannot exist.
+
+    A SHAPE TEST, like `is_econ_symbol`: the whole `$IDX:` namespace belongs to theme
+    indexes, so an unknown theme is answered the same way."""
+    return isinstance(ticker, str) and ticker.strip().upper().startswith("$IDX:")
+
+
+def _theme_index_refusal(ticker: str, tf: str = "D") -> JSONResponse:
+    """200, an empty series, and why: the shape the page already reads as "stop asking"
+    (`no_data`), never the retryable "warming". Kept by the member's own browser for an hour
+    (`private`: no shared or edge cache), so a warm list that names a theme index costs one
+    request, once."""
+    resp = _no_data_response((ticker or "").strip(), tf if isinstance(tf, str) else "D", "not_a_bars_symbol")
+    resp.headers["Cache-Control"] = "private, max-age=%d" % _THEME_INDEX_REFUSAL_MAX_AGE_S
+    return resp
+
+
 def _breadth_etag(body: bytes) -> str:
     """Strong validator for a Breadth (or breadth-derived indicator) history body: payload hash +
     the authority token."""
@@ -597,6 +628,8 @@ async def get_bars(
     directly — they must never hit the proxy path."""
     if is_econ_symbol(ticker):          # ⛔ before proxy, provider, add-ons -- see is_econ_symbol
         return _econ_refusal(ticker)
+    if is_theme_index_symbol(ticker):   # ⛔ same place, same reason -- see is_theme_index_symbol
+        return _theme_index_refusal(ticker, tf)
     if not isinstance(session, str):    # called in-process: the Query() default object
         session = ""
     origin = os.environ.get("BARS_ORIGIN_URL", "").rstrip("/")
@@ -744,6 +777,25 @@ def _augment_daily_with_today(response, ticker: str):
         except Exception:                                          # noqa: BLE001
             pass  # a shape surprise must never block a good serve
     payload["bars"] = bars + [today_bar]
+    return JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
+
+
+def _augment_index_daily_with_today(response, ticker: str, now: float | None = None):
+    """A cash index's 200 daily answer with TODAY's session bar as its tail
+    (`index_bars.with_todays_session`: built from the index's own 5m bars of today's
+    regular session; none before the open, on a day with no session, or from a stale or
+    proxied 5m series). Returns the original response on ANY problem."""
+    try:
+        payload = orjson.loads(response.body)
+    except Exception:
+        return response
+    if not isinstance(payload, dict) or not isinstance(payload.get("bars"), list):
+        return response
+    from api import index_bars as _index_bars
+    out = _index_bars.with_todays_session(ticker, payload["bars"], now)
+    if out is None:
+        return response
+    payload["bars"] = out
     return JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
 
 
@@ -916,6 +968,20 @@ def _augment_with_bar_close_state(response, tf: str):
             newest = datetime(y, m, d, tzinfo=ZoneInfo("America/New_York")).timestamp()
         except Exception:
             return response
+    elif (tf == "D" and isinstance(newest, (int, float)) and not isinstance(newest, bool)
+          and newest >= 1_000_000_000 and int(newest) == newest and int(newest) % 86400 == 0):
+        # ⭐ RS RATING L10 — A CASH INDEX'S DAILY KEY IS THE UTC MIDNIGHT OF ITS SESSION DATE
+        # (`index_bars._utc_midnight`), not an instant: read as one it is the PREVIOUS ET
+        # evening, and today's forming index bar answered `false` ("settled"). Same rule as the
+        # string branch: the session date's midnight in ET (`bar_contract._session_date_of`,
+        # the one reader of that key).
+        try:
+            from zoneinfo import ZoneInfo
+            from api.services.bar_contract import _session_date_of
+            sd = _session_date_of(newest)
+            newest = datetime(sd.year, sd.month, sd.day, tzinfo=ZoneInfo("America/New_York")).timestamp()
+        except Exception:
+            return response
     if not isinstance(newest, (int, float)) or isinstance(newest, bool):
         return response
     try:
@@ -949,6 +1015,8 @@ def serve_bars(
     anyio worker thread is reused by the next request."""
     if is_econ_symbol(ticker):          # the tier + in-process callers enter here, not via get_bars
         return _econ_refusal(ticker)
+    if is_theme_index_symbol(ticker):   # the Worker sends /api/bars/* straight to the tier: it enters here
+        return _theme_index_refusal(ticker, tf)
     _bars_fetch.set_request_interactive(not warm)
     try:
         sess = _bars_fetch.normalize_session(session) if tf in _INTRADAY_TFS else None
@@ -1320,6 +1388,16 @@ def _serve_bars_impl(
                 and getattr(response, "status_code", 200) == 200):
             try:
                 response = _augment_daily_with_today(response, ticker)
+            except Exception:
+                pass  # never let the developing-bar append break a real serve
+
+        # ⭐ RS RATING L10 — A CASH INDEX'S DAILY ANSWER ENDS AT TODAY'S SESSION TOO, built from
+        # the index's own 5-minute bars (`index_bars.with_todays_session`). A SEPARATE block:
+        # the equity append above is untouched, and this one runs for `is_index` only.
+        if (tf == "D" and not to and is_index(ticker)
+                and getattr(response, "status_code", 200) == 200):
+            try:
+                response = _augment_index_daily_with_today(response, ticker)
             except Exception:
                 pass  # never let the developing-bar append break a real serve
 
@@ -1814,6 +1892,14 @@ def bars_stream_status():
         out["websocket_channels"] = bar_stream.get_channel_counts()
     except Exception as e:  # noqa: BLE001
         out["websocket_channels_error"] = str(e)[:200]
+    try:
+        from api.services import feed_client
+        out["feed_source"] = feed_client.feed_source()
+        st = feed_client.status()
+        if st is not None:
+            out["feed_client"] = st
+    except Exception as e:  # noqa: BLE001
+        out["feed_client_error"] = str(e)[:200]
     return out
 
 

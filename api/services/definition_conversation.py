@@ -64,6 +64,7 @@ from jsonschema import Draft202012Validator
 
 from api.services import ast_interpret, ast_lint, call_expansions, conversation_preflight, user_definitions
 from api.services import definition_concierge as dc
+from api.services import chart_twins
 from api.services.ast_budget import BudgetExceeded, check_budget
 from api.services.ast_interpret import TableRefusal
 from api.services.catalyst import cost_guard
@@ -172,6 +173,9 @@ def patch_schema() -> Dict[str, Any]:
 
 #: ⭐ PER-TURN OP CAP, READ OFF THE CONTRACT so the two can never disagree.
 MAX_OPS: int = int(json.loads(_raw_schema_text())["x-uct-limits"]["maxOps"])
+#: How many columns one indicator holds, hidden colour-rule columns included (the browser's
+#: ``PATCH_LIMITS.maxOutputs``, read from the same contract file).
+MAX_OUTPUTS: int = int(json.loads(_raw_schema_text())["x-uct-limits"]["maxOutputs"])
 
 
 def chart_table() -> Dict[str, Any]:
@@ -232,10 +236,11 @@ def composed_schema() -> Dict[str, Any]:
         spec[2] for spec in call_expansions.CALL_EXPANSIONS.values())
         + ". Lengths are whole-number literals (supertrend's factor is any positive number). "
         "supertrend / supertrendDirection follow TradingView's published ta.supertrend "
-        "formula as bounded recurrences, shown after a ~400-bar warm-up; they carry a "
-        "disclosed difference (a band last reset long ago can differ from TradingView), "
-        "so never call them identical to TradingView. The others are exact closed forms "
-        "over the table.")
+        "formula and are shown after a ~400-bar warm-up; they carry a disclosed difference "
+        "(where the trend has not flipped for a long time the line can differ slightly from "
+        "TradingView), so never call them identical to TradingView. Tell the member that in "
+        "those plain words; never describe how it is computed. The others are exact closed "
+        "forms over the table.")
     # ⭐ SLICE 2 — THE MODEL MUST SAY WHAT ITS TURN IS. Optional in the shared
     # engine file (older envelopes and the engine's own tests carry none); required
     # of the model here, so mutation is never inferred from which fields happen to
@@ -415,6 +420,10 @@ def _member_tree_phrase(gate: str) -> str:
     return REFUSALS.get(gate) or dc.REFUSALS.get(gate) or REFUSALS["converse:unchecked"]
 
 
+#: The longest validator diagnostic an ADMIN's refused response carries per attempt.
+DIAGNOSTIC_MAX_CHARS = 600
+
+
 class _Refused(Exception):
     """One gate saying no.
 
@@ -451,6 +460,35 @@ def _refusal(gate: str, detail: str = "", *, member: Optional[str] = None,
 
 #: UCT conventions the model may ASSUME (and must disclose). Each is pinned to the
 #: file that declares it by ``tests/test_p2_truth_server.py``.
+#: The colour words the assistant is given, read from the SAME file the browser's read-back
+#: names colours from (`readback.js` imports it), so the value written for "green" is one the
+#: member is then told is "green". `tools/web_frontend_reads.py` declares this read.
+COLOUR_WORDS_PATH = (Path(__file__).resolve().parents[2] / "app" / "src" / "components" / "chart"
+                     / "builder" / "authoring" / "colourWords.json")
+
+
+@functools.lru_cache(maxsize=1)
+def colour_words() -> Dict[str, str]:
+    """word -> value, e.g. ``{"green": "#089981"}``. Every value is a 6-digit upper-case hex
+    whose own name in the file is that word (``tests/test_colour_words.py``)."""
+    raw = json.loads(COLOUR_WORDS_PATH.read_text(encoding="utf-8"))
+    words = raw["words"]
+    names = raw["names"]
+    out: Dict[str, str] = {}
+    for word, value in words.items():
+        if not (isinstance(word, str) and re.fullmatch(r"[a-z]{3,12}", word)
+                and isinstance(value, str) and re.fullmatch(r"#[0-9A-F]{6}", value)
+                and names.get(value) == word):
+            raise ValueError(f"colourWords.json: {word!r} -> {value!r} is not a value the read-back names {word!r}")
+        out[word] = value
+    return out
+
+
+def colour_words_text() -> str:
+    """The words as one prompt clause, in the file's own order: ``green #089981, red #F23645``."""
+    return ", ".join(f"{word} {value}" for word, value in colour_words().items())
+
+
 UCT_DEFAULTS: Tuple[Tuple[str, str], ...] = (
     ("RSI length", "14 (nativeRegistry rsi period)"),
     ("RSI overbought / oversold", "70 / 30 (the firm's Overbought (>70) / Oversold (<30) presets and the RSI 70/30 bands)"),
@@ -527,22 +565,43 @@ CONVERSE_SYSTEM_PROMPT = (
     "  * Where it draws: a separate / own / new / lower pane, a sub-chart or \"below "
     "the chart\" is placement \"pane\"; on the price chart, an overlay or \"on the "
     "candles\" is placement \"price\". A ratio, percentage or difference that is not "
-    "in price units belongs in \"pane\" unless the member says otherwise.\n"
-    "  * Presentation: set_style (colour, width, style, hidden, lineStyle "
-    "solid/dashed/dotted/largeDashed), set_marker / remove_marker, set_paint / "
+    "in price units belongs in \"pane\" unless the member says otherwise. An indicator "
+    "draws in ONE place. When one request names outputs on two different scales (an "
+    "oscillator such as RSI together with moving averages of price), never put them in "
+    "one placement: build the part named first, where it belongs, and say in `reply` "
+    "that the rest is a second indicator the member can ask for next.\n"
+    "  * Presentation: set_style (color, width, style, hidden, lineStyle "
+    "solid/dashed/dotted/largeDashed, breaks true where a line has no value on some bars by "
+    "design -- a level kept N bars after an event -- so it is not joined across them), "
+    "set_marker / remove_marker, set_paint / "
     "remove_paint (markers, paints and alerts need a yes/no output, type \"condition\"), "
     "set_levels (horizontal lines at fixed values; [] removes them), set_fill / "
     "remove_fill (shade between two NUMBER outputs), "
-    "set_placement. Per-bar colour of a line or histogram: set_color_rule (rule "
-    "sign = up colour at or above zero, down below; rising = up when higher than the "
-    "bar before; condition = up when a yes/no output is true; none = one colour). "
-    "SEVERAL colours by state (up to four, counting `otherwise`) -- a histogram bright green "
+    "set_placement. Per-bar color of a line or histogram: set_color_rule (rule "
+    "sign = up color at or above zero, down below; rising = up when higher than the "
+    "bar before; condition = up when a yes/no output is true; none = one color). "
+    "SEVERAL colors by state (up to four, counting `otherwise`) -- a histogram bright green "
     "above zero and rising, dark green above zero and falling, red below zero and falling, "
     "orange below zero and rising; candles green in an uptrend, yellow in consolidation, red in "
     "a downtrend: set_color_states (`output` for a line / histogram, whose states may name a "
     "`relation` of that output; or `channel` barcolor / bgcolor for the candles / background, "
     "whose states are yes/no `when` trees). The first true state wins; re-send the WHOLE list "
-    "to change one state. A marker's size and colour: set_marker `size` / `color`. "
+    "to change one state. \"The bars\" of an indicator that draws bars of its own (a volume or "
+    "other histogram) are THAT OUTPUT's bars: color them on that output (set_color_states with "
+    "an `otherwise`, or set_color_rule). `barcolor` paints the PRICE candles: only when the "
+    "member says candles or price bars, or the indicator draws no bars of its own. "
+    "A marker's size and color: set_marker `size` / `color`. "
+    "Plot styles are line, stepline, histogram, area and baseline: there is no dots style, and "
+    "an output drawn as markers cannot also take set_color_states. For dots that change color "
+    "by state (a squeeze on the zero line), draw a thick line on that constant level with "
+    "set_color_states, or use one yes/no output per color, each with its own set_marker color. "
+    f"An indicator holds {MAX_OUTPUTS} columns in all, and every output colored by state or by "
+    "rising/falling, and every conditional fill, uses one HIDDEN column of its own: for a ribbon "
+    "of many lines that share one state, color the candles or the background once "
+    "(set_color_states with `channel`) or color at most three of the lines, and never add an "
+    "output that only repeats a `when` tree. set_calculation_timeframe moves LINES only: an "
+    "indicator that draws a marker stays on the chart's timeframe, so a weekly or monthly "
+    "condition with a marker is written with `tf` W / M nodes inside the tree. "
     "A conditional cloud: set_fill with `when` (colorAbove where the first output is "
     "above the second, colorBelow where below). A header value: request_info_value. "
     "An alert: request_alert -- on a yes/no output with triggerPolicy is_true, "
@@ -551,7 +610,9 @@ CONVERSE_SYSTEM_PROMPT = (
     "another (higher) timeframe than the chart's: set_calculation_timeframe (\"a daily "
     "EMA on my 5-minute chart\"). A TABLE drawn on the chart: set_table (a position and cells; a "
     "cell is fixed text or the latest value of an output -- put values that belong only in the "
-    "table in HIDDEN outputs and point cells at them; a cell's text or background colour may "
+    "table in HIDDEN outputs and point cells at them; a cell can NEVER point at a setting: to "
+    "show a setting's value add a hidden output whose tree is that setting's series and point "
+    "the cell at it; a cell's text or background color may "
     "follow a yes/no output -- colorWhen / backgroundWhen, e.g. green where bullish, red where "
     "not -- a yes/no cell may show its own `labels`, `size` sets text size and `span` merges a "
     "title across columns); remove_table removes it. Formula functions linreg, correlation, "
@@ -580,6 +641,46 @@ CONVERSE_SYSTEM_PROMPT = (
     "or month\n"
     "  Windows are plain whole-number nodes; negation is the unary-minus operator; a "
     "condition is a 0/1 column; never read a later bar.\n"
+    "  A count of bars is never negative here: `highestbars`, `lowestbars` and `barssince` "
+    "answer how many bars BACK (0 = this bar, 3 = three bars ago). This is not TradingView's "
+    "sign: never negate one, and compare it with numbers of 0 or more.\n"
+    "  SuperTrend and Parabolic SAR are FUNCTIONS, called by name: `supertrend(factor, atrPeriod)` "
+    "with `supertrendDirection` (TradingView's sign: -1 while the trend is UP, 1 while it is "
+    "DOWN), and `sar(step, maxStep)` with `sarDirection` (1 while the dots are under price, -1 "
+    "while they are above). \"SuperTrend 10, 3\" is ATR period 10 and factor "
+    "3: supertrend(3, 10). Nothing else can read its own earlier value: there is no name for "
+    "that, and a window is always a literal whole number, never a computed one (\"since it was "
+    "last hit\" is not a window). A stop or level that ratchets -- it only moves one way until "
+    "price crosses it -- and is not one of those two cannot be written: set disposition "
+    "unsupported, say it needs a line that remembers its own earlier value, and offer what can "
+    "be built instead: SuperTrend, Parabolic SAR, or a line a fixed distance under the highest "
+    "close of a FIXED window.\n"
+    "  A length the member gives in weeks, months or years is that much TIME, never that many "
+    "bars of the chart: read it on that timeframe (\"over 52 weeks\" is 52 bars INSIDE a `tf` W "
+    "read; a whole indicator in weeks is set_calculation_timeframe W), or, for a price extreme, "
+    "use the daily count (a 52-week high is the highest of 252 daily bars). An indicator that "
+    "reads ANOTHER SYMBOL cannot take set_calculation_timeframe at all: there, a length in weeks "
+    "is the daily count (a 52-week average of a ratio against SPY is its 252-bar average), and "
+    "you say so. Do not build it in "
+    "the chart's own bars and ask the member to switch charts. \"Yesterday's\", \"the prior "
+    "day's\" and \"today's\" values are DAILY values: set_calculation_timeframe D, so they hold "
+    "on an intraday chart; `high[1]` alone is only the previous BAR.\n"
+    "  THE REGULAR SESSION has names of its own, right on every intraday timeframe: "
+    "`sessionOpen()` (today's open), `sessionHigh()` and `sessionLow()` (today's high and low so "
+    "far, regular hours only), and `openingRangeHigh(minutes)` / `openingRangeLow(minutes)` (the "
+    "high / low of the session's first N minutes, frozen after them; N is a whole-number literal). "
+    "Use them for \"the opening range\", \"the first 30 minutes\", \"high of day\", \"today's "
+    "high / low / open\" on an intraday chart, and for breaks of them (close above "
+    "openingRangeHigh(30)). NEVER build these from `hour` / `minute` and a count of bars: that is "
+    "right on one timeframe only. They call with empty parentheses and take no timeframe change. "
+    "An opening range needs bars that divide it (30 minutes on a 1, 5, 15 or 30-minute chart); on "
+    "longer bars it is withheld and says so, so mention that an opening range is for intraday "
+    "charts.\n"
+    "  When this bar is COMPARED with \"the last N\", \"the previous N\" or \"the prior N\" bars "
+    "or days, the window is the N bars BEFORE this one: wrap it in an offset of 1 (volume above "
+    "the highest volume of the last 10 days is volume > offset 1 of highest(volume, 10)). A "
+    "window that includes this bar compares it with itself. Only \"is AT an N-bar high or low\" "
+    "includes this bar (close >= highest(close, N)).\n"
     "  A `sym` goes OUTSIDE a timeframe read, never under one: SPY's weekly close is "
     "sym(SPY, tf(close, W)). Wrap only what is read from the other symbol: "
     "\"close above SPY's 50 EMA\" compares the chart's close with "
@@ -617,6 +718,10 @@ CONVERSE_SYSTEM_PROMPT = (
     "assumption `text` alone. UCT conventions:\n"
     + "".join(f"      {name}: {value}\n" for name, value in UCT_DEFAULTS)
     + "    A number the member wrote is never an assumption: use it exactly.\n"
+    + "    A colour the member NAMED is written with UCT's own value for that word, exactly: "
+    + colour_words_text()
+    + ". Never a neighbouring shade: green is not teal. A colour the member did not name "
+    "is your choice and needs no assumption.\n"
     "  * IRRELEVANT: anything the definition does not depend on. Never ask about it.\n\n"
     "`note` is optional and is never shown to anyone; what the member should read "
     "goes in `reply`.\n\n"
@@ -665,13 +770,10 @@ def user_turn(message: str, notes: Mapping[str, Any], view: Mapping[str, Any],
 # the language stage -- the concierge's plan(), re-framed as DATA
 # --------------------------------------------------------------------------- #
 
-#: Per-bar twins of nightly scalars, for the CHART form of a firm concept only
-#: (this door's notes; the shared vocabulary is untouched). ``rsi14`` is the
-#: nightly 14-period RSI of the daily close; per bar it is ``rsi(close, 14)``.
-CHART_TWINS: Mapping[str, Mapping[str, Any]] = {
-    "rsi14": {"type": "call", "name": "rsi",
-              "args": [{"type": "series", "name": "close"}, {"type": "num", "value": 14}]},
-}
+#: Per-bar twins of nightly scalars (⭐ L4, 2026-11-16: `chart_twins`, the ONE registry, each
+#: twin held equal to its Screener column by `tests/test_chart_twins_parity.py`). Used for the
+#: CHART form of a firm concept and for a Screener term the member wrote ("ADR %").
+CHART_TWINS: Mapping[str, Mapping[str, Any]] = chart_twins.TWINS
 
 
 def _chart_form(tree: Any) -> Optional[Dict[str, Any]]:
@@ -689,6 +791,21 @@ def _chart_form(tree: Any) -> Optional[Dict[str, Any]]:
         out["args"] = args
     if ast_interpret.unresolved_scalars(out, None):
         return None
+    return out
+
+
+def _matched_term(t: Mapping[str, Any]) -> Dict[str, Any]:
+    """One term the member wrote that names a table entry. ⭐ L4: a Screener column with a
+    chart twin carries the house formula, so "ADR %" on a chart is the Screener's ADR %
+    (21 sessions of (high - low) / close), not whatever the model would improvise."""
+    out: Dict[str, Any] = {"wrote": t.get("matched_as"), "entry": t.get("name")}
+    twin = CHART_TWINS.get(t.get("name")) if isinstance(t.get("name"), str) else None
+    if twin is not None:
+        out["chart_formula"] = dc.formula_for(twin)
+        out["rule"] = ("the firm's meaning of this term on a chart: use this formula and "
+                       "disclose its numbers in `assumptions`. If the member gave their own "
+                       "number for it (a different length or window), keep this formula's shape "
+                       "with the member's number")
     return out
 
 
@@ -728,8 +845,7 @@ def _language_notes(understanding: Mapping[str, Any]) -> Dict[str, Any]:
                              "rule": "use this formula exactly; do not reinterpret the word"})
     return {
         "firm_concepts": concepts,
-        "matched_terms": [{"wrote": t.get("matched_as"), "entry": t.get("name")}
-                          for t in understanding.get("terms") or []],
+        "matched_terms": [_matched_term(t) for t in understanding.get("terms") or []],
         "member_numbers": [{"wrote": n.get("wrote"), "value": n.get("value")}
                            for n in understanding.get("numbers") or []],
         "not_understood": [{"phrase": n.get("phrase"), "gate": n.get("gate")}
@@ -853,6 +969,83 @@ def _refuse_unsupported_nodes(trees: List[Tuple[str, Any]]) -> None:
                 raise _Refused("unsupported:node",
                                f"{where}: {why.format(value=node.get('value'))}",
                                member=member.format(value=_member_value(node.get("value"))))
+
+
+#: Functions that answer a count of bars BACK: 0 on this bar, never negative here.
+#: (TradingView's ``ta.highestbars`` / ``ta.lowestbars`` answer a NON-POSITIVE offset; the
+#: translator negates it for a pasted script. A model that knows Pine writes the negative form.)
+_BARS_BACK_CALLS = frozenset({"highestbars", "lowestbars", "barssince"})
+_COMPARISONS = frozenset({"<", "<=", ">", ">=", "==", "!="})
+
+
+def _literal_sign(node: Any) -> int:
+    """+1 / -1 for a non-zero number literal (a plain one, or unary minus over one); 0 otherwise."""
+    if not isinstance(node, Mapping):
+        return 0
+    flip = 1
+    if node.get("type") == "op" and node.get("name") == "u-":
+        args = node.get("args")
+        if not (isinstance(args, list) and len(args) == 1 and isinstance(args[0], Mapping)):
+            return 0
+        node, flip = args[0], -1
+    if node.get("type") != "num":
+        return 0
+    v = node.get("value")
+    if not isinstance(v, (int, float)) or isinstance(v, bool) or v == 0:
+        return 0
+    return flip * (1 if v > 0 else -1)
+
+
+def _bars_back_sign(node: Any) -> Tuple[int, Optional[str]]:
+    """(+1, name) for a bars-back count, (-1, name) for one under unary minus, (0, None) otherwise."""
+    if not isinstance(node, Mapping):
+        return 0, None
+    if node.get("type") == "call" and node.get("name") in _BARS_BACK_CALLS:
+        return 1, node.get("name")
+    if node.get("type") == "op" and node.get("name") == "u-":
+        args = node.get("args")
+        if isinstance(args, list) and len(args) == 1:
+            sign, name = _bars_back_sign(args[0])
+            if sign == 1:
+                return -1, name
+    return 0, None
+
+
+def _refuse_negative_bars_back(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-16 -- A BARS-BACK COUNT COMPARED ACROSS ITS SIGN.
+
+    Found by the house set's value check, twice in one evening. Asked for a follow-through
+    day "from day 4 through day 12 after the lowest low of the last 50 sessions", the model
+    wrote ``lowestbars(low, 50) >= -11 && lowestbars(low, 50) <= -3`` (TradingView's
+    convention). Asked again with "made 3 to 11 bars ago", it wrote
+    ``-lowestbars(low, 50) >= 3 && -lowestbars(low, 50) <= 11``: the same belief, negated.
+    Here the count is 0 or more, so both built, read back plausibly, and could not fire on
+    any bar (0 of 700 on two symbols, where a plain calculation marks 1 and 8).
+
+    The rule is the SIGN, not the minus: a count (0 or more) against a negative number, or a
+    negated count (0 or less) against a positive one, is a comparison that never changes its
+    answer. ``-lowestbars(...) <= -3`` is consistent (it is what a pasted TradingView script
+    translates to) and passes.
+    """
+    for where, tree in trees:
+        for node in _walk(tree):
+            if node.get("type") != "op" or node.get("name") not in _COMPARISONS:
+                continue
+            args = node.get("args")
+            if not isinstance(args, list) or len(args) != 2:
+                continue
+            for count, other in ((args[0], args[1]), (args[1], args[0])):
+                sign, name = _bars_back_sign(count)
+                lit = _literal_sign(other)
+                if sign and lit and sign != lit:
+                    how = ("is compared with a negative number" if sign > 0
+                           else "is negated and compared with a positive number")
+                    raise _Refused(
+                        "envelope:reference",
+                        f"{where}: `{name}` {how}. Here `{name}` answers a count of bars BACK: "
+                        "0 on this bar, 1 one bar ago, never negative (unlike TradingView's "
+                        "`ta.highestbars` / `ta.lowestbars`). Use the count itself, not negated, "
+                        "with numbers of 0 or more: \"3 to 11 bars ago\" is `>= 3` and `<= 11`.")
 
 
 def _refuse_scalars(trees: List[Tuple[str, Any]]) -> None:
@@ -1038,21 +1231,66 @@ def _inputs_as_constants(tree: Any, inputs: frozenset) -> Any:
     return root
 
 
+def _offered_calls_as_plain(tree: Any, declared: Any) -> Any:
+    """What the MODEL wrote, in a form the boundary gate can read: every call to a function the
+    door offers as an EXPANSION (`call_expansions.CALL_EXPANSIONS`, and not a name the table
+    declares) becomes a plain node over the same arguments. Its arguments are still checked; its
+    name, which the boundary's own name list does not carry, is not asked about twice
+    (`expand_calls` has already accepted or refused it by name).
+
+    ⚰️ WHY THE BOUNDARY READS THIS AND NOT THE EXPANDED TREE (found on production, 2026-11-17).
+    The vocabulary offers `supertrend`, `supertrendDirection`, `sar` and `sarDirection`, and
+    `call_expansions` writes each as bounded recurrences: `accum(seed, update, warmup)` whose
+    update reads its own previous value through the name the table declares for that ("self";
+    "state1".."state4" for the multi-state ones). The boundary gate polices the names the MODEL
+    may write, and those are the system's own names, not the model's. Handed the EXPANDED tree,
+    it refused the door's own expansion of a function the door had offered: "SuperTrend 10, 3"
+    cost two model calls and ended in "couldn't produce a valid change", every time.
+
+    ⛔ SO THE GATE LOOSENS NOWHERE. It reads the model's text, and a `self` or a `state1` the
+    model wrote itself (bare, in ordinary maths, or inside an `accum` it spelled out by hand) is
+    refused by name exactly as before. The expanded tree, which the system wrote, goes to the
+    gates that judge a tree about to be stored: canonical form, budget, the repaint lint, and
+    the engine's own interpreter, all of which already understand those names.
+    Iterative copy; the input is never mutated.
+    """
+    def plain(node: Any) -> Any:
+        if (isinstance(node, dict) and node.get("type") == "call"
+                and node.get("name") in call_expansions.CALL_EXPANSIONS
+                and not declared(node.get("name"))):
+            args = node.get("args")
+            return {"type": "op", "name": "+", "args": args if isinstance(args, list) else []}
+        return node
+
+    root = plain(copy.deepcopy(tree))
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict) and isinstance(node.get("args"), list):
+            node["args"] = [plain(a) for a in node["args"]]
+            stack.extend(node["args"])
+    return root
+
+
 def _check_tree(where: str, tree: Any, inputs: frozenset = frozenset()) -> None:
     """The concierge's own tree gates, minus evaluation (the engine probes)."""
     # ⭐ BATCH 2 -- a model's linreg / correlation / vwma / roc / mom / Keltner call is
     # checked as the tree the browser will STORE (``call_expansions``, mirrored from
     # ``callExpansions.js``), so budget, schema and lint judge only declared names.
     from api.services import ast_table
+    declared = lambda name: name in (ast_table.TABLE.get("functions") or {})  # noqa: E731
+    written = _inputs_as_constants(tree, inputs)          # what the MODEL wrote
     try:
-        tree = call_expansions.expand_calls(
-            tree, lambda name: name in (ast_table.TABLE.get("functions") or {}))
+        tree = call_expansions.expand_calls(tree, declared)
     except call_expansions.ExpansionRefused as exc:
         raise _Refused(exc.guard, f"{where}: {exc}", member=str(exc)) from exc
     tree = _inputs_as_constants(tree, inputs)
     _check_scopes(where, tree)
     try:
-        dc._assert_within_schema(_unscoped(tree))
+        # ⛔ the boundary reads the model's own text, never the door's expansion of it
+        # (`_offered_calls_as_plain`): strict about every name the model wrote, and silent about
+        # the names the system writes inside a function it offered
+        dc._assert_within_schema(_unscoped(_offered_calls_as_plain(written, declared)))
     except dc._Refused as exc:
         # the concierge's own gate; its located text is the model's diagnostic
         raise _Refused(exc.gate, f"{exc.reason} ({where})") from exc
@@ -1166,9 +1404,16 @@ def _check_references(envelope: Mapping[str, Any], view: Any) -> None:
                   for o in view_outputs if isinstance(o.get("key"), str) and "slots" in o}
     authored: Dict[str, Any] = {}
     reshaped: set = set()
+    tables: List[Tuple[int, Mapping[str, Any]]] = []
+    # the outputs drawn as MARKERS at this point of the patch: the view's own, then op by op
+    marked = {o["key"] for o in view_outputs
+              if isinstance(o.get("key"), str) and isinstance(o.get("presentation"), Mapping)
+              and o["presentation"].get("marker")}
     ops = [o for o in (envelope.get("ops") or []) if isinstance(o, Mapping)]
     for i, o in enumerate(ops):
         name = o.get("op")
+        if name == "set_table":
+            tables.append((i, o))
         if name == "create":
             ck = _create_keys(o)
             if any(k is None for k in ck):
@@ -1199,8 +1444,138 @@ def _check_references(envelope: Mapping[str, Any], view: Any) -> None:
             authored[o["output"]] = o["tree"]
         elif name == "remove_output" and isinstance(o.get("output"), str):
             keys.discard(o["output"])
+        if name == "set_marker" and isinstance(o.get("output"), str):
+            marked.add(o["output"])
+        elif name in ("remove_marker", "remove_output") and isinstance(o.get("output"), str):
+            marked.discard(o["output"])
+        elif name == "set_style" and isinstance(o.get("output"), str) and "style" in o:
+            marked.discard(o["output"])       # a new drawing style: the browser's to judge, not ours
+        if name == "set_color_states" and isinstance(o.get("output"), str) and o["output"] in marked:
+            # ⭐ 2026-11-17 -- THE BROWSER'S `color:marker`, HERE TOO. Measured on production: a TTM
+            # squeeze ("dots on the zero line, red while the bands are inside the channels, green
+            # when not") came back as an output with `set_marker` AND `set_color_states`. This door
+            # passed it; the browser refused the whole patch ("is drawn as markers; colour states
+            # need a line or histogram") and the member read a red error for the best-known
+            # squeeze indicator there is. Judged in patch order, exactly as the browser applies it.
+            raise _Refused(
+                "envelope:reference",
+                f"ops[{i}] set_color_states: {o['output']!r} is drawn as markers, and color states "
+                "need a line or histogram. For dots that change color by state, either leave it a "
+                "line (no set_marker; a thick line on a constant level, colored by set_color_states) "
+                "or use one yes/no output per color, each with its own set_marker color.")
+        if name == "set_color_states":
+            # ⭐ 2026-11-16 -- THE BROWSER'S `color:states-few`, HERE TOO. One state and no
+            # `otherwise` (or an `otherwise` alone) is refused by `applyPatch.set_color_states`;
+            # this door passed it, so the model never got its repair and a member read "couldn't
+            # produce a valid change" for "green shading while it is above 1.2" (house set).
+            states = o.get("states") if isinstance(o.get("states"), list) else []
+            has_otherwise = "otherwise" in o
+            if (not states and has_otherwise) or (len(states) == 1 and not has_otherwise):
+                raise _Refused(
+                    "envelope:reference",
+                    f"ops[{i}] set_color_states: colouring by state needs at least two colours "
+                    "(two states, or one state and an `otherwise` colour). For ONE condition on "
+                    "the candles or the background use `set_paint` with that condition's output; "
+                    "for a line, add an `otherwise` colour.")
         if name in _RESHAPING_OPS and isinstance(o.get("output"), str):
             reshaped.add(o["output"])
+
+    # ⭐ 2026-11-17 -- A TABLE CELL POINTS AT AN OUTPUT, AND THE BROWSER SAYS SO AFTER THIS DOOR HAS
+    # ANSWERED `ok`. Measured on production: "a position size calculator table with account size,
+    # risk percent, entry and stop as settings" came back with cells pointing at the SETTINGS
+    # (`entry`, `stop`); this door passed it, the browser refused the whole patch ("There is no
+    # output "entry" for a table cell to show"), and the member read a red error for a request that
+    # had been built. The browser's rule (`tables.js::tableSpecProblem`) runs here, against the keys
+    # this answer ENDS with (never stricter than the browser: the order of ops is not judged), so
+    # the model gets its one repair with the way out in the diagnostic.
+    # ⭐ 2026-11-17 -- TWO MORE BROWSER RULES THIS DOOR PASSED, both measured on production in the
+    # second exploratory round, both ending in a red error for a request the assistant had built.
+    #
+    # 1. A CALCULATION TIMEFRAME MOVES LINES, NOT MARKERS (`calcTimeframeCapability`: "markers").
+    #    "Three weeks tight" came back as a daily-bar condition with `set_calculation_timeframe W`
+    #    and a marker; the browser answered "This indicator is always calculated on the chart's own
+    #    timeframe". Judged on what the answer ENDS with, as the browser does.
+    calc = None
+    for o in ops:
+        if o.get("op") == "set_calculation_timeframe":
+            calc = o.get("timeframe")
+    if isinstance(calc, str) and calc != "chart":
+        # ⭐ 2026-11-17 -- AND IT DOES NOT MOVE AN INDICATOR THAT READS ANOTHER SYMBOL
+        # (`calc-tf:other-symbol`). "Mansfield relative strength versus SPY over 52 weeks" came back
+        # as a ratio against SPY with `set_calculation_timeframe W`; the browser answered "An
+        # indicator that reads another symbol is calculated on the chart's own timeframe". ⚰️ I
+        # called that request fixed from the door's answer alone; the window showed the refusal.
+        readers = sorted(k for k, t in _authored_trees(envelope, view).items() if _reads_other_symbol(t))
+        if readers:
+            raise _Refused(
+                "envelope:reference",
+                f"set_calculation_timeframe {calc!r}: this indicator reads another symbol "
+                f"({', '.join(readers)}), and such an indicator is calculated on the chart's own "
+                "timeframe. Drop set_calculation_timeframe. For a weekly or monthly READ put the "
+                "`sym` outside a `tf` (SPY's weekly close is sym(SPY, tf(close, W))); for a length "
+                "in weeks over a ratio against another symbol use the daily count (52 weeks is 252 "
+                "daily bars) and say so.")
+    if isinstance(calc, str) and calc != "chart" and marked:
+        raise _Refused(
+            "envelope:reference",
+            f"set_calculation_timeframe {calc!r}: this indicator draws a marker "
+            f"({', '.join(sorted(marked))}), and a calculation timeframe moves lines only. Drop "
+            "set_calculation_timeframe and write the weekly or monthly read INSIDE the tree with "
+            "`tf` W / M nodes (three weekly closes: tf reads of highest and lowest close), then put "
+            "the marker on that condition.")
+    # 2. EVERY COLOUR RULE COSTS A HIDDEN COLUMN, AND THE LIMIT COUNTS THEM (`output:limit`). A
+    #    ribbon of five averages, each coloured by one state, is ten columns; the browser answered
+    #    "This indicator already has as many lines as it can hold". ⛔ Never stricter than the
+    #    browser: a target that already owns a hidden column in the view is not counted again, so a
+    #    rule being REPLACED costs nothing here.
+    owned = {str(o.get("of")) for o in view_outputs if o.get("of") is not None}
+    wanted: set = set()
+    for o in ops:
+        kind = o.get("op")
+        if kind == "set_color_states" and (o.get("states") or "otherwise" in o):
+            wanted.add(o.get("output") if isinstance(o.get("output"), str)
+                       else {"barcolor": "candles", "bgcolor": "background"}.get(o.get("channel")))
+        elif kind == "set_color_rule" and o.get("rule") == "rising" and isinstance(o.get("output"), str):
+            wanted.add(o["output"])
+        elif kind == "set_fill" and o.get("when") is not None and isinstance(o.get("output"), str):
+            wanted.add("fill:" + o["output"])
+    wanted.discard(None)
+    extra = sorted(t for t in wanted if t not in owned and (t.startswith("fill:") or t in keys
+                                                           or t in ("candles", "background")))
+    if len(keys) + len(extra) > MAX_OUTPUTS:
+        raise _Refused(
+            "envelope:reference",
+            f"this answer needs {len(keys) + len(extra)} columns and an indicator holds {MAX_OUTPUTS}: "
+            f"{len(keys)} outputs, plus one hidden column for each output colored by state or by "
+            f"rising/falling and each conditional fill ({len(extra)} here). For several lines that "
+            "share ONE state, color the candles or the background once (set_color_states with "
+            "`channel`) and leave the lines one color, or color fewer lines; and do not add an output "
+            "that only repeats a `when` tree.")
+
+    if tables:
+        settings = declared_inputs(envelope, view)
+        for i, o in tables:
+            for c in (o.get("cells") or []) if isinstance(o.get("cells"), list) else []:
+                if not isinstance(c, Mapping):
+                    continue
+                refs = [("cell", c.get("output"))] + [
+                    (field, (c.get(field) or {}).get("output")) for field in ("colorWhen", "backgroundWhen")
+                    if isinstance(c.get(field), Mapping)]
+                for what, ref in refs:
+                    if not isinstance(ref, str) or ref in keys:
+                        continue
+                    at = f"ops[{i}] set_table: the cell at row {c.get('row')}, column {c.get('col')}"
+                    if ref in settings:
+                        raise _Refused(
+                            "envelope:reference",
+                            f"{at} points at the setting {ref!r}. A cell shows an OUTPUT, never a "
+                            f"setting: add a hidden output whose tree is the series {ref!r} (a short "
+                            "key of its own) and point the cell at that output.")
+                    raise _Refused(
+                        "envelope:reference",
+                        f"{at} points at {ref!r}, which is not an output ({what}). The outputs are: "
+                        f"{', '.join(sorted(keys)) or 'none'}. Point it at one of them, or add the "
+                        "output it needs (hidden if it belongs only in the table).")
 
     for j, a in enumerate(envelope.get("assumptions") or []):
         if not isinstance(a, Mapping):
@@ -1221,19 +1596,211 @@ def _check_references(envelope: Mapping[str, Any], view: Any) -> None:
                     continue
                 valid = [(sid, "") for sid in sorted(s for s in view_slots[key] if s)]
             listed = ", ".join(f"{sid} = {v}" if v != "" else sid for sid, v in valid[:16]) or "none"
-            raise _Refused(
+            refused = _Refused(
                 "envelope:reference",
                 f"{where}.slot {a['slot']!r} names no parameter of the result. A slot id is "
                 "`<output key>#<path>`: the `args` indices from that output's root tree "
                 "(`root` for the root, `n` for an offset's bar count). "
                 f"The slots of {key!r} are: {listed}. Use one of those ids, or give the "
                 "assumption `text` alone with no `slot`.")
+            refused.assumption = (j, "slot")          # which pointer dangles (`_mend_assumptions`)
+            raise refused
         elif a.get("output") is not None and a["output"] not in keys:
-            raise _Refused(
+            refused = _Refused(
                 "envelope:reference",
                 f"{where}.output {a['output']!r} is not an output key of the result "
                 f"({', '.join(sorted(keys)) or 'none'}); use one of those keys, or give the "
                 "assumption `text` alone.")
+            refused.assumption = (j, "output")
+            raise refused
+
+
+# --------------------------------------------------------------------------- #
+# mends -- two deterministic corrections made BEFORE the check (2026-11-17)
+# --------------------------------------------------------------------------- #
+#
+# ⚰️ MEASURED THROUGH THE PRODUCTION DOOR, 2026-11-17: about one built turn in four paid a second
+# model call, and the patch's MATHS was right every time. Two of the causes are mechanical:
+#
+#   1. AN OUTPUT READ BY ITS KEY. `atrDist` is built, and a colour state says `atrDist > 5`. An
+#      output's key is not a name a formula can read (`schema:name`), so the model was sent back to
+#      write the same expression out again. The key names exactly one tree in the same answer, so
+#      the reference is replaced by that tree: the same value on every bar, by construction.
+#   2. AN ASSUMPTION POINTED AT A SLOT THAT IS NOT THERE. A slot id is a path of argument indices
+#      (`ftd#0.0.0.0.0.1.n`); the model gets the path wrong on a deep tree and the whole answer was
+#      refused (`envelope:reference`) for a footnote. The assumption's TEXT is kept and its pointer
+#      is dropped. An assumption carries no op, so nothing can ride in on one.
+#
+#   3. ONE COLOUR STATE ON THE CANDLES OR THE BACKGROUND (added the same day, after the first two
+#      were served and the same requests were run again: it was two of the three repairs left).
+#      "Colour the candles yellow when the range is the narrowest of 7" came back as
+#      `set_color_states` on a channel with one state and no `otherwise`, which the browser refuses
+#      (`color:states-few`) and the door's own diagnostic answers with "use `set_paint` with that
+#      condition's output". When an output of the answer IS that condition, the op is re-spelled
+#      as that `set_paint`: the same bars, the same colour. A line coloured by one state is NOT
+#      touched: what the other bars should be is the model's to say.
+#
+# ⛔ `check_envelope` STILL NEVER REPAIRS AND NEVER STRIPS. These run before it, as the argument
+# unwrap does, and what they produce meets the same strict check. Each is recorded by NAME only
+# (`usage.mended`), so how often the model needs them is measured rather than hidden.
+# ⛔ NONE TOUCHES WHAT THE ANSWER MEANS: no op is added, removed or reordered, no number changes;
+# the third replaces one op with the op that says the same thing.
+
+MEND_OUTPUT_REF = "output-ref"
+MEND_ASSUMPTION = "assumption-link"
+MEND_STATE_PAINT = "state-as-paint"
+_MEND_MAX_PASSES = 8
+
+
+def _formula_names() -> frozenset:
+    """Every name a formula may already read or call: an output key that is also one of these is
+    left alone (the table's meaning wins, as it does everywhere else)."""
+    from api.services import ast_table
+    t = ast_table.TABLE
+    return frozenset(ast_table.declared_names(t)) | frozenset((t.get("functions") or {}).keys())
+
+
+def _authored_trees(envelope: Mapping[str, Any], view: Any) -> Dict[str, Any]:
+    """Output key -> the tree that key names after this answer: the view's own outputs, overlaid
+    by what this answer creates, adds or re-trees. A key removed by this answer names nothing."""
+    trees: Dict[str, Any] = {}
+    d = (view or {}).get("definition") if isinstance(view, Mapping) else None
+    for o in ((d or {}).get("outputs") or []):
+        if isinstance(o, Mapping) and isinstance(o.get("key"), str) and isinstance(o.get("tree"), Mapping):
+            trees[o["key"]] = o["tree"]
+    for o in envelope.get("ops") or []:
+        if not isinstance(o, Mapping):
+            continue
+        name = o.get("op")
+        if name == "create":
+            for k, out in zip(_create_keys(o), o.get("outputs") or []):
+                if k and isinstance(out, Mapping) and isinstance(out.get("tree"), Mapping):
+                    trees[k] = out["tree"]
+        elif name == "add_output" and isinstance(o.get("key"), str) and isinstance(o.get("tree"), Mapping):
+            trees[o["key"]] = o["tree"]
+        elif name == "set_output_tree" and isinstance(o.get("output"), str) and isinstance(o.get("tree"), Mapping):
+            trees[o["output"]] = o["tree"]
+        elif name == "remove_output" and isinstance(o.get("output"), str):
+            trees.pop(o["output"], None)
+    return trees
+
+
+def _inline_refs(tree: Any, own: Optional[str], trees: Mapping[str, Any], skip: frozenset,
+                 seen: Tuple[str, ...], count: List[int]) -> Any:
+    """``tree`` with every read of another output's key replaced by that output's tree.
+    A key that reads itself, directly or round a loop, is left as it is (and is then refused by
+    the ordinary name check, which is the right answer for it)."""
+    if isinstance(tree, list):
+        return [_inline_refs(x, own, trees, skip, seen, count) for x in tree]
+    if not isinstance(tree, Mapping):
+        return tree
+    name = tree.get("name")
+    if (tree.get("type") == "series" and isinstance(name, str) and name in trees
+            and name not in skip and name != own and name not in seen
+            and len(seen) < _MEND_MAX_PASSES):
+        count[0] += 1
+        return _inline_refs(copy.deepcopy(dict(trees[name])), name, trees, skip, seen + (name,), count)
+    out = dict(tree)
+    if isinstance(tree.get("args"), list):
+        out["args"] = [_inline_refs(a, own, trees, skip, seen, count) for a in tree["args"]]
+    return out
+
+
+def _mend_output_refs(envelope: Dict[str, Any], view: Any) -> int:
+    """Replace reads of an output's key, in place on ``envelope`` (already a private copy).
+    Returns how many reads were replaced."""
+    trees = _authored_trees(envelope, view)
+    if not trees:
+        return 0
+    skip = _formula_names() | declared_inputs(envelope, view)
+    count = [0]
+    for o in envelope.get("ops") or []:
+        if not isinstance(o, dict):
+            continue
+        name = o.get("op")
+        if name == "create":
+            for k, out in zip(_create_keys(o), o.get("outputs") or []):
+                if isinstance(out, dict) and isinstance(out.get("tree"), Mapping):
+                    out["tree"] = _inline_refs(out["tree"], k, trees, skip, (), count)
+        elif name in ("add_output", "set_output_tree", "add_clause") and isinstance(o.get("tree"), Mapping):
+            own = o.get("key") if name == "add_output" else o.get("output")
+            o["tree"] = _inline_refs(o["tree"], own if isinstance(own, str) else None, trees, skip, (), count)
+        for s in (o.get("states") or []) if isinstance(o.get("states"), list) else []:
+            if isinstance(s, dict) and isinstance(s.get("when"), Mapping):
+                s["when"] = _inline_refs(s["when"], None, trees, skip, (), count)
+    return count[0]
+
+
+def _mend_single_state_paint(envelope: Dict[str, Any], view: Any) -> int:
+    """Re-spell `set_color_states` on a CHANNEL (candles / background) that carries exactly one
+    `when` state and no `otherwise` as `set_paint` of the output whose tree is that condition.
+    Left alone when no output is that condition (a mend adds no output), when the target is a
+    line (`output`), or when the state is a `relation`."""
+    trees = _authored_trees(envelope, view)
+    done = 0
+    ops = envelope.get("ops") or []
+    for i, o in enumerate(ops):
+        if not (isinstance(o, dict) and o.get("op") == "set_color_states"
+                and o.get("channel") in ("barcolor", "bgcolor") and "output" not in o
+                and "otherwise" not in o):
+            continue
+        states = o.get("states")
+        if not (isinstance(states, list) and len(states) == 1 and isinstance(states[0], Mapping)
+                and isinstance(states[0].get("when"), Mapping) and "relation" not in states[0]
+                and isinstance(states[0].get("color"), str)):
+            continue
+        when = json.dumps(states[0]["when"], sort_keys=True)
+        key = next((k for k, t in trees.items() if json.dumps(t, sort_keys=True) == when), None)
+        if key is None:
+            continue
+        ops[i] = {"op": "set_paint", "output": key, "channel": o["channel"], "color": states[0]["color"]}
+        done += 1
+    return done
+
+
+def _mend_assumptions(envelope: Dict[str, Any], view: Any) -> int:
+    """Drop the pointer of an assumption that points at nothing, keeping its text. The verdict is
+    the reference check's OWN (`_check_references` raises it and names the assumption), so there
+    is one rule, not two. An assumption with no text is left for the check to refuse."""
+    dropped = 0
+    for _ in range(_MEND_MAX_PASSES):
+        try:
+            _check_references(envelope, view)
+            return dropped
+        except _Refused as refused:
+            at = getattr(refused, "assumption", None)
+            items = envelope.get("assumptions")
+            if at is None or not isinstance(items, list) or not (0 <= at[0] < len(items)):
+                return dropped
+            a = items[at[0]]
+            if not (isinstance(a, dict) and isinstance(a.get("text"), str) and a["text"].strip()) or at[1] not in a:
+                return dropped
+            del a[at[1]]
+            dropped += 1
+    return dropped
+
+
+def mend(candidate: Any, view: Any) -> Tuple[Any, List[str]]:
+    """``(envelope, names)``: the answer with the two mends applied, and which were needed.
+    Anything that is not a schema-valid change is returned untouched for the check to judge."""
+    if not isinstance(candidate, Mapping) or not isinstance(candidate.get("ops"), list):
+        return candidate, []
+    try:
+        if _schema_errors(candidate):
+            return candidate, []
+        work = copy.deepcopy(dict(candidate))
+        names: List[str] = []
+        if _mend_output_refs(work, view):
+            names.append(MEND_OUTPUT_REF)
+        if _mend_single_state_paint(work, view):
+            names.append(MEND_STATE_PAINT)
+        if _mend_assumptions(work, view):
+            names.append(MEND_ASSUMPTION)
+        return (work, names) if names else (candidate, [])
+    except Exception:                              # noqa: BLE001 -- a mend never costs the turn
+        logger.exception("[converse] mend failed; the answer is checked as it came")
+        return candidate, []
+
 
 
 def _label_text(value: Any) -> str:
@@ -1275,6 +1842,49 @@ def _named_after_intent(label: str, text: str) -> bool:
     return False
 
 
+_NUMBER_IN_LABEL = re.compile(r"\d+(?:[.,]\d+)*")
+
+
+def _numbers_only_relabel(old: Any, new: Any) -> bool:
+    """``new`` is ``old`` with one or more of its numbers changed and nothing else (both folded
+    by ``_label_text``): "rsi 14" -> "rsi 21", "bb 20, 2" -> "bb 20, 2.5". False when the old
+    label has no number, when the words differ, or when a number was added or removed."""
+    if not (isinstance(old, str) and isinstance(new, str) and old and new and old != new):
+        return False
+    # two different labels that are equal once every number is masked differ ONLY in a number,
+    # so the old one necessarily carries one: no separate check for that
+    return _NUMBER_IN_LABEL.sub("#", old) == _NUMBER_IN_LABEL.sub("#", new)
+
+
+def _outputs_edited(ops: Any) -> set:
+    """The output keys whose MATHS this patch changes: a slot of theirs set (``key#n``), their
+    tree replaced, or a clause added to or removed from them."""
+    keys: set = set()
+    for o in ops or []:
+        if not isinstance(o, Mapping):
+            continue
+        name = o.get("op")
+        if name == "set_slot" and isinstance(o.get("slot"), str) and "#" in o["slot"]:
+            keys.add(o["slot"].split("#", 1)[0])
+        elif name in ("set_output_tree", "add_clause", "remove_clause") and isinstance(o.get("output"), str):
+            keys.add(o["output"])
+    return keys
+
+
+def _reads_other_symbol(tree: Any) -> bool:
+    """Does this tree hold a `sym` node anywhere?"""
+    stack = [tree]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, Mapping):
+            if node.get("type") == "sym":
+                return True
+            stack.extend(node.get("args") or [])
+        elif isinstance(node, list):
+            stack.extend(node)
+    return False
+
+
 def check_output_renames(envelope: Mapping[str, Any], message: Any, view: Any,
                          turns: Any = ()) -> None:
     """⭐ 2026-11-02 -- OPEN-FINDINGS-2026-10 §3. A LINE IS RENAMED ONLY IN THE MEMBER'S
@@ -1296,7 +1906,16 @@ def check_output_renames(envelope: Mapping[str, Any], message: Any, view: Any,
     Refused like any envelope gate (never stripped -- ``check_envelope`` does not
     edit a patch), so the model gets its ONE bounded repair with the reason.
     Passes: a rename of a line this same patch creates or adds (it has no name the
-    member could have chosen yet), and a "rename" to the label it already has."""
+    member could have chosen yet), and a "rename" to the label it already has.
+
+    ⭐ 2026-11-17 -- AND A LABEL THAT ONLY FOLLOWS ITS OWN NUMBERS. Measured on production
+    over twenty multi-turn conversations: "make it 21" on a line labelled "RSI 14" came
+    back as the right ``set_slot`` plus ``rename_output`` to "RSI 21", was refused here, and
+    cost a second model call (twice the price and about six more seconds) on the commonest
+    edit there is. That relabel names nothing new: it is the same label with its numbers
+    updated, on a line whose maths this same patch changes. It passes
+    (``_numbers_only_relabel``). A label whose WORDS change is still refused, and so is a
+    number-only relabel of a line this patch does not touch."""
     if envelope.get("disposition") != "change":
         return
     ops = [o for o in (envelope.get("ops") or []) if isinstance(o, Mapping)]
@@ -1322,11 +1941,14 @@ def check_output_renames(envelope: Mapping[str, Any], message: Any, view: Any,
         cue_names.update(_label_text(n) for n in names)
         asked.append(_label_text(rest))
     one_line = len(current) <= 1
+    edited = _outputs_edited(ops)
     for i, o in enumerate(ops):
         if o.get("op") != "rename_output" or o.get("output") in new_keys:
             continue
         label = _label_text(o.get("label"))
         if not label or label == current.get(o.get("output")):
+            continue
+        if o.get("output") in edited and _numbers_only_relabel(current.get(o.get("output")), label):
             continue
         if (one_line and label in cue_names) or any(_named_after_intent(label, a) for a in asked):
             continue
@@ -1344,6 +1966,7 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
     if not isinstance(envelope, Mapping):
         raise _Refused("model:no-tool", "no patch in the answer")
     _refuse_unsupported_nodes(_trees_of(envelope))
+    _refuse_negative_bars_back(_trees_of(envelope))
     _refuse_scalars(_trees_of(envelope))
     errors = _schema_errors(envelope)
     if errors:
@@ -1424,6 +2047,25 @@ def _chart_lexicon(base: Mapping[str, Any]) -> Dict[str, Any]:
         stems, cost = dc._stem_key(words)
         index[stems] = [{"kind": dc.TABLE_ENTRY, "key": key, "section": "functions",
                          "words": words, "cost": cost}]
+    # ⭐ L4 (2026-11-17) -- THE WORDS MEMBERS USE FOR A HOUSE TERM (`chart_twins.SPOKEN`): "relative
+    # volume", "distance from the 52 week high". Each joins as a term of the column it names, so
+    # `_matched_term` hands the assistant the Screener's own formula for it. ⛔ ADDED, NEVER REPLACED:
+    # a phrase whose words already resolve to something in the shared lexicon is left alone.
+    from api.services import ast_table
+    # ⭐ backlog 47 (2026-11-17) -- A COLUMN THE TABLE LEAVES OUT AND A CHART COMPUTES EXACTLY
+    # (`chart_twins.CHART_ONLY`) is a TERM here, with its house formula, not "unavailable": the
+    # Screener's own label for it was answered "not available" beside an indicator the chart could
+    # draw. Only a bucket that holds nothing else is converted, so no other reading is displaced.
+    for stems, rows in list(index.items()):
+        if rows and all(r.get("kind") == dc.EXCLUDED_ENTRY and r.get("key") in chart_twins.CHART_ONLY for r in rows):
+            index[stems] = [{**r, "kind": dc.TABLE_ENTRY, "section": ast_table.SCALARS_SECTION} for r in rows]
+    for phrase, column in chart_twins.spoken_phrases():
+        words = dc._form_tokens(phrase)
+        stems, cost = dc._stem_key(words)
+        if stems in index:
+            continue
+        index[stems] = [{"kind": dc.TABLE_ENTRY, "key": column, "section": ast_table.SCALARS_SECTION,
+                         "words": words, "cost": cost}]
     return {"index": index, "max_words": max((len(k) for k in index), default=1),
             "collisions": {k: v for k, v in (base.get("collisions") or {}).items() if k in index
                            and index[k] is base["index"].get(k)}}
@@ -1503,6 +2145,89 @@ def _unwrap_input(value: Optional[dict]) -> Tuple[Optional[dict], Optional[str]]
     return value, None
 
 
+# --------------------------------------------------------------------------- #
+# ⭐ 2026-11-17 -- THE BROWSER'S OWN REFUSAL, SENT BACK FOR ONE REPAIR
+# --------------------------------------------------------------------------- #
+#
+# The door checks a patch's STRUCTURE; the browser's patch engine then applies it against the
+# indicator, and holds rules of its own (a candle colour reads a yes/no, a fill shades between two
+# numbers, a calculation timeframe is higher than the chart's, ...). Six times on 2026-11-17 a
+# request the assistant had built ended in "Nothing was changed" because the door accepted what the
+# browser then refused, and each was fixed by teaching the door that one rule. A sweep of small
+# patches through both halves then measured the class: about a third of schema-valid one-operation
+# patches are accepted here and refused there, across some forty browser rules. They cannot all be
+# restated in this file, and a restated rule is a second authority over the first.
+#
+# So the browser's refusal comes BACK, once: the browser re-sends the same turn with the patch it
+# refused and its engine's own words, and the model's repair is spent on that. The door's own rules
+# stay where a request is common enough to save the round trip.
+#
+# ⛔ What the client sends is untrusted. The patch is replayed to the model only if it is one THIS
+# door would itself have offered for the same view (`check_envelope`), the words are bounded and
+# flattened to one line, and a malformed block is ignored: the turn is then an ordinary one.
+BROWSER_REFUSAL_GATE = "browser:refused"
+BROWSER_REFUSAL_MAX_ERRORS = 4
+BROWSER_REFUSAL_MAX_CHARS = 300
+BROWSER_REFUSAL_TOOL_USE_ID = "browser_refused"
+
+
+def browser_refusal(raw: Any, revision: int, view: Any) -> Optional[Tuple[Dict[str, Any], str]]:
+    """``(the refused patch, the browser's words)``, or ``None`` when ``raw`` is not a refusal of a
+    patch this door would have offered. Never raises."""
+    if not isinstance(raw, Mapping):
+        return None
+    envelope, errors = raw.get("envelope"), raw.get("errors")
+    if not isinstance(envelope, Mapping) or not isinstance(errors, list):
+        return None
+    try:
+        if len(json.dumps(envelope)) > MAX_INPUT_CHARS // 4:
+            return None
+        checked = check_envelope(dict(envelope), revision, view)
+    except Exception:                              # noqa: BLE001 -- not ours: an ordinary turn
+        return None
+    if checked.get("disposition") != "change" or not checked.get("ops"):
+        return None
+    lines = []
+    for e in errors[:BROWSER_REFUSAL_MAX_ERRORS]:
+        if isinstance(e, str):
+            line = " ".join(e.split())[:BROWSER_REFUSAL_MAX_CHARS]
+            if line:
+                lines.append(line)
+    if not lines:
+        return None
+    return checked, "; ".join(lines)
+
+
+def browser_refusal_codes(raw: Any) -> Optional[str]:
+    """The browser engine's own codes for a refusal it sent back (each line begins `code: `), as
+    the comma-separated value the turn's telemetry stores -- or None. SHAPE ONLY: a line that does
+    not begin with a code of the telemetry's strict pattern contributes nothing, so no word of a
+    sentence can ride along (`indicator_telemetry.BROWSER_CODE`)."""
+    try:
+        from api.services import indicator_telemetry
+        codes: List[str] = []
+        for e in (raw.get("errors") or [])[:BROWSER_REFUSAL_MAX_ERRORS]:
+            head = e.split(": ", 1)[0].strip() if isinstance(e, str) else ""
+            if indicator_telemetry.BROWSER_CODE.fullmatch(head) and head not in codes:
+                codes.append(head)
+        return ",".join(codes[:indicator_telemetry.BROWSER_CODES_MAX]) or None
+    except Exception:                              # noqa: BLE001 -- telemetry never costs a turn
+        return None
+
+
+def _browser_repair_turns(messages: List[dict], envelope: Mapping[str, Any], words: str) -> List[dict]:
+    """The conversation as if this door had made the call and the app had answered it."""
+    verdict = (f"[{BROWSER_REFUSAL_GATE}] the app's own patch engine refused this patch and applied "
+               f"nothing -- {words}. Emit a corrected patch that does what was asked another way.")
+    return list(messages) + [
+        {"role": "assistant", "content": [
+            {"type": "tool_use", "id": BROWSER_REFUSAL_TOOL_USE_ID, "name": TOOL_NAME, "input": dict(envelope)}]},
+        {"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": BROWSER_REFUSAL_TOOL_USE_ID, "is_error": True,
+             "content": verdict}]},
+    ]
+
+
 def _repair_turns(messages: List[dict], msg: Any, tool_input: Optional[dict],
                   refused: _Refused) -> List[dict]:
     tool_use_id = None
@@ -1566,6 +2291,21 @@ def _env_usd(name: str) -> Optional[float]:
     return value
 
 
+def allowance_left(user_id: Any, cap_usd: float, market_date: Optional[str] = None) -> Optional[float]:
+    """The share of today's allowance this member has left, 0 to 1, to the nearest 5 percent
+    (a coarse figure: the dock says "about"). None when there is no positive cap. It reads the
+    same ledger the cap reads (`definition_concierge.spend_for`), so the two cannot disagree."""
+    try:
+        cap = float(cap_usd)
+    except (TypeError, ValueError):
+        return None
+    if not (cap > 0) or cap != cap:
+        return None
+    spent = dc.spend_for(user_id, market_date or dc._market_date())
+    share = max(0.0, min(1.0, 1.0 - float(spent) / cap))
+    return round(round(share * 20) / 20, 2)
+
+
 def conversation_cap_usd(*, admin: bool = False) -> float:
     """The daily $ cap ``converse`` compares the member's ledger against."""
     member = _env_usd(CONVERSE_USER_CAP_ENV)
@@ -1614,7 +2354,9 @@ def reset_conversation_usage() -> None:
 def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
              outcome: str, admin: bool, cap_usd: float,
              repair_gate: Optional[str] = None,
-             input_wrapper: Optional[str] = None) -> Dict[str, Any]:
+             browser_codes: Optional[str] = None,
+             input_wrapper: Optional[str] = None,
+             examples: Optional[int] = None, mended: Optional[str] = None) -> Dict[str, Any]:
     """The turn's cost record: returned to the caller as ``usage`` and logged.
 
     ⛔ SHAPE ONLY. Model id, token counts, call count, dollars, the outcome code
@@ -1632,8 +2374,14 @@ def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
         "outcome": outcome,
         # ⭐ P3: the gate CODE that made this turn pay for a repair (None = no repair)
         "repair_gate": repair_gate,
+        "browser_codes": browser_codes,
         # ⭐ P3S: the argument wrapper unwrapped this turn (None = the input arrived bare)
         "input_wrapper": input_wrapper,
+        # ⭐ L5: how many worked examples rode along (None = the turn carried none)
+        "examples": examples,
+        # ⭐ 2026-11-17 -- WHICH deterministic mends the answer needed ("output-ref,assumption-link"),
+        # or None. Names only: a count of how often the model needs them, never what they touched.
+        "mended": mended,
         "conversation": None,
     }
     key = conversation_key(conversation_id)
@@ -1658,7 +2406,8 @@ def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
 
 def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
              snippets: Any = None, chart: Any = None, admin: bool = False,
-             conversation_id: Any = None) -> Dict[str, Any]:
+             conversation_id: Any = None, examples: Any = False,
+             browser_refusal: Any = None) -> Dict[str, Any]:
     """One conversational turn. NEVER raises.
 
     ``{ok: True, disposition: 'change'|'answer'|'clarify'|'unsupported', reply,
@@ -1691,7 +2440,8 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
         if free:
             result = _converse_turn(message, user_id=user_id, view=view, authoring=authoring,
                                     snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls,
-                                    trace=trace)
+                                    trace=trace, admin=admin, examples=examples is True,
+                                    refused_by_browser=browser_refusal)
         else:
             result = {"ok": False, "gate": "rate:busy", "reason": dc.REFUSALS["rate:busy"]}
     latency_ms = int((time.monotonic() - started) * 1000)
@@ -1700,11 +2450,33 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
         result["usage"] = _account(user_id, conversation_id, calls, outcome=str(outcome),
                                    admin=admin, cap_usd=cap_usd,
                                    repair_gate=trace.get("repair_gate"),
-                                   input_wrapper=trace.get("input_wrapper"))
+                                   browser_codes=trace.get("browser_codes"),
+                                   input_wrapper=trace.get("input_wrapper"),
+                                   examples=trace.get("examples"), mended=trace.get("mended"))
     except Exception:                              # noqa: BLE001 -- telemetry never breaks a turn
         logger.exception("[converse] usage accounting failed")
     _record_turn(user_id, conversation_id, result, admin=admin, message=message,
                  latency_ms=latency_ms)
+    # ⭐ F1 (2026-11-16): how much of today's allowance is left, so the dock can say so before
+    # it runs out rather than only when it has. A SHARE, never dollars. Never breaks a turn.
+    try:
+        left = allowance_left(user_id, cap_usd)
+        if left is not None:
+            result["allowance_left"] = left
+    except Exception:                              # noqa: BLE001
+        logger.exception("[converse] allowance read failed")
+    # ⭐ 2026-11-17 -- AND ON A TURN THAT WAS REPAIRED INTO A CHANGE. Measured on production:
+    # about one built turn in four pays a second model call, nearly always at one gate
+    # (`envelope:reference`), and the gate code alone does not say which name. A repair doubles
+    # the member's wait, so its cause has to be readable to be fixed.
+    if admin and trace.get("refusals"):
+        # WHY EACH ATTEMPT WAS REFUSED, FOR THE BUILDERS ONLY (2026-11-16). The house set
+        # found requests that fail twice at a name or reference check, and nothing outside
+        # a DEBUG log said WHICH name: the failure could be counted and never fixed. An
+        # admin's response carries what the repair turn was told. A member's never does:
+        # the text can echo model output and is written for a model, not a person. Added
+        # AFTER the turn is recorded, so it reaches no telemetry row.
+        result["diagnostic"] = trace["refusals"]
     return result
 
 
@@ -1718,6 +2490,8 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
 _BUDGET_GATES = {"cost:user": "budget_user", "cost:global": "budget_global",
                  "rate:busy": "rate_limited"}
 _PLATFORM_GATES = {"model:transport"}
+#: ⭐ O7 -- the provider refused OUR ACCOUNT. Its own class: an outage heals, this needs a person.
+_ACCOUNT_GATES = {"model:unavailable"}
 _INTERNAL_GATES = {"internal:error"}
 _MODEL_GATE_PREFIXES = ("envelope:", "model:", "schema:", "lint:", "budget:", "converse:")
 
@@ -1773,6 +2547,8 @@ def failure_class(result: Mapping[str, Any]) -> str:
         return "backstop_refused"
     if gate in _BUDGET_GATES:
         return _BUDGET_GATES[gate]
+    if gate in _ACCOUNT_GATES:
+        return "provider_account"
     if gate in _PLATFORM_GATES:
         return "platform"
     if gate in _INTERNAL_GATES:
@@ -1780,6 +2556,41 @@ def failure_class(result: Mapping[str, Any]) -> str:
     if gate.startswith(_MODEL_GATE_PREFIXES):
         return "model_invalid"
     return "concept_refused"
+
+
+@functools.lru_cache(maxsize=1)
+def prompt_sha() -> str:
+    """Which instructions produced this turn: 16 hex characters of the SHA-256 of the
+    system prompt and the tool as the request sends them. Both are constants of the
+    process (``system_prompt``, ``anthropic_tool``), so this is computed once. It
+    changes when the instructions, the tool schema, or the vocabulary text generated
+    into the prompt change, and for no other reason."""
+    import hashlib
+    payload = system_prompt() + "\n" + json.dumps(anthropic_tool(), sort_keys=True,
+                                                   separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
+def turn_stamps() -> Dict[str, Any]:
+    """What produced a turn, so a later change in results can be traced to the change
+    that caused it: the instructions, the firm's concept vocabulary, the model and the
+    engine. Shape only, each from the one place that owns it. A stamp that cannot be
+    read is LEFT OUT (the turn row is still written); it is never guessed."""
+    out: Dict[str, Any] = {}
+    try:
+        out["prompt_sha"] = prompt_sha()
+    except Exception:                              # noqa: BLE001
+        logger.exception("[converse] prompt stamp unavailable")
+    try:
+        from api.services import concept_vocabulary
+        out["vocab_version"] = str(concept_vocabulary.version())
+    except Exception:                              # noqa: BLE001
+        logger.exception("[converse] vocabulary stamp unavailable")
+    if isinstance(dc.MODEL, str) and dc.MODEL:
+        out["model"] = dc.MODEL
+    if isinstance(user_definitions.SCRIPT_ENGINE_VERSION, int):
+        out["engine"] = user_definitions.SCRIPT_ENGINE_VERSION
+    return out
 
 
 def _record_turn(user_id: Any, conversation_id: Any, result: Mapping[str, Any], *,
@@ -1802,7 +2613,10 @@ def _record_turn(user_id: Any, conversation_id: Any, result: Mapping[str, Any], 
             attempts=result.get("attempts"),
             calls=usage.get("calls"),
             repair_gate=usage.get("repair_gate"),
+            browser_codes=usage.get("browser_codes"),
             input_wrapper=usage.get("input_wrapper"),
+            examples=usage.get("examples"),
+            mended=usage.get("mended"),
             usd=usage.get("usd"),
             input_tokens=usage.get("input_tokens"),
             output_tokens=usage.get("output_tokens"),
@@ -1811,6 +2625,7 @@ def _record_turn(user_id: Any, conversation_id: Any, result: Mapping[str, Any], 
             latency_ms=latency_ms,
             op_kinds=",".join(o for o in ops if isinstance(o, str)) or None,
             preflight=bool(result.get("preflight")),
+            **turn_stamps(),
         )
     except Exception:                              # noqa: BLE001
         logger.exception("[converse] turn telemetry failed")
@@ -1892,7 +2707,9 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
 def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
                    snippets: Any, chart: Any, cap_usd: float,
                    calls: List[Dict[str, Any]],
-                   trace: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+                   trace: Optional[Dict[str, Any]] = None,
+                   admin: bool = False, examples: bool = False,
+                   refused_by_browser: Any = None) -> Dict[str, Any]:
     trace = trace if trace is not None else {}
     try:
         message, view, state, turns = _bounded_inputs(message, view, authoring, snippets)
@@ -1912,17 +2729,41 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     discussed = understood_turn["discussed"]
     not_understood = understood_turn["not_understood"]
     unavailable = understood_turn["unavailable"]
-    content = user_turn(request_text, notes, view, state, turns)
+    # ⭐ L5 -- WORKED EXAMPLES (`worked_examples.py`): for a NEW indicator, the nearest one or two of
+    # UCT's own checked builds ride along INSIDE <uct_language_notes> (data, by the instructions' own
+    # rule; the cached instruction block is untouched). Dark for members; an admin turn can ask.
+    # ⛔ They never cost a turn: if they would push it over the size cap, the turn goes without.
+    from api.services import worked_examples
+    carried = worked_examples.for_turn(message, view, admin=admin, asked=examples)
+    content = user_turn(request_text, {**notes, "worked_examples": carried} if carried else notes,
+                        view, state, turns)
+    if carried and len(content) > MAX_INPUT_CHARS:
+        carried = []
+        content = user_turn(request_text, notes, view, state, turns)
+    if carried:
+        trace["examples"] = len(carried)
     if len(content) > MAX_INPUT_CHARS:
         return _refusal("converse:too-large", f"turn {len(content)} > {MAX_INPUT_CHARS}",
                         member="the turn as a whole is too large to send")
 
     market_date = dc._market_date()
     messages: List[dict] = [{"role": "user", "content": content}]
+    # ⭐ the browser refused the patch this door offered for this same turn: the model answers THAT
+    replayed = browser_refusal(refused_by_browser, revision, view) if refused_by_browser is not None else None
+    if replayed:
+        messages = _browser_repair_turns(messages, replayed[0], replayed[1])
+        trace["repair_gate"] = BROWSER_REFUSAL_GATE
+        trace["browser_codes"] = browser_refusal_codes(refused_by_browser)
+        logger.info("[converse] repair after the browser refused the patch")
     tokens = {"input": 0, "output": 0}
     cost_usd = 0.0
     attempts = 0
     last: Optional[_Refused] = None
+    refusals: List[Dict[str, Any]] = []
+    # what each attempt was refused for: the outer door decides who may read it. Set here, not at
+    # the refused exit alone, so a turn REPAIRED into a change carries its first attempt's reason.
+    if isinstance(trace, dict):
+        trace["refusals"] = refusals
     extra = {"not_understood": not_understood, "unavailable": unavailable}
 
     while attempts < MAX_MODEL_CALLS:
@@ -1936,9 +2777,14 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         try:
             msg, in_tokens, out_tokens = _call_model(messages)
         except Exception as exc:                   # noqa: BLE001 -- never raises out
-            logger.warning("[converse] model call failed: %s", exc)
+            gate = dc.model_failure_gate(exc)
+            if gate == "model:unavailable":
+                # ERROR, not WARNING: this does not heal by itself (O7)
+                logger.error("[converse] the provider refused the account: %s", type(exc).__name__)
+            else:
+                logger.warning("[converse] model call failed: %s", exc)
             dc.charge_unreported(exc, user_id, market_date, dc.MODEL, dc.MAX_TOKENS, _request_for(messages))
-            return _refusal("model:transport", **extra)
+            return _refusal(gate, **extra)
 
         # ⭐ P3S -- with the cache breakpoint, `input_tokens` is only the UNCACHED part;
         # the cached prefix arrives as these two fields and must be charged too, or the
@@ -1966,11 +2812,21 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             # shape only: the wrapper NAME and the attempt, never its content
             logger.info("[converse] unwrapped %r on attempt=%d", wrapper, attempts)
             trace.setdefault("input_wrapper", wrapper)
+        candidate, mended = mend(candidate, view)
+        if mended:
+            # shape only: WHICH mends, never what they touched
+            logger.info("[converse] mended %s on attempt=%d", ",".join(mended), attempts)
+            trace.setdefault("mended", ",".join(mended))
         try:
             envelope = check_envelope(candidate, revision, view)
             check_output_renames(envelope, message, view, turns)
+            if replayed and envelope.get("ops") == replayed[0].get("ops"):
+                raise _Refused("envelope:reference",
+                               f"this is the patch the app already refused ({replayed[1]}); change it")
         except _Refused as refused:
             last = refused
+            refusals.append({"attempt": attempts, "gate": refused.gate,
+                             "detail": refused.detail[:DIAGNOSTIC_MAX_CHARS]})
             # the diagnostic (op path, validator text) is for the model and a DEBUG
             # log, never the member; it can echo model output, so not at INFO
             logger.debug("[converse] attempt %d refused at %s: %s", attempts, refused.gate,
@@ -2045,5 +2901,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         }
 
     refused = last or _Refused("model:no-tool", "no patch in the answer")
+    # what each attempt was refused for: the outer door decides who may read it
+    trace["refusals"] = refusals
     return {"ok": False, "gate": refused.gate, "reason": refused.reason,
             "attempts": attempts, **extra}

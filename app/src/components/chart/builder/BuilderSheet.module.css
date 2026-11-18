@@ -1,5 +1,9 @@
-/* The formula builder (spec §6). Tokens only — no colour literals — and at most
-   one gold element, the Save button.
+/* The formula builder (spec §6), in UCT Signature style (docs/uct-signature-style.md,
+   Direction A, owner-approved 2026-11-16): a graphite window of a fixed size, the
+   name as the title, underline tabs, soft cards, sentence-case labels.
+
+   ⛔ GOLD ONLY ON §2b MARKS: the current tab's 2px underline and the UCT Agent's ✦.
+   Save, Send, the active tab's text and every border stay white/grey.
 
    ⛔ NO `pointer-events` DECLARATION APPEARS IN THIS FILE, AND THAT IS A RULE
    RATHER THAN AN ACCIDENT. `.legend` is `pointer-events: none` one directory
@@ -14,25 +18,230 @@
    ⛔ LAYOUT IS `@media`, NEVER `useMediaQuery`. `hooks/useMediaQuery.js` seeds
    from `matchMedia(q).matches` at MOUNT and only updates on a `change` event, so
    in a fixed mobile context it can render the desktop variant on a phone. Only
-   640 and 1024 appear below — the canonical boundaries from
-   `styles/breakpoints.css`. */
+   640 appears below — the canonical boundary from `styles/breakpoints.css`.
+   Every control keeps the 44px `--tap-min` floor; a fine pointer (a mouse) gets
+   the compact desktop sizes through `(hover: hover) and (pointer: fine)`, which
+   is an input-type query, not a width. */
 
-.body {
+/* ── the window: a fixed size that never grows or shrinks between tabs ────── */
+
+.sheetPanel.sheetPanel {
+  height: min(660px, 86vh, 86dvh);
+  background: #111214;
+  border: 1px solid #383b41;
+  border-radius: 12px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+.sheetBody.sheetBody {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  padding: 0;
+  overflow: hidden;
 }
+
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-sans, inherit);
+  color: #ededed;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── the header ───────────────────────────────────────────────────────────── */
+
+.head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px 12px;
+}
+.title { flex: 1 1 auto; margin: 0; font-size: 15px; font-weight: 700; color: #f8f7f3; }
+
+.iconBtn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  padding: 0;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  color: #a9a59b;
+  background: rgba(248, 247, 243, 0.06);
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.iconBtn:hover { background: rgba(248, 247, 243, 0.11); color: #ededed; }
+.iconBtn:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
+
+/* The NAME is the title: an inline editable heading with a quiet dashed underline. */
+.nameField {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--tap-min);
+  box-sizing: border-box;
+  padding: 4px 0;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  color: #f8f7f3;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dashed #383b41;
+  border-radius: 0;
+}
+.nameField:focus { outline: none; border-bottom-color: #a9a59b; }
+.nameField::placeholder { color: #93939a; font-weight: 600; }
+
+.chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 9px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #c9c6be;
+  background: rgba(248, 247, 243, 0.06);
+  border-radius: 7px;
+  white-space: nowrap;
+}
+
+/* ── the tabs: underline, gold ONLY on the current one (§2b) ──────────────── */
+
+.tabs {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  gap: 22px;
+  padding: 0 18px;
+  border-bottom: 1px solid #26282c;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tab {
+  flex: 0 0 auto;
+  min-height: var(--tap-min);
+  padding: 8px 0 9px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #c9c6be;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tab:hover { color: #f8f7f3; }
+.tab:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: -2px; }
+.tabOn { font-weight: 600; color: #f8f7f3; box-shadow: inset 0 -2px 0 var(--ut-gold, #dcbb5e); }
+.tabCount { color: #93939a; font-weight: 500; margin-left: 2px; }
+.tabGap { flex: 1 1 auto; }
+/* The UCT Agent's mark is always gold (§2b.5). */
+.spark { color: var(--ut-gold, #dcbb5e); }
+
+/* ── the scrolling content between the fixed header and the fixed footer ──── */
+
+.content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+/* Owner 11-17: a long "Your indicators" list squeezed "Or start from" below its cards (they
+   overlapped). Sections in the scroller keep their natural height; the scroller scrolls. */
+.content > * { flex-shrink: 0; }
+.panel { display: flex; flex-direction: column; gap: 12px; }
+.describe { display: flex; flex-direction: column; gap: 8px; }
+.panel[hidden], .describe[hidden] { display: none; }
+/* ⭐ a panel's own editor, inside a wrapper hidden while a pasted script stands (its note shown instead):
+   laid out exactly as the panel lays out its children, and its own hidden rule, because a class that
+   sets `display` beats the `hidden` attribute (patrick-0b's review of #1632). */
+.panelBody { display: flex; flex-direction: column; gap: 12px; }
+.panelBody[hidden] { display: none; }
+
+/* ── the start view ───────────────────────────────────────────────────────── */
+
+.group { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.groupHead { display: flex; align-items: baseline; justify-content: space-between; }
+.groupLabel { margin: 0; font-size: 11.5px; font-weight: 600; color: #c9c6be; }
+.groupCount { font-size: 11px; color: #93939a; }
+.savedEmpty { margin: 0; font-size: 12px; color: #93939a; }
+/* the start page hugs its content, capped at the editor's size */
+.sheetPanel.sheetPanel.sheetPanelStart { height: auto; max-height: min(660px, 86vh, 86dvh); }
+
+.startGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.startCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: var(--tap-min);
+  padding: 14px;
+  font: inherit;
+  text-align: left;
+  color: #a9a59b;
+  background: #1a1b1f;
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.startCard:hover { background: #222327; }
+.startCard:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
+.startCard svg { flex: 0 0 auto; }
+.startText { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.startName { font-size: 13px; font-weight: 600; color: #ededed; }
+.startHint { font-size: 11.5px; line-height: 1.4; color: #93939a; }
+
+.writeLink {
+  align-self: flex-start;
+  min-height: var(--tap-min);
+  padding: 4px 0;
+  font: inherit;
+  font-size: 12px;
+  color: #c9c6be;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.writeLink:hover { color: #f8f7f3; }
+.writeLink:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 2px; }
 
 /* ── the field ────────────────────────────────────────────────────────────── */
 
 .fieldWrap { display: flex; flex-direction: column; gap: 6px; }
 
+/* Section labels: sentence case, 11.5px/600, never uppercase or tracked out. */
 .label {
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+  color: #c9c6be;
 }
 
 .field {
@@ -41,34 +250,19 @@
   /* Touch target (tokens.css `--tap-min: 44px`). A two-row textarea clears it
      already; the declaration is what survives a future one-row variant. */
   min-height: var(--tap-min);
-  padding: 10px 12px;
+  padding: 12px 14px;
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--text-bright);
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  font-size: 13px;
+  line-height: 1.6;
+  color: #ededed;
+  background: #0f1012;
+  border: 1px solid #26282c;
+  border-radius: 9px;
   resize: vertical;
 }
-.field:focus { outline: none; border-color: var(--border-accent); }
-.field::placeholder { color: var(--text-muted); }
+.field:focus { outline: none; border-color: #383b41; }
+.field::placeholder { color: #93939a; }
 .field[aria-invalid='true'] { border-color: var(--color-danger); }
-
-.nameField {
-  width: 100%;
-  box-sizing: border-box;
-  min-height: var(--tap-min);
-  padding: 0 12px;
-  font: inherit;
-  font-size: 14px;
-  color: var(--text-bright);
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
-.nameField:focus { outline: none; border-color: var(--border-accent); }
-.nameField::placeholder { color: var(--text-muted); }
 
 /* ── spec §6 state 4: a red dot on the chip, the message beside it ────────── */
 
@@ -78,12 +272,12 @@
   gap: 8px;
   margin: 0;
   padding: 8px 10px;
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.45;
-  color: var(--text-bright);
-  background: var(--bg-surface);
+  color: #ededed;
+  background: #1a1b1f;
   border: 1px solid var(--color-danger);
-  border-radius: var(--radius-md);
+  border-radius: 9px;
 }
 
 .errorDot {
@@ -105,7 +299,7 @@
   margin: 6px 0 0;
   font-size: 12px;
   line-height: 1.45;
-  color: var(--text-secondary);
+  color: #a9a59b;
   overflow-wrap: anywhere;
 }
 
@@ -113,22 +307,33 @@
 
 .sectionHead {
   margin: 0;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+  color: #c9c6be;
 }
 
 .readbackWrap {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  gap: 8px;
+  padding: 12px;
+  background: #1a1b1f;
+  border: 0;
+  border-radius: 9px;
 }
+
+/* "✓ Reads as: …" — the plain-English read-back under the formula. */
+.readbackLine {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #a9a59b;
+}
+.okMark { flex: 0 0 auto; color: #3fbf9a; font-weight: 700; }
+.readbackText { min-width: 0; }
+.readsAs { color: #ededed; font-weight: 600; }
 
 /* ⛔ NO `text-overflow: ellipsis`, NO `-webkit-line-clamp`, NO `max-height`.
    A deep logical read-back runs ~250 characters and states all three cases of
@@ -136,18 +341,20 @@
    defect in a UI hat, and the omitted term is the one the reader would not have
    guessed. It wraps. */
 .readback {
+  display: inline;
   margin: 0;
-  font-size: 15px;
+  font-size: 12px;
   line-height: 1.5;
-  color: var(--text-bright);
+  color: #a9a59b;
   overflow-wrap: anywhere;
 }
 
 .measured {
   margin: 0;
-  font-size: 12px;
-  color: var(--text-muted);
+  font-size: 11.5px;
+  color: #93939a;
 }
+.readbackText .measured { margin-top: 2px; }
 
 /* ── the badge (spec §1.3 — machine-assigned, and a gate) ─────────────────── */
 
@@ -157,20 +364,20 @@
   flex-wrap: wrap;
   gap: 6px;
   margin: 0;
-  font-size: 12px;
+  font-size: 11.5px;
 }
 /* Informational, never error-coloured: a factual property is not a warning. */
-.badgeClean { color: var(--text-muted); }
+.badgeClean { color: #93939a; }
 .badgeWarn { color: var(--color-warning); }
-.badgeWhy { color: var(--text-muted); }
+.badgeWhy { color: #93939a; }
 
 .ack {
   display: flex;
   align-items: flex-start;
   gap: 8px;
   min-height: var(--tap-min);
-  font-size: 13px;
-  color: var(--text-bright);
+  font-size: 12.5px;
+  color: #ededed;
   cursor: pointer;
 }
 .ack input { min-width: 18px; min-height: 18px; margin-top: 3px; }
@@ -186,12 +393,14 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   padding: 8px 10px;
+  background: #1a1b1f;
   border: 1px solid var(--color-warning);
-  border-radius: var(--radius-md);
-  font-size: 13px;
+  border-radius: 9px;
+  font-size: 12.5px;
 }
 
 /* "Delete?" — the armed state of a saved-formula row's trash icon. */
@@ -201,16 +410,17 @@
   white-space: nowrap;
 }
 
-/* Why Save is greyed. Sits directly above the action row, right-aligned so the
-   eye lands on it on the way to the button it explains. */
-.saveHint {
-  margin: 0 0 -2px;
-  text-align: right;
-  font-size: 12px;
-  color: var(--text-muted);
+/* Why Save is greyed — the footer's left-hand line, on the way to the button. */
+.saveHint,
+.footHint {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 11.5px;
+  color: #93939a;
 }
 
-/* ⭐⭐ THE STICKY FOOTER: the buttons AND the two lines that explain them.
+/* ⭐⭐ THE FOOTER: the buttons AND the lines that explain them.
 
    ⚰️ On a fresh dialog at 726px the action row was already clipped by the panel
    edge, and saving INSERTED "Saved - version 1, rev 1" above it, pushing the
@@ -219,66 +429,78 @@
    pinned buttons sat ON TOP of the Discard control a member was being asked to
    press. Both were measured by driving the real dialog.
 
-   ⛔ A sticky element must carry whatever it is answering - which is why the
-   hint, the discard bar and the buttons are ONE box, not three. */
+   ⛔ A pinned element must carry whatever it is answering - which is why the
+   refusal, the discard bar and the buttons are ONE box, not three. It sits
+   outside the scrolling content, so it never moves. */
 .footer {
-  position: sticky;
-  bottom: 0;
+  flex: 0 0 auto;
+  position: relative;
   z-index: 2;
-  padding: 10px 0 2px;
-  margin-top: 2px;
-  background: var(--bg-surface);
-  box-shadow: 0 -8px 12px -8px rgba(0, 0, 0, 0.55);
+  padding: 12px 18px;
+  background: #111214;
+  border-top: 1px solid #26282c;
 }
 
 .actions {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
   justify-content: flex-end;
 }
 
 .ghostBtn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   min-height: var(--tap-min);
   padding: 0 14px;
   font: inherit;
-  font-size: 13px;
-  color: var(--text-bright);
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-}
-.ghostBtn:hover { border-color: var(--border-accent); }
-
-.saveBtn {
-  min-height: var(--tap-min);
-  padding: 0 18px;
-  font: inherit;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
-  color: var(--bg-base);
-  background: var(--gold);
-  border: 1px solid var(--gold);
-  border-radius: var(--radius-md);
+  color: #ededed;
+  background: rgba(248, 247, 243, 0.06);
+  border: 0;
+  border-radius: 7px;
   cursor: pointer;
+  white-space: nowrap;
 }
+.ghostBtn:hover { background: rgba(248, 247, 243, 0.11); }
+.ghostBtn:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
+
+/* The primary: one step brighter than the secondary, never gold (§3 Buttons). */
+.saveBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap-min);
+  padding: 0 16px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #f8f7f3;
+  background: rgba(248, 247, 243, 0.12);
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.saveBtn:hover:not(:disabled) { background: rgba(248, 247, 243, 0.17); }
+.saveBtn:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
 /* ⛔ `opacity` + `cursor`, NEVER `pointer-events: none`. The disabled ATTRIBUTE
    is what refuses the click; a `pointer-events` rule here would inherit into the
    label and be the exact un-clickable-button defect this file's header names. */
 .saveBtn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .storeError {
-  margin: 0;
+  margin: 0 0 8px;
   padding: 8px 10px;
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.45;
-  color: var(--text-bright);
-  background: var(--bg-surface);
+  color: #ededed;
+  background: #1a1b1f;
   border: 1px solid var(--color-danger);
-  border-radius: var(--radius-md);
+  border-radius: 9px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -288,65 +510,102 @@
   align-items: center;
   gap: 6px;
   margin: 0;
-  font-size: 13px;
-  color: var(--color-success);
+  font-size: 12.5px;
+  color: #3fbf9a;
 }
 
 .crash {
   padding: 12px;
   font-size: 13px;
-  color: var(--text-bright);
+  color: #ededed;
   border: 1px solid var(--color-danger);
-  border-radius: var(--radius-md);
+  border-radius: 9px;
 }
 
-/* ── saved formulas ───────────────────────────────────────────────────────── */
+/* ── saved formulas: a card of 40px rows with the line's colour bar ───────── */
 
-.listWrap { display: flex; flex-direction: column; gap: 6px; }
-
-.list { list-style: none; margin: 0; padding: 0; }
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: #1a1b1f;
+  border-radius: 9px;
+}
 
 .listRow {
   display: flex;
   align-items: center;
   gap: 10px;
   min-height: var(--tap-min);
-  padding: 4px 0;
-  border-bottom: 1px solid var(--border);
+  padding: 0 6px 0 12px;
+  border-bottom: 1px solid #26282c;
+}
+.listRow:last-child { border-bottom: 0; }
+
+.listBar {
+  flex: 0 0 auto;
+  width: 3px;
+  height: 16px;
+  border-radius: 2px;
+  background: #a9a59b;
 }
 
-.listName { flex: 0 0 auto; font-size: 13px; color: var(--text-bright); }
+/* The NAME keeps its line; the formula text beside it is what gives way. Seen on production
+   2026-11-17: "Uncharted Clouds" wrapped onto two lines and collided with its formula text,
+   because the name could shrink and the one-line formula could not. */
+.listName {
+  flex: 0 0 auto; max-width: 62%; min-width: 0;
+  font-size: 13px; font-weight: 500; color: #ededed;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 .listSource {
   flex: 1 1 auto;
   min-width: 0;
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 12px;
-  color: var(--text-muted);
-  overflow-wrap: anywhere;
+  font-size: 11.5px;
+  color: #93939a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+/* Row actions: quiet icon buttons that come up on hover or focus (§1.4). */
+.rowBtn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  padding: 0;
+  color: #a9a59b;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.rowBtn:hover { background: rgba(248, 247, 243, 0.07); color: #ededed; }
+.rowBtn:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: -2px; }
+.rowTextBtn {
+  flex: 0 0 auto;
+  min-height: var(--tap-min);
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ededed;
+  background: rgba(248, 247, 243, 0.06);
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.rowTextBtn:hover { background: rgba(248, 247, 243, 0.11); }
 
 /* ── the criteria picker (Phase E, E-4) ───────────────────────────────────────
    ⛔ NO SECOND STYLESHEET. The picker is a MODE of this sheet, not a component
    with its own look; a second `.module.css` is how one surface ends up with two
    button heights and two focus rings. Spec §1.5: ride the shipped primitives. */
-
-.modeRow { display: flex; gap: 8px; }
-
-.modeTab {
-  flex: 1 1 0;
-  min-height: var(--tap-min);
-  padding: 0 12px;
-  font: inherit;
-  font-size: 13px;
-  color: var(--text-muted);
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-}
-.modeTab:hover { border-color: var(--border-accent); }
-.modeTabActive { color: var(--text-bright); border-color: var(--gold); }
 
 .pickerWrap { display: flex; flex-direction: column; gap: 8px; }
 
@@ -354,17 +613,18 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  padding: 10px;
+  background: #1a1b1f;
+  border: 1px solid transparent;
+  border-radius: 9px;
 }
 /* A nested group is the ONLY thing that carries the other join, so it is the
    only thing that has to read as a unit. */
-.pickerGroupNested { border-style: dashed; }
+.pickerGroupNested { border: 1px dashed #383b41; background: #111214; }
 
 .pickerJoinRow { display: flex; align-items: center; gap: 8px; }
 
-.pickerJoinLabel { font-size: 12px; color: var(--text-muted); }
+.pickerJoinLabel { font-size: 12px; color: #93939a; }
 
 /* The negate toggle. It sits on a ROW and on a nested GROUP — the same control
    in both, because to the model they are one thing: a condition, said the other
@@ -378,7 +638,7 @@
   min-height: var(--tap-min);
   padding: 0 4px;
   font-size: 12px;
-  color: var(--text-muted);
+  color: #93939a;
   cursor: pointer;
 }
 .pickerNot input { min-width: 16px; min-height: 16px; cursor: pointer; }
@@ -395,11 +655,11 @@
   min-width: 0;
   padding: 0 8px;
   font: inherit;
-  font-size: 13px;
-  color: var(--text-bright);
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  font-size: 12.5px;
+  color: #ededed;
+  background: #0f1012;
+  border: 1px solid #26282c;
+  border-radius: 7px;
 }
 /* ⚰️ `flex: 1 1 0` WITH `min-width: 0` LET THIS SELECT CLIP ITS OWN LABEL.
    Measured in the live builder 2026-08-11: switching a condition's right side to
@@ -430,7 +690,7 @@
   flex: 0 0 auto;
   min-height: var(--tap-min);
   font-size: 12px;
-  color: var(--text-muted);
+  color: #93939a;
   white-space: nowrap;
 }
 /* ⛔ NARROWER THAN `.pickerNum`'s 96px, and it must come AFTER it to win the
@@ -453,43 +713,28 @@
   justify-content: center;
   min-width: var(--tap-min);
   min-height: var(--tap-min);
-  color: var(--text-muted);
+  color: #a9a59b;
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border: 0;
+  border-radius: 6px;
   cursor: pointer;
 }
-.pickerIconBtn:hover { border-color: var(--border-accent); color: var(--text-bright); }
+.pickerIconBtn:hover { background: rgba(248, 247, 243, 0.07); color: #ededed; }
 
 .pickerNote {
   margin: 0;
   padding: 8px 10px;
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.45;
-  color: var(--text-bright);
-  background: var(--bg-surface);
+  color: #ededed;
+  background: #1a1b1f;
   border: 1px solid var(--color-warning);
-  border-radius: var(--radius-md);
+  border-radius: 9px;
   overflow-wrap: anywhere;
 }
 
-/* ── phone ────────────────────────────────────────────────────────────────── */
-@media (max-width: 640px) {
-  /* The actions stack and go full width — a 44px pill floated right is a target
-     a thumb reaches by accident on one side and not at all on the other. */
-  .actions { flex-direction: column-reverse; }
-  .actions .ghostBtn, .actions .saveBtn { width: 100%; justify-content: center; }
-  .listRow { flex-wrap: wrap; }
-  /* ⛔ CSS, NOT `useIsPhone()`. `useMediaQuery` seeds at MOUNT and only updates
-     on a `change` event, so on a phone whose viewport never changes it renders
-     the desktop arrangement at first paint and never corrects it. */
-  .pickerRow { flex-wrap: wrap; }
-  .pickerSelect { flex: 1 1 100%; }
-}
-
 /* ── the member's own inputs ───────────────────────────────────────────────
-   ⭐ What makes an authored indicator TUNABLE rather than one frozen instance.
-   ⛔ Tokens only — this file declares no colour literals. */
+   ⭐ What makes an authored indicator TUNABLE rather than one frozen instance. */
 .inputRow {
   display: grid;
   grid-template-columns: 1fr 96px auto;
@@ -501,14 +746,16 @@
 .inputKey,
 .inputDefault {
   min-height: var(--tap-min);
-  padding: 6px 8px;
-  background: var(--bg-base);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-bright);
+  box-sizing: border-box;
+  padding: 6px 10px;
+  background: #0f1012;
+  border: 1px solid #26282c;
+  border-radius: 7px;
+  color: #ededed;
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 13px;
+  font-size: 12.5px;
 }
+.inputKey:focus, .inputDefault:focus { outline: none; border-color: #383b41; }
 
 .inputKey[aria-invalid='true'] {
   border-color: var(--color-danger);
@@ -520,15 +767,15 @@
   justify-content: center;
   min-width: var(--tap-min);
   min-height: var(--tap-min);
-  background: none;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: #a9a59b;
   cursor: pointer;
 }
 
 .inputRemove:hover {
-  border-color: var(--color-danger);
+  background: rgba(248, 247, 243, 0.07);
   color: var(--color-danger);
 }
 
@@ -541,33 +788,33 @@
   color: var(--color-danger);
 }
 
-.addInput {
+.addInput,
+.addPlot {
+  align-self: flex-start;
   min-height: var(--tap-min);
-  padding: 6px 10px;
-  background: none;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
+  padding: 0 12px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #f8f7f3;
+  background: rgba(248, 247, 243, 0.08);
+  border: 0;
+  border-radius: 7px;
   cursor: pointer;
-  font-size: 13px;
 }
-
-.addInput:hover {
-  border-color: var(--gold);
-  color: var(--gold);
-}
+.addInput:hover,
+.addPlot:hover { background: rgba(248, 247, 243, 0.13); }
 
 /* ── the plots (W1b.5) ─────────────────────────────────────────────────────
    ⭐ The `.inputRow` family one section up, widened: a plot carries more than a
    name and a number, so the controls wrap instead of forcing a fixed grid onto
-   a 320px phone.
-   ⛔ Tokens only — this file declares no colour literals. */
+   a 320px phone. */
 .plotRow {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 8px 0;
-  border-top: 1px solid var(--border);
+  padding: 10px 0;
+  border-top: 1px solid #26282c;
 }
 
 .plotRow:first-of-type {
@@ -587,14 +834,16 @@
 .plotStyle,
 .plotWidth {
   min-height: var(--tap-min);
-  padding: 6px 8px;
-  background: var(--bg-base);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-bright);
+  box-sizing: border-box;
+  padding: 6px 10px;
+  background: #0f1012;
+  border: 1px solid #26282c;
+  border-radius: 7px;
+  color: #ededed;
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 13px;
+  font-size: 12.5px;
 }
+.plotKey:focus, .plotLabel:focus, .plotWidth:focus { outline: none; border-color: #383b41; }
 
 .plotKey { flex: 1 1 8ch; min-width: 8ch; }
 .plotLabel { flex: 1 1 10ch; min-width: 10ch; }
@@ -613,36 +862,21 @@
   flex: 0 0 var(--tap-min);
   min-height: var(--tap-min);
   padding: 2px;
-  background: var(--bg-base);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  background: #0f1012;
+  border: 1px solid #26282c;
+  border-radius: 6px;
   cursor: pointer;
 }
 
 .plotToggle {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   min-height: var(--tap-min);
-  color: var(--text-muted);
+  margin-right: 10px;
+  color: #c9c6be;
   font-size: 12px;
   cursor: pointer;
-}
-
-.addPlot {
-  min-height: var(--tap-min);
-  padding: 6px 10px;
-  background: none;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.addPlot:hover {
-  border-color: var(--gold);
-  color: var(--gold);
 }
 
 /* Placement + levels sit together: both answer "where does this land", and
@@ -653,6 +887,43 @@
   gap: 8px;
   align-items: center;
   margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  border-top: 1px solid #26282c;
+}
+
+/* ── a mouse gets the compact desktop sizes (the mockup's 26 / 28 / 30px) ─── */
+@media (hover: hover) and (pointer: fine) {
+  .iconBtn { min-width: 26px; min-height: 26px; }
+  .nameField { min-height: 30px; }
+  .tab { min-height: 0; }
+  .ghostBtn, .saveBtn { min-height: 30px; }
+  .addInput, .addPlot, .rowTextBtn { min-height: 28px; }
+  .listRow { min-height: 40px; }
+  .rowBtn { min-width: 28px; min-height: 28px; }
+  .listRow .rowBtn { opacity: 0; }
+  .listRow:hover .rowBtn,
+  .listRow:focus-within .rowBtn { opacity: 1; }
+  .writeLink { min-height: 0; }
+  .inputKey, .inputDefault, .plotKey, .plotLabel, .plotWidth { min-height: 30px; }
+  .plotToggle { min-height: 30px; }
+  .plotColor { flex-basis: 30px; min-height: 30px; }
+}
+
+/* ── phone ────────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .sheetPanel.sheetPanel { height: min(92vh, 92dvh); border-radius: 12px 12px 0 0; }
+  .head, .content, .footer { padding-left: 16px; padding-right: 16px; }
+  .tabs { padding: 0 16px; gap: 18px; }
+  .startGrid { grid-template-columns: minmax(0, 1fr); }
+  /* The actions stack and go full width — a 44px pill floated right is a target
+     a thumb reaches by accident on one side and not at all on the other. */
+  .actions { flex-direction: column-reverse; align-items: stretch; }
+  .actions .saveHint, .actions .footHint { order: 10; }
+  .actions .ghostBtn, .actions .saveBtn { width: 100%; justify-content: center; }
+  .listRow { flex-wrap: wrap; }
+  /* ⛔ CSS, NOT `useIsPhone()`. `useMediaQuery` seeds at MOUNT and only updates
+     on a `change` event, so on a phone whose viewport never changes it renders
+     the desktop arrangement at first paint and never corrects it. */
+  .pickerRow { flex-wrap: wrap; }
+  .pickerSelect { flex: 1 1 100%; }
 }

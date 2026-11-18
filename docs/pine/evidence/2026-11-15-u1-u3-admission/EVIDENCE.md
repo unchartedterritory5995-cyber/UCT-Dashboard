@@ -175,3 +175,12 @@ reach run's lanes to the door: 319 tests.
 - **G6-M7:** an untold bar read as closed.
 - **G6-M8 / M9 / M10:** each run door stops asking.
 - **U1-M8:** obj:box re-added to the registry against the ruling.
+
+## 2026-11-16, landing train 1 (engine 59): obj:box re-pointed, still withdrawn
+
+Object defaults are version-aware since engine 59 (legacy semantics B5), so the capture this ruling
+names, `inside-bar-boxes-rddt-1d-2026-11-14`, no longer differs on any colour (50 boxes paired, 0 differing
+fields, colours agree on 100 paired slots). It still grades objects v2 DIVERGE on the count of boxes held
+(vendor 52, ours 50; master's row had the same count difference behind the colour), and its x is not graded
+(taken before U13). Coordinator ruling 2026-11-16: obj:box stays withdrawn. The rail named above is now
+`test_A7_obj_box_stays_withdrawn_on_its_box_count_and_ungraded_x`, and the registry `_readme` says the same.

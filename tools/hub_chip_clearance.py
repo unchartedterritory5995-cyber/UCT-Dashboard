@@ -143,8 +143,6 @@ PROBE = """() => {
 
 
 def run(base: str, headed: bool) -> int:
-    import os  # noqa: PLC0415
-
     from playwright.sync_api import sync_playwright  # noqa: PLC0415
 
     routes = route_to_mode()
@@ -159,7 +157,12 @@ def run(base: str, headed: bool) -> int:
     # when the credentials are absent and when the POST fails, and the first draft of this file
     # printed "no SMOKE_EMAIL / SMOKE_PASSWORD" at a run whose real problem was a 502 from a pod
     # mid-redeploy. A diagnostic that names the wrong cause sends the next reader to the wrong box.
-    if not os.environ.get("SMOKE_EMAIL") or not os.environ.get("SMOKE_PASSWORD"):
+    # The sign-in itself is `hub_nav_smoke.login`, i.e. tools/synthetic_session.py (signs out at exit).
+    try:
+        from tools import synthetic_session as S  # noqa: PLC0415 — package import
+    except ImportError:
+        import synthetic_session as S  # noqa: PLC0415 — script import (tools/ on sys.path)
+    if not S.has_credentials("smoke"):
         say("⛔ INCONCLUSIVE — SMOKE_EMAIL / SMOKE_PASSWORD are not in the environment, so the "
             "hub is not exposed and there is nothing to measure.", err=True)
         return 2

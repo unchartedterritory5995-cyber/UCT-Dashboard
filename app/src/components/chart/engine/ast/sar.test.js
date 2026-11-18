@@ -23,8 +23,8 @@ import { describeTree } from '../../builder/authoring/expansionWords.js'
 import { evaluateFormula } from '../../builder/FormulaField'
 import { BUILDER_INPUT_SCOPE } from '../../builder/builderInputs'
 import {
-  sarTrees, SAR_WARMUP, SAR_MIN_STEP, SAR_MIN_MAX_STEP, SAR_NOTE, expandCall, expansionProblem,
-  recogniseExpansion, collapseExpansions,
+  sarTrees, SAR_WARMUP, SAR_LEGACY_WARMUPS, SAR_MIN_STEP, SAR_MIN_MAX_STEP, SAR_NOTE, expandCall, expansionProblem,
+  recogniseExpansion, collapseExpansions, sarLegacyNote,
 } from './callExpansions.js'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
@@ -51,38 +51,66 @@ const ast = (s) => {
 }
 const run = (s, bars) => Array.from(interpret(ast(s), bars, {}))
 
-/** Bars where the formula publishes a value, and how many of those disagree. */
-function grade(bars, step, max) {
-  const value = run(`sar(${step}, ${max})`, bars)
-  const dir = run(`sarDirection(${step}, ${max})`, bars)
+/** Bars where the formula publishes a value, and how many of those disagree. `warmup` grades a
+ *  window other than SAR_WARMUP (the 200-bar window earlier engines saved), built by `sarTrees`. */
+function grade(bars, step, max, warmup = null) {
+  const num = (v) => ({ type: 'num', value: v })
+  const legacy = warmup === null ? null : sarTrees(num(step), num(max), warmup)
+  const value = legacy ? Array.from(interpret(legacy.value, bars, {})) : run(`sar(${step}, ${max})`, bars)
+  const dir = legacy ? Array.from(interpret(legacy.direction, bars, {})) : run(`sarDirection(${step}, ${max})`, bars)
   const full = computeParabolicSAR(bars, step, max)
   let published = 0
   let bad = 0
+  const wrong = []   // [bar, value wrong, direction wrong] for every disagreeing bar
   for (let i = 0; i < bars.length; i++) {
     if (!Number.isFinite(value[i])) continue
     published += 1
     const ref = full[i]
-    if (Math.abs(value[i] - ref.value) > 1e-9 * Math.abs(ref.value)) bad += 1
-    if (dir[i] !== (ref.isUptrend ? 1 : -1)) bad += 1
+    const v = Math.abs(value[i] - ref.value) > 1e-9 * Math.abs(ref.value)
+    const d = dir[i] !== (ref.isUptrend ? 1 : -1)
+    bad += v + d
+    if (v || d) wrong.push([i, v, d])
   }
-  return { published, bad }
+  return { published, bad, wrong }
+}
+
+/** The bars of one harness capture, carrying the capture's name (`source`, `file`). */
+function seriesOf(f) {
+  const d = JSON.parse(fs.readFileSync(path.join(HARNESS, f), 'utf8'))
+  const rows = d && d.bars && d.bars.rows
+  if (!Array.isArray(rows)) return null
+  const ix = Object.fromEntries(d.bars.fields.map((k, i) => [k, i]))
+  const bars = rows.map((r, i) => ({ t: i, o: r[ix.open], h: r[ix.high], l: r[ix.low], c: r[ix.close], v: r[ix.volume] }))
+  // the capture the series came from, so a disagreement names its series
+  const sym = (d.symbol && (d.symbol.full_name || d.symbol.name)) || d.symbol
+  Object.defineProperty(bars, 'source', { value: `${f} (${sym} ${d.timeframe}, ${rows.length} bars)`, enumerable: false })
+  Object.defineProperty(bars, 'file', { value: f, enumerable: false })
+  Object.defineProperty(bars, 'key', { value: `${sym}|${d.timeframe}|${rows.length}|${rows.length ? rows[0][0] : ''}`, enumerable: false })
+  return bars
 }
 
 function realSeries() {
   const out = []
   const seen = new Set()
   for (const f of fs.readdirSync(HARNESS).filter((n) => n.endsWith('.json')).sort()) {
-    const d = JSON.parse(fs.readFileSync(path.join(HARNESS, f), 'utf8'))
-    const rows = d && d.bars && d.bars.rows
-    if (!Array.isArray(rows) || rows.length < 450) continue
-    const key = `${d.symbol}|${d.timeframe}|${rows.length}|${rows[0][0]}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    const ix = Object.fromEntries(d.bars.fields.map((k, i) => [k, i]))
-    out.push(rows.map((r, i) => ({ t: i, o: r[ix.open], h: r[ix.high], l: r[ix.low], c: r[ix.close], v: r[ix.volume] })))
+    const bars = seriesOf(f)
+    if (!bars || bars.length < 450) continue
+    if (seen.has(bars.key)) continue
+    seen.add(bars.key)
+    out.push(bars)
   }
   return out
 }
+
+// ⭐⭐ THE SERIES THAT BROKE THE 200-BAR WINDOW (2026-11-16), NOW GRADED LIKE EVERY OTHER.
+// vw-lower-tf-bars-rddt-15-2026-11-16 (NYSE:RDDT 15m, 20,886 bars) put 43 published bars
+// (5167-5246) of the old 200-bar window off the chart's full-history `computeParabolicSAR`,
+// 17 of them in value AND direction (60 counted): a SAR seeded at bar 4967 needs 280 bars to
+// rejoin the full history. `SAR_WARMUP` is now 400, chosen by measurement over 342 series
+// (`docs/pine/evidence/2026-11-16-sar-window/EVIDENCE.md`). The KNOWN `it.fails` that held the
+// series is flipped: it asserts 0 in the rail below. A control pins the old window's divergence
+// by name, so the series stays a witness that 200 was not enough.
+const SAR_WINDOW_WITNESS = 'vw-lower-tf-bars-rddt-15-2026-11-16.json'
 
 describe('the chart\'s own Parabolic SAR, bar for bar', () => {
   const SETTINGS = [[0.02, 0.2], [0.03, 0.3], [0.02, 0.4], [0.1, 0.5]]
@@ -93,7 +121,7 @@ describe('the chart\'s own Parabolic SAR, bar for bar', () => {
     for (const [step, max] of SETTINGS) {
       for (const [r, opts] of regimes.entries()) {
         for (let s = 1; s <= 4; s++) {
-          const g = grade(walk(900, s * 7919 + r, opts), step, max)
+          const g = grade(walk(1000, s * 7919 + r, opts), step, max)
           expect(g.bad, `step ${step} max ${max} regime ${r} seed ${s}`).toBe(0)
           published += g.published
         }
@@ -106,13 +134,41 @@ describe('the chart\'s own Parabolic SAR, bar for bar', () => {
     const series = realSeries()
     // ⛔ NON-VACUITY — the harness must actually be there.
     expect(series.length).toBeGreaterThan(20)
+    // the series that broke the 200-bar window is graded here like every other (never skipped)
+    expect(series.some((b) => b.file === SAR_WINDOW_WITNESS), SAR_WINDOW_WITNESS).toBe(true)
     let published = 0
     for (const bars of series) {
       const g = grade(bars, 0.02, 0.2)
-      expect(g.bad).toBe(0)
+      expect(g.bad, bars.source).toBe(0)
       published += g.published
     }
     expect(published).toBeGreaterThan(5000)
+  }, 120000)
+
+  it('FLIPPED (sar() window, 2026-11-16): vw-lower-tf-bars-rddt-15 equals the full-history SAR on every published bar', () => {
+    const bars = seriesOf(SAR_WINDOW_WITNESS)
+    const g = grade(bars, 0.02, 0.2)
+    expect(g.bad, bars.source).toBe(0)
+    expect(g.published).toBe(bars.length - SAR_WARMUP - 1)
+  }, 120000)
+
+  it('control: the OLD 200-bar window on that series, BY NAME: 43 bars, 5167-5246, 17 value and direction', () => {
+    const bars = seriesOf(SAR_WINDOW_WITNESS)
+    expect(bars.length).toBe(20886)
+    expect(SAR_LEGACY_WARMUPS).toContain(200)
+    const g = grade(bars, 0.02, 0.2, 200)
+    expect(g.published).toBe(bars.length - 200 - 1)
+    expect(g.wrong.length).toBe(43)
+    expect(g.wrong[0][0]).toBe(5167)
+    expect(g.wrong[g.wrong.length - 1][0]).toBe(5246)
+    expect(g.wrong.filter(([, v, d]) => v && d).length).toBe(17)
+    expect(g.bad).toBe(60)
+    // native SAR is the correct side: started 400 bars back it agrees with the full history at 5167
+    const from = 5167 - 400
+    const part = computeParabolicSAR(bars.slice(from), 0.02, 0.2)
+    const full = computeParabolicSAR(bars, 0.02, 0.2)
+    expect(part[400].value).toBeCloseTo(full[5167].value, 9)
+    expect(part[400].isUptrend).toBe(full[5167].isUptrend)
   }, 120000)
 
   it('direction flips really happen in the graded data (the reversal arms are exercised)', () => {
@@ -138,14 +194,15 @@ describe('bounded, honest about its left edge, and window-independent', () => {
   })
 
   it('a missing low withholds the windows that contain it, and the value comes back', () => {
-    const b = walk(700, 9, { nanAt: [400] })
+    const hole = SAR_WARMUP + 200
+    const b = walk(hole + SAR_WARMUP + 100, 9, { nanAt: [hole] })
     const v = run('sar(0.02, 0.2)', b)
-    expect(Number.isFinite(v[399])).toBe(true)
-    expect(Number.isFinite(v[400])).toBe(false)
-    expect(Number.isFinite(v[400 + SAR_WARMUP + 3])).toBe(true)
+    expect(Number.isFinite(v[hole - 1])).toBe(true)
+    expect(Number.isFinite(v[hole])).toBe(false)
+    expect(Number.isFinite(v[hole + SAR_WARMUP + 3])).toBe(true)
   })
 
-  it('reads 202 bars back, never ahead, and fits the default budget', () => {
+  it('reads SAR_WARMUP + 2 bars back (402), never ahead, and fits the default budget', () => {
     const a = ast('sar(0.02, 0.2)')
     expect(astReach(a)).toMatchObject({ back: SAR_WARMUP + 2, forward: 0 })
     expect(checkBudget(a).ok).toBe(true)
@@ -201,6 +258,28 @@ describe('a saved definition carries only the expansion, and it round-trips', ()
   it('discloses its vendor note wherever notes are read', () => {
     const notes = vendorNotesForTree(ast('sar(0.02, 0.2) > close'))
     expect(JSON.stringify(notes)).toContain(SAR_NOTE.slice(0, 40))
+  })
+
+  it('a tree SAVED with the old 200-bar window reads back as the call the member wrote, says so, and re-expands at the current window on save', () => {
+    const num = (v) => ({ type: 'num', value: v })
+    const old = sarTrees(num(0.02), num(0.2), 200)
+    expect(recogniseExpansion(old.value)).toEqual({ name: 'sar', args: [num(0.02), num(0.2)], legacyWarmup: 200 })
+    expect(recogniseExpansion(old.direction)).toEqual({ name: 'sarDirection', args: [num(0.02), num(0.2)], legacyWarmup: 200 })
+    // its note is the legacy one, naming the window it was saved with and the current one
+    const stored = { type: 'op', name: '>', args: [old.value, { type: 'series', name: 'close' }] }
+    const notes = JSON.stringify(vendorNotesForTree(stored))
+    expect(notes).toContain(sarLegacyNote(200).slice(0, 60))
+    expect(notes).not.toContain(SAR_NOTE.slice(0, 60))
+    // a save collapses it to the call and the parser expands it at SAR_WARMUP: the stored tree moves on
+    const collapsed = collapseExpansions(stored)
+    expect(collapsed.args[0]).toEqual({ type: 'call', name: 'sar', args: [num(0.02), num(0.2)] })
+    const resaved = expandCall(collapsed.args[0])
+    expect(astHash(resaved)).toBe(astHash(ast('sar(0.02, 0.2)')))
+    expect(astHash(resaved)).not.toBe(astHash(old.value))
+    // CONTROL: a window nobody saved is not recognised (the legacy list is not "any window")
+    expect(recogniseExpansion(sarTrees(num(0.02), num(0.2), 300).value)).toBe(null)
+    // the current tree carries no legacy mark
+    expect(recogniseExpansion(ast('sar(0.02, 0.2)'))).toEqual({ name: 'sar', args: [num(0.02), num(0.2)] })
   })
 })
 

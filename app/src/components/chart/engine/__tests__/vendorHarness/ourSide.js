@@ -39,23 +39,34 @@ import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
 import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf, RUNTIME_WARMUP_KEY, runHalfOf, carriesRunHalf } from '../../runtime/runtimeObjects'
 import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
-import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CODE } from '../../ast/interpret'
+import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CODE, interpret as interpretTree } from '../../ast/interpret'
 import { setRuntimeDoorClock } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
 import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
-import SYMBOL_SCOPE from '../../ast/symbolScope.json'
+import { storeExchangeOfCapture } from './storeExchange.js'
 import { createFakeChart } from '../fakeChart'
-import { normalizeColor, substitutionProblems, vendorValueOf } from '../../../../../../../tools/vendor_harness/compare.mjs'
+import { isThemeColour } from '../../objectTheme'
+import { normalizeColor, COLOUR_WITHHELD_POINT, substitutionProblems, vendorValueOf } from '../../../../../../../tools/vendor_harness/compare.mjs'
 // ⭐ RS RATING L3 — which classification fields a script reads, and the binding's substitution tags.
 import { substitutedFor } from '../../ast/symbolSubstitution'
 import { CLASSIFICATION_FIELD_NAMES } from '../../ast/bind'
 import { validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
 import { fullBarsFor } from '../../../../../utils/barsBackfill'
+// ⭐ SETTINGS PARITY (2c): a capture is graded at the settings TradingView recorded in it
+import { captureInstanceInputs } from './captureInputs.js'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import crypto from 'node:crypto'
+import { instanceDocumentForFetch } from '../../symbolInputs.js'
+// ⭐⭐ THE STRATEGY ON THE RUNTIME LANE (2026-11-17, strategy-decl admission evidence): a broker document the
+// member door minted (`strategyWindow.js`, possible only with the strategy broker gate on) is handed the
+// server's history window exactly as the binder hands it (`binder.js`, W9-T11-F1), and its run's record is
+// read back off the columns (`strategyRecord.js::runtimeStrategyOf`), never re-run here.
+import { isStrategyWindowDefinition } from '../../strategyWindow'
+import { runtimeStrategyOf } from '../../runtime/strategyRecord.js'
+import { historyWindowBarsOf } from '../../runtime/__tests__/strategyArmed.js'
 
 // ─── ⭐⭐ C26 — ANOTHER SYMBOL'S BARS, FROM COMMITTED CAPTURES ONLY ─────────────
 //
@@ -137,24 +148,8 @@ function otherCaptureIndex() {
   return otherIndex
 }
 
-/** OUR STORE's exchange spelling for a captured listing — the key
- *  `symbolScope.json::confirmed` is written in. A capture carries TradingView's
- *  spelling (`AMEX` for SPY), and the store's (`NYSE Arca`) is linked to it only
- *  by a confirmed row's WITNESS: the row whose witness IS this listing answers.
- *  Failing that, a store key that is its own Pine spelling (`NYSE`, `NASDAQ`,
- *  `OTC`) is the same string in both worlds. `AMEX` without a witness is
- *  ambiguous (`NYSE Arca` and `NYSE American` both answer it): null. */
-function storeExchangeOfCapture(cap, tvExchange) {
-  const pro = String((cap.symbol && (cap.symbol.pro_name || cap.symbol.full_name)) || '').toUpperCase()
-  const confirmed = (SYMBOL_SCOPE && SYMBOL_SCOPE.confirmed) || {}
-  for (const [store, row] of Object.entries(confirmed)) {
-    if (store.startsWith('_') || !row || typeof row !== 'object') continue
-    if (String(row.witness || '').toUpperCase() === pro) return store
-  }
-  const tv = typeof tvExchange === 'string' ? tvExchange : ''
-  const own = confirmed[tv]
-  return own && typeof own === 'object' && own.pine === tv ? tv : null
-}
+// OUR STORE's exchange spelling for a captured listing: `storeExchange.js` (one authority, shared with the
+// strategy harness since 2026-11-16).
 
 /** ⭐⭐ C41 — the lower-timeframe supply a capture's script asks for
  *  (`ctx.lowerTf`), and the notes naming what was and was not supplied. Per code:
@@ -390,7 +385,10 @@ function otherSymbolSupply(def, capture) {
     const rec = recorded && recorded.other ? recorded.other[storeKey] : null
     if (rec) {
       if (Array.isArray(rec.bars)) {
-        secondary.set(storeKey, { bars: rec.bars, status: 'available' })
+        // SUPPLY-ATTRIBUTED (2026-11-17): the counterfactual run (`runOurSideWithSupply`) replaces these
+        // bars for ONE run; every graded run reads the recorded supply as served
+        const over = _supplyOverride && Array.isArray(_supplyOverride[storeKey]) ? _supplyOverride[storeKey] : null
+        secondary.set(storeKey, { bars: over || rec.bars, status: 'available' })
         notes.push(`other symbol ${ticker}: the bars our server serves, recorded beside the capture `
           + `(${rec.servedBy}; ${rec.source})`
           + (rec.rows ? `; kept out of git, read from the local supply store as ${rec.rows.file} (sha256 ${rec.rows.sha256.slice(0, 12)})` : ''))
@@ -635,7 +633,15 @@ export function warmBarsSupply(capture, { dir = OTHER_CAPTURE_DIR, useIndex = tr
   const metas = (warmCandidates({ dir, useIndex }).get(key) || [])
     // only a capture that starts BEFORE the window and reaches its first bar
     .filter((meta) => meta.timeUnit === capture.bars.timeUnit && meta.firstT < first && meta.lastT >= first)
-  /** One candidate: its prehistory when every overlapping window bar is equal, else why not. */
+  let windowTimes = null
+  /** One candidate: its prehistory when the overlap is the SAME SERIES as the window, else why not.
+   *  The same series means both directions: every window bar is in the candidate, equal, AND every
+   *  candidate bar inside the window's span is in the window. ⛔ (2026-11-17) The second direction
+   *  was missing: an extended-hours capture holds every regular-hours bar, equal, so it proved
+   *  against a regular-hours window and handed it extended-hours prehistory.
+   *  `rolling-vwap-spy-5-2026-11-16` (session 0400-2000) supplied three 0930-1600 SPY 5m windows
+   *  that way. The bars decide, not the `symbol.session` label: the label is a claim, the bars are
+   *  what gets replayed. */
   const prove = (meta) => {
     const candRows = warmCandidateRowsOf(meta.file, dir)
     if (!candRows) return { refused: `${meta.file}: its receipt does not validate` }
@@ -649,6 +655,13 @@ export function warmBarsSupply(capture, { dir = OTHER_CAPTURE_DIR, useIndex = tr
       if (!c) return { refused: `${meta.file}: window bar ${w[0]} is absent from it inside its span` }
       for (let k = 1; k < OHLCV_FIELDS.length; k += 1) {
         if (c[k] !== w[k]) return { refused: `${meta.file}: bar ${w[0]} ${OHLCV_FIELDS[k]} ${c[k]} vs the capture's ${w[k]}` }
+      }
+    }
+    windowTimes = windowTimes || new Set(rows.map((r) => r[0]))
+    const windowLast = rows[rows.length - 1][0]
+    for (let i = at; i < candRows.length && candRows[i][0] <= windowLast; i += 1) {
+      if (!windowTimes.has(candRows[i][0])) {
+        return { refused: `${meta.file}: its bar ${candRows[i][0]} lies inside the window's span and the window has no such bar (another session's series)` }
       }
     }
     return { proved: { file: meta.file, rows: candRows.slice(0, at), listing: meta.listing, capturedAt: meta.capturedAt } }
@@ -716,6 +729,110 @@ export function warmBarsSupply(capture, { dir = OTHER_CAPTURE_DIR, useIndex = tr
  *  warm-up (`runtimeWarmupOf`) is the one payload counted in bars, so it is moved
  *  into the window's indices (never below 0, and never dropped: a curtain that
  *  existed still withholds the run's drawings, as on the chart). */
+/** ⭐ ENGINE 56 — the union of a plot's per-bar witness withholdings (`registry
+ *  .withheldBarsReport`, computed over `calcBars`), sliced to the window: a 0/1 array, or
+ *  null when no bar of it was withheld by name. */
+export function withheldBarsOf(report, key, pre) {
+  const codes = report && report[key]
+  if (!codes) return null
+  const masks = Object.values(codes)
+  if (!masks.length) return null
+  const n = masks[0].length
+  const out = new Array(Math.max(0, n - (pre || 0))).fill(0)
+  for (const m of masks) for (let i = pre || 0; i < n; i++) if (m[i]) out[i - (pre || 0)] = 1
+  return out.some(Boolean) ? { bars: out, codes: Object.keys(codes).sort() } : null
+}
+
+/** ⭐⭐ ENGINE 56 (S4-4) — THE FLOAT-ORDER FLOOR OF A PLOT FED BY A RUNNING TOTAL, per bar
+ *  of the window, or null. Coordinator ruling: where a `cum` (or `sum`) feeds the plot, two
+ *  correct engines that add the same terms in a different order differ by a few ulps of the
+ *  TOTAL, not of the plot (an `ema(ad, 12) - ema(ad, 26)` of a 1e9 accumulation is a 1e6
+ *  difference carrying 1e9's rounding). So the absolute floor on bar i is
+ *  `8 · ε · max |c · total|` over bars 0..i of the computed series (prehistory included; `c` the
+ *  constant the total is scaled by on its way to the plot, `linearTotalsOf`). Only
+ *  the running-total operand's own magnitude enters: a relative 1e-6 error in the plot is
+ *  still a DIVERGE (railed in `vendorHarness.engine56FloatFloor.test.js`). */
+export const FLOAT_ORDER_ULPS = 8
+const RUNNING_TOTAL_NODES = new Set(['cum', 'cumFrom', 'sum'])
+/** ⭐ (review #1265 finding 4) the calls that are LINEAR in their source: a total's float-order
+ *  error passes through them unscaled by any other value. */
+const LINEAR_OF_SOURCE = new Set(['sma', 'ema', 'rma', 'wma', 'change'])
+const TOTAL_PASS_THROUGH = new Set(['tf', 'tf_live', 'tf_merge', 'ltf'])
+const hasTotal = (n) => !!n && typeof n === 'object'
+  && ((n.type === 'call' && RUNNING_TOTAL_NODES.has(n.name)) || (Array.isArray(n.args) && n.args.some(hasTotal)))
+/** A written constant (a finite literal, its negation, `+ - * /` of constants), or null. */
+const constantOf = (n, d = 0) => {
+  if (!n || typeof n !== 'object' || d > 32) return null
+  if (n.type === 'num') return Number.isFinite(n.value) ? n.value : null
+  const a = Array.isArray(n.args) ? n.args.map((x) => constantOf(x, d + 1)) : []
+  if (n.type !== 'op' || a.some((x) => x === null)) return null
+  if (n.name === 'u-' && a.length === 1) return -a[0]
+  if (a.length !== 2) return null
+  const v = n.name === '+' ? a[0] + a[1] : n.name === '-' ? a[0] - a[1] : n.name === '*' ? a[0] * a[1]
+    : n.name === '/' ? a[0] / a[1] : NaN
+  return Number.isFinite(v) ? v : null
+}
+/** The running totals a plot is a LINEAR combination of (sums and differences of totals, a
+ *  total times or over a CONSTANT, an offset, a linear smoother of one), each with the factor
+ *  its float-order error reaches the plot by (`|c|` for `total * c`, `1 / |c|` for `total / c`;
+ *  re-review #1265, 4), or null when a total reaches the plot any other way (a ratio or product
+ *  of totals, a non-constant multiplier or divisor, `abs`, a comparison, …). Only then is the
+ *  absolute floor sound: through a ratio (`cum(hlc3 * v) / cum(v)`) the total's ulps are
+ *  divided away, and the plot is graded by REL 1e-9 on its own magnitude. */
+export function linearTotalsOf(tree) {
+  const totals = []
+  const walk = (n, scale) => {
+    if (!n || typeof n !== 'object' || !hasTotal(n)) return true
+    if (n.type === 'call' && RUNNING_TOTAL_NODES.has(n.name)) { totals.push({ node: n, scale }); return true }
+    const args = Array.isArray(n.args) ? n.args : []
+    if (n.type === 'op' && (n.name === '+' || n.name === '-' || n.name === 'u-')) return args.every((x) => walk(x, scale))
+    if (n.type === 'op' && (n.name === '*' || n.name === '/')) {
+      const [a, b] = args
+      if (n.name === '*' && !hasTotal(a)) {
+        const c = constantOf(a)
+        return c !== null && walk(b, scale * Math.abs(c))
+      }
+      if (!hasTotal(b)) {
+        const c = constantOf(b)
+        if (c === null || c === 0) return false
+        return walk(a, n.name === '*' ? scale * Math.abs(c) : scale / Math.abs(c))
+      }
+      return false
+    }
+    if (n.type === 'offset') return walk(args[0], scale)
+    // a read of the SAME symbol on other bars (`security(tickerid, res, hist)`): the same total's
+    // float order, read where that timeframe's bar closes (never another symbol's, `sym`)
+    if (TOTAL_PASS_THROUGH.has(n.type)) return walk(args[0], scale)
+    // a `?:` draws ONE of its arms on each bar (its test selects, it adds nothing to the value):
+    // the arms decide (accdist-macd's `sh and hist ? hist : na`)
+    if (n.type === 'op' && n.name === '?:' && args.length === 3) return walk(args[1], scale) && walk(args[2], scale)
+    if (n.type === 'call' && LINEAR_OF_SOURCE.has(n.name)) return walk(args[0], scale) && args.slice(1).every((x) => !hasTotal(x))
+    return false
+  }
+  return walk(tree, 1) && totals.length ? totals : null
+}
+export function floatOrderFloorOf(tree, calcBars, pre) {
+  if (!tree || typeof tree !== 'object') return null
+  const totals = linearTotalsOf(tree)
+  if (!totals) return null
+  const len = calcBars.length
+  const mag = new Float64Array(len)
+  for (const { node, scale } of totals) {
+    let col
+    try { col = interpretTree(node, calcBars, undefined, undefined, undefined, {}) } catch { return null }
+    if (!col || typeof col.length !== 'number' || col.length !== len) return null
+    let m = 0
+    for (let i = 0; i < len; i++) {
+      const v = scale * Math.abs(col[i])
+      if (Number.isFinite(v) && v > m) m = v
+      if (m > mag[i]) mag[i] = m
+    }
+  }
+  const out = []
+  for (let i = pre || 0; i < len; i++) out.push(FLOAT_ORDER_ULPS * Number.EPSILON * mag[i])
+  return out
+}
+
 export function columnsInWindow(cols, pre) {
   if (!cols || typeof cols !== 'object' || !(pre > 0)) return cols
   const out = {}
@@ -943,10 +1060,15 @@ function runtimeAwarePaints(built, def) {
 
 /** Drive the real binder over the recording double; per plot key, the colour
  *  the renderer was handed for every bar (point colour, else series colour). */
-function drawnColours(def, bars, ctx) {
+function drawnColours(def, bars, ctx, inputs = undefined) {
   const fake = createFakeChart()
   const binder = createBinder({ chart: fake.chart, LWC: fake.LWC })
-  const cs = addInstance(mergeChartSettings({}), def.id, registry)
+  let cs = addInstance(mergeChartSettings({}), def.id, registry)
+  // ⭐ SETTINGS PARITY (2c) — the instance carries the capture's own moved settings, as a member's would
+  if (inputs) {
+    cs = { ...cs, indicatorInstances: (cs.indicatorInstances || []).map((i) => (i && i.defId === def.id
+      ? { ...i, inputs: { ...(i.inputs || {}), ...inputs } } : i)) }
+  }
   const instances = (cs.indicatorInstances || []).filter((i) => i.defId === def.id)
   const out = new Map()
   if (!instances.length) return { ok: false, reason: 'addInstance produced no instance', byKey: out }
@@ -970,6 +1092,9 @@ function drawnColours(def, bars, ctx) {
     secondary: ctx.secondary || null,
     exchangeOf: ctx.exchangeOf,
     lowerTf: ctx.lowerTf || null,
+    // ⭐⭐ (2026-11-17) — a broker document's window, as StockChart hands the binder `strategyHistoryWindow`
+    // (absent for every other document, whose ctx carries none)
+    ...(ctx.historyWindowBars != null ? { historyWindowBars: ctx.historyWindowBars } : {}),
     adjustTime: (t) => t,
     applyData: (series, data) => series.setData(data),
     plan: { fresh: true },
@@ -984,6 +1109,18 @@ function drawnColours(def, bars, ctx) {
     const plot = plotByKey.get(b.plotKey) || {}
     const seriesColor = b.series.__options && b.series.__options.color
     const byTime = new Map(data.map((p) => [String(p.time), p]))
+    // ⭐⭐ A GAP-BREAKING LINE IS DRAWN BY MORE THAN ONE SERIES (`gapRuns.js`): the
+    // primary holds the NEWEST valued run and whitespace elsewhere, and each earlier
+    // run is drawn by a run series the binding owns (`runSeries` / `runData`). Reading
+    // the primary alone read every earlier run as "none" — a renderer that drew the
+    // colour, scored as one that did not (row 42: `plot.style_linebr` now breaks, and
+    // supertrend-strategy / pa-zigzag read 332 and 8 phantom colour misses). What the
+    // renderer was handed for a bar is the valued point of whichever series drew it.
+    for (const run of (Array.isArray(b.runData) ? b.runData : [])) {
+      for (const p of (Array.isArray(run) ? run : [])) {
+        if (p && Number.isFinite(p.value)) byTime.set(String(p.time), p)
+      }
+    }
     // ⭐⭐ A DISPLACED PLOT'S COLOUR IS READ WHERE THE RENDERER DREW IT.
     // `offset = -N` draws the value computed on bar i at bar i - N (the binder's
     // `displacedColumn`), and TradingView's study data keys that value — and its
@@ -996,11 +1133,16 @@ function drawnColours(def, bars, ctx) {
     // (`undefined`, which the comparator skips), not a "none".
     // ⛔ The shift is the binder's OWN `drawShiftOf`, never re-derived here.
     const shift = drawShiftOf(plot)
+    // ⭐ ENGINE 58 — a colour-rule row whose series colour is withheld by name
+    // (`plots[].colorWithheld.points`): a point the renderer was handed no colour of
+    // its own for draws in none, by name — `COLOUR_WITHHELD_POINT`, not a colour.
+    const pointsWithheld = !!(plot.colorWithheld && plot.colorWithheld.points)
     const colors = bars.map((_bar, i) => {
       const at = i + shift
       if (at < 0) return undefined
       const p = at < bars.length ? byTime.get(String(bars[at].t)) : null
       if (!p || !Number.isFinite(p.value)) return null
+      if (pointsWithheld && !p.color) return COLOUR_WITHHELD_POINT
       // ⭐⭐ WHAT THE RENDERER WAS HANDED IS FINAL. The pool already folded the
       // plot's opacity into a point colour and a series colour (`withAlpha`,
       // which MULTIPLIES through); re-applying `opacity` here REPLACED the
@@ -1151,16 +1293,16 @@ function notShownReport(withheldBy, withheldWhy, base = null) {
  *  bind served it, the run's drawings are graded (the binder draws them and not the host
  *  program's); otherwise the host program's, as the chart draws them. The state rides on
  *  the report (`runHalf`, `runHalfCode`) for the census and the regrade. */
-function objectsOf(def, bars, ctx, cols, built = null) {
+function objectsOf(def, bars, ctx, cols, built = null, inputs = undefined) {
   const half = carriesRunHalf(def) ? runHalfOf(cols) : null
   const tag = half ? { runHalf: half.state, runHalfCode: half.code || null } : {}
   if (half && half.state === 'served') return { ...runtimeObjectsReport(def, bars, ctx, cols), ...tag }
-  const r = hostObjectsOf(def, bars, ctx, cols, built)
+  const r = hostObjectsOf(def, bars, ctx, cols, built, inputs)
   return r && half ? { ...r, ...tag } : r
 }
 
 /** The object lane's LIVE set at the last bar, as counts and texts. */
-function hostObjectsOf(def, bars, ctx, cols, built = null) {
+function hostObjectsOf(def, bars, ctx, cols, built = null, inputs = undefined) {
   if (drawsRuntimeObjects(def)) return runtimeObjectsReport(def, bars, ctx, cols)
   if (!def.objects || !(def.objects.ops || []).length) {
     const w = drawingWithheldBy(built)
@@ -1168,7 +1310,8 @@ function hostObjectsOf(def, bars, ctx, cols, built = null) {
   }
   try {
     const reader = objectReaderFor(def, bars, {
-      inputs: undefined, tf: ctx.tf, symbol: ctx.symbol, newestBarIsForming: ctx.newestBarIsForming,
+      // ⭐ SETTINGS PARITY (2c) — the capture's own settings, as the chart's object lane reads them
+      inputs, tf: ctx.tf, symbol: ctx.symbol, newestBarIsForming: ctx.newestBarIsForming,
       historyFromListing: ctx.historyFromListing === true,
       barIndexFromFirstBar: ctx.barIndexFromFirstBar === true,
       secondary: ctx.secondary || null, exchangeOf: ctx.exchangeOf,
@@ -1287,6 +1430,29 @@ export function enterMemberDoor(source) {
   return { built, def: installed[0], stage: null, refusal: null }
 }
 
+/**
+ * ⭐⭐ (2026-11-17) — WHAT A BROKER DOCUMENT'S RUN PUBLISHED, read back off the columns the product computed
+ * (`registry.computeFor`, the binder's call): its strategy record (`runtimeStrategyOf`), its own drawings, and,
+ * when it published no record, the refusal the columns carry by name (a run stopped at an unpinned or unsettled
+ * rule, a window it cannot start from, a build the lane refused). Nothing is re-run or re-derived here.
+ * The record's times are the run's own (each bar's opening instant, `runtimeColumns.js::brokerBarTimes`): they
+ * are graded as recorded, never mapped onto the capture's clock (2026-11-17, strategy-epoch-bar-times).
+ */
+export function strategyRunOf(cols, bars, rows) {
+  const record = runtimeStrategyOf(cols)
+  let refusal = null
+  if (!record) {
+    const errs = (typeof registry.columnErrors === 'function' ? registry.columnErrors(cols) : null) || {}
+    const first = Object.values(errs).find((e) => e && e.guard) || null
+    refusal = first
+      ? { guard: String(first.guard), message: String(first.message || '') }
+      : { guard: 'harness:no-record', message: 'the broker document ran and published no strategy record' }
+  }
+  // `unixAt[x]`: the capture's time of run bar `x` (a drawing's `bar_index` x)
+  const unixAt = bars.map((b, i) => (rows[i] ? rows[i][0] : null))
+  return { record, refusal, objects: runtimeObjectsOf(cols), objectsWithheld: runtimeObjectsWithheldOf(cols), unixAt }
+}
+
 /** ⭐⭐ THE PARITY CLOCK: one that never moves. A grade is a question about VALUES, so
  *  the runtime pane's wall-clock stop (`RUNTIME_PANE_TIME_BUDGET_MS`) must not answer it:
  *  on a busy box delta-rsi's cold run passed 1,000 ms and graded INCONCLUSIVE ("no
@@ -1323,7 +1489,10 @@ export function withheldPlotsOf(clockReport, cols, notes) {
     const what = r.code.startsWith('bar-index:') ? '`bar_index`'
       : r.code.startsWith('running-total:') ? 'a running total'
         : r.code.startsWith('var-origin:') ? '`var`'
-          : r.code.startsWith('request:') ? '`request.security`' : 'time(<timeframe>)'
+          : r.code.startsWith('request:') ? '`request.security`'
+            // engine HL: `windowHoleMask`
+            : r.code.startsWith('window-extreme:') ? 'a window over `na` gaps'
+              : r.code.startsWith('pine:') ? 'a value (engine 56 per-bar witness)' : 'time(<timeframe>)'
     notes.push(`${what} withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
     const whole = CHART_CLOCK_WHOLE.includes(r.code)
     // ⭐ ENGINE 55 — a NEWEST-BAR code is never a whole-series withholding, even on a
@@ -1358,6 +1527,21 @@ export function substitutedInputsOf(capture, declared = []) {
   return list.map((e) => ({ ...e }))
 }
 
+// SUPPLY-ATTRIBUTED (coordinator ruling on #1541, 2026-11-17): the counterfactual run of
+// `supplyAttribution.js` - our side on the recorded supply with TradingView's witnessed values on the
+// dates they differ. ONLY that file calls it; it never feeds a grade a member reads (the grade runs on
+// the recorded supply, RS RATING L8), it only proves which side of a difference is the data.
+let _supplyOverride = null
+/** Our side, once, with `overrides` (`{<store ticker>: bars}`) in place of the recorded supply. */
+export function runOurSideWithSupply(capture, overrides) {
+  _supplyOverride = overrides || null
+  try {
+    return runOurSide(capture)
+  } finally {
+    _supplyOverride = null
+  }
+}
+
 export function runOurSide(capture) {
   setRuntimeDoorClock(PARITY_CLOCK)
   try {
@@ -1380,6 +1564,15 @@ function runOurSideOnTheParityClock(capture) {
       return { ok: false, refusal: door.refusal, plots: [], notes }
     }
     const def = door.def
+    // ⭐⭐ SETTINGS PARITY (2c) — THE SETTINGS THE CAPTURE WAS TAKEN AT. At every default this is
+    // `undefined` and our side computes exactly as it always has; a capture with a setting moved is
+    // computed with the same setting moved, or refused by name (`captureInputs.js`).
+    const taken = captureInstanceInputs(capture, def)
+    if (!taken.ok) {
+      return { ok: false, refusal: `the capture was taken at settings our side cannot set: ${taken.why}`, plots: [], notes }
+    }
+    const instanceInputs = taken.inputs
+    if (instanceInputs) notes.push(`settings: graded at the capture's own moved settings ${JSON.stringify(taken.moved)}`)
     const bars = toProductBars(capture)
     const tf = tfCodeOf(capture.timeframe)
     if (tf === capture.timeframe && !/^\d+$/.test(tf) && !['D', 'W', 'M'].includes(tf)) {
@@ -1403,8 +1596,15 @@ function runOurSideOnTheParityClock(capture) {
       // exactly as the member's chart withholds it.
       barIndexFromFirstBar: barIndexStartsAtZero(capture),
     }
+    // ⭐⭐ THE STRATEGY WINDOW, AS THE BINDER HANDS IT (`binder.js` W9-T11-F1): a broker document is handed the
+    // server's `bars_window.HISTORY_WINDOW_BARS` (what `GET /api/pine/history-window` answers a member's tab);
+    // every other document is handed nothing, so an indicator's ctx is unchanged.
+    const strategyDoc = isStrategyWindowDefinition(def)
+    if (strategyDoc) ctx.historyWindowBars = historyWindowBarsOf(path.resolve(process.cwd(), '..'))
     // ⭐ C26 — another symbol's bars, from committed captures only.
-    const supply = otherSymbolSupply(def, capture)
+    // ⭐ SETTINGS PARITY (symbol): the supply the capture's own symbol choice asks for (the chart fetches
+    // the instance's chosen comparison symbol, `symbolInputs.instanceDocumentForFetch`)
+    const supply = otherSymbolSupply(instanceDocumentForFetch(def, { inputs: instanceInputs }), capture)
     if (supply.secondary) { ctx.secondary = supply.secondary; ctx.exchangeOf = supply.exchangeOf }
     notes.push(...supply.notes)
     if (ctx.symbol.securityType) {
@@ -1462,8 +1662,12 @@ function runOurSideOnTheParityClock(capture) {
       : bars
     const calcCtx = replay ? { ...ctx, historyFromListing: replaySupply.historyFromListing === true } : ctx
     notes.push(`plots/objects: ${decision.kind}: ${decision.why}`)
-    const calcCols = registry.computeFor(def, calcBars, undefined, calcCtx)
+    const calcCols = registry.computeFor(def, calcBars, instanceInputs, calcCtx)
     const cols = replay ? columnsInWindow(calcCols, replayPre) : calcCols
+    // ⭐⭐ THE STRATEGY'S OWN OUTPUT (2026-11-17): what the broker document's run published beside its columns
+    const strategy = strategyDoc
+      ? strategyRunOf(calcCols, calcBars, replay ? replaySupply.rows.concat(capture.bars.rows) : capture.bars.rows)
+      : null
     // ⭐ B1 — each carried paint's colour on every bar, through the binder's own
     // `paintColoursFor` (the function the chart draws with), keyed as the binder keys.
     // ⭐⭐ RC1 — over [prehistory + window] when a proved supplier exists
@@ -1484,7 +1688,7 @@ function runOurSideOnTheParityClock(capture) {
     const paintCtx = warm ? { ...ctx, historyFromListing: paintSupply.historyFromListing === true } : ctx
     // (with DIV-1 replaying, the paint pass is the SAME computation — same bars, same
     // context — so it is read off `calcCols` rather than run twice)
-    const paintColsRaw = warm ? (replay ? calcCols : registry.computeFor(def, paintBars, undefined, paintCtx)) : cols
+    const paintColsRaw = warm ? (replay ? calcCols : registry.computeFor(def, paintBars, instanceInputs, paintCtx)) : cols
     const paintCols = new Map(Object.keys(paintColsRaw || {}).map((k) => [bindingKey('harness', k), paintColsRaw[k]]))
     const paints = (def.paints || []).map((p) => {
       const all = paintColoursFor(p, 'harness', paintCols, paintBars.length)
@@ -1530,18 +1734,20 @@ function runOurSideOnTheParityClock(capture) {
     // not compared (`compare.mjs`, `withheldNewest`), every other bar is.
     const newestHeld = new Set(((registry.chartClockReport(cols) || {}).withheld || [])
       .filter((r) => r.code === TF_MERGE_NEWEST_CODE).flatMap((r) => r.plots))
+    // ⭐ ENGINE 56 — the bars each plot was withheld on by a per-bar witness code
+    const withheldBarsReport = registry.withheldBarsReport(calcCols)
     let colours
     // ⭐ DIV-1 — the plot colours the binder draws over the SAME replayed bars the
     // values were computed on, each sliced to the window.
     let calcColours = null
     try {
       if (replay) {
-        calcColours = drawnColours(def, calcBars, calcCtx)
+        calcColours = drawnColours(def, calcBars, calcCtx, instanceInputs)
         colours = { ...calcColours,
           byKey: new Map([...calcColours.byKey].map(([k, c]) => [k, Array.isArray(c) ? c.slice(replayPre) : c])),
           paints: null }
       } else {
-        colours = drawnColours(def, bars, ctx)
+        colours = drawnColours(def, bars, ctx, instanceInputs)
       }
     } catch (err) {
       colours = { ok: false, reason: `binder threw: ${String((err && err.message) || err)}`, byKey: new Map() }
@@ -1554,7 +1760,7 @@ function runOurSideOnTheParityClock(capture) {
     if (warm) {
       try {
         // (the DIV-1 pass above IS this pass when it replayed: same bars, same context)
-        const w = replay && calcColours ? calcColours : drawnColours(def, paintBars, paintCtx)
+        const w = replay && calcColours ? calcColours : drawnColours(def, paintBars, paintCtx, instanceInputs)
         const keep = new Set(bars.map((b) => String(b.t)))
         drawnPaints = w && w.paints ? {
           backgrounds: w.paints.backgrounds.map((b) => ({ ...b, colors: Array.isArray(b.colors) ? b.colors.slice(pre) : b.colors })),
@@ -1578,6 +1784,8 @@ function runOurSideOnTheParityClock(capture) {
     // they are the plot's warm-up region here, exactly as a tree's own lookback is.
     const curtain = built.lane === 'runtime' ? runtimeWarmupOf(cols) : null
     const plots = []
+    const defPlotByKey = new Map((def.plots || []).map((p) => [p.key, p]))
+    const defInputByKey = new Map((def.inputs || []).map((x) => [x.key, x]))
     for (const [index, o] of (built.translation.outputs || []).entries()) {
       if (o && o.kind === 'alertcondition') continue
       const row = built.lane === 'runtime'
@@ -1608,12 +1816,34 @@ function runOurSideOnTheParityClock(capture) {
           // says its whole sentence, so a grade reads WHY that one plot is not drawn.
           + (why && why.code && why.message ? ` — ${why.message}` : '')
       }
+      const heldBars = row && col ? withheldBarsOf(withheldBarsReport, row.key, replayPre) : null
+      if (heldBars) notes.push(`${row.key}: ${heldBars.bars.filter(Boolean).length} bar(s) withheld by name (${heldBars.codes.join(', ')}) — not compared`)
+      // ⭐⭐ ENGINE 58 — what the door said about this row's colour: withheld whole
+      // by name (graded "not compared", INCONCLUSIVE with the name), withheld on the
+      // bars its rule gives no colour (`COLOUR_WITHHELD_POINT`, counted), or a THEME
+      // reference (`chart.fg_color@85`: our chart's own colour, theme-relative).
+      const defPlot = row ? defPlotByKey.get(row.key) : null
+      const cw = defPlot && defPlot.colorWithheld && typeof defPlot.colorWithheld.code === 'string' ? defPlot.colorWithheld : null
+      const wholeWithheld = !!(cw && !cw.points)
+      const rawColour = defPlot && typeof defPlot.color === 'string' && defPlot.color.startsWith('$')
+        ? ((defInputByKey.get(defPlot.color.slice(1)) || {}).default) : (defPlot && defPlot.color)
+      // ⛔ A WHOLE-WITHHELD colour draws in the chart's neutral ink (a theme reference,
+      // `memberPaneDefinition.WITHHELD_COLOUR_INK`) and is NOT theme-relative: it is not
+      // the script's colour, so it is not compared at all (INCONCLUSIVE by name).
+      const themeRelative = !wholeWithheld && isThemeColour(rawColour)
       plots.push({
         title: o ? o.title : null,
+        // the call that made it (`plot`, `plotshape`, ...): the strategy grade pairs `plot()` outputs only
+        kind: o && typeof o.kind === 'string' ? o.kind : null,
         formula: o ? o.formula : null,
         key: row ? row.key : null,
         withheldBy: heldBy || null,
         withheldNewest: !!(col && row && newestHeld.has(row.key) && col.length > 0 && !(col[col.length - 1] === col[col.length - 1])),
+        // ⭐ ENGINE 56 — 0/1 per window bar: withheld by name, graded "not compared"
+        withheldBars: heldBars ? heldBars.bars : null,
+        withheldBarsCodes: heldBars ? heldBars.codes : null,
+        // ⭐ ENGINE 56 (S4-4) — the float-order floor where a running total feeds the plot
+        floatOrderFloor: built.lane !== 'runtime' && o && o.ast && col ? floatOrderFloorOf(o.ast, calcBars, replayPre) : null,
         hidden: !!(o && o.hidden),
         column: col || null,
         missingReason,
@@ -1623,13 +1853,16 @@ function runOurSideOnTheParityClock(capture) {
         historyReplayed: replay ? { bars: replayPre, file: replaySupply.file } : null,
         // ⭐ F2 — the colour rule's own reach (`compare.mjs::colourWarmupOf`).
         colorLookback: colourRuleLookback(o),
-        colors: row && colours.byKey.has(row.key) ? colours.byKey.get(row.key) : null,
+        colors: !wholeWithheld && row && colours.byKey.has(row.key) ? colours.byKey.get(row.key) : null,
+        ...(themeRelative ? { colorsThemeRelative: true } : {}),
+        ...(cw && cw.points ? { colorsWithheldBy: cw.code } : {}),
         // A positive `offset = N` the translator wrote INTO the tree as `x[N]`
         // (its `_treeShift` hand-off) — see compare.mjs `leadBy`.
         treeShift: o && Number.isInteger(o._treeShift) && o._treeShift > 0 ? o._treeShift : 0,
         // Why there are no colours, when there are none — so the verdict names the
         // cause instead of "could not be resolved".
-        colorsReason: row && !colours.byKey.has(row.key)
+        colorsReason: wholeWithheld ? `withheld by name (${cw.code}) — ${cw.reason}`
+          : row && !colours.byKey.has(row.key)
           ? (o && o.hidden
             ? `our pane draws no series for this row — hidden (${o.hiddenReason || 'unstated'})`
             : (colours.ok ? 'the binder bound no series for this row' : colours.reason))
@@ -1643,7 +1876,7 @@ function runOurSideOnTheParityClock(capture) {
       ? { drawsObjects: true, ok: false, withheld: objectsWithheld.guard, reason: `withheld by name (${objectsWithheld.guard}) — ${objectsWithheld.message}` }
       // ⭐ DIV-1 — the LIVE set at the last bar of the replayed series: the window's
       // last bar, after every bar TradingView ran before it
-      : objectsOf(def, calcBars, calcCtx, calcCols, built)
+      : objectsOf(def, calcBars, calcCtx, calcCols, built, instanceInputs)
     // ⭐⭐ U13 (G1) — WHERE OUR x LIVES, in BOTH lanes (the host object lane and the
     // runtime's RT5 object store answer through `objectsOf`): the bars the object lane
     // ran on, and where the capture's window starts in them (the DIV-1 prehistory, if
@@ -1668,6 +1901,8 @@ function runOurSideOnTheParityClock(capture) {
       refusal: null,
       plots,
       objects,
+      // ⭐ SETTINGS PARITY (2c) — `{Pine name: TradingView value}` for every setting the capture moved
+      capturedInputs: taken.moved,
       ctx,
       notes,
       bars,
@@ -1696,6 +1931,9 @@ function runOurSideOnTheParityClock(capture) {
       // (`substitutedInputsOf`); `[]` until a lane feeds one.
       // ⭐ RS RATING L3 — `syminfo.industry` / `sector`, fed the capture's value (`symbolOf`).
       substituted: substitutedInputsOf(capture, classificationSubstitutions(source, ctx.symbol, capture)),
+      // ⭐⭐ (2026-11-17) — a broker document's run: its record, or why it published none (`strategyRunOf`);
+      // null for every other document. Graded by `strategyLane.js`.
+      strategy,
     }
   } finally {
     registry.uninstallUserDefinition(HARNESS_DEF_ID)

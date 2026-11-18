@@ -176,15 +176,31 @@ describe('the two lists cannot drift apart', () => {
   })
 })
 
+/**
+ * ⚰️ 2026-11-17 — THIS SCAN WAS RED IN EVERY CI VITEST LANE AND RAN IN NONE. It reads the BUILT bundle, and
+ * no vitest job builds one (the nightly's four shards, the `remote tests` lane), so it failed on
+ * "app/dist/assets missing" every night (remote run 44066213548) and its real assertion never ran anywhere
+ * but a developer's box with a fresh build. Building the app in every vitest shard to feed one file would
+ * cost minutes per shard; a minimal bundle would not be what ships, and what ships is the whole question.
+ * ⭐ `notebook-bytes.yml` already runs `npm run build` on every app/src change, PR and master, so it runs
+ * this file right after that build with REQUIRE_BUILT_DIST=1, and THERE a missing build is a failure, never
+ * a skip. In a lane with no build the scan SKIPS, and its title says why and where it runs; the rail at the
+ * bottom of this file pins that the build lane still runs it, so the skip cannot quietly become "nowhere".
+ */
+const BUILD_LANE = path.join(APP, '..', '.github', 'workflows', 'notebook-bytes.yml')
+const THIS_FILE = 'src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js'
+const DIST_REQUIRED = process.env.REQUIRE_BUILT_DIST === '1'
+const SCAN_RUNS = DIST_REQUIRED || existsSync(DIST)
+const NO_DIST = 'SKIPPED, no app/dist/assets here: this scan reads BUILT output. It runs in '
+  + '.github/workflows/notebook-bytes.yml right after `npm run build` (REQUIRE_BUILT_DIST=1); locally, '
+  + 'run `npm run build` first'
+
 describe('no shipped chunk evaluates an UNSHIMMED global below the floor (iOS >= 16)', () => {
-  it('every built asset is clear', () => {
-    if (!existsSync(DIST)) {
-      // ⛔ NOT A SILENT PASS. With no build there is nothing to measure, and a rail reporting green
-      // over zero files is the shape this repo keeps getting burned by.
-      expect(existsSync(DIST), 'app/dist/assets missing — run `npm run build`; this rail reads '
-        + 'BUILT output and with no build it measures nothing').toBe(true)
-      return
-    }
+  it.skipIf(!SCAN_RUNS)(`every built asset is clear${SCAN_RUNS ? '' : ` (${NO_DIST})`}`, () => {
+    // ⛔ NOT A SILENT PASS where a build is required: with no build there is nothing to measure, and a
+    // rail reporting green over zero files is the shape this repo keeps getting burned by.
+    expect(existsSync(DIST), 'app/dist/assets missing — run `npm run build`; this rail reads '
+      + 'BUILT output and with no build it measures nothing').toBe(true)
     const files = readdirSync(DIST)
       .filter((f) => f.endsWith('.js') && statSync(path.join(DIST, f)).isFile())
     expect(files.length, 'no .js assets in dist/assets — this rail measured nothing').toBeGreaterThan(5)
@@ -203,5 +219,23 @@ describe('no shipped chunk evaluates an UNSHIMMED global below the floor (iOS >=
     expect(offenders, 'A shipped chunk evaluates a global the floor does not have, and nothing '
       + 'shims it. This is the class that took /journal/notebook down on iOS 17.5 while every '
       + `local engine stayed green.\n  ${offenders.join('\n  ')}`).toEqual([])
+  })
+})
+
+describe('where the build scan runs (the skip above is only honest while this holds)', () => {
+  it('notebook-bytes.yml runs THIS file on its own build, with a missing build an error', () => {
+    const wf = readFileSync(BUILD_LANE, 'utf8').replace(/\r\n/g, '\n')
+    const build = wf.indexOf('run: npm run build')
+    const scan = wf.indexOf(`run: npx vitest run ${THIS_FILE}`)
+    expect(build, 'notebook-bytes.yml no longer builds the app').toBeGreaterThan(-1)
+    expect(scan, `notebook-bytes.yml no longer runs ${THIS_FILE} — the dist scan above now runs nowhere`)
+      .toBeGreaterThan(build)
+    // the scan's own step (from its `- name:` to the next step) requires the build
+    const stepStart = wf.lastIndexOf('\n      - ', scan)
+    const stepEnd = wf.indexOf('\n      - ', scan)
+    const step = wf.slice(stepStart, stepEnd === -1 ? undefined : stepEnd)
+    expect(step).toMatch(/REQUIRE_BUILT_DIST:\s*'1'/)
+    expect(step).toMatch(/working-directory:\s*app\b/)
+    expect(step).not.toMatch(/continue-on-error/)
   })
 })

@@ -1,0 +1,376 @@
+{
+ "schema": "uct.strategy-decl-grades/v1",
+ "generatedBy": "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js",
+ "lane": "runtime-on",
+ "run": "the 22 other strategy-declaring captures",
+ "base": "feat/serve-witnessed-strategy-backtests d112a95d2c + this branch's harness (uncommitted at run time, committed with this file)",
+ "laneEvidence": {
+  "requested": "runtime-on",
+  "objectsOnlyPane": true,
+  "gateOpen": true,
+  "declined": 9,
+  "gated": 0,
+  "runtimeDrawn": 7,
+  "hostRefused": 16,
+  "reachedRuntime": 16,
+  "declines": {
+   "runtime:library": 4,
+   "runtime:call-undeclared-builtin-state": 2,
+   "runtime:strategy-repaint": 2,
+   "lower-tf:store-unmeasured": 1
+  },
+  "strategy": {
+   "brokerGate": true,
+   "graded": 16,
+   "brokerRuns": 7,
+   "verdicts": {
+    "INCONCLUSIVE": 16
+   }
+  }
+ },
+ "results": [
+  {
+   "id": "atr-god-strategy-by-tradesmart-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/atr-god-strategy-by-tradesmart-rddt-1d-2026-11-15.json",
+   "script": "ATR GOD Strategy by TradeSmart",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "refused on our side: member door refused (pine:block) [runtime declined: runtime:call-undeclared-builtin-state]: a Pine block spans several statements and this engine stores a single expression — a Pine block spans several statements and this engine stores a single expression (reached through `switch_ma`); strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": false,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "refusedBy": "door",
+    "refusal": "the member door refused the script, so nothing was run",
+    "referenceTrades": null,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "atr-god-strategy-by-tradesmart-spy-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/atr-god-strategy-by-tradesmart-spy-1d-2026-11-15.json",
+   "script": "ATR GOD Strategy by TradeSmart",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "refused on our side: member door refused (pine:block) [runtime declined: runtime:call-undeclared-builtin-state]: a Pine block spans several statements and this engine stores a single expression — a Pine block spans several statements and this engine stores a single expression (reached through `switch_ma`); strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": false,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "refusedBy": "door",
+    "refusal": "the member door refused the script, so nothing was run",
+    "referenceTrades": null,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "heikin-ashi-supertrend-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/heikin-ashi-supertrend-rddt-1d-2026-11-15.json",
+   "script": "Heikin Ashi Supertrend",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `jordanfray/threengine_global_automation_library/89` is not in this engine's library registry, so its code cannot be compiled; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": false,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "refusedBy": "door",
+    "refusal": "the member door refused the script, so nothing was run",
+    "referenceTrades": null,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "heikin-ashi-supertrend-spy-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/heikin-ashi-supertrend-spy-1d-2026-11-15.json",
+   "script": "Heikin Ashi Supertrend",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `jordanfray/threengine_global_automation_library/89` is not in this engine's library registry, so its code cannot be compiled; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": false,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "refusedBy": "door",
+    "refusal": "the member door refused the script, so nothing was run",
+    "referenceTrades": null,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "macd-shortlong-strategy-for-tradingview-input-optimizer-rddt-1d-2026-10-02",
+   "file": "tests/fixtures/vendor/harness/macd-shortlong-strategy-for-tradingview-input-optimizer-rddt-1d-2026-10-02.json",
+   "script": "MACD Short/Long TVIO",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "6 of 7 items could not be compared; strategy INCONCLUSIVE at step 0: our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against",
+   "strategy": {
+    "broker": true,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against",
+    "refusedBy": "runtime:strategy-unpinned",
+    "refusal": "the broker rule B-EXIT-NA is not pinned by a matching TradingView capture (capture row Q-S1-core, docs/pine/W9-STRATEGY-DESIGN.md 5.2)",
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "macd-shortlong-strategy-for-tradingview-input-optimizer-spy-1d-2026-10-03",
+   "file": "tests/fixtures/vendor/harness/macd-shortlong-strategy-for-tradingview-input-optimizer-spy-1d-2026-10-03.json",
+   "script": "MACD Short/Long TVIO",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "6 of 7 items could not be compared; strategy INCONCLUSIVE at step 0: our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against",
+   "strategy": {
+    "broker": true,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against",
+    "refusedBy": "runtime:strategy-unsettled",
+    "refusal": "this strategy's trades depend on the bar its backtest starts from, and this run is not known to start at the symbol's first bar (unsettled: Q-S1n, docs/pine/capture-queue-2026-10-05-s1.md)",
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "machine-learning-lorentzian-classification-5c7960-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/machine-learning-lorentzian-classification-5c7960-rddt-1d-2026-11-15.json",
+   "script": "Lorentzian Classification Strategy",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `jdehorty/MLExtensions/2` is not in this engine's library registry, so its code cannot be compiled; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": false,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "refusedBy": "door",
+    "refusal": "the member door refused the script, so nothing was run",
+    "referenceTrades": null,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "multi-timeframe-rsi-buy-sell-strategy-tradedots-spy-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/multi-timeframe-rsi-buy-sell-strategy-tradedots-spy-1d-2026-11-15.json",
+   "script": "Multi Timeframe RSI Buy Sell Strategy [TradeDots]",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "refused on our side: member door refused (pine:request) [runtime declined: lower-tf:store-unmeasured]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `5` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `5` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": false,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "refusedBy": "door",
+    "refusal": "the member door refused the script, so nothing was run",
+    "referenceTrades": null,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02",
+   "file": "tests/fixtures/vendor/harness/optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02.json",
+   "script": "Optimized Keltner Channels SL/TP Strategy for BTC",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 6 items agree"
+  },
+  {
+   "id": "optimized-keltner-channels-sltp-strategy-for-btc-spy-1d-2026-10-02",
+   "file": "tests/fixtures/vendor/harness/optimized-keltner-channels-sltp-strategy-for-btc-spy-1d-2026-10-02.json",
+   "script": "Optimized Keltner Channels SL/TP Strategy for BTC",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 6 items agree"
+  },
+  {
+   "id": "pmax-explorer-rddt-1d-2026-10-02",
+   "file": "tests/fixtures/vendor/harness/pmax-explorer-rddt-1d-2026-10-02.json",
+   "script": "PMEx",
+   "verdict": "DIVERGE",
+   "verdictWithoutStrategy": "DIVERGE",
+   "reason": "1 of 8 compared items diverge"
+  },
+  {
+   "id": "pmax-explorer-spy-1d-2026-10-02",
+   "file": "tests/fixtures/vendor/harness/pmax-explorer-spy-1d-2026-10-02.json",
+   "script": "PMEx",
+   "verdict": "DIVERGE",
+   "verdictWithoutStrategy": "DIVERGE",
+   "reason": "1 of 8 compared items diverge"
+  },
+  {
+   "id": "r1-strategy-draws-rddt-1d-2026-10-02",
+   "file": "tests/fixtures/vendor/harness/r1-strategy-draws-rddt-1d-2026-10-02.json",
+   "script": "UCTPROBE_R1_STRATEGY",
+   "verdict": "DIVERGE",
+   "verdictWithoutStrategy": "DIVERGE",
+   "reason": "4 of 6 compared items diverge; strategy INCONCLUSIVE at step 0: our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against",
+   "strategy": {
+    "broker": true,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against",
+    "tradesRun": 7,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "supertrend-strategy-rddt-1d-2026-10-02",
+   "file": "tests/fixtures/vendor/harness/supertrend-strategy-rddt-1d-2026-10-02.json",
+   "script": "SuperTrend STRATEGY",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "1 of 9 items could not be compared; strategy INCONCLUSIVE at step 0: our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against",
+   "strategy": {
+    "broker": true,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against",
+    "tradesRun": 11,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "supertrend-strategy-spy-1d-2026-10-02",
+   "file": "tests/fixtures/vendor/harness/supertrend-strategy-spy-1d-2026-10-02.json",
+   "script": "SuperTrend STRATEGY",
+   "verdict": "DIVERGE",
+   "verdictWithoutStrategy": "DIVERGE",
+   "reason": "1 of 9 compared items diverge; strategy INCONCLUSIVE at step 0: our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against",
+   "strategy": {
+    "broker": true,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against",
+    "refusedBy": "runtime:strategy-unsettled",
+    "refusal": "this strategy's trades depend on the bar its backtest starts from, and this run is not known to start at the symbol's first bar (unsettled: Q-S1n, docs/pine/capture-queue-2026-10-05-s1.md)",
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "take-profit-multi-timeframe-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/take-profit-multi-timeframe-rddt-1d-2026-11-15.json",
+   "script": "Take profit Multi timeframe",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "refused on our side: member door refused (pine:request) [runtime declined: runtime:strategy-repaint]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `240` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `240` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": false,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "refusedBy": "door",
+    "refusal": "the member door refused the script, so nothing was run",
+    "referenceTrades": null,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "take-profit-multi-timeframe-spy-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/take-profit-multi-timeframe-spy-1d-2026-11-15.json",
+   "script": "Take profit Multi timeframe",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "refused on our side: member door refused (pine:request) [runtime declined: runtime:strategy-repaint]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `240` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `240` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": false,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "refusedBy": "door",
+    "refusal": "the member door refused the script, so nothing was run",
+    "referenceTrades": null,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto-rddt-1d-2026-10-02",
+   "file": "tests/fixtures/vendor/harness/tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto-rddt-1d-2026-10-02.json",
+   "script": "TradingView Alerts to MT4 MT5 - Forex, indices, commodities, stocks, crypto",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "2 of 3 items could not be compared; strategy INCONCLUSIVE at step 0: our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against",
+   "strategy": {
+    "broker": true,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against",
+    "refusedBy": "runtime:strategy-unsettled",
+    "refusal": "this Pine v4 strategy states no `margin_long` / `margin_short`, and the v4 default is not settled for its declaration: the v4 reference reads 100, and TradingView read 0 back only for a declaration of exactly a title and `overlay` (the two v4 captures taken); state both margins in strategy() to run it (unsettled: Q-S1b, docs/pine/capture-queue-2026-10-05-s1.md)",
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto-spy-1d-2026-10-03",
+   "file": "tests/fixtures/vendor/harness/tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto-spy-1d-2026-10-03.json",
+   "script": "TradingView Alerts to MT4 MT5 - Forex, indices, commodities, stocks, crypto",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "2 of 3 items could not be compared; strategy INCONCLUSIVE at step 0: our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against",
+   "strategy": {
+    "broker": true,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against",
+    "refusedBy": "runtime:strategy-unsettled",
+    "refusal": "this strategy's trades depend on the bar its backtest starts from, and this run is not known to start at the symbol's first bar (unsettled: Q-S1n, docs/pine/capture-queue-2026-10-05-s1.md)",
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "tradingview-alerts-to-mt4-mt5-strategy-example-rddt-1d-2026-10-02",
+   "file": "tests/fixtures/vendor/harness/tradingview-alerts-to-mt4-mt5-strategy-example-rddt-1d-2026-10-02.json",
+   "script": "TradingView Alerts to MT4 MT5 Strategy example",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 3 items agree"
+  },
+  {
+   "id": "tradingview-alerts-to-mt4-mt5-strategy-example-spy-1d-2026-10-03",
+   "file": "tests/fixtures/vendor/harness/tradingview-alerts-to-mt4-mt5-strategy-example-spy-1d-2026-10-03.json",
+   "script": "TradingView Alerts to MT4 MT5 Strategy example",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 3 items agree"
+  },
+  {
+   "id": "trailing-take-profit-trailing-stop-loss-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/trailing-take-profit-trailing-stop-loss-rddt-1d-2026-11-15.json",
+   "script": "TTPTSL",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `jason5480/chrono_utils/7` is not in this engine's library registry, so its code cannot be compiled; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": false,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "refusedBy": "door",
+    "refusal": "the member door refused the script, so nothing was run",
+    "referenceTrades": null,
+    "rulesExercised": [],
+    "graded": null
+   }
+  }
+ ]
+}

@@ -33,16 +33,22 @@ import { readback, isDirty } from '../authoring'
 import { converseTurn, transcriptSnippets } from '../authoring/converseClient'
 import { writeSession, clearSession, holdInDock, releaseDock } from '../authoring/conversationSessions'
 import { logStudioAction } from '../authoring/studioTelemetry'
+import { keepAssistantName, keepAssistantLabel } from '../authoring/readableName'
 // ⭐ M3 S1 — the turn / Undo / Save / restore steps live in `authoring/authoringSession.js`
 // (moved verbatim) so the dock and UCT Agent run ONE pipeline. This hook is the React
 // wrapper: it holds the state, numbers the transcript entries and keeps the session.
 import {
   restoreConversation, initialConversationState, initialTranscript, hasSomethingToKeep,
   localTurn, modelTurn, undoTurn, saveConversation, noteDiscarded, previewDefinitionOf,
+  historySteps, goBackToTurn,
 } from '../authoring/authoringSession'
 
 // Re-exported for existing importers (the functions moved with the pipeline).
 export { typeWord, replyLines } from '../authoring/authoringSession'
+import { settingTurn } from '../authoring/authoringSession'
+import { settingsOf } from '../authoring/derivedSettings'
+import { savedVersionRows, restoreTurn } from '../authoring/restoreVersion'
+import { fetchDefinitionHistory } from '../../../../hooks/useUserDefinitions'
 
 /**
  * @param {object} p
@@ -55,7 +61,8 @@ export { typeWord, replyLines } from '../authoring/authoringSession'
  *   its working snapshot: OPEN != MUTATE — nothing is written until Save, and an
  *   opened, untouched definition is clean.
  */
-export default function useIndicatorConversation({ sym = null, tf = null, converse = converseTurn, sessionKey = null, open = null } = {}) {
+export default function useIndicatorConversation({ sym = null, tf = null, converse = converseTurn, sessionKey = null, open = null,
+  readHistory = fetchDefinitionHistory } = {}) {
   // ⭐ Restored once, at mount — the same key reopened is the same conversation.
   // ⭐ PHASE 4 — an EDIT's draft is restored only while it was opened from the
   // version that is STILL the stored one; a draft of an older version is stale
@@ -71,6 +78,16 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
   const [transcript, setTranscript] = useState(() => initialTranscript(initial, open))
   const transcriptRef = useRef(transcript)
   const [busy, setBusy] = useState(false)
+  /** ⭐ F1 — the share of today's allowance left, from the last answer that carried one. */
+  const [allowanceLeft, setAllowanceLeft] = useState(null)
+  const converseTracked = useCallback(async (args) => {
+    const r = await converse(args)
+    if (r && typeof r.allowanceLeft === 'number') setAllowanceLeft(r.allowanceLeft)
+    else if (r && r.gate === 'cost:user') setAllowanceLeft(0)
+    return r
+  }, [converse])
+  /** ⭐ STOP — the in-flight turn's abort handle (null between turns). */
+  const abortRef = useRef(null)
   const [saving, setSaving] = useState(false)
   const [acked, setAcked] = useState(() => !!(initial && initial.acked))
   /** Bumped on every applied change — the "Updated preview" cue keys off it. */
@@ -134,24 +151,101 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     // the local half (pre-flight, a name-only message) — no request leaves the browser
     const local = localTurn(before, words, { sym, tf, gateCtx })
     if (local) return take(local)
+    const ctl = typeof AbortController === 'function' ? new AbortController() : null
+    abortRef.current = ctl
     setBusy(true)
     try {
-      return take(await modelTurn(before, () => stateRef.current, words, { snippets, gateCtx, converse }))
+      return take(await modelTurn(before, () => stateRef.current, words,
+        // ⭐ a new indicator keeps the assistant's name only where the derived one is unreadable
+        { snippets, gateCtx, converse: converseTracked, signal: ctl ? ctl.signal : null, keepCreateName: keepAssistantName, keepCreateLabel: keepAssistantLabel }))
     } finally {
+      if (abortRef.current === ctl) abortRef.current = null
       setBusy(false)
     }
-  }, [busy, converse, gateCtx, sym, tf, say, take])
+  }, [busy, converseTracked, gateCtx, sym, tf, say, take])
+
+  /** ⭐ STOP — give up waiting for the turn in flight. The answer, if one still comes, is
+   *  not read (`modelTurn`); the working indicator and the preview are untouched. */
+  const stop = useCallback(() => {
+    const ctl = abortRef.current
+    if (!ctl || ctl.signal.aborted) return false
+    ctl.abort()
+    return true
+  }, [])
+  // A dock closed mid-turn gives the request up too: nothing is left to apply it to.
+  useEffect(() => () => { if (abortRef.current) abortRef.current.abort() }, [])
 
   const undo = useCallback(() => {
     const cur = stateRef.current
     if (!cur.history.length || busy || saving) return false
     const out = undoTurn(cur, gateCtx)
     commit(out.state)
+    // Shape only, once per conversation: a preview drew and was taken back.
+    logStudioAction(cur.lineage, 'undone', { surface: 'studio' })
     setAcked(false)
     setChangeSeq((n) => n + 1)
     say(out.entry)
     return true
   }, [busy, saving, commit, gateCtx, say])
+
+  /** ⭐ V1 — back to an EARLIER step in one press (the History list). The same effects
+   *  as Undo, which is its last-step case. */
+  const goBackTo = useCallback((index) => {
+    const cur = stateRef.current
+    if (busy || saving) return false
+    const out = goBackToTurn(cur, index, gateCtx)
+    if (!out) return false
+    commit(out.state)
+    logStudioAction(cur.lineage, 'undone', { surface: 'studio' })
+    setAcked(false)
+    setChangeSeq((n) => n + 1)
+    say(out.entry)
+    return true
+  }, [busy, saving, commit, gateCtx, say])
+
+  /** ⭐ SETTINGS (2026-11-17) — the tunable numbers of the working indicator, re-derived from its
+   *  own formula on every change and stored nowhere (`authoring/derivedSettings.js`). */
+  const settings = useMemo(() => settingsOf(state.working), [state.working])
+  /** One number set from its field: the ordinary slot edit, no model call, one Undo step. */
+  const setNumber = useCallback((setting, value) => {
+    const cur = stateRef.current
+    if (busy || saving || !cur.working) return { ok: false }
+    const out = settingTurn(cur, setting, value, { gateCtx })
+    if (out.ok) take(out)
+    return out
+  }, [busy, saving, gateCtx, take])
+
+  /** ⭐ SAVED VERSIONS (Indicators backlog 30) — the stored versions of the indicator being edited,
+   *  read when the member opens History (never on open), each either one press from being the
+   *  draft again or saying why not (`authoring/restoreVersion.js` holds the rules). */
+  const [versionList, setVersionList] = useState(null)       // null: not read · array · { error }
+  const versionsFor = useRef(null)
+  const loadVersions = useCallback(async () => {
+    const id = stateRef.current.defId
+    if (!id || versionsFor.current === id) return
+    versionsFor.current = id
+    const r = await readHistory(id)
+    if (stateRef.current.defId !== id) return
+    if (r && r.ok) setVersionList(Array.isArray(r.versions) ? r.versions : [])
+    else { versionsFor.current = null; setVersionList({ error: (r && r.error) || 'The saved versions could not be read.' }) }
+  }, [readHistory])
+  const savedVersions = useMemo(() => (Array.isArray(versionList)
+    ? savedVersionRows(versionList, { currentDef: state.base, currentVersion: state.baseVersion, workingDef: state.working })
+    : null), [versionList, state.base, state.baseVersion, state.working])
+  const savedVersionsError = versionList && !Array.isArray(versionList) ? versionList.error : null
+  /** Bring a saved version back as ONE step of the draft: no model call, nothing saved. */
+  const restoreVersion = useCallback((version) => {
+    const cur = stateRef.current
+    if (busy || saving || !Array.isArray(versionList)) return { ok: false }
+    const row = savedVersionRows(versionList, { currentDef: cur.base, currentVersion: cur.baseVersion, workingDef: cur.working })
+      .find((r) => r.version === version)
+    const out = restoreTurn(cur, row)
+    if (out.ok) take(out)
+    return out
+  }, [busy, saving, versionList, take])
+
+  /** The earlier steps, oldest first (`historySteps`). */
+  const steps = useMemo(() => historySteps(state, gateCtx), [state, gateCtx])
 
   /**
    * Commit through the EXISTING doors. `settings` must be the STORED blob (never
@@ -213,7 +307,8 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
 
   return {
     state, transcript, rb, busy, saving, acked, setAcked, needsAck, questions, changeSeq,
-    previewDefinition, send, undo, save, discard, dirty, restored, recovered, dropped, editing,
+    previewDefinition, send, stop, undo, goBackTo, steps, save, discard, dirty, restored, recovered, dropped, editing,
+    allowanceLeft, settings, setNumber, savedVersions, savedVersionsError, loadVersions, restoreVersion,
     canUndo: state.history.length > 0 && !busy && !saving,
     canSave: dirty && !busy && !saving && (!needsAck.length || acked),
   }

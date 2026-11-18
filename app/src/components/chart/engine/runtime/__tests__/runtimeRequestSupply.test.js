@@ -145,6 +145,18 @@ describe('L5 (b)(c) — the supply is the host bind\'s decision', () => {
       ctxOf({ secondary: new Map([['SPY', { bars: [], status: 'loading' }]]) }))).toThrow(/loading|waiting/)
   })
 
+  it('that wait says it is a wait (`pending`), and a refusal does not', () => {
+    const caught = (fn) => { try { fn() } catch (err) { return err } return null }
+    const wait = caught(() => runDoc('plot(request.security("AMEX:SPY", timeframe.period, close))',
+      ctxOf({ secondary: new Map([['SPY', { bars: [], status: 'loading' }]]) })))
+    expect(wait && wait.guard).toBe('runtime:request')
+    expect(wait && wait.pending).toBe(true)
+    const refused = caught(() => runDoc('plot(request.security("AMEX:SPY", timeframe.period, close))',
+      ctxOf({ secondary: new Map([['SPY', { bars: [], status: 'no_data' }]]) })))
+    expect(refused && typeof refused.guard).toBe('string')
+    expect(refused && refused.pending).toBeUndefined()
+  })
+
   it('CONTROL: a script with no request runs exactly as before', () => {
     const out = runDoc('plot(close * 2)')
     expect(Array.from(out.a)).toEqual(CHART.map((b) => b.c * 2))
@@ -199,7 +211,11 @@ describe('L5 (d) — requestTargetsUnservable, the door\'s static half of the su
     expect(requestTargetsUnservable([{ own: true, ticker: null, venue: null, code: 'W', live: false }], 1)).toBe(null)
     expect(requestTargetsUnservable([{ own: false, ticker: 'SPY', venue: 'AMEX', code: null, live: false }], 1)).toBe(null)
     expect(requestTargetsUnservable([null], 1)).toMatch(/cannot be read before/)
-    expect(requestTargetsUnservable([{ own: true, ticker: null, venue: null, code: 'W', live: true }], 1)).toMatch(/looks ahead/)
+    // ⭐ REQ — look-ahead at a weekly / monthly period is served (`vw-request-htf-alignment-spy-1d`);
+    // look-ahead at any other code keeps its refusal, by name
+    expect(requestTargetsUnservable([{ own: true, ticker: null, venue: null, code: 'W', live: true }], 1)).toBe(null)
+    expect(requestTargetsUnservable([{ own: true, ticker: null, venue: null, code: 'M', live: true }], 1)).toBe(null)
+    expect(requestTargetsUnservable([{ own: true, ticker: null, venue: null, code: '3M', live: true }], 1)).toMatch(/looks ahead/)
     expect(requestTargetsUnservable([{ own: true, ticker: null, venue: null, code: '3M', live: false }], 1)).toMatch(/weekly or monthly/)
     expect(requestTargetsUnservable([], 1)).toMatch(/not recorded/)
   })
@@ -215,8 +231,38 @@ describe('L5 — `lookahead = barmerge.lookahead_off` written out is the default
     expect(Array.from(wOff.a)).toEqual(Array.from(w.a))
   })
 
-  it('⛔ CONTROL: `lookahead = barmerge.lookahead_on` keeps its refusal', () => {
-    expect(() => runDoc('plot(request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_on))'))
+  // ⭐⭐ REQ (coverage unit, 2026-11-16) — `lookahead = barmerge.lookahead_on` at a weekly / monthly period
+  // reads the period each bar is INSIDE (`interpret.js::tfLiveReads`), the reading TradingView was captured
+  // giving (`vw-request-htf-alignment-spy-1d-2026-10-02` A01 / A04, `vendorHarness.reqLookaheadAlignment`).
+  // ⚰️ It was refused here whatever the period ("the realtime half of that alignment is not measured yet").
+  it('`lookahead = barmerge.lookahead_on` at "W" reads the week each bar is inside: the last close of that week', () => {
+    const on = runDoc('plot(request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_on))')
+    const lastOfWeek = new Map()
+    for (const b of CHART) lastOfWeek.set(tfBucket(b.t, 'W'), b.c)
+    expect(Array.from(on.a)).toEqual(CHART.map((b) => lastOfWeek.get(tfBucket(b.t, 'W'))))
+    const off = runDoc('plot(request.security(syminfo.tickerid, "W", close))')
+    expect(Array.from(on.a)).not.toEqual(Array.from(off.a))
+  })
+  it('⛔ the newest bar, still FORMING, is withheld by name (no capture shows that bar); every finished bar is drawn', () => {
+    const body = 'plot(request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_on))'
+    const finished = Array.from(runDoc(body).a)
+    const forming = Array.from(runDoc(body, ctxOf({ newestBarIsForming: true })).a)
+    expect(Number.isNaN(forming[forming.length - 1])).toBe(true)
+    expect(forming.slice(0, -1)).toEqual(finished.slice(0, -1))
+    expect(Number.isFinite(finished[finished.length - 1])).toBe(true)
+  })
+  it('⛔ CONTROL: a run with no warm-up curtain whose first week is partial refuses by that name', () => {
+    // a document with no `listing` history is run as it is (no `computeOffListing` curtain); its chart
+    // begins on a TUESDAY, so the first week's bar would be built from part of the week
+    const body = 'plot(request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_on))'
+    const bare = { ...doc(body), meta: {} }
+    expect(() => computeRuntimeColumns(bare, CHART.slice(1), ctxOf({ historyFromListing: false })))
+      .toThrow(/request:htf-lookahead-first-period-partial/)
+    // and the same chart begun on the Monday is served
+    expect(() => computeRuntimeColumns(bare, CHART, ctxOf({ historyFromListing: false }))).not.toThrow()
+  })
+  it('⛔ CONTROL: a look-ahead spelling the host cannot read keeps its refusal', () => {
+    expect(() => runDoc('la = input.bool(true)\nplot(request.security(syminfo.tickerid, "W", close, lookahead = la))'))
       .toThrow(/lookahead/)
   })
 })

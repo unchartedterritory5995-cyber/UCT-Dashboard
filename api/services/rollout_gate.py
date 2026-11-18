@@ -675,7 +675,11 @@ PINE_CAPABILITY_MIN_COMMUNITY_SCRIPTS = 1
 #: capture is a community script. Re-verify of #1204 (2026-11-13): `probe-` (probe-default-colour-v3/
 #: v4/v6, probe-sparse-rows) and `uct-` (the legacy uct-dmi / rsi-atr / sma-ema / hma-macd / rma-wma /
 #: stoch-parity-v1 captures) are ours too, and `uctprobe` also matches `UCTPROBE <name>` (a space).
-PINE_PROBE_PREFIXES = ("uctprobe", "vw-", "probe-", "uct-")
+#: ⭐ 2026-11-17 (strategy-decl evidence): `w9_` / `w9-` are ours too. The W9 strategy probes
+#: (`tools/vendor_harness/w9_probes.py` writes every `tools/visual_conformance/probes/w9-*.pine`) are titled
+#: `W9_<ROW>` and captured as `w9-<row>-...`; without these the classifier counted 35 of the 60 W9 Strategy
+#: Tester captures as COMMUNITY scripts, so a strategy capability could have been admitted on our probes alone.
+PINE_PROBE_PREFIXES = ("uctprobe", "vw-", "probe-", "uct-", "w9_", "w9-")
 #: A probe's own variants: a `v<n>` version and a NEG / POS / ALT suffix, after `_`, `-` or a space.
 _PINE_PROBE_VARIANT_RX = re.compile(r"[_\- ](?:v\d+|neg|pos|alt)$", re.I)
 
@@ -704,6 +708,14 @@ PINE_OBJECTS_X_DIVERGE = "DIVERGE"
 #: G6 (2026-11-15): capabilities no capture grades on a FORMING bar. Each admits only with
 #: `scope: closed-bar-history`; the member door then refuses it by name on a forming bar.
 PINE_CAPABILITY_FORMING_UNGRADED = frozenset({"realtime-state"})
+#: U15 (coordinator ruling 2026-11-15): one row PER LIBRARY VERSION, `library:Author/Library/N`.
+#: The row pins the version by `sha256` (the sha of the library source the evidence graded), and an
+#: evidence entry counts only when its `library` names that path AND that sha: an entry graded
+#: against a fixture library, or against other code under the same version, never counts. The rule
+#: is the family rule (>= 2 distinct IMPORTING scripts, MATCH with the runtime pane on, >= 1 of them
+#: community); a TradingView-authored library is fine, the importing scripts are what must be.
+PINE_CAPABILITY_LIBRARY_PREFIX = "library:"
+_PINE_SHA256_RX = re.compile(r"^[0-9a-f]{64}$")
 PINE_CAPABILITY_SCOPE_CLOSED_BARS = "closed-bar-history"
 
 
@@ -766,6 +778,21 @@ def pine_capability_admission(name, row) -> list[str]:
                            "a drawing on another bar vetoes the family")
     counted = [e for e in (evidence if isinstance(evidence, list) else [])
                if _pine_capability_evidence_counts(name, e)]
+    if name.startswith(PINE_CAPABILITY_LIBRARY_PREFIX):
+        # U15: the version is pinned by the row's sha256, and an entry counts only when it graded
+        # THAT code (its `library`: {path, sha256}); a fixture or probe library never counts
+        path = name[len(PINE_CAPABILITY_LIBRARY_PREFIX):]
+        pin = row.get("sha256")
+        if not (isinstance(pin, str) and _PINE_SHA256_RX.match(pin)):
+            reasons.append(f"capability `{name}` pins no library sha256: a version is admitted only as the "
+                           "code its evidence graded")
+            pin = None
+
+        def graded_this_library(e):
+            lib = e.get("library")
+            return (pin is not None and isinstance(lib, dict) and lib.get("path") == path
+                    and lib.get("sha256") == pin and e.get("libraryFixture") is not True)
+        counted = [e for e in counted if graded_this_library(e)]
     captures = {e["capture"] for e in counted}
     scripts = {e["script"] for e in counted}
     community = {e["script"] for e in counted if e.get("community") is True}

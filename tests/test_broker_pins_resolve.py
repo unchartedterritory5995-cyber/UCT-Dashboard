@@ -58,6 +58,28 @@ def test_a_missing_fixture_fails_it_never_silently_unpins():
         ee.resolve_pins(PINS, rows(fx_a="MATCH", fx_c="MATCH"), sources=SOURCES)
 
 
+def ledger_row(cid, production="INCONCLUSIVE"):
+    """The evidence ledger's OWN row for a capture (evidence_ledger.SCHEMA): the indicator harness's per-lane grade,
+    no top-level broker `verdict` (every one of the 972 committed rows on 2026-11-17 has this shape)."""
+    return {"schema": ee.LEDGER_SCHEMA, "captureId": cid, "sourceSha256": "sha-default", "rows": [],
+            "verdicts": {"production": {"verdict": production, "reason": "member door refused (pine:strategy-call)"},
+                         "runtime-on": None}}
+
+
+def test_the_indicator_harness_ledger_row_is_not_a_broker_verdict():
+    # 2026-11-17 (Q-S1i, B-MARGIN-CALL): w9-q-s1i-short-v6 carries such a row beside its MATCHing strategy verdict.
+    # Read as a broker row, its missing `verdict` was a non-MATCH and no capture promoted through it could pin.
+    r = ee.resolve_pins(PINS, rows(fx_a="MATCH", fx_b="MATCH", fx_c="MATCH") + [ledger_row("fx-b")], sources=SOURCES)
+    assert r["rules"] == {"B-PATH": ["fx-a", "fx-b"], "B-SIZE": ["fx-c"]}
+    # a ledger row with a top-level verdict is still read as one (fail closed: only the per-lane row is skipped)
+    r = ee.resolve_pins(PINS, rows(fx_a="MATCH", fx_b="MATCH", fx_c="MATCH") + [{**ledger_row("fx-b"), "verdict": "DIVERGE"}],
+                        sources=SOURCES)
+    assert "B-PATH" not in r["rules"]
+    # and a fixture with ONLY such a row has no committed verdict: an ERROR, never a pin and never a silent un-pin
+    with pytest.raises(ee.PinResolveError, match="fx-b"):
+        ee.resolve_pins(PINS, rows(fx_a="MATCH", fx_c="MATCH") + [ledger_row("fx-b")], sources=SOURCES)
+
+
 @pytest.mark.parametrize("bad", [[], "fx-a", [""], None])
 def test_a_malformed_fixture_list_fails(bad):
     with pytest.raises(ee.PinResolveError):
@@ -216,15 +238,26 @@ RULE_IDS = sorted(set(BROKER_RULE_IDS) | set(re.findall(r"export const MARKER_RU
 U_PINS = {"schema": ee.PINS_SCHEMA, "rules": {"B-MARKET": ["core"], "B-PATH": ["core"]}}
 
 
-def sv(cid="core", verdict="MATCH", exercised=("B-MARKET", "B-PATH"), fills=True, sha="sha-core"):
+def sv(cid="core", verdict="MATCH", exercised=("B-MARKET", "B-PATH"), fills=True, sha="sha-core", values=36):
     """A strategy verdict file's row (the shape strategyHarness.js writes)."""
     return {"schema": ee.STRATEGY_VERDICT_SCHEMA, "captureId": cid, "verdict": verdict, "sourceSha256": sha,
-            "queueTargetId": "Q-S1-core", "graded": {"trades": True, "fills": fills, "slots": 3},
+            "queueTargetId": "Q-S1-core",
+            "graded": {"trades": True, "fills": fills, "slots": 3, "values": values, "texts": 0},
             "rulesExercised": list(exercised), "provenance": readback()}
 
 
 def test_u14_rule_vocabulary_is_read_off_brokerRules():
-    assert len(BROKER_RULE_IDS) == 44 and "B-MARKET" in RULE_IDS and "MK-LOOK" in RULE_IDS
+    # 51 since 2026-11-16: B-PYR-PRICE (Q-S1g, a value witness; strategiesAreRuled.test.js pins the same count)
+    # 52 since 2026-11-16: B-FUNDS (Q-S1i, the report capture w9-q-s1a-size-v6)
+    # 54 since 2026-11-17: B-FUNDS-SHORT and B-MARGIN-CALL (Q-S1i, the report capture w9-q-s1i-short-v6)
+    # 58 since 2026-11-17: B-QTY-REVERSE, B-FUNDS-REVERSE, B-MARGIN-CALL-ALL, B-ENTRY-ORDER (w9-q-s1b-defaults-v6)
+    # 59 since 2026-11-17: B-V3 (Pine v2 / v3, w9-q-s1a-size-v2 and w9-g1-v3-properties)
+    # 60 since 2026-11-17: B-V4-MARGIN0 (ruling D12b, the two v4 captures)
+    assert len(BROKER_RULE_IDS) == 60 and "B-MARKET" in RULE_IDS and "MK-LOOK" in RULE_IDS
+    assert "B-ROUND" in RULE_IDS and "B-TXT-CLOSE-ID" in RULE_IDS and "B-PYR-PRICE" in RULE_IDS
+    assert "B-FUNDS" in RULE_IDS
+    assert "B-FUNDS-SHORT" in RULE_IDS and "B-MARGIN-CALL" in RULE_IDS
+    assert {"B-QTY-REVERSE", "B-FUNDS-REVERSE", "B-MARGIN-CALL-ALL", "B-ENTRY-ORDER", "B-V3", "B-V4-MARGIN0"} <= set(RULE_IDS)
 
 
 def test_u14_a_match_that_exercised_the_rule_pins_it():
@@ -254,12 +287,90 @@ def test_u14_a_trade_list_match_without_the_fills_graded_does_not_pin():
     assert ee.resolve_pins(U_PINS, [sv(fills=False)], sources=SRC)["rules"] == {}
 
 
+@pytest.mark.parametrize("values", [0, None, True, "36"])
+def test_a_fill_match_that_graded_no_value_series_does_not_pin(values):
+    """Value read-backs: `graded.values` is how many of the capture's plots were compared bar by bar. A MATCH
+    with none (0, absent, or not a count) is a fill match only and pins nothing; the control pins."""
+    row = sv(values=values)
+    if values is None:
+        del row["graded"]["values"]
+    assert ee.resolve_pins(U_PINS, [row], sources=SRC)["rules"] == {}
+    assert ee.resolve_pins(U_PINS, [sv(values=1)], sources=SRC)["rules"] == {"B-MARKET": ["core"], "B-PATH": ["core"]}
+
+
+def test_an_UNLISTED_match_without_values_unpins_the_rules_it_exercised():
+    rows = [sv(), sv(cid="other", exercised=["B-PATH"], values=0)]
+    assert ee.resolve_pins(U_PINS, rows, sources=SRC)["rules"] == {"B-MARKET": ["core"]}
+
+
 def test_u14_an_UNLISTED_capture_that_exercised_the_rule_and_diverged_unpins_it():
     rows = [sv(), sv(cid="other", verdict="DIVERGE", exercised=["B-PATH"])]
     assert ee.resolve_pins(U_PINS, rows, sources=SRC)["rules"] == {"B-MARKET": ["core"]}
     # control: the same unlisted capture MATCHing leaves both pinned
     rows = [sv(), sv(cid="other", verdict="MATCH", exercised=["B-PATH"])]
     assert ee.resolve_pins(U_PINS, rows, sources=SRC)["rules"] == {"B-MARKET": ["core"], "B-PATH": ["core"]}
+
+
+# ── ruling D11: a DIVERGE with a proven first difference un-pins only its culprit set ──
+D11_PINS = {"schema": ee.PINS_SCHEMA, "rules": {"B-MARKET": ["core"], "B-PATH": ["core"], "B-CANCEL": ["core"]}}
+
+
+def d11(**over):
+    """An unlisted capture that exercised three rules and DIVERGEd at an event where it first exercised B-CANCEL."""
+    row = sv(cid="x5", verdict="DIVERGE", exercised=["B-MARKET", "B-PATH", "B-CANCEL"])
+    row.update({"firstDifference": {"bar": 1714397400, "step": 5}, "prefixExact": True,
+                "culprit": ["B-CANCEL"], "afterDifference": []})
+    row.update(over)
+    return row
+
+
+def d11_core():
+    return sv(exercised=["B-MARKET", "B-PATH", "B-CANCEL"])
+
+
+def test_d11_a_proven_first_difference_unpins_only_the_culprit_set():
+    got = ee.resolve_pins(D11_PINS, [d11_core(), d11()], sources=SRC)["rules"]
+    assert got == {"B-MARKET": ["core"], "B-PATH": ["core"]}       # B-CANCEL, the culprit, stays unpinned
+    # control: without the recorded fields the same row is strict and un-pins all three
+    strict = sv(cid="x5", verdict="DIVERGE", exercised=["B-MARKET", "B-PATH", "B-CANCEL"])
+    assert ee.resolve_pins(D11_PINS, [d11_core(), strict], sources=SRC)["rules"] == {}
+
+
+def test_d11_a_rule_first_exercised_after_the_difference_is_unpinned_too():
+    row = d11(afterDifference=["B-PATH"])
+    assert ee.resolve_pins(D11_PINS, [d11_core(), row], sources=SRC)["rules"] == {"B-MARKET": ["core"]}
+
+
+@pytest.mark.parametrize("over", [
+    {"culprit": []},                                   # an EMPTY culprit set: the event exercised nothing new
+    {"prefixExact": False},                            # the bars before the difference are not exact
+    {"prefixExact": "true"},
+    {"prefixExact": None},
+    {"firstDifference": None},
+    {"firstDifference": {"bar": 1714397400}},
+    {"firstDifference": {"bar": "1714397400", "step": 5}},
+    {"firstDifference": {"bar": True, "step": 5}},
+    {"culprit": None},
+    {"culprit": "B-CANCEL"},
+    {"afterDifference": None},
+    {"culprit": ["B-NOT-EXERCISED"]},                  # a culprit the run never exercised
+    {"culprit": ["B-CANCEL"], "afterDifference": ["B-CANCEL"]},
+])
+def test_d11_anything_missing_or_unproven_falls_back_to_the_strict_rule(over):
+    assert ee.culprit_scope(d11(**over)) is None
+    assert ee.resolve_pins(D11_PINS, [d11_core(), d11(**over)], sources=SRC)["rules"] == {}
+
+
+def test_d11_the_exception_is_for_DIVERGE_alone_and_never_makes_a_capture_match_evidence():
+    for verdict in ("INCONCLUSIVE", "UNGRADABLE", "EXPECTED-REFUSAL"):
+        assert ee.culprit_scope(d11(verdict=verdict)) is None
+        assert ee.resolve_pins(D11_PINS, [d11_core(), d11(verdict=verdict)], sources=SRC)["rules"] == {}
+    # a LISTED capture that DIVERGEs pins nothing, culprit set or not: its "before" rules are not evidence
+    listed = d11()
+    listed["captureId"] = "core"
+    assert ee.resolve_pins(D11_PINS, [listed], sources=SRC)["rules"] == {}
+    # and the culprit rule stays unpinned even when another capture MATCHes on it
+    assert "B-CANCEL" not in ee.resolve_pins(D11_PINS, [d11_core(), d11()], sources=SRC)["rules"]
 
 
 def test_u14_the_settings_precondition_still_applies_to_a_strategy_verdict():
@@ -320,6 +431,7 @@ def test_u14_PER_RULE_a_committed_pin_rests_on_matching_captures_that_exercised_
         v = by_id.get(cid)
         assert v is not None, f"{rule}: pinned by {cid}, which has no committed strategy verdict"
         assert v["verdict"] == "MATCH" and v["graded"]["fills"] is True and rule in v["rulesExercised"]
+        assert v["graded"]["values"] > 0, f"{rule}: {cid} MATCHed without one value series compared"
     assert all(v["verdict"] == "MATCH" for v in exercisers), f"{rule}: a committed capture exercised it and did not MATCH"
 
 

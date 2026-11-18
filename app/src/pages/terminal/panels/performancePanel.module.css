@@ -1,0 +1,103 @@
+/* PERF (data wave 3): the pieces marketPanels.module.css has no class for: the headline stat
+   grid, the account picker's label and the small equity curve. App tokens only (the terminal
+   wears the member's theme). Nothing here is clickable; the buttons use marketPanels' classes. */
+
+/* The account picker: a label beside the ui kit's Select (as MOST's filters). */
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.filter select {
+  font: inherit;
+  max-width: 14rem;
+  padding: 1px var(--space-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text);
+}
+
+/* The headline row: as many columns as fit, each a label, a number and its sample. */
+.stats {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-sm) var(--space-md);
+}
+
+.stat {
+  min-width: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+}
+
+.stat dt {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.stat dd {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.value {
+  color: var(--text-bright);
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--lh-normal);
+}
+
+/* A stat with no number yet says why, in ordinary text: never a large zero or a dash. */
+.reason {
+  color: var(--text);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+  overflow-wrap: anywhere;
+}
+
+.sample {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+  overflow-wrap: anywhere;
+}
+
+/* The equity curve: one thin line that stretches to the panel's width. Decoration beside the
+   sentence that states the same numbers, so the line's color carries no meaning of its own. */
+.curve {
+  display: block;
+  width: 100%;
+  height: 5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+}
+
+.curve polyline {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+/* PHONE: two stats to a row, so seven of them stay within a few rows on a 390px panel. */
+@media (max-width: 640px) {
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filter select {
+    max-width: 10rem;
+  }
+}

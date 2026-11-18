@@ -49,13 +49,14 @@
 import { withoutGuardIds } from './engine/ast/guardIdText'
 import { orderCategories } from './technicalCategories'
 import OptionsSourcePicker from './OptionsSourcePicker'
-import { Fragment, cloneElement, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { Fragment, cloneElement, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import {
   readEnabled, indTarget, signTarget, styleInputKeys, hiddenPlotOnlyInputKeys,
   fieldsForInstance, sectionize, initialCollapsed, evalActiveWhen,
   visiblePresets, isPlotHidden, textInputCommit, textInputDraft,
 } from './indicatorRegistry'
+import { plotTitlesOf } from './engine/pinePresentation.js'
 // ⭐ UCT RS Phase 3, unit 3-02b — what the LIVE server row declares, read the way
 // the settings dialog and the phone sheet read it (3-02), so a `requiresServer`
 // control, option or preset stays hidden here too until the server can answer it.
@@ -69,8 +70,6 @@ import {
 // is there room for two columns. A `matchMedia` of its own here would be a
 // second breakpoint authority beside `useMediaQuery`.
 import useMediaQuery from '../../hooks/useMediaQuery'
-import { useCreateIndicatorAccess } from './builder/studio/createIndicatorFlag'
-import { AuthContext } from '../../context/AuthContext'
 import {
   catalogRows, userCatalogRows, catalogGeneration, userRefusalRows, REFUSED_CATEGORY,
   BUILT_IN_ROWS,
@@ -98,6 +97,10 @@ import useSymbolDiscovery from './useSymbolDiscovery'
 // See the header — this is the reuse, and it is why this file has no `q.trim()`
 // in it and no second `setIndicatorEnabled` call.
 import { matches, isRowOn, toggledRow, rowVisibility } from './IndicatorLibraryDialog'
+// Words a description carries that name no indicator (the word-by-word search fallback skips them).
+const SEARCH_STOP_WORDS = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'on', 'in', 'is', 'it', 'to', 'when', 'while',
+  'with', 'above', 'below', 'over', 'under', 'than', 'crosses', 'cross', 'day', 'days', 'bar', 'bars', 'price', 'close',
+  'my', 'me', 'show', 'mark', 'line', 'up', 'down', 'goes', 'is', 'are', 'at', 'for', 'from', 'by'])
 import { isTouredFirstAdd } from './legend/indicatorTour'
 import IndicatorHistoryButtons from './IndicatorHistoryButtons'
 import UnavailableIndicators from './UnavailableIndicators'
@@ -147,6 +150,7 @@ const PATHS = {
   search: 'M7 2.8a4.2 4.2 0 1 0 0 8.4 4.2 4.2 0 0 0 0-8.4zM10.2 10.2 13.5 13.5',
   spark: 'M8 2l1.5 4.5L14 8l-4.5 1.5L8 14l-1.5-4.5L2 8l4.5-1.5z',
 }
+
 const Icon = ({ name, size = 15, className }) => (
   <svg className={className} width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor"
     strokeWidth={name === 'more' ? 2.4 : 1.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -158,6 +162,13 @@ const SOON = 'Coming soon'
 /** ⭐ PHASE 4 — the "Your indicators" tab (`discoveryCatalog.tabOf` files a member's
  *  own formula under `formulas`, which `resultsForTab` already answers). */
 const YOUR_INDICATORS_TAB = Object.freeze({ key: 'formulas', label: 'Your indicators' })
+/** ⭐ MEMBERS (2026-11-16) — what other members published, shown here instead of only on a
+ *  page of its own (`IndicatorMembersTab`). Not a catalogue category: its rows are not in
+ *  `results`, so a universal search does not list them; the tab filters by the same box. */
+export const MEMBERS_TAB = Object.freeze({ key: 'members', label: 'Members' })
+/** ⭐ UCT (2026-11-16) — the house set (`IndicatorHouseTab`): indicators UCT built and checked
+ *  bar by bar. Like Members, not a catalogue category; it sits just before Members. */
+export const HOUSE_TAB = Object.freeze({ key: 'uct', label: 'UCT' })
 import SourceField from './SourceField'
 // FT-070 / COV-11 — save / apply indicator templates (renders nothing unless
 // VITE_INDICATOR_TEMPLATES_ENABLED=1; see IndicatorTemplatesBar.jsx).
@@ -183,6 +194,8 @@ import { setInstancePlotStyle, setInstanceDisplayTarget, setInstanceDotSize, dot
 // through the ENGINE's preset helpers, the ones the settings dialog and the phone
 // sheet use, so the three surfaces cannot name different presets for one instance.
 import { applyPresetInputs, presetsOf, detectPreset, CUSTOM_PRESET } from './engine/instanceControls'
+import IndicatorMembersTab from './IndicatorMembersTab'
+import IndicatorHouseTab from './IndicatorHouseTab'
 // ⭐⭐ THE PANE MAP, AS A READ. `chartDataMap` asks `resolveDisplayTarget`,
 // `paneOwnerOf`, `paneOwnKeys` and `paneOwnersNeeded` — the same four answers
 // `StockChart` hands `computePaneLayout` — so this component never forms its own
@@ -200,6 +213,7 @@ import { movePane, movePaneTo } from './engine/paneOrder'
 import { moveSeriesWithinPane, moveSeriesTo, canMoveSeries } from './engine/paneSeriesOrder'
 import { safeCssColour } from './engine/objectColour'
 import { tagRestatesName } from './shortTag'
+import YourIndicatorActions from './YourIndicatorActions'
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -322,10 +336,16 @@ export default function ChartSettingsIndicators({
   // mounted `BuilderSheet`); the multi-chart grid does not, and simply shows no
   // New Formula action rather than a button that opens nothing.
   onCreateFormula = null,
-  // ⭐ P2 Track B — "+ Create Indicator" (UCT Intelligence). Same absent-prop ⇒
-  // absent-door rule, and additionally DARK behind `useCreateIndicatorFlag`
-  // (default off): with the flag off this surface is byte-identical to before.
+  // ⭐ UCT SIGNATURE R2 (owner Option 1, 2026-11-16) — `onCreateFormula(opts?)` is now the
+  // window's ONE "✦ Create indicator" button, opening the New formula window on its start view.
+  // `opts.description` (the search text, from "Build … with the UCT Agent") is PRE-FILLED into
+  // that view's Describe it box and never sent. `onCreateIndicator` is still accepted (hosts pass
+  // it) but this window no longer offers the separate Create Indicator door.
+  // eslint-disable-next-line no-unused-vars
   onCreateIndicator = null,
+  // (door) => void: open the New formula window on 'pine' | 'image' | 'formula' (the name master
+  // uses for the same doors). Absent ⇒ the "Or …" links under the UCT Agent row are not shown.
+  onOpenBuilderDoor = null,
   // ⭐ THE TIMEFRAME THE CHART IS ON, when the host knows it. Only ever used to SAY
   // something (a calculation timeframe that cannot draw on this chart, a Custom
   // visibility seeded from where the member is) — never to decide what is stored.
@@ -355,13 +375,6 @@ export default function ChartSettingsIndicators({
   // ⭐ The prefix for each catalogue result's state id (`aria-describedby`).
   const resultIdBase = useId()
   const soonDescId = `${resultIdBase}-soon`
-  // ⭐ P2 Track B — DARK, TWO KEYS: the per-browser opt-in (see the flag module)
-  // AND the server-provided admin role. A member flipping localStorage from
-  // DevTools still sees exactly the old "+ New Formula".
-  // ⭐ ROLLOUT — the same one rule as the sheet (`createIndicatorAccess`): an admin
-  // with this browser's opt-in, or a member the server's `cohorts` list releases.
-  const createIndicatorOn = useCreateIndicatorAccess(useContext(AuthContext))
-  const showCreateIndicator = !!(createIndicatorOn && onCreateIndicator)
   // 'active' — what the chart draws, plus the ways in.
   // 'browse'  — the catalogue, entered by focusing/typing in search or picking a
   //             category, left by Back, Escape or clearing the box.
@@ -1063,7 +1076,8 @@ export default function ChartSettingsIndicators({
     [registry, generation])
   const libraryTabs = useMemo(() => {
     const base = libraryTabsFor({ economic: econAvailable, research: featureRows.length > 0 })
-    return ownFormulaCount > 0 ? [YOUR_INDICATORS_TAB, ...base] : base
+    // Members sits after the catalogue's own tabs, so the tab a member lands on is unchanged.
+    return ownFormulaCount > 0 ? [YOUR_INDICATORS_TAB, ...base, HOUSE_TAB, MEMBERS_TAB] : [...base, HOUSE_TAB, MEMBERS_TAB]
   }, [econAvailable, featureRows.length, ownFormulaCount])
   // ⚠️ A TAB ARRIVING LATE (`Economic`, once its catalogue answers) widens the strip's
   // CONTENT without resizing the strip, so the ResizeObserver never re-measures.
@@ -1158,7 +1172,14 @@ export default function ChartSettingsIndicators({
   }, [browsed, symbolResults])
 
   const results = useMemo(() => {
-    const byQuery = catalog.filter((r) => matches(r, query))
+    let byQuery = catalog.filter((r) => matches(r, query))
+    // Owner 11-16: a sentence ("rsi below 30 above the 200 day") matches nothing as a whole phrase — fall back to
+    // its meaningful words so the closest indicators (RSI) still show above the "Build it with the UCT Agent" row.
+    if (!byQuery.length && /\s/.test(String(query || '').trim())) {
+      const words = String(query).toLowerCase().split(/[^a-z0-9]+/)
+        .filter((w) => w.length >= 2 && !/^\d+$/.test(w) && !SEARCH_STOP_WORDS.has(w))
+      if (words.length) byQuery = catalog.filter((r) => words.some((w) => matches(r, w)))
+    }
     // ⛔ THE REMOTE ROWS ARE NOT RE-FILTERED BY `matches`. They are already the
     // answer to this query — `useSymbolDiscovery` asked the server and the breadth
     // library with it — and a second substring test over a name the server ranked
@@ -1389,6 +1410,18 @@ export default function ChartSettingsIndicators({
     // — and must leave the member's current selection alone, hence the disarm.
     if (!commit(next)) pendingAddRef.current = null
   }, [settings, onChange, registry, resultByKey, armAdd, leaveBrowse, openFeature, onFirstAdd])
+
+  /** ⭐ MEMBERS — put a just-installed copy on this chart: the same write a result row's
+   *  first add makes for a definition (`addInstance`), and the same landing (browse closes).
+   *  A refused write returns `settings` itself and persists nothing. */
+  const putInstalledOnChart = useCallback((defId) => {
+    if (!defId || !registry?.getDefinition?.(defId)) return false
+    const next = addInstance(settings, defId, registry)
+    if (next === settings) return false
+    onChange?.({ ...next, preset: 'custom' })
+    leaveBrowse()
+    return true
+  }, [settings, onChange, registry, leaveBrowse])
 
   const addAnother = useCallback((row, e) => {
     e.stopPropagation()
@@ -2208,11 +2241,24 @@ export default function ChartSettingsIndicators({
     })
   }, [settings, registry])
 
-  const partitionFields = useCallback((row, def) => {
+  const partitionFields = useCallback((row, def, model = null) => {
     const styleKeys = def ? styleInputKeys(def) : null
-    const isLook = (f) => f.appearance === true
-      || f.type === 'color'
-      || !!(styleKeys && styleKeys.has(f.key))
+    // ⭐⭐ ONE FORM MODEL (2026-11-17). Where the per-instance model answers (`fieldsForInstance`: the
+    // legend dialog's, the phone sheet's, and the one `pinePresentation.test.js` holds to TradingView's
+    // Inputs tab), ITS split is this split: a field it puts on Inputs is CORE here, one it puts on
+    // Style is APPEARANCE. ⚰️ This modal sorted every colour to Appearance on its own rule, so RS
+    // Rating's seven script colours (the five "Color" rows, Positive / Negative Area) left their
+    // groups for one flat list, where TradingView shows them inline in Inputs. The house rule below
+    // stays only for a field the model does not hold (a fixture row, a legacy overlay's placeholder).
+    const modelInputs = model ? new Set((model.inputs || []).map((f) => f.key)) : null
+    const modelStyle = model ? new Set((model.style || []).map((f) => f.key)) : null
+    const isLook = (f) => {
+      if (modelStyle && modelStyle.has(f.key)) return true
+      if (modelInputs && modelInputs.has(f.key)) return false
+      return f.appearance === true
+        || f.type === 'color'
+        || !!(styleKeys && styleKeys.has(f.key))
+    }
     // ⭐⭐ A SIGN-COLOURED HISTOGRAM HAS NO SINGLE COLOUR, so its declared `color`
     // control is a box nothing reads: `presentedPlot` stamps `colorMode: 'sign'`
     // and the renderer paints per point from the Up/Down pair. Offering it beside
@@ -2513,10 +2559,10 @@ export default function ChartSettingsIndicators({
           )}
           {f.type === 'toggle' && (
             <button
-              type="button" role="switch" aria-checked={val !== false} aria-label={f.label}
+              type="button" role="switch" aria-checked={f.numeric ? Number(val) === 1 : val !== false} aria-label={f.label}
               {...inert}
-              className={`${styles.toggle} ${val !== false ? styles.toggleOn : ''} ${dis || off ? styles.toggleOff : ''}`}
-              onClick={() => onRowPatch?.(row, { [f.key]: val === false })}
+              className={`${styles.toggle} ${(f.numeric ? Number(val) === 1 : val !== false) ? styles.toggleOn : ''} ${dis || off ? styles.toggleOff : ''}`}
+              onClick={() => onRowPatch?.(row, { [f.key]: f.numeric ? (Number(val) === 1 ? 0 : 1) : val === false })}
             ><span className={styles.toggleKnob} /></button>
           )}
           {f.type === 'number' && (
@@ -2839,11 +2885,19 @@ export default function ChartSettingsIndicators({
         }
       })()
       : row
-    const parts = partitionFields(gatedRow, def)
+    const parts = partitionFields(gatedRow, def, instModel)
+    // ⭐ the model's `inline` and Pine `tooltip` ride too (they were dropped: a Pine document declares
+    // its tooltips in the script, which only the model reads)
     const withMeta = (f) => {
       const m = declaredMeta && declaredMeta.get(f.key)
-      if (!m || (!m.group && !m.activeWhen)) return f
-      return { ...f, group: m.group, activeWhen: m.activeWhen }
+      if (!m || (!m.group && !m.activeWhen && !m.inline && !m.tooltip)) return f
+      return {
+        ...f,
+        group: m.group,
+        activeWhen: m.activeWhen,
+        ...(m.inline && !f.inline ? { inline: m.inline } : {}),
+        ...(m.tooltip && !f.tooltip ? { tooltip: m.tooltip } : {}),
+      }
     }
     const core = parts.core.map(withMeta)
     const look = parts.look.map(withMeta)
@@ -2944,7 +2998,7 @@ export default function ChartSettingsIndicators({
             )}
           </span>
           {/* ⭐ PHASE 4 — THE INDICATOR ITSELF, separate from this instance's settings: a member's
-              own formula can be modified (UCT Intelligence, where authorized) or opened in the
+              own formula can be modified (the UCT Agent, where authorized) or opened in the
               formula builder; a formula or a parity-approved built-in can be copied into a NEW
               indicator of their own (a built-in that cannot be reproduced exactly says why). */}
           {hasMore && moreOpen && (
@@ -2954,7 +3008,7 @@ export default function ChartSettingsIndicators({
               {canModify && (
                 <button type="button" role="menuitem" className={styles.menuItem} data-testid="inspector-modify"
                   onClick={() => { setMoreOpen(false); definitionDoors.modify(def.id) }}>
-                  <span>Change it with UCT Intelligence</span><Icon name="spark" size={13} className={styles.spark} />
+                  <span>Change it with the UCT Agent</span><Icon name="spark" size={13} className={styles.spark} />
                 </button>
               )}
               {doorKind === 'user' && (
@@ -3242,11 +3296,24 @@ export default function ChartSettingsIndicators({
     // ⭐ ONE OUTPUT ⇒ NO OUTPUT NAME. Printing "Value" above a single control,
     // inside a panel already titled `QQQ`, is furniture.
     const single = restyleable.length === 1
+    // ⭐⭐ A PLOT IS NAMED AS THE FORM NAMES ITS COLOUR AND WIDTH (`plotTitlesOf`): its title, else the
+    // group of the script colour it draws in, else TradingView's `Plot`. ⚰️ It printed the column key,
+    // so RS Rating's untitled MA plots read "out2 style". Two plots sharing a name are told apart by
+    // their position in the accessible name only, where a screen reader needs it.
+    const titles = plotTitlesOf(def)
+    const nameOf = (plot) => titles.get(plot.key) || plot.label || 'Plot'
+    const seenName = new Map()
+    const spoken = new Map(restyleable.map((plot) => {
+      const n = nameOf(plot)
+      const k = (seenName.get(n) || 0) + 1
+      seenName.set(n, k)
+      return [plot.key, k > 1 ? `${n} ${k}` : n]
+    }))
 
     const rows = restyleable.map((plot) => {
       const style = resolvePlotStyle(inst, plot, styleCtx)
       const choices = availableStyles(plot, styleCtx)
-      const label = single ? 'Plot style' : `${plot.label || plot.key} style`
+      const label = single ? 'Plot style' : `${nameOf(plot)} style`
       return (
         <div className={styles.insField} data-field={`__style__:${plot.key}`} data-measure="medium"
           key={`style-${plot.key}`}>
@@ -3255,7 +3322,7 @@ export default function ChartSettingsIndicators({
             <select
               className={styles.indSelect}
               value={style}
-              aria-label={`${row.label} ${single ? 'plot style' : `${plot.key} plot style`}`}
+              aria-label={`${row.label} ${single ? 'plot style' : `${spoken.get(plot.key)} plot style`}`}
               onChange={(e) => {
                 const next = setInstancePlotStyle(
                   settings, row.instanceId, e.target.value, registry,
@@ -3674,7 +3741,9 @@ export default function ChartSettingsIndicators({
            be. `title` on the row rather than on the name, so the whole row is the
            hover target for it. */
         title={row.description || undefined}
-        className={`${styles.resRow} ${on ? styles.resRowOn : ''} ${refused ? styles.resRefused : ''}`}
+        /* ⭐ A MEMBER'S OWN ROW PUTS ITS DOORS ON A SECOND LINE (`resRowOwn`): five of them on the
+           name's line left the name no room (seen on production, 2026-11-17). */
+        className={`${styles.resRow} ${on ? styles.resRowOn : ''} ${refused ? styles.resRefused : ''} ${row.userDefined && definitionDoors ? styles.resRowOwn : ''}`}
         onClick={() => { if (canAct) addRow(row) }}
       >
         {/* ⭐⭐ THE FAMILY MARK. ⛔ IT IS NOT A DECORATION AND IT IS NOT THE SERIES'
@@ -3719,7 +3788,7 @@ export default function ChartSettingsIndicators({
                 {row.chip || row.shortName}
               </span>
             )}
-            {row.userDefined && <span className={styles.resMine}>Your formula</span>}
+            {row.userDefined && <span className={styles.resMine}>Your indicator</span>}
             {/* ⭐ PHASE 4 — IS IT USED HERE? The member's own indicator says so. */}
             {/* (`ACTIVE` already marks one that is on; this says the other half.) */}
             {row.userDefined && !on && (
@@ -3750,20 +3819,10 @@ export default function ChartSettingsIndicators({
           {row.userDefined && definitionDoors && (() => {
             const d = registry?.getDefinition?.(row.id) || null
             if (!d || definitionKindOf(d) !== 'user') return null
-            const stop = (fn) => (e) => { e.stopPropagation(); fn() }
-            return (
-              <span className={styles.resActions} data-testid="your-indicator-actions" data-guide="indicators.yours">
-                {definitionDoors.canModify() && (
-                  <button type="button" className={styles.resAction} data-testid="your-indicator-modify"
-                    onClick={stop(() => definitionDoors.modify(d.id))}>Modify</button>
-                )}
-                <button type="button" className={styles.resAction} data-testid="your-indicator-edit"
-                  onClick={stop(() => definitionDoors.editFormula(d.id))}>Edit formula</button>
-                <button type="button" className={styles.resAction} data-testid="your-indicator-copy"
-                  title="A new, independent indicator of your own — this one stays as it is"
-                  onClick={stop(() => definitionDoors.customCopy(d, {}))}>Custom copy</button>
-              </span>
-            )
+            // ⭐ R1 (2026-11-17) — the doors are `YourIndicatorActions` (its own tested file), which adds
+            // "Run over a list": the Screener's existing run flow, opened on this indicator.
+            return <YourIndicatorActions def={d} doors={definitionDoors}
+              className={styles.resActions} actionClassName={styles.resAction} />
           })()}
           {/* ⚠️⚠️ EXCEPT FOR A SECURITY, WHERE THE "DESCRIPTION" IS THE INSTRUMENT'S
               NAME. `securityResults` builds a ticker row as `name: QQQ`,
@@ -3859,45 +3918,22 @@ export default function ChartSettingsIndicators({
     const tabLabel = (libraryTabs.find((t) => t.key === activeTab) || { label: 'anything' }).label
     return (
     <div className={styles.insAdd} data-testid="add-surface" data-guide="indicators.addSurface">
-      {/* ⭐ UCT SIGNATURE — the Indicators window's own header: its title and the two ways to make
-          one, side by side as in the lab. "Describe one" (UCT Intelligence, gold ✦) is the EXISTING
-          `onCreateIndicator` door — live where it is released for this member (the server role /
-          rollout rule `useCreateIndicatorAccess`), otherwise shown disabled with "Soon". */}
+      {/* ⭐ UCT SIGNATURE R2 (owner Option 1, 2026-11-16) — the window's header: its title and ONE
+          way to make an indicator, "✦ Create indicator" (soft-bright; gold only on the ✦). It opens
+          the New formula window on its start view (Describe it, or start from a script / a picture /
+          conditions / a setup). ⚰️ It replaces "Describe one (Soon)" and "+ New formula": two
+          buttons for one job. Search stays the first and only input. */}
       <div className={styles.bHead}>
         <h3 className={styles.bTitle}>Indicators</h3>
-        {showCreateIndicator ? (
-          <button
-            type="button"
-            className={styles.pill}
-            data-testid="settings-create-indicator"
-            data-guide="indicators.create"
-            onClick={() => onCreateIndicator()}
-            title="Build an indicator by describing it — UCT Intelligence previews it on this chart"
-          >
-            <Icon name="spark" size={13} className={styles.spark} />
-            Describe one
-          </button>
-        ) : (
-          <button
-            type="button"
-            className={`${styles.pill} ${styles.soonRow}`}
-            disabled aria-disabled="true" title={SOON} aria-describedby={soonDescId}
-            aria-label="Describe one (coming soon)"
-          >
-            <Icon name="spark" size={13} className={styles.spark} />
-            Describe one<span className={modalStyles.soonTag}>Soon</span>
-          </button>
-        )}
         {onCreateFormula && (
           <button
             type="button"
-            className={styles.pill}
-            data-testid="settings-new-formula"
+            className={styles.addPrim}
+            data-testid="settings-create-indicator"
+            data-guide="indicators.create"
             onClick={() => onCreateFormula()}
-            title="Build your own indicator — conditions, plain English, Pine or ThinkScript"
           >
-            <Icon name="plus" size={13} />
-            New formula
+            <span className={styles.spark} aria-hidden="true">✦</span>Create indicator
           </button>
         )}
       </div>
@@ -3924,7 +3960,7 @@ export default function ChartSettingsIndicators({
                deliberately absent — see `FUNDAMENTALS_STATUS`; promising a search
                that can return nothing is the "fake availability" the brief rules
                out. */
-            placeholder="Search indicators, symbols, or formulas…"
+            placeholder="Search indicators or symbols…"
             aria-label="Search indicators"
             value={query}
             onChange={(e) => {
@@ -4032,7 +4068,24 @@ export default function ChartSettingsIndicators({
             )}
           </div>
         )}
-        {(activeTab !== 'fundamentals' || fundAvailable) && tabResults.length === 0 && refusals.length === 0 && (
+        {activeTab === HOUSE_TAB.key && (
+          <IndicatorHouseTab
+            styles={styles}
+            query={query}
+            listOwn={() => (generation >= 0 && registry?.listUserDefinitions?.()) || []}
+            isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
+            onPutOnChart={putInstalledOnChart}
+          />
+        )}
+        {activeTab === MEMBERS_TAB.key && (
+          <IndicatorMembersTab
+            styles={styles}
+            query={query}
+            isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
+            onPutOnChart={putInstalledOnChart}
+          />
+        )}
+        {activeTab !== MEMBERS_TAB.key && activeTab !== HOUSE_TAB.key && (activeTab !== 'fundamentals' || fundAvailable) && tabResults.length === 0 && refusals.length === 0 && (
           <div className={styles.indEmpty}>
             {/* ⚠️ "SEARCHING" IS NOT "NOTHING MATCHES", and the difference is a
                 network round trip. Telling a member their ticker does not exist
@@ -4089,14 +4142,44 @@ export default function ChartSettingsIndicators({
             </ul>
           </section>
         ))}
+        {/* ⭐ UCT SIGNATURE R2 — "NOT QUITE IT?" (owner Option 1). While the search has text, always —
+            matches or not — the UCT Agent is offered for exactly what was typed. It opens the New
+            formula window's start view with the words PRE-FILLED in Describe it; nothing is sent
+            until the member presses Send there. With no matches it sits right under that sentence. */}
+        {query.trim() && onCreateFormula && (
+          <section className={styles.insAddGroup} data-testid="agent-build" aria-label="Not quite it?">
+            <div className={styles.insSectionLabel}>Not quite it?</div>
+            <button
+              type="button"
+              className={styles.agentRow}
+              data-testid="agent-build-row"
+              onClick={() => onCreateFormula({ description: query.trim() })}
+            >
+              <span className={styles.spark} aria-hidden="true">✦</span>
+              <span className={styles.agentMain}>
+                <span className={styles.agentName}>Build “{query.trim()}” with the UCT Agent</span>
+                <span className={styles.agentSub}>It writes the formula and shows you a plain-English read-back and a preview before anything is added</span>
+              </span>
+              <span className={styles.agentArrow} aria-hidden="true">→</span>
+            </button>
+            {onOpenBuilderDoor && (
+              <div className={styles.agentAlt} data-testid="agent-build-doors">
+                <span>Or</span>
+                <button type="button" className={styles.agentAltLink} data-testid="door-pine" onClick={() => onOpenBuilderDoor('pine')}>Paste a TradingView script</button>
+                <button type="button" className={styles.agentAltLink} data-testid="door-image" onClick={() => onOpenBuilderDoor('image')}>Start from a picture</button>
+                <button type="button" className={styles.agentAltLink} data-testid="settings-new-formula" onClick={() => onOpenBuilderDoor('formula')}>Write a formula</button>
+              </div>
+            )}
+          </section>
+        )}
         {/* Saved, and not offered — with the gate's own reason, verbatim. Rendered
             only when something was actually refused, so a member whose formulas
             all install sees no heading about nothing. */}
-        {refusals.length > 0 && (
+        {activeTab !== MEMBERS_TAB.key && activeTab !== HOUSE_TAB.key && refusals.length > 0 && (
           <section className={styles.insAddGroup} data-testid="user-definition-refusals">
             <div className={styles.insSectionLabel}>{REFUSED_CATEGORY}</div>
             <p className={styles.resRefusedLede}>
-              These saved formulas are not being offered on this chart. The reason
+              These saved indicators are not being offered on this chart. The reason
               below comes from the check that refused each one.
             </p>
             <ul className={styles.resList}>
@@ -4110,7 +4193,7 @@ export default function ChartSettingsIndicators({
                   <span className={styles.resMain}>
                     <span className={styles.resTitleRow}>
                       <span className={styles.resName}>{row.name}</span>
-                      <span className={styles.resMine}>Your formula</span>
+                      <span className={styles.resMine}>Your indicator</span>
                     </span>
                     {row.messages.map((message, i) => (
                       <span key={i} className={styles.resRefusedWhy} data-testid="user-definition-refusal-reason">{message}</span>

@@ -174,7 +174,7 @@ def test_the_rating_definition_sends_nothing_and_has_style_inputs_only():
     # The colour is a `colorInput(...)` helper entry (no `key:` of its own, so the
     # parser skips it, as the rsLine rail does); the width is the one keyed input.
     assert _js_inputs("rsRating").keys() == {"lineWidth"}
-    assert "colorInput('color', 'Line colour', RS_INFO)" in _raw("rsRating")
+    assert "colorInput('color', 'Line color', RS_INFO)" in _raw("rsRating")
     assert "serverInputs: []" in _raw("rsRating")
 
 

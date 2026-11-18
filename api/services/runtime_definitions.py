@@ -97,7 +97,7 @@ import time
 from collections import OrderedDict
 from typing import Any, Optional
 
-from api.services import runtime_repaint
+from api.services import pine_runtime_codec, runtime_repaint
 
 log = logging.getLogger(__name__)
 
@@ -562,6 +562,10 @@ def run_half_evidence() -> list:
                     "objectsV2": c.get("objectsV2") == "MATCH", "runtimeOn": c.get("runtimePane") == "on"}
             if "substituted" in c:
                 fact["substituted"] = c.get("substituted")
+            # SETTINGS PARITY (2c): the settings a capture was taken at, moved off the author's
+            # defaults ({Pine name: value}); such a capture is evidence for those settings only
+            if isinstance(c.get("inputs"), dict) and c.get("inputs"):
+                fact["inputs"] = dict(c["inputs"])
             if c.get("objectsV2") == rollout_gate.PINE_CAPTURE_MATCH_SUBSTITUTED:
                 # the objects-v2 grade's own substituted names (`objectsV2Substituted` on the record's
                 # capture); absent names are served as none, which counts nothing
@@ -606,20 +610,69 @@ def run_half_entry_admits(entry) -> bool:
         return False
     seen = set()
     for c in entry.get("captures") if isinstance(entry.get("captures"), list) else []:
-        if not isinstance(c, dict) or not isinstance(c.get("capture"), str) or not c.get("capture"):
+        # SETTINGS PARITY (2c): a capture at moved settings is evidence for those settings only
+        if _captured_at_settings(c):
             continue
-        if c.get("verdict") != want or c.get("runtimeOn") is not True:
-            continue
-        if names is not None and rg._pine_substituted_names(c.get("substituted")) != names:
-            continue
-        # objects-v2 MATCH; or, ON THE SUBSTITUTED PATH ONLY, objects-v2 MATCH_SUBSTITUTED naming exactly
-        # the record's inputs (coordinator ruling 2026-11-15, after owner ruling (a))
-        objects_ok = c.get("objectsV2") is True or (
-            names is not None and rg._pine_substituted_names(c.get("objectsV2Substituted")) == names)
-        if not objects_ok:
-            continue
-        seen.add(c["capture"])
+        if _capture_counts(c, want, names):
+            seen.add(c["capture"])
     return len(seen) >= RUN_HALF_EVIDENCE_MIN_CAPTURES
+
+
+def _entry_path(entry):
+    """``(want, names)`` for the record's path, or None when nothing on it can count."""
+    from api.services import rollout_gate as rg
+    if not isinstance(entry, dict):
+        return None
+    admission = entry.get("admission")
+    if admission is None:
+        return rg.PINE_CAPTURE_MATCH, None
+    if admission == rg.PINE_ADMISSION_SUBSTITUTED:
+        names = rg._pine_substituted_names(entry.get("substituted"))
+        return None if names is None else (rg.PINE_CAPTURE_MATCH_SUBSTITUTED, names)
+    return None
+
+
+def _capture_counts(c, want, names) -> bool:
+    """One capture counts on the record's path (the rule ``run_half_entry_admits`` states)."""
+    from api.services import rollout_gate as rg
+    if not isinstance(c, dict) or not isinstance(c.get("capture"), str) or not c.get("capture"):
+        return False
+    if c.get("verdict") != want or c.get("runtimeOn") is not True:
+        return False
+    if names is not None and rg._pine_substituted_names(c.get("substituted")) != names:
+        return False
+    # objects-v2 MATCH; or, ON THE SUBSTITUTED PATH ONLY, objects-v2 MATCH_SUBSTITUTED naming exactly
+    # the record's inputs (coordinator ruling 2026-11-15, after owner ruling (a))
+    return c.get("objectsV2") is True or (
+        names is not None and rg._pine_substituted_names(c.get("objectsV2Substituted")) == names)
+
+
+def _captured_at_settings(c) -> bool:
+    return isinstance(c, dict) and isinstance(c.get("inputs"), dict) and bool(c.get("inputs"))
+
+
+def run_half_settings_admits(entry, moved) -> tuple:
+    """SETTINGS PARITY (2c) -- THE RULE FOR A RUN HALF AT A MEMBER'S SETTINGS (mirrored by
+    `runHalfRailSeam.js::runHalfSettingsEntryAdmits`, both pinned by the ``settings`` cases of
+    ``tests/fixtures/ast/run_half_evidence_parity.json``). A moved setting (a Pine name) is admitted
+    when at least `RUN_HALF_EVIDENCE_MIN_CAPTURES` distinct captures that count on the record's path
+    were taken with that setting moved (their ``inputs`` name it). Returns ``(ok, missing)``."""
+    keys = sorted({k for k in (moved or []) if isinstance(k, str) and k})
+    if not keys:
+        return True, []
+    path = _entry_path(entry)
+    if path is None:
+        return False, keys
+    want, names = path
+    by_key = {k: set() for k in keys}
+    for c in entry.get("captures") if isinstance(entry.get("captures"), list) else []:
+        if not _captured_at_settings(c) or not _capture_counts(c, want, names):
+            continue
+        for k in c["inputs"]:
+            if k in by_key:
+                by_key[k].add(c["capture"])
+    missing = [k for k in keys if len(by_key[k]) < RUN_HALF_EVIDENCE_MIN_CAPTURES]
+    return not missing, missing
 
 
 def allow_list() -> list[str]:
@@ -741,7 +794,9 @@ def admitted_capabilities() -> dict:
     denied: list[str] = []
     history_only: list[str] = []
     for name in sorted(k for k in registry if isinstance(k, str)) if isinstance(registry, dict) else []:
-        if name not in pine_capabilities.CAPABILITY_IDS:
+        # U15: a per-version library row (`library:Author/Library/N`) is an open family the
+        # detector names beside its closed vocabulary
+        if name not in pine_capabilities.CAPABILITY_IDS and not pine_capabilities.is_library_capability(name):
             withheld[name] = [f"`{name}` is not a capability the detector names"]
             continue
         reasons = rollout_gate.pine_capability_admission(name, registry[name])
@@ -1123,6 +1178,13 @@ def capability_admitted(source: Any, *, budget: Optional[DetectorBudget] = None,
         log.warning("[runtime_definitions] capability admission unreadable; not admitted")
         return False, [pine_capabilities.UNREADABLE]
     missing = sorted(c for c in caps if c not in admitted)
+    # U15 -- THE GENERIC `import` IS MET BY ITS LIBRARIES. It is never a registry row of its own:
+    # a script that imports is admitted only when it names at least one library version and EVERY
+    # version it imports is admitted on that version's own evidence (one row per version).
+    if "import" in missing:
+        libs = [c for c in caps if pine_capabilities.is_library_capability(c)]
+        if libs and all(c in admitted for c in libs):
+            missing = [c for c in missing if c != "import"]
     return (not missing), missing
 
 
@@ -1254,7 +1316,12 @@ def validate(definition: dict) -> None:
         raise ValueError("compute.objects: when present, true (the run draws the document's "
                          f"objects), got {own_objects!r}")
     outputs = compute.get("outputs")
-    if not isinstance(outputs, dict) or (not outputs and own_objects is not True):
+    # ⭐⭐ W9 ARMED ROUTE (2026-11-16) — a document that runs the strategy broker (`meta.runtimeHistory` is the
+    # strategy window, stamped by the member door only with the dark broker gate on) may map no plot either: a
+    # tester-only strategy's output is its trades, not a row (`defSchema.js::validateRuntimeCompute`, the same rule).
+    meta_in = definition.get("meta") if isinstance(definition.get("meta"), dict) else {}
+    broker_doc = meta_in.get("runtimeHistory") == pine_runtime_codec.STRATEGY_WINDOW_HISTORY
+    if not isinstance(outputs, dict) or (not outputs and own_objects is not True and not broker_doc):
         raise ValueError('compute.outputs: a "runtime" definition maps each plot key to a '
                          "runtime output index — required non-empty object")
     for key, index in outputs.items():
@@ -1336,6 +1403,35 @@ def _not_graded_for_stamp(source: Any, budget: "Optional[DetectorBudget]", capab
 
 def stamp_served(row: dict, *, budget: "Optional[DetectorBudget]" = None,
                  capability: bool = True) -> dict:
+    """A stored row as SERVED: the runtime lane's stamps (`_stamp_served_runtime`), then the HOST
+    lane's known-divergence stamp (`_stamp_host_known_divergence`). Never stored; a copy when it moves."""
+    return _stamp_host_known_divergence(
+        _stamp_served_runtime(row, budget=budget, capability=capability))
+
+
+def _stamp_host_known_divergence(row: Any) -> Any:
+    """⭐ HOST KNOWN-DIVERGENCE (owner decision 2026-11-17) — an ``ast`` row whose stored script is on the
+    host list (`user_definitions._row_to_dict` carries its sentence as ``host_known_divergence``) is served
+    with ``meta.hostKnownDivergence``, which the client's install door refuses by name
+    (`nativeRegistry.validateUserDefinitions`). A stamp a client wrote back is dropped, so a stored row
+    reads today's list. Returns a copy when anything moves; the stored row is not touched."""
+    from api.services import host_known_divergence as hkd
+    definition = row.get("definition") if isinstance(row, dict) else None
+    if not hkd.applies_to(definition):
+        return row
+    why = row.get("host_known_divergence")
+    why = why if isinstance(why, str) and why else None
+    meta_in = definition.get("meta") if isinstance(definition.get("meta"), dict) else {}
+    if not why and hkd.STAMP not in meta_in:
+        return row
+    meta = {k: v for k, v in meta_in.items() if k != hkd.STAMP}
+    if why:
+        meta[hkd.STAMP] = why
+    return dict(row, definition=dict(definition, meta=meta))
+
+
+def _stamp_served_runtime(row: dict, *, budget: "Optional[DetectorBudget]" = None,
+                          capability: bool = True) -> dict:
     """A stored runtime row as SERVED: the kill switch stamped on, never stored.
 
     Returns a copy; the stored row is not touched.
@@ -1394,10 +1490,12 @@ def stamp_served(row: dict, *, budget: "Optional[DetectorBudget]" = None,
 def scrub_served_stamps(definition: Any) -> Any:
     """The definition without any served stamp (`RUN_READ_STAMPS`): what the save door stores
     (re-review F4: a stamp a client wrote back is never stored). The SAME object when it carries none."""
+    from api.services import host_known_divergence as hkd
+    stamps = RUN_READ_STAMPS + (hkd.STAMP,)
     meta = definition.get("meta") if isinstance(definition, dict) else None
-    if not isinstance(meta, dict) or not any(k in meta for k in RUN_READ_STAMPS):
+    if not isinstance(meta, dict) or not any(k in meta for k in stamps):
         return definition
-    return dict(definition, meta={k: v for k, v in meta.items() if k not in RUN_READ_STAMPS})
+    return dict(definition, meta={k: v for k, v in meta.items() if k not in stamps})
 
 
 def run_read_source(definition: Any) -> Optional[str]:

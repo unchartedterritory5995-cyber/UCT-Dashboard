@@ -180,13 +180,58 @@ EVENT_SCHEMAS: dict = {
 # words it was computed from are never stored.
 
 #: The op names a `converse_turn` may report (the patch contract's 22).
-_CONVERSE_OPS = frozenset({
+#: The operations as they stood when this list was hand-typed. ⚰️ 2026-11-17: it was THE list, and
+#: seven operations added to the patch contract after it (`set_color_states`, `set_color_rule`,
+#: `set_table`, `remove_table`, `set_input`, `remove_input`, `set_calculation_timeframe`) were not in
+#: it, so every turn that used one had its whole `op_kinds` dropped: the record of what the newest
+#: features built was the part that went missing. It survives only as the answer when the contract
+#: cannot be read.
+_CONVERSE_OPS_AS_TYPED = frozenset({
     "create", "rename_definition", "add_output", "remove_output", "rename_output",
     "set_output_tree", "set_slot", "add_clause", "remove_clause", "set_intent",
     "set_placement", "set_style", "set_marker", "remove_marker", "set_paint",
     "remove_paint", "request_info_value", "request_alert", "cancel_request",
     "set_levels", "set_fill", "remove_fill",
 })
+
+
+def contract_ops() -> frozenset:
+    """Every operation the patch contract defines (`patchSchema.json`, each `$defs.op_*`'s `op`).
+    DERIVED, never restated: a new operation is countable the day it is authorable. Never raises:
+    telemetry must not take the door down, so an unreadable contract answers the typed list."""
+    try:
+        from pathlib import Path
+        path = (Path(__file__).resolve().parents[2] / "app" / "src" / "components" / "chart" / "builder"
+                / "authoring" / "patchSchema.json")
+        defs = json.loads(path.read_text(encoding="utf-8"))["$defs"]
+        ops = frozenset(v["properties"]["op"]["const"] for k, v in defs.items()
+                        if k.startswith("op_") and isinstance(v, dict)
+                        and isinstance(v.get("properties", {}).get("op", {}).get("const"), str))
+        if ops:
+            return ops
+        log.error("[indicator-telemetry] the patch contract defines no operations; using the typed list")
+    except Exception:  # noqa: BLE001
+        log.exception("[indicator-telemetry] the patch contract could not be read; using the typed list")
+    return _CONVERSE_OPS_AS_TYPED
+
+
+_CONVERSE_OPS = contract_ops()
+
+#: ⭐ 2026-11-17 -- WHICH BROWSER RULE SENT A PATCH BACK. When the browser's patch engine refuses a
+#: change the door offered, it sends its refusal back for one repair
+#: (`definition_conversation.browser_refusal`); each refusal begins with the engine's own code
+#: (`color:condition-output`, `fill:not-series`, `calc-tf:lower`). Counted, they say which rules
+#: the assistant trips most: the ranked list of what to teach it, or what the door should check.
+#: ⛔ The codes arrive from the client, and the engine that owns them is not importable here, so
+#: this is a strict SHAPE and not a closed set: two short lowercase slugs, letters and hyphens only
+#: (no digits, no spaces), at most four. It cannot carry a sentence.
+BROWSER_CODE = re.compile(r"[a-z][a-z-]{1,15}:[a-z][a-z-]{1,23}")
+BROWSER_CODES_MAX = 4
+
+
+def _browser_codes_ok(v: str) -> bool:
+    parts = [p for p in v.split(",") if p]
+    return 0 < len(parts) <= BROWSER_CODES_MAX and all(BROWSER_CODE.fullmatch(p) for p in parts)
 #: What a turn's result WAS -- distinct product signals, never one "failed".
 FAILURE_CLASSES = frozenset({
     "ok",                 # the model answered within the contract (any disposition)
@@ -198,6 +243,7 @@ FAILURE_CLASSES = frozenset({
     "budget_global",      # the shared member pool
     "rate_limited",       # the hourly request window
     "platform",           # the model provider could not be reached
+    "provider_account",   # the provider refused OUR account (key, permission, credit): needs a person
     "internal",           # an unexpected server error
 })
 #: Unsupported demand, aggregated. ⭐ Derived from the refusal reasons that exist
@@ -210,6 +256,9 @@ UNSUPPORTED_CATEGORIES = frozenset({
 })
 STUDIO_ACTIONS = frozenset({
     "opened", "preview", "saved", "save_failed", "discarded", "turn_failed",
+    # The member pressed Undo on a preview at least once in this conversation: the answer
+    # drew, and was not what they wanted (plan section 7, L7).
+    "undone",
 })
 #: Output/presentation kinds a saved conversation's definition carries (shape).
 _KINDS = frozenset({
@@ -237,6 +286,12 @@ _VALUE_RULES: dict = {
         "repair_gate": re.compile(r"[a-z_-]{2,32}:[a-z0-9_-]{2,48}"),
         "input_wrapper": frozenset({"args"}),
         "op_kinds": _csv_of(_CONVERSE_OPS),
+        "browser_codes": _browser_codes_ok,
+        # What produced the turn (`definition_conversation.turn_stamps`). Each is a
+        # strict pattern, never free text: a hash, a version, a model id.
+        "prompt_sha": re.compile(r"[0-9a-f]{16}"),
+        "vocab_version": re.compile(r"[0-9A-Za-z][0-9A-Za-z._-]{0,31}"),
+        "model": re.compile(r"[a-z0-9][a-z0-9._:@-]{1,63}"),
     },
     "studio_action": {
         "conversation_id": re.compile(_CONV_ID),
@@ -246,6 +301,8 @@ _VALUE_RULES: dict = {
         "origin": frozenset({"native", "imported"}),
         "failure": frozenset({"network", "http_5xx", "http_429", "http_403", "http_402", "http_other"}),
         "import_id": re.compile(r"[A-Za-z0-9_:-]{1,64}"),
+        # the store's own id shape (`user_definitions.DEF_ID_RE`): never a name or a word
+        "def_id": re.compile(r"u_[0-9a-f]{12}"),
     },
 }
 _N = (int, float)
@@ -254,14 +311,19 @@ EVENT_SCHEMAS.update({
         "conversation_id": (str,), "access": (str,), "disposition": (str,),
         "outcome": (str,), "failure_class": (str,), "unsupported_category": (str,),
         "attempts": _N, "calls": _N, "repair_gate": (str,), "input_wrapper": (str,),
+        "examples": (int,),
+        "mended": (str,),
         "usd": _N, "input_tokens": _N, "output_tokens": _N,
         "cache_read_tokens": _N, "cache_write_tokens": _N, "latency_ms": _N,
-        "op_kinds": (str,), "preflight": (bool,),
+        "op_kinds": (str,), "preflight": (bool,), "browser_codes": (str,),
+        "prompt_sha": (str,), "vocab_version": (str,), "model": (str,), "engine": (int,),
     },
     "studio_action": {
         "import_id": (str,), "conversation_id": (str,), "action": (str,),
         "surface": (str,), "kinds": (str,), "origin": (str,), "created": (bool,),
         "failure": (str,), "turns": _N,
+        # ⭐ L7: on 'saved' only, the stored definition's own id (held to its pattern below)
+        "def_id": (str,),
     },
 })
 
@@ -511,6 +573,11 @@ def _turn_block(sel: list) -> dict:
         "by_failure_class": _tally(p.get("failure_class") for _, _, p in sel),
         "unsupported_demand": _tally(p.get("unsupported_category") for _, _, p in sel),
         "op_kinds": _tally(o for _, _, p in sel for o in (p.get("op_kinds") or "").split(",") if o),
+        # ⭐ WHICH CHECK CAUSED EACH REPAIR (the scoreboard's "which check caught it"): the door's own
+        # gate, or `browser:refused` when the browser sent its refusal back; and for those, which of
+        # the browser's rules. The top of each list is what to teach the assistant next.
+        "repair_gates": _tally(p.get("repair_gate") for p in model_turns),
+        "browser_refusals": _tally(c for p in model_turns for c in (p.get("browser_codes") or "").split(",") if c),
     }
 
 
@@ -536,6 +603,104 @@ def _pool_state() -> dict:
     except Exception:  # noqa: BLE001
         log.exception("[indicator-telemetry] pool state unavailable")
         return {}
+
+
+def authoring_demand(days: int = 7, *, top: int = 12) -> dict:
+    """⭐ L6 (Studio plan, section 7): what members asked Create Indicator for that it could
+    not build, RANKED BY DISTINCT MEMBERS. One member asking ten times is one ask; ten members
+    asking once each is ten. The rows are the closed demand categories each turn already
+    carries (`definition_conversation.unsupported_category`), so nothing here can hold a
+    member's words. READ-ONLY.
+
+    ``other`` is the share the taxonomy cannot place yet: a falling ``unclassified_share``
+    means it is learning. ``could_not_produce`` is a different signal, kept apart: requests
+    the assistant tried and failed to express (a defect to fix, not demand to weigh).
+    """
+    days = max(1, min(int(days or 7), 90))
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT visitor_id, props, date(created_at) FROM landing_events"
+            " WHERE event = 'converse_turn' AND created_at >= datetime('now', ?)",
+            (f"-{days} days",),
+        ).fetchall()
+    finally:
+        conn.close()
+    cells: dict = {}
+    invalid_members, invalid_turns = set(), 0
+    for uid, props, day in rows:
+        try:
+            p = json.loads(props) if props else {}
+        except ValueError:
+            continue
+        if p.get("failure_class") == "model_invalid":
+            invalid_members.add(str(uid)); invalid_turns += 1
+        cat = p.get("unsupported_category")
+        if cat not in UNSUPPORTED_CATEGORIES:
+            continue
+        c = cells.setdefault(cat, {"members": set(), "cohort": set(), "turns": 0, "last_day": None})
+        c["members"].add(str(uid))
+        if p.get("access") == "cohort":
+            c["cohort"].add(str(uid))
+        c["turns"] += 1
+        c["last_day"] = max(c["last_day"] or day, day)
+    ranked = sorted(({"category": k, "members": len(v["members"]),
+                     "members_excluding_admins": len(v["cohort"]),
+                     "turns": v["turns"], "last_day": v["last_day"]} for k, v in cells.items()),
+                    key=lambda r: (-r["members"], -r["turns"], r["category"]))
+    for i, r in enumerate(ranked, 1):
+        r["rank"] = i
+    total = sum(r["turns"] for r in ranked)
+    other = next((r for r in ranked if r["category"] == "other"), None)
+    return {
+        "window_days": days,
+        "ranked": ranked[:max(1, int(top))],
+        "categories": len(ranked),
+        "unclassified_share": round(other["turns"] / total, 3) if (other and total) else (0.0 if total else None),
+        "could_not_produce": {"members": len(invalid_members), "turns": invalid_turns},
+    }
+
+
+def kept_after(min_age_days: int = 7, window_days: int = 30) -> dict:
+    """⭐ L7 (Studio plan, section 7): was it wanted? Of the indicators saved from the dock at
+    least ``min_age_days`` ago (and within ``window_days`` before that), how many are still
+    stored. A member who saved and then deleted it did not want it after all. READ-ONLY."""
+    min_age = max(1, min(int(min_age_days or 7), 60))
+    window = max(1, min(int(window_days or 30), 180))
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT visitor_id, props FROM landing_events WHERE event = 'studio_action'"
+            " AND created_at < datetime('now', ?) AND created_at >= datetime('now', ?)",
+            (f"-{min_age} days", f"-{min_age + window} days"),
+        ).fetchall()
+    finally:
+        conn.close()
+    saved = set()
+    for uid, props in rows:
+        try:
+            p = json.loads(props) if props else {}
+        except ValueError:
+            continue
+        d = p.get("def_id")
+        if p.get("action") == "saved" and isinstance(d, str) and _DEF_ID.fullmatch(d):
+            saved.add((str(uid), d))
+    from api.services import user_definitions  # noqa: PLC0415
+    kept = 0
+    for uid, d in saved:
+        try:
+            row = user_definitions.get(uid, d)
+        except Exception:  # noqa: BLE001 -- one unreadable row costs that row, not the report
+            continue
+        # `get` answers None for a definition its owner deleted (the store's own rule)
+        if row is not None:
+            kept += 1
+    return {"min_age_days": min_age, "window_days": window, "saved": len(saved),
+            "still_stored": kept,
+            "still_stored_rate": round(kept / len(saved), 3) if saved else None}
+
+
+_DEF_ID = re.compile(r"u_[0-9a-f]{12}")
 
 
 def rollout_report(days: int = 7) -> dict:
@@ -582,6 +747,9 @@ def rollout_report(days: int = 7) -> dict:
             "reached_preview": len([c for c, a in convs.items() if "preview" in a]),
             "saved": len(saved),
             "discarded": len([c for c, a in convs.items() if "discarded" in a]),
+            "undone": len([c for c, a in convs.items() if "undone" in a]),
+            # Undone and still saved: it took a correction to get there.
+            "saved_after_undo": len([c for c, a in convs.items() if "undone" in a and "saved" in a]),
             "save_failed": len([c for c, a in convs.items() if "save_failed" in a]),
             "save_rate": round(len(saved) / len(started), 3) if started else None,
             "client_turn_failures": _tally(p.get("failure") for _, _, p in actions
@@ -590,5 +758,14 @@ def rollout_report(days: int = 7) -> dict:
                                   for k in (p.get("kinds") or "").split(",") if k),
             "saved_origin": _tally(p.get("origin") for _, _, p in actions if p.get("action") == "saved"),
         },
+        # Which instructions, vocabulary, model and engine produced the window's turns
+        # (`definition_conversation.turn_stamps`). More than one value in a row means a
+        # change landed inside the window, so its rates mix two versions.
+        "produced_by": {k: _tally(p.get(k) for _, _, p in turns if p.get(k) is not None)
+                        for k in ("prompt_sha", "vocab_version", "model", "engine")},
         "shared_pool_today": _pool_state(),
+        # ⭐ L6: what could not be built, ranked by distinct members
+        "demand": authoring_demand(days),
+        # ⭐ L7: saved from the dock a week or more ago, and still stored
+        "kept_after_7_days": kept_after(7, 30),
     }

@@ -14,6 +14,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, fireEvent, act, screen } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import BuilderSheet, { buildDefinition } from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { BUILDER_INPUT_SCOPE } from './builderInputs'
 import { evaluateFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'
@@ -96,7 +97,7 @@ describe('⭐ P2 item 10/11 — presentation survives a maths edit', () => {
     mount(editRow)
     await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS) })
     await flush()
-    fireEvent.change(screen.getByLabelText('Formula'), { target: { value: 'sma(close, 9)' } })
+    fireEvent.change(formulaBox(), { target: { value: 'sma(close, 9)' } })
     await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS) })
     await flush()
     const save = screen.getByRole('button', { name: /^Sav/ })

@@ -1,0 +1,33 @@
+//@version=6
+indicator("UCTPROBE_VW_ROUND_TO_MINTICK_TIES", overlay = false, max_labels_count = 60)
+// PROVENANCE: written 2026-11-16 (parabolic-sar's label, 654.405 -> "654.41"). NEVER COMPILED ON TRADINGVIEW.
+// Reference (v4/v5/v6): "the nearest value that can be divided by syminfo.mintick, without the remainder,
+// with ties rounding up" -- it does not say whether a tie is the decimal value or the binary double.
+// The engine serves `mul` (ast/tickRound.js). K02 (1.005) and K03 (163.265) FALSIFY that choice if they
+// print 1.01 / 163.27; K01 must print 654.41 under every reading but `div`.
+// math.round_to_mintick on values a half tick from the grid. Three readings fit the one witness
+// (round_to_mintick(654.405) = 654.41 on AMEX:SPY, tick 0.01):
+//   mul = round(x * pricescale / minmov)     (654.405 * 100 is 65440.5 exactly)
+//   eps = floor(x / tick + 0.5 + 1e-6)       (the broker's fill rounding, B-ROUND)
+//   dec = the shortest decimal of x, a tie up
+// and the reading served before it does not: div = round(x / tick) (654.405 / 0.01 is 65440.49999999999).
+// The rows below part them. CAPTURE: NYSE:RDDT 1D and AMEX:SPY 1D (tick 0.01), keep full float64 text.
+plot(math.round_to_mintick(654.405), "K01_654.405_CONTROL_mul654.41_div654.40")
+plot(math.round_to_mintick(1.005), "K02_1.005_mul1.00_eps1.01_dec1.01")
+plot(math.round_to_mintick(163.265), "K03_163.265_mul163.26_eps163.27_dec163.27")
+plot(math.round_to_mintick(127.705), "K04_127.705_CONTROL_every_reading_127.71")
+plot(math.round_to_mintick(0.125), "K05_0.125_EXACT_binary_tie")
+plot(math.round_to_mintick(-0.125), "K06_neg_0.125_EXACT_binary_tie_up_is_-0.12")
+plot(math.round_to_mintick(-654.405), "K07_neg_654.405")
+plot(math.round_to_mintick(-1.005), "K08_neg_1.005")
+plot(math.round_to_mintick(654.4049999999), "K09_a_hair_under_mul654.40_eps654.41")
+plot(math.round_to_mintick(close / 3), "K10_computed_CONTROL")
+plot(math.round_to_mintick(654.405) * 100, "K11_product_form_65441_or_65441.00000000001")
+plot(bar_index, "K00_bar_index_CONTROL")
+// the sibling formatter on the same values (CBC-FMT serves it as round(x / tick); mul and div part on K01 only)
+f(id, s) => label.new(bar_index, close, id + "|" + s, style = label.style_label_left)
+if barstate.islast
+    f("K21 654.405 mintick mul654.41 div654.40", str.tostring(654.405, format.mintick))
+    f("K22 654.405 round_to_mintick text", str.tostring(math.round_to_mintick(654.405)))
+    f("K23 1.005 round_to_mintick text", str.tostring(math.round_to_mintick(1.005)))
+    f("K24 163.265 round_to_mintick text", str.tostring(math.round_to_mintick(163.265)))

@@ -253,7 +253,7 @@ describe('PHASE 4 E — DEFINITION vs INSTANCE', () => {
   const h = { onSettings() {}, onToggleHidden() {}, onMove() {}, onDuplicate() {}, onAlerts() {}, onAbout() {}, onRemove() {},
     onModify() {}, onEditFormula() {}, onCustomCopy() {} }
   const chip = { instanceId: 'x:1', defId: 'x', label: 'X', hidden: false }
-  const keys = (rows) => rows.filter((r) => !r.separator).map((r) => r.key)
+  const keys = (rows) => rows.filter((r) => !r.separator && r.groupLabel == null).map((r) => r.key)
 
   it('E1 a USER definition offers Modify (with access) · Edit formula · Duplicate on chart · Create custom copy (EXACT)', () => {
     const def = aiRsi()

@@ -67,7 +67,7 @@ export const START_HERE = Object.freeze([
  *  `nextChannelId`), so every group the board can create is addressable. Whether THIS board
  *  has the group is the shell's answer (`channelTarget`), never a parse refusal. */
 export const CHANNEL_RE = /^@([A-Za-z]|[Cc]\d{2,3}|[1-4])$/
-export const CHANNEL_RULE = '@A … @D sends the command to the panel linked to that colour '
+export const CHANNEL_RULE = '@A … @D sends the command to the panel linked to that color '
   + 'group (and so to every panel in it), @E and later to a group your board added; @1 … @4 '
   + 'sends it to that panel number.'
 
@@ -217,7 +217,7 @@ export function describeCommand(cmd) {
     case 'row':
       return { text: `Open row ${cmd.n} of the focused panel's list`, tone: 'ok', shape: 'N <GO>' }
     case 'ask':
-      return { text: `Ask AI Search: “${cmd.question}”${cmd.fallback ? ' (not a command)' : ''}`,
+      return { text: `Ask the UCT Agent: “${cmd.question}”${cmd.fallback ? ' (not a command)' : ''}`,
         tone: 'ask', shape: 'ASK <question>' }
     case 'alias-define':
       return { text: `Save alias ${cmd.name} = ${cmd.expansion}`, tone: 'ok', shape: 'ALIAS NAME = command' }

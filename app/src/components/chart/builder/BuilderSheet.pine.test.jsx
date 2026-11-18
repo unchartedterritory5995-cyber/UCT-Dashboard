@@ -22,6 +22,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet, { buildDefinition } from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { evaluateFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { FOLD_NOTES } from '../engine/ast/parse'
 import { PINE_DEBOUNCE_MS } from './PineBox'
@@ -31,6 +32,7 @@ import { parseFormula, astHash } from '../engine/ast/parse'
 import { translatePine } from '../engine/ast/pine'
 import { USER_DEFINITIONS_KEY } from '../../../hooks/useUserDefinitions'
 import { DOOR_VERSION } from '../engine/memberDocumentMigration'
+import { SCRIPT_ENGINE_VERSION } from '../engine/scriptEngineVersion'
 
 const H = vi.hoisted(() => ({ requests: [] }))
 
@@ -51,16 +53,18 @@ const flush = async () => {
 const noop = () => {}
 
 function mount() {
-  return render(
+  const view = render(
     <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
         <BuilderSheet open onClose={noop} />
       </SWRConfig>
     </AuthContext.Provider>,
   )
+  writeMyself()
+  return view
 }
 
-const formulaField = () => screen.getByLabelText('Formula')
+const formulaField = () => formulaBox()
 // ⏳ HAND-BACK (W3.7): the box became `ImportBox` and its aria-label now names
 // every dialect it reads, so the field is found by TESTID — which is what
 // `pine-box` always meant ("the paste box"), not "the Pine box". Every other
@@ -83,7 +87,7 @@ async function settleFormula() {
 }
 
 async function paste(script) {
-  fireEvent.click(tab(/^import$/i))
+  openSource('pine')
   fireEvent.change(pineField(), { target: { value: script } })
   await settlePine()
 }
@@ -117,12 +121,16 @@ afterEach(() => {
 })
 
 describe('the Pine door is reachable from the builder', () => {
-  it('a Pine tab exists beside the other three', async () => {
+  it('a Pine start exists beside the other three, and it opens as the Script tab', async () => {
     mount()
     await flush()
-    expect(tab(/^import$/i)).toBeTruthy()
-    expect(tab(/library/i)).toBeTruthy()
-    expect(tab(/conditions/i)).toBeTruthy()
+    toStart()
+    // Direction A: the four starts — the script door is one of them
+    for (const name of [/Paste a script/, /From a picture/, /Build from conditions/, /A UCT setup/]) {
+      expect(screen.getByRole('button', { name })).toBeTruthy()
+    }
+    openSource('pine')
+    expect(tab(/^script$/i)).toHaveAttribute('aria-selected', 'true')
     expect(tab(/formula/i)).toBeTruthy()
   })
 
@@ -130,7 +138,7 @@ describe('the Pine door is reachable from the builder', () => {
     mount()
     await flush()
     expect(screen.queryByTestId('pine-box')).toBe(null)
-    fireEvent.click(tab(/^import$/i))
+    openSource('pine')
     expect(screen.getByTestId('pine-box')).toBeTruthy()
     expect(pineField()).toBeTruthy()
   })
@@ -196,6 +204,44 @@ describe('paste a real screener script and get a working scan', () => {
     await settleFormula()
     const save = screen.getByRole('button', { name: /^save$/i })
     expect(save.disabled).toBe(false)
+  })
+
+  // ⭐⭐ COND-TA (F3, coordinator ruling 2026-11-15) — AN UNTOUCHED APPLY SAVES ITS SCRIPT, in its
+  // own column (`pine_source`, beside the document, never in it), so a later translator fix can
+  // re-translate it; and stamps the engine that translated it (`importedFrom.engine`).
+  it('⭐ COND-TA F3: an untouched Apply saves the applied script as `pine_source`, and the engine', async () => {
+    mount()
+    await flush()
+    await paste(SCREEN_SCRIPT)
+    fireEvent.click(screen.getByTestId('pine-use'))
+    await settleFormula()
+    fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'Oversold uptrend' } })
+    await settleFormula()
+    fireEvent.click(screen.getByRole('button', { name: /^save$/i }))
+    await flush()
+    const post = H.requests.find((r) => r.method === 'POST' && r.url === USER_DEFINITIONS_KEY)
+    expect(post, 'nothing was written').toBeTruthy()
+    const body = JSON.parse(post.body)
+    expect(body.pine_source).toBe(SCREEN_SCRIPT)
+    expect(JSON.stringify(body.definition)).not.toContain('indicator(')   // never inside the document
+    expect(body.definition.meta.importedFrom.engine).toBe(SCRIPT_ENGINE_VERSION)
+  })
+
+  it('⛔ COND-TA F3: a formula HAND-EDITED after Apply saves no script (a re-translation must never undo the edit)', async () => {
+    mount()
+    await flush()
+    await paste(SCREEN_SCRIPT)
+    fireEvent.click(screen.getByTestId('pine-use'))
+    await settleFormula()
+    fireEvent.change(formulaField(), { target: { value: `${EXPECTED.formula} and close > 1` } })
+    await settleFormula()
+    fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'Oversold uptrend' } })
+    await settleFormula()
+    fireEvent.click(screen.getByRole('button', { name: /^save$/i }))
+    await flush()
+    const post = H.requests.find((r) => r.method === 'POST' && r.url === USER_DEFINITIONS_KEY)
+    expect(post, 'nothing was written').toBeTruthy()
+    expect(JSON.parse(post.body).pine_source).toBeUndefined()
   })
 
   it('⭐ the SAVED DOCUMENT is byte-identical to the same formula typed by hand', async () => {

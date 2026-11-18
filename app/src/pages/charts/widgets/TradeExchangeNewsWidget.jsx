@@ -64,8 +64,10 @@ import ListPicker from './TradeExchangeNewsListPicker'
 
 //: New-headline highlight: held for 1.5 s, then a 0.6 s fade (CSS .flash), then removed.
 const FLASH_MS = 2100
-//: Only news this recent flashes: a reconnect's replayed backlog is not "new".
-const FLASH_FRESH_MS = 60_000
+//: Only news that ARRIVED this recently flashes: a reconnect's replayed backlog is not "new". An
+//: arrival window for the highlight, not TERM-006's age-display floor (provenance/freshnessAge.js
+//: AGE_FLOOR_MS); both are 60 s today by coincidence, and moving one must not move the other.
+const FLASH_ARRIVAL_WINDOW_MS = 60_000
 const SOUND_GAP_MS = 1500
 const SEARCH_DEBOUNCE_MS = 140
 
@@ -77,6 +79,9 @@ const NEED = declareNeed({ kind: 'trade-exchange-news', delivery: DELIVERY.EVERY
 const NO_REST = Object.freeze([])
 //: Fetch the next step of the day this far (px) before the reader reaches an end.
 const NEAR_END_PX = 900
+
+// UCT Agent newsLibrary.* door (AUDIT D13): a row's text reaches the Agent at most this long
+const AGENT_DOOR_TEXT_MAX = 80
 
 export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, defaultView = 'feed' }) {
   const { groupSyms, setGroupSym } = useWorkspace()
@@ -191,7 +196,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
     const newest = newestRef.current
     const now = Date.now()
     const fresh = shown.filter((it) => !seen.has(it.seq) && it.seq > newest
-      && now - (it.received_at_ms || 0) < FLASH_FRESH_MS)
+      && now - (it.received_at_ms || 0) < FLASH_ARRIVAL_WINDOW_MS)
     for (const it of feed.items) seen.add(it.seq)
     newestRef.current = Math.max(newest, ...feed.items.map((it) => it.seq))
     const live = fresh.filter((it) => !it.delayed)
@@ -441,7 +446,18 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
   // UCT Agent: the watchlist choices, and the search box (read back as typed; written through its own setter, as typing does)
   useWidgetDoor(() => ({
     options: () => ({ watchlist: listOptions.map(o => ({ value: o.value || null, label: o.label })) }),
-    read: () => ({ search: queryRaw }),
+    // ⭐ UCT Agent newsLibrary.* (read-only, 2026-11-15): the rows THIS widget renders (`rows`, as drawn — nothing is
+    // computed for the Agent) and the one the member has open (its ⋯ menu or Explain, else the single expanded row), so a
+    // headline is named by its id from what the member sees or clicked. The door writes nothing here.
+    read: () => {
+      const open = actions?.item?.id ?? (explain?.view === 'feed' ? explain.id : null)
+      const one = !open && expanded.size === 1 ? rows.find(r => expanded.has(r.seq))?.id ?? null : null
+      return {
+        search: queryRaw,
+        visible: rows.slice(0, 20).map(r => ({ id: r.id, time: r.received_at_ms ?? null, tickers: r.tickers || [], text: String(r.content || '').slice(0, AGENT_DOOR_TEXT_MAX) })),
+        selected: open ?? one,
+      }
+    },
     write: (key, v) => { if (key === 'search') setQueryRaw(String(v ?? '').slice(0, 80)) },
   }))
 

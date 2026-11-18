@@ -104,6 +104,13 @@ const CARRIED_SHAPE = {
   vwap: 'computeVWAP — running Σpv / Σv',
   vwapOf: 'computeVWAP — the same running Σpv / Σv, weighting a bar price (H3)',
   avwap: 'barAvwap — the same accumulator, re-anchored',
+  // ⭐ 2026-11-17 — the regular session's own values: ONE cell each, started on the session's first
+  // regular bar and stepped on the regular bars after it (`computeSessionRegular`).
+  sessionOpen: 'computeSessionRegular — the first regular bar\'s open, held',
+  sessionHigh: 'computeSessionRegular — a running max since the regular open',
+  sessionLow: 'computeSessionRegular — a running min since the regular open',
+  openingRangeHigh: 'computeSessionRegular — the same running max, frozen after N minutes',
+  openingRangeLow: 'computeSessionRegular — the same running min, frozen after N minutes',
   obvN: 'barObvN — a running level, then a fixed offset difference',
   pvtN: 'barPvtN — a running level, then a fixed offset difference',
   // ⭐⭐ `valuewhenOccurrence` (2026-09-20) IS THE SAME CARRIED SHAPE AS
@@ -139,7 +146,7 @@ const WINDOW_COMPOSITE = {
   // a percentage (`percentileNearestRank`), a rank of every bar against every
   // other (`rci`), and weights read off two more columns (`alma`).
   percentileNearestRank: 'windowPercentileNearest — a window, plus percentage',
-  rci: 'windowRci — a rank correlation within the window',
+  rci: 'rciCol — the Pearson correlation of average ranks within the window (engine 57)',
   alma: 'almaCol — a weighted window, weights from offset and sigma',
   donchianUpper: 'computeDonchian — highest/lowest',
   donchianMiddle: 'computeDonchian — highest/lowest',
@@ -149,6 +156,8 @@ const WINDOW_COMPOSITE = {
   ichimokuSpanA: 'midpoint of two midpoints',
   ichimokuSpanB: 'highest/lowest midpoint',
   stoch: 'computeStochastic — highest/lowest',
+  // ⭐ (2026-11-14, engine 57) Pine's `ta.stoch`: the last n finite highs/lows, the last value held.
+  stochPine: 'stochPineScan — highest/lowest of the last n finite values',
   williamsR: 'highest/lowest',
   cci: 'sma + dev (mean absolute deviation)',
   mfi: 'windowed sums of signed money flow',

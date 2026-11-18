@@ -13,6 +13,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet, { buildDefinition } from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { BUILDER_INPUTS, BUILDER_INPUT_SCOPE } from './builderInputs'
 import { evaluateFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'
@@ -74,11 +75,12 @@ async function openStored() {
   installUserDefinitions([stored.definition])
   mount()
   await flush()
+  toStart()
   await click(screen.getByRole('button', { name: 'Edit Lines' }))
   await settle()
 }
 async function addRow(n, key, text) {
-  await click(screen.getByTestId('add-plot'))
+  await click((openPlots(), screen.getByTestId('add-plot')))
   await set(screen.getByLabelText(`Plot ${n} key`), key)
   await set(screen.getByLabelText(`Formula for plot ${n}`), text)
   await settle()
@@ -101,7 +103,7 @@ describe('the draft marker in the PUT body', () => {
 
   it('ASKED remove "fast", add a row typed "fast" again, save · CLAIMED the store is told it is a NEW line · DID', async () => {
     await openStored()
-    await click(screen.getByRole('button', { name: 'Remove plot 2' }))
+    await click(reveal(screen.getByRole('button', { name: 'Remove plot 2', hidden: true })))
     await addRow(2, 'fast', 'close * 3')
     await save()
     const doc = body()
@@ -138,7 +140,7 @@ describe('the draft marker in the PUT body', () => {
 
   it("the copy this tab installs keeps the continuing line's uid and marks the new one pending", async () => {
     await openStored()
-    await click(screen.getByRole('button', { name: 'Remove plot 2' }))
+    await click(reveal(screen.getByRole('button', { name: 'Remove plot 2', hidden: true })))
     await addRow(2, 'fast', 'close * 3')
     await save()
     const installed = getDefinition(DEF_ID)
@@ -150,7 +152,7 @@ describe('the draft marker in the PUT body', () => {
   it('a CREATE sends no marker (every line is new to the store anyway)', async () => {
     mount()
     await flush()
-    await set(screen.getByLabelText('Formula'), 'close')
+    await set(formulaBox(), 'close')
     await settle()
     await addRow(2, 'fast', 'close * 2')
     await set(screen.getByLabelText(/^Name/i), 'Fresh')

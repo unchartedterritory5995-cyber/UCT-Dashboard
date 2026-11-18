@@ -1,26 +1,21 @@
 /* ImageBox — the screenshot door. Its own module rather than a block inside
    BuilderSheet.module.css for the reason PineBox states: that sheet is shared
    with surfaces under concurrent edit, and a CSS module is the cheapest thing in
-   this repo to keep disjoint. Every colour is a token with a literal fallback,
-   so the box follows whatever theme it is dropped into. */
+   this repo to keep disjoint.
+   ⭐ UCT Signature (Direction A, 2026-11-16): sentence-case labels, soft cards and
+   soft buttons, no gold, no native file control on show. */
 
 .wrap {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
-  border-radius: var(--radius-lg);
-  background: var(--bg-raised, rgba(255, 255, 255, 0.02));
+  gap: 10px;
 }
 
 .head {
   margin: 0;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+  color: #c9c6be;
 }
 
 /* The honesty line. Deliberately not muted into invisibility: it is the sentence
@@ -29,67 +24,100 @@
   margin: 0;
   font-size: 12px;
   line-height: 1.5;
-  color: var(--text, rgba(255, 255, 255, 0.78));
-  border-left: 2px solid var(--border-accent, rgba(212, 175, 55, 0.6));
+  color: #c9c6be;
+  border-left: 2px solid #383b41;
   padding-left: 8px;
 }
 
 .label {
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #c9c6be;
 }
 
-.file,
+/* The real file input: visually hidden, still focusable (its label is the button). */
+.file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+  opacity: 0;
+}
+
+/* "Choose a picture" — a soft button that is the file input's label. */
+.pick {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-min, 44px);
+  padding: 0 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #f8f7f3;
+  background: rgba(248, 247, 243, 0.08);
+  border-radius: 7px;
+  cursor: pointer;
+}
+.pick:hover { background: rgba(248, 247, 243, 0.13); }
+.pick:focus-within { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
+
 .note {
   width: 100%;
   box-sizing: border-box;
   padding: 8px 10px;
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 1.5;
-  color: var(--text-bright);
-  background: var(--bg-sunken, rgba(0, 0, 0, 0.25));
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
-  border-radius: var(--radius-md);
+  color: #ededed;
+  background: #0f1012;
+  border: 1px solid #26282c;
+  border-radius: 7px;
 }
-.note:focus { outline: none; border-color: var(--border-accent); }
-.note::placeholder { color: var(--text-muted); opacity: 0.7; }
+.note:focus { outline: none; border-color: #383b41; }
+.note::placeholder { color: #93939a; }
 
-.row { display: flex; gap: 8px; align-items: center; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
 .button {
-  min-height: var(--tap-min, 40px);
+  min-height: var(--tap-min, 44px);
   padding: 0 14px;
-  font-size: 13px;
-  color: var(--text-bright);
-  background: var(--bg-elevated, rgba(255, 255, 255, 0.06));
-  border: 1px solid var(--border-accent, rgba(212, 175, 55, 0.6));
-  border-radius: var(--radius-md);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #ededed;
+  background: rgba(248, 247, 243, 0.06);
+  border: 0;
+  border-radius: 7px;
   cursor: pointer;
 }
+.button:hover { background: rgba(248, 247, 243, 0.11); }
+.primary { color: #f8f7f3; background: rgba(248, 247, 243, 0.08); }
+.primary:hover { background: rgba(248, 247, 243, 0.13); }
 
 /* ⛔ A DISABLED BUTTON HAS TO LOOK DISABLED. The same expression that sets
    `disabled` sets this class, so the look cannot drift from the gate. */
 .dimmed { opacity: 0.45; cursor: not-allowed; }
 
-.meta { font-size: 11px; color: var(--text-muted); }
+.meta { font-size: 11.5px; color: #93939a; }
 
 .answer { display: flex; flex-direction: column; gap: 8px; }
 
 .saw {
   font-size: 12px;
   line-height: 1.5;
-  color: var(--text, rgba(255, 255, 255, 0.78));
+  color: #c9c6be;
 }
 
 .candidate {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 10px;
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
-  border-radius: var(--radius-md);
-  background: var(--bg-surface, rgba(255, 255, 255, 0.03));
+  padding: 12px;
+  border-radius: 9px;
+  background: #1a1b1f;
 }
 
 .candidateHead { display: flex; gap: 8px; align-items: baseline; }
@@ -97,26 +125,26 @@
 .rank {
   font-variant-numeric: tabular-nums;
   font-size: 11px;
-  color: var(--text-muted);
+  color: #93939a;
 }
 
 .confidence {
   margin-left: auto;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
-  color: var(--text-muted);
+  color: #93939a;
 }
 
 .sentence {
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.5;
-  color: var(--text-heading, #fff);
+  color: #f8f7f3;
 }
 
 .source {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 12px;
-  color: var(--text);
+  color: #c9c6be;
   overflow-x: auto;
   white-space: pre;
 }
@@ -126,12 +154,12 @@
   flex-direction: column;
   gap: 6px;
   padding: 10px;
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.5;
-  color: var(--text-bright);
+  color: #ededed;
   background: var(--loss-bg, rgba(220, 76, 70, 0.12));
   border: 1px solid var(--loss-border, rgba(220, 76, 70, 0.4));
-  border-radius: var(--radius-md);
+  border-radius: 9px;
 }
 
 .rejected {
@@ -141,7 +169,11 @@
   padding: 10px;
   font-size: 12px;
   line-height: 1.5;
-  color: var(--text);
-  border: 1px dashed var(--border-subtle, rgba(255, 255, 255, 0.12));
-  border-radius: var(--radius-md);
+  color: #c9c6be;
+  border: 1px dashed #383b41;
+  border-radius: 9px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pick, .button { min-height: 30px; }
 }

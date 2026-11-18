@@ -1353,6 +1353,11 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
     // underneath was deleted to shorten a strip.
     expect(tabs().map((t) => t.textContent.trim())).toEqual([
       'Technical', 'Fundamentals', 'Breadth', 'Symbols', 'Positioning',
+      // 2026-11-16: the published library is shown here too. It is LAST, so the five
+      // catalogue tabs keep their places and the landing tab is unchanged.
+      // 2026-11-16: UCT's house set, just before Members.
+      'UCT',
+      'Members',
     ])
     expect(tabs().map((t) => t.textContent.trim()),
       'Popular is back on the strip').not.toContain('Popular')
@@ -1455,8 +1460,10 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
     expect(css, 'the rule (and so its 12px of margin) survived the sentence')
       .not.toMatch(/^\.insAddLede\s*\{/m)
     // …and what it promised is still promised, where it is actually useful.
+    // ⭐ UCT Signature R2 (owner Option 1): "Search indicators or symbols…" — making a formula is
+    // the "✦ Create indicator" button and the UCT Agent row under a search, not a search result.
     expect(document.body.querySelector('[role="searchbox"]').getAttribute('placeholder'))
-      .toMatch(/indicators, symbols, or formulas/i)
+      .toMatch(/indicators or symbols/i)
   })
 
   it('⚰️ DISCOVERY NAMES ARE MEDIUM, AND THE LEFT COLUMN IS UNTOUCHED', () => {

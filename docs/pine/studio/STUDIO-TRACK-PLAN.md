@@ -1,6 +1,7 @@
 # The indicator ecosystem: final blueprint (Studio track)
 
-FINAL v9, 2026-11-15. This version is a rewrite, not a ninth layer. v1 to v8 were each
+FINAL v9, 2026-11-15; progress and the house-set runs added 2026-11-16 (sections 14a
+and 15, which a later session reads first; section 15 was brought up to date that evening). This version is a rewrite, not a ninth layer. v1 to v8 were each
 corrected by finding something that already existed; v9 was written after six independent
 specialist reviews of v8 against master (a code census, a review of the competitor research
 against the public record, product and interface design, model and learning systems, fit
@@ -288,9 +289,9 @@ build-time flag with no per-user stage.
 | O1 | Enrol at sign-up and seed existing accounts once at boot, copying the pattern already on master for another feature | `rollout_gate.py`, sign-up, boot | remove the tag; no redeploy |
 | O2 | The door's client check accepts the cohort for admins as well as the browser switch | `createIndicatorFlag.js` | revert |
 | O3 | `CREATE_INDICATOR_COHORT_ENABLED=1` on web; the ledger row moves from pending to armed in the same change | env, `feature_flags.json` | unset: read first on every call, so new turns stop at once |
-| O4 | `VITE_PINE_EDITOR_STATUS=1` at build; request R2 (an admin-only stage) is no longer needed | `Dockerfile.web`, ledger | rebuild without it |
-| O5 | Rehearse the reversal of O3 once and record how long it takes to act | - | - |
-| O6 | Set the per-member daily allowance and the shared interactive reserve on purpose. The reserve is one pool shared by every model feature, admins and this track's own measuring runs, and it is smaller than one admin's cap: a measuring run can pause the assistant for everyone for the day | env | - |
+| O4 | `VITE_PINE_EDITOR_STATUS=1` at build; request R2 (an admin-only stage) is no longer needed. **ARMED 2026-11-17** on `web` and on `web-front`: the bundle members load is built by `web-front`, which keeps its own copy of every `VITE_` variable, so the flag on `web` alone changed nothing a member sees. Seen on production with three pasted scripts, desktop and phone | `Dockerfile.web`, ledger | delete the variable on both services and redeploy `web-front` |
+| O5 | Rehearse the reversal of O3 once and record how long it takes to act. **REHEARSED on production 2026-11-17, on the owner's go (his words: do anything like that at any time while there are no users).** Closing took about 80 seconds: the variable deleted, the web service redeployed, a fresh boot serving. Confirmed as the synthetic member: the sign-in payload no longer listed the cohort, so the browser hides the door, and a turn answered 403 in 0.1 s with no model call. Restoring took about 6 minutes: on web, `--set` does not restart the running image, it starts a full build of the production branch, so a restore is also a deploy of whatever production holds. After it the member's turn answered again. Not tested: setting the variable with deploys skipped and then `railway redeploy`, which should restore in the 80 seconds closing took. The steps, and the trap: (1) `railway variable delete CREATE_INDICATOR_COHORT_ENABLED --service web`; (2) ⛔ that STAGES the change and does not restart the pod, so the feature is still on: `railway redeploy --service web --yes`; (3) confirm from the POD, not from `railway variables` (a fresh boot in `/api/health`, and a Create Indicator turn answering the closed sentence as the synthetic member); (4) to restore, `railway variables --service web --set CREATE_INDICATOR_COHORT_ENABLED=1` and confirm a boot the same way. The time to act is one web deploy, not "at once" as row O3 says: the variable is read on every call, from a process that has to restart to see it | - | - |
+| O6 | Set the per-member daily allowance and the shared interactive reserve on purpose. The reserve is one pool shared by every model feature, admins and this track's own measuring runs, and it is smaller than one admin's cap: a measuring run can pause the assistant for everyone for the day. **Both are set on the web service as of 2026-11-17** (read them with `railway variables --service web --kv`; the values are not written here). Admin turns and this track's measuring runs still count against the shared reserve, by the owner's ruling of 2026-10-07; today's measuring runs stayed inside it | env | set |
 | O7 | Split credit and authentication failures from transport failures, so an outage is not read as a billing problem (Indicators backlog item 4) | Indicators | - |
 
 **Not opened yet, and why.** The runtime lane for every account
@@ -367,7 +368,7 @@ track" means a pull request written here and reviewed by the owner (section 4).
 | R1 | **Run over a list, from the chart.** A row action on each of Mine and on the legend chip, opening the existing run flow with the indicator already chosen; the "No scannable formulas yet" state offers it. A numeric line goes through the existing threshold builder | this track, Screener reviews | X1 for J5; a run started from a chart finishes with the existing receipt |
 | R2 | **Pine names in the reference.** First cut straight from the generated name coverage that already exists, so it is current by construction: every Pine built-in, whether it runs, and the reason when it does not. Then this track's measured layer on top: the answer at the chart door under each access profile, stamped "measured at N, current M" and hidden per name when stale | this track; formulas pages review | a Pine author finds `ta.rsi` and `request.security` and reads whether each runs |
 | R3 | **A downloadable reference** generated from the same data, for members who write Pine with their own assistant, and "Paste what your assistant wrote" as the path back in | this track | the file regenerates from the data with no hand edits |
-| R4 | **The verdict on a shared indicator.** The saved row's verdict and the engine version on the share preview and on install | Pine engine (request) | the installer sees the headline the author saw |
+| R4 | **The verdict on a shared indicator.** The saved row's verdict and the engine version on the share preview and on install. The page-side spec (field names `headline`, `engine_version`, optional `headline_current`; one line under the name, above Install) is Indicators backlog row 43; the engine builds the fields to it | Pine engine (request) | the installer sees the headline the author saw |
 | R5 | **Inspect a bar.** For a pinned bar, the value of every named top-level variable in the script, with "why is this empty" linking to the line. Built by deriving a probe copy of the script that plots each named variable, running it through the same door, and reading the columns: no new engine internals. The engine provides two small exports: a headless "definition to columns for these bars", and the script's top-level names with line numbers. Stated limits: no variables local to a block; the probe's own verdict is shown if it differs | this track; Pine engine for the two exports | on 20 scripts, plotted values equal the legend, and each inspected variable equals the same expression plotted by hand, on production |
 | R6 | **Load time.** A budget for an indicator's time to draw, shown on library and share cards, and a refusal to publish over it | this track; Pine engine advises | the number on the card equals a fresh measurement |
 
@@ -420,6 +421,12 @@ a stamped before and after. This is the lane with no end.
 | D20 | One verdict from two authorities: the editor's status for text, the served row for anything saved |
 | D21 | This track may write changes to non-engine surfaces as reviewed pull requests; engine paths stay read-only |
 | D22 | Gating numbers are derived from a measured run, never chosen in advance |
+| D23 | **Taken by this track on 2026-11-16 under the owner's "yes to everything, make the judgment calls"; each of D23 to D28 is reversed by saying so.** Names: the assistant's name is used when the derived one is unreadable (section 14b); the 2026-10-06 derived-name rule still governs short names |
+| D24 | The house set is published on the value check of section 14b, before the owner's look. The owner's look still decides what stays: the set is one file and removing one is one line |
+| D25 | On a tablet the open dock may cover the joystick's edge tab. Accepted: the dock is closed with one press and the tab is back |
+| D26 | Authors on the library: a published indicator shows its author only if the publisher chooses to at publish time; the default stays no author. Not built |
+| D27 | An indicator may read fundamentals columns the app already has, named "UCT data" in the dock and the reference. A lane of its own (Phase 4); not built |
+| D28 | A paid evaluation run may be made inside the existing admin daily cap, once, to set the regression gate's baseline. Its figures stay outside this repository |
 
 **Rule P1, census before design.** No lane is designed until what already does that job has
 been read in code, across `docs/indicators/`, `docs/pine/`, `app/src` and `api`, under more
@@ -488,32 +495,358 @@ On production as the synthetic account, 2026-11-14, unless marked.
 Not measured at all: whether a built indicator's values are right; subtle impossible
 requests; the cost of a turn that builds; anything on a phone.
 
+## 14a. The house set, first run (2026-11-15, production, synthetic accounts)
+
+Twenty descriptions of indicators traders build first, each put to Create Indicator. First
+through the door's API, then through the REAL dock in a browser as a member, on a SPY and an
+NVDA daily chart, looked at by eye. Nothing was saved. No value has been checked against an
+independent calculation, and the owner has not yet looked.
+
+**"Built" from the API is not "works".** The API returned a patch for 14. In the dock:
+
+| outcome | count | which |
+|---|---|---|
+| drew and looks right | 5 | extension above the 50-day in ATRs; percent from the 10-week; inside and outside bars; an average-daily-range table; the previous week's high and low |
+| drew, plausible, unconfirmed | 3 | distribution-day count; follow-through day; tight weekly closes |
+| drew with the wrong colour | 1 | a trend-coloured average: asked green, drew teal (fixed by the colour words change) |
+| drew something suspect | 2 | a flat base (a band filled across the whole chart, through a 35 percent decline); gap ups (stray full-height dashed lines) |
+| did not draw | 5 | both relative-strength-against-another-symbol requests; a trailing stop; volume bars coloured by day; an up/down volume ratio (built once through the API, failed twice in the dock) |
+| refused honestly, with an alternative | 4 | two anchored VWAPs from a moving anchor; a value label with a line from a past bar; an earnings table |
+
+**What it found, in order of weight:**
+
+1. A marker or paint on an output that reads another symbol was refused outright. Cause:
+   the gate marks that refusal "pending" (the other symbol's bars have not arrived yet), one
+   function dropped the flag, and two gates read not-yet as never. A plain line against
+   another symbol previewed in four seconds. Fixed in its own pull request.
+2. **The assistant's names are thrown away.** It named every one of these well
+   ("Distribution Day Count", "ATR Extension", "Tight Weekly Closes"). The dock showed
+   "SUM 25 (1 when Close at or below 0.998 times previous Close and Volume above pr...",
+   because a `create` always takes the name DERIVED from the formula
+   (`authoring/derivedName.js`). That rule exists for a measured reason: a model-given
+   "EMA 20" stayed "EMA 20" after "make it 50". It was written for one-line indicators; on
+   anything longer the derived name is unreadable. Not fixed. A proposal is in the
+   Indicators backlog; it needs the authoring owner, because it changes a safety rule.
+3. Read-backs are nested formula English ("1 when (the 10-bar exponential average ...) and 0
+   otherwise"), not a sentence a member can check their request against.
+4. The same request does not always get the same answer.
+5. A refusal shown to a member uses engine wording (`sym('SPY', ...)`).
+6. Real capability gaps: an anchored VWAP from a moving anchor; a text label with a value;
+   a line that starts at a past bar; fundamentals in an indicator.
+
+**Consequence for lane H.** Nothing is ready to publish as a house indicator. The order is:
+the marker fix (1), then names and read-backs (2, 3), then run the set again. A house
+indicator is published only after the owner has looked at it on a chart.
+
+**Also measured:** a turn that builds costs about seven times a refusal, so the daily
+allowance was raised (the numbers are environment values, not recorded here). On a phone
+the indicator library offered "New formula" and no way to Create Indicator at all.
+
+## 14b. The house set, value check and the UCT tab (2026-11-16, production and real bars)
+
+The twenty descriptions a third time, through the door as the synthetic admin, and then every
+output checked against an independent calculation.
+
+| outcome | count |
+|---|---|
+| builds | 15 |
+| refused honestly, with the nearest thing that can be built | 4 |
+| fails after its one repair | 1 (a marker on the highest-volume day of the year with a line at its close; backlog) |
+
+**Values.** Each of the fifteen was evaluated by the server's own evaluator over real SPY and
+NVDA daily bars (300 each) and compared, bar by bar, with a calculation written in plain
+Python from the description, using no engine code. All 57 output series agreed on every bar.
+The one disagreement in the first pass was in the reference, not the engine: "bars since" a
+condition answers its window when the condition has not been true that recently, as its own
+declared sentence says.
+
+**Correct values are not a correct definition.** Two of the fifteen compute exactly what
+their formula says and are still not what a trader means:
+
+- a follow-through day with no upper bound on the days since the low marks every strong up
+  day on higher volume once no low is in the window (14% of NVDA's bars);
+- a flat base as "a range under 15% over five weeks" is true on 99% of SPY's bars.
+
+Both were left out of the first set. A value check cannot find this; reading the hit rate
+against what the pattern should be did.
+
+**Rebuilt from tighter descriptions the same evening.** The flat base (a 25-session range
+under 15%, within 15% of the 52-week high, after a 20% advance) equals a plain calculation
+on every bar and is true on 6% of SPY's and 12% of NVDA's last 300 bars; it joins the set
+(#1501). The follow-through day ("from day 4 through day 12 after the 50-session low")
+built, read back plausibly, and **could not fire on any bar**: the assistant compared
+`lowestbars` with negative numbers, TradingView's convention, and here that count is 0 or
+more. Only the comparison with an independent calculation showed it (0 marks against 1 and
+8). The door now refuses a bars-back count compared with a negative number and says why
+(#1499). Asked a third time in the door's own terms ("made 3 to 11 bars ago"), the
+assistant wrote `-lowestbars(low, 50) >= 3`: the same belief, negated, and dead again. The
+rule is now the sign rather than the minus, and the prompt states the convention up front
+(#1506). The indicator is rebuilt once that is served. The lesson is general: **a built
+indicator with a plausible read-back can be wrong in a way only a second calculation
+shows**, so nothing joins the house set without one.
+
+The up/down volume ratio was built again and the assistant answered with a patch the
+engine accepts; both outputs equal a plain calculation on every bar and it joins the set
+(#1507). The set is thirteen.
+
+**The follow-through day, fourth build (2026-11-17).** With #1506 served, the plain
+description built correctly on the first attempt and with no repair: `lowestbars(low, 50)`
+between 4 and 12. It equals a plain calculation on every bar and marks 3 of SPY's 700 daily
+bars and 16 of NVDA's. It joins the set (#1527); the set is fourteen. Adding it showed a gap
+in the value rail itself: on the default test bars the condition never occurs, so agreement
+would have been 0 equals 0 on every bar and would have passed the two builds that could not
+fire. The rail's own check that a condition must happen on the test bars refused it, and a
+rare condition now gets bars on which it occurs.
+
+**A look at all fourteen on a real chart (2026-11-17, production, AGL daily).** A value
+check says the numbers are right; it does not say the picture is. Twelve draw as described.
+Two computed correctly and drew badly, and both were rebuilt through the door (#1534):
+the relative strength line sat flat because its 0 or 1 new-high flag shared the pane's
+scale (now the line and its average only); the gap-up indicator's 20-bar low line was drawn
+joined across the bars where it has no value (now a marker only, "Gap Up on Volume"). The
+two causes are the chart engine's and are in the backlog for its owner. So a house
+indicator passes three things, in this order: the formula says what was asked, the values
+equal an independent calculation, and it has been looked at on a chart. The owner's look
+is still the last word.
+
+**One press (#1532).** "Add to chart" in the UCT tab saves the member's copy and puts it on
+the chart as soon as the chart knows it (it was Install, a wait, then Put it on this chart).
+A member who already holds an unchanged copy gets that copy, recognised by its maths, so a
+second press no longer leaves two identical indicators.
+
+**Correction, 2026-11-17 04:00Z: the plain-words box is gone from the Indicators window.**
+Seen in the owner's own browser. The layouts release served at about 02:12Z gave the window
+one header button, "Create indicator", by the owner's choice; the box that #1500 made send
+on Enter no longer exists there. Every sentence above about Enter sending, and the count of
+four actions, describes the build served from 00:31Z to 02:12Z. From a chart to a first
+preview has to be counted again on the current window before any number is quoted.
+
+**Checked on production, 2026-11-17 03:45Z (served f2a0d35916).** One press: 0.7 seconds from "Add to chart" to the indicator on the chart, with the toast naming it; on a second visit the row said the member has it, and a second press added that same copy (one definition, not two). The two rebuilt indicators were photographed on a chart again: the relative strength line has its shape, and the gap-up shows its marker with no line across the chart. Every copy made by these checks was deleted.
+
+**The set.** Eleven are in the UCT tab (#1496), and the flat base makes twelve (#1501): distribution day count; relative strength
+against SPY, and its new high before price; extension above the 50-day in ATRs; percent from
+the 10-week; volume against its 50-day average; tight weekly closes; gap up on volume; inside
+and outside bars; average daily range; the previous week's high and low. A twelfth, the 10
+and 21 EMA trend, is verified and held back: the engine named one of its inputs
+`ema21_csWidth`, and the repository's secret scanner reads that, in a field named `key`, as
+a credential. The scanner's allow-list is the owner's to change (an attempt by this track to
+add an entry was refused, rightly), so the indicator waits to be rebuilt or allowed. A
+thirteenth (the up/down volume ratio) built through the door and was refused by the
+browser's engine: the assistant answered "green shading above 1.2" with one colour state and
+no other colour, which the engine refuses and the door had accepted, so the model never got
+its repair. The door now applies the same rule (#1493); the indicator joins the set when it
+has been rebuilt and checked.
+
+**How a house indicator is held.** The definitions are produced by the shipped authoring
+engine from the assistant's patches, never written by hand. `tests/test_house_indicators_values.py`
+evaluates every output over deterministic bars against a plain calculation, requires each
+condition to be true on some bars and false on others, and fails on an output that has no
+reference, so nothing joins the set unchecked. Its first version failed for a real reason
+worth keeping: bars that traded on market holidays put the weekly outputs a week behind,
+because the engine knows the exchange calendar.
+
+**Installing** saves the member's own copy through the ordinary save door under a fresh id.
+It is theirs to rename, change in Create Indicator, or delete; there is no second kind of
+indicator.
+
+**Names and read-backs (#1495).** The dock keeps the assistant's name when the derived one is
+longer than 28 characters or reads like a formula; a short derived name ("EMA 20", "RSI 14
+above 70") stays and keeps following the maths. Under the engine's lines the dock shows
+"What the assistant says it built", labelled as the assistant's; it is not sent back to the
+model.
+
+**Experience, first numbers (the synthetic member, 1500 px).** From a chart to a previewed
+"Add a 20 EMA": five presses by way of Chart Settings (settings, Indicators, add, Create
+Indicator, send), the dock open in 1.7 to 2.9 seconds, the preview 4.2 seconds after send.
+Through the door alone, the house-set requests answered in a median of about 10 seconds; a
+request that needed its repair took up to 26. X1's target for this job is two actions. The
+Indicators window's plain-words box now sends what was typed (#1500). **Counted again on
+production on 2026-11-17: four actions on the Charts page, not two** (settings, Indicators,
+add, then type and Enter), because the Charts header has had no "Add to Chart" button since
+the owner's header decision of 2026-11-11; where a chart shows that button it is two. An
+earlier version of this paragraph claimed two without counting it on Charts. UCT Agent's
+seeded door still never sends. Not yet counted on a phone.
+
+**Checked on production, 2026-11-17 (synthetic accounts, nothing left behind).** The UCT tab
+lists the set at 1500 px, and the UCT indicators sheet lists it at 390 and 820 px with 44 px
+buttons and no sideways scroll. Install saved the member's own copy under a fresh id with
+its name; "Put it on this chart" drew it; the copy was then deleted through the product's
+own door. In the dock, Enter in the plain-words box sent the words; "Distribution Day
+Count" kept the assistant's name while "EMA 20" stayed derived; "What the assistant says
+it built" showed under the engine's lines. From Enter to the read-back: 10.3 seconds for the
+distribution day count, 5.0 for a 20 EMA. One flaw seen: the "added" toast named the copy by
+its id; fixed in #1518 (every member-made indicator had this, not only house ones).
+Only one request was timed in the dock: the synthetic member's daily allowance was spent by
+the day's other checks.
+
+## 14c. What 2026-11-17 measured
+
+Through the production door, as the synthetic admin, with requests the assistant had not seen
+(relatives of the house indicators with other numbers and wording, and new ideas in the same
+vocabulary). The requests and the per-request results stay local.
+
+- **Every request built, with worked examples off and on, and the formulas read correct both
+  ways.** A request for "ADR percent over 14 days" kept the house shape with the member's 14.
+  The earlier door fixes (the bars-back sign, the one-colour state, the reference checks) are
+  what made the difference; examples added nothing that could be measured on this set.
+- **About one turn in four paid a second model call**, nearly always at one gate
+  (`envelope:reference`). That, not build rate, is now the largest cost a member feels: a repair
+  roughly doubles the wait. Indicators backlog 46.
+- **A declared input cannot be a length.** Through the patch engine a declared input is applied as
+  a level or a multiple and refused as a window. Settings for a built indicator therefore come
+  from the formula's own slots (S1 above), not from the assistant declaring inputs.
+- **A house term was recognised only by the Screener's own label.** Of fifteen ordinary
+  phrasings, two matched. Fixed by L4's second part.
+
+**The walk of 2026-11-17 (production, the synthetic admin, read-only, 1200 / 820 / 390 px).** No
+horizontal overflow in the Indicators window or the New formula window at any width. The
+palette lists all eight indicator jobs by their member names and closes on Esc with focus
+back on the chart's settings button. Three things were found and are in hand: the cursor did
+not start in "Describe it" (#1594); on a phone "Create indicator" was three taps deep and
+below the fold (the phone sheet now leads with it); and the window opened by "Create
+indicator" is titled "New formula" (Indicators backlog 49, an owner decision). Counting the
+actions per job again, and the walk with the owner, come after these are served.
+
 ## 15. Resume here
 
-**State at 2026-11-15.**
+**State at the end of 2026-11-16.** "LIVE" means used on production as a member (the synthetic
+member account, in its own browser), not only merged. "Merged" means on master and waiting for
+the deploy gate.
 
-| branch | holds | state |
+| lane | what | state |
 |---|---|---|
-| `docs/studio-track-plan` | this plan | pushed; the pull request is open, checks green; NOT merged (this session's merge was refused by policy) |
-| `fix/formula-reference-placeholders` | lane 0d | one local commit, not pushed, far behind master, tests never run |
-| `feat/studio-s1-reference` | the measured reference layer (lane R2, second half) | one local work-in-progress commit, untested, not pushed; it carries an old copy of this plan and of `requests.md`, to be dropped on rebase; its folder is to be renamed `indicatorKit` |
+| 0a, 0b, 0d | the plan, its requests, the reference page without `{0}` | DONE |
+| O | Create Indicator open to every account | LIVE |
+| P1 | eight indicator commands in the command palette; from any page they land on Charts | LIVE |
+| L1 | version stamps on every authoring turn | LIVE |
+| L3 | colour words: one shared value per word | LIVE |
+| L4 | house definitions: `chart_twins`, seven Screener columns each proved equal to its column on the same bars; a Screener term ("ADR %") reaches the assistant with its house formula | merged (#1458) |
+| L6 | demand mining: what could not be built, ranked by distinct members, in the owner report and the daily digest | merged (#1444) |
+| L7 | undone previews and what produced each turn (LIVE); still stored a week after saving | merged (#1471) |
+| L8 | "Send this conversation to UCT": a consented report through the support loop's door, withdrawable | merged (#1456) |
+| F1 | the plain-words box first; the wait counts seconds and offers Stop; the allowance left, said once below half | LIVE; the allowance line merged (#1455) |
+| V1 (first part) | History beside Undo, every earlier step one press away | LIVE |
+| H1 (first part) | a Members tab in the Indicators window; on a phone and a tablet, Members' indicators in the library sheet | LIVE at 390, 820 and 1200 px (empty state only: nothing is published yet) |
+| H2 | Create Indicator from the phone's library; the dock as a bottom sheet; above the joystick tab on a tablet | LIVE |
+| N1 | a saved indicator is called an indicator: the Indicators window, the library, the builder's own list; X7, no verdict word, held by a rail | LIVE (slice 1); merged (slice 2, #1453) |
+| X5 | a search that finds nothing offers "Describe it instead" with the words in Create Indicator's box | merged (#1454) |
+| R2, R3 | TradingView names on the reference page; the reference as one file for a member's own assistant | LIVE |
+| launch | library moderation (UCT takedown, a 20-listing cap per member, the licence line); spend that cannot be written still counts | merged (#1451, #1452) |
+| tool | a refused turn tells an admin why each attempt was refused | LIVE |
+| H | the house set: fourteen indicators in a UCT tab (window and phone sheet), each held to an independent calculation and looked at on a chart; one press adds one | LIVE with fourteen; one-press add and the two rebuilt are #1532, #1534 |
+| N2 | the dock keeps the assistant's name where the derived one is unreadable; "What the assistant says it built" under the engine's lines | LIVE (#1495) |
+| door | a one-colour colour-states patch is refused at the door, so the model gets its repair; so is a bars-back count compared across its sign, and the prompt states that convention | #1493, #1499, #1506 |
+| X1 | the plain-words box sends what the member typed | SUPERSEDED the same night: the layouts release (#1477, the owner's Option 1 of 2026-11-16) replaced the plain-words box in the Indicators window with one "Create indicator" button that opens the New formula window's start view. #1500's send plumbing remains (toolbar, pane, dock) and nothing in the window calls it now; its window rail is skipped. It was live and checked on the build before that release |
+| toast | the chart's "added" toast and Undo list name a member's indicator, not its id | LIVE (#1518): "Flat Base added" |
+| spend | the picture door's prompt bound re-measured, so a reservation bounds the prompt again (a member's daily picture share now holds two worst-case reservations, not three; the owner may raise it). It turned the master deploy gate red for about 70 minutes: two Agent limit tests held the literal three. They derive the count now | #1509, #1522 |
+| L4 (second part) | the words members use for a house term reach its definition ("relative volume", "distance from the 52 week high"); nineteen twins, each proved equal to its Screener column | merged (#1572) |
+| L5 | worked examples: the nearest one or two house builds ride along as data for a new indicator. Built and dark. Measured on and off through the production door with new requests on 2026-11-17: every request built both ways, the formulas read correct both ways, and the share built without a repair did not rise. The bar in section 9 is not met, so it stays OFF for members | merged (#1563), OFF |
+| S1 | **a built indicator's numbers are settings**: every length, level and multiple is an editable field, derived from the formula at read time and changed by the ordinary slot edit (no model call, live preview, Undo). In the Create Indicator dock (#1583), and in the New formula window under what was described and on its Inputs tab, whose count had read 0 (#1589). All fourteen house indicators checked: every setting shown can be changed in one step | merged; per-chart values are the engine's (Indicators backlog 45) |
+| R1 | run over a list from the indicator itself: a row on the legend chip and on each row of "Your indicators" opens the Screener's existing run flow on that indicator (`/screener?scan=<id>`, read once, removed through the router; an unknown or foreign id opens nothing) | merged (#1566, #1585) |
+| R4, R5 | the page-side spec for the verdict on a shared indicator and the two engine exports for "Inspect a bar" are filed with repros; the engine builds to them | Indicators backlog 43, 44 |
+| O7 | a credit or key failure at the model provider is told apart from a transport failure, and a member reads the platform's sentence, not a billing one | LIVE (#1555) |
+| tool | an admin's turn that was repaired into a change says what the first attempt was refused for | merged (#1580) |
+| polish | names in the New formula window follow the assistant's name (#1553, and #1564 for the close prompt it broke); "can't be drawn here" in a member's words (#1557); the scan-moved change is said (#1549); the spent-allowance message once (#1568) | merged |
+| gate | five long-standing reds on master found while running the gate's own suite before merging, and fixed: four vision truth cases and the ledger-writer rail (#1562), the refusal-sentence truth case (in #1563) | merged |
+| door | three deterministic mends before the door's check, so an answer whose maths is right does not pay a second model call: an output read by its key is written out; an assumption pointed at a slot that is not there keeps its words; one colour state on the candles or the background is re-spelled as the paint it means. Each is recorded by name on every turn | merged (#1590, #1601) |
+| L4 (third part) | a Screener column the chart computes exactly is a term on the chart door, not "unavailable"; twenty-four twins | merged (#1588) |
+| L2, C1 | `tools/converse_eval.py` builds again (an image type had no loader since 2026-11-12 and the runner graded nothing), with a rail that needs no bundler; and nine house indicators are regression cases beside the three examples, each run through the door, the engine and the grader (17 of 17 with the controls). **The rule:** a change to the door, the instructions or the vocabulary runs both offline commands first (`python tools/converse_eval.py --offline`, and the same with `--cases tests/fixtures/authoring/converse_eval_house_cases.json --script tests/fixtures/authoring/converse_eval_house_scripted.json`) and says so in its pull request; a change to the instructions or the model also needs the live run, which needs the owner's approval of the spend | merged (#1591, #1603); the live baseline waits for the owner; the tests run in no lane yet (Indicators backlog 51) |
+| X1, X9, X6 | the New formula window opens with the cursor in "Describe it" on a desktop (#1594); "Create indicator" is the first row of the phone's Indicators sheet (#1596); a saved indicator's name keeps its line in the window's list (#1602); the formula reference speaks to a member in a member's words and no longer prints the engine's notes (#1605) | merged |
+| V1 (second part) | an indicator saved more than once lists its saved versions in the dock's History; "Use this version" makes one the draft again as one undoable step, with a line that was deleted since coming back as a new line | merged (#1633) |
+| S1 (second part) | the same number in several places is never merged; changing one offers to move the others of its kind that still hold the old value | merged (#1633) |
+| share | Share on each row of "Your indicators" (the builder's own panel in a window of its own); the row keeps its name with five doors (they sit on a second line); the panel says "indicator" for one | #1628 LIVE; the words #1642 LIVE; the row's second line in #1642 did nothing on production (the doors are a child of the name's box, not of the row) and was redone in #1656: LIVE (#1656), measured on the served page at 1200, 900 and 700 px: the name whole, the five doors on their own line, nothing overlapping |
+| X6 | the builder window is titled by where it opens: "Create indicator" / "Edit indicator" from a chart, "New formula" / "Edit formula" from the Screener (owner decision 2026-11-17) | #1642 |
+| H2 (remainder) | phone and tablet: one "Showing" control in the indicator library, every list with its count (the owner picked mock-up B) | #1642 |
+| O5 | the kill switch rehearsed on production: about 80 seconds to close, about 6 minutes to restore | DONE 2026-11-17 |
+| tool | the evaluation runner's own tests run on pull requests with node present, and a skip fails | merged (#1634) |
+| R4 | **the verdict on a shared indicator**: the engine serves `headline`, `engine_version` and `headline_current` on a share link, the install answer and a library entry (#1646); the page says it in one line under the name (#1651); and the author's browser puts the status panel's sentence on record when a pasted script is saved, through the script door or the form, and when a saved script is reopened unchanged (#1654). Never a sentence about a different text than the one saved | LIVE (#1646, #1651, #1654). Seen on production 2026-11-17 as the synthetic admin: a pasted script saved from the chart posted its sentence for version 1 under engine 71, the share link answered with it, and the share page read "Runs on the chart and in alerts; screens and scans need a threshold, checked on engine 71". The check removed what it made |
+| R5 | **Inspect a bar**: under the script preview in the builder, the value of every named top-level variable on one bar of the chart, why an empty one is empty, and "line N" to its line. A probe copy through the script's own door, on the engine's two exports (`topLevelNames` #1647, `computeHeadless` #1649). The plan's proof is a test: on twenty scripts (53 variables) each inspected value equals the same expression written out by hand, on every bar of the 5,000-bar reference series | LIVE (#1670; a wording fix for scripts that read another symbol is #1685). Seen on production 2026-11-17 on a real daily chart (1,406 bars): each named variable with its line and value; its 50-bar average read 91.8878 where the chart's own SMA 50 legend showed 91.89; an early bar said "Its first value is on Jun 24, 2021, 37 bars after this one"; "line 6" took the editor to line 6 |
+| R6 | **a load budget for the library**: when a member lists an indicator the server measures a formula with the engine's headless export (a work count over the reference series, never a clock), files it as light, moderate or heavy (0.10 / 0.25 / 0.50 of the lane's ceiling) and refuses a listing over half the ceiling; the same gate runs when a listed indicator's link is moved to a new version. Cards and the share page say the class; the share page adds the time on the viewer's device. A pasted script is not run on the web server: "not measured yet" until the script service measures it. Switch `DEFINITION_LOAD_BUDGET_ENABLED` | LIVE and ARMED 2026-11-17 (#1662). The driver was run on the web server first (the same count twice, about 0.35 s each); then, as the synthetic admin, listing a two-output formula answered "light" (4 of 16,384) in about 2.5 s, the library card and the Members tab card said "Light to draw.", and the share page added "Drew 5,000 bars in 2.5 ms on this device". The check unlisted it afterwards. The engine session reviewed it and caught one real gap before merge (a re-share of a listed indicator skipped the budget) |
+| baseline | the live baseline of the evaluation runner, without a key on this machine: each case's first request sent through the production door as the synthetic admin, three rounds, and the real answers graded by the runner offline. All three rounds passed. It measures first requests only | DONE 2026-11-17 (requests, answers and spend kept outside this repository) |
+| explore | the exploratory rounds the owner asked for after the plan: this track's own requests sent through the production window as a member would, each answer read for whether the formula is right, not only whether it built. Round 1 (single requests across the kinds members ask for) found the SuperTrend / SAR door defect (#1680) and four smaller ones (#1692). A multi-turn round (build, then change it four ways, as the admin and as a member) found that the commonest edit cost two calls (#1699) and that names and labels were shown as formula text (#1693, #1702). Round 2 (harder single requests) found the class in Indicators backlog 59: the server door accepting what the browser then refuses (#1701, #1708, #1722). The opening-range gap became engine vocabulary (#1713). Each fix was proved able to fail and the served ones were seen on production | rounds DONE 2026-11-17 (requests and answers kept outside this repository); backlog 54 to 64 hold what was found and what is left |
 
-Worktree: `uct-worktrees/studio-s1` (sparse). It holds an untracked copy of the six files on
-the feature branch, identical when checked; remove it before checking that branch out.
+**The house set, second look (2026-11-16, production).** Of the five that did not draw on
+the first run: both relative-strength requests draw (the marker fix); volume bars coloured
+by up or down day and the up/down volume ratio now build on every try and draw correctly in
+the dock (four of four through the door, then one each in the dock; nothing in this track
+changed them, an engine release landed the same day); the trailing stop that only moves up
+is now refused honestly, with the nearest thing that can be built, which is the right
+answer: a line here has no memory of its own previous value. So of twenty: fifteen draw,
+five are refused honestly, none fails. "Draws" is not "is right": the flat base and the gap
+ups from the first run are still suspect, and no value has been checked against an
+independent calculation. What blocks publishing is unchanged: names and
+read-backs (section 14a, findings 2 and 3), and the owner's look.
 
-**Next, in order:** phase 0 (0a needs the owner or the coordinator), then lane O and L1
-together, then M0, because nothing in phase 2 is built before the owner picks a direction.
+Not finished, and why (as of the afternoon of 2026-11-17):
+
+- **L5, worked examples**: built, measured on and off through the production door, and left
+  off: no gain (see the L5 row above).
+- **R1, run over a list from the chart**: done (see the R1 row above).
+- **R4, R5 and R6**: built and merged on 2026-11-17 (rows above). What is left of each is stated in its row. For R6: the runtime lane (a pasted script) is measured only by the isolated script service, which is not deployed; until then such a listing says "not measured yet" and is never refused for load. The library holds no listings yet, so no card carries a class until a member lists a formula.
+- **The live baseline run**: DONE 2026-11-17 (the baseline row above). It measures first requests only; the second turns of the multi-turn cases still need a model key on the machine, or a longer walk through the door.
+- **H2, the remainder**: DONE 2026-11-17 (#1642). The owner saw the three mock-ups and picked B, one
+  dropdown. The library sheet (the indicators surface on a phone and a tablet) has one "Showing"
+  control naming every list with its count: all, on this chart, yours, UCT's, members', and each
+  catalogue heading. The two door rows and their separate views with a way back are gone.
+- **O6, a separate budget lane for admins and measuring runs**: a decision on its size is the
+  owner's; today the shared pool was raised instead.
+- From the launch-readiness list: the paid evaluation run and the hidden set (spend approval, a
+  separate session), and the capability worker before the runtime lane for all (Pine engine).
+
+**How the work is done here, learned the slow way:**
+
+- Judge an authoring change in the real dock, as a member. The API's "built" was wrong for
+  3 of 14.
+- Look at a layout change on production at the size a member has. The History list passed
+  every test and still pushed the footer off a short dock; a browser test cannot lay out.
+  Try the rule on the live page with an injected style before writing it.
+- The machine's heavy lock is not first-come. Queue a test in the background and keep
+  writing on another branch.
+- A deploy gate in progress is not cancelled by a merge; one still waiting is replaced by
+  the newer one. Merge when green, merge everything that is ready in the same minute, and
+  push once per pull request. (An earlier version of this section said every merge cancels
+  the running gate. That was wrong.)
+- Parse-check every file before queueing its test.
+- A pull request's green lanes are not the deploy gate. Before merging a change to a cost
+  constant or a prompt size, search the tests for the constant and run the gate's own list
+  (`tests/test_uct_agent*.py`), not only the door's file. #1509 passed its lanes and held
+  production for every session.
+- A synthetic account's board can be changed by simply loading Charts. Since the 2026-11-16
+  layouts release, an account whose stored layout pointer is still "uct-default" opens a
+  blank board and saves it. The synthetic member is such an account: read its workspace
+  head before a check and restore it after (`POST /api/workspace/doc/restore`).
+- A worktree copy of a shared file can be behind master. Committing it as it stands undoes
+  someone else's change. Compare with master and refresh the file before editing it.
+- A `VITE_` build flag is set on `web` AND on `web-front`. The bundle members load is built by
+  `web-front` from its own copy of those variables. Confirm on the live page, not from the
+  variable list.
+- "Try the rule on the live page" means the live page. #1642's row fix was measured in a page
+  built by hand, whose markup was not the product's, and did nothing when served. #1656 was
+  measured by loading the candidate rules into the real Indicators window first.
+- A pull request's own checks do not run the engine folder, the builder folder or the app-wide
+  reachability rail unless it touches those paths. #1662 and #1670 were green everywhere they
+  were looked at and still turned two engine rails red on master (a path to the script lane with
+  no switch on it; a new test folder nobody had acknowledged). Before merging a change that
+  imports anything under `engine/` or adds a test folder under `chart/`, run
+  `src/components/chart/engine`, `src/components/chart/builder` and
+  `src/components/screener/reachable.test.js` on GitHub runners, and read every verdict line.
+- A budget, a limit or a check belongs on the door that changes the thing, not on the button
+  that usually leads to it. The load budget was first checked only at List; a re-share moved
+  the listed version past it. The engine's review caught it before it merged.
+
+**Done since (2026-11-17, late):** Indicators backlog 59 in three parts: the door/browser rail (#1734), the sweep that measures the class (`tools/door_browser_sweep.py`, measure-only) and the general fix (#1738: the browser sends its own refusal back to the door for one repair). A correction on the record: "Mansfield relative strength versus SPY over 52 weeks" was reported fixed after #1680 from the door's answer alone; the window had refused it. It is #1730. A live result is the window's text, never the door's answer.
+
+**Next, in order:** see #1701, #1708, #1722, #1730, #1738 and #1713 on production with the requests that found them (the daily allowance is durable and renews at midnight Eastern, so re-checks queue for after it); backlog 63 and 64; the same request sent three times, to measure how often an answer changes; then names and read-backs with the authoring owner, the house set a third time, and the owner's look.
 
 **Open for the owner:**
-1. Merge the plan's pull request.
-2. Pick from the three mock-ups when M0 brings them.
-3. The daily allowance per member and the shared reserve (O6).
-4. Authors on the library (section 12).
-5. May an indicator read fundamentals columns the app already has, as "UCT data"?
-6. Approve each house indicator (lane H).
+1. Look at each of the fourteen house indicators on a chart (Indicators, UCT tab) and say which
+   stay. They were published on a value check, not on your look (D24).
+2. D23 to D28 in section 11 were taken as judgment calls. Reverse any by saying so.
+3. The 10 and 21 EMA trend indicator is held out of the house set by a false positive in the
+   secret scanner (section 14b). Say whether to add an allow entry for that one identifier.
 
 **Kept outside this repository:** the competitor review, prompt sets and results, the
-hidden set, screenshots, and anything with cost figures.
+hidden set, screenshots, the house-set pictures, and anything with cost figures.
 
 ## 16. What the six reviews changed (v8 to v9)
 

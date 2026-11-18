@@ -86,4 +86,15 @@ describe('plain names over the expressiveness formulas', () => {
   it('the formula wording keeps the upper-case call convention', () => {
     expect(formula('supertrend(3, 10)')).toBe('SUPERTREND 3,10')
   })
+
+  // ⭐ 2026-11-17 — the regular session's own values read as words, in a name and in a condition.
+  it.each([
+    ['sessionHigh()', 'Session high'],
+    ['sessionLow()', 'Session low'],
+    ['sessionOpen()', 'Session open'],
+    ['openingRangeHigh(30)', 'Opening range high 30'],
+    ['openingRangeLow(15)', 'Opening range low 15'],
+    ['close > openingRangeHigh(30)', 'Close above Opening range high 30'],
+    ['close < sessionOpen()', 'Close below Session open'],
+  ])('%s → %s', (src, name) => expect(plain(src)).toBe(name))
 })

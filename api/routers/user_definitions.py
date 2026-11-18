@@ -29,6 +29,7 @@ sixth route that rides in uncovered.
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import time
@@ -39,6 +40,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user, require_admin
+
+#: who took a library entry down, and when (the takedown table stores no admin id)
+_log = logging.getLogger("user_definitions.router")
 from api.services import indicator_telemetry as telemetry
 from api.services import runtime_definitions
 from api.services import scan_definition
@@ -101,6 +105,14 @@ class EngineStatusIn(BaseModel):
     engine: int = Field(..., ge=1)
     status: Literal["refused", "write-failed"]
     reason: str = Field(..., min_length=1, max_length=2000)
+
+
+class StatusHeadlineIn(BaseModel):
+    """⭐ STUDIO R4 — the owner's status-panel headline for their live version, and the script
+    engine that computed it (`svc.record_status_headline`). Bounded on every field."""
+    version: int = Field(..., ge=1)
+    engine: int = Field(..., ge=1)
+    headline: str = Field(..., min_length=1, max_length=svc.MAX_STATUS_HEADLINE_CHARS)
 
 
 # ── WS-I Part 2: the runtime-admission door's INVOCATION bound (review B1c, 2026-11-13) ──────
@@ -561,6 +573,9 @@ class ConverseIn(BaseModel):
     view: dict
     authoring: Optional[dict] = None
     snippets: Optional[list] = None
+    #: ⭐ L5 -- the MEASURING switch for worked examples. Honoured for an admin only
+    #: (`worked_examples.enabled`); from anyone else it is ignored, never an error.
+    examples: Optional[bool] = None
     # ⭐ P2X (owner decision 1). OPTIONAL, OPAQUE, CLIENT-GENERATED: keys the
     # per-conversation cost aggregate in `definition_conversation`. Typed `Any`
     # on purpose -- a malformed id is IGNORED by the service, never a 422, so
@@ -569,6 +584,11 @@ class ConverseIn(BaseModel):
     #: SLICE 2 — the chart the member is on: ``{sym, tf}`` only, for the
     #: deterministic pre-flight (another symbol / timeframe). Strings, bounded.
     chart: Optional[dict] = None
+    #: ⭐ 2026-11-17 — the browser refused the patch this door offered for this same turn:
+    #: ``{envelope, errors}``, the patch and the browser engine's own words. Untrusted and
+    #: optional; `definition_conversation.browser_refusal` decides whether it is used, and a
+    #: malformed one is ignored (an ordinary turn), never a 422.
+    browser_refusal: Optional[Any] = None
 
 
 def require_create_indicator_access(user: dict = Depends(require_paid)) -> dict:
@@ -623,7 +643,8 @@ def converse_definition(body: ConverseIn, user: dict = Depends(require_paid),
     return definition_conversation.converse(
         body.message, user_id=user["id"], view=body.view,
         authoring=body.authoring, snippets=body.snippets, chart=chart,
-        admin=(user.get("role") == "admin"), conversation_id=body.conversationId)
+        admin=(user.get("role") == "admin"), conversation_id=body.conversationId,
+        examples=body.examples is True, browser_refusal=body.browser_refusal)
 
 
 @router.get("/library")
@@ -638,6 +659,37 @@ def public_library(limit: int = 24, after: Optional[int] = None,
     over, and the reason `test_the_library_route_is_not_shadowed` exists.
     """
     return svc.public_library(limit=limit, after=after)
+
+
+class _TakedownBody(BaseModel):
+    reason: str
+
+
+@router.post("/library/{token}/takedown")
+def take_down_listing(token: str, body: _TakedownBody, user: dict = Depends(require_paid)):
+    """ADMIN ONLY. Take a library entry down; its owner cannot list it again until it is
+    lifted. Their copy, their link and every installed copy are untouched. Declared
+    before `/{def_id}` for the same reason `/library` is."""
+    require_admin(user)
+    try:
+        out = svc.take_down(token, body.reason, down=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if out is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    _log.info("[library] takedown token=%s reason=%s by=%s", token[:12], body.reason, user.get("id"))
+    return out
+
+
+@router.delete("/library/{token}/takedown")
+def lift_listing_takedown(token: str, user: dict = Depends(require_paid)):
+    """ADMIN ONLY. Lift a takedown: the entry shows again if its owner still has it listed."""
+    require_admin(user)
+    out = svc.take_down(token, "other", down=False)
+    if out is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    _log.info("[library] takedown lifted token=%s by=%s", token[:12], user.get("id"))
+    return out
 
 
 @router.get("/capability-worker")
@@ -671,15 +723,15 @@ def runtime_kill(user: dict = Depends(require_paid)):
     if runtime_definitions.capability_admission_on():
         out["capability_admission"] = True
     # ⭐ L7 -- the served scripts answered from UCT data, by source sha256 -> the Pine names, for the
-    # member door to disclose ("uses UCT data for: ..."). ABSENT while none is served (today), so this
-    # read is byte for byte what it was before L7.
+    # member door to disclose ("uses UCT data for: ..."). ABSENT while none is served, so that read is
+    # byte for byte what it was before L7. (Served since 2026-11-16: RS Rating, `syminfo.industry`.)
     substituted = runtime_definitions.substituted_inputs()
     if substituted:
         out["substituted"] = substituted
     # ⭐ RS RATING L8 -- the run half's object evidence (`runtime_definitions.run_half_evidence`, from the
     # same committed allowlist records), latched by the member door into `runHalfRailSeam.js`. ABSENT
-    # while no served record carries an objects-v2 capture (today), so this read is byte for byte what
-    # it was before L8.
+    # while no served record carries an objects-v2 capture, so that read is byte for byte what it was
+    # before L8. (Served since 2026-11-16: RS Rating's three captures.)
     evidence = runtime_definitions.run_half_evidence()
     if evidence:
         out["run_half_evidence"] = evidence
@@ -790,6 +842,26 @@ def record_engine_status(def_id: str, body: EngineStatusIn,
         return svc.record_engine_status(user["id"], def_id, version=body.version,
                                         engine=body.engine, status=body.status,
                                         reason=body.reason)
+    except svc.SaveConflict as exc:
+        return JSONResponse(status_code=409,
+                            content={"detail": str(exc), "conflict": exc.as_dict()})
+    except svc.ForkRefused as exc:
+        raise HTTPException(status_code=404, detail="Not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/{def_id}/status-headline")
+def record_status_headline(def_id: str, body: StatusHeadlineIn,
+                           user: dict = Depends(require_paid)):
+    """⭐ STUDIO R4 (Indicators backlog 43) — the owner's browser records the headline its status
+    panel shows for the LIVE version of the caller's own definition, with the engine that computed
+    it. The share preview, the install answer and the library entry then carry it for the version a
+    link pins (`svc.share_headlines`). Append-only; the document is never touched. 404 for a
+    definition that is not the caller's or not live, 409 for a version that is no longer live."""
+    try:
+        return svc.record_status_headline(user["id"], def_id, version=body.version,
+                                          engine=body.engine, headline=body.headline)
     except svc.SaveConflict as exc:
         return JSONResponse(status_code=409,
                             content={"detail": str(exc), "conflict": exc.as_dict()})
@@ -930,7 +1002,14 @@ def definition_history(def_id: str, user: dict = Depends(require_paid),
 #: plan upgrade that would not help. 409 is the same answer `table-version` gets
 #: and for the same shape of reason: the request conflicts with what the thing IS.
 _SHARE_STATUS = {"not-found": 404, "revoked": 410, "gone": 410,
-                 "table-version": 409, "requirements": 409}
+                 "table-version": 409, "requirements": 409,
+                 "taken-down": 403, "listing-limit": 409,
+                 # ⭐ STUDIO R6: over the library's load budget (`load_budget`), measured
+                 # by the server at listing. A conflict the owner resolves by simplifying.
+                 "load-budget": 409,
+                 # the measurement could not be MADE in time (no free slot, or stopped at its
+                 # time limit): nothing was listed or re-pinned; asking again is the remedy.
+                 "load-busy": 503}
 
 
 def _share_http(exc: "svc.ShareRefused") -> HTTPException:
@@ -961,7 +1040,7 @@ def publish_definition(def_id: str, user: dict = Depends(require_paid)):
     names the token that now serves it, so nothing about that is hidden.
     """
     try:
-        out = svc.publish(user["id"], def_id)
+        out = svc.publish(user["id"], def_id, role=user.get("role"))
     except svc.ShareRefused as exc:
         raise _share_http(exc) from exc
     except ValueError as exc:

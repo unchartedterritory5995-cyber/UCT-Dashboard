@@ -14,6 +14,7 @@ import { SWRConfig } from 'swr'
 
 import { setCreateIndicatorFlag } from './studio/createIndicatorFlag'
 import BuilderSheet, { buildDefinition } from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { BUILDER_INPUT_SCOPE } from './builderInputs'
 import { evaluateFormula } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'
@@ -75,6 +76,7 @@ describe('P2 — the sheet cannot silently revert a conversational save', () => 
       </AuthContext.Provider>,
     )
     await flush()
+    toStart()
     fireEvent.click(screen.getByRole('button', { name: 'Edit My line' }))
     await flush()
     const sheetSave = () => screen.getByTestId('sheet-save')
@@ -99,7 +101,7 @@ describe('P2 — the sheet cannot silently revert a conversational save', () => 
     expect(JSON.parse(writes[0].body).definition.compute.source).toBe('sma(close, 50)')
     // the sheet's form still says 20 — and it can no longer save it over version 2
     expect(sheetSave().disabled).toBe(true)
-    expect(screen.getByText(/The conversation above saved this formula as version 2/)).toBeTruthy()
+    expect(screen.getByText(/The conversation saved this indicator as version 2/)).toBeTruthy()
   })
 })
 
@@ -120,6 +122,7 @@ describe('P3S — after the conversation saves, closing does not ask to discard'
   }
   async function editAndConverseSave() {
     await flush()
+    toStart()
     fireEvent.click(screen.getByRole('button', { name: 'Edit My line' }))
     await flush()
     fireEvent.click(screen.getByTestId('converse-open-editing'))
@@ -129,7 +132,7 @@ describe('P3S — after the conversation saves, closing does not ask to discard'
     await flush()
     fireEvent.click(screen.getByTestId('sheet-save'))
     await flush()
-    expect(screen.getByText(/The conversation above saved this formula as version 2/)).toBeTruthy()
+    expect(screen.getByText(/The conversation saved this indicator as version 2/)).toBeTruthy()
   }
   const cancel = () => fireEvent.click(screen.getByRole('button', { name: /^Cancel$/ }))
 
@@ -147,7 +150,7 @@ describe('P3S — after the conversation saves, closing does not ask to discard'
     const onClose = vi.fn()
     mount(onClose)
     await editAndConverseSave()
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Renamed after the save' } })
+    fireEvent.change((writeMyself(), screen.getByLabelText('Name')), { target: { value: 'Renamed after the save' } })
     await flush()
     cancel()
     await flush()
@@ -172,9 +175,10 @@ describe('ROLLOUT — reopening a saved formula is not unsaved work', () => {
   const cancel = () => fireEvent.click(screen.getByRole('button', { name: /^Cancel$/ }))
   async function openSaved() {
     await flush()
+    toStart()
     fireEvent.click(screen.getByRole('button', { name: 'Edit My line' }))
     await flush()
-    expect(screen.getByLabelText('Name').value).toBe('My line')
+    expect((writeMyself(), screen.getByLabelText('Name')).value).toBe('My line')
   }
 
   it('open → Cancel closes at once', async () => {
@@ -191,7 +195,7 @@ describe('ROLLOUT — reopening a saved formula is not unsaved work', () => {
     const onClose = vi.fn()
     mount(onClose)
     await openSaved()
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'My line, renamed' } })
+    fireEvent.change((writeMyself(), screen.getByLabelText('Name')), { target: { value: 'My line, renamed' } })
     await flush()
     cancel()
     await flush()
@@ -203,9 +207,9 @@ describe('ROLLOUT — reopening a saved formula is not unsaved work', () => {
     const onClose = vi.fn()
     mount(onClose)
     await openSaved()
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'tmp' } })
+    fireEvent.change((writeMyself(), screen.getByLabelText('Name')), { target: { value: 'tmp' } })
     await flush()
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'My line' } })
+    fireEvent.change((writeMyself(), screen.getByLabelText('Name')), { target: { value: 'My line' } })
     await flush()
     cancel()
     await flush()

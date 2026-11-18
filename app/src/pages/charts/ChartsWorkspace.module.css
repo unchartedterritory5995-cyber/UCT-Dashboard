@@ -530,6 +530,31 @@
   display: flex;
 }
 .studioDock:empty { display: none; }
+/* PHONE (the touch tier, and only the OVERLAY case: a pane too narrow to give the dock a
+   column). Measured on production at 390px, 2026-11-16: the dock overlaid the chart's right
+   edge at 360px, leaving a 30px sliver of chart, and the joystick's edge tab sat over its Send
+   button. Here it is a sheet across the bottom of the SCREEN instead, so the chart being
+   previewed stays in view above it (354px at 390x844). Fixed, and above the joystick tab, so
+   nothing covers its controls. A pane wide enough to dock (a tablet) is untouched. */
+@media (max-width: 1024px) {
+  .studioDock[data-studio-dock="overlay"] {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: min(58dvh, 560px);
+    z-index: 8500;
+  }
+  /* TABLET, the docked column. Measured on production at 820x1180, 2026-11-16: the joystick's
+     edge tab (fixed, z-index 360) sat over the dock's Send button and took its taps. The dock
+     owns the right edge while it is open, as the phone sheet above does, so it sits just above
+     the tab. Tried on the live page first: the element under Send became Send. */
+  .studioDock[data-studio-dock="dock"] {
+    z-index: 370;
+  }
+}
 
 .chartFill {
   flex: 1; min-height: 0; min-width: 0; position: relative;
@@ -2887,6 +2912,10 @@
 .tbStateDot { width: 6px; height: 6px; border-radius: 50%; background: #6f6c66; flex: 0 0 auto; }
 .tbStateDirty { color: #ededed; }
 .tbStateDirty .tbStateDot { background: var(--ut-gold); }
+/* a refused save (owner 11-16): the dot and the retry link in the soft error red */
+.tbStateFailed .tbStateDot { background: #f0827a; }
+.tbStateFailed .tbStateSave { color: #f0827a; text-decoration-color: rgba(240, 130, 122, 0.45); }
+.tbStateFailed .tbStateSave:hover { text-decoration-color: #f0827a; }
 .tbStateSave {
   border: 0; background: none; padding: 0 2px; cursor: pointer; color: #f8f7f3; font: 600 12px var(--font-sans);
   text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(248, 247, 243, 0.35);
@@ -2951,6 +2980,10 @@
    white pill. */
 .workspaceHeader { min-height: 44px; padding: 6px 14px 6px 10px; }
 .tbName { height: 30px; font-size: 15px; }
+/* Owner 11-16, top-bar option 2: the Layouts button is a quiet grey caption ahead of the tabs. */
+.tbName:not([data-grid]) { height: 26px; padding: 0 6px; gap: 4px; color: #93939a; font: 600 12px var(--font-sans); }
+.tbName:not([data-grid]):hover, .tbName:not([data-grid])[aria-expanded='true'] { color: #ededed; }
+.tbCapSep { width: 1px; height: 16px; background: #2a2c31; margin: 0 2px; flex: 0 0 auto; }
 .tbPrim { background: rgba(248, 247, 243, 0.08); color: #f8f7f3; font-weight: 600; }
 .tbPrim:hover, .tbPrim[aria-expanded='true'] { background: rgba(248, 247, 243, 0.13); color: #ffffff; }
 .tbPrim > svg { color: #f8f7f3; }
@@ -2971,8 +3004,11 @@
 
 /* Info row in UCT Signature (owner 11-15): grey 12px labels, bright 13px values (even-width digits);
    signed fields keep their green / red and a member's own colour (inline) still wins. */
-.widgetIntegrated .chartMetaLabel { font-size: 12px; font-weight: 500; color: #c9c6be; } /* owner 11-15: as bright as the row's other text, a notch under the values */
-.widgetIntegrated .chartMetaVal { font-size: 13px; font-weight: 600; color: #f8f7f3; }
+/* Owner 11-16: "same contrast and brightness" — the label and its neutral value share ONE ink (the header's
+   resting text, --widget-text → --text-muted: #cfcac0 on the dark theme); the value takes the label's weight too (500); size is the only step. */
+/* Owner 11-16 step-up: the shared ink is lifted 45% toward the theme's bright text (≈#e1ddd5 on dark), a step under the title. */
+.widgetIntegrated .chartMetaLabel { font-size: 12px; font-weight: 500; color: color-mix(in srgb, var(--widget-text, var(--text-muted, #cfcac0)) 55%, var(--text-bright, #f8f7f3)); }
+.widgetIntegrated .chartMetaVal { font-size: 13px; font-weight: 500; color: color-mix(in srgb, var(--widget-text, var(--text-muted, #cfcac0)) 55%, var(--text-bright, #f8f7f3)); }
 /* Info-row dividers (owner 11-15): the header's own divider (1px, --widget-divider, as around the chart-type
    button and the date box) centred in the gap between stats. */
 .widgetIntegrated .chartMetaItem { position: relative; }
@@ -2980,3 +3016,50 @@
   content: ''; position: absolute; left: -9px; top: 50%; height: 16px; margin-top: -8px; width: 1px;
   background: var(--widget-divider, #2a2c31); pointer-events: none;
 }
+
+/* Owner 11-16, top-bar option A: the layout tabs sit on the row's bottom edge (LayoutDock), so the
+   row loses its bottom padding; the buttons keep their centre. The Layouts menu is a small ▾ after
+   the tabs' ＋ (like a browser's tab list). */
+.workspaceHeader { padding-top: 6px; padding-bottom: 0; align-items: center; }
+.workspaceHeader > * { margin-bottom: 0; }
+.tbTabList {
+  align-self: center; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 6px; background: none; color: #93939a; cursor: pointer;
+}
+.tbTabList:hover, .tbTabList[aria-expanded='true'] { background: rgba(248, 247, 243, 0.07); color: #f8f7f3; }
+.tbTabList svg, .tbTabList svg * { stroke: currentColor !important; filter: none !important; }
+.tbTabList { width: 28px; height: 28px; color: #dedad2; background: rgba(248, 247, 243, 0.05); }
+.tbTabList:hover, .tbTabList[aria-expanded='true'] { background: rgba(248, 247, 243, 0.11); color: #ffffff; }
+/* Owner 11-16: 10px between the ＋ and the ▾, and more air before the divider. */
+.tbTabList { margin-left: 4px; margin-right: 4px; }
+
+/* Owner 11-16: the blank workspace's centred prompt (new members start here). */
+.emptyBoard {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; pointer-events: none; font-family: var(--font-sans);
+}
+.emptyBoardTitle { color: #c9c6be; font: 600 15px var(--font-sans); }
+.emptyBoardBtn {
+  pointer-events: auto; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 16px;
+  border: 1px solid rgba(220, 187, 94, 0.35); border-radius: 8px; background: rgba(248, 247, 243, 0.06);
+  color: #f8f7f3; font: 600 13px var(--font-sans); cursor: pointer;
+}
+.emptyBoardBtn:hover { background: rgba(248, 247, 243, 0.11); border-color: rgba(220, 187, 94, 0.6); }
+.emptyBoardHint { color: #93939a; font-size: 12.5px; }
+/* Owner 11-16: the main action's ＋ is the one gold glyph in the row. */
+.tbPrim > svg, .tbPrim > svg * { color: var(--ut-gold, #dcbb5e) !important; stroke: var(--ut-gold, #dcbb5e) !important; }
+.emptyBoardBtn > svg, .emptyBoardBtn > svg * { color: var(--ut-gold, #dcbb5e); stroke: var(--ut-gold, #dcbb5e); }
+/* Owner 11-16: the two ＋ buttons side by side must match — Add widget's ＋ is white again. */
+.tbPrim > svg, .tbPrim > svg * { color: #f8f7f3 !important; stroke: #f8f7f3 !important; }
+
+/* Clickable info-row stats (owner 11-17): each stat opens its quick-edit menu (HeaderStatMenu.jsx), like the
+   timeframes beside it. Rest = exactly today's look; a soft shade on hover / while its menu is open; no gold. */
+.chartMetaItemBtn { cursor: pointer; border-radius: 5px; outline: none; }
+.chartMetaItemBtn:hover, .chartMetaItemOpen { box-shadow: 0 0 0 3px rgba(248, 247, 243, 0.07); background-color: rgba(248, 247, 243, 0.07); }
+.chartMetaItemBtn:focus-visible { box-shadow: 0 0 0 2px rgba(248, 247, 243, 0.4); }
+/* A boxed stat (owner 11-17): the pill must hug the text at S/M/L/XL. The integrated header trims every label/value
+   to its cap height (`text-box: trim-both cap alphabetic`), which is right for bare text but lets descenders
+   (g, p, %, the comma) hang out of a box — so inside a box the text keeps its full, em-relative line box. */
+.chartMetaItem[data-stat-box] { line-height: 1; }
+.chartMetaItem[data-stat-box] > .chartMetaLabel,
+.chartMetaItem[data-stat-box] > .chartMetaVal { text-box: normal; line-height: 1.25; }

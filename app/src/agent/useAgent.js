@@ -16,7 +16,8 @@
 // conversation, so the model's next turn remembers what UCT DID.
 
 import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, isProtected, protectedRenameRefusal } from './protectedLayouts'
-import { chartRailRefusal, RAIL_MARK, chartEffects, chartPickStale } from './chartRail'
+import { chartRailRefusal, RAIL_MARK, chartEffects, chartPickStale, keepTickers, createdTickers } from './chartRail'
+import { screenChartReuse, REUSE_NOTE } from './chartReuse'
 import { stateRailDecision, noteApplied, noteBeforeRows, STATE_RAIL_MARK, notDoneAdds, notDoneLine, subjectIdsOf, nextTurnSubjects } from './stateRail'
 import { lastTouchedDrawing } from './capabilities/drawings'
 import { lastCreatedList } from './capabilities/watchlist'
@@ -896,7 +897,11 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     try { const cr = createdRef.current; madeNow = cr && cr.turn === (memoryRef.current?.currentTurn?.() ?? null) ? new Set(cr.refs.map(String)) : null } catch { madeNow = null }
     let listRows = null
     try { listRows = (getTargetKind('watchlist')?.list?.(host) || []).map(l => ({ name: l.name, symbols: (l.symbols || []).map(x => String(x).toUpperCase()) })) } catch { listRows = null }
-    const c0 = chartRailRefusal(plan, { words: railWordsRef.current, host, mode, subject: subjectChart, picked: railPickedRef.current, made: madeNow, lists: listRows, out: chartAsk })
+    // (owner 11-16, REFERENT TYPE: the one object the previous applied turn made or changed — typed — is what a destroying
+    //  pronoun means when the words do not say: the same `previous` the state rail licenses a destroy by)
+    let prevObj = null, prevLabel = null
+    try { const ts = turnSubjectsRef.current; prevObj = ts?.previous || null; prevLabel = (ts?.candidates || []).find(x => x.id === prevObj)?.label || null } catch { prevObj = null }
+    const c0 = chartRailRefusal(plan, { words: railWordsRef.current, host, mode, subject: subjectChart, picked: railPickedRef.current, made: madeNow, lists: listRows, out: chartAsk, previous: prevObj, previousLabel: prevLabel })
     const c = c0 && `${c0}${notDoneLine(notDoneAdds(plan, (p) => { try { return chartEffects({ ok: true, plans: [p] }, host).length > 0 } catch { return true } }))}`
     railCardRef.current = false
     railAskRef.current = c && chartAsk.ask ? { ...chartAsk.ask, plan } : null
@@ -1336,7 +1341,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       const binds = []
       let needsCard = suggested !== 'apply'
       for (const o of fan) {
-        const one = planOps(collectTargets(host, kindsOf([o])), [o], await prepareOps([o]), capCtx)
+        const one = planOps(collectTargets(host, kindsOf([o])), [o], { ...(await prepareOps([o])), keepTickers: keepTickers(railWordsRef.current, host, createdTickers([o])) }, capCtx)
         if (one.ok) binds.push(approvalBinding(one, host))
         const guard = one.ok ? protectionRefusal(host, one, one.normalizedOps || [o]) : null   // W1.1 review NB-3: normalized
         // ⛔ CHART RAIL (hotfix 11-13): each chart's plan, before anything is proposed or written
@@ -1380,7 +1385,9 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     const earlySync = (suggested === 'apply' || suggested === 'approved') && !composing && host?.boardInSync && boardEpoch(host, ops) != null
       ? host.boardInSync() : null
     earlySync?.catch(() => {})                 // awaited below; never an unhandled rejection meanwhile
-    const env = { ...(await prepareOps(ops)), ...(suggested === 'approved' ? { approved: true, approval: approval || [] } : {}), ...(Object.keys(pendingLists).length ? { pendingLists } : {}) }
+    // ⛔ KEEP ≠ RE-CREATE: the tickers this request keeps as they are (chartRail.keepTickers) — a grid of new charts maps them onto
+    // the charts already showing them instead of creating them again
+    const env = { ...(await prepareOps(ops)), ...(suggested === 'approved' ? { approved: true, approval: approval || [] } : {}), ...(Object.keys(pendingLists).length ? { pendingLists } : {}), keepTickers: keepTickers(railWordsRef.current, host, createdTickers(ops)) }
     mark('prepared')
     // A read in THIS request (a screen just run) is visible to the writes after it ("find … and save it"):
     // targets are re-read once the request's own queries have answered.
@@ -1638,7 +1645,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
   }, [host, push, patchItem, record, capCtx, withdrawPending])
 
   // Every execution is traced (agent/trace.js): phase timestamps, memory only.
-  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null, binding = null, subset = false, noDuplicates = null, more = false, words = null, proposedWords = null }) => {
+  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null, onTarget = null, binding = null, subset = false, noDuplicates = null, more = false, words = null, proposedWords = null, copyResolved = false }) => {
     // ⛔ #988 (AUDIT GO): the words the excluded-chart gate reads — an approved card carries the words it was PROPOSED
     // from (its proposal stored them): "do it" / "yes" / the Apply click name no chart, so they could never re-check it.
     // (merge with #1029) `proposedWords` is its own option: #1029's `words` is the turn's message string for resolveArgs
@@ -1677,6 +1684,31 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         if (suggested === 'apply') suggested = 'propose'
       }
     }
+    // boardDetach.setMerged (AUDIT, D21): a capability that declares `askedBy` runs only when the member's OWN words ask for it —
+    // never planned from additive words alone ("add a news widget"): such an op is dropped here, on every path
+    {
+      // newsLibrary.* (AUDIT T2 probe 63): `askedBy` may also be a FUNCTION of (the member's words, the op's args) — its
+      // target is words-keyed (the member's own words name THAT headline / collection) and its verb family is its own. It
+      // reads this turn's words together (an answered question's words with the answer); a plan that misread them is
+      // refused WHOLE, never run in part
+      const said = (gateWords || []).filter(t => typeof t === 'string').join(' . ')
+      const keyed = (c) => typeof c?.askedBy === 'function'
+      const asked = (o) => { const c = getCapability(o?.action); if (keyed(c)) return !!c.askedBy(said, o?.args || {}); return !(c?.askedBy instanceof RegExp) || (gateWords || []).some(t => typeof t === 'string' && c.askedBy.test(t.toLowerCase())) }
+      const kept = (opsIn || []).filter(asked)
+      if (kept.length !== (opsIn || []).length) {
+        if (!kept.length || (opsIn || []).some(o => !asked(o) && keyed(getCapability(o?.action)))) {
+          // each capability says what its own words are (askedByWhy); the merged view's sentence is the default
+          const dropped = (opsIn || []).find(o => !asked(o) && keyed(getCapability(o?.action))) || (opsIn || []).find(o => !asked(o))
+          const why = getCapability(dropped?.action)?.askedByWhy
+          const text = `I didn’t change anything: ${(typeof why === 'function' ? why(dropped?.args || {}, said) : why) || 'the board’s merged view changes only when you ask for it (“merge the board” / “unmerge the widgets”).'}`
+          push({ role: 'refusal', text })
+          record({ member, outcome: text, outcomeData: { kind: 'refused', actions: (opsIn || []).map(o => o?.action) }, telemetry: { path, refused: true, voice } })
+          return undefined
+        }
+        opsIn = kept
+        if (suggested === 'apply') suggested = 'propose'
+      }
+    }
     // ⭐ PHASE 2 (agent/duplicates.js, owner decision 2026-10-29): an add of an indicator the chart already shows, same
     // settings, is not added a second time — the existing one is reused (and is what "make it a 9" means next); a hidden
     // one is shown instead. Never on an approved card, nor when the member asked for another copy ("add another RSI").
@@ -1697,6 +1729,32 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       }
       if (d.note) { opsIn = d.ops; onTarget = onTarget ? `${onTarget} ${d.note}` : d.note }
       else opsIn = d.ops
+    }
+    // ⭐ D18 item 3 (owner 2026-11-14, agent/chartReuse.js): a symbol a chart on the board already shows (on the timeframe asked,
+    // or none asked) is THAT chart — never created again unless the words attach copy intent to it; a set-level "N more charts
+    // for …" with a displayed symbol is ASKED (D18 item 2); a symbol shown only on another timeframe gets a new chart, said
+    if (path !== 'approved') {
+      const r = screenChartReuse(opsIn, host, railWordsRef.current, { copyResolved })
+      if (r.ask) {
+        const S = r.ask.symbols
+        const list = S.length === 1 ? S[0] : `${S.slice(0, -1).join(', ')} and ${S[S.length - 1]}`
+        const q = `${list} ${S.length === 1 ? 'is' : 'are'} already on your board. Use ${S.length === 1 ? 'that chart' : 'those charts'}, or open a second ${list} chart? Nothing has changed yet.`
+        pendingRef.current = { kind: 'target', ops: opsIn, path, mode: suggested, member, voice, epoch: epochOf(host), copyChoice: { onTarget, symbols: S } }
+        push({ role: 'question', text: q, choices: [{ ref: 'copy:use', label: `Use your ${list} chart${S.length === 1 ? '' : 's'}` }, { ref: 'copy:second', label: `Open a second ${list} chart` }, { label: 'Cancel', cancel: true }], local: true })
+        record({ member, outcome: q, outcomeData: { kind: 'clarify-multichart' }, telemetry: { path, disposition: 'clarify', voice } })
+        return undefined
+      }
+      if (r.reused.length && !r.ops.length) {
+        const text = REUSE_NOTE(r.reused)
+        push({ role: 'outcome', text })
+        record({ member, outcome: text, outcomeData: { kind: 'noop', actions: (opsIn || []).map(o => o?.action) }, telemetry: { path, disposition: 'apply', voice } })
+        return undefined
+      }
+      if (r.reused.length || r.notes.length) {
+        opsIn = r.ops
+        const n = [r.reused.length ? REUSE_NOTE(r.reused) : null, ...r.notes].filter(Boolean).join(' ')
+        onTarget = onTarget ? `${onTarget} ${n}` : n
+      }
     }
     // ⛔ M3: with several indicator drafts open, a request on one the member has not selected is
     // never planned — they are shown the drafts and pick one (chooseTarget), nothing changes.
@@ -2188,12 +2246,23 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       lastActionsRef.current = p.setChoice.ops.map(o => o.action)
       return await execute(p.setChoice.ops, { path: p.path, mode: p.mode === 'propose' ? 'propose' : 'apply', member: `${p.member || ''} → ${label}`, voice: p.voice })
     }
+    if (p.copyChoice) {
+      // D18 item 2: the member's pick — use the chart already there, or open a second one (the pick's words are this request's)
+      if (ref !== 'copy:use' && ref !== 'copy:second') return
+      // (a second chart for EACH asked symbol: said to the reader one phrase per symbol — "another NVDA chart, another AAPL chart")
+      const copies = ref === 'copy:second' ? (p.copyChoice.symbols || []).map(S0 => `another ${S0} chart`).join(', ') : null
+      railWordsRef.current = [railWordsRef.current, label, copies].filter(Boolean).join(' . ')
+      return await execute(p.ops, { path: p.path, mode: p.mode === 'propose' ? 'propose' : 'apply', member: `${p.member || ''} → ${label}`, voice: p.voice, onTarget: p.copyChoice.onTarget || null, copyResolved: true })
+    }
     if (p.gridChoice) {
       // live train 4: the member's pick — replace the charts (a card: it removes charts) or add these beside them
       const ops = ref === 'grid:replace' ? p.gridChoice.replace : ref === 'grid:add' ? p.gridChoice.add : null
       if (!ops) return
       // ⛔ CHART RAIL: the member's pick is part of this request's words ("Replace my 2 charts with these 4" permits the replace)
-      railWordsRef.current = [railWordsRef.current, label].filter(Boolean).join(' . ')
+      // — and D18: "Add N more charts", picked from the question about THESE tickers, is the member's explicit choice of new
+      // charts beside the board's: a copy of each (said to the reader per symbol: "another SPY chart, another QQQ chart …")
+      const gridSyms = ops[0]?.args?.symbols || []
+      railWordsRef.current = [railWordsRef.current, label, ref === 'grid:add' && gridSyms.length ? gridSyms.map(S0 => `another ${S0} chart`).join(', ') : null].filter(Boolean).join(' . ')
       lastActionsRef.current = ops.map(o => o.action)
       if (p.gridThen?.length) {
         // review t4 M5: the grid, then the per-chart changes — one request (runCompound; a card holds the rest until approved)

@@ -23,6 +23,8 @@
 // zero. An object at coordinate zero is a drawing; an object that did not draw
 // is a fact.
 import { nodeTree } from './ast/graph'
+import { runHalfOnlySettingMoved } from './runHalfInputs.js'
+import { calcBarsWindowOf } from './calcBarsWindow.js'
 import { graphNodesReferenced, bindObjectProgram, runtimeAtIndex, withBarIndexHeld } from './ast/objectProgram'
 import {
   interpret, maxLookback, readsSwitchedState, probeValuesOf, PREFIX_PROBE, switchedDependencyMask,
@@ -610,6 +612,9 @@ function chartClockRows(map) {
 export function objectReaderFor(definition, bars, opts = {}) {
   const stored = definition && definition.objects
   if (!stored || !Array.isArray(stored.ops) || !stored.ops.length) return null
+  // ⭐ SETTINGS PARITY (2c) — a setting only the run half reads has been moved: this program
+  // folded it at the author's default, so it draws nothing (`runHalfInputs.runHalfOnlySettingMoved`)
+  if (runHalfOnlySettingMoved(definition, opts.inputs)) return null
   // ⭐⭐ C29 — the plot lane's own rule (`periodReads.js`): a document folded at
   // another chart period draws NOTHING here rather than the other period's text.
   if (periodReadsObjectRefusal(definition, opts.tf)) return null
@@ -618,9 +623,13 @@ export function objectReaderFor(definition, bars, opts = {}) {
   // is read here — the same decision the plot lane takes (`runtimeErrorStop.js`,
   // one evaluation for both).
   if (definition.meta && definition.meta.runtimeErrors) {
-    const stop = runtimeErrorStopFor(definition, bars, opts.inputs, {
+    // ⭐⭐ CBC-FMT — over the `calc_bars_count` window when the document has one: an error
+    // reached only on bars before the window is not reached on TradingView (it never computes
+    // them), so it must not stop the picture (`engine/calcBarsWindow.js`).
+    const win = calcBarsWindowOf(definition, bars)
+    const stop = runtimeErrorStopFor(definition, win ? win.rows : bars, opts.inputs, {
       tf: opts.tf, symbol: opts.symbol, newestBarIsForming: opts.newestBarIsForming ?? null,
-      historyFromListing: opts.historyFromListing === true,
+      historyFromListing: win ? true : opts.historyFromListing === true,
     })
     if (stop && stop.reached) return null
   }

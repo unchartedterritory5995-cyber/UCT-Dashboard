@@ -163,8 +163,8 @@ describe('3 — seven Technical categories, every row in exactly one, in a fixed
     })
   })
   it('orderCategories puts the Technical headings first, in order, whatever order they arrive', () => {
-    expect(orderCategories(['Volume & Money Flow', 'My formulas', 'Trend & Moving Averages', 'Symbols']))
-      .toEqual(['Trend & Moving Averages', 'Volume & Money Flow', 'My formulas', 'Symbols'])
+    expect(orderCategories(['Volume & Money Flow', 'My indicators', 'Trend & Moving Averages', 'Symbols']))
+      .toEqual(['Trend & Moving Averages', 'Volume & Money Flow', 'My indicators', 'Symbols'])
   })
   it('no row is listed twice and no display name repeats', () => {
     const rows = technicalRows()

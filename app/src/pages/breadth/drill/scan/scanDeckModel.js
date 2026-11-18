@@ -5,6 +5,8 @@
 // reviewed/skipped store. No React, so every rule is unit-testable and the
 // components stay thin.
 
+import { formatCompact } from '../../../../lib/presentation/presentationPrimitives'
+
 // ── Filters ──────────────────────────────────────────────────────────────────
 // Each filter reads ONE field and says what it needs. A filter whose field is
 // absent for this drill (a recorded day carries no live quote, so no DCR) is
@@ -233,12 +235,15 @@ export function fmtPct(v, d = 1, sign = true) {
   return `${sign && v > 0 ? '+' : ''}${v.toFixed(d)}%`
 }
 
+// The deck's market-cap ladder (T at two decimals, B at one, whole M and K, K the floor), through
+// the one K/M/B/T decider (TERM-066). A cap that rounds up to the next tier prints in it.
+const CAP_TIERS = [
+  { at: 1e12, suffix: 'T', decimals: 2 }, { at: 1e9, suffix: 'B', decimals: 1 },
+  { at: 1e6, suffix: 'M', decimals: 'round' }, { at: 1e3, suffix: 'K', decimals: 'round' },
+]
 export function fmtCap(v) {
   if (!Number.isFinite(v) || v <= 0) return '—'
-  if (v >= 1e12) return `$${(v / 1e12).toFixed(2)}T`
-  if (v >= 1e9) return `$${(v / 1e9).toFixed(1)}B`
-  if (v >= 1e6) return `$${Math.round(v / 1e6)}M`
-  return `$${Math.round(v / 1e3)}K`
+  return formatCompact(v, { tiers: CAP_TIERS, prefix: '$', fixedUnit: true })
 }
 
 // ── The reading, in words ────────────────────────────────────────────────────

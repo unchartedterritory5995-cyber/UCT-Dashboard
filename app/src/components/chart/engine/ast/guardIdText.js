@@ -26,7 +26,9 @@
 export const GUARD_NAMESPACES = Object.freeze([
   'pine', 'runtime', 'strategy', 'enum', 'thinkscript', 'pcf', 'canonicalise', 'objects', 'alert',
   'import', 'other-symbol', 'request', 'let', 'picker', 'budget', 'resolve', 'probe', 'engine', 'bind',
-  'consumer', 'presentation', 'sentence', 'chart', 'lower-tf', 'object', 'scan',
+  'consumer', 'presentation', 'sentence', 'chart', 'lower-tf', 'object', 'scan', 'pane',
+  // SETTINGS PARITY (2a): `setting:param-refused`, a folded length's stored value outside its bounds
+  'setting',
 ])
 
 const GUARD_NS_ALT = GUARD_NAMESPACES.join('|')

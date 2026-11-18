@@ -19,11 +19,13 @@ import { registerRuntimeLane } from '../nativeRegistry.js'
 import { notifyColumnsLanded } from '../serverCompute.js'
 import { withRuntimeObjects, RUNTIME_WARMUP_KEY } from './runtimeObjects.js'
 import { withStrategyRecord } from './strategyRecord.js'
+import { CALC_BARS_KEY } from '../calcBarsWindow.js'
 import {
   runtimeColumnsFor, computeRuntimeColumns, setRuntimeRunner, onRuntimeColumnsLanded,
   RUNTIME_PANE_TIME_BUDGET_MS, RUNTIME_TIME_BUDGET_GUARD, RUNTIME_LIMIT_GUARD, RUNTIME_FAILED_GUARD,
 } from './runtimeColumns.js'
 import { LIMIT_NAMES } from './limits.js'
+import { errorFromImage } from './errorImage.js'
 import { runtimeSourceHash } from '../runtimeKill.js'
 import { bindSymbolOf } from '../ast/bind.js'
 import { noteRuntimeRunStarted, noteRuntimeRunSettled, resetRuntimeRunTelemetry } from '../runtimeRunTelemetry.js'
@@ -52,15 +54,11 @@ export const RUNTIME_WORKER_MAX_STARTS = 3
 export const RUNTIME_WORKER_UNRESPONSIVE_GUARD = 'runtime:worker-unresponsive'
 export const RUNTIME_WORKER_FAILED_GUARD = 'runtime:worker-failed'
 
-/** Rebuild the error a worker reported, with the fields the registry reads. */
+/** Rebuild the error a worker reported, with EVERY field it carried (`errorImage.js`, the rule: an error
+ *  that crosses a worker boundary keeps every field the main thread reads). ⚰️ A hand-picked list here
+ *  dropped `pending` (RS Rating L10b): a wait came back as a refusal. */
 function errorOf(e) {
-  const err = new Error(e && e.message ? e.message : 'the runtime lane failed')
-  err.name = (e && e.name) || 'Error'
-  if (e && e.guard) err.guard = e.guard
-  if (e && typeof e.limit === 'string') err.limit = e.limit
-  if (e && Number.isInteger(e.bar)) err.bar = e.bar
-  if (e && Number.isFinite(e.ms)) err.ms = e.ms
-  return err
+  return errorFromImage(e, 'the runtime lane failed')
 }
 
 // ─── ⭐⭐ P3 WS-H (S8) — THE STOP BEACON ──────────────────────────────────────
@@ -234,7 +232,7 @@ function workerOf(factory) {
     return null
   }
   _worker.onmessage = (event) => {
-    const { id, ok, columns, error, objects, warmup, strategy } = event.data || {}
+    const { id, ok, columns, error, objects, warmup, strategy, calcBars } = event.data || {}
     const job = _jobs.get(id)
     if (!job) return
     _jobs.delete(id)
@@ -245,6 +243,10 @@ function workerOf(factory) {
     }
     // ⭐⭐ W9-T11 — the run's `strategy` record, re-attached as the worker found it
     if (landed && strategy) withStrategyRecord(landed, strategy)
+    // ⭐⭐ CBC-FMT — and its `calc_bars_count` window record (the disclosure strip reads it)
+    if (landed && calcBars) {
+      Object.defineProperty(landed, CALC_BARS_KEY, { value: calcBars, enumerable: false, configurable: true })
+    }
     settle(job, ok ? null : errorOf(error), landed)
     postHeld(job.coalesce, factory)
   }
@@ -260,7 +262,12 @@ function messageOf(id, def, rows, ctx) {
   const plainDef = {
     id: def && def.id,
     compute: def && def.compute,
-    meta: { runtimeHistory: def && def.meta ? def.meta.runtimeHistory : undefined },
+    meta: {
+      runtimeHistory: def && def.meta ? def.meta.runtimeHistory : undefined,
+      // ⭐⭐ CBC-FMT — the `calc_bars_count` window stamp: the run takes its window from it
+      // (`engine/calcBarsWindow.js`). ⛔ Without it a worker run would compute every bar.
+      ...(def && def.meta && Number.isInteger(def.meta.calcBarsCount) ? { calcBarsCount: def.meta.calcBarsCount } : {}),
+    },
   }
   const plainCtx = {
     tf: ctx && ctx.tf,
@@ -378,4 +385,25 @@ export function ensureRuntimeLane({ factory } = {}) {
   onRuntimeColumnsLanded((key) => notifyColumnsLanded(key))
   const canWork = typeof Worker === 'function' && typeof window !== 'undefined'
   if (factory || canWork) setRuntimeRunner(workerRunner(factory || defaultFactory))
+}
+
+/** ⚡ PRELOAD (perf/pine-runtime-chunk-preload) — the lane, AND ITS WORKER, now.
+ *
+ *  ⚰️ Measured on production (RS Rating, RDDT 1D, 2026-11-16): "Add this script to my chart" to
+ *  labels drawn took 7.98 s in a cold tab against 1.85 s warm, and the cold cost is the worker
+ *  chunk (~1.3 MB, ~380 KB gzip) fetched, parsed and evaluated on the FIRST job: `workerOf` spawns
+ *  the worker only when a run is posted, so the download started after the bars and the run had
+ *  already been asked for.
+ *
+ *  This spawns it ahead of the first job, so the chunk loads while the member is still reading the
+ *  preview or the chart is still painting. Idempotent (`workerOf` keeps one worker), posts nothing,
+ *  arms no watchdog (that is per job). Callers decide WHEN (never before the first chart paint) and
+ *  WHETHER (only for a member whose runtime pane is permitted: this module is reached only behind
+ *  that gate). Returns whether a worker now exists.
+ *  ⛔ Without `Worker` (tests, a non-browser host) it registers the lane and spawns nothing. */
+export function warmRuntimeLane({ factory } = {}) {
+  ensureRuntimeLane({ factory })
+  const canWork = typeof Worker === 'function' && typeof window !== 'undefined'
+  if (!factory && !canWork) return false
+  return !!workerOf(factory || defaultFactory)
 }

@@ -49,6 +49,7 @@ import { render, screen, cleanup, fireEvent, act, within } from '@testing-librar
 import { SWRConfig } from 'swr'
 
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { pineMemberInputs } from './builderInputs'
 import { translatePine } from '../engine/ast/pine'
 import { computeFor } from '../engine/nativeRegistry'
@@ -190,7 +191,7 @@ function mountFresh() {
   )
 }
 
-const formulaField = () => screen.getByLabelText('Formula')
+const formulaField = () => formulaBox()
 const pineField = () => screen.getByTestId('pine-box').querySelector('textarea')
 const tab = (name) => screen.getByRole('tab', { name })
 
@@ -203,7 +204,7 @@ async function settleFormula() {
   await flush()
 }
 async function paste(script) {
-  fireEvent.click(tab(/^import$/i))
+  openSource('pine')
   fireEvent.change(pineField(), { target: { value: script } })
   await settlePine()
 }
@@ -253,6 +254,7 @@ describe('reopening a saved directly-conditional bool through the real "Your for
     cleanup()
     mountFresh()
     await flushSwr()
+    toStart()
     const savedRow = screen.getByText('Direct Cond Bool Test')
     const listRow = savedRow.closest('li')
     expect(listRow, '"Your formulas" did not render the saved row').toBeTruthy()
@@ -271,7 +273,7 @@ describe('reopening a saved directly-conditional bool through the real "Your for
     // `document.inputs[].default` is the knob, not the AST.
     expect(formulaField().value).toBe('showit ? close - 1 : 0 / 0')
 
-    fireEvent.click(screen.getByRole('button', { name: /^save changes$/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^save$/i }))
     await flush()
 
     const putReq = H.requests.find((r) => r.method === 'PUT')
@@ -286,6 +288,7 @@ describe('reopening a saved directly-conditional bool through the real "Your for
     cleanup()
     mountFresh()
     await flushSwr()
+    toStart()
     const savedRow2 = screen.getByText('Direct Cond Bool Test')
     fireEvent.click(within(savedRow2.closest('li')).getByRole('button', { name: /^Edit Direct Cond Bool Test$/i }))
     await settleFormula()

@@ -21,6 +21,16 @@ import styles from './ContextPopover.module.css'
  * An item may carry an optional `hint`: one sentence saying what the row does, for a label
  * too short to say it. It becomes the row's `title` (the pointer tooltip) and its
  * `aria-description` (read after the name). An item without one renders exactly as before.
+ *
+ * ⭐ UCT SIGNATURE (opt-in, docs/uct-signature-style.md §2b). One item field and one prop,
+ * neither of which any other caller passes, so every other surface renders exactly as before:
+ *   `{ groupLabel: 'This line' }` — a small grey sentence-case label over a group of rows. NOT a
+ *       row: a plain (generic) div, never focusable, so a `role="menu"` still holds only items.
+ *   (A row's dimmed value, ▸ and gold ✦ are drawn by the CALLER into `label` / `icon` —
+ *   StockChart `chipMenuSigRow` — so the Notebook's first-open bytes don't carry them.)
+ *   `signature` (prop) — the highlighted row's icon turns gold, and an item's boolean `checked`
+ *       renders as a gold ✓ with `role="menuitemcheckbox"` + `aria-checked` (desktop) or
+ *       `aria-pressed` (touch). Without the prop `checked` is ignored, as it always was.
  */
 // Nothing at all when there is no hint, so a caller that never passes one is unchanged.
 const hintProps = (it) => (it.hint ? { title: it.hint, 'aria-description': it.hint } : null)
@@ -80,6 +90,8 @@ export default function ContextPopover({
    *  first-open JS (`tools/notebook_perf_budgets.py`), so a caller's own focus
    *  logic (which element, resolved how) lives with the caller, not here. */
   returnFocusTo,
+  /** ⭐ UCT SIGNATURE, OPT-IN — see the header: gold hover icons and a gold ✓ for `checked`. */
+  signature,
 }) {
   const isTouch = useIsTouch()
   const menuRef = useRef(null)
@@ -175,39 +187,41 @@ export default function ContextPopover({
   // items (axe: aria-required-children, critical), so its rows are `role="menuitem"` and its
   // separators `role="separator"`. The touch branch is a Sheet (a dialog), where the rows stay
   // plain buttons.
+  const sig = signature ? ' ' + styles.signature : ''
   const renderItems = (asMenu = false) =>
-    items?.map((it, i) =>
-      it.separator ? (
-        <div key={`sep${i}`} className={styles.separator} role={asMenu ? 'separator' : undefined} />
-      ) : it.href ? (
-        // A real link (middle-click and cmd-click open a tab). Same row look, same close-on-pick;
-        // a link cannot be `disabled`, so a caller that needs that passes no `href`.
-        <a
-          key={it.key ?? it.label ?? i}
-          role={asMenu ? 'menuitem' : undefined}
-          className={`${styles.item} ${it.danger ? styles.danger : ''}`}
-          href={it.href}
-          {...hintProps(it)}
-          onClick={(e) => { it.onClick?.(e); if (!it.keepOpen) onClose?.() }}
-        >
-          {it.icon != null && <span className={styles.icon}>{it.icon}</span>}
-          <span className={styles.label}>{it.label}</span>
-        </a>
-      ) : (
-        <button
+    items?.map((it, i) => {
+      // A separator, or a ⭐ group label — ⛔ NOT A ROW: presentation, no tabindex, so a menu holds only menu items
+      // (axe). One branch for both: this module is in the Notebook's first-open bytes budget.
+      if (it.separator || it.groupLabel != null) {
+        return (
+          <div key={'s' + i} className={it.separator ? styles.separator : styles.groupLabel}
+            role={it.separator && asMenu ? 'separator' : undefined}>{it.groupLabel}</div>
+        )
+      }
+      // ⚠️ KEPT SMALL: this module is in the Notebook's first-open bytes budget — ONE element for both
+      // kinds of row. `href` makes it a real link (middle-click and cmd-click open a tab; same look, same
+      // close-on-pick; a link cannot be `disabled`, so a caller that needs that passes no `href`).
+      // `check`: a menuitemcheckbox + aria-checked (desktop); a touch sheet's plain button + aria-pressed.
+      // (The ✓ itself is the caller's, in `label` — StockChart `chipMenuSigRow`.)
+      const check = signature && it.checked != null
+      const Row = it.href ? 'a' : 'button'
+      return (
+        <Row
           key={it.key ?? it.label ?? i}
           data-menu-id={it.key}
-          role={asMenu ? 'menuitem' : undefined}
+          role={asMenu ? 'menuitem' + (check ? 'checkbox' : '') : undefined}
+          {...{ [asMenu ? 'aria-checked' : 'aria-pressed']: check ? it.checked : undefined }}
           className={`${styles.item} ${it.danger ? styles.danger : ''}`}
+          href={it.href}
           disabled={it.disabled}
           {...hintProps(it)}
           onClick={(e) => { it.onClick?.(e); if (!it.keepOpen) onClose?.() }}
         >
           {it.icon != null && <span className={styles.icon}>{it.icon}</span>}
           <span className={styles.label}>{it.label}</span>
-        </button>
-      ),
-    )
+        </Row>
+      )
+    })
 
   // Touch → bottom sheet
   if (isTouch) {
@@ -247,7 +261,7 @@ export default function ContextPopover({
   return createPortal(
     <div
       ref={menuRef}
-      className={`${styles.menu}${dense ? ' ' + styles.menuDense : ''}`}
+      className={`${styles.menu}${dense ? ' ' + styles.menuDense : ''}${sig}`}
       style={{
         left: pos?.left ?? anchor?.x ?? 0,
         top: pos?.top ?? anchor?.y ?? 0,

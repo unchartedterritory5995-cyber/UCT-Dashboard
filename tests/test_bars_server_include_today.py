@@ -124,7 +124,13 @@ def test_replay_to_window_is_never_touched(monkeypatch, today_open):
 
 def test_index_symbol_is_never_touched(monkeypatch, today_open):
     """Index series (SPX/^IXIC…) come from a different provider path and are
-    excluded — the guard checks is_index()."""
+    excluded from THIS (Massive) append — the guard checks is_index(). An index's own
+    developing bar is built from its 5m series (RS RATING L10,
+    `tests/test_index_developing_bar.py`); held to "none" here so this case is the
+    equity append's alone and never reads this box's clock or index cache."""
+    from api import index_bars
+    monkeypatch.setattr(index_bars, "with_todays_session", lambda *a, **k: None)
+
     def _boom(tk):
         raise AssertionError("todays_daily_bar must not be called for an index")
     monkeypatch.setattr(massive, "todays_daily_bar", _boom)

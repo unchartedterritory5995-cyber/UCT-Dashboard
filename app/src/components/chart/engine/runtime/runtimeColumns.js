@@ -43,26 +43,16 @@ import { sameDrawings } from './warmupDrawings.js'
 import { runtimeInputValues, runtimeBuildInputs } from './runtimeInputs.js'
 // ⭐⭐ W9-T11 — the run's `strategy` record (design 3.2) and the window a broker run takes.
 import { BROKER_START_GUARD } from './broker.js'
+import { barOpenInstants } from '../../indicators.js'
 import { STRATEGY_WINDOW_HISTORY, strategyRecordOf, withStrategyRecord } from './strategyRecord.js'
 import { makeWarmupProbe, sameProgram } from './warmupProbe.js'
 export { RUNTIME_WARMUP_KEY, runtimeWarmupOf }
 // W5-T1: the identity constants the server bundle's entry re-exports (it must not import the front end itself: pineRuntimeFrontendGate).
 export { RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION }
-import { declaredCalcBarsOf } from './objectStore.js'
-import { calcBarsWindowOf, widenToChart, readsBarIndex, barIndexDependenceOf, CALC_BARS_INDEX_GUARD,
-  CALC_BARS_INDEX_PROBE, placesByBarIndex, probeVerdictKey } from './calcBarsWindow.js'
-
-/** ⭐ WS-E re-review M-B — the window's `bar_index` probe verdicts, by
- *  `probeVerdictKey`: `null` = no dependence, a string = what moved. Bounded. */
-const probeVerdictCache = new Map()
-const PROBE_VERDICT_CAP = 64
-function rememberProbeVerdict(key, v) {
-  probeVerdictCache.delete(key)
-  probeVerdictCache.set(key, v)
-  while (probeVerdictCache.size > PROBE_VERDICT_CAP) probeVerdictCache.delete(probeVerdictCache.keys().next().value)
-}
-/** Test seam: forget every cached verdict. */
-export function __resetBarIndexProbeCacheForTests() { probeVerdictCache.clear() }
+// ⭐⭐ CBC-FMT — `calc_bars_count`: ONE window for both lanes (`engine/calcBarsWindow.js`), read
+// off the document's own stamp (`meta.calcBarsCount`, `pine.js::declarationCalcBars`).
+import { calcBarsWindowOf, widenToChart, windowContext, withCalcBarsRecord,
+  CALC_BARS_REQUEST_GUARD, CALC_BARS_REQUEST_SOURCE, calcBarsRequestSentence } from '../calcBarsWindow.js'
 import { strippedForScan, withTranslateClock } from '../ast/pine.js'
 
 // ─── ⭐⭐ W5-T2 — EVERY WALL CLOCK A RUN READS IS THE HOST'S TO INJECT (design 2.2 H5) ──
@@ -167,7 +157,32 @@ export function probeRuntimeProgram(source, { objectsInRun = false } = {}) {
     // `buildRuntimeIr` retries into broker mode only then), so the member door stamps the
     // document `STRATEGY_WINDOW_HISTORY`.
     broker: !!program.broker,
+    // ⭐ SERVE OR REFUSE BY NAME (2026-11-17) — with the broker gate on, a strategy whose broker build refused and whose
+    // plain build stands (`buildRuntimeIr` `brokerDeclined`): the member door names it on the pane. Absent otherwise,
+    // so every other probe answers exactly as before.
+    ...(built.brokerDeclined ? { brokerDeclined: { guard: built.brokerDeclined.guard || null,
+      message: String(built.brokerDeclined.message || '').slice(0, 400) } } : {}),
+    // ⭐⭐ U15 — the library versions the build linked, each by the sha256 of the code it
+    // compiled (`pineLibraries.js`): the member door pins them on the document. Absent unless
+    // the script imports one, so every other probe answers exactly as before.
+    ...(Array.isArray(built.libraries) && built.libraries.length ? { libraries: libraryPinsOf(built.libraries) } : {}),
   }
+}
+
+/** ⭐⭐ U15 — `[{path, sha256}]`, sorted by path: a document's library pins (`meta.libraries`). */
+export function libraryPinsOf(libraries) {
+  return (Array.isArray(libraries) ? libraries : [])
+    .filter((l) => l && typeof l.path === 'string' && typeof l.sha256 === 'string')
+    .map((l) => ({ path: l.path, sha256: l.sha256 }))
+    .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
+}
+
+/** ⭐⭐ U15 — what a run hands the front end about libraries: the document's pins (a changed
+ *  library is refused by name, `pine:library-changed`). The ENTRIES come from the registry,
+ *  in the browser and on the server alike (the service registers a job's verified entries
+ *  for that one run, `services/pine_runtime/job.mjs`), so both build the same call. */
+function libraryBuildOpts(pins) {
+  return Array.isArray(pins) && pins.length ? { libraryPins: pins } : {}
 }
 
 /** ⭐⭐ UIE PHASE 3 (M4) — WHICH COLOUR INPUTS THE RUN ACTUALLY READS.
@@ -295,6 +310,11 @@ export function runtimeContentKey(def) {
     compute.objects === true,
     (def.meta && def.meta.runtimeHistory) || null,
     Number.isInteger(def.version) ? def.version : null,
+    // ⭐ ROUTE BY COST (NUMBER PENDING) — the library code the run LINKS (U15's pins, `meta.libraries`):
+    // the same script over the same bars linked against another library is another answer. ⚰️ Without
+    // it an incremental session (`_sessions`) compiled against one library was resumed for a document
+    // pinned to another (`vendorHarness.capRound4`'s control, once the cost route put it on this lane).
+    (def.meta && Array.isArray(def.meta.libraries) && def.meta.libraries.length) ? def.meta.libraries : null,
   ])
   // Two independent 32-bit passes plus the length: a collision needs all three to agree.
   const key = `${text.length.toString(36)}.${fnv1a(text, 0x811c9dc5).toString(36)}.${fnv1a(text, 0x9e3779b9).toString(36)}`
@@ -496,82 +516,28 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
   // ⭐⭐ W9-T11 — a strategy document runs over the most recent `ctx.historyWindowBars` bars
   if (def && def.meta && def.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY) return computeStrategyWindow(def, rows, ctx, opts)
   // ⭐ WS-E — `calc_bars_count = N`: the run takes the chart's last N bars, as
-  // TradingView does, and its answer is widened back (`calcBarsWindow.js`).
-  const win = calcBarsWindowOf(def, rows, (src) => declaredCalcBarsOf(strippedForScan(src)))
+  // TradingView does, and its answer is widened back (`engine/calcBarsWindow.js`).
+  // ⭐⭐ CBC-FMT — `bar_index` on the window's first bar is WITNESSED (0, `vw-cs1-calc-bars`),
+  // so the second run that probed for a dependence on its base is gone (review D3):
+  // `plot(bar_index)` is drawn, as are `last_bar_index` and `barstate.isfirst` (the window's
+  // own, S10). What a window still does not witness is refused by name BEFORE the run: any
+  // request of other bars.
+  const win = calcBarsWindowOf(def, rows)
   if (win) {
-    const wctx = { ...(ctx || {}), historyFromListing: true }
-    const clock = clockOf(opts)
-    const t0 = Number.isFinite(opts.budgetMs) ? clock() : 0
+    const stripped = strippedForScan(String(((def && def.compute) || {}).source || ''))
+    if (CALC_BARS_REQUEST_SOURCE.test(stripped)) {
+      throw refusal(CALC_BARS_REQUEST_GUARD, calcBarsRequestSentence(win.count))
+    }
     let cols
     try {
-      // ⛔ P3 WS-F — the window slides: a `varip` is refused by name, before any probe runs
-      cols = computeRuntimeColumns(def, win.rows, wctx, { ...opts, slidingWindow: true })
+      // ⛔ P3 WS-F — the window slides: a `varip` is refused by name
+      cols = computeRuntimeColumns(def, win.rows, windowContext(ctx), { ...opts, slidingWindow: true })
     } catch (err) {
       if (err && Number.isInteger(err.bar)) err.bar += win.cut
       throw err
     }
-    // ⛔ review H1 — the window's `bar_index` is uncaptured: a run whose answer moves
-    // with its base is refused by name (`calcBarsWindow.js`, `CALC_BARS_INDEX_GUARD`).
-    // ⭐ re-review M-A — a run that places a drawing BY bar index is probed too, even
-    // when its source never names `bar_index` (`label.new(10, …)`).
-    if (readsBarIndex(strippedForScan(String(((def && def.compute) || {}).source || '')))
-      || placesByBarIndex(cols[RUNTIME_OBJECTS_KEY])) {
-      // ⭐ re-review M-B — THE VERDICT IS CACHED per (document, settings, the window's
-      // bar times, its CLOSED bars' values) (`calcBarsWindow.js::probeVerdictKey`), so a
-      // tick that changes only the forming bar does not pay a second N-bar run. The probe
-      // keeps NO session (`incremental: false`): it never resumes, so nothing about it
-      // depends on what an earlier run left behind.
-      // ⚠️ SAID PLAINLY: on a cached tick the forming bar's own values are not re-probed;
-      // the bar is probed when it closes (its values join the key). A script whose
-      // dependence on `bar_index` shows ONLY on a forming bar's price would draw that bar
-      // until it closes, then be refused.
-      const key = probeVerdictKey(def, ctx, win.rows)
-      let moved = probeVerdictCache.get(key)
-      if (moved === undefined) {
-        // the probe spends only what the main run LEFT of the budget
-        const left = Number.isFinite(opts.budgetMs) ? opts.budgetMs - (clock() - t0) : null
-        if (left !== null && left <= 0) {
-          throw refusal(RUNTIME_TIME_BUDGET_GUARD, `this script took more than ${opts.budgetMs} ms to draw bar by bar `
-            + 'and to check that it does not depend on what `bar_index` reads, which is this pane’s budget for '
-            + 'one indicator, so it is stopped and nothing is drawn rather than part of it.')
-        }
-        try {
-          if (typeof opts.onBarIndexProbe === 'function') opts.onBarIndexProbe()
-          const shifted = computeRuntimeColumns(def, win.rows, wctx, {
-            ...opts, barIndexShift: CALC_BARS_INDEX_PROBE, incremental: false, sessionRole: undefined,
-            probe: undefined, probeIfCold: undefined, onBudget: undefined, onBarIndexProbe: undefined,
-            ...(left !== null ? { budgetMs: left } : {}),
-          })
-          moved = barIndexDependenceOf(cols, shifted, CALC_BARS_INDEX_PROBE, RUNTIME_OBJECTS_KEY)
-        } catch (err) {
-          // ⛔ review M-C — THE MAIN RUN ALREADY PASSED under the same limits, so what
-          // the probe ALONE reaches — a VM limit, a collection failure (`runtime:failed`),
-          // the script's own `runtime.error`, an unnamed throw — is evidence that the run
-          // depends on the count (`for i = 0 to bar_index`, `array.new_float(bar_index +
-          // 1)`, `if bar_index > 5000` then `runtime.error`), and is named as such.
-          // Rethrown under its OWN name is only a stop that cannot depend on `bar_index`:
-          // the time budget (the probe spends the main run's leftover), and every other
-          // guard (`runtime:varip`, a build / version / compile refusal).
-          // ⚰️ re-review M-B rethrew limits and `runtime.error` too, so a member read
-          // "boom" from a script that never raises it on this chart.
-          const countsAsDependence = !err || err.name === 'runtime.error' || !err.guard
-            || err.guard === RUNTIME_LIMIT_GUARD || err.guard === RUNTIME_FAILED_GUARD
-          if (!countsAsDependence) {
-            if (Number.isInteger(err.bar)) err.bar += win.cut
-            throw err
-          }
-          moved = 'whether it runs at all'
-        }
-        rememberProbeVerdict(key, moved || null)
-      }
-      if (moved) {
-        throw refusal(CALC_BARS_INDEX_GUARD, `this script runs on its last ${win.rows.length} bars only `
-          + "(`calc_bars_count`), and what `bar_index` reads on the first of them on TradingView has not been "
-          + `measured; ${moved} depends on that number, so nothing is drawn rather than a guess. `
-          + 'A script that reads `bar_index` only as a distance between bars, or to place a drawing on a bar, is drawn.')
-      }
-    }
-    return widenToChart(cols, win.cut, RUNTIME_OBJECTS_KEY)
+    // ⛔ CBC-FMT (realtime ruling) — the newest bar is withheld by name while it may be forming
+    return withCalcBarsRecord(widenToChart(cols, win.cut, RUNTIME_OBJECTS_KEY), win, ctx, RUNTIME_OBJECTS_KEY)
   }
   const compute = (def && def.compute) || {}
   if (compute.objects !== true) return computeRuntimeColumnsOnce(def, rows, ctx, opts)
@@ -606,7 +572,8 @@ export const RUNTIME_OBJECTS_STOPPED_REASON = 'working them out stopped at a ste
  *  `guard` and `reason` only). */
 export function runtimeObjectsWithheld(err) {
   if (err && typeof err.guard === 'string' && err.guard) {
-    return { status: 'WITHHELD', live: [], guard: err.guard, reason: String(err.message || err) }
+    return { status: 'WITHHELD', live: [], guard: err.guard, reason: String(err.message || err),
+      ...(err.pending === true ? { pending: true } : {}) }
   }
   return { status: 'WITHHELD', live: [], guard: 'runtime:objects', reason: RUNTIME_OBJECTS_STOPPED_REASON,
     detail: String((err && err.message) || err) }
@@ -1289,28 +1256,13 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // ⭐⭐ RT5 — a document that draws its OWN objects builds them into the run
   // (`objectsInRun`); every other runtime document keeps the host lane's.
   const ownObjects = compute.objects === true
-  // ⛔ RT5 — `calc_bars_count = N` makes TradingView run the script on the LAST N
-  // bars only; a run from this chart's first bar would make other drawings. No
-  // lane honours it yet, so a run that owns its drawings refuses by name.
-  if (ownObjects) {
-    const calcBars = declaredCalcBarsOf(strippedForScan(String(compute.source || '')))
-    if (calcBars !== null && rows.length > calcBars) {
-      throw refusal('runtime:calc-bars-count', `this script runs on its last ${calcBars} bars only `
-        + `(\`calc_bars_count = ${calcBars}\`), and this chart holds ${rows.length}; its drawings from a run over `
-        + 'every bar would be a different picture. Nothing is drawn rather than a guess.')
-    }
-  }
   const tooBig = sourceSizeRefusal(compute.source)
   if (tooBig) throw refusal(RUNTIME_LIMIT_GUARD, tooBig, 'PROGRAM_SIZE')
   // ⭐ UIE PHASE 5 (M2) — the session, and whether this run resumes from it
-  // ⭐ P3 WS-F x WS-E — a `bar_index`-shifted build (the calc_bars window's probe) is a
-  // MEASUREMENT: it never keeps or resumes a session, so its build, checkpoint and realtime
-  // ledger can never stand in for the real run's (the key does not carry the shift).
-  const shiftedProbe = Number.isInteger(opts.barIndexShift) && opts.barIndexShift !== 0
   // ⛔⛔ (re-review M1, M2) a run over a window that SLIDES: a calc_bars_count window
   // (`opts.slidingWindow`, set by the window itself) or a framed instance (`ctx.framed`)
   const slides = opts.slidingWindow === true || !!(ctx && ctx.framed === true)
-  const sessionKey = opts.incremental === false || opts.limits || shiftedProbe ? null
+  const sessionKey = opts.incremental === false || opts.limits ? null
     // ⛔ a sliding run keeps its OWN session: a build made with a ledger (a `varip` built) must
     // never be reused by a run that refuses one
     : `${runKey(def, ctx)}|${opts.sessionRole || 'run'}${slides ? '|slides' : ''}`
@@ -1331,6 +1283,8 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     // author's bounds or options by the front end itself. ⭐ UIE PHASE 3 (M4) — a colour or a
     // source rides apart (`inputDefaults`): it replaces the author's default node.
     ...runtimeBuildInputs(def, ctx && ctx.runtimeInputs && typeof ctx.runtimeInputs === 'object' ? ctx.runtimeInputs : {}),
+    // ⭐⭐ U15 — the document's library pins
+    ...libraryBuildOpts(def && def.meta && def.meta.libraries),
     // `[]` = the caller owns the drawing: `line.new` & co. are skipped, not
     // refused. The document's object program (the host lane's) draws them.
     ...(ownObjects ? { objectsInRun: true } : { objectTrees: [] }),
@@ -1346,8 +1300,6 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     // front end too, so a `?:` folded into a pure column reads an `na` test as
     // the VM does (`pineRuntimeFrontend.js::columnInterpretOpts`).
     ...(ctx && ctx.historyFromListing === true ? { historyFromListing: true } : {}),
-    // ⭐ WS-E — the calc_bars window's `bar_index` probe (measurement only)
-    ...(Number.isInteger(opts.barIndexShift) && opts.barIndexShift !== 0 ? { barIndexShift: opts.barIndexShift } : {}),
   }))
   if (!built.ok) {
     const r = built.refusal || {}
@@ -1393,11 +1345,21 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // ⭐⭐ RS RATING L5 — THE REQUESTED BARS, per site (`requestSupply.js`). A refusal names its
   // reason; a symbol still loading holds the run (no columns, nothing said, as the host lane
   // says nothing about a read still waiting); the newest bar alone withheld is withheld below.
-  const reqSupply = requestSites.length ? runtimeRequestSupply(program.requests, rows, ctx) : null
+  // ⭐ REQ — inside the off-listing warm-up runs (`computeOffListing`, `warmupCurtain: false`) the partial
+  // first period of a look-ahead read is the curtain's to judge: the two runs agree only where it no longer
+  // reaches, and every bar before that is withheld by the curtain (`requestSupply.js`, `curtained`).
+  const reqSupply = requestSites.length
+    ? runtimeRequestSupply(program.requests, rows, opts && opts.warmupCurtain === false ? { ...ctx, curtained: true } : ctx)
+    : null
   if (reqSupply && reqSupply.refusal) throw refusal(reqSupply.refusal.guard, reqSupply.refusal.message)
   if (reqSupply && reqSupply.pending) {
-    throw refusal('runtime:request', "this script reads another symbol whose bars are still loading; it is "
+    // PENDING, NOT REFUSED (2026-11-16): the guard is unchanged, and the error says the wait is
+    // a wait (`pending`), so a reader that words a refusal does not word this one as final
+    // (`nativeRegistry.js::withRunHalf` holds the run half instead of naming a cause).
+    const waiting = refusal('runtime:request', "this script reads another symbol whose bars are still loading; it is "
       + 'drawn once they arrive')
+    waiting.pending = true
+    throw waiting
   }
   const build = reused ? prevSession.build : (recorder ? recorder.done(built.ir) : null)
   // ⛔ RS RATING L5 — a run that reads requested bars never resumes from a checkpoint: the
@@ -1426,6 +1388,17 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     series[0][i] = b.o; series[1][i] = b.h; series[2][i] = b.l; series[3][i] = b.c; series[4][i] = b.v
     barTimes[i] = b.t
   }
+  // ⭐⭐ (2026-11-17, strategy-epoch-bar-times) — A BROKER RUN READS A BAR'S TIME AS `time` DOES. The product keys a
+  // D / W / M bar by its ISO DATE (`/api/bars` `t: 'YYYY-MM-DD'`) and an intraday bar by its unix seconds; `time` reads
+  // either as the instant the bar opened (`indicators.js::barOpenInstants`, the clock columns' own gate). A broker run
+  // is handed THOSE instants, so its clock reads, its fills, its trades' and orders' times and its record's window
+  // (below) are the times an epoch-second run records for the same bars, and `strategy.closedtrades.entry_time` is
+  // `time` of the fill bar. A series the gate cannot read is `na` on every bar, as `time` is there: never a key in
+  // disguise. ⚰️ The broker was handed the keys: on a daily chart every trade time was a date string, the report
+  // refused whole (`runtime:strategy-report-record`) and every trade-time read refused by name.
+  // ⛔ A run WITHOUT a broker keeps the keys it always had: changing what every other script's run reads is a wider
+  // engine change, not this one.
+  const runTimes = runProgram.broker ? brokerBarTimes(rows, tf) : barTimes
   // ⭐⭐ P3 WS-F — `varip` and `barstate.isnew`: the realtime ledger of this chart's run
   const realtime = sessionKey ? realtimeRun(def, ctx, opts.sessionRole || 'run', built.ir, compute.source,
     rows, forming, lastConfirmed) : null
@@ -1450,7 +1423,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       // Only a bar KNOWN to have finished is confirmed; unknown fails closed the
       // way `interpret` does for the four realtime clock columns.
       confirmed: forming === false,
-      barTimes,
+      barTimes: runTimes,
       // ⭐⭐ RS RATING L5 — the requested bars and, per chart bar, which one is read
       ...(reqSupply ? { requestSupply: reqSupply.supply } : {}),
       // ⭐⭐ W9-T11 — the window the VM checks a broker run against (`vm.js`, [3.4]): the
@@ -1571,7 +1544,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   if (realtime) Object.defineProperty(out, RUNTIME_REALTIME_KEY, { enumerable: false, configurable: true, value: realtime.info })
   // ⭐⭐ W9-T11 — THE RUN'S `strategy` RECORD (design 3.2), plain data beside the columns
   if (res.broker) {
-    withStrategyRecord(out, strategyRecordOf({ summary: res.broker, decl: runProgram.broker, barTimes,
+    withStrategyRecord(out, strategyRecordOf({ summary: res.broker, decl: runProgram.broker, barTimes: runTimes,
       historyWindowBars: ctx && ctx.historyWindowBars, confirmed: forming === false }))
   }
   // ⭐⭐ RT5 — THE DRAWINGS THIS SAME RUN MADE, as plain data (structured-clone
@@ -1586,6 +1559,16 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     withRuntimeObjects(out, held || { ...fin, pineVersion: Number.isFinite(program.version) ? program.version : null })
   }
   return out
+}
+
+/** ⭐⭐ (2026-11-17) — THE BAR TIMES A BROKER RUN IS HANDED: each bar's opening instant in unix seconds, from the ONE
+ *  gate `time` reads (`indicators.js::barOpenInstants`), or `NaN` on every bar when that gate reads the series as
+ *  having none (one unreadable bar blanks `time` on every bar, and so here). A plain array: the VM's clock, the
+ *  broker (`broker.js` `timeOf` / `barTimeMs`) and the record (`strategyRecord.js` `timeAt`) index it. */
+export function brokerBarTimes(rows, tf) {
+  const opens = barOpenInstants(rows, tf)
+  const n = Array.isArray(rows) ? rows.length : 0
+  return opens ? Array.from(opens) : new Array(n).fill(NaN)
 }
 
 /** ⭐ RS RATING L5 — where a run's newest-bar request withholding rides (non-enumerable). */
@@ -1811,6 +1794,8 @@ export function runtimeObjectValues(rt, bars, ctx = {}) {
       built = withTranslateClock(ctx.now, () => buildRuntimeIr(String(rt.source), {
         bars: rows,
         inputs: {},
+        // ⭐⭐ U15 — the run half's library pins (stamped by the member door beside its source)
+        ...libraryBuildOpts(rt && rt.libraryPins),
         objectTrees: [],
         objectTreesAt: at,
         pane: true,

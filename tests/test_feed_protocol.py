@@ -952,6 +952,10 @@ FEED_PROTOCOL_IMPORTERS = frozenset({
     "api/stream_ingest_main.py",
     "api/services/ingest_feed_server.py",
     "api/services/ingest_runtime.py",        # PR4b: the ingest data plane
+    "api/services/ingest_side_feeds.py",     # PR4c: NH/NL, volume, T&S
+    "api/services/feed_client.py",           # PR5a: web feed client (remote mode)
+    "api/services/remote_broadcaster.py",    # PR5a: web mirror + relay (remote mode)
+    "api/services/remote_side_feeds.py",     # PR5b: NH/NL, volume, T&S in remote mode
 })
 
 

@@ -52,6 +52,7 @@ DECLARED_READS = {
     "app/src/components/chart/engine/ast/conceptVocabulary.json": "api/services/concept_vocabulary.py",
     "app/src/components/chart/engine/ast/symbolScope.json": "api/services/ast_bind.py",
     "app/src/components/chart/builder/authoring/preflightRules.json": "api/services/conversation_preflight.py",
+    "app/src/components/chart/builder/authoring/colourWords.json": "api/services/definition_conversation.py",
     "app/src/components/chart/builder/authoring/crossContext.json": "api/services/conversation_preflight.py, definition_conversation.py",
     "app/src/components/chart/builder/authoring/patchSchema.json": "api/services/definition_conversation.py",
     "app/src/constants/setupGroups.js": "api/services/concept_vocabulary.py: firm setup names",
@@ -62,9 +63,11 @@ DECLARED_READS = {
     "app/src/components/chart/engine/runtime/runtimeRepaint.json": "api/services/runtime_repaint.py",
     "app/src/components/chart/engine/runtime/ir.js": "api/services/pine_runtime_client.py: engine identity",
     "app/src/components/chart/engine/ast/pineRuntimeFrontend.js": "api/services/pine_runtime_client.py: engine identity",
+    "app/src/components/chart/engine/ast/pineLibraryDeny.json": "api/services/pine_library_store.py: the library deny list (unreadable = every library denied)",
     "app/src/components/chart/supportLoop/pineBuiltins.json": "api/services/indicator_support.py",
     "app/src/components/chart/supportLoop/doorNameCoverage.json": "api/services/indicator_support_loop.py",
     "app/src/components/chart/engine/scriptEngineVersion.js": "api/services/user_definitions.py: SCRIPT_ENGINE_VERSION",
+    "app/src/components/chart/engine/hostKnownDivergence.json": "api/services/host_known_divergence.py: the host lane's known-divergence list (save, served rows, server lanes)",
 }
 
 #: JavaScript `web` runs under node. Each entry is needed together with everything it imports.

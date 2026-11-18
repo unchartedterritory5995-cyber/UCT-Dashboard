@@ -27,7 +27,7 @@
 
 import { pinned } from './brokerPins.js'
 import { ruleCapture, UNPINNED_GUARD, COMMISSION_NET_VALUES, commissionRulesOf, RISK_RULES, BROKER_UNSETTLED_GUARD } from './brokerRules.js'
-import { exitIdOf, exitLabelUnstated, EXIT_LABEL_ROW } from './strategyRecord.js'
+import { exitIdOf, witnessedExitIdOf, EXIT_LABEL_ROW } from './strategyRecord.js'
 
 // declared in brokerRules.js (one authority); re-exported here under its old name for every importer
 export { BROKER_UNSETTLED_GUARD }
@@ -37,15 +37,20 @@ export { UNPINNED_GUARD }
 /** A stop of the run at a rule the spec does not settle. `probe` names the queue
  *  item that would settle it. */
 export class BrokerRefusal extends Error {
-  constructor(message, probe) {
+  /** `setting` (ruling D12): the refusal is about a SETTING the run would have to assume (its name), not about
+   *  a fill or a value. A capture our run refuses this way is an expected refusal: it exercised nothing. */
+  constructor(message, probe, setting) {
     // ⭐ W9-T7: a W9 capture row is queued in the W9 design (5.2), not in S1's queue
     const where = /^W9-[A-Z]{1,2}\d/.test(String(probe || '')) ? 'docs/pine/W9-STRATEGY-DESIGN.md 5.2' : 'docs/pine/capture-queue-2026-10-05-s1.md'
     super(`${message}${probe ? ` (unsettled: ${probe}, ${where})` : ''}`)
     this.name = 'BrokerRefusal'
     this.guard = BROKER_UNSETTLED_GUARD
     this.probe = probe || null
+    this.setting = typeof setting === 'string' && setting ? setting : null
   }
 }
+/** Ruling D12 (2026-11-16): the setting a Pine v4 strategy leaves to its default and no source settles. */
+export const V4_MARGIN_DEFAULT_SETTING = 'v4-margin-default'
 
 /** ⭐⭐ W9-T1 — a run REACHED an emulator rule that no MATCHing capture pins. Names the rule and
  *  the capture row that would pin it (`brokerRules.js`). Never a silent value. */
@@ -117,6 +122,12 @@ export const BROKER_OPS = Object.freeze({
   // ⭐ W9-T5: the fees a trade paid (R6: "the sum of entry and exit fees paid in the ... trade")
   'strategy.closedtrades.commission': { params: ['trade_num'], returns: 'number' },
   'strategy.opentrades.commission': { params: ['trade_num'], returns: 'number' },
+  // ⭐ value read-backs: the UNIX time, in milliseconds, of the bar a trade's entry / exit filled on
+  // (R6 `strategy.closedtrades.entry_time`: "Returns the UNIX time of the closed trade's entry, expressed in
+  // milliseconds"; that it is the fill BAR's `time` is what the std set's S10 / S11 plots witness)
+  'strategy.opentrades.entry_time': { params: ['trade_num'], returns: 'number' },
+  'strategy.closedtrades.entry_time': { params: ['trade_num'], returns: 'number' },
+  'strategy.closedtrades.exit_time': { params: ['trade_num'], returns: 'number' },
   // ⭐⭐ W9-T7-F1 — a trade's order ids and comments, read off the ORDER LOG (the one authority the record's
   // `orders` and `trades.exitId` are built from). TEXT values (`returns: 'string'`, as a drawing op's text).
   'strategy.opentrades.entry_id': { params: ['trade_num'], returns: 'string' },
@@ -169,13 +180,40 @@ export function makeBroker(cfg, data) {
   // undefined when no witnessed source states it (W9-T4-F1: `runtimeColumns.js` derives it from
   // `symbolScope.json::min_contract`, which serves no row until a capture lands one)
   const minContract = data.minContract
-  const okRules = new Set()
+  /** the bar the broker is working on (a command's bar, or the bar whose fills are being walked); -1 before the first */
+  let nowBar = -1
+  /** rule -> the bar the run FIRST asked it on (-1: before the first bar). Ruling D11 reads it: a capture that
+   *  DIVERGEs at an event names as its culprit set the rules first exercised on that event's bar. */
+  const okRules = new Map()
   const rule = (id) => {
     if (okRules.has(id)) return
     if (!isPinned(id)) throw new BrokerUnpinned(id)
-    okRules.add(id)
+    okRules.set(id, nowBar)
   }
   const defaulted = cfg.defaulted || {}
+  // ⭐⭐ RULING D12 (coordinator, owner-delegated, 2026-11-16) — THE PINE v4 MARGIN DEFAULT IS NOT SETTLED. The v4
+  // reference reads `margin_long` / `margin_short` 100 (`ast/strategyBroker.js` DECLARATION_DEFAULTS), and
+  // TradingView read 0 back on both v4 captures of 2026-11-15 (w9-q-s1a-size-v4, w9-q-s1b-defaults-v4: one
+  // declaration shape, `strategy(title, overlay)`, so witnessed for that shape only). A run that would have to
+  // assume it is not the run TradingView made: it stops here, at bind, by name, before any rule is asked. The
+  // default is NOT changed to 0 on that evidence. A v4 script that states both margins is unaffected.
+  // ⭐⭐ RULING D12b (2026-11-17) — the capture wins where it witnesses the RUN: for EXACTLY the declaration shape both
+  // v4 captures have, `strategy(title, overlay)`, the margins are the 0 TradingView read back (`ast/strategyBroker.js`
+  // sets them, `v4MarginReadBack`), served behind B-V4-MARGIN0; both captures grade MATCH at it. Every other v4 shape
+  // that states no margin still stops here, as D12 rules.
+  if (cfg.version === 4 && defaulted.margin === true) {
+    if (cfg.v4MarginReadBack !== true) {
+      throw new BrokerRefusal('this Pine v4 strategy states no `margin_long` / `margin_short`, and the v4 default is not '
+        + 'settled for its declaration: the v4 reference reads 100, and TradingView read 0 back only for a declaration of '
+        + 'exactly a title and `overlay` (the two v4 captures taken); state both margins in strategy() to run it', 'Q-S1b',
+      V4_MARGIN_DEFAULT_SETTING)
+    }
+    rule('B-V4-MARGIN0')
+  }
+  // ⭐⭐ (2026-11-17) [B-V3] a Pine v2 / v3 strategy runs on what the two committed v2 / v3 report captures witness:
+  // their order calls (`ast/strategyBroker.js` V3_SIGNATURES) and the Properties TradingView read back for them (fixed 1,
+  // capital 100,000, pyramiding 1, no cost, NO margin input). Asked once, before the first bar: it is the whole run's model.
+  if (cfg.version === 2 || cfg.version === 3) rule('B-V3')
   const maxEntries = Math.max(1, Math.floor(Number(cfg.pyramiding) || 0)) // [B-PYR]
   // ⭐⭐ W9-T6 — FILL TIMING, read from the declaration (`ast/strategyBroker.js`). Each setting off its
   // default asks its own rule when a run REACHES it, so a run that never does is unchanged.
@@ -257,8 +295,6 @@ export function makeBroker(cfg, data) {
    * the rows' `opened` / `closed` lists from them.
    */
   const log = []
-  /** the bar the broker is working on (a command's bar, or the bar whose fills are being walked) */
-  let nowBar = -1
   /** the row whose fill is closing trades right now (`closeTrade` / `closePart` stamp it as `xid`) */
   let closingRow = null
   /** A label as the log keeps it: `undefined` (not passed) and '' are no comment; a text is kept; anything
@@ -333,6 +369,49 @@ export function makeBroker(cfg, data) {
     needSymbol()
     const k = p / mintick
     return Math.abs(k - Math.round(k)) < 1e-6
+  }
+  /** ⭐⭐ [B-ROUND] / [B-ROUND-MARK] the nearest tick, a tie UP (Pine's own `math.round_to_mintick`), written at
+   *  the tick's own decimals. The tick is the run's `syminfo.mintick` (`#symbol`); a run that was not told it
+   *  refuses by name (`needSymbol`, through `onTick`), it is never guessed. `1e-6` of a tick is `onTick`'s own
+   *  tolerance, so a price a float puts a hair under a half tick is the tie it was written as. */
+  const roundToTick = (p) => Number((Math.floor(p / mintick + 0.5 + 1e-6) * mintick).toFixed(tickDecimals(mintick)))
+  /**
+   * ⭐⭐ [B-ROUND] THE PRICE A FILL ON A BAR'S OPEN TAKES when that open is off the tick grid.
+   *
+   * WITNESSED, never read from a text (the reference and the manual say nothing): across the 33 committed strategy
+   * captures (`tests/fixtures/vendor/harness/*-2026-11-15.json`), 96 of TradingView's reported fills sit on a bar
+   * whose OPEN is off the tick grid, on 18 distinct bars of 23 captures, and every one is that open rounded to the
+   * nearest tick, a tie up (ties all up, below a half tick all down, above all up; buys and sells; no
+   * counterexample, and no reported fill is off the grid). 93 are MARKET fills (entries, `strategy.order`,
+   * `strategy.close`, `strategy.close_all`) and 3 are STOP fills of an exit the open reached. The table, by
+   * capture: `docs/pine/evidence/2026-11-15-strategy-readbacks/EVIDENCE.md`; the rail that re-derives it from the
+   * captures alone: `strategyReadbackWitness.test.js`.
+   *
+   * ⛔ ONLY THE WITNESSED KINDS. A LIMIT order (an entry, a take-profit) the open gapped through, a trailing stop,
+   * a trailing activation, a stop-limit's trigger, and ANY fill on another tick of the bar (the close under
+   * process_orders_on_close, a path vertex under calc_on_order_fills) at an off-grid price stop the run by name
+   * (Q-S1l): no capture shows what TradingView does there, and it never reports an off-grid fill.
+   */
+  const roundedOpenFill = (px, mode, markets, gaps) => {
+    if (onTick(px)) return px
+    if (mode !== 'open') {
+      throw new BrokerRefusal(`an order fills on ${mode === 'poc' ? "the bar's closing tick" : 'a tick inside the bar'} at `
+        + `${px}, off the tick grid of ${mintick}, and TradingView's rounding of a fill is witnessed only on a bar's open`, 'Q-S1l')
+    }
+    const unwitnessed = (what) => {
+      throw new BrokerRefusal(`${what} fills on a bar's open of ${px}, off the tick grid of ${mintick}, and TradingView's `
+        + 'rounding there is witnessed only for a market order and for a stop order the open reached', 'Q-S1l')
+    }
+    for (const m of markets) if (m.immediate && m.type !== 'stop') unwitnessed(`the ${m.type} entry \`${m.id}\``)
+    for (const g of gaps) {
+      if (g.kind === 'entry' && g.o.type === 'stop') continue
+      if (g.kind === 'exit' && g.leg === 'sl') continue
+      unwitnessed(g.kind === 'entry' ? `the ${g.o.type} entry \`${g.o.id}\``
+        : g.kind === 'exit' ? `the ${g.leg === 'tp' ? 'take-profit' : 'trailing stop'} of exit \`${g.x.id}\``
+          : g.kind === 'trigger' ? `the stop-limit \`${g.o.id}\`'s trigger` : `the trailing activation of exit \`${g.x.id}\``)
+    }
+    rule('B-ROUND')
+    return roundToTick(px)
   }
 
   // ─── W9-T5: costs ─────────────────────────────────────────────────────────
@@ -485,11 +564,34 @@ export function makeBroker(cfg, data) {
     // with a `from_entry` lives while it still has a trade or an unfilled entry to exit.
     // (W9-T7-F1: an exit dropped here has no live bracket left: every trade it was bound to was closed, and
     // `closeTrade` ended that bracket's row, or it filled)
-    if (open.length === 0) exits = exits.filter((x) => !x.all && (x.trades.size > 0 || x.orders.size > 0))
-    else exits = exits.filter((x) => x.all || x.trades.size > 0 || x.orders.size > 0)
+    // (`x.awaits`: an exit still waiting for the id of a cancelled `strategy.order`, [B-CANCEL] W9-X5 (b))
+    if (open.length === 0) exits = exits.filter((x) => !x.all && (x.trades.size > 0 || x.orders.size > 0 || x.awaits === true))
+    else exits = exits.filter((x) => x.all || x.trades.size > 0 || x.orders.size > 0 || x.awaits === true)
   }
-  const marginCheck = (price) => {
+  /** `why` (B-MARGIN-CALL): why this position is not the shape whose margin call is witnessed, named in the stop */
+  const marginCheck = (price, why) => {
     if (open.length === 0) return
+    // ⭐⭐ [B-V3] Pine v2 / v3 read back NO margin setting, so whether TradingView limits a position by its funds there
+    // is not witnessed. Served only where it cannot matter: the position fits the equity (as at a margin of 100,
+    // and so at any margin); otherwise the run stops by name (W9-G1).
+    if (cfg.marginUnread === true) {
+      rule('B-MARGIN')
+      askCommission()
+      needSymbol()
+      let net = 0
+      for (const t of closed) net += t.profit
+      let openPl = 0
+      let size = 0
+      for (const t of open) { openPl += (price - t.price) * t.dir * t.qty; size += t.qty }
+      const equity = costOn ? cfg.initialCapital + moneyOfClosed() + openPl * pointvalue - openFees()
+        : cfg.initialCapital + (net + openPl) * pointvalue
+      if (!finite(cfg.initialCapital)) throw new BrokerRefusal('the initial capital this strategy runs with is not settled')
+      if (equity - size * price * pointvalue < 0) {
+        throw new BrokerRefusal('this Pine v2 / v3 position is worth more than the equity, and these versions read back no '
+          + 'margin setting, so whether TradingView margin-calls or refuses it is not witnessed', 'W9-G1')
+      }
+      return
+    }
     rule('B-MARGIN')
     if (defaulted.margin) rule('B-DEFAULTS')
     // ⭐ W9-T13a N7 — the check below reads EQUITY, which is net of every closed trade's commission, so
@@ -511,12 +613,162 @@ export function makeBroker(cfg, data) {
     const equity = costOn ? cfg.initialCapital + moneyOfClosed() + openPl * pointvalue - openFees()
       : cfg.initialCapital + (net + openPl) * pointvalue
     const mvs = size * price * pointvalue
-    // [B-MARGIN] Available Funds = Equity - MVS * Margin Ratio; below zero the emulator
-    // liquidates (a margin call) or refuses funds - neither is modelled here.
+    // [B-MARGIN] Available Funds = Equity - MVS * Margin Ratio; below zero the emulator liquidates (a margin call)
+    // or refuses funds. Served only on the witnessed shapes ([B-MARGIN-CALL] `marginTick`, [B-FUNDS] /
+    // [B-FUNDS-SHORT] `fundsShort`); here, every other shape stops by name.
     if (equity - mvs * ratio < 0) {
       throw new BrokerRefusal('the position would need more funds than the strategy holds (a margin call or a '
-        + 'rejected order in TradingView)', 'Q-S1i')
+        + `rejected order in TradingView${why ? `; a margin call is witnessed only on one short trade at margin 100, not ${why}` : ''})`, 'Q-S1i')
     }
+  }
+  /** ⭐⭐ Q-S1i [B-FUNDS] / [B-FUNDS-SHORT] the shape the two report captures witness: a market `strategy.entry`
+   *  sized by the percent-of-equity default at 100, at a margin of 100% for its direction, with no commission and
+   *  no slippage (the caller adds: no position before it, and not a reversal). LONG: w9-q-s1a-size-v6 (B-FUNDS).
+   *  SHORT: w9-q-s1i-short-v6 (B-FUNDS-SHORT, 2026-11-17): of its 20 crossunder entries TradingView lists exactly
+   *  the 9 whose qty x fill open <= equity; the 11 others (sized on the signal close, filled at a higher open) are
+   *  absent from its 23 trades and 32 fills, and none of them fills at the open and is margin-called there. */
+  const fundsRejectShape = (o) => o.kind === 'entry' && o.type === 'market' && o.byDefault === true
+    && defaultQtyType() === 'percent_of_equity' && cfg.qtyValue === 100
+    && (o.dir > 0 ? cfg.marginLong === 100 : cfg.marginShort === 100)
+    && !costOn && !slipTicks
+  /** ⭐⭐ Q-S1i [B-FUNDS] / [B-FUNDS-SHORT] with no position open: does `o` at `price` need more than the equity?
+   *  (Margin 100%: the position's whole value; `marginCheck`'s Available Funds with no open trade.) Stamps the
+   *  rules only when it rejects; an entry within the funds is checked after its fill by `marginCheck`, as before. */
+  const fundsShort = (o, price) => {
+    needSymbol()
+    let net = 0
+    for (const t of closed) net += t.profit
+    const equity = cfg.initialCapital + net * pointvalue
+    if (!(finite(equity) && equity - o.qty * price * pointvalue < 0)) return false
+    rule(o.dir > 0 ? 'B-FUNDS' : 'B-FUNDS-SHORT')
+    rule('B-MARGIN')
+    if (defaulted.margin) rule('B-DEFAULTS')
+    return true
+  }
+
+  // ─── ⭐⭐ Q-S1i [B-MARGIN-CALL]: TradingView's margin call, on the shape a capture witnesses ───────────────
+  /**
+   * The User Manual ("Strategies" page, section "Margin and leverage", fetched 2026-11-17) states the event and
+   * its size VERBATIM: "the broker emulator generates margin call events if a strategy's available funds fall below
+   * the required margin percentage. Each time that a margin call event occurs, the emulator immediately liquidates
+   * four times the number of contracts/shares/lots/units required to cover the loss". The algorithm, its steps:
+   *   Money Spent = Quantity * Entry Price;  MVS = Position Size * Current Price;
+   *   Open Profit = MVS - Money Spent (x -1 for a short);  Equity = Initial Capital + Net Profit + Open Profit;
+   *   Margin Ratio = Margin Percent / 100;  Margin = MVS * Margin Ratio;  Available Funds = Equity - Margin;
+   *   Loss = Available Funds / Margin Ratio;  Cover Amount = TRUNCATE(Loss / Current Price), "truncated to the same
+   *   decimal precision as the minimum position size";  Margin Call Size = Cover Amount * 4.
+   * And: "short trades in a strategy that uses any nonzero margin are subject to forced liquidation from margin call
+   * events, even if the margin_short argument is 100".
+   *
+   * What the manual does NOT state, and the capture w9-q-s1i-short-v6-rddt-1d-2026-11-16 (NYSE:RDDT 1D, report ok,
+   * the v6 default of 100% of equity at margin 100, held SHORT) WITNESSES, all 13 of its margin calls bar for bar,
+   * share for share and cent for cent (docs/pine/evidence/2026-11-17-strategy-margin-call/EVIDENCE.md):
+   *   - "Current Price" is each TICK of the bar's simulated path, in order ([B-PATH]): the open after its fills,
+   *     then the near extreme, the far extreme and the close; never a price between ticks (bar 84: liquidated at its
+   *     high 71.41, not where Available Funds crossed zero near 67.98). One bar can hold two events (bar 297: 60
+   *     units at its open 108.19, then 316 at its high 113.7999);
+   *   - the event FILLS at that tick's price rounded to the nearest tick (113.7999 -> 113.80, 104.9111 -> 104.91,
+   *     106.7068 -> 106.71, 233.7128 -> 233.71, 144.5499 -> 144.55), as a buy that closes part of the trade
+   *     (oldest trade, the trade keeps its entry); TradingView lists it as an order with no entry / exit command
+   *     (`e: null`), its trade's exit comment `Margin call` and exit id `Close position order` (the std set's
+   *     labels: `S>Close position order:Margin call`).
+   * ⛔ ONLY THAT SHAPE IS SERVED (`marginCallUnwitnessed`): one open SHORT trade at margin_short 100, no
+   * commission, no slippage, the default fill timing, no risk command, no exit bound to the trade, a whole-unit
+   * symbol at point value 1. Anything else past the funds still stops by name at the margin check (Q-S1i), as do:
+   * a cover that truncates to 0, a tick that is an exact half-tick, a size that differs between the tick's price and
+   * its rounded fill, and an order filling on the same tick as a due margin call. A size ABOVE the trade closes the
+   * whole trade ([B-MARGIN-CALL-ALL], w9-q-s1b-defaults-v6, 2026-11-17).
+   */
+  const MARGIN_CALL_COMMENT = 'Margin call'
+  /** why the open position is NOT the shape w9-q-s1i-short-v6 witnesses; null when it is */
+  const marginCallUnwitnessed = () => {
+    if (!(open.length === 1 && open[0].dir < 0)) return open.length > 1 ? 'more than one open trade' : 'a long position'
+    if (cfg.marginShort !== 100) return `a margin_short of ${cfg.marginShort} (witnessed at 100 only)`
+    if (costOn || slipTicks) return costOn ? 'a commission' : 'a slippage'
+    if (poc || coof) return poc ? 'process_orders_on_close' : 'calc_on_order_fills'
+    if (riskOn) return 'a strategy.risk.* command'
+    const t = open[0]
+    if (exits.some((x) => x.trades.has(t) || x.maybe.has(t))) return 'an exit bound to the trade'
+    if (minContract !== 1) return `a minimum contract of ${minContract === undefined ? 'unknown' : minContract} (witnessed at 1)`
+    if (pointvalue !== 1) return `a point value of ${pointvalue} (witnessed at 1)`
+    return null
+  }
+  /** The manual's algorithm for the one open short trade at `px`: `{ due, units, whole }`. `due`: Available Funds
+   *  below zero; `units`: Cover Amount x 4 (a positive count); `whole`: Loss / Current Price sits on a whole number,
+   *  where TRUNCATE depends on the last bit of a double. Pure: asks nothing, throws nothing. */
+  const marginCallOf = (px) => {
+    const t = open[0]
+    let net = 0
+    for (const c of closed) net += c.profit
+    const mvs = t.qty * px
+    const openProfit = -(mvs - t.qty * t.price)
+    const equity = cfg.initialCapital + net + openProfit
+    const ratio = cfg.marginShort / 100
+    const avail = equity - mvs * ratio
+    if (!(avail < 0)) return { due: false, units: 0, whole: false }
+    const k = (avail / ratio) / px
+    return { due: true, units: Math.abs(Math.trunc(k)) * 4, whole: Math.abs(k - Math.round(k)) < 1e-9 }
+  }
+  /** the open position is the witnessed shape, so its margin check is TradingView's margin call */
+  const marginCallServes = () => open.length > 0 && marginCallUnwitnessed() === null
+  /** is a margin call due at `px` on the position as it stands (pure: nothing asked, nothing thrown)? */
+  const marginCallDueAt = (px) => {
+    if (!marginCallServes() || !finite(mintick) || !finite(px)) return false
+    const k = px / mintick
+    return marginCallOf(px).due || (Math.abs(k - Math.round(k)) >= 1e-6 && marginCallOf(roundToTick(px)).due)
+  }
+  /** an order filled on this tick and a margin call is due on it: which comes first is not witnessed */
+  const marginCallBesideFill = (px) => {
+    throw new BrokerRefusal(`a margin call is due at ${px} on the same tick as an order's fill, and which of the two `
+      + 'TradingView makes first is not witnessed', 'Q-S1i')
+  }
+  /** ⭐⭐ [B-MARGIN] / [B-MARGIN-CALL] the margin check on ONE TICK of bar `bar` (its open after the open's fills,
+   *  then each path vertex). `besideFill`: an order filled on this very tick. The witnessed shape takes TradingView's
+   *  margin call; every other open position takes the check it always had (`marginCheck`: below zero, Q-S1i). */
+  const marginTick = (px, bar, besideFill) => {
+    if (!open.length) return
+    const why = marginCallUnwitnessed()
+    if (why !== null) { marginCheck(px, why); return }
+    // what `marginCheck` asks, in the order it asks it (the rules a short that is never called rests on)
+    rule('B-MARGIN')
+    if (defaulted.margin) rule('B-DEFAULTS')
+    askCommission()
+    needSymbol()
+    const fill = onTick(px) ? px : roundToTick(px)
+    const atPx = marginCallOf(px)
+    const atFill = fill === px ? atPx : marginCallOf(fill)
+    if (!atPx.due && !atFill.due) return
+    if (atPx.due !== atFill.due || atPx.units !== atFill.units) {
+      throw new BrokerRefusal(`a margin call at ${px} liquidates ${atPx.units} units at the bar's price and ${atFill.units} at `
+        + `its fill's tick ${fill}, and which of the two TradingView computes with is not witnessed`, 'Q-S1i')
+    }
+    if (besideFill) marginCallBesideFill(px)
+    const t = open[0]
+    if (!onTick(px) && Math.abs(Math.abs(px / mintick - Math.trunc(px / mintick)) - 0.5) < 1e-6) {
+      throw new BrokerRefusal(`a margin call is due at ${px}, exactly half a tick off the grid of ${mintick}, and which way `
+        + 'TradingView rounds a margin call\'s fill there is not witnessed', 'Q-S1i')
+    }
+    if (atPx.whole || atPx.units === 0) {
+      throw new BrokerRefusal(atPx.units === 0 ? `a margin call is due at ${px} and the loss covers less than one unit, so `
+        + 'the manual\'s size is 0, and what TradingView does then is not witnessed'
+        : `a margin call's Loss / Current Price at ${px} sits on a whole number, where its truncation turns on `
+          + 'floating-point rounding', 'Q-S1i')
+    }
+    rule('B-MARGIN-CALL')
+    // ⭐⭐ [B-MARGIN-CALL-ALL] (2026-11-17) a size above the trade closes the WHOLE trade. Witnessed by
+    // w9-q-s1b-defaults-v6, bar 154: the manual's size at its open 104.90 is 1,540 of a short of 1,306, and TradingView
+    // lists one margin call of 1,306 at 104.90 (the trade's remainder), nothing more.
+    let units = atPx.units
+    if (units > t.qty) { rule('B-MARGIN-CALL-ALL'); units = t.qty }
+    const row = logRow({ kind: 'margin_call', id: null, side: 'buy', qty: units, qtyPercent: null, type: 'market',
+      limit: null, stop: null, from: null, oca: null, comment: MARGIN_CALL_COMMENT, commentRecorded: true })
+    const keep = fillRule
+    fillRule = 'B-MARGIN-CALL'
+    orderFees = 0
+    logFill(row, bar, fill, units)
+    closingWith(row, () => closePart(t, units, fill, bar, true))
+    fillRule = keep
+    afterPositionChange()
   }
   /** the rule the fill being made rests on - stamped on the trade (the record's `rule`) */
   let fillRule = 'B-FILL'
@@ -599,6 +851,16 @@ export function makeBroker(cfg, data) {
   }
   const fillEntry = (o, price0, bar, exact) => {
     orderFees = 0
+    // a same-side default size taken only at a fill: the pyramiding limit rejects the order without one ([B-PYR]);
+    // any other fill needs it, and which equity sizes it is not stated (Q-S1a)
+    if (o.lazySize && !(o.kind === 'entry' && allow === null && open.length >= maxEntries && open[0].dir === o.dir)) {
+      throw new BrokerRefusal(o.lazySize, 'Q-S1a')
+    }
+    // a reversal's size taken against trades that are no longer open the other way at its fill: not witnessed
+    if (finite(o.sizeEquity) && !(open.length && open.every((t) => t.dir !== o.dir))) {
+      throw new BrokerRefusal(`the entry \`${o.id}\` was sized as a reversal of the open trades, which are not open against it `
+        + 'at its fill, and what TradingView fills then is not witnessed', 'Q-S1a')
+    }
     if (o.kind === 'order') return fillOrder(o, price0, bar, exact)
     // ⭐⭐ W9-T8 [B-RISK-ALLOW] an entry the declared direction may forbid
     if (allow !== null) {
@@ -611,6 +873,21 @@ export function makeBroker(cfg, data) {
     // is known to fill (not at the pyramiding limit), so a dropped entry asks no cost rule.
     let price = price0
     if (open.length && open[0].dir !== o.dir) {
+      // ⭐⭐ Q-S1a [B-FUNDS-REVERSE] (2026-11-17) — a reversal sized as a percent of equity ([B-QTY-REVERSE]) whose NEW
+      // size x fill price exceeds the equity it was sized from (the signal close's) is REJECTED whole: nothing closes,
+      // nothing opens, not kept waiting. Witnessed by w9-q-s1b-defaults-v6: of its 25 reversals the 12 within that
+      // equity are TradingView's, the 13 past it are absent, and 3 of those (bars 52, 65, 632) WOULD fit the equity
+      // at the fill open (the open trade marked there): the check is against the sizing equity, not a re-mark.
+      if (finite(o.sizeEquity) && !costOn && !slipTicks) {
+        needSymbol()
+        if (o.qty * price0 * pointvalue > o.sizeEquity) {
+          rule('B-FUNDS-REVERSE')
+          rule('B-MARGIN')
+          if (defaulted.margin) rule('B-DEFAULTS')
+          endRow(o.row, 'rejected', 'funds')
+          return null
+        }
+      }
       // [B-REVERSE] an entry against the position closes it and opens the new size
       rule('B-REVERSE')
       price = entryFillPx(o, price0)
@@ -621,10 +898,28 @@ export function makeBroker(cfg, data) {
       rule('B-PYR')
       if (defaulted.pyramiding) rule('B-DEFAULTS')
       if (o.type === 'market') { endRow(o.row, 'rejected', 'pyramiding'); return null }
-      throw new BrokerRefusal(`a price entry \`${o.id}\` triggered at the pyramiding limit, and whether it is `
-        + 'cancelled or kept waiting is not stated', 'Q-S1g')
+      // ⭐ Q-S1g [B-PYR-PRICE] — a price entry whose level is reached at the pyramiding limit does not execute
+      // and is NOT kept waiting. Witnessed by VALUES (vw-s1-q-s1g-blocked-stop-entry, NYSE:RDDT 1D, 2026-11-16,
+      // pyramiding 1): `L2`'s stop is reached on bars 53-70 while long and again on every bar from 71 after the
+      // position closes, and `strategy.position_size` stays 0 from bar 71 to the last bar. Its own rule, unpinned
+      // until a capture with the Strategy Tester report grades it MATCH (which also says whether TradingView lists
+      // the order at all): until then the run stops here by name, as before, under the rule that will pin it.
+      rule('B-PYR-PRICE')
+      endRow(o.row, 'rejected', 'pyramiding')
+      return null
     }
     if (!reversed) price = entryFillPx(o, price0)
+    // ⭐⭐ Q-S1i [B-FUNDS] (2026-11-16) — an entry the strategy's funds cannot carry is REJECTED: no trade, no smaller
+    // size, no margin call, and it is not kept waiting. Witnessed by w9-q-s1a-size-v6 (NYSE:RDDT 1D, report ok, the
+    // v6 default of 100% of equity, margin 100%, capital 100,000): of its 20 crossover entries TradingView lists
+    // exactly the 7 whose qty x fill open <= equity, bar for bar and share for share; the 13 others (sized on the
+    // signal close and filled at a higher open, short of the equity by $6.59 to $6,907.05) are absent, and 10 of them
+    // would have filled at a later open had the order been kept. ONLY that shape is served (`fundsRejectShape`): any
+    // other entry past the funds still stops at the margin check below, by name (Q-S1i).
+    if (!reversed && !open.length && fundsRejectShape(o) && fundsShort(o, price)) {
+      endRow(o.row, 'rejected', 'funds')
+      return null
+    }
     if (open.length && maxEntries > 1) { rule('B-PYR'); if (defaulted.pyramiding) rule('B-DEFAULTS') }
     const t = openTrade(o, price, bar, exact, reversed)
     logFill(o.row, bar, price, o.qty)
@@ -912,10 +1207,21 @@ export function makeBroker(cfg, data) {
     const oneCommand = gaps.length > 0 && markets.length + cls.length === 0
       && gaps.every((g) => g.kind === 'exit' && g.x === gaps[0].x)
       && new Set(gaps.map((g) => g.t)).size === gaps.length
-    if (n > 1 && !oneCommand) {
+    // ⭐⭐ Q-S1d [B-ENTRY-ORDER] (2026-11-17) several MARKET `strategy.entry` orders and nothing else on one OPENING
+    // tick are taken in the order the script placed them, each against the position the one before it left; served
+    // only while every one before the last fills nothing. Witnessed by w9-q-s1b-defaults-v6 (`L2`, placed every fourth
+    // bar while long, beside `S` on a crossunder bar and `L1` on a crossover bar): bars 229 and 629, `L2` (placed
+    // first) rejected at the pyramiding limit, then `S` reverses the long (fills of 1,027 and 776); bars 65 and 585,
+    // both rejected; bar 641, `L1` and `L2` both rejected. Had `S` gone first, `L2` would have reversed it back.
+    const entryQueue = mode === 'open' && cls.length === 0 && gaps.length === 0 && markets.length > 1
+      && markets.every((m) => m.kind === 'entry' && m.type === 'market' && !m.immediate)
+    if (n > 1 && !oneCommand && !entryQueue) {
       const where = atClose ? 'closing tick' : mode === 'vertex' ? 'tick' : 'opening tick'
       throw new BrokerRefusal(`${n} orders fill on the same ${where}, and the order TradingView fills them in is not stated`, 'Q-S1d')
     }
+    // ⭐⭐ [B-ROUND] `px` stays the bar's own price (what an order's level is reached against); `fpx` is the
+    // price the fill takes. On the grid the two are one number and nothing is asked.
+    const fpx = roundedOpenFill(px, mode, markets, gaps)
     let fresh = null
     if (cls.length) {
       const cl = cls[0]
@@ -925,7 +1231,24 @@ export function makeBroker(cfg, data) {
       if (atClose) { fillRule = 'B-POC'; rule('B-CLOSE'); rule('B-POC') } else if (mode === 'vertex') {
         fillRule = 'B-FILLS'
       } else { fillRule = 'B-CLOSE'; rule('B-CLOSE'); rule('B-MARKET') }
-      executeClose(cl, px, bar, true)
+      executeClose(cl, fpx, bar, true)
+    } else if (entryQueue) {
+      rule('B-ENTRY-ORDER')
+      fillRule = 'B-MARKET'
+      rule(fillRule)
+      let any = false
+      for (const [k, m] of markets.entries()) {
+        const before = open.length + closed.length
+        const made = fillEntry(m, fpx, bar, true)
+        if (!made && open.length + closed.length === before) continue
+        any = true
+        fresh = made || fresh
+        if (k < markets.length - 1) {
+          throw new BrokerRefusal(`the entry \`${m.id}\` filled on an opening tick where ${markets.length - 1 - k} later entr`
+            + `${markets.length - 1 - k === 1 ? 'y waits' : 'ies wait'}, and what TradingView does with them then is not witnessed`, 'Q-S1d')
+        }
+      }
+      return { filled: any, fresh }
     } else if (markets.length) {
       const m = markets[0]
       if (atClose) fillRule = m.immediate ? 'B-POC-PRICE' : 'B-POC'
@@ -944,12 +1267,12 @@ export function makeBroker(cfg, data) {
       // [B-POC-PYR] a close fill that adds to the open position
       if (atClose && open.length && open[0].dir === m.dir) rule('B-POC-PYR')
       const before = open.length + closed.length
-      fresh = fillEntry(m, px, bar, true)
+      fresh = fillEntry(m, fpx, bar, true)
       if (!fresh && open.length + closed.length === before) return { filled: false, fresh: null }
     } else {
       fillRule = atClose ? 'B-POC-PRICE' : 'B-GAP'
       rule(fillRule)
-      for (const g of gaps) fresh = fire(g, px, bar, true) || fresh
+      for (const g of gaps) fresh = fire(g, fpx, bar, true) || fresh
     }
     return { filled: true, fresh }
   }
@@ -969,8 +1292,15 @@ export function makeBroker(cfg, data) {
       return
     }
     // ── the open tick ([B-MARKET], [B-GAP], [B-IMMEDIATE]) ──
+    // [B-MARGIN-CALL] a margin call due at this open on the position BEFORE the open's fills, beside a fill there:
+    // which TradingView makes first is not witnessed (the capture's open fills all meet no due call)
+    const dueBeforeFills = marginCallDueAt(o)
     const opened = tickFill(o, bar, 'open')
-    marginCheckBar(bar)
+    if (dueBeforeFills && opened.filled) marginCallBesideFill(o)
+    // the witnessed shape takes the margin check on each tick of the path, as TradingView does; every other
+    // position keeps the check it always had, at the bar's worst price after the open's fills
+    if (marginCallServes()) marginTick(o, bar, false)
+    else marginCheckBar(bar)
     checkActivation(o, opened.fresh)
     ratchetTrails(o)
     if (coof && opened.filled) { tickPx = o; yield o; afterExtra(o) }
@@ -992,6 +1322,9 @@ export function makeBroker(cfg, data) {
         throw new BrokerRefusal('the bar opened exactly half-way between its high and low, so the order in which '
           + 'TradingView assumes it reached them is not stated', 'Q-S1c')
       }
+      // [B-MARGIN-CALL] with no order to fill on the path, the order of the two extremes cannot move a short's margin
+      // call: it can fall due only at the high (Available Funds falls as the price rises), so either order gives it
+      for (const v of [h, l, c]) if (marginCallServes()) marginTick(v, bar, false)
       return
     }
     // [B-FILLS] a fill on the CLOSING tick under calc_on_order_fills: whether that is one execution or two is
@@ -1004,6 +1337,8 @@ export function makeBroker(cfg, data) {
     for (let si = 0; si < path.length; si += 1) {
       const target = path[si]
       const last = si === path.length - 1
+      // [B-MARGIN-CALL] an order filled AT this vertex (its level is the vertex's price)
+      let filledAtVertex = false
       for (let guard = 0; guard < 10000; guard += 1) {
         const up = target > p
         const lows = liveOrders().filter((lo) => lo.up === up && (up
@@ -1022,6 +1357,11 @@ export function makeBroker(cfg, data) {
             + 'and the order TradingView fills them in is not stated', 'Q-S1d')
         }
         p = best
+        if (best === target) {
+          // [B-MARGIN-CALL] a call due at this vertex on the position before the fill: the order is not witnessed
+          if (marginCallDueAt(target)) marginCallBesideFill(target)
+          filledAtVertex = true
+        }
         let made = null
         costTick = 'path'
         for (const x of hit) made = fire(x, best, bar, onTick(best)) || made
@@ -1035,6 +1375,8 @@ export function makeBroker(cfg, data) {
       p = target
       riskTick(target) // W9-T8: each vertex the path reaches (the bar's last is its close)
       ratchetTrails(target)
+      // [B-MARGIN-CALL] the margin check on this tick of the path (the witnessed shape only)
+      if (marginCallServes()) marginTick(target, bar, filledAtVertex)
       // [B-FILLS] a market order an extra execution placed fills on the next tick: this vertex
       if (coof && waiting()) {
         const r = tickFill(target, bar, 'vertex')
@@ -1123,7 +1465,8 @@ export function makeBroker(cfg, data) {
   /** [B-MARGIN] the bar's worst price for the position, after its fills. */
   const marginCheckBar = (bar) => {
     if (!open.length) return
-    marginCheck(open[0].dir > 0 ? L[bar] : H[bar])
+    // a short that is not the witnessed shape names why its margin call is not served ([B-MARGIN-CALL])
+    marginCheck(open[0].dir > 0 ? L[bar] : H[bar], open[0].dir < 0 ? marginCallUnwitnessed() : undefined)
   }
 
   // ─── the order commands (called while the script runs on `bar`) ───────────
@@ -1201,14 +1544,21 @@ export function makeBroker(cfg, data) {
     }
     let qty = qtyV
     // [B-QTY] na -> the declaration's default order size (W9-T4: fixed, cash or percent of equity)
-    if (!finite(qty)) qty = defaultSize(type === 'stoplimit' ? 'stop-limit' : type, id, bar)
-    if (!(qty > 0)) throw new BrokerRefusal(`${fn} with a quantity of ${qty}`, 'Q-S1a')
+    const sized = {}
+    if (!finite(qty)) qty = defaultSize(type === 'stoplimit' ? 'stop-limit' : type, id, bar, dir, kind, sized)
+    if (!sized.lazy && !(qty > 0)) throw new BrokerRefusal(`${fn} with a quantity of ${qty}`, 'Q-S1a')
     // [B-IMMEDIATE] a limit at a worse price than the market (or a stop at a better
     // one) fills on the next tick rather than waiting
     const immediate = type === 'limit' ? (dir > 0 ? level >= cl : level <= cl)
       : type === 'stop' ? (dir > 0 ? level <= cl : level >= cl) : false
     const oca = ocaOf(ocaN, ocaT, fn)
-    const o = { id, kind, dir, qty, type, level, limit: type === 'stoplimit' ? limV : NaN, placedBar: bar, immediate, oca }
+    // a same-side size taken only at a fill (`defaultSize`) is never reduced by an OCA group: stopped now, as before
+    if (sized.lazy && oca) throw new BrokerRefusal(sized.lazy, 'Q-S1a')
+    // `byDefault`: the size is the declaration's default order size ([B-QTY], `defaultSize`), read by [B-FUNDS]
+    // `lazySize`: the stop a same-side default size takes if the order fills; `sizeEquity`: the equity a reversal's
+    // size was taken from ([B-QTY-REVERSE], read by [B-FUNDS-REVERSE]), NaN otherwise
+    const o = { id, kind, dir, qty, type, level, limit: type === 'stoplimit' ? limV : NaN, placedBar: bar, immediate, oca,
+      byDefault: !finite(qtyV), lazySize: sized.lazy || null, sizeEquity: finite(sized.sizeEquity) ? sized.sizeEquity : NaN }
     // [B-MODIFY] an unfilled order with the same id is modified, not duplicated
     const prev = entries.find((e) => e.id === id)
     if (prev) {
@@ -1228,6 +1578,16 @@ export function makeBroker(cfg, data) {
     }
     o.row = logRow({ kind, id, ...entryRowOf(o, limV, stpV, cmt) })
     entries.push(o)
+    // ⭐⭐ [B-CANCEL] W9-X5 (b), WITNESSED (w9-x5-cancel-rddt-1d-2026-11-15): an exit command that was waiting on a
+    // `strategy.order` the script cancelled keeps waiting for that id, and binds the `strategy.order` placed again
+    // under it, though the exit is not called again. The capture's first trade: `O` cancelled on bar 21, placed
+    // again on bar 25 (market), filled on bar 26's open at 46.05, and closed on that same bar at 46.55 by `XO`'s
+    // take-profit (label `O>XO:xo`). ⚰️ This broker released the exit at the cancel (a hypothesis the queue row
+    // named as its question (b)); the capture shows it is kept. ⛔ Only the witnessed kind: a cancelled
+    // `strategy.entry` keeps the old behaviour (its exit is released), which no capture contradicts.
+    for (const x of exits) {
+      if (kind === 'order' && x.awaits === true && x.fromEntry === id) { x.orders.add(o); x.awaits = false }
+    }
   }
   /** W9-T7-F1 — what an entry / order row states of order `o` */
   const entryRowOf = (o, limV, stpV, cmt) => {
@@ -1426,7 +1786,11 @@ export function makeBroker(cfg, data) {
     if (when !== undefined) rule('B-WHEN')
     if (!truthy(when)) return
     const id = idText(id0, '`strategy.cancel`')
-    for (const e of entries.filter((o) => o.id === id)) dropEntry(e, 'strategy.cancel')
+    for (const e of entries.filter((o) => o.id === id)) {
+      // [B-CANCEL] W9-X5 (b): an exit waiting on this `strategy.order` keeps waiting for its id (`placeOrder`)
+      if (e.kind === 'order') for (const x of exits) if (x.orders.has(e) && x.fromEntry === id) x.awaits = true
+      dropEntry(e, 'strategy.cancel')
+    }
     for (const x of exits) if (x.id === id) for (const r of x.rows.values()) endRow(r, 'cancelled', 'strategy.cancel')
     exits = exits.filter((x) => x.id !== id)
   }
@@ -1579,14 +1943,44 @@ export function makeBroker(cfg, data) {
   // pre-W9-T5 expression, so its arithmetic (and the bits) cannot move.
   const netOf = (t) => t.profit * pointvalue - t.commission
   const moneyOfClosed = () => sum(closed, netOf)
-  /** HYPOTHESIS (W9-K1..K3 grade it, the std set plots openprofit and equity): an open trade's entry fee is
-   *  PAID (R6 `strategy.opentrades.commission`: "fees paid in the open trade"), so it comes off its open profit
-   *  and off equity; its exit fee is not paid yet and is not counted. */
+  /**
+   * ⭐⭐ value read-backs — WHERE AN OPEN TRADE'S ENTRY FEE GOES, as the W9-K1 / K2 / K3 captures plot it.
+   * The fee is PAID when the entry fills (R6 `strategy.opentrades.commission`: "fees paid in the open trade"), and
+   * TradingView takes it off `strategy.netprofit` on that bar, NOT off `strategy.openprofit`: on every one of the
+   * 372 bars each capture holds a position, the plotted S07_netprofit is the closed trades' net profit minus the
+   * open trade's entry fee (-0.04547 on the first entry bar of W9-K1: 0.1% of 45.47; -1.5 on W9-K2; -5 on W9-K3)
+   * and S09_openprofit is (close - entry price) x size with no fee in it. `strategy.equity` is the same number
+   * either way. ⚰️ W9-T5 took the fee off the open profit (a hypothesis the captures graded, and refuted).
+   * The exit fee is not paid until the exit fills and is counted nowhere before.
+   */
   const openFees = () => sum(open, (t) => t.fee)
+  /** ⛔ `strategy.grossprofit` / `grossloss` while an open trade has paid a fee: the K probes do not plot them, so
+   *  which of the two (if either) the paid entry fee is counted in is not witnessed. Refused by name. */
+  const noOpenFee = (what) => {
+    if (costOn && openFees() > 0) {
+      throw new BrokerRefusal(`${what} is read while an open trade has paid its entry fee, and whether TradingView counts `
+        + 'that fee in it before the trade closes is not witnessed', COMM_ROW[comm.type])
+    }
+  }
   const capital = () => {
     if (!finite(cfg.initialCapital)) throw new BrokerRefusal('the initial capital is not settled', 'Q-S1b')
     if (defaulted.initialCapital) rule('B-DEFAULTS')
     return cfg.initialCapital
+  }
+  /**
+   * ⭐⭐ [B-ROUND-MARK] THE PRICE OPEN TRADES ARE MARKED AT (`strategy.openprofit`, and so `strategy.equity`): the
+   * bar's close, and when that close is off the tick grid, the close rounded to the nearest tick, a tie up.
+   * WITNESSED on `w9-r1-risk-intraday-range-spy-15-2026-11-15` (AMEX:SPY 15m): on all 47 bars where a position is
+   * open and the close is off the grid (24 ties, 10 above a half tick, 13 below), TradingView's plotted
+   * `strategy.openprofit` is (rounded close - `position_avg_price`) x `position_size`, and on none is it the raw
+   * close's (`strategyReadbackWitness.test.js` re-derives it from the capture alone). No RDDT 1D capture holds a
+   * bar with a position and an off-grid close, so on those this asks nothing. A flat run asks nothing either.
+   */
+  const markPx = (bar) => {
+    const c = C[bar]
+    if (!open.length || !finite(c) || onTick(c)) return c
+    rule('B-ROUND-MARK')
+    return roundToTick(c)
   }
   /** [B-VAL] `strategy.equity` at bar `bar`'s close: initial capital + net profit + open profit. */
   const equityAt = (bar, what) => {
@@ -1594,8 +1988,9 @@ export function makeBroker(cfg, data) {
     // not only the `strategy.equity` value) rests on the commission's rules (`commissionRulesOf`)
     askCommission()
     exactOpen(what); exactClosed(what); needSymbol()
-    if (costOn) return capital() + moneyOfClosed() + sum(open, (t) => (C[bar] - t.price) * t.dir * t.qty) * pointvalue - openFees()
-    return capital() + (netPts() + sum(open, (t) => (C[bar] - t.price) * t.dir * t.qty)) * pointvalue
+    const mark = markPx(bar)
+    if (costOn) return capital() + moneyOfClosed() + sum(open, (t) => (mark - t.price) * t.dir * t.qty) * pointvalue - openFees()
+    return capital() + (netPts() + sum(open, (t) => (mark - t.price) * t.dir * t.qty)) * pointvalue
   }
 
   /**
@@ -1621,11 +2016,17 @@ export function makeBroker(cfg, data) {
    *     `symbolScope.json::min_contract` row (W9-T4-F1), so elsewhere this refuses even once B-QTY is pinned.
    * Every case the hypothesis does not reach refuses by name (Q-S1a): a price (limit / stop) order,
    * whose sizing price could be its level or the signal close; a percent order placed while trades are
-   * open ("available" equity may exclude what they hold); a percent value above 100; a size below one
-   * whole unit.
+   * open ("available" equity may exclude what they hold) EXCEPT the reversal at the v6 default ([B-QTY-REVERSE])
+   * and a same-side order the pyramiding limit rejects (sized only if it fills); a percent value above 100; a size
+   * below one whole unit.
    */
-  const defaultSize = (type, id, bar) => {
-    const qtyType = cfg.qtyType === undefined ? (finite(cfg.defaultQty) ? 'fixed' : null) : cfg.qtyType
+  /** the declared-or-defaulted `default_qty_type` ('fixed' / 'cash' / 'percent_of_equity', or null): ONE reading,
+   *  shared by `defaultSize` and [B-FUNDS] */
+  const defaultQtyType = () => (cfg.qtyType === undefined ? (finite(cfg.defaultQty) ? 'fixed' : null) : cfg.qtyType)
+  /** `dir` / `kind`: the order's (W9-T4 r2026-11-17, the reversal); `out` (optional): receives `sizeEquity` (the
+   *  equity a reversal was sized from, [B-FUNDS-REVERSE]) or `lazy` (a same-side size taken only at a fill). */
+  const defaultSize = (type, id, bar, dir, kind, out) => {
+    const qtyType = defaultQtyType()
     if (qtyType === 'fixed') {
       if (!finite(cfg.defaultQty)) {
         throw new BrokerRefusal('this order takes the default order size, and this strategy\'s Pine version '
@@ -1680,10 +2081,29 @@ export function makeBroker(cfg, data) {
         throw new BrokerRefusal(`a percent-of-equity default size of ${v} (more than 100) is not served`, 'Q-S1a')
       }
       if (open.length) {
-        throw new BrokerRefusal(`the entry \`${id}\` takes a percent-of-equity default size while trades are open, `
-          + 'and whether "available equity" excludes what they hold is not stated', 'Q-S1a')
-      }
-      money = equityAt(bar, '`strategy.entry` sized as a percent of equity') * v / 100
+        const unstated = `the entry \`${id}\` takes a percent-of-equity default size while trades are open, `
+          + 'and whether "available equity" excludes what they hold is not stated'
+        const sameSide = open.every((t) => t.dir === dir)
+        // ⭐⭐ Q-S1a [B-QTY-REVERSE] (2026-11-17) — a REVERSAL: a market `strategy.entry` against every open trade, at
+        // the v6 default (percent 100, margins 100), no risk command. Witnessed by w9-q-s1b-defaults-v6 (NYSE:RDDT 1D,
+        // report ok): each of its 12 reversals fills the open size PLUS floor(strategy.equity at the signal close,
+        // the open trade's profit INCLUDED, / that close) (bar 84: 2,160 closed + floor(148,945.60 / 68.13) = 2,186
+        // new = TradingView's fill of 4,346). The equity it was sized from rides on the order ([B-FUNDS-REVERSE]).
+        if (!sameSide && open.every((t) => t.dir !== dir) && kind === 'entry' && type === 'market' && v === 100
+          && cfg.marginLong === 100 && cfg.marginShort === 100 && allow === null) {
+          rule('B-QTY-REVERSE')
+          const eq = equityAt(bar, '`strategy.entry` sized as a percent of equity')
+          if (out) out.sizeEquity = eq
+          money = eq * v / 100
+        } else if (sameSide && kind === 'entry' && type === 'market' && out) {
+          // ⭐ (2026-11-17) the SAME side: the size is taken only if the order fills. At the pyramiding limit it does
+          // not ([B-PYR]: rejected at its fill without a size), which is what w9-q-s1b-defaults-v6 witnesses for its
+          // `L2` (placed every fourth bar while long, never filled). An order of this kind that WOULD fill stops there
+          // by name, with this sentence (`fillEntry`): which equity sizes it is still not stated (Q-S1a).
+          out.lazy = unstated
+          return NaN
+        } else throw new BrokerRefusal(unstated, 'Q-S1a')
+      } else money = equityAt(bar, '`strategy.entry` sized as a percent of equity') * v / 100
     }
     // a hair of tolerance so 10000 / 100 does not floor to 99 through binary rounding
     const units = Math.floor(money / (px * pointvalue) + 1e-9)
@@ -1725,11 +2145,20 @@ export function makeBroker(cfg, data) {
   const idOfRow = (r, fn, asExit) => {
     if (!r) throw new BrokerRefusal(`\`${fn}\` reads a trade with no order in this broker's log`)
     const id = asExit ? exitIdOf(r) : r.id
-    if (typeof id !== 'string') {
-      throw new BrokerRefusal(`\`${fn}\` reads a trade closed by ${r.kind === 'entry' ? 'a reversing entry' : `\`strategy.${r.kind}\``}, `
+    if (typeof id === 'string') return id
+    // ⭐⭐ value read-backs — an exit id no text states, WITNESSED by the std set's labels on the committed
+    // captures (`strategyRecord.js::witnessedExitIdOf`): served behind the rule of its own witness, asked here
+    const w = asExit ? witnessedExitIdOf(r) : null
+    if (!w) {
+      if (asExit && r.kind === 'entry') {
+        throw new BrokerRefusal(`\`${fn}\` reads a trade closed by a reversing entry that carries a comment, and the exit id `
+          + 'TradingView gives it is witnessed only for an entry placed without one', EXIT_LABEL_ROW)
+      }
+      throw new BrokerRefusal(`\`${fn}\` reads a trade closed by \`strategy.${r.kind}\`, `
         + 'whose exit id TradingView generates itself, and that text is not stated', 'W9-V1')
     }
-    return id
+    rule(w.rule)
+    return w.text
   }
   /** ⭐ W9-T7-F1 — an order's comment as a trade reads it. No comment: R6 says the function returns `na` only "if
    *  there is no entry with this `trade_num`", so whether an order without a comment reads `na` or "" is not stated. */
@@ -1744,6 +2173,16 @@ export function makeBroker(cfg, data) {
         + 'text is not stated', 'W9-V1')
     }
     return r.comment
+  }
+  /** The `time` of bar `bar` as Pine reads it (UNIX milliseconds; the run's bar times are each bar's opening
+   *  instant in epoch seconds, which the product door derives from the ONE gate `time` reads,
+   *  `runtimeColumns.js::brokerBarTimes` over `indicators.js::barOpenInstants`, so a daily chart's ISO date keys
+   *  reach the broker as the instants `time` reads, never as dates). A run that was handed no bar times, or a time
+   *  that is not a number, refuses by name: a trade's time is never a bar index or a date in disguise. */
+  const barTimeMs = (bar, fn) => {
+    const t = timeOf(bar)
+    if (!finite(t)) throw new BrokerRefusal(`\`${fn}\` reads the time of a bar this run was given no time for`)
+    return t * 1000
   }
   const value = (fn, a, bar) => {
     rule('B-VAL')
@@ -1766,24 +2205,26 @@ export function makeBroker(cfg, data) {
       case 'strategy.losstrades': return closed.filter((t) => signOf(t, '`strategy.losstrades`') < 0).length
       case 'strategy.eventrades': return closed.filter((t) => signOf(t, '`strategy.eventrades`') === 0).length
       case 'strategy.netprofit':
-        exactClosed('`strategy.netprofit`'); needSymbol(); return costOn ? moneyOfClosed() : netPts() * pointvalue
+        exactClosed('`strategy.netprofit`'); needSymbol(); return costOn ? moneyOfClosed() - openFees() : netPts() * pointvalue
       case 'strategy.netprofit_percent':
         exactClosed('`strategy.netprofit_percent`'); needSymbol()
-        return (costOn ? moneyOfClosed() : netPts() * pointvalue) / capital() * 100
+        return (costOn ? moneyOfClosed() - openFees() : netPts() * pointvalue) / capital() * 100
       // W9-T5 HYPOTHESIS (W9-K1..K3): with a commission a trade is winning or losing by its NET profit (the
       // profit R6 defines), and the gross figures sum net profits
       case 'strategy.grossprofit':
-        exactClosed('`strategy.grossprofit`'); needSymbol()
+        exactClosed('`strategy.grossprofit`'); needSymbol(); noOpenFee('`strategy.grossprofit`')
         if (costOn) return sum(closed, (t) => (netOf(t) > 0 ? netOf(t) : 0))
         return sum(closed, (t) => (t.profit > 0 ? t.profit : 0)) * pointvalue
       case 'strategy.grossloss':
-        exactClosed('`strategy.grossloss`'); needSymbol()
+        exactClosed('`strategy.grossloss`'); needSymbol(); noOpenFee('`strategy.grossloss`')
         if (costOn) return sum(closed, (t) => (netOf(t) < 0 ? -netOf(t) : 0))
         return sum(closed, (t) => (t.profit < 0 ? -t.profit : 0)) * pointvalue
-      case 'strategy.openprofit':
+      case 'strategy.openprofit': {
         exactOpen('`strategy.openprofit`'); needSymbol()
-        if (costOn) return sum(open, (t) => (C[bar] - t.price) * t.dir * t.qty) * pointvalue - openFees()
-        return sum(open, (t) => (C[bar] - t.price) * t.dir * t.qty) * pointvalue
+        // no fee in it: the entry fee an open trade paid is in `strategy.netprofit` (`openFees`, W9-K1..K3)
+        const mark = markPx(bar)
+        return sum(open, (t) => (mark - t.price) * t.dir * t.qty) * pointvalue
+      }
       case 'strategy.equity': return equityAt(bar, '`strategy.equity`')
       case 'strategy.initial_capital': return capital()
       case 'strategy.opentrades.entry_price': {
@@ -1806,6 +2247,9 @@ export function makeBroker(cfg, data) {
       case 'strategy.closedtrades.entry_bar_index': return tradeAt(closed, a[0], fn).bar
       case 'strategy.closedtrades.exit_bar_index': return tradeAt(closed, a[0], fn).exitBar
       case 'strategy.closedtrades.size': { const t = tradeAt(closed, a[0], fn); return t.dir * t.qty }
+      case 'strategy.opentrades.entry_time': return barTimeMs(tradeAt(open, a[0], fn).bar, fn)
+      case 'strategy.closedtrades.entry_time': return barTimeMs(tradeAt(closed, a[0], fn).bar, fn)
+      case 'strategy.closedtrades.exit_time': return barTimeMs(tradeAt(closed, a[0], fn).exitBar, fn)
       case 'strategy.closedtrades.profit': {
         const t = tradeAt(closed, a[0], fn)
         if (!t.exact) exactClosed(`\`${fn}\``)
@@ -1832,13 +2276,21 @@ export function makeBroker(cfg, data) {
       case 'strategy.closedtrades.exit_id': return idOfRow(rowOf(tradeAt(closed, a[0], fn).xid), fn, true)
       case 'strategy.closedtrades.exit_comment': {
         const r = rowOf(tradeAt(closed, a[0], fn).xid)
-        // the exit of a reversed trade is the reversing ENTRY's fill: whether that entry's comment is the closed
-        // trade's exit comment is not stated (R6 `strategy.entry` `comment` speaks of "the filled order")
-        if (exitLabelUnstated(r, 'exit')) {
+        if (!r) throw new BrokerRefusal(`\`${fn}\` reads a trade with no order in this broker's log`)
+        // the exit of a trade an ENTRY closed (a reversal, an allow_entry_in close) is that entry's fill. With a
+        // comment on the entry, whether that comment is the closed trade's exit comment is not stated (R6
+        // `strategy.entry` `comment` speaks of "the filled order") and no capture witnesses it: refused by name.
+        if (r.kind === 'entry' && (r.comment !== null || !r.commentRecorded)) {
           throw new BrokerRefusal(`\`${fn}\` reads a trade a reversing entry closed, and whether that entry's comment is the `
             + "closed trade's exit comment is not stated", EXIT_LABEL_ROW)
         }
-        return commentOfRow(r, fn)
+        if (!r.commentRecorded || r.comment !== null) return commentOfRow(r, fn)
+        // ⭐⭐ [B-TXT-NO-COMMENT] a closing order placed WITHOUT a comment: the exit comment reads the trade's exit
+        // id, whatever names it. WITNESSED by every std-set label (`entry_id > exit_id : exit_comment`): `L>X:X`
+        // (an exit command), `O1>O2:O2` (strategy.order), `L>Close entry(s) order L:Close entry(s) order L`,
+        // `L>Close position order:Close position order`, `L1>S:S` (a reversal). The id itself asks its own rule.
+        rule('B-TXT-NO-COMMENT')
+        return idOfRow(r, fn, true)
       }
       default: throw new BrokerRefusal(`\`${fn}\` is not a value this broker serves`)
     }
@@ -1875,6 +2327,8 @@ export function makeBroker(cfg, data) {
     ...(t.exitBar === undefined ? {} : { exit: { time: timeOf(t.exitBar), price: t.exitPrice, rule: t.exitRule } }),
   })
   const summary = () => ({
+    // ruling D11: the bar each rule was first asked on (-1: before the first bar). NOT part of the record.
+    ruleFirstBars: Object.fromEntries(okRules),
     open: open.map((t) => ({ ...t })),
     closed: closed.map((t) => ({ ...t })),
     // ⭐⭐ W9-T1 — the record skeleton, KEYED BY BAR TIME (never bar index: a method-(b) run's
@@ -1886,7 +2340,7 @@ export function makeBroker(cfg, data) {
       // W9-T13a: the symbol's tick and point value as THIS run settled them (`#symbol`), null
       // when the run never learned one. The report's currency values are price x size x pointvalue.
       symbol: { mintick: finite(mintick) ? mintick : null, pointvalue: finite(pointvalue) ? pointvalue : null },
-      rulesUsed: Array.from(okRules).sort(),
+      rulesUsed: Array.from(okRules.keys()).sort(),
       // ⭐⭐ W9-T7-F1 — the order log (`log`), each row's `opened` / `closed` DERIVED from the trades' own `oid` /
       // `xid` as indexes into `trades` above (closed first, then open: that list's order)
       orders: orderRows(),

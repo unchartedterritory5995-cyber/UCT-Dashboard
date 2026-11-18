@@ -38,6 +38,7 @@ import { instancesOf } from '../components/chart/builder/agentSeams'
 import * as nativeRegistry from '../components/chart/engine/nativeRegistry'
 import { tickersIn } from './multiChart'
 import { matchPosition } from './fastPath'
+import { pronounReferent } from './chartRail'
 
 export const STATE_RAIL_MARK = 'state-rail'
 
@@ -49,7 +50,7 @@ const nm = (x) => (x == null ? '' : String(x))
 // each effect: { state, type: 'remove' | 'clear' | 'delete' | 'replace' | 'overwrite', name, via? }
 const OVERWRITE_OPS = new Set(['setInputs', 'setAppearance', 'setPlotStyle', 'setColor', 'setDotSize'])
 // an indicator change read from the Indicators interface's own request (indicatorEdits: `change.request`)
-function indicatorOfRequest(req, rows, chartRef = null) {
+function indicatorOfRequest(req, rows, chartRef = null, chartSymbol = null) {
   const op = req?.op
   const id = req?.instanceId
   const row = (rows || []).find(r => r.instanceId === id)
@@ -59,7 +60,7 @@ function indicatorOfRequest(req, rows, chartRef = null) {
   const oid = chartRef && id ? `ind:${chartRef}:${id}` : null
   // (H14) the chart's instances before the change: the scope a class noun ("the moving average") is counted in
   const peers = (rows || []).map(r => ({ id: r.instanceId, defId: r.defId, inputs: r.inputs, name: r.name }))
-  if (op === 'remove') return [{ state: 'indicator', type: 'remove', name, label: name, id: oid, instanceId: id, peers, ...what }]
+  if (op === 'remove') return [{ state: 'indicator', type: 'remove', name, label: name, id: oid, instanceId: id, peers, chartSymbol: chartSymbol ? String(chartSymbol).toUpperCase() : null, ...what }]
   if (OVERWRITE_OPS.has(op)) return [{ state: 'indicator', type: 'overwrite', name, label: name, id: oid, instanceId: id, peers, ...what }]
   // add / duplicate / copyFrom (a template's indicators) add; setVisible / movePane / setPaneSize / setDisplayTarget /
   // setVisibility / setCalculationTimeframe arrange, show, or pick the bars it computes on — its settings are kept
@@ -96,7 +97,7 @@ const READERS = {
   indicatorEdits(p) {
     const req = p.patch?.change?.request ?? p.after?.change?.request
     if (!p.patch && !p.after?.change) return []
-    return indicatorOfRequest(req, p.before?.rows || p.snap?.rows, p.before?.chartRef || p.snap?.chartRef || null)
+    return indicatorOfRequest(req, p.before?.rows || p.snap?.rows, p.before?.chartRef || p.snap?.chartRef || null, p.before?.symbol || p.snap?.symbol || null)
   },
   // the member's own saved indicator definitions (the Indicators library): a delete
   definitionLibrary(p) {
@@ -208,6 +209,22 @@ const READERS = {
     if (ch.drop && ch.put) return [{ state: 'template', type: 'overwrite', via: 'save', name: `your indicator template “${nm(ch.drop.name)}”` }]
     return []
   },
+  // newsLibrary.* (2026-11-15): the member's UCT News library — a headline taken out (its note and collection places go
+  // with it), a NON-EMPTY note replaced, a collection renamed or deleted, a headline taken out of a collection. A save, a
+  // first note, an appended note, a new collection and putting a headline in one only add.
+  newsLibrary(p) {
+    const out = []
+    for (const o of p.patch?.ops || []) {
+      const hl = o.text ? `the saved headline “${nm(o.text).slice(0, 80)}”` : 'a saved headline'
+      const pointed = o.pointed === true
+      if (o.op === 'unsave') out.push({ state: 'newsLibrary', type: 'remove', name: `${hl} from your library`, id: o.id ? `news:${o.id}` : null, pointed })
+      else if (o.op === 'note' && nm(o.prev).trim() && !(o.mode === 'append' && nm(o.note).startsWith(nm(o.prev)))) out.push({ state: 'newsLibrary', type: 'overwrite', name: `your note on ${hl}`, pointed })
+      else if (o.op === 'rename') out.push({ state: 'newsLibrary', type: 'overwrite', name: `the name of your collection “${nm(o.prev)}”`, label: nm(o.prev) })
+      else if (o.op === 'delete') out.push({ state: 'newsLibrary', type: 'delete', name: `your collection “${nm(o.name)}”`, label: nm(o.name) })
+      else if (o.op === 'place' && o.member === false) out.push({ state: 'newsLibrary', type: 'remove', name: `${hl} from your collection “${nm(o.cname)}”`, label: nm(o.cname), pointed })
+    }
+    return out
+  },
 }
 function templateDiff(prev, write, what) {
   const now = new Map((write || []).map(t => [nm(t.name).toLowerCase(), t]))
@@ -240,7 +257,7 @@ export const STATE_ADDITIVE = /\b(?:add|adds|added|adding|include|includes|inclu
 // anything", "without deleting", "never replace") — a permission said later in that clause is lost too (fail closed)
 const NEGATED = /\b(?:do not|don['’]?t|dont|never|without|no need to|not)\b[^.;,!?]*/gi
 const strip = (w) => String(w || '').replace(NEGATED, ' ')
-function DESTROY_SRC() { return '(?:replac\\w*|instead|swap\\w*|remov\\w*|delet\\w*|clear\\w*|eras\\w*|wip(?:e|es|ed|ing)\\b|get rid|gets rid|getting rid|overwrit\\w*|keep only|only keep|keep just|just keep|reset\\w*|trash\\w*|discard\\w*|unpin\\w*|take (?:off|out|away))' }
+function DESTROY_SRC() { return '(?:replac\\w*|instead|swap\\w*|remov\\w*|delet\\w*|clear\\w*|eras\\w*|wip(?:e|es|ed|ing)\\b|get rid|gets rid|getting rid|overwrit\\w*|keep only|only keep|keep just|just keep|reset\\w*|trash\\w*|discard\\w*|unpin\\w*|unsav\\w*|unbookmark\\w*|take (?:off|out|away))' }
 function MODIFY_SRC() { return '(?:chang\\w*|set|sets|setting|make|makes|making|made|turn\\w*|switch\\w*|updat\\w*|edit\\w*|modif\\w*|renam\\w*|adjust\\w*|bump\\w*|increas\\w*|decreas\\w*|tweak\\w*|recolou?r\\w*|colou?r(?:s|ed|ing)?|paint\\w*|restyl\\w*|move|moves|moved|moving|shift\\w*)' }
 const DESTROY = new RegExp(`\\b${DESTROY_SRC()}`, 'i')
 const MODIFY = new RegExp(`\\b${MODIFY_SRC()}\\b`, 'i')
@@ -262,6 +279,9 @@ export const CLASS = {
   layout: /\b(?:layouts?(?! bar)|arrangements?|workspaces?)\b/i,
   layoutBar: /\b(?:layout bar|the bar|bar)\b/i,
   template: /\btemplates?\b/i,
+  // newsLibrary.* (2026-11-15): the member's saved UCT News headlines and their collections. A bare "collection" is NOT
+  // this class (a watchlist is a collection too: "retire the Momentum collection") — a collection is named by its own name
+  newsLibrary: /\b(?:headlines?|stor(?:y|ies)|articles?|bookmarks?|(?:news|headline) collections?|(?:news )?library)\b/i,
 }
 const classesOf = (e) => e.classes || [e.state]
 const phrase = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
@@ -300,7 +320,7 @@ export function indicatorsNamed(clause, peers) {
     for (const n of new Set(nums)) { const at = byNum.filter(r => Number(r.inputs?.period) === n); if (at.length === 1) unique.add(at[0].id) }
     hit = byNum
   } else if (hit.length === 1) unique.add(hit[0].id)
-  return { ids: hit.map(r => r.id), unique, plural: IND_PLURAL.test(c) }
+  return { ids: hit.map(r => r.id), unique, plural: IND_PLURAL.test(c), typed: types.length > 0 }
 }
 // (H14) a drawing's TYPE noun names it when it is the only one of that type in scope ("the trendline" beside a horizontal and a fib)
 const DTYPE_NOUN = { trendline: /\btrend ?lines?\b/i, horizontal: /\bhorizontal(?: lines?)?\b|\bh-?lines?\b/i, vertical: /\bvertical(?: lines?)?\b/i,
@@ -316,6 +336,8 @@ export function namesObject(e, clause, why = null) {
       if (e.subjectNow && n.ids.includes(e.instanceId)) return true
       if (n.ids.includes(e.instanceId) && why) why.demo = true
       if (n.ids.length) return false
+      // ⛔ (AUDIT H14 / D31) a TYPE named that this chart does not have ("get rid of the MACD" beside an RSI) names nothing here
+      if (n.typed) return false
     }
   }
   const mine = classesOf(e)
@@ -468,6 +490,29 @@ const viewOfList = (views, listSyms) => (views || []).find(v => Array.isArray(v.
 // "do the same on the other charts": the previous turn's ONE indicator change, repeated on another chart's matching instance
 const SAME_OTHER = /\b(?:do|make|apply)?\s*(?:the\s+)?same(?:\s+thing)?\b[^.;!?]*\b(?:other|rest)\b/i
 const chartOfId = (id) => String(id || '').split(':')[1] || null
+// ⛔ NAMED TARGET IDENTITY (AUDIT H14 · D31 oracle masterGaps, 2026-11-16): a clause that PLACES the thing on a chart by its ticker
+// ("the RSI from the SPY chart", "the horizontal line on SPY") never licenses destroying that kind of thing on ANOTHER chart; a clause
+// naming a list's rows ("remove AMD from Tech") never licenses removing OTHER rows. (Tickers: tickersIn, the Agent's own reader.)
+const PLACE_TICKER = /\b(?:[Oo]n|[Ff]rom|[Oo]ff|[Ii]n|[Oo]f|[Ff]or)\s+(?:(?:the|my)\s+)?\$?([A-Z]{1,5})\b/g
+const KEPT_ROWS = /\b(?:except|excluding|but|other than|apart from|keep\w*|leav\w*|only)\b/i
+function targetMismatch(e, c) {
+  if (!e || e.type === 'overwrite' || e.type === 'replace') return false
+  const sym = e.state === 'indicator' ? e.chartSymbol : e.state === 'drawing' && e.id ? String(e.id).split(':')[1] : null
+  if (sym) {
+    const said = new Set(tickersIn(c))
+    const placed = [...String(c).matchAll(PLACE_TICKER)].map(m => m[1]).filter(t => said.has(t))
+    if (placed.length && !placed.includes(String(sym).toUpperCase())) return true
+  }
+  // (a row the clause KEEPS — "all but SPY", "everything except SPY", "keep only SPY" — is no row it removes)
+  if (e.state === 'watchlist' && Array.isArray(e.syms) && e.syms.length && Array.isArray(e.listSyms) && !KEPT_ROWS.test(c)) {
+    const rows = new Set(e.listSyms.map(x => String(x).toUpperCase()))
+    const named = tickersIn(c).filter(t => rows.has(t))
+    if (named.length && e.syms.some(x => !named.includes(String(x).toUpperCase()))) return true
+  }
+  return false
+}
+// (an earlier clause that MAKES a thing — "add an RSI", "draw a trendline" — is what a destroying pronoun after it stands for)
+const MADE_NOW = /\b(?:add|adds|adding|put|puts|putting|insert\w*|include\w*|draw|draws|drawing|create\w*|make|makes|making)\b[^.;!?]*?\b(?:a|an|another|new)\b/i
 export function permits(e0, words, subjects = null, previous = null, previousSet = null, made = null, extra = null) {
   // (H14) the conversation's subject — the indicator this conversation just added or changed — is what a class noun said
   // right after means ("…add the 21 EMA and RSI, and make the EMA orange"): it narrows the class to that one instance
@@ -478,6 +523,9 @@ export function permits(e0, words, subjects = null, previous = null, previousSet
   // before / prev: the classes and the clause the latest earlier clause NAMED; spoke: an earlier clause said anything of
   // substance (named a thing, or asked for something) — then a pointer speaks of THAT, never of the conversation before
   let before = [], prev = '', spoke = false
+  let ref0 = null
+  // (a ticker here is no chart: "add AAPL to Tech, then remove it" is the list row — only a chart WORD types the pronoun a chart)
+  const referent = () => (ref0 ||= (() => { try { return pronounReferent(words) } catch { return { kind: 'none' } } })())
   const isSubject = () => !!e.id && !!subjects && subjects.has(e.id)
   for (const c of clausesOf(words)) {
     const named = Object.keys(CLASS).filter(k => CLASS[k].test(c))
@@ -509,7 +557,7 @@ export function permits(e0, words, subjects = null, previous = null, previousSet
       if (src.length === 1 && chartOfId(src[0].id) !== chartOfId(e.id) && src[0].defId === e.defId && sameJson(settingsOf(src[0].beforeInputs || src[0].inputs), settingsOf(e.inputs))) return true
     }
     if (!negated && JUST_MADE.test(c) && e.id && made && made.has(e.id)) return true
-    if (!negated) {
+    if (!negated && !targetMismatch(e, c)) {
       // a verbless style command ("the 9 green") changes the look of what it names or points at — an overwrite only
       // the conversation's drawing, named by a setting / level / anchor its change sets ("big arrow", "the top was 150",
       // "shade 0.5 to 0.618"): an overwrite of EXACTLY that drawing, never another (the subject bar)
@@ -539,12 +587,24 @@ export function permits(e0, words, subjects = null, previous = null, previousSet
         // (D19) "that indicator" / "this line" / "those emas": a demonstrative + class noun POINTS at the conversation's subject
         const demo = /^(?:that|this|these|those)\s+/i.test(obj) && Object.keys(CLASS).some(k => CLASS[k].test(obj.split(/\s+/).slice(0, 3).join(' ')))
         if (demo || POINTS.test(obj)) {
+          // ⛔ REFERENT TYPE (owner 11-16, AUDIT probe 62 — chartRail pronounReferent, the ONE reader both rails share): a destroying
+          // pronoun the words go on past ("take this down a timeframe", "clear it of drawings") destroys nothing; one whose
+          // antecedent is a CHART ("the SPY chart — close it") or a thing of another class ("draw a trendline and delete it")
+          // never licenses destroying THIS object
+          if (e.type !== 'overwrite' && !saving) {
+            const ref = referent()
+            if (ref.kind === 'cont' || ref.kind === 'chart') continue
+            if (ref.kind === 'thing' && ref.word) { const ks = Object.keys(CLASS).filter(k => CLASS[k].test(ref.word)); if (ks.length && !classesOf(e).some(k => ks.includes(k))) continue }
+          }
           const rest = demo ? obj.replace(/^(?:that|this|these|those)\s+/i, '') : obj.replace(POINTS, '')
           // "make it orange on the QQQ chart": a pointer narrowed by a class named after it must be that class
           if (named.length && !classesOf(e).some(k => named.includes(k)) && Object.keys(CLASS).some(k => CLASS[k].test(rest))) continue
           if (demo && !classesOf(e).some(k => CLASS[k]?.test(rest))) continue
           // a save names its container after the pointer ("save it to my layout")
           if (saving && namesObject(e, rest)) return true
+          // newsLibrary.* (2026-11-15): a headline the member has OPEN (their click) or the one the previous turn named — the
+          // library resolved the pointer to exactly that headline, so "unsave that headline" means it (never another)
+          if (e.pointed && e.state === 'newsLibrary') return true
           if (!spoke) {
             // the message's first words point at the conversation's CURRENT subject ("make it thicker"): an overwrite of
             // EXACTLY that object (never another of its class); a destroy, a replace or a save-over is asked, never assumed
@@ -563,6 +623,9 @@ export function permits(e0, words, subjects = null, previous = null, previousSet
           // after words of its own: an overwrite takes the class they named; a destroy / replace only the very object they
           // named or made ("add a 20 EMA, then remove it"); a widget's content, the list those words made ("make me a
           // watchlist … and open it")
+          // ⛔ (D31 oracle rm-appB-011, AUDIT 11-16 ruling — supersedes the #1247 allowance) "add an RSI, then delete it": the pronoun is
+          // the one this turn MAKES — a destroy of a PRE-EXISTING instance is never licensed by it
+          if (e.type !== 'overwrite' && e.type !== 'replace' && MADE_NOW.test(prev) && !(made && e.id && made.has(e.id))) continue
           const prevInd = e.state === 'indicator' && e.instanceId && Array.isArray(e.peers) ? indicatorsNamed(prev, e.peers) : null
           if (prevInd) { if (prevInd.unique.has(e.instanceId) || (prevInd.plural && prevInd.ids.includes(e.instanceId))) return true; if (prevInd.ids.includes(e.instanceId)) why.demo = true; continue }
           if (classesOf(e).some(k => before.includes(k)) && (e.type === 'overwrite' || namesThatObject(e, prev))) return true

@@ -1,8 +1,8 @@
 {
-  "measured_at": "2026-11-14",
+  "measured_at": "2026-11-16",
   "scripts": 266,
   "host_ok": 83,
-  "screener_ok": 69,
+  "screener_ok": 68,
   "threw": [],
   "rows": [
     {
@@ -72,7 +72,6 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:block",
         "pine:request"
       ],
       "screenerGuards": [
@@ -233,11 +232,11 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:module",
+        "pine:library-denied",
         "pine:tuple"
       ],
       "screenerGuards": [
-        "pine:module",
+        "pine:library-denied",
         "pine:tuple"
       ]
     },
@@ -310,10 +309,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:module"
+        "pine:library-denied"
       ],
       "screenerGuards": [
-        "pine:module"
+        "pine:library-denied"
       ]
     },
     {
@@ -653,10 +652,12 @@
       "host": false,
       "screener": false,
       "hostGuards": [
+        "pine:library-denied",
         "pine:module",
         "pine:tuple"
       ],
       "screenerGuards": [
+        "pine:library-denied",
         "pine:module",
         "pine:tuple"
       ]
@@ -2260,11 +2261,11 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:module",
+        "pine:library-denied",
         "pine:block"
       ],
       "screenerGuards": [
-        "pine:module",
+        "pine:library-denied",
         "pine:block"
       ]
     },
@@ -2291,6 +2292,7 @@
         "pine:tuple"
       ],
       "screenerGuards": [
+        "pine:window-dependent",
         "pine:module",
         "pine:reassign",
         "pine:type",
@@ -2838,11 +2840,12 @@
     {
       "file": "wyckoff-accumulation-distribution__d9ae726e21.pine",
       "host": false,
-      "screener": true,
+      "screener": false,
       "hostGuards": [
         "pine:state"
       ],
       "screenerGuards": [
+        "pine:window-dependent",
         "pine:state"
       ]
     },

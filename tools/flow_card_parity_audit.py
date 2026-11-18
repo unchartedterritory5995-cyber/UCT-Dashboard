@@ -186,16 +186,17 @@ def _opener():
 
 
 def login(op) -> bool:
-    email, pw = os.environ.get("SMOKE_EMAIL"), os.environ.get("SMOKE_PASSWORD")
-    if not (email and pw):
+    # tools/synthetic_session.py signs this session OUT when the run ends, however it ends.
+    try:
+        from tools import synthetic_session as S  # noqa: PLC0415 — package import
+    except ImportError:
+        import synthetic_session as S  # noqa: PLC0415 — script import (tools/ on sys.path)
+    if not S.has_credentials("smoke"):
         print("! SMOKE_EMAIL / SMOKE_PASSWORD not set; the page product needs a signed-in member",
               file=sys.stderr)
         return False
-    body = json.dumps({"email": email, "password": pw}).encode()
-    req = urllib.request.Request(BASE + "/api/auth/login", data=body,
-                                 headers={"Content-Type": "application/json"})
     try:
-        return op.open(req, timeout=60).status == 200
+        return S.sign_in_urllib(op, BASE, "smoke", timeout=60).status == 200
     except urllib.error.HTTPError as e:
         print("! login HTTP %s" % e.code, file=sys.stderr)
         return False

@@ -104,12 +104,12 @@ describe('LegendRow — the three verbs', () => {
     fireEvent.click(row)
     // ⭐ ANCHORED TO THE ROW, NOT THE POINTER — a keyboard activation has no
     // coordinates, so one anchor serves click, right-click and Enter alike.
-    expect(h.onOpen).toHaveBeenCalledWith('ma:2', { x: 12, y: 43 })
+    expect(h.onOpen).toHaveBeenCalledWith('ma:2', { x: 12, y: 43, besideX: 126, rowTop: 22 })
     expect(onWrapper, 'a click reached the chart underneath').not.toHaveBeenCalled()
 
     h.onOpen.mockClear()
     fireEvent.contextMenu(row)
-    expect(h.onOpen, 'right-click opens a different surface').toHaveBeenCalledWith('ma:2', { x: 12, y: 43 })
+    expect(h.onOpen, 'right-click opens a different surface').toHaveBeenCalledWith('ma:2', { x: 12, y: 43, besideX: 126, rowTop: 22 })
 
     for (const key of ['Enter', ' ']) {
       h.onOpen.mockClear()
@@ -384,5 +384,27 @@ describe('UCT Signature — hide · settings · more on the row', () => {
     expect(struck[1]).toMatch(/color:\s*#6f6c66/)
     expect(struck[1]).toMatch(/text-decoration:\s*line-through/)
     expect(c).toMatch(/\.rowActsHidden \.acts\s*\{[^}]*display:\s*flex/)
+  })
+})
+
+describe('UCT Signature — the row holds its hover state while its menu is open', () => {
+  const h = () => ({ onOpen: vi.fn(), onToggleHidden: vi.fn(), onSettings: vi.fn() })
+  it('menuOpen puts .rowActive on the row and aria-expanded on the ⋯', () => {
+    const { container } = render(<LegendRow rowId="volume" label="Volume" value="38.7M" vertical menuOpen {...h()} />)
+    const row = container.querySelector('[data-legend-row="volume"]')
+    expect(row.className).toMatch(/rowActive/)
+    const more = row.querySelector('button[aria-label="More for Volume"]')
+    expect(more.getAttribute('aria-expanded')).toBe('true')
+  })
+  it('closed: no .rowActive and no aria-expanded', () => {
+    const { container } = render(<LegendRow rowId="volume" label="Volume" value="38.7M" vertical {...h()} />)
+    const row = container.querySelector('[data-legend-row="volume"]')
+    expect(row.className).not.toMatch(/rowActive/)
+    expect(row.querySelector('button[aria-label="More for Volume"]').hasAttribute('aria-expanded')).toBe(false)
+  })
+  it('.rowActive shows the card and the strip exactly as :hover does', () => {
+    const css = read('LegendRow.module.css').replace(/\s+/g, '')
+    expect(css).toMatch(/\.rowActs:focus-visible::before,\.rowActive::before\{opacity:1;\}/)
+    expect(css).toMatch(/\.rowActive\.acts\{display:flex;\}/)
   })
 })

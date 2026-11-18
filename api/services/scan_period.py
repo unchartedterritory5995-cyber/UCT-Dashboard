@@ -350,15 +350,15 @@ def _partial_bg(ck: str, start_ymd: int, end_ymd: int):
             out = {"status": "unavailable", "results": [], "count": 0,
                    "error": "Market-wide data isn't available this far back — it begins around 2003.",
                    "as_of": None}
-            cache.set(ck, out, ttl=3600)
+            _period_remember(ck, out, 3600)
             return
         out = _assemble(sc, ec, sd, ed, True, start_ymd)
-        cache.set(ck, out, ttl=_TTL if out.get("results") else 3600)
+        _period_remember(ck, out, _TTL if out.get("results") else 3600)
         if out.get("status") == "ok":
             _kick_period_daily_warm(ck, out.get("results"))
     except Exception:
-        cache.set(ck, {"status": "unavailable", "results": [], "count": 0,
-                       "error": "Couldn't load data for this period.", "as_of": None}, ttl=300)
+        _period_remember(ck, {"status": "unavailable", "results": [], "count": 0,
+                              "error": "Couldn't load data for this period.", "as_of": None}, 300)
     finally:
         with _partial_lock:
             _partial_inflight.discard(ck)
@@ -415,20 +415,124 @@ def _kick_period_daily_warm(ck: str, results) -> None:
     threading.Thread(target=_run, daemon=True, name="period-daily-warm").start()
 
 
+# ── One build per range, off the request ─────────────────────────────────────
+# Measured on production 2026-11-17, mid-session: a range nobody had asked for yet did not
+# answer within 40 seconds (two whole-market grouped-daily reads, each stepping back over
+# the unfinished session, plus the full-market snapshot), and three concurrent requests for
+# it ran three builds. Both readers (the Custom-Period Sort tool and the Terminal's PCHG
+# panel) already re-ask on "computing", and the panel gives up at 30 seconds. So the build
+# runs ONCE per range on a background thread; a request waits a few seconds for it (a warm
+# provider answers inside that) and otherwise says "computing".
+_PERIOD_WAIT_S = float(os.environ.get("PERIOD_CHANGE_WAIT_S", "6"))
+_period_inflight: dict = {}          # range key -> the Event its running build sets when done
+_period_inflight_lock = threading.Lock()
+
+# ── The finished answer is held HERE, not only in the shared cache ───────────
+# Measured on production 2026-11-17, ten minutes after a restart: a fresh range answered
+# "computing" for seven minutes and the range's key was never in the shared cache. That cache
+# is one 1,000-entry LRU for the whole app (api/services/cache.py), and bars reads write to it
+# constantly, so an answer set there can be pushed out before the next poll reads it. When the
+# build ran on the request that did not matter (the request returned what it had just built).
+# Now that the build runs on its own thread, the hand-off must not depend on a cache another
+# workload can empty: the last few answers are kept in this module, each until its own expiry.
+_PERIOD_KEEP = 8                     # ranges held; a full list is ~5,000 short rows
+_period_done: dict = {}              # range key -> (expires_at, answer)
+_period_done_lock = threading.Lock()
+# What the last build of each range did, for debug_period: no log line says this otherwise.
+_period_last: dict = {}              # range key -> {started, finished, seconds, outcome, count}
+
+
+def _period_remember(ck: str, out: dict, ttl: float) -> None:
+    """Keep `out` for `ttl` seconds in this module AND in the shared cache."""
+    now = _time.time()
+    with _period_done_lock:
+        _period_done[ck] = (now + ttl, out)
+        for k in [k for k, (exp, _o) in _period_done.items() if exp <= now]:
+            _period_done.pop(k, None)
+        while len(_period_done) > _PERIOD_KEEP:              # drop the one that expires soonest
+            _period_done.pop(min(_period_done, key=lambda k: _period_done[k][0]), None)
+    cache.set(ck, out, ttl=ttl)
+
+
+def _period_answer(ck: str):
+    """The held answer for a range, or None: the shared cache first (the bars.db fallback and
+    older code write only there), then this module's own copy."""
+    cached = cache.get(ck)
+    if cached is not None:
+        return cached
+    with _period_done_lock:
+        hit = _period_done.get(ck)
+        if hit is None:
+            return None
+        if hit[0] <= _time.time():
+            _period_done.pop(ck, None)
+            return None
+        return hit[1]
+
+
+def _period_build_bg(ck: str, start_ymd: int, end_ymd: int, done: threading.Event) -> None:
+    started = _time.time()
+    note = {"started": started, "finished": None, "seconds": None, "outcome": "running", "count": None}
+    _period_last[ck] = note
+    while len(_period_last) > 32:
+        _period_last.pop(next(iter(_period_last)), None)
+    try:
+        _build_period_change(ck, start_ymd, end_ymd)
+        held = _period_answer(ck)
+        note["outcome"] = (held or {}).get("status") or "nothing held (the deep-history fallback took over, or the provider had neither date)"
+        note["count"] = (held or {}).get("count")
+    except Exception as exc:
+        # A failed build must not read as "computing" for ever: say so, briefly, then let a
+        # later request try again.
+        note["outcome"] = f"failed: {type(exc).__name__}"
+        _period_remember(ck, {"status": "error", "results": [], "count": 0,
+                              "error": "Couldn't load data for this period.", "as_of": None}, 15)
+    finally:
+        note["finished"] = _time.time()
+        note["seconds"] = round(note["finished"] - started, 1)
+        try:
+            import logging
+            logging.getLogger(__name__).info("[period-build] %s %s in %.1fs (count=%s)", ck, note["outcome"], note["seconds"], note["count"])
+        except Exception:
+            pass
+        with _period_inflight_lock:
+            _period_inflight.pop(ck, None)
+        done.set()
+
+
 def get_period_change(start_ymd: int, end_ymd: int) -> dict:
     """Every US common stock's % change over [start, end], sorted desc (biggest gainers
-    first). Whole-market via two fast grouped-daily calls; PRE-~2003 ranges fall back to
-    bars.db on a BACKGROUND thread (returns "computing" until ready) so the slow scan never
-    hangs the request. Shape: {status, results, count, start, end, as_of, partial}."""
+    first). Whole-market via two grouped-daily calls; PRE-~2003 ranges fall back to bars.db.
+    NEVER builds on the request: one background build per range, a short wait for it, then
+    "computing" (the caller asks again). Shape: {status, results, count, start, end, as_of,
+    partial}."""
     if start_ymd >= end_ymd:
         return {"status": "error", "results": [], "count": 0, "error": "start must be before end"}
     ck = f"scan_period_{start_ymd}_{end_ymd}"
-    cached = cache.get(ck)
+    cached = _period_answer(ck)
+    if cached is None:
+        with _partial_lock:
+            if ck in _partial_inflight:      # the bars.db fallback is already working on it
+                return {"status": "computing", "results": [], "count": 0, "as_of": None}
+        with _period_inflight_lock:
+            done = _period_inflight.get(ck)
+            if done is None:
+                done = _period_inflight[ck] = threading.Event()
+                threading.Thread(target=_period_build_bg, args=(ck, start_ymd, end_ymd, done),
+                                 daemon=True, name="period-build").start()
+        done.wait(_PERIOD_WAIT_S)
+        cached = _period_answer(ck)
     if cached is not None:
         if cached.get("status") == "ok":
             _kick_period_daily_warm(ck, cached.get("results"))
         return cached
+    return {"status": "computing", "results": [], "count": 0, "as_of": None}
 
+
+def _build_period_change(ck: str, start_ymd: int, end_ymd: int) -> None:
+    """The build behind get_period_change, run on its background thread. Caches the answer
+    under `ck`; when the provider holds neither date it starts the bars.db fallback (its own
+    background thread) and caches nothing, so the caller keeps reading "computing"."""
     # Fetch BOTH whole-market dates AND prewarm the full-market snapshot CONCURRENTLY — these
     # three ~8,000-ticker calls were sequential (the 30-40s wait). Snapshot lands in its own
     # cache so _assemble reads it instantly; grouped-daily is now cached per date too.
@@ -441,10 +545,8 @@ def get_period_change(start_ymd: int, end_ymd: int) -> dict:
         end_closes, ed = _fe.result()
     if start_closes and end_closes:
         out = _assemble(start_closes, end_closes, sd, ed, False, start_ymd)
-        cache.set(ck, out, ttl=_TTL if out.get("results") else 15)
-        if out.get("status") == "ok":
-            _kick_period_daily_warm(ck, out.get("results"))
-        return out
+        _period_remember(ck, out, _TTL if out.get("results") else 15)
+        return
 
     # Grouped empty. A recent date may still be warming ("computing"); a date well in the
     # past is a provider-coverage boundary → kick the bars.db fallback onto a background
@@ -455,7 +557,6 @@ def get_period_change(start_ymd: int, end_ymd: int) -> dict:
             if ck not in _partial_inflight:
                 _partial_inflight.add(ck)
                 threading.Thread(target=_partial_bg, args=(ck, start_ymd, end_ymd), daemon=True).start()
-    return {"status": "computing", "results": [], "count": 0, "as_of": None}
 
 
 def debug_period(start_ymd: int, end_ymd: int) -> dict:
@@ -487,6 +588,17 @@ def debug_period(start_ymd: int, end_ymd: int) -> dict:
                     "count": (cached or {}).get("count")}
     with _partial_lock:
         out["inflight"] = ck in _partial_inflight
+    # The build itself: is one running, is its answer held outside the shared cache, and what
+    # did the last one do and how long did it take.
+    with _period_inflight_lock:
+        building = ck in _period_inflight
+    with _period_done_lock:
+        held = _period_done.get(ck)
+    last = dict(_period_last.get(ck) or {})
+    out["build"] = {"running": building,
+                    "held_here": bool(held and held[0] > _time.time()),
+                    "held_status": (held[1] or {}).get("status") if held else None,
+                    "last": last or None}
     try:
         cs = _common_stock_symbols()
         out["cs_universe_size"] = len(cs) if cs else 0
