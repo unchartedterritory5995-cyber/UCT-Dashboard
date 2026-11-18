@@ -88,7 +88,7 @@ import {
   computeRuntimeColumns, runtimeWarmupOf, RUNTIME_REQUEST_WITHHELD_KEY, RUNTIME_HISTORY_GUARD,
 } from './runtime/runtimeColumns.js'
 import { runtimeInputValues } from './runtime/runtimeInputs.js'
-import { fetchableOtherSymbols, heldFetchOf } from './otherSymbols.js'
+import { fetchableOtherSymbols, heldFetchesOf } from './otherSymbols.js'
 import { instanceDocumentForFetch } from './symbolInputs.js'
 import { HOST_KNOWN_DIVERGENCE_GUARD, HOST_KNOWN_DIVERGENCE_STAMP } from './hostKnownDivergence.js'
 import { plotOwnTitlesOf } from './pinePresentation.js'
@@ -124,8 +124,13 @@ function supplyOf(def, otherBars, inputs, tf) {
     const rows = read(k)
     // ⭐ RS RATING L11 — a key this timeframe HOLDS at another one (`heldFetchOf`: SP:SPX on a weekly
     // chart) is filed under its held key, as the chart files it; its rows are that timeframe's (daily)
-    const held = heldFetchOf(k, tf)
-    if (Array.isArray(rows) && rows.length) secondary.set(held ? held.key : k, { bars: rows, status: 'available' })
+    const held = heldFetchesOf(k, tf)
+    if (Array.isArray(rows) && rows.length) secondary.set(held.length ? held[0].key : k, { bars: rows, status: 'available' })
+    // ⭐ RS RATING L12 — a second held series (an intraday chart's daily rows) is read under its own key
+    for (const h of held.slice(1)) {
+      const extra = read(h.key)
+      if (Array.isArray(extra) && extra.length) secondary.set(h.key, { bars: extra, status: 'available' })
+    }
   }
   return secondary.size ? secondary : null
 }

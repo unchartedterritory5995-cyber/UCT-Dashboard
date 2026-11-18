@@ -60,6 +60,14 @@ same four scripts as Q-RS7 at 1M. They witness `periods.M` (program doc L13): R1
 `month-first-session`. Graded: RDDT 1M RS line 33/33, NVDA 1M exact from 2023-12-05, labels drawn (objects MATCH).
 (The runs `rs-monthly-2026-11-18` and `-18b` are the same captures under wrong ids; `-18c` is the one graded.)
 
+**Q-L12-1 CAPTURED (2026-11-18, batches `l12-pm-2026-11-18` pre-open and `l12-is-2026-11-18` in session, local).**
+The `rs-spx-daily` probe on NYSE:RDDT 1 / 5 / 15 / 30 / 60 and Fred RS on RDDT 5 / 30 / 60 and NASDAQ:NVDA 60,
+plus the UCT probe `rs-own-daily` (this chart's own symbol at `"D"`) on RDDT 5 / 60. They witness
+`periods.<1|5|15|30|60>` (program doc L12), `latest-at-or-before`: on regular bars the SPX bar that opened at or
+before (1m 2,339 / 2,343, 5m 4,604 / 4,611, 15m 1,534 / 1,535, 30m 767 / 768, 60m 360 / 360), pre-market the
+previous official close, post-market the day's (both from SPX's held daily rows). The `"D"` reads (U-DAILY, PR 2) are measured on the same batch. The Fred RS captures stay
+out of git until one is taken beside a ROUNDED SPX supply (#1868).
+
 ## ⭐ TOP OF THE NEXT CAPTURE SESSION (added 2026-11-16)
 
 | row | script | symbols / timeframe | settles |
