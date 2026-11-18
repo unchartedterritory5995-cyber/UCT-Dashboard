@@ -36,6 +36,7 @@ src/components/chart/engine/__tests__/primitiveGate.test.js
 src/components/chart/engine/__tests__/r1StoreWriterCensus.test.js
 src/components/chart/engine/__tests__/runtimeObjectsSchemaParity.test.js
 src/components/chart/engine/__tests__/runtimeSwitchOn.test.js
+src/components/chart/engine/__tests__/secondaryLiveTail.test.jsx
 src/components/chart/engine/__tests__/secondarySourcesRevalidate.test.jsx
 src/components/chart/engine/__tests__/settingsBlobMigration.test.js
 src/components/chart/engine/__tests__/singleWriterIndex.test.js
