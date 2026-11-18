@@ -79,9 +79,11 @@ export const HOST_PENDING_KEY = '__hostLanePending'
 /** Where a refused answer carries its strip sentence (non-enumerable). */
 export const HOST_STOP_KEY = '__hostLaneStop'
 
-const unresponsiveSentence = () => 'this script is computed in the background, off the chart\'s own thread, and '
-  + `the background worker did not answer within ${HOST_WORKER_WATCHDOG_MS / 1000} s, so it was stopped and `
-  + 'nothing is drawn rather than part of it. The chart is unaffected; the next update tries again.'
+/** The member's sentence (the house voice: what happened, what settles it), the way the runtime
+ *  lane says its own (`runtimeAsync.js::unresponsive`). Registered namespace: `ast/guardIdText.js`. */
+const unresponsiveSentence = () => 'the background worker that computes this script did not answer within '
+  + `${HOST_WORKER_WATCHDOG_MS / 1000} s, so it was stopped and nothing is drawn rather than part of it. `
+  + 'The chart is unaffected; its next update, or changing the symbol or timeframe, tries again.'
 
 /** Is this answer a PENDING one: the values are being computed off the main thread, and its columns
  *  (if any) are the pane's last picture re-aligned on bar time? */
