@@ -1398,25 +1398,34 @@ def check_withheld(envelope: Mapping[str, Any], withheld: Any, member_names: Any
         padded = f" {plain} "
         for w in withheld:
             whole = any(f" {spelling} " in padded for spelling in indicator_names.every_spelling(w["id"]))
-            if whole or any(word in _own_words_of(w["id"]) for word in plain.split()):
+            its_own = [word for word in plain.split() if word in _own_words_of(w["id"])]
+            if whole or its_own:
+                # ⭐ 2026-11-18 (ruling, after a live round): a recognisable VARIANT of the name is
+                # the name ("Fractal Dimension Adaptive Average" for the Fractal Adaptive Moving
+                # Average). The repair says WHICH word gave it away and asks for what the indicator
+                # DOES, in other words: describing what it computes tends to reach for the name's own.
+                which = "" if whole else (" (" + ", ".join(f'"{x}"' for x in its_own)
+                                          + (" is" if len(its_own) == 1 else " are") + " that name's own)")
                 raise _Refused(
                     WITHHELD_GATE,
-                    f'"{words}" writes the name {w["name"]} on the chart, and UCT has no checked formula for that '
-                    "name. Keep the formula; change the indicator's name and every label to say what it computes "
-                    "(for example what is averaged, summed or compared), with no form of that name or its abbreviation.",
+                    f'"{words}" writes the name {w["name"]} on the chart{which}, and UCT has no checked formula for '
+                    "that name. Keep the formula; change the indicator's name and every label to say what it DOES, in "
+                    'other words (for example "an average that speeds up in trends and slows in ranges"), with no form '
+                    "of that name, none of its own words and no abbreviation of it.",
                     member=w["name"])
 
 
 def withheld_notes(envelope: Mapping[str, Any], withheld: Any) -> List[Dict[str, Any]]:
-    """What the member is told, by the door itself, on every output a turn built for a withheld
-    name: it is not in the checked library, so it is not offered under that name."""
+    """What the member is told, by the door itself, when a turn built something for a withheld
+    name: it is not in the checked library, so it is not offered under that name. Said ONCE, on the
+    first output (it was once per output: the same sentence three times on a three-line indicator)."""
     if not withheld or envelope.get("disposition") != "change":
         return []
     names = " or ".join(w["name"] for w in withheld)
     text = (f"{names} is not in UCT's checked library yet, so this is not offered under that name. It was built from "
             "what the name is generally understood to mean. Check the formula before you rely on it.")
-    return [{"output": key, "text": text[:named_indicators.SENTENCE_MAX]}
-            for key, _tree in _patch_outputs(envelope) if isinstance(key, str)]
+    first = next((key for key, _tree in _patch_outputs(envelope) if isinstance(key, str)), None)
+    return [] if first is None else [{"output": first, "text": text[:named_indicators.SENTENCE_MAX]}]
 
 
 def _named_term(e: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
@@ -2694,6 +2703,8 @@ def _check_references(envelope: Mapping[str, Any], view: Any) -> None:
 # the third replaces one op with the op that says the same thing.
 
 MEND_OUTPUT_REF = "output-ref"
+#: ⭐ 2026-11-18 -- A LIST WRITTEN AS ONE PIECE OF TEXT (`lists_from_text`).
+MEND_LIST_AS_TEXT = "list-as-text"
 MEND_ASSUMPTION = "assumption-link"
 MEND_STATE_PAINT = "state-as-paint"
 _MEND_MAX_PASSES = 8
@@ -3209,6 +3220,43 @@ def _tool_input(msg: Any) -> Optional[dict]:
 #: unexpected)") and the repair call re-emits the SAME envelope at the top level.
 #: 16 of 17 P3R turns paid that second ~15k-token call for nothing.
 INPUT_WRAPPERS: Tuple[str, ...] = ("args",)
+
+
+@functools.lru_cache(maxsize=1)
+def _list_fields() -> Tuple[str, ...]:
+    """The fields of an answer the contract types as a LIST (read off the contract)."""
+    props = composed_schema().get("properties") or {}
+    return tuple(sorted(k for k, v in props.items() if isinstance(v, Mapping) and v.get("type") == "array"))
+
+
+def lists_from_text(candidate: Any) -> Tuple[Any, List[str]]:
+    """``(answer, which fields)``. ⭐ SEEN on production, 2026-11-18, on long formulas: the
+    assistant can write its whole list of changes as ONE PIECE OF TEXT holding
+    the list (``"ops": "[{\"op\": \"create\", ...}]"``), on a long formula. The contract refused
+    the format, the repair did the same again, and the member read "couldn't produce a valid change
+    ... Try rephrasing it" about an answer whose content was never looked at.
+
+    A field the contract types as a list, holding text that parses to a list, becomes that list.
+
+    ⛔ EXTRACTION, NOT VALIDATION, exactly as `_unwrap_input`: what comes out meets the same size
+    cap and the same strict check as an answer that arrived as a list. Nothing is defaulted or
+    repaired, text that is not a list is left for the check to refuse, and nothing else is parsed."""
+    if not isinstance(candidate, dict):
+        return candidate, []
+    out, which = candidate, []
+    for field in _list_fields():
+        text = candidate.get(field)
+        if not isinstance(text, str) or not text.lstrip().startswith("["):
+            continue
+        try:
+            parsed = json.loads(text)              # (text that opens with "[" and parses IS a list)
+        except Exception:                          # noqa: BLE001 -- not a list in text: the check says so
+            continue
+        if out is candidate:
+            out = dict(candidate)
+        out[field] = parsed
+        which.append(field)
+    return out, which
 
 
 def _unwrap_input(value: Optional[dict]) -> Tuple[Optional[dict], Optional[str]]:
@@ -4124,12 +4172,21 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             logger.warning("[converse] the answer was refused for its size on attempt=%d: %s", attempts, oversize)
             return _refusal(SIZE_GATE, oversize, **extra)
         candidate, wrapper = _unwrap_input(tool_input)
+        candidate, from_text = lists_from_text(candidate)
+        if from_text:
+            # what arrived as text is about to be walked: it meets the size cap first, like any answer
+            oversize = answer_size_problem(candidate)
+            if oversize is not None:
+                logger.warning("[converse] the answer was refused for its size on attempt=%d: %s", attempts, oversize)
+                return _refusal(SIZE_GATE, oversize, **extra)
         candidate = _own_notes_only(candidate)             # the assistant may not sign a note as UCT's
         if wrapper:
             # shape only: the wrapper NAME and the attempt, never its content
             logger.info("[converse] unwrapped %r on attempt=%d", wrapper, attempts)
             trace.setdefault("input_wrapper", wrapper)
         candidate, mended = mend(candidate, view)
+        if from_text:
+            mended = [MEND_LIST_AS_TEXT] + list(mended)
         if mended:
             # shape only: WHICH mends, never what they touched
             logger.info("[converse] mended %s on attempt=%d", ",".join(mended), attempts)

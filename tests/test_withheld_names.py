@@ -209,3 +209,36 @@ def test_the_planner_shared_with_the_screener_is_unchanged(conv):
         told = dc.plan(words, dc.INDICATOR_KIND)
         assert all(t.get("section") != conv.WITHHELD_SECTION for t in told.get("terms") or []), words
     assert dc.plan("Add the Qstick", dc.INDICATOR_KIND) == dc.plan("Add the Qstick", dc.INDICATOR_KIND, lexicon=dc.LEXICON)
+
+
+# ═══ after a live round (2026-11-18) ═════════════════════════════════════════
+
+def test_a_recognisable_variant_of_the_name_is_the_name_and_the_repair_says_which_word(conv):
+    """A build for the Fractal Adaptive Moving Average named "Fractal Dimension Adaptive Average"
+    writes the name. Ruling: that is the name (its own word, in nearly the same order);
+    the rule exists so a member never reads a checked-sounding name on an unchecked formula. The
+    repair names the word that gave it away and asks for what the indicator DOES, in other words."""
+    frama = [{"id": "fractal_adaptive_moving_average", "name": "Fractal Adaptive Moving Average"}]
+    with pytest.raises(conv._Refused) as caught:
+        conv.check_withheld(build(name="Fractal Dimension Adaptive Average", label="Adaptive average of close"), frama)
+    said = caught.value.detail
+    assert caught.value.gate == "named:withheld"
+    assert "(\"fractal\" is that name's own)" in said
+    assert 'say what it DOES, in other words (for example "an average that speeds up in trends and slows in ranges")' in said
+    assert "none of its own words" in said
+    # the whole name written out needs no word pointed at
+    with pytest.raises(conv._Refused) as whole:
+        conv.check_withheld(build(name="Fractal Adaptive Moving Average (16)"), frama)
+    assert "is that name's own" not in whole.value.detail and "say what it DOES" in whole.value.detail
+    # CONTROL: a name by what it does passes
+    conv.check_withheld(build(name="An average that speeds up in trends and slows in ranges", label="Adaptive average"), frama)
+
+
+def test_the_not_in_the_library_sentence_is_said_once_not_once_per_output(conv):
+    two = env(0, [{"op": "create", "name": "Volume force", "placement": "pane",
+                   "outputs": [{"key": "fast", "label": "Fast", "tree": TREE}, {"key": "slow", "label": "Slow", "tree": TREE},
+                               {"key": "gap", "label": "Gap", "tree": TREE}]}])
+    notes = conv.withheld_notes(two, [KLINGER])
+    assert len(notes) == 1 and notes[0]["output"] == "fast"
+    assert notes[0]["text"].startswith("Klinger Volume Oscillator is not in UCT's checked library yet")
+

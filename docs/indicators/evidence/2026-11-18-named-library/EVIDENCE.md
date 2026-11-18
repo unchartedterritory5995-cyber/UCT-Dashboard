@@ -474,3 +474,19 @@ formula was edited." where a title still names it. A title the member chose them
 Not built: recognising a SUPERSEDED version (Ease of Movement v1, NVI v1). The library keeps an old
 version's fingerprint, not its formula, and those two were live for about an hour with no members.
 An indicator saved with one reads as the member's own formula.
+
+## Positive Volume Index
+
+A well-known name the library did not hold, and one a build from scratch does not fit: a running
+product from the first bar reaches past the history budget. It is the Negative Volume Index's twin
+with the volume test reversed, so it is entered the same way.
+
+| | |
+|---|---|
+| Formula | `1000 * exp(cum(volume > volume[1] ? ln(close / close[1]) : 0))`, and a 255-period EMA of it as the signal |
+| Published definition (tier b) | Fosback's form as the Wikipedia article "Negative volume index" gives it (read 2026-11-18): on a higher-volume period, prior PVI + prior PVI x the price change; otherwise unchanged. The page gives the base as "such as 100" and the signal as a one-year moving average, with no kind named |
+| Value check (tier a) | `tests/test_named_indicators_values.py::positive_volume_index`: the step written bar by bar, against the entry's exponential of a running total of logs, on every bar, at the default and at another signal length |
+| Capture against TradingView's built-in | NOT YET. Two choices follow the Negative Volume Index entry and are what a capture would settle: it starts at 1000 on the first loaded bar, and its signal is a 255-period EMA |
+
+A day of equal volume leaves it unchanged. The name is no longer in the list of names UCT withholds.
+
