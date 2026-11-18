@@ -119,6 +119,8 @@ export const PANEL_IMPORTERS = {
   // data wave 6 (2026-11-17)
   IntradayUpdate: () => import('./panels/IntradayUpdatePanel'),
   TopFlow: () => import('./panels/TopFlowPanel'),
+  // UNVOL (2026-11-18): stocks far above their usual volume for the time of day, over the Screener's scan route.
+  UnusualVolume: () => import('./panels/UnusualVolumePanel'),
   // MYH: the member's own Journal record on one stock (trades, position, notes); no new route
   MyHistory: () => import('./panels/MyHistoryPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
