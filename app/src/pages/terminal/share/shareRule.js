@@ -29,8 +29,9 @@
 // What the register says, per class (its legend: A allowed, LA likely allowed for MEMBER
 // DISPLAY, R restricted, U unknown):
 //   own, uct, public  class A: "no vendor licence anywhere in the path: public domain or UCT's
-//                     own content only". The member's own records, UCT's own words, and filings
-//                     read straight from the SEC (row T-83).
+//                     own content only". The member's own records, UCT's own words, filings
+//                     read straight from the SEC (row T-83) and the US Treasury's own published
+//                     yields (row T-95).
 //   derived, vendor   LA covers showing them to a signed-in member. Leaving the app is a
 //                     different use. The rows that speak to it are restrictive: publication to
 //                     anyone who is not a member is R on either Massive tier (T-16, T-17, T-19,
@@ -48,7 +49,7 @@
 export const SHARE_POLICY = Object.freeze({
   own: Object.freeze({ image: true, file: true, why: 'your own records' }),
   uct: Object.freeze({ image: true, file: true, why: 'written by UCT, with no licensed data in it' }),
-  public: Object.freeze({ image: true, file: true, why: 'public filings read from the SEC' }),
+  public: Object.freeze({ image: true, file: true, why: 'public records read from the SEC or the US Treasury' }),
   derived: Object.freeze({ image: false, file: false, why: 'worked out from licensed market data; the licensing register has no row that allows a member export' }),
   vendor: Object.freeze({ image: false, file: false, why: 'licensed or third-party data; the licensing register restricts passing it on' }),
   team: Object.freeze({ image: false, file: false, why: 'the trading team\'s archive is not shared outside the product' }),
@@ -62,8 +63,9 @@ const CLASS_CODES = {
   own: ['PERF', 'RSCH', 'MYH'],
   // UCT's own words: the function list, and the index of UCT's own lessons.
   uct: ['HELP', 'LEARN'],
-  // Read straight from the SEC (EDGAR, the fails-to-deliver files).
-  public: ['CF', 'FEED', 'FIL', 'FSRC', 'FTD'],
+  // Read straight from the SEC (EDGAR, the fails-to-deliver files), or from the US Treasury's own
+  // published daily par yield curve (RATES: register row T-95, class A, no vendor in the path).
+  public: ['CF', 'FEED', 'FIL', 'FSRC', 'FTD', 'RATES'],
   // The trading team's archive, or numbers worked out from its calls.
   team: ['WHO', 'HIS', 'CHK'],
   // UCT's own analytics over licensed prices: ranks, returns over a window, breadth, regime.
@@ -77,7 +79,11 @@ const CLASS_CODES = {
   vendor: ['CAL', 'ERN', 'EMOV', 'DES', 'GP', 'CN', 'CATS', 'MOVE', 'FA', 'EE', 'EEH', 'ANR', 'OWN', 'PPL', 'TRAN', 'MB',
     'ASK', 'PEER', 'ETF', 'TWT', 'SIZE', 'TAS', 'PLAN', 'EXMV', 'DPTH', 'EVTS', 'ERX', 'ATTN', 'CONG', 'OMON', 'OVS',
     'IVH', 'VOL', 'POS', 'OHIS', 'OBT', 'OSCR', 'FLOW', 'TIDE', 'STRS', 'LVL', 'FLWL', 'CONFL', 'ACCUM', 'TOPF', 'NEWS',
-    'INS', 'SENT', 'MOST', 'ALRT', 'MON', 'UPDG', 'HILO', 'LEAD', 'TSRC'],
+    'INS', 'SENT', 'MOST', 'ALRT', 'MON', 'UPDG', 'HILO', 'LEAD', 'TSRC',
+    // ERNS: a vendor's earnings calendar and results beside UCT's priced and past moves. CEOS: phrases
+    // taken from third-party earnings-call transcripts. SHINT, SHRTS: FINRA short interest and short
+    // volume licensed through the market-data vendor for display to members (register rows T-93, T-94).
+    'ERNS', 'CEOS', 'SHINT', 'SHRTS'],
 }
 
 /** `code -> class`, for every function whose panel has been read and classed. */
