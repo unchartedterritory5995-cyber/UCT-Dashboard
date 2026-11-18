@@ -727,6 +727,50 @@ unchanged).
   #1868's rounding, so graded on that supply their RS line reads about 1e-7 off. They stay local, cited as
   witnesses, and are re-captured beside a rounded supply once #1868 is deployed.
 
+## L12 PR 2 (U-DAILY): the rating's daily reads on an INTRADAY chart (2026-11-18, branch `feat/rs-intraday-daily`, stacked on L12 PR 1)
+
+**What it serves.** Fred RS's rating reads `request.security(syminfo.tickerid, 'D', close)` and
+`request.security(comparativeTickerId, 'D', close)`. On an intraday chart TradingView prints the label "RS Rating"
+with an EMPTY rating (the number prints only when `timeframe.isdaily`, unless Rating Only), and draws the new-high /
+new-low dots on the RS line. Both live in the run half, which until now was refused by name on an intraday chart (a
+daily read above the chart was not one the run read), so the RS line drew (L12 PR 1) and the labels and dots did not.
+
+**The reads, witnessed** (`l12-is-2026-11-18`, look-ahead off, extended-hours chart):
+
+- **This chart's OWN symbol at `"D"`** (the rs-own-daily probe, RDDT 5m / 60m): every chart bar of a session reads the
+  PREVIOUS session's daily close (5m: pre 5,259, regular 11,154, post 4,062 bars), except the session's LAST chart
+  bar, which reads its own (5m 19:55 on 95 of 95 days, 60m 19:00 on 656 of 656: the daily bar closes with the
+  extended session), and the newest bar, which reads the session in progress (the developing day, = the chart's close).
+- **SP:SPX at `"D"`** (the rs-spx probe's X01..X04, 1 / 5 / 15 / 30 / 60m): a bar opening before the session's close
+  reads the previous session's daily row (every pre-market and regular bar), a bar from the close the session's own
+  (every post-market bar on 15 / 30 / 60m; on 1m / 5m the first post bars on some days still read the previous one,
+  the official print's own lag: 205 of 2,463 1m and 142 of 4,157 5m post bars).
+- **The seed (`request.seed`, read at the chart's own timeframe)**: PENDING its witness (the rs-seed probe on RDDT 5 /
+  60, batch `l12-night-2026-11-19`). Until it lands Fred RS's run half on an intraday chart stays refused by name (the
+  seed's witness row covers D / W / M only), so its labels and dots stay withheld; the RS line draws.
+
+**How.** `pine.js` mints a daily read above an intraday chart as an `above` request target, for a BARE open / high /
+low / close, look-ahead off (anything else declines exactly as before), and ONLY in the run's own request reader
+(`Resolver` option `aboveDailyReads`, set by `pineRuntimeFrontend.js`'s `targetReader`): `requestTargetOf` is shared
+with the host translator, whose refusals (ruling 3.5, C49, C23) stay verbatim. The host lane never draws it (the daily
+gate). The run's supply (`requestSupply.js::aboveChartRead`) evaluates the expression on the symbol's HELD daily rows
+and places them per chart bar:
+- SP:SPX from `SPX@D` (the intraday block's `D: session-completed`, `requestWitnesses.json`), never from a forming row;
+- the chart symbol's own daily rows under `OWN_DAILY_KEY` (`OWN~D`: never `<TICKER>@D`, which `heldKeyParts` would read
+  as a listing), which the chart fetches only for a run that reads them (`useSecondarySources::ownDailyNeeded`, from
+  `runtimeColumns.js::runtimeReadsOwnDaily`, the run's own compile for that timeframe, memoised), as deep as a held
+  daily read (`heldDepthOf`), on the live tail, and in the binder's signature (`otherSymbolsSignature`).
+A bar whose row is not held is unknown, and the supply's rules apply (the run refuses a request it cannot read on every
+settled bar). The vendor harness files a second held series and the own daily rows from a supply record
+(`ourSide.js::otherSymbolSupply`).
+
+**Rails.** `rsIntradayDaily.test.js` (10): the target minted for a bare OHLC on an intraday timeframe only, never for
+another expression or a look-ahead; the member door does not refuse it before a chart is known; the own symbol's
+placement (the previous session, the day's last bar its own, the newest bar the session's) and the refusals (not handed
+the rows: by name; loading: pending; a bar before the rows: unknown); SP:SPX's session-completed placement and a forming
+session's post-market bars; the fetch (`ownDailyNeeded`, `OWN~D` asked as the chart symbol at D, never as a ticker) and
+the signature. The whole chart suite: 1,743 files / 32,681 tests green (remote lane).
+
 ## Owner rulings
 
 - **2026-11-16, the S&P 500 history difference (Q-RS9):** told that the RS line on bars before
