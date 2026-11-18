@@ -1260,9 +1260,16 @@ def check_named(envelope: Mapping[str, Any], view: Any, named: Any) -> None:
 def named_notes(envelope: Mapping[str, Any], view: Any, named: Any) -> List[Dict[str, Any]]:
     """One assumption per output this patch builds to a library formula: what it was built to and
     how that formula was checked, in the member's words."""
-    notes: List[Dict[str, Any]] = []
+    return [{"output": key, "text": named_indicators.member_sentence(e, got)}
+            for key, e, got in _named_outputs(envelope, view, named)]
+
+
+def _named_outputs(envelope: Mapping[str, Any], view: Any, named: Any) -> List[Tuple[str, Dict[str, Any], Any]]:
+    """(output key, library entry, the numbers it was built with) for each output of this patch that
+    holds a library formula."""
+    found: List[Tuple[str, Dict[str, Any], Any]] = []
     if not named:
-        return notes
+        return found
     inputs = sorted(declared_inputs(envelope, view))
     for key, tree in _patch_outputs(envelope):
         if not isinstance(key, str):
@@ -1270,9 +1277,38 @@ def named_notes(envelope: Mapping[str, Any], view: Any, named: Any) -> List[Dict
         for e in named:
             got = next((g for g in (named_indicators.output_in(tree, e, o, inputs) for o in e["outputs"]) if g is not None), None)
             if got is not None:
-                notes.append({"output": key, "text": named_indicators.member_sentence(e, got)})
+                found.append((key, e, got))
                 break
-    return notes
+    return found
+
+
+def named_built(envelope: Mapping[str, Any], view: Any, named: Any) -> List[str]:
+    """The ids of the library entries this patch built, each once, in the order built."""
+    ids: List[str] = []
+    for _key, e, _got in _named_outputs(envelope, view, named):
+        if e["id"] not in ids:
+            ids.append(e["id"])
+    return ids
+
+
+def refused_names(not_understood: Any) -> List[str]:
+    """The phrases a turn was refused for AS UNKNOWN NAMES (the planner's name rule, answered with
+    this door's own sentence), as written. For the record's use only: `asked_names` turns them into
+    catalogue ids and they go no further."""
+    return [n["phrase"] for n in not_understood or []
+            if isinstance(n, Mapping) and isinstance(n.get("phrase"), str)
+            and n.get("reason") == UNKNOWN_NAME_REASON.format(name=n["phrase"])]
+
+
+def asked_names(message: Any, refused: Any = ()) -> List[str]:
+    """⭐ WHICH WELL-KNOWN NAMES A REQUEST ASKED FOR, AS CATALOGUE IDS (`indicator_names`): every
+    catalogue name written in it, and `other` when a phrase refused as an unknown name is in no
+    catalogue row. IDS ONLY: nothing a member typed is in the answer."""
+    from api.services import indicator_names
+    ids = indicator_names.names_in(message)
+    if any(not indicator_names.names_in(phrase) for phrase in refused or ()):
+        ids = ids[:indicator_names.MAX_PER_TURN] + [indicator_names.OTHER]
+    return ids
 
 
 def _with_door_notes(envelope: Dict[str, Any], notes: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -3168,7 +3204,7 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
     except Exception:                              # noqa: BLE001 -- telemetry never breaks a turn
         logger.exception("[converse] usage accounting failed")
     _record_turn(user_id, conversation_id, result, admin=admin, message=message,
-                 latency_ms=latency_ms)
+                 latency_ms=latency_ms, learned=trace)
     # ⭐ F1 (2026-11-16): how much of today's allowance is left, so the dock can say so before
     # it runs out rather than only when it has. A SHARE, never dollars. Never breaks a turn.
     try:
@@ -3305,8 +3341,29 @@ def turn_stamps() -> Dict[str, Any]:
     return out
 
 
+def learned_fields(result: Mapping[str, Any], learned: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
+    """⭐ LEARN AS A PRODUCT: what a turn says about questions, memory and names, as CLOSED IDS (a
+    registry question id, a library entry id, a name-catalogue id). Each is held to its own closed
+    set again where it is stored (`indicator_telemetry._VALUE_RULES`).
+
+      asked         the registry question the door asked, or ``assistant`` for one the assistant asked
+      answered      the registry question this turn's message answered
+      remembered    the registry questions answered from the member's memory instead of asking
+      named_built   the library entries the change built
+      named_held    the held names the turn was refused for
+      unknown_name  the catalogue names the request asked for (``other``: a refused name in no row)
+    """
+    t = learned or {}
+    csv = lambda ids: ",".join(i for i in ids or [] if isinstance(i, str)) or None  # noqa: E731
+    asked = t.get("asked") or ("assistant" if result.get("ok") and result.get("turn") == "question" else None)
+    return {"asked": asked, "answered": t.get("answered"), "remembered": csv(t.get("remembered")),
+            "named_built": csv(t.get("named_built")), "named_held": csv(t.get("named_held")),
+            "unknown_name": csv(t.get("unknown_name"))}
+
+
 def _record_turn(user_id: Any, conversation_id: Any, result: Mapping[str, Any], *,
-                 admin: bool, message: Any, latency_ms: int) -> None:
+                 admin: bool, message: Any, latency_ms: int,
+                 learned: Optional[Mapping[str, Any]] = None) -> None:
     """⛔ NEVER RAISES and stores SHAPE ONLY (indicator_telemetry's allowlists)."""
     try:
         from api.services import indicator_telemetry
@@ -3337,6 +3394,7 @@ def _record_turn(user_id: Any, conversation_id: Any, result: Mapping[str, Any], 
             latency_ms=latency_ms,
             op_kinds=",".join(o for o in ops if isinstance(o, str)) or None,
             preflight=bool(result.get("preflight")),
+            **learned_fields(result, learned),
             **turn_stamps(),
         )
     except Exception:                              # noqa: BLE001
@@ -3416,7 +3474,8 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
         if not described_in_own_words(plain, chart):
             return {"refusal": {"ok": False, "gate": NAMED_UNCHECKED_GATE,
                                 "reason": named_indicators.way_forward(unchecked[0]["entry"]),
-                                "not_understood": not_understood, "unavailable": unavailable}}
+                                "not_understood": not_understood, "unavailable": unavailable},
+                    "held": [u["entry"]["id"] for u in unchecked]}
         own_words = [u["entry"] for u in unchecked]
     elif unchecked:
         discussed = discussed + [{"phrase": u["wrote"], "gate": NAMED_UNCHECKED_GATE,
@@ -3456,18 +3515,28 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     answered = pending_answer(message, turns, chart)            # an answer is the request plus the answer
     if answered:
         message = answered["message"]
+        trace["answered"] = answered["question"]
         chose = answer_value(answered["question"], answered, chart) if memory is not None else None
         if chose is not None:
             memory.remember(answered["question"], chose[0], chose[1])
     understood_turn = understand_turn(message, chart)
+    try:                                           # the record's own reading: it never costs a turn
+        refused_as_names = refused_names((understood_turn["refusal"] or understood_turn).get("not_understood"))
+        trace["unknown_name"] = asked_names(message, refused_as_names)
+    except Exception:                              # noqa: BLE001
+        logger.exception("[converse] the name catalogue could not be read for the record")
     if understood_turn["refusal"] is not None:
+        trace["named_held"] = understood_turn.get("held") or []
         if understood_turn["refusal"].get("preflight"):
             logger.info("[converse] preflight %s (no model call)", understood_turn["refusal"]["gate"])
         return understood_turn["refusal"]
     # what this member chose before stands in for the question (and is said, below)
     message, understood_turn, as_before = remembered_defaults(message, understood_turn, view, chart, memory)
+    if as_before:
+        trace["remembered"] = [qid for qid, _label in as_before]
     asking = door_question(understood_turn, view)
     if asking is not None:
+        trace["asked"] = asking
         # ⭐ THE DOOR ASKS, with no model call: the same question every time, for nothing. ONE
         # question; the next open one is asked on the next turn (`with_pending_answers`).
         question = {"contract": PATCH_CONTRACT, "baseRevision": revision, "ops": [], "disposition": "clarify",
@@ -3622,11 +3691,11 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         # ⭐ PHASE 5: another symbol is authorable now, so a change for one is
         # refused only when it reads NONE of the symbols the member named (the
         # substitution). "From SPY to QQQ" names both; a change reading QQQ is it.
-        named = {conversation_preflight.store_ticker(t)
-                 for t in conversation_preflight.named_tickers(message, chart)} | (
+        named_syms = {conversation_preflight.store_ticker(t)
+                      for t in conversation_preflight.named_tickers(message, chart)} | (
             {conversation_preflight.store_ticker(other_sym)} if other_sym else set())
         reads_other = bool(other_sym) and bool(
-            named & {conversation_preflight.store_ticker(t) for t in envelope_tickers(envelope)})
+            named_syms & {conversation_preflight.store_ticker(t) for t in envelope_tickers(envelope)})
         unasked = unasked_tickers(envelope, message, view)
         if envelope.get("disposition") == "change" and unasked:
             refused = _Refused("unsupported:symbol-unasked", f"reads {', '.join(unasked)}",
@@ -3655,6 +3724,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         else:
             turn = "noop"
         reply = envelope.get("reply")
+        trace["named_built"] = named_built(envelope, view, named)   # what the patch holds; nothing on a turn with no formula
         return {
             **({"remembered": [qid for qid, _label in as_before]} if as_before else {}),
             "ok": True,
