@@ -646,6 +646,9 @@ def real_browser():
     """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
     navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
     is the expensive part; each rail opens its own fresh page/context."""
+    # ⛔ SKIPPED by name when playwright is absent (the suite's importorskip convention, 2026-11-18):
+    # these rails drive a REAL headless Chromium on purpose, and CI installs no browser stack.
+    pytest.importorskip("playwright.sync_api", reason="a real headless Chromium; " + 'CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)')
     from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
         browser = p.chromium.launch()

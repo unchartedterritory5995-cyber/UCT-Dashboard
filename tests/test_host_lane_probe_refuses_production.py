@@ -33,7 +33,9 @@ def _load():
 @pytest.fixture
 def probe(monkeypatch, tmp_path):
     mod = _load()
-    import playwright.sync_api as pw
+    # ⛔ SKIPPED by name when playwright is absent (the suite's importorskip convention, 2026-11-18): the
+    # fixture patches the real module's `sync_playwright`, so without the package there is nothing to patch.
+    pw = pytest.importorskip("playwright.sync_api", reason="the probe's fixture patches playwright; " + 'CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)')
 
     def no_browser():
         raise _BrowserStarted()
