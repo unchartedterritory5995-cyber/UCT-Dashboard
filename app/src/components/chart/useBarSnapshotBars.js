@@ -23,12 +23,12 @@
 //
 // The full legacy-selector → rule map (and what is intentionally dropped) is in the P3-S1 PR
 // body and docs/architecture/barstore.md §P3-S1.
-import { useEffect, useRef, useCallback, useMemo, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo, useSyncExternalStore } from 'react'
 import { useBarSnapshot } from '../../data/barStore/useBarSnapshot'
 import { getBarStore } from '../../data/barStore/index'
 import { legacyBars, legacyDevelopingOf } from '../../data/barStore/adapter'
-import { prefetch as storePrefetch, viewKeyFor } from '../../data/barStore/prefetch'
-import { keyOf, STATUS, isDateTf, dateLabelToUnix } from '../../data/barStore/types'
+import { prefetch as storePrefetch, viewKeyFor, LAKE_JOIN_WAIT_MS } from '../../data/barStore/prefetch'
+import { keyOf, parseKey, STATUS, isDateTf, dateLabelToUnix } from '../../data/barStore/types'
 import { isNativeTf, fetchTf, resampleSpec } from './timeframes'
 import { resolveDailyTodaySeed, useCompareBars } from './useLegacyChartBars'
 import { resample, resampleForSpec } from '../../utils/resampleBars'
@@ -208,9 +208,34 @@ export function useBarSnapshotBars({
   )
   const _edgeProvisional = !!snap && (_localLayer ? !_localTailComplete
     : (chosen == null || (snap.restSeen && status !== STATUS.CURRENT && status !== STATUS.CONTEXT)))
-  const _tfSwitchHold = isIntraday && !_isCustomTf && !_hasOverride && !replayCutoff
-    && !!snap && !_answered && _edgeProvisional
+  const _isTfSwitch = isIntraday && !_isCustomTf && !_hasOverride && !replayCutoff
     && !!_onScr && _onScr.sym === sym && _onScr.ext === showExtended && _onScr.tf !== resolvedTf
+  // ⭐ ONE PAINT ON A TIMEFRAME SWITCH TOO (2026-11-18). The symbol handoff already waits (bounded)
+  // for the lake's whole depth before it commits (#1774, prefetch LAKE_JOIN_WAIT_MS); a timeframe
+  // button did not, so 1h/30m/5m painted the server's few hundred bars and then grew in steps for
+  // ~1-1.8 s (measured on production: 1h AAPL 475 -> 3,884 -> 6,950 -> 10,261 bars). While the lake's
+  // depth is still due for the new key (store.lakePending: in flight or never asked), the previous
+  // timeframe stays on screen for at most LAKE_JOIN_WAIT_MS from the switch; then whatever is held
+  // paints. A key the lake does not carry, or one already deep, never waits.
+  const _lakeSwitchRef = useRef({ key: null, t0: 0 })
+  if (_isTfSwitch && _lakeSwitchRef.current.key !== key) {
+    // eslint-disable-next-line react-hooks/purity
+    _lakeSwitchRef.current = { key, t0: Date.now() }
+  }
+  const [, _setLakeTick] = useState(0)
+  const _lakeDue = _isTfSwitch && !!key && _lakeSwitchRef.current.key === key && !!store.lakePending?.(key)
+  // eslint-disable-next-line react-hooks/purity
+  const _lakeHold = _lakeDue && Date.now() - _lakeSwitchRef.current.t0 < LAKE_JOIN_WAIT_MS
+  useEffect(() => {
+    if (!_lakeHold) return undefined
+    let alive = true
+    const wake = () => { if (alive) _setLakeTick((n) => n + 1) }
+    const left = Math.max(0, LAKE_JOIN_WAIT_MS - (Date.now() - _lakeSwitchRef.current.t0))
+    const id = setTimeout(wake, left + 1)
+    Promise.resolve().then(() => store.lakeSeed?.(key)).catch(() => {}).then(wake)
+    return () => { alive = false; clearTimeout(id) }
+  }, [_lakeHold, key, store])
+  const _tfSwitchHold = _isTfSwitch && !!snap && ((!_answered && _edgeProvisional) || _lakeHold)
   tfSwitchHoldRef.current = _tfSwitchHold
   const bars = _tfSwitchHold ? null : chosen
 
@@ -409,7 +434,7 @@ export function useBarSnapshotBars({
       let tries = 0
       for (let i = 0; i < PREFETCH_WINDOWS && !cancelled;) {
         // deeper where the lake carries the key (historyPrepend.prefetchTargetBars)
-        if ((store.peek(key)?.depth || 0) >= prefetchTargetBars(!!store.lakeCarries?.(key))) break
+        if ((store.peek(key)?.depth || 0) >= prefetchTargetBars(!!store.lakeCarries?.(key), parseKey(key)?.tf)) break
         const res = await _loadOlder(true, { dwell: true })
         if (cancelled) break
         // A failed or still-filling window is asked again (at most DEEP_RETRIES times per
@@ -439,6 +464,15 @@ export function useBarSnapshotBars({
         try { keys.push(keyOf({ sym, tf, session: _session })) } catch { /* not a bars symbol */ }
       }
       storePrefetch(keys, { priority: 'background', warm: true, signal: ac?.signal ?? null })
+      // ⭐ ...and the lake's whole depth for the intraday ones a member flips to (2026-11-18), so a
+      // later timeframe click finds it held and paints at once (the hold above never waits). One load
+      // per key (network.lakeSeed shares a load in flight and skips a key already deep); the pieces
+      // come from the browser's HTTP cache after the first time.
+      for (const k of isIntraday ? keys : []) {   // a member on daily is not flipping intraday
+        const tf = parseKey(k)?.tf
+        if (tf !== '5' && tf !== '30' && tf !== '60') continue
+        try { if (store.lakeCarries?.(k)) Promise.resolve(store.lakeSeed?.(k)).catch(() => {}) } catch { /* a warm only */ }
+      }
     }, _intradaySmoothSwitchEnabled() ? 1600 : 600)
     return () => { clearTimeout(id); try { ac?.abort() } catch { /* ignore */ } }
   }, [sym, backgroundWarm])  // eslint-disable-line react-hooks/exhaustive-deps

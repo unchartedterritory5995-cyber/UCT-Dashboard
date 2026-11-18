@@ -668,7 +668,7 @@ export function createPrefetch(o = {}) {
           }
           // the chart's own target: deeper where the lake carries the key (historyPrepend)
           const lakeCarries = !!S().lakeCarries?.(k)
-          if (!s?.restSeen || !s.bars?.length || s.status === STATUS.UNAVAILABLE || s.depth >= prefetchTargetBars(lakeCarries)) break
+          if (!s?.restSeen || !s.bars?.length || s.status === STATUS.UNAVAILABLE || s.depth >= prefetchTargetBars(lakeCarries, parseKey(k)?.tf)) break
           // ⭐ Where the lake carries it, the WHOLE depth in one load (store.lakeSeed), so the flip paints
           // the row as deep as the chart will ever hold it (2026-11-17: two windows left it at ~13,000 of
           // 20,000, and the chart's own deepening then showed in view). Server windows otherwise.

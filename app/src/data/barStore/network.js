@@ -38,7 +38,7 @@
 // owner). No other barStore file spells the endpoint.
 
 import { barsLaneRequest, barsBeforeUrl, promoteLaneRequest } from '../../utils/prefetchBars'
-import { historyWindowUrl, prependOlder, etDateOf, HISTORY_WINDOW_BARS, LAKE_WINDOW_BARS, LAKE_PREFETCH_TARGET_BARS } from '../../utils/historyPrepend'
+import { historyWindowUrl, prependOlder, etDateOf, HISTORY_WINDOW_BARS, LAKE_WINDOW_BARS, lakeTargetBars } from '../../utils/historyPrepend'
 import {
   nextTailPollMs, createTailPollState, intradayDedupMs, INTRADAY_POLL_MS, REPAIR_DEDUP_MS,
   tailRetriesExhausted,
@@ -570,7 +570,7 @@ export function createNetwork({
     // painted only when rows were actually added.
     //
     // ⭐ ONE LOAD, THE WHOLE DEPTH (2026-11-17, owner: "it shows a good chunk, then the rest a quick
-    // blink later"). The lake's newest LAKE_PREFETCH_TARGET_BARS come in ONE load (the background
+    // blink later"). The lake's newest lakeTargetBars(tf) come in ONE load (the background
     // depth the chart would otherwise reach in steps after the first paint), and a load that lands
     // AFTER the server's answer still joins: the reducer adds only the rows older than what is held,
     // and only where the shared bars prove the held basis. Resolves 'seed' (rows added before any
@@ -578,11 +578,12 @@ export function createNetwork({
     // (the handoff and the chart's subscribe share it), none once the key is that deep.
     lakeSeed(key) {
       if (!history?.olderBars || !lakeCarriesKey(key)) return Promise.resolve(false)
-      if ((registry.peek(key)?.bars.length ?? 0) >= LAKE_PREFETCH_TARGET_BARS) return Promise.resolve(false)
+      const target = lakeTargetBars(parseKey(key)?.tf)
+      if ((registry.peek(key)?.bars.length ?? 0) >= target) return Promise.resolve(false)
       const running = lakeSeeds.get(key)
       if (running) return running
       const p = Promise.resolve()
-        .then(() => history.olderBars(key, Math.floor(now() / 1000) + 1, { bars: LAKE_PREFETCH_TARGET_BARS }))
+        .then(() => history.olderBars(key, Math.floor(now() / 1000) + 1, { bars: target }))
         .then((got) => {
           const cur = registry.peek(key)
           if (!got || !Array.isArray(got.bars) || !got.bars.length || !cur) return false
@@ -606,7 +607,7 @@ export function createNetwork({
      *  handoff's fast path then waits for the join instead of painting a shallow copy (prefetch). */
     lakePending(key) {
       if (!history?.olderBars || !lakeCarriesKey(key)) return false
-      if ((registry.peek(key)?.bars.length ?? 0) >= LAKE_PREFETCH_TARGET_BARS) return false
+      if ((registry.peek(key)?.bars.length ?? 0) >= lakeTargetBars(parseKey(key)?.tf)) return false
       return !lakeSettled.has(key)
     },
     /** Would a scroll-back of `key` ask the history lake (intraday, not a replay window, the lake on

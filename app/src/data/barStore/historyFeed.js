@@ -16,7 +16,7 @@
 // (createBarStore, every suite) keeps the old default, OFF unless '1': a suite asks for the lake by name.
 import { createHistorySource, periodsFor, seriesFor } from '../historyLake/source'
 import { parseKey, isIntradayTf } from './types'
-import { LAKE_PREFETCH_TARGET_BARS } from '../../utils/historyPrepend'
+import { lakeTargetBars } from '../../utils/historyPrepend'
 
 export const HISTORY_LAKE_KEY = 'uct.historyLake'
 
@@ -61,11 +61,12 @@ export function createHistoryFeed({ source = createHistorySource() } = {}) {
   // the very URLs the window then reads. Once per key per page; a few hundred keys at most.
   const primed = new Set()
   // ⭐ ENOUGH PIECES FOR THE WHOLE FIRST PAINT (2026-11-17): the handoff now loads the chart's whole
-  // depth (LAKE_PREFETCH_TARGET_BARS) at Enter, so the prime warms the newest pieces until they hold
+  // depth (historyPrepend.lakeTargetBars) at Enter, so the prime warms the newest pieces until they hold
   // that many bars (at least PRIME_PIECES), not just the newest two.
-  function prime(key, { pieces = PRIME_PIECES, bars = LAKE_PREFETCH_TARGET_BARS } = {}) {
+  function prime(key, { pieces = PRIME_PIECES, bars: wantBars } = {}) {
     const ls = lakeSeriesOfKey(key)
     if (!ls || !ls.series || primed.has(key)) return
+    const bars = wantBars ?? lakeTargetBars(ls.tf)
     primed.add(key)
     if (primed.size > PRIME_MAX_KEYS) primed.delete(primed.values().next().value)
     Promise.resolve().then(() => source.loadIndex(ls.sym)).then((index) => {
