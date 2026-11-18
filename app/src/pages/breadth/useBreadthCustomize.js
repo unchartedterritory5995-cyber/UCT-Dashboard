@@ -2,7 +2,11 @@
  * Breadth Sheet Customization — localStorage-backed presets hook.
  *
  * Storage shape (key: `uct.breadth.customize.v1`):
- *   { activePreset: string, presets: { [name]: { hidden: string[] } } }
+ *   { activePreset: string, presets: { [name]: { hidden: string[], order?: string[] } } }
+ *
+ * `order` (2026-11-17, the Monitor's column-header menu): the member's column
+ * order, as metric keys. Optional — a preset without one keeps the code order,
+ * and keys it does not name (new metrics) follow in code order.
  *
  * `Default` is hard-coded ({ hidden: [] }) and never appears in `presets`.
  * Storing `hidden` (vs `visible`) means new metrics added in code auto-appear
@@ -29,7 +33,10 @@ function loadFromStorage() {
       for (const [name, val] of Object.entries(parsed.presets)) {
         if (name === DEFAULT_PRESET) continue
         if (val && Array.isArray(val.hidden)) {
-          presets[name] = { hidden: val.hidden.filter(k => typeof k === 'string') }
+          const hidden = val.hidden.filter(k => typeof k === 'string')
+          presets[name] = Array.isArray(val.order)
+            ? { hidden, order: val.order.filter(k => typeof k === 'string') }
+            : { hidden }
         }
       }
     }
@@ -70,7 +77,9 @@ export function validatePresetName(name, existingNames) {
  *   renamePreset(old, new) rename a custom preset
  *   deletePreset(name)     delete a custom preset; switch to Default
  *   switchPreset(name)     set active
- *   resetActive()          clear hidden set on the active preset (Default no-op)
+ *   resetActive()          clear hidden set + order on the active preset (Default no-op)
+ *   order                  string[] | null — the active preset's column order
+ *   setOrder(keys)         replace the active preset's column order (Default no-op)
  */
 export default function useBreadthCustomize() {
   const [state, setState] = useState(() => loadFromStorage())
@@ -102,6 +111,11 @@ export default function useBreadthCustomize() {
     return new Set(presets[activePreset]?.hidden ?? [])
   }, [isDefaultActive, presets, activePreset])
 
+  const order = useMemo(() => {
+    if (isDefaultActive) return null
+    return presets[activePreset]?.order ?? null
+  }, [isDefaultActive, presets, activePreset])
+
   const presetNames = useMemo(() => {
     const customs = Object.keys(presets).sort((a, b) => a.localeCompare(b))
     return [DEFAULT_PRESET, ...customs]
@@ -113,7 +127,18 @@ export default function useBreadthCustomize() {
       const arr = [...new Set(keys)].filter(k => typeof k === 'string')
       return {
         ...prev,
-        presets: { ...prev.presets, [prev.activePreset]: { hidden: arr } },
+        presets: { ...prev.presets, [prev.activePreset]: { ...prev.presets[prev.activePreset], hidden: arr } },
+      }
+    })
+  }, [])
+
+  const setOrder = useCallback((keys) => {
+    setState(prev => {
+      if (prev.activePreset === DEFAULT_PRESET) return prev  // immutable
+      const arr = [...new Set(keys)].filter(k => typeof k === 'string')
+      return {
+        ...prev,
+        presets: { ...prev.presets, [prev.activePreset]: { ...prev.presets[prev.activePreset], order: arr } },
       }
     })
   }, [])
@@ -126,20 +151,23 @@ export default function useBreadthCustomize() {
       else cur.add(key)
       return {
         ...prev,
-        presets: { ...prev.presets, [prev.activePreset]: { hidden: [...cur] } },
+        presets: { ...prev.presets, [prev.activePreset]: { ...prev.presets[prev.activePreset], hidden: [...cur] } },
       }
     })
   }, [])
 
-  const savePreset = useCallback((name, hiddenKeys = []) => {
+  const savePreset = useCallback((name, hiddenKeys = [], orderKeys = null) => {
     const trimmed = (name ?? '').trim()
     setState(prev => {
       const err = validatePresetName(trimmed, Object.keys(prev.presets))
       if (err) return prev  // caller validates first; this is defensive
       const arr = [...new Set(hiddenKeys)].filter(k => typeof k === 'string')
+      const entry = Array.isArray(orderKeys)
+        ? { hidden: arr, order: [...new Set(orderKeys)].filter(k => typeof k === 'string') }
+        : { hidden: arr }
       return {
         activePreset: trimmed,
-        presets: { ...prev.presets, [trimmed]: { hidden: arr } },
+        presets: { ...prev.presets, [trimmed]: entry },
       }
     })
   }, [])
@@ -185,7 +213,7 @@ export default function useBreadthCustomize() {
       if (prev.activePreset === DEFAULT_PRESET) return prev
       return {
         ...prev,
-        presets: { ...prev.presets, [prev.activePreset]: { hidden: [] } },
+        presets: { ...prev.presets, [prev.activePreset]: { hidden: [] } },  // order cleared too
       }
     })
   }, [])
@@ -198,6 +226,8 @@ export default function useBreadthCustomize() {
     isDefaultActive,
     toggleHidden,
     setHiddenSet,
+    order,
+    setOrder,
     savePreset,
     renamePreset,
     deletePreset,

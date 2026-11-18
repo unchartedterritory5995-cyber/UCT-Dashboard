@@ -41,12 +41,20 @@ export default function CustomizePanel({
   onSwitchPreset,
   onResetActive,
   onClose,
+  // The active preset's column order (Monitor header menu), carried by Save As.
+  order = null,
+  // A header-menu change asked for while Default (immutable) is active:
+  // { hidden: string[] } or { order: string[] }. The panel opens straight on the
+  // "save as" prompt so the change lands in a new preset, exactly as a checkbox
+  // click on Default does.
+  pendingChange = null,
 }) {
   // Modes: null | 'saveAs' | 'rename' | 'delete' | 'savePromptFromDefault'
-  const [mode, setMode] = useState(null)
+  const [mode, setMode] = useState(pendingChange ? 'savePromptFromDefault' : null)
   const [draftName, setDraftName] = useState('')
   const [error, setError] = useState(null)
   const [pendingToggleKey, setPendingToggleKey] = useState(null)
+  const [pending, setPending] = useState(pendingChange)
 
   const panelRef = useRef(null)
   const inputRef = useRef(null)
@@ -79,6 +87,7 @@ export default function CustomizePanel({
     setDraftName('')
     setError(null)
     setPendingToggleKey(null)
+    setPending(null)
   }
 
   const handleCheckClick = (key) => {
@@ -96,15 +105,17 @@ export default function CustomizePanel({
   const submitSaveAs = () => {
     const err = validatePresetName(draftName, presetNames.filter(n => n !== DEFAULT_PRESET))
     if (err) { setError(err); return }
-    onSavePreset(draftName.trim(), [...hidden])
+    onSavePreset(draftName.trim(), [...hidden], order)
     closeInline()
   }
 
   const submitSaveFromDefault = () => {
     const err = validatePresetName(draftName, presetNames.filter(n => n !== DEFAULT_PRESET))
     if (err) { setError(err); return }
-    // Default's hidden set is empty; the new preset's hidden = the toggled key.
-    onSavePreset(draftName.trim(), [pendingToggleKey])
+    // Default's hidden set is empty; the new preset's hidden = the toggled key
+    // (or the header menu's pending hide / order).
+    if (pending) onSavePreset(draftName.trim(), pending.hidden ?? [], pending.order ?? null)
+    else onSavePreset(draftName.trim(), [pendingToggleKey])
     closeInline()
   }
 

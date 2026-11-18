@@ -4,10 +4,11 @@ import menuStyles from './FocusMenus.module.css'
 
 const CloseCtx = createContext(() => {})
 
-export function MenuItem({ onSelect, hint, children, danger = false }) {
+export function MenuItem({ onSelect, hint, children, danger = false, disabled = false }) {
   const close = useContext(CloseCtx)
   return (
     <button type="button" role="menuitem" className={`${styles.menuItem} ${danger ? styles.menuDanger : ''}`}
+      disabled={disabled} aria-disabled={disabled || undefined}
       onClick={() => { close(); onSelect?.() }}>
       <span>{children}</span>{hint && <span className={styles.menuHint}>{hint}</span>}
     </button>
@@ -25,7 +26,7 @@ export default function Menu({ label, trigger, children, align = 'left', trigger
   const btn = useRef(null), pop = useRef(null), wrap = useRef(null)
   const id = useId()
   const close = () => { setOpen(false); btn.current?.focus() }
-  const items = () => [...(pop.current?.querySelectorAll('[role=menuitem]') || [])]
+  const items = () => [...(pop.current?.querySelectorAll('[role=menuitem]:not(:disabled)') || [])]
   const rove = active => items().forEach(el => { el.tabIndex = el === active ? 0 : -1 })
   useEffect(() => {
     if (!open) return undefined

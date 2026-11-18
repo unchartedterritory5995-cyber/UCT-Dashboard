@@ -160,7 +160,7 @@
      own bottom hairline is the one seam. Text keeps its 16px inset (.dateCell). */
   border: 0;
   border-radius: 0;
-  margin: -16px calc(-1 * var(--page-pad-x, 12px)) 0;
+  margin: -16px calc(-1 * var(--page-pad-x, 12px)) calc(-1 * var(--page-pad-bottom, 12px));
   /* Isolate the grid's layout + paint so the sidebar's push (which resizes the
      content area) doesn't force expensive relayout/repaint of the whole table
      every animation frame — containment scopes the work. */
@@ -309,7 +309,27 @@
 .bgR2 { background: rgba(223,  70,  70, 0.36); }
 .bgR3 { background: rgba(223,  70,  70, 0.62); }
 
-/* ── Individual column collapse ──────────────────────────────────────────────── */
+/* ── Column header menu (2026-11-17; replaced click-to-collapse) ─────────────
+   The header label is the trigger of a small Signature menu (Move left / Move
+   right / Hide column): a quiet button that reads as clickable on hover. */
+.thBtn {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 -6px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 16px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.thBtn:hover, .thBtn[aria-expanded='true'] { background: var(--br-soft); color: var(--br-bright); }
+.thBtn:focus-visible { outline: 2px solid var(--br-ring); outline-offset: -1px; }
+.th { overflow: visible; }
+
 /* The SPY / QQQ MA periods ride on the label's own line, smaller, so the header
    row stays one line tall. */
 .colSubLabel {
@@ -318,39 +338,6 @@
   margin-left: 6px;
   font-weight: 500;
   word-spacing: 1px;
-}
-
-.colLabelClickable {
-  cursor: pointer;
-  user-select: none;
-  transition: color 0.15s;
-}
-
-.colLabelClickable:hover {
-  color: var(--br-bright);
-}
-
-.colLabelCollapsed {
-  width: 18px;
-  min-width: 18px;
-  max-width: 18px;
-  padding: 4px 2px;
-}
-
-.colCollapsedLabel {
-  display: block;
-  writing-mode: vertical-lr;
-  transform: rotate(180deg);
-  white-space: nowrap;
-  font-size: 10.5px;
-  line-height: 1;
-}
-
-.colCollapsedCell {
-  width: 18px;
-  min-width: 18px;
-  max-width: 18px;
-  padding: 0;
 }
 
 /* ── SPY / QQQ MAs: four small dots ───────────────────────────────────────────
@@ -610,7 +597,7 @@ tbody tr { cursor: pointer; }
   /* Phone: PageHeader's bottom margin is 12px and the page inset 8px. */
   .tableWrap {
     position: relative;
-    margin: -12px -8px 0;
+    margin: -12px -8px -8px;
   }
   .page .sigHeader { padding: 0 12px; gap: 10px; }
   /* Scroll shadow hint on right edge */
@@ -638,9 +625,6 @@ tbody tr { cursor: pointer; }
     font-size: var(--text-xs);
   }
   .dateCell {
-    font-size: var(--text-xs);
-  }
-  .colCollapsedLabel {
     font-size: var(--text-xs);
   }
   .colLabel {
@@ -1084,7 +1068,7 @@ tbody tr { cursor: pointer; }
   background: var(--br-faint);
 }
 .statusFresh { background: var(--br-up); }
-.statusPulse { animation: statusPulse 0.9s ease-in-out infinite; }
+.statusPulse { animation: statusPulse 0.7s ease-in-out 1; }  /* one beat: a refresh lasts ~700ms */
 @keyframes statusPulse { 50% { opacity: 0.25; } }
 @media (prefers-reduced-motion: reduce) { .statusPulse { animation: none; } }
 
@@ -1095,3 +1079,7 @@ tbody tr { cursor: pointer; }
 @media (max-width: 1024px) {
   .status, .moreBtn { min-height: var(--tap-min); }
 }
+
+/* Views runs to the window's bottom edge too: no strip of page padding under it
+   (the Monitor's sheet cancels the same padding with its own negative margin). */
+.pageFlushBottom { padding-bottom: 0; --page-pad-bottom: 0px; }

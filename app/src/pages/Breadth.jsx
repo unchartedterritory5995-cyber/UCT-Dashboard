@@ -390,6 +390,14 @@ function preloadDrillModal() { loadDrillModal().catch(() => {}) }
 
 // ── COLS lookup map ────────────────────────────────────────────────────────
 const COLS_BY_KEY = Object.fromEntries(COLS.map(c => [c.key, c]))
+
+// The member's column order (a preset's saved `order`, known keys only), then
+// every metric it does not name, in code order — so a new metric still appears.
+function orderedColKeys(order) {
+  const saved = Array.isArray(order) ? order.filter(k => COLS_BY_KEY[k]) : []
+  const seen = new Set(saved)
+  return [...saved, ...COLS.map(c => c.key).filter(k => !seen.has(k))]
+}
 // Every column a member can drill, in table order — the scan window's list picker.
 const DRILL_COLS = COLS.filter(c => c.drillKey).map(c => ({ key: c.key, label: c.label, drillKey: c.drillKey }))
 
@@ -740,24 +748,19 @@ export default function Breadth() {
    * background refresh of the SAME window, where the two never disagree.
    */
   const windowMismatch = isValidating && data != null && data.days !== effectiveDays
-  const [collapsedCols, setCollapsedCols] = useState(() => {
-    try {
-      const raw = localStorage.getItem('breadth_collapsed_cols')
-      return raw ? new Set(JSON.parse(raw)) : new Set()
-    } catch { return new Set() }
-  })
+  // ⚰️ Click-to-collapse columns retired 2026-11-17 (replaced by the header menu).
+  // A member may still hold the old `breadth_collapsed_cols` key; it is ignored
+  // and dropped here, once.
+  useEffect(() => {
+    try { localStorage.removeItem('breadth_collapsed_cols') } catch { /* private mode */ }
+  }, [])
 
   const customize = useBreadthCustomize()
   const [customizeOpen, setCustomizeOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
-  const toggleCol = key => {
-    setCollapsedCols(prev => {
-      const next = new Set(prev)
-      next.has(key) ? next.delete(key) : next.add(key)
-      try { localStorage.setItem('breadth_collapsed_cols', JSON.stringify([...next])) } catch {}
-      return next
-    })
-  }
+  // A header-menu change asked for on the immutable Default preset: the Columns
+  // panel opens on its "save as a new preset" prompt carrying it.
+  const [pendingColChange, setPendingColChange] = useState(null)
 
   const [drill, setDrill] = useState(null)
   // drill = { date, label, items: [{t,pct}] | null }
@@ -1012,10 +1015,36 @@ export default function Breadth() {
     ? `Provisional — computed ${liveClock} ET across ${liveBreadth.measured ?? '—'} names. `
       + `The 4:15 PM collector writes the day's authoritative row.`
     : undefined
+  // The member's full column order: the preset's saved order (known keys only),
+  // then any metric it does not name, in code order.
+  const orderedKeys = useMemo(() => orderedColKeys(customize.order), [customize.order])
   const visibleCols = useMemo(
-    () => COLS.filter(col => !customize.hidden.has(col.key)),
-    [customize.hidden],
+    () => orderedKeys.map(k => COLS_BY_KEY[k]).filter(col => !customize.hidden.has(col.key)),
+    [orderedKeys, customize.hidden],
   )
+
+  // ── Column header menu (Move left / Move right / Hide column) ──
+  // Same state the Columns panel edits. On Default (immutable) the change is
+  // handed to the Columns panel's save prompt instead, as a checkbox click there is.
+  const applyColChange = useCallback((change) => {
+    if (customize.isDefaultActive) {
+      setPendingColChange(change)
+      setCustomizeOpen(true)
+      return
+    }
+    if (change.order) customize.setOrder(change.order)
+    if (change.hidden) customize.setHiddenSet([...customize.hidden, ...change.hidden])
+  }, [customize])
+  const moveCol = useCallback((key, dir) => {
+    const i = visibleCols.findIndex(c => c.key === key)
+    const other = visibleCols[i + dir]?.key
+    if (i < 0 || !other) return
+    const next = [...orderedKeys]
+    const a = next.indexOf(key), b = next.indexOf(other)
+    next[a] = other; next[b] = key
+    applyColChange({ order: next })
+  }, [visibleCols, orderedKeys, applyColChange])
+  const hideCol = useCallback((key) => applyColChange({ hidden: [key] }), [applyColChange])
   // First visible column of each metric family after the first — a hairline
   // rule keeps the families scannable now that the colored group-header row
   // is gone.
@@ -1117,7 +1146,7 @@ export default function Breadth() {
   }
 
   return (
-    <div className={pageCls}>
+    <div className={isViewsTab ? `${pageCls} ${styles.pageFlushBottom}` : pageCls}>
       {/* ⭐ THE TOP BAR (owner round 3, 2026-11-17): the view tabs alone on the left;
           everything actionable grouped on the right — status · date · Columns · ⋯.
           Views keeps its window pills in the date's place; the other tabs carry
@@ -1211,7 +1240,9 @@ export default function Breadth() {
                       onDeletePreset={customize.deletePreset}
                       onSwitchPreset={customize.switchPreset}
                       onResetActive={customize.resetActive}
-                      onClose={() => setCustomizeOpen(false)}
+                      order={customize.order}
+                      pendingChange={pendingColChange}
+                      onClose={() => { setCustomizeOpen(false); setPendingColChange(null) }}
                     />
                   )}
                 </div>
@@ -1306,29 +1337,37 @@ export default function Breadth() {
                   on each group's first column instead. */}
               <tr>
                 <th scope="col" className={`${styles.th} ${styles.dateCol}`}>Date</th>
-                {visibleCols.map(col => {
-                  const isColCollapsed = collapsedCols.has(col.key)
+                {visibleCols.map((col, ci) => {
+                  const isMa = col.type === 'ma_stack'
+                  const label = isMa
+                    // Just the symbol: the dots' order (10 → 200) is spelled out
+                    // in the header's title.
+                    ? maStackSym(col)
+                    : col.subLabels
+                      ? <>{col.label}<span className={styles.colSubLabel}>{col.subLabels}</span></>
+                      : col.label
                   return (
                     <th
                       scope="col"
                       key={col.key}
-                      title={col.type === 'ma_stack' && !isColCollapsed
-                        ? maStackTitle(col)
-                        : isColCollapsed ? `Click to expand ${col.label}` : `Click to collapse ${col.label}`}
-                      aria-label={col.type === 'ma_stack' && !isColCollapsed ? maStackTitle(col) : undefined}
-                      className={`${styles.th} ${styles.colLabel} ${styles.colLabelClickable} ${isColCollapsed ? styles.colLabelCollapsed : ''} ${groupStartKeys.has(col.key) ? styles.groupStart : ''} ${col.type === 'ma_stack' ? styles.thMa : ''}`}
-                      onClick={() => toggleCol(col.key)}
+                      title={isMa ? maStackTitle(col) : `${col.label} — column options`}
+                      className={`${styles.th} ${styles.colLabel} ${groupStartKeys.has(col.key) ? styles.groupStart : ''} ${isMa ? styles.thMa : ''}`}
                     >
-                      {isColCollapsed
-                        ? <span className={styles.colCollapsedLabel}>{col.label}</span>
-                        : col.type === 'ma_stack'
-                          // Just the symbol: the dots' order (10 → 200) is in the legend
-                          // line, and the header's title / aria-label spells it out.
-                          ? maStackSym(col)
-                          : col.subLabels
-                          ? <>{col.label}<span className={styles.colSubLabel}>{col.subLabels}</span></>
-                          : col.label
-                      }
+                      {/* The header opens a small Signature menu (the Screener's
+                          focus/Menu): Enter/Space opens it, Esc closes it and
+                          focus returns here. */}
+                      <Menu
+                        label={isMa ? `${maStackTitle(col)} — column options` : `${col.label} column options`}
+                        trigger={label}
+                        align={ci > visibleCols.length / 2 ? 'right' : 'left'}
+                        width={168}
+                        testId={`col-menu-${col.key}`}
+                        triggerClassName={styles.thBtn}
+                      >
+                        <MenuItem onSelect={() => moveCol(col.key, -1)} disabled={ci === 0}>Move left</MenuItem>
+                        <MenuItem onSelect={() => moveCol(col.key, 1)} disabled={ci === visibleCols.length - 1}>Move right</MenuItem>
+                        <MenuItem onSelect={() => hideCol(col.key)}>Hide column</MenuItem>
+                      </Menu>
                     </th>
                   )
                 })}
@@ -1355,8 +1394,8 @@ export default function Breadth() {
                         className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${styles.skeletonRow}`}>
                       <td className={`${styles.td} ${styles.dateCell}`}>{skelDate}</td>
                       {visibleCols.map(col => (
-                        <td key={col.key} className={`${styles.td} ${collapsedCols.has(col.key) ? styles.colCollapsedCell : ''} ${groupStartKeys.has(col.key) ? styles.groupStart : ''}`}>
-                          {!collapsedCols.has(col.key) && <span className={styles.skelDot} aria-hidden="true">·</span>}
+                        <td key={col.key} className={`${styles.td} ${groupStartKeys.has(col.key) ? styles.groupStart : ''}`}>
+                          <span className={styles.skelDot} aria-hidden="true">·</span>
                         </td>
                       ))}
                     </tr>
@@ -1366,7 +1405,7 @@ export default function Breadth() {
                 // that IS the render order below — a second ordering here would
                 // put the stop on a cell that is not the first one on screen.
                 const firstDrillKey = visibleCols.find(
-                  c => !collapsedCols.has(c.key) && drillTarget(row, c, liveBreadth),
+                  c => drillTarget(row, c, liveBreadth),
                 )?.key ?? null
                 return (
                 <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.webster_phase ?? row.market_phase, styles)} ${row._live ? styles.liveRow : ''}`}>
@@ -1382,9 +1421,6 @@ export default function Breadth() {
                   </td>
                   {visibleCols.map(col => {
                     const groupStart = groupStartKeys.has(col.key) ? styles.groupStart : ''
-                    if (collapsedCols.has(col.key)) {
-                      return <td key={col.key} className={`${styles.td} ${styles.colCollapsedCell} ${groupStart}`} />
-                    }
                     if (col.type === 'sparkline') {
                       const val = row[col.key]
                       const last10 = grid.trail(ri, col.key)

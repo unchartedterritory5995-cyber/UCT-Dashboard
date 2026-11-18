@@ -208,3 +208,48 @@ describe('validatePresetName', () => {
     expect(validatePresetName('  MA Only  ', [])).toBeNull()  // trims
   })
 })
+
+// The Monitor's column-header menu (2026-11-17): Move left / right writes the
+// active preset's `order`; Default stays immutable; order survives a reload.
+describe('useBreadthCustomize column order', () => {
+  it('has no order on Default, and setOrder is a no-op there', () => {
+    const { result } = renderHook(() => useBreadthCustomize())
+    expect(result.current.order).toBeNull()
+    act(() => result.current.setOrder(['vix', 'breadth_score']))
+    expect(result.current.order).toBeNull()
+  })
+
+  it('setOrder writes the active preset and keeps its hidden set', () => {
+    const { result } = renderHook(() => useBreadthCustomize())
+    act(() => result.current.savePreset('Mine', ['vix']))
+    act(() => result.current.setOrder(['uct_exposure', 'breadth_score', 'uct_exposure']))
+    expect(result.current.order).toEqual(['uct_exposure', 'breadth_score'])
+    expect(result.current.hidden.has('vix')).toBe(true)
+    // hiding afterwards keeps the order
+    act(() => result.current.toggleHidden('breadth_score'))
+    expect(result.current.order).toEqual(['uct_exposure', 'breadth_score'])
+  })
+
+  it('savePreset can carry an order (the Default save prompt), and it persists', () => {
+    const first = renderHook(() => useBreadthCustomize())
+    act(() => first.result.current.savePreset('Moved', [], ['uct_exposure', 'breadth_score']))
+    first.unmount()
+    const again = renderHook(() => useBreadthCustomize())
+    expect(again.result.current.activePreset).toBe('Moved')
+    expect(again.result.current.order).toEqual(['uct_exposure', 'breadth_score'])
+  })
+
+  it('resetActive clears the order with the hidden set', () => {
+    const { result } = renderHook(() => useBreadthCustomize())
+    act(() => result.current.savePreset('R', ['vix'], ['uct_exposure']))
+    act(() => result.current.resetActive())
+    expect(result.current.order).toBeNull()
+    expect(result.current.hidden.size).toBe(0)
+  })
+
+  it('ignores a malformed stored order', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ activePreset: 'X', presets: { X: { hidden: [], order: 'nope' } } }))
+    const { result } = renderHook(() => useBreadthCustomize())
+    expect(result.current.order).toBeNull()
+  })
+})
