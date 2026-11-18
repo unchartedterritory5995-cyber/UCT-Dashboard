@@ -1291,6 +1291,7 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // (a run-read paint, DIV-4, is drawn; one the author hid draws nothing on TradingView either).
   const lost = routeDirty === false ? null : hostLossOf({
     loss: objectsGate.loss,
+    drawn: objectsGate.draw,
     paintsWithheld: allPaints.filter((p) => p.withheld && !p.hidden && !rtReadLines.has(`${p.kind}@${p.line}`)).length,
   })
   if (lost) {

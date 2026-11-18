@@ -90,6 +90,14 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // captures are the ones it moves (btc-charlie, pivot-point-supertrend, qqe-signals, trend-duration-forecast,
 // trendlines, twin-range-filter, vw-ratchet-stops; RDDT and SPY each). Each was graded on the runtime lane
 // after the change: 14 of 14 MATCH, every plot and object (and `runtimeOn` was MATCH in this report already).
+// ⭐ PARITY UNIT 1 (`objects`, NUMBER PENDING, feat/parity-objects) re-pinned 10 rows, lane `host` -> `runtime`:
+// the door now moves a host document whose object program LOST drawings to the runtime lane when that lane draws
+// everything it draws plus what it lost (`builder/memberPane/dirtyRoute.js`;
+// docs/pine/evidence/2026-11-18-objects-unit/EVIDENCE.md). These captures are the ones it moves:
+// atr-support-and-resistance (RDDT, SPY: runtime-on MATCH before and after), volume-profile (RDDT, SPY: INCONCLUSIVE
+// before and after; the run stops at its limit, by name) and the probes vw-w3n-draw-block-history-a/b/c (RDDT, SPY:
+// runtime-on DIVERGE -> MATCH, every object, so their `runtimeOn` here and the runtime-on snapshot rows are the
+// regraded ones). Nothing moved off the runtime lane, and no capture this report holds moved MATCH -> DIVERGE.
 
 describe('WS-I Part 2 — the reach run records the lanes the door itself answers', () => {
   beforeAll(() => {

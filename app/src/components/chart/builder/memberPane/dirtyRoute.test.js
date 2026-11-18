@@ -33,6 +33,9 @@ const ATR_TRAIL = 'atr-trailing-stop-by-ceyhun__UMldb6tGLd'
 const KILLZONE = 'ict-killzone-index-version__28962c02dd'
 // a clean host program: never offered
 const CLEAN = 'atr-bands__ad60b125e6'
+// host: the object gate withholds the WHOLE drawing by name (a lost removal, verdict `removes`): the
+// carve-out keeps that by-name answer, though the run builds it with its drawings
+const REMOVES = 'dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b'
 
 const memberView = () => {
   vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
@@ -129,6 +132,17 @@ describe('the dirty route — the door', () => {
     __resetRuntimeAdmission()
   })
 
+  it('⛔ CARVE-OUT: a host that withholds its whole drawing by name (`removes`) keeps that answer', () => {
+    runtimeView()
+    const built = memberPaneDefinition({ source: script(REMOVES), id: ID })
+    expect(kindOf(built)).toBe('ast')
+    expect(built.dirtyRoute).toBeUndefined()
+    // CONTROL: without the carve-out the run would take it (it builds with its drawings): the carve-out is
+    // what keeps it, not a decline
+    expect(drawsWhatTheHostLost).toBeTypeOf('function')
+    expect(hostLossOf({ loss: { verdict: 'removes', attempted: 94, dropped: 68 }, drawn: true })).toEqual({ objects: true, paints: 0 })
+  })
+
   it('a clean host program is not offered at all (control: the route only reads what was lost)', () => {
     runtimeView()
     const built = memberPaneDefinition({ source: script(CLEAN), id: ID })
@@ -143,6 +157,9 @@ describe('the dirty route — its two predicates', () => {
     expect(hostLossOf({ loss: null })).toBeNull()
     expect(hostLossOf({ loss: { verdict: 'partial', attempted: 4, dropped: 1 } })).toEqual({ objects: true, paints: 0 })
     expect(hostLossOf({ loss: { verdict: 'removes', attempted: 4, dropped: 1 } })).toEqual({ objects: true, paints: 0 })
+    // the carve-out: the gate withholds the whole drawing (`draw: false`) -> not a loss this route offers
+    expect(hostLossOf({ loss: { verdict: 'removes', attempted: 4, dropped: 1 }, drawn: false })).toBeNull()
+    expect(hostLossOf({ loss: { verdict: 'removes', attempted: 4, dropped: 1 }, drawn: false, paintsWithheld: 1 })).toEqual({ objects: false, paints: 1 })
     expect(hostLossOf({ loss: { verdict: 'clean' }, paintsWithheld: 2 })).toEqual({ objects: false, paints: 2 })
   })
 

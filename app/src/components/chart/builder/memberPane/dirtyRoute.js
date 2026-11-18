@@ -31,11 +31,19 @@ export const DIRTY_ROUTE_OBJECTS = 'dirty-route:objects'
 export const DIRTY_ROUTE_PAINTS = 'dirty-route:paints'
 
 /** What the host document lost that the run could draw: `{objects, paints}` or null (nothing lost).
- *  `loss` is `paneObjectsGate(t).loss` (`objectLoss.assessObjectLoss`); `paintsWithheld` counts the host
- *  translation's paints withheld by name that the host document does not draw. */
-export function hostLossOf({ loss, paintsWithheld = 0 } = {}) {
-  // any verdict but `clean`: a dropped op, or a drawing name the object reader does not carry (`polyline.*`)
-  const objects = !!(loss && typeof loss.verdict === 'string' && loss.verdict !== 'clean')
+ *  `loss` is `paneObjectsGate(t).loss` (`objectLoss.assessObjectLoss`) and `drawn` that gate's `draw`;
+ *  `paintsWithheld` counts the host translation's paints withheld by name that the host document does not draw.
+ *
+ *  ⛔ CARVE-OUT (measured, docs/pine/evidence/2026-11-18-objects-unit/EVIDENCE.md section 4): a host whose object
+ *  gate WITHHOLDS THE WHOLE DRAWING by name (a lost removal, verdict `removes`: owner ruling 2026-09-27, option b)
+ *  is not offered. The member reads that withholding by name; of the two such documents this route would move,
+ *  the admitted one's capture grades the run's picture DIVERGE (TradingView 52 objects, the run none) and no
+ *  capture shows one MATCHing. It is lifted the day a capture does. A host that draws a PARTIAL picture (the
+ *  "N of M drawing elements" disclosure) is the case this route exists for. */
+export function hostLossOf({ loss, drawn = true, paintsWithheld = 0 } = {}) {
+  // any verdict but `clean`: a dropped op, or a drawing name the object reader does not carry (`polyline.*`);
+  // and the host still DRAWS its partial picture (the carve-out above)
+  const objects = !!(loss && typeof loss.verdict === 'string' && loss.verdict !== 'clean' && drawn !== false)
   const paints = Number.isInteger(paintsWithheld) && paintsWithheld > 0 ? paintsWithheld : 0
   return objects || paints ? { objects, paints } : null
 }
