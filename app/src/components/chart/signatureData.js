@@ -9,7 +9,7 @@
 //   dpl  {sym, version, windowDays, datesCovered, levels: [{price, notional,
 //          printCount, lastDate, rank, lo, hi}], asOf}   err -> {levels: null, error}
 //   gxw  {levels: [{kind, price}], spot, regime, version} err -> {levels: [], error}
-//        `levels: []` on a HEALTHY payload is a normal state (Schwab auth down, or
+//        `levels: []` on a HEALTHY payload is a normal state (the option chain source down, or
 //        no wall inside the ±15% band) — return [] quietly, never an error artifact.
 //   fcb  {sym, version, signals: [{barTime, direction, close, callPrem, putPrem}], asOf}
 //        err -> no `signals` key at all.

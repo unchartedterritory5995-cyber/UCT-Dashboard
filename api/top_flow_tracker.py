@@ -19,11 +19,13 @@ Storage: /data/top_flow_picks.json
   "archived": [...]
 }
 
-Where the daily prices come from (owner ruling 2026-11-17, "Move Flow Record to
-Massive"): Massive first, Schwab only for a pick Massive has no price for. Each
-history entry says which one priced it in `src` ("massive" / "schwab"). An entry
-with no `src` was recorded before that change and is Schwab. Past entries are
-never rewritten. See `TOP_FLOW_SNAPSHOT_SOURCE` below for the rollback switch.
+Where the daily prices come from: Massive, the licensed options feed, and nothing
+else (owner, 2026-11-17: "Move Flow Record to Massive", then the same day "Move
+it, fix the status and remove schwab from everything"). Each history entry
+written since says so in `src` ("massive"). An entry with `src: "schwab"`, or
+with no `src` at all, was recorded from Schwab before that and stays as
+recorded: past entries are never rewritten. A pick Massive has no price for gets
+no entry that day.
 """
 
 import asyncio
@@ -43,49 +45,26 @@ ET = ZoneInfo("America/New_York")
 
 _data: dict = {"active": [], "archived": []}
 
-# ─── Snapshot source ──────────────────────────────────────────────────────────
-# Owner ruling 2026-11-17 ("Move Flow Record to Massive"): the daily price recording
-# reads Massive, the main licensed options feed, and keeps Schwab only as a backup
-# for a pick Massive has no price for. Past results stay as recorded.
+# ─── Snapshot pacing ──────────────────────────────────────────────────────────
+# The daily price recording reads Massive only (see the module docstring). The
+# switch that used to choose the source, TOP_FLOW_SNAPSHOT_SOURCE, was retired on
+# 2026-11-17 with the Schwab backup it selected; a value left on Railway is inert
+# (docs/feature_flags.json, `retired`).
 #
-#   massive (the code default; unset or an unknown value) = Massive first for every
-#           pick, then Schwab ONLY for the picks Massive returned no usable price
-#           for. A pick neither can price is skipped: nothing is written for it.
-#   schwab  = the path this job ran before the ruling: Schwab only, Massive never
-#           called. The rollback.
-#
-# A MODE, read on every run, so changing it needs no rebuild. Declared as a table
-# so the flag ledger derives the default and the vocabulary by AST
-# (api/services/feature_flag_index.mode_flags; entry in docs/feature_flags.json).
-SNAPSHOT_SOURCE_ENV = "TOP_FLOW_SNAPSHOT_SOURCE"
-SNAPSHOT_SOURCES = ("massive", "schwab")
-TOP_FLOW_MODE_FLAGS = {"TOP_FLOW_SNAPSHOT_SOURCE": ("massive", ("massive", "schwab"))}
-assert SNAPSHOT_SOURCE_ENV in TOP_FLOW_MODE_FLAGS and TOP_FLOW_MODE_FLAGS[SNAPSHOT_SOURCE_ENV][1] == SNAPSHOT_SOURCES
-
-# Vendor pacing. The cap, the chunk and the pause are the Schwab sweep's own and
-# are unchanged; the Massive read runs inside the same chunks, so it is paced no
-# looser. Within a chunk Schwab makes one chain call per symbol, at most 20 at
-# once (schwab_service._CHAIN_SEMAPHORE); Massive makes one small single-contract
-# call per pick, at most massive_oi_snapshots.MAX_CONCURRENCY (8) at once.
+# Vendor pacing. The cap, the chunk and the pause are the ones this sweep has
+# always had. Within a chunk Massive makes one small single-contract call per
+# pick, at most massive_oi_snapshots.MAX_CONCURRENCY (8) at once.
 SNAPSHOT_CAP = 200              # newest open picks priced per run
 SNAPSHOT_CHUNK = 50             # picks per vendor batch
 SNAPSHOT_CHUNK_PAUSE_S = 2      # pause between batches
 # One Massive chunk is at most 50 calls of <= 12 s, 8 at a time: ~84 s worst case.
+# The sweep is single-flight, so a vendor call that never returned would otherwise
+# block every later sweep. A timed-out chunk is counted as failed.
 MASSIVE_CHUNK_TIMEOUT_S = 120
-# Schwab's own requests time out at 8 s each, so this never fires in normal use. It
-# is here because the sweep is single-flight: a vendor call that never returned
-# would otherwise block every later sweep. A timed-out chunk is counted as failed.
-SCHWAB_CHUNK_TIMEOUT_S = 120
 
 # One sweep at a time, whoever starts it (the 4:30 PM scheduler or the manual
 # route). Per process: the web pod is one process.
 _snapshot_running = False
-
-
-def snapshot_source() -> str:
-    default, allowed = TOP_FLOW_MODE_FLAGS[SNAPSHOT_SOURCE_ENV]
-    v = (os.environ.get(SNAPSHOT_SOURCE_ENV) or default).strip().lower()
-    return v if v in allowed else default
 
 
 def snapshot_in_flight() -> bool:
@@ -267,17 +246,17 @@ def _positive(v):
 
 def _massive_entry(fields, today_str: str):
     """One history entry from a Massive single-contract snapshot, or None when it
-    carries no usable price (the pick then goes to Schwab).
+    carries no usable price (nothing is then written for the pick).
 
-    THE ONE DIFFERENCE IN WHAT `price` MEANS between the two sources:
+    THE ONE DIFFERENCE IN WHAT `price` MEANS between these entries and the ones
+    recorded from Schwab before 2026-11-17:
       Schwab  = `mark or last`: Schwab's own mark, else its last trade.
       Massive = the bid/ask midpoint, else the last trade.
     Both are the option contract's price per share at the time of the run.
-    `oi` and `spot` mean the same from either. Massive's helper returns no
-    contract volume, so `volume` is null here: null, never 0, because 0 would
-    read as "nothing traded". Nothing reads `volume` or `spot` today; the
-    scoreboard and the Options Flow page read `price` and `oi` only, and both
-    treat a null `oi` as "no reading".
+    `oi`, `spot` and `volume` (the session's contract volume) mean the same
+    from either. A field Massive did not send is null, never 0: a 0 `volume`
+    would read as "nothing traded" and a 0 `oi` as "no open interest". Every
+    reader treats null as "no reading".
     """
     if not isinstance(fields, dict):
         return None
@@ -291,22 +270,40 @@ def _massive_entry(fields, today_str: str):
         "price": price,
         "oi": oi if isinstance(oi, int) and not isinstance(oi, bool) and oi >= 0 else None,
         "spot": _positive(fields.get("underlying")),
-        "volume": None,
+        "volume": _whole(fields.get("volume")),
         "src": "massive",
     }
 
 
+def _whole(v):
+    """v as a non-negative int, else None (a missing volume is null, never 0)."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return int(f) if f >= 0 else None
+
+
 async def _massive_entries(chunk: list, expiries: list, today_str: str) -> dict:
-    """{index in chunk: history entry} for the picks Massive priced. {} when
-    Massive has no key, raises, or times out: the whole chunk then goes to Schwab.
-    Uses the helper's own batching (one single-contract snapshot per pick, bounded
-    by its MAX_CONCURRENCY). Never raises."""
+    """{index in chunk: history entry} for the picks Massive priced; {} when the
+    read failed. See `_massive_chunk`."""
+    return (await _massive_chunk(chunk, expiries, today_str))[0]
+
+
+async def _massive_chunk(chunk: list, expiries: list, today_str: str) -> tuple:
+    """({index in chunk: history entry}, ok) for one batch of contracts. `ok` is
+    False when Massive has no key, raises, or times out: nothing is written for
+    that batch and the caller counts it as failed. A contract Massive simply has
+    no price for is absent from the dict with `ok` True.
+    Uses the helper's own batching (one single-contract snapshot per contract,
+    bounded by its MAX_CONCURRENCY). Never raises. Shared with
+    api/daily_tracker.py (the contract-history recorder)."""
     try:
         from api import massive_oi_snapshots as massive
         from api.massive_oi_snapshots import _fetch_fields_all_async, _contract_key
         if not massive.MASSIVE_API_KEY:
-            logger.warning("[top-flow] Massive key not set; this chunk goes to Schwab.")
-            return {}
+            logger.warning("[top-flow] Massive key not set; nothing can be priced.")
+            return {}, False
         keys = {}       # index -> the helper's contract key
         batch = []
         for i, (pick, exp) in enumerate(zip(chunk, expiries)):
@@ -319,17 +316,17 @@ async def _massive_entries(chunk: list, expiries: list, today_str: str) -> dict:
             keys[i] = _contract_key(sym, cp, strike, exp_mdy)
             batch.append((sym, cp, strike, exp_mdy))
         if not batch:
-            return {}
+            return {}, True
         fmap = await asyncio.wait_for(_fetch_fields_all_async(batch), timeout=MASSIVE_CHUNK_TIMEOUT_S)
         out = {}
         for i, key in keys.items():
             entry = _massive_entry((fmap or {}).get(key), today_str)
             if entry is not None:
                 out[i] = entry
-        return out
-    except Exception as e:  # noqa: BLE001 - a Massive failure falls through to Schwab
-        logger.warning("[top-flow] Massive chunk failed (%s); falling back to Schwab.", type(e).__name__)
-        return {}
+        return out, True
+    except Exception as e:  # noqa: BLE001 - a Massive failure writes nothing; it never raises
+        logger.warning("[top-flow] Massive chunk failed (%s); nothing written for it.", type(e).__name__)
+        return {}, False
 
 
 def _write_entry(pick: dict, entry: dict) -> None:
@@ -344,8 +341,7 @@ def _write_entry(pick: dict, entry: dict) -> None:
 
 async def snapshot_prices() -> dict:
     """
-    Record today's price + OI for the open picks (Massive first, Schwab as the
-    backup; see TOP_FLOW_SNAPSHOT_SOURCE above).
+    Record today's price + OI for the open picks, from Massive.
     Called by daily_tracker at 4:30 PM ET, or manually via /api/top-flow/snapshot.
     One sweep at a time; a second call while one runs returns at once.
     Never raises: a failure is returned as {"status": "error"}.
@@ -376,10 +372,6 @@ async def _snapshot_prices() -> dict:
 
     today = date.today()
     today_str = _et_date_str()
-    mode = snapshot_source()
-
-    def _exp_to_iso(exp) -> str:
-        return exp.isoformat() if exp is not None else ""
 
     # Filter to non-expired only, cap at SNAPSHOT_CAP most recent by dateSaved.
     # A pick whose expiry cannot be read is kept (as before) and simply not priced.
@@ -390,25 +382,20 @@ async def _snapshot_prices() -> dict:
             live_picks.append((p, exp))
     live_picks.sort(key=lambda t: str(t[0].get("dateSaved") or ""), reverse=True)
     live_picks = live_picks[:SNAPSHOT_CAP]
-    logger.info("[top-flow] Snapshot (%s): %d live (capped %d) of %d total active picks.",
-                mode, len(live_picks), SNAPSHOT_CAP, len(active))
+    logger.info("[top-flow] Snapshot (massive): %d live (capped %d) of %d total active picks.",
+                len(live_picks), SNAPSHOT_CAP, len(active))
 
     if not live_picks:
         return {"status": "skipped", "reason": "all picks expired"}
 
-    get_batch_option_quotes = None
-    try:
-        from api.schwab_service import get_batch_option_quotes
-    except Exception as e:
-        logger.error("[top-flow] Cannot import schwab_service: %s", e)
-        if mode == "schwab":
-            return {"status": "error", "reason": str(e)}
+    from api import massive_oi_snapshots as massive
+    if not massive.MASSIVE_API_KEY:
+        # No source can price anything: say so, and leave every history as it is.
+        return {"status": "error", "reason": "MASSIVE_API_KEY not set"}
 
     saved = 0
     skipped = 0
     errors = 0
-    by_source = {"massive": 0, "schwab": 0}
-    schwab_signed_in = True     # massive mode: stop asking once Schwab says it is not
 
     try:
         for ci in range(0, len(live_picks), SNAPSHOT_CHUNK):
@@ -416,69 +403,15 @@ async def _snapshot_prices() -> dict:
             chunk = [p for p, _ in pairs]
             expiries = [e for _, e in pairs]
 
-            # 1. Massive first (default mode). `schwab` mode never calls it.
-            priced = {}
-            if mode == "massive":
-                priced = await _massive_entries(chunk, expiries, today_str)
-                for i, entry in priced.items():
-                    _write_entry(chunk[i], entry)
-                    saved += 1
-                    by_source["massive"] += 1
-
-            # 2. Schwab: every pick in `schwab` mode; in `massive` mode only the picks
-            #    Massive returned no usable price for, and only while Schwab is signed in.
-            rest = [i for i in range(len(chunk)) if i not in priced]
-            quotes = None
-            if rest and (mode == "schwab" or (schwab_signed_in and get_batch_option_quotes is not None)):
-                batch = [
-                    {
-                        "symbol": chunk[i].get("sym", ""),
-                        "cp": chunk[i].get("cp", ""),
-                        "strike": chunk[i].get("strike", 0),
-                        "expDate": _exp_to_iso(expiries[i]),
-                    }
-                    for i in rest
-                ]
-                try:
-                    quotes = await asyncio.wait_for(get_batch_option_quotes(batch),
-                                                    timeout=SCHWAB_CHUNK_TIMEOUT_S)
-                    if not isinstance(quotes, (list, tuple)):
-                        quotes = None
-                        skipped += len(rest)
-                except Exception as e:
-                    logger.error("[top-flow] Schwab chunk %d failed: %s", ci // SNAPSHOT_CHUNK, e)
-                    errors += len(rest)
-            elif rest:
-                skipped += len(rest)        # no source left to ask: nothing is written
-
-            if quotes is not None:
-                if mode == "massive" and quotes and all(
-                        isinstance(q, dict) and q.get("error") == "Not authenticated" for q in quotes):
-                    schwab_signed_in = False
-                for i, q in zip(rest, quotes):
-                    if not isinstance(q, dict) or not q or q.get("error") or q.get("expired"):
-                        skipped += 1
-                        continue
-
-                    price = q.get("mark") or q.get("last") or 0
-                    if mode == "massive" and _positive(price) is None:
-                        skipped += 1        # neither source has a price: never record a 0
-                        continue
-                    oi = q.get("openInterest") or q.get("open_interest") or 0
-                    spot = q.get("underlyingPrice") or q.get("spot") or 0
-                    volume = q.get("volume") or 0
-
-                    # Overwrites today's entry if it exists (idempotent)
-                    _write_entry(chunk[i], {
-                        "date": today_str,
-                        "price": price,
-                        "oi": oi,
-                        "spot": spot,
-                        "volume": volume,
-                        "src": "schwab",
-                    })
-                    saved += 1
-                    by_source["schwab"] += 1
+            priced, ok = await _massive_chunk(chunk, expiries, today_str)
+            for i, entry in priced.items():
+                # Overwrites today's entry if it exists (idempotent)
+                _write_entry(chunk[i], entry)
+                saved += 1
+            if ok:
+                skipped += len(chunk) - len(priced)   # Massive has no price: nothing is written
+            else:
+                errors += len(chunk)                  # the read failed: nothing is written
 
             # Small delay between chunks to stay under rate limits
             if ci + SNAPSHOT_CHUNK < len(live_picks):
@@ -491,9 +424,9 @@ async def _snapshot_prices() -> dict:
     result = {
         "status": "ok",
         "date": today_str,
-        "source": mode,
+        "source": "massive",
         "saved": saved,
-        "by_source": by_source,
+        "by_source": {"massive": saved},
         "skipped": skipped,
         "errors": errors,
         "live": len(live_picks),

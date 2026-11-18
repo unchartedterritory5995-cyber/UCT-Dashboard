@@ -714,12 +714,15 @@ def _start_flow_schedulers():
             log.warning("flow integrity canary scheduling failed: %s", e)
 
         try:
-            # Daily OI snapshot (5:30 AM ET) — captures Schwab live OI for
+            # Daily OI snapshot (5:30 AM ET) — captures open interest for
             # contracts with recent flow (retroactive B-side confirmation). Moved
-            # from web at the P5 cutover: flow.db AND the Schwab OPRA consumer +
+            # from web at the P5 cutover: flow.db AND the OPRA consumer +
             # on-demand OI fetch live HERE now, so this cron must too. Gated on
-            # Schwab creds being present on this pod (copied at cutover).
-            if os.getenv("SCHWAB_APP_KEY"):
+            # the Massive key, its one source since 2026-11-17 (the gate used to
+            # be SCHWAB_APP_KEY, from when Schwab was asked first). Read from the
+            # module that makes the calls, so the gate and the fetch cannot disagree.
+            from api import massive_oi_snapshots as _massive_oi
+            if _massive_oi.MASSIVE_API_KEY:
                 from apscheduler.triggers.cron import CronTrigger as _OICron
                 from api.oi_snapshots import daily_snapshot_job, init_db as _init_oi_snapshots
                 _init_oi_snapshots()
@@ -739,7 +742,7 @@ def _start_flow_schedulers():
                 n += 1
                 log.info("[startup] OI snapshot 5:30am cron registered on flow-worker")
             else:
-                log.info("[startup] OI snapshot cron skipped (SCHWAB_APP_KEY unset)")
+                log.info("[startup] OI snapshot cron skipped (MASSIVE_API_KEY unset)")
         except Exception as e:  # noqa: BLE001
             log.warning("OI snapshot scheduling failed: %s", e)
 
@@ -915,7 +918,7 @@ def _start_flow_schedulers():
             # Massive/OCC-accurate daily OI capture for the OI Update card — ISOLATED
             # (own table oi_massive_snapshots; shared oi_snapshots untouched). 07:00 ET
             # weekdays, before the 08:00 card, after OCC updates overnight. Dark until
-            # OI_MASSIVE_ENABLED=1. Fixes the Schwab-lags-OCC data bug (verified 8/24).
+            # OI_MASSIVE_ENABLED=1. Fixes the shared-snapshot-lags-OCC data bug (verified 8/24).
             if os.getenv("OI_MASSIVE_ENABLED", "0") == "1":
                 from apscheduler.triggers.cron import CronTrigger as _OIMassCron
                 from api import oi_massive_snapshots as _oms
