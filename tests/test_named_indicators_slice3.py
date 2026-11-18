@@ -46,7 +46,8 @@ def test_the_slice_is_in_the_library_checked_and_cited():
         assert ni.passes(e), entry_id
         published = e["evidence"]["published"]
         assert published["by"] and published["says"] and published["read"] == "2026-11-18", entry_id
-        assert all(s["url"].startswith(("https://chartschool.stockcharts.com/", "https://www.tradingview.com/support/"))
+        assert all(s["url"].startswith(("https://chartschool.stockcharts.com/", "https://www.tradingview.com/support/",
+                                        "https://en.wikipedia.org/wiki/", "https://ta-lib.org/"))
                    for s in published["sources"]), entry_id
         assert e["evidence"]["capture"]["id"] == "builtin3-2026-11-18", entry_id      # each was graded (third batch)
         assert e["placement"] == "pane", entry_id
@@ -133,14 +134,20 @@ def test_a_running_total_starts_at_the_first_bar_of_the_history_it_is_given():
     """So its LEVEL depends on where the loaded history starts, as the published page says of On
     Balance Volume; its bar-to-bar CHANGES do not."""
     bars = _walk(11, n=400)
-    for entry_id in RUNNING_TOTALS + ("negative_volume_index",):
+    for entry_id in RUNNING_TOTALS:
         tree = ENTRIES[entry_id]["outputs"][0]["tree"]
         whole, later = engine(tree, bars), engine(tree, bars[100:])
         steps_whole = [whole[i] - whole[i - 1] for i in range(250, 400)]
         steps_later = [later[i - 100] - later[i - 101] for i in range(250, 400)]
         assert all(math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-6) for a, b in zip(steps_whole, steps_later)), entry_id
         assert not math.isclose(whole[399], later[299], rel_tol=1e-6), entry_id       # the level did move
-    assert engine(ENTRIES["negative_volume_index"]["outputs"][0]["tree"], bars)[0] == 1000.0
+    # the Negative Volume Index COMPOUNDS from 1000 on the first loaded bar: its level moves with
+    # that bar, and its bar-to-bar RATIOS do not
+    tree = ENTRIES["negative_volume_index"]["outputs"][0]["tree"]
+    whole, later = engine(tree, bars), engine(tree, bars[100:])
+    assert whole[0] == 1000.0 and later[0] == 1000.0
+    assert all(math.isclose(whole[i] / whole[i - 1], later[i - 100] / later[i - 101], rel_tol=1e-9) for i in range(250, 400))
+    assert not math.isclose(whole[399], later[299], rel_tol=1e-6)
 
 
 def test_the_equal_cases_each_page_leaves_open_or_states_in_passing():
@@ -193,16 +200,76 @@ def test_ease_of_movements_divisor_is_a_setting_and_its_first_version_keeps_its_
     assert "divisor 100000000" in r["envelope"]["assumptions"][0]["text"]
 
 
+# ═══ 2b. the rulings of 2026-11-18: two names with two definitions each ══════
+
+def test_the_negative_volume_index_compounds_and_its_first_version_keeps_its_fingerprint():
+    e = ENTRIES["negative_volume_index"]
+    assert [v["version"] for v in e["versions"]] == [1, 2]
+    assert e["versions"][0]["maths"] == "sha256:c01e1334aefef55b9918d791f833678b196d08b3ae5aa47c2f533705c26a59b5"
+    assert ni.fingerprint(e) == e["versions"][1]["maths"] != e["versions"][0]["maths"]
+    assert "compounds" in e["versions"][1]["why"] and "additive form" in e["evidence"]["published"]["note"]
+    # one lower-volume day: prior x (1 + change), not prior + percent
+    bars = _walk(11, n=60)
+    nvi = engine(e["outputs"][0]["tree"], bars)
+    i = next(i for i in range(30, 60) if bars[i]["v"] < bars[i - 1]["v"])
+    change = (bars[i]["c"] - bars[i - 1]["c"]) / bars[i - 1]["c"]
+    assert math.isclose(nvi[i], nvi[i - 1] * (1 + change), rel_tol=1e-12)
+    assert not math.isclose(nvi[i], nvi[i - 1] + 100 * change, rel_tol=1e-9)
+    assert ni.tiers(e) == (True, True, True)                                # graded equal on every bar
+
+
+def test_trix_follows_tradingviews_own_and_the_member_is_told_so_plainly(conv, clean_env, model):
+    """Two definitions under one name. The pages read describe a percent change of price;
+    TradingView's built-in is 10,000 x the change of a triple EMA of the LOG of price, about a
+    hundred times the size. The entry follows what was captured, and says whose form it is."""
+    e = ENTRIES["trix"]
+    assert ni.follows_a_capture(e) == e["evidence"]["follows"] and e["evidence"]["capture"]["grade"] == "EQUAL"
+    said = ni.member_sentence(e, ni.defaults(e))
+    assert said == ("Built to UCT's checked formula for TRIX (length 18): it follows TradingView's own TRIX, 10,000 x the "
+                    "one-bar change of a triple EMA of the log of price, and is equal to it on captured charts. Some "
+                    "references describe a percent change of price, about a hundredth of this size.")
+    assert len(said) <= ni.SENTENCE_MAX and "published by" not in said
+    client = model([emits(env(0, [create("trix", {"length": 15})]))])
+    r = conv.converse("Add TRIX with a length of 15", user_id="u1", view=empty_view(0), chart=CHART)
+    assert r["ok"] is True and len(client.calls) == 1
+    assert r["envelope"]["assumptions"][0]["text"] == ni.member_sentence(e, {"length": 15.0})
+    # its formal name is ITS spelling now (it was the Triple Exponential Moving Average's by mistake)
+    r = conv.understand_turn("add the triple exponential average", CHART)
+    assert [n["id"] for n in r["named"]] == ["trix"]
+    # the values: about a hundred times a percent change of the triple EMA of price
+    bars = _walk(11, n=200)
+    got = engine(e["outputs"][0]["tree"], bars)
+    c = [b["c"] for b in bars]
+    e3 = values.ema(values.ema(values.ema(c, 18), 18), 18)
+    percent = 100 * (e3[199] - e3[198]) / e3[198]
+    assert 90 < got[199] / percent < 110
+
+
+def test_only_an_entry_graded_equal_may_say_it_follows_a_capture():
+    import copy
+    e = copy.deepcopy(ENTRIES["trix"])
+    e["evidence"]["capture"]["grade"] = "EQUAL AFTER WARM-UP"
+    assert ni.follows_a_capture(e) is None and "published by Jack Hutson" in ni.member_sentence(e, ni.defaults(e))
+    e = copy.deepcopy(ENTRIES["trix"])
+    e["evidence"]["follows"]["what"] = ""
+    assert ni.follows_a_capture(e) is None
+    e = copy.deepcopy(ENTRIES["trix"])
+    e["evidence"]["capture"] = None
+    assert ni.follows_a_capture(e) is None
+    # and no other entry claims it
+    assert [x["id"] for x in ni.entries() if ni.follows_a_capture(x)] == ["trix"]
+
+
 # ═══ 3. one spelling, one indicator ══════════════════════════════════════════
 
 def test_triple_exponential_average_is_no_longer_a_spelling_of_tema(conv):
     tema = ENTRIES["triple_exponential_moving_average"]
     assert "triple exponential average" not in tema["aliases"]
-    assert all("triple exponential average" != alias for alias, _ in ni.phrases())
+    assert [entry_id for alias, entry_id in ni.phrases() if alias == "triple exponential average"] == ["trix"]
     r = conv.understand_turn("Add the triple exponential moving average", CHART)
     assert [n["id"] for n in r["named"]] == ["triple_exponential_moving_average"]
     r = conv.understand_turn("add the triple exponential average", CHART)
-    assert r["refusal"] is not None or not r.get("named")
+    assert "triple_exponential_moving_average" not in [n["id"] for n in r.get("named") or []]
 
 
 def test_the_build_tool_and_the_browser_test_have_a_probe_number_for_every_setting():

@@ -265,7 +265,8 @@ data and stays out of the repository; only these verdicts are recorded.
 | Ulcer Index | EQUAL on every bar |
 | Ease of Movement | EQUAL on every bar at TradingView's divisor, 10,000 |
 | Directional Movement Index | formula equal; ONE rounding tie differs |
-| Negative Volume Index | differs BY DEFINITION |
+| Negative Volume Index | as first entered (the additive form): differs BY DEFINITION. Version 2, below: EQUAL on every bar |
+| TRIX (added after this batch, below) | EQUAL on every bar |
 
 **Ease of Movement: the divisor became a setting (version 2).** Version 1 held ChartSchool's
 100,000,000 as a fixed number, and its values were exactly 10,000 times TradingView's: the same
@@ -329,3 +330,32 @@ word and that other name is still an unknown name.
 **Measured before it was turned on**, with no model call, over the requests on file: every request
 that fires the rule literally names that indicator (no misread), and no request's answer changed
 without one. The counts are in the report to the engine session, not here.
+
+## Two names with two definitions each: what was decided (2026-11-18)
+
+The third capture showed two indicators whose published descriptions and whose TradingView
+built-ins are different calculations under one name. Each was decided, and each entry says which.
+
+**Negative Volume Index: it compounds (version 2).** Prior NVI x (1 + the price change) on a
+lower-volume day, from 1000. That is Fosback's form as Wikipedia and TA-Lib's documentation state
+it, and what TradingView's built-in computes: graded again, the index and its 255-bar EMA are equal
+on every bar of both charts. Some references (ChartSchool, TradingView's help page) describe an
+additive form; the entry's note says so. Version 1, the additive form, keeps the fingerprint it
+shipped with.
+
+**TRIX: TradingView's own form, with the capture as its source.** 10,000 x the one-bar change of a
+triple EMA of the logarithm of price: equal to TradingView's built-in on every bar of both charts
+(graded at length 15; the entry's default is TradingView's, 18). Every page read describes a
+percent change of the triple EMA of price, about a hundredth of that size, and none states a
+multiplier. Members compare with what TradingView plots, so the entry follows it, and what the
+member is told says exactly that instead of "the definition published by": whose form it follows,
+what that form is, and that some references describe another. Only an entry graded equal on every
+bar may say it follows a capture (`named_indicators.follows_a_capture`).
+"Triple exponential average", TRIX's formal name, is its spelling now.
+
+**Directional Movement Index: the one bar, exactly.** SPY, 2014-04-03 (bar 5333 of 8,509). The
+high rose from 189.13 to 189.22 and the low fell from 188.14 to 188.05: both moves are 9 cents.
+The four prices are stored exactly as those ticks. Subtracted as binary floating point the up move
+is 0.09000000000000341 and the down move 0.08999999999997499, so UCT counts the up move as the
+larger and TradingView counts a tie. No engine change was made for it; it is recorded as a known
+precision difference, and the entry still says nothing about TradingView.

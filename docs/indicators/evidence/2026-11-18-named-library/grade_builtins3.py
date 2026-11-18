@@ -21,8 +21,10 @@ MAP = {
     'accumulation-distribution': 'accumulation_distribution_line', 'price-volume-trend': 'price_volume_trend',
     'price-oscillator': 'percentage_price_oscillator', 'know-sure-thing': 'know_sure_thing', 'mass-index': 'mass_index',
     'elders-force-index': 'force_index', 'ease-of-movement': 'ease_of_movement',
-    'negative-volume-index': 'negative_volume_index', 'ulcer-index': 'ulcer_index',
+    'negative-volume-index': 'negative_volume_index', 'ulcer-index': 'ulcer_index', 'trix': 'trix',
 }
+#: settings the capture was taken at, where they are not the entry's defaults
+AT = {'trix': {'length': 15}}
 
 
 def ok(v):
@@ -77,7 +79,7 @@ def verdict(n, bad, total):
 
 
 report = {}
-print('== the twelve entries: every output against every plotted column, the best column shown')
+print('== the entries: every output against every plotted column, the best column shown')
 for name, eid in MAP.items():
     e = ENTRIES[eid]
     for sym in ('spy', 'rddt'):
@@ -85,7 +87,7 @@ for name, eid in MAP.items():
         if sym == 'spy':
             print(f'-- {e["name"]}  ({width} columns; settings {inputs})'[:230])
         for o in e['outputs']:
-            col = ast_interpret.interpret(call_expansions.expand_calls(o['tree']), bars)
+            col = ast_interpret.interpret(call_expansions.expand_calls(ni.tree_at(o, AT.get(eid, {}))), bars)
             best = None
             for plot in range(width):
                 for scale in ((1.0, 1e-4) if eid == 'ease_of_movement' else (1.0,)):

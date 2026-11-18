@@ -156,6 +156,16 @@ def passes(e: Mapping[str, Any]) -> bool:
     return checked and published
 
 
+def follows_a_capture(e: Mapping[str, Any]) -> Optional[Mapping[str, Any]]:
+    """`evidence.follows` when this entry's definition IS a graded capture: {whose, what, others}.
+    Only an entry graded EQUAL on every bar may say so; anything less and it is not followed."""
+    ev = e.get("evidence") or {}
+    follows = ev.get("follows")
+    if not isinstance(follows, Mapping) or (ev.get("capture") or {}).get("grade") != "EQUAL":
+        return None
+    return follows if all(isinstance(follows.get(k), str) and follows[k] for k in ("whose", "what", "others")) else None
+
+
 def member_sentence(e: Mapping[str, Any], values: Mapping[str, Any]) -> str:
     """What the member is told about an output built to this entry: its numbers and its evidence."""
     # a parameter one of the member's own settings drives (None) is theirs to read off the setting
@@ -163,9 +173,16 @@ def member_sentence(e: Mapping[str, Any], values: Mapping[str, Any]) -> str:
                         if values.get(p["key"]) is not None)
     _checked, _published, captured = tiers(e)
     by = (e["evidence"].get("published") or {}).get("by")
-    proof = f"checked against an independent calculation and the definition published by {by}"
-    if captured:
-        proof += CAPTURE_SAID[e["evidence"]["capture"]["grade"]]
+    follows = follows_a_capture(e)
+    if follows:
+        # ⭐ THE CAPTURE IS THE DEFINITION (ruling 2026-11-18, TRIX): the pages read describe another
+        # form, so the member is told whose form this is, what it is, and that others differ.
+        proof = (f"it follows {follows['whose']}, {follows['what']}, and is equal to it on captured charts. "
+                 f"{follows['others']}").rstrip(".")
+    else:
+        proof = f"checked against an independent calculation and the definition published by {by}"
+        if captured:
+            proof += CAPTURE_SAID[e["evidence"]["capture"]["grade"]]
     said = f"Built to UCT's checked formula for {e['name']}" + (f" ({numbers})" if numbers else "") + f": {proof}."
     if len(said) > SENTENCE_MAX:                              # the numbers are on the chart; the evidence is not
         said = f"Built to UCT's checked formula for {e['name']}: {proof}."

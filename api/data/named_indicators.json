@@ -4866,7 +4866,7 @@
       "NYSE:RDDT 1D, 668 bars"
      ],
      "grade": "FORMULA EQUAL, ONE ROUNDING TIE DIFFERS",
-     "detail": "All three lines are equal on every bar of RDDT, and -DI on every bar of SPY. On SPY, +DI and ADX part on ONE bar of 8,509 and take about 400 bars to meet again: that day's up move and down move are both 9 cents, and in floating point the up move is larger by 3 parts in 100 trillion. UCT counts it as the larger; TradingView counts the two as equal and gives neither."
+     "detail": "All three lines are equal on every bar of RDDT, and -DI on every bar of SPY. On SPY, +DI and ADX part on ONE bar of 8,509 (bar 5333, 2014-04-03) and take about 400 bars to meet again. That day the high rose from 189.13 to 189.22 and the low fell from 188.14 to 188.05: both moves are 9 cents. The four prices are stored exactly as those ticks; subtracted as binary floating point, the up move comes out larger by 3 parts in 100 trillion. UCT counts it as the larger; TradingView counts the two as equal and gives neither. A known precision difference, not a different formula."
     }
    },
    "versions": [
@@ -6855,10 +6855,10 @@
      "key": "nvi",
      "label": "Negative Volume Index",
      "type": "value",
-     "formula": "1000 + cum(volume < volume[1] ? (close - close[1]) / close[1] * 100 : 0)",
+     "formula": "1000 * exp(cum(volume < volume[1] ? ln(close / close[1]) : 0))",
      "tree": {
       "type": "op",
-      "name": "+",
+      "name": "*",
       "args": [
        {
         "type": "num",
@@ -6866,107 +6866,8 @@
        },
        {
         "type": "call",
-        "name": "cum",
+        "name": "exp",
         "args": [
-         {
-          "type": "op",
-          "name": "?:",
-          "args": [
-           {
-            "type": "op",
-            "name": "<",
-            "args": [
-             {
-              "type": "series",
-              "name": "volume"
-             },
-             {
-              "type": "offset",
-              "value": 1,
-              "args": [
-               {
-                "type": "series",
-                "name": "volume"
-               }
-              ]
-             }
-            ]
-           },
-           {
-            "type": "op",
-            "name": "*",
-            "args": [
-             {
-              "type": "op",
-              "name": "/",
-              "args": [
-               {
-                "type": "op",
-                "name": "-",
-                "args": [
-                 {
-                  "type": "series",
-                  "name": "close"
-                 },
-                 {
-                  "type": "offset",
-                  "value": 1,
-                  "args": [
-                   {
-                    "type": "series",
-                    "name": "close"
-                   }
-                  ]
-                 }
-                ]
-               },
-               {
-                "type": "offset",
-                "value": 1,
-                "args": [
-                 {
-                  "type": "series",
-                  "name": "close"
-                 }
-                ]
-               }
-              ]
-             },
-             {
-              "type": "num",
-              "value": 100
-             }
-            ]
-           },
-           {
-            "type": "num",
-            "value": 0
-           }
-          ]
-         }
-        ]
-       }
-      ]
-     },
-     "sites": {}
-    },
-    {
-     "key": "signal",
-     "label": "Signal",
-     "type": "value",
-     "formula": "ema(1000 + cum(volume < volume[1] ? (close - close[1]) / close[1] * 100 : 0), {signal})",
-     "tree": {
-      "type": "call",
-      "name": "ema",
-      "args": [
-       {
-        "type": "op",
-        "name": "+",
-        "args": [
-         {
-          "type": "num",
-          "value": 1000
-         },
          {
           "type": "call",
           "name": "cum",
@@ -6996,16 +6897,101 @@
               ]
              },
              {
-              "type": "op",
-              "name": "*",
+              "type": "call",
+              "name": "ln",
               "args": [
                {
                 "type": "op",
                 "name": "/",
                 "args": [
                  {
+                  "type": "series",
+                  "name": "close"
+                 },
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 0
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {}
+    },
+    {
+     "key": "signal",
+     "label": "Signal",
+     "type": "value",
+     "formula": "ema(1000 * exp(cum(volume < volume[1] ? ln(close / close[1]) : 0)), {signal})",
+     "tree": {
+      "type": "call",
+      "name": "ema",
+      "args": [
+       {
+        "type": "op",
+        "name": "*",
+        "args": [
+         {
+          "type": "num",
+          "value": 1000
+         },
+         {
+          "type": "call",
+          "name": "exp",
+          "args": [
+           {
+            "type": "call",
+            "name": "cum",
+            "args": [
+             {
+              "type": "op",
+              "name": "?:",
+              "args": [
+               {
+                "type": "op",
+                "name": "<",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "volume"
+                 },
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "volume"
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "call",
+                "name": "ln",
+                "args": [
+                 {
                   "type": "op",
-                  "name": "-",
+                  "name": "/",
                   "args": [
                    {
                     "type": "series",
@@ -7022,28 +7008,14 @@
                     ]
                    }
                   ]
-                 },
-                 {
-                  "type": "offset",
-                  "value": 1,
-                  "args": [
-                   {
-                    "type": "series",
-                    "name": "close"
-                   }
-                  ]
                  }
                 ]
                },
                {
                 "type": "num",
-                "value": 100
+                "value": 0
                }
               ]
-             },
-             {
-              "type": "num",
-              "value": 0
              }
             ]
            }
@@ -7070,8 +7042,18 @@
     "value_check": "tests/test_named_indicators_values.py::negative_volume_index",
     "published": {
      "by": "Paul Dysart and Norman Fosback",
-     "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/negative-volume-index-nvi",
+     "url": "https://en.wikipedia.org/wiki/Negative_volume_index",
      "sources": [
+      {
+       "title": "Wikipedia: Negative volume index",
+       "url": "https://en.wikipedia.org/wiki/Negative_volume_index",
+       "kind": "reference"
+      },
+      {
+       "title": "TA-Lib: NVI",
+       "url": "https://ta-lib.org/functions/nvi.html",
+       "kind": "reference"
+      },
       {
        "title": "StockCharts ChartSchool: Negative Volume Index (NVI)",
        "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/negative-volume-index-nvi",
@@ -7079,8 +7061,8 @@
       }
      ],
      "read": "2026-11-18",
-     "says": "Starts at 1000. When volume is below the prior period's, NVI = prior NVI + the percent price change; otherwise unchanged. Signal = 255-period EMA.",
-     "note": "This is Fosback's additive form, as the page gives it; other vendors multiply instead. It starts at 1000 on the first bar of the chart's loaded history."
+     "says": "Fosback's form: when volume is below the prior period's, NVI = prior NVI + prior NVI x the price change (prior NVI x (1 + change)); otherwise unchanged. From 1000. Signal = 255-period EMA.",
+     "note": "Some references (ChartSchool, TradingView's help page) describe an additive form instead: prior NVI + the percent change. This entry compounds, as Wikipedia and TA-Lib's documentation state Fosback's form and as TradingView's built-in computes. It starts at 1000 on the first bar of the chart's loaded history; UCT writes the running product as 1000 x e to the running total of the log of each lower-volume day's close over the prior close."
     },
     "capture": {
      "id": "builtin3-2026-11-18",
@@ -7089,8 +7071,8 @@
       "AMEX:SPY 1D, 8,509 bars",
       "NYSE:RDDT 1D, 668 bars"
      ],
-     "grade": "DIFFERS BY DEFINITION",
-     "detail": "TradingView's built-in COMPOUNDS: prior NVI x (1 + the price change) on a lower-volume day, from 1000 (equal on every bar when computed that way). This entry ADDS the percent change, which is what ChartSchool's page and TradingView's own help page both describe. The two forms are different numbers with the same turns."
+     "grade": "EQUAL",
+     "detail": "Equal on every bar both charts have a value for. Both lines: the index and its 255-bar EMA."
     }
    },
    "versions": [
@@ -7099,6 +7081,12 @@
      "maths": "sha256:c01e1334aefef55b9918d791f833678b196d08b3ae5aa47c2f533705c26a59b5",
      "since": "2026-11-18",
      "why": "first entry"
+    },
+    {
+     "version": 2,
+     "maths": "sha256:a6387ead8c6eb3abacd5178ad92735344f84b641327ceb49be628f34fb763750",
+     "since": "2026-11-18",
+     "why": "It compounds now (prior NVI x (1 + the price change)): Fosback's form as Wikipedia and TA-Lib state it, and what TradingView's built-in computes. Version 1 added the percent change, as ChartSchool's page describes it."
     }
    ]
   },
@@ -7281,6 +7269,158 @@
     {
      "version": 1,
      "maths": "sha256:5c9af57ba4eb9439fca194524fd00ec892845cd90ce3de5c0bf64bad57794457",
+     "since": "2026-11-18",
+     "why": "first entry"
+    }
+   ]
+  },
+  {
+   "id": "trix",
+   "name": "TRIX",
+   "aliases": [
+    "trix",
+    "trix indicator",
+    "trix oscillator",
+    "triple exponential average"
+   ],
+   "placement": "pane",
+   "params": [
+    {
+     "key": "length",
+     "label": "Length",
+     "default": 18,
+     "min": 2,
+     "max": 200,
+     "integer": true
+    }
+   ],
+   "outputs": [
+    {
+     "key": "trix",
+     "label": "TRIX",
+     "type": "value",
+     "formula": "10000 * change(ema(ema(ema(ln(close), {length}), {length}), {length}))",
+     "tree": {
+      "type": "op",
+      "name": "*",
+      "args": [
+       {
+        "type": "num",
+        "value": 10000
+       },
+       {
+        "type": "call",
+        "name": "change",
+        "args": [
+         {
+          "type": "call",
+          "name": "ema",
+          "args": [
+           {
+            "type": "call",
+            "name": "ema",
+            "args": [
+             {
+              "type": "call",
+              "name": "ema",
+              "args": [
+               {
+                "type": "call",
+                "name": "ln",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 18
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 18
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 18
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "sites": {
+      "length": [
+       [
+        1,
+        0,
+        0,
+        0,
+        1
+       ],
+       [
+        1,
+        0,
+        0,
+        1
+       ],
+       [
+        1,
+        0,
+        1
+       ]
+      ]
+     }
+    }
+   ],
+   "evidence": {
+    "value_check": "tests/test_named_indicators_values.py::trix",
+    "published": {
+     "by": "Jack Hutson",
+     "url": "https://www.tradingview.com/support/solutions/43000502331-trix/",
+     "sources": [
+      {
+       "title": "TradingView help center: TRIX",
+       "url": "https://www.tradingview.com/support/solutions/43000502331-trix/",
+       "kind": "vendor documentation"
+      },
+      {
+       "title": "StockCharts ChartSchool: TRIX",
+       "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/trix",
+       "kind": "reference"
+      }
+     ],
+     "read": "2026-11-18",
+     "says": "An EMA of the close, an EMA of that, an EMA of that; TRIX is the 1-period percent change of the triple EMA. No page read states a multiplier.",
+     "note": "THIS ENTRY FOLLOWS TRADINGVIEW'S BUILT-IN, not the pages' wording: 10,000 x the one-bar change of a triple EMA of the LOG of price, which the capture shows is what TradingView plots (equal on every bar). The percent change of price the pages describe is about a hundredth of this size. The length default, 18, is TradingView's; the capture was taken at 15."
+    },
+    "capture": {
+     "id": "builtin3-2026-11-18",
+     "against": "TradingView built-in: TRIX",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars",
+      "NYSE:RDDT 1D, 668 bars"
+     ],
+     "grade": "EQUAL",
+     "detail": "Equal on every bar both charts have a value for. Graded at length 15."
+    },
+    "follows": {
+     "whose": "TradingView's own TRIX",
+     "what": "10,000 x the one-bar change of a triple EMA of the log of price",
+     "others": "Some references describe a percent change of price, about a hundredth of this size."
+    }
+   },
+   "versions": [
+    {
+     "version": 1,
+     "maths": "sha256:00256a019dff7ebc5825474cc604b52fec27336257782b8c9e5478b18002955e",
      "since": "2026-11-18",
      "why": "first entry"
     }
