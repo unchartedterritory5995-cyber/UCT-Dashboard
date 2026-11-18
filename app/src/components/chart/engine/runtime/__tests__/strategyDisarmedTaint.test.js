@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/runtime/__tests__/strategyDisarmedTaint.test.js
 //
-// ─── ⭐⭐ NUMBER PENDING (fix/strategy-disarmed-taint) — A REFUSED BACKTEST TAKES AWAY ONLY WHAT IT DECIDES ──────────
+// ─── ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — A REFUSED BACKTEST TAKES AWAY ONLY WHAT IT DECIDES ──────────
 //
 // Owner rule (coordinator ruling 2026-11-18): an admission must NEVER take away what a member sees today. When a
 // strategy's broker run refuses by name on a chart, the same program runs again without its broker

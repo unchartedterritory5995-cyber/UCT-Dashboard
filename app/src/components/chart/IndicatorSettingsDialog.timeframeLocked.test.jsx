@@ -1,6 +1,6 @@
 // app/src/components/chart/IndicatorSettingsDialog.timeframeLocked.test.jsx
 //
-// ⭐ SETTINGS PARITY (timeframe, NUMBER PENDING) — coordinator UI ruling 2026-11-18: while no evidence admits a
+// ⭐ SETTINGS PARITY (timeframe, Engine 77, #1831) — coordinator UI ruling 2026-11-18: while no evidence admits a
 // moved timeframe, a runtime script's `input.timeframe` is shown READ-ONLY at its default, with one line saying
 // why, never as a control that accepts a choice the run then refuses (`runtime/runtimeInputs.js::
 // withTimeframeInputs` -> `locked`, `indicatorRegistry.fieldFromInput` -> `disabled`).

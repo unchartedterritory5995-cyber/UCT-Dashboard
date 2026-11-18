@@ -1463,7 +1463,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
    *  `brokerDisarmed`: an order places nothing, every bar is run as the host lane runs it) and its plots and paints
    *  are drawn; the backtest alone is refused, by the broker's own name (`refusedStrategyRecordOf`). Any other stop
    *  is not the broker's and is not retried.
-   *  ⭐⭐ NUMBER PENDING (fix/strategy-disarmed-taint) — WHAT IS DRAWN IS DECIDED STATICALLY, by the host lane's own
+   *  ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — WHAT IS DRAWN IS DECIDED STATICALLY, by the host lane's own
    *  taint (W9-OQ-N2, `strategyTaint.js::strategyDisarmOf`, the program's `broker.disarm`, coordinator ruling
    *  2026-11-18 (a)): every output a broker value reaches is withheld by name (`withheldByTaint`, below) and the rest
    *  are drawn; a broker number read inside the run is `na` only so the order logic can finish. ⛔ FAIL CLOSED, the
@@ -1572,7 +1572,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       + 'rather than a blank line')
   }
   const out = {}
-  // ⭐⭐ NUMBER PENDING (fix/strategy-disarmed-taint) — a run that stood in for a refused broker: the outputs a broker
+  // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — a run that stood in for a refused broker: the outputs a broker
   // value reaches are WITHHELD by name (`strategyDisarmOf`), never drawn from the `na` the run read in its place
   const withheldByTaint = backtestRefused ? new Map(disarm.withheld.map((w) => [w.index, w])) : null
   const taintErrors = {}

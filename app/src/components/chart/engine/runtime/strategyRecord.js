@@ -300,7 +300,7 @@ export function backtestRefusedSentence(refused, bars, withheld = 0) {
       : "The script's plots are drawn.")
 }
 
-/** ⭐⭐ NUMBER PENDING (fix/strategy-disarmed-taint) — the guard a plot or paint is withheld under when its broker run
+/** ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — the guard a plot or paint is withheld under when its broker run
  *  was refused and a broker value reaches it (`strategyTaint.js::strategyDisarmOf`): the strategy value it draws is
  *  not served on this chart (`pineRuntimeFrontend.js` REFUSALS, `runtime:strategy-value`). */
 export const DISARMED_WITHHELD_GUARD = 'runtime:strategy-value'

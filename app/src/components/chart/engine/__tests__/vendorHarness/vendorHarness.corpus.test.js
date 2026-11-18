@@ -89,7 +89,7 @@ if (REQUESTED) {
     // ⭐ RS RATING L8 — and every run half, for the same reason: its evidence is this lane's
     // grade of the run's drawings (`runHalfRailSeam.js`)
     __admitEveryRunHalfForTests()
-    // ⭐ SETTINGS PARITY (timeframe, NUMBER PENDING) — and a capture taken at a MOVED timeframe setting is
+    // ⭐ SETTINGS PARITY (timeframe, Engine 77, #1831) — and a capture taken at a MOVED timeframe setting is
     // graded at it: the lane's grade is the evidence that would admit one (`runtimeInputs.js::movedTimeframeServed`)
     __serveEveryTimeframeSettingForTests()
   }

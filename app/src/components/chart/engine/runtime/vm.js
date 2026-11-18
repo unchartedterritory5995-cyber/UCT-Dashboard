@@ -87,8 +87,8 @@ export class VmError extends Error {
  *  treats as placing nothing: the order commands (`broker.js::BROKER_ORDER_OPS`, every void `strategy.*` op). */
 const DISARMED_NO_OPS = new Set(BROKER_ORDER_OPS)
 /** A disarmed run reached a broker read it cannot answer `na` for (a TEXT read: an order id or comment), so it
- *  cannot stand in for the broker run (the caller keeps the broker's own refusal). ⚰️ Until NUMBER PENDING
- *  (fix/strategy-disarmed-taint) EVERY read stopped the run, and a strategy whose ORDER logic reads
+ *  cannot stand in for the broker run (the caller keeps the broker's own refusal). ⚰️ Until engine 77
+ *  (#1833, fix/strategy-disarmed-taint) EVERY read stopped the run, and a strategy whose ORDER logic reads
  *  `strategy.position_size` (macd-shortlong-strategy-for-tradingview-input-optimizer: six plain MACD plots) lost every
  *  plot the host lane draws for it. */
 export class DisarmedBrokerRead extends Error {
@@ -351,7 +351,7 @@ export function execute(program, ctx, limits, opts) {
   // (`opts.entry`) is another symbol's bars and never trades this chart's broker.
   const brokerOps = program.brokerOps || []
   let broker = null
-  // ⭐⭐ Engine 76 (#1803, fix/strategy-refusal-keeps-plots), NUMBER PENDING (fix/strategy-disarmed-taint) — A DISARMED RUN
+  // ⭐⭐ Engine 76 (#1803, fix/strategy-refusal-keeps-plots), Engine 77 (#1833, fix/strategy-disarmed-taint) — A DISARMED RUN
   // (`opts.brokerDisarmed`): the program's plots and paints computed with NO broker, as the host lane computes them
   // (every bar, the forming one included). An order command places nothing; a NUMBER read of a broker value is `na`,
   // only so the order logic around it can finish: it never decides what is drawn. What is drawn was decided

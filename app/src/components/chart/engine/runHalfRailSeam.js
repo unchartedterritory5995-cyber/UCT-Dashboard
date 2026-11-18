@@ -33,6 +33,10 @@ export function registeredRunHalfObjectRail() {
 // the runtime pane on, on at least `RUN_HALF_EVIDENCE_MIN_CAPTURES` distinct captures. Nothing
 // sets this list in production today (no caller outside the tests), so every such script is
 // refused. ⛔ Evidence is per script (sha256 of the Pine source) and never per family.
+// ⭐⭐ PARITY UNIT 1 (`objects`, 2026-11-18) — a host document that DRAWS an object program of its own
+// no longer needs this hook for the drawings its program lost: those are the run's to draw on the run
+// half's own gates (`runHalfObjectRail.js`, the lost-drawings rule). This hook still decides a host with
+// NO object program (a lost removal, every drawing lost), and a run drawing that names no call.
 export const RUN_HALF_EVIDENCE_MIN_CAPTURES = 2
 let _evidence = new Map()
 

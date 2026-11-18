@@ -14,7 +14,7 @@
 // refusedStrategyRecordOf`). A program whose outputs READ the broker cannot stand in: the member reads the broker's
 // refusal exactly as before.
 //
-// ⭐⭐ NUMBER PENDING (fix/strategy-disarmed-taint): WHAT the stand-in run draws is decided statically by the host
+// ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint): WHAT the stand-in run draws is decided statically by the host
 // lane's own taint (`strategyTaint.js::strategyDisarmOf`): a plot a broker value reaches is withheld BY NAME, never
 // drawn from the `na` the disarmed run reads in the broker's place. Its rails: `strategyDisarmedTaint.test.js`.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'

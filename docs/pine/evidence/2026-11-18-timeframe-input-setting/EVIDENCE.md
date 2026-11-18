@@ -1,4 +1,4 @@
-# Settings parity for a timeframe input, the run lane only (2026-11-18, NUMBER PENDING)
+# Settings parity for a timeframe input, the run lane only (2026-11-18, engine 77, #1831)
 
 Coordinator ruling 2 (after #1805): build the five-step design, run lane only, on a fresh branch from master
 (engine 75, `076cf3a878`), under three conditions: (a) at the DEFAULT every document is byte-identical and no

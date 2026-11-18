@@ -81,7 +81,7 @@ import { readStrategyDeclaration, orderArgsOf, readRiskCall, StrategyOptionError
 import { strategyBrokerGateOn } from '../strategyBrokerGateRegistry.js'
 const strategyBrokerEnabled = () => strategyBrokerGateOn()
 import { strategyRepaintConstruct } from './strategyRepaint.js'
-// ⭐⭐ NUMBER PENDING (fix/strategy-disarmed-taint) — what a broker document may draw when its broker run is refused
+// ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — what a broker document may draw when its broker run is refused
 import { strategyTaintSinks, strategyDisarmOf } from './strategyTaint.js'
 import {
   RUNTIME_SOURCES as MEMBER_SOURCES, textInputKindOf, textInputIsMemberSet, isTimeInputCall,
@@ -1657,7 +1657,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // only on a source input (a colour only on a colour input).
   const inputDefaults = opts.inputDefaults && typeof opts.inputDefaults === 'object' ? opts.inputDefaults : {}
   const applyMemberDefault = (call, name, at) => {
-    // ⭐⭐ SETTINGS PARITY (timeframe, NUMBER PENDING) — a TIMEFRAME input's member value is its default node
+    // ⭐⭐ SETTINGS PARITY (timeframe, Engine 77, #1831) — a TIMEFRAME input's member value is its default node
     // whichever way the caller handed it: as a default (`runtimeBuildInputs`, which knows the declared
     // settings) or as a plain value only (a caller that hands no declared inputs, the server service's
     // `job.mjs::runArgs`). Else the run would read the member's timeframe where the script uses `tf` as text
@@ -1826,7 +1826,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // ⭐⭐ I6a-N4 — a block whose lines are not at a block indent refuses BY NAME, at the pane AND
   // the object door (`pine.js::refuseOffBlockIndent`, the one check both lanes call).
   try { stmts = blockStatements(tokens, indents, 0); refuseOffBlockIndent(stmts, indents) } catch (e) { return fail(e, diagnostics) }
-  // ⭐⭐ NUMBER PENDING (fix/strategy-disarmed-taint) — W9-OQ-N2's taint (`strategyTaint.js`), in broker mode only, read
+  // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — W9-OQ-N2's taint (`strategyTaint.js`), in broker mode only, read
   // on the ORIGINAL statements before any rewrite, as the host lane reads it. It decides what a run WITHOUT the broker
   // may draw when the broker run is refused by name (`strategyDisarmOf`, carried on the declaration as `disarm`). A
   // trace that throws is `null`, and the disarmed run then keeps the broker's refusal.
@@ -2764,7 +2764,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const columnTrees = []
   const columnByKey = new Map()
   const outputs = []
-  // ⭐⭐ NUMBER PENDING (fix/strategy-disarmed-taint) — per output, the source line its call is on (broker mode reads it,
+  // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — per output, the source line its call is on (broker mode reads it,
   // `strategyDisarmOf`); kept beside `outputs`, never on them, so no output descriptor changes shape.
   const outputLines = []
   // ⭐ THE STATIC HISTORY-DEMAND ANALYSIS, accumulated as the body is lowered:

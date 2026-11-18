@@ -79,6 +79,38 @@ def test_the_headline_is_the_member_rule(docs):
     assert all(rd["scripts"][k] for k in rd["scripts"]), "every script not served names at least one wall"
 
 
+def test_a_ruling_by_name_is_a_never_serve_script_with_its_witness(docs):
+    """PARITY UNIT 1 (coordinator, 2026-11-18): Q-OBJ1-3 read crypto pairs as symbol input defaults the facts hold
+    no venue for, and TradingView refuses them at their defaults ("Invalid symbol"): ruled never-serve BY NAME
+    (`RULED_NEVER_SERVE`), each with the run that witnessed it, and left out of every unit's servable count."""
+    m, rd = docs
+    keys = {s["key"] for s in m["scripts"]}
+    never = {c["class"]: c for c in rd["neverServe"]}
+    assert pr.RULED_NEVER_SERVE, "the ruling list is not empty"
+    for key, (cls, why) in pr.RULED_NEVER_SERVE.items():
+        assert key in keys, "a ruled script is a census script: %s" % key
+        assert key in rd["scripts"], "a ruled script is not served: %s" % key
+        assert key in never[cls]["scripts"], key
+        assert never[cls]["ruledByName"][key] == why and "run " in why, "the witness rides beside it: %s" % key
+        for u in rd["units"]:
+            # no capture is asked for a never-serve script: it leaves every unit's evidence queue
+            assert key not in {e["script"] for e in u["evidence"]["queue"]}, (u["unit"], key)
+            assert key not in u["soleScripts"] or u["soleServable"] < u["sole"], (u["unit"], key)
+    # CONTROL: without the ruling, the detectors alone do not classify them (the reason the ruling exists), and
+    # the objects unit asks a capture of each
+    saved = dict(pr.RULED_NEVER_SERVE)
+    try:
+        pr.RULED_NEVER_SERVE.clear()
+        again = pr.build(m, rd["facts"], rd["map"]["sha256"])
+        unruled = {c["class"]: c for c in again["neverServe"]}
+        assert not set(saved) & set(unruled["other-feeds"]["scripts"])
+        objects = next(u for u in again["units"] if u["unit"] == "objects")
+        assert objects["soleServable"] == next(u for u in rd["units"] if u["unit"] == "objects")["soleServable"] + 3
+        assert set(saved) <= {e["script"] for e in objects["evidence"]["queue"] if e["status"] == "none"}
+    finally:
+        pr.RULED_NEVER_SERVE.update(saved)
+
+
 def test_every_wall_has_a_unit(docs):
     _m, rd = docs
     unmapped = [w["wall"] for w in rd["memberWalls"] if w["unit"] == "unmapped"]

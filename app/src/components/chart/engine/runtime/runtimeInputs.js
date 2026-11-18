@@ -46,7 +46,7 @@
 //   (`runtimeInputSpecsOf(source)`): a timeframe setting changes which bars a script
 //   reads, and a stored document does not change for it.
 //
-// ⭐⭐ SETTINGS PARITY (timeframe, NUMBER PENDING) — A TIMEFRAME INPUT IS A SETTING OF A
+// ⭐⭐ SETTINGS PARITY (timeframe, Engine 77, #1831) — A TIMEFRAME INPUT IS A SETTING OF A
 // RUNTIME DOCUMENT, DECLARED ON LOAD. Since RS RATING L5 the run IS handed other bars: the
 // request supply (`runtime/requestSupply.js`) serves the chart's own symbol at a weekly or
 // monthly merge above the chart, and refuses every other timeframe BY NAME. So:

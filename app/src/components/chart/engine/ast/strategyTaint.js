@@ -295,7 +295,7 @@ export function strategyTaintSinks(stmts) {
 }
 
 /**
- * ⭐⭐ NUMBER PENDING (fix/strategy-disarmed-taint) — WHAT A STRATEGY RUN WITHOUT ITS BROKER MAY DRAW.
+ * ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — WHAT A STRATEGY RUN WITHOUT ITS BROKER MAY DRAW.
  *
  * When a strategy's broker run refuses by name on a chart (an unpinned rule, an open question, [B-START]), the
  * program runs again with NO broker (`vm.js` `brokerDisarmed`, `runtimeColumns.js::disarmedAfter`) so the member

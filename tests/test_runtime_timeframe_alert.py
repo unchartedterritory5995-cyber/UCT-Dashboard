@@ -1,4 +1,4 @@
-"""SETTINGS PARITY (timeframe, NUMBER PENDING): an alert on a runtime document runs its author's timeframe only.
+"""SETTINGS PARITY (timeframe, Engine 77, #1831): an alert on a runtime document runs its author's timeframe only.
 
 A runtime document declares its `input.timeframe` as a setting ON LOAD (`runtime/runtimeInputs.js::
 withTimeframeInputs`, never stored), so this lane, which reads the STORED document, has no declared key

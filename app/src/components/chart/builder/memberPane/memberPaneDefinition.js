@@ -399,7 +399,7 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     const viaBroker = runtimeLaneDefinition({ source, id, name, t, hostReason: gate.reason, hostGuard: gate.guard, routed: false, no })
     const d = viaBroker && viaBroker.ok ? viaBroker.definition : null
     const brokerDoc = !!(d && d.compute && d.compute.kind === 'runtime' && d.meta && d.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY)
-    // ⭐⭐ NUMBER PENDING (fix/strategy-disarmed-taint) — AN ADMISSION NEVER TAKES AWAY WHAT A MEMBER SEES (owner rule,
+    // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — AN ADMISSION NEVER TAKES AWAY WHAT A MEMBER SEES (owner rule,
     // coordinator ruling 2026-11-18): a broker document that would withhold a plot or paint the host document shows
     // (`takesAway`: a forward `offset`, a presentation the run does not carry) does NOT replace it; the member keeps the
     // host document, and its note says why the backtest is not run. ⚰️ hull-moving-average-crossover-strategy: its
@@ -2617,7 +2617,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // it does not take runtime documents.
     saveable: true,
     withheld: withheld.map((w) => w.label),
-    // ⭐⭐ NUMBER PENDING (fix/strategy-disarmed-taint) — what this document withholds that the HOST document shows
+    // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — what this document withholds that the HOST document shows
     // (`hostShowsRow`, `hostShowsPaint`): the armed route never replaces the host document with one that draws less
     takesAway: [
       ...withheld.filter((w) => hostShowsRow(w.o)).map((w) => shownRowName(w.o)),
@@ -2853,7 +2853,7 @@ function hostCarriesRow(o) {
   return !!(o && o.ast && o.formula && !o.refusal && o.kind !== 'alertcondition')
 }
 
-/** ⭐⭐ NUMBER PENDING (fix/strategy-disarmed-taint) — a host row or paint the HOST document shows a member: carried
+/** ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — a host row or paint the HOST document shows a member: carried
  *  and not hidden (`paneHides`), the host lane's own rule. The armed route reads it to decide whether a broker document
  *  would take anything away. */
 function hostShowsRow(o) {

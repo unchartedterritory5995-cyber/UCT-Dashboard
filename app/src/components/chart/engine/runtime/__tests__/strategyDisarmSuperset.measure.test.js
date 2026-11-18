@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/runtime/__tests__/strategyDisarmSuperset.measure.test.js
 //
-// ─── ⭐⭐ NUMBER PENDING (fix/strategy-disarmed-taint) — DOES AN ADMISSION TAKE AWAY ANYTHING A MEMBER SEES? ──────
+// ─── ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — DOES AN ADMISSION TAKE AWAY ANYTHING A MEMBER SEES? ──────
 //
 // A MEASUREMENT, run only when its env is set (never in the ordinary suite): the coordinator's acceptance (ruling
 // 2026-11-18 (c)) for admitting `strategy-decl`. For every strategy, on a member's DAILY bars (`ourSide.js::

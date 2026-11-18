@@ -1,4 +1,4 @@
-// ─── ⭐⭐ SETTINGS PARITY (timeframe, NUMBER PENDING) — A TIMEFRAME INPUT IS A RUN-LANE SETTING ───
+// ─── ⭐⭐ SETTINGS PARITY (timeframe, Engine 77, #1831) — A TIMEFRAME INPUT IS A RUN-LANE SETTING ───
 //
 // `runtime/runtimeInputs.js::withTimeframeInputs` declares a runtime document's `input.timeframe` as an
 // `enum` setting ON LOAD (never stored); `pineRuntimeFrontend.js::applyMemberDefault` puts a member's value

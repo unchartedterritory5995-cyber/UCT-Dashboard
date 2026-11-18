@@ -1019,7 +1019,7 @@ def runtime_inputs_for(definition: Mapping[str, Any], params: Optional[Mapping])
     return {str(k): v for k, v in dict(params or {}).items() if str(k) in declared}
 
 
-#: ⭐ SETTINGS PARITY (timeframe, NUMBER PENDING) -- a runtime document declares its timeframe inputs as
+#: ⭐ SETTINGS PARITY (timeframe, Engine 77, #1831) -- a runtime document declares its timeframe inputs as
 #: settings ON LOAD only (`runtime/runtimeInputs.js::withTimeframeInputs`, never stored), so this lane, which
 #: reads the STORED document, has no declared key for one and would run the author's timeframe. An alert on a
 #: script whose timeframe setting is moved is therefore withheld by name, never computed at another timeframe.
