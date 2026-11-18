@@ -1,0 +1,13 @@
+//@version=5
+indicator("UCTPROBE_VW_MK1_BOOL_ABSOLUTE", overlay = false)
+// #1550 (2026-11-17), queue row Q-MK1. The reference: plotshape's series "is treated as a series of
+// boolean values for all location values except location.absolute". What TradingView draws for a
+// BOOL series at location.absolute is not stated: a shape at y = 1 on every true bar (and is the pane
+// scaled to take it in?), a shape at 0 on false bars, or nothing. The line is the pane's own range
+// (about 0.1 to 0.3 on a stock near 100 to 300), so a shape at 1 shows as a stretched scale.
+r = close / 1000
+plot(r, "M00_line_CONTROL")
+plotshape(close > open, "M01_bool_absolute", shape.circle, location.absolute, color.blue)
+// controls: the same event as a NUMBER at location.absolute (y is 1 by statement), and at location.top
+plotshape(close > open ? 1.0 : na, "M02_number_absolute_CONTROL", shape.square, location.absolute, color.red)
+plotshape(close > open, "M03_bool_top_CONTROL", shape.triangleup, location.top, color.green)

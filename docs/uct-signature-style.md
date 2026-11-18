@@ -186,6 +186,13 @@ menu · date calendar + "Go to a date" · drawing-tools ★ menu · the /charts 
 **Screener (PR of 2026-11-16):** the Focus layout's List, Charts and Map views, its top bar, context
 and notices lines, the screen picker, Save / More / Help / Sort menus, the Filters drawer (and the
 filter rail inside it, `FilterRail skin="signature"`), the name dialog, the toast, the phone sheets.
+**Screener scan board (2026-11-17, dark behind `SCREENER_SCAN_BOARD_ENABLED`):** the Screener as a customizable widget board
+(`app/src/pages/screener/focus/board/`, `Board.module.css`): widget cards on the well colour, the open tab and the open details tab
+underlined in gold, the selected row and the open screen with the 2px bar, the Layout menu's chosen options ticked. Customize's grip
+and corner handles are grey (tools, not a selection). Its own gold rail: `board/__tests__/boardUi.test.jsx`.
+
+**Community layouts (2026-11-17, dark behind `SCREENER_LAYOUT_GALLERY_ENABLED`):** a Signature window (`board/CommunityLayouts.jsx`) of layout cards on the scan board's Layout menu. Each card is a small picture of the layout (grey boxes on the board's own grid), its name, who shared it and how often it was used, with one soft primary button ("Use layout") and a quiet text action ("Report"). No gold anywhere in the window: nothing in it is the member's current choice until they use one, and then the tick appears on the Layout menu as for any layout.
+
 **Screener, not yet converted:** Table view (the older ScannerShell page) and the Options tab's own page.
 **Designed, not built (lab):** Chart Settings Indicators section + indicator editor, Header &
 legend with the stat picker. **Not yet converted:** Breadth widget (parked), Chart Settings light

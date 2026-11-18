@@ -35,7 +35,7 @@ import { AST_LANE_TIER, clearUserDefinitions } from '../components/chart/engine/
 import { BUILDER_INPUTS, BUILDER_INPUT_SCOPE } from '../components/chart/builder/builderInputs'
 import { STARTERS, STARTER_LIST } from '../components/chart/builder/StarterLibrary'
 import { USER_DEFINITIONS_KEY } from '../hooks/useUserDefinitions'
-import { openSource } from '../components/chart/builder/builderStart.testkit.js'
+import { openSource } from '../testing/builder/builderStart.testkit.js'
 import { RESULTS_ENDPOINT } from '../components/screener/ScanResults'
 import { SPY_WINDOW } from './screener/ScreensManager'
 

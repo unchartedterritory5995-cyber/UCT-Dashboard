@@ -11,8 +11,18 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "tools"))
+
+# ⛔ 2026-11-18: SKIPPED (with this reason), never silently absent, when playwright is not installed. The walk tool
+# loads playwright.sync_api when it is imported (through the walk modules it imports), so without the package this file could not even be COLLECTED, and one
+# collection error interrupted every other file in the pytest session it shared (remote run 44307507019). CI installs
+# no browser stack on purpose: the package alone would turn the real-browser rails (e.g.
+# tests/test_intraday_watchlist_scan_bench.py) from a skip into a failure. These rails need no browser, so a lazy
+# import inside the tool would let them RUN in CI -- that is the follow-up, not this guard.
+pytest.importorskip("playwright.sync_api", reason="tools/notebook_fin_walk.py loads playwright when imported (through the walk modules it imports); CI installs no browser stack")
 
 import notebook_fin_walk as C  # noqa: E402
 import notebook_fin_walk_features as F  # noqa: E402

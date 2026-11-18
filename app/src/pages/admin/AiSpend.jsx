@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
 import styles from './AiSpend.module.css'
 
 // Admin: where the Claude API money goes. Reads the one AI-spend ledger
@@ -10,13 +11,10 @@ const PALETTE = ['#d4a64a', '#4f9cf9', '#3fbf7f', '#e0675a', '#a57ee8', '#3cc6c6
 
 const usd = (n, d = 2) => `$${(Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d })}`
 const pct = (n) => `${Math.round((Number(n) || 0) * 1000) / 10}%`
-const tok = (n) => {
-  const v = Number(n) || 0
-  if (v >= 1e9) return `${(v / 1e9).toFixed(2)}B`
-  if (v >= 1e6) return `${(v / 1e6).toFixed(1)}M`
-  if (v >= 1e3) return `${(v / 1e3).toFixed(1)}K`
-  return String(v)
-}
+// Token counts on this page's ladder (B at two decimals, M and K at one, whole tokens below),
+// through the one K/M/B decider (TERM-066). A count that rounds up to the next tier prints in it.
+const TOKEN_TIERS = [{ at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 1 }, { at: 1e3, suffix: 'K', decimals: 1 }]
+const tok = (n) => formatCompact(Number(n) || 0, { tiers: TOKEN_TIERS })
 export const featureName = (door) => {
   const base = String(door || '').replace(/^api\/(services|routers)\//, '').replace(/\.py$/, '')
   return base || 'unattributed'

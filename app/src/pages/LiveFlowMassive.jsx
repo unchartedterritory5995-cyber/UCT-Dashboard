@@ -1132,7 +1132,7 @@ function FilterChips({ filters, onChange, counts, stockEtfFilter, onStockEtfChan
 
 // ─── P/L helper ───────────────────────────────────────────────────────────
 // Stock % move since alert spot. Cheaper than option-price tracking — needs
-// one Schwab quote per ticker, not per contract. Direction-aligned coloring
+// one stock quote per ticker, not per contract. Direction-aligned coloring
 // (Bull alert + positive move = green; misaligned = red).
 function computePL(alert, currentSpot) {
   if (!currentSpot || !alert.spot || alert.spot <= 0) return null;
@@ -1996,7 +1996,7 @@ function Header({ status, loadPending, warming, workerLive,
           title={
             nullOICount === 0
               ? "All contracts already have OI"
-              : `Fetch Schwab OI for ${nullOICount} unresolved contracts`
+              : `Fetch OI for ${nullOICount} unresolved contracts`
           }
           style={{
             background: oiFetchState?.loading ? P.mt : (nullOICount > 0 ? P.ac + "14" : "transparent"),
@@ -2021,7 +2021,7 @@ function Header({ status, loadPending, warming, workerLive,
             }}
             title={
               oiFetchState.result.failedContracts?.length > 0
-                ? `Schwab returned no OI for:\n${oiFetchState.result.failedContracts.join("\n")}`
+                ? `No OI found for:\n${oiFetchState.result.failedContracts.join("\n")}`
                 : ""
             }
           >
@@ -3600,7 +3600,7 @@ export default function LiveFlowMassive() {
   // OI fetch state: { loading: bool, result: "filled X of Y" | error }
   const [oiFetchState, setOiFetchState] = useState({ loading: false, result: null });
   // Current spot quotes for P/L column. Updated every 30s in a separate
-  // poll cycle (Schwab quote fetches cost API calls; spot moves slower
+  // poll cycle (quote fetches cost API calls; spot moves slower
   // than the 5s alert poll so this is the right cadence). Key: ticker → spot.
   const [quotes, setQuotes] = useState({});
   const [quotesFetchedAt, setQuotesFetchedAt] = useState(null);
@@ -4116,7 +4116,7 @@ export default function LiveFlowMassive() {
 
   // Quotes polling — fetches current spot for unique tickers in the
   // current alert set every 30s. Decoupled from alert polling (5s) since
-  // spot moves slower than alert flow and each Schwab call has a cost.
+  // spot moves slower than alert flow and each quote call has a cost.
   // Historical view (?date=YYYY-MM-DD): P/L column uses current spot,
   // which compares historical alert spot to today's price — meaningful
   // for a multi-day-old alert ("MU bear at $1100 strike — stock has since
@@ -4457,8 +4457,8 @@ export default function LiveFlowMassive() {
 
   // OI fetch — same backend endpoint LiveFlow.jsx uses for /live-flow.
   // POST /api/oi-snapshot/bulk-fetch checks the snapshot table first,
-  // then batch-fetches misses from Schwab. We dedup contracts so we
-  // don't hit Schwab multiple times for the same strike/exp.
+  // then batch-fetches misses from the OI source. We dedup contracts so we
+  // don't ask for the same strike/exp more than once.
   //
   // After OI fills in, alerts whose cum_volume > new OI should become
   // MAGENTA/YELLOW on the next worker pass — but for THIS page we just

@@ -1,0 +1,18 @@
+//@version=5
+indicator("UCTPROBE_VW_LB3_BOX_TABLE_SIZES", overlay = true, max_boxes_count = 20)
+// Queue row Q-LB3 (2026-11-17). Labels' fonts are TradingView's measured ones since Q-LB2; a BOX's text and a
+// TABLE cell still use the engine's own table (`TEXT_SIZE_PX`: 8 / 10 / 12 / 16 / 22). This reads TradingView's:
+// one box per size word, its text naming it ("B" + the size), and a table whose cells name theirs ("C" + the
+// size). Box text and table cells are told apart by their text.
+hi = ta.highest(high, 150)
+lo = ta.lowest(low, 150)
+var table t = table.new(position.top_right, 1, 5, bgcolor = color.new(color.gray, 80))
+if barstate.islast
+    sizes = array.from(size.tiny, size.small, size.normal, size.large, size.huge)
+    names = array.from("tiny", "small", "normal", "large", "huge")
+    span = hi - lo
+    for k = 0 to 4
+        x = bar_index - (4 - k) * 25
+        y = lo + span * 0.55
+        box.new(x - 10, y + span * 0.12, x + 10, y - span * 0.12, border_color = color.gray, bgcolor = color.new(color.teal, 80), text = "B" + array.get(names, k), text_size = array.get(sizes, k), text_color = color.black)
+        table.cell(t, 0, k, "C" + array.get(names, k), text_size = array.get(sizes, k), text_color = color.black)

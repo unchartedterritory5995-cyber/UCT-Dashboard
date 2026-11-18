@@ -26,7 +26,7 @@ on:
         required: true
         type: string
       pytest:
-        description: "space-separated pytest paths / node ids under tests/"
+        description: "space-separated pytest paths / node ids under tests/ or api/"
         required: false
         default: ""
         type: string
@@ -113,6 +113,9 @@ jobs:
         run: |
           sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
           python -m pip install --quiet -r requirements.txt
+          # test-only packages the production image does not carry (brotli for the history-lake tool's suites). A ref
+          # cut before the file existed has none to install, and must still run.
+          if [ -f tests/ci-only-packages.txt ]; then python -m pip install --quiet -r tests/ci-only-packages.txt; fi
           (cd app && npm ci --no-audit --no-fund)
       # A RED TEST RESULT IS DATA, NOT A FAILED RUN (2026-11-16): every failed run emails the owner, and sessions send
       # in-progress work here on purpose. The test step may fail without failing the job; its outcome is written to a
@@ -125,7 +128,10 @@ jobs:
           RT_PYTEST: ${{ inputs.pytest }}
         run: |
           set -o pipefail
-          python -m pytest $RT_PYTEST -q -p no:cacheprovider -o junit_family=xunit2 --junitxml=remote-pytest-junit.xml 2>&1 | tee remote-pytest.log
+          # --continue-on-collection-errors (2026-11-18): without it ONE file that cannot import interrupted the whole
+          # request -- a 372-file batch ran nothing because 6 history-lake files lacked a package. The collection
+          # error is still an ERROR by file in the junit, the totals line and the exit code; the other files run.
+          python -m pytest $RT_PYTEST -q -p no:cacheprovider --continue-on-collection-errors -o junit_family=xunit2 --junitxml=remote-pytest-junit.xml 2>&1 | tee remote-pytest.log
       - name: Record the verdict
         if: always()
         env:
@@ -173,6 +179,23 @@ jobs:
           git fetch --no-tags --quiet origin "+$RT_REF:refs/rt/under-test"
           git checkout --quiet --detach refs/rt/under-test
           git log -1 --format='testing %H %s'
+      # ⚰️ 2026-11-17 — SEVEN NOTEBOOK BRIDGE RAILS WERE RED HERE AND NOWHERE ELSE. They spawn `python` to run
+      # the real exporter (tools/*_bridge.py, roundtrip_export_fixture.py), which imports the repo-root conftest
+      # (pytest) and anyio; this job installed no Python, so every one died on ModuleNotFoundError before its
+      # own assertions ran (run 44066213548). It now installs requirements.txt, exactly as the nightly's vitest
+      # job does for the same rails.
+      # ⚰️ NOT A "MINIMAL" LIST, AND THAT WAS MEASURED. A list of what the bridges import (pytest, anyio,
+      # sniffio, tzdata, read off an import-time probe) turned 5 of the 7 green and left 2 red on
+      # `No module named 'markdown_it'` (run 44085508213): notes_export_formats imports it INSIDE a function,
+      # so no import-time probe sees it, and the static closure of the bridges is the whole app (1,808 modules,
+      # ~50 distributions). requirements.txt is the only list that cannot drift from what they run. Cost,
+      # measured on this lane's pytest job with the pip cache: ~30 s, once per shard.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install the Python the bridge rails spawn
+        run: python -m pip install --quiet -r requirements.txt
       - uses: actions/setup-node@v4
         with:
           node-version: '20'

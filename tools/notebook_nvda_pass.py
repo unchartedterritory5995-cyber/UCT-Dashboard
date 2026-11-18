@@ -1007,7 +1007,15 @@ def main(argv=None) -> int:
         b = p.chromium.launch(headless=False, args=["--force-renderer-accessibility", "--window-size=1400,900"])
         ctx = b.new_context(user_agent=UA, viewport={"width": 1400, "height": 850})
         req = ctx.request
-        r = req.post(f"{a.base}/api/auth/login", data={"email": email, "password": pw}, timeout=120_000)
+        # tools/synthetic_session.py signs this session OUT when the run ends, however it ends.
+        try:
+            from tools import synthetic_session as S  # noqa: PLC0415 — package import
+        except ImportError:
+            import synthetic_session as S  # noqa: PLC0415 — script import (tools/ on sys.path)
+        try:
+            r = S.sign_in_playwright(ctx, a.base, credentials=(email, pw), timeout=120_000)
+        except S.SignInError:
+            print("REFUSED: not the synthetic account"); b.close(); return 2
         if r.status != 200:
             print("INCONCLUSIVE: login", r.status); b.close(); return 2
         me = req.get(f"{a.base}/api/auth/me").json()

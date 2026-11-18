@@ -81,9 +81,12 @@ import { readStrategyDeclaration, orderArgsOf, readRiskCall, StrategyOptionError
 import { strategyBrokerGateOn } from '../strategyBrokerGateRegistry.js'
 const strategyBrokerEnabled = () => strategyBrokerGateOn()
 import { strategyRepaintConstruct } from './strategyRepaint.js'
+// ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — what a broker document may draw when its broker run is refused
+import { strategyTaintSinks, strategyDisarmOf } from './strategyTaint.js'
 import {
   RUNTIME_SOURCES as MEMBER_SOURCES, textInputKindOf, textInputIsMemberSet, isTimeInputCall,
   timeInputDefaultOf, isTimeValue, isSessionString, constantVarsOf, foldConstantVarsIntoInputs,
+  isTimeframeText, movedTimeframeServed, movedTimeframeRefusal,
 } from '../runtime/runtimeInputs.js'
 import { TEXT_FNS, producesText, compileTimeFormat } from '../runtime/text.js'
 import { canonicalZone, dateStringMs, INSTANT_FIELDS } from '../runtime/clockFns.js'
@@ -99,9 +102,10 @@ import { makeTy, tyOfTypeWord, bindingTy, isCollectionTy, elemTy, udtNameOf, ele
   isTextTy, isColourTy, methodNsOf, collectionNumWordsConflict, numWordOf } from './typeDescriptor.js'
 // ⭐⭐ W6-T6 — the `for … in` walk rule (live list vs snapshot, the witnessed mutations): ONE
 // table, read by this lane and the host object lane (`pineObjects.js`) alike.
+// ⭐⭐ IMP-1 — this lane reads the RUNTIME set (G01-G07 graded on this lane); the host lane keeps C48's.
 import {
-  FOR_IN_SNAPSHOT_SOURCES, FOR_IN_LIVE_WITNESSED, COLLECTION_MUTATORS, REASSIGN_OPS,
-  bodyMayWriteList, forInMutationRefusal, heldListMutation, forInHeldListRefusal, heldListReach,
+  FOR_IN_SNAPSHOT_SOURCES, FOR_IN_LIVE_WITNESSED_RUNTIME, COLLECTION_MUTATORS, REASSIGN_OPS,
+  bodyMayWriteList, forInMutationRefusal, forInHelperHeldRefusal, heldListMutation, forInHeldListRefusal, heldListReach,
 } from './forInRule.js'
 import { readFunctionDefs } from './objectFnInline.js'
 // ⭐⭐ RT5 — the run's own drawings: the store's op table is the one authority
@@ -1343,6 +1347,34 @@ export function paramQualifiers(toks, arrow) {
   return out
 }
 
+/** ⭐⭐ IMP-1 (2026-11-16) — A PARAMETER TYPED `type[]` IS TYPED `array<type>`. The User Manual,
+ *  Arrays: "a variable whose declaration includes `int[]` as the type keyword accepts the type
+ *  `array<int>`" (the legacy form, deprecated but compiling: `vw-forin-collections-2`'s helper
+ *  `f_shift(line[] a)` ran on TradingView). The lexer folds `array<line>` into ONE token carrying
+ *  `typeArgs` (`pine.js::stripTypeArguments`); this folds `line [ ]` before a parameter name into
+ *  that same token, so every header reader below sees one shape. Only inside the header's
+ *  parentheses, only `word [ ] name`; a header with none is returned as it came (same arrays).
+ *  @returns {{toks: object[], arrow: number}} */
+export function foldBracketParamTypes(toks, arrow) {
+  const close = toks.findIndex((t) => isPunct(t, ')'))
+  if (close < 0 || close > arrow) return { toks, arrow }
+  let out = null
+  for (let i = 2; i < close; i += 1) {
+    const t = toks[i]
+    if (t && t.kind === 'ident' && isPunct(toks[i + 1], '[') && isPunct(toks[i + 2], ']')
+        && toks[i + 3] && toks[i + 3].kind === 'ident' && i + 3 < close) {
+      if (!out) out = toks.slice(0, i)
+      out.push({ ...t, value: 'array', typeArgs: [String(t.value)] })
+      i += 2
+      continue
+    }
+    if (out) out.push(t)
+  }
+  if (!out) return { toks, arrow }
+  const folded = out.concat(toks.slice(close))
+  return { toks: folded, arrow: arrow - (toks.length - folded.length) }
+}
+
 export function paramTypeHeads(toks, arrow) {
   const out = new Map()
   const close = toks.findIndex((t) => isPunct(t, ')'))
@@ -1625,8 +1657,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // only on a source input (a colour only on a colour input).
   const inputDefaults = opts.inputDefaults && typeof opts.inputDefaults === 'object' ? opts.inputDefaults : {}
   const applyMemberDefault = (call, name, at) => {
-    if (!Object.prototype.hasOwnProperty.call(inputDefaults, name)) return
-    const given = inputDefaults[name]
+    // ⭐⭐ SETTINGS PARITY (timeframe, Engine 77, #1831) — a TIMEFRAME input's member value is its default node
+    // whichever way the caller handed it: as a default (`runtimeBuildInputs`, which knows the declared
+    // settings) or as a plain value only (a caller that hands no declared inputs, the server service's
+    // `job.mjs::runArgs`). Else the run would read the member's timeframe where the script uses `tf` as text
+    // (`time(tf)`) and the AUTHOR'S where the request's host reader reads it statically: two timeframes in
+    // one run. At the default nothing is handed, and nothing here runs.
+    const timeframeCall = textInputKindOf(call) === 'timeframe'
+    const has = (o) => !!o && typeof o === 'object' && Object.prototype.hasOwnProperty.call(o, name)
+    if (!has(inputDefaults) && !(timeframeCall && has(inputs))) return
+    const given = has(inputDefaults) ? inputDefaults[name] : inputs[name]
     const args = call.args || []
     // v4's type rides NAMED or as the THIRD positional argument (`input(close, "Src", input.source)`)
     const typeArg = args.find((a) => a && a.name === 'type') || args.filter((a) => a && !a.name)[2]
@@ -1644,15 +1684,28 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // default is a string): the member's text replaces the default node (`runtimeBuildInputs`)
     const stringDefault = !!dv && dv.type === 'string' && !legacy
       && (call.name === 'input' || call.name === 'input.string' || call.name === 'input.symbol')
-    const kind = call.name === 'input.color' || legacy === 'input.color' || colourDefault ? 'color'
-      : call.name === 'input.source' || legacy === 'input.source' ? 'source'
-        : stringDefault ? 'string' : null
+    const kind = timeframeCall ? 'timeframe'
+      : call.name === 'input.color' || legacy === 'input.color' || colourDefault ? 'color'
+        : call.name === 'input.source' || legacy === 'input.source' ? 'source'
+          : stringDefault ? 'string' : null
     if (!kind) {
       throw new RuntimeRefusal('runtime:statement',
         '`' + name + '` was given a colour or a source, and it is not a colour or source input', at)
     }
     let node
-    if (kind === 'string') {
+    if (kind === 'timeframe') {
+      // the ONE reader of timeframe text (`runtimeInputs.js::isTimeframeText`, the settings' own): whether this
+      // chart serves the timeframe is the request supply's question, asked per chart, and refused there by name
+      if (!isTimeframeText(given)) {
+        throw new RuntimeRefusal('runtime:statement', '`' + name + '` was given ' + JSON.stringify(given)
+          + ', which is not a timeframe written as text (as TradingView writes one: 60, 1D, 1W, 1M)', at)
+      }
+      // ⛔ a value MOVED off the author's default is drawn only on recorded evidence (`movedTimeframeServed`);
+      // the author's own default handed back is no move at all
+      const moved = !(dv && dv.type === 'string' && dv.value === given)
+      if (moved && !movedTimeframeServed()) throw new RuntimeRefusal('runtime:statement', movedTimeframeRefusal(name, given), at)
+      node = { type: 'string', value: given }
+    } else if (kind === 'string') {
       if (typeof given !== 'string') throw new RuntimeRefusal('runtime:statement', '`' + name + '` was given a value that is not text', at)
       node = { type: 'string', value: given }
     } else if (kind === 'color') {
@@ -1773,6 +1826,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // ⭐⭐ I6a-N4 — a block whose lines are not at a block indent refuses BY NAME, at the pane AND
   // the object door (`pine.js::refuseOffBlockIndent`, the one check both lanes call).
   try { stmts = blockStatements(tokens, indents, 0); refuseOffBlockIndent(stmts, indents) } catch (e) { return fail(e, diagnostics) }
+  // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — W9-OQ-N2's taint (`strategyTaint.js`), in broker mode only, read
+  // on the ORIGINAL statements before any rewrite, as the host lane reads it. It decides what a run WITHOUT the broker
+  // may draw when the broker run is refused by name (`strategyDisarmOf`, carried on the declaration as `disarm`). A
+  // trace that throws is `null`, and the disarmed run then keeps the broker's refusal.
+  let brokerTaint = null
+  if (brokerMode) { try { brokerTaint = strategyTaintSinks(stmts) } catch { brokerTaint = null } }
   // ⭐⭐ W34-I6a — a wrapped `switch` arm is one expression (see `wrappedArmOf`); pane only.
   if (!atObjectDoor) stmts = joinWrappedSwitchArms(stmts, indents, String(source || '').split(/\r?\n/))
   // ⭐⭐ W34-I4 — a v1/v2 self-referencing definition whose every self read states its
@@ -2705,6 +2764,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const columnTrees = []
   const columnByKey = new Map()
   const outputs = []
+  // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — per output, the source line its call is on (broker mode reads it,
+  // `strategyDisarmOf`); kept beside `outputs`, never on them, so no output descriptor changes shape.
+  const outputLines = []
   // ⭐ THE STATIC HISTORY-DEMAND ANALYSIS, accumulated as the body is lowered:
   // one entry per variable that any `[n]` reads, carrying the deepest offset seen.
   // Nothing allocates a ring for a variable nobody looks back at (§16).
@@ -3923,6 +3985,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⭐⭐ ENGINE 56 — a column the columnar lane withholds on some bars by a witness code
         // declines the run by that code: drawn here those bars would read `na`
         if (code === BOOL_NA_UNWITNESSED || code === TIE_UNWITNESSED) throw new RuntimeRefusal(code, sentence, at)
+        // ⭐⭐ RS RATING L11 — a column holding a daily read of another symbol on a weekly chart: its tree
+        // carries the DAILY base's gate (`pine.js::securityAsNode`, `below`), so the columnar lane withholds it
+        // whole here and would draw that as `na` on every bar. Such a read is the run's request
+        // (`requestSupply.js`, held and sampled per week), reached through a slot, never a column: refused by
+        // name. ⛔ No other chart reaches this: the run translates for the chart's own period, so every other
+        // gate it writes is this chart's.
+        if (code === 'request:other-timeframe') {
+          throw new RuntimeRefusal('runtime:request', 'a value here reads another symbol at `"D"` below this '
+            + 'weekly chart inside an expression the per-bar run hands its columnar lane, which holds no daily '
+            + 'series; the run reads such a request only where it is written as its own variable, so nothing '
+            + 'is drawn rather than a blank line', at)
+        }
       }
     }
     let arr
@@ -6992,6 +7066,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         code: hostTarget.code,
         live: hostTarget.live === true,
         line: node.tok ? node.tok.line : null,
+        // ⭐ RS RATING L11 — a daily read of another symbol on a weekly chart (`pine.js::
+        // dailyOnWeeklyTargetOf`): supplied held and sampled per week (`requestSupply.js`)
+        ...(hostTarget.below === true ? { below: true } : {}),
       }) : ownUnread ? Object.freeze({
         // ⭐ RS RATING L8 (4b) — the chart's own symbol at a timeframe the host does not read:
         // `code` is the literal as written, never a served code; `unread` refuses it in the supply
@@ -11036,6 +11113,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         throw new RuntimeRefusal('runtime:colour', `\`${callName}()\` draws numbers, and a colour is not one`, at)
       }
       outputs.push({ call: callName, role, group })
+      outputLines[outputs.length - 1] = at && Number.isInteger(at.line) ? at.line : null
       descs.push(outputs[outputs.length - 1])
       out.push(emit(outputs.length - 1, lowerExpr(node, scope)))
     }
@@ -11119,6 +11197,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     outputs.push({ call: callName, ...(extra || {}) })
     const index = outputs.length - 1
+    outputLines[index] = at && Number.isInteger(at.line) ? at.line : null
     out.push(emit(index, lowerExpr(arg0, scope)))
     if (wantColours) {
       const desc = outputs[index]
@@ -12036,7 +12115,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const BOOL_COMPARE = new Set(['==', '!=', '<', '>', '<=', '>='])
   const nameIsBool = (sc, nm) => {
     const { memo } = typeTables()
-    const key = `${sc} ${nm}`
+    const key = `\u0002${sc}\u0000${nm}`
     if (memo.has(key)) return memo.get(key)
     memo.set(key, false)   // a cycle is not a proof
     const ds = declsOf(sc, nm)
@@ -12047,7 +12126,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   const fnIsBool = (fn) => {
     const { results, memo } = typeTables()
-    const key = `${fn}`
+    const key = `\u0003${fn}`
     if (memo.has(key)) return memo.get(key)
     memo.set(key, false)   // recursion is not a proof
     const ok = results.get(fn).every((cands) => !!cands && cands.every((toks) => !!toks && provablyBoolToks(toks, fn)))
@@ -12857,16 +12936,33 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // ⭐ THE WALK RULE IS `forInRule.js`, the table the host object lane reads too: a body may
   // change the list it walks by push / shift / set (C48, F03-F05, witnessed live); `<family>.all`
   // is a snapshot (A02-A06). `<list>` and `<pass>` live in slots no Pine name can reach.
+  // ⭐⭐ IMP-1 (2026-11-16) — ON THIS LANE ALSO by remove / pop / unshift / insert / clear, a
+  // reassignment of the list's name and a helper handed the list (`FOR_IN_LIVE_WITNESSED_RUNTIME`:
+  // the manual's Loops page and the capture `vw-forin-collections-2`, G01-G07, graded here);
+  // INSIDE A FUNCTION BODY (lowered exactly as at the top level, onto the counted `for` this lane
+  // already runs in a function body); and handing the element to a function that writes one of
+  // its FIELDS (a record is a reference, `runtime/records.js`). The two W6-F1 halves are served on
+  // the script-level witness `support-and-resistance-logistic-regression-flux-charts-rddt-1d-
+  // 2026-11-14` (both shapes), graded MATCH through this lane by the vendor harness.
   // `x` is typed by T3b's `exprType` (`array.get` over the list's descriptor), so `x.top` reads a
   // record field and `line.set_x2(x, …)` a drawing; a list whose element type is not written
   // types `x` exactly as the member's own `x = array.get(list, i)` binding is typed.
   // ⛔ REFUSED BY NAME (`runtime:loop`), each with its capture row (W6-F1 / the G-row grading):
-  // any other change of the walked list (and one that MAY reach it through another name); a
-  // write to the loop variable or through it; a `for … in` inside a function body or whose
-  // value is read; `polyline.all`, a matrix, a map; a list this lane cannot type.
+  // `reverse` / `sort` / `fill` / `concat` of the walked list (and a change that MAY reach it
+  // through another name); a write to the loop variable or directly through it; a change of a
+  // list the element holds; a `for … in` whose value is read; `polyline.all`, a matrix, a map; a
+  // list this lane cannot type.
   // ⛔ AT THE OBJECT DOOR the host object lane serves `for … in`; the door keeps refusing it
   // (`objectDoorRefuses`) until measure-pair proves its output identical.
   let forInFnDefs = null
+  // ⛔⛔ IMP-1 — G07 GATE. `vw-forin-collections-2` G07 (a helper handed the walked list shifts it:
+  // 3 passes, live) MATCHes through this lane (`vendorHarness.impForInGRows.test.js`, with the
+  // test-only `opts.forInHelpersServed`). It stays SHUT because the one sample script it frees,
+  // `market-structure-break-order-block`, then draws 25 "MSB" labels where its capture
+  // (`market-structure-break-order-block-rddt-1d-2026-11-14`) holds 7: a divergence in that script's
+  // `market` state outside the walk (queue row Q-IMP-H, capture-queue-2026-11-16-imp.md). Flip it
+  // when that row is settled.
+  const FOR_IN_HELPER_SERVED = false
   const lowerForIn = (st, toks, first, scope, out) => {
     const refuse = (why) => {
       note('runtime:loop')
@@ -12877,7 +12973,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // only; it keeps master's answer.
     if (Array.isArray(opts.objectIterTrees)) refuse(null)
     if (takeLoopSink()) refuse('the value of a `for … in` loop is not yet captured (W6-F1)')
-    if (owner !== null) refuse('inside a function body, where each call site walks its own list, is not yet captured (W6-F1)')
+    // ⚰️ IMP-1: "inside a function body, where each call site walks its own list, is not yet
+    // captured (W6-F1)" stood here. A walk in a function body lowers to the same counted `for` as
+    // one at the top level, over whatever list THIS call reads; served on the script witness above.
     // `for x in SRC` | `for [i, x] in SRC`
     let idxTok = null
     let elemTok = null
@@ -12905,12 +13003,21 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (srcTy.kind !== 'array') refuse(`\`${src}\` is not an array this lane can walk`)
     if (!forInFnDefs) forInFnDefs = readFunctionDefs(stmts, { isPunct })
     const rule = { isPunct, isDefined: (m) => definedNames.has(m), fnDefs: forInFnDefs }
-    // ⭐ C48 — a body that changes its own list walks it LIVE, by push / shift / set only.
-    if (!family && bodyMayWriteList(st.sub, src, { ...rule, allowed: FOR_IN_LIVE_WITNESSED })) refuse(forInMutationRefusal(src))
-    // …and handing the element to a function that writes a field or changes a list held in one
-    // (at any depth of its calls):
-    // the element is a reference, so that is a write through `x` too.
-    if (forInHandsOn(st.sub, elem, rule)) {
+    // ⭐ C48 — a body that changes its own list walks it LIVE; ⭐ IMP-1: by the runtime set or a
+    // reassignment of the list's name (G06). ⛔ G07 HELD (`FOR_IN_HELPER_SERVED`): a helper handed
+    // the list is read (`followHelpers`); one that changes it by more than that set keeps the
+    // generic sentence, every other one refuses by its own (master refused both).
+    const rtWalk = { ...rule, allowed: FOR_IN_LIVE_WITNESSED_RUNTIME, reassignKeepsWalk: true }
+    if (!family && bodyMayWriteList(st.sub, src, rtWalk)) {
+      if (bodyMayWriteList(st.sub, src, { ...rtWalk, followHelpers: true })) {
+        refuse(forInMutationRefusal(src, FOR_IN_LIVE_WITNESSED_RUNTIME))
+      }
+      if (!(FOR_IN_HELPER_SERVED || opts.forInHelpersServed === true)) refuse(forInHelperHeldRefusal(src))
+    }
+    // …and handing the element to a function that changes a list held in one of its fields (at
+    // any depth of its calls): the element is a reference, so that is a write through `x` too.
+    // ⭐ IMP-1: a function that only writes the element's FIELDS is served (`fieldWritesServed`).
+    if (forInHandsOn(st.sub, elem, { ...rule, fieldWritesServed: true })) {
       refuse(`the body hands the element \`${elem}\` to a function that may write through it, not yet captured (W6-F1)`)
     }
     // ⛔ (review N1 / N1b r2) …while walking records that hold a list, a change is served ONLY on
@@ -12931,7 +13038,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const ty = t === null ? null : exprType({ type: 'name', name: t, tok: first }, scope)
         if (!ty || tyKey(ty) === tyKey(srcTy)) {
           refuse(`the body changes \`${t === null ? 'a list a called function is handed' : t}\`, which may be \`${src}\`, `
-            + `by more than ${[...FOR_IN_LIVE_WITNESSED].join(' / ')}`)
+            + `by more than ${[...FOR_IN_LIVE_WITNESSED_RUNTIME].join(' / ')}`)
         }
       }
     }
@@ -12997,9 +13104,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
           if (!isPunct(ts[i + 1], '(')) continue
           const m = splitMethodName(v)
           let target
-          if (v.startsWith('array.') && COLLECTION_MUTATORS.has(v.slice(6)) && !FOR_IN_LIVE_WITNESSED.has(v.slice(6))) {
+          if (v.startsWith('array.') && COLLECTION_MUTATORS.has(v.slice(6)) && !FOR_IN_LIVE_WITNESSED_RUNTIME.has(v.slice(6))) {
             target = ts[i + 2] && ts[i + 2].kind === 'ident' ? String(ts[i + 2].value) : null
-          } else if (m && COLLECTION_MUTATORS.has(m.method) && !FOR_IN_LIVE_WITNESSED.has(m.method) && !rule.isDefined(m.method)) {
+          } else if (m && COLLECTION_MUTATORS.has(m.method) && !FOR_IN_LIVE_WITNESSED_RUNTIME.has(m.method) && !rule.isDefined(m.method)) {
             target = m.recv
           }
           if (target !== undefined) out.add(inFn ? null : target)
@@ -13079,7 +13186,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
   })
   /** ⛔ (review N1b r2) Does a value of type `ty` hold a list (a collection field of its record
    *  type, at any depth, or one this lane cannot type)? Off for numbers, text and drawings: their
-   *  walks hold no list, and the held-list rule has nothing to guard. */
+   *  walks hold no list, and the held-list rule has nothing to guard.
+   *  ⭐ IMP-1 — a field is typed by its WRITTEN word (`tyOfTypeWord`), not by `writtenTyOf`, which
+   *  answers null for a drawing in the value build (`objectsInRun` off): a `line` field was then
+   *  "a type this lane cannot tell" and every record holding a drawing read as holding a list. */
   const forInElemHoldsList = (ty, seen = new Set()) => {
     if (!ty || ty.kind !== 'udt') return false
     if (seen.has(ty.name)) return false
@@ -13087,14 +13197,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const t = udtTypes.get(ty.name)
     if (!t) return true
     return t.fields.some((f) => {
-      const fty = writtenTyOf(f.type, f.typeArgs)
+      const fty = tyOfTypeWord(f.type, f.typeArgs, { udtTypes, enums: enumDecls })
       if (!fty) return true
       if (fty.kind === 'array' || fty.kind === 'matrix' || fty.kind === 'map') return true
       return forInElemHoldsList(fty, seen)
     })
   }
   /** Does the user function `fn` (or any user function it calls) write a FIELD (`p.f := …`) or
-   *  change a list held in one (`array.push(p.arr, v)`)? */
+   *  change a list held in one (`array.push(p.arr, v)`)? ⭐ IMP-1: with `rule.fieldWritesServed`
+   *  only the second counts (a field write through a reference is the served shape). */
   const forInFnWritesField = (fn, rule, seen = new Set()) => {
     if (seen.has(fn) || !rule.fnDefs.has(fn)) return false
     seen.add(fn)
@@ -13103,7 +13214,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
       return ts.some((tk, i) => {
         if (!tk || tk.kind !== 'ident') return false
         const v = String(tk.value)
-        if (v.includes('.') && ts[i + 1] && ts[i + 1].kind === 'punct' && REASSIGN_OPS.has(ts[i + 1].value)) return true
+        if (!rule.fieldWritesServed && v.includes('.') && ts[i + 1] && ts[i + 1].kind === 'punct'
+          && REASSIGN_OPS.has(ts[i + 1].value)) return true
         if (heldListMutation(ts, i, rule) !== null) return true
         if (!isPunct(ts[i + 1], '(')) return false
         const m = splitMethodName(v)
@@ -14583,7 +14695,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  name, parameters, its own frame, its own persistent-local count, a body and
    *  a result. Not a macro, and not re-parsed at each call: the CODE is shared and
    *  only the state is per call site. */
-  const defineFunction = (st, toks, arrow, spec = null) => {
+  const defineFunction = (st, toks0, arrow0, spec = null) => {
+    // ⭐ IMP-1 — `line[] a` is `array<line> a` (`foldBracketParamTypes`), read by every reader below
+    const { toks, arrow } = foldBracketParamTypes(toks0, arrow0)
     const nameTok = toks[0]
     if (!nameTok || nameTok.kind !== 'ident' || !isPunct(toks[1], '(') || !isPunct(toks[arrow - 1], ')')) {
       throw new RuntimeRefusal('runtime:function',
@@ -15911,7 +16025,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       requests,
       // ⭐ RT5 — the declared `max_*_count`s, comments and strings stripped.
       ...(objectsInRun ? { objectCaps: { ...declaredCapsOf(strippedForScan(source)), ...historyHeldOf(strippedForScan(source)) } } : {}),
-      ...(brokerMode ? { broker: brokerDecl } : {}),
+      ...(brokerMode ? { broker: { ...brokerDecl, disarm: strategyDisarmOf(brokerTaint, outputs, outputLines) } } : {}),
     })
   } catch (e) { return fail(e, diagnostics) }
 

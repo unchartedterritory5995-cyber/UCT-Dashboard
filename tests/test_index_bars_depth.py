@@ -11,6 +11,7 @@ TradingView, ours `na` before 2021-11-15). Now:
   D4 `INDEX_FMP_LOOKBACK_DAYS`, when set, still decides the span, for both.
 """
 import datetime as dt
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -181,8 +182,24 @@ def test_D3_the_yfinance_fallback_reads_its_full_period_and_is_cut_at_the_same_s
     assert [b["t"] for b in out] == [_utc("1990-01-02"), _utc("2026-11-13")]
 
 
-def test_D3_weekly_and_intraday_periods_are_unchanged():
-    assert index_bars.PERIOD_MAP["1wk"] == "10y" and index_bars.PERIOD_MAP["60m"] == "60d"
+def test_D3_weekly_and_the_finer_intraday_periods_are_unchanged():
+    assert index_bars.PERIOD_MAP["1wk"] == "10y"
+    for interval in ("1m", "2m", "5m", "15m", "30m", "90m"):
+        assert index_bars.PERIOD_MAP[interval] in ("7d", "60d"), interval
+
+
+def test_D3b_hourly_reaches_yfinance_s_730_days():
+    """RS RATING L12: an hourly chart (an index's own, and Fred RS's RS line on any 1h chart) reads SP:SPX at its own
+    period; 60 days of it covered only the last 60 sessions of a 1h chart. yfinance serves 730 days of 60m."""
+    assert index_bars.PERIOD_MAP["60m"] == "730d"
+
+
+def test_D3c_an_hourly_fetch_asks_yfinance_for_730_days(monkeypatch):
+    seen = []
+    monkeypatch.setattr(index_bars, "_fetch_yf", lambda sym, interval, period, divisor: seen.append((sym, interval, period)) or
+                        [{"t": 1794929400 + 3600 * i, "o": 1, "h": 1, "l": 1, "c": 1, "v": 0} for i in range(20)])
+    index_bars._fetch_full_series("SPX", "60")
+    assert seen == [("^GSPC", "60m", "730d")]
 
 
 # -- D4 -------------------------------------------------------------------------------------
@@ -210,3 +227,147 @@ def test_D4_an_unparseable_override_keeps_the_1990_start(monkeypatch):
     assert index_bars._daily_window_start(TODAY) == dt.date(1990, 1, 1)
     monkeypatch.setenv("INDEX_FMP_LOOKBACK_DAYS", "0")
     assert index_bars._daily_window_start(TODAY) == dt.date(1990, 1, 1)
+
+
+# -- D5 (RS RATING L12) --------------------------------------------------------------
+
+def test_D5_a_yfinance_index_level_is_its_2_decimal_quote_before_the_divisor(monkeypatch):
+    """yfinance hands 7340.6298828125 for the 7340.63 print; TradingView reads the quote. Rounded BEFORE the divisor,
+    so a divided index (DJX = ^DJI / 100, XSP = ^GSPC / 10) keeps its extra digits."""
+    import pandas as pd
+    idx = pd.to_datetime(["2026-11-17 20:55:00+00:00"])
+    df = pd.DataFrame({"Open": [7329.97998046875], "High": [7340.6298828125], "Low": [7329.97998046875],
+                       "Close": [7340.6298828125], "Volume": [87212000]}, index=idx)
+    import api.services.yf_util as yfu
+    monkeypatch.setattr(yfu, "bounded_call", lambda fn, default: df)
+    import types, sys
+    monkeypatch.setitem(sys.modules, "yfinance", types.SimpleNamespace(download=lambda *a, **k: df))
+    out = index_bars._fetch_yf("^GSPC", "5m", "60d", 1.0)
+    assert out[0]["c"] == 7340.63 and out[0]["o"] == 7329.98
+    xsp = index_bars._fetch_yf("^GSPC", "5m", "60d", 10.0)
+    assert xsp[0]["c"] == 734.063                       # the quote / 10, not round(734.06298828125, 2)
+
+
+
+# -- D6 (RS RATING L12): a COLD intraday copy is refreshed in the request -------------------------------------------
+
+def _seed_mem(sym, tf, age_s, rows):
+    from api.services.cache import cache
+    cache.set(f"idxbars_{sym}_{tf}", {"saved_at": time.time() - age_s, "series": rows, "proxy": False}, ttl=3600)
+
+
+def _clear_mem(sym, tf):
+    from api.services.cache import cache
+    cache.set(f"idxbars_{sym}_{tf}", None, ttl=1)
+
+
+OLD = [{"t": 1794859200, "o": 1, "h": 1, "l": 1, "c": 1, "v": 0}]
+NEW = [{"t": 1794859200, "o": 1, "h": 1, "l": 1, "c": 1, "v": 0}, {"t": 1794949200, "o": 2, "h": 2, "l": 2, "c": 2, "v": 0}]
+
+
+def test_D6a_a_cold_intraday_copy_is_refreshed_in_the_request(monkeypatch):
+    calls, kicked = [], []
+    monkeypatch.setattr(index_bars, "_refresh", lambda s, tf: calls.append((s, tf)) or NEW)
+    monkeypatch.setattr(index_bars, "_kick_bg_refresh", lambda s, tf: kicked.append((s, tf)))
+    _seed_mem("SPX", "15", 2 * 3600, OLD)
+    series, tier = index_bars._cached_series("SPX", "15")
+    assert calls == [("SPX", "15")] and tier == "index-yf" and series == NEW and kicked == []
+    _clear_mem("SPX", "15")
+
+
+def test_D6b_a_vendor_that_answers_nothing_serves_the_stale_copy(monkeypatch):
+    monkeypatch.setattr(index_bars, "_refresh", lambda s, tf: [])
+    monkeypatch.setattr(index_bars, "_kick_bg_refresh", lambda s, tf: None)
+    _seed_mem("SPX", "15", 2 * 3600, OLD)
+    series, tier = index_bars._cached_series("SPX", "15")
+    assert series == OLD and tier == "index-mem-stale"
+    def boom(s, tf):
+        raise RuntimeError("vendor down")
+    monkeypatch.setattr(index_bars, "_refresh", boom)
+    series, tier = index_bars._cached_series("SPX", "15")
+    assert series == OLD and tier == "index-mem-stale"
+    _clear_mem("SPX", "15")
+
+
+def test_D6c_a_short_miss_and_a_daily_copy_keep_stale_while_revalidate(monkeypatch):
+    calls, kicked = [], []
+    monkeypatch.setattr(index_bars, "_refresh", lambda s, tf: calls.append((s, tf)) or NEW)
+    monkeypatch.setattr(index_bars, "_kick_bg_refresh", lambda s, tf: kicked.append((s, tf)))
+    _seed_mem("SPX", "15", 600, OLD)                     # past the 300 s TTL, under an hour
+    assert index_bars._cached_series("SPX", "15") == (OLD, "index-mem-stale")
+    _seed_mem("SPX", "D", 3 * 86400, OLD)                # a daily copy days old
+    assert index_bars._cached_series("SPX", "D") == (OLD, "index-mem-stale")
+    assert calls == [] and kicked == [("SPX", "15"), ("SPX", "D")]
+    _clear_mem("SPX", "15"); _clear_mem("SPX", "D")
+
+
+def test_D6d_one_refresh_at_a_time_a_second_request_serves_stale(monkeypatch):
+    calls = []
+    monkeypatch.setattr(index_bars, "_refresh", lambda s, tf: calls.append((s, tf)) or NEW)
+    monkeypatch.setattr(index_bars, "_kick_bg_refresh", lambda s, tf: None)
+    _seed_mem("SPX", "15", 2 * 3600, OLD)
+    with index_bars._bg_lock:
+        index_bars._bg_inflight.add("SPX_15")
+    try:
+        assert index_bars._cached_series("SPX", "15") == (OLD, "index-mem-stale") and calls == []
+    finally:
+        with index_bars._bg_lock:
+            index_bars._bg_inflight.discard("SPX_15")
+    _clear_mem("SPX", "15")
+
+
+
+# -- D7 (RS RATING L12): a newest bar stored while it formed is a partial print once it has ended --------------------
+
+def _d7_et(hh, mm, ss=0, day=18):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    return datetime(2026, 11, day, hh, mm, ss, tzinfo=ZoneInfo("America/New_York")).timestamp()
+
+
+def _d7_row(t, c):
+    return {"t": int(t), "o": c, "h": c, "l": c, "c": c, "v": 0}
+
+
+S15 = [_d7_row(_d7_et(9, 45), 7354.63), _d7_row(_d7_et(10, 0), 7340.98), _d7_row(_d7_et(10, 15), 7338.74)]   # production at 10:17:37 ET
+
+
+def test_D7a_a_bar_forming_when_stored_and_ended_since_is_withheld():
+    out = index_bars._settled_partial_withheld(S15, "15", _d7_et(10, 17, 37), _d7_et(11, 1))
+    assert out == S15[:-1]                                   # the 10:15 bar (its 10:17 print) is not served as settled
+
+
+def test_D7b_the_bar_still_forming_at_serve_is_kept():
+    assert index_bars._settled_partial_withheld(S15, "15", _d7_et(10, 17, 37), _d7_et(10, 20)) == S15
+
+
+def test_D7c_a_bar_that_had_ended_when_stored_is_kept():
+    assert index_bars._settled_partial_withheld(S15, "15", _d7_et(10, 30, 5), _d7_et(11, 1)) == S15
+    assert index_bars._settled_partial_withheld(S15, "15", _d7_et(10, 30), _d7_et(11, 1)) == S15     # stored AT its end
+
+
+def test_D7d_a_60m_bar_ends_at_the_session_close_not_its_step():
+    s60 = [_d7_row(_d7_et(14, 30), 7319.31), _d7_row(_d7_et(15, 30), 7340.63)]
+    # stored 16:05 ET (after the 16:00 close): the 15:30 bar had ended, kept the next morning
+    assert index_bars._settled_partial_withheld(s60, "60", _d7_et(16, 5), _d7_et(9, 0, day=19)) == s60
+    # stored 15:50 (still forming): withheld once the close has passed
+    assert index_bars._settled_partial_withheld(s60, "60", _d7_et(15, 50), _d7_et(16, 1)) == s60[:-1]
+
+
+def test_D7e_a_daily_copy_and_an_unstamped_copy_are_untouched():
+    d = [{"t": 1794873600, "o": 1, "h": 1, "l": 1, "c": 7340.53, "v": 0}]
+    assert index_bars._settled_partial_withheld(d, "D", 1794873600, 1794960000) == d
+    assert index_bars._settled_partial_withheld(S15, "15", None, _d7_et(11, 1)) == S15
+
+
+def test_D7f_the_serve_applies_it(monkeypatch):
+    from api.services.cache import cache
+    monkeypatch.setattr(index_bars, "_refresh", lambda s, tf: [])            # no vendor answers: the stored copy is served
+    monkeypatch.setattr(index_bars, "_kick_bg_refresh", lambda s, tf: None)
+    monkeypatch.setattr(index_bars, "_now", lambda: _d7_et(11, 1))
+    cache.set("idxbars_SPX_15", {"saved_at": _d7_et(10, 17, 37), "series": S15, "proxy": False}, ttl=3600)
+    try:
+        got = index_bars.fetch_index_bars("SPX", "15", bars=5000)
+        assert [r["t"] for r in got["bars"]] == [r["t"] for r in S15[:-1]]
+    finally:
+        cache.set("idxbars_SPX_15", None, ttl=1)

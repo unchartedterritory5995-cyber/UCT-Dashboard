@@ -4,9 +4,10 @@ skill assessments.
 
 All data comes from the uct-intelligence engine (cross-repo import).
 
-🔴 ALL TWELVE ROUTES ARE PAID since 2026-08-09. Every one was `get_current_user`
+🔴 EVERY ROUTE HERE IS PAID OR ADMIN. Every one was `get_current_user`
 only — a session, never a plan — and signup is open and free, so a free
-registration read the whole surface with a `curl`.
+registration read the whole surface with a `curl`. Since 2026-08-09 each carries
+`require_paid`, except the three desk-ledger reads, which are admin-only.
 
 **This router IS the Compass brain.** What it serves is the uct-intelligence
 knowledge base: the 48 curated setup templates and their per-setup win rates, the
@@ -25,7 +26,8 @@ import sys
 import os
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
-from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.middleware.auth_middleware import (
+    get_current_user_with_plan, is_paid_user, require_admin)
 from api.services.ticker_resolver import symbol_shape
 
 router = APIRouter()
@@ -359,14 +361,21 @@ def get_risk_summary(
     }
 
 
-# ── Psychology Events ────────────────────────────────────────────────────────
+# ── The desk ledger: psychology events, coaching notes, skill assessments ────
+#
+# These three engine tables are ONE trader's ledger: the engine keeps a single
+# desk-wide record and the tables carry no member key, so there is no "the
+# caller's own rows" to select. They are served to the admin role only. A
+# member's own coaching lives in Journal 2.0 (`/api/j2/*`), which is keyed by
+# member. A per-member version of these three needs a member-keyed store on the
+# web side, never a filter over this ledger.
 
 @router.get("/api/psychology-events")
 def list_psychology_events(
     days: int = 30,
-    _user: dict = Depends(require_paid),
+    _admin: dict = Depends(require_admin),
 ):
-    """List recent psychology events (overtrading, revenge, FOMO)."""
+    """List recent psychology events (overtrading, revenge, FOMO). Admin only."""
     uct = _get_api()
     if not uct:
         return {"events": [], "count": 0}
@@ -399,9 +408,9 @@ def list_psychology_events(
 def list_coaching_notes(
     limit: int = 10,
     note_type: Optional[str] = None,
-    _user: dict = Depends(require_paid),
+    _admin: dict = Depends(require_admin),
 ):
-    """List recent AI-generated coaching notes."""
+    """List recent AI-generated coaching notes. Admin only."""
     uct = _get_api()
     if not uct:
         return {"notes": [], "count": 0}
@@ -438,9 +447,9 @@ def list_coaching_notes(
 
 @router.get("/api/skill-assessments")
 def list_skill_assessments(
-    _user: dict = Depends(require_paid),
+    _admin: dict = Depends(require_admin),
 ):
-    """List all skill domain assessments."""
+    """List all skill domain assessments. Admin only."""
     uct = _get_api()
     if not uct:
         return {"assessments": [], "count": 0}

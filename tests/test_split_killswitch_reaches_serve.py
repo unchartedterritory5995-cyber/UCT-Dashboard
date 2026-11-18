@@ -80,13 +80,41 @@ def test_with_the_switch_OFF_no_store_repair_is_scheduled(monkeypatch, _meta):
 def test_the_switch_is_the_SAME_one_the_store_writer_obeys():
     """⛔ NOT A SECOND FLAG. One switch, one meaning — a separate serve-time flag
     would let the two halves disagree, which is the state that produced a report
-    describing live damage as 'frozen'."""
+    describing live damage as 'frozen'.
+
+    ⚰️ RE-PINNED 2026-11-18. This read `sanitize_daily_bars`' own source for the text
+    `enabled()`. Since 1f92e2f2de (2026-09-30, TERM-055) the serve path asks
+    `split_adjust_active()`, the ONE answer it and `adjustment_basis` share, and that
+    helper is what reads `bars_split_repair.enabled()`. Same switch, one hop further. The
+    first full backend run (PR #1855) found the text check red. ⛔ Asserted over the AST
+    now: the old `"bars_split_repair" in src` was being satisfied by a COMMENT."""
+    import ast
     import inspect
-    src = inspect.getsource(san.sanitize_daily_bars)
-    assert "bars_split_repair" in src, "the serve path does not consult the repair flag"
-    assert "enabled()" in src
+    import textwrap
+
+    def tree(fn):
+        return ast.parse(textwrap.dedent(inspect.getsource(fn)))
+
+    def called(fn) -> set[str]:
+        out = set()
+        for n in ast.walk(tree(fn)):
+            if isinstance(n, ast.Call):
+                f = n.func
+                out.add(f.id if isinstance(f, ast.Name) else f.attr if isinstance(f, ast.Attribute) else "")
+        return out
+
+    assert "split_adjust_active" in called(san.sanitize_daily_bars), (
+        "the serve path does not consult the shared switch")
+    # the shared answer reads the REPAIR module's switch, not a flag of its own
+    helper = tree(san.split_adjust_active)
+    aliases = {a.asname or a.name for n in ast.walk(helper) if isinstance(n, ast.ImportFrom)
+               for a in n.names if a.name == "bars_split_repair"}
+    assert aliases, "split_adjust_active no longer reads bars_split_repair"
+    assert any(isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "enabled"
+               and isinstance(n.func.value, ast.Name) and n.func.value.id in aliases
+               for n in ast.walk(helper)), "split_adjust_active does not call bars_split_repair.enabled()"
     # and the store writer keeps its own check — belt AND braces, same authority
-    assert "enabled()" in inspect.getsource(bsr.repair_ticker)
+    assert "enabled" in called(bsr.repair_ticker)
 
 
 def test_the_gate_covers_the_SPLIT_adjust_only(monkeypatch, _meta):

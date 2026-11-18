@@ -411,3 +411,12 @@ class TestRouteReview:
         assert armed.get(self.URL).json()["state"] == "no_store"
         assert armed.get("/api/research/mention-series/ZZZZ/polarity").status_code == 200
         assert armed.get("/api/research/mention-series/%24%24%24/polarity").status_code in (400, 404, 422)
+
+
+def test_the_cashtag_grammar_is_buzz_extracts_not_a_copy():
+    """The posts scored here are the ones `buzz_extract` counts mentions in: ONE cashtag grammar,
+    read from it. A restated copy here was the a8 census finding (tests/test_a8_taxonomy.py)."""
+    from api.services import buzz_extract
+    assert sp._CASHTAG is buzz_extract._CASHTAG
+    # ...and the stripping it does is unchanged: a class share and a lower-case cashtag go whole.
+    assert sp._CASHTAG.sub(" ", "$brk.b and $BRK-B up, $BULL") == "  and   up,  "

@@ -24,7 +24,8 @@ import { signalAlertGate, TRIGGER_POLICIES } from '../../engine/triggerPolicy'
 import { INFO_VALUE_FORMATS } from '../../engine/infoValues'
 import { MARKER_SHAPES, MARKER_POSITIONS, PLOT_LINE_STYLES, MARKER_SIZE_RANGE } from '../../engine/defSchema'
 import { typeWords, intentReadback, INTENTS, NO_PAINT } from '../authoringIntent'
-import { slotsOfTree, clausesOfTree } from './slots'
+import { slotsOfTree, clausesOfTree, parsePath } from './slots'
+import { runningValueOwns } from './derivedSettings'
 import { OP_NAMES, PATCH_LIMITS, PATCH_CONTRACT } from './patchValidate'
 import { NUMERIC_CONDITIONS } from '../../engine/triggerPolicy'
 import { helpersOfDefinition, plotColorRule, plotFillRule, paintStatesOf, COLOR_RULES } from './colorRules'
@@ -78,7 +79,19 @@ function outputView(def, o, scope, gateCtx, chartVerdict, primary, helpers) {
     tree: shown || null,
     formula,
     readback: sentence,
-    slots: tree ? slotsOfTree(o.key, tree).map(({ id, kind, role, value, label }) => ({ id, kind, role, value, label })) : [],
+    // ⛔ A RUNNING VALUE'S OWN NUMBERS ARE NOT LISTED (`runningValueOwns`). A slot here is a number
+    // the assistant may set on its own, and the door sends a one-number edit of one of those back
+    // (they were checked together, and the member's sentence was written from them). Listing them
+    // offered edits that are always refused, and filled the view: a formula of linked running
+    // values listed every coefficient of every repeat (measured: 192 slots and 21 KB for one line,
+    // 49 KB for the indicator against the 32 KB a request may carry, so NO further request on that
+    // indicator could be sent at all).
+    // ⛔ ASKED OF THE COLLAPSED TREE (`shown`), the one a slot's path is written against. Asked of
+    // the stored expansion, the path of `fisher(9)`'s length (its first argument) lands inside the
+    // linked running values the call stands for, and the one number a member may change was hidden.
+    slots: tree ? slotsOfTree(o.key, tree)
+      .filter((s) => { const segs = parsePath(s.path); return !segs || !runningValueOwns(shown, segs) })
+      .map(({ id, kind, role, value, label }) => ({ id, kind, role, value, label })) : [],
     clauses: tree ? clausesOfTree(o.key, tree).map(({ id, join, node }) => {
       let s = null
       try { s = sentenceFor(node, scope) } catch { s = null }
@@ -118,6 +131,9 @@ const CAPABILITIES = Object.freeze({
   styles: ['line', 'stepline', 'histogram', 'area', 'baseline'],
   // ⭐ P3 — set_style.lineStyle, set_levels, set_fill / remove_fill.
   lineStyles: PLOT_LINE_STYLES,
+  // ⭐ ROW 42 — set_style.breaks: a line may break where its output has no value.
+  // Joined is the default (no field), so every existing document draws as it did.
+  lineBreaks: true,
   maxLevels: PATCH_LIMITS.maxLevels,
   triggerPolicies: Object.values(TRIGGER_POLICIES),
   // ⭐ PHASE 5 — cross-context and expressive outputs.

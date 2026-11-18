@@ -39,9 +39,27 @@ def test_bad_refs_are_refused(ref):
 
 
 @pytest.mark.parametrize("path", ["-k", "--deselect=x", "tests/../api", "tests/a.py;rm", "tests/$(id)", "tests/a b",
-                                  "api/test_x.py", "/etc/passwd", "tests/`x`", "tests/a|b"])
+                                  "api/../tools/x.py", "api", "apix/test_x.py", "app/test_x.py", "/etc/passwd",
+                                  "tests/`x`", "tests/a|b", "api/x.py;rm"])
 def test_bad_pytest_paths_are_refused(path):
     assert rt.validate(GOOD_REF, [path], [], 1)
+
+
+def test_api_suites_are_accepted():
+    """⚰️ 2026-11-18: the lane took `tests/` alone, and the 203 suites under api/** -- run by no other job, the nightly
+    included -- could not be sent here at all. `api/` is a pytest.ini testpaths root like `tests/`."""
+    assert rt.validate(GOOD_REF, ["api/services/journal_two/test_accounts.py",
+                                  "api/routers/stream_bars_test.py::test_x[p-1]", "api/"], [], 1) == []
+
+
+def test_the_pytest_roots_are_exactly_pytest_ini_testpaths():
+    """One fact in two files, pinned: the validator's prefixes ARE pytest.ini's testpaths (the plan job has only
+    tools/remote_tests.py checked out, so it cannot read pytest.ini itself)."""
+    import configparser
+    cp = configparser.ConfigParser(interpolation=None)
+    cp.read(str(ROOT / "pytest.ini"), encoding="utf-8")
+    roots = cp["pytest"]["testpaths"].split()
+    assert sorted(r.rstrip("/") + "/" for r in roots) == sorted(rt.PYTEST_ROOTS), (roots, rt.PYTEST_ROOTS)
 
 
 @pytest.mark.parametrize("path", ["app/src/x", "-t", "src/../../x", "src/a;b", "node_modules/x"])
@@ -198,3 +216,41 @@ def test_both_test_steps_keep_their_exit_code_through_tee():
     for job in ("pytest", "vitest"):
         run = [s for s in _wf()["jobs"][job]["steps"] if s.get("name") == job][0]["run"]
         assert "set -o pipefail" in run and "| tee" in run, job
+
+
+def test_the_vitest_job_installs_the_python_its_rails_spawn():
+    """2026-11-17: seven Notebook bridge rails spawn `python` (conftest -> pytest, the exporter -> anyio, and lazily,
+    inside functions, markdown_it and more) and were red on this lane alone, because this job installed no Python
+    (run 44066213548). A hand-picked "minimal" list left two of them red (run 44085508213), so the job installs
+    requirements.txt -- the same install the nightly's vitest job and this lane's pytest job do -- after the ref
+    under test is checked out (its own requirements) and before vitest runs."""
+    steps = _wf()["jobs"]["vitest"]["steps"]
+    labels = [s.get("name") or s.get("uses") for s in steps]
+    setup = [i for i, s in enumerate(steps) if (s.get("uses") or "").startswith("actions/setup-python@")]
+    assert len(setup) == 1 and str(steps[setup[0]]["with"]["python-version"]) == "3.12", steps
+    install = [i for i, s in enumerate(steps) if "-r requirements.txt" in (s.get("run") or "")]
+    assert len(install) == 1, labels
+    assert "pip install" in steps[install[0]]["run"], steps[install[0]]
+    assert labels.index("Check out the commit under test") < setup[0] < install[0] < labels.index("vitest"), labels
+
+
+def _pytest_step():
+    return [s for s in _wf()["jobs"]["pytest"]["steps"] if s.get("name") == "pytest"][0]
+
+
+def test_the_pytest_job_continues_past_collection_errors():
+    """⚰️ 2026-11-18: a 372-file request ran NOTHING because 6 files could not import a package (run 44307066612).
+    The flag keeps the collection error as an ERROR by file (junit, totals, exit code) and runs the rest; its
+    behaviour, flag on and off, is proved in tests/test_pytest_shards_balance.py."""
+    run = _pytest_step()["run"]
+    cmd = run[run.index("python -m pytest $RT_PYTEST"):]
+    cmd = cmd[:cmd.index("--junitxml")]
+    assert "--continue-on-collection-errors" in cmd, cmd
+
+
+def test_test_only_packages_install_only_when_the_ref_has_the_file():
+    """The workflow comes from master but the ref under test may predate tests/ci-only-packages.txt: an
+    unconditional `-r` on a missing file would break the lane for every older branch."""
+    install = [s for s in _wf()["jobs"]["pytest"]["steps"] if s.get("name") == "Install"][0]["run"]
+    assert "if [ -f tests/ci-only-packages.txt ]; then python -m pip install --quiet -r tests/ci-only-packages.txt; fi"         in install, install
+    assert (ROOT / "tests" / "ci-only-packages.txt").is_file()

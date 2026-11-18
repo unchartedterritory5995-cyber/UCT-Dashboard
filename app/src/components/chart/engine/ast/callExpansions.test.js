@@ -10,7 +10,11 @@ import {
   CALL_EXPANSIONS, EXPANSION_NAMES, expandCalls, recogniseExpansion, collapseExpansions,
   expandedSize, MAX_EXPANDED_NODES, MAX_EXPANSION_DEPTH, ExpansionRefusal,
 } from './callExpansions'
-import { printFormula } from './pine'
+import { printFormula, BUILTIN_CALL_TREE } from './pine'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { fisherTree, FISHER_WARMUP, FISHER_NOTE } from './callExpansions'
 
 const pineTree = (body) => {
   const out = translatePine(`//@version=5\nindicator("t")\n${body}\n`)
@@ -27,6 +31,80 @@ const N = 160
 const BARS = Array.from({ length: N }, (_, i) => {
   const c = 100 + 0.2 * i + 6 * Math.sin(i / 7) + 2 * Math.cos(i / 3)
   return { t: 1_700_000_000 + i * 86400, o: c - 0.4, h: c + 1.5 + (i % 3) * 0.2, l: c - 1.3, c, v: 1_000_000 + 37_000 * ((i * 13) % 17) }
+})
+
+describe('fisher(length): the Fisher Transform, NUMBER PENDING', () => {
+  const num = (value) => ({ type: 'num', value })
+  const fisher = (n) => expandCalls({ type: 'call', name: 'fisher', args: [num(n)] })
+  const here = path.dirname(fileURLToPath(import.meta.url))
+  const graded = JSON.parse(fs.readFileSync(path.resolve(here, '../../../../../../tests/fixtures/ast/fisher_graded.json'), 'utf8')).graded
+
+  it('⛔ is exactly the tree that was graded against TradingView, at both graded lengths', () => {
+    expect(Object.keys(graded).sort()).toEqual(['20', '9'])
+    for (const [length, hash] of Object.entries(graded)) expect(astHash(fisher(Number(length))), length).toBe(hash)
+    // CONTROL: the hash sees one number moved (another length; another restart window)
+    expect(Object.values(graded)).not.toContain(astHash(fisher(10)))
+    expect(astHash(fisherTree(num(9), 299))).not.toBe(graded['9'])
+    expect(FISHER_WARMUP).toBe(300)
+  })
+
+  it('is the formula a member would write out by hand, node for node', () => {
+    const hl2 = '((high + low) / 2)'
+    const x = `((${hl2} - lowest(${hl2}, 9)) / (highest(${hl2}, 9) - lowest(${hl2}, 9)))`
+    const raw = `(0.66 * (${x} - 0.5) + 0.67 * nz(state1, 0))`
+    const v = `(${raw} > 0.99 ? 0.999 : (${raw} < -0.99 ? -0.999 : ${raw}))`
+    const written = parseFormula(`accum2(2, 300, 0, 0, ${v}, 0.5 * ln((1 + ${v}) / (1 - ${v})) + 0.5 * nz(state2, 0))`)
+    expect(written.ok, written.error).toBe(true)
+    expect(astHash(written.ast)).toBe(graded['9'])
+    // and the short name parses to the same tree: `fisher(9)` IS that formula
+    const short = parseFormula('fisher(9)')
+    expect(short.ok, short.error).toBe(true)
+    expect(astHash(short.ast)).toBe(graded['9'])
+  })
+
+  it('reads back as the call with its one number, alone or inside other maths', () => {
+    expect(recogniseExpansion(fisher(9))).toEqual({ name: 'fisher', args: [num(9)] })
+    expect(collapseExpansions(fisher(20))).toEqual({ type: 'call', name: 'fisher', args: [num(20)] })
+    // the trigger line: the same function one bar back
+    const trigger = { type: 'offset', value: 1, args: [fisher(9)] }
+    expect(collapseExpansions(trigger)).toEqual({ type: 'offset', value: 1, args: [{ type: 'call', name: 'fisher', args: [num(9)] }] })
+    const spread = { type: 'op', name: '-', args: [fisher(9), trigger] }
+    expect(JSON.stringify(collapseExpansions(spread)).length).toBeLessThan(400)
+    // a formula one number away is NOT the Fisher Transform, and is left as the formula it is
+    const near = JSON.parse(JSON.stringify(fisher(9)).replace('0.67', '0.5'))
+    expect(recogniseExpansion(near)).toBeNull()
+    expect(collapseExpansions(near)).toBe(near)
+    // another restart window is not the graded one either
+    expect(recogniseExpansion(fisherTree(num(9), 200))).toBeNull()
+  })
+
+  it('declines a length that is not a whole number of at least 2', () => {
+    for (const bad of [num(1), num(9.5), num(0), { type: 'series', name: 'len' }]) expect(fisherTree(bad)).toBeNull()
+    expect(() => expandCalls({ type: 'call', name: 'fisher', args: [num(1)] })).toThrow(ExpansionRefusal)
+    expect(() => expandCalls({ type: 'call', name: 'fisher', args: [num(9), num(3)] })).toThrow(ExpansionRefusal)
+  })
+
+  it('⛔ adds NO Pine name: the translator has no entry for it and refuses `ta.fisher` as before', () => {
+    expect(Object.prototype.hasOwnProperty.call(BUILTIN_CALL_TREE, 'fisher')).toBe(false)
+    // CONTROL: the names the translator does share with this module are there
+    expect(Object.prototype.hasOwnProperty.call(BUILTIN_CALL_TREE, 'roc')).toBe(true)
+    // a script that calls a `fisher` it never defines is refused, as it was before this function existed
+    const undefinedCall = translatePine(['//@version=5', 'indicator("t")', 'plot(fisher(9))', ''].join('\n'))
+    expect(undefinedCall.refusal, 'a Pine call to an undefined fisher() must not become the Fisher Transform').toBeTruthy()
+    expect(undefinedCall.refusal.message).toMatch(/maps to nothing the engine grammar declares/)
+    // (asked of the FORMULAS, never of the refusal's own words: those list the engine's function names)
+    expect((undefinedCall.outputs || []).every((o) => !o.ast)).toBe(true)
+    // and a script's OWN function of that name is the script's: it is not replaced by this one
+    const own = translatePine(['//@version=5', 'indicator("t")', 'fisher(x) => x * 2', 'plot(fisher(close))', ''].join('\n'))
+    expect(own.refusal).toBe(null)
+    expect(own.outputs.map((o) => o.ast)).toEqual([{ type: 'op', name: '*', args: [{ type: 'series', name: 'close' }, { type: 'num', value: 2 }] }])
+  })
+
+  it('says what a member needs to know about it', () => {
+    expect(CALL_EXPANSIONS.fisher.signature).toBe('fisher(length)')
+    expect(CALL_EXPANSIONS.fisher.vendorNote).toBe(FISHER_NOTE)
+    expect(FISHER_NOTE).toBe('This Fisher Transform starts each value 300 bars back on every bar, so the first 300 bars of a chart\'s history have no value. After that it is equal to TradingView\'s Fisher Transform on captured charts.')
+  })
 })
 
 describe('one builder: native == Pine import, by hash', () => {

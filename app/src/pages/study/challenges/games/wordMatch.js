@@ -104,6 +104,8 @@ export function meaningProblem(term, meaning) {
   if (!t || !m) return 'empty'
   if (t.length > TERM_MAX || m.length > MEANING_MAX) return 'too long'
   if (/^[\d\s.,%$:+\-/x]+$/.test(m)) return 'a number'
+  // a worked answer, not a meaning: "38 basis points", "6.5 points", "-50 dollars", "500 shares"
+  if (/^[-+−]?\$?\d[\d.,]*\s*(?:%|percent|points?|basis points?|bps|shares?|dollars?|cents?|million|billion|days?|weeks?|months?|years?)(?=$|[^a-z])/.test(m)) return 'a number'
   if (wordsOf(m).length < 2) return 'one word'
   if (t === m || hasPhrase(m, t) || hasPhrase(t, m)) return 'names the word'
   if (/^[a-e]\s*[,:.)]\s/.test(m)) return 'an option letter'
@@ -142,7 +144,35 @@ const ASKS_MEANING = [
   /\b(?:does|do) (?:that|this|it) mean\b/,
   /\bhow does\b.*\bdefine\b/,
   /\bwhat counts as\b/,
+  // the trader's way of asking it (2026-11-17, the courses rewritten in the owner's voice): "A buddy says his stock went
+  // parabolic. What's the price doing?", "Someone calls today's candle a doji. What did the stock do to print one?"
+  /\bwhat(?:'s| is) (?:he|she|they|it|that|this) (?:saying|talking about|telling you|measuring|counting|tracking|showing|describing|doing|seeing|charting|admitting to|accusing you of|worried about)\b/,
+  /\bwhat(?:'s| is) (?:that|this) (?:number|line|percent) (?:counting|measuring|telling you|showing)\b/,
+  /\bwhat(?:'s| is) (?:actually )?(?:going on|happening|being measured)\b/,
+  /\bwhat(?:'s| is| are) (?:the )?(?:price|prices|stock|chart|market) doing\b/,
+  /\bwhat (?:actually |just )?happened\b/,
+  /\bwhat (?:should|would|will) (?:you|the chart|it) (?:see|show|look like)\b/,
+  /\bwhat do\b.*\blook like\b/,
+  /\bwhat did (?:it|the stock|the index|the market|price|the last (?:two|three) candles) (?:do|have to do)\b/,
+  /\bwhat did (?:he|she|you|the company) (?:actually |just )?(?:do|tell)\b/,
+  /\bwhat would you (?:actually )?be doing\b/,
+  /\bwhat does (?:he|she|the trader) see\b/,
+  /\bwhat does\b.*\b(?:describe|cap|control|add|follow)\b/,
+  /\bwhat (?:you|we|they) mean\b/,
+  /\bwhat job is\b/,
+  /\bwhat goes in it\b|\bwhat(?:'s| is) in it\b/,
+  /\bwhat would (?:ibd|you|traders) call\b/,
+  /\bshort for\b/,
+  /\bhow is (?:that|this|it) (?:\S+ )?(?:worked out|built|calculated)\b/,
+  /\bwhere do(?:es)? (?:that number|those odds|it) come from\b/,
 ]
+/** "What's the apex?", "What's a lip?", "What's gap risk?": a question that asks for the word itself, by name. */
+function asksForWordByName(q, term) {
+  const t = fold(term)
+  const br = t.match(/^(.*?)\s*\(([^()]+)\)\s*$/)
+  const names = (br ? [br[1].trim(), br[2].trim()] : [t]).filter(Boolean)
+  return names.some((n) => new RegExp(`\\bwhat(?:'s| is| are) (?:the |an? )?${escapeRe(n)}(?=$|[^a-z0-9])`).test(q))
+}
 /** The forms that ask for something else: the word for a meaning (an item read backwards), or a kind of thing. */
 const ASKS_OTHER = /\bwhich (?:word|term|name)\b|\bwhat (?:is|was) (?:that|this) (?:event|word|term)\b|\bwhat (?:type|kind|sort) of\b|\bwhat is (?:it|this|that) called\b/
 
@@ -196,7 +226,7 @@ export function meaningPromptProblem(item, pair) {
   const q = fold(p.q || p.question || '')
   if (!q) return 'no question'
   if (ASKS_OTHER.test(q)) return 'asks for a word'
-  if (!ASKS_MEANING.some((re) => re.test(q))) return 'asks something else'
+  if (!ASKS_MEANING.some((re) => re.test(q)) && !asksForWordByName(q, pair?.term)) return 'asks something else'
   if (!mentions(q, pair?.term)) return 'about another word'
   if (narrowedTo(q, pair?.term)) return 'one side only'
   return null

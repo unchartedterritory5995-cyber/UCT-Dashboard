@@ -136,6 +136,20 @@
    "date": "2026-11-14",
    "reading": "In a VCP, a heavy-volume down day in the right side of the base does not end the setup; most of the time it does not matter. At most it is a warning to note, never an invalidation.",
    "changes_lessons": true
+  },
+  "ADD-WINNER": {
+   "owner": "sometimes it is okay but it is rare. mostly a feel thing lol which isnt a great answer",
+   "date": "2026-11-17",
+   "asked": "Adding to a winner: the rulebook says full size at one spot with one stop (A5), but his posts describe adding on strength. What should the course teach?",
+   "reading": "The buy is still full size at one price with one stop: no starter or pilot piece, and never adding to a loser. Adding to a working winner on strength happens, but rarely, and it is a feel call, never part of the plan. Lessons no longer say we never add to a winner; they say it is rare and a judgment.",
+   "changes_lessons": true
+  },
+  "MA-50-200": {
+   "owner": "mostly a must but not always.",
+   "date": "2026-11-17",
+   "asked": "Is the 50-day above the 200-day a must for a long setup, or just a plus?",
+   "reading": "For a long, we want the 50-day above the 200-day: it is mostly a must, not always, and an exception is a judgment call. Price below the 200-day stays a hard no for stocks (D-009).",
+   "changes_lessons": true
   }
  },
  "still_open": {

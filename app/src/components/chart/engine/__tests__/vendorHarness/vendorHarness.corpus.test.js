@@ -13,7 +13,7 @@
 //
 //   (PowerShell: `$env:VENDOR_HARNESS_DIR='…'; $env:VENDOR_HARNESS_OUT='…'; npx vitest run …`)
 //
-// `VENDOR_HARNESS_DIR` may hold several directories separated by `;`.
+// `VENDOR_HARNESS_DIR` may hold several directories (or single capture files) separated by `;`.
 // `VENDOR_HARNESS_OUT` receives `verdicts.json` (machine-readable) and
 // `summary.md` (the human table + the inventory of files that could not be
 // compared, with why).
@@ -30,7 +30,10 @@
 //   VENDOR_HARNESS_RUNTIME_ON=0   production: objects-only pane armed, runtime DARK
 //   VENDOR_HARNESS_RUNTIME_ON=1   runtime-on: both panes on, as a PERMITTED member
 //                                 with EVERY script graded (an upper bound: the
-//                                 server's starter allowlist is not applied)
+//                                 server's starter allowlist is not applied), and
+//                                 the strategy broker gate ON as production builds
+//                                 it (2026-11-17): a strategy's trades and report are
+//                                 graded on the run the door made (`strategyLane.js`)
 //   unset                         the suite's default, unchanged; the lane it
 //                                 happened to measure is printed, not asserted
 //
@@ -55,26 +58,40 @@ import {
   runtimeDeclineCodeIn, runtimeDeclinedTag, isGateDecline,
 } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { runHarness, loadCapture, VENDOR_DIR, REPO } from './harness'
+import { strategyBrokerFlag, strategyEvidenceOf, assertStrategyLaneMeasured } from './strategyLane.js'
 import { runtimePaneEnabled, __permitRuntimePaneForTests } from '../../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from '../../runtimeKill'
 import { __admitEveryRunHalfForTests } from '../../runHalfRailSeam'
+import { __serveEveryTimeframeSettingForTests } from '../../runtime/runtimeInputs.js'
 import { objectsOnlyPaneEnabled } from '../../objectsOnlyPaneGate'
+import { strategyBrokerEnabled } from '../../strategyBrokerGate'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 
-/** The flag NAMES are read off their gate modules, never typed. */
+/** The flag NAMES are read off their gate modules, never typed (the broker gate's by `strategyLane.js`). */
 const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
   .match(/source\.(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
+const STRATEGY_BROKER_FLAG = strategyBrokerFlag()
 
 const REQUESTED = requestedLane(process.env[HARNESS_RUNTIME_ENV], HARNESS_RUNTIME_ENV)
 if (REQUESTED) {
   vi.stubEnv(flagOf('src/components/chart/engine/objectsOnlyPaneGate.js'), '1')
   vi.stubEnv(flagOf('src/components/chart/engine/runtimePaneGate.js'), REQUESTED === LANE_RUNTIME_ON ? '1' : '')
+  // ⭐⭐ (2026-11-17) — THE STRATEGY BROKER, ARMED AS PRODUCTION ARMS IT. Production's build bakes the gate ON
+  // (`Dockerfile.web` ARG default, #1664) and members are on the runtime lane, so the runtime-on lane runs with
+  // the gate's own flag on: a strategy reaches the member door's broker document, its run publishes its record,
+  // and `strategyLane.js` grades its trades and report. ⛔ The gate's FLAG, never the `strategyBroker: true`
+  // build option or a widened pin ledger: one code path, the member's. The production lane (runtime dark)
+  // keeps it off: no broker runs where the runtime lane is dark.
+  vi.stubEnv(STRATEGY_BROKER_FLAG, REQUESTED === LANE_RUNTIME_ON ? '1' : '')
   if (REQUESTED === LANE_RUNTIME_ON) {
     __permitRuntimePaneForTests()
     __allowEveryRuntimeScriptForTests()
     // ⭐ RS RATING L8 — and every run half, for the same reason: its evidence is this lane's
     // grade of the run's drawings (`runHalfRailSeam.js`)
     __admitEveryRunHalfForTests()
+    // ⭐ SETTINGS PARITY (timeframe, Engine 77, #1831) — and a capture taken at a MOVED timeframe setting is
+    // graded at it: the lane's grade is the evidence that would admit one (`runtimeInputs.js::movedTimeframeServed`)
+    __serveEveryTimeframeSettingForTests()
   }
 }
 
@@ -134,11 +151,14 @@ describe('the vendor harness over the captures on disk', () => {
   // ⛔ read at COLLECTION, in the same module state that grades the captures
   const gateOpen = runtimePaneEnabled()
   const objectsOnly = objectsOnlyPaneEnabled()
+  const brokerGate = strategyBrokerEnabled()
   const run = runHarness(dirs)
   const evidence = laneEvidenceOf(run, { gateOpen, laneOf: gateOpen ? builderLaneOf : null })
+  const strategyEvidence = strategyEvidenceOf(run, { brokerGate })
   const lane = REQUESTED || laneShown(evidence)
   let laneLine
   let laneError = null
+  let strategyLine
   try {
     laneLine = REQUESTED
       ? assertLaneMeasured({ requested: REQUESTED, ...evidence, what: 'vendor harness' })
@@ -148,7 +168,13 @@ describe('the vendor harness over the captures on disk', () => {
     laneError = err
     laneLine = String(err.message)
   }
-  laneLine += ` · objects-only pane ${objectsOnly ? 'ARMED' : 'off'} · runtime drew ${evidence.runtimeDrawn}, declined ${evidence.declined}`
+  try {
+    strategyLine = assertStrategyLaneMeasured({ requested: REQUESTED, ...strategyEvidence })
+  } catch (err) {
+    laneError = laneError || err
+    strategyLine = String(err.message)
+  }
+  laneLine += ` · objects-only pane ${objectsOnly ? 'ARMED' : 'off'} · runtime drew ${evidence.runtimeDrawn}, declined ${evidence.declined} · ${strategyLine}`
 
   it('⛔ the lane measured is the lane requested', () => {
     if (laneError) throw laneError
@@ -166,7 +192,7 @@ describe('the vendor harness over the captures on disk', () => {
         generatedBy: 'app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js',
         dirs: dirs.map((d) => path.relative(REPO, d).replace(/\\/g, '/')),
         lane,
-        laneEvidence: { requested: REQUESTED, objectsOnlyPane: objectsOnly, ...evidence },
+        laneEvidence: { requested: REQUESTED, objectsOnlyPane: objectsOnly, ...evidence, strategy: strategyEvidence },
         results: run.results,
         inventory: run.inventory,
       }, null, 1) + '\n')

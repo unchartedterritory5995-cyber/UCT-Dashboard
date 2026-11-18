@@ -2422,11 +2422,20 @@ def _is_intraday_stale(bars: list[dict], max_age_days: int = 5) -> bool:
     closes by `bars_sanitize.intraday_unadjusted_splits` (TERM-055) -- which DETECTS an
     intraday cliff for the adjustment-basis label; nothing heals one on the serve path.
     5-day window handles 3-day holiday weekends (Thu close → Mon = ~4 days).
+
+    ⭐ THE MODULE'S CLOCK, `_time.time()` — the one every other decision here reads and
+    every rail pins. ⚰️ It read `datetime.utcnow().timestamp()`: the wall clock, behind the
+    seam, so `tests/test_bar_contract.py` (fixture day 2026-11-11) went red on its own at
+    2026-11-16 15:05 UTC, when its rows turned 5 days old by the WALL clock while the pinned
+    clock said minutes. The heal then persisted nothing, sealed nothing, and every
+    `complete_through` read None — red on a date, not a commit. `utcnow()` is naive, and
+    `.timestamp()` reads a naive datetime as LOCAL time, so off a UTC host it was also wrong
+    by the UTC offset (6 h on a Central-time box); on a UTC host the two are the same instant.
     """
     if not bars:
         return True
     last_ts = bars[-1]["t"]  # unix seconds
-    age_days = (datetime.utcnow().timestamp() - last_ts) / 86400
+    age_days = (_time.time() - last_ts) / 86400
     return age_days > max_age_days
 
 
@@ -3315,10 +3324,56 @@ def _yf_only_bars_response(ticker_up: str, tf: str, bars: int):
     )
 
 
+#: The join of yfinance's older bars onto Massive's (`_yf_join_factor`): the factor is read from
+#: this many sessions both vendors hold, starting at Massive's first bar ...
+_MERGE_JOIN_SESSIONS = 20
+#: ... and is used only when every one of them is within this of their median (ONE basis) ...
+_MERGE_JOIN_TOL = 0.01
+#: ... and the median is further than this from 1 (closer is the same basis, left as it is).
+_MERGE_JOIN_MIN_GAP = 0.01
+
+
+def _yf_join_factor(yf_bars: list[dict], massive_bars: list[dict]) -> float | None:
+    """The factor that puts yfinance's OLDER bars on Massive's basis, or None to leave them.
+
+    ⚰️ 2026-11-18, production EMBJ (Embraer ADR, 4:1 on 2026-11-16): Massive's EMBJ starts on
+    2025-11-03 (the ERJ -> EMBJ ticker change) and is adjusted; yfinance had not adjusted its
+    history yet, so every deep fetch wrote 64.48 before 2025-11-03 against Massive's 16.17 after
+    it, a x0.25 cliff, and put that back over a repaired store within minutes. The same seam
+    is where the 2003-09-10 cliffs sit (Massive's archive starts there; MNST x75, BF-A x12.5).
+
+    The two vendors overlap from Massive's first bar on. When their closes keep ONE ratio over
+    the first `_MERGE_JOIN_SESSIONS` shared sessions, they are one security on two bases, and
+    that ratio joins them. When the ratio wanders, they are different securities (GEN: Massive's
+    per-ticker GenOn against yfinance's Symantec) and nothing is rescaled: that is a lineage
+    question (bars_identity), not a basis one."""
+    by_t = {b.get("t"): b for b in yf_bars}
+    ratios = []
+    for m in massive_bars:
+        y = by_t.get(m.get("t"))
+        try:
+            mc, yc = float(m["c"]), float(y["c"]) if y else 0.0
+        except (KeyError, TypeError, ValueError):
+            continue
+        if mc > 0 and yc > 0:
+            ratios.append(mc / yc)
+            if len(ratios) >= _MERGE_JOIN_SESSIONS:
+                break
+    if len(ratios) < _MERGE_JOIN_SESSIONS:
+        return None
+    med = sorted(ratios)[len(ratios) // 2]
+    if abs(med - 1.0) <= _MERGE_JOIN_MIN_GAP:
+        return None
+    if any(abs(r / med - 1.0) > _MERGE_JOIN_TOL for r in ratios):
+        return None
+    return med
+
+
 def _merge_daily_bars(yf_bars: list[dict], massive_bars: list[dict]) -> list[dict]:
     """Merge yfinance (deep history) + Massive (recent, more accurate).
     Massive wins for any overlapping date range. yfinance fills the older
-    pre-Massive history.
+    pre-Massive history, on Massive's basis when the two overlap on one
+    (`_yf_join_factor`).
     """
     if not yf_bars:
         return massive_bars
@@ -3326,6 +3381,10 @@ def _merge_daily_bars(yf_bars: list[dict], massive_bars: list[dict]) -> list[dic
         return yf_bars
     cutoff = massive_bars[0]["t"]  # ISO date string sorts lexically
     older_yf = [b for b in yf_bars if b["t"] < cutoff]
+    f = _yf_join_factor(yf_bars, massive_bars)
+    if f is not None and older_yf:
+        from api.services.bars_sanitize import scale_bar
+        older_yf = [scale_bar(dict(b), 1.0 / f) for b in older_yf]
     return older_yf + massive_bars
 
 

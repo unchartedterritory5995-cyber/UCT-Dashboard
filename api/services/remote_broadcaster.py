@@ -46,6 +46,34 @@ _KEEP_BUCKETS = 4
 _QUEUE_MAX = 64
 
 
+class _BarQueue(asyncio.Queue):
+    """One chart subscription's queue (one symbol and timeframe) that CONFLATES.
+
+    ⭐ 2026-11-17, measured on production: 304,113 of 1.68 M bar frames (18%) were dropped from full
+    64-slot queues in one session, and a connection that fell behind (web's loop stalls after a restart)
+    then drained up to 64 STALE frames, oldest first, before the newest price: trade -> browser p50
+    6-12 s for minutes. The drop-oldest rule could also drop a minute's FINAL bar.
+
+    A forming (non-final) frame is last-value-wins for its candle: when the newest frame still waiting
+    is a forming frame of the SAME candle (`bar.t`), the new frame takes its place instead of queueing
+    behind it. Order is otherwise untouched (a final is never replaced or overtaken, a new candle is
+    appended), so a slow reader gets the CURRENT value of the forming candle plus every final, and the
+    queue stays a few frames deep instead of filling."""
+
+    def conflate(self, msg: dict) -> bool:
+        if not self._queue:
+            return False
+        last = self._queue[-1]
+        lb = last.get("bar") if isinstance(last, dict) else None
+        nb = msg.get("bar") if isinstance(msg, dict) else None
+        if not isinstance(lb, dict) or not isinstance(nb, dict):
+            return False
+        if lb.get("final") or lb.get("t") is None or lb.get("t") != nb.get("t"):
+            return False
+        self._queue[-1] = msg
+        return True
+
+
 def _key_for(tf: str, session: str = "rth") -> str:
     from api.services.bar_broadcaster import _key_for as kf
     return kf(tf, session)
@@ -74,6 +102,7 @@ class RemoteBroadcaster:
         self.legacy = fp.LegacyFilter()
         self.revs = fp.RevClock()
         self._fresh_mono: Optional[float] = None   # last batch of any kind
+        self._vendor_up: Optional[bool] = None     # ingest's word on its Massive socket (status `connect`)
         # What ingest was last told (FeedClient.sent_desired): the mirror keeps data
         # for these, and prunes the rest only once ingest knows (finding: a re-add
         # inside the debounce would otherwise never get a snapshot back).
@@ -82,14 +111,14 @@ class RemoteBroadcaster:
         self._last_emit_wall: Optional[float] = None
         self.on_change: Callable[[], None] = lambda: None   # the feed client's "desired changed"
         self.counters = {"batches": 0, "bars_in": 0, "frames_out": 0, "dropped": 0,
-                         "prices_in": 0, "mirror_resets": 0}
+                         "conflated": 0, "prices_in": 0, "mirror_resets": 0}
 
     # ── subscription management (the SSE routes, the quote feed) ─────────────
 
     def subscribe(self, sym: str, tf: str, session: str = "rth", v2: bool = False) -> asyncio.Queue:
         sym = sym.upper()
         k = _key_for(tf, session)
-        q: asyncio.Queue = asyncio.Queue(maxsize=_QUEUE_MAX)
+        q: asyncio.Queue = _BarQueue(maxsize=_QUEUE_MAX)
         with self._lock:
             had_any = self._wanted(sym)
             self._subs.setdefault((sym, k), set()).add((q, bool(v2)))
@@ -187,7 +216,12 @@ class RemoteBroadcaster:
     # ── reads ──────────────────────────────────────────────────────────────
 
     def feed_fresh(self) -> bool:
-        return self._fresh_mono is not None and self._mono() - self._fresh_mono < self.stale_s
+        """A batch within stale_s AND ingest's vendor socket up. ⛔ 2026-11-17 audit: ingest keeps
+        sending status batches (at least once a second) while its Massive socket is DOWN, so "a batch
+        arrived" alone kept the mirror's frozen quotes served as live (get_last_price) and the quote
+        feed never fell back. Ingest says which in every status batch (`connect`)."""
+        return (self._fresh_mono is not None and self._mono() - self._fresh_mono < self.stale_s
+                and self._vendor_up is not False)
 
     def get_last_price(self, sym: str) -> Optional[dict]:
         """The mirror's latest quote, or None (no quote yet, or the feed has been quiet
@@ -237,6 +271,7 @@ class RemoteBroadcaster:
                 "last_emit_age_s": (round(_time.time() - self._last_emit_wall, 1)
                                     if self._last_emit_wall else None),
                 "feed_fresh": self.feed_fresh(),
+                "vendor_up": self._vendor_up,
                 "last_batch_age_s": (None if self._fresh_mono is None
                                      else round(self._mono() - self._fresh_mono, 2)),
                 **{f"{k}_total": v for k, v in self.counters.items()},
@@ -257,6 +292,9 @@ class RemoteBroadcaster:
         now_m = self._mono()
         with self._lock:
             self._fresh_mono = now_m
+            st = batch.status
+            if isinstance(st, dict) and "connect" in st:
+                self._vendor_up = bool(st["connect"])
             self.counters["batches"] += 1
             if batch.bars:
                 frames = fp.relay_bars(batch.bars, self.legacy, self.revs, int(self._clock_ms()))
@@ -294,7 +332,11 @@ class RemoteBroadcaster:
         return msg
 
     def _put(self, q: asyncio.Queue, msg: dict) -> None:
-        """Same-loop put; a full queue drops its oldest (BarBroadcaster._safe_put)."""
+        """Same-loop put. A forming frame of the candle already waiting replaces it (_BarQueue);
+        otherwise appended, and a still-full queue drops its oldest (BarBroadcaster._safe_put)."""
+        if isinstance(q, _BarQueue) and q.conflate(msg):
+            self.counters["conflated"] += 1
+            return
         try:
             q.put_nowait(msg)
         except asyncio.QueueFull:

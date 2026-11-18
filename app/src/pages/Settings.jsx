@@ -40,8 +40,10 @@ import IndicatorAlertManager from '../components/chart/IndicatorAlertManager'
 import FilingWatchesPanel from '../components/settings/FilingWatchesPanel'
 import PushNotificationsRow from '../components/settings/PushNotificationsRow'
 import StudySettingsCard from '../components/settings/StudySettingsCard'
+import IndicatorMemoryCard from '../components/settings/IndicatorMemoryCard'
 import AlertRoutingPanel from '../components/settings/AlertRoutingPanel'
 import StandingAlertsPanel from '../components/settings/StandingAlertsPanel'
+import ListAlertsPanel from '../components/settings/ListAlertsPanel'
 import AppThemePicker from '../components/AppThemePicker'
 import { useVoice } from '../context/VoiceContext'
 import { formatETDate } from '../utils/timeAgo'
@@ -1698,7 +1700,8 @@ const SEARCH_INDEX = [
   { card: 'subscription',   section: 'billing',     title: 'Subscription & Billing',     keywords: 'plan pro upgrade cancel invoice payment card stripe renewal price free' },
   { card: 'aiMeters',       section: 'billing',     title: 'AI Allowances',              keywords: 'ai usage limit allowance meter quota remaining ask search compass voice dictation chat explain daily monthly' },
   { card: 'referral',       section: 'billing',     title: 'Referral Program',           keywords: 'referral invite share friends rewards link' },
-  { card: 'joystick',       section: 'charts',      title: 'Joystick',                   keywords: 'joystick hub pad thumb touch gesture fan wheel hide hidden restore turn off disable enable mobile phone' },
+  { card: 'indicatorMemory', section: 'charts',     title: 'What Create Indicator remembers', keywords: 'create indicator remembers memory remembered forget moving average kind length cross ask ai choices preferences learn' },
+  { card: 'joystick',       section: 'charts',      title: 'Joystick',                  keywords: 'joystick hub pad thumb touch gesture fan wheel hide hidden restore turn off disable enable mobile phone' },
   { card: 'prefs',          section: 'preferences', title: 'Preferences',                keywords: 'theme dark oled black light custom uct app themes default chart timeframe appearance' },
   { card: 'notifications',  section: 'preferences', title: 'Notifications',              keywords: 'alert sound tone browser desktop notification push phone mobile device' },
   { card: 'study',          section: 'preferences', title: 'Study',                      keywords: 'study daily goal xp reminder streak leaderboard hide me sound haptics journal autopsy drills courses' },
@@ -2225,6 +2228,8 @@ export default function Settings() {
             <PushNotificationsRow />
             <AlertRoutingPanel />
             <StandingAlertsPanel />
+            {/* The Terminal list alerts (H52, CONFL, ACCUM). Renders nothing while the server setting is off. */}
+            <ListAlertsPanel />
           </div>
         </TileCard>
   )
@@ -2462,6 +2467,9 @@ export default function Settings() {
       // Phase 2.5: the ONE Phase 4 control pulled forward, so a persistent
       // "Hide joystick" has a real re-enable path beside it.
       card('joystick', <JoystickSettingsCard />),
+      // What Create Indicator remembers about this member (their answers to its questions):
+      // visible, changeable, forgettable. Renders nothing for a member without Create Indicator.
+      card('indicatorMemory', <IndicatorMemoryCard />),
     ],
     compass: [
       card('compassPanel', <VoicePanel />),

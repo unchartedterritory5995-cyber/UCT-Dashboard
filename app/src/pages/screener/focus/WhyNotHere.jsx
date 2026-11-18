@@ -17,6 +17,7 @@
 // The box sits outside the results listbox, so the list's own keys (W, Shift+F, "/") are not
 // heard while typing a ticker.
 import { useEffect, useId, useRef, useState } from 'react'
+import Input from '../../../components/ui/Input'
 import { cleanTicker, evaluateRules, whyNotColumns, rankAheadSpec, steadyAheadSpec, rulesWithout, whyNotHeadline, NO_SUCH_STOCK, NOT_A_TICKER, COULD_NOT_CHECK } from './whyNot'
 import focus from './FocusScreener.module.css'
 import styles from './RsScreens.module.css'
@@ -120,7 +121,7 @@ export default function WhyNotHere({ screenKey, filters, logic = null, rank = nu
       {open && (
         <div id={panelId} className={styles.whyNotPanel} onKeyDown={onKeyDown}>
           <form className={styles.whyNotForm} onSubmit={submit}>
-            <input ref={inputRef} type="text" className={`${focus.dialogInput} ${styles.whyNotInput}`} aria-label="Ticker" placeholder="Ticker" value={text}
+            <Input ref={inputRef} type="text" className={`${focus.dialogInput} ${styles.whyNotInput}`} aria-label="Ticker" placeholder="Ticker" value={text}
               onChange={e => setText(e.target.value)} autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={13} />
             <button type="submit" className={focus.btn} disabled={busy}>{busy ? 'Checking' : 'Check'}</button>
             <button type="button" className={`${focus.linkBtn} ${styles.whyNotClose}`} onClick={close}>Close</button>

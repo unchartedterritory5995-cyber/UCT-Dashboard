@@ -374,7 +374,7 @@ import { safeCssColour } from '../../../components/chart/engine/objectColour'
 
 const QUICK_STUDY_IDS = ['rsi', 'macd', 'bb', 'vwap', 'atr', 'stoch']
 
-export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBrowseLibrary, onOpenSettings, className = '', initialEditing = null, historyKey = null, historyUserId = null }) {
+export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBrowseLibrary, onOpenSettings, onCreateIndicator = null, className = '', initialEditing = null, historyKey = null, historyUserId = null }) {
   const uid = useId()
   const chartIqAllowed = useChartIqAllowed()
   const overlays = averageSlotView(cs)
@@ -558,7 +558,8 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
 
   const renderStudyField = (f) => {
     const cur = studyModel.values[f.key]
-    const active = evalActiveWhen(f.activeWhen, studyModel.values)
+    // a LOCKED setting (`f.disabled`, its sentence the visible tip) is inert like an inactive one
+    const active = !f.disabled && evalActiveWhen(f.activeWhen, studyModel.values)
     const id = `${uid}-${f.key}`
     const common = {
       inputKey: f.key,
@@ -634,6 +635,23 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
     <>
     <Sheet open={open} onClose={onClose} variant="bottom-sheet" title="Indicators" ariaLabel="Indicators" className={className}>
       <div className={styles.sheetList}>
+        {/* ⭐ 2026-11-17 (Studio plan H2 / X1) — CREATE INDICATOR, FIRST, as the desktop Indicators window
+            has it in its header. Measured on production: on a phone it was three taps deep and below
+            the fold (this sheet, scroll, "Browse indicator library…", then Create Indicator). Absent
+            where the host has no such door. */}
+        {onCreateIndicator && (
+          <button
+            type="button"
+            className={styles.row}
+            data-testid="mobile-create-indicator"
+            data-guide="indicators.create"
+            onClick={() => { haptics.tap(); onClose(); onCreateIndicator() }}
+          >
+            <span className={styles.rowIcon}><UIcon name="sparkle" size={17} /></span>
+            <span className={styles.rowLabel}>Create indicator</span>
+            <span className={styles.rowRight}><UIcon name="chevronRight" size={14} gold={false} /></span>
+          </button>
+        )}
         {/* ⭐ A1.2 — Undo / Redo for this chart's indicator changes (absent without a key). */}
         {historyKey && (
           <div className={styles.sectionLabel} style={{ display: 'flex', justifyContent: 'flex-end' }}>

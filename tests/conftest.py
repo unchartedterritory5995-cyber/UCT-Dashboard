@@ -523,6 +523,87 @@ def _no_test_leaks_a_dependency_override():
             mod.app.dependency_overrides.update(before or {})
 
 
+# ─── ⛔⛔ A PATCHED FUNCTION CAPTURED BY AN IMPORT OUTLIVES THE PATCH ─────────────────────────
+#
+# ⚰️ 2026-11-17: 34 tests in three files (Notebook email-in, voice notes, plan grading) failed with
+# `no such table` whenever `tests/test_term086_inbound_alerts.py` ran earlier in the same process,
+# and passed alone (runs 44122066704 red in company; 44123855004, 44123863322, 44123874234 green
+# alone). Its fixture did `monkeypatch.setattr(auth_db, "get_connection", _conn)` and THEN imported
+# `api.main`. Every product module that `api.main` imported for the first time ran
+# `from api.services.auth_db import get_connection` while the patch stood, and so bound the TEST's
+# `_conn` (a scratch file holding one `users` table). Monkeypatch put `auth_db.get_connection` back
+# at teardown; nothing can put back a name another module copied. `note_personal_api`,
+# `voice_usage` and `plan_grading` then opened that scratch file for the rest of the session.
+#
+# ⭐ The rail: after every test, a product module FIRST IMPORTED during that test may not hold, at
+# module level, a function or mock defined in a test file. It runs after every fixture (and
+# every monkeypatch) has been torn down, so a patch the test itself put on a module is already
+# undone; what is left is a copy nothing will ever undo. Only the modules new to `sys.modules` are
+# read, so the cost is paid once per module per session, never per test.
+_TESTS_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+
+def _is_test_code(path: str) -> bool:
+    path = os.path.abspath(path)
+    base = os.path.basename(path)
+    if base == "conftest.py":
+        return False                      # session-wide shims are installed on purpose
+    return (path.startswith(_TESTS_ROOT + os.sep) or base.startswith("test_")
+            or base.endswith("_test.py"))
+
+
+def captured_test_objects(module_names) -> list[str]:
+    """`module.attr <- where` for each product module in `module_names` holding a test's
+    function (or a unittest.mock object) at module level."""
+    from unittest import mock
+
+    out = []
+    for name in sorted(module_names):
+        last = name.rsplit(".", 1)[-1]
+        if not name.startswith("api.") or last.startswith("test_") or last.endswith("_test"):
+            continue
+        mod = sys.modules.get(name)
+        try:
+            items = list(vars(mod).items())
+        except TypeError:
+            continue
+        for attr, val in items:
+            if isinstance(val, mock.NonCallableMock):
+                out.append(f"{name}.{attr} <- a unittest.mock object")
+                continue
+            code = getattr(val, "__code__", None)
+            if code is not None and _is_test_code(code.co_filename):
+                where = os.path.relpath(os.path.abspath(code.co_filename), os.path.dirname(_TESTS_ROOT))
+                out.append(f"{name}.{attr} <- {getattr(val, '__qualname__', attr)} "
+                           f"({where.replace(os.sep, '/')}:{code.co_firstlineno})")
+    return out
+
+
+_MODULES_BEFORE = pytest.StashKey[set]()
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_setup(item):
+    item.stash[_MODULES_BEFORE] = set(sys.modules)        # before any fixture of this test runs
+    return (yield)
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_teardown(item, nextitem):
+    result = yield                                         # every fixture and patch is undone now
+    before = item.stash.get(_MODULES_BEFORE, None)
+    if before is not None:
+        captured = captured_test_objects(set(sys.modules) - before)
+        if captured:
+            pytest.fail(
+                "a product module imported during this test bound a test's function, and keeps it "
+                "after the patch was undone (patch the DATA the function reads, e.g. "
+                "`auth_db._DB_PATH`, or import the module before patching): "
+                + "; ".join(captured[:8]) + (f" (+{len(captured) - 8} more)" if len(captured) > 8 else ""),
+                pytrace=False)
+    return result
+
+
 @pytest.fixture
 def routed_schema(monkeypatch):
     """The kill switch (UCT_AGENT_CONSTANT_SCHEMA=0): for tests of the routed schema, which it must keep restoring exactly."""

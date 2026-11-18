@@ -92,7 +92,7 @@ PAID_DETAIL = "Custom indicators require a paid plan"
 #: was verified before this moved; the path count below 11 -> 12.
 #: 2026-11-01 (saved-script auto-upgrade, pre-bump): 19 -> 20 — `POST /{def_id}/engine-status`.
 #: Its OWN `require_paid` was verified before this moved; the path count below 12 -> 13.
-EXPECTED_ROUTE_COUNT = 24  # 2026-11-16 (library moderation): 22 -> 24 with `POST` and `DELETE /library/{token}/takedown` (their OWN require_paid, then require_admin in the body); 2026-11-15 (U5): 21 -> 22 with `GET /capability-worker` (its OWN require_paid, then require_admin in the body); 2026-11-13 (WS-I Part 2): 20 -> 21 with `POST /runtime-admission`
+EXPECTED_ROUTE_COUNT = 28  # 2026-11-18 (what Create Indicator remembers): 25 -> 28 with `GET`/`PUT`/`DELETE /assistant-memory` (each its OWN require_paid, verified); 2026-11-17 (Studio R4): 24 -> 25 with `POST /{def_id}/status-headline` (its OWN require_paid verified); 2026-11-16 (library moderation): 22 -> 24 with `POST` and `DELETE /library/{token}/takedown` (their OWN require_paid, then require_admin in the body); 2026-11-15 (U5): 21 -> 22 with `GET /capability-worker` (its OWN require_paid, then require_admin in the body); 2026-11-13 (WS-I Part 2): 20 -> 21 with `POST /runtime-admission`
 
 
 # ─── the derived route table ─────────────────────────────────────────────────
@@ -188,7 +188,9 @@ def test_a_free_user_is_refused_on_EVERY_route_of_this_router(free_client):
     # 13 -> 14 on 2026-11-13 (WS-I Part 2): `POST /runtime-admission` is a new PATH.
     # 2026-11-15 (U5): 14 -> 15 paths with `GET /capability-worker`.
     # 2026-11-16 (library moderation): 15 -> 16 paths with `/library/{token}/takedown`.
-    assert len({s.split(" ", 1)[1] for s in seen}) == 16, seen
+    # 2026-11-17 (Studio R4): 16 -> 17 paths with `POST /{def_id}/status-headline`.
+    # 2026-11-18 (what Create Indicator remembers): 17 -> 18 paths with `/assistant-memory`.
+    assert len({s.split(" ", 1)[1] for s in seen}) == 18, seen
 
 
 def test_every_route_declares_its_OWN_require_paid_and_the_router_declares_NONE():

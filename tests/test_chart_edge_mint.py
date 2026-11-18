@@ -134,6 +134,43 @@ def test_the_cookie_is_HTTPONLY_and_scoped_to_the_worker_route(app, monkeypatch)
            "samesite=lax" in raw.lower(), raw
 
 
+def _edge_cookies_by_path(set_cookies):
+    out = {}
+    for raw in set_cookies:
+        if raw.startswith(f"{cet.COOKIE_NAME}="):
+            path = next((a.split("=", 1)[1] for a in (x.strip() for x in raw.split(";"))
+                         if a.lower().startswith("path=")), None)
+            out[path] = raw
+    return out
+
+
+def test_the_SAME_token_is_issued_on_EVERY_worker_route_path(app, monkeypatch):
+    """⭐ THE HISTORY LAKE NEEDS THE COOKIE TOO (2026-11-17). `/api/hist/*` enforces the member
+    entitlement at the Worker, and a `Path=/api/bars` cookie never reaches it: on production every
+    signed-in member got 401 from the lake. One token, one cookie per route path, nothing wider."""
+    _body, cookies = _me(app, PAID_MEMBER, monkeypatch)
+    by_path = _edge_cookies_by_path(cookies)
+    assert set(by_path) == set(cet.COOKIE_PATHS), by_path.keys()
+    assert cet.HIST_COOKIE_PATH in by_path and cet.COOKIE_PATH in by_path
+    values = {_value(raw) for raw in by_path.values()}
+    assert len(values) == 1, "the two paths carry different tokens"
+    assert cet.verify(values.pop())[0] == "VALID"
+    for raw in by_path.values():
+        assert "HttpOnly" in raw and "samesite=lax" in raw.lower(), raw
+
+
+def test_LOSING_entitlement_CLEARS_the_cookie_on_EVERY_path(app, monkeypatch):
+    """⛔ A revocation that clears `/api/bars` and leaves `/api/hist` holding the token is no
+    revocation for the lake."""
+    downgraded = dict(PAID_MEMBER, plan="free")
+    _body, cookies = _me(app, downgraded, monkeypatch)
+    by_path = _edge_cookies_by_path(cookies)
+    assert set(by_path) == set(cet.COOKIE_PATHS), by_path.keys()
+    for path, raw in by_path.items():
+        assert cet.verify(_value(raw))[0] != "VALID", path
+        assert "Max-Age=0" in raw or "1970" in raw, f"{path} not actively cleared: {raw}"
+
+
 def test_the_token_NEVER_appears_in_the_RESPONSE_BODY(app, monkeypatch):
     """⛔ The frontend has no use for a value only the edge verifies, and
     anything the frontend can read is something an XSS can exfiltrate."""

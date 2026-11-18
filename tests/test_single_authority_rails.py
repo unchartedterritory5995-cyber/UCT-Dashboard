@@ -113,19 +113,33 @@ def _function_named(path: pathlib.Path, name: str):
 # 1.1 — ONE WINDOW MEAN
 # ═════════════════════════════════════════════════════════════════════════════
 
+def _is_series_element(node) -> bool:
+    """``closes[i]`` / ``closes[i - period]``: a POSITION in a series. ``c["prints"]``
+    reads a FIELD of one record by name, and a field is never a window element.
+
+    ⚰️ Without this the detector fired on ``inc[5] += c["prints"] - c["unsided"]`` in
+    ``api/flow_exposure_history.py::aggregate_rows`` (FT-054, 01cee5d58f): an integer
+    count of sided prints, no window, no float, no drift. Found by the first full backend
+    run (PR #1855), where it had been red unseen since 2026-10-10.
+    """
+    return (isinstance(node, ast.Subscript)
+            and not (isinstance(node.slice, ast.Constant) and isinstance(node.slice.value, str)))
+
+
 def _is_rolling_accumulator(node) -> bool:
     """``total += series[i] - series[i - period]`` — the retired SMA's shape.
 
     Deliberately structural rather than name-based: the defect is the ALGORITHM
     (an accumulator that carries every earlier bar's rounding error forward), and
-    it is that shape whatever the variable is called.
+    it is that shape whatever the variable is called. Both operands must be series
+    ELEMENTS (indexed by position), never named fields of a record.
     """
     return (isinstance(node, ast.AugAssign)
             and isinstance(node.op, ast.Add)
             and isinstance(node.value, ast.BinOp)
             and isinstance(node.value.op, ast.Sub)
-            and isinstance(node.value.left, ast.Subscript)
-            and isinstance(node.value.right, ast.Subscript))
+            and _is_series_element(node.value.left)
+            and _is_series_element(node.value.right))
 
 
 _RETIRED_SMA_SOURCE = '''
@@ -146,6 +160,20 @@ def test_the_rolling_subtract_moving_average_detector_fires():
         "the rolling-accumulator detector no longer recognises the very code it "
         "was written to retire — every '0 matches' it reports is vacuous"
     )
+
+
+def test_CONTROL_field_arithmetic_is_not_a_rolling_window():
+    """The narrowing above must not hide the retired SMA (the control before this one)
+    and must stop naming a record's field arithmetic; both halves, so it cannot pass by
+    answering "no" to everything."""
+    fields = ('def aggregate(rows):\n'
+              '    inc = [0, 0]\n'
+              '    for c in rows:\n'
+              '        inc[1] += c["prints"] - c["unsided"]\n'
+              '    return inc\n')
+    assert _scan_source(fields, _is_rolling_accumulator) == []
+    window = fields.replace('c["prints"] - c["unsided"]', 'rows[i] - rows[i - 3]')
+    assert _scan_source(window, _is_rolling_accumulator), "a positional window must still be found"
 
 
 def test_no_rolling_subtract_moving_average_survives_in_the_backend():
@@ -562,11 +590,22 @@ def _module_declares_rs_lookbacks(tree) -> bool:
     ⭐ The PAIR is the fingerprint. `63` alone is a quarter of a year and turns
     up in unrelated code; `63` beside `126` is the RS weighting's own lookback
     table and nothing else in this corpus.
+
+    ⭐ "BESIDE" MEANS IN ONE TABLE OR ONE FUNCTION: both offsets inside a single
+    tuple / list / set / dict literal, or a single function body. ⚰️ It meant
+    "anywhere in the module" until 2026-11-18, when the first full backend run
+    (PR #1855) found `pattern_engine/base_draw.py` flagged for two unrelated
+    volume-average windows 390 lines apart (`TB_ADV_WIN = 126`,
+    `TIGHT_ADV_BARS = 63`). A lookback TABLE keeps its periods together; that is
+    the shape both the authority and every retired copy have.
     """
-    consts = {n.value for n in ast.walk(tree)
-              if isinstance(n, ast.Constant) and isinstance(n.value, int)
-              and not isinstance(n.value, bool)}
-    return 63 in consts and 126 in consts
+    def ints(node):
+        return {n.value for n in ast.walk(node)
+                if isinstance(n, ast.Constant) and isinstance(n.value, int)
+                and not isinstance(n.value, bool)}
+    return any({63, 126} <= ints(node) for node in ast.walk(tree)
+               if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                    ast.Tuple, ast.List, ast.Set, ast.Dict)))
 
 
 _RETIRED_RS_SOURCE = '''
@@ -585,6 +624,13 @@ def test_the_rs_lookback_detector_fires():
         "the RS-lookback detector no longer recognises the substituting "
         "implementation it was written to retire"
     )
+
+
+def test_CONTROL_two_unrelated_constants_are_not_a_lookback_table():
+    """Both halves of the narrowing: two module constants apart are not a table, and
+    the same two numbers in one period map still are."""
+    assert not _module_declares_rs_lookbacks(ast.parse("TB_ADV_WIN = 126\n\nTIGHT_ADV_BARS = 63\n"))
+    assert _module_declares_rs_lookbacks(ast.parse('PERIODS = {"1M": 21, "3M": 63, "6M": 126}\n'))
 
 
 def test_the_rs_lookbacks_and_weights_live_in_exactly_one_module():

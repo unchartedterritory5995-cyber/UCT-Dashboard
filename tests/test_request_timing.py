@@ -281,3 +281,21 @@ def test_minutes_just_after_a_restart_are_reported_apart(monkeypatch):
     s = rt.summary(1, now=boot + 960)["since_restart"]
     assert (s["after_boot"]["requests"], s["after_boot"]["minutes"], s["after_boot"]["max_ms"]) == (2, 2, 3000.0)
     assert (s["settled"]["requests"], s["settled"]["max_ms"]) == (1, 20.0)
+
+
+def test_minutes_since_a_restart_are_also_reported_in_bands(monkeypatch):
+    """The slow window after a restart measured ~18 min (2026-11-17), so the 5-minute split alone
+    mixed minutes 5-18 into `settled`. The bands keep 5-10 and 10-20 apart from the settled 20+."""
+    boot = 1_800_000_000.0
+    monkeypatch.setattr(rt, "_BOOT", boot)
+    # the boot minute itself: the minute starts before the process did, so its `up` is negative
+    rt.record("/api/auth/me", 200, 4000.0, now=boot - 20)
+    for up, ms in ((30, 3000.0), (400, 2000.0), (700, 1000.0), (1300, 20.0), (1400, 10.0)):
+        rt.record("/api/auth/me", 200, ms, now=boot + up)
+    rt.record("/api/auth/me", 200, 5.0, now=boot + 1500)       # rolls the earlier minutes
+    while not rt._q.empty():
+        rt.write_minute(rt._q.get_nowait())
+    b = rt.summary(1, now=boot + 1560)["since_restart_bands"]
+    assert {k: v["requests"] for k, v in b.items()} == {"0-5m": 2, "5-10m": 1, "10-20m": 1, "20m+": 3}
+    assert b["0-5m"]["max_ms"] == 4000.0
+    assert (b["5-10m"]["max_ms"], b["10-20m"]["max_ms"], b["20m+"]["max_ms"]) == (2000.0, 1000.0, 20.0)

@@ -378,7 +378,7 @@
   },
   {
    "id": "atr_extension",
-   "request": "Show how extended price is above its 50 day moving average, measured in multiples of the 14 day ATR, and colour the line red above 7 and orange above 4.",
+   "request": "Show how extended price is above its 50 day simple moving average, measured in multiples of the 14 day ATR, and colour the line red above 7 and orange above 4.",
    "ops": [
     {
      "op": "create",
@@ -593,7 +593,7 @@
   },
   {
    "id": "percent_distance_from_10_week_ma",
-   "request": "Plot the percent distance of the close from the 10 week moving average and draw reference lines at plus 20 percent and minus 8 percent.",
+   "request": "Plot the percent distance of the close from the 10 week simple moving average and draw reference lines at plus 20 percent and minus 8 percent.",
    "ops": [
     {
      "op": "create",
@@ -735,8 +735,14 @@
             "name": "close"
            },
            {
-            "type": "series",
-            "name": "open"
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             }
+            ]
            }
           ]
          },
@@ -794,8 +800,14 @@
             "name": "close"
            },
            {
-            "type": "series",
-            "name": "open"
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             }
+            ]
            }
           ]
          },
@@ -870,8 +882,14 @@
             "name": "close"
            },
            {
-            "type": "series",
-            "name": "open"
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             }
+            ]
            }
           ]
          },
@@ -927,8 +945,14 @@
             "name": "close"
            },
            {
-            "type": "series",
-            "name": "open"
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             }
+            ]
            }
           ]
          },
@@ -1969,8 +1993,14 @@
                 "name": "close"
                },
                {
-                "type": "series",
-                "name": "open"
+                "type": "offset",
+                "value": 1,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
                }
               ]
              },
@@ -2007,8 +2037,14 @@
                 "name": "close"
                },
                {
-                "type": "series",
-                "name": "open"
+                "type": "offset",
+                "value": 1,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
                }
               ]
              },
@@ -2060,8 +2096,14 @@
                   "name": "close"
                  },
                  {
-                  "type": "series",
-                  "name": "open"
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
                  }
                 ]
                },
@@ -2098,8 +2140,14 @@
                   "name": "close"
                  },
                  {
-                  "type": "series",
-                  "name": "open"
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
                  }
                 ]
                },

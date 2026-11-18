@@ -471,9 +471,9 @@
    "key": "w1",
    "title": "What the 1% means",
    "steps": [
-    "Risk per trade is what you plan to lose if your stop is hit, as a percent of the whole account.",
-    "Van Tharp's example: a $100,000 account risking 1% has $1,000 on the line.",
-    "That's your planned loss if you're wrong. The money you put into the stock is a different number."
+    "Risk per trade is what you lose if the stop gets hit, as a percent of the whole account.",
+    "Say you've got $100,000 and you risk 1%. That's $1,000 on the line.",
+    "That's your planned loss if you're wrong. It's not the money you put in the stock. That's a different number."
    ],
    "facts": [
     "f05",
@@ -486,12 +486,13 @@
    "key": "w2",
    "title": "Our range",
    "steps": [
-    "We risk 0.25% to 2% of the account on a trade. 2% is the hard ceiling.",
-    "Where you land depends on the setup, your recent results, the market and your edge.",
-    "Risking the same percent on every trade is a valid plan too. Pick one way and write it in your plan."
+    "We risk 0.25% to 2% of the account on a trade. Under 1% is normal. 2% is the ceiling.",
+    "Where you land depends on the setup, how you've been trading lately, the market and your edge.",
+    "Or risk the same percent on every trade. That works too. Pick one way and write it in your plan."
    ],
    "facts": [
     "h1",
+    "h3",
     "h2",
     "f20"
    ]
@@ -500,9 +501,9 @@
    "key": "w3",
    "title": "Why so small",
    "steps": [
-    "Losses are part of trading, and losing streaks happen to good traders too.",
-    "Under the 2% rule, a $100,000 account risks $2,000 a trade. Ten losses in a row cost 20%. You're still trading.",
-    "The trader Monroe Trout, quoted by CME Group, says he keeps his risk conservative. He wants to be around to play tomorrow."
+    "Losses are part of this. Losing streaks hit good traders too.",
+    "Risk 2% on $100,000 and that's $2,000 a trade. Ten losses in a row cost you 20%. You're still trading.",
+    "Small risk doesn't stop the losses. It caps what each one costs, so you're around for the ones that work."
    ],
    "facts": [
     "f06",
@@ -521,16 +522,16 @@
    "rung": 1,
    "format": "mcq",
    "term": "risk per trade",
-   "q": "A trader says \"I risk 1% per trade.\" What is that 1%?",
+   "q": "Your buddy trades a $100,000 account and says he risks 1% a trade. What is that 1% measuring?",
    "choices": [
-    "The account's loss if the stop hits",
-    "The share of the account in the stock",
-    "The stop's distance below entry",
-    "The profit goal for each trade"
+    "What he loses if the stop gets hit",
+    "How much of the account is in the stock",
+    "How far the stop is under his buy",
+    "His profit target on each trade"
    ],
-   "answer": "The account's loss if the stop hits",
-   "why": "The account's loss if the stop hits. Risk per trade is the money you plan to lose if the trade goes against you. It is measured against the whole account. Van Tharp's example: risking 1% of a $100,000 account puts $1,000 at risk. That is not the same as the money you put into the stock.",
-   "lesson_line": "Risk per trade is your planned loss at the stop, as a percent of the whole account.",
+   "answer": "What he loses if the stop gets hit",
+   "why": "What he loses if the stop gets hit. On $100,000, 1% is $1,000. That's the money he's agreed to give up if he's wrong, measured against the whole account. It's not how much he bought. He can have a lot more than that in the stock, and the stop decides how much of it is really on the line. Thinking this way puts every trade on the same scale. A 1% loss is a 1% loss, whatever the stock or the price.",
+   "lesson_line": "Risk is what you lose at the stop, measured against the whole account.",
    "facts": [
     "f05",
     "f21",
@@ -539,11 +540,11 @@
     "f33"
    ],
    "wrong": {
-    "The share of the account in the stock": "That's your position size, a different number. You'd only lose all of it if the stock went to zero.",
-    "The stop's distance below entry": "That's how far the stock can fall to your stop, a percent of the share price. What the account loses also depends on how much you bought.",
-    "The profit goal for each trade": "Risk is the downside you accept if you're wrong, not the upside you hope for."
+    "How much of the account is in the stock": "That's his position size, a bigger number. He'd only lose all of it if the stock went to zero.",
+    "How far the stop is under his buy": "That's the stop distance, a percent of the share price. What the account loses also depends on how many shares he owns.",
+    "His profit target on each trade": "Risk is what you give up if you're wrong, not what you hope to make."
    },
-   "simple": "It is the slice of your whole account you plan to lose if the stop is hit.",
+   "simple": "It's what he loses if the stop hits, as a slice of the whole account.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -551,26 +552,30 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Van Tharp's example: risk 1% of a $100,000 portfolio and you're risking $1,000. He says that amount risked should not be confused with the amount you actually invested."
+   }
   },
   {
    "key": "q02",
    "skill": "risk.per_trade",
    "rung": 1,
    "format": "tf",
-   "q": "A common rule of thumb: never risk more than 2% of your account on one trade.",
+   "q": "Most traders you'll meet cap the risk on any one trade at 2% of the account.",
    "answer": "True",
-   "why": "True. Investopedia calls never risking more than 2% of your capital on one trade a general rule of thumb. Schwab's trade-plan guide says some traders risk up to 1% to 2%. It is a trader's own limit, not a regulator's rule. Our own ceiling is also 2%.",
-   "lesson_line": "The common rules of thumb cap one trade's risk at 1% to 2% of the account.",
+   "why": "True. 2% is the line you'll hear everywhere, and fund managers run even less. It's a trader's own limit. No regulator sets it. We use it too. 2% is our hard ceiling, and under 1% is normal for us. Losses are part of the job. Keep each one small and a bad week stays a bad week, not the end of the account.",
+   "lesson_line": "2% is the ceiling everyone talks about. Under 1% is normal for us.",
    "facts": [
     "f12",
     "f20",
     "f27",
     "f10",
     "f08",
-    "h1"
+    "h1",
+    "h3"
    ],
-   "simple": "True, because the usual rule of thumb is to never risk more than 2% of your account on one trade.",
+   "simple": "True. Most traders cap one trade at 2%, and 2% is our hard ceiling too.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -578,7 +583,10 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia calls never risking more than 2% of your capital on one trade a general rule of thumb, and says fund managers usually risk less. Schwab's trade-plan guide says some traders risk up to 1% to 2% of the account on a single trade."
+   }
   },
   {
    "key": "q03",
@@ -586,7 +594,7 @@
    "rung": 2,
    "format": "mcq",
    "house": true,
-   "q": "What is our range for the risk on one trade?",
+   "q": "You're writing your trading plan with us. How much of the account can one trade put at risk?",
    "choices": [
     "0.25% to 2% of the account",
     "5% to 10% of the account",
@@ -594,19 +602,19 @@
     "1% to 2% of the share price"
    ],
    "answer": "0.25% to 2% of the account",
-   "why": "0.25% to 2% of the account. That is our rule. You pick the number by setup quality, your recent results, the market and your edge. 2% is the hard ceiling. Under 1% is normal, and 1.5% is the most any setup grade uses.",
-   "lesson_line": "Our range: 0.25% to 2% of the account per trade. Never above 2%.",
+   "why": "0.25% to 2% of the account. Where you land depends on the setup, how you've been trading lately, the market and your edge. Under 1% is normal. 1.5% is the most any setup grade gets. 2% is the hard ceiling, and nothing goes past it. The reason is survival. A run of losses at these numbers stings, but it won't knock you out. You're still here for the trades that work.",
+   "lesson_line": "0.25% to 2% a trade. Pick your spot in that range and never go past 2%.",
    "facts": [
     "h1",
     "h3",
     "f20"
    ],
    "wrong": {
-    "5% to 10% of the account": "Schwab's guide gives that as a cap on how much goes INTO one position. Risk is the smaller number you lose at the stop.",
-    "2% to 4% of the account": "2% is our ceiling, not our floor. Nothing above it.",
-    "1% to 2% of the share price": "Risk per trade is measured against your account, not the price of one share."
+    "5% to 10% of the account": "That's what some guides cap a whole position at. Risk is the much smaller number you lose at the stop.",
+    "2% to 4% of the account": "2% is our ceiling, not the floor. Nothing goes above it.",
+    "1% to 2% of the share price": "Risk is measured against your account, not the price of one share."
    },
-   "simple": "Our range is 0.25% to 2% of the account on one trade, and 2% is the hard ceiling.",
+   "simple": "0.25% to 2% of the account, picked by the setup and the market, and 2% is the hard ceiling.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -615,7 +623,7 @@
      "rests on the owner's rulebook (A1)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q04",
@@ -656,16 +664,16 @@
    "rung": 3,
    "format": "tf",
    "house": true,
-   "q": "Risking the same percent on every trade is a mistake.",
+   "q": "A friend risks 0.5% on every trade, A+ or B, the same number every time. That's a mistake.",
    "answer": "False",
-   "why": "False. Flat risk, the same percent on every trade, is a valid plan under our rule. Scaling risk by the setup is the other valid plan. Pick one and write it in your plan. Van Tharp's example is flat: 1% of the whole portfolio on every idea.",
-   "lesson_line": "Flat risk or scaled risk. Both are valid. Pick one and write it in your plan.",
+   "why": "False. That's flat risk, and it's a valid plan with us. Same percent on every trade, no grade to argue with yourself about before each buy. The other way is to scale risk by the setup, more on an A+ and less on a B. Both work. What doesn't work is switching between them on a whim. Pick one, write it in your plan, and follow it.",
+   "lesson_line": "Flat or scaled, both work. Pick one, write it down, stick to it.",
    "facts": [
     "h2",
     "f34",
     "f19"
    ],
-   "simple": "False, because risking the same percent every time is a valid plan under our rule, if you write it down.",
+   "simple": "False. Risking the same percent every time is a valid plan, as long as it's written in your plan.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -674,14 +682,17 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Van Tharp's own example is flat: he risks 1% of the whole portfolio on every idea, and the dollars grow as the portfolio grows."
+   }
   },
   {
    "key": "q06",
    "skill": "risk.per_trade",
    "rung": 3,
    "format": "mcq",
-   "q": "Your account is $60,000. You risk 1% on a trade. How many dollars are at risk?",
+   "q": "You've got $60,000 in the account and you risk 1% a trade. A breakout triggers. How many dollars are on the line?",
    "answer": "$600",
    "calc": {
     "fn": "arith",
@@ -692,15 +703,15 @@
     }
    },
    "prefix": "$",
-   "why": "$600. 1% of $60,000 is $600. That is the loss you plan on if the stop is hit. It is not the money you put into the stock.",
-   "lesson_line": "Dollar risk is the account times your risk percent.",
+   "why": "$600. 1% of $60,000 is $600. Know that number before the open, not after you're in. It's what you lose if the stop hits, and it sets your share count. Take the distance from your buy to your stop, and $600 divided by it is your shares. It's not the money you put into the stock. That's a bigger number.",
+   "lesson_line": "Know your dollar risk before the open. Account times your percent.",
    "facts": [
     "f29",
     "f33",
     "f11",
     "f44"
    ],
-   "simple": "It's $600, because 1% of a $60,000 account is $600.",
+   "simple": "$600, because 1% of a $60,000 account is $600.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -709,7 +720,7 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$6,000",
     "$60,600",
@@ -717,8 +728,8 @@
     "$600"
    ],
    "wrong": {
-    "$6,000": "Took ten times the real risk percent.",
-    "$60,000": "Counted the whole account as at risk.",
+    "$6,000": "Ten times your real risk. A decimal slip like that turns a small loss into a big one.",
+    "$60,000": "That's the whole account. The stop is there so one trade never costs you all of it.",
     "$60,600": "Added 1% to the account instead of taking 1% of it."
    },
    "visual": {
@@ -749,16 +760,16 @@
    "skill": "risk.per_trade",
    "rung": 3,
    "format": "mcq",
-   "q": "Why keep the risk on each trade to a small slice of the account?",
+   "q": "Someone new to trading asks why we risk so little on each trade. What's the real reason?",
    "choices": [
-    "So you survive losing streaks",
-    "So each trade wins more",
-    "As regulators cap it at 2%",
-    "So you hold losers longer"
+    "So a losing streak can't sink you",
+    "So each trade has a better shot",
+    "Because regulators cap it at 2%",
+    "So you can sit through losers longer"
    ],
-   "answer": "So you survive losing streaks",
-   "why": "So you survive losing streaks. Losses are a normal part of trading, and streaks happen to good traders too. Under the 2% rule, a $100,000 account risks $2,000 a trade, so ten straight losses cost 20%. You are hurt, but still trading. Small risk doesn't stop losses. It limits what each one costs.",
-   "lesson_line": "Small risk per trade keeps one bad streak from knocking you out of the game.",
+   "answer": "So a losing streak can't sink you",
+   "why": "So a losing streak can't sink you. Losses are part of this, and streaks hit good traders too. Say you risk 2% on a $100,000 account. That's $2,000 a trade. Ten losses in a row cost 20% of where you started. That hurts, but you're still trading. Small risk doesn't stop the losses. It caps what each one costs, so you're around for the trades that work.",
+   "lesson_line": "Keep each loss small and you're still around when the good trades come.",
    "facts": [
     "f06",
     "f01",
@@ -771,11 +782,11 @@
     "f05"
    ],
    "wrong": {
-    "So each trade wins more": "Good sizing doesn't stop losses. It limits what a loss costs you, not whether the trade wins.",
-    "As regulators cap it at 2%": "No regulator sets it. Investopedia says the 2% rule is not a requirement of any regulator. It's a trader's own limit.",
-    "So you hold losers longer": "Risk per trade is your planned loss at the stop. Hold past the stop, and you lose more than you planned."
+    "So each trade has a better shot": "Size doesn't change whether a trade works. It only changes what a loss costs you.",
+    "Because regulators cap it at 2%": "No regulator sets it. The 2% line is a trader's own limit.",
+    "So you can sit through losers longer": "The stop is the exit. Sit past it and you lose more than you planned."
    },
-   "simple": "So you survive losing streaks: small risk keeps a run of losses from ending your trading.",
+   "simple": "Small risk keeps a run of losses from ending your trading.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -783,7 +794,10 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Monroe Trout, quoted by CME Group: he keeps his risk management conservative because he wants to make sure he'll be around to play tomorrow."
+   }
   },
   {
    "key": "q08",
@@ -791,7 +805,7 @@
    "rung": 4,
    "format": "mcq",
    "house": true,
-   "q": "Your account is $80,000. What is our absolute ceiling on one trade's risk?",
+   "q": "It's Sunday night and you're setting limits for the week. The account is $80,000. What's the most any one trade can risk?",
    "answer": "$1,600",
    "calc": {
     "fn": "arith",
@@ -802,15 +816,15 @@
     }
    },
    "prefix": "$",
-   "why": "$1,600. 2% of $80,000 is $1,600, our absolute ceiling. It is a limit, not a target. Under 1% is normal, and 1.5% is the most any setup grade uses.",
-   "lesson_line": "Know your ceiling in dollars before the open. 2% of the account, never more.",
+   "why": "$1,600. 2% of $80,000 is $1,600. That's the hard ceiling, the number no trade ever crosses. It's a limit, not a target. Under 1% is normal, so a normal trade here risks under $800. 1.5% is the most any setup grade gets, $1,200 on this account. Write the $1,600 down before the week starts. You don't want to be deciding it mid-trade with your heart rate up.",
+   "lesson_line": "Know your ceiling in dollars before the week starts. 2% of the account, never more.",
    "facts": [
     "h1",
     "h3",
     "f02",
     "f29"
    ],
-   "simple": "It's $1,600, because 2% of $80,000 is our absolute ceiling, and no trade goes past it.",
+   "simple": "$1,600, because 2% of $80,000 is the hard ceiling and no trade goes past it.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -819,7 +833,7 @@
      "rests on the owner's rulebook (A1)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$800",
     "$1,200",
@@ -827,9 +841,9 @@
     "$1,600"
    ],
    "wrong": {
-    "$800": "Used 1%, the normal risk, not the 2% ceiling.",
-    "$1,200": "Used 1.5%, the most any setup grade uses.",
-    "$16,000": "Decimal slip."
+    "$800": "That's 1%, a normal trade. The ceiling is 2%.",
+    "$1,200": "That's 1.5%, the most any setup grade gets. The hard ceiling sits above it at 2%.",
+    "$16,000": "A decimal slip, ten times the ceiling."
    }
   },
   {
@@ -837,7 +851,7 @@
    "skill": "risk.per_trade",
    "rung": 4,
    "format": "mcq",
-   "q": "Your account is $150,000. If this trade hits its stop, you lose $750. What percent of the account is at risk?",
+   "q": "The stop on this trade costs you $750 if it hits. The account is $150,000. What percent are you really risking?",
    "answer": "0.5%",
    "calc": {
     "fn": "arith",
@@ -848,13 +862,14 @@
     }
    },
    "suffix": "",
-   "why": "0.5%. Divide the $750 you lose at the stop by the $150,000 account, and you get 0.5%. It's the same rate Schwab's active-trader example risks. Any plan checks the same way: dollar loss at the stop over the account.",
-   "lesson_line": "To check any plan, divide the dollar loss at the stop by the account.",
+   "why": "0.5%. $750 over $150,000, times 100, is 0.5%. Half a percent. That's a normal trade for us, since under 1% is normal. And that's how you check any plan: the dollar loss at the stop, over the account. Do it before every buy. If it comes out over 2%, the trade's too big, so cut the shares.",
+   "lesson_line": "Check every plan the same way. Dollar loss at the stop, over the account.",
    "facts": [
     "f22",
-    "f11"
+    "f11",
+    "h3"
    ],
-   "simple": "It's 0.5%, because a $750 loss is half of one percent of a $150,000 account.",
+   "simple": "0.5%, because $750 is half of one percent of a $150,000 account.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -862,7 +877,7 @@
      "computed key (calc)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "50%",
     "200%",
@@ -870,9 +885,12 @@
     "5%"
    ],
    "wrong": {
-    "5%": "Decimal slip.",
-    "200%": "Divided the account by the loss.",
-    "50%": "Compared the loss to a one-percent slice of the account, not the whole account."
+    "5%": "A decimal slip, ten times the real risk.",
+    "200%": "Divided the account by the loss. Flip it.",
+    "50%": "Compared $750 to 1% of the account, not the whole account."
+   },
+   "deeper": {
+    "example": "Schwab's trade-plan guide has the same trade: a more active trader who only wants to risk 0.5% of the portfolio, or $750 a trade."
    }
   },
   {
@@ -880,7 +898,7 @@
    "skill": "risk.per_trade",
    "rung": 5,
    "format": "mcq",
-   "q": "Your plan risks 1.5% on A+ setups and 0.5% on B setups. Account $40,000. A B setup triggers. How much do you risk?",
+   "q": "Your plan: 1.5% on an A+, 0.5% on a B. The account's $40,000, and a B setup just triggered. What do you risk?",
    "choices": [
     "$200",
     "$600",
@@ -896,19 +914,19 @@
      "pct": 0.5
     }
    },
-   "why": "$200. A B setup gets your B rate, 0.5%, and 0.5% of $40,000 is $200. The 1.5% rate is for A+ setups only. Grade the setup first. The grade picks the percent, and the percent picks the dollars. Your plan fits our grade guide, which puts B setups at 0.5% to 1%.",
-   "lesson_line": "Grade the setup first. The grade picks the percent, the percent picks the dollars.",
+   "why": "$200. It's a B, so it gets your B rate. 0.5% of $40,000 is $200. The grade is your call on how clean the setup is, and the grade sets the size. Grade first, then the percent, then the dollars. The A+ rate is for your cleanest charts. A B can work fine. It just hasn't earned the bigger number. Your plan fits ours too, a B at 0.5% to 1%.",
+   "lesson_line": "Grade the setup, then size it. Never the other way around.",
    "facts": [
     "h1",
     "f07",
     "h4"
    ],
    "wrong": {
-    "$600": "That's 1.5%, your A+ rate. This one is a B.",
-    "$800": "That's 2%, the ceiling. A B setup doesn't get the max.",
-    "$20": "A decimal slip. 0.5% of $40,000 is $200, not $20."
+    "$600": "That's 1.5%, your A+ rate. This one's a B.",
+    "$800": "That's 2%, the hard ceiling. A B never gets the max.",
+    "$20": "A decimal slip. 0.5% of $40,000 is $200."
    },
-   "simple": "It's $200, because a B setup gets your 0.5% rate, and 0.5% of $40,000 is $200.",
+   "simple": "$200, because a B gets your 0.5% rate, and 0.5% of $40,000 is $200.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -916,7 +934,7 @@
      "computed key (calc)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "Your risk",
@@ -946,8 +964,8 @@
    "rung": 5,
    "format": "scenario",
    "house": true,
-   "story": "Our market reading has turned Yellow. The market is volatile and breakouts keep failing. Your plan scales risk by the setup and the market, from 0.25% to 2%.",
-   "q": "A decent setup shows up. How much do you risk?",
+   "story": "The market filter in our app just flipped from Green to Yellow. Breakouts keep failing and the swings are wild. Your plan scales risk by the setup and the market.",
+   "q": "A decent setup triggers. How much do you put at risk?",
    "choices": [
     "Less than in a Green reading",
     "The full 2%, setups are rare now",
@@ -955,8 +973,8 @@
     "The same as in a Green reading"
    ],
    "answer": "Less than in a Green reading",
-   "why": "Less than in a Green reading. Our market guide gives full risk per grade in Green, and smaller and fewer trades in Yellow. Investopedia agrees that in volatile markets it can make sense to trade smaller. Fidelity's Hirsch says to play more defense when the outlook turns negative. Your plan scales by the market, so Yellow pulls your risk down.",
-   "lesson_line": "A Yellow reading means smaller risk. Save full risk per grade for a Green one.",
+   "why": "Less than you would in Green. Yellow is the app telling you the market's turned shaky. Breakouts fail more often when the market isn't backing them. So the same setup has worse odds than it would in Green. You trade smaller and fewer. Green is when we press with full risk per grade. Orange is only A+ setups, and Red is mostly cash. It's a guide, not a switch, but it's the one I follow.",
+   "lesson_line": "Green, I press. Yellow, I trade smaller. Let the market earn your size.",
    "facts": [
     "h11",
     "f13",
@@ -965,11 +983,11 @@
     "h3"
    ],
    "wrong": {
-    "The full 2%, setups are rare now": "Yellow calls for smaller, not the max. And 1.5% is the most any setup grade uses.",
+    "The full 2%, setups are rare now": "Rare setups don't earn more risk. Yellow means smaller, and even an A+ tops out at 1.5%.",
     "Above 2%, to catch the next move": "Never. 2% is the ceiling in any market.",
-    "The same as in a Green reading": "Our guide gives full risk per grade only in a Green reading. Yellow means smaller and fewer."
+    "The same as in a Green reading": "Full risk per grade is for Green. In Yellow the market isn't helping you, so you size down."
    },
-   "simple": "Less than in Green, because our guide says a Yellow reading means smaller and fewer trades.",
+   "simple": "Less than in Green. A Yellow market fails more breakouts, so you trade smaller and fewer.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -978,36 +996,42 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia says that in uncertain, volatile markets it could make sense to reduce your position sizes. Fidelity's Hirsch says a negative outlook calls for a more defensive posture: fewer new buys, faster exits on losers, tighter stops."
+   }
   },
   {
    "key": "q12",
    "skill": "risk.per_trade",
    "rung": 5,
    "format": "tf",
-   "q": "Risk a flat 1% of the account, and a losing streak shrinks your dollar risk by itself.",
+   "q": "You risk a flat 1% and resize from the account every week. In a losing streak, your dollar risk shrinks on its own.",
    "answer": "True",
-   "why": "True. 1% of a smaller account is fewer dollars, so your dollar risk falls as the account falls, with no decision from you. It rises again as the account grows. Van Tharp says your sizing should cut size while your account is dropping, and a fixed percent does that by itself. The percent stays at 1%.",
-   "lesson_line": "A fixed percent sizes you down in a slump and up in a good run, on its own.",
+   "why": "True. 1% of a smaller account is fewer dollars. As the account drops, every trade risks a little less, and you didn't have to decide a thing. When it grows back, the dollars grow with it. The percent never moves. Only the dollars do. That's what I like about a fixed percent. It sizes you down when you're cold and keeps your feelings out of it.",
+   "lesson_line": "A fixed percent sizes you down in a slump and back up as you recover, on its own.",
    "facts": [
     "f34",
     "f35",
     "f43"
    ],
-   "simple": "True, because 1% of a smaller account is fewer dollars, so your risk shrinks on its own.",
+   "simple": "True. 1% of a smaller account is fewer dollars, so your risk shrinks without you touching it.",
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Van Tharp: make sure your position sizing helps you reduce the position size when your account equity is dropping. A fixed percent does that with no extra rule."
+   }
   },
   {
    "key": "q13",
    "skill": "risk.per_trade",
    "rung": 6,
    "format": "mcq",
-   "q": "You started at $50,000 risking 1%, or $500. Losses took the account to $46,000. At 1%, what's your dollar risk now?",
+   "q": "You started at $50,000, risking 1%, $500 a trade. Losses take the account down to $46,000. What does the next trade risk?",
    "answer": "$460",
    "calc": {
     "fn": "arith",
@@ -1018,15 +1042,15 @@
     }
    },
    "prefix": "$",
-   "why": "$460. With a fixed percent, you size from the account's latest value. 1% of $46,000 is $460. The dollars come down with the account. Our rule: recalculate the account weekly or monthly, and size every trade from that value.",
-   "lesson_line": "With a fixed percent, size from the account's latest value, not the one you started with.",
+   "why": "$460. With a fixed percent you size from what the account is worth now, not what it was. 1% of $46,000 is $460. Keep sizing off $50,000 and $500 is now more than 1%. You'd be risking extra while you're losing, the worst time to do it. Update the account number weekly or monthly and size every trade from it.",
+   "lesson_line": "Size from what the account is worth today, not what it used to be.",
    "facts": [
     "f34",
     "f43",
     "f29",
     "h6"
    ],
-   "simple": "It's $460, because 1% of the $46,000 account is $460.",
+   "simple": "$460, because 1% of the $46,000 you have now is $460.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -1036,7 +1060,7 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$500",
     "$460",
@@ -1044,9 +1068,9 @@
     "$40"
    ],
    "wrong": {
-    "$500": "Sized from the starting account, not the latest value.",
-    "$4,600": "Decimal slip.",
-    "$40": "Took 1% of the dollar loss, not of the account."
+    "$500": "Sized from the old $50,000. On $46,000 that's more than 1%.",
+    "$4,600": "A decimal slip, ten times the real number.",
+    "$40": "Took 1% of the loss, not of the account."
    },
    "visual": {
     "kind": "size",
@@ -1076,7 +1100,7 @@
    "skill": "risk.per_trade",
    "rung": 6,
    "format": "mcq",
-   "q": "Account $50,000. You risk a flat $5,000 a trade, 10% of the account. You lose 8 in a row. What percent of the account is gone?",
+   "q": "A guy you know trades $50,000 and risks $5,000 a trade, 10% each. He hits 8 losers in a row. How much of the account is gone?",
    "answer": "80%",
    "calc": {
     "fn": "arith",
@@ -1088,17 +1112,18 @@
     }
    },
    "suffix": "",
-   "why": "80%. Eight losses at $5,000 each, against a $50,000 account, is 80% gone. At 10% a trade, one losing streak nearly ends the account. Losing streaks happen to good traders too. Blown-up accounts come from sizes that were too big, huge price moves, or both.",
+   "why": "80%. 8 losses at $5,000 each is $40,000. $40,000 over $50,000 is 80% gone. He's left with a fifth of what he started with, and streaks like that hit good traders too. Accounts blow up from size that's too big, a huge move against you, or both. He picked the size. That's why we sit under 1% on most trades and never go past 2%.",
    "lesson_line": "Big risk per trade turns one losing streak into the end of the account.",
    "facts": [
     "f03",
     "f23",
     "f41",
-    "f02"
+    "f02",
+    "h3"
    ],
-   "simple": "It's 80%, because eight losses of $5,000 each eat most of a $50,000 account.",
+   "simple": "80%, because eight losses of $5,000 is most of a $50,000 account.",
    "deeper": {
-    "counter": "Compare Investopedia's 2% rule. A $100,000 account risks $2,000 a trade, and even ten straight losses cost 20%. The streak is longer, yet the damage is far smaller. Small risk per trade is what helps you survive a bad streak."
+    "counter": "Compare the 2% rule Investopedia describes. A $100,000 account risks $2,000 a trade, and even ten straight losses cost 20% of the starting account. A longer streak, far less damage."
    },
    "tier": "extended",
    "risk": {
@@ -1108,7 +1133,7 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "10%",
     "57%",
@@ -1116,8 +1141,8 @@
     "80%"
    ],
    "wrong": {
-    "10%": "Counted only one trade's share.",
-    "57%": "Took 10% of the shrinking balance each time.",
+    "10%": "That's one loss. He took eight.",
+    "57%": "Took 10% of a shrinking balance each time. He risked a flat $5,000, so every loss was the full $5,000.",
     "70%": "Counted seven losses, not eight."
    },
    "visual": {
@@ -1155,8 +1180,8 @@
    "rung": 7,
    "format": "scenario",
    "house": true,
-   "story": "Three A+ trades in a row hit their stops. Your account is now 4.5% below its high. The next setup is another A+.",
-   "q": "Under our rules, how much do you risk on it?",
+   "story": "Three A+ trades in a row hit their stops. The account is now 4.5% below its high. The next setup on your list is another A+.",
+   "q": "What do you risk on this one?",
    "choices": [
     "Your usual A+ rate, as before",
     "Less, until you win again",
@@ -1164,8 +1189,8 @@
     "2%, after three losses I'm due"
    ],
    "answer": "Your usual A+ rate, as before",
-   "why": "Your usual A+ rate, as before. We have no losing-streak rule: only the drawdown ladder, in percent, cuts size. At 4.5% below the high, you are under the ladder's first step at 6%. So nothing changes. Losses in a row don't make the next trade likelier to win, so don't raise the bet either.",
-   "lesson_line": "We have no losing-streak rule. Only the drawdown ladder, in percent, cuts your size.",
+   "why": "Your usual A+ rate. We don't cut size on a streak. Size comes down on the drawdown, how far the account sits under its high, in percent. At 6% down our ladder starts cutting the biggest position you can take. It cuts again at 8% and 10%. At 15% down there are no new trades. You're 4.5% under, short of the first step, so nothing changes. Three losses don't make the fourth any likelier to win. Same grade, same risk.",
+   "lesson_line": "Three losses don't change the next trade. Same grade, same risk.",
    "facts": [
     "h8",
     "h9",
@@ -1178,13 +1203,13 @@
     "f26"
    ],
    "wrong": {
-    "3%, to win the losses back": "Raising the bet to win back losses is the martingale habit, and a few more losses can take everything. 3% also breaks our 2% ceiling.",
-    "2%, after three losses I'm due": "That's the gambler's fallacy. Losses in a row don't make the next trade likelier to win. And 1.5% is the most any grade uses.",
-    "Less, until you win again": "That's a losing-streak rule, and we don't have one. Results cut size only through the drawdown ladder, from 6% down."
+    "3%, to win the losses back": "That's chasing your losses, and 3% breaks the 2% ceiling. Sizing up after losses is how a few more take everything.",
+    "2%, after three losses I'm due": "Nobody's due. Each trade stands on its own, and an A+ tops out at 1.5%.",
+    "Less, until you win again": "That's a streak rule, and we don't have one. Size comes down on the drawdown, starting at 6%."
    },
-   "simple": "Your usual A+ rate, because we have no losing-streak rule and 4.5% down is under the ladder's 6% step.",
+   "simple": "Your usual A+ rate. Only the drawdown cuts size, and 4.5% down is short of the first step at 6%.",
    "deeper": {
-    "trap": "After a few losses, one pull is to win it back fast or to feel due a winner. Another is to cut size because the streak stings. None of them is our rule. The drawdown, read in percent from the account's high, decides when size comes down."
+    "trap": "After a few losses there are two pulls. One says win it back fast, or you're due a winner. The other says cut size because the streak stings. Neither is how we size. The drawdown, read in percent from the account's high, decides when size comes down."
    },
    "tier": "extended",
    "risk": {
@@ -1194,24 +1219,24 @@
      "rewritten in wave9 to the rulebook"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q16",
    "skill": "risk.per_trade",
    "rung": 7,
    "format": "tf",
-   "q": "You risk 1% with a stop in place. The most this trade can cost you is 1% of the account.",
+   "q": "Your stop order is in at the broker and you're risking 1%. That 1% is the most this trade can ever cost you.",
    "answer": "False",
-   "why": "False. 1% is the plan, not a cap on the loss. FINRA says a triggered stop becomes a market order, and the fill can be markedly different from your stop price. A gap or a fast market can fill you well past it, so the loss can be bigger than 1%.",
-   "lesson_line": "Your risk percent is a plan, not a guarantee. A gap can blow right through it.",
+   "why": "False. 1% is the plan, not a promise. A stop order is a trigger. Once price hits it, it turns into a market order and you get the next price, whatever that is. Bad news overnight and the stock can open well under your stop. You're filled down there, and the loss is bigger than 1%. That's why a tight stop never earns you a monster position. The stop can't catch a gap.",
+   "lesson_line": "Your risk is a plan, not a guarantee. A gap goes right through a stop.",
    "facts": [
     "f42",
     "f04"
    ],
-   "simple": "False, because a gap can open past your stop, and then you lose more than you planned.",
+   "simple": "False. A stock can gap past your stop, and then you lose more than the 1% you planned.",
    "deeper": {
-    "trap": "A stop is a trigger, not a price guarantee. Once the stop price is reached, it becomes a market order. FINRA says the fill can be markedly different from your stop price. Investopedia warns that slippage and gaps can make a loss bigger than planned."
+    "trap": "A stop is a trigger, not a price guarantee. FINRA says a stop order becomes a market order once the stop price is reached, and the fill could be markedly different from your stop price. Investopedia warns that slippage and gaps can make a loss much bigger than planned."
    },
    "tier": "extended",
    "risk": {
@@ -1220,22 +1245,22 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
    "skill": "risk.per_trade",
    "rung": 8,
    "format": "scenario",
-   "story": "You set your risk at $400 a trade when the account was $40,000. The account has grown to $100,000. You still risk $400.",
-   "q": "What has happened to your risk as a percent of the account?",
+   "story": "You set your risk at $400 a trade back when the account was $40,000. You've had a great run and it's now $100,000. You never changed the $400.",
+   "q": "What's that $400 now, as a share of the account?",
    "choices": [
-    "It fell to 0.4% of the account",
+    "Down to 0.4% of the account",
     "It's still 1% of the account",
-    "It grew with the account",
-    "It depends on the stop"
+    "It grew right along with the account",
+    "It depends where the stop sits"
    ],
-   "answer": "It fell to 0.4% of the account",
+   "answer": "Down to 0.4% of the account",
    "calc": {
     "fn": "arith",
     "args": {
@@ -1244,21 +1269,21 @@
      "account": 100000
     }
    },
-   "why": "It fell to 0.4%. $400 is 0.4% of $100,000. When you set it, $400 was 1% of $40,000. The dollars stayed the same while the account grew, so the percent shrank. Investopedia warns a fixed dollar amount may become outdated as the portfolio grows. Our rule is to recalculate the account weekly or monthly and size every trade from it.",
-   "lesson_line": "Fixed dollars shrink as a percent as the account grows. Resize from the account weekly or monthly.",
+   "why": "Down to 0.4%. $400 over $100,000 is 0.4%. When you set it, $400 over $40,000 was 1%. The dollars sat still while the account grew, so the percent shrank. Your best run left you sized way under your own plan. Update the account weekly or monthly and size from it. Then the percent you planned is the percent you actually risk.",
+   "lesson_line": "Fixed dollars go stale as you grow. Resize from the account weekly or monthly.",
    "facts": [
     "f09",
     "f34",
     "h6"
    ],
    "wrong": {
-    "It's still 1% of the account": "$400 was 1% of $40,000. Against $100,000, the same $400 is a smaller slice.",
-    "It grew with the account": "The dollars stayed put, so the percent shrank. Only a fixed percent grows with the account.",
-    "It depends on the stop": "The $400 already is your loss at the stop. Its share of the account is $400 over $100,000, wherever the stop sits."
+    "It's still 1% of the account": "$400 was 1% of $40,000. Against $100,000 it's a much smaller slice.",
+    "It grew right along with the account": "The dollars stayed put, so the percent shrank. Only a fixed percent grows with the account.",
+    "It depends where the stop sits": "The $400 already is your loss at the stop. Its share of the account is $400 over $100,000, wherever the stop sits."
    },
-   "simple": "It fell to 0.4%, because the same $400 is a much smaller slice of a $100,000 account.",
+   "simple": "Down to 0.4%, because the same $400 is a much smaller slice of $100,000.",
    "deeper": {
-    "trap": "Fixed dollars feel steady, but the percent drifts. As the account grows, the same dollars become a smaller slice. That is why our rule resizes from the account value every week or month. Then the percent you planned is the percent you risk."
+    "trap": "Fixed dollars feel steady, but the percent drifts. Investopedia warns that a fixed dollar amount may become outdated as the portfolio grows. Resizing from the account value every week or month keeps the percent where you planned it."
    },
    "tier": "expert",
    "risk": {
@@ -1269,7 +1294,7 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
@@ -1277,17 +1302,17 @@
    "rung": 8,
    "format": "scenario",
    "house": true,
-   "story": "You've closed three winners in a row and feel sharp. The next setup is an A+. You want to risk 4% on it.",
-   "q": "What does our rule say?",
+   "story": "Three winners in a row. You're feeling sharp, and the next setup is a clean A+. You want to put 4% of the account at risk on it.",
+   "q": "What's the right size here?",
    "choices": [
-    "Cap it at 1.5%, our grade limit",
-    "Cap it at 3%, our loss limit",
-    "Fine, it's the market's money",
-    "Fine, if the stop is tight"
+    "1.5% at most, same as any A+",
+    "3%, about where my stops sit",
+    "4%, it's the market's money now",
+    "4% is fine with a tight stop"
    ],
-   "answer": "Cap it at 1.5%, our grade limit",
-   "why": "Cap it at 1.5%. Our grade guide puts an A+ at 1% to 1.5%, and 1.5% is the most any grade uses. A run of winners never raises risk past the rules. 4% is far past even our 2% absolute ceiling.",
-   "lesson_line": "Wins don't raise your risk. An A+ gets 1% to 1.5%, and 2% is the absolute ceiling.",
+   "answer": "1.5% at most, same as any A+",
+   "why": "1.5% at most, same as any A+. An A+ gets 1% to 1.5%, and that's as high as any grade goes. A hot streak doesn't change the grade of the next setup. It just makes you feel bulletproof. That's when traders size up into the one trade that gives it all back. And 4% is double our 2% hard ceiling. Bank the streak, keep the size.",
+   "lesson_line": "Wins don't raise your risk. Bank the streak, keep the size.",
    "facts": [
     "h4",
     "h3",
@@ -1299,13 +1324,13 @@
     "f31"
    ],
    "wrong": {
-    "Fine, it's the market's money": "That's the house money effect: taking more risk after wins. Profits in your account are your money.",
-    "Fine, if the stop is tight": "A tight stop changes your share count, not your risk. 4% is 4% wherever the stop sits.",
-    "Cap it at 3%, our loss limit": "Our 3% is where the stop usually sits below the buy, a loss on the position, not the account. An A+ risks at most 1.5% of the account."
+    "3%, about where my stops sit": "That 3% is about where our stop sits under the buy. It's a loss on the position, not the account. On the account, an A+ risks 1.5% at most.",
+    "4%, it's the market's money now": "Profits in your account are your money. Taking more risk after wins is the trap, not the reward.",
+    "4% is fine with a tight stop": "A tight stop changes your share count, not your risk. 4% is 4% wherever the stop sits."
    },
-   "simple": "Cap it at 1.5%, because that's the most an A+ setup gets, and a winning streak never raises it.",
+   "simple": "1.5% at most. That's the most an A+ gets, and a winning streak never raises it.",
    "deeper": {
-    "trap": "After a streak, a bigger bet feels earned. Investopedia calls it the house money effect: people take on more risk after winning trades. Our rule says no: a run of winners never raises risk past the rules."
+    "trap": "After a streak, a bigger bet feels earned. Investopedia describes the pull: after profitable trades, people tend to buy higher-risk assets. Our answer stays the same. A run of winners never raises risk past the rules."
    },
    "tier": "expert",
    "risk": {
@@ -1315,7 +1340,7 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
@@ -1323,8 +1348,8 @@
    "rung": 8,
    "format": "scenario",
    "house": true,
-   "story": "You want to try a setup you've never traded. You've studied it, but you have no live results with it yet.",
-   "q": "Our range is 0.25% to 2%. How much do you risk on your first trades with it?",
+   "story": "You've been studying a new setup for weeks. The charts look great on paper, but you've never traded it with real money.",
+   "q": "Where in our 0.25% to 2% range do your first trades with it go?",
    "choices": [
     "Near the bottom of the range",
     "At the 2% ceiling, to learn fast",
@@ -1332,8 +1357,8 @@
     "Your usual size, you studied it"
    ],
    "answer": "Near the bottom of the range",
-   "why": "Near the bottom. You have no live results with this setup, so keep the cost of learning small. Van Tharp says to start very small, because while you learn a new strategy you are more likely to lose than win. Size up once it proves itself over months, not days. Study alone is not a track record.",
-   "lesson_line": "New setup, no track record: start small and let results earn bigger risk.",
+   "why": "Near the bottom. Studying a setup and trading it are two different things. Your first live trades with it are tuition. You'll likely lose more than you win while you learn how it really trades. So keep the tuition cheap. Size up once it's proven itself with real money, over months, not days. Let the results earn you the bigger number.",
+   "lesson_line": "New setup, no track record. Start small and let the results earn your size.",
    "facts": [
     "f39",
     "f40",
@@ -1343,13 +1368,13 @@
     "h1"
    ],
    "wrong": {
-    "At the 2% ceiling, to learn fast": "Bigger risk doesn't speed up learning. It only makes each lesson cost more. While you learn a new setup, you're more likely to lose than win.",
-    "Above 2%, it looks that good": "Nothing goes above our 2% ceiling, and an untested setup least of all.",
-    "Your usual size, you studied it": "Study isn't a live record. Van Tharp says many traders start a new strategy at full size. He says to start very small and keep the tuition low."
+    "At the 2% ceiling, to learn fast": "Bigger risk doesn't make you learn faster. It just makes every lesson cost more.",
+    "Above 2%, it looks that good": "Nothing goes past 2%, and an untested setup least of all.",
+    "Your usual size, you studied it": "Study isn't a track record. Plenty of traders start a new setup at full size, and that's how the tuition gets expensive."
    },
-   "simple": "Start near the bottom of the range, because a setup with no live results has not proven itself yet.",
+   "simple": "Near the bottom. A setup with no live results hasn't earned bigger risk yet.",
    "deeper": {
-    "trap": "Studying a setup feels like knowing it. Van Tharp notes that many traders start a new strategy at full size. Yet most are likelier to lose than win while they learn it. Keep the tuition small. Size up only after the setup proves itself with real money, over months, not days."
+    "trap": "Studying a setup feels like knowing it. Van Tharp notes that many traders start a new strategy at full size, yet most are likelier to lose than win while they learn it. His advice: start very small to keep the tuition low, and ramp up only after months, not days, of consistent results."
    },
    "tier": "expert",
    "risk": {
@@ -1359,7 +1384,7 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
@@ -1367,7 +1392,7 @@
    "rung": 9,
    "format": "mcq",
    "house": true,
-   "q": "Four traders describe their plans. Which plan breaks our rule?",
+   "q": "Four friends show you how they size their trades. Which plan won't fly with us?",
    "choices": [
     "Risk 3% on each A+ setup",
     "Risk 0.5% on every trade",
@@ -1375,8 +1400,8 @@
     "Risk 0.25% while you're new"
    ],
    "answer": "Risk 3% on each A+ setup",
-   "why": "Risk 3% on each A+ setup. 3% is over our 2% ceiling, and our grade guide puts even an A+ at 1% to 1.5%. The other three are ours: flat risk, risk by grade, and 0.25% for a new trader.",
-   "lesson_line": "Flat risk, risk by grade, or 0.25% while new are all ours. Nothing goes above 2%.",
+   "why": "The 3% on an A+. That's over our 2% hard ceiling, and even an A+ only gets 1% to 1.5% with us. A few A+ setups fail in a row at 3% a pop and the damage piles up fast. The other three are fine. A flat 0.5% on everything is flat risk. 0.25% to 1.5% by grade is how we size by grade. And 0.25% while you're new is exactly where we start new traders.",
+   "lesson_line": "Flat, by grade, or tiny while you're new. All fine. Nothing over 2%.",
    "facts": [
     "h1",
     "h2",
@@ -1385,13 +1410,13 @@
     "h10"
    ],
    "wrong": {
-    "Risk 0.5% on every trade": "That's flat risk inside our range. A valid plan.",
-    "Risk 0.25% to 1.5% by grade": "That's our grade guide: 0.25% to 0.5% for the weakest setups, up to 1.5% for an A+.",
-    "Risk 0.25% while you're new": "That's our rule for new traders: 0.25% until 50 journaled trades followed the rules."
+    "Risk 0.5% on every trade": "Flat risk, inside our range. A valid plan.",
+    "Risk 0.25% to 1.5% by grade": "That's how we size by grade, 0.25% to 0.5% on the weakest setups up to 1.5% on an A+.",
+    "Risk 0.25% while you're new": "That's how we start new traders, 0.25% until 50 journaled trades that followed the rules."
    },
-   "simple": "The 3% plan breaks our rule, because nothing goes over the 2% ceiling, and even an A+ gets at most 1.5%.",
+   "simple": "The 3% plan. Nothing goes over 2%, and even an A+ gets 1.5% at most.",
    "deeper": {
-    "trap": "The trap is to think a flat plan breaks the rule because it ignores the setup. It doesn't. Our rule sets the range and the ceiling. Inside it, a flat plan and a plan scaled by the setup are both valid, as long as you write yours down."
+    "trap": "The trap is thinking a flat plan breaks the rule because it ignores the setup. It doesn't. We set the range and the ceiling. Inside it, flat risk and risk scaled by the setup are both valid, as long as you write yours down."
    },
    "tier": "expert",
    "risk": {
@@ -1401,7 +1426,7 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
@@ -1409,8 +1434,8 @@
    "rung": 9,
    "format": "scenario",
    "house": true,
-   "story": "On a losing streak you cut your risk from 1% to 0.5%. Your last ten trades followed the plan. The account is now 4% below its high.",
-   "q": "Under our rules, what do you risk now?",
+   "story": "During a rough patch you dropped your risk from 1% to 0.5%. Your last ten trades all followed the plan, and the account is back to 4% under its high.",
+   "q": "What do you risk on the next trade?",
    "choices": [
     "Return to your normal 1% risk",
     "Jump to 3% to catch up fast",
@@ -1418,8 +1443,8 @@
     "Go straight to the 2% ceiling"
    ],
    "answer": "Return to your normal 1% risk",
-   "why": "Return to your normal 1%. We have no losing-streak rule: only the drawdown ladder, in percent, cuts size. Our rule gives full size once the account is within 5% of its peak. You're 4% below it. Let the numbers decide, not a feeling or a rush to catch up.",
-   "lesson_line": "A streak never sets your size. The drawdown, in percent, does.",
+   "why": "Back to your normal 1%. Size comes back on the numbers, not on a feeling. Once the account is within 5% of its high, you're at full size again. You're 4% under, so you're there. We don't cut size on a streak in the first place. The drawdown does that. Wait to feel sure and you trade small right when the plan is working. Jump past 1% and a recovery can turn into a new drawdown.",
+   "lesson_line": "Feelings don't set your size. The account's distance from its high does.",
    "facts": [
     "h8",
     "h12",
@@ -1427,13 +1452,13 @@
     "h3"
    ],
    "wrong": {
-    "Jump to 3% to catch up fast": "3% is over our 2% ceiling. There's nothing to catch up on: you size from the account's value, not from past losses.",
-    "Go straight to the 2% ceiling": "Coming back earns your normal size, not more. 2% is only the absolute ceiling, and 1.5% is the most any grade uses.",
-    "Stay at 0.5% till you feel sure": "Your size follows the account's numbers, not a feeling. Within 5% of the high, our rule gives you full size."
+    "Jump to 3% to catch up fast": "3% breaks the 2% ceiling. There's nothing to catch up. You size from the account as it is.",
+    "Go straight to the 2% ceiling": "Coming back earns your normal size, not more. 2% is the ceiling, and 1.5% is the most any grade gets.",
+    "Stay at 0.5% till you feel sure": "Your size follows the account, not your nerves. Within 5% of the high, you're at full size."
    },
-   "simple": "Your normal 1%, because we have no losing-streak rule and you're within 5% of your high.",
+   "simple": "Your normal 1%. You're within 5% of the high, and that's full size again.",
    "deeper": {
-    "trap": "Two pulls work against you. One says jump past your old size to make up lost ground. The other says wait until you feel sure. Both let emotion set the size. Our rule reads the account: the drawdown, in percent."
+    "trap": "Two pulls work against you here. One says jump past your old size to make up lost ground. The other says wait until you feel sure. Both let emotion set the size. We read the account instead: the drawdown, in percent."
    },
    "tier": "expert",
    "risk": {
@@ -1443,7 +1468,7 @@
      "rewritten in wave9 to the rulebook"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q22",
@@ -1451,7 +1476,7 @@
    "rung": 3,
    "format": "mcq",
    "house": true,
-   "q": "Our grade guide sets risk by the setup's grade. How much does an A+ setup risk?",
+   "q": "You grade a setup A+, the cleanest kind we trade. How much of the account do you risk on it?",
    "choices": [
     "1% to 1.5% of the account",
     "0.5% to 1% of the account",
@@ -1459,17 +1484,17 @@
     "1.5% to 2% of the account"
    ],
    "answer": "1% to 1.5% of the account",
-   "simple": "1% to 1.5%, because that is our grade guide's range for an A+, and 1.5% is the most any grade uses.",
-   "why": "1% to 1.5% of the account. Our grade guide puts an A+ at 1% to 1.5%. A and B setups get 0.5% to 1%. B- or lower gets 0.25% to 0.5%. Under 1% is normal, and 1.5% is the most any grade uses. 2% is the absolute ceiling.",
-   "lesson_line": "An A+ risks 1% to 1.5%. 1.5% is the most any grade uses, and 2% is the absolute ceiling.",
+   "simple": "1% to 1.5%. That's the A+ range, the most any grade gets.",
+   "why": "1% to 1.5% of the account. An A+ is our cleanest setup, so it gets our biggest number. A and B setups get 0.5% to 1%. B- or lower gets 0.25% to 0.5%. The grade is a judgment call on how clean the chart is. It's how you put more on your best ideas and less on the rest. Even an A+ stops at 1.5%. 2% is the hard ceiling, and no grade reaches it.",
+   "lesson_line": "Your best setups get the most, but even an A+ stops at 1.5%.",
    "facts": [
     "h4",
     "h3"
    ],
    "wrong": {
-    "0.5% to 1% of the account": "That's our range for A and B setups. An A+ gets 1% to 1.5%.",
-    "0.25% to 0.5% of the account": "That's our range for B- or lower setups, the weakest grades.",
-    "1.5% to 2% of the account": "2% is only the absolute ceiling. 1.5% is the most any grade uses, even an A+."
+    "0.5% to 1% of the account": "That's for A and B setups. An A+ gets more.",
+    "0.25% to 0.5% of the account": "That's for B- or lower, the weakest setups you'd still take.",
+    "1.5% to 2% of the account": "No grade goes past 1.5%. 2% is only the hard ceiling."
    },
    "tier": "core",
    "risk": {
@@ -1479,7 +1504,7 @@
      "new in wave9 to teach the grade guide the lesson leans on"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1517,19 +1542,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from f05/f44/f33 matches. Key not longest (35 vs 37). Why grounded. f21/f29 cited but unused, harmless."
+   "notes": "Pass. Stem gives a buddy's real account; 1% of $100,000 = $1,000 (f33). Risk vs money invested (f44) taught; Van Tharp in deeper. Key not longest."
   },
   "q02": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice: dropped 'The reason is simple.', a stock AI bridge that also matched q03's 'The reason is survival.' opener. Truth fine (f10, f08, h3)."
   },
   "q03": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Pass. Range 0.25-2%, under 1% normal, 1.5% top grade, 2% ceiling all match A1/h1/h3. Wrong notes plain."
   },
   "q04": {
    "status": "cut",
@@ -1539,113 +1564,111 @@
   },
   "q05": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth/wording: 'no grading calls to make mid-trade' was wrong, a grade is set before the buy, not mid-trade. Rest fine (h2)."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Account and risk percent clearly labelled; slot $600 matches key."
+   "notes": "Pass. 60,000 x 1 / 100 = 600. Why gives the how (dollar risk over buy-to-stop distance = shares)."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f06, f23, f02+f03 = exactly 20% on Investopedia's flat case, f30); choices balanced, no tell. One defect: the wrong note for 'So you can hold losers longer' says 'Hold past the stop, and that plan no longer caps the loss', which implies the plan caps the loss when you do keep the stop. q16 in this lesson teaches the opposite ('1% is the plan, not a cap on the loss', FINRA f42). Reworded so the two questions agree.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Grammar only: 'Ten losses in a row costs' to 'cost'. Numbers from f02/f03 (flat $2,000, exactly 20% of the starting account)."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Tell: the answer was the largest choice. Replaced $160 with a larger decimal slip."
+   "fixed": false,
+   "notes": "Pass, strong. 80,000 x 2% = 1,600; $800 = 1%, $1,200 = 1.5% worked out. 'Deciding it mid-trade with your heart rate up' sounds like him."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Tell: 0.05/0.5/5 power-of-ten ladder with the answer in the middle. Replaced 0.05% with a real misread."
+   "notes": "TRUTH: writer's why called 0.5% 'a light trade, under our normal 1%'. Our rule is that UNDER 1% is normal (h3, A1), so 0.5% is a normal trade, not under normal. Fixed. Math 750/150000*100 = 0.5 checked; wrong notes 5% (decimal), 200% (150000/750), 50% (750 vs 1,500) all right."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "B-setup risk 0.5% and account correct; A+ 1.5% rightly left off."
+   "notes": "Pass. 40,000 x 0.5% = 200; $600 = 1.5%, $800 = 2%, $20 = 0.05% slip. Grade then percent then dollars; fits E49 B band."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key direction right under F65 (h11: Green full risk per grade, Yellow smaller and fewer), backed by f13 and f28. Two defects. (1) The key 'Near the low end of the range' overreaches the rule: F65 says only 'smaller' than full risk per grade, and A1/h3 say under 1% is already normal, so a decent setup in Green also sits near the low end of 0.25% to 2%; the key does not separate Yellow from Green, and the simple line ('near the low end, because Yellow calls for smaller') leaps past what the rule says. Key now states exactly what F65 says: less than in a Green reading. (2) The story's colon ('tur"
+   "notes": "Small truth tidy: 'under pressure' is how we describe Orange (one step from Red), so Yellow now reads 'turned shaky'. Market colors taught as a guide (F65, h11), Red mostly cash, no 'no buys in Red' rule. Key = F65's 'smaller'."
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Pass, strong. Fixed percent shrinks dollars in a slump (f43, f35); 'keeps your feelings out of it' is mentor register."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Uses the account now ($46,000) not the old $50,000; good."
+   "notes": "Pass. 46,000 x 1% = 460; $500 on $46,000 is over 1%; D43 weekly or monthly resize. $40 = 1% of the $4,000 loss."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Flat $ risk, losses in a row and account all stated; slot 80% matches key."
+   "fixed": true,
+   "notes": "Truth: 'almost always the same: size that was too big' overstated f41 (size too big, huge price moves, or both). Now says what the source says, plus a blunt line. Math: 8 x 5,000 = 40,000; /50,000 = 80%; 57% wrong note = 1 - 0.9^8 = 56.95%, right."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right under B17 (h8: no losing-streak rule, size cut only by the drawdown ladder) and A8 (h9: first step at 6% down); wrong notes grounded (martingale f15/f16, gambler's fallacy f36, 1.5% top h3). Defect: the previous verify note says 'a calc added (4.5)', but the question has no calc, and the why now reads 'Three 1.5% losses put you three 1.5% losses below the high', a garbled, circular line that never states the drawdown. A calc cannot be added: the validator requires a choice key to show the calc's number, and this key has none. Fixed by giving the drawdown in the story itself (4.5% bel"
+   "notes": "Truth: the ladder (A8) cuts the max POSITION size by drawdown, not the risk percent; 'steps size down' left that vague. Now says what it cuts. Key right under B17 (no streak rule) and A8 (4.5% is short of 6%)."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer False before reading the key. FINRA quote (f42) re-fetched 2026-11-12: both sentences on the page verbatim; Tier 1 alone carries the key, f04 (Investopedia gap/slippage) adds. Rulebook agrees (A7: 'a gap can jump the stop'). No second answer: a stop is a trigger, not a fill guarantee. Simple says no more than the why. Does not answer another question."
+   "notes": "Pass, strong. Stop becomes a market order (f42), gap through it; 'a tight stop never earns you a monster position' is our line."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc 400/100000*100=0.4. Silly '4%' choice replaced; merged wrong map matches choices exactly (final.json's stale 'dropped to 4%' entry did not survive the merge). f09 + h6 ground the why.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Pass. 400/100,000 = 0.4%, 400/40,000 = 1%. Key no longer longest."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right: E49 (h4) A+ 1% to 1.5%, A1 (h3) 1.5% the most any grade uses, D45 (h5) no raise after winners; no second defensible choice. Tell: the key says 'our grade limit' and the question asks 'What does our rule say?', while its parallel distractor says 'your loss limit'. The lone 'our' matching the question marks the key. Distractor now 'our loss limit' (the 3% is A13, our own position-loss line, so the trap is real), and its wrong note starts plainly."
+   "fixed": false,
+   "notes": "Pass. A+ 1-1.5% (E49), 1.5% top (A1), no raise after winners (D45); the 3% note correctly says position loss, not account (A13). 'house money' removed."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Wrong note and deeper now track f37/f38/f39/f40 (verified on the Van Tharp page). The rulebook has no new-setup rule, so nothing in it contradicts the key."
+   "notes": "Pass. No new-setup rule in our rules; key rests on f37-f40 (start small, size up after months). Not stated as our rule."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep is right: 0.25% until 50 journaled trades is the new-trader risk rule (C37), not the shorting bar of D-001."
+   "notes": "Pass. Hard-tell stem replaced with four friends' plans, not leading. 3% breaks the 2% ceiling and the A+ 1.5% top; 0.25% for new traders is C37."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "B17 (h8) + B14 (h12): 4% below the high is within 5%, so full size. Merged wrong map matches choices (stale 'till it feels right' did not survive). 'Last ten trades followed the plan' is a harmless distractor. Lesson-level: w2's 'recent results' line still needs the integrator's B17 note (owner_flags)."
+   "fixed": true,
+   "notes": "Softened one overclaim ('turns into' to 'can turn into'). Key right under B14/h12 (within 5% of the high = full size) and B17."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "E49 (h4) A+ 1-1.5%; distractors are the other grade bands plus the 2% ceiling, each with a grounded note. Key not longest. Comes at rung 3, before q18/q20 rely on it."
+   "notes": "Pass. E49 bands right; 1.5-2% wrong note right (no grade past 1.5%)."
   }
  }
 }

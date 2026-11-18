@@ -38,6 +38,7 @@ import copy
 import datetime as _dt
 import json
 import pathlib
+import threading
 
 import pytest
 import requests
@@ -155,6 +156,13 @@ class _FakeFMP:
     def __init__(self, mode: str):
         self.mode = mode
         self.calls: list[dict] = []
+        # ⛔ THE RECORDING IS THIS TEST'S OWN REQUESTS. `requests.get` and `fc._session.get` are
+        # PROCESS-wide, so a background thread an earlier test left running (a logo or profile
+        # warm) is answered through this fake too. ⚰️ In the first full backend run (PR #1855)
+        # `edgar.resolve_cik` under 'nonjson' "sent" `/image-stock/AMLX.png` and a profile for AMLX:
+        # another thread's calls, recorded as this function's. Foreign threads are still answered
+        # (exactly as before), never recorded.
+        self._owner = threading.get_ident()
 
     def __call__(self, transport: str):
         def _get(url, params=None, timeout=None, **_kw):
@@ -162,8 +170,9 @@ class _FakeFMP:
                 return _Resp(404)                      # any non-FMP tier fails closed
             path = str(url)[len(_FMP_HOST):]
             clean = {k: v for k, v in (params or {}).items() if k != "apikey"}
-            self.calls.append({"transport": transport, "path": path,
-                               "params": clean, "timeout": timeout})
+            if threading.get_ident() == self._owner:
+                self.calls.append({"transport": transport, "path": path,
+                                   "params": clean, "timeout": timeout})
             if self.mode == "timeout":
                 raise requests.exceptions.Timeout("read timed out")
             if self.mode == "http500":
@@ -353,6 +362,21 @@ def test_parity_with_the_legacy_recording(case_id, mode, monkeypatch):
     assert _jsonable(got) == golden["requests"], (
         f"{case_id} under {mode!r} sends a different request than the legacy path "
         f"did.\n  legacy: {golden['requests']!r}\n  now:    {got!r}")
+
+
+def test_CONTROL_a_request_from_another_thread_is_not_this_tests_recording():
+    """Both halves: another thread's request is answered and NOT recorded; the same request
+    from the test's own thread IS. Without the second half a fake that recorded nothing would pass."""
+    fake = _FakeFMP("ok")
+    get = fake("adapter")
+    answered = []
+    t = threading.Thread(target=lambda: answered.append(
+        get(_FMP_HOST + "/stable/profile", params={"symbol": "AMLX"}, timeout=8)))   # the leak #1855 saw
+    t.start()
+    t.join()
+    assert answered and fake.calls == []
+    get(_FMP_HOST + "/stable/profile", params={"symbol": "MMC"}, timeout=8)
+    assert [c["path"] for c in fake.calls] == ["/stable/profile"]
 
 
 def test_the_goldens_cover_every_case_and_mode_and_are_not_vacuous():

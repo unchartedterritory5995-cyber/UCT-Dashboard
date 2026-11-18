@@ -44,8 +44,10 @@ import { stampSemantics } from '../engine/definitionSemantics'
 import { memberError, memberSaveError, conversationEditability, memberRefusal, chartRefusalWords } from './authoring/memberWords'
 import { logStudioAction, definitionKinds, clientFailureOf } from './authoring/studioTelemetry'
 import { outputNamer } from './authoring/readback'
-import { nameFromAssistant } from './authoring/authoringSession'
-import { keepAssistantName } from './authoring/readableName'
+import { nameFromAssistant, settingTurn } from './authoring/authoringSession'
+import { settingsOf } from './authoring/derivedSettings'
+import SettingsFields from './studio/SettingsFields'
+import { keepAssistantName, keepAssistantLabel } from './authoring/readableName'
 import { renamePatch } from './authoring/memberNamePatch'
 import { ackCheckboxText } from './authoring/repaintWarning'
 
@@ -134,6 +136,25 @@ export default function ConverseBox({
   /** ⭐ DIRECTION A — 'start' is the start view's "Describe it" well (nothing to undo,
    *  no identity line until there is an indicator); 'ask' is the editor's Ask tab. */
   const startWell = variant === 'start'
+  // ⭐ 2026-11-17 — THE START VIEW OPENS WITH THE CURSOR IN "DESCRIBE IT". Measured on production: the
+  // window opened with focus on the dialog itself, so after "Create indicator" (or the palette's
+  // "Describe an indicator") a member still had to click the box before typing. After the sheet's own
+  // focus handling has run (a tick later), and never over something the member is already typing in.
+  // ⛔ NOT ON A TOUCH SCREEN: a keyboard that opens by itself covers the four doors under the box.
+  const inputRef = useRef(null)
+  useEffect(() => {
+    if (!startWell) return undefined
+    const coarse = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      && window.matchMedia('(pointer: coarse)').matches
+    if (coarse) return undefined
+    const t = setTimeout(() => {
+      const el = inputRef.current
+      const at = typeof document !== 'undefined' ? document.activeElement : null
+      const typing = at && at !== el && (at.tagName === 'INPUT' || at.tagName === 'TEXTAREA' || at.isContentEditable)
+      if (el && !el.disabled && !typing) el.focus()
+    }, 0)
+    return () => clearTimeout(t)
+  }, [startWell])
   const [initial] = useState(() => readSession(sessionKey))
   /** The key this conversation is kept under. A NEW definition's conversation
    *  moves to its `edit:<id>` key once saved, so "New formula" later starts clean
@@ -222,6 +243,14 @@ export default function ConverseBox({
     say({ role: 'uct', kind: extra.kind || 'readback', updated: true, lines: ['Updated preview.', ...disclosed, ...out.readback.lines] })
   }, [gateCtx, commit, say])
 
+  /** The envelope as this sheet applies it: the turn that CREATES the indicator keeps the
+   *  assistant's name when the derived one is unreadable. */
+  const offeredEnvelope = useCallback((turn, words) => (
+    turn.outcome === OUTCOMES.CHANGE && !stateRef.current.working
+      ? nameFromAssistant(stateRef.current, turn.envelope, words, gateCtx, keepAssistantName, keepAssistantLabel)
+      : turn.envelope
+  ), [gateCtx])
+
   const send = useCallback(async (text) => {
     const words = String(text || '').trim()
     if (!words || busy) return
@@ -239,12 +268,31 @@ export default function ConverseBox({
     }
     setBusy(true)
     try {
-      const res = await converse({ message: words, state: before, gateCtx, snippets })
+      let res = await converse({ message: words, state: before, gateCtx, snippets })
+      let turn = classifyTurn(res)
+      // ⭐ 2026-11-18 — ONE REPAIR, WITH THIS ENGINE'S OWN WORDS, HERE TOO. The dock has sent its
+      // engine's refusal back to the door for one repair since 2026-11-17 (`authoringSession.
+      // modelTurn`). This sheet did not: it applied the door's patch itself, so a change the door
+      // accepted and this engine refused went straight to "Nothing was changed". Measured live
+      // (the overnight re-checks): a squeeze with dots on zero was built by the assistant and
+      // refused here ("dots is a yes/no ..."), with no second try. Same rule as the dock: once per
+      // request; the patch is tried against the state WITHOUT writing it (`applyTurn` is pure);
+      // whatever the repair turn says is what the member reads, except the door's own refusal of
+      // it (an allowance, the network), which says nothing about the request.
+      if (turn.outcome === OUTCOMES.CHANGE && turn.envelope) {
+        const dry = applyTurn(stateRef.current, offeredEnvelope(turn, words), { gateCtx })
+        const errors = dry.result && dry.result.status === 'refused' ? (dry.result.errors || []) : []
+        if (errors.length) {
+          const again = await converse({ message: words, state: before, gateCtx, snippets,
+            browserRefusal: { envelope: turn.envelope, errors: errors.map((e) => memberError(e).detail) } })
+          const second = classifyTurn(again)
+          if (second.outcome !== OUTCOMES.REFUSED) { res = again; turn = second }
+        }
+      }
       const gaps = [
         ...distinctNotUnderstood(res).map((n) => `Not understood: "${n.clause || n.text || ''}" — ${n.reason || ''}`),
         ...((res && res.unavailable) || []).map((n) => `Not available: ${n.column || n.name || ''} — ${n.reason || ''}`),
       ]
-      const turn = classifyTurn(res)
       if (turn.outcome === OUTCOMES.ANSWER) {
         say({ role: 'uct', kind: 'answer', reply: turn.reply, lines: [turn.reply, ...gaps] })
         return
@@ -262,15 +310,11 @@ export default function ConverseBox({
       // assistant's name when the derived one is unreadable (`readableName.js`, the dock's rule): a
       // member read "EMA 10 · EMA 21 +2" on the chart for "EMA 10/21 Trend". The host shows it in its
       // name field, where the member can change it before saving.
-      const creating = turn.outcome === OUTCOMES.CHANGE && !stateRef.current.working
-      const envelope = creating
-        ? nameFromAssistant(stateRef.current, turn.envelope, words, gateCtx, keepAssistantName)
-        : turn.envelope
-      applyEnvelope(envelope, turn.outcome === OUTCOMES.CHANGE ? { updated: true } : { reply: turn.reply })
+      applyEnvelope(offeredEnvelope(turn, words), turn.outcome === OUTCOMES.CHANGE ? { updated: true } : { reply: turn.reply })
     } finally {
       setBusy(false)
     }
-  }, [busy, transcript, converse, gateCtx, sym, tf, say, applyEnvelope])
+  }, [busy, transcript, converse, gateCtx, sym, tf, say, applyEnvelope, offeredEnvelope])
 
   const applyValidPart = useCallback(() => {
     if (!partial) return
@@ -293,6 +337,22 @@ export default function ConverseBox({
     setPartial(null)
     say({ role: 'uct', kind: 'undo', lines: ['Undid the last change.', ...readback(next.working, next, gateCtx).lines] })
   }, [commit, say, gateCtx])
+
+  // ⭐ SETTINGS (2026-11-17) — the tunable numbers of the indicator this conversation built, derived
+  // from its own formula and stored nowhere (`authoring/derivedSettings.js`). One number set from
+  // its field is the ordinary slot edit: no request to the assistant, one Undo step.
+  const numberSettings = useMemo(() => settingsOf(state.working), [state.working])
+  const setNumber = useCallback((setting, value) => {
+    const cur = stateRef.current
+    if (busy || saving || !cur.working) return { ok: false }
+    const out = settingTurn(cur, setting, value, { gateCtx })
+    if (!out.ok) return out
+    commit(out.state)
+    setPartial(null)
+    setAcked(false)
+    for (const e of out.entries) say(e)
+    return out
+  }, [busy, saving, commit, say, gateCtx])
 
   const openEditing = useCallback(() => {
     if (!editing || !editing.prior) return
@@ -380,10 +440,11 @@ export default function ConverseBox({
   // ⭐ SLICE 2 — HOSTED: the sheet footer is the ONE primary save. It shows this
   // conversation's commit while the conversation has unsaved changes.
   const hosted = typeof onCommitState === 'function'
-  useLayoutEffect(() => { if (commitRef) commitRef.current = { save } })
+  useLayoutEffect(() => { if (commitRef) commitRef.current = { save, setNumber } })
   useEffect(() => {
-    if (hosted) onCommitState({ dirty: unsaved, canSave, saving, label: saveLabel, name: workingName })
-  }, [hosted, onCommitState, unsaved, canSave, saving, saveLabel, workingName])
+    // `numbers`: the indicator's own settings, so the host's Inputs tab counts and shows them
+    if (hosted) onCommitState({ dirty: unsaved, canSave, saving, label: saveLabel, name: workingName, numbers: numberSettings })
+  }, [hosted, onCommitState, unsaved, canSave, saving, saveLabel, workingName, numberSettings])
   useEffect(() => () => { if (hosted) onCommitState(null) }, [hosted, onCommitState])
 
   return (
@@ -452,7 +513,7 @@ export default function ConverseBox({
           to whatever is underneath (measured: the drill board's list moved).
           `send` already refuses a second turn while one is in flight. */}
       <div style={S.well}>
-        <textarea id="converse-input" style={S.input} value={message} disabled={disabled} rows={2}
+        <textarea id="converse-input" ref={inputRef} style={S.input} value={message} disabled={disabled} rows={2}
           placeholder={state.working ? 'e.g. make it 80 · paint the candles gold · alert me when it becomes true' : 'e.g. RSI under 30 while price is above its 200-day average'}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(message) } }} />
@@ -475,6 +536,22 @@ export default function ConverseBox({
           <div style={S.head}>What will run (from the definition itself)</div>
           <ul style={S.list}>{rb.lines.map((l, i) => <li key={i}>{l}</li>)}</ul>
         </div>
+      )}
+
+      {/* ⭐ 2026-11-18: a checked library indicator says what it is in one phrase (`readback.js`).
+          Its formula in words is one tap away, here; the formula itself is in the Formula tab. */}
+      {state.working && rb.outputs.some((o) => o.formulaWords) && (
+        <details data-testid="converse-formula-words" style={{ fontSize: 12, color: '#a9a59b' }}>
+          <summary style={{ cursor: 'pointer' }}>The full formula, in words</summary>
+          <ul style={S.list}>
+            {rb.outputs.filter((o) => o.formulaWords).map((o) => <li key={o.key}>{o.name}: {o.formulaWords}</li>)}
+          </ul>
+        </details>
+      )}
+
+      {/* ⭐ every length, level and multiple of what was built, as a field (the preview below follows) */}
+      {state.working && (
+        <SettingsFields settings={numberSettings} onSet={setNumber} disabled={busy || saving} label="Numbers in this indicator" />
       )}
 
       {state.working && (

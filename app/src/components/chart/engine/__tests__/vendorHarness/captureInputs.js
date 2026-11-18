@@ -73,10 +73,26 @@ export function opaqueHex(v) {
   return null
 }
 
+/** A TradingView colour as ours: `#RRGGBB` when opaque, `#RRGGBBAA` with the alpha byte (`round(a * 255)`)
+ *  when see-through, or null when it is not a colour. The settings form sets a colour AND its opacity, as
+ *  TradingView's does (see-through colours, 2026-11-17). */
+export function colourHex(v) {
+  const s = String(v || '').trim()
+  let m = s.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/i)
+  if (m) {
+    const a = m[4] === undefined ? 1 : Number(m[4])
+    const rgb = `#${hex2(+m[1])}${hex2(+m[2])}${hex2(+m[3])}`
+    return a >= 1 ? rgb : `${rgb}${hex2(a * 255)}`
+  }
+  m = s.match(/^#([0-9a-f]{6})([0-9a-f]{2})?$/i)
+  if (m) return m[2] && m[2].toUpperCase() !== 'FF' ? `#${m[1].toUpperCase()}${m[2].toUpperCase()}` : `#${m[1].toUpperCase()}`
+  return null
+}
+
 const same = (a, b) => {
   if (typeof a === 'string' && typeof b === 'string' && /^(#|rgb)/i.test(a) && /^(#|rgb)/i.test(b)) {
-    const x = opaqueHex(a)
-    const y = opaqueHex(b)
+    const x = colourHex(a)
+    const y = colourHex(b)
     return x !== null && y !== null ? x === y : a.replace(/\s+/g, '') === b.replace(/\s+/g, '')
   }
   return Object.is(a, b)
@@ -120,8 +136,8 @@ export function captureInstanceInputs(capture, def) {
     if (!spec) return { ok: false, why: `"${i.name}" (${name}) was moved and is not a setting of our document` }
     let v = i.value
     if (spec.type === 'color') {
-      v = opaqueHex(v)
-      if (v === null) return { ok: false, why: `"${i.name}" (${name}) was moved to a colour with a transparency` }
+      v = colourHex(v)
+      if (v === null) return { ok: false, why: `"${i.name}" (${name}) was moved to a value that is not a colour` }
     } else if (spec.type === 'int' && typeof v === 'boolean') {
       v = v ? 1 : 0
     } else if (spec.type === 'int' || spec.type === 'float') {

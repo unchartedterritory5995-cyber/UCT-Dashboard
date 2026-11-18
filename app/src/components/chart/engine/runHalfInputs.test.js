@@ -20,7 +20,7 @@ const RS = fs.readFileSync(path.join(REPO, 'docs/pine/rs-rating/rs-rating-fred67
 // the rating label and the new-high / new-low dots read the rest.
 const PLOT_READS = ['lineTicker', 'SpxValue', 'offset', 'colorRS', 'boolMa', 'lenMa', 'colMa', 'typMa', 'lenMaWe',
   'typMaWe', 'fillMa', 'posCol', 'negCol', 'boolMa2', 'lenMa2', 'colMa2', 'typMa2', 'lenMa2We', 'typMa2We']
-const DRAWING_ONLY = ['hideRSRat', 'ratingOnly', 'plotNewHigh', 'rsNewHigh', 'lookback', 'sizeLabHigh', 'plotNewLow',
+const DRAWING_ONLY = ['hideRSRat', 'ratingOnly', 'plotNewHigh', 'rsNewHigh', 'blueDotCol', 'lookback', 'sizeLabHigh', 'plotNewLow', 'redDotCol',
   'rsNewLow', 'lookback2', 'sizeLabLow', 'allowReplay', 'first2', 'scnd2', 'thrd2', 'frth2', 'ffth2', 'sxth2', 'svth2']
 
 beforeEach(() => {

@@ -303,7 +303,12 @@ def capture(dist, tag: str, out_dir: pathlib.Path, email, password, live: bool =
             r = None
             for attempt in range(3):
                 fcr._pace_login()
-                r = rq.post("/api/auth/login", data={"email": email, "password": password})
+                # tools/synthetic_session.py signs this session OUT when the run ends, however it ends.
+                try:
+                    from tools import synthetic_session as S  # noqa: PLC0415 -- package import
+                except ImportError:
+                    import synthetic_session as S  # noqa: PLC0415 -- script import (tools/ on sys.path)
+                r = S.sign_in_playwright(rq, BASE, credentials=(email, password)).response
                 rec["login_attempts"] = attempt + 1
                 if r.status < 500:
                     break
