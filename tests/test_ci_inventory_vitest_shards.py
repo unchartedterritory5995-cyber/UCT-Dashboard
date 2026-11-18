@@ -274,7 +274,14 @@ def test_one_nightly_queue_not_cancel_and_no_retry_automation():
     doc = _wf()
     on = doc.get("on", doc.get(True))
     assert sorted(on) == ["schedule", "workflow_dispatch"]
-    assert len(on["schedule"]) == 1
+    # ⚰️ 2026-11-18 (R4): ONE cron was not daily. GitHub created it 6.9-9.7 h late on 11-12..11-17 and not at all
+    # by 12:46 UTC on 11-18. More than one is allowed ONLY behind the latch job, which skips every run after the
+    # day's first one that ran its shards: a second cron is never a retry of a suite that ran
+    # (tests/test_full_suite_latch.py holds the latch's own rules).
+    assert len(on["schedule"]) >= 1
+    if len(on["schedule"]) > 1:
+        assert doc["jobs"]["plan"]["needs"] == "today", doc["jobs"]["plan"].get("needs")
+        assert "tools/full_suite_latch.py" in json.dumps(doc["jobs"]["today"])
     assert doc["concurrency"]["cancel-in-progress"] is False
     for name, job in doc["jobs"].items():
         for step in job.get("steps") or []:
