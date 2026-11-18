@@ -25,6 +25,7 @@
       "api/services/bars_hot_tier.py",
       "api/services/bars_liveness.py",
       "api/services/bars_sqlite.py",
+      "api/services/bg_lane.py",
       "api/services/cache.py",
       "api/services/cache_policy.py",
       "api/services/feed_client.py",
