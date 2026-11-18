@@ -177,6 +177,10 @@ export function deepNeighborsEnabled() {
   } catch { return true }
 }
 const LOCAL_PAINTS = Symbol('local copy paints')
+const LAKE_PAINTS = Symbol('lake copy painted')
+/** How long a typed text the daily pack does not know may wait for the lake's answer to "is it a
+ *  ticker?" (its index: one edge round trip) before the warm gives up on it. */
+export const INTENT_LAKE_INDEX_WAIT_MS = 400
 const SHORT_FULL_MAX = 4000
 
 export function createPrefetch(o = {}) {
@@ -444,8 +448,9 @@ export function createPrefetch(o = {}) {
       if (s0 === undefined) {
         const req = ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: S().peek(key) || {}, session: session(showExtended) })
         const localFirst = hyd.then((h) => (_localPaints(h, fetchTf(String(tf)), showExtended) ? LOCAL_PAINTS : new Promise(() => {})))
-        const won = await Promise.race([req, localFirst])
+        const won = await Promise.race([req, localFirst, _lakeFirst(key, hyd)])
         if (won === LOCAL_PAINTS) return 'current'
+        if (won === LAKE_PAINTS) return 'lake'
         return _outcome(won, { aborted: !!signal?.aborted, date })
       }
       // A SERVER answer is already held and the chart paints it (see HANDOFF_PAINTS): commit,
@@ -460,13 +465,33 @@ export function createPrefetch(o = {}) {
       // warmers' two lane slots and their backoff (first candles 353 ms median against the
       // legacy path's 30 ms). At `visible` rank it leaves at once, and the chart's own request
       // for the same URL joins it.
-      const s = await ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: s0, session: session(showExtended) })
+      const req = ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: s0, session: session(showExtended) })
+      // (a D/W/M key never paints from the lake: network.lakeSeed carries intraday keys only)
+      const s = await Promise.race([req, _lakeFirst(key)])
+      if (s === LAKE_PAINTS) return 'lake'
       return _outcome(s, { aborted: !!signal?.aborted, date })
     } catch {
       return 'error'
     } finally {
       _release(key)
     }
+  }
+
+  /**
+   * ⭐ THE LAKE IS A CONTESTANT IN THE HANDOFF RACE (2026-11-17). The /charts handoff keeps the old
+   * chart until this prepare reports, and the lake paint (store.lakeSeed) used to start only when the
+   * NEW chart subscribed: after the commit, so a slow first answer (a cold bar-server read: FROG
+   * 1,523 ms) was waited out with the lake's copy of the same history already in the browser. Now
+   * the lake's newest bars land in the store while the server request is in flight, and the handoff
+   * commits on them ('lake'): the chart paints that history at once (provisional: live paused, the
+   * forming candle held back) and the answer completes it. Never resolves when the lake has nothing
+   * to paint, so the server request decides as before. `after` (the cache read) goes first: a saved
+   * copy is never overtaken by the lake.
+   */
+  function _lakeFirst(key, after = null) {
+    return Promise.resolve(after).catch(() => {})
+      .then(() => S().lakeSeed?.(key))
+      .then((painted) => (painted ? LAKE_PAINTS : new Promise(() => {})), () => new Promise(() => {}))
   }
 
   async function prepareDailyForDisplay(sym, tf, { signal = null, showExtended } = {}) {
@@ -705,16 +730,24 @@ export function createPrefetch(o = {}) {
       // left before Enter, and NAGE / RIOT painted 229-237 ms after it. Each read gets
       // INTENT_HYDRATE_RACE_MS; one that has not answered by then does not hold the request up.
       // While the pack ingests it cannot vouch either way, so its read is skipped.
+      // The lake's index and newest pieces are fetched NOW, before anything is decided (a prefix's
+      // index is a cheap 404): by Enter the pieces are in the browser for the lake paint.
+      try { S().primeLake?.(key) } catch { /* a warm only */ }
       if (!packIngesting()) {
         const d = await _raced(_hydrate(keyFor(T, 'D')), INTENT_HYDRATE_RACE_MS)
         if (typed !== mine) return 'superseded'
-        if (d !== undefined && !d?.depth) return 'unknown'   // read in time, and the pack has no such symbol
+        if (d !== undefined && !d?.depth) {
+          // The daily pack does not know it. A partial word, or a real ticker the pack lacks
+          // (2026-11-17: 4 of 10 never-opened tickers sent nothing before Enter): the lake's index
+          // is the second authority.
+          const inLake = await _raced(S().lakeHas?.(T) ?? Promise.resolve(false), INTENT_LAKE_INDEX_WAIT_MS)
+          if (typed !== mine) return 'superseded'
+          if (inLake !== true) return 'unknown'
+        }
       }
       const s0 = (await _raced(_hydrate(key), INTENT_HYDRATE_RACE_MS)) ?? S().peek(key)
       if (typed !== mine) return 'superseded'
       tellSymbolWarmers([T], tf, { priority: true })
-      // the deep history too, from now (historyFeed prime): by Enter its pieces are on their way
-      try { S().primeLake?.(key) } catch { /* a warm only */ }
       if (_localPaints(s0, fetchTf(String(tf)))) return 'cache'
       const s = await ensure(key, { until: DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false, _s0: s0 || {} })
       if (ctl.signal.aborted && !mine.kept) return false

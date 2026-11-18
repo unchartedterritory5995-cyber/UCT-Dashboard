@@ -553,6 +553,11 @@ export function createNetwork({
      * otherwise, so a lake that ends early can never be joined across a hole. A lake hit that arrives
      * after the answer only adds deeper rows on a proven overlap (applyLocal). Resolves true when painted.
      */
+    /** Is `sym` in the lake (its index exists)? False without a lake; never rejects. */
+    lakeHas(sym) {
+      if (!history?.hasSymbol) return Promise.resolve(false)
+      return history.hasSymbol(sym)
+    },
     lakeSeed(key) {
       if (!history?.olderBars || !lakeCarriesKey(key)) return Promise.resolve(false)
       const held = registry.peek(key)
