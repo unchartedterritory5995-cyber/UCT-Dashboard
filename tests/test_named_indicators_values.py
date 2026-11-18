@@ -524,7 +524,7 @@ def force_index(bars, length=13):
     return ema([NAN] + [(c[i] - c[i - 1]) * v[i] for i in range(1, len(bars))], length)
 
 
-def ease_of_movement(bars, length=14):
+def ease_of_movement(bars, length=14, divisor=10000):
     one = [NAN]
     for i in range(1, len(bars)):
         b, a = bars[i], bars[i - 1]
@@ -532,14 +532,28 @@ def ease_of_movement(bars, length=14):
             one.append(0.0)
             continue
         distance = (b["h"] + b["l"]) / 2 - (a["h"] + a["l"]) / 2
-        one.append(distance / ((b["v"] / 100000000.0) / (b["h"] - b["l"])))
+        one.append(distance / ((b["v"] / float(divisor)) / (b["h"] - b["l"])))
     return sma(one, length)
 
 
 def negative_volume_index(bars, signal=255):
+    """Fosback's, as published: from 1000; on a lower-volume bar, prior NVI + prior NVI x the price
+    change; otherwise unchanged. Written as that step, bar by bar (the entry writes the same
+    product as an exponential of a running total of logs)."""
     c, v = col(bars, "c"), col(bars, "v")
-    return [1000.0 + t for t in _running_total(
-        [(c[i] - c[i - 1]) / c[i - 1] * 100.0 if i > 0 and v[i] < v[i - 1] else 0.0 for i in range(len(bars))])]
+    out, nvi = [], 1000.0
+    for i in range(len(bars)):
+        if i > 0 and v[i] < v[i - 1]:
+            nvi = nvi + nvi * (c[i] - c[i - 1]) / c[i - 1]
+        out.append(nvi)
+    return out
+
+
+def trix_line(bars, length=18):
+    """TradingView's own: 10,000 x the one-bar change of a triple EMA of the log of the close."""
+    logs = [math.log(x) for x in col(bars, "c")]
+    e3 = ema(ema(ema(logs, length), length), length)
+    return [NAN] + [10000.0 * (e3[i] - e3[i - 1]) if ok(e3[i]) and ok(e3[i - 1]) else NAN for i in range(1, len(bars))]
 
 
 def nvi_signal(bars, signal=255):
@@ -584,6 +598,7 @@ REFERENCES = {
     "ease_of_movement": {"emv": ease_of_movement},
     "negative_volume_index": {"nvi": negative_volume_index, "signal": nvi_signal},
     "ulcer_index": {"ulcer": ulcer_index},
+    "trix": {"trix": trix_line},
 }
 
 #: Other numbers for the second pass: each inside the parameter's own range, none a default.
@@ -614,9 +629,10 @@ OTHER = {
     "know_sure_thing": {"roc1": 9, "roc2": 12, "roc3": 18, "roc4": 24, "sma1": 6, "sma2": 7, "sma3": 8, "sma4": 9, "signal": 7},
     "mass_index": {"length": 20},
     "force_index": {"length": 2},
-    "ease_of_movement": {"length": 9},
+    "ease_of_movement": {"length": 9, "divisor": 100000000},
     "negative_volume_index": {"signal": 100},
     "ulcer_index": {"length": 20},
+    "trix": {"length": 15},
 }
 
 ENTRIES = {e["id"]: e for e in ni.entries()}

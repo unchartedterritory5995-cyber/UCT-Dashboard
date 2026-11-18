@@ -146,20 +146,32 @@ def test_the_evidence_says_what_was_read_and_where():
 
 
 def test_what_the_library_claims_about_tradingview_is_what_was_graded():
-    """Fifteen entries are TradingView built-ins and were graded against them (2026-11-18; the method
-    and grades are in docs/indicators/evidence/2026-11-18-named-library/). Twelve are equal on every
-    bar; two are equal after their first bars; the McGinley Dynamic's formula is TradingView's and
-    UCT's 300-bar restart of it is not bar-equal, so it claims nothing. Two are not TradingView
-    built-ins and have no capture."""
+    """Twenty-eight entries are TradingView built-ins and were graded against them in three batches
+    (2026-11-18; the method and grades are in docs/indicators/evidence/2026-11-18-named-library/).
+    Twenty-four are equal on every bar; two are equal after their first bars. Two claim NOTHING
+    about TradingView, each for a stated reason: the McGinley Dynamic (UCT's 300-bar restart of the
+    same formula is not bar-equal) and the Directional Movement Index (one floating-point tie on
+    one bar of 8,509). Two are not TradingView built-ins and have no capture."""
     grade = {e["id"]: (e["evidence"]["capture"] or {}).get("grade") for e in ni.entries()}
     assert sorted(i for i, g in grade.items() if g == "EQUAL") == sorted([
         "awesome_oscillator", "chaikin_money_flow", "choppiness_index", "coppock_curve", "elder_ray",
         "true_strength_index", "ultimate_oscillator", "vortex_indicator",
         # the second batch, slice 2's four entries: equal on every bar of both charts
         "double_exponential_moving_average", "triple_exponential_moving_average", "chande_momentum_oscillator",
-        "stochastic_rsi"])
+        "stochastic_rsi",
+        # the third batch, library slice 3: ten of its twelve entries
+        "aroon", "on_balance_volume", "accumulation_distribution_line", "price_volume_trend",
+        "percentage_price_oscillator", "know_sure_thing", "mass_index", "force_index", "ease_of_movement", "ulcer_index",
+        # after the rulings of 2026-11-18: the Negative Volume Index in its compounding form (version 2), and TRIX
+        "negative_volume_index", "trix"])
     assert sorted(i for i, g in grade.items() if g == "EQUAL AFTER WARM-UP") == ["chandelier_exit", "connors_rsi"]
     assert grade["mcginley_dynamic"] == "FORMULA EQUAL, RESTART DIFFERS"
+    assert grade["directional_movement_index"] == "FORMULA EQUAL, ONE ROUNDING TIE DIFFERS"
+    for silent in ("mcginley_dynamic", "directional_movement_index"):
+        assert not ni.tiers(ENTRIES[silent])[2], silent
+        assert "TradingView" not in ni.member_sentence(ENTRIES[silent], ni.defaults(ENTRIES[silent])), silent
+    assert set(grade.values()) <= {None, "EQUAL", "EQUAL AFTER WARM-UP", "FORMULA EQUAL, RESTART DIFFERS",
+                                   "FORMULA EQUAL, ONE ROUNDING TIE DIFFERS"}
     assert grade["kaufman_adaptive_moving_average"] is None and grade["squeeze_momentum"] is None
     assert not ni.tiers(ENTRIES["mcginley_dynamic"])[2] and "TradingView" not in ni.member_sentence(ENTRIES["mcginley_dynamic"], {})
     assert ni.tiers(ENTRIES["connors_rsi"])[2] and ni.tiers(ENTRIES["vortex_indicator"])[2]
