@@ -136,7 +136,14 @@ env:
   AGENT_VITEST_PATHS: src/agent src/components/chart/builder/agentMutations src/components/chart/builder/studio/agentRoute.test.jsx src/components/StockChart.timeRangeSync.test.jsx src/pages/breadth/breadthTabHookOrder.test.jsx src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx src/pages/charts/ChartsWorkspace.previousLayout.test.jsx src/pages/charts/ChartsWorkspace.thisChart.test.jsx src/pages/charts/widgets/ChartWidget.agent.test.jsx src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx
   # 4 -> 8 (2026-11-16, GitHub Pro: 40 concurrent jobs, was 20). The four runtime-balanced shards each ran 23-28 min,
   # so the browser suite set agent ci's ~30 min wall. Same plan and timings, cut eight ways.
-  AGENT_SHARDS: '8'
+  # 8 -> 12 (2026-11-17, critical path): on 6 green push runs the 8 shards' jobs ran 10.9-17.6 min (vitest span 10.4-14.1)
+  # and set the run's critical path. The span is ~0.6 x a shard's summed file-minutes (2 vitest forks), floored by its
+  # largest file; the 9.5-min agentTickerCompoundExclusion was split into 3 slices (~3.2 min each) and the timings refreshed,
+  # so 12 shards carry ~13.8 file-min each (~8.3 min span). Per-run job-minutes stay ~130 (each shard adds ~1.2 min of setup).
+  AGENT_SHARDS: '12'
+  # capreg @ rth (2026-11-17): the regular-session clock leg was ONE 11-12 min job (16.8 file-min, 4 finalState slices of
+  # ~3.6 min). It is now this many legs, cut by the same time-balanced planner; the join job proves their union.
+  CAPREG_RTH_LEGS: '2'
 
 # A PR from a branch in this repo already ran on its push; running it again on the
 # pull_request event only doubles the queue. Fork PRs have no push run here, so they keep it.
@@ -195,7 +202,7 @@ jobs:
           if-no-files-found: error
 
   browser:
-    name: UCT Agent browser tests (shard ${{ matrix.shard }}/8)
+    name: UCT Agent browser tests (shard ${{ matrix.shard }}/12)
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master'
     runs-on: ubuntu-latest
     # 25 -> 40 (2026-11-11): shard 4/4 hit the 25-min limit and was CANCELLED on #1101 (25m18s) and #1107 (25m12s)
@@ -207,7 +214,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     steps:
       # P2c: the re-arm payload is attacker-controlled DATA. It is validated here, FIRST, and reaches the job only as this
       # step's outputs (never interpolated into a shell); any event but push / pull_request must carry a valid one.
@@ -301,6 +308,9 @@ jobs:
   # each, its own timeout), so a market-clock dependence can never again turn a gate red at the 09:30 ET open
   # (2026-11-04): `post` = after the close (the default, which the master deploy gate's `vitest run src/agent` uses)
   # and `rth` = the regular session. The baseline (Python) rail runs once, on the `post` leg.
+  # 2026-11-17: the `rth` clock runs as CAPREG_RTH_LEGS legs (`rth-1`, `rth-2`, ...): each takes the same `vitest list` of the
+  # suite and runs only its slice of the time-balanced partition (tools/agent_vitest_shards.py, as the browser shards do);
+  # every leg pins CAPREG_CLOCK=rth. The join job below fails unless the legs' union is the whole list, once each.
   capability-regression-clock:
     name: UCT Agent capability regression (deterministic, no model) @ ${{ matrix.clock }}
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master'
@@ -309,9 +319,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        clock: [post, rth]
+        clock: [post, rth-1, rth-2]
     env:
-      CAPREG_CLOCK: ${{ matrix.clock }}
+      CAPREG_CLOCK: ${{ startsWith(matrix.clock, 'rth') && 'rth' || matrix.clock }}
     steps:
       # P2c: the re-arm payload is attacker-controlled DATA. It is validated here, FIRST, and reaches the job only as this
       # step's outputs (never interpolated into a shell); any event but push / pull_request must carry a valid one.
@@ -328,7 +338,9 @@ jobs:
           { echo "pr=$EVIDENCE_PR"; echo "merge_sha=$EVIDENCE_MERGE_SHA"; } >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          # only `post` reads history (the merge-base baseline lock); an rth leg runs vitest on the tree alone. Written
+          # `!= 'post' && 1 || 0`, never `== 'post' && 0 || 1` (0 is falsy, so that form gives 1 on post too).
+          fetch-depth: ${{ matrix.clock != 'post' && 1 || 0 }}
           ref: ${{ steps.payload.outputs.merge_sha }}   # P2c re-arm: the VALIDATED merge commit; '' (the default) otherwise
       # the baseline rail also holds the corpus to the lock AS IT IS ON MASTER (merge base), so a hand-edited lock in
       # the same PR cannot launder a weakening (review #769)
@@ -352,27 +364,48 @@ jobs:
       # leg's own vitest run was a second, identical ~15-minute execution. The `rth` leg is the only place the
       # suite runs at the regular-session clock, so it keeps its vitest run.
       - uses: actions/setup-node@v4
-        if: matrix.clock == 'rth'
+        if: matrix.clock != 'post'
         with:
           node-version: '20'
           cache: npm
           cache-dependency-path: app/package-lock.json
       - name: npm ci
-        if: matrix.clock == 'rth'
+        if: matrix.clock != 'post'
         working-directory: app
         run: npm ci
-      - name: vitest src/agent/qa/capabilityRegression (CAPREG_CLOCK=${{ matrix.clock }})
-        if: matrix.clock == 'rth'
+      # this leg's slice of the suite: the json report always (the join job's union rail reads it; P2 evidence too)
+      - name: vitest src/agent/qa/capabilityRegression (CAPREG_CLOCK=rth, leg ${{ matrix.clock }} of CAPREG_RTH_LEGS)
+        if: matrix.clock != 'post'
         working-directory: app
         env:
-          EVIDENCE_VITEST_ARGS: ${{ github.event_name != 'push' && '--reporter=json --outputFile=../evidence-vitest.json' || '' }}   # P2: '' on push
-        run: npx vitest run src/agent/qa/capabilityRegression --reporter=default $EVIDENCE_VITEST_ARGS
+          LEG: ${{ matrix.clock }}
+        run: |
+          K="${LEG#rth-}"
+          npx vitest list src/agent/qa/capabilityRegression --filesOnly > "../capreg-$LEG.expected.txt"
+          python3 ../tools/agent_vitest_shards.py --files-list "../capreg-$LEG.expected.txt" --of "${CAPREG_RTH_LEGS}" --plan
+          python3 ../tools/agent_vitest_shards.py --files-list "../capreg-$LEG.expected.txt" --of "${CAPREG_RTH_LEGS}" \
+            --shard "$K" > "../capreg-$LEG.files"
+          # never fall through to an unfiltered `vitest run` (it would run the whole app suite)
+          test -s "../capreg-$LEG.files" || { echo "::error::capreg leg $LEG has no files"; exit 1; }
+          echo "capreg leg $LEG: $(wc -l < "../capreg-$LEG.files") files of $(wc -l < "../capreg-$LEG.expected.txt")"
+          npx vitest run $(cat "../capreg-$LEG.files") --reporter=default --reporter=json --outputFile="../capreg-$LEG.json"
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.clock != 'post'
+        with:
+          name: agent-capreg-${{ matrix.clock }}
+          path: |
+            capreg-${{ matrix.clock }}.json
+            capreg-${{ matrix.clock }}.files
+            capreg-${{ matrix.clock }}.expected.txt
+          if-no-files-found: error
       # P2 evidence (pull_request / re-arm runs only): merge commit, tree, parents, failed test names
       - name: Evidence record
         if: always() && github.event_name != 'push'
+        env:
+          LEG: ${{ matrix.clock }}
         run: |
-          if [ "$CAPREG_CLOCK" = post ]; then R="--junit evidence-pytest.xml"; else R="--vitest-json evidence-vitest.json"; fi
-          python3 tools/agent_ci_evidence.py record --job-key "capability-regression-clock-$CAPREG_CLOCK" $R --out evidence/evidence.json
+          if [ "$LEG" = post ]; then R="--junit evidence-pytest.xml"; else R="--vitest-json capreg-$LEG.json"; fi
+          python3 tools/agent_ci_evidence.py record --job-key "capability-regression-clock-$LEG" $R --out evidence/evidence.json
       - name: Upload the evidence record
         if: always() && github.event_name != 'push'
         uses: actions/upload-artifact@v4
@@ -381,7 +414,8 @@ jobs:
           path: evidence/evidence.json
           if-no-files-found: error
 
-  # one named result for both clock legs (the check to watch / require)
+  # one named result for every clock leg (the check to watch / require); since 2026-11-17 it also proves the rth legs'
+  # union is the whole suite, each file once, none failed (the browser `union` rail's rule, for the rth clock)
   capability-regression:
     name: UCT Agent capability regression (deterministic, no model)
     needs: capability-regression-clock
@@ -406,6 +440,47 @@ jobs:
         run: |
           echo "clock legs: ${{ needs.capability-regression-clock.result }}"
           test "${{ needs.capability-regression-clock.result }}" = "success"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: agent-capreg-rth-*
+          path: capreg
+          merge-multiple: true
+      - name: The rth legs ran the whole suite once; exactly CAPREG_RTH_LEGS legs; no failures
+        run: |
+          node - <<'EOF'
+          const fs = require('fs'), path = require('path');
+          const norm = p => path.resolve(p).replace(/\\/g, '/').replace(/^.*?\/app\//, 'app/');
+          const legs = Number(process.env.CAPREG_RTH_LEGS);
+          const dir = 'capreg', all = fs.existsSync(dir) ? fs.readdirSync(dir).sort() : [];
+          const reports = all.filter(f => /^capreg-rth-\d+\.json$/.test(f));
+          const lists = all.filter(f => /^capreg-rth-\d+\.expected\.txt$/.test(f));
+          const read = f => fs.readFileSync(path.join(dir, f), 'utf8').split(/\r?\n/).filter(Boolean).map(x => norm(path.join('app', x))).sort();
+          const bad = [];
+          if (!(legs >= 1)) bad.push(`CAPREG_RTH_LEGS is not a leg count: ${process.env.CAPREG_RTH_LEGS}`);
+          if (reports.length !== legs) bad.push(`expected ${legs} rth leg reports, got ${reports.length}`);
+          if (lists.length !== legs) bad.push(`expected ${legs} rth leg file lists, got ${lists.length}`);
+          // every leg listed the suite on the same tree, so the lists are identical; one that differs is a leg that planned elsewhere
+          const expected = lists.length ? read(lists[0]) : [];
+          for (const l of lists.slice(1)) if (read(l).join('\n') !== expected.join('\n')) bad.push(`${l} differs from ${lists[0]}`);
+          if (expected.length < 10) bad.push(`fewer than 10 capability-regression files listed (${expected.length})`);
+          const where = new Map(); let failed = 0, passed = 0;
+          for (const f of reports) {
+            const r = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+            for (const t of r.testResults || []) { const k = norm(t.name); where.set(k, [...(where.get(k) || []), f]); }
+            failed += r.numFailedTests || 0; passed += r.numPassedTests || 0;
+          }
+          const want = new Set(expected);
+          const missing = expected.filter(f => !where.has(f));
+          const extra = [...where.keys()].filter(f => !want.has(f));
+          const dupes = [...where].filter(([, s]) => s.length > 1).map(([k, s]) => `${k} (${s.join(', ')})`);
+          console.log(`rth: ${expected.length} files listed; ${legs} legs ran ${where.size} distinct; passed ${passed}, failed ${failed}`);
+          if (missing.length) bad.push('files no rth leg ran:\n' + missing.join('\n'));
+          if (extra.length) bad.push('files an rth leg ran outside the list:\n' + extra.join('\n'));
+          if (dupes.length) bad.push('files more than one rth leg ran:\n' + dupes.join('\n'));
+          if (failed > 0) bad.push(`${failed} rth tests failed`);
+          for (const b of bad) console.log('::error::' + b);
+          if (bad.length) process.exit(1);
+          EOF
       # P2: this job had no checkout; evidence runs take a one-file sparse one to read the merge commit + tree
       - uses: actions/checkout@v4
         if: always() && github.event_name != 'push'

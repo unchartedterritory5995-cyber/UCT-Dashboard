@@ -1,5 +1,5 @@
 """P2 merge-tree evidence (tools/agent_ci_evidence.py, tools/agent_ci_rearm.py): PASS only for the newest completed
-pull_request (or, opted in, re-arm) agent ci run of THIS PR whose 13 records agree on a merge commit of the CURRENT base
+pull_request (or, opted in, re-arm) agent ci run of THIS PR whose 18 records agree on a merge commit of the CURRENT base
 tip + PR head with the expected tree. Every fail-closed branch is driven from one PASS fixture
 (tests/fixtures/agent_ci_evidence/pass_run.json) by changing ONE thing."""
 from __future__ import annotations
@@ -48,10 +48,12 @@ def _recs(fx):
 
 
 # ---- the required job set ---------------------------------------------------------------------------------------
-def test_required_keys_cover_the_thirteen_required_jobs_one_to_one():
-    assert list(KEYS) == acr.required_jobs(DOC) and len(KEYS) == 13
-    assert len(set(KEYS.values())) == 13
-    assert {k for k in KEYS.values() if k.startswith("browser-")} == {f"browser-{i}" for i in range(1, 9)}
+def test_required_keys_cover_the_eighteen_required_jobs_one_to_one():
+    assert list(KEYS) == acr.required_jobs(DOC) and len(KEYS) == 18
+    assert len(set(KEYS.values())) == 18
+    assert {k for k in KEYS.values() if k.startswith("browser-")} == {f"browser-{i}" for i in range(1, 13)}
+    assert {k for k in KEYS.values() if k.startswith("capability-regression-clock-")} == {
+        f"capability-regression-clock-{c}" for c in ("post", "rth-1", "rth-2")}
     assert set(_recs(FIXTURE)) == set(KEYS.values()), "the fixture no longer matches agent-ci.yml's jobs"
 
 
@@ -60,7 +62,7 @@ def test_the_fixture_passes_and_reports_the_evidence():
     verdict, reason, evidence = _decide(_fx())
     assert verdict == "PASS", reason
     assert evidence["tree"] == FIXTURE["expected_tree"] and evidence["base_sha"] == FIXTURE["base_tip"]
-    assert evidence["head_sha"] == FIXTURE["pr"]["head_sha"] and evidence["jobs"] == evidence["records"] == 13
+    assert evidence["head_sha"] == FIXTURE["pr"]["head_sha"] and evidence["jobs"] == evidence["records"] == 18
     assert evidence["merge_sha"] == "d" * 40 and evidence["event"] == "pull_request"
 
 
