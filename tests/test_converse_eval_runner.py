@@ -713,6 +713,10 @@ def test_the_named_cases_answer_with_the_librarys_own_formulas_and_one_substitut
     # ONLY THE NAME IS WITHHELD: a held name alone is a control; with the member's own rule it is an example
     held = controls.pop("ctl-held-name")["turns"][0]
     assert held["expect"] == {"kind": "refused", "gate_prefix": "named:unchecked", "max_model_calls": 0}
+    # OWNER RULING 2026-11-18: a moving average with no kind named is a question the door asks itself
+    which = controls.pop("ctl-which-average")["turns"][0]
+    assert which["expect"] == {"kind": "clarify", "max_model_calls": 0} and "ctl-which-average#0" not in script
+    assert "moving average" in which["words"] and not any(k in which["words"].lower() for k in ("simple", "exponential", "sma", "ema"))
     held_ids = {e["id"] for e in ni.held_names()}
     assert [i for a, i in ni.phrases() if a in held["words"].lower() and i in held_ids] == ["pocket_pivot"]
     own = next(c for c in doc["cases"] if c["id"] == "held-own-words")["turns"][0]
@@ -759,6 +763,10 @@ def test_a_named_indicator_is_built_to_its_checked_formula_in_one_call_and_a_sub
     held = rows["ctl-held-name"]
     assert held["grade"]["ok"] is True and held["model_calls"] == 0 and held["server"]["gate"] == "named:unchecked"
     assert "in your own words" in held["server"]["reason"] and held["client"]["changed"] is False
+    asked = rows["ctl-which-average"]
+    assert asked["grade"]["ok"] is True and asked["model_calls"] == 0 and asked["client"]["changed"] is False
+    assert asked["server"]["disposition"] == "clarify" and asked["server"]["attempts"] == 0
+    assert asked["server"]["envelope"]["questions"][0]["text"] == "Which kind of moving average?"
     own = rows["held-own-words"]
     assert own["grade"]["ok"] is True and own["server"]["attempts"] == 1 and own["client"]["changed"] is True
     (label,) = own["server"]["envelope"]["assumptions"]

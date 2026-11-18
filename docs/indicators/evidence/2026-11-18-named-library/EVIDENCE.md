@@ -181,10 +181,21 @@ for as an unknown name. Without a dictionary it cannot tell an eponym ("Klinger"
 evaluation case ("... when the sector is Technology"). A single-word proper name stays outside this
 rule; the library catches the ones it holds, by lookup.
 
-**"Moving average" (slice 3).** The bare phrase was no phrase of the chart door, so "Plot the Moving
-Average" and "Add a 50 day Moving Average" were unknown named indicators. It is a term now, with the
-rule for the part it leaves open: use the kind the member's words or the chart settle, otherwise a
-simple average, said in the assumptions.
+**"Moving average" (slice 3): a question, never an assumption.** The bare phrase was no phrase of the
+chart door, so "Plot the Moving Average" and "Add a 50 day Moving Average" were unknown named
+indicators. It is a term now ("moving average", "MA", "DMA").
+
+*Owner ruling, 2026-11-18:* members say which kind they mean ("50 EMA", "a 50 day simple moving
+average"); when they do not, the product asks and never assumes. So for a new indicator the door itself
+asks "Which kind of moving average?" with the kinds as choices, before any model call: the same
+question every time, at no cost. Each choice is a phrase the door reads back as that kind, so the
+member's answer builds. A kind named in the request builds without a question. Beside an indicator
+already on the chart, the assistant reads the chart under the same rule (ask unless the member's words
+or the chart settle it).
+
+Ten first-turn requests on file said only "moving average" or "MA". Three of them are sentences this
+repository ships as examples of a request and its build, and all three build simple averages; each now
+says "simple" (two house indicators' request sentences and one evaluation case).
 
 **What it does not do.** A name written in lowercase is not a Title-Case run and is not caught by this
 rule; a held or library name is caught in any spelling, because it is looked up, not guessed from shape.

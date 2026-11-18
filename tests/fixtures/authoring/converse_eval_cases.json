@@ -130,7 +130,7 @@
       "group": "example",
       "turns": [
         {
-          "words": "RSI 28 with a 5-period moving average of the RSI.",
+          "words": "RSI 28 with a 5-period simple moving average of the RSI.",
           "expect": {
             "kind": "change",
             "outputs": [

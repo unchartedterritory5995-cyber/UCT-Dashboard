@@ -1,6 +1,6 @@
 {
  "contract": "uct.converse-eval.cases/1",
- "_": "THE NAMED-INDICATOR LIBRARY, as cases (Studio, 2026-11-18). A member names an indicator in api/data/named_indicators.json and the assistant is handed its ONE checked formula; the door accepts the change only if the patch holds that formula. Each example's scripted answer is the library's own tree; the case holds that the door accepts it in one call, the browser's own patch engine applies it, the engine computes it, and the door says what it built and how it was checked. `named-chandelier-own-number` carries the member's own number at a declared parameter. `ctl-named-substitute` is the NEW negative control: asked for the McGinley Dynamic, the scripted model answers with an exponential average, twice, and nothing is built (the substitution found live in 2026 that the unknown-name rule was written for). `ctl-unknown-name` among the standard controls still holds that an UNKNOWN Title-Case name is refused before any model call. ONLY THE NAME IS WITHHELD: `ctl-held-name` asks for a held name alone (known by name, no checked formula) and is refused by name with no call; `held-own-words` names the same indicator beside the member's own description of the rule, and that description is built and labelled as theirs.",
+ "_": "THE NAMED-INDICATOR LIBRARY, as cases (Studio, 2026-11-18). A member names an indicator in api/data/named_indicators.json and the assistant is handed its ONE checked formula; the door accepts the change only if the patch holds that formula. Each example's scripted answer is the library's own tree; the case holds that the door accepts it in one call, the browser's own patch engine applies it, the engine computes it, and the door says what it built and how it was checked. `named-chandelier-own-number` carries the member's own number at a declared parameter. `ctl-named-substitute` is the NEW negative control: asked for the McGinley Dynamic, the scripted model answers with an exponential average, twice, and nothing is built (the substitution found live in 2026 that the unknown-name rule was written for). `ctl-unknown-name` among the standard controls still holds that an UNKNOWN Title-Case name is refused before any model call. ONLY THE NAME IS WITHHELD: `ctl-held-name` asks for a held name alone (known by name, no checked formula) and is refused by name with no call; `held-own-words` names the same indicator beside the member's own description of the rule, and that description is built and labelled as theirs. `ctl-which-average` asks for a moving average and names no kind: the door asks which, with no model call, and builds nothing (owner ruling, 2026-11-18).",
  "chart": {
   "sym": "TEST",
   "tf": "D"
@@ -2089,6 +2089,20 @@
      "expect": {
       "kind": "refused",
       "gate_prefix": "named:unchecked",
+      "max_model_calls": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-which-average",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Add a 50 day moving average",
+     "model_expected": false,
+     "expect": {
+      "kind": "clarify",
       "max_model_calls": 0
      }
     }

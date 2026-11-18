@@ -830,13 +830,43 @@ def _chart_form(tree: Any) -> Optional[Dict[str, Any]]:
 #: of this door, so in Title Case it read as an unknown named indicator. Each is a TERM here, with
 #: the rule for what to do about the part it leaves open.
 GENERIC_SECTION = "generic_phrases"
+#: ⭐ OWNER RULING, 2026-11-18: A MOVING AVERAGE WITH NO KIND NAMED IS A QUESTION, NEVER AN ASSUMPTION.
+#: Members say which they mean ("50 EMA", "a 50 day simple moving average"); when they do not, ASK.
+#: For a NEW indicator the door asks itself, before any model call (`asks_which_average`), so the
+#: answer is the same every time and costs nothing. Beside an indicator already on the chart the
+#: assistant reads the chart, under this rule.
+MOVING_AVERAGE_RULE = (
+    "a moving average with no kind named. If the member's words name the kind, or the indicator already on the "
+    "chart uses one kind of average and they plainly mean that one, use it. Otherwise ASK which kind "
+    "(disposition clarify, one question offering Simple, Exponential, Weighted, Hull and Volume-weighted). "
+    "NEVER assume a kind")
 GENERIC_PHRASES: Mapping[str, Tuple[str, str]] = {
-    "moving average": (
-        "moving_average",
-        "a moving average with no kind named. If the member's words or the indicator already on the chart settle "
-        "which kind (simple, exponential, weighted), use that. Otherwise use a simple average (sma) and say so in "
-        "`assumptions`, so the member can change it"),
+    "moving average": ("moving_average", MOVING_AVERAGE_RULE),
+    "ma": ("moving_average", MOVING_AVERAGE_RULE),
+    "dma": ("moving_average", MOVING_AVERAGE_RULE),
 }
+#: The terms that NAME a kind of average. One of them beside the bare phrase settles it.
+AVERAGE_TERMS = frozenset({"sma", "ema", "wma", "hma", "vwma", "alma"})
+#: The question the door asks. Every choice is a phrase this door reads back as that kind
+#: (`tests/test_request_openers.py` holds each one to its term).
+AVERAGE_QUESTION: Mapping[str, Any] = {
+    "id": "average_kind", "text": "Which kind of moving average?",
+    "choices": ["Simple (SMA)", "Exponential (EMA)", "Weighted (WMA)", "Hull (HMA)", "Volume-weighted (VWMA)",
+                "Kaufman adaptive (KAMA)"],
+}
+
+
+def asks_which_average(understood: Mapping[str, Any], view: Any) -> bool:
+    """Is this a request to BUILD with a moving average whose kind nothing settles? True only for
+    a new indicator: the member wrote the bare phrase, named no kind of average beside it ("50 and
+    200 EMA moving averages" names one), is not asking a question, and there is no indicator on the
+    chart to read the kind from."""
+    names = [t.get("name") for t in understood.get("terms") or [] if isinstance(t, Mapping)]
+    if "moving_average" not in names or understood.get("advisory"):
+        return False
+    if any(n in AVERAGE_TERMS for n in names):
+        return False
+    return not (isinstance(view, Mapping) and isinstance(view.get("definition"), Mapping))
 
 #: ⭐ THE NAMED-INDICATOR LIBRARY -- the rules the model reads beside a name the member wrote.
 NAMED_RULE = ("a NAMED indicator: UCT builds it to ONE checked formula. For each output you build, copy "
@@ -3181,6 +3211,20 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         if understood_turn["refusal"].get("preflight"):
             logger.info("[converse] preflight %s (no model call)", understood_turn["refusal"]["gate"])
         return understood_turn["refusal"]
+    if asks_which_average(understood_turn, view):
+        # ⭐ THE DOOR ASKS, with no model call: the same question every time, for nothing.
+        question = {"contract": PATCH_CONTRACT, "baseRevision": revision, "ops": [], "disposition": "clarify",
+                    "questions": [dict(AVERAGE_QUESTION)]}
+        try:
+            question = check_envelope(question, revision, view)
+        except _Refused:                           # never: the question is this door's own. If it ever is, the model asks.
+            logger.exception("[converse] the door's own question did not pass the door")
+        else:
+            logger.info("[converse] asked which moving average (no model call)")
+            return {"ok": True, "disposition": "clarify", "reply": "", "turn": "question", "envelope": question,
+                    "asked_by": "door", "not_understood": understood_turn["not_understood"],
+                    "unavailable": understood_turn["unavailable"],
+                    "tokens": {"input": 0, "output": 0}, "cost_usd": 0.0, "attempts": 0, "model": None}
     request_text = understood_turn["request_text"]
     notes = understood_turn["notes"]
     advisory = understood_turn["advisory"]

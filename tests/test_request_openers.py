@@ -10,6 +10,7 @@ taken off the run before the question "is this a name?" is asked.
 
 The same measurement found the bare phrase "moving average" was no phrase of the chart door, so
 "Plot the Moving Average" and "Add a 50 day Moving Average" were unknown named indicators too.
+OWNER RULING, 2026-11-18: a moving average with no kind named is a QUESTION, never an assumption.
 
 `/propose`'s planner is unchanged: both are part of `plan(strict_names=True)`.
 No paid calls: every model call is the scripted stub of ``test_p2_truth_server``.
@@ -94,18 +95,89 @@ def test_PROPOSE_keeps_the_older_reading():
     assert on["not_understood"] == []
 
 
-# ── "moving average" ─────────────────────────────────────────────────────────
+# ── "moving average": OWNER RULING 2026-11-18 -- ask which kind, never assume ─────────────────────
 
-@pytest.mark.parametrize("message", [
-    "Plot the Moving Average", "Add a 50 day Moving Average", "add a moving average", "show two moving averages",
-    "What does the Moving Average do?",
-])
-def test_moving_average_is_a_phrase_with_the_rule_for_which_kind(conv, message):
-    got = conv.understand_turn(message, CHART)
-    assert got["refusal"] is None, got["refusal"]
+BARE = ["add a 50 day moving average", "Add a 50 day Moving Average", "Plot the Moving Average", "add a 50 MA",
+        "add the 200 dma", "20 and 50 day moving averages", "show two moving averages"]
+KIND_NAMED = [("add a 50 day SMA", "sma"), ("50 day simple moving average", "sma"), ("50 EMA", "ema"),
+              ("Add the Exponential Moving Average", "ema"), ("add a 20 day weighted moving average", "wma"),
+              ("Add the Hull Moving Average", "hma"), ("Add the Kaufman Adaptive Moving Average", "kaufman_adaptive_moving_average")]
+
+
+@pytest.mark.parametrize("message", BARE)
+def test_a_moving_average_with_no_kind_named_ASKS_and_costs_nothing(conv, clean_env, model, message):
+    client = model([])                                                      # any model call would fail the turn
+    r = conv.converse(message, user_id="u1", view=empty_view(0), chart=CHART)
+    assert r["ok"] is True and r["disposition"] == "clarify" and r["turn"] == "question", r
+    assert client.calls == [] and r["attempts"] == 0 and r["cost_usd"] == 0.0 and r["asked_by"] == "door"
+    (question,) = r["envelope"]["questions"]
+    assert question["id"] == "average_kind" and question["text"] == "Which kind of moving average?"
+    assert question["choices"][:2] == ["Simple (SMA)", "Exponential (EMA)"] and len(question["choices"]) == 6
+    assert r["envelope"]["ops"] == [] and "assumptions" not in r["envelope"]      # nothing built, nothing assumed
+    assert conv.check_envelope(r["envelope"], 0, empty_view(0))               # the door's own question passes the door
+
+
+@pytest.mark.parametrize("message, kind", KIND_NAMED)
+def test_a_named_kind_builds_without_asking(conv, clean_env, model, message, kind):
+    tree = call(kind if kind in ("sma", "ema", "wma", "hma") else "ema", S("close"), num(50))
+    if kind == "kaufman_adaptive_moving_average":
+        from api.services import named_indicators as ni
+        tree = ni.entry(kind)["outputs"][0]["tree"]
+    patch = env(0, [{"op": "create", "name": "Average", "placement": "price", "outputs": [{"key": "ma", "tree": tree}]}])
+    client = model([emits(patch)])
+    r = conv.converse(message, user_id="u1", view=empty_view(0), chart=CHART)
+    assert r["ok"] is True and r["disposition"] == "change" and len(client.calls) == 1, r
+    assert [t["name"] for t in conv.understand_turn(message, CHART)["terms"]] == [kind]     # the longer phrase wins
+    assert not conv.asks_which_average(conv.understand_turn(message, CHART), empty_view(0))
+
+
+def test_every_choice_the_door_offers_reads_back_as_that_kind(conv, clean_env, model):
+    """The member's answer is the next message. Each choice must be words this door understands as
+    the kind it names, and must not make it ask again."""
+    want = ["sma", "ema", "wma", "hma", "vwma", "kaufman_adaptive_moving_average"]
+    assert len(conv.AVERAGE_QUESTION["choices"]) == len(want)
+    for choice, kind in zip(conv.AVERAGE_QUESTION["choices"], want):
+        got = conv.understand_turn(choice, CHART)
+        assert got["refusal"] is None and kind in [t["name"] for t in got["terms"]], (choice, got["terms"])
+        assert not conv.asks_which_average(got, empty_view(0)), choice
+    # and the answer builds: one call, the change accepted
+    patch = env(0, [{"op": "create", "name": "50 day EMA", "placement": "price",
+                     "outputs": [{"key": "ma", "tree": call("ema", S("close"), num(50))}]}])
+    client = model([emits(patch)])
+    r = conv.converse("Exponential (EMA)", user_id="u1", view=empty_view(0), chart=CHART)
+    assert r["ok"] is True and r["disposition"] == "change" and len(client.calls) == 1
+
+
+def test_when_the_door_does_not_ask(conv, clean_env, model):
+    # a QUESTION about moving averages is answered, not met with a question
+    client = model([emits(env(0, [], disposition="answer", reply="It smooths price."))])
+    r = conv.converse("What does the Moving Average do?", user_id="u1", view=empty_view(0), chart=CHART)
+    assert r["ok"] is True and r["disposition"] == "answer" and len(client.calls) == 1
+    # a request that says nothing of a moving average is never asked about one
+    for other in ("Add RSI 14", "Highlight Mondays", "Add the McGinley Dynamic", "close above the 20 day high"):
+        assert not conv.asks_which_average(conv.understand_turn(other, CHART), empty_view(0)), other
+    # the bare phrase beside a LIBRARY average is still a bare phrase: the door asks
+    assert conv.asks_which_average(conv.understand_turn("a moving average and the McGinley Dynamic", CHART), empty_view(0))
+    # a kind of average named beside the bare phrase settles it for the assistant
+    assert not conv.asks_which_average(conv.understand_turn("price above its moving average and the 20 ema", CHART), empty_view(0))
+    # beside an indicator ALREADY on the chart the assistant reads the chart, under the rule: one call, and the rule is in it
+    from tests.test_p2_truth_server import out, view
+    on_chart = view(1, [out("ma", call("ema", S("close"), num(20)), type_="value")], name="20 EMA")
+    edit = env(1, [{"op": "set_output_tree", "output": "ma", "tree": call("ema", S("close"), num(50))}])
+    client = model([emits(edit)])
+    r = conv.converse("make the moving average 50", user_id="u1", view=on_chart, chart=CHART)
+    assert r["ok"] is True and r["disposition"] == "change" and len(client.calls) == 1
+    sent = json.dumps(client.calls[0]["messages"][0]["content"])
+    assert "NEVER assume a kind" in sent and "ASK which kind" in sent
+
+
+def test_the_rule_the_assistant_reads_says_ask_never_assume(conv):
+    got = conv.understand_turn("add a moving average", CHART)
     (term,) = [t for t in got["notes"]["matched_terms"] if t["entry"] == "moving_average"]
-    assert term["rule"] == conv.GENERIC_PHRASES["moving average"][1]
-    assert "simple average (sma)" in term["rule"] and "`assumptions`" in term["rule"]
+    assert term["rule"] == conv.MOVING_AVERAGE_RULE
+    assert "NEVER assume a kind" in term["rule"] and "disposition clarify" in term["rule"]
+    assert "simple average (sma) and say so" not in term["rule"]             # the superseded rule
+    assert {key for key, _rule in conv.GENERIC_PHRASES.values()} == {"moving_average"}
 
 
 def test_a_generic_phrase_never_takes_a_phrase_that_already_means_something(conv, monkeypatch):
@@ -118,22 +190,3 @@ def test_a_generic_phrase_never_takes_a_phrase_that_already_means_something(conv
     assert rebuilt["index"][stems] == before
     ma, _cost = dc._stem_key(dc._form_tokens("moving average"))
     assert rebuilt["index"][ma][0]["key"] == "moving_average"
-
-
-def test_a_named_kind_of_average_is_still_that_kind(conv):
-    for message, entry in (("Add the Simple Moving Average", "sma"), ("Add the Exponential Moving Average", "ema"),
-                           ("Add the Weighted Moving Average", "wma"), ("Add the Hull Moving Average", "hma"),
-                           ("Add the Kaufman Adaptive Moving Average", "kaufman_adaptive_moving_average")):
-        got = conv.understand_turn(message, CHART)
-        names = [t["name"] for t in got["terms"]]
-        assert names == [entry], (message, names)                           # the longer phrase wins: never "moving_average"
-
-
-def test_the_moving_average_is_built_and_the_rule_reaches_the_assistant(conv, clean_env, model):
-    patch = env(0, [{"op": "create", "name": "50 day average", "placement": "price",
-                     "outputs": [{"key": "ma", "tree": call("sma", S("close"), num(50))}]}],
-                assumptions=[{"output": "ma", "text": "I used a simple average."}])
-    client = model([emits(patch)])
-    r = conv.converse("Add a 50 day Moving Average", user_id="u1", view=empty_view(0), chart=CHART)
-    assert r["ok"] is True and r["attempts"] == 1 and len(client.calls) == 1
-    assert "a moving average with no kind named" in json.dumps(client.calls[0]["messages"][0]["content"])
