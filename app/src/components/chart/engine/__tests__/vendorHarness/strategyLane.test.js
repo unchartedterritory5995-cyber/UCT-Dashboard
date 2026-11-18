@@ -30,11 +30,12 @@ import path from 'node:path'
 import process from 'node:process'
 import {
   foldStrategyGrade, strategyRanView, strategyLaneGradeOf, holdsStrategyReport, strategyBrokerFlag,
-  assertStrategyLaneMeasured, STRATEGY_SLOT_MAP,
+  assertStrategyLaneMeasured, STRATEGY_SLOT_MAP, laneValueOutputsOf,
 } from './strategyLane.js'
 import { gradeStrategyCapture } from './strategyHarness.js'
 import { gradeCapture, loadCapture, HARNESS_DIR } from './harness'
 import { LANE_PRODUCTION, LANE_RUNTIME_ON } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
+import { sealCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
 
 vi.setConfig({ testTimeout: 300000 })
 
@@ -91,6 +92,61 @@ describe('SL2 the bars TradingView\'s strategy ran', () => {
     const ind = cap('adx-and-di-for-v4-rddt-1d-2026-09-27')
     expect(holdsStrategyReport(ind)).toBe(false)
     expect(strategyRanView(ind).view).toBe(ind)
+  })
+})
+
+// ⭐ (coordinator ruling 2026-11-18, (b)(i)) the bars TradingView's strategy RAN, on EVERY strategy capture: keyed on the
+// newest row being ABSENT (TradingView did not run that bar), never on a value of `na`; a row missing anywhere else
+// is not cut. r1-strategy-draws (no Strategy Tester report) holds 636 bars and 635 value rows; its bar 635 closed at
+// 20:00Z and the capture was taken at 22:57Z. When TradingView confirms a closed daily bar is wall U-CONFIRM.
+describe('SL2b every strategy capture is graded on the bars its strategy ran, by an ABSENT newest row only', () => {
+  const ID = 'r1-strategy-draws-rddt-1d-2026-10-02'
+  const base = () => cap(ID)
+  const newest = (c) => c.bars.rows[c.bars.rows.length - 1][0]
+  const reseal = (c) => sealCapture(c)
+  const drawnPlotVerdicts = (v) => Object.fromEntries((v.plots || []).map((p) => [p.title, p.verdict]))
+
+  it('an ABSENT newest row on a strategy capture with no report is cut, on both sides', () => {
+    const c = base()
+    expect(holdsStrategyReport(c)).toBe(false)
+    expect(c.newestBarIsForming).toBe(false)
+    expect(c.plotValues.rows.length).toBe(c.bars.rows.length - 1)
+    const { view, unrun } = strategyRanView(c)
+    expect(unrun).toBe(newest(c))
+    expect(view.bars.rows.length).toBe(c.bars.rows.length - 1)
+    // graded runtime-on with the broker armed: the four plots that read DIVERGE on bar 635 now agree on every bar
+    armed(true)
+    const { verdict } = gradeCapture(c)
+    expect(verdict.verdict).not.toBe('DIVERGE')
+    const pv = drawnPlotVerdicts(verdict)
+    for (const t of ['N01_bar_index_CONTROL', 'N02_fast', 'N03_crosses_var', 'N04_lastCross_var']) expect(pv[t], t).toBe('MATCH')
+  })
+
+  it('⛔ an `na` newest row is NOT cut: it is compared, and ours holding a value there DIVERGEs', () => {
+    const c = base()
+    const width = c.plotValues.fields.length
+    const naRow = [newest(c), ...new Array(width - 1).fill(null)]
+    const withNa = reseal({ ...c, plotValues: { ...c.plotValues, rows: [...c.plotValues.rows, naRow] } })
+    expect(strategyRanView(withNa)).toEqual({ view: withNa, unrun: null })
+    armed(true)
+    const { verdict } = gradeCapture(withNa)
+    expect(verdict.verdict).toBe('DIVERGE')
+    expect(drawnPlotVerdicts(verdict).N02_fast).toBe('DIVERGE')
+  })
+
+  it('⛔ a row ABSENT in the middle is NOT cut (the rows are not the bars but the newest, time for time): DIVERGE', () => {
+    const c = base()
+    // the newest bar's row put back (the indicator twin's values on that bar: the same script without its broker
+    // lines draws them), and one row in the middle taken out: still one row fewer than the bars
+    const twin = cap('r1-strategy-draws-indicator-rddt-1d-2026-10-02')
+    expect(twin.plotValues.rows.length).toBe(twin.bars.rows.length)
+    const rows = [...c.plotValues.rows, twin.plotValues.rows[twin.plotValues.rows.length - 1]]
+    rows.splice(300, 1)
+    const holed = reseal({ ...c, plotValues: { ...c.plotValues, rows } })
+    expect(holed.plotValues.rows.length).toBe(holed.bars.rows.length - 1)
+    expect(strategyRanView(holed)).toEqual({ view: holed, unrun: null })
+    armed(true)
+    expect(gradeCapture(holed).verdict.verdict).toBe('DIVERGE')
   })
 })
 
@@ -185,6 +241,27 @@ describe('SL5 the strategy lane assertion can fail', () => {
   it('GREEN: runtime-on with the gate on and a broker run; production with none', () => {
     expect(assertStrategyLaneMeasured({ requested: LANE_RUNTIME_ON, brokerGate: true, graded: 3, brokerRuns: 2 })).toMatch(/broker gate ON/)
     expect(assertStrategyLaneMeasured({ requested: LANE_PRODUCTION, brokerGate: false, graded: 3, brokerRuns: 0 })).toMatch(/broker gate off/)
+  })
+})
+
+// ⚰️ (2026-11-17) supertrend-strategy's `mPlot`, a fill anchor the member pane does not carry, was read as `na` on
+// every bar and graded DIVERGE at step 7 against TradingView's `ohlc4`.
+describe('SL8 our value outputs, as the lane hands them to the grade', () => {
+  const capture = { bars: { rows: [[100, 1, 1, 1, 1, 0], [200, 1, 1, 1, 1, 0]] } }
+  it('the value calls, in order, with their call; a carried column is its points (NaN read as na)', () => {
+    const ours = { plots: [
+      { kind: 'plot', column: [1.5, NaN] }, { kind: 'plotcandle', column: [1, 1] }, { kind: 'plotshape', column: [NaN, 2] },
+    ] }
+    expect(laneValueOutputsOf(ours, capture)).toEqual([
+      { kind: 'plot', points: [{ time: 100, value: 1.5 }, { time: 200, value: null }] },
+      { kind: 'plotshape', points: [{ time: 100, value: null }, { time: 200, value: 2 }] },
+    ])
+  })
+  it('⛔ an output our side carried NO column for is named missing, never a series of `na`', () => {
+    const ours = { plots: [{ kind: 'plot', column: null, missingReason: 'the member pane did not carry this output (hidden helper)' }] }
+    expect(laneValueOutputsOf(ours, capture)).toEqual([
+      { kind: 'plot', points: null, missing: 'the member pane did not carry this output (hidden helper)' },
+    ])
   })
 })
 

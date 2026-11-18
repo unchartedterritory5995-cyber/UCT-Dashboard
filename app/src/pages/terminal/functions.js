@@ -33,6 +33,9 @@ export const FUNCTION_GROUPS = ['Calendar', 'Security', 'Research depth', 'Optio
 const DEPTH = 'researchDepth'   // AuthContext's object of Research › Depth flags (researchDepthFlags.js)
 /** IMOV's theme-name REST argument (args.js `themeName`; the marker is args.js THEME_MARKER). */
 const IMOV_THEME_ARG = Object.freeze({ kind: 'themeName', prop: 'theme', rest: true, marker: 'THEME' })
+/** GRP's group-name REST argument (args.js `groupName`). `phrase`: every word after the code is the
+ *  name, even one that is itself a function code (`GRP TECH`); see parseCommand.js `takesPhrase`. */
+const GROUP_NAME_ARG = Object.freeze({ kind: 'groupName', prop: 'group', rest: true, phrase: true })
 
 export const FUNCTIONS = [
   // ── the Calendar section (owner ruling 2026-10-02: a first-class section of the shell) ──
@@ -413,6 +416,11 @@ export const FUNCTIONS = [
   // of calls (GET /api/earnings/transcript-search and /transcript-trend). `TSRC pricing power`.
   { code: 'TSRC', label: 'Search every earnings call', group: 'Market',
     market: { panel: 'CallSearch', args: [{ kind: 'callQuery', prop: 'q', rest: true }] } },
+  // CEOS: what CEOs are saying. The phrases new and rising across a month of earnings calls
+  // (GET /api/earnings/call-themes, worked out once a day); a phrase opens TSRC on it.
+  // `CEOS RISING`, `CEOS NEW 2026-10`.
+  { code: 'CEOS', label: 'What CEOs are saying (phrases rising across earnings calls)', group: 'Market',
+    market: { panel: 'CallThemes', args: [{ kind: 'callThemesList', prop: 'list' }, { kind: 'callThemesMonth', prop: 'month' }] } },
   // EXMV: what the options market priced before each earnings report beside what the stock then
   // did, and the coming report's priced move (GET /api/research/expected-move/{sym} and
   // /api/earnings-intel/{sym}).
@@ -435,6 +443,42 @@ export const FUNCTIONS = [
   { code: 'TOPF', label: 'Top Flow picks (each pick and how its contract has done)', group: 'Options',
     market: { panel: 'TopFlow', args: [{ kind: 'topFlowStatus', prop: 'status' }, { kind: 'topFlowDirection', prop: 'direction' },
       { kind: 'topFlowSort', prop: 'sort' }] } },
+
+  // ── the earnings season screen (owner pick, 2026-11-17) ──
+  // ERNS: one day's reporters, before the open and after the close: the move options priced
+  // before each report, how the stock moved on its past reports, and the result and move once it
+  // lands (GET /api/calendar/earnings-season, which only reads what the server already holds).
+  // EMOV is the scoreboard of who HAS reported; this is the day ahead too. `ERNS TONIGHT`,
+  // `ERNS TOMORROW BMO`, `ERNS 11/19`.
+  { code: 'ERNS', label: 'Earnings season (who reports, the priced move, past moves, the result)', group: 'Calendar',
+    market: { panel: 'EarningsSeason', args: [{ kind: 'earningsDay', prop: 'day' }, { kind: 'earningsSession', prop: 'session' }] } },
+
+  // ── my history on a stock (2026-11-18) ──
+  // MYH: the member's OWN Journal record on one stock, read from the Journal's own routes (the
+  // session's user only): what they hold in it now, their closed trades on it with the Journal's
+  // own numbers, and the newest notes that name it. `NVDA MYH 2` picks the second Journal
+  // account, `NVDA MYH ALL` every account (PERF's words). Never the trader archive: WHO, HIS and
+  // CHK are other panels.
+  { code: 'MYH', label: 'My history on this stock (your trades, position and notes)', group: 'Security',
+    ticker: { panel: 'MyHistory', args: [{ kind: 'journalAccount', prop: 'account' }] } },
+
+  // ── sector and theme drill-down (2026-11-18) ──
+  // GRP: ONE sector, industry or UCT theme and its stocks, ranked by their change over one of
+  // PCHG's one-click ranges, each with its RS rank and whether it is on the confluence board. No
+  // new route: the two period-change answers, the RS ranking and the confluence board, joined in
+  // the panel. `GRP XLK` (a sector fund is its sector), `GRP SEMICONDUCTORS 3M`,
+  // `GRP THEME AI / GPU CHIPS`. SCTR, THMS, TROT and PCHG's opened group each have a door to it.
+  { code: 'GRP', label: 'Group drill-down (one sector, industry or theme: its stocks ranked, with RS and flow)', group: 'Market',
+    market: { panel: 'GroupDrill', args: [{ kind: 'periodRange', prop: 'range' }, GROUP_NAME_ARG] } },
+  // ── unusual volume (2026-11-18) ──
+  // UNVOL: every liquid stock trading far above its usual volume FOR THIS TIME OF DAY, highest
+  // first: the Screener's own live reading (today's volume so far against the 30-session average
+  // times the usual share of a day done by this minute), read through POST /api/screener/scan.
+  // Outside the hours that reading exists it says so and shows the last full session. MOST RVOL is
+  // a burst in the last minutes; LEAD VOL1Y is record volume. `UNVOL UP 3X`, `UNVOL DOWN`.
+  // UVOL is the NYSE up-volume symbol and RVOL is one of MOST's own words, so the code is neither.
+  { code: 'UNVOL', label: 'Unusual volume (stocks far above their usual volume for the time of day)', group: 'Market',
+    market: { panel: 'UnusualVolume', args: [{ kind: 'unvolSide', prop: 'side' }, { kind: 'unvolMin', prop: 'min' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -673,7 +717,8 @@ const FUNCTION_WORDS = {
   RRG: { keywords: ['rotation', 'sector rotation', 'sectors'] },
   REL: { example: 'NVDA REL SMH', keywords: ['relative performance', 'ratio'] },
   CORR: { example: 'NVDA CORR AMD AVGO', keywords: ['correlation'] },
-  MOST: { example: 'MOST UP', keywords: ['movers', 'gainers', 'losers', 'unusual volume', 'top gainers'] },
+  MOST: { example: 'MOST UP', keywords: ['movers', 'gainers', 'losers', 'unusual volume', 'top gainers', 'gappers',
+    'premarket gappers', 'pre-market gappers', 'why is it gapping'] },
   IMOV: { example: 'IMOV semiconductors', keywords: ['theme movers', 'theme drivers'] },
   ALRT: { example: 'NVDA ALRT 950', keywords: ['alert', 'alerts', 'price alert'] },
   BRKO: { keywords: ['breakout', 'breakouts', 'pivot', 'tight', 'setups', 'near pivot'] },
@@ -698,10 +743,18 @@ const FUNCTION_WORDS = {
   PCHG: { example: 'PCHG QTD SECTORS', keywords: ['period change', 'performance between dates', 'since a date', 'best this quarter', 'custom range',
     'sector performance', 'industry performance', 'theme performance'] },
   TSRC: { example: 'TSRC pricing power', keywords: ['search earnings calls', 'transcript search', 'who said', 'call mentions'] },
+  CEOS: { example: 'CEOS RISING', keywords: ['what ceos are saying', 'rising phrases', 'earnings call themes', 'new themes', 'buzzwords'] },
   EXMV: { example: 'NVDA EXMV', keywords: ['expected move', 'implied move', 'earnings straddle', 'priced move'] },
   TROT: { example: 'TROT IN', keywords: ['theme rotation', 'rotating in', 'rotating out', 'themes gaining rank'] },
   IDAY: { keywords: ['intraday update', 'market update', 'midday update', 'session note'] },
   TOPF: { example: 'TOPF OPEN', keywords: ['top flow picks', 'flow picks', 'pick by pick', 'how the picks did'] },
+  ERNS: { example: 'ERNS TONIGHT', keywords: ['earnings season', 'who reports tonight', 'who reports tomorrow', 'earnings tonight',
+    'reporting after the close', 'reporting before the open', 'priced move for earnings'] },
+  MYH: { example: 'NVDA MYH', keywords: ['my history', 'my trades', 'my record', 'trade history', 'my notes on a stock', 'have i traded it'] },
+  GRP: { example: 'GRP XLK', keywords: ['group drill-down', 'drill down', 'stocks in a sector', 'stocks in a theme', 'stocks in an industry',
+    'sector stocks', 'theme stocks', 'industry stocks'] },
+  UNVOL: { example: 'UNVOL UP', keywords: ['relative volume', 'rvol', 'volume leaders', 'heavy volume', 'volume vs usual',
+    'above average volume', 'volume surge'] },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

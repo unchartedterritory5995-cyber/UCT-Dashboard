@@ -317,3 +317,30 @@
     align-items: center;
   }
 }
+
+/* PHONE FIT (2026-11-18, measured with a 390px sweep of every panel: five tables were wider than the
+   screen and scrolled sideways). Two helpers a cell opts into, both phone-only so desktop and tablet
+   keep their one-line rows:
+     .phoneWrap   the cell may take two lines (a long "3 (small sample, 10 needed)" or
+                  "Mixed, mostly bullish (68%)") instead of pushing the table past the screen;
+                  On a span inside a cell it lets that ONE line wrap and keeps its neighbours whole
+                  (CONFL: "+$12.4M net" stays together, the long-dated line under it may wrap).
+     .phoneTight  a .wrapCell gives back its floor and breaks BETWEEN WORDS only: the column is then as
+                  wide as its longest word and no wider. (`overflow-wrap: anywhere`, the desktop rule,
+                  lets the browser squeeze a column to a few letters, which at phone width split
+                  "government" and "$640.0M" in the middle; `break-word` does not shrink the column.)
+   Declared AFTER `.table td.wrapCell` with the same specificity, so they win at this width only. */
+@media (max-width: 640px) {
+  .table td.phoneWrap,
+  .table th.phoneWrap,
+  .table td span.phoneWrap {
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+
+  .table td.phoneTight,
+  .table th.phoneTight {
+    min-width: 0;
+    overflow-wrap: break-word;
+  }
+}

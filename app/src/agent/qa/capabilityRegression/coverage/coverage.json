@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 232,
+  "all": 235,
   "withProductionKinds": 206,
-  "darkGated": 26
+  "darkGated": 29
  },
  "totals": {
-  "capabilities": 232,
-  "withAnyRegressionCase": 180,
+  "capabilities": 235,
+  "withAnyRegressionCase": 183,
   "perProtection": {
    "nl": {
-    "covered": 177,
-    "applicable": 232
+    "covered": 180,
+    "applicable": 235
    },
    "routing": {
-    "covered": 174,
-    "applicable": 232
+    "covered": 177,
+    "applicable": 235
    },
    "args": {
-    "covered": 180,
-    "applicable": 232
+    "covered": 183,
+    "applicable": 235
    },
    "execution": {
-    "covered": 177,
-    "applicable": 232
+    "covered": 180,
+    "applicable": 235
    },
    "receipt": {
-    "covered": 149,
-    "applicable": 232
+    "covered": 152,
+    "applicable": 235
    },
    "refusal": {
     "covered": 35,
-    "applicable": 232
+    "applicable": 235
    },
    "permission": {
-    "covered": 225,
-    "applicable": 232
+    "covered": 228,
+    "applicable": 235
    },
    "undo": {
     "covered": 85,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 232
+    "applicable": 235
    },
    "phrasings": {
-    "covered": 173,
-    "applicable": 232
+    "covered": 176,
+    "applicable": 235
    }
   }
  },
@@ -9463,6 +9463,60 @@
     "phrasings": []
    }
   },
+  "stock.callThemes": {
+   "domain": "stock",
+   "group": "marketViews",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.callThemes: \"what are CEOs saying\"",
+     "stock.callThemes: \"call themes\"",
+     "stock.callThemes: \"rising phrases on earnings calls\"",
+     "stock.callThemes: \"what are executives talking about\""
+    ],
+    "routing": [
+     "stock.callThemes: \"what are CEOs saying\"",
+     "stock.callThemes: \"call themes\"",
+     "stock.callThemes: \"rising phrases on earnings calls\"",
+     "stock.callThemes: \"what are executives talking about\""
+    ],
+    "args": [
+     "corpus stock.callThemes"
+    ],
+    "execution": [
+     "stock.callThemes (c)"
+    ],
+    "receipt": [
+     "stock.callThemes (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.compare": {
    "domain": "stock",
    "group": "data",
@@ -9812,6 +9866,60 @@
     "phrasings": []
    }
   },
+  "stock.earningsSeason": {
+   "domain": "stock",
+   "group": "marketViews",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.earningsSeason: \"earnings season\"",
+     "stock.earningsSeason: \"show me the earnings season\"",
+     "stock.earningsSeason: \"how does earnings season look\"",
+     "stock.earningsSeason: \"give me the earnings season\""
+    ],
+    "routing": [
+     "stock.earningsSeason: \"earnings season\"",
+     "stock.earningsSeason: \"show me the earnings season\"",
+     "stock.earningsSeason: \"how does earnings season look\"",
+     "stock.earningsSeason: \"give me the earnings season\""
+    ],
+    "args": [
+     "corpus stock.earningsSeason"
+    ],
+    "execution": [
+     "stock.earningsSeason (c)"
+    ],
+    "receipt": [
+     "stock.earningsSeason (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.expectedMove": {
    "domain": "stock",
    "group": "data",
@@ -9966,6 +10074,60 @@
     ],
     "receipt": [
      "stock.gammaLevels (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.groupDrill": {
+   "domain": "stock",
+   "group": "marketViews",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.groupDrill: \"stocks in the technology sector\"",
+     "stock.groupDrill: \"what is in the technology sector\"",
+     "stock.groupDrill: \"members of the technology sector\"",
+     "stock.groupDrill: \"drill into the technology sector\""
+    ],
+    "routing": [
+     "stock.groupDrill: \"stocks in the technology sector\"",
+     "stock.groupDrill: \"what is in the technology sector\"",
+     "stock.groupDrill: \"members of the technology sector\"",
+     "stock.groupDrill: \"drill into the technology sector\""
+    ],
+    "args": [
+     "corpus stock.groupDrill"
+    ],
+    "execution": [
+     "stock.groupDrill (c)"
+    ],
+    "receipt": [
+     "stock.groupDrill (c)"
     ],
     "refusal": [],
     "permission": [],

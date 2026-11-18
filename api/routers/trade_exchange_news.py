@@ -475,7 +475,7 @@ def _num(v: Any, lo: float, hi: float) -> float | None:
 
 
 @router.get(CLOCK_PATH)
-async def clock(_user: dict = Depends(get_current_user)) -> JSONResponse:
+def clock(_user: dict = Depends(get_current_user)) -> JSONResponse:
     """⏱ LATENCY AUDIT: web's wall clock, for the admin browser's clock sync."""
     return JSONResponse({"server_ms": int(time.time() * 1000)}, headers={"Cache-Control": "no-store"})
 

@@ -55,20 +55,26 @@ def _auth_db_path() -> str:
     return os.path.join(os.environ.get("DATA_DIR", "/data"), "auth.db")
 
 
+#: Which `watchlists` rows (alias `w`) are a member's OWN names. ONE predicate, used by the
+#: per-member read and the many-member read below, so the two can never disagree.
+# ⛔ The prebuilt community lists (S&P 500, Russell 2000, Sunday Scans, ...) are rows OWNED by the
+# admin account that seeded them (`watchlist_prebuilt._create_list`). They are not that person's
+# names: counting them made one admin's "own" set the whole index universe -- prep list, My Stocks,
+# and three earnings follow-up bells a day. Same predicate as `passed_setups.py`; a NULL flag is a
+# legacy row from before the column, which is the member's own. The Flagged list is a row with
+# `is_flagged_list = 1` and no prebuilt flag, so it IS counted here.
+# Rail: tests/test_member_interest_watchlists_real_db.py.
+_OWN_LISTS_WHERE = "COALESCE(w.is_prebuilt, 0) = 0"
+
+
 def _watchlist_syms(user_id: str) -> set:
-    # ⛔ The prebuilt community lists (S&P 500, Russell 2000, Sunday Scans, ...) are rows OWNED by the
-    # admin account that seeded them (`watchlist_prebuilt._create_list`). They are not that person's
-    # names: counting them made one admin's "own" set the whole index universe -- prep list, My Stocks,
-    # and three earnings follow-up bells a day. Same predicate as `passed_setups.py`; a NULL flag is a
-    # legacy row from before the column, which is the member's own.
-    # Rail: tests/test_member_interest_watchlists_real_db.py.
     try:
         conn = sqlite3.connect(_auth_db_path())
         try:
             rows = conn.execute(
-                """SELECT wi.sym FROM watchlist_items wi
+                f"""SELECT wi.sym FROM watchlist_items wi
                    JOIN watchlists w ON w.id = wi.watchlist_id
-                   WHERE w.user_id = ? AND COALESCE(w.is_prebuilt, 0) = 0""", (user_id,)).fetchall()
+                   WHERE w.user_id = ? AND {_OWN_LISTS_WHERE}""", (user_id,)).fetchall()
         finally:
             conn.close()
         return {r[0].upper() for r in rows if r and r[0]}
@@ -76,6 +82,38 @@ def _watchlist_syms(user_id: str) -> set:
         _logger.warning("member_interest._watchlist_syms failed for user %s: %s", user_id, e)
         _note_failed("watchlist")
         return set()
+
+
+def own_list_symbols_by_user(user_ids) -> dict:
+    """`{user_id: {SYM, ...}}` for MANY members in one read: each member's own watchlists plus
+    their Flagged list, exactly what `_watchlist_syms` answers for one member (the same
+    predicate, `_OWN_LISTS_WHERE`). Not positions, not the UCT 20, never a prebuilt index list.
+
+    For a job that joins one list against every subscribed member (`list_alerts`): one query,
+    never one per member. A member with no names is absent from the answer.
+
+    ⛔ UNLIKE the per-member sources above, THIS RAISES when auth.db cannot be read. A caller
+    about to send email must be able to tell "this member follows nothing" from "the names
+    could not be read", and send nothing in the second case."""
+    ids = sorted({str(u) for u in (user_ids or []) if u})
+    out: dict = {}
+    if not ids:
+        return out
+    conn = sqlite3.connect(_auth_db_path())
+    try:
+        for i in range(0, len(ids), 500):                    # under SQLite's variable limit
+            chunk = ids[i:i + 500]
+            rows = conn.execute(
+                f"""SELECT w.user_id, wi.sym FROM watchlist_items wi
+                    JOIN watchlists w ON w.id = wi.watchlist_id
+                    WHERE w.user_id IN ({",".join("?" * len(chunk))}) AND {_OWN_LISTS_WHERE}""",
+                chunk).fetchall()
+            for uid, sym in rows:
+                if uid and sym:
+                    out.setdefault(str(uid), set()).add(str(sym).upper())
+    finally:
+        conn.close()
+    return out
 
 
 def _flagged_syms(user_id: str) -> set:

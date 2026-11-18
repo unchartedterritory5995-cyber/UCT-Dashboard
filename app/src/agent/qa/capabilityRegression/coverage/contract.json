@@ -2281,6 +2281,19 @@
    ],
    "fast": false
   },
+  "stock.callThemes": {
+   "domain": "stock",
+   "group": "marketViews",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.compare": {
    "domain": "stock",
    "group": "data",
@@ -2359,6 +2372,19 @@
    ],
    "fast": false
   },
+  "stock.earningsSeason": {
+   "domain": "stock",
+   "group": "marketViews",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.expectedMove": {
    "domain": "stock",
    "group": "data",
@@ -2388,6 +2414,19 @@
   "stock.gammaLevels": {
    "domain": "stock",
    "group": "marketBoards",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.groupDrill": {
+   "domain": "stock",
+   "group": "marketViews",
    "target": "market",
    "risk": "local",
    "reversible": true,

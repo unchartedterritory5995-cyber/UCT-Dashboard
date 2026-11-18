@@ -81,9 +81,12 @@ import { readStrategyDeclaration, orderArgsOf, readRiskCall, StrategyOptionError
 import { strategyBrokerGateOn } from '../strategyBrokerGateRegistry.js'
 const strategyBrokerEnabled = () => strategyBrokerGateOn()
 import { strategyRepaintConstruct } from './strategyRepaint.js'
+// ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — what a broker document may draw when its broker run is refused
+import { strategyTaintSinks, strategyDisarmOf } from './strategyTaint.js'
 import {
   RUNTIME_SOURCES as MEMBER_SOURCES, textInputKindOf, textInputIsMemberSet, isTimeInputCall,
   timeInputDefaultOf, isTimeValue, isSessionString, constantVarsOf, foldConstantVarsIntoInputs,
+  isTimeframeText, movedTimeframeServed, movedTimeframeRefusal,
 } from '../runtime/runtimeInputs.js'
 import { TEXT_FNS, producesText, compileTimeFormat } from '../runtime/text.js'
 import { canonicalZone, dateStringMs, INSTANT_FIELDS } from '../runtime/clockFns.js'
@@ -1654,8 +1657,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // only on a source input (a colour only on a colour input).
   const inputDefaults = opts.inputDefaults && typeof opts.inputDefaults === 'object' ? opts.inputDefaults : {}
   const applyMemberDefault = (call, name, at) => {
-    if (!Object.prototype.hasOwnProperty.call(inputDefaults, name)) return
-    const given = inputDefaults[name]
+    // ⭐⭐ SETTINGS PARITY (timeframe, Engine 77, #1831) — a TIMEFRAME input's member value is its default node
+    // whichever way the caller handed it: as a default (`runtimeBuildInputs`, which knows the declared
+    // settings) or as a plain value only (a caller that hands no declared inputs, the server service's
+    // `job.mjs::runArgs`). Else the run would read the member's timeframe where the script uses `tf` as text
+    // (`time(tf)`) and the AUTHOR'S where the request's host reader reads it statically: two timeframes in
+    // one run. At the default nothing is handed, and nothing here runs.
+    const timeframeCall = textInputKindOf(call) === 'timeframe'
+    const has = (o) => !!o && typeof o === 'object' && Object.prototype.hasOwnProperty.call(o, name)
+    if (!has(inputDefaults) && !(timeframeCall && has(inputs))) return
+    const given = has(inputDefaults) ? inputDefaults[name] : inputs[name]
     const args = call.args || []
     // v4's type rides NAMED or as the THIRD positional argument (`input(close, "Src", input.source)`)
     const typeArg = args.find((a) => a && a.name === 'type') || args.filter((a) => a && !a.name)[2]
@@ -1673,15 +1684,28 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // default is a string): the member's text replaces the default node (`runtimeBuildInputs`)
     const stringDefault = !!dv && dv.type === 'string' && !legacy
       && (call.name === 'input' || call.name === 'input.string' || call.name === 'input.symbol')
-    const kind = call.name === 'input.color' || legacy === 'input.color' || colourDefault ? 'color'
-      : call.name === 'input.source' || legacy === 'input.source' ? 'source'
-        : stringDefault ? 'string' : null
+    const kind = timeframeCall ? 'timeframe'
+      : call.name === 'input.color' || legacy === 'input.color' || colourDefault ? 'color'
+        : call.name === 'input.source' || legacy === 'input.source' ? 'source'
+          : stringDefault ? 'string' : null
     if (!kind) {
       throw new RuntimeRefusal('runtime:statement',
         '`' + name + '` was given a colour or a source, and it is not a colour or source input', at)
     }
     let node
-    if (kind === 'string') {
+    if (kind === 'timeframe') {
+      // the ONE reader of timeframe text (`runtimeInputs.js::isTimeframeText`, the settings' own): whether this
+      // chart serves the timeframe is the request supply's question, asked per chart, and refused there by name
+      if (!isTimeframeText(given)) {
+        throw new RuntimeRefusal('runtime:statement', '`' + name + '` was given ' + JSON.stringify(given)
+          + ', which is not a timeframe written as text (as TradingView writes one: 60, 1D, 1W, 1M)', at)
+      }
+      // ⛔ a value MOVED off the author's default is drawn only on recorded evidence (`movedTimeframeServed`);
+      // the author's own default handed back is no move at all
+      const moved = !(dv && dv.type === 'string' && dv.value === given)
+      if (moved && !movedTimeframeServed()) throw new RuntimeRefusal('runtime:statement', movedTimeframeRefusal(name, given), at)
+      node = { type: 'string', value: given }
+    } else if (kind === 'string') {
       if (typeof given !== 'string') throw new RuntimeRefusal('runtime:statement', '`' + name + '` was given a value that is not text', at)
       node = { type: 'string', value: given }
     } else if (kind === 'color') {
@@ -1802,6 +1826,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // ⭐⭐ I6a-N4 — a block whose lines are not at a block indent refuses BY NAME, at the pane AND
   // the object door (`pine.js::refuseOffBlockIndent`, the one check both lanes call).
   try { stmts = blockStatements(tokens, indents, 0); refuseOffBlockIndent(stmts, indents) } catch (e) { return fail(e, diagnostics) }
+  // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — W9-OQ-N2's taint (`strategyTaint.js`), in broker mode only, read
+  // on the ORIGINAL statements before any rewrite, as the host lane reads it. It decides what a run WITHOUT the broker
+  // may draw when the broker run is refused by name (`strategyDisarmOf`, carried on the declaration as `disarm`). A
+  // trace that throws is `null`, and the disarmed run then keeps the broker's refusal.
+  let brokerTaint = null
+  if (brokerMode) { try { brokerTaint = strategyTaintSinks(stmts) } catch { brokerTaint = null } }
   // ⭐⭐ W34-I6a — a wrapped `switch` arm is one expression (see `wrappedArmOf`); pane only.
   if (!atObjectDoor) stmts = joinWrappedSwitchArms(stmts, indents, String(source || '').split(/\r?\n/))
   // ⭐⭐ W34-I4 — a v1/v2 self-referencing definition whose every self read states its
@@ -2734,6 +2764,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const columnTrees = []
   const columnByKey = new Map()
   const outputs = []
+  // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — per output, the source line its call is on (broker mode reads it,
+  // `strategyDisarmOf`); kept beside `outputs`, never on them, so no output descriptor changes shape.
+  const outputLines = []
   // ⭐ THE STATIC HISTORY-DEMAND ANALYSIS, accumulated as the body is lowered:
   // one entry per variable that any `[n]` reads, carrying the deepest offset seen.
   // Nothing allocates a ring for a variable nobody looks back at (§16).
@@ -3952,6 +3985,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⭐⭐ ENGINE 56 — a column the columnar lane withholds on some bars by a witness code
         // declines the run by that code: drawn here those bars would read `na`
         if (code === BOOL_NA_UNWITNESSED || code === TIE_UNWITNESSED) throw new RuntimeRefusal(code, sentence, at)
+        // ⭐⭐ RS RATING L11 — a column holding a daily read of another symbol on a weekly chart: its tree
+        // carries the DAILY base's gate (`pine.js::securityAsNode`, `below`), so the columnar lane withholds it
+        // whole here and would draw that as `na` on every bar. Such a read is the run's request
+        // (`requestSupply.js`, held and sampled per week), reached through a slot, never a column: refused by
+        // name. ⛔ No other chart reaches this: the run translates for the chart's own period, so every other
+        // gate it writes is this chart's.
+        if (code === 'request:other-timeframe') {
+          throw new RuntimeRefusal('runtime:request', 'a value here reads another symbol at `"D"` below this '
+            + 'weekly chart inside an expression the per-bar run hands its columnar lane, which holds no daily '
+            + 'series; the run reads such a request only where it is written as its own variable, so nothing '
+            + 'is drawn rather than a blank line', at)
+        }
       }
     }
     let arr
@@ -7021,6 +7066,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         code: hostTarget.code,
         live: hostTarget.live === true,
         line: node.tok ? node.tok.line : null,
+        // ⭐ RS RATING L11 — a daily read of another symbol on a weekly chart (`pine.js::
+        // dailyOnWeeklyTargetOf`): supplied held and sampled per week (`requestSupply.js`)
+        ...(hostTarget.below === true ? { below: true } : {}),
       }) : ownUnread ? Object.freeze({
         // ⭐ RS RATING L8 (4b) — the chart's own symbol at a timeframe the host does not read:
         // `code` is the literal as written, never a served code; `unread` refuses it in the supply
@@ -11065,6 +11113,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         throw new RuntimeRefusal('runtime:colour', `\`${callName}()\` draws numbers, and a colour is not one`, at)
       }
       outputs.push({ call: callName, role, group })
+      outputLines[outputs.length - 1] = at && Number.isInteger(at.line) ? at.line : null
       descs.push(outputs[outputs.length - 1])
       out.push(emit(outputs.length - 1, lowerExpr(node, scope)))
     }
@@ -11148,6 +11197,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     outputs.push({ call: callName, ...(extra || {}) })
     const index = outputs.length - 1
+    outputLines[index] = at && Number.isInteger(at.line) ? at.line : null
     out.push(emit(index, lowerExpr(arg0, scope)))
     if (wantColours) {
       const desc = outputs[index]
@@ -15975,7 +16025,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       requests,
       // ⭐ RT5 — the declared `max_*_count`s, comments and strings stripped.
       ...(objectsInRun ? { objectCaps: { ...declaredCapsOf(strippedForScan(source)), ...historyHeldOf(strippedForScan(source)) } } : {}),
-      ...(brokerMode ? { broker: brokerDecl } : {}),
+      ...(brokerMode ? { broker: { ...brokerDecl, disarm: strategyDisarmOf(brokerTaint, outputs, outputLines) } } : {}),
     })
   } catch (e) { return fail(e, diagnostics) }
 

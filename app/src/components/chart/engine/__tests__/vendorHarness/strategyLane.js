@@ -32,7 +32,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { isStrategyCapture } from '../../../../../../../tools/vendor_harness/strategy_capture.mjs'
-import { gradeStrategyCapture, barsTradingViewRan } from './strategyHarness.js'
+import { gradeStrategyCapture, barsTradingViewRan, VALUE_SLOT_CALLS } from './strategyHarness.js'
 import { strategyReportOf } from '../../runtime/brokerReport.js'
 import { LANE_PRODUCTION, LANE_RUNTIME_ON } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
 
@@ -50,14 +50,21 @@ export function holdsStrategyReport(capture) {
 export const threeOf = (v) => (v === 'MATCH' || v === 'DIVERGE' ? v : 'INCONCLUSIVE')
 
 /**
- * The capture as TradingView's strategy RAN it. A report capture whose value rows are exactly its bars but the
+ * The capture as TradingView's strategy RAN it. A STRATEGY capture whose value rows are exactly its bars but the
  * newest (`barsTradingViewRan`, the strategy grade's own rule: TradingView had not run a bar it had not
  * confirmed) is restricted to the bars before it, on BOTH sides: our side is handed those bars, and every grade
  * reads them. Any other capture is returned unchanged.
+ * ⭐ (coordinator ruling 2026-11-18, (b)(i)) EVERY strategy capture, not only one holding a Strategy Tester report:
+ * r1-strategy-draws-rddt-1d-2026-10-02 (no report) holds 636 bars and 635 value rows, its bar 635 closed three hours
+ * before the capture (`newestBarIsForming: false`), and it graded DIVERGE on four plots there (TradingView: no row,
+ * ours: a value). ⛔ The cut is keyed on the ROW BEING ABSENT, the newest bar only and only while the bar list holds
+ * it (`barsTradingViewRan` checks every other row time for time): a row of `na` is compared, and a row missing
+ * anywhere else is not cut. When TradingView confirms a closed daily bar for a strategy is an open question, the
+ * parity roadmap's wall U-CONFIRM; until a capture pins it the engine does not guess.
  * @returns {{view: object, unrun: (number|null)}}
  */
 export function strategyRanView(capture) {
-  if (!holdsStrategyReport(capture)) return { view: capture, unrun: null }
+  if (!isStrategyCapture(capture)) return { view: capture, unrun: null }
   const { unrun } = barsTradingViewRan(capture)
   if (unrun === null) return { view: capture, unrun: null }
   const rows = capture.bars.rows.slice(0, -1)
@@ -71,13 +78,18 @@ export function strategyRanView(capture) {
 // OWN times: a run that recorded a date, or an instant off TradingView's, now grades as what it is instead of being
 // mapped onto TradingView's clock by the harness.
 
-/** Our `plot()` outputs, in the order the source makes them, each `[{time, value}]` on the capture's bars. */
-function plotsOf(ours, capture) {
+/** Our VALUE outputs (`plot`, `plotshape`, `plotchar`, `plotarrow`: `strategyHarness.js::VALUE_SLOT_CALLS`), in the
+ *  order the source makes them, each `{kind, points: [{time, value}]}` on the capture's bars.
+ *  ⛔ AN OUTPUT OUR SIDE CARRIED NO COLUMN FOR IS NOT `na` ON EVERY BAR: it is `{kind, points: null, missing}`, the
+ *  door's own reason (`ourSide.js` `missingReason`), and the value grade cannot compare it (INCONCLUSIVE, named).
+ *  ⚰️ (2026-11-17) read as all-`na`, supertrend-strategy's `mPlot` (a fill anchor the member pane does not carry)
+ *  graded DIVERGE at step 7 against TradingView's `ohlc4`, a value our side never computed for the chart. */
+export function laneValueOutputsOf(ours, capture) {
   const times = capture.bars.rows.map((r) => r[0])
-  return (ours.plots || []).filter((p) => p.kind === 'plot').map((p) => times.map((time, i) => {
-    const v = p.column ? p.column[i] : undefined
+  return (ours.plots || []).filter((p) => VALUE_SLOT_CALLS.has(p.kind)).map((p) => (p.column ? { kind: p.kind, points: times.map((time, i) => {
+    const v = p.column[i]
     return { time, value: Number.isFinite(v) ? v : null }
-  }))
+  }) } : { kind: p.kind, points: null, missing: p.missingReason || 'our side carried no column for it' }))
 }
 
 /** The label texts the run drew, by bar time; or why they cannot be graded (`strategyHarness.js::drawnOf`'s rule). */
@@ -118,7 +130,7 @@ export function strategyLaneRunOf(capture, ours) {
     const first = (report.refusals || [])[0] || {}
     return refused(first.guard || 'runtime:strategy-report', first.sentence || 'the strategy report refused')
   }
-  return { ok: true, record: s.record, report, plots: plotsOf(ours, capture), drawn: drawnOf(s), ruleFirstTime: null }
+  return { ok: true, record: s.record, report, plots: laneValueOutputsOf(ours, capture), drawn: drawnOf(s), ruleFirstTime: null }
 }
 
 /**
@@ -152,6 +164,7 @@ export function strategyLaneGradeOf(capture, ours, { slotMap = STRATEGY_SLOT_MAP
     referenceTrades: g.referenceTrades ?? null,
     rulesExercised: g.rulesExercised || [],
     ungradedSlots: (g.ungradedSlots || []).map((u) => u.slot),
+    ...(g.ungradedValues && g.ungradedValues.length ? { ungradedValues: g.ungradedValues.map((u) => u.slot) } : {}),
     ...(run.ok ? { tradesRun: run.record.trades.length } : { refusedBy: run.refusal.guard, refusal: run.refusal.message.slice(0, 400) }),
   }
 }

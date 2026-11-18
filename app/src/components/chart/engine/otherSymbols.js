@@ -45,7 +45,7 @@
 //     keeps its refusal (`other-symbol:class-share`).
 
 import { SYMBOL_EXCHANGE_CONFIRMED } from './ast/bind'
-import { isoDay, SERIES_GAPS_READ_NA } from './ast/interpret'
+import { isoDay, SERIES_GAPS_READ_NA, isoWeekDayOf, isoDayPlus, tfBucket } from './ast/interpret'
 import REQUEST_WITNESSES from './requestWitnesses.json'
 
 /** The venue spelling `pine.js::otherSymbolOf` records for the chart's own
@@ -147,6 +147,54 @@ export const WITNESS_ALIGNMENTS = Object.freeze({
   SAME_DATE_GAPS_NA: 'same-date-gaps-na',
 })
 
+// ─── ⭐⭐ RS RATING L11 (Q-RS7) — A WITNESSED SPELLING ON A CHART OF ANOTHER PERIOD ─────────
+//
+// A row's top-level `alignment` places its series on the chart timeframe(s) it lists with no
+// block of their own (`D`). A chart timeframe with a block (`periods.W`) is served from the series
+// HELD at another timeframe (`held`: our weekly SPX is ten years of yfinance keyed by Monday, and a
+// seed is served daily only, so on a weekly chart both are fetched and held at `D`), read the way
+// that block's capture witnessed, per request timeframe (`reads`):
+//   `period` — the read at the chart's own timeframe (`timeframe.period`): a FOLD of the held rows;
+//   `D`      — a daily read below the chart: the row's own DAILY read (its `alignment`), each chart
+//              bar then reading one of its period's rows (a SAMPLE).
+// ⛔ A read the block does not name, a block without `witness` + `captured`, an unknown fold or
+// sample: refused by name (`other-symbol:witness-timeframe`), never guessed.
+
+/** How a block reads its held rows, by name. ⛔ An unknown name serves nothing. */
+export const WITNESS_PERIOD_READS = Object.freeze({
+  // FOLD (a `period` read): the held daily rows folded into Monday-to-Sunday weeks (the weekly bar
+  // `interpret.js::resampleTo` builds, `bars_fetch._resample_weekly_iso`'s rule), each week read on
+  // the FOLLOWING calendar week's chart bar. Q-RS7 R1: TradingView's `SP:SPX` at `timeframe.period`
+  // on a weekly stock chart reads the previous week's last daily close on every settled week.
+  PREVIOUS_WEEK: 'previous-week',
+  // SAMPLE (a `D` read): each chart week reads the LAST of its rows (as the row's daily read placed
+  // them). Q-RS7 R2: `SP:SPX` at "D" on a weekly chart reads the previous-session value at the week's
+  // last session (its Thursday close in a full week).
+  WEEK_LAST_ROW: 'week-last-row',
+  // SAMPLE (a `D` read): each chart week reads the row dated its FIRST calendar day (Monday), and a
+  // week with no such row reads `na`. Q-RS7 R4: `request.seed` on a weekly chart.
+  WEEK_FIRST_DAY: 'week-first-day',
+})
+const PERIOD_FOLDS = Object.freeze([WITNESS_PERIOD_READS.PREVIOUS_WEEK])
+const BELOW_SAMPLES = Object.freeze([WITNESS_PERIOD_READS.WEEK_LAST_ROW, WITNESS_PERIOD_READS.WEEK_FIRST_DAY])
+/** The request timeframes a block may name below the chart, and the chart timeframes a block may
+ *  stand on: a daily read on a weekly chart is the one witnessed shape. */
+const HELD_TIMEFRAMES = Object.freeze({ W: 'D' })
+
+/** ⭐ RS RATING L11 — the key a series HELD at another timeframe rides the chart's secondary cache
+ *  under (`SPX@D` on a weekly chart), so it never collides with the same store ticker fetched at the
+ *  chart's own timeframe (a `sym:SPX` source). The store key itself where nothing is held. */
+export function heldSecondaryKey(store, held, chartTf) {
+  const s = String(store || '').trim().toUpperCase()
+  return held && String(held) !== String(chartTf == null ? '' : chartTf) ? `${s}@${held}` : s
+}
+
+/** `{symbol, tf}` a held key names (`SPX@D` → SPX at D), or null for an ordinary key. */
+export function heldKeyParts(key) {
+  const m = /^(.+)@(D)$/.exec(String(key || ''))
+  return m ? { symbol: m[1], tf: m[2] } : null
+}
+
 function witnessRowsOf(rows) {
   const out = {}
   for (const [k, v] of Object.entries(rows || {})) {
@@ -192,6 +240,96 @@ function witnessPendingWhy(row) {
     + 'capture has not been matched, so what this indicator draws from it is not computed.' }
 }
 
+/** ⭐ RS RATING L11 — is this chart timeframe's block in (`witness` + `captured`), held at the one
+ *  witnessed timeframe, and does it name only reads this module knows? */
+export function periodBlockServes(block, chartTf) {
+  if (!block || typeof block !== 'object') return false
+  if (!(typeof block.witness === 'string' && block.witness.trim() && typeof block.captured === 'string' && block.captured.trim())) return false
+  if (!HELD_TIMEFRAMES[chartTf] || block.held !== HELD_TIMEFRAMES[chartTf]) return false
+  const reads = block.reads
+  if (!reads || typeof reads !== 'object' || !Object.keys(reads).length) return false
+  return Object.entries(reads).every(([code, how]) => (code === 'period' ? PERIOD_FOLDS.includes(how)
+    : code === HELD_TIMEFRAMES[chartTf] && BELOW_SAMPLES.includes(how)))
+}
+
+/**
+ * ⭐⭐ RS RATING L11 — HOW A WITNESS ROW IS READ ON THIS CHART, or null when it is not served here:
+ * `{held, key, fold, sample}` — the timeframe its series is fetched and held at, the secondary-cache
+ * key it rides (`heldSecondaryKey`), and the FOLD (a `period` read) or SAMPLE (a read below the chart)
+ * its block witnessed. A chart timeframe with no block is the row's own (`alignment`, held as is).
+ * @param {object} row
+ * @param {string} chartTf
+ * @param {string|null|undefined} code  the request's timeframe: `null` the chart's own
+ *   (`timeframe.period`), `'D'` a daily read; `undefined` the HOST bind, which serves the chart's own
+ *   read where the block declares one, else the daily read (every host tree reading such a spelling at
+ *   another period carries the daily base gate, `interpret.js::requestBaseNode`, and is withheld whole on
+ *   this chart, so only the run, which asks per request, reads it)
+ */
+export function witnessReadOf(row, chartTf, code) {
+  const tf = chartTf == null ? '' : String(chartTf)
+  if (!row || !row.timeframes.includes(tf)) return null
+  const block = row.periods && typeof row.periods === 'object' ? row.periods[tf] : null
+  if (!block) return { held: tf, key: heldSecondaryKey(row.store, tf, tf), fold: null, sample: null }
+  if (!periodBlockServes(block, tf)) return null
+  const reads = block.reads
+  let fold = null
+  let sample = null
+  if (code === undefined) {
+    if (reads.period) fold = reads.period
+    else sample = reads[block.held] || null
+  } else if (code === null) {
+    fold = reads.period || null
+  } else if (String(code) === block.held) {
+    sample = reads[block.held] || null
+  }
+  if (!fold && !sample) return null
+  return { held: block.held, key: heldSecondaryKey(row.store, block.held, tf), fold, sample }
+}
+
+/** The sentence for a witness row that is not served on this chart, or at this request's timeframe. */
+function witnessTimeframeWhy(row, chartTf, code) {
+  const tf = chartTf == null ? '' : String(chartTf)
+  const block = row.periods && typeof row.periods === 'object' && tf ? row.periods[tf] : null
+  if (!row.timeframes.includes(tf) || !block) {
+    const rows = [row.queue_row, ...Object.values(row.periods || {}).map((b) => b && b.queue_row)].filter(Boolean)
+    return `\`${row.spelling}\` is witnessed on ${row.timeframes.join(', ') || 'no'} charts only (capture-queue `
+      + `row${rows.length > 1 ? 's' : ''} ${rows.join(', ')}), and this chart is ${tf ? `\`${tf}\`` : 'of no stated timeframe'}`
+  }
+  if (!periodBlockServes(block, tf)) {
+    return `\`${row.spelling}\` on a \`${tf}\` chart is served only once a TradingView capture witnesses it there `
+      + `(capture-queue row ${block.queue_row}, probe \`${block.probe}\`), and that capture has not been matched`
+  }
+  const named = Object.keys(block.reads || {}).map((c) => (c === 'period' ? '`timeframe.period`' : `\`"${c}"\``))
+  return `\`${row.spelling}\` on a \`${tf}\` chart is witnessed only as read at ${named.join(' and at ')} (capture-queue `
+    + `row ${block.queue_row}), and this request reads it at \`"${code}"\``
+}
+
+/** ⭐ RS RATING L11 — the HELD timeframe and key a store ticker is fetched under on this chart (`SPX` on a
+ *  weekly chart: at `D`, as `SPX@D`), or null when it is fetched at the chart's own timeframe as itself.
+ *  One answer for the chart's fetch (`useSecondarySources`), the binder's memo and the harness. */
+export function heldFetchOf(store, chartTf) {
+  const s = String(store || '').trim().toUpperCase()
+  const tf = chartTf == null ? '' : String(chartTf)
+  for (const row of Object.values(_witnessRows)) {
+    if (!row || String(row.store).toUpperCase() !== s) continue
+    const block = row.periods && typeof row.periods === 'object' ? row.periods[tf] : null
+    if (block && row.timeframes.includes(tf) && periodBlockServes(block, tf)) {
+      return { symbol: s, tf: block.held, key: heldSecondaryKey(s, block.held, tf) }
+    }
+  }
+  return null
+}
+
+/** ⭐ RS RATING L11 — how many HELD daily rows a chart of `barCount` weekly bars needs: seven calendar
+ *  days a week (a seed's rows are calendar days; an index's sessions are fewer) and two weeks before the
+ *  first chart week (the previous week a fold reads, the previous session a daily read places), capped
+ *  at what the index door answers (`api/index_bars.py`, 12,500 sessions; from 1990 that is all of it). */
+export const HELD_DAILY_DEPTH_CAP = 12500
+export function heldDepthOf(barCount) {
+  const n = Number.isFinite(barCount) && barCount > 0 ? Math.floor(barCount) : 200
+  return Math.min(HELD_DAILY_DEPTH_CAP, n * 7 + 14)
+}
+
 /** ⭐ A witnessed series' bars keyed the way the chart keys its own: by SESSION DATE
  *  (`interpret.js::isoDay` reads unix seconds, a `YYYYMMDD` int or an ISO day — an index's
  *  daily bars carry unix seconds at the session's UTC midnight, a stock's an ISO date), then
@@ -211,6 +349,74 @@ export function witnessedBarsOf(row, bars) {
   const out = []
   for (let j = 0; j + 1 < keyed.length; j += 1) out.push({ ...keyed[j], t: keyed[j + 1].t })
   return out
+}
+
+/** ⭐⭐ RS RATING L11 (Q-RS7 R1) — `previous-week`: the held DAILY rows folded into Monday-to-Sunday
+ *  weeks (the weekly bar `interpret.js::resampleTo` builds: the first open, the highest high, the lowest
+ *  low, the last close, the summed volume), each week keyed as the product keys a weekly bar (its
+ *  FRIDAY, `isoWeekDayOf(·, 5)`) one calendar week LATER: a weekly chart bar reads the week before its
+ *  own. ⭐ Placed by the calendar, not by the next held week, so a chart week whose own daily rows have
+ *  not arrived yet still reads the week before it (the newest held week lands on a key no chart bar has).
+ *  ⛔ A row whose day cannot be read, or that is not after the row before it, is dropped, never merged
+ *  into the wrong week. */
+export function previousWeekBarsOf(bars) {
+  const weeks = []
+  let cur = null
+  let lastDay = ''
+  for (const b of bars) {
+    const day = b && isoDay(b.t)
+    if (!day || day <= lastDay) continue
+    lastDay = day
+    const friday = isoWeekDayOf(day, 5)
+    if (!cur || cur.friday !== friday) {
+      cur = { friday, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v || 0 }
+      weeks.push(cur)
+    } else {
+      cur.h = Math.max(cur.h, b.h)
+      cur.l = Math.min(cur.l, b.l)
+      cur.c = b.c
+      cur.v += (b.v || 0)
+    }
+  }
+  return weeks.map((w) => ({ t: isoDayPlus(w.friday, 7), o: w.o, h: w.h, l: w.l, c: w.c, v: w.v }))
+}
+
+/** ⭐⭐ RS RATING L11 (Q-RS7 R2 / R4) — WHICH ROW OF A DAILY SERIES EACH WEEKLY CHART BAR READS, by the
+ *  block's SAMPLE: `{index, withheld}`, `index[i]` the row of `series` chart bar `i` reads (`-1`: none,
+ *  Pine's `na`), `withheld` a 0/1 column. The chart bar's week is read off its own `t` (any day of the
+ *  week names it: the product's Friday key, a capture's Monday), so nothing here depends on how the
+ *  chart keys a week.
+ *    `week-last-row`  — the week's LAST row of `series` (the row's daily read already placed each row:
+ *                       `previous-session` puts each SPX bar on the next session, so the last row of a
+ *                       week is the bar of the session before its last). A week with no row after the
+ *                       series began is UNKNOWN (withheld); before it began, `na`.
+ *    `week-first-day` — the row dated the week's Monday; none reads `na` (the seed's witnessed gaps,
+ *                       `same-date-gaps-na`: known, never withheld).
+ *  `series` is the row's daily read (`witnessedBarsOf`), so the request's expression runs on DAILY bars
+ *  and only its value is sampled. */
+export function weekSampleOf(series, chartBars, sample) {
+  const n = Array.isArray(chartBars) ? chartBars.length : 0
+  const index = new Array(n).fill(-1)
+  const withheld = new Float64Array(n)
+  const known = sample === WITNESS_PERIOD_READS.WEEK_LAST_ROW || sample === WITNESS_PERIOD_READS.WEEK_FIRST_DAY
+  if (!known) { withheld.fill(1); return { index, withheld } }
+  const byWeek = new Map()
+  let firstDay = null
+  for (let j = 0; j < (series || []).length; j += 1) {
+    const day = series[j] && isoDay(series[j].t)
+    if (!day) continue
+    if (firstDay === null || day < firstDay) firstDay = day
+    if (sample === WITNESS_PERIOD_READS.WEEK_LAST_ROW) byWeek.set(tfBucket(day, 'W'), j)
+    else if (isoWeekDayOf(day, 1) === day && !byWeek.has(tfBucket(day, 'W'))) byWeek.set(tfBucket(day, 'W'), j)
+  }
+  for (let i = 0; i < n; i += 1) {
+    const day = chartBars[i] && isoDay(chartBars[i].t)
+    if (!day) { withheld[i] = 1; continue }
+    const j = byWeek.get(tfBucket(day, 'W'))
+    if (j !== undefined) index[i] = j
+    else if (sample === WITNESS_PERIOD_READS.WEEK_LAST_ROW && firstDay !== null && day > firstDay) withheld[i] = 1
+  }
+  return { index, withheld }
 }
 
 /**
@@ -584,6 +790,8 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
   const symbols = {}
   const served = []
   const refused = []
+  // ⭐ RS RATING L11 — a series served for a read BELOW the chart names how each chart bar samples it
+  const samples = {}
   const requests = otherSymbolRequestsOf(def)
   if (!requests.length) return { symbols, served, refused }
   const confirmedPine = confirmed === SYMBOL_EXCHANGE_CONFIRMED
@@ -627,13 +835,16 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
         continue
       }
       const tf = ctx.tf == null ? '' : String(ctx.tf)
-      if (!row.timeframes.includes(tf)) {
-        no(ticker, OTHER_SYMBOL_REFUSAL.WITNESS_TIMEFRAME, `\`${row.spelling}\` is witnessed on `
-          + `${row.timeframes.join(', ') || 'no'} charts only (capture-queue row ${row.queue_row}), and this chart is `
-          + `${tf ? `\`${tf}\`` : 'of no stated timeframe'}`)
+      // ⭐⭐ RS RATING L11 — WHICH READ OF THE ROW THIS CHART IS (`witnessReadOf`): the row's own
+      // timeframe as before, or a block's (a weekly chart: the series held at `D`, folded for a
+      // `timeframe.period` read, sampled for a daily one). `ctx.requestCode` is the run's request
+      // timeframe (`requestSupply.js`); the host bind states none.
+      const read = witnessReadOf(row, tf, Object.prototype.hasOwnProperty.call(ctx, 'requestCode') ? ctx.requestCode : undefined)
+      if (!read) {
+        no(ticker, OTHER_SYMBOL_REFUSAL.WITNESS_TIMEFRAME, witnessTimeframeWhy(row, tf, ctx.requestCode))
         continue
       }
-      const entry = secondary ? secondary.get(row.store) : null
+      const entry = secondary ? secondary.get(read.key) : null
       const held = entry && Array.isArray(entry.bars) ? entry.bars : null
       if (!held || !held.length) {
         no(ticker, OTHER_SYMBOL_REFUSAL.NO_BARS, `\`${row.spelling}\`'s bars for this timeframe are not in hand`
@@ -641,8 +852,17 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
         if (!entry || String(entry.status || '') === 'loading') refused[refused.length - 1].pending = true
         continue
       }
-      symbols[ticker] = witnessedBarsOf(row, held)
+      symbols[ticker] = read.fold === WITNESS_PERIOD_READS.PREVIOUS_WEEK ? previousWeekBarsOf(held) : witnessedBarsOf(row, held)
+      if (read.sample) samples[ticker] = read.sample
       served.push(ticker)
+      continue
+    }
+    // ⭐ RS RATING L11 — a daily read of a LISTING below a weekly chart (the run's request, `ctx.below`):
+    // no capture witnesses how TradingView samples one there, and this chart holds only its weekly bars
+    if (ctx.below === true) {
+      no(ticker, OTHER_SYMBOL_REFUSAL.WITNESS_TIMEFRAME, `\`${ticker}\` is read at \`"D"\` below this `
+        + `${ctx.tf ? `\`${ctx.tf}\`` : ''} chart, and a daily read below the chart is witnessed only for the spellings `
+        + '`requestWitnesses.json` names a weekly read for (`SP:SPX`, the RS Rating seed), not for a listing')
       continue
     }
     const key = storeTickerOf(ticker)
@@ -707,7 +927,8 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
     symbols[ticker] = bars
     served.push(ticker)
   }
-  return { symbols, served, refused }
+  // ⭐ RS RATING L11 — `samples` only where one is read (a daily chart's answer keeps its shape)
+  return Object.keys(samples).length ? { symbols, served, refused, samples } : { symbols, served, refused }
 }
 
 /** ⭐⭐ ENGINE 55 — THE SETTLED REFUSAL A TREE READS, or null. `{guard, message}`
@@ -744,14 +965,18 @@ export function otherSymbolRefusalOfTree(tree, decision) {
  *  fetch was waiting on a retry), the run refused, and the seed landing did not move the signature:
  *  the binder's memo never recomputed. When both landed together, or the door's preview had
  *  fetched both first, it drew. */
-export function otherSymbolsSignature(def, secondary) {
+export function otherSymbolsSignature(def, secondary, chartTf) {
   const requests = otherSymbolRequestsOf(def)
   if (!requests.length) return ''
   // ⭐ RS RATING L6b — a witnessed spelling's series is held under its row's store key
+  // ⭐ RS RATING L11 — and, on a chart that holds it at another timeframe, under its held key
+  // (`SPX@D` on a weekly chart: `heldFetchOf`, the key the chart's fetch files it under)
   const recorded = new Map(requests.map((r) => [r.ticker, r.spellings]))
   const keyOf = (t) => {
     const row = (recorded.get(t) || []).map((v) => witnessRowOf(v, t)).find(Boolean)
-    return row ? row.store : storeTickerOf(t)
+    if (!row) return storeTickerOf(t)
+    const held = heldFetchOf(row.store, chartTf)
+    return held ? held.key : row.store
   }
   return requests.map(({ ticker: t }) => {
     const e = secondary && typeof secondary.get === 'function' ? secondary.get(keyOf(t)) : null

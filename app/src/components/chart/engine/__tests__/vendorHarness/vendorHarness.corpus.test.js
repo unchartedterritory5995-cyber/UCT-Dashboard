@@ -62,6 +62,7 @@ import { strategyBrokerFlag, strategyEvidenceOf, assertStrategyLaneMeasured } fr
 import { runtimePaneEnabled, __permitRuntimePaneForTests } from '../../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from '../../runtimeKill'
 import { __admitEveryRunHalfForTests } from '../../runHalfRailSeam'
+import { __serveEveryTimeframeSettingForTests } from '../../runtime/runtimeInputs.js'
 import { objectsOnlyPaneEnabled } from '../../objectsOnlyPaneGate'
 import { strategyBrokerEnabled } from '../../strategyBrokerGate'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
@@ -88,6 +89,9 @@ if (REQUESTED) {
     // ⭐ RS RATING L8 — and every run half, for the same reason: its evidence is this lane's
     // grade of the run's drawings (`runHalfRailSeam.js`)
     __admitEveryRunHalfForTests()
+    // ⭐ SETTINGS PARITY (timeframe, Engine 77, #1831) — and a capture taken at a MOVED timeframe setting is
+    // graded at it: the lane's grade is the evidence that would admit one (`runtimeInputs.js::movedTimeframeServed`)
+    __serveEveryTimeframeSettingForTests()
   }
 }
 

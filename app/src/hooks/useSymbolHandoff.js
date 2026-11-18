@@ -33,8 +33,11 @@ import { BARSTORE } from '../components/chart/barStoreSwitch'
 import { viewCacheTf } from '../utils/viewSession'
 import { isCurrentEnoughForPaint } from '../utils/marketSession'
 import { isNativeTf, fetchTf } from '../components/chart/timeframes'
+import { columnsReadyFor, whenColumnsReady, warmColumnsFor } from '../components/chart/engine/serverCompute'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
+/** The longest a switch waits for its panes' server columns before it commits anyway. */
+export const COLUMNS_WAIT_MS = 300
 
 // ⭐ P3-S1: the handoff prepares through the SAME source the chart reads (chart/barStoreSwitch.js,
 // read once at module load). Under BARSTORE: the store's facade (data/barStore/prefetch) — its
@@ -111,12 +114,24 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     if (requestedSym === displayedSym) return undefined
 
     const gen = ++genRef.current
-    const commit = () => { if (genRef.current === gen) setDisplayedSym(requestedSym) }
+    const commitNow = () => { if (genRef.current === gen) setDisplayedSym(requestedSym) }
+    // ⭐ ONE PAINT, PANES INCLUDED (2026-11-17): every path below commits through here, and B is
+    // shown only once the server columns its panes draw have landed (serverCompute.columnsReadyFor),
+    // waiting at most COLUMNS_WAIT_MS. Landed (or stored in this browser) commits in the same tick.
+    const commit = () => {
+      if (genRef.current !== gen) return
+      if (columnsReadyFor(requestedSym, tf)) { setDisplayedSym(requestedSym); return }
+      whenColumnsReady(requestedSym, tf, COLUMNS_WAIT_MS).then(commitNow, commitNow)
+    }
 
     // ⛔ AN ECONOMIC SERIES (`ECON:USCPI`) IS NOT A BARS SYMBOL: nothing to prepare
     // or prefetch through the bars lane (it would 404) — the chart loads it from
     // /api/econ itself, so the request commits straight through.
-    if (/^ECON:/i.test(String(requestedSym))) { commit(); return undefined }
+    if (/^ECON:/i.test(String(requestedSym))) { commitNow(); return undefined }
+
+    // The panes' server columns leave NOW, beside the bars (the prepare below, or the daily one), so
+    // the commit's bounded wait (COLUMNS_WAIT_MS) covers only what is left of them.
+    warmColumnsFor(requestedSym, tf)
 
     // FAST PATH — synchronous, same tick, no scheduling latency added.
     // ⛔ THE SYNCHRONOUS setState IS THE POINT, NOT AN OVERSIGHT. A neighbour the

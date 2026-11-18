@@ -61,18 +61,18 @@ function serve(routes) {
 }
 const asked = () => jsonFetcher.mock.calls.map(([url]) => url)
 
-function renderPanel(props = {}, { run = vi.fn(), rerun = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null } = {}) {
+function renderPanel(props = {}, { run = vi.fn(), rerun = vi.fn(), open = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null } = {}) {
   const body = <PeriodChangePanel {...props} />
   render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <PanelFreshnessContext.Provider value={setFreshness}>
-        <PanelListContext.Provider value={{ open: vi.fn(), run, rerun, publish: vi.fn(), publishRows }}>
+        <PanelListContext.Provider value={{ open, run, rerun, publish: vi.fn(), publishRows }}>
           {code ? <TerminalPanelContext.Provider value={{ code, density: 'comfortable', inset: true }}>{body}</TerminalPanelContext.Provider> : body}
         </PanelListContext.Provider>
       </PanelFreshnessContext.Provider>
     </SWRConfig>,
   )
-  return { run, rerun, publishRows, setFreshness }
+  return { run, rerun, open, publishRows, setFreshness }
 }
 const rowsOf = () => within(screen.getByTestId('terminal-pchg-table')).getAllByRole('row').slice(1)
 const symsOnScreen = () => rowsOf().map((r) => r.getAttribute('data-testid').replace('terminal-pchg-row-', ''))
@@ -494,6 +494,33 @@ describe('PCHG sectors, industries and themes', () => {
     expect(groupNames()).toEqual(['Technology', 'Energy', 'Healthcare'])
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Technology: list its stocks' })))
     expect(publishRows).toHaveBeenLastCalledWith([])
+  })
+
+  it('an opened group can be opened as its own panel (GRP), on a one-click range only', async () => {
+    const qtdSectors = periodGroupsUrl('2026-09-30', TODAY, 'sector')
+    serve({ [SECTORS_URL]: SECTORS, [YTD_URL]: OK, [qtdSectors]: SECTORS, [QTD_URL]: OK })
+    const { open } = renderPanel({ unit: 'sector' })
+    await screen.findByTestId('terminal-pchg-table')
+    fireEvent.click(screen.getByRole('button', { name: 'Technology: list its stocks' }))
+    await screen.findByTestId('terminal-pchg-members')
+    fireEvent.click(screen.getByRole('button', { name: 'Open Technology as its own panel, with RS and flow (GRP SECTOR TECHNOLOGY)' }))
+    expect(open).toHaveBeenLastCalledWith('GRP SECTOR TECHNOLOGY')
+    // the range goes with it
+    fireEvent.click(screen.getByTestId('terminal-pchg-range-qtd'))
+    await screen.findByTestId('terminal-pchg-table')
+    fireEvent.click(screen.getByRole('button', { name: 'Technology: list its stocks' }))
+    await screen.findByTestId('terminal-pchg-members')
+    fireEvent.click(screen.getByRole('button', { name: /^Open Technology as its own panel/ }))
+    expect(open).toHaveBeenLastCalledWith('GRP SECTOR TECHNOLOGY QTD')
+    cleanup()
+    // two typed dates are not a range GRP takes, so the door is not offered there
+    const dated = periodGroupsUrl('2026-01-02', '2026-06-30', 'sector')
+    serve({ [dated]: { ...SECTORS, start: 20260102, end: 20260630 }, [periodChangeUrl('2026-01-02', '2026-06-30')]: OK })
+    renderPanel({ start: '2026-01-02', end: '2026-06-30', unit: 'sector' })
+    await screen.findByTestId('terminal-pchg-table')
+    fireEvent.click(screen.getByRole('button', { name: 'Technology: list its stocks' }))
+    await screen.findByTestId('terminal-pchg-members')
+    expect(screen.queryByRole('button', { name: /as its own panel/ })).toBeNull()
   })
 
   it('when the stocks\' own changes cannot be read the stocks are still listed, with no change and a Retry', async () => {

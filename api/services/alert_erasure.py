@@ -90,13 +90,20 @@ ALERT_TAXONOMY_JOINS = (
 #: screener.db -- the screen-alert subscriptions and their fire (dedup) rows, the
 #: standing-screen (spec) alert subscriptions, and the RS screens' daily joined-and-left
 #: message: which screens the member asked about and what was already sent
-#: (`screener/rs_screen_alerts.py`, RS screens unit U13).
+#: (`screener/rs_screen_alerts.py`, RS screens unit U13). The last three are the Terminal
+#: list alerts (`list_alerts.py`): which lists the member switched on, the one message a
+#: session they were sent per list, and which stocks and contracts they were told about.
+#: (That module's `list_alert_presence` and `list_alert_sessions` hold what was on each
+#: list for everyone and carry no member id.)
 SCREENER_TABLES = (
     "screen_alert_subs",
     "screen_alerts_fired",
     "spec_alert_subs",
     "rs_screen_alert_subs",
     "rs_screen_alerts_fired",
+    "list_alert_subs",
+    "list_alert_messages",
+    "list_alerts_told",
 )
 SCREENER_JOINS = (
     ("spec_alert_snapshots", "sub_id", "spec_alert_subs"),

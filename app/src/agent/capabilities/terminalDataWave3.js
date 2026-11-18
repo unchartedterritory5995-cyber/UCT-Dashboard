@@ -36,6 +36,7 @@ import { stampET } from './marketDataFacts'
 import { gexRead, levelRows, LEVEL_KINDS, REGIME_TEXT, GEX_BAND_PCT } from '../../pages/terminal/panels/levelsModel'
 import { TOP_FLOW_STATUSES, TOP_FLOW_DIRECTIONS, TOP_FLOW_SORTS, OI_RISE_FACTOR } from '../../pages/terminal/panels/topFlowModel'
 import { kindServed, usable, noRead, money, pct, whole, plural, dayText, NO_TURN } from './terminalDataFormat'
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
 
 export const KINDS = Object.freeze({
   gamma: 'levels.gamma', topPicks: 'flow.topPicks', record: 'flow.record', reactions: 'earnings.reactions',
@@ -329,8 +330,15 @@ const REACTIONS_DEFAULT_ROWS = 25
 export const MOVE_MEANING_PAST = "A move is the stock's close-to-close change around the report: for a report before the open or with no confirmed time, that day's close against the prior close; for a report after the close, the next session's close against that day's close."
 export const MOVE_MEANING_TODAY = "For a day still in session a move is the stock's change on the day in one market snapshot, not the settled close-to-close move."
 const epsText = (v) => (num(v) == null ? null : `${v < 0 ? '−' : ''}$${Math.abs(v).toFixed(2)}`)
-/** Revenue arrives in millions (the calendar route's own unit). */
-const revenueText = (v) => (num(v) == null || v <= 0 ? null : v >= 1000 ? `$${(v / 1000).toFixed(2)}B` : `$${v.toFixed(1)}M`)
+/** Revenue arrives in MILLIONS (the calendar route's own unit), so the ladder's thresholds are in millions too:
+ *  1,000 and up reads in B at two decimals ("$52.00B"), below it in M at one ("$520.0M", "$0.4M"). TERM-066: the
+ *  suffix is decided by the shared formatter; `promote: false` keeps "$1000.0M" for 999.96 as it always read. */
+const REVENUE_MILLIONS_TIERS = Object.freeze([
+  Object.freeze({ at: 1000, suffix: 'B', decimals: 2 }),
+  Object.freeze({ at: 1, suffix: 'M', decimals: 1 }),
+])
+export const revenueText = (v) => (num(v) == null || v <= 0 ? null
+  : formatCompact(v, { tiers: REVENUE_MILLIONS_TIERS, prefix: '$', fixedUnit: true, promote: false, absent: null }))
 const weekday = (ymd) => { const d = new Date(`${ymd}T12:00:00Z`); return Number.isNaN(d.getTime()) ? null : d.getUTCDay() }
 
 /** The `earnings.reactions` envelope → the member's answer + its facts (pure). `model` = earningsReactionsModel's exports. */

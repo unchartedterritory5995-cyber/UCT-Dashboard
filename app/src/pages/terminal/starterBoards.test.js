@@ -88,6 +88,18 @@ describe('the shipped list — every entry is checked against the registry', () 
     }
   })
 
+  it('the Earnings season board opens on the earnings season screen, a market-wide panel with no flag', () => {
+    const b = findStarterBoard('earnings-season')
+    expect(b.commands[0]).toBe('ERNS')
+    expect(b.commands).toHaveLength(MAX_VISIBLE)
+    expect(readStarterCommand('ERNS')).toEqual({ ok: true, code: 'ERNS', sym: null, args: [], name: 'EarningsSeason' })
+    expect(BY_CODE.ERNS.market.flag).toBeUndefined()
+    expect(URL_OWNING_PANELS.has('EarningsSeason')).toBe(false)       // the calendar stays the board's one address-bar panel
+    // its typed words would be taken too, were the board ever to carry one
+    expect(readStarterCommand('ERNS TONIGHT')).toMatchObject({ ok: true, code: 'ERNS', args: ['TONIGHT'] })
+    expect(readStarterCommand('ERNS SIDEWAYS').ok).toBe(false)
+  })
+
   it('the list is frozen data (nothing can rewrite an entry at run time)', () => {
     expect(Object.isFrozen(STARTER_BOARDS)).toBe(true)
     for (const b of STARTER_BOARDS) {

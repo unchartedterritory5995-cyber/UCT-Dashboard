@@ -52,6 +52,12 @@
 # worse than none because it reads as coverage. The heavy suites stay where they
 # are (the six-shard gate, the scoped backend runs) and are the pusher's job.
 #
+# ⚰️ 2026-11-18 — "the pusher's job" was, measured, NOBODY's job: 2,982 of the 3,329 files
+# under tests/ ran in no per-push or per-PR job, and the 203 under api/** ran in no job at
+# all. The full backend suite is the NIGHTLY's (full-suite-report.yml, report-only, never
+# a deploy blocker). What THIS gate holds is the cheap half: the "Every backend test file
+# is in the nightly's shard plan" step below fails BY NAME when a test file joins no job.
+#
 # Measured build context: `web` builds from `Dockerfile.web` (the dashboard's
 # dockerfilePath overrides railway.json's NIXPACKS — read the build log, not the
 # config), and watch patterns are set per-service in the Railway dashboard.
@@ -331,6 +337,13 @@ jobs:
       - name: CI cost rails
         run: python -m pytest tests/test_ci_cost_rails.py tests/test_promote_decision.py -q -p no:cacheprovider
 
+      # ⛔ 2026-11-18: a test file that is in NO shard of the nightly is run by no CI job at all, and
+      # nothing used to say so (api/** was in that state for as long as it existed). A filesystem walk
+      # and the planner's own partition: no suite runs, ~1 s. The planner, its discovery config and
+      # the planted-file controls are all inside the file.
+      - name: Every backend test file is in the nightly's shard plan
+        run: python -m pytest tests/test_every_backend_test_file_is_in_the_shard_plan.py -q -p no:cacheprovider
+
       # RAILWAY COST (2026-11-06): the memory observer's per-file page-cache probe (mincore, /proc) only runs
       # on Linux, so its tests skip on dev PCs; this is where they actually run. Stdlib only, ~1 s.
       - name: Memory observer file-cache probe (Linux)
@@ -433,6 +446,7 @@ jobs:
           echo "Run the same checks locally:"
           echo "  python tools/secret_scrub.py --scan $(git diff --name-only --diff-filter=d HEAD^ HEAD)"
           echo "  git -c core.quotePath=false diff -z --name-only --diff-filter=d origin/production HEAD | xargs -0 python tools/secret_scrub.py --scan   # the range scan"
+          echo "  python -m pytest tests/test_every_backend_test_file_is_in_the_shard_plan.py -q"
           echo "  python -m pytest tests/test_no_shadowed_definitions.py -q"
           echo "  python -m pytest tests/test_dockerfile_vite_build_args.py tests/test_vite_flag_ledger.py -q"
           echo "  python -m pytest tests/test_visibility_flag_ledger.py -q"
@@ -775,6 +789,7 @@ jobs:
           echo "Run the same checks locally:"
           echo "  python tools/secret_scrub.py --scan $(git diff --name-only --diff-filter=d HEAD^ HEAD)"
           echo "  git -c core.quotePath=false diff -z --name-only --diff-filter=d origin/production HEAD | xargs -0 python tools/secret_scrub.py --scan   # the range scan"
+          echo "  python -m pytest tests/test_every_backend_test_file_is_in_the_shard_plan.py -q"
           echo "  python -m pytest tests/test_no_shadowed_definitions.py -q"
           echo "  python -m pytest tests/test_dockerfile_vite_build_args.py tests/test_vite_flag_ledger.py -q"
           echo "  python -m pytest tests/test_visibility_flag_ledger.py -q"
