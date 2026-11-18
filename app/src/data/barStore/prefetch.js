@@ -519,6 +519,19 @@ export function createPrefetch(o = {}) {
       .catch(() => false)
   }
 
+  /** A warm's best-effort join of the lake's whole depth (store.lakeSeed). Never rejects. */
+  function _joinLake(key) {
+    try { if (S().lakeCarries?.(key)) Promise.resolve(S().lakeSeed?.(key)).catch(() => {}) } catch { /* a warm only */ }
+  }
+
+  /** Is the lake's whole depth still due for the chart `sym` / `tf` would show (store.lakePending)?
+   *  The handoff paints a held key at once only when it is not: otherwise it prepares, and the
+   *  prepare waits for the join (bounded) so the first paint is the whole chart. */
+  function lakePending(sym, tf, { showExtended } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    return !!key && !!S().lakePending?.(key)
+  }
+
   /** LAKE_PAINTS once the lake has painted before any answer AND the server has had LAKE_ALONE_MS. */
   function _lakeAlone(lake, t0) {
     const never = new Promise(() => {})
@@ -747,9 +760,10 @@ export function createPrefetch(o = {}) {
     intentTimers.set(key, setTimer(() => {
       intentTimers.delete(key)
       tellSymbolWarmers([sym], tf, { priority: true })
-      if (!held) prefetch([key], { priority: 'urgent' })
-      // the pointer rests on the row: its deep history from now too (a no-op off the lake)
+      // the pointer rests on the row: its deep history from now too (a no-op off the lake), and its
+      // whole depth joins the answer, so the click paints the whole chart at once
       try { S().primeLake?.(key) } catch { /* a warm only */ }
+      Promise.resolve(held ? null : prefetch([key], { priority: 'urgent' })).catch(() => {}).then(() => _joinLake(key))
     }, delay))
     if (!held) tickerMeta(sym)
   }
@@ -800,9 +814,14 @@ export function createPrefetch(o = {}) {
       const s0 = (await _raced(_hydrate(key), INTENT_HYDRATE_RACE_MS)) ?? S().peek(key)
       if (typed !== mine) return 'superseded'
       tellSymbolWarmers([T], tf, { priority: true })
-      if (_localPaints(s0, fetchTf(String(tf)))) return 'cache'
+      if (_localPaints(s0, fetchTf(String(tf)))) { _joinLake(key); return 'cache' }
       const s = await ensure(key, { until: DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false, _s0: s0 || {} })
       if (ctl.signal.aborted && !mine.kept) return false
+      // ⭐ AND ITS WHOLE DEPTH BEFORE ENTER (2026-11-17): the handoff paints a held key at once, so a
+      // key held with only the answer's ~1,150 bars painted shallow and the depth joined a blink later
+      // (production A/B: first frame ~1,100 bars, the lake's depth ~250 ms after). The lake's whole
+      // depth joins it now, while the member is still typing.
+      if (typed === mine) _joinLake(key)
       // (an intraday answer early in a bucket can be the forming bar alone: still the server's answer)
       return s?.restSeen && !s.error && (s.depth || s.developing) ? 'network' : false
     })().catch(() => false).finally(() => { if (typed === mine) typed = null })
@@ -849,7 +868,7 @@ export function createPrefetch(o = {}) {
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, prepareForDisplay, prepareDailyForDisplay,
+    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, prepareForDisplay, prepareDailyForDisplay, lakePending,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
     prefetchBarOnIntent, warmTypedSymbol, createNeighborHold,
@@ -869,6 +888,7 @@ export const prefetch = (keys, opts) => _f().prefetch(keys, opts)
 export function peekDisplayable(sym, tf, opts = {}) { return _f().peekDisplayable(sym, tf, opts) }
 export function peekBars(sym, tf, opts = {}) { return _f().peekBars(sym, tf, opts) }
 export function prepareForDisplay(sym, tf, opts = {}) { return _f().prepareForDisplay(sym, tf, opts) }
+export function lakePending(sym, tf, opts = {}) { return _f().lakePending(sym, tf, opts) }
 export function prepareDailyForDisplay(sym, tf, opts = {}) { return _f().prepareDailyForDisplay(sym, tf, opts) }
 export function prefetchBars(tickers, tf = 'D', opts = {}) { return _f().prefetchBars(tickers, tf, opts) }
 export function prefetchBar(sym, tf = 'D') { return _f().prefetchBar(sym, tf) }

@@ -178,6 +178,8 @@ export function createNetwork({
   /** key → per-key slot + loop state */
   const keys = new Map()
   const lakeSeeds = new Map()      // key -> the lake load in flight (lakeSeed), shared by its callers
+  const lakeSettled = new Set()    // keys whose lake load has finished this page (whatever it added)
+  const LAKE_SETTLED_MAX = 2000
   let requests = 0
   /** key → Set<cb>: listeners of the key's catch-up budget (DELAYED badge, `tailExhausted`). */
   const budgetSubs = new Map()
@@ -591,9 +593,21 @@ export function createNetwork({
           return after.restSeen ? 'join' : 'seed'
         })
         .catch(() => false)
-        .finally(() => { if (lakeSeeds.get(key) === p) lakeSeeds.delete(key) })
+        .finally(() => {
+          if (lakeSeeds.get(key) === p) lakeSeeds.delete(key)
+          lakeSettled.add(key)
+          if (lakeSettled.size > LAKE_SETTLED_MAX) lakeSettled.delete(lakeSettled.values().next().value)
+        })
       lakeSeeds.set(key, p)
       return p
+    },
+    /** Is the lake's whole depth still DUE for `key`: the lake carries it, it holds less than that
+     *  depth, and its lake load has not finished on this page (in flight, or never asked)? The
+     *  handoff's fast path then waits for the join instead of painting a shallow copy (prefetch). */
+    lakePending(key) {
+      if (!history?.olderBars || !lakeCarriesKey(key)) return false
+      if ((registry.peek(key)?.bars.length ?? 0) >= LAKE_PREFETCH_TARGET_BARS) return false
+      return !lakeSettled.has(key)
     },
     /** Would a scroll-back of `key` ask the history lake (intraday, not a replay window, the lake on
      *  and not found exhausted for this key)? Sets the background depth target (historyPrepend). */

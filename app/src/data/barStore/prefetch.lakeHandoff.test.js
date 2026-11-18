@@ -84,6 +84,31 @@ describe('ONE paint, the whole chart (owner 2026-11-17: "a good chunk, then the 
     expect(w.store.peek(w.k('COLD', '5')).bars[0].t).toBe(OPEN - 300 * 60) // and the depth still joins
   })
 
+  it('the typed warm joins the lake\'s whole depth to its answer BEFORE Enter; then nothing is due', async () => {
+    const w = await boot({ lake: lakeOf(likeServer(OPEN - 300 * 60, OPEN + 600), { known: ['REAL', 'COLD'] }) })
+    const key = w.k('REAL', '5')
+    w.pf.warmTypedSymbol('REAL', '5')
+    await vi.advanceTimersByTimeAsync(100)
+    expect(w.store.lakePending(key)).toBe(true)                              // the answer is not in yet
+    await w.server.drain()
+    await vi.advanceTimersByTimeAsync(50)
+    const s = w.store.peek(key)
+    expect(s.restSeen).toBe(true)
+    expect(s.bars[0].t).toBe(OPEN - 300 * 60)                               // the whole depth, before Enter
+    expect(w.store.lakePending(key)).toBe(false)                             // so the handoff paints it at once
+  })
+
+  it('a lake load that settles with nothing to add is no longer due (a young listing never waits again)', async () => {
+    const w = await boot({ lake: lakeOf(likeServer(OPEN - 2 * 86400 - 3000, OPEN - 2 * 86400)) })   // no bar in common
+    const key = w.k('COLD', '5')
+    w.store.subscribe(key, () => {})
+    await vi.advanceTimersByTimeAsync(20)
+    await w.server.drain()
+    await vi.advanceTimersByTimeAsync(50)
+    expect(await w.store.lakeSeed(key)).toBe(false)
+    expect(w.store.lakePending(key)).toBe(false)
+  })
+
   it('a symbol the lake does not carry commits on its answer with no wait at all', async () => {
     const w = await boot({ lake: null })
     const state = settled(w.pf.prepareForDisplay('COLD', '5'))
