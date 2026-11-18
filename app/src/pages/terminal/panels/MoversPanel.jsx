@@ -207,7 +207,7 @@ export default function MoversPanel({ lens: lensProp = null, mine: mineProp = fa
               : `${copy.title}: the list fills as names start to move.`}
         </PanelState>
       ) : (
-        <div className={styles.tableBox}>
+        <div className={styles.tableBox} data-fold="550">
           <table className={styles.table} data-testid="terminal-movers-table" aria-label={`${LENSES[lens]}, sortable`}>
             <thead>
               <tr>

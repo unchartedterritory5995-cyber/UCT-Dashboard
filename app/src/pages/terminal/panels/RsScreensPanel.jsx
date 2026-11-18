@@ -34,7 +34,7 @@ import { formatCurrency, formatNumber, formatPercent, formatTimeEt } from '../..
 import { canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'
 import {
-  RS_SCREENS_CODE, parseRsScreen, pickRsScreen, rsScanBody, rsScanView, rsScreenColumns, rsScreensCommandArgs, rsScreensOf,
+  RS_SCREENS_CODE, RS_SCREEN_FOLD, parseRsScreen, pickRsScreen, rsScanBody, rsScanView, rsScreenColumns, rsScreensCommandArgs, rsScreensOf,
 } from './rsScreensModel'
 import styles from './marketPanels.module.css'
 
@@ -138,13 +138,13 @@ function RsScreenList({ screen }) {
   return (
     <>
       {r.error && <p className={styles.note} role="status">{failureText(r.error, listName)} Showing the last read.</p>}
-      <div className={styles.tableBox}>
+      <div className={styles.tableBox} data-fold={RS_SCREEN_FOLD[screen.id]}>
         <table className={styles.table} data-testid="terminal-rss-table" aria-label={`${screen.name}, ${view.rows.length} ${view.rows.length === 1 ? 'stock' : 'stocks'}`}>
           <thead>
             <tr>
               {columns.map((c) => (
                 <th scope="col" key={c.key} title={c.title}
-                  className={[c.phoneHide ? styles.phoneHide : '', c.wrap ? styles.wrapCell : ''].join(' ').trim() || undefined}>
+                  className={[c.phoneHide ? styles.phoneHide : '', c.wrap ? `${styles.wrapCell} ${styles.mediumTight}` : styles.mediumWrap].join(' ').trim() || undefined}>
                   {c.label}
                 </th>
               ))}
@@ -165,7 +165,7 @@ function RsScreenList({ screen }) {
                   const cell = rsScreenCell(c.key, x)
                   return (
                     <td key={c.key}
-                      className={[c.phoneHide ? styles.phoneHide : '', c.wrap ? styles.wrapCell : '', tone(cell.toneOf) || ''].join(' ').trim() || undefined}>
+                      className={[c.phoneHide ? styles.phoneHide : '', c.wrap ? `${styles.wrapCell} ${styles.mediumTight}` : '', tone(cell.toneOf) || ''].join(' ').trim() || undefined}>
                       {cell.text}
                     </td>
                   )

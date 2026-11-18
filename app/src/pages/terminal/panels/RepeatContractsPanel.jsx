@@ -160,17 +160,17 @@ function Contracts({ code, date, order, onDate }) {
   return (
     <>
       {read.error && <p className={styles.note} role="status">{failureText(read.error, LIST)} Showing the last read.</p>}
-      <div className={styles.tableBox}>
+      <div className={styles.tableBox} data-fold="550">
         <table className={styles.table} data-testid="terminal-accum-table"
           aria-label={`Repeat-hit option contracts${day ? ` for ${day}` : ''}, ${rows.length} ${plural(rows.length, 'contract', 'contracts')}`}>
           <thead>
             <tr>
               <th scope="col" title="Click a symbol to load it into the linked panels">Symbol</th>
-              <th scope="col" className={`${styles.wrapCell} ${styles.phoneTight}`}>Contract</th>
+              <th scope="col" className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`}>Contract</th>
               <th scope="col" title="Trades on this contract in the session that cleared the size floor for the stock, and all its trades counted">Hits</th>
               <th scope="col" title="Dollars across all the contract's trades in the session, and the session's contracts against the open interest before it (OI)">Premium</th>
               <th scope="col" title="Which way the contract's premium leans, and the share of all its premium on that side; the rest went the other way or has no readable side">Direction</th>
-              <th scope="col" className={`${styles.phoneHide} ${styles.wrapCell}`}
+              <th scope="col" className={`${styles.phoneHide} ${styles.wrapCell} ${styles.snugTight}`}
                 title="The grade of the build as a whole, A+ best, and its fastest stretch when four or more hits landed inside five minutes">Grade and pace</th>
             </tr>
           </thead>
@@ -181,7 +181,7 @@ function Contracts({ code, date, order, onDate }) {
                   <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
                   <PanelSymbol sym={r.sym} className={styles.sym} />
                 </td>
-                <td className={`${styles.wrapCell} ${styles.phoneTight}`}>{unbroken(contractText(r))}</td>
+                <td className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`}>{unbroken(contractText(r))}</td>
                 <td>
                   {count(r.hits)}
                   {r.trades != null && r.hits != null && r.trades > r.hits ? <span className={styles.muted}>{` of${NBSP}${count(r.trades)}`}</span> : null}
@@ -194,7 +194,7 @@ function Contracts({ code, date, order, onDate }) {
                   {directionWords(r)}
                   {r.leanSharePct == null ? null : <span className={styles.muted}>{` (${share(r.leanSharePct)})`}</span>}
                 </td>
-                <td className={`${styles.phoneHide} ${styles.wrapCell}`}>
+                <td className={`${styles.phoneHide} ${styles.wrapCell} ${styles.snugTight}`}>
                   {r.grade || 'Not graded'}
                   {r.burst && r.burstHits != null ? (
                     <span className={styles.muted}>{` ${count(r.burstHits)} in 5${NBSP}min${r.burstRising ? ', price rising' : ''}`}</span>

@@ -109,7 +109,7 @@ function FailedRead({ err, onRetry, code }) {
 
 function VolumeTable({ rows, label }) {
   return (
-    <div className={styles.tableBox}>
+    <div className={styles.tableBox} data-fold="510">
       <table className={styles.table} data-testid="terminal-unvol-table" aria-label={label}>
         <thead>
           <tr>

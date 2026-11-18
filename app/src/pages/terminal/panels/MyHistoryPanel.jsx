@@ -205,7 +205,7 @@ function ClosedTrades({ sym: s, list, stats, optionsRead: optionsOk }) {
         <p className={styles.muted} data-testid="terminal-myh-stock-only">These numbers are your stock trades only: your option trades on {s} could not be read.</p>
       ) : null}
 
-      <div className={styles.tableBox}>
+      <div className={styles.tableBox} data-fold="590">
         <table className={styles.table} data-testid="terminal-myh-trades-table"
           aria-label={`Your closed trades on ${s}, newest close first, ${list.length} ${list.length === 1 ? 'trade' : 'trades'}`}>
           <thead>
