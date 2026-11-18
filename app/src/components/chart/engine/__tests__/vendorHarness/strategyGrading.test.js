@@ -243,8 +243,6 @@ const STRATEGY_CAPTURE_ROWS = Object.freeze({
   'w9-mk1-markers-rpt-rddt-1d-2026-11-16': 'W9-MK1',
   'w9-q-s1i-short-v6-rddt-1d-2026-11-16': 'Q-S1i',
   // 2026-11-17 (the e73 filing): the run manifests' rows (capture-queue-2026-11-17-strategy-decl, -2026-11-05-w9)
-  'supertrend-strategy-rddt-1d-2026-11-17': 'Q-SD1',
-  'supertrend-strategy-alab-1d-2026-11-17': 'Q-SD2',
   'w9-q-s1a-size-stop-v6-rddt-1d-2026-11-17': 'Q-S1a',
   'w9-q-s1b-v4-shape-a-rddt-1d-2026-11-17': 'Q-S1b',
   'w9-q-s1b-v4-shape-b-rddt-1d-2026-11-17': 'Q-S1b',

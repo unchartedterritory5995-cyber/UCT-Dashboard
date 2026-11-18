@@ -230,8 +230,6 @@ describe('B1 — paints graded against the captures that record them', () => {
     'machine-learning-moving-average-backquant-spy-1d-2026-11-17.json': ['refused pine:reassign'],
     'one-sided-gaussian-support-resistance-rate-loxx-rddt-1d-2026-11-17.json': ['refused pine:block'],
     'one-sided-gaussian-support-resistance-rate-loxx-spy-1d-2026-11-17.json': ['refused pine:block'],
-    'supertrend-strategy-alab-1d-2026-11-17.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
-    'supertrend-strategy-rddt-1d-2026-11-17.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
     'trend-targets-algoalpha-rddt-1d-2026-11-17.json': ['refused pine:state'],
     'trend-targets-algoalpha-spy-1d-2026-11-17.json': ['refused pine:state'],
     'volatility-coil-edge-bullbyte-rddt-1d-2026-11-17.json': ['refused pine:reassign'],
