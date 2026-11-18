@@ -226,3 +226,22 @@ def test_D4_an_unparseable_override_keeps_the_1990_start(monkeypatch):
     assert index_bars._daily_window_start(TODAY) == dt.date(1990, 1, 1)
     monkeypatch.setenv("INDEX_FMP_LOOKBACK_DAYS", "0")
     assert index_bars._daily_window_start(TODAY) == dt.date(1990, 1, 1)
+
+
+# -- D5 (RS RATING L12) --------------------------------------------------------------
+
+def test_D5_a_yfinance_index_level_is_its_2_decimal_quote_before_the_divisor(monkeypatch):
+    """yfinance hands 7340.6298828125 for the 7340.63 print; TradingView reads the quote. Rounded BEFORE the divisor,
+    so a divided index (DJX = ^DJI / 100, XSP = ^GSPC / 10) keeps its extra digits."""
+    import pandas as pd
+    idx = pd.to_datetime(["2026-11-17 20:55:00+00:00"])
+    df = pd.DataFrame({"Open": [7329.97998046875], "High": [7340.6298828125], "Low": [7329.97998046875],
+                       "Close": [7340.6298828125], "Volume": [87212000]}, index=idx)
+    import api.services.yf_util as yfu
+    monkeypatch.setattr(yfu, "bounded_call", lambda fn, default: df)
+    import types, sys
+    monkeypatch.setitem(sys.modules, "yfinance", types.SimpleNamespace(download=lambda *a, **k: df))
+    out = index_bars._fetch_yf("^GSPC", "5m", "60d", 1.0)
+    assert out[0]["c"] == 7340.63 and out[0]["o"] == 7329.98
+    xsp = index_bars._fetch_yf("^GSPC", "5m", "60d", 10.0)
+    assert xsp[0]["c"] == 734.063                       # the quote / 10, not round(734.06298828125, 2)

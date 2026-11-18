@@ -124,6 +124,11 @@ def index_symbols() -> list[str]:
 
 
 # ── yfinance fetch (the only slow tier) ──────────────────────────────────────
+def _quote(v) -> float:
+    """A yfinance price as its 2-decimal quote (yfinance carries float32-wide values: 7340.6298828125)."""
+    return round(float(v), 2)
+
+
 def _fetch_yf(yahoo_sym: str, interval: str, period: str,
               divisor: float) -> List[Dict[str, Any]]:
     """Pull the FULL available series from yfinance → [{t,o,h,l,c,v}] (unix-sec t,
@@ -152,10 +157,15 @@ def _fetch_yf(yahoo_sym: str, interval: str, period: str,
     for idx, row in df.iterrows():
         try:
             t = int(idx.timestamp())
-            o = float(row["Open"]) / divisor
-            h = float(row["High"]) / divisor
-            l = float(row["Low"]) / divisor
-            c = float(row["Close"]) / divisor
+            # ⭐ RS RATING L12 (2026-11-18): yfinance hands an index level as a float32-wide value (7340.6298828125 for
+            # the 7340.63 print), ~1e-7 off the quote TradingView reads; Fred RS's RS line on a 5m chart then differed
+            # from TradingView's on every bar (4,677 of 4,680 equal once rounded). Rounded to the source's own quote
+            # (cents: every yfinance symbol here, the indices and the ETF proxies, quotes 2 decimals) BEFORE the divisor,
+            # so DJX (^DJI / 100) and XSP (^GSPC / 10) keep their extra digits.
+            o = _quote(row["Open"]) / divisor
+            h = _quote(row["High"]) / divisor
+            l = _quote(row["Low"]) / divisor
+            c = _quote(row["Close"]) / divisor
             v_raw = row.get("Volume", 0)
             v = int(v_raw) if v_raw == v_raw else 0
         except (KeyError, ValueError, TypeError, AttributeError):
