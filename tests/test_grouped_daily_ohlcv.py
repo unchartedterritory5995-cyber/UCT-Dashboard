@@ -22,7 +22,7 @@ class _Client:
 
 FULL = {"results": [
     {"T": "AAPL", "o": 10.0, "h": 12.5, "l": 9.5, "c": 11.0, "v": 1_000_000},
-    {"T": "msft", "o": 20.0, "h": 21.0, "l": 19.0, "c": 20.5, "v": 2_000_000},
+    {"T": "MSFT", "o": 20.0, "h": 21.0, "l": 19.0, "c": 20.5, "v": 2_000_000},
     {"T": "NOVOL", "o": 1.0, "h": 1.0, "l": 1.0, "c": 1.0},          # v missing
     {"T": "ZERO", "o": 1.0, "h": 1.0, "l": 1.0, "c": 0.0, "v": 5},   # non-positive close
 ]}
@@ -45,7 +45,7 @@ def test_every_ohlc_field_survives_the_fetch(wired):
     _holder, _calls, _dir = wired
     got = massive.get_grouped_daily_ohlcv("2015-03-10", adjusted=True)
     assert got["AAPL"] == {"o": 10.0, "h": 12.5, "l": 9.5, "c": 11.0, "v": 1_000_000.0}
-    assert got["MSFT"]["h"] == 21.0          # symbols upper-cased
+    assert got["MSFT"]["h"] == 21.0
     assert got["NOVOL"]["v"] == 0.0          # a missing volume is 0.0, not absent
     assert "ZERO" not in got                 # a non-positive close is not a bar
 

@@ -206,9 +206,10 @@ def _wf():
 def test_browser_job_runs_the_balanced_plan_and_keeps_its_contract():
     doc = _wf()
     job = doc["jobs"]["browser"]
-    # 4 -> 8 (2026-11-16, GitHub Pro: 40 concurrent jobs). The name, the matrix and AGENT_SHARDS must agree.
-    assert job["name"] == "UCT Agent browser tests (shard ${{ matrix.shard }}/8)"
-    assert job["strategy"]["matrix"]["shard"] == [1, 2, 3, 4, 5, 6, 7, 8] and doc["env"]["AGENT_SHARDS"] == "8"
+    # 4 -> 8 (2026-11-16, GitHub Pro: 40 concurrent jobs); 8 -> 12 (2026-11-17, critical path). The name, the matrix and
+    # AGENT_SHARDS must agree.
+    assert job["name"] == "UCT Agent browser tests (shard ${{ matrix.shard }}/12)"
+    assert job["strategy"]["matrix"]["shard"] == list(range(1, 13)) and doc["env"]["AGENT_SHARDS"] == "12"
     assert job["timeout-minutes"] == 40
     step = [s for s in job["steps"] if s.get("name") == "vitest shard"][0]["run"]
     assert "npx vitest list $AGENT_VITEST_PATHS --filesOnly" in step
@@ -371,3 +372,225 @@ def test_union_rail_is_identical_in_fallback_mode(tmp_path, capsys, mutant, code
     if code:
         want = "files no shard ran" if mutant == "drop_one" else "files more than one shard ran"
         assert "::error::" + want in r.stdout, r.stdout
+
+
+# ---- refreshed timings + the committed file as fallback (2026-11-17) ----------------------------------------------
+def _tjson(tmp_path, name, files_ms):
+    p = tmp_path / name
+    p.write_text(json.dumps({"files_ms": files_ms}), encoding="utf-8")
+    return p
+
+
+def test_fallback_timings_weigh_only_the_files_the_primary_lacks(tmp_path):
+    prim = _tjson(tmp_path, "week.json", {"src/agent/a.test.jsx": 5000, "src/agent/b.test.jsx": 1000})
+    fb = _tjson(tmp_path, "committed.json", {"src/agent/a.test.jsx": 1, "src/agent/c.0.test.jsx": 9000})
+    t, errs = avs.read_timings_with_fallback(prim, fb)
+    assert errs == [] and t == {"src/agent/a.test.jsx": 5000, "src/agent/b.test.jsx": 1000, "src/agent/c.0.test.jsx": 9000}
+    assert avs.read_timings_with_fallback(prim, None) == avs.read_timings_with_fallback(prim, prim) == (avs.read_timings(prim)[0], [])
+
+
+@pytest.mark.parametrize("bad", ["primary", "fallback", "both"])
+def test_an_invalid_timing_file_contributes_nothing_and_is_annotated(tmp_path, capsys, bad):
+    good_p = {"src/agent/a.test.jsx": 5000}
+    good_f = {"src/agent/b.test.jsx": 7000}
+    prim = _tjson(tmp_path, "week.json", good_p) if bad == "fallback" else _bad_timings(tmp_path, "malformed_json")
+    fb = _tjson(tmp_path, "committed.json", good_f) if bad == "primary" else tmp_path / "no-such.json"
+    t, errs = avs.read_timings_with_fallback(prim, fb)
+    want = {"primary": good_f, "fallback": good_p, "both": {}}[bad]
+    assert t == want and len(errs) == (2 if bad == "both" else 1)
+    files = _files(9) + ["src/agent/a.test.jsx", "src/agent/b.test.jsx"]
+    lst = tmp_path / "files.txt"
+    lst.write_text("\n".join(files) + "\n", encoding="utf-8")
+    seen = []
+    for i in range(1, 4):
+        assert avs.main(["--files-list", str(lst), "--of", "3", "--shard", str(i), "--timings", str(prim),
+                         "--timings-fallback", str(fb)]) == avs.OK
+        cap = capsys.readouterr()
+        seen += [l for l in cap.out.splitlines() if l]
+        then = "splitting the Agent shards by count" if bad == "both" else "using the other timing file"
+        assert sum(1 for l in cap.err.splitlines() if l.startswith("::warning") and l.endswith("(%s)" % then)) == len(errs)
+    assert sorted(seen) == sorted(files) and len(seen) == len(set(seen))
+
+
+def test_browser_shards_plan_with_the_committed_file_as_fallback():
+    step = [s for s in _wf()["jobs"]["browser"]["steps"] if s.get("name") == "vitest shard"][0]["run"]
+    assert 'F=../tools/agent_vitest_shard_timings.json' in step
+    assert step.count('--timings "$T" --timings-fallback "$F"') == 2      # the --plan line and the --shard line
+
+
+# ---- split test files (2026-11-17): the slices together are exactly the old file --------------------------------
+AGENT = ROOT / "app" / "src" / "agent"
+#: old file -> (suite module, slice count). A split moves the old file's body verbatim into the module; each slice file
+#: calls the suite with its index. Adding a split here is how the rails below learn about it.
+SPLITS = {
+    "agentTickerCompoundExclusion.test.jsx": ("testing/tickerCompoundExclusionSuite.jsx", 3),
+}
+
+
+@pytest.mark.parametrize("old", sorted(SPLITS))
+def test_a_split_file_is_gone_and_every_slice_calls_its_suite_once(old):
+    module, n = SPLITS[old]
+    stem = old[: -len(".test.jsx")]
+    assert not (AGENT / old).exists(), "the old file came back beside its slices: its tests would run twice"
+    src = (AGENT / module).read_text(encoding="utf-8")
+    assert "export const SLICES = %d\n" % n in src
+    assert "const mine = (rows) => rows.filter((_, i) => i % SLICES === SLICE)" in src
+    fn = src.split("export function ", 1)[1].split("(", 1)[0]
+    slices = sorted(p.name for p in AGENT.glob(stem + ".*.test.jsx"))
+    assert slices == ["%s.%d.test.jsx" % (stem, k) for k in range(n)], slices
+    for k in range(n):
+        body = (AGENT / ("%s.%d.test.jsx" % (stem, k))).read_text(encoding="utf-8")
+        calls = [l for l in body.splitlines() if l.startswith(fn + "(")]
+        assert calls == ["%s(%d)" % (fn, k)], (k, calls)
+
+
+@pytest.mark.parametrize("old", sorted(SPLITS))
+def test_a_split_suite_slices_every_table_and_keeps_each_single_test_once(old):
+    """Every it.each table goes through mine(); every other test is in slice 0 only; describe names never vary."""
+    module, _n = SPLITS[old]
+    src = (AGENT / module).read_text(encoding="utf-8")
+    assert src.count("it.each(") == src.count("it.each(mine(") > 0
+    lines = src.splitlines()
+    in_slice0_describe = False           # inside `if (SLICE === 0) describe(...)`, up to its closing `})` at column 0
+    singles = 0
+    for l in lines:
+        s = l.strip()
+        if l.startswith("if (SLICE === 0) describe("):
+            in_slice0_describe = True
+        elif in_slice0_describe and l.startswith("})"):
+            in_slice0_describe = False
+        if s.startswith("it(") or s.startswith("test("):
+            assert in_slice0_describe, "a single test outside the slice-0 guard: %r" % s
+            singles += 1
+        elif s.startswith("if (SLICE === 0) it("):
+            singles += 1
+        if "describe(" in s:
+            assert "SLICE" not in s.split("describe(", 1)[1].split("',", 1)[0], "a describe name that varies by slice: %r" % s
+    assert singles, "the single tests are not guarded"
+
+
+@pytest.mark.parametrize("old", sorted(SPLITS))
+def test_a_split_files_slices_are_timed_and_the_old_entry_is_gone(old):
+    module, n = SPLITS[old]
+    stem = "src/agent/" + old[: -len(".test.jsx")]
+    t, err = avs.read_timings()
+    assert err is None and stem + ".test.jsx" not in t
+    assert all(t.get("%s.%d.test.jsx" % (stem, k), 0) > 0 for k in range(n))
+
+
+# ---- capreg @ rth legs (2026-11-17) -----------------------------------------------------------------------------
+def _capreg():
+    doc = _wf()
+    return doc, doc["jobs"]["capability-regression-clock"], doc["jobs"]["capability-regression"]
+
+
+def test_capreg_rth_runs_as_legs_that_agree_with_the_leg_count():
+    doc, job, _join = _capreg()
+    legs = int(doc["env"]["CAPREG_RTH_LEGS"])
+    clocks = job["strategy"]["matrix"]["clock"]
+    assert clocks == ["post"] + ["rth-%d" % k for k in range(1, legs + 1)] and legs >= 2
+    assert job["env"]["CAPREG_CLOCK"] == "${{ startsWith(matrix.clock, 'rth') && 'rth' || matrix.clock }}"
+    step = [s for s in job["steps"] if "vitest run" in (s.get("run") or "")]
+    assert len(step) == 1 and step[0]["if"] == "matrix.clock != 'post'"
+    run = step[0]["run"]
+    assert "npx vitest list src/agent/qa/capabilityRegression --filesOnly" in run
+    assert '--of "${CAPREG_RTH_LEGS}"' in run and '--shard "$K"' in run and 'K="${LEG#rth-}"' in run
+    assert 'test -s "../capreg-$LEG.files"' in run                       # never an unfiltered vitest run
+    assert '--reporter=json --outputFile="../capreg-$LEG.json"' in run   # the join job's union reads it on every event
+    up = [s for s in job["steps"] if "upload-artifact" in (s.get("uses") or "") and "agent-capreg-" in str(s["with"].get("name"))]
+    assert len(up) == 1 and up[0]["with"]["name"] == "agent-capreg-${{ matrix.clock }}"
+    assert up[0]["with"]["if-no-files-found"] == "error"
+    for part in ("capreg-${{ matrix.clock }}.json", "capreg-${{ matrix.clock }}.expected.txt"):
+        assert part in up[0]["with"]["path"]
+
+
+def test_capreg_post_keeps_the_history_and_rth_legs_take_a_shallow_checkout():
+    _doc, job, _join = _capreg()
+    co = [s for s in job["steps"] if str(s.get("uses", "")).startswith("actions/checkout@")][0]
+    assert co["with"]["fetch-depth"] == "${{ matrix.clock != 'post' && 1 || 0 }}"
+
+
+def _rth_union_script():
+    _doc, _job, join = _capreg()
+    run = [s for s in join["steps"] if (s.get("name") or "").startswith("The rth legs ran the whole suite once")][0]["run"]
+    return run.split("<<'EOF'\n", 1)[1].rsplit("EOF", 1)[0]
+
+
+def _rth_fixture(tmp_path, files, legs, lists=None, failed=0, n=None, n_lists=None):
+    d = tmp_path / "capreg"
+    d.mkdir()
+    for i, members in enumerate(legs, 1):
+        doc = {"numFailedTests": failed if i == 1 else 0, "numPassedTests": len(members),
+               "testResults": [{"name": "/runner/w/app/" + f, "startTime": 0, "endTime": 1} for f in members]}
+        (d / ("capreg-rth-%d.json" % i)).write_text(json.dumps(doc), encoding="utf-8")
+        if n_lists is not None and i > n_lists:
+            continue                      # a report with no expected list (only the report count is wrong)
+        lst = files if lists is None else lists[i - 1]
+        (d / ("capreg-rth-%d.expected.txt" % i)).write_text("\n".join(lst) + "\n", encoding="utf-8")
+    (tmp_path / "rth.js").write_text(_rth_union_script(), encoding="utf-8")
+    env = dict(__import__("os").environ, CAPREG_RTH_LEGS=str(len(legs) if n is None else n))
+    return subprocess.run(["node", "rth.js"], cwd=tmp_path, capture_output=True, text=True, env=env)
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+@pytest.mark.parametrize("mutant", ["none", "drop_one", "duplicate_one", "drop_leg", "extra_leg", "lists_differ",
+                                    "failed", "too_few_files", "outside_list"])
+def test_capreg_rth_union_rail_fails_closed(tmp_path, mutant):
+    files = _files(17, "src/agent/qa/capabilityRegression/c")
+    legs = avs.assign(files, {f: 1000 + i for i, f in enumerate(files)}, 2)
+    kw = {}
+    if mutant == "drop_one":
+        legs[1] = legs[1][1:]
+    elif mutant == "duplicate_one":
+        legs[0] = legs[0] + legs[1][:1]
+    elif mutant == "drop_leg":
+        kw["n"] = 2
+        legs = legs[:1]
+    elif mutant == "extra_leg":
+        kw["n"] = 1
+    elif mutant == "lists_differ":
+        kw["lists"] = [files, files[:-1]]
+    elif mutant == "failed":
+        kw["failed"] = 1
+    elif mutant == "too_few_files":
+        files = files[:9]
+        legs = avs.assign(files, {}, 2)
+    elif mutant == "outside_list":
+        legs[0] = legs[0] + ["src/agent/elsewhere.test.jsx"]
+    r = _rth_fixture(tmp_path, files, legs, **kw)
+    if mutant == "none":
+        assert r.returncode == 0 and "::error::" not in r.stdout, r.stdout + r.stderr
+        assert "17 files listed; 2 legs ran 17 distinct" in r.stdout
+    else:
+        assert r.returncode == 1 and "::error::" in r.stdout, (mutant, r.stdout + r.stderr)
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+def test_capreg_rth_union_rail_fails_a_correct_union_over_the_wrong_number_of_reports(tmp_path):
+    """AUDIT #1839: the union is exactly right (every file once, nothing outside the list, none failed) and there are
+    exactly CAPREG_RTH_LEGS identical expected lists, but THREE reports for two legs. Only the report-count check can
+    catch it; with that check removed the rail would pass it."""
+    files = _files(17, "src/agent/qa/capabilityRegression/c")
+    legs = [files[:1], files[1:2], files[2:]]
+    assert sorted(f for leg in legs for f in leg) == sorted(files) and len(set(files)) == 17   # a correct union, no dupes
+    r = _rth_fixture(tmp_path, files, legs, n=2, n_lists=2)
+    assert sorted(p.name for p in (tmp_path / "capreg").iterdir()) == [
+        "capreg-rth-1.expected.txt", "capreg-rth-1.json", "capreg-rth-2.expected.txt", "capreg-rth-2.json",
+        "capreg-rth-3.json"]
+    assert r.returncode == 1, r.stdout + r.stderr
+    assert [ln for ln in r.stdout.splitlines() if ln.startswith("::error::")] == [
+        "::error::expected 2 rth leg reports, got 3"], r.stdout + r.stderr
+
+
+def test_capreg_join_downloads_the_rth_legs_and_still_requires_every_leg_success():
+    _doc, _job, join = _capreg()
+    assert join["needs"] == "capability-regression-clock"
+    names = [s.get("name") or s.get("uses") for s in join["steps"]]
+    # P2c: step 0 is the payload validation every job starts with; the all-legs-success check follows it
+    assert join["steps"][0]["id"] == "payload"
+    first = [s for s in join["steps"] if s.get("name") == "Both pinned clocks passed"]
+    assert len(first) == 1 and names.index("Both pinned clocks passed") == 1
+    assert 'test "${{ needs.capability-regression-clock.result }}" = "success"' in first[0]["run"]
+    dl = [s for s in join["steps"] if "download-artifact" in (s.get("uses") or "")]
+    assert len(dl) == 1 and dl[0]["with"]["pattern"] == "agent-capreg-rth-*" and dl[0]["with"]["merge-multiple"] is True
+    assert names.index(dl[0].get("uses")) < [i for i, n in enumerate(names) if str(n).startswith("The rth legs")][0]

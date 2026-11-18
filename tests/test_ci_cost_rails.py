@@ -130,9 +130,9 @@ def test_the_capreg_post_leg_does_not_rerun_what_the_shards_run():
     """The vitest capreg suite at the post clock already runs inside agent-ci's browser shards; only the rth leg
     runs it again (that clock is covered nowhere else). Re-adding it to the post leg is ~15 min per run."""
     job = _load(WORKFLOWS / "agent-ci.yml")["jobs"]["capability-regression-clock"]
-    vitest = [s for s in job["steps"] if "vitest run src/agent/qa/capabilityRegression" in (s.get("run") or "")]
+    vitest = [s for s in job["steps"] if "vitest run " in (s.get("run") or "")]
     assert len(vitest) == 1, vitest
-    assert vitest[0].get("if") == "matrix.clock == 'rth'", vitest[0]
+    assert vitest[0].get("if") == "matrix.clock != 'post'", vitest[0]
     shards = " ".join(s.get("run") or "" for s in _load(WORKFLOWS / "agent-ci.yml")["jobs"]["browser"]["steps"])
     assert "$AGENT_VITEST_PATHS" in shards, "the shards no longer run the Agent paths, so the post leg is the only post-clock run"
 

@@ -121,6 +121,14 @@ export const EARNINGS_SESSION_WORDS = Object.freeze({
   BMO: 'bmo', MORNING: 'bmo', BEFORE: 'bmo',
   AMC: 'amc', EVENING: 'amc', AFTER: 'amc',
 })
+// unusual volume: copies of the panel model's words (args.unusualVolume.test.js pins each to its owner)
+export const UNVOL_SIDE_WORDS = Object.freeze({
+  UP: 'up', GAINERS: 'up', GREEN: 'up',
+  DOWN: 'down', DN: 'down', LOSERS: 'down', RED: 'down',
+})
+export const UNVOL_MIN_WORDS = Object.freeze({
+  '2X': 2, 2: 2, '3X': 3, 3: 3, '5X': 5, 5: 5,
+})
 /** A typed `MM/DD` for ERNS is the nearest such day; past this many days away it is the next or the last year's. */
 export const EARNINGS_DAY_REACH = 183
 export const RS_SCREEN_ARG_WORDS = Object.freeze({
@@ -496,6 +504,37 @@ export const ARG_KINDS = {
     takes: 'BMO (before the open) or AMC (after the close)',
     parse: (tok) => EARNINGS_SESSION_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
     describe: (v) => (v === 'bmo' ? 'before the open' : 'after the close'),
+  },
+  // ── sector and theme drill-down (2026-11-18) ──
+  /** GRP's group, by NAME or by sector fund: a REST kind (`rest: true`), every word the range does
+   *  not take, joined (`GRP AI / GPU CHIPS`, `GRP AEROSPACE & DEFENSE`, `GRP XLK`). A leading
+   *  SECTOR, INDUSTRY or THEME pins the kind; the PANEL (panels/groupDrillModel.js parseGroupQuery,
+   *  resolveGroup) reads that word and resolves the name against the lists it loads, because the
+   *  groups are data, not a constant. A range word is never a name word, so a second one (`GRP XLK
+   *  3M 1Y`) is said to be not applied instead of becoming part of the name. Upper case, as typed:
+   *  the resolver ignores case and punctuation. */
+  groupName: {
+    takes: 'a sector fund, a sector, an industry or a theme (GRP XLK, GRP THEME AI / GPU CHIPS)',
+    parse: (tok) => {
+      const t = String(tok ?? '').replace(/\s+/g, ' ').trim().toUpperCase()
+      if (!t || Object.prototype.hasOwnProperty.call(PERIOD_RANGE_WORDS, t)) return null
+      return t
+    },
+    describe: (v) => `group "${v}"`,
+  },
+  // ── unusual volume (2026-11-18) ──
+  /** UNVOL's two picks (panels/unusualVolumeModel.js; pinned by args.unusualVolume.test.js): which
+   *  way the stock is going on the day, and how far above its usual volume it must be. No word
+   *  sits in both maps, so `UNVOL 3X UP` reads the same in either order. */
+  unvolSide: {
+    takes: 'UP or DOWN',
+    parse: (tok) => UNVOL_SIDE_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => (v === 'down' ? 'down on the day' : 'up on the day'),
+  },
+  unvolMin: {
+    takes: 'a multiple (2X, 3X, 5X)',
+    parse: (tok) => UNVOL_MIN_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => `${v}× its usual volume or more`,
   },
 }
 

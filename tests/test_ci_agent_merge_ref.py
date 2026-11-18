@@ -3,7 +3,7 @@ event (a small evaluator for the GitHub expression subset agent-ci.yml uses; any
 
   * push runs are unchanged: every job still runs, every added step is skipped, every added value is '' on push,
     and the push concurrency group is the exact string it was (`agent-ci-<ref>`);
-  * a same-repo agent/** PR into MASTER runs all 13 required jobs (8 browser shards) on its pull_request event, and a
+  * a same-repo agent/** PR into MASTER runs all 18 required jobs (12 browser shards) on its pull_request event, and a
     PR into agent/int still skips them (its evidence stays the push run);
   * the evidence-run concurrency group is per PR, shared by the PR's pull_request run and its re-arm dispatch;
   * every required job (each matrix leg) records and uploads `agent-ci-evidence-pr<N>-<key>`, and every checkout pins
@@ -258,15 +258,22 @@ def test_every_value_p2_added_is_empty_on_push():
                 if isinstance(v, str) and ("steps.payload.outputs" in v or "github.event_name != 'push'" in v):
                     seen += 1
                     assert template(v, c) == "", f"{jid}: {k} = {template(v, c)!r} on push"
-    assert seen >= 7, f"only {seen} P2 values found: the rail is not looking at them"   # 4 checkout refs + 2 PYTEST_ADDOPTS + 1 EVIDENCE_VITEST_ARGS
+    # exactly 4 checkout refs + 2 PYTEST_ADDOPTS (EVIDENCE_VITEST_ARGS is gone 2026-11-17: an rth leg writes its json on
+    # every event, because the join job's union rail reads it)
+    assert seen == 6, f"{seen} P2 values found, want 6: the rail is not looking at them, or a P2 value was added unreviewed"
 
 
 def test_the_one_run_line_p2_touched_has_the_push_argv_it_had():
     job = DOC["jobs"]["capability-regression-clock"]
-    step = next(s for s in job["steps"] if "vitest run src/agent/qa/capabilityRegression" in (s.get("run") or ""))
-    env = {k: template(v, ctx("push")) for k, v in (step.get("env") or {}).items()}
-    argv = re.sub(r"\$(\w+)", lambda m: env.get(m.group(1), m.group(0)), step["run"]).split()
-    assert argv == "npx vitest run src/agent/qa/capabilityRegression --reporter=default".split()
+    steps = [s for s in job["steps"] if "vitest run " in (s.get("run") or "")]
+    assert len(steps) == 1, steps
+    step = steps[0]
+    # 2026-11-17 (rth legs): the step's only env is the leg name; nothing in it depends on the event
+    assert step.get("env") == {"LEG": "${{ matrix.clock }}"}, step.get("env")
+    assert not any("github.event" in str(v) or "steps.payload" in str(v) for v in step["env"].values())
+    last = step["run"].strip().splitlines()[-1].strip()
+    assert last == ('npx vitest run $(cat "../capreg-$LEG.files") --reporter=default --reporter=json '
+                    '--outputFile="../capreg-$LEG.json"'), last
 
 
 def test_push_concurrency_group_is_the_string_it_was():
@@ -285,15 +292,17 @@ def _running_jobs(c) -> list[str]:
     return names
 
 
-def test_a_same_repo_agent_pr_into_master_runs_all_13_jobs_and_8_shards():
+def test_a_same_repo_agent_pr_into_master_runs_all_18_jobs_and_12_shards():
     names = _running_jobs(ctx("pull_request", head="agent/pl/x", base="master"))
-    assert len(names) == 13 and set(names) == set(acr.required_jobs(DOC))
-    assert sum(1 for n in names if n.startswith("UCT Agent browser tests (shard ")) == 8
-    assert [l["shard"] for l in _legs(DOC["jobs"]["browser"])] == list(range(1, 9)) and DOC["env"]["AGENT_SHARDS"] == "8"
+    assert len(names) == 18 and set(names) == set(acr.required_jobs(DOC))
+    assert sum(1 for n in names if n.startswith("UCT Agent browser tests (shard ")) == 12
+    assert [l["shard"] for l in _legs(DOC["jobs"]["browser"])] == list(range(1, 13)) and DOC["env"]["AGENT_SHARDS"] == "12"
+    assert [l["clock"] for l in _legs(DOC["jobs"]["capability-regression-clock"])] == ["post", "rth-1", "rth-2"]
 
 
-def test_a_rearm_dispatch_runs_all_13_jobs():
-    assert len(_running_jobs(ctx("repository_dispatch"))) == 13
+def test_a_rearm_dispatch_runs_all_18_jobs():
+    names = _running_jobs(ctx("repository_dispatch"))
+    assert len(names) == 18 and set(names) == set(acr.required_jobs(DOC))
     assert _running_jobs(ctx("workflow_dispatch")) == [] or "workflow_dispatch" not in ON   # not a trigger at all
 
 
@@ -301,7 +310,8 @@ def test_an_agent_pr_into_agent_int_still_skips_and_other_prs_are_unchanged():
     assert _running_jobs(ctx("pull_request", head="agent/pl/x", base="agent/int")) == []
     for c in (ctx("pull_request", head="charts/x", base="agent/int"), ctx("pull_request", head="charts/x", base="master"),
               ctx("pull_request", head="agent/pl/x", base="agent/int", fork=True)):
-        assert len(_running_jobs(c)) == 13
+        names = _running_jobs(c)
+        assert len(names) == 18 and set(names) == set(acr.required_jobs(DOC))
 
 
 def test_evidence_concurrency_is_per_pr_and_shared_with_its_rearm():
@@ -323,7 +333,7 @@ def test_every_required_job_records_and_uploads_its_evidence():
         for leg in _legs(job):
             name = acr.required_jobs({"jobs": {jid: dict(job, strategy={"matrix": {k: [v] for k, v in leg.items()}})}})
             want[name[0]] = (jid, leg)
-    assert set(want) == set(keys) and len(want) == 13
+    assert set(want) == set(keys) and len(want) == 18
     for job_name, key in keys.items():
         jid, leg = want[job_name]
         job = DOC["jobs"][jid]
