@@ -252,6 +252,12 @@ def main(argv=None) -> int:
         for q in d.get("questions") or []:
             if q.get("chart") and (args.all or q["key"] in live):
                 results.append(check_question(c, d["unit"], q, args.index_dir or None))
+        # a walkthrough's chart (REVIEW_LEARNINGS rule 32) is held to the same check: real bars, enough of them, and the
+        # steps' words against what the bars did
+        for w in d.get("walkthroughs") or []:
+            if w.get("chart") and (args.all or w["key"] in live):
+                results.append(check_question(c, d["unit"], {"key": w["key"], "chart": {"forward": 0, **w["chart"]},
+                                                             "why": " ".join(w.get("steps") or [])}, args.index_dir or None))
     bad = [r for r in results if r["problems"]]
     for r in results:
         if r["problems"] or r["notes"]:
