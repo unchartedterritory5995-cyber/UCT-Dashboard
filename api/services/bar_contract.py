@@ -235,7 +235,11 @@ def compute(ticker: str, tf: str, session, rows: list, *, delta: bool = False,
     # + the identity epoch of a corrected D/W/M series (bars_identity): a client holding a copy from
     # before the correction sees a newer history and replaces it whole.
     from api.services import bars_identity as _bid
-    out["history_rev"] = int(meta.get("history_rev") or 0) + _bid.history_epoch(tkr, tf)
+    from api.services import bars_rebuild as _reb
+    # + the rebuilt-history epoch (bars_rebuild): a browser holding a copy of the stored history replaces it
+    # whole when the rebuilt one starts being served for this ticker.
+    out["history_rev"] = (int(meta.get("history_rev") or 0) + _bid.history_epoch(tkr, tf)
+                          + _reb.history_epoch(tkr, tf))
     # The basis the stored rows are on, read with (before) the rows like every claim here:
     # the heal writes rows + stamp in one transaction, so a stamp read first never names a
     # basis newer than the rows that follow (a racing heal also moves history_rev).

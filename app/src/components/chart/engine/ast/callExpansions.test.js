@@ -35,7 +35,7 @@ const BARS = Array.from({ length: N }, (_, i) => {
   return { t: 1_700_000_000 + i * 86400, o: c - 0.4, h: c + 1.5 + (i % 3) * 0.2, l: c - 1.3, c, v: 1_000_000 + 37_000 * ((i * 13) % 17) }
 })
 
-describe('fisher(length): the Fisher Transform, NUMBER PENDING', () => {
+describe('fisher(length): the Fisher Transform, engine 79 (#1871)', () => {
   const num = (value) => ({ type: 'num', value })
   const fisher = (n) => expandCalls({ type: 'call', name: 'fisher', args: [num(n)] })
   const here = path.dirname(fileURLToPath(import.meta.url))
@@ -152,7 +152,7 @@ describe('dpo(source, length): the Detrended Price Oscillator, TradingView\'s de
   })
 })
 
-describe('laguerre(source, gamma) and laguerreRsi(source, gamma): NUMBER PENDING', () => {
+describe('laguerre(source, gamma) and laguerreRsi(source, gamma): engine 79 (#1882)', () => {
   const num = (value) => ({ type: 'num', value })
   const CLOSE = { type: 'series', name: 'close' }
   const here = path.dirname(fileURLToPath(import.meta.url))

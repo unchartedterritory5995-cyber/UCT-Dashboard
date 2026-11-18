@@ -315,7 +315,7 @@ export function sarTrees(stepNode, maxNode, warmup = SAR_WARMUP) {
  * name → `{ min, max, describe, build(args) → tree | null }`. `args` are canonical
  * trees; `describe` is the formula-reference line for the vocabulary list.
  */
-// ─── ⭐⭐ FISHER TRANSFORM — NUMBER PENDING (studio, 2026-11-18) ────────────────
+// ─── ⭐⭐ FISHER TRANSFORM — Engine 79 (#1871) (studio, 2026-11-18) ────────────────
 //
 // TradingView's built-in, as a capture reads it (SPY daily from its listing, 8,509 bars, lengths
 // 9 and 20) and as Tulip Indicators publishes it, citing Ehlers:
@@ -366,7 +366,7 @@ export function fisherTree(lengthNode, warmup = FISHER_WARMUP) {
   return cCall('accum2', [cNum(2), cNum(warmup), cNum(0), cNum(0), value(), fisher])
 }
 
-// ─── ⭐⭐ LAGUERRE FILTER AND LAGUERRE RSI — NUMBER PENDING (studio, 2026-11-18) ─
+// ─── ⭐⭐ LAGUERRE FILTER AND LAGUERRE RSI — Engine 79 (#1882) (studio, 2026-11-18) ─
 //
 // Ehlers' four-stage Laguerre filter ("Time Warp - Without Space Travel"), as published:
 //
@@ -481,7 +481,7 @@ export const CALL_EXPANSIONS = Object.freeze({
   // closed form over the table, as roc and mom are. (The textbook form reads the PRICE that many
   // bars back against today's average and is drawn shifted into the past: another number.)
   dpo: {
-    pending: true, min: 2, max: 2, signature: 'dpo(source, length)', describe: 'Detrended Price Oscillator (TradingView\'s default form): source − its n-bar simple average as it stood floor(n ÷ 2) + 1 bars ago',
+    min: 2, max: 2, signature: 'dpo(source, length)', describe: 'Detrended Price Oscillator (TradingView\'s default form): source − its n-bar simple average as it stood floor(n ÷ 2) + 1 bars ago',
     build: (a) => {
       const n = windowOf(a[1], 1)
       if (!Number.isFinite(n)) return null
@@ -612,19 +612,19 @@ export const CALL_EXPANSIONS = Object.freeze({
     vendorNote: SAR_NOTE,
     build: (a) => { const t = sarTrees(a[0], a[1]); return t ? t.direction : null },
   },
-  // Fisher Transform — `fisherTree` above. NUMBER PENDING.
+  // Fisher Transform — `fisherTree` above. Engine 79 (#1871).
   fisher: {
-    pending: true, min: 1, max: 1, signature: 'fisher(length)', describe: 'the Fisher Transform as TradingView computes it: where the bar\'s midpoint sits in its range over `length` bars, smoothed, stretched with a log and smoothed again. Its trigger line is `fisher(length)` one bar earlier',
+    min: 1, max: 1, signature: 'fisher(length)', describe: 'the Fisher Transform as TradingView computes it: where the bar\'s midpoint sits in its range over `length` bars, smoothed, stretched with a log and smoothed again. Its trigger line is `fisher(length)` one bar earlier',
     vendorNote: FISHER_NOTE,
     build: (a) => fisherTree(a[0]),
   },
-  // Laguerre Filter and Laguerre RSI — `laguerreStage` above. NUMBER PENDING.
+  // Laguerre Filter and Laguerre RSI — `laguerreStage` above. Engine 79 (#1882).
   laguerre: {
-    pending: true, min: 2, max: 2, signature: 'laguerre(source, gamma)', describe: 'the Laguerre Filter (Ehlers): four smoothing stages of `source`, each keeping `gamma` of itself, averaged with weights 1, 2, 2, 1. A larger gamma is smoother and slower',
+    min: 2, max: 2, signature: 'laguerre(source, gamma)', describe: 'the Laguerre Filter (Ehlers): four smoothing stages of `source`, each keeping `gamma` of itself, averaged with weights 1, 2, 2, 1. A larger gamma is smoother and slower',
     build: (a) => laguerreFilterTree(a),
   },
   laguerreRsi: {
-    pending: true, min: 2, max: 2, signature: 'laguerreRsi(source, gamma)', describe: 'the Laguerre RSI (Ehlers), 0 to 1: of the gaps between the four Laguerre stages of `source`, the share where an earlier stage is above the later one',
+    min: 2, max: 2, signature: 'laguerreRsi(source, gamma)', describe: 'the Laguerre RSI (Ehlers), 0 to 1: of the gaps between the four Laguerre stages of `source`, the share where an earlier stage is above the later one',
     build: (a) => laguerreRsiTree(a),
   },
 })

@@ -272,6 +272,12 @@ export const FUNCTIONS = [
   // economic series /api/econ publishes (dark until ECON_ENABLED; the panel says so).
   { code: 'SENT', label: 'Sentiment and macro (AAII, NAAIM, put/call, Fear & Greed, economy)', group: 'Market',
     market: { panel: 'Sentiment' } },
+  // RATES (2026-11-18): Treasury yields at every maturity with their changes in basis points, the
+  // 10-year minus 2-year and 10-year minus 3-month spreads, and two small pictures
+  // (GET /api/research/treasury-yields, read from the US Treasury's own published daily par yield curve; end of day).
+  // RATE and YLD are real funds (an interest rate hedge ETF and a high yield ETF), so the code is neither.
+  { code: 'RATES', label: 'Treasury yields and the yield curve (2-year, 10-year, 30-year, the spreads)', group: 'Market',
+    market: { panel: 'Rates' } },
   // SCAT: a universe on two metrics (RS rank vs % off the 52-week high by default), over the /charts
   // Market Map's own /api/scatter reads. A dot opens DES beside the panel.
   // SCAT NDX CHG_1M RS_RANK: universe, then Y and X (scatterArgs.js); the panel writes picks back.
@@ -727,6 +733,8 @@ const FUNCTION_WORDS = {
   THMS: { example: 'THMS 1W', keywords: ['theme', 'themes', 'groups', 'industries', 'leading themes'] },
   SENT: { keywords: ['sentiment', 'aaii', 'naaim', 'fear and greed', 'put call', 'macro', 'economy'],
     note: 'The economy rows say so if that feed is switched off.' },
+  RATES: { keywords: ['treasury yields', 'yield curve', 'interest rates', 'bond yields', '10 year yield', '2 year yield',
+    'inverted curve', '2s10s'], note: 'End-of-day figures, one a day.' },
   SCAT: { keywords: ['scatter', 'scatter plot', 'market map'] },
   HELP: { example: 'HELP CHK', keywords: ['help', 'functions', 'commands'] },
   RRG: { keywords: ['rotation', 'sector rotation', 'sectors'] },

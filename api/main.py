@@ -7066,6 +7066,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] breadth EOD source wiring error (non-fatal): {e}")
 
+    # Deep daily history rebuilt from one checked source, served per ticker (bars_rebuild); web serves
+    # /api/bars too when the edge falls back to it. BARS_REBUILD_SERVE=0 = off.
+    try:
+        from api.services import bars_rebuild as _bars_rebuild
+        _bars_rebuild.start_background_sync()
+    except Exception as e:  # noqa: BLE001
+        print(f"[startup] rebuilt-history sync start failed (non-fatal): {e}")
+
     # Brain Pack: nightly uct-intelligence code+KB from R2 (flag-off by default)
     if os.environ.get("BRAIN_PACK_ENABLED", "0") == "1":
         try:
@@ -12034,6 +12042,8 @@ app.include_router(entity_resolve_router.router)  # /api/entity/resolve — TERM
 app.include_router(decision_record_router.router)  # /api/decision-record/ticker/{t} — TERM-088 member door, paid, read-only, DARK (DECISION_RECORD_MEMBER_ENABLED)
 app.include_router(analyst_revisions_router.router)  # /api/research/analyst-revisions/{t} — TERM-073 member door, paid, read-only, DARK (ANALYST_REVISIONS_ENABLED)
 app.include_router(iv_history_router.router)  # /api/research/iv-history/{sym}[/implied-vs-realized] — our own options log, paid, read-only, DARK (IV_HISTORY_ENABLED)
+from api.routers import treasury_yields as treasury_yields_router  # noqa: E402  (RATES: Treasury yields and the curve, paid)
+app.include_router(treasury_yields_router.router)  # /api/research/treasury-yields
 app.include_router(options_screener_router.router)  # /api/options-screener/{screen,unusual-volume,iv-percentile} — COV-02/03 over our own options log, paid, read-only, DARK (OPTIONS_SCREENER_ENABLED)
 app.include_router(yf_guard_router.router, dependencies=_OPEN_READS)  # /api/admin/yfinance-guard — breaker observability
 app.include_router(catalysts_router.router)

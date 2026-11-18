@@ -4,7 +4,7 @@ import { semanticName } from './semanticName'
 import { FUND_MARK, parseFundamentalSource } from './fundamentalGrammar'
 import { parseEconomicSource } from './econMark'
 import { catalogMetric } from './fundamentalSeries'
-import { fetchableOtherSymbols, heldFetchOf } from './otherSymbols'
+import { fetchableOtherSymbols, heldFetchesOf } from './otherSymbols'
 import { instanceDocumentForFetch } from './symbolInputs'
 import { severInfoValuesTo, liveInstanceOf } from './infoValues'
 import { recordableLine, lineMatches } from './lineIdentity'
@@ -282,8 +282,10 @@ export function symbolsNeeded(instances, defOf, tf) {
     // needed under its held key (`SPX@D` on a weekly chart, `otherSymbols.js::heldFetchOf`); with no
     // timeframe stated nothing is held and every key is as before
     for (const t of fetchableOtherSymbols(instanceDocumentForFetch(def, inst))) {
-      const held = heldFetchOf(t, tf)
-      out.add(held ? held.key : t)
+      // ⭐ RS RATING L12 — every held key (an intraday chart holds SPX at its own timeframe AND at D)
+      const held = heldFetchesOf(t, tf)
+      if (held.length) for (const h of held) out.add(h.key)
+      else out.add(t)
     }
   }
   // ⚠️ SORTED so the same set of symbols is the same array every time. A caller

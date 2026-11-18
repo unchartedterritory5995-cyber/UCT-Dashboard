@@ -1,6 +1,6 @@
 // app/src/components/chart/builder/memberPane/costRoute.test.js
 //
-// ⭐⭐ ROUTE BY COST (NUMBER PENDING) — a host document moves to the runtime lane only when the run's
+// ⭐⭐ ROUTE BY COST (Engine 73 (#1711)) — a host document moves to the runtime lane only when the run's
 // document draws the same picture (`costRoute.js::sameDrawnSurface`). Each difference the measured
 // corpus showed is railed with its control (docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md).
 import { describe, it, expect } from 'vitest'

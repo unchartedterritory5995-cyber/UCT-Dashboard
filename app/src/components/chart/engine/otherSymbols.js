@@ -45,9 +45,9 @@
 //     keeps its refusal (`other-symbol:class-share`).
 
 import { SYMBOL_EXCHANGE_CONFIRMED } from './ast/bind'
-import { isoDay, SERIES_GAPS_READ_NA, isoWeekDayOf, isoDayPlus, tfBucket } from './ast/interpret'
+import { isoDay, SERIES_GAPS_READ_NA, SERIES_UNKNOWN_BEFORE_FIRST, isoWeekDayOf, isoDayPlus, tfBucket } from './ast/interpret'
 // ⭐ RS RATING L13 — the exchange's sessions (a month's first session, a row's next session)
-import { isTradingDay } from '../../../lib/marketClock/sessionCalendar.js'
+import { isTradingDay, closeTime, isHalfDay } from '../../../lib/marketClock/sessionCalendar.js'
 import REQUEST_WITNESSES from './requestWitnesses.json'
 
 /** The venue spelling `pine.js::otherSymbolOf` records for the chart's own
@@ -188,7 +188,18 @@ export const WITNESS_PERIOD_READS = Object.freeze({
   // `na`. R4: `request.seed` on NYSE:RDDT 1M read the 2026-11-02 row (75), not Sunday 2026-11-01's (92.81),
   // and `na` for October (no 2026-10-01 row; the series begins 2026-10-13).
   MONTH_FIRST_SESSION: 'month-first-session',
+  // ⭐⭐ RS RATING L12 (Q-L12-1, `l12-pm` / `l12-is-2026-11-18`) — an INTRADAY chart: each chart bar reads the
+  // LATEST value of the index at or before its open (Pine's `gaps_off`): in the session, the index bar that
+  // opened at or before it (the same bar on a 5m grid; the 09:30 bar for a 10:00 bar on the hour-aligned 60m
+  // grid, 360 of 360); before the session's open, the PREVIOUS session's official close; from its close on,
+  // the day's official close (5m: 1,988 / 1,678 of 1,988 / 1,678 extended bars). Held: the index's own bars at
+  // the chart's timeframe AND its daily rows (the official closes: an intraday bar's last print is the 15:59
+  // trade, never the closing auction, 0 of 59 days equal). `atOrBeforeGridOf`.
+  AT_OR_BEFORE: 'latest-at-or-before',
 })
+/** ⭐ RS RATING L12 — the intraday chart timeframes a block may stand on, and their bar step in minutes. */
+const INTRADAY_STEP_MIN = Object.freeze({ 1: 1, 5: 5, 15: 15, 30: 30, 60: 60 })
+
 /** ⭐ PER CHART TIMEFRAME: the timeframe its blocks are held at, and the folds (a `period` read) and
  *  samples (a read below the chart) a block on it may name. A daily read on a weekly or a monthly chart
  *  are the witnessed shapes; a week's reads never stand on a month, nor the other way. */
@@ -197,6 +208,10 @@ const PERIOD_READS_OF = Object.freeze({
     samples: [WITNESS_PERIOD_READS.WEEK_LAST_ROW, WITNESS_PERIOD_READS.WEEK_FIRST_DAY] }),
   M: Object.freeze({ held: 'D', folds: [WITNESS_PERIOD_READS.PREVIOUS_MONTH],
     samples: [WITNESS_PERIOD_READS.MONTH_LAST_ROW, WITNESS_PERIOD_READS.MONTH_FIRST_SESSION] }),
+  // ⭐ RS RATING L12 — each intraday timeframe is held at ITSELF (the index's own bars of the chart's period)
+  // and ALSO at D (its official daily closes, for the extended-hours bars)
+  ...Object.fromEntries(Object.keys(INTRADAY_STEP_MIN).map((tf) => [tf,
+    Object.freeze({ held: tf, alsoHeld: 'D', folds: [WITNESS_PERIOD_READS.AT_OR_BEFORE], samples: [] })])),
 })
 const LAST_ROW_SAMPLES = Object.freeze([WITNESS_PERIOD_READS.WEEK_LAST_ROW, WITNESS_PERIOD_READS.MONTH_LAST_ROW])
 /** The chart's period code a read belongs to (`'W'` / `'M'`), or null. */
@@ -271,6 +286,8 @@ export function periodBlockServes(block, chartTf) {
   if (!(typeof block.witness === 'string' && block.witness.trim() && typeof block.captured === 'string' && block.captured.trim())) return false
   const of = PERIOD_READS_OF[chartTf]
   if (!of || block.held !== of.held) return false
+  // ⭐ RS RATING L12 — a block held at a second timeframe too names exactly the one its chart timeframe holds
+  if ((of.alsoHeld || null) !== (block.alsoHeld || null)) return false
   const reads = block.reads
   if (!reads || typeof reads !== 'object' || !Object.keys(reads).length) return false
   return Object.entries(reads).every(([code, how]) => (code === 'period' ? of.folds.includes(how)
@@ -308,7 +325,9 @@ export function witnessReadOf(row, chartTf, code) {
     sample = reads[block.held] || null
   }
   if (!fold && !sample) return null
-  return { held: block.held, key: heldSecondaryKey(row.store, block.held, tf), fold, sample }
+  return { held: block.held, key: heldSecondaryKey(row.store, block.held, tf), fold, sample,
+    // ⭐ RS RATING L12 — the second held series (an intraday chart's daily rows: `SPX@D`), or null
+    alsoKey: block.alsoHeld ? heldSecondaryKey(row.store, block.alsoHeld, tf) : null }
 }
 
 /** The sentence for a witness row that is not served on this chart, or at this request's timeframe. */
@@ -345,6 +364,26 @@ export function heldFetchOf(store, chartTf) {
   return null
 }
 
+/** ⭐⭐ RS RATING L12 — EVERY held fetch of a store ticker on this chart: `heldFetchOf`'s, then a block's second
+ *  held series (an intraday chart holds SP:SPX at its own timeframe under the plain key AND at D as `SPX@D`).
+ *  [] when nothing is held. The one list the chart's fetch, the binder's signature and the harness read. */
+export function heldFetchesOf(store, chartTf) {
+  const first = heldFetchOf(store, chartTf)
+  if (!first) return []
+  const s = String(store || '').trim().toUpperCase()
+  const tf = chartTf == null ? '' : String(chartTf)
+  const out = [first]
+  for (const row of Object.values(_witnessRows)) {
+    if (!row || String(row.store).toUpperCase() !== s) continue
+    const block = row.periods && typeof row.periods === 'object' ? row.periods[tf] : null
+    if (block && block.alsoHeld && periodBlockServes(block, tf)) {
+      out.push({ symbol: s, tf: block.alsoHeld, key: heldSecondaryKey(s, block.alsoHeld, tf) })
+      break
+    }
+  }
+  return out
+}
+
 /** ⭐ RS RATING L11 — how many HELD daily rows a chart of `barCount` weekly bars needs: seven calendar
  *  days a week (a seed's rows are calendar days; an index's sessions are fewer) and two weeks before the
  *  first chart week (the previous week a fold reads, the previous session a daily read places), capped
@@ -353,7 +392,13 @@ export function heldFetchOf(store, chartTf) {
 export const HELD_DAILY_DEPTH_CAP = 12500
 export function heldDepthOf(barCount, chartTf = 'W') {
   const n = Number.isFinite(barCount) && barCount > 0 ? Math.floor(barCount) : 200
-  const monthly = String(chartTf == null ? '' : chartTf).replace(/^1/, '') === 'M'
+  const tf = String(chartTf == null ? '' : chartTf)
+  // ⭐ RS RATING L12 — an INTRADAY chart's daily rows: one per session its bars span, counted at the regular
+  // session's 390 minutes (an extended-hours day holds more bars, so this is the deeper answer), plus ten
+  if (Object.prototype.hasOwnProperty.call(INTRADAY_STEP_MIN, tf)) {
+    return Math.min(HELD_DAILY_DEPTH_CAP, Math.ceil((n * INTRADAY_STEP_MIN[tf]) / 390) + 10)
+  }
+  const monthly = tf.replace(/^1/, '') === 'M'
   return Math.min(HELD_DAILY_DEPTH_CAP, monthly ? n * 31 + 62 : n * 7 + 14)
 }
 
@@ -529,10 +574,101 @@ export function previousMonthBarsOf(bars, own = null) {
   return out
 }
 
-/** The fold a `period` read names (`previous-week` / `previous-month`) over the held daily rows, or null. */
-export function periodFoldOf(fold, held, own = null) {
+const ET_DAY_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' })
+/** The ET session date of unix seconds `t`. */
+const etDayOf = (t) => ET_DAY_FMT.format(new Date(t * 1000))
+/** Unix seconds of ET midnight on trading day `day` (from the calendar's own close instant: no DST transition
+ *  falls on a trading day, every transition being a Sunday's 02:00), or null on a day that is not one. */
+function etMidnightOf(day) {
+  const close = closeTime(day)
+  if (!close) return null
+  return close.getTime() / 1000 - (isHalfDay(day) ? 13 * 60 : 16 * 60) * 60
+}
+/** The calendar day after ISO `day`. */
+const nextDayOf = (day) => new Date(Date.parse(`${day}T12:00:00Z`) + 86400000).toISOString().slice(0, 10)
+const EXT_OPEN_MIN = 4 * 60      // the extended session's first bar (04:00 ET), the product's and TradingView's grid
+const EXT_END_MIN = 20 * 60      // and its end (20:00 ET)
+const RTH_OPEN_MIN = 9 * 60 + 30
+
+/** ⭐⭐ RS RATING L12 (Q-L12-1) — `latest-at-or-before`, laid out on the chart's OWN grid: a row at every
+ *  `tf`-minute instant of the extended-hours clock (04:00..20:00 ET) of every NYSE session the held rows span,
+ *  carrying what TradingView reads there (`WITNESS_PERIOD_READS.AT_OR_BEFORE`): in the regular session the index
+ *  bar that opened at or before it (its own o/h/l/c/v); before the open the previous session's OFFICIAL close;
+ *  from the close (16:00, 13:00 on a half-day) the day's official close (`daily`, the held daily rows; o = h = l
+ *  = c there, only the close being witnessed). Keyed by the instant, so `interpret.js` `sym` (an exact `t` match)
+ *  reads it on every chart bar of the grid, both lanes alike.
+ *  ⛔ NEVER FILLED FORWARD PAST WHAT IS HELD: no row after the newest intraday bar's own period in the session
+ *  (a stale copy must withhold, not repeat its last print), no regular-session row before a session's first held
+ *  bar, no post-close row until that session's daily row is held and settled (`dailyForming`: the newest daily
+ *  row of a session still in progress is not a close), no pre-market row without the previous close. A chart
+ *  bar with no row is UNKNOWN, and so is every bar before the first row (`SERIES_UNKNOWN_BEFORE_FIRST`: our
+ *  store's intraday depth, 7 days of 1m, 60 of 5/15/30m, 730 of 60m, is not the index's first bar).
+ *  ⛔ A row whose `t` is not unix seconds is dropped, never guessed. */
+export function atOrBeforeGridOf(bars, daily, tf, { dailyForming = false } = {}) {
+  const out = []
+  Object.defineProperty(out, SERIES_UNKNOWN_BEFORE_FIRST, { value: true, enumerable: false })
+  const step = INTRADAY_STEP_MIN[String(tf)]
+  const intr = []
+  let last = -Infinity
+  for (const b of bars || []) {
+    if (!b || typeof b.t !== 'number' || !Number.isFinite(b.t) || b.t <= last) continue
+    last = b.t
+    intr.push(b)
+  }
+  if (!step || !intr.length) return out
+  const closes = new Map()
+  const dailyRows = (Array.isArray(daily) ? daily : []).filter((r) => r && isoDay(r.t) && Number.isFinite(r.c))
+  dailyRows.forEach((r, j) => {
+    if (dailyForming && j === dailyRows.length - 1) return
+    closes.set(isoDay(r.t), r.c)
+  })
+  const firstDay = etDayOf(intr[0].t)
+  const newest = intr[intr.length - 1]
+  const newestEnd = newest.t + step * 60
+  const lastHeld = [etDayOf(newest.t), ...closes.keys()].sort().pop()
+  // the session before the first held one: its close is what that first session's pre-market reads
+  let prevClose = null
+  for (const [day, c] of closes) if (day < firstDay) prevClose = c
+  let p = 0                                                  // the first held bar not before this session's open
+  for (let d = firstDay, k = 0; k < 4000; d = nextDayOf(d), k += 1) {
+    if (d > lastHeld && prevClose === null) break
+    if (!isTradingDay(d)) continue
+    const mid = etMidnightOf(d)
+    if (mid === null) continue
+    const open = mid + RTH_OPEN_MIN * 60
+    const close = closeTime(d).getTime() / 1000
+    const own = closes.has(d) ? closes.get(d) : null
+    while (p < intr.length && intr[p].t < open) p += 1        // this session's first held bar
+    let j = p
+    for (let g = mid + EXT_OPEN_MIN * 60; g < mid + EXT_END_MIN * 60; g += step * 60) {
+      let row = null
+      if (g < open) {
+        if (prevClose !== null) row = { t: g, o: prevClose, h: prevClose, l: prevClose, c: prevClose, v: 0 }
+      } else if (g >= close) {
+        if (own !== null) row = { t: g, o: own, h: own, l: own, c: own, v: 0 }
+      } else {
+        while (j + 1 < intr.length && intr[j + 1].t <= g && intr[j + 1].t < close) j += 1
+        const r = intr[j]
+        if (r && r.t >= open && r.t <= g && r.t < close && (r !== newest || g < newestEnd)) {
+          row = { t: g, o: r.o, h: r.h, l: r.l, c: r.c, v: r.v }
+        }
+      }
+      if (row) out.push(row)
+    }
+    if (own !== null) prevClose = own
+    if (d > lastHeld) break
+  }
+  return out
+}
+
+/** The fold a `period` read names (`previous-week` / `previous-month` / `latest-at-or-before`) over the held
+ *  rows, or null. `also` (L12): the second held series and the chart timeframe, for an intraday chart. */
+export function periodFoldOf(fold, held, own = null, also = null) {
   if (fold === WITNESS_PERIOD_READS.PREVIOUS_WEEK) return previousWeekBarsOf(held, own)
   if (fold === WITNESS_PERIOD_READS.PREVIOUS_MONTH) return previousMonthBarsOf(held, own)
+  if (fold === WITNESS_PERIOD_READS.AT_OR_BEFORE) {
+    return atOrBeforeGridOf(held, also && also.daily, also && also.tf, { dailyForming: !!(also && also.dailyForming) })
+  }
   return null
 }
 
@@ -1046,8 +1182,21 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
         if (!entry || String(entry.status || '') === 'loading') refused[refused.length - 1].pending = true
         continue
       }
+      // ⭐ RS RATING L12 — a block held at a second timeframe too (an intraday chart's daily rows)
+      let also = null
+      if (read.alsoKey) {
+        const second = secondary ? secondary.get(read.alsoKey) : null
+        const rowsD = second && Array.isArray(second.bars) ? second.bars : null
+        if (!rowsD || !rowsD.length) {
+          no(ticker, OTHER_SYMBOL_REFUSAL.NO_BARS, `\`${row.spelling}\`'s daily rows (its official closes, read on this `
+            + 'chart\'s extended-hours bars) are not in hand' + (second && second.status ? ` (${second.status})` : ''))
+          if (!second || String(second.status || '') === 'loading') refused[refused.length - 1].pending = true
+          continue
+        }
+        also = { daily: rowsD, tf, dailyForming: second.newestBarIsForming === true }
+      }
       const own = newestOwnPeriodOf(ctx, entry)
-      symbols[ticker] = read.fold ? periodFoldOf(read.fold, held, own) : witnessedBarsOf(row, held, own)
+      symbols[ticker] = read.fold ? periodFoldOf(read.fold, held, own, also) : witnessedBarsOf(row, held, own)
       if (read.sample) samples[ticker] = read.sample
       served.push(ticker)
       continue
@@ -1170,16 +1319,17 @@ export function otherSymbolsSignature(def, secondary, chartTf) {
   const keyOf = (t) => {
     const row = (recorded.get(t) || []).map((v) => witnessRowOf(v, t)).find(Boolean)
     if (!row) return storeTickerOf(t)
-    const held = heldFetchOf(row.store, chartTf)
-    return held ? held.key : row.store
+    const held = heldFetchesOf(row.store, chartTf)
+    return held.length ? held.map((h) => h.key) : [row.store]
   }
-  return requests.map(({ ticker: t }) => {
-    const e = secondary && typeof secondary.get === 'function' ? secondary.get(keyOf(t)) : null
+  return requests.map(({ ticker: t }) => [].concat(keyOf(t)).map((key) => {
+    const e = secondary && typeof secondary.get === 'function' ? secondary.get(key) : null
     const bars = e && Array.isArray(e.bars) ? e.bars : null
     const last = bars && bars.length ? bars[bars.length - 1] : null
     // ⭐ RS RATING L11 PR 2 — and whether its session is in progress: the chart's newest bar reads its own
     // session only then (`newestOwnPeriodOf`), so the close (bars unchanged, the flag flipped) is a recompute
+    // ⭐ RS RATING L12 — every held key of the ticker (an intraday chart's daily rows landing is a recompute)
     return `${t}:${e ? e.status || '' : '-'}:${bars ? bars.length : 0}:${last ? `${last.t}/${last.c}` : ''}`
       + `${e && e.newestBarIsForming === true ? ':forming' : ''}`
-  }).join(',')
+  }).join('+')).join(',')
 }

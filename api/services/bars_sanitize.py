@@ -843,6 +843,27 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
     bug here can never blank a chart. Intraday timeframes pass through untouched."""
     if not _ENABLED or not bars or tf not in ("D", "W", "M"):
         return bars
+    # ⭐ A ticker whose history was REBUILT from one checked source (bars_rebuild: the vendor's official
+    # daily files per company, one split basis, checked day by day against an independent vendor) serves
+    # it through the rebuild's last session, and its W / M from it. The steps below exist to repair the
+    # stored patchwork (another company's bars, unapplied splits, lone bad wicks); the rebuild is already
+    # all of that, so they are not run over it again. Not on the served list -> nothing changes here.
+    try:
+        from api.services import bars_rebuild as _reb
+        if _reb.active(ticker):
+            rebuilt = _reb.apply(ticker, bars, tf, head=_reaches_store_head(ticker, bars, tf))
+            if rebuilt is not None:
+                # ⛔ EXCEPT the split heal. The rebuild is on the basis of the day it was built; a split
+                # after that puts the store's newer bars on a new basis and the rebuilt ones not, and the
+                # chart would draw the cliff. The one detector finds it the same way it does in the store.
+                meta = _meta_cached(ticker)
+                if meta and meta.get("splits") and split_adjust_active():
+                    unadjusted = unadjusted_splits(rebuilt, meta["splits"])
+                    if unadjusted:
+                        rebuilt = _apply_split_adjust(rebuilt, meta["splits"], unadjusted)
+                return rebuilt
+    except Exception as e:  # noqa: BLE001 - the stored path below still serves
+        _log.warning("rebuilt history skipped for %s tf=%s: %s", ticker, tf, e)
     try:
         # Read before step 1 changes the head: only a series that starts at its store's first row
         # gets older periods from the daily series (step 4).

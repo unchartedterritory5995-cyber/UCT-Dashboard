@@ -27,6 +27,7 @@ import {
   runtimeAdmissionOf, requestRuntimeAdmission, __resetRuntimeAdmission, runtimeSourceHash,
   RUNTIME_ADMISSION_PATH, RUNTIME_ADMISSION_MAX, RUNTIME_LISTS_RECHECK_MS, RUNTIME_KILL_PATH,
   RUNTIME_ADMISSION_PENDING_RETRY_MS, RUNTIME_ADMISSION_PENDING_RETRIES, watchRuntimeAdmission,
+  runtimeConsultPendingOf, awaitRuntimeAdmission, RUNTIME_ADMISSION_ATTACH_WAIT_MS,
 } from '../runtimeKill'
 
 const SRC = '//@version=5\nindicator("mine")\nvar float x = na\nx := close > open ? close : x\nplot(x)\n'
@@ -293,5 +294,72 @@ describe('re-review F2: a source with no verdict recovers by itself', () => {
   it('MemberPane recovers through it (wired, not just defined)', () => {
     const src = fs.readFileSync(path.resolve(process.cwd(), 'src/components/chart/builder/memberPane/MemberPane.jsx'), 'utf8')
     expect(src).toMatch(/return watchRuntimeAdmission\(source, \(\) => setKillVersion/)
+  })
+})
+
+// ⭐⭐ (2026-11-18) THE FIRST-PASTE RACE. The rendered rail is `builder/memberPane/firstPasteAdmission.test.jsx`.
+describe('the first-paste race: a consult that answered "still being checked"', () => {
+  it('⭐ runtimeConsultPendingOf answers exactly when a consult said "still being checked", in every state', () => {
+    const states = [
+      ['off', () => { setRuntimeCapabilityAdmission(false) }],
+      ['every script allowed (tests)', () => { setRuntimeCapabilityAdmission(true); __allowEveryRuntimeScriptForTests() }],
+      ['allowlisted', () => { setRuntimeCapabilityAdmission(true); setRuntimeAllowList([H]) }],
+      ['admitted', () => { setRuntimeCapabilityAdmission(true); latchRuntimeAdmission(H, { admitted: true }) }],
+      ['refused', () => { setRuntimeCapabilityAdmission(true); latchRuntimeAdmission(H, { admitted: false }) }],
+      ['no verdict yet', () => { setRuntimeCapabilityAdmission(true) }],
+    ]
+    const seen = {}
+    for (const [name, arrange] of states) {
+      __resetRuntimeAllowList()
+      __resetRuntimeAdmission()
+      fetchMock.mockImplementation(() => new Promise(() => {}))   // an ask never answers here
+      arrange()
+      expect(runtimeConsultPendingOf({ source: SRC }), `${name}: never consulted`).toBe(false)
+      const said = runtimeNotGradedOf({ source: SRC })
+      seen[name] = runtimeConsultPendingOf({ source: SRC })
+      expect(seen[name], name).toBe(CHECKING.test(said || ''))
+    }
+    // the table moves: only the state with no verdict waits
+    expect(Object.entries(seen).filter(([, v]) => v).map(([k]) => k)).toEqual(['no verdict yet'])
+    // and the answer changing ends the wait (a verdict lands)
+    latchRuntimeAdmission(H, { admitted: true })
+    expect(runtimeConsultPendingOf({ source: SRC })).toBe(false)
+  })
+
+  it('⭐ watchRuntimeAdmission re-asks SOON after the request gives up, then less often, up to the recheck', async () => {
+    setRuntimeCapabilityAdmission(true)
+    fetchMock.mockImplementation(async (url) => (url === RUNTIME_KILL_PATH ? okJson(LISTS_ON)
+      : okJson({ sha256: H, admitted: false, missing: ['pending'] })))
+    const cancel = watchRuntimeAdmission(SRC, () => {}, { delayMs: 0, recheckMs: 60000 })
+    const asksBy = async (ms) => { await vi.advanceTimersByTimeAsync(ms); return admissionCalls().length }
+    // the first request: RUNTIME_ADMISSION_PENDING_RETRIES asks, then gives up (null)
+    let n = await asksBy(RUNTIME_ADMISSION_PENDING_RETRY_MS * RUNTIME_ADMISSION_PENDING_RETRIES)
+    expect(n).toBe(RUNTIME_ADMISSION_PENDING_RETRIES)
+    // ⚰️ the next ask waited the full recheck (60 s); now it comes within 2 retry spacings
+    n = await asksBy(RUNTIME_ADMISSION_PENDING_RETRY_MS * 2 + 1)
+    expect(n).toBeGreaterThan(RUNTIME_ADMISSION_PENDING_RETRIES)
+    cancel()
+  })
+
+  it('⭐ awaitRuntimeAdmission: at once when no consult waits; the verdict when it lands; null when the wait runs out', async () => {
+    setRuntimeCapabilityAdmission(true)
+    fetchMock.mockImplementation(() => new Promise(() => {}))
+    expect(await awaitRuntimeAdmission(SRC)).toBeNull()                    // nothing consulted: nothing to wait for
+    expect(admissionCalls()).toHaveLength(0)
+    runtimeNotGradedOf({ source: SRC })                                    // a consult answers "still being checked"
+    const late = awaitRuntimeAdmission(SRC, { timeoutMs: 5000 })
+    let got = 'unresolved'
+    late.then((v) => { got = v })
+    await vi.advanceTimersByTimeAsync(4000)
+    expect(got).toBe('unresolved')
+    await vi.advanceTimersByTimeAsync(1500)
+    expect(got).toBeNull()                                                 // the wait ran out
+    answerAdmission({ sha256: H, admitted: true, missing: [] })
+    __resetRuntimeAdmission()
+    setRuntimeCapabilityAdmission(true)
+    runtimeNotGradedOf({ source: SRC })
+    await flush()
+    const v = await awaitRuntimeAdmission(SRC, { timeoutMs: RUNTIME_ADMISSION_ATTACH_WAIT_MS })
+    expect(v && v.admitted).toBe(true)
   })
 })

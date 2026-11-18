@@ -1,4 +1,4 @@
-// ⭐⭐ NUMBER PENDING (bt, 2026-11-16) — the runtime lane asks the COLUMNAR lane for more answers
+// ⭐⭐ Engine 66 (#1473) (bt, 2026-11-16) — the runtime lane asks the COLUMNAR lane for more answers
 // instead of refusing them as builtins it does not hold:
 //
 //   · `time(tf, session)` through a UDF parameter for a WRAPPING session, membership and value,

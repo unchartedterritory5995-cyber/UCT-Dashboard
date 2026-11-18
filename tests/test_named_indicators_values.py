@@ -384,6 +384,27 @@ def _stoch_of(xs, n):
     return out
 
 
+def _stoch_bars(bars, n):
+    """The textbook %K: where the close sits between the lowest LOW and the highest HIGH of n bars."""
+    h, l, c = col(bars, "h"), col(bars, "l"), col(bars, "c")
+    out = []
+    for i in range(len(bars)):
+        if i < n - 1:
+            out.append(NAN)
+            continue
+        hi, lo = max(h[i - n + 1:i + 1]), min(l[i - n + 1:i + 1])
+        out.append(100.0 * (c[i] - lo) / (hi - lo) if hi != lo else NAN)
+    return out
+
+
+def stochastic_k(bars, k_length=14, k_smooth=3, d_smooth=3):
+    return sma(_stoch_bars(bars, k_length), k_smooth)
+
+
+def stochastic_d(bars, k_length=14, k_smooth=3, d_smooth=3):
+    return sma(stochastic_k(bars, k_length, k_smooth), d_smooth)
+
+
 def stoch_rsi_k(bars, rsi_length=14, stoch_length=14, k_smooth=3, d_smooth=3):
     return sma(_stoch_of(rsi(col(bars, "c"), rsi_length), stoch_length), k_smooth)
 
@@ -694,6 +715,7 @@ REFERENCES = {
     "triple_exponential_moving_average": {"tema": tema},
     "chande_momentum_oscillator": {"cmo": chande_momentum_oscillator},
     "stochastic_rsi": {"k": stoch_rsi_k, "d": stoch_rsi_d},
+    "stochastic_oscillator": {"k": stochastic_k, "d": stochastic_d},
     "kaufman_adaptive_moving_average": {"kama": kama},
     "mcginley_dynamic": {"mcginley": mcginley},
     "connors_rsi": {"crsi": connors_rsi},
@@ -734,6 +756,7 @@ OTHER = {
     "triple_exponential_moving_average": {"length": 14},
     "chande_momentum_oscillator": {"length": 20},
     "stochastic_rsi": {"rsi_length": 10, "stoch_length": 20, "k_smooth": 5, "d_smooth": 4},
+    "stochastic_oscillator": {"k_length": 21, "k_smooth": 1, "d_smooth": 5},       # K smoothing 1: the FAST one
     "kaufman_adaptive_moving_average": {"er_length": 14, "fast": 3, "slow": 20},
     "mcginley_dynamic": {"length": 9},
     "connors_rsi": {"rsi_length": 4, "streak_length": 3, "rank_length": 60},
@@ -888,6 +911,26 @@ def test_the_fisher_transform_restarted_300_bars_back_equals_the_carried_one():
             assert _worst(fisher_transform(bars, length), full) < 1e-12
             # CONTROL: a restart far too short to forget its start does show
             assert _worst(fisher_transform(bars, length, window=6), full) > 1e-3
+
+
+def test_the_stochastic_entry_is_the_fast_slow_and_full_one_and_reads_highs_lows_and_closes():
+    """One entry is all three: K smoothing 1 is the fast Stochastic (the textbook %K itself), 3 the
+    slow one. And the bar's fields are in the ENGINE'S order: with the close first (TradingView's
+    order, which an assistant writes from habit) it is another number on nearly every bar."""
+    e, bars = ENTRIES["stochastic_oscillator"], _bars(11)
+    k = e["outputs"][0]
+    fast = _engine(ni.tree_at(k, {"k_length": 14, "k_smooth": 1}), bars)
+    _compare(fast, _stoch_bars(bars, 14), "fast %K is the textbook %K")
+    slow = _engine(ni.tree_at(k, {"k_length": 14, "k_smooth": 3}), bars)
+    _compare(slow, sma(_stoch_bars(bars, 14), 3), "slow %K is its 3-bar average")
+    assert ni.defaults(e) == {"k_length": 14, "k_smooth": 3, "d_smooth": 3}           # the slow one, as members write it
+    # CONTROL: the same call with the close first
+    wrong = json.loads(json.dumps(ni.tree_at(k, {"k_length": 14, "k_smooth": 1})))
+    call = wrong["args"][0]
+    assert [a["name"] for a in call["args"][:3]] == ["high", "low", "close"]
+    call["args"][:3] = [call["args"][2], call["args"][0], call["args"][1]]
+    with pytest.raises(AssertionError):
+        _compare(_engine(wrong, bars), _stoch_bars(bars, 14), "control")
 
 
 def test_the_detrended_price_oscillator_derives_its_bars_back_from_its_length_at_odd_and_even_lengths():

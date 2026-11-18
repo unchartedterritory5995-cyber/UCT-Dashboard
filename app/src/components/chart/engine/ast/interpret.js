@@ -1640,7 +1640,7 @@ function halfGap(r) {
   const gap = a === 2 ** e && e > -1022 ? 2 ** (e - 53) : 2 ** (e - 52)
   return gap / 2
 }
-/** ⭐⭐ SMA-EXACT (NUMBER PENDING) — THE EXACTLY ROUNDED SUM of `series[lo..hi]`: the true sum of the
+/** ⭐⭐ SMA-EXACT (Engine 65 (#1484)) — THE EXACTLY ROUNDED SUM of `series[lo..hi]`: the true sum of the
  *  doubles rounded ONCE, identical to Python's `math.fsum` (the twin `ast_interpret._window_mean` /
  *  `_window_sum` call it; 23,000 / 23,000 random windows, adversarial magnitudes included).
  *
@@ -5244,7 +5244,7 @@ const SCOPE_TYPES = new Set(['tf', 'tf_live', 'tf_merge', 'sym', 'ltf'])
  *  body, which is keyed on that recurrence). */
 export function evaluationUnits(root, held, recurrences) {
   const { idOf, freeOf } = structuralMaps(root)
-  // ⭐ ROUTE BY COST (NUMBER PENDING) — `recurrences`, when a Map is handed in, is filled with
+  // ⭐ ROUTE BY COST (Engine 73 (#1711)) — `recurrences`, when a Map is handed in, is filled with
   // every recurrence this walk reaches (its unit key -> `{node, units}`) and how many of the units
   // are keyed on it: what ONE step of that recurrence computes. `recurrenceStepsPerBar` reads it.
   // The units and their count are unchanged: this only says which recurrence a unit belongs to.
@@ -5305,7 +5305,7 @@ export function evaluationUnits(root, held, recurrences) {
   return { count: units.size }
 }
 
-/** ⭐⭐ ROUTE BY COST (NUMBER PENDING, docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md) —
+/** ⭐⭐ ROUTE BY COST (Engine 73 (#1711), docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md) —
  *  THE STEPS ONE BAR OF THIS TREE COSTS IN RECURRENCES, on the bounded window.
  *
  *  The host lane computes a recurrence (`accum`, `accumK`: a Pine `var` / running state) over a
@@ -7694,6 +7694,10 @@ export function treeReadsSym(tree) {
  *  of its gaps. Q-RS2: `request.seed` lands each row on the chart bar of the same date, and a
  *  chart bar with no row reads `na` (no carry-forward). */
 export const SERIES_GAPS_READ_NA = '__gapsReadNa'
+/** ⭐ RS RATING L12 — set (not enumerable) on a supplied series whose first row is where OUR store's history of it
+ *  begins, not the instrument's (an index's intraday bars: yfinance holds 60 days of 5m): a chart bar before that
+ *  row is UNKNOWN to `symAlignmentMask` (withheld, by name), never `na`. */
+export const SERIES_UNKNOWN_BEFORE_FIRST = '__unknownBeforeFirst'
 
 /** ⭐⭐ C26 — THE BARS OF A TREE WHOSE ANSWER DEPENDS ON AN OTHER-SYMBOL BAR WE
  *  DO NOT HOLD, as a 0/1 column (1 = withheld), or null when nothing is withheld.
@@ -7747,6 +7751,10 @@ export function symAlignmentMask(tree, bars, opts) {
     // ⭐ RS RATING L6b — a series whose WITNESS says a chart bar with no bar of its date reads
     // `na` (`SERIES_GAPS_READ_NA`: Q-RS2, a Pine seed) has no unknown bar: its gaps are known.
     if (series[SERIES_GAPS_READ_NA] === true) continue
+    // ⭐ RS RATING L12 — a series whose FIRST row is our store's depth, not the instrument's first bar
+    // (`SERIES_UNKNOWN_BEFORE_FIRST`: an index's intraday bars, 60 days deep): a chart bar before it is
+    // UNKNOWN (withheld), never read as `na` (TradingView holds those bars and draws there).
+    const unknownBefore = series[SERIES_UNKNOWN_BEFORE_FIRST] === true
     let reach = Math.max(0, rootReach - maxLookback(a))
     if (!Number.isFinite(reach)) reach = n
     const held = new Set()
@@ -7764,6 +7772,7 @@ export function symAlignmentMask(tree, bars, opts) {
       const missing = key === undefined || key === null || first === undefined
         || typeof key !== typeof first
         || (!held.has(key) && key > first)
+        || (unknownBefore && key < first)
       if (missing) last = i
       if (i - last <= reach) { mask[i] = 1; any = true }
     }
