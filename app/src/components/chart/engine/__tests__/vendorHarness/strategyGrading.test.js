@@ -253,6 +253,10 @@ const STRATEGY_CAPTURE_ROWS = Object.freeze({
   // could not pair a source's bound plots (#1770), re-filed at the engine that draws its fill anchor (#1788)
   'supertrend-strategy-rddt-1d-2026-11-17': 'Q-SD1',
   'supertrend-strategy-alab-1d-2026-11-17': 'Q-SD2',
+  // 2026-11-18 (run qs1p-is-2026-11-18, packet d64e34c28819): the two community strategies captured IN SESSION, the
+  // newest daily bar forming, with their Strategy Tester reports: [B-EXEC], a strategy executes once per closed bar
+  'supertrend-strategy-is-rddt-1d-2026-11-18': 'Q-S1p',
+  'macd-shortlong-strategy-is-rddt-1d-2026-11-18': 'Q-S1p',
 })
 
 function committedReportCaptures() {

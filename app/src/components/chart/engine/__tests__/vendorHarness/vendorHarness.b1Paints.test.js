@@ -114,6 +114,7 @@ describe('B1 — paints graded against the captures that record them', () => {
     'supertrend-strategy-alab-1d-2026-11-17.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
     'supertrend-strategy-rddt-1d-2026-10-02.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
     'supertrend-strategy-rddt-1d-2026-11-17.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
+    'supertrend-strategy-is-rddt-1d-2026-11-18.json': ['supply bar0 warmup=0', 'plot_9 withheld'],
     'supertrend-strategy-spy-1d-2026-10-02.json': ['supply warm vw-object-gc-b-spy-1d-2026-09-28.json 6677 notReplayed', 'plot_9 withheld'],
     'trend-targets-algoalpha-rddt-1d-2026-10-02.json': ['refused pine:state'],
     'trend-targets-algoalpha-spy-1d-2026-10-02.json': ['refused pine:state'],

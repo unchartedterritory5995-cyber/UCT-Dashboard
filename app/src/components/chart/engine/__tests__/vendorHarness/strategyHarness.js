@@ -121,7 +121,14 @@ function buildAsTheDoorDoes(capture, bars) {
  *   `{status:'ungraded', reason}` (the drawing build refused, or the store withheld the labels).
  */
 export function runOurBroker(capture, { pins = ALL } = {}) {
-  const { bars } = barsTradingViewRan(capture)
+  const ranOn = barsTradingViewRan(capture)
+  // ⭐⭐ (2026-11-18, Q-S1p) A CAPTURE TAKEN IN SESSION is graded on the member's own run: every bar, the forming one
+  // too, with the newest NOT confirmed, so our vm leaves it out ([B-EXEC]): the rule the capture grades.
+  // ⚰️ The harness handed such a run the bars TradingView ran (the forming bar already cut) AND said the newest was
+  // forming, so the vm left out a second bar: the last closed bar read `na` on our side (supertrend-strategy-is, the
+  // first in-session strategy capture graded, DIVERGE at 11-17 on a run no member makes).
+  const forming = capture.newestBarIsForming === true && ranOn.unrun !== null
+  const bars = forming ? barsOfCapture(capture) : ranOn.bars
   if (!bars) return { ok: false, refusal: { rule: 'harness:bars', guard: 'harness:bars', expected: false, message: 'the capture has no unix-s bars' } }
   const made = buildAsTheDoorDoes(capture, bars)
   if (!made.ok) {
@@ -164,6 +171,15 @@ export function runOurBroker(capture, { pins = ALL } = {}) {
   for (const [k, o] of (program.outputs || []).entries()) {
     if (!o || !VALUE_SLOT_CALLS.has(o.call) || !res.outputs[k]) continue
     plots.push({ kind: o.call, points: Array.from(res.outputs[k], (value, i) => ({ time: barTimes[i], value: Number.isFinite(value) ? value : null })) })
+  }
+  // the forming bar is neither side's evidence (TradingView's strategy did not run it, `newestBarNotRun`): its point
+  // leaves our series ONLY when our run computed nothing there; a value of ours on it stays, and the grade reads it
+  // as a bar of ours TradingView does not have (DIVERGE)
+  if (forming) {
+    for (const pl of plots) {
+      const last = pl.points[pl.points.length - 1]
+      if (last && last.time === ranOn.unrun && last.value === null) pl.points.pop()
+    }
   }
   // ruling D11: the bar TIME each rule was first asked on (null: before the first bar)
   const ruleFirstTime = {}
