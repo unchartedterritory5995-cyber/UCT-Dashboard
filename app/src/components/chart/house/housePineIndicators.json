@@ -5,6 +5,7 @@
   {
    "slug": "fred-rs",
    "name": "Fred RS",
+   "version": 1,
    "summary": "A stock's 12-month strength ranked 1 to 99 against all US stocks, with its RS line against the S&P 500.",
    "attribution": "By Fred6724 on TradingView, under the Mozilla Public License 2.0. The script, with its licence notice, is saved with your copy.",
    "pineSha256": "caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0",

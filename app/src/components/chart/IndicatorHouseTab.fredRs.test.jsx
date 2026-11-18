@@ -16,7 +16,8 @@ import PINE from './house/housePineIndicators.json'
 import HOUSE from './house/houseIndicators.json'
 import * as registry from './engine/nativeRegistry'
 import { SCRIPT_ENGINE_VERSION } from './engine/scriptEngineVersion'
-import IndicatorHouseTab, { buildPineCopy, loadHouseSet, ownCopyId } from './IndicatorHouseTab'
+import VERSIONS from './house/houseVersions.json'
+import IndicatorHouseTab, { buildPineCopy, loadHouseSet, ownScriptCopyId, PINE_PROBE_MAX } from './IndicatorHouseTab'
 
 const REPO = path.resolve(process.cwd(), '..')
 const styles = new Proxy({}, { get: (_t, k) => String(k) })
@@ -30,7 +31,7 @@ const flush = async () => { await act(async () => {}) }
 afterEach(() => { cleanup(); registry.clearUserDefinitions(); vi.restoreAllMocks() })
 
 describe('the entry', () => {
-  it('is the repo\'s script byte for byte, the sha256 the runtime allowlist admits', () => {
+  it("is the repo\'s script byte for byte, the sha256 the runtime allowlist admits", () => {
     expect(FRED).toBeTruthy()
     expect(FRED.pine).toBe(DOCS)
     expect(FRED.pineSha256).toBe(sha256(FRED.pine))
@@ -38,7 +39,7 @@ describe('the entry', () => {
     expect(row && row.sha256).toBe(sha256(FRED.pine))
   })
 
-  it('keeps Fred6724\'s licence notice in the script, and says whose it is', () => {
+  it("keeps Fred6724\'s licence notice in the script, and says whose it is", () => {
     expect(FRED.pine).toContain('This source code is subject to the terms of the Mozilla Public License 2.0')
     expect(FRED.pine).toContain('© Fred6724')
     expect(FRED.attribution).toMatch(/Fred6724/)
@@ -52,6 +53,23 @@ describe('the entry', () => {
     expect(FRED.summary).not.toMatch(/\b(Valid|Verified|Converted|Supported)\b/)
     expect(HOUSE.indicators.map((i) => i.name)).not.toContain(FRED.name)
     expect(HOUSE.indicators.map((i) => i.slug)).not.toContain(FRED.slug)
+  })
+
+  it("houseVersions.json lists it by its SCRIPT: the last version is the script shipped, under the entry's version", () => {
+    const list = VERSIONS.pine && VERSIONS.pine[FRED.slug]
+    expect(Array.isArray(list) && list.length).toBeTruthy()
+    const last = list[list.length - 1]
+    expect(last.script).toBe(`sha256:${sha256(FRED.pine)}`)
+    expect(last.version).toBe(FRED.version)
+    // THE RULE in the script's own terms: one version, one script, never rewritten
+    const seen = new Map()
+    for (const v of list) {
+      expect(Number.isInteger(v.version)).toBe(true)
+      if (seen.has(v.version)) expect(v.script).toBe(seen.get(v.version))
+      seen.set(v.version, v.script)
+      expect(String(v.why || '').length).toBeGreaterThan(5)
+    }
+    expect(Object.keys(VERSIONS.indicators)).not.toContain(FRED.slug) // patrick-0b's rail owns `indicators`
   })
 
   it('the tab loads it first, ahead of the formula set', async () => {
@@ -77,7 +95,7 @@ describe('the copy, built by the real Create Indicator builder', () => {
     expect(defs).toHaveLength(1)
   })
 
-  it('Add to chart saves the member\'s copy under a fresh id, with the script, and puts it on the chart', async () => {
+  it("Add to chart saves the member\'s copy under a fresh id, with the script, and puts it on the chart", async () => {
     const save = vi.fn(async (def) => ({ ok: true, row: { def_id: def.id } }))
     const onPutOnChart = vi.fn(() => true)
     render(<IndicatorHouseTab styles={styles} load={async () => [FRED]} save={save}
@@ -96,18 +114,50 @@ describe('the copy, built by the real Create Indicator builder', () => {
     expect(onPutOnChart).toHaveBeenCalledWith(doc.id)
   })
 
-  it('a member who already holds an unchanged copy gets that copy: nothing is saved again', async () => {
-    const mine = { ...(await buildPineCopy(FRED, 'u_aaaaaaaaaaaa')).doc }
-    expect(ownCopyId({ definition: (await buildPineCopy(FRED, 'u_bbbbbbbbbbbb')).doc }, [mine])).toBe('u_aaaaaaaaaaaa')
+  it("a member's copy whose stored SCRIPT is this one, byte for byte, is reused: nothing is saved again", async () => {
+    const mine = (await buildPineCopy(FRED, 'u_aaaaaaaaaaaa')).doc
+    const fetchScript = vi.fn(async (id) => (id === 'u_aaaaaaaaaaaa' ? FRED.pine : null))
     const save = vi.fn(async () => ({ ok: true }))
     const onPutOnChart = vi.fn(() => true)
     render(<IndicatorHouseTab styles={styles} load={async () => [FRED]} save={save} listOwn={() => [mine]}
-      isOnOffer={() => true} onPutOnChart={onPutOnChart} />)
+      fetchScript={fetchScript} isOnOffer={() => true} onPutOnChart={onPutOnChart} />)
     await flush()
     await act(async () => { fireEvent.click(screen.getByTestId('house-install')) })
     await flush()
+    expect(fetchScript).toHaveBeenCalledWith('u_aaaaaaaaaaaa')
     expect(save).not.toHaveBeenCalled()
     expect(onPutOnChart).toHaveBeenCalledWith('u_aaaaaaaaaaaa')
+  })
+
+  it("a copy with the SAME maths but other script bytes is the member's own: adding makes a fresh copy", async () => {
+    const mine = (await buildPineCopy(FRED, 'u_aaaaaaaaaaaa')).doc
+    const edited = FRED.pine.replace('// RaviYendru thank you for providing the intial script', '// an edited line')
+    expect(edited).not.toBe(FRED.pine)
+    const save = vi.fn(async (def) => ({ ok: true, row: { def_id: def.id } }))
+    render(<IndicatorHouseTab styles={styles} load={async () => [FRED]} save={save} listOwn={() => [mine]}
+      fetchScript={async () => edited} isOnOffer={() => true} onPutOnChart={() => true} />)
+    await flush()
+    await act(async () => { fireEvent.click(screen.getByTestId('house-install')) })
+    await flush()
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(save.mock.calls[0][0].id).not.toBe('u_aaaaaaaaaaaa')
+  })
+
+  it('a store that cannot answer reuses nothing (a second copy is harmless, a wrong one is not)', async () => {
+    const mine = (await buildPineCopy(FRED, 'u_aaaaaaaaaaaa')).doc
+    expect(await ownScriptCopyId(FRED, mine, [mine], async () => null)).toBeNull()
+  })
+
+  it("one press asks the store about at most PINE_PROBE_MAX of the member's documents, and only script documents", async () => {
+    const mine = (await buildPineCopy(FRED, 'u_aaaaaaaaaaaa')).doc
+    const many = Array.from({ length: PINE_PROBE_MAX + 4 }, (_, i) => ({ ...mine, id: `u_${String(i).padStart(12, '0')}` }))
+    const formulaOnly = { ...mine, id: 'u_ffffffffffff', meta: { ...mine.meta, engineVersion: undefined } }
+    const handEdited = { ...mine, id: 'u_eeeeeeeeeeee', meta: { ...mine.meta, scriptEdited: true } }
+    const asked = []
+    expect(await ownScriptCopyId(FRED, mine, [formulaOnly, handEdited, ...many], async (id) => { asked.push(id); return null })).toBeNull()
+    expect(asked.length).toBe(PINE_PROBE_MAX)
+    expect(asked).not.toContain('u_ffffffffffff')
+    expect(asked).not.toContain('u_eeeeeeeeeeee')
   })
 
   it('a copy that cannot be prepared says so, saves nothing and can be tried again', async () => {

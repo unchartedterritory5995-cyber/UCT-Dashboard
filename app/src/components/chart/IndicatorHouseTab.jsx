@@ -32,8 +32,13 @@
 // builds the copy through the SAME steps a pasted script takes in Create Indicator (`memberPaneDefinition`,
 // the engine stamp, the registry's validation) and saves the script beside it (`pineSource`), licence notice
 // included. The first is Fred6724's RS Rating, named "Fred RS". The build happens on the press, never on open
-// (a translation is a quarter second), so a member's existing copy of a Pine entry is recognised then, by the
-// same maths fingerprint as a formula entry's.
+// (a translation is a quarter second).
+// ⭐ A PINE COPY IS RECOGNISED BY ITS SCRIPT, NOT ITS MATHS (patrick-0b, 2026-11-18): the maths a script
+// translates to moves with the engine, its bytes do not. On the press, the member's own SCRIPT documents that
+// could be this one (the same maths now, the same name, or the same other-symbol reads) have their stored
+// script fetched (`GET /api/user-definitions/<id>?source=true`, at most `PINE_PROBE_MAX`), and only a copy
+// whose script is this entry's BYTE FOR BYTE is reused. A copy whose script the member changed is theirs; a
+// fetch that fails reuses nothing (a second copy is harmless, a wrong one is not).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { saveUserDefinition } from '../../hooks/useUserDefinitions'
@@ -79,6 +84,42 @@ const listOf = (m) => (m.default || m).indicators || []
 export const loadHouseSet = () => Promise.all([import('./house/housePineIndicators.json'), import('./house/houseIndicators.json')])
   .then(([pine, formulas]) => [...listOf(pine), ...listOf(formulas)])
 
+/** How many of the member's script documents one press may ask the store about. */
+export const PINE_PROBE_MAX = 5
+
+/** The stored Pine script of the member's definition `defId`, or null (absent, refused or unreachable). */
+export async function fetchStoredScript(defId) {
+  try {
+    const r = await fetch(`/api/user-definitions/${encodeURIComponent(defId)}?source=true`, { credentials: 'include', cache: 'no-store' })
+    if (!r.ok) return null
+    const row = await r.json()   // the store row, flat: `pine_source` beside `definition` (`svc.get(with_source=True)`)
+    return row && typeof row.pine_source === 'string' ? row.pine_source : null
+  } catch {
+    return null
+  }
+}
+
+/** The member's own copy of a Pine house entry whose stored script IS the entry's, byte for byte; null when none.
+ *  `built` is the fresh copy (its maths and reads narrow which documents are asked about); `own` the member's
+ *  installed definitions; `fetchScript(defId)` the store's answer. */
+export async function ownScriptCopyId(item, built, own, fetchScript = fetchStoredScript) {
+  const doc = built || {}
+  const fn = doc.compute && doc.compute.fn
+  const trees = doc.compute && doc.compute.treesHash
+  const reads = JSON.stringify((doc.meta && doc.meta.otherSymbols) || null)
+  const name = String(item.name || '').trim().toLowerCase()
+  const candidates = (Array.isArray(own) ? own : []).filter((d) => d && typeof d.id === 'string' && d.compute && d.meta
+    && Number.isInteger(d.meta.engineVersion) && d.meta.scriptEdited !== true
+    && ((d.compute.fn === fn && d.compute.treesHash === trees)
+      || String(d.meta.name || '').trim().toLowerCase() === name
+      || (reads !== 'null' && JSON.stringify(d.meta.otherSymbols || null) === reads)))
+  for (const d of candidates.slice(0, PINE_PROBE_MAX)) {
+    const script = await fetchScript(d.id)
+    if (typeof script === 'string' && script === item.pine) return d.id
+  }
+  return null
+}
+
 /** A Pine house entry's copy, built exactly as Create Indicator builds a pasted script: `{doc, options}` to
  *  save, or `{error}`. Loaded on the press, so the tab itself stays light. */
 export async function buildPineCopy(item, id) {
@@ -109,6 +150,7 @@ const NONE = () => []
 export default function IndicatorHouseTab({
   styles = ownStyles, query = '', isOnOffer = () => false, onPutOnChart = () => false,
   listOwn = NONE, load = loadHouseSet, save = saveUserDefinition, addWaitMs = ADD_WAIT_MS, buildPine = buildPineCopy,
+  fetchScript = fetchStoredScript,
 }) {
   const [items, setItems] = useState(null)
   const [failed, setFailed] = useState(false)
@@ -145,7 +187,8 @@ export default function IndicatorHouseTab({
         setState((p) => ({ ...p, [item.slug]: { error: (built && built.error) || 'It could not be added just now. Try again.' } }))
         return
       }
-      const held = ownCopyId({ definition: built.doc }, listOwn())
+      const held = await ownScriptCopyId(item, built.doc, listOwn(), fetchScript)
+      if (!live.current) return
       if (held && isOnOffer(held)) { put(item.slug, held); return }
       r = await save({ ...built.doc, version: 1 }, null, null, built.options)
     } else {
@@ -159,7 +202,7 @@ export default function IndicatorHouseTab({
       return
     }
     setState((p) => ({ ...p, [item.slug]: { error: (r && r.error) || 'It could not be added just now. Try again.' } }))
-  }, [save, listOwn, isOnOffer, put, buildPine])
+  }, [save, listOwn, isOnOffer, put, buildPine, fetchScript])
 
   // ⭐ a saved copy goes on the chart the moment the chart knows it; after `addWaitMs` the row
   // stops waiting and offers the button instead (the copy is saved either way).
