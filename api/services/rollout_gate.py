@@ -657,8 +657,10 @@ def pine_runtime_admission(script, registry) -> list[str]:
 #     else its evidence says (coordinator ruling 2026-11-15). Where an x grade
 #     exists it is recorded beside the y evidence;
 #   * ⛔ a capability whose FORMING bar no capture grades (`PINE_CAPABILITY_FORMING_UNGRADED`:
-#     `realtime-state`) admits ONLY with `scope: closed-bar-history` (coordinator ruling
-#     2026-11-15, under G6). Its evidence is closed-bar history; the member door refuses
+#     `realtime-state`, and `varip` since 2026-11-18) admits ONLY with `scope: closed-bar-history`
+#     (coordinator ruling 2026-11-15, under G6; varip by coordinator ruling 2026-11-18: on a closed
+#     historical bar a `varip` is a `var`, and no capture grades its updates within a forming bar).
+#     Its evidence is closed-bar history; the member door refuses
 #     it BY NAME on a chart whose newest bar is forming or not known to be closed
 #     (`runtime_definitions.runtime_admission` -> `historyOnly`, `runtimeKill.js::
 #     runtimeFormingRefusalOf`).
@@ -707,7 +709,9 @@ PINE_OBJECTS_LANE_RUNTIME = "runtime"
 PINE_OBJECTS_X_DIVERGE = "DIVERGE"
 #: G6 (2026-11-15): capabilities no capture grades on a FORMING bar. Each admits only with
 #: `scope: closed-bar-history`; the member door then refuses it by name on a forming bar.
-PINE_CAPABILITY_FORMING_UNGRADED = frozenset({"realtime-state"})
+#: `varip` (coordinator ruling 2026-11-18, the varip frame rule): it differs from `var` only within
+#: a forming bar, which no capture grades, so its evidence can only ever be closed-bar history.
+PINE_CAPABILITY_FORMING_UNGRADED = frozenset({"realtime-state", "varip"})
 #: U15 (coordinator ruling 2026-11-15): one row PER LIBRARY VERSION, `library:Author/Library/N`.
 #: The row pins the version by `sha256` (the sha of the library source the evidence graded), and an
 #: evidence entry counts only when its `library` names that path AND that sha: an entry graded
