@@ -98,13 +98,32 @@ test('symbol changes write back to the widgets color group only', () => {
   expect(screen.getByTestId('groupB').textContent).toBe('AAPL')
 })
 
-// The chart container is the focusable element that owns type-to-search.
-// It is the only element in the widget with tabIndex=0.
+// The chart REGION is the focusable element that owns type-to-search: the pane's
+// `role="region"` named "<symbol> <timeframe> price chart" (ChartPane.jsx).
+// ⚰️ This helper took "the only element in the widget with tabIndex=0". On 2026-11-17 every
+// header stat became a focusable button (fa3aeb2af7, ChartMetaRow's `tabIndex: 0`), a stat came
+// first in the document, and three tests below pressed their keys on a HEADER STAT: the key
+// never reached the chart, `openWith` was never called, and the tests went red on master while
+// the product still worked (checked on production: a letter typed on a focused chart opens the
+// ticker search). The "does NOT open" tests beside them kept passing for the wrong reason.
+// So the region is asked for by what it IS, and the helper refuses anything else.
 function chartSurface(container) {
-  const el = container.querySelector('[tabindex="0"]')
+  const el = container.querySelector('[role="region"][tabindex="0"]')
   if (!el) throw new Error('chart surface not found')
+  if (!/ price chart$/.test(el.getAttribute('aria-label') || '')) throw new Error(`not the chart region: ${el.getAttribute('aria-label')}`)
   return el
 }
+
+test('the chart region is not the first focusable element any more, and the helper still finds it', () => {
+  const { container } = render(<Wrap color="A" />)
+  const surface = chartSurface(container)
+  expect(surface.getAttribute('aria-label')).toMatch(/^SPY .*price chart$/)
+  // the premise of the note above: were the region first again, the old helper would be right
+  // again and this line is the one to delete
+  const first = container.querySelector('[tabindex="0"]')
+  expect(first).not.toBe(surface)
+  expect(first.getAttribute('data-stat-item')).toBeTruthy()
+})
 
 test('typing a letter opens ticker search', () => {
   openWithSpy.mockClear()
