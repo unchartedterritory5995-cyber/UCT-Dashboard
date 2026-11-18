@@ -1921,7 +1921,15 @@ function runOurSideOnTheParityClock(capture) {
       paintSupply: paintSupply ? { kind: paintSupply.kind, file: paintSupply.file, bars: paintSupply.bars,
         replayed: warm,
         historyFromListing: warm ? paintCtx.historyFromListing : ctx.historyFromListing,
-        refused: paintSupply.refused, reason: paintSupply.reason } : null,
+        refused: paintSupply.refused, reason: paintSupply.reason,
+        // ⭐ NUMBER PENDING (harness, fix/kill-spy-runtime-diverges) — the bars of the window the RUNTIME lane withholds
+        // by name off the listing (its warm-up curtain, `runtimeColumns.js::computeOffListing`): no colour is drawn
+        // there, exactly as no plot value is (the plot grade's `lookback`). `gradePaints` excuses a withheld bar there,
+        // never a bar painted differently.
+        curtainBars: (() => {
+          const c = built.lane === 'runtime' ? runtimeWarmupOf(paintColsRaw || {}) : null
+          return c && Number.isInteger(c.withheldBars) ? Math.max(0, c.withheldBars - pre) : 0
+        })() } : null,
       // ⭐ DIV-1 — which bars the PLOT and OBJECT lanes were computed over.
       historyReplay: { kind: decision.kind, file: replay ? replaySupply.file : null, bars: replayPre,
         historyFromListing: calcCtx.historyFromListing === true, reason: decision.why,
