@@ -46,12 +46,63 @@ async function boot({ lake } = {}) {
 const settled = (p) => { let v = 'PENDING'; p.then((x) => { v = x }, () => { v = 'REJECTED' }); return () => v }
 const ofTf = (calls, tf) => calls.filter((c) => c.q.tf === tf).map((c) => c.q.sym)
 
+// The server's own rows (fakeBarsServer intradayRows: o 10, h 11, l 9, c 10.5, v 100), so a lake copy
+// that shares bars with an answer proves its basis and joins it.
+const likeServer = (from, to) => { const out = []; for (let t = from; t <= to; t += 300) out.push({ t, o: 10, h: 11, l: 9, c: 10.5, v: 100 }); return out }
+function slowLake(lakeRows, ms) {
+  return { ...lakeOf(lakeRows), olderBars: vi.fn((key, beforeT) => new Promise((r) => setTimeout(() => r({ bars: lakeRows.filter((b) => b.t < beforeT) }), ms))) }
+}
+
+describe('ONE paint, the whole chart (owner 2026-11-17: "a good chunk, then the rest a quick blink later")', () => {
+  it('a normal answer lands first: the handoff commits ONCE, after the lake\'s depth has joined it', async () => {
+    const { LAKE_JOIN_WAIT_MS } = await import('./prefetch')
+    const w = await boot({ lake: slowLake(likeServer(OPEN - 300 * 60, OPEN + 600), 150) })
+    const state = settled(w.pf.prepareForDisplay('COLD', '5'))
+    await vi.advanceTimersByTimeAsync(40)
+    await w.server.drain()                                                  // the answer at ~40 ms
+    await vi.advanceTimersByTimeAsync(20)
+    expect(w.store.peek(w.k('COLD', '5')).restSeen).toBe(true)
+    expect(state()).toBe('PENDING')                                         // NOT committed on ~7 bars
+    await vi.advanceTimersByTimeAsync(150)
+    expect(state()).toBe('current')
+    const s = w.store.peek(w.k('COLD', '5'))
+    expect(s.bars[0].t).toBe(OPEN - 300 * 60)                               // the first paint holds the depth
+    expect(LAKE_JOIN_WAIT_MS).toBeLessThanOrEqual(350)
+  })
+
+  it('a lake slower than LAKE_JOIN_WAIT_MS never holds the chart longer than that', async () => {
+    const { LAKE_JOIN_WAIT_MS } = await import('./prefetch')
+    const w = await boot({ lake: slowLake(likeServer(OPEN - 300 * 60, OPEN + 600), 5000) })
+    const state = settled(w.pf.prepareForDisplay('COLD', '5'))
+    await vi.advanceTimersByTimeAsync(40)
+    await w.server.drain()
+    await vi.advanceTimersByTimeAsync(LAKE_JOIN_WAIT_MS - 50)
+    expect(state()).toBe('PENDING')
+    await vi.advanceTimersByTimeAsync(100)
+    expect(state()).toBe('current')                                         // committed on the answer alone
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(w.store.peek(w.k('COLD', '5')).bars[0].t).toBe(OPEN - 300 * 60) // and the depth still joins
+  })
+
+  it('a symbol the lake does not carry commits on its answer with no wait at all', async () => {
+    const w = await boot({ lake: null })
+    const state = settled(w.pf.prepareForDisplay('COLD', '5'))
+    await vi.advanceTimersByTimeAsync(40)
+    await w.server.drain()
+    await vi.advanceTimersByTimeAsync(5)
+    expect(state()).toBe('current')
+  })
+})
+
 describe('the lake in the handoff race', () => {
   it('Enter on a cold symbol whose first answer is slow commits on the lake copy; the answer completes it', async () => {
+    const { LAKE_ALONE_MS } = await import('./prefetch')
     const w = await boot({ lake: lakeOf(rows(OPEN - 300, 50)) })            // the lake ends yesterday
     const enter = w.pf.prepareForDisplay('COLD', '5')
     const state = settled(enter)
-    await vi.advanceTimersByTimeAsync(400)                                   // the server has NOT answered
+    await vi.advanceTimersByTimeAsync(LAKE_ALONE_MS - 50)
+    expect(state()).toBe('PENDING')                                          // the server keeps the right of way
+    await vi.advanceTimersByTimeAsync(100)                                   // the server has NOT answered
     expect(w.server.open().length).toBeGreaterThan(0)
     expect(state()).toBe('lake')
     const s = w.store.peek(w.k('COLD', '5'))
@@ -76,7 +127,7 @@ describe('the lake in the handoff race', () => {
       const lake = rows(OPEN - 300, 50)
       const w = await withHeldCopy(lake.slice(-20), lake)                   // the held 20 are the lake's newest 20
       const state = settled(w.pf.prepareForDisplay('COLD', '5'))
-      await vi.advanceTimersByTimeAsync(400)
+      await vi.advanceTimersByTimeAsync(500)
       expect(state()).toBe('lake')
       const s = w.store.peek(w.k('COLD', '5'))
       expect(s.restSeen).toBe(false)

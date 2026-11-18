@@ -38,7 +38,7 @@
 // owner). No other barStore file spells the endpoint.
 
 import { barsLaneRequest, barsBeforeUrl, promoteLaneRequest } from '../../utils/prefetchBars'
-import { historyWindowUrl, prependOlder, etDateOf, HISTORY_WINDOW_BARS, LAKE_WINDOW_BARS } from '../../utils/historyPrepend'
+import { historyWindowUrl, prependOlder, etDateOf, HISTORY_WINDOW_BARS, LAKE_WINDOW_BARS, LAKE_PREFETCH_TARGET_BARS } from '../../utils/historyPrepend'
 import {
   nextTailPollMs, createTailPollState, intradayDedupMs, INTRADAY_POLL_MS, REPAIR_DEDUP_MS,
   tailRetriesExhausted,
@@ -177,6 +177,7 @@ export function createNetwork({
 } = {}) {
   /** key → per-key slot + loop state */
   const keys = new Map()
+  const lakeSeeds = new Map()      // key -> the lake load in flight (lakeSeed), shared by its callers
   let requests = 0
   /** key → Set<cb>: listeners of the key's catch-up budget (DELAYED badge, `tailExhausted`). */
   const budgetSubs = new Map()
@@ -565,20 +566,34 @@ export function createNetwork({
     // scroll-back reaches the lake then); a held local copy is joined by the reducer only where the
     // lake's rows prove its price basis over the bars they share (applyLocal), and the seed counts as
     // painted only when rows were actually added.
+    //
+    // ⭐ ONE LOAD, THE WHOLE DEPTH (2026-11-17, owner: "it shows a good chunk, then the rest a quick
+    // blink later"). The lake's newest LAKE_PREFETCH_TARGET_BARS come in ONE load (the background
+    // depth the chart would otherwise reach in steps after the first paint), and a load that lands
+    // AFTER the server's answer still joins: the reducer adds only the rows older than what is held,
+    // and only where the shared bars prove the held basis. Resolves 'seed' (rows added before any
+    // server answer), 'join' (deeper rows added to an answer) or false; one load per key at a time
+    // (the handoff and the chart's subscribe share it), none once the key is that deep.
     lakeSeed(key) {
       if (!history?.olderBars || !lakeCarriesKey(key)) return Promise.resolve(false)
-      if (registry.peek(key)?.restSeen) return Promise.resolve(false)
-      return Promise.resolve()
-        .then(() => history.olderBars(key, Math.floor(now() / 1000) + 1, { bars: LAKE_WINDOW_BARS }))
+      if ((registry.peek(key)?.bars.length ?? 0) >= LAKE_PREFETCH_TARGET_BARS) return Promise.resolve(false)
+      const running = lakeSeeds.get(key)
+      if (running) return running
+      const p = Promise.resolve()
+        .then(() => history.olderBars(key, Math.floor(now() / 1000) + 1, { bars: LAKE_PREFETCH_TARGET_BARS }))
         .then((got) => {
           const cur = registry.peek(key)
-          if (!got || !Array.isArray(got.bars) || !got.bars.length || !cur || cur.restSeen) return false
+          if (!got || !Array.isArray(got.bars) || !got.bars.length || !cur) return false
           const before = cur.bars.length
           registry.dispatch(key, { type: ACTION.LAKE_HIT, key, payload: { sym: parseKey(key)?.sym, bars: got.bars } })
           const after = registry.peek(key)
-          return !!after && !after.restSeen && after.bars.length > before
+          if (!after || after.bars.length <= before) return false
+          return after.restSeen ? 'join' : 'seed'
         })
         .catch(() => false)
+        .finally(() => { if (lakeSeeds.get(key) === p) lakeSeeds.delete(key) })
+      lakeSeeds.set(key, p)
+      return p
     },
     /** Would a scroll-back of `key` ask the history lake (intraday, not a replay window, the lake on
      *  and not found exhausted for this key)? Sets the background depth target (historyPrepend). */

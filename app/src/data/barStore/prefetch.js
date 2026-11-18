@@ -178,6 +178,12 @@ export function deepNeighborsEnabled() {
 }
 const LOCAL_PAINTS = Symbol('local copy paints')
 const LAKE_PAINTS = Symbol('lake copy painted')
+/** How long after Enter a lake copy may be committed ALONE (the server has not answered): a normal
+ *  answer (~70-300 ms) lands first and the chart paints it with the lake's depth already joined. */
+export const LAKE_ALONE_MS = 450
+/** After an answer (or a saved copy) that paints, how long the handoff waits for the lake's whole
+ *  depth to join it, so the first paint is the whole chart and nothing loads in view afterwards. */
+export const LAKE_JOIN_WAIT_MS = 350
 /** How long a typed text the daily pack does not know may wait for the lake's answer to "is it a
  *  ticker?" (its index: one edge round trip) before the warm gives up on it. */
 export const INTENT_LAKE_INDEX_WAIT_MS = 400
@@ -443,21 +449,25 @@ export function createPrefetch(o = {}) {
       // in 42 ms median). A read that answers within HYDRATE_WAIT_MS takes the old path below;
       // otherwise the request leaves now and a local copy that paints still commits if it lands
       // before the answer.
+      const t0 = now()
       const hyd = _hydrate(key)
+      // The lake's whole depth loads from here, in parallel with the server (after the saved-copy
+      // read: a saved copy is never overtaken). See _lakeAlone / _joined.
+      const lake = date ? Promise.resolve(false) : _lakeLoad(key, hyd)
       const s0 = await Promise.race([hyd, new Promise((resolve) => setTimer(() => resolve(undefined), HYDRATE_WAIT_MS))])
       if (s0 === undefined) {
         const req = ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: S().peek(key) || {}, session: session(showExtended) })
         const localFirst = hyd.then((h) => (_localPaints(h, fetchTf(String(tf)), showExtended) ? LOCAL_PAINTS : new Promise(() => {})))
-        const won = await Promise.race([req, localFirst, _lakeFirst(key, hyd)])
-        if (won === LOCAL_PAINTS) return 'current'
+        const won = await Promise.race([req, localFirst, _lakeAlone(lake, t0)])
+        if (won === LOCAL_PAINTS) { await _joined(lake); return 'current' }
         if (won === LAKE_PAINTS) return 'lake'
-        return _outcome(won, { aborted: !!signal?.aborted, date })
+        return _whole(_outcome(won, { aborted: !!signal?.aborted, date }), lake)
       }
       // A SERVER answer is already held and the chart paints it (see HANDOFF_PAINTS): commit,
       // the chart's own request catches the tail up. A LOCAL-only copy is judged by the legacy
       // paint rule on the next line, never by this one (#2c).
-      if (s0 && !date && s0.restSeen && HANDOFF_PAINTS.includes(s0.status)) return 'current'
-      if (_localPaints(s0, fetchTf(String(tf)), showExtended)) return 'current'   // legacy: no request
+      if (s0 && !date && s0.restSeen && HANDOFF_PAINTS.includes(s0.status)) { await _joined(lake); return 'current' }
+      if (_localPaints(s0, fetchTf(String(tf)), showExtended)) { await _joined(lake); return 'current' }   // legacy: no request
       // Otherwise only a SERVER answer prepares it. ⛔ NOT a `&warm=1` request and NOT in the
       // shared warm lane: this is the request for the chart the member just asked for. As a
       // warm it could be shed by the server (which committed an EMPTY chart: the blank frame
@@ -467,9 +477,9 @@ export function createPrefetch(o = {}) {
       // for the same URL joins it.
       const req = ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: s0, session: session(showExtended) })
       // (a D/W/M key never paints from the lake: network.lakeSeed carries intraday keys only)
-      const s = await Promise.race([req, _lakeFirst(key)])
+      const s = await Promise.race([req, _lakeAlone(lake, t0)])
       if (s === LAKE_PAINTS) return 'lake'
-      return _outcome(s, { aborted: !!signal?.aborted, date })
+      return _whole(_outcome(s, { aborted: !!signal?.aborted, date }), lake)
     } catch {
       return 'error'
     } finally {
@@ -488,10 +498,44 @@ export function createPrefetch(o = {}) {
    * to paint, so the server request decides as before. `after` (the cache read) goes first: a saved
    * copy is never overtaken by the lake.
    */
-  function _lakeFirst(key, after = null) {
+  //
+  // ⭐⭐ ONE PAINT, THE WHOLE CHART (2026-11-17, owner: "it shows a good chunk, then the rest a quick
+  // blink later. I want them ALL instant"). The server's first answer (~70-300 ms) usually beat the
+  // lake, the handoff committed on its ~1,150 bars, and the depth came in a second, visible step
+  // (DEEP_ARM_MS, then windows: ~1.9 s). Now the lake's whole depth loads from Enter (store.lakeSeed:
+  // one load, LAKE_PREFETCH_TARGET_BARS), and the handoff commits ONCE:
+  //   * the server answers: commit when the lake's depth has joined it, waiting at most
+  //     LAKE_JOIN_WAIT_MS for the join (its pieces are primed at intent);
+  //   * the server is slow: commit on the lake's history alone once LAKE_ALONE_MS has passed
+  //     (provisional; the answer adds the newest bars when it lands);
+  //   * a saved copy that paints: the same bounded join before it commits.
+  // A key the lake does not carry resolves the load false at once and nothing waits.
+  function _lakeLoad(key, after = null) {
+    // a key the lake cannot carry (no lake, D/W/M, a replay window, found exhausted) answers at once:
+    // nothing waits on the cache read for it
+    if (!S().lakeCarries?.(key)) return Promise.resolve(false)
     return Promise.resolve(after).catch(() => {})
-      .then(() => S().lakeSeed?.(key))
-      .then((painted) => (painted ? LAKE_PAINTS : new Promise(() => {})), () => new Promise(() => {}))
+      .then(() => S().lakeSeed?.(key) ?? false)
+      .catch(() => false)
+  }
+
+  /** LAKE_PAINTS once the lake has painted before any answer AND the server has had LAKE_ALONE_MS. */
+  function _lakeAlone(lake, t0) {
+    const never = new Promise(() => {})
+    return lake.then((r) => (r === 'seed'
+      ? new Promise((resolve) => setTimer(() => resolve(LAKE_PAINTS), Math.max(0, t0 + LAKE_ALONE_MS - now())))
+      : never), () => never)
+  }
+
+  /** The lake load, or LAKE_JOIN_WAIT_MS, whichever comes first. Never rejects. */
+  function _joined(lake) {
+    return Promise.race([lake, new Promise((resolve) => setTimer(resolve, LAKE_JOIN_WAIT_MS))]).catch(() => {})
+  }
+
+  /** A server outcome the chart paints waits for the lake's depth to join it (bounded). */
+  async function _whole(outcome, lake) {
+    if (outcome === 'current' || outcome === 'authoritative') await _joined(lake)
+    return outcome
   }
 
   async function prepareDailyForDisplay(sym, tf, { signal = null, showExtended } = {}) {
@@ -610,7 +654,15 @@ export function createPrefetch(o = {}) {
             s = S().peek(k)
           }
           // the chart's own target: deeper where the lake carries the key (historyPrepend)
-          if (!s?.restSeen || !s.bars?.length || s.status === STATUS.UNAVAILABLE || s.depth >= prefetchTargetBars(!!S().lakeCarries?.(k))) break
+          const lakeCarries = !!S().lakeCarries?.(k)
+          if (!s?.restSeen || !s.bars?.length || s.status === STATUS.UNAVAILABLE || s.depth >= prefetchTargetBars(lakeCarries)) break
+          // ⭐ Where the lake carries it, the WHOLE depth in one load (store.lakeSeed), so the flip paints
+          // the row as deep as the chart will ever hold it (2026-11-17: two windows left it at ~13,000 of
+          // 20,000, and the chart's own deepening then showed in view). Server windows otherwise.
+          if (lakeCarries) {
+            const joined = await Promise.resolve().then(() => S().lakeSeed?.(k)).catch(() => false)
+            if (joined) break
+          }
           const res = await Promise.resolve().then(() => S().scrollBack(k, { priority: 'grid' })).catch(() => null)
           // Nothing older, refused at the seam, still filling or failed: this row is done for now
           // (the chart's own loader retries a filling window when the member lands on it).
