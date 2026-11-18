@@ -216,8 +216,7 @@ Index. Each is at tier (a) and (b): an independent calculation written from the 
 definition, compared bar by bar at the default numbers and at other numbers written at the entry's
 parameter sites (`tests/test_named_indicators_values.py`), and a published definition read on
 2026-11-18 (eleven from StockCharts ChartSchool; Price Volume Trend from TradingView's help
-center). None is graded against a TradingView capture yet, so no entry here says anything about
-TradingView.
+center). They were then graded against TradingView's built-ins (the third batch, below).
 
 **What the pages do not state, and how each point was settled** (`tests/test_named_indicators_slice3.py`):
 
@@ -242,6 +241,153 @@ not belong in a lookup.
 every output's formula once and holds it against every reference calculation in the library: only
 its own may agree.
 
-**Acronyms.** A bare two- or three-letter acronym is never a library spelling ("OBV", "DMI",
-"PPO"): several are real tickers. A request that uses only the acronym is not looked up, and is
-counted by the name catalogue as that name, so the weekly report shows how often it happens.
+**Acronyms.** A bare two- or three-letter acronym is never a library ALIAS ("OBV", "DMI", "PPO"):
+several are real tickers. (Since the ruling below, four entries carry an acronym in a field of
+their own, read inside the Create Indicator door only.)
+
+## The third batch: slice 3 against TradingView's built-ins
+
+Run `builtin3-2026-11-18`, graded by `grade_builtins3.py` (beside this file): the same two daily
+charts as before (SPY, 8,509 bars; RDDT, 668), TradingView's settings set to each entry's defaults
+and read back from its dialog. All twelve are TradingView built-ins. The capture itself is vendor
+data and stays out of the repository; only these verdicts are recorded.
+
+| entry | verdict |
+|---|---|
+| Aroon | EQUAL on every bar (Up and Down; TradingView's built-in draws no oscillator) |
+| On Balance Volume | EQUAL on every bar |
+| Accumulation Distribution Line | EQUAL on every bar |
+| Price Volume Trend | EQUAL on every bar |
+| Percentage Price Oscillator | EQUAL on every bar (oscillator, signal, histogram) |
+| Know Sure Thing | EQUAL on every bar (both lines) |
+| Mass Index | EQUAL on every bar |
+| Force Index | EQUAL on every bar |
+| Ulcer Index | EQUAL on every bar |
+| Ease of Movement | EQUAL on every bar at TradingView's divisor, 10,000 |
+| Directional Movement Index | formula equal; ONE rounding tie differs |
+| Negative Volume Index | as first entered (the additive form): differs BY DEFINITION. Version 2, below: EQUAL on every bar |
+| TRIX (added after this batch, below) | EQUAL on every bar |
+
+**Ease of Movement: the divisor became a setting (version 2).** Version 1 held ChartSchool's
+100,000,000 as a fixed number, and its values were exactly 10,000 times TradingView's: the same
+shape at another size. TradingView's dialog has a Divisor, 10,000 by default. It is a setting here
+too, with that default, and the entry's first version keeps the fingerprint it shipped with.
+
+**Directional Movement Index: one bar of 8,509.** All three lines are equal on every bar of RDDT,
+and -DI on every bar of SPY. On SPY, +DI and ADX part on one bar and need about 400 bars of
+Wilder's smoothing to meet again. On that bar the up move and the down move are both 9 cents; in
+floating point the up move is larger by 3 parts in 100 trillion. UCT counts it as the larger (the
+published rule: the up move counts when it is greater than the down move); TradingView counts the
+two as equal and gives neither. The entry therefore says nothing about TradingView. Whether the
+engine should compare the two moves as prices (to the tick) is a question for the engine.
+
+**Negative Volume Index: two definitions under one name.** TradingView's built-in compounds: prior
+NVI x (1 + the price change) on a lower-volume day, from 1000, and a calculation written that way
+is equal to it on every bar. The pages read, TradingView's own help page among them, describe the
+additive form (prior NVI + the percent change), and that is what this entry holds. Wikipedia and
+TA-Lib's documentation state the compounding form. The entry says nothing about TradingView until
+it is decided which form the name should mean here.
+
+**Two indicators the capture informs and the library still leaves out.**
+TRIX: TradingView's built-in is 10,000 x the one-bar change of the triple average of the LOGARITHM
+of price (equal on every bar when computed that way). Every page read, TradingView's help page
+included, describes the percent change of the triple average of price, which is about a hundredth
+of that size. Two definitions again, so no entry yet.
+Detrended Price Oscillator, length 20: TradingView's uncentred line is the close minus the average
+of 11 bars ago (length / 2 + 1), equal on every bar. ChartSchool's is the centred form, which
+leaves the last bars blank. It waits for a displacement the library can derive from the length.
+
+## The withheld name: a well-known name with no checked formula is built, and not under that name
+
+**What was measured first.** Of 140 well-known indicator names put to the door, 35 reached the
+assistant with nothing saying UCT has no formula for them, and were built from its recollection
+under the name, as if UCT stood behind it; 93 were refused before any call, including names whose
+arithmetic the engine can do.
+
+**The rule (ruling 2026-11-18).** The name catalogue marks 57 names `distinctive`: a coined word or
+a person's name for one specific calculation on price and volume (Klinger Volume Oscillator, Schaff
+Trend Cycle, Fisher Transform, QQE). For these, and only these:
+
+1. the name is a term of the chart door, so the request reaches the assistant with the rule to
+   build what the name is generally understood to compute, to name the indicator and every line by
+   what it computes, and to say in plain words what it built;
+2. the door refuses a change that writes the name on the chart anyway (a full spelling, its
+   abbreviation, or a word that belongs to that name alone, such as "Klinger"): one repair, and
+   wrong twice ends in a refusal;
+3. the door itself tells the member, on every output, that the name is not in the checked library
+   and to check the formula before relying on it;
+4. the member's own name for their indicator ("call it Klinger") is theirs to give.
+
+Left as they were: descriptive phrases a member may mean literally, drawing tools and patterns
+(Gann Fan, Elliott Wave), chart types (Renko), and anything that needs data a chart formula cannot
+read (market breadth). Those keep the unknown-name answer and its way forward. A library name is
+the library's. A bare two- or three-letter acronym is never looked up.
+
+**Its words are that name's and no other's.** A withheld name is recognised whole. Its words do
+not join the product's vocabulary, so "Fisher" inside any other Title-Case name is still a foreign
+word and that other name is still an unknown name.
+
+**Measured before it was turned on**, with no model call, over the requests on file: every request
+that fires the rule literally names that indicator (no misread), and no request's answer changed
+without one. The counts are in the report to the engine session, not here.
+
+## Two names with two definitions each: what was decided (2026-11-18)
+
+The third capture showed two indicators whose published descriptions and whose TradingView
+built-ins are different calculations under one name. Each was decided, and each entry says which.
+
+**Negative Volume Index: it compounds (version 2).** Prior NVI x (1 + the price change) on a
+lower-volume day, from 1000. That is Fosback's form as Wikipedia and TA-Lib's documentation state
+it, and what TradingView's built-in computes: graded again, the index and its 255-bar EMA are equal
+on every bar of both charts. Some references (ChartSchool, TradingView's help page) describe an
+additive form; the entry's note says so. Version 1, the additive form, keeps the fingerprint it
+shipped with.
+
+**TRIX: TradingView's own form, with the capture as its source.** 10,000 x the one-bar change of a
+triple EMA of the logarithm of price: equal to TradingView's built-in on every bar of both charts
+(graded at length 15; the entry's default is TradingView's, 18). Every page read describes a
+percent change of the triple EMA of price, about a hundredth of that size, and none states a
+multiplier. Members compare with what TradingView plots, so the entry follows it, and what the
+member is told says exactly that instead of "the definition published by": whose form it follows,
+what that form is, and that some references describe another. Only an entry graded equal on every
+bar may say it follows a capture (`named_indicators.follows_a_capture`).
+"Triple exponential average", TRIX's formal name, is its spelling now.
+
+**Directional Movement Index: the one bar, exactly.** SPY, 2014-04-03 (bar 5333 of 8,509). The
+high rose from 189.13 to 189.22 and the low fell from 188.14 to 188.05: both moves are 9 cents.
+The four prices are stored exactly as those ticks. Subtracted as binary floating point the up move
+is 0.09000000000000341 and the down move 0.08999999999997499, so UCT counts the up move as the
+larger and TradingView counts a tie. No engine change was made for it; it is recorded as a known
+precision difference, and the entry still says nothing about TradingView.
+
+## The shipped-version ledger
+
+"An entry's maths never changes under the same version" was held by the fingerprint stored in the
+library file itself. A library file regenerated with empty fingerprints, which is how the entries
+above were written, could therefore move a shipped entry's formula and record the new fingerprint
+as if it had always been version 1, and nothing went red. It was found while Ease of Movement and
+the Negative Volume Index were being given a second version; each first version's fingerprint was
+then pinned by hand.
+
+`api/data/named_indicators_shipped.json` closes it for every entry: each (entry, version) is
+recorded once, with its fingerprint, when it ships. The build tool refuses a library whose recorded
+version moved, even when the file carries no fingerprint to compare with, and one that lost a
+recorded entry or version; `--ship` adds what is new and never rewrites a recorded line; `--check`
+fails while a version is unrecorded. Proved by changing a shipped formula through the seed and
+watching the build refuse it (`tests/test_named_indicators_ledger.py`).
+
+## Acronyms: four admitted, under four conditions (ruling 2026-11-18)
+
+Inside the Create Indicator door a bare word is an indicator request, so an entry may be named by
+its acronym, as its own `acronyms` field (an alias is still never a bare short word):
+**OBV, PPO, PVT, KST.**
+
+| condition | how it is held |
+|---|---|
+| (1) it names exactly one indicator UCT knows by name | each is the initials of its own entry and of no other library entry or name-catalogue row, and is no word of the product's own. The same check refuses ADL (also Advance Decline Line) and DMI (also Dynamic Momentum Index); ADX is the engine's own function word |
+| (2) every request on file that uses it reads as that indicator | THE REQUESTS ON FILE COULD NOT SAY. Of 909, one used an admitted acronym, and it was written to test this. So it is watched instead: each build that came from an acronym is its own row of the weekly report, with how often the member's next turn in that conversation removed or rewrote what was built |
+| (3) the reply names the indicator in full | the door's own sentence on every output begins "Built to UCT's checked formula for On Balance Volume" |
+| (4) a symbol beside it is still the symbol | "OBV of AAPL" names the entry and reads AAPL. The acronym itself is never read as a symbol, even where the same letters are a real ticker (PVT): a patch that reads the symbol PVT for "Add PVT" is refused as a symbol the member never asked for. "PVT.TO" and "XYZ.PVT" are symbols and are left alone |
+
+An acronym names the library's formula and nothing looser: a patch that holds another formula for
+"Add OBV" is sent back once and then refused, exactly as for the full name.
