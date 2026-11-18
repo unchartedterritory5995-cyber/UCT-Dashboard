@@ -146,12 +146,13 @@ def test_the_evidence_says_what_was_read_and_where():
 
 
 def test_what_the_library_claims_about_tradingview_is_what_was_graded():
-    """Thirty entries are TradingView built-ins and were graded against them in four batches
+    """Thirty-one entries are TradingView built-ins and were graded against them in four batches
     (2026-11-18; the method and grades are in docs/indicators/evidence/2026-11-18-named-library/).
-    Twenty-five are equal on every bar; three are equal after their first bars. Two claim NOTHING
+    Twenty-six are equal on every bar; three are equal after their first bars. Two claim NOTHING
     about TradingView, each for a stated reason: the McGinley Dynamic (UCT's 300-bar restart of the
     same formula is not bar-equal) and the Directional Movement Index (one floating-point tie on
-    one bar of 8,509). Two are not TradingView built-ins and have no capture."""
+    one bar of 8,509). Four are not TradingView built-ins and have no capture (the Laguerre pair
+    among them: TradingView ran OUR equations for those, which is not a grade against its own)."""
     grade = {e["id"]: (e["evidence"]["capture"] or {}).get("grade") for e in ni.entries()}
     assert sorted(i for i, g in grade.items() if g == "EQUAL") == sorted([
         "awesome_oscillator", "chaikin_money_flow", "choppiness_index", "coppock_curve", "elder_ray",
@@ -165,7 +166,9 @@ def test_what_the_library_claims_about_tradingview_is_what_was_graded():
         # after the rulings of 2026-11-18: the Negative Volume Index in its compounding form (version 2), and TRIX
         "negative_volume_index", "trix",
         # the fourth batch: the Positive Volume Index, both lines on every bar
-        "positive_volume_index"])
+        "positive_volume_index",
+        # the Detrended Price Oscillator in TradingView's default (not centred) form, at lengths 21 and 20
+        "detrended_price_oscillator"])
     # the Fisher Transform is recomputed from 300 bars back on every bar: equal on every bar it has a
     # value for, at two lengths, with no value on the first 300 bars of a chart's history
     assert sorted(i for i, g in grade.items() if g == "EQUAL AFTER WARM-UP") == ["chandelier_exit", "connors_rsi", "fisher_transform"]
@@ -177,6 +180,8 @@ def test_what_the_library_claims_about_tradingview_is_what_was_graded():
     assert set(grade.values()) <= {None, "EQUAL", "EQUAL AFTER WARM-UP", "FORMULA EQUAL, RESTART DIFFERS",
                                    "FORMULA EQUAL, ONE ROUNDING TIE DIFFERS"}
     assert grade["kaufman_adaptive_moving_average"] is None and grade["squeeze_momentum"] is None
+    assert grade["laguerre_filter"] is None and grade["laguerre_rsi"] is None
+    assert sum(1 for g in grade.values() if g is None) == 4 and len(grade) == 35
     assert not ni.tiers(ENTRIES["mcginley_dynamic"])[2] and "TradingView" not in ni.member_sentence(ENTRIES["mcginley_dynamic"], {})
     assert ni.tiers(ENTRIES["connors_rsi"])[2] and ni.tiers(ENTRIES["vortex_indicator"])[2]
 
@@ -584,8 +589,11 @@ def test_a_parameters_range_is_its_validity_range_and_nothing_tighter():
                 assert (e["id"], p["key"], p["min"]) == ("ease_of_movement", "divisor", 1)
             else:
                 floats[(e["id"], p["key"])] = (p["min"], p["max"])
+    # (the Laguerre pair's gamma is a share each stage keeps: above 0, and at most the largest
+    # gamma whose filter settles within the bars a chart formula may reach)
     assert floats == {("squeeze_momentum", "bb_mult"): (0.001, 50), ("squeeze_momentum", "kc_mult"): (0.001, 1000),
-                      ("chandelier_exit", "multiplier"): (0.001, 1000)}
+                      ("chandelier_exit", "multiplier"): (0.001, 1000),
+                      ("laguerre_filter", "gamma"): (0.01, 0.95), ("laguerre_rsi", "gamma"): (0.01, 0.95)}
     # so a long length is still the checked indicator (it was refused over 400)
     kama = ENTRIES["kaufman_adaptive_moving_average"]
     tree = create("kaufman_adaptive_moving_average", {"slow": 1200})["outputs"][0]["tree"]

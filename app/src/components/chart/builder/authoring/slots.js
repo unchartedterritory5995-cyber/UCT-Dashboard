@@ -83,9 +83,12 @@ export const barFields = () => BAR_FIELDS
  *  length: a slot there is a WINDOW (a whole number of at least 1). */
 const EXPANSION_ARGS = Object.freeze({
   linreg: ['source', 'length', 'offset'], correlation: ['source', 'source', 'length'],
-  vwma: ['source', 'length'], roc: ['source', 'length'], mom: ['source', 'length'],
+  vwma: ['source', 'length'], roc: ['source', 'length'], mom: ['source', 'length'], dpo: ['source', 'length'],
   kcMiddle: ['source', 'length'], kcUpper: ['source', 'length', 'multiplier'], kcLower: ['source', 'length', 'multiplier'],
   bbMiddle: ['source', 'length'], bbUpper: ['source', 'length', 'multiplier'], bbLower: ['source', 'length', 'multiplier'],
+  // 2026-11-18: the functions that stand for running values. Their numbers are read as what they
+  // are ("fisher length 9"), where they read "fisher argument 1 9".
+  fisher: ['length'], laguerre: ['source', 'gamma'], laguerreRsi: ['source', 'gamma'],
 })
 
 function roleOf(parent, index) {

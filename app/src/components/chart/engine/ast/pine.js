@@ -168,6 +168,7 @@ import { compileMessagePattern, tostringPatternOf, literalTostringText } from '.
 // keeps paying for. The exchange-witness map lives there too: it is consulted per
 // BINDING, which is not a question a door that runs once per script can answer.
 import { TEXT_PREDICATE_FN, foldScalar } from './bind.js'
+import { constCompareFold, pineCompareAmbiguous, constantTreeValue } from '../pineCompare.js'
 // ⭐ THE SHARED WINDOW PREDICATE — from `parse.js`, the one module the SAVE
 // door, the bind stage and the repaint LINTER can all see. See L2 in
 // `bindFoldableAgreement.test.js` for why it cannot live beside the fold.
@@ -892,7 +893,7 @@ export function notePeriodRead(name, version) { recordPeriodRead(name, version) 
  *  shadowing CONTROL, not by review — for the second time. */
 export const OWN_TF_NAMES = new Set(['timeframe.period', 'period'])
 
-/** ⭐⭐ NUMBER PENDING (bt) — BARE `period` IS PINE v1–v3's, AND ONLY THEIRS. TradingView's v4 compiler
+/** ⭐⭐ Engine 66 (#1473) (bt) — BARE `period` IS PINE v1–v3's, AND ONLY THEIRS. TradingView's v4 compiler
  *  refuses it — "Compilation error: Undeclared identifier 'period';" (capture-session reading
  *  2026-11-16, recorded in the header of the captured `vw-w4-session-default-days-v4` source) — and
  *  neither the v4 nor the v5 reference holds a bare `period` (only `timeframe.period`). Reading it as
@@ -1425,7 +1426,7 @@ export function derivedSeriesTree(name, table) {
   if (!own(DERIVED_SERIES, name)) return null
   const parts = DERIVED_SERIES[name]
   if (parts.some((p) => !own((table && table.series) || {}, p))) return null
-  // ⭐⭐ `hlcc4` IS `(high + low + 2 * close) / 4`, AS TRADINGVIEW COMPUTES IT (NUMBER PENDING,
+  // ⭐⭐ `hlcc4` IS `(high + low + 2 * close) / 4`, AS TRADINGVIEW COMPUTES IT (Engine 65 (#1489),
   // 2026-11-16). The reference writes `(high + low + close + close) / 4`, and a left-to-right sum
   // of four terms rounds twice where TradingView's rounds once, so the two differ in the last
   // binary digit on some bars. WITNESSED: `h3-vwap-source-spy-1d-2026-10-02` S08
@@ -2838,11 +2839,11 @@ const BUILTIN_RULED = Object.freeze({
   // names that are not symbol-scoped.
 })
 
-/** ⭐ NUMBER PENDING (bt) — `chart.*` names ruled BY NAME, beside `BUILTIN_RULED`. The refusal ENDS with the
+/** ⭐ Engine 66 (#1473) (bt) — `chart.*` names ruled BY NAME, beside `BUILTIN_RULED`. The refusal ENDS with the
  *  name (`… — \`chart.bg_color\``), the shape the object lane's subject reader takes (`noteGuardRefusal`,
  *  `REFUSED_SUBJECT`), so a dropped drawing op still names what stopped it. */
 const CHART_RULED = Object.freeze({
-  // ⭐ NUMBER PENDING (bt) — THE FOUR `chart.*` NAMES THE CORPUS READS, RULED. The two visible-bar
+  // ⭐ Engine 66 (#1473) (bt) — THE FOUR `chart.*` NAMES THE CORPUS READS, RULED. The two visible-bar
   // times are the VIEWPORT: TradingView's user manual (Time, "Visible bar times"): "Each time the
   // visible window changes, the script re-executes automatically to update the variables' values
   // on all available bars." This engine computes an indicator once for the bars, not once per
@@ -6073,6 +6074,9 @@ function nzWrappedBarssince(node) {
  *  answer on exactly the bars it matters most (a symbol with no pivot yet),
  *  so this returns false and the script stays honestly refused. */
 function nzSentinelSound(op, sentinel, k) {
+  // ⭐ engine 78 (#1858) — a sentinel within Pine's epsilon of `k` compares differently under the exact and
+  // the tolerant rule, so the rewrite is not proven sound there
+  if (pineCompareAmbiguous(sentinel, k)) return false
   const impliedTrue = op === '>' || op === '>='
   let actual
   if (op === '<') actual = sentinel < k
@@ -9933,6 +9937,50 @@ export class Resolver {
   }
 
   /** The `var x = <seed>` + `x := …` binding behind a plain name, or null. */
+  /** ⭐⭐ engine 78 (#1858) (Q-FCMP2) — THE v1-v4 COMPILE-TIME COMPARISON. TradingView's v1-v4 compiler
+   *  compares two compile-time CONSTANTS exactly (the form twins' T50; vw-fcmp-const-v4 C01-C04, C10-C14:
+   *  literals, named literals, sums of them, a function or a `?:` that yields one, int against float), while
+   *  an input, a series or a reassigned name is compared at run time, tolerantly (C05-C09), as is everything
+   *  in v5 / v6. `pineCompare.js::constCompareFold` answers the rule; this proves the operands:
+   *    · each RESOLVED side is a constant expression — numbers and `+ - * /` over them, nothing else (a
+   *      declared input is a `series` leaf here, a bar read a `series`, a call a `call`); and
+   *    · no NAME either PINE side reads is reassigned (`this.mutated`: `rv := …` folds to its last value in
+   *      the resolved tree, and Pine compares it at run time) or bound to an input call (an undeclared input
+   *      also resolves to its literal).
+   *  The 0/1, or `null` (nothing to fold: the run's own compare answers). */
+  constCompareOf(mapped, node, rl, rr) {
+    if (!['>', '<', '>=', '<=', '==', '!='].includes(mapped)) return null
+    const a = constantTreeValue(rl)
+    const b = constantTreeValue(rr)
+    if (a === null || b === null) return null
+    const fold = constCompareFold(mapped, a, b, this.pineVersion)
+    if (fold === null) return null
+    const seen = new Set()
+    const runtimeName = (n, env, depth = 0) => {
+      if (!n || typeof n !== 'object' || depth > 64) return false
+      if (Array.isArray(n)) return n.some((x) => runtimeName(x, env, depth + 1))
+      if (n.type === 'name' && typeof n.name === 'string') {
+        if (this.mutated.has(n.name)) return true
+        const bound = env && typeof env.get === 'function' ? env.get(n.name) : undefined
+        if (bound && bound.kind === 'expr' && bound.node) {
+          if (bound.node.type === 'call' && typeof bound.node.name === 'string'
+            && (bound.node.name === 'input' || bound.node.name.startsWith('input.'))) return true
+          if (seen.has(bound)) return false
+          seen.add(bound)
+          return runtimeName(bound.node, bound.env instanceof Map ? bound.env : env, depth + 1)
+        }
+        return false
+      }
+      for (const [key, v] of Object.entries(n)) {
+        if (key === 'tok' || key === 'binding' || !v || typeof v !== 'object') continue
+        if (runtimeName(v, env, depth + 1)) return true
+      }
+      return false
+    }
+    if (runtimeName(node.left, this.env) || runtimeName(node.right, this.env)) return null
+    return fold
+  }
+
   stateBindingOf(node) {
     if (!node || node.type !== 'name') return null
     const b = this.env.get(node.name)
@@ -11637,10 +11685,17 @@ export class Resolver {
         if (probed) {
           const pl = this.resolveProbed(node.left, probed)
           const pr = this.resolveProbed(node.right, probed)
+          // ⭐⭐ engine 78 (#1858) — the v1-v4 constant fold, on this path too (`constCompareOf`)
+          const constFoldP = this.constCompareOf(mapped, node, pl, pr)
+          if (constFoldP !== null) return cNum(constFoldP)
           return boolNaOperator(mapped, pl, pr, this.pineVersion, foldLogicalIdentity(mapped, pl, pr, this.table), node.left, node.right)
         }
         const rl = this.resolve(node.left)
         const rr = this.resolve(node.right)
+        // ⭐⭐ engine 78 (#1858) (Q-FCMP2) — v1-v4 compare two COMPILE-TIME CONSTANTS exactly; everything
+        // else (and v5 / v6) is the run's tolerant compare. See `constCompareOf`.
+        const constFold = this.constCompareOf(mapped, node, rl, rr)
+        if (constFold !== null) return cNum(constFold)
         return boolNaOperator(mapped, rl, rr, this.pineVersion, foldLogicalIdentity(mapped, rl, rr, this.table), node.left, node.right)
       }
       case 'ternary': {
@@ -12759,7 +12814,7 @@ export class Resolver {
           `${REFUSALS['pine:named-argument']} — on \`${name}\``, locate(node.tok))
       }
       if (name === 'na' && arity === 1) {
-        // ⭐ NUMBER PENDING (bt) — `na(time(tf, <wrapping session>))` READS MEMBERSHIP ONLY, so the
+        // ⭐ Engine 66 (#1473) (bt) — `na(time(tf, <wrapping session>))` READS MEMBERSHIP ONLY, so the
         // session clock hands back its membership tree (`?:(inside, 1, na)`) instead of the value tree:
         // the same `na` on every bar, with fewer series references (no `time`, no `periodseconds`).
         // Measured: `session-hilo`'s background paint reads two wrapping sessions and their `[1]`
@@ -13651,7 +13706,7 @@ export class Resolver {
     if (!tfNode || !sessNode) throw no('it needs both a timeframe and a session')
 
     // ── 1. THE TIMEFRAME: the chart's own, and only that. ────────────────────
-    // ⭐ NUMBER PENDING (bt) — `""` IS THE CHART'S OWN TIMEFRAME. The reference (`time`, argument
+    // ⭐ Engine 66 (#1473) (bt) — `""` IS THE CHART'S OWN TIMEFRAME. The reference (`time`, argument
     // `timeframe`): "If the value is an empty string, the function uses the script's main
     // timeframe." The runtime lane already reads it so (W4 T3, `rebuiltSessionClockCall`); this
     // lane refused it as "another timeframe", so a script asking `time("", sess)` was answered on
@@ -13708,7 +13763,7 @@ export class Resolver {
     if (m[5]) {
       days = [...new Set(m[5].split('').map(Number))].sort()
     } else if (this.pineVersion === 4) {
-      // ⭐ NUMBER PENDING (bt) — A v4 SESSION WITH NO DAY LIST IS MONDAY TO FRIDAY, and two texts
+      // ⭐ Engine 66 (#1473) (bt) — A v4 SESSION WITH NO DAY LIST IS MONDAY TO FRIDAY, and two texts
       // say so exactly: the v4 reference (`time`): "If the days aren't specified, the session is
       // considered to have been set from Monday to Friday (Saturday and Sunday are excluded as the
       // weekend days)", and the v4→v5 migration guide: "The default set of days for `session`
@@ -13725,7 +13780,7 @@ export class Resolver {
         + '(Monday–Friday) to say which you mean.')
     }
     if (days && days.length === 7) days = null
-    // ⭐⭐ NUMBER PENDING (bt) — A WINDOW WHOSE END IS NOT AFTER ITS START, as TradingView answered
+    // ⭐⭐ Engine 66 (#1473) (bt) — A WINDOW WHOSE END IS NOT AFTER ITS START, as TradingView answered
     // it on BITSTAMP:BTCUSD (a symbol with a bar every hour of every day) and as the user manual's
     // session table states it ("0000-0000:1234567 — a 7-day, 24-hour session beginning at midnight";
     // "0000-0000:23456 — a 24-hour session beginning at midnight, but only Monday to Friday";
@@ -13757,7 +13812,7 @@ export class Resolver {
       if (tz === SESSION_EXCHANGE_TZ || tz === 'America/New_York') {
         offset = null
       } else {
-        // ⭐ NUMBER PENDING (bt) — "UTC" IS THE SAME NOTATION AS "GMT", and the minutes form too.
+        // ⭐ Engine 66 (#1473) (bt) — "UTC" IS THE SAME NOTATION AS "GMT", and the minutes form too.
         // The user manual (Time, "Time zone strings"): "UTC (or GMT) offset notation, e.g.,
         // "UTC-5", "UTC+05:30", "GMT+0100"". The fixed-offset ARITHMETIC is the one measured on
         // "GMT-4" / "GMT-5" (S11, S12); only the spelling widens. `UTC+530` (three digits) is no
@@ -14135,12 +14190,14 @@ export class Resolver {
       const lowerWhy = lower ? ` Below the chart's own timeframe: ${lower.why}.` : ''
       // ⭐ RS RATING L11 (Q-RS7 R3) — this chart's own symbol read at "D" on a weekly chart is served for a
       // bare `close` only (`dailyOnWeeklyTargetOf`); anything else is named here, not as a resample.
-      if (code === 'D' && this.basePeriod === 'W' && this.ownSymbolNameOf(positional[0]) !== null) {
+      // ⭐ L13 (Q-RS-M) — a monthly chart the same.
+      if (code === 'D' && (this.basePeriod === 'W' || this.basePeriod === 'M') && this.ownSymbolNameOf(positional[0]) !== null) {
+        const period = this.basePeriod === 'W' ? 'week' : 'month'
         return {
-          why: 'on a weekly chart a daily read of this chart’s own symbol is served for a bare `close` only '
-            + '(a week’s last daily close is its weekly close: witnessed on NYSE:RDDT 1W, capture-queue row '
-            + 'Q-RS7); this one reads another expression or looks ahead, which needs the symbol’s daily bars, '
-            + 'and a weekly chart holds none beside its own weekly bars.',
+          why: `on a ${period}ly chart a daily read of this chart’s own symbol is served for a bare \`close\` only `
+            + `(a ${period}’s last daily close is its close: witnessed on NYSE:RDDT 1W and 1M, capture-queue rows `
+            + 'Q-RS7 and Q-RS-M); this one reads another expression or looks ahead, which needs the symbol’s daily bars, '
+            + `and a ${period}ly chart holds none beside its own ${period}ly bars.`,
         }
       }
       if (code && !TF_RESAMPLABLE.includes(code)) {
@@ -14852,10 +14909,11 @@ export class Resolver {
         })
         folded = code
         code = null
-      } else if (code === 'D' && this.basePeriod === 'W') {
+      } else if (code === 'D' && (this.basePeriod === 'W' || this.basePeriod === 'M')) {
         // ⭐⭐ RS RATING L11 (Q-RS7) — A DAILY READ ON A WEEKLY CHART (`dailyOnWeeklyTargetOf`):
         // this chart's own `close` (R3), or another symbol's daily series held and sampled per
         // week by the supply (R2 / R4); anything else declines as it always did.
+        // ⭐ L13 (Q-RS-M) — and on a MONTHLY chart, per month (R3 witnessed 32 of 32 RDDT months).
         return this.dailyOnWeeklyTargetOf(node, args, placed, positional, own, other, venue)
       } else if (isLowerTfRequest(code, this.basePeriod)) {
         // ⭐⭐ C41 — A TIMEFRAME BELOW THE CHART'S OWN. Whether it is served is
@@ -14921,7 +14979,7 @@ export class Resolver {
         column: node.tok ? node.tok.column : null,
         requested: 'D',
         base: this.basePeriod,
-        foldedTo: 'the chart’s own close (a week’s last daily close is its weekly close)',
+        foldedTo: `the chart’s own close (a ${this.basePeriod === 'M' ? 'month' : 'week'}’s last daily close is its ${this.basePeriod === 'M' ? 'monthly' : 'weekly'} close)`,
       })
       return { own, other: null, venue: null, code: null, live: false, positional, folded: this.basePeriod }
     }
@@ -20677,13 +20735,19 @@ function staticBinary(op, l, r, truncate = null) {
       if (truncate === false) return { n: a / b }
       return Number.isInteger(a / b) ? { n: a / b } : null
     }
-    case '<': return { b: a < b }
-    case '>': return { b: a > b }
-    case '<=': return { b: a <= b }
-    case '>=': return { b: a >= b }
+    // ⭐ engine 78 (#1858) — two numbers equal only within Pine's epsilon are NOT static here: the exact
+    // and the tolerant answer differ, and which one the script meant depends on its version and on whether
+    // they are constants (`pineCompare.js::constCompareFold`). The dynamic path decides it.
+    case '<': return pineCompareAmbiguous(a, b) ? null : { b: a < b }
+    case '>': return pineCompareAmbiguous(a, b) ? null : { b: a > b }
+    case '<=': return pineCompareAmbiguous(a, b) ? null : { b: a <= b }
+    case '>=': return pineCompareAmbiguous(a, b) ? null : { b: a >= b }
     default: return null
   }
 }
+/** ⭐ engine 78 (#1858) — `staticBinary` for its rail only (`pineCompareSites.test.js`: an ambiguous pair is
+ *  not static). No product caller. */
+export const __staticBinaryForTests = (op, l, r, truncate = null) => staticBinary(op, l, r, truncate)
 /** A string one occurrence of which can overlap the next (a prefix that is also a suffix). */
 const selfOverlaps = (t) => { for (let k = 1; k < t.length; k += 1) if (t.slice(0, k) === t.slice(t.length - k)) return true; return false }
 function staticBuiltin(name, v) {
@@ -23883,6 +23947,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (node.op === '==' || node.op === '!=') {
         const r = staticEnumValue(node.right, scope, frame, depth + 1)
         if (!r) return null
+        // ⭐ engine 78 (#1858) — and two numbers equal only within the epsilon are not static (`staticBinary`)
+        if ('n' in l && 'n' in r && pineCompareAmbiguous(l.n, r.n)) return null
         const eq = staticKey(l) === staticKey(r)
         return { b: node.op === '==' ? eq : !eq }
       }

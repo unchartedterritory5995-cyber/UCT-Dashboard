@@ -133,7 +133,7 @@ def test_the_python_readers_agree_with_the_javascript_ones():
 
 
 def test_an_unbounded_forward_leaf_still_has_a_bounded_back_on_both_readers():
-    """NUMBER PENDING (bt) -- `lastbaryear` declares lookback 0 and forward "unbounded": it
+    """Engine 66 (#1473) (bt) -- `lastbaryear` declares lookback 0 and forward "unbounded": it
     reads no earlier bar, so a tree holding one reaches back exactly as far as the rest of it.
     The linter answered UNKNOWN for the back half because the FORWARD half was unbounded,
     which disagreed with the interpreter on chart-champions' "Sun-2DVWAP" once its sessions

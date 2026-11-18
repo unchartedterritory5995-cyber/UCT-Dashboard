@@ -312,7 +312,7 @@ export function runtimeContentKey(def) {
     compute.objects === true,
     (def.meta && def.meta.runtimeHistory) || null,
     Number.isInteger(def.version) ? def.version : null,
-    // ⭐ ROUTE BY COST (NUMBER PENDING) — the library code the run LINKS (U15's pins, `meta.libraries`):
+    // ⭐ ROUTE BY COST (Engine 73 (#1711)) — the library code the run LINKS (U15's pins, `meta.libraries`):
     // the same script over the same bars linked against another library is another answer. ⚰️ Without
     // it an incremental session (`_sessions`) compiled against one library was resumed for a document
     // pinned to another (`vendorHarness.capRound4`'s control, once the cost route put it on this lane).
@@ -356,7 +356,10 @@ function requestSupplyKey(compute, ctx) {
   for (const [k, e] of sec.entries()) {
     const bars = e && Array.isArray(e.bars) ? e.bars : []
     const last = bars.length ? bars[bars.length - 1] : null
-    parts.push(`${k}:${(e && e.status) || ''}:${bars.length}:${last ? `${last.t}/${last.c}` : ''}`)
+    // ⭐ RS RATING L11 PR 2 — whether its session is in progress decides what the chart's newest bar reads
+    // (`otherSymbols.newestOwnPeriodOf`): the close flips it with the bars unchanged, and that is a new run
+    parts.push(`${k}:${(e && e.status) || ''}:${bars.length}:${last ? `${last.t}/${last.c}` : ''}`
+      + `${e && e.newestBarIsForming === true ? ':forming' : ''}`)
   }
   return `|req${parts.sort().join(',')}`
 }

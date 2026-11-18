@@ -363,9 +363,12 @@ describe('GRP populated: a sector with eight stocks', () => {
       ['Symbol', false], ['Change', false], ['RS', false], ['Flow', true], ['Industry', true],
     ])
     for (const row of rowsOf()) expect([...row.querySelectorAll('td')].map(hidden)).toEqual([false, false, false, true, true])
-    // the css the class stands for really hides it at 640px and under
+    // the css the class stands for really hides it where the table folds: a phone screen, or a panel
+    // at most 460px wide (`narrow`; the shell marks the panel body, ../panelFit.js). GRP has no sample
+    // rows to measure, so it names no step of the fold ladder and keeps every column above that.
     const css = fs.readFileSync(path.join(HERE, 'marketPanels.module.css'), 'utf8')
-    expect(css).toMatch(/@media \(max-width: 640px\) \{\s*\.phoneHide \{\s*display: none;/)
+    expect(css).toMatch(/\n:where\(\[data-fit~='narrow'\], [^{]*\) \.phoneHide \{\s*display: none;/)
+    expect(fs.readFileSync(path.join(HERE, 'GroupDrillPanel.jsx'), 'utf8')).not.toMatch(/data-fold/)
   })
 
   it('a group the server sent no stock list for says so, and keeps the group\'s own figure', async () => {

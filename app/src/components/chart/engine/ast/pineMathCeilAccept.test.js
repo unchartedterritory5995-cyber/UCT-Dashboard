@@ -89,7 +89,7 @@ plot(math.ceil(close))
     // ⚰️ WAS pine:builtin naming `syminfo.mintick`, then (2026-09-28) the `time(<timeframe>)`
     // anchor at line 84, then (2026-10-04, G16) line 140's session clock
     // `time(timeframe.period, '0000-0000:7')`, refused as "wraps past midnight".
-    // ⚰️ …AND TRANSLATES (bt, NUMBER PENDING): "0000-0000:<day>" is the bar's own date
+    // ⚰️ …AND TRANSLATES (bt, Engine 66 (#1473)): "0000-0000:<day>" is the bar's own date
     // (vw-w4-session-overnight-btcusd-60 O4; the user manual's "0000-0000:23456"), the last
     // wall this script met on the host lane. `math.ceil` is served in it, which is this
     // case's claim: no output refuses on it.

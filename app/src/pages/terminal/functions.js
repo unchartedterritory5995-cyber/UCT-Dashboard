@@ -485,6 +485,21 @@ export const FUNCTIONS = [
   // UVOL is the NYSE up-volume symbol and RVOL is one of MOST's own words, so the code is neither.
   { code: 'UNVOL', label: 'Unusual volume (stocks far above their usual volume for the time of day)', group: 'Market',
     market: { panel: 'UnusualVolume', args: [{ kind: 'unvolSide', prop: 'side' }, { kind: 'unvolMin', prop: 'min' }] } },
+  // ── short interest (2026-11-18) ──
+  // SHINT: one stock's FINRA short interest, report by report (shares short, the change from each
+  // report to the next, days to cover, percent of float), and its daily off-exchange short volume
+  // (GET /api/research/short-data/{sym}, read through the site's stock-data vendor). OWN shows one
+  // undated figure from the screener export; this is the dated record. `NVDA SHINT`.
+  // SHRT is a real fund (Gotham Short Strategies ETF) and SHORT is CONFL's own word for bearish
+  // (`CONFL SHORT`; a code in second place would make CONFL a ticker), so the code is neither.
+  { code: 'SHINT', label: 'Short interest history (every report, days to cover, daily short volume)', group: 'Security',
+    ticker: { panel: 'ShortInterest' } },
+  // SHRTS: the newest FINRA report across the stocks UCT follows, each beside its previous
+  // report, ranked (GET /api/research/short-interest-list). `SHRTS` = most days to cover,
+  // `SHRTS UP` / `SHRTS DOWN` = biggest change since the last report, `SHRTS FLOAT` = percent of float.
+  // SHORTS is six letters and a code is two to five, so the code drops the O.
+  { code: 'SHRTS', label: 'Short interest list (most days to cover, biggest changes, percent of float)', group: 'Market',
+    market: { panel: 'ShortList', args: [{ kind: 'shortRank', prop: 'rank' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -763,6 +778,10 @@ const FUNCTION_WORDS = {
     'sector stocks', 'theme stocks', 'industry stocks'] },
   UNVOL: { example: 'UNVOL UP', keywords: ['relative volume', 'rvol', 'volume leaders', 'heavy volume', 'volume vs usual',
     'above average volume', 'volume surge'] },
+  SHINT: { example: 'NVDA SHINT', keywords: ['short interest history', 'short volume', 'shares short', 'finra short interest',
+    'short interest change'] },
+  SHRTS: { example: 'SHRTS UP', keywords: ['short interest list', 'most shorted', 'short squeeze', 'days to cover list',
+    'shorts rising', 'short covering'] },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

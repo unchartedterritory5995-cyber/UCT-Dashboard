@@ -113,6 +113,26 @@ What each answers:
   An exact compare reads 50 (or 14 for C12) and the epsilon reads 41. C08 (series) is the control and must read 41.
 - `vw-fcmp-form-v5.pine` is `vw-fcmp-form.pine` under v5, read against the same T table.
 
+## Q-FCMP3: the array searches (filed with the engine build, for the next capture batch)
+
+The engine build of rows 1-16 (branch `feat/pine-tolerant-compare-engine`) compares `array.indexof` /
+`array.includes` within the epsilon, as rows 9-10 read them. `array.lastindexof` and the three binary searches were
+not measured, so they stay EXACT (no change from today) until these rows are read. Coordinator ruling, 2026-11-18.
+
+| id | probe | chart | what to record | unblocks |
+|---|---|---|---|---|
+| Q-FCMP3-1 | `tools/visual_conformance/probes/vw-fcmp-arrays.pine` | AMEX:SPY 1D | from the listing (`history.startsAtBar0` asserted); every plot on every bar | whether `array.lastindexof` and `array.binary_search` / `_leftmost` / `_rightmost` find a value within the epsilon |
+| Q-FCMP3-2 | `tools/visual_conformance/probes/vw-fcmp-arrays.pine` | NYSE:RDDT 1D | from the listing; every plot on every bar | the same, on a second symbol |
+
+| probe | plots | sha256 |
+|---|---:|---|
+| `vw-fcmp-arrays.pine` | 17 | `58219b5343ba17799e8fe8fd50cad5565420cdb72a80f138419176e7ca79bc40` |
+
+Each row's line in the probe names its two readings, tolerant / exact. A01, A05, A06, A10, A15 and A16 are
+controls that read the same under both rules. Every array is sorted ascending with no value repeated (inside the
+epsilon or out), so every binary-search row has one answer under each rule. A reading that matches neither column
+is a finding: record it as read.
+
 ## Readings each model predicts (what each plot answers)
 
 **The code.** Every `cmp(a, b)` plot packs the six operators into one integer: 1·(a == b) + 2·(a != b) + 4·(a < b) +

@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/hostLaneCost.js
 //
-// ─── ⭐⭐ ROUTE BY COST (NUMBER PENDING): WHAT A HOST DOCUMENT COSTS THE MAIN THREAD — ONE AUTHORITY ──
+// ─── ⭐⭐ ROUTE BY COST (Engine 73 (#1711)): WHAT A HOST DOCUMENT COSTS THE MAIN THREAD — ONE AUTHORITY ──
 //
 // docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md. The host (formula) lane computes a
 // member's document SYNCHRONOUSLY, on the page's main thread, inside the chart's paint

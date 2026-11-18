@@ -212,7 +212,7 @@ function Group({ group, start, limit, onShowAll, label, today }) {
   const reported = rows.filter((r) => r.reported).length
   return (
     <div data-testid={`terminal-erns-group-${session}`}>
-      <div className={styles.tableBox}>
+      <div className={styles.tableBox} data-fold="550">
         <table className={styles.table} data-testid={`terminal-erns-table-${session}`}
           aria-label={`${SESSION_HEADINGS[session]}, ${label}: ${count(shown.length)} of ${count(rows.length)} companies, biggest first`}>
           <caption className={styles.caption}>

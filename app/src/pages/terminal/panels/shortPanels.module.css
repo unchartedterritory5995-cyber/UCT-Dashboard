@@ -1,0 +1,45 @@
+/* SHINT and SHRTS: the one small bar marketPanels.module.css has no class for (a share of the
+   biggest value on screen, growing from the left). App tokens only (the terminal wears the
+   member's theme). The bar is decoration beside a number that is always printed, so it is never
+   the only signal, and it is neutral: gold is kept for what is chosen. Nothing here is clickable. */
+
+.meterCell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.meter {
+  flex: 0 1 5rem;
+  min-width: 2.5rem;
+  height: 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  background: var(--text-muted);
+  opacity: 0.7;
+}
+
+.value {
+  flex: 0 0 auto;
+  min-width: 3.4em;
+  text-align: right;
+}
+
+/* PHONE: the bar gives its room back to the numbers; every number it stood beside is still printed. */
+@media (max-width: 640px) {
+  .meter {
+    display: none;
+  }
+
+  .value {
+    min-width: 0;
+  }
+}

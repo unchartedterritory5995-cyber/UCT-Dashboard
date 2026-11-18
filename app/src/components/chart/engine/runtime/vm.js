@@ -22,7 +22,8 @@
 // forever, and the budget lives on the call rather than the module so that a
 // screener pass over 5,000 symbols cannot let symbol 4,000 inherit 3,999's spend.
 
-import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, CARRIED2, requestAlignment } from '../ast/interpret.js'
+import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED_PINE, CARRIED2, requestAlignment } from '../ast/interpret.js'
+import { PINE_CMP } from '../pineCompare.js'
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.js'
 import { TEXT_IMPL as TEXT_FNS } from './text.js'
 import { COLOUR_FNS, colourArgKind } from './colours.js'
@@ -73,8 +74,12 @@ const CLOCK_GETTER = Object.freeze(CLOCK_FIELDS.map((f) => {
 import { MAX_COLLECTION_CAP as ITER_SLOTS } from '../ast/objectProgram.js'
 
 const ADD = BINARY['+'], SUB = BINARY['-'], MUL = BINARY['*'], DIV = BINARY['/']
-const LT = BINARY['<'], GT = BINARY['>'], LE = BINARY['<='], GE = BINARY['>=']
-const EQ = BINARY['=='], NE = BINARY['!=']
+// ⭐⭐ engine 78 (#1858) (Q-FCMP / Q-FCMP2): the SIX COMPARISONS are Pine's, not the host table's IEEE ones.
+// The runtime lane runs only Pine, and Pine compares two floats within TradingView's absolute epsilon in every
+// version at run time (`pineCompare.js::PINE_CMP`); a v1-v4 comparison of two compile-time constants, the one
+// exact case, never reaches the VM: the frontend folds it (`pine.js::constCompareFold`).
+const LT = PINE_CMP['<'], GT = PINE_CMP['>'], LE = PINE_CMP['<='], GE = PINE_CMP['>=']
+const EQ = PINE_CMP['=='], NE = PINE_CMP['!=']
 const AND = BINARY['&&'], OR = BINARY['||']
 const NOT = UNARY['!'], NEG = UNARY['u-']
 const PW = POINTWISE_FOR_PARITY
@@ -425,7 +430,9 @@ export function execute(program, ctx, limits, opts) {
   // bug in the other.
   const carPlan = program.carried || []
   const carSpec = carPlan.map((c) => {
-    const spec = CARRIED[c.fn]
+    // ⭐ engine 78 (#1858) — the runtime lane runs only Pine: `CARRIED_PINE` (`ta.rising` / `ta.falling`
+    // compare within TradingView's epsilon, Q-FCMP2 B24 / B25; every other carried kernel is `CARRIED`'s own)
+    const spec = CARRIED_PINE[c.fn]
     if (!spec) throw new VmError(`no carried-state implementation for \`${c.fn}\``)
     return spec
   })

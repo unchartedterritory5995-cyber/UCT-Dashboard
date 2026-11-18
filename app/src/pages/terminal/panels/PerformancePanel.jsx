@@ -183,12 +183,12 @@ function PerformanceBody({ pick, registry, code, several }) {
           <section aria-label="Your results by setup" data-testid="terminal-perf-setups">
             <h3 className={styles.muted}>By setup ({count(a.setups.length)})</h3>
             {a.setups.length ? (
-              <div className={styles.tableBox}>
+              <div className={styles.tableBox} data-fold="590">
                 <table className={styles.table} data-testid="terminal-perf-setup-table"
                   aria-label={`Your results by setup, best expectancy first, ${a.setups.length} ${a.setups.length === 1 ? 'setup' : 'setups'}`}>
                   <thead>
                     <tr>
-                      <th scope="col" className={`${styles.wrapCell} ${styles.phoneTight}`}>Setup</th>
+                      <th scope="col" className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`}>Setup</th>
                       <th scope="col" className={styles.phoneWrap} title="Closed trades tagged with this setup: the sample behind every number in the row">Trades</th>
                       <th scope="col" title="Wins divided by wins and losses; breakeven trades are left out">Win rate</th>
                       <th scope="col" title="The setup's total profit or loss before fees, divided by its trades">Expectancy</th>
@@ -199,7 +199,7 @@ function PerformanceBody({ pick, registry, code, several }) {
                   <tbody>
                     {a.setups.map((r) => (
                       <tr key={r.key} data-testid="terminal-perf-setup-row" data-low={r.lowConfidence ? 'true' : 'false'}>
-                        <td className={`${styles.wrapCell} ${styles.phoneTight}`}>{r.setup}</td>
+                        <td className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`}>{r.setup}</td>
                         <td className={styles.phoneWrap}>{count(r.trades)}{r.lowConfidence ? ` (small sample, ${count(CONFIDENCE_MIN)} needed)` : ''}</td>
                         <td>{r.winRatePct === null ? 'No win or loss yet' : formatPercent(r.winRatePct, { decimals: 1 })}</td>
                         <td className={tone(r.expectancy)}>{r.expectancy === null ? NA : signedUsd(r.expectancy)}</td>

@@ -1,6 +1,6 @@
 // app/src/components/chart/builder/memberPane/routeByCost.test.js
 //
-// ⭐⭐ ROUTE BY COST (NUMBER PENDING) — the member door, on committed scripts measured in
+// ⭐⭐ ROUTE BY COST (Engine 73 (#1711)) — the member door, on committed scripts measured in
 // docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md. A host document whose recurrences cost
 // more than a long task moves to the runtime lane only when that lane builds it, admits it and draws
 // the same picture; anything else keeps the host answer, and with the runtime pane off nothing moves.

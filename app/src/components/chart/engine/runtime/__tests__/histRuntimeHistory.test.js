@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/runtime/__tests__/histRuntimeHistory.test.js
 //
-// ─── ⭐⭐ HIST (NUMBER PENDING) — HISTORY SEMANTICS ON THE RUNTIME LANE ─────────────────────────
+// ─── ⭐⭐ HIST (Engine 64 (#1450)) — HISTORY SEMANTICS ON THE RUNTIME LANE ─────────────────────────
 //
 // Evidence: docs/pine/evidence/2026-11-16-runtime-history/EVIDENCE.md. Three slices:
 //

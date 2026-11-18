@@ -25,7 +25,7 @@
 // its drawings not drawn), as the host withholds that bar.
 
 import { requestAlignment, TF_RESAMPLABLE, TF_LADDER } from '../ast/interpret.js'
-import { resolveOtherSymbols, otherSymbolPending, weekSampleOf } from '../otherSymbols.js'
+import { resolveOtherSymbols, otherSymbolPending, periodSampleOf, belowChartSeriesOf, withChartNewestDay } from '../otherSymbols.js'
 
 export const REQUEST_GUARD = 'runtime:request'
 
@@ -75,15 +75,18 @@ function decideOther(target, ctx) {
     symbol: ctx && ctx.symbol,
     framed: !!(ctx && ctx.framed),
     tf: ctx && ctx.tf,
+    // ⭐ RS RATING L11 PR 2 — the chart's newest bar reads its own period (`newestOwnPeriodOf`)
+    chartNewestDay: ctx && ctx.chartNewestDay,
     requestCode: target.code == null ? null : String(target.code),
     ...(target.below === true ? { below: true } : {}),
   }) }
 }
 
-/** ⭐⭐ RS RATING L11 (Q-RS7 R2 / R4) — A DAILY READ OF ANOTHER SYMBOL BELOW A WEEKLY CHART: the
- *  host bind's decision for that read (a witness row whose weekly block names a daily read, else
- *  refused by name), the request's expression run on the HELD daily series (`runBars`), and each chart
- *  week reading the row its block's sample picks (`otherSymbols.js::weekSampleOf`).
+/** ⭐⭐ RS RATING L11 (Q-RS7 R2 / R4) — A DAILY READ OF ANOTHER SYMBOL BELOW A WEEKLY CHART (⭐ L13: or a
+ *  MONTHLY one, Q-RS-M): the host bind's decision for that read (a witness row whose block names a daily
+ *  read, else refused by name), the request's expression run on the HELD daily series (`runBars`: for a
+ *  `*-last-row` sample, with the newest row on its next session, `belowChartSeriesOf`), and each chart
+ *  period reading the row its block's sample picks (`otherSymbols.js::periodSampleOf`).
  *  @returns {{refusal?: string, pending?: true, runBars?: object[], index?: number[],
  *             withheld?: Float64Array, other?: string}} */
 function belowChartRead(target, rows, ctx) {
@@ -99,8 +102,9 @@ function belowChartRead(target, rows, ctx) {
     return { refusal: `This indicator reads \`${ticker}\` at \`"D"\` below this chart, and no daily read of it `
       + 'is witnessed here, so nothing is drawn bar by bar rather than a guess' }
   }
-  const { index, withheld } = weekSampleOf(series, rows, sample)
-  return { runBars: series, index, withheld, other: ticker }
+  const runBars = belowChartSeriesOf(series, sample)
+  const { index, withheld } = periodSampleOf(runBars, rows, sample)
+  return { runBars, index, withheld, other: ticker }
 }
 
 /** ⭐⭐ RS RATING L5 (d) — WHY A RUN'S REQUESTS CAN NOT BE SERVED ON ANY CHART, decided from
@@ -150,6 +154,7 @@ export function requestTargetsUnservable(targets, count) {
  *            newestWithheld: boolean, codes: string[], sentences: string[]}}
  */
 export function runtimeRequestSupply(requests, rows, ctx = {}) {
+  ctx = withChartNewestDay(ctx, rows)   // ⭐ RS RATING L11 PR 2: the bind reads no bars
   const out = { supply: null, refusal: null, pending: false, newestWithheld: false, codes: [], sentences: [] }
   const sites = Array.isArray(requests) ? requests : []
   if (!sites.length) return out
@@ -179,9 +184,9 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
         return refuse(`This indicator reads \`${target.ticker}\`${at(site)}, and this run is not handed another `
           + 'symbol\'s bars (a server run holds only the chart symbol\'s own), so nothing is drawn rather than a blank line')
       }
-      if (ladderCode(ctx && ctx.tf) !== 'W' || ladderCode(target.code) !== 'D' || !target.ticker) {
+      if (!['W', 'M'].includes(ladderCode(ctx && ctx.tf)) || ladderCode(target.code) !== 'D' || !target.ticker) {
         return refuse(`a \`request.security\`${at(site)} reads the \`${target.code}\` timeframe on a \`${ctx && ctx.tf}\` `
-          + 'chart, and a read below the chart is served only as a daily read on a weekly chart, so nothing is drawn bar by bar')
+          + 'chart, and a read below the chart is served only as a daily read on a weekly or monthly chart, so nothing is drawn bar by bar')
       }
       const read = belowChartRead(target, rows, ctx)
       if (read.pending) { out.pending = true; return out }
