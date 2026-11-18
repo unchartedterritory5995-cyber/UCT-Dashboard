@@ -1,5 +1,5 @@
 {
- "_": "THE HOUSE SET'S VERSIONS. One list per house indicator, oldest first; the last entry is what houseIndicators.json holds today. `maths` is the definition's whole-maths fingerprint (compute.treesHash, or compute.fn for an indicator of one formula). THE RULE: a house indicator's maths never changes under the same version. A change is a NEW entry here with the next version and the reason, and the definition's own `version` moves with it; an earlier entry is never rewritten. A member's copy is their own definition and is never rewritten by a new version (IndicatorHouseTab.jsx). Held by tests/test_house_up_day.py.",
+ "_": "THE HOUSE SET'S VERSIONS. One list per house indicator, oldest first; the last entry is what houseIndicators.json holds today. `maths` is the definition's whole-maths fingerprint (compute.treesHash, or compute.fn for an indicator of one formula). THE RULE: a house indicator's maths never changes under the same version. A change is a NEW entry here with the next version and the reason, and the definition's own `version` moves with it; an earlier entry is never rewritten. A member's copy is their own definition and is never rewritten by a new version (IndicatorHouseTab.jsx). Held by tests/test_house_up_day.py. `pine` lists the house set's Pine entries (house/housePineIndicators.json) by `script`, the sha256 of the script's bytes, which never change under the same version (a Pine entry's maths moves with the engine, so its identity is its script; held by IndicatorHouseTab.fredRs.test.jsx).",
  "indicators": {
   "distribution_day_count": [
    {
@@ -123,6 +123,16 @@
     "maths": "sha256:0d15ac7c0d35186076747e7d5d3171c125ea38451280090bfd17524f40cbb41e",
     "since": "2026-11-16",
     "why": "as first built and value-checked"
+   }
+  ]
+ },
+ "pine": {
+  "fred-rs": [
+   {
+    "version": 1,
+    "script": "sha256:caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0",
+    "since": "2026-11-18",
+    "why": "Fred6724's RS Rating as first shipped, byte for byte the script every TradingView parity capture was graded on"
    }
   ]
  }
