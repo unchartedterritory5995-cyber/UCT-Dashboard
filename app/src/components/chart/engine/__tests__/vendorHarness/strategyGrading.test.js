@@ -581,8 +581,8 @@ describe('step 7 pairing: the source\'s output calls, read by the parser, take T
       if (!d.ok || d.slots.map((s) => s.kind).join(',') !== e.calls.join(',')) off.push(`${id}: [${d.ok ? d.slots.map((s) => s.kind) : d.reason}] vs [${e.calls}]`)
     }
     expect(off).toEqual([])
-    // not vacuous: 45 of the 54 build today (2026-11-17), the supertrend pair among them (measured over the whole
-    // committed set the same day: 296 of 296 scripts that build agree)
+    // not vacuous: 49 of the 54 build today (2026-11-17, after #1760), the supertrend pair among them (measured over
+    // the whole committed set the same day: every one of the 296 captures whose value build builds agrees)
     expect(compared).toBeGreaterThanOrEqual(40)
     expect(engineSlotCallsOf(ST)).toEqual({ ok: true, calls: ['plot', 'plotshape', 'plotshape', 'plot', 'plotshape', 'plotshape', 'plot', 'fill', 'fill', 'barcolor'] })
   })
