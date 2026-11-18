@@ -304,9 +304,10 @@ export function backtestRefusedSentence(refused, bars, withheld = 0) {
   return `The backtest is not run on this chart: ${why}. ${plots}`
 }
 
-/** [B-EXEC] the member's sentence while the newest bar is forming (coordinator wording, 2026-11-18). */
-export const BACKTEST_FORMING_SENTENCE = "The backtest isn't run while today's bar is still forming. It runs on the closed bars "
-  + 'once the bar has closed.'
+/** [B-EXEC] the member's sentence while the newest bar is forming (coordinator wording, 2026-11-18): "the newest
+ *  bar", true on every timeframe. */
+export const BACKTEST_FORMING_SENTENCE = "The backtest isn't run while the newest bar is still forming. It runs on the closed bars "
+  + 'once that bar has closed.'
 
 /** ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — the guard a plot or paint is withheld under when its broker run
  *  was refused and a broker value reaches it (`strategyTaint.js::strategyDisarmOf`): the strategy value it draws is

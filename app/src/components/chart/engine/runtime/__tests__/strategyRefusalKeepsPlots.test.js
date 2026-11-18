@@ -126,7 +126,7 @@ describe('a broker run refused by name keeps the plots; the backtest alone is re
   // ⭐ (2026-11-18, NUMBER PENDING e80) [B-EXEC] — the newest bar still forming: the member reads the wait for the close,
   // never "a strategy rule that no comparison with TradingView has confirmed yet"
   it('⭐ [B-EXEC]: a backtest refused because the newest bar is still forming says so, in the coordinator\'s words', () => {
-    expect(BACKTEST_FORMING_SENTENCE).toBe("The backtest isn't run while today's bar is still forming. It runs on the closed bars once the bar has closed.")
+    expect(BACKTEST_FORMING_SENTENCE).toBe("The backtest isn't run while the newest bar is still forming. It runs on the closed bars once that bar has closed.")
     expect(backtestRefusedSentence(new BrokerUnpinned('B-EXEC'), 669, 0))
       .toBe(`${BACKTEST_FORMING_SENTENCE} The script's plots are drawn.`)
     expect(backtestRefusedSentence(new BrokerUnpinned('B-EXEC'), 669, 2))
