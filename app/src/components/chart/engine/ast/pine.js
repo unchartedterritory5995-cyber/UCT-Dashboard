@@ -11944,6 +11944,10 @@ export class Resolver {
    *  parameter map (`docs/pine/param-ids.json`), an owner-ruled act this lane
    *  does not take. Deleting this arm is the whole change, once ruled.
    *
+   *  ⭐ engine NUMBER PENDING (WS-C M4): a script that calls `max_bars_back(x, n)` is read like any other.
+   *  TradingView drew `x[60]` and `ta.sma(x, 60)` after `max_bars_back(x, 50)` on every bar
+   *  (`vw-w4-max-bars-back-m4`): the per-series form bounds nothing, so it no longer refuses this read.
+   *
    *  Answers null (the caller keeps `pine:offset-literal`) for a CONSTANT index
    *  that is not a whole number of bars; for an index that reads NO bar — an
    *  expression over inputs and literals the window fold could not reduce
@@ -11952,8 +11956,6 @@ export class Resolver {
    *  and on the screener lane — a saved scan
    *  is evaluated where the root is not withheld around an unreadable count
    *  (`interpret.js::historyReadMask` is the chart lanes'). Refuses by name:
-   *    · `max_bars_back(x, n)` — the per-series form sizes one buffer, a rule
-   *      this read does not model (the object lane's `max-bars-back-call`);
    *    · a source the script REASSIGNS — its history is the value it held when
    *      each earlier bar finished, which the binding in scope here is not. */
   historyReadOf(node, back) {
@@ -11967,12 +11969,6 @@ export class Resolver {
         + 'the bar is still forming), and a per-bar index was measured on closed bars only', at)
     }
     const declared = declaredMaxBarsBackOf(this.source)
-    if (declared.call) {
-      throw new PineRefusal('pine:offset-literal',
-        `${REFUSALS['pine:offset-literal']} — this one changes from bar to bar, and the script `
-        + 'sizes a series\' history with `max_bars_back(x, n)`, a per-series buffer this read '
-        + 'does not model', at)
-    }
     const arg = node.arg
     if (arg && arg.type === 'name' && (this.mutated.has(arg.name) || this.buildingRecurrence === arg.name)) {
       throw new PineRefusal('pine:state',
@@ -24547,8 +24543,6 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *    · `no-max-bars-back`: how far back TradingView lets the read reach is the
    *      buffer it sizes the series to, and without a declared `max_bars_back`
    *      that size is TradingView's own detection, which no capture measures;
-   *    · `max-bars-back-call`: `max_bars_back(x, n)` sizes one series, a rule
-   *      this read does not model;
    *    · `source`: the value read back is not a plain name (`(a + b)[e]`), or is a
    *      name the script reassigns (its history is the end-of-bar value, which a
    *      column read at this op's position would not be);
@@ -24560,7 +24554,6 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const arg = node.arg
     if (!arg || arg.type !== 'name') return historyRefused('source')
     if (objectOpts.mutableNames && objectOpts.mutableNames.has(arg.name)) return historyRefused('source')
-    if (declaredMaxBarsBack.call) return historyRefused('max-bars-back-call')
     // ⭐⭐ C29 (C9, measured 2026-09-30, `vw-mbb-auto-spy-1d-2026-09-30.json`): with
     // NO `max_bars_back` declared TradingView ran dynamic offsets up to 399 with no
     // error, `close[k]` equal to its own bar every time — its automatic sizing

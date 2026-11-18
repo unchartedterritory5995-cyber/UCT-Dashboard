@@ -124,10 +124,11 @@ describe('C38 — what stays refused, by name', () => {
     expect(formula('plot(close[close > open ? 1 : 0])')).toBe('barsAgo(close, close > open ? 1 : 0, 2)')
   })
 
-  it('`max_bars_back(x, n)` — the per-series buffer this read does not model', () => {
-    const r = refusal('max_bars_back(close, 50)\nplot(close[bar_index % 3])')
-    expect(r.guard).toBe('pine:offset-literal')
-    expect(r.message).toMatch(/max_bars_back\(x, n\)/)
+  // ⭐ engine NUMBER PENDING (WS-C M4, `vw-w4-max-bars-back-m4-spy-1d-2026-11-18`): the per-series form bounds
+  // nothing, so a script that calls it is read like any other (it refused `pine:offset-literal`)
+  it('`max_bars_back(x, n)` bounds nothing: the per-bar read is served as in a script without it', () => {
+    expect(formula('max_bars_back(close, 50)\nplot(close[bar_index % 3])'))
+      .toBe(formula('plot(close[bar_index % 3])'))
   })
 
   it('a source the script reassigns — its history is the end-of-bar value', () => {
