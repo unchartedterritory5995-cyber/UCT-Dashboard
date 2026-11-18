@@ -745,9 +745,15 @@ daily read above the chart was not one the run read), so the RS line drew (L12 P
   reads the previous session's daily row (every pre-market and regular bar), a bar from the close the session's own
   (every post-market bar on 15 / 30 / 60m; on 1m / 5m the first post bars on some days still read the previous one,
   the official print's own lag: 205 of 2,463 1m and 142 of 4,157 5m post bars).
-- **The seed (`request.seed`, read at the chart's own timeframe)**: PENDING its witness (the rs-seed probe on RDDT 5 /
-  60, batch `l12-night-2026-11-19`). Until it lands Fred RS's run half on an intraday chart stays refused by name (the
-  seed's witness row covers D / W / M only), so its labels and dots stay withheld; the RS line draws.
+- **The seed (`request.seed`, which IS `request.security(<seed>, "D", …)`, `pine.js::seedAsSecurity`)** (the rs-seed
+  probe on RDDT 1 / 5 / 15 / 30 / 60m, `l12-now-2026-11-18` and `l12-seed3-now-2026-11-18`, captured after the close):
+  each row, dated D, reads on the FIRST chart bar opening at or after D 00:00 UTC (in EST the previous session's 19:00
+  bar, or the next bar where a 5m chart has none at 19:00; in EDT, 20:00 ET being past the extended session, the next
+  session's 04:00 bar); several rows on one bar (a weekend's) the NEWEST; every other bar `na`. 22,216 / 20,681 /
+  21,018 / 19,830 / 10,353 graded bars, values and na, all three fields, against our store's rows recorded beside;
+  "the oldest wins" is off on the 2 weekend bars, a bar that CONTAINS the instant on 17 to 21, ET midnight on 18 to 27
+  (`utc-midnight-at-or-after`). ⭐ INFERRED, not captured: the chart's FIRST bar (every capture's history began before
+  the seed's): a row lands there only if its instant falls after the extended-hours grid slot before it.
 
 **How.** `pine.js` mints a daily read above an intraday chart as an `above` request target, for a BARE open / high /
 low / close, look-ahead off (anything else declines exactly as before), and ONLY in the run's own request reader
@@ -764,12 +770,28 @@ A bar whose row is not held is unknown, and the supply's rules apply (the run re
 settled bar). The vendor harness files a second held series and the own daily rows from a supply record
 (`ourSide.js::otherSymbolSupply`).
 
+**The seed's placement** (`otherSymbols.js::utcMidnightAtOrAfterOf`): the held daily rows (`<seed>@D`: an intraday
+timeframe's SECOND block shape, held at D alone and read at D) are landed on the chart's OWN bars, never on a grid
+(the supply now hands the bind the chart's bars, `withChartNewestDay`; a read not handed them is refused by name),
+keyed by the landing bar's `t`, gaps `na` (`SERIES_GAPS_READ_NA`); `aboveChartRead` aligns them by exact time.
+
+**Two holes U-DAILY's first rails never reached** (Fred RS's run half on a 5m chart found both): an expression over a
+read above the chart (`na(x) ? 1 : 0`) refused `pine:request`, because only the run's REQUEST reader read `above` and
+its column resolver declined it; and the chart's OWN read translates (for the columnar lane) to a plain gated `close`,
+which looked pure, so `closeDa = request.security(syminfo.tickerid, 'D', close)` became a substituted macro and Fred
+RS's `closeDa[n63]` a column the daily gate withheld whole (`runtime:request`; another symbol's read only escaped by
+its `sym` tree reading as state). Both run resolvers now read `above` (the host translator never does), and
+`pineRuntimeFrontend.js::needsRuntime` answers true for such a request (`isAboveRequest`): a slot wherever it is used.
+
 **Rails.** `rsIntradayDaily.test.js` (10): the target minted for a bare OHLC on an intraday timeframe only, never for
 another expression or a look-ahead; the member door does not refuse it before a chart is known; the own symbol's
 placement (the previous session, the day's last bar its own, the newest bar the session's) and the refusals (not handed
 the rows: by name; loading: pending; a bar before the rows: unknown); SP:SPX's session-completed placement and a forming
 session's post-market bars; the fetch (`ownDailyNeeded`, `OWN~D` asked as the chart symbol at D, never as a ticker) and
-the signature. The whole chart suite: 1,743 files / 32,681 tests green (remote lane).
+the signature; (+1) history, an input offset, an inline offset and a derived expression over the read.
+`rsIntradaySeed.test.js` (11): the placement (EDT and EST, a missing 19:00 bar, a weekend's rows, the first bar), the
+refusals, the block shape, the bind, the run, and Fred RS's run half SERVED on a 5m chart ("RS Rating" and the empty
+rating text at the RS line; control: the seed not held, not served).
 
 ## Owner rulings
 
