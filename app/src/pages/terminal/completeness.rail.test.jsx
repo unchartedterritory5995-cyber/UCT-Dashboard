@@ -137,6 +137,7 @@ const ARG_SAMPLE = {
   topFlowStatus: 'EXPIRED', topFlowDirection: 'BEAR', topFlowSort: 'PEAK',
   earningsDay: 'TOMORROW', earningsSession: 'AMC',
   groupName: 'XLK',
+  unvolSide: 'DOWN', unvolMin: '3X',
 }
 
 afterEach(cleanup)

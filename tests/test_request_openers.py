@@ -42,8 +42,8 @@ FREED = [
 #: A name is still a name after an opener: two or more Title-Case words that nothing accounts for.
 STILL_A_NAME = [
     ("Add Gann Fan", "Gann Fan"), ("Add the Gann Fan", "Gann Fan"), ("Show Hull Suite", "Hull Suite"),
-    ("Add Klinger Volume Oscillator", "Klinger Volume Oscillator"), ("Done. Add Schaff Trend Cycle", "Schaff Trend Cycle"),
-    ("Klinger Volume Oscillator", "Klinger Volume Oscillator"),             # typed alone: "Klinger" opens no request
+    ("Add Brannock Volume Oscillator", "Brannock Volume Oscillator"), ("Done. Add Hartwell Trend Cycle", "Hartwell Trend Cycle"),
+    ("Brannock Volume Oscillator", "Brannock Volume Oscillator"),             # typed alone: "Brannock" opens no request
 ]
 
 
@@ -76,15 +76,15 @@ def test_an_opener_is_excused_only_where_a_sentence_opens_when_it_comes_to_dropp
     assert dc._opens_a_sentence("Add Inside bar. Show it", first[0]) is True
     assert dc._opens_a_sentence("Add Inside bar. Show it", first[1]) is False     # not first
     assert dc._opens_a_sentence("Add Inside bar. Show it", first[3]) is True      # after the full stop
-    assert dc._opens_a_sentence("Klinger Volume", list(dc._WORD_TOKEN.finditer("Klinger Volume"))[0]) is False
+    assert dc._opens_a_sentence("Brannock Volume", list(dc._WORD_TOKEN.finditer("Brannock Volume"))[0]) is False
 
 
 def test_mid_sentence_an_opener_is_still_no_part_of_a_name(conv):
     """"so Add Bollinger Bands": the run is three words and overlaps something known, and "Add" is
     not a word any name is made of, so nothing in it is foreign."""
     assert conv.understand_turn("so Add Bollinger Bands", CHART)["refusal"] is None
-    got = conv.understand_turn("so Add Klinger Volume Oscillator", CHART)
-    assert got["refusal"] is not None                                       # "Klinger" still is
+    got = conv.understand_turn("so Add Brannock Volume Oscillator", CHART)
+    assert got["refusal"] is not None                                       # "Brannock" still is
 
 
 def test_PROPOSE_keeps_the_older_reading():

@@ -2583,10 +2583,14 @@ _VOCABULARY: Dict[int, Tuple[Any, frozenset]] = {}
 
 
 def _lexicon_vocabulary(lexicon: Mapping[str, Any]) -> frozenset:
-    """Every word (by stem) any phrase of this lexicon is made of: the product's own vocabulary."""
+    """Every word (by stem) any phrase of this lexicon is made of: the product's own vocabulary.
+    ⭐ A phrase a lexicon lists under ``names_only`` is a NAME it recognises whole and nothing more
+    (the chart door's well-known names with no checked formula): its words are no vocabulary, so
+    "Fisher" and "Williams" stay foreign words inside any other name."""
     held = _VOCABULARY.get(id(lexicon))
     if held is None or held[0] is not lexicon:
-        held = (lexicon, frozenset(stem_ for key in lexicon["index"] for stem_ in key))
+        names_only = lexicon.get("names_only") or ()
+        held = (lexicon, frozenset(stem_ for key in lexicon["index"] if key not in names_only for stem_ in key))
         _VOCABULARY[id(lexicon)] = held
     return held[1]
 
@@ -2673,8 +2677,14 @@ def _named_phrases(prompt: str, already_found: List[dict],
             # ⭐ THE WHOLE-PHRASE RULE (`strict_lexicon`): one known word inside a short Title-Case
             # name no longer accounts for the name. "Schaff Trend Cycle" knows "trend"; it is
             # still a name nobody here has a formula for.
+            # ⭐ A NAME THE LEXICON RECOGNISES WHOLE (`names_only_section`) accounts for its own words
+            # and no others: they are not vocabulary, so they are taken off the run here.
+            whole = strict_lexicon.get("names_only_section") if strict_lexicon is not None else None
+            rest = [w for w in words[first:j]
+                    if not (whole and any(f.get("section") == whole and f["start"] <= w.start() and w.end() <= f["end"]
+                                          for f in already_found))]
             if not overlaps or (strict_lexicon is not None and j - first <= NAME_MAX_WORDS
-                                and _foreign_words(words[first:j], strict_lexicon)):
+                                and _foreign_words(rest, strict_lexicon)):
                 out.append({"kind": NAMED_ENTRY, "key": phrase, "section": None,
                             "start": start, "end": end, "matched_as": phrase})
             i = j

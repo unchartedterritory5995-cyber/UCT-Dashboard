@@ -6,8 +6,11 @@
 //
 // ⭐ NO NEW SOURCE. Every number here is one an existing route already serves:
 //   /api/movers              the quality-filtered gappers list (≥3%, the Movers sidebar's)
-//   /api/catalysts/today     the catalyst board: why a name moved, and its volume ÷ 30-day average
-//   /api/volume-scan/live    the Volume Surge accumulator: volume vs the usual by this time of day
+//   /api/catalysts/today     the catalyst board: why a name moved (its type, an AI-written summary and
+//                            the source links that summary cites), and its volume ÷ 30-day average
+//   /api/volume-scan/live    the Volume Surge accumulator: volume so far against the PRIOR SESSION's
+//                            volume scaled to this time of day (api/services/volume_live.py; one prior
+//                            day, not a 30-day average), and which names are in a burst right now
 //   /api/live-prices         (the shared 2 s store) last price, day change, volume, pre/post prints
 //
 // ⛔ THE SESSION IS SAID, NEVER IMPLIED. Outside the regular session a mover list is a
@@ -74,10 +77,66 @@ const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
 const pos = (v) => (num(v) != null && v > 0 ? v : null)
 const up = (s) => (typeof s === 'string' ? s.trim().toUpperCase() : '')
 
-/** A catalyst row's one-line "why": its tag, else its type. */
+/** The words that mark a write-up as naming no catalyst type (the board writes "None"). */
+const NO_TYPE = new Set(['', 'none'])
+
+/** A catalyst row's one-line "why": the catalyst board's own type when it names one (FDA, M&A,
+ *  Analyst, Earnings, Guidance), else the bucket it was filed under (its tag). The board's own chip
+ *  reads the same way (components/tiles/CatalystTable.jsx `LeadChip`): a type says what happened,
+ *  a tag such as "Gapper" only says the stock moved. */
 export function catalystLabel(c) {
   if (!c) return null
-  return c.tag || c.catalyst_type || null
+  const type = typeof c.catalyst_type === 'string' ? c.catalyst_type.trim() : ''
+  if (type && !NO_TYPE.has(type.toLowerCase())) return type
+  return c.tag || null
+}
+
+/** Most source links one write-up lists in the panel; the rest are counted, never dropped silently. */
+export const MAX_SOURCES = 5
+
+/**
+ * Pure: the sources a catalyst write-up cites, as `{ list: [{ url, host }], more }`.
+ * `raw` is the board's `thesis_sources`: a JSON list of URLs (a string from the API) or the list.
+ * Only http(s) links are kept, and a repeated link is listed once. `more` counts what `MAX_SOURCES`
+ * left off. Anything unreadable is no sources, never a guess.
+ */
+export function catalystSources(raw) {
+  let list = raw
+  if (typeof raw === 'string') {
+    try { list = JSON.parse(raw) } catch { list = null }
+  }
+  if (!Array.isArray(list)) return { list: [], more: 0 }
+  const out = []
+  const seen = new Set()
+  for (const u of list) {
+    if (typeof u !== 'string') continue
+    let link = null
+    try { link = new URL(u.trim()) } catch { continue }
+    if (link.protocol !== 'http:' && link.protocol !== 'https:') continue
+    if (seen.has(link.href)) continue
+    seen.add(link.href)
+    out.push({ url: link.href, host: link.hostname.replace(/^www\./, '') })
+  }
+  return { list: out.slice(0, MAX_SOURCES), more: Math.max(0, out.length - MAX_SOURCES) }
+}
+
+const word = (v) => (typeof v === 'string' ? v.trim() : '')
+
+/**
+ * Pure: the analyst action the catalyst board attached to a row (`rating_change`:
+ * `{ action, company, from_grade, to_grade, date }`), in words:
+ * "Upgrade by Morgan Stanley, Equal-Weight to Overweight, 2026-11-17". Null when there is none.
+ * The firm and the date are the item's attribution, so each is said when it was sent.
+ */
+export function ratingWords(rc) {
+  if (!rc || typeof rc !== 'object' || !word(rc.action)) return null
+  const action = word(rc.action).charAt(0).toUpperCase() + word(rc.action).slice(1).toLowerCase()
+  const firm = word(rc.company)
+  const from = word(rc.from_grade)
+  const to = word(rc.to_grade)
+  const grades = from && to ? `${from} to ${to}` : to ? `to ${to}` : ''
+  const day = /^\d{4}-\d{2}-\d{2}/.test(word(rc.date)) ? word(rc.date).slice(0, 10) : ''
+  return [firm ? `${action} by ${firm}` : action, grades, day].filter(Boolean).join(', ')
 }
 
 /**
@@ -89,6 +148,10 @@ export function catalystLabel(c) {
  *   prices     the live store           { SYM: {price, change_pct, volume, prev_close, day_close, ext_price, ext_session} }
  *
  * Each row: { sym, last, pct, ah, volume, volVsAvg, volSource, lit, lists, catalyst }.
+ * `catalyst` is null for a name the catalyst board does not list, else
+ * `{ label, thesis, at, writtenAt, sources, rating }`: the board's type, its AI-written summary,
+ * when the catalyst broke and when the summary was written (ms), the links the summary cites
+ * (`catalystSources`) and the analyst action on file in words (`ratingWords`).
  * `lists` names where the row came from ('movers' | 'catalysts' | 'volume'), so the panel can say
  * why a name is on screen. A column with no honest value is null — rendered as a dash, never 0.
  */
@@ -142,8 +205,9 @@ export function buildRows({ movers = null, catalysts = null, volume = null, pric
         ah = extLive != null && close ? ((extLive - close) / close) * 100 : null
       }
     }
-    // Volume vs average: the live scanner's "so far today ÷ usual by now" first (it moves with the
-    // day), else the catalyst engine's "today ÷ 30-day average". Each says which it is.
+    // Volume vs average: the live scanner's "so far today ÷ the prior session's volume scaled to
+    // this time of day" first (it moves with the day), else the catalyst engine's "today ÷ 30-day
+    // average". Each says which it is.
     let volVsAvg = null
     let volSource = null
     const rv = pos(r.vol?.rvol_day) ?? pos(r.vol?.rvol)
@@ -158,11 +222,15 @@ export function buildRows({ movers = null, catalysts = null, volume = null, pric
       volSource,
       lit: !!r.vol?.lit,
       lists: [...r.lists],
-      // catalyst_at is unix SECONDS (catalyst engine `_compute_catalyst_at`); carried as ms.
+      // catalyst_at and thesis_at are unix SECONDS (catalyst engine `_compute_catalyst_at`,
+      // synthesize.py); carried as ms.
       catalyst: r.cat ? {
         label: catalystLabel(r.cat),
         thesis: r.cat.thesis_text || null,
         at: pos(r.cat.catalyst_at) != null ? r.cat.catalyst_at * 1000 : null,
+        writtenAt: pos(r.cat.thesis_at) != null ? r.cat.thesis_at * 1000 : null,
+        sources: catalystSources(r.cat.thesis_sources),
+        rating: ratingWords(r.cat.rating_change),
       } : null,
     })
   }

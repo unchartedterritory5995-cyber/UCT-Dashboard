@@ -182,7 +182,7 @@ def test_the_spend_cap_STOPS_the_run_and_reports_it_incomplete(tmp_path):
 def test_the_corpus_refused_pins_run_offline_and_model_phrases_are_live_only(tmp_path):
     corpus = {"chart": {"sym": "TEST", "tf": "D"}, "cases": [
         {"message": "Add the Gann Fan", "refused": "Gann Fan"},
-        {"message": "show the Klinger Oscillator", "refused": "Klinger Oscillator"},
+        {"message": "show the Brannock Oscillator", "refused": "Brannock Oscillator"},
         {"message": "show the Relative Strength Index 14", "model": True, "terms": ["rsi"]}]}
     path = tmp_path / "corpus.json"
     path.write_text(json.dumps(corpus), encoding="utf-8")

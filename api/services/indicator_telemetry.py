@@ -319,6 +319,7 @@ _VALUE_RULES: dict = {
         "answered": _ids_of(_clarify_ids, many=False),
         "remembered": _ids_of(_clarify_ids),
         "named_built": _ids_of(_library_ids),
+        "acronym_built": _ids_of(_library_ids),
         "named_held": _ids_of(_library_ids),
         "unknown_name": _ids_of(_catalogue_ids),
         "conversation_id": re.compile(_CONV_ID),
@@ -362,7 +363,7 @@ EVENT_SCHEMAS.update({
         "op_kinds": (str,), "preflight": (bool,), "browser_codes": (str,),
         "prompt_sha": (str,), "vocab_version": (str,), "model": (str,), "engine": (int,),
         "asked": (str,), "answered": (str,), "remembered": (str,),
-        "named_built": (str,), "named_held": (str,), "unknown_name": (str,),
+        "named_built": (str,), "acronym_built": (str,), "named_held": (str,), "unknown_name": (str,),
     },
     "studio_action": {
         "import_id": (str,), "conversation_id": (str,), "action": (str,),
@@ -828,6 +829,44 @@ def _question_block(sel: list) -> dict:
     }
 
 
+#: What a member's NEXT turn does when the indicator they were given was not the one they meant:
+#: it takes the output away, rewrites its formula, or starts another indicator. (Changing a number
+#: or a colour is ordinary use and is not counted.)
+MISREAD_FOLLOW_UPS = frozenset({"remove_output", "set_output_tree", "create"})
+
+
+def _acronym_rows(ordered: list, recent_ids: set) -> list:
+    """⭐ ACRONYMS, WATCHED (ruling 2026-11-18). The requests on file could not say whether "OBV" is
+    ever read wrongly: nobody had typed one. So every build that came from an acronym is its own row,
+    with the one signal a misread leaves: the member's NEXT turn in that conversation removes or
+    rewrites what was built. ``ordered`` is every fetched turn as (row id, member, props), oldest
+    first; a row counts when its id is in ``recent_ids`` (this window)."""
+    from api.services import named_indicators  # noqa: PLC0415
+    next_in = {}
+    last_seen: dict = {}
+    for rid, _u, p in ordered:
+        cid = p.get("conversation_id")
+        if cid and cid in last_seen:
+            next_in[last_seen[cid]] = p
+        if cid:
+            last_seen[cid] = rid
+    cells: dict = {}
+    for rid, u, p in ordered:
+        if rid not in recent_ids:
+            continue
+        for entry_id in (p.get("acronym_built") or "").split(","):
+            if entry_id:
+                after = next_in.get(rid) or {}
+                changed = bool(MISREAD_FOLLOW_UPS & set((after.get("op_kinds") or "").split(",")))
+                cells.setdefault(entry_id, []).append((u, {**p, "_changed_next": changed}))
+    rows = []
+    for entry_id, sel in cells.items():
+        e = named_indicators.entry(entry_id) or {}
+        rows.append({"id": entry_id, "name": e.get("name"), "acronyms": list(e.get("acronyms") or ()),
+                     **_counted(sel, changed_or_removed_next=lambda p: p["_changed_next"])})
+    return _ranked(rows)
+
+
 def weekly_report(days: int = 7) -> dict:
     """⭐ THE WEEKLY OWNER REPORT (admin only). What members asked Create Indicator for, and how it
     answered, over the last ``days`` against the ``days`` before. READ-ONLY, AGGREGATES ONLY: every
@@ -840,19 +879,22 @@ def weekly_report(days: int = 7) -> dict:
     conn = get_connection()
     try:
         rows = conn.execute(
-            "SELECT visitor_id, props, created_at >= datetime('now', ?) FROM landing_events"
-            " WHERE event = 'converse_turn' AND created_at >= datetime('now', ?)",
+            "SELECT id, visitor_id, props, created_at >= datetime('now', ?) FROM landing_events"
+            " WHERE event = 'converse_turn' AND created_at >= datetime('now', ?) ORDER BY id",
             (f"-{days} days", f"-{2 * days} days"),
         ).fetchall()
     finally:
         conn.close()
-    this, previous = [], []
-    for uid, props, recent in rows:
+    this, previous, ordered, recent_ids = [], [], [], set()
+    for rid, uid, props, recent in rows:
         try:
             p = json.loads(props) if props else {}
         except ValueError:
             continue
         (this if recent else previous).append((str(uid), p))
+        ordered.append((rid, str(uid), p))
+        if recent:
+            recent_ids.add(rid)
 
     from api.services import indicator_names, named_indicators  # noqa: PLC0415
     in_library = indicator_names.now_in_library()
@@ -907,6 +949,8 @@ def weekly_report(days: int = 7) -> dict:
                          "repair_rate": block["repair_rate"]},
         # 5. named indicators built, by library entry
         "named_built": library_rows(built),
+        # 6. the ones named by ACRONYM, and how often the next turn removed or rewrote what was built
+        "built_from_an_acronym": _acronym_rows(ordered, recent_ids),
     }
 
 
@@ -971,6 +1015,15 @@ def weekly_report_text(report: dict) -> str:
 
     out += ["", "NAMED INDICATORS BUILT FROM THE LIBRARY"]
     out += [f"  {r['name'] or r['id']}: {people(r, 'builds')}" for r in report["named_built"]] or ["  None."]
+
+    out += ["", "BUILT FROM AN ACRONYM (and how often the next turn removed or rewrote it: a misread's mark)"]
+    for r in report["built_from_an_acronym"]:
+        line = f"  {'/'.join(a.upper() for a in r['acronyms']) or r['id']} as {r['name'] or r['id']}: {people(r, 'builds')}"
+        if r["changed_or_removed_next"]:
+            line += f"; {r['changed_or_removed_next']} removed or rewritten on the next turn"
+        out.append(line)
+    if not report["built_from_an_acronym"]:
+        out.append("  None.")
 
     out += ["", "WHAT COULD NOT BUILD, BY KIND"]
     out += [f"  {r['category'].replace('_', ' ')}: {r['members']} member{'' if r['members'] == 1 else 's'}, {r['turns']} requests"

@@ -8870,6 +8870,14 @@
    "title": "A DAILY read on an intraday chart (previous day's high / low / close, daily pivots): a request.security to a higher timeframe",
    "census": "host `tf` reads weekly and monthly only (`pine:request`: \"another timeframe as `tf` (weekly and monthly ...)\"); the session-reader spelling exceeds `budget:lookback` (1361 vs 960). On the 1D census a \"D\" request is the chart's own timeframe, so it never shows",
    "witness": "measured 2026-11-18 by the Create Indicator capability census (local REPORT.md): 2 of 177 ideas (previous day H/L/C, daily pivots) blocked by exactly this"
+  },
+  {
+   "wall": "strategy-bar-confirm",
+   "unit": "strategy",
+   "kind": "evidence",
+   "title": "U-CONFIRM: when TradingView confirms a closed daily bar for a strategy. A default strategy (calc_on_every_tick false) runs a bar once TradingView confirms it, and a capture taken after the session close can still hold a newest bar its strategy has not run",
+   "census": "the census runs every script on closed bars it treats as confirmed; the grade cuts only an ABSENT newest value row of a strategy capture (an `na` row, or a row missing anywhere else, is compared)",
+   "witness": "r1-strategy-draws-rddt-1d-2026-10-02: 636 bars and 635 value rows, bar 635's session closed at 20:00Z and the capture was taken at 22:57Z (newestBarIsForming false); its indicator twin (no broker) holds all 636. The 2026-11-16 report captures (22:09-23:18Z) hold the same shape. Pinned by one strategy captured just before and just after TradingView confirms the bar"
   }
  ],
  "authoringClasses": [

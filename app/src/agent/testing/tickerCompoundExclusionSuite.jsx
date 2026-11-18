@@ -8,13 +8,23 @@
 //   AMBIGUITY  never loosened: the ticker on two charts asks; a ticker not on the board writes nothing; "leave my SPY alone" while
 //              the plan acts on SPY asks; a click on the OTHER chart with "it" still asks (the click is never silently overruled)
 // Evidence: LOCAL / SIMULATED (BROWSER-MOCK-MODEL): jsdom, scripted plans, no model call.
+//
+// SLICED (2026-11-17, agent ci critical path): this was agentTickerCompoundExclusion.test.jsx, the slowest Agent test file
+// (555 tests, ~9.5 min alone, the floor of the browser shard it sat in). The body moved here VERBATIM. The only changes are the
+// function wrapper, `mine(...)` around every it.each table, and `if (SLICE === 0)` before the three single tests. The rows are
+// dealt round-robin into SLICES files (agentTickerCompoundExclusion.<k>.test.jsx; the corpus.finalState.<k> pattern) so the
+// shards can share them. Every slice keeps the same describe and test names, so the union of the slices' test ids equals the
+// old file's (tests/test_uct_agent_vitest_shards.py holds the slice files and SLICES in step). The vi.mock and
+// registerBuiltins() stay in each slice file (a vi.mock is hoisted per test file).
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { cleanup, screen } from '@testing-library/react'
-import { registerBuiltins } from './builtins'
-import { setupPanel, bareSettings } from './testing/panelHarness'
+import { setupPanel, bareSettings } from './panelHarness'
 
-vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
-registerBuiltins()
+export const SLICES = 3
+
+export function tickerCompoundExclusionSuite(SLICE) {
+if (!(Number.isInteger(SLICE) && SLICE >= 0 && SLICE < SLICES)) throw new Error(`slice must be 0..${SLICES - 1} (got ${SLICE})`)
+const mine = (rows) => rows.filter((_, i) => i % SLICES === SLICE)
 
 let p
 beforeEach(() => { p = setupPanel() })
@@ -73,7 +83,7 @@ const effect = {
 // the member says "undo" (the panel has no Undo button): the newest change, once per op of the compound at most
 const undo = async (m, done) => { for (let i = 0; i < 3 && !done(); i++) await m.say('undo') }
 
-describe('PRODUCTION: the owner\'s exact ask — SPY left, NVDA right', () => {
+if (SLICE === 0) describe('PRODUCTION: the owner\'s exact ask — SPY left, NVDA right', () => {
   it('"Change SPY to the 1-hour timeframe, add a 20 EMA to it, but leave my NVDA chart alone." → 1h + EMA 20 on SPY only; NVDA untouched; Undo exact', async () => {
     const m = mount(['SPY', 'NVDA'])
     const spy0 = stored(m.board, 'w0'), nvda0 = stored(m.board, 'w1')
@@ -96,8 +106,8 @@ for (const pair of PAIRS) for (const ana of ANAPHORS) for (let e = 0; e < EXCLUS
   GRID.push([wordsFor(pair, ana, 'SPY', 'NVDA', e), side, pair[1]])
 }
 describe('COMPOUND × anaphor × exclusion: both ops on the ticker\'s chart, the exclusion holds for every op', () => {
-  it('the grid is generated: 4 op pairs × 4 anaphors × 5 exclusions × 2 sides', () => expect(GRID).toHaveLength(160))
-  it.each(GRID)('"%s" (SPY on the %s)', async (t, side, ops) => {
+  if (SLICE === 0) it('the grid is generated: 4 op pairs × 4 anaphors × 5 exclusions × 2 sides', () => expect(GRID).toHaveLength(160))
+  it.each(mine(GRID))('"%s" (SPY on the %s)', async (t, side, ops) => {
     const m = mount(side === 'left' ? ['SPY', 'NVDA'] : ['NVDA', 'SPY'])
     const spyId = side === 'left' ? 'w0' : 'w1', nvdaId = side === 'left' ? 'w1' : 'w0'
     const spy0 = stored(m.board, spyId), nvda0 = stored(m.board, nvdaId)
@@ -121,8 +131,8 @@ for (const pair of PAIRS) for (const ana of ANAPHORS) {
   for (let e = 0; e < EXCLUSIONS.length; e++) ANA_GRID.push([wordsFor(pair, ana, 'SPY', 'NVDA', e), ['NVDA', 'SPY', 'QQQ'], pair[1]])
 }
 describe('ANAPHORA: "it" / "that chart" / "that one" is the chart the ticker named — with no exclusion, and on three charts', () => {
-  it('the grid is generated: 4 op pairs × 4 anaphors × (2 two-chart boards + 5 exclusions on three charts)', () => expect(ANA_GRID).toHaveLength(112))
-  it.each(ANA_GRID)('"%s" on %j', async (t, syms, ops) => {
+  if (SLICE === 0) it('the grid is generated: 4 op pairs × 4 anaphors × (2 two-chart boards + 5 exclusions on three charts)', () => expect(ANA_GRID).toHaveLength(112))
+  it.each(mine(ANA_GRID))('"%s" on %j', async (t, syms, ops) => {
     const m = mount(syms)
     const ids = syms.map((_, i) => `w${i}`), spyId = ids[syms.indexOf('SPY')]
     const others = ids.filter(id => id !== spyId).map(id => [id, stored(m.board, id)])
@@ -140,7 +150,7 @@ describe('ANAPHORA: "it" / "that chart" / "that one" is the chart the ticker nam
 // ── AMBIGUITY: never loosened ─────────────────────────────────────────────────────────────────────────────────────────────
 const SAMPLE = PAIRS.flatMap(pair => ANAPHORS.map(ana => [pair, ana]))
 describe('AMBIGUITY: genuine ambiguity still asks and writes nothing', () => {
-  it.each(SAMPLE.map(([pair, ana]) => [wordsFor(pair, ana, 'SPY', 'NVDA', 0), pair[1]]))('"%s" with SPY on TWO charts: asked, nothing changed', async (t, ops) => {
+  it.each(mine(SAMPLE.map(([pair, ana]) => [wordsFor(pair, ana, 'SPY', 'NVDA', 0), pair[1]])))('"%s" with SPY on TWO charts: asked, nothing changed', async (t, ops) => {
     const m = mount(['SPY', 'NVDA', 'SPY'])
     const before = snapshot(m.board, 3)
     p.st.envelopes.push(plan(ops, 'SPY'))
@@ -149,8 +159,8 @@ describe('AMBIGUITY: genuine ambiguity still asks and writes nothing', () => {
     expect(snapshot(m.board, 3)).toEqual(before)
   }, 60000)
   // the words ALSO point at a chart no click names ("this one", "the selected chart"): "it" is not settled by the ticker alone
-  it.each(SAMPLE.filter(([, ana]) => ana.name === 'it' || ana.name === 'that chart').flatMap(([pair, ana]) => ['and do the same on this one', 'and the selected chart too']
-    .map(x => [`${pair[2]('SPY', ana)}, ${x}.`, pair[1]])))('"%s" (no click): asked, nothing changed', async (t, ops) => {
+  it.each(mine(SAMPLE.filter(([, ana]) => ana.name === 'it' || ana.name === 'that chart').flatMap(([pair, ana]) => ['and do the same on this one', 'and the selected chart too']
+    .map(x => [`${pair[2]('SPY', ana)}, ${x}.`, pair[1]]))))('"%s" (no click): asked, nothing changed', async (t, ops) => {
     const m = mount(['SPY', 'NVDA'])
     const before = snapshot(m.board, 2)
     p.st.envelopes.push(plan(ops, 'SPY'))
@@ -158,7 +168,7 @@ describe('AMBIGUITY: genuine ambiguity still asks and writes nothing', () => {
     expect(asked(), transcript()).toBe(true)
     expect(snapshot(m.board, 2)).toEqual(before)
   }, 60000)
-  it.each(SAMPLE.flatMap(([pair, ana]) => [0, 1, 2, 3, 4].map(e => [wordsFor(pair, ana, 'AMD', 'NVDA', e), pair[1]])))('"%s" with AMD not on the board (the plan on SPY): asked, nothing changed', async (t, ops) => {
+  it.each(mine(SAMPLE.flatMap(([pair, ana]) => [0, 1, 2, 3, 4].map(e => [wordsFor(pair, ana, 'AMD', 'NVDA', e), pair[1]]))))('"%s" with AMD not on the board (the plan on SPY): asked, nothing changed', async (t, ops) => {
     const m = mount(['SPY', 'NVDA'])
     const before = snapshot(m.board, 2)
     p.st.envelopes.push(plan(ops, 'SPY'))
@@ -166,7 +176,7 @@ describe('AMBIGUITY: genuine ambiguity still asks and writes nothing', () => {
     expect(asked(), transcript()).toBe(true)
     expect(snapshot(m.board, 2), transcript()).toEqual(before)
   }, 60000)
-  it.each(SAMPLE.flatMap(([pair, ana]) => [0, 1, 2, 3, 4].map(e => [wordsFor(pair, ana, 'SPY', 'SPY', e), pair[1]])))('"%s" (excludes the very chart it names; the plan on SPY): asked, nothing changed', async (t, ops) => {
+  it.each(mine(SAMPLE.flatMap(([pair, ana]) => [0, 1, 2, 3, 4].map(e => [wordsFor(pair, ana, 'SPY', 'SPY', e), pair[1]]))))('"%s" (excludes the very chart it names; the plan on SPY): asked, nothing changed', async (t, ops) => {
     const m = mount(['SPY', 'NVDA'])
     const before = snapshot(m.board, 2)
     p.st.envelopes.push(plan(ops, 'SPY'))
@@ -174,7 +184,7 @@ describe('AMBIGUITY: genuine ambiguity still asks and writes nothing', () => {
     expect(asked(), transcript()).toBe(true)
     expect(snapshot(m.board, 2)).toEqual(before)
   }, 60000)
-  it.each(SAMPLE.flatMap(([pair, ana]) => [0, 1, 2, 3, 4].map(e => [wordsFor(pair, ana, 'SPY', 'NVDA', e), pair[1]])))('"%s" — the plan ALSO changes NVDA: the NVDA chart never changes', async (t, ops) => {
+  it.each(mine(SAMPLE.flatMap(([pair, ana]) => [0, 1, 2, 3, 4].map(e => [wordsFor(pair, ana, 'SPY', 'NVDA', e), pair[1]]))))('"%s" — the plan ALSO changes NVDA: the NVDA chart never changes', async (t, ops) => {
     const m = mount(['SPY', 'NVDA'])
     const nvda0 = stored(m.board, 'w1')
     p.st.envelopes.push((body) => p.env('apply', [...ops.map(k => OPS[k](body, 'SPY')), ...ops.map(k => OPS[k](body, 'NVDA'))]))
@@ -182,7 +192,7 @@ describe('AMBIGUITY: genuine ambiguity still asks and writes nothing', () => {
     expect(stored(m.board, 'w1'), transcript()).toBe(nvda0)
   }, 60000)
   // ("that one" is not deictic: a ticker the words name outranks the click there, as on master — not this rail)
-  it.each(SAMPLE.filter(([, ana]) => ana.name === 'it' || ana.name === 'that chart').map(([pair, ana]) => [`${pair[2]('SPY', ana)}.`, pair[1]]))('"%s" with the NVDA chart CLICKED: the click is not overruled — asked, nothing changed', async (t, ops) => {
+  it.each(mine(SAMPLE.filter(([, ana]) => ana.name === 'it' || ana.name === 'that chart').map(([pair, ana]) => [`${pair[2]('SPY', ana)}.`, pair[1]])))('"%s" with the NVDA chart CLICKED: the click is not overruled — asked, nothing changed', async (t, ops) => {
     const m = mount(['SPY', 'NVDA'], 'w1')
     const before = snapshot(m.board, 2)
     p.st.envelopes.push(plan(ops, 'SPY'))
@@ -191,3 +201,4 @@ describe('AMBIGUITY: genuine ambiguity still asks and writes nothing', () => {
     expect(snapshot(m.board, 2)).toEqual(before)
   }, 60000)
 })
+}
