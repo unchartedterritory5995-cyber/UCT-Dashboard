@@ -91,6 +91,12 @@ export const PERIOD_SIDE_WORDS = Object.freeze({
   GAINERS: 'gainers', GAINER: 'gainers', UP: 'gainers', TOP: 'gainers', BEST: 'gainers',
   LOSERS: 'losers', LOSER: 'losers', DOWN: 'losers', BOTTOM: 'losers', WORST: 'losers',
 })
+/** CEOS's list words: a copy of panels/callThemesModel.js CALL_THEMES_LIST_ARG_WORDS (args.callThemes.test.js). */
+export const CALL_THEMES_LIST_WORDS = Object.freeze({
+  NEW: 'new', FRESH: 'new', FIRST: 'new',
+  RISING: 'rising', RISE: 'rising', RISERS: 'rising', UP: 'rising',
+  BOTH: 'both', ALL: 'both',
+})
 export const ROTATION_SIDE_ARG_WORDS = Object.freeze({
   IN: 'in', INTO: 'in', UP: 'in', RISING: 'in', LEADERS: 'in', GAINING: 'in',
   OUT: 'out', DOWN: 'out', FADING: 'out', FALLING: 'out', LAGGARDS: 'out', LOSING: 'out',
@@ -416,6 +422,22 @@ export const ARG_KINDS = {
       return t ? t : null
     },
     describe: (v) => `search "${v}"`,
+  },
+  /** CEOS's two picks (panels/callThemesModel.js; pinned by args.callThemes.test.js): which list,
+   *  and a month as YYYY-MM. `CEOS RISING 2026-10` reads the same in either order. */
+  callThemesList: {
+    takes: 'NEW, RISING or BOTH',
+    parse: (tok) => CALL_THEMES_LIST_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => ({ new: 'phrases new this month', rising: 'rising phrases', both: 'both lists' })[v] || v,
+  },
+  callThemesMonth: {
+    takes: 'a month as YYYY-MM',
+    parse: (tok) => {
+      const m = /^(\d{4})[-/](\d{1,2})$/.exec(String(tok ?? '').trim())
+      if (!m || Number(m[1]) < 2000 || Number(m[1]) > 2100 || Number(m[2]) < 1 || Number(m[2]) > 12) return null
+      return `${m[1]}-${m[2].padStart(2, '0')}`
+    },
+    describe: (v) => `month ${v}`,
   },
   /** TROT's side: themes rotating in, or rotating out (panels/themeRotationModel.js ROTATION_SIDE_WORDS). */
   rotationSide: {

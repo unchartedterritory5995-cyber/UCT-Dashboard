@@ -289,6 +289,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/earnings/audio/{ticker}` | paid | research | {ticker} |
 | GET | `/api/earnings/call-audio/{ticker}` | paid | research | {ticker}, year, quarter |
 | GET | `/api/earnings/call-recap/{ticker}` | paid | research | {ticker}, quarter |
+| GET | `/api/earnings/call-themes` | paid | research | month |
 | GET | `/api/earnings/intel/{ticker}` | paid | research | {ticker} |
 | GET | `/api/earnings/keyword-alerts` | paid | research |  |
 | GET | `/api/earnings/sentiment/{ticker}` | paid | research | {ticker} |

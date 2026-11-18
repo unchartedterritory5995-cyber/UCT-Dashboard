@@ -413,6 +413,11 @@ export const FUNCTIONS = [
   // of calls (GET /api/earnings/transcript-search and /transcript-trend). `TSRC pricing power`.
   { code: 'TSRC', label: 'Search every earnings call', group: 'Market',
     market: { panel: 'CallSearch', args: [{ kind: 'callQuery', prop: 'q', rest: true }] } },
+  // CEOS: what CEOs are saying. The phrases new and rising across a month of earnings calls
+  // (GET /api/earnings/call-themes, worked out once a day); a phrase opens TSRC on it.
+  // `CEOS RISING`, `CEOS NEW 2026-10`.
+  { code: 'CEOS', label: 'What CEOs are saying (phrases rising across earnings calls)', group: 'Market',
+    market: { panel: 'CallThemes', args: [{ kind: 'callThemesList', prop: 'list' }, { kind: 'callThemesMonth', prop: 'month' }] } },
   // EXMV: what the options market priced before each earnings report beside what the stock then
   // did, and the coming report's priced move (GET /api/research/expected-move/{sym} and
   // /api/earnings-intel/{sym}).
@@ -707,6 +712,7 @@ const FUNCTION_WORDS = {
   PCHG: { example: 'PCHG QTD SECTORS', keywords: ['period change', 'performance between dates', 'since a date', 'best this quarter', 'custom range',
     'sector performance', 'industry performance', 'theme performance'] },
   TSRC: { example: 'TSRC pricing power', keywords: ['search earnings calls', 'transcript search', 'who said', 'call mentions'] },
+  CEOS: { example: 'CEOS RISING', keywords: ['what ceos are saying', 'rising phrases', 'earnings call themes', 'new themes', 'buzzwords'] },
   EXMV: { example: 'NVDA EXMV', keywords: ['expected move', 'implied move', 'earnings straddle', 'priced move'] },
   TROT: { example: 'TROT IN', keywords: ['theme rotation', 'rotating in', 'rotating out', 'themes gaining rank'] },
   IDAY: { keywords: ['intraday update', 'market update', 'midday update', 'session note'] },
