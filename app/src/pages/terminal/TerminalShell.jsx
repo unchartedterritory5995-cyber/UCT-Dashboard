@@ -69,6 +69,8 @@ import {
   symbolsFromRows,
 } from './scanBoard'
 import { buildStarterBoard, freeBoardName, starterBoardNotice } from './starterBoards'
+import { STOCK_BOARD_WORD, defaultStockBoard, findStockBoard, stockBoardCommand } from './stockBoards'
+import { buildStockBoard, stockBoardNotice, stockBoardRefusal, stockBoardTicker } from './stockBoardModel'
 import { brandedTitle } from '../../surfaces/brand'
 import styles from './TerminalShell.module.css'
 
@@ -180,7 +182,7 @@ export function telemetryKey(cmd) {
   if (!cmd?.ok) return null
   if (cmd.alias) return cmd.alias
   if (cmd.type === 'function') return cmd.code
-  return { ask: 'ASK', address: 'ADDR', row: 'ROW', board: 'BOARD' }[cmd.type] || null
+  return { ask: 'ASK', address: 'ADDR', row: 'ROW', board: 'BOARD', 'stock-board': STOCK_BOARD_WORD }[cmd.type] || null
 }
 
 /** Pure: the visible panel a bare ticker typed on a non-security panel (`at`: CAL, HELP, a
@@ -715,6 +717,26 @@ export default function TerminalShell() {
     setCurrentStarter(starter.id)
   }, [openSnapshot])
 
+  /** Open a ready-made STOCK board (stockBoards.js) for one ticker, through the SAME path: the
+   *  member's own board is remembered, the library is not written, and the ticker goes into the
+   *  board's OWN group (stockBoardModel.js), so the /charts groups are not written either. A
+   *  board that cannot open says why and changes nothing. Returns whether it opened. */
+  const openStock = useCallback((board, sym) => {
+    const refusal = stockBoardRefusal(layoutRef.current, board, sym)
+    const next = refusal ? null : buildStockBoard(layoutRef.current, board, sym)
+    if (!next) {
+      setNotice({ kind: 'error', text: refusal || `${board?.name || 'That stock board'} could not be opened on this release; your board was not changed.` })
+      return false
+    }
+    openSnapshot(next, {
+      name: board.name,
+      text: stockBoardNotice(board, sym),
+      actions: [{ label: 'Save to my boards', id: 'save-starter', name: board.name }],
+    })
+    setCurrentStarter(board.id)
+    return true
+  }, [openSnapshot])
+
   /** Run one command line. Returns the panel text it put in a panel, or null. A board
    *  address (`B:<slug>`) opens that board; everything else goes through the ONE parser. */
   const run = useCallback((text, { fromUrl = false, slot = null, next: beside = false, from = null } = {}) => {
@@ -782,6 +804,22 @@ export default function TerminalShell() {
             ? `You have no watchlist at ${src.address}. Type W: to look yours up.`
             : `Could not read ${what} just now; your board was not changed. Try again.` })
         })
+      return null
+    }
+    if (cmd.type === 'stock-board') {
+      // ⛔ Never from a URL, as for BOARD: a link must not replace the member's board.
+      if (fromUrl) {
+        setNotice({ kind: 'error', text: `${STOCK_BOARD_WORD} runs from the command line or the Boards button, not from a link.` })
+        return null
+      }
+      const board = (cmd.board && findStockBoard(cmd.board)) || defaultStockBoard()
+      // No ticker typed: the one the board is on (the Boards menu's own answer).
+      const sym = cmd.sym || stockBoardTicker(layoutRef.current, symsRef.current)
+      if (!sym) {
+        setNotice({ kind: 'info', text: `${STOCK_BOARD_WORD} needs a ticker. Type it first, like ${stockBoardCommand(board)}.` })
+        return null
+      }
+      if (openStock(board, sym)) countCommand(cmd)
       return null
     }
     if (cmd.type.startsWith('alias-')) {
@@ -1053,7 +1091,7 @@ export default function TerminalShell() {
       return null
     }
     return [scope === 'ticker' ? sym : null, cmd.code, ...(cmd.args || [])].filter(Boolean).join(' ')
-  }, [auth, commitChannelSym, navigate, openCalendarPath, openNamed, openScanBoard, save, countCommand, loadAliases])
+  }, [auth, commitChannelSym, navigate, openCalendarPath, openNamed, openScanBoard, openStock, save, countCommand, loadAliases])
 
   // Round 3: the ref holds the panel text the typed command PUT on screen (null when it opened
   // nothing). It used to be a bare `true` that a refused command left set, so the member's next
@@ -2045,6 +2083,8 @@ export default function TerminalShell() {
           onSave={onSaveBoard}
           onOpen={(b) => { setSheet(null); openNamed(b) }}
           onOpenStarter={(s) => { setSheet(null); openStarter(s) }}
+          onOpenStock={(b, sym) => { setSheet(null); openStock(b, sym) }}
+          stockSym={stockBoardTicker(layout, syms)}
           currentStarterId={currentStarter}
           onDelete={(b) => {
             // One click deleted a saved board for good (lane C audit 2026-10-08). The delete

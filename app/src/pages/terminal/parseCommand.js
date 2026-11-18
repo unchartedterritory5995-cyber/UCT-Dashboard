@@ -27,6 +27,7 @@
 import { BY_CODE, ABSENT, canonicalCode, isCode, retiredNote, suggest } from './functions'
 import { CHANNEL_RE, aliasNameRefusal, compareMode, isTickerCollision, looksLikeQuestion } from './grammar'
 import { ARG_KINDS } from './args'
+import { STOCK_BOARD_WORD, stockBoardByWord, stockBoardUsage } from './stockBoards'
 import { normalizeSym as normalizeUrlSym } from '../calendar/useEarningsModalRoute'
 
 /** A ticker token, or null. `$` only ever FORCES a ticker reading, so it is never part of the
@@ -150,6 +151,10 @@ export default function parseCommand(input, opts = {}) {
   // Scan-to-board: `BOARD FUNC [TICKER… | W:id | FLAGGED]` (feature-gaps #9). A reserved word,
   // so no alias can take it; `$BOARD` would still mean a ticker.
   if (!forced && FIRST === 'BOARD') return parseBoard(tokens.slice(1))
+  // A ready-made stock board: `NVDA STOCK [WORD]`, `STOCK [NVDA] [WORD]` (stockBoards.js). A
+  // reserved word like BOARD, so no alias can take it; `$STOCK` still means a ticker.
+  const stock = parseStockBoard(raw, tokens)
+  if (stock) return stock
 
   // `W` (also `W 2`, `W FLAGGED`) opens MON, the watchlist monitor (lane 9). W is also Wayfair's
   // ticker, so this is V5's collision rule: the code wins, `$W` (or `W DES`) means the stock, and
@@ -293,6 +298,45 @@ function parseBoard(rest) {
       error: `Not a ticker: ${bad.map((t) => `"${t}"`).join(', ')}. BOARD ${code} takes tickers, W:id or FLAGGED.` }
   }
   return { ok: true, type: 'board', code, source: { kind: 'list', syms } }
+}
+
+/**
+ * `NVDA STOCK [WORD]` (the canonical order) or `STOCK [NVDA] [WORD]` — open a ready-made stock
+ * board for one ticker (stockBoards.js; the shell opens it, as it opens `BOARD`). WORD picks the
+ * board (`EARNINGS`); none is the default board. With no ticker the shell uses the one the board
+ * is on. Returns null for a line that is not this command, so everything else parses as before:
+ * a line of four or more words or one with a `?` is left to the question rule (ASK).
+ */
+function parseStockBoard(raw, tokens) {
+  if (tokens.length > 3 || raw.includes('?')) return null
+  const up = tokens.map((t) => t.toUpperCase())
+  const tickerFirst = tokens.length >= 2 && up[1] === STOCK_BOARD_WORD
+  if (!tickerFirst && up[0] !== STOCK_BOARD_WORD) return null
+  const refuse = (error) => ({ ok: false, error, suggestions: [] })
+  const usage = stockBoardUsage()
+  const board = (tok) => {
+    const b = stockBoardByWord(tok)
+    return b ? { board: b.id } : { error: `"${String(tok).toUpperCase()}" is not a stock board. Type ${usage}.` }
+  }
+  if (tickerFirst) {
+    const sym = normalizeSym(tokens[0])
+    if (!sym) return refuse(`"${tokens[0]}" is not a ticker. A stock board opens for one ticker: ${usage}.`)
+    const picked = tokens[2] ? board(tokens[2]) : { board: null }
+    return picked.error ? refuse(picked.error) : { ok: true, type: 'stock-board', sym, board: picked.board }
+  }
+  const rest = tokens.slice(1)
+  if (!rest.length) return { ok: true, type: 'stock-board', sym: null, board: null }
+  // `STOCK EARNINGS`: a board word alone is the board, for the ticker the board is on.
+  if (rest.length === 1 && !rest[0].startsWith('$') && stockBoardByWord(rest[0])) {
+    return { ok: true, type: 'stock-board', sym: null, board: stockBoardByWord(rest[0]).id }
+  }
+  const sym = normalizeSym(rest[0])
+  if (!sym) return refuse(`"${rest[0]}" is not a ticker or a stock board. Type ${usage}.`)
+  if (!rest[0].startsWith('$') && isCode(sym)) {
+    return refuse(`${sym} is a function code; put $ in front for the ticker (${STOCK_BOARD_WORD} $${sym}), or type ${usage}.`)
+  }
+  const picked = rest[1] ? board(rest[1]) : { board: null }
+  return picked.error ? refuse(picked.error) : { ok: true, type: 'stock-board', sym, board: picked.board }
 }
 
 function parseCore(raw) {
