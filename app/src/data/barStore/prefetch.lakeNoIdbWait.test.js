@@ -3,7 +3,8 @@
 // warm writes to the same database), which answered at ~1,240 ms. Contract, through prepareForDisplay:
 //   W1 a slow cache read holds the lake load for HYDRATE_WAIT_MS at most
 //   W2 a cache read that answers within the bound still goes first (a saved copy is never overtaken)
-//   W3 the saved copy that lands after the lake is merged on the lake's proven basis (reducer applyLocal)
+// (A saved copy that lands after the lake: reducer.lakeThenSaved.test.js; the depth's return after a
+// replace: store.lakeRejoin.test.js.)
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
 import { fakeStream, fakeCandle, fakePrices } from './testing/fakeFeeds'

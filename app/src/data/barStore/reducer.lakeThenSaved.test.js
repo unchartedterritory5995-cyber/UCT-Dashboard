@@ -72,5 +72,56 @@ describe('a saved copy after the lake', () => {
       session: 'rth', cache_key: 'b1:SIM:5:session', series_rev: 3000, history_rev: 5, verified_through: Math.floor(NOW / 1000) - 5, tail_status: 'verified' } }, ctx)
     const s = reduce(answered, saved('idb-hit', day('2026-11-09', 0.5, 900)), ctx)
     expect(s).toBe(answered)
+    expect(answered.lakeOnly).toBe(false)
+  })
+})
+
+// Review of #1884: the replace fires ONLY over rows that are the lake's alone (`lakeOnly`), never wipes a
+// saved copy the lake had joined, is never done by a pack seed, and keeps what the stream added.
+describe('the replace is the lake-only entry\'s alone', () => {
+  it('lakeOnly: set by a lake hit onto an empty entry, cleared by any other fill', () => {
+    const s0 = lakeFirst()
+    expect(s0.lakeOnly).toBe(true)
+    expect(reduce(s0, saved('idb-hit', [...day('2026-11-09', 1, 900), ...morning(1, 900)]), ctx).lakeOnly).toBe(false)
+    const mem = reduce(initialState(K, ctx), saved('mem-hit', day('2026-11-09', 1, 2000), { series_rev: 2000 }), ctx)
+    expect(reduce(mem, lakeHit(DAYS.flatMap((d) => day(d))), ctx).lakeOnly).toBe(false)   // the lake joined a saved copy
+  })
+
+  it('scenario A: a newer stamped mem copy + the lake, then an OLDER unstamped IDB copy on another basis: the newer copy is never wiped', () => {
+    const mem = reduce(initialState(K, ctx), saved('mem-hit', [...day('2026-11-09', 1, 2000), ...morning(1, 2000)], { series_rev: 2000 }), ctx)
+    const withLake = reduce(mem, lakeHit(DAYS.flatMap((d) => day(d))), ctx)
+    const s = reduce(withLake, { type: 'idb-hit', payload: { bars: day('2026-11-09', 0.5) } }, ctx)
+    expect(s.invalidatedFor).not.toBe('lake_basis')
+    expect(s.seriesRev).toBe(2000)
+    expect(s.bars[0].t).toBe(withLake.bars[0].t)                            // the lake's depth stays
+    expect(s.bars.find((b) => b.t === T('2026-11-09', 600)).o).toBe(100)     // the newer copy's rows stay
+    expect((s.developing ?? s.bars.at(-1)).t).toBe(T(TODAY, 585))
+  })
+
+  it('scenario B: a pack seed sharing no bar never replaces the lake (lake-only, or joined to a saved copy): history never shrinks', () => {
+    const pack = { type: 'pack-seed', payload: { bars: morning(1) } }
+    const lakeOnly = lakeFirst()
+    expect(reduce(lakeOnly, { ...pack, type: 'seed-from-pack' }, ctx).bars.length).toBeGreaterThanOrEqual(lakeOnly.bars.length)
+    const idb = reduce(initialState(K, ctx), saved('idb-hit', day('2026-11-09', 1, 900)), ctx)
+    const joined = reduce(idb, lakeHit(DAYS.flatMap((d) => day(d))), ctx)
+    const s = reduce(joined, { type: 'seed-from-pack', payload: { bars: [bar(T(TODAY, 600), 0.5)] } }, ctx)
+    expect(s.bars.length).toBeGreaterThanOrEqual(joined.bars.length)
+    expect(s.bars[0].t).toBe(joined.bars[0].t)
+    // ...and a pack the lake-only rows do not prove is refused outright
+    expect(reduce(lakeOnly, { type: 'seed-from-pack', payload: { bars: day('2026-11-09', 0.5) } }, ctx)).toBe(lakeOnly)
+  })
+
+  it('the replace keeps the depth floor, the stream\'s rows and its live forming bar', () => {
+    const s0 = Object.freeze({ ...lakeFirst(), depthFloor: 300 })
+    const pushed = reduce(s0, { type: 'push-bar', event: { bar: { ...bar(T(TODAY, 590)), t: T(TODAY, 590) * 1000 }, rev: 5000 } }, ctx)
+    expect(pushed.developing?.src).toBe('push')
+    expect(pushed.lakeOnly).toBe(true)
+    const s = reduce(pushed, saved('idb-hit', [...day('2026-11-09', 0.5, 900), ...morning(0.5, 900)]), ctx)
+    expect(s.invalidatedFor).toBe('lake_basis')
+    expect(s.depthFloor).toBe(300)
+    expect(s.developing?.t).toBe(T(TODAY, 590))                             // the live forming bar stays
+    expect(s.developing?.src).toBe('push')
+    expect(s.bars[0].t).toBe(T('2026-11-09', 570))                          // the lake's rows are gone
+    expect(s.lakeOnly).toBe(false)
   })
 })
