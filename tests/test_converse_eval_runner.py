@@ -830,7 +830,9 @@ def test_the_door_asks_one_question_at_a_time_and_an_answer_builds(tmp_path):
         rows.setdefault(r["case"], []).append(r)
     for cid, want in (("clarify-average-kind", "Which kind of moving average?"),
                       ("clarify-average-length", "How many bars should the average use?"),
-                      ("clarify-cross-meaning", "When should a cross count?")):
+                      ("clarify-cross-meaning", "When should a cross count?"),
+                      ("clarify-benchmark", "Compared with which symbol?"),
+                      ("clarify-breakout-window", "How many bars back should a breakout look?")):
         asked, answered = rows[cid]
         assert asked["model_calls"] == 0 and asked["server"]["disposition"] == "clarify" and asked["client"]["changed"] is False
         assert asked["server"]["envelope"]["questions"][0]["text"] == want and len(asked["server"]["envelope"]["questions"]) == 1
@@ -842,6 +844,25 @@ def test_the_door_asks_one_question_at_a_time_and_an_answer_builds(tmp_path):
     assert built["grade"]["ok"] is True and built["client"]["changed"] is True
     (direct,) = rows["clarify-nothing-open"]
     assert direct["model_calls"] == 1 and direct["server"]["disposition"] == "change"
+    # the benchmark's answer reads another symbol, which these bars cannot value: matched by hash
+    _asked, answered = rows["clarify-benchmark"]
+    assert [d["match"] for d in answered["grade"]["match"]] == ["hash"]
+
+
+@needs_node
+def test_CONTROL_a_wrong_formula_that_reads_another_symbol_fails_grading(tmp_path):
+    """The eval's bars are the chart's own symbol's, so anything reading SPY is unknown on every bar
+    and two different formulas are "equal" bar for bar. The benchmark case can still fail: the
+    answer scripted as a DIFFERENCE where the reference is a ratio is not accepted."""
+    script = json.loads(io.open(CLARIFY_SCRIPT, encoding="utf-8").read())
+    text = json.dumps(script["turns"]["clarify-benchmark#1"])
+    assert text.count('"name": "/"') == 1
+    script["turns"]["clarify-benchmark#1"] = json.loads(text.replace('"name": "/"', '"name": "-"'))
+    bad = tmp_path / "bad_benchmark.json"
+    bad.write_text(json.dumps(script), encoding="utf-8")
+    proc, _work, out = _run(tmp_path, "--cases", str(CLARIFY_CASES), "--script", str(bad), "--only", "clarify-benchmark")
+    assert proc.returncode == ce.EXIT_FAIL, proc.stdout[-2000:]
+    assert any("neither by hash nor by value" in p for r in _records(out) for p in r["grade"].get("problems", []))
 
 
 # ── what the member chose before: used, said, and beside the assistant's own note ──
