@@ -101,7 +101,12 @@ export function createHistoryFeed({ source = createHistorySource() } = {}) {
     for (let i = start; i < end; i++) rows.push({ t: t[i], o: o[i], h: h[i], l: l[i], c: c[i], v: v[i] })
     return { bars: rows, exhausted: false }
   }
-  return { olderBars, prime }
+  /** Does the lake hold `sym` at all (its index exists)? A 404 is "no such ticker": the typed warm's
+   *  second authority when the daily pack does not know a real ticker. Never rejects. */
+  function hasSymbol(sym) {
+    return Promise.resolve().then(() => source.loadIndex(sym)).then((i) => !!i).catch(() => false)
+  }
+  return { olderBars, prime, hasSymbol }
 }
 
 /** Pieces `prime` warms per key: the newest two hold the first lake window of every series (a month

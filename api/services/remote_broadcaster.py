@@ -102,6 +102,7 @@ class RemoteBroadcaster:
         self.legacy = fp.LegacyFilter()
         self.revs = fp.RevClock()
         self._fresh_mono: Optional[float] = None   # last batch of any kind
+        self._vendor_up: Optional[bool] = None     # ingest's word on its Massive socket (status `connect`)
         # What ingest was last told (FeedClient.sent_desired): the mirror keeps data
         # for these, and prunes the rest only once ingest knows (finding: a re-add
         # inside the debounce would otherwise never get a snapshot back).
@@ -215,7 +216,12 @@ class RemoteBroadcaster:
     # ── reads ──────────────────────────────────────────────────────────────
 
     def feed_fresh(self) -> bool:
-        return self._fresh_mono is not None and self._mono() - self._fresh_mono < self.stale_s
+        """A batch within stale_s AND ingest's vendor socket up. ⛔ 2026-11-17 audit: ingest keeps
+        sending status batches (at least once a second) while its Massive socket is DOWN, so "a batch
+        arrived" alone kept the mirror's frozen quotes served as live (get_last_price) and the quote
+        feed never fell back. Ingest says which in every status batch (`connect`)."""
+        return (self._fresh_mono is not None and self._mono() - self._fresh_mono < self.stale_s
+                and self._vendor_up is not False)
 
     def get_last_price(self, sym: str) -> Optional[dict]:
         """The mirror's latest quote, or None (no quote yet, or the feed has been quiet
@@ -265,6 +271,7 @@ class RemoteBroadcaster:
                 "last_emit_age_s": (round(_time.time() - self._last_emit_wall, 1)
                                     if self._last_emit_wall else None),
                 "feed_fresh": self.feed_fresh(),
+                "vendor_up": self._vendor_up,
                 "last_batch_age_s": (None if self._fresh_mono is None
                                      else round(self._mono() - self._fresh_mono, 2)),
                 **{f"{k}_total": v for k, v in self.counters.items()},
@@ -285,6 +292,9 @@ class RemoteBroadcaster:
         now_m = self._mono()
         with self._lock:
             self._fresh_mono = now_m
+            st = batch.status
+            if isinstance(st, dict) and "connect" in st:
+                self._vendor_up = bool(st["connect"])
             self.counters["batches"] += 1
             if batch.bars:
                 frames = fp.relay_bars(batch.bars, self.legacy, self.revs, int(self._clock_ms()))
