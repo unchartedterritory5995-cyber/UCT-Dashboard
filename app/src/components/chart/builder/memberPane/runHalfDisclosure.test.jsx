@@ -48,10 +48,7 @@ const RS = fs.readFileSync(path.join(REPO, 'docs/pine/rs-rating/rs-rating-fred67
 const HOST_NOTE = /plots are shown, but its drawings are not/
 
 let seq = 0
-// ⭐⭐ PARITY UNIT 1 (`objects`) — this rail tests the RUN HALF, the answer for a host-partial document the
-// dirty route does not move (`dirtyRoute.js`: a fill the runtime lane does not draw, a decline). Its fixture
-// is one the route WOULD move to the runtime lane, so the door is asked without the route (`routeDirty: false`).
-const door = (source = SRC, opts = {}) => memberPaneDefinition({ source, name: 'rh', routeDirty: false, ...opts, id: opts.id || `u_member-pane-rhd${++seq}` })
+const door = (source = SRC, opts = {}) => memberPaneDefinition({ source, name: 'rh', ...opts, id: opts.id || `u_member-pane-rhd${++seq}` })
 function install(def) {
   const { installed, errors } = registry.installUserDefinitions([def])
   expect(installed.length, errors.join(' | ')).toBe(1)

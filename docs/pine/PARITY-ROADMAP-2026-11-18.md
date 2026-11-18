@@ -955,14 +955,24 @@ symbol reached through a variable is not seen, so these counts are a floor.
 |---|---:|---|---|
 | fundamentals | 3 | host `pine:request` (`request` namespace guard) or `pine:builtin` (syminfo.*); runtime `runtime:request-with-state` / `runtime:request`; `other-symbol:seed-unregistered` / `other-symbol:venue-foreign` | `builtin:price-target`, `reference:earnings-sr-levels-lazybear`, `reference:my-cme-open-interest` |
 | footprint-ticks | 2 | host `pine:request` / `pine:builtin` / `pine:type` (footprint); runtime `runtime:request`; `lower-tf:unwitnessed` for a seconds timeframe | `builtin:24-hour-volume`, `reference:lorentzian-classification-advanced-trading-dashboard` |
-| other-feeds | 5 | host `pine:request` with `other-symbol:venue-foreign` or `other-symbol:bare`; runtime `runtime:request-with-state` / `runtime:request` | `builtin:24-hour-volume`, `committed:volume-spikes-growing-volume-signals-with-alerts-scanner`, `reference:cobra039s-crypto-market-visualizer`, `reference:divergence-stack-scanner-agpro-series`, `reference:halftrend-longshort-signal-engine-bigbeluga` |
+| other-feeds | 8 | host `pine:request` with `other-symbol:venue-foreign` or `other-symbol:bare`; runtime `runtime:request-with-state` / `runtime:request` | `builtin:24-hour-volume`, `committed:supertrend-explorer` (ruled by name), `committed:volume-spikes-growing-volume-signals-with-alerts-scanner`, `reference:cobra039s-crypto-market-visualizer`, `reference:custom-screener-with-alerts` (ruled by name), `reference:divergence-stack-scanner-agpro-series`, `reference:halftrend-longshort-signal-engine-bigbeluga`, `reference:screener-for-40-instruments` (ruled by name) |
 | broker | 2 | none at the door: the alert text is a string; the order it would place is the broker's | `committed:atr-god-strategy-by-tradesmart`, `committed:rsi-vwap-indicator` |
 | breadth | 1 | host `pine:request` with `other-symbol:venue-foreign` / `other-symbol:class-share` on a USI: spelling | `committed:4c-nyse-market-breadth-ratio` |
 | indices | 1 | `other-symbol:witness-pending` / `other-symbol:venue-foreign` | `committed:sub` |
 | corporate-events | 4 | host `pine:request` / `pine:builtin`; runtime `runtime:request-with-state` | `builtin:volume-weighted-average-price`, `committed:black-scholes-option-pricing-model-w-greeks-loxx`, `reference:earnings-sr-levels-lazybear`, `reference:vwap-trendfollow-strategy-wbburgin` |
 
-- **Never-serve (removed from the ranking):** `fundamentals`, `footprint-ticks` and `other-feeds`, 9
-  distinct scripts (one is in two classes). `broker` is a feature class (an alert whose message drives a connected brokerage). We simulate
+- **Ruled never-serve by name (coordinator, 2026-11-18, PARITY UNIT 1):** `committed:supertrend-explorer`,
+  `reference:custom-screener-with-alerts` and `reference:screener-for-40-instruments` read crypto pairs as symbol
+  input defaults (a v4 `input('BINANCE:EOSBTC', title=input.symbol)`; bare `XRPUSDT`-style pairs) that the facts
+  hold no venue for, so no detector above classed them, and the `objects` unit asked a capture of each (Q-OBJ1-3).
+  TradingView itself refuses every one at its defaults ("Invalid symbol"; capture run objunit-2026-11-18, packet
+  `582f2cf1e50b7fbb1939bf9d4fd38017981ac9d4c5aeb290f3add37703ccf596`, 0 of 6 capturable, as on 2026-11-15), and we
+  hold no crypto data: `other-feeds`, by name (`parity_roadmap.RULED_NEVER_SERVE`, each with its witness in
+  `parity-roadmap.json` `neverServe[].ruledByName`). `parity-roadmap.json` is rebuilt with them; the tables of this
+  document were written before the ruling, and the JSON is the authority: `objects` sole servable 44 -> 41
+  (unlocks 41, served after 316 of 679, 46.5%), and every later cumulative "served after" count 3 lower.
+- **Never-serve (removed from the ranking):** `fundamentals`, `footprint-ticks` and `other-feeds`, 12
+  distinct scripts (one is in two classes; 9 before the ruling above). `broker` is a feature class (an alert whose message drives a connected brokerage). We simulate
   orders, we never route them, and those scripts stay in the ranking for their chart output.
 - **Data decisions (in scope as data, not engine):** `breadth` (our own breadth data serving USI:
   spellings), `indices` (one spelling at a time behind a capture witness, as SP:SPX), `corporate-events`

@@ -6844,7 +6844,7 @@
     {
      "id": "plot_1",
      "title": "Impulse Up",
-     "ours": "out8",
+     "ours": "value",
      "rule": "M1-title",
      "verdict": "MATCH",
      "reason": "632 steady-state bars agree",
@@ -6892,7 +6892,7 @@
     {
      "id": "plot_2",
      "title": "Impulse Down",
-     "ours": "out9",
+     "ours": "out2",
      "rule": "M1-title",
      "verdict": "MATCH",
      "reason": "632 steady-state bars agree",
@@ -6940,7 +6940,7 @@
     {
      "id": "plot_4",
      "title": "RSI Mid Line Support",
-     "ours": "out10",
+     "ours": "out3",
      "rule": "M1-title",
      "verdict": "MATCH",
      "reason": "632 steady-state bars agree",
@@ -6988,7 +6988,7 @@
     {
      "id": "plot_5",
      "title": "RSI Mid Line Resistance",
-     "ours": "out11",
+     "ours": "out4",
      "rule": "M1-title",
      "verdict": "MATCH",
      "reason": "632 steady-state bars agree",
@@ -7036,7 +7036,7 @@
     {
      "id": "plot_6",
      "title": "RSI Overbought",
-     "ours": "value",
+     "ours": "out5",
      "rule": "M1-title",
      "verdict": "MATCH",
      "reason": "632 steady-state bars agree",
@@ -7084,7 +7084,7 @@
     {
      "id": "plot_7",
      "title": "RSI Oversold",
-     "ours": "out2",
+     "ours": "out6",
      "rule": "M1-title",
      "verdict": "MATCH",
      "reason": "632 steady-state bars agree",
@@ -7132,7 +7132,7 @@
     {
      "id": "plot_9",
      "title": "Ran Previous High",
-     "ours": "out12",
+     "ours": "out7",
      "rule": "M1-title",
      "verdict": "MATCH",
      "reason": "632 steady-state bars agree",
@@ -7180,7 +7180,7 @@
     {
      "id": "plot_10",
      "title": "Ran Previous Low",
-     "ours": "out13",
+     "ours": "out8",
      "rule": "M1-title",
      "verdict": "MATCH",
      "reason": "632 steady-state bars agree",
@@ -7228,7 +7228,7 @@
     {
      "id": "plot_12",
      "title": "Moving Average",
-     "ours": "out3",
+     "ours": "out9",
      "rule": "M1-title",
      "verdict": "MATCH",
      "reason": "632 steady-state bars agree",
@@ -7772,7 +7772,7 @@
     {
      "id": "plot_1",
      "title": "Impulse Up",
-     "ours": "out8",
+     "ours": "value",
      "rule": "M1-title",
      "verdict": "MATCH",
      "reason": "1800 steady-state bars agree",
@@ -7820,7 +7820,7 @@
     {
      "id": "plot_2",
      "title": "Impulse Down",
-     "ours": "out9",
+     "ours": "out2",
      "rule": "M1-title",
      "verdict": "MATCH",
      "reason": "1800 steady-state bars agree",
@@ -7868,7 +7868,7 @@
     {
      "id": "plot_4",
      "title": "RSI Mid Line Support",
-     "ours": "out10",
+     "ours": "out3",
      "rule": "M1-title",
      "verdict": "MATCH",
      "reason": "1800 steady-state bars agree",
@@ -7916,7 +7916,7 @@
     {
      "id": "plot_5",
      "title": "RSI Mid Line Resistance",
-     "ours": "out11",
+     "ours": "out4",
      "rule": "M1-title",
      "verdict": "MATCH",
      "reason": "1800 steady-state bars agree",
@@ -7964,7 +7964,7 @@
     {
      "id": "plot_6",
      "title": "RSI Overbought",
-     "ours": "value",
+     "ours": "out5",
      "rule": "M1-title",
      "verdict": "MATCH",
      "reason": "1800 steady-state bars agree",
@@ -8012,7 +8012,7 @@
     {
      "id": "plot_7",
      "title": "RSI Oversold",
-     "ours": "out2",
+     "ours": "out6",
      "rule": "M1-title",
      "verdict": "MATCH",
      "reason": "1800 steady-state bars agree",
@@ -8060,7 +8060,7 @@
     {
      "id": "plot_9",
      "title": "Ran Previous High",
-     "ours": "out12",
+     "ours": "out7",
      "rule": "M1-title",
      "verdict": "MATCH",
      "reason": "1800 steady-state bars agree",
@@ -8108,7 +8108,7 @@
     {
      "id": "plot_10",
      "title": "Ran Previous Low",
-     "ours": "out13",
+     "ours": "out8",
      "rule": "M1-title",
      "verdict": "MATCH",
      "reason": "1800 steady-state bars agree",
@@ -8156,7 +8156,7 @@
     {
      "id": "plot_12",
      "title": "Moving Average",
-     "ours": "out3",
+     "ours": "out9",
      "rule": "M1-title",
      "verdict": "MATCH",
      "reason": "1800 steady-state bars agree",
@@ -132430,15 +132430,16 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "MATCH",
-    "verdictWithoutColour": "MATCH",
-    "reason": "object counts and texts agree; colours agree on 762 paired slots; coordinates are NOT compared by v1",
+    "verdict": "INCONCLUSIVE",
+    "withheld": "objects:collector",
+    "reason": "our lines are withheld by name (TradingView's object limit may have removed some of them; objects:collector); every other object family's counts and texts agree",
     "counts": [
      {
       "family": "lines",
       "vendor": 504,
-      "ours": 504,
-      "agree": true
+      "ours": null,
+      "agree": null,
+      "withheld": true
      },
      {
       "family": "labels",
@@ -132483,8 +132484,8 @@
      {
       "family": "lines colour",
       "agree": true,
-      "slots": 504,
-      "agreeing": 504,
+      "slots": 364,
+      "agreeing": 364,
       "themeRelative": 0,
       "differing": 0,
       "undecodable": 0,
@@ -132509,117 +132510,54 @@
     ],
     "colourUnpaired": {
      "ours": 0,
-     "vendor": 0
+     "vendor": 140
     }
    },
-   "verdict": "MATCH",
-   "reason": "all 1 items agree",
-   "verdictWithoutColour": "MATCH",
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 1 items could not be compared",
    "ourNotes": [
     "plots/objects: replayed: 6677 bars of prehistory from vw-object-gc-b-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ],
    "objectsV2": {
-    "verdict": "DIVERGE",
-    "verdictWithoutX": "DIVERGE",
-    "v1": "MATCH",
+    "verdict": "INCONCLUSIVE",
+    "verdictWithoutX": "INCONCLUSIVE",
+    "v1": "INCONCLUSIVE",
     "pairedNothing": false,
     "differsOnlyByCreationOrder": false,
-    "reason": "1 object family differs field by field (first: linefills count of linefills held — vendor 500, ours 204); x: 0 graded (0 differ), 1137 not resolvable to a bar (the capture records no x table (taken before U13)); v1: object counts and texts agree; colours agree on 762 paired slots; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
-    "first": {
-     "family": "linefills",
-     "field": "count",
-     "vendor": 500,
-     "ours": 204,
-     "where": "linefills held"
-    },
-    "firstWithoutX": {
-     "family": "linefills",
-     "field": "count",
-     "vendor": 500,
-     "ours": 204,
-     "where": "linefills held"
-    },
+    "reason": "every paired record agrees on 1161 graded fields; x: 0 graded (0 differ), 129 not resolvable to a bar (the capture records no x table (taken before U13)); v1: our lines are withheld by name (TradingView's object limit may have removed some of them; objects:collector); every other object family's counts and texts agree; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
+    "first": null,
+    "firstWithoutX": null,
     "x": {
      "graded": 0,
      "agreeing": 0,
      "differing": 0,
-     "missing": 1137,
+     "missing": 129,
      "missingWhy": {
-      "the capture records no x table (taken before U13)": 1137
+      "the capture records no x table (taken before U13)": 129
      },
      "incompleteFamilies": [
-      "lines",
       "labels"
      ]
     },
     "families": [
      {
       "family": "lines",
-      "paired": 504,
+      "withheld": true,
+      "paired": 0,
       "unpairedVendor": 0,
       "unpairedOurs": 0,
-      "graded": 3024,
-      "agreeing": 3024,
+      "graded": 0,
+      "agreeing": 0,
       "differing": 0,
       "notGraded": 0,
       "undecoded": {},
-      "byField": {
-       "x1": {
-        "agree": 0,
-        "differ": 0,
-        "notGraded": 504
-       },
-       "y1": {
-        "agree": 504,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "x2": {
-        "agree": 0,
-        "differ": 0,
-        "notGraded": 504
-       },
-       "y2": {
-        "agree": 504,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "extend": {
-        "agree": 504,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "style": {
-        "agree": 504,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "width": {
-        "agree": 504,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "color": {
-        "agree": 504,
-        "differ": 0,
-        "notGraded": 0
-       }
-      },
+      "byField": {},
       "first": null,
       "firstWithoutX": null,
       "agree": null,
-      "agreeWithoutX": true,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 1008,
-       "missingWhy": {
-        "the capture records no x table (taken before U13)": 1008
-       },
-       "first": null
-      },
-      "xIncomplete": true,
+      "agreeWithoutX": null,
+      "x": null,
+      "xIncomplete": false,
       "differsOnlyByCreationOrder": false
      },
      {
@@ -132781,43 +132719,21 @@
      },
      {
       "family": "linefills",
-      "paired": 204,
-      "unpairedVendor": 296,
+      "withheld": true,
+      "paired": 0,
+      "unpairedVendor": 0,
       "unpairedOurs": 0,
-      "graded": 204,
-      "agreeing": 204,
+      "graded": 0,
+      "agreeing": 0,
       "differing": 0,
       "notGraded": 0,
       "undecoded": {},
-      "byField": {
-       "color": {
-        "agree": 204,
-        "differ": 0,
-        "notGraded": 0
-       }
-      },
-      "first": {
-       "field": "count",
-       "vendor": 500,
-       "ours": 204,
-       "where": "linefills held"
-      },
-      "firstWithoutX": {
-       "field": "count",
-       "vendor": 500,
-       "ours": 204,
-       "where": "linefills held"
-      },
-      "agree": false,
-      "agreeWithoutX": false,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": null,
       "xIncomplete": false,
       "differsOnlyByCreationOrder": false
      }
@@ -134436,7 +134352,60 @@
    },
    "objects": {
     "verdict": "INCONCLUSIVE",
-    "reason": "our object lane did not run: the run drew nothing"
+    "withheld": "objects:not-carried",
+    "reason": "our lines are withheld by name (objects:not-carried: No line is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 203,
+      "ours": null,
+      "agree": null,
+      "withheld": true
+     },
+     {
+      "family": "labels",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "boxes",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ],
+    "colours": [],
+    "colourUnpaired": {
+     "ours": 0,
+     "vendor": 203
+    }
    },
    "verdict": "INCONCLUSIVE",
    "reason": "1 of 1 items could not be compared",
@@ -134447,10 +134416,165 @@
     "verdict": "INCONCLUSIVE",
     "verdictWithoutX": "INCONCLUSIVE",
     "v1": "INCONCLUSIVE",
-    "pairedNothing": true,
-    "x": null,
-    "reason": "no record was paired; v1: our object lane did not run: the run drew nothing",
-    "families": [],
+    "pairedNothing": false,
+    "differsOnlyByCreationOrder": false,
+    "reason": "no field of a paired record was graded; x: 0 graded, 0 differ (exact bar); v1: our lines are withheld by name (objects:not-carried: No line is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
+    "first": null,
+    "firstWithoutX": null,
+    "x": {
+     "graded": 0,
+     "agreeing": 0,
+     "differing": 0,
+     "missing": 0,
+     "missingWhy": {},
+     "incompleteFamilies": []
+    },
+    "families": [
+     {
+      "family": "lines",
+      "withheld": true,
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": null,
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "labels",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "boxes",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "tables",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "tableCells",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "linefills",
+      "withheld": true,
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": null,
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     }
+    ],
     "ungraded": {
      "lines": [
       "xloc",
@@ -134501,7 +134625,60 @@
    },
    "objects": {
     "verdict": "INCONCLUSIVE",
-    "reason": "our object lane did not run: the run drew nothing"
+    "withheld": "objects:not-carried",
+    "reason": "our lines are withheld by name (objects:not-carried: No line is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 203,
+      "ours": null,
+      "agree": null,
+      "withheld": true
+     },
+     {
+      "family": "labels",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "boxes",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ],
+    "colours": [],
+    "colourUnpaired": {
+     "ours": 0,
+     "vendor": 203
+    }
    },
    "verdict": "INCONCLUSIVE",
    "reason": "1 of 1 items could not be compared",
@@ -134512,10 +134689,165 @@
     "verdict": "INCONCLUSIVE",
     "verdictWithoutX": "INCONCLUSIVE",
     "v1": "INCONCLUSIVE",
-    "pairedNothing": true,
-    "x": null,
-    "reason": "no record was paired; v1: our object lane did not run: the run drew nothing",
-    "families": [],
+    "pairedNothing": false,
+    "differsOnlyByCreationOrder": false,
+    "reason": "no field of a paired record was graded; x: 0 graded, 0 differ (exact bar); v1: our lines are withheld by name (objects:not-carried: No line is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
+    "first": null,
+    "firstWithoutX": null,
+    "x": {
+     "graded": 0,
+     "agreeing": 0,
+     "differing": 0,
+     "missing": 0,
+     "missingWhy": {},
+     "incompleteFamilies": []
+    },
+    "families": [
+     {
+      "family": "lines",
+      "withheld": true,
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": null,
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "labels",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "boxes",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "tables",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "tableCells",
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": {
+       "graded": 0,
+       "agreeing": 0,
+       "differing": 0,
+       "missing": 0,
+       "missingWhy": {},
+       "first": null
+      },
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     },
+     {
+      "family": "linefills",
+      "withheld": true,
+      "paired": 0,
+      "unpairedVendor": 0,
+      "unpairedOurs": 0,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
+      "notGraded": 0,
+      "undecoded": {},
+      "byField": {},
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": null,
+      "x": null,
+      "xIncomplete": false,
+      "differsOnlyByCreationOrder": false
+     }
+    ],
     "ungraded": {
      "lines": [
       "xloc",
@@ -225651,8 +225983,8 @@
    },
    "objects": {
     "verdict": "DIVERGE",
-    "verdictWithoutColour": "MATCH",
-    "reason": "object counts and texts agree; 1 object family differs in COLOUR (first: cell.text_color of cell (0,0) \"743.4\" — vendor #363a45ff, ours #d1d4dcff, notCarried); coordinates are NOT compared by v1",
+    "verdictWithoutColour": "DIVERGE",
+    "reason": "2 object families differ (count or text); colours agree on 1 paired slots; coordinates are NOT compared by v1",
     "counts": [
      {
       "family": "lines",
@@ -225681,8 +226013,8 @@
      {
       "family": "tableCells",
       "vendor": 8,
-      "ours": 8,
-      "agree": true
+      "ours": 0,
+      "agree": false
      }
     ],
     "texts": [
@@ -225694,8 +226026,17 @@
      },
      {
       "family": "tableCells text",
-      "agree": true,
-      "onlyVendor": [],
+      "agree": false,
+      "onlyVendor": [
+       "742.9",
+       "743.4",
+       "749.7",
+       "749.8",
+       "down",
+       "flat",
+       "up",
+       "up"
+      ],
       "onlyOurs": []
      }
     ],
@@ -225712,35 +226053,16 @@
       "undrawnDiffering": 0,
       "first": null,
       "firstUndrawn": null
-     },
-     {
-      "family": "tableCells colour",
-      "agree": false,
-      "slots": 16,
-      "agreeing": 8,
-      "themeRelative": 0,
-      "differing": 8,
-      "undecodable": 0,
-      "undrawn": 0,
-      "undrawnDiffering": 0,
-      "first": {
-       "slot": "cell.text_color",
-       "state": "notCarried",
-       "vendor": "#363a45ff",
-       "ours": "#d1d4dcff",
-       "where": "cell (0,0) \"743.4\""
-      },
-      "firstUndrawn": null
      }
     ],
     "colourUnpaired": {
      "ours": 0,
-     "vendor": 0
+     "vendor": 8
     }
    },
    "verdict": "DIVERGE",
    "reason": "1 of 1 compared items diverge",
-   "verdictWithoutColour": "MATCH",
+   "verdictWithoutColour": "DIVERGE",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
@@ -225750,24 +226072,20 @@
     "v1": "DIVERGE",
     "pairedNothing": false,
     "differsOnlyByCreationOrder": false,
-    "reason": "1 object family differs field by field (first: tableCells text_color of cell (0,0) of table #1 — vendor \"#363a45ff\", ours \"#d1d4dcff\"); x: 0 graded, 0 differ (exact bar); v1: object counts and texts agree; 1 object family differs in COLOUR (first: cell.text_color of cell (0,0) \"743.4\" — vendor #363a45ff, ours #d1d4dcff, notCarried); coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
+    "reason": "1 object family differs field by field (first: tableCells count of tableCells held — vendor 8, ours 0); x: 0 graded, 0 differ (exact bar); v1: 2 object families differ (count or text); colours agree on 1 paired slots; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
     "first": {
      "family": "tableCells",
-     "field": "text_color",
-     "vendor": "#363a45ff",
-     "ours": "#d1d4dcff",
-     "vendorId": 1001,
-     "ourId": "1:0,0",
-     "where": "cell (0,0) of table #1"
+     "field": "count",
+     "vendor": 8,
+     "ours": 0,
+     "where": "tableCells held"
     },
     "firstWithoutX": {
      "family": "tableCells",
-     "field": "text_color",
-     "vendor": "#363a45ff",
-     "ours": "#d1d4dcff",
-     "vendorId": 1001,
-     "ourId": "1:0,0",
-     "where": "cell (0,0) of table #1"
+     "field": "count",
+     "vendor": 8,
+     "ours": 0,
+     "where": "tableCells held"
     },
     "x": {
      "graded": 0,
@@ -225925,71 +226243,26 @@
      },
      {
       "family": "tableCells",
-      "paired": 8,
-      "unpairedVendor": 0,
+      "paired": 0,
+      "unpairedVendor": 8,
       "unpairedOurs": 0,
-      "graded": 64,
-      "agreeing": 56,
-      "differing": 8,
+      "graded": 0,
+      "agreeing": 0,
+      "differing": 0,
       "notGraded": 0,
       "undecoded": {},
-      "byField": {
-       "text": {
-        "agree": 8,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "text_halign": {
-        "agree": 8,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "text_valign": {
-        "agree": 8,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "text_size": {
-        "agree": 8,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "tooltip": {
-        "agree": 8,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "text_font_family": {
-        "agree": 8,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "text_color": {
-        "agree": 0,
-        "differ": 8,
-        "notGraded": 0
-       },
-       "bgcolor": {
-        "agree": 8,
-        "differ": 0,
-        "notGraded": 0
-       }
-      },
+      "byField": {},
       "first": {
-       "field": "text_color",
-       "vendor": "#363a45ff",
-       "ours": "#d1d4dcff",
-       "vendorId": 1001,
-       "ourId": "1:0,0",
-       "where": "cell (0,0) of table #1"
+       "field": "count",
+       "vendor": 8,
+       "ours": 0,
+       "where": "tableCells held"
       },
       "firstWithoutX": {
-       "field": "text_color",
-       "vendor": "#363a45ff",
-       "ours": "#d1d4dcff",
-       "vendorId": 1001,
-       "ourId": "1:0,0",
-       "where": "cell (0,0) of table #1"
+       "field": "count",
+       "vendor": 8,
+       "ours": 0,
+       "where": "tableCells held"
       },
       "agree": false,
       "agreeWithoutX": false,
@@ -226460,48 +226733,8 @@
      "title": "D01_sma3_plot",
      "ours": "value",
      "rule": "M1-title",
-     "verdict": "MATCH",
-     "reason": "666 steady-state bars agree",
-     "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 3,
-     "color": "compared",
-     "stats": {
-      "bars": 666,
-      "compared": 666,
-      "oursUnread": 0,
-      "withheldBars": 0,
-      "withheldVendorValued": 0,
-      "withheldWarmupVendorValued": 0,
-      "floatOrderFloorUsed": 0,
-      "matching": 666,
-      "vendorRowsMissing": 0,
-      "naMismatches": 0,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 314,
-      "colorWithheld": 0,
-      "colorComparable": 314,
-      "valued": 314,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": null,
-      "warmup": {
-       "bars": 0,
-       "compared": 0,
-       "divergent": 0,
-       "first": null
-      },
-      "steady": {
-       "bars": 666,
-       "compared": 666,
-       "divergent": 0,
-       "first": null,
-       "last": null,
-       "pattern": null
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for value (pine:block)"
     },
     {
      "id": "plot_1",
@@ -226560,313 +226793,23 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "MATCH",
-    "verdictWithoutColour": "MATCH",
-    "reason": "object counts and texts agree; colours agree on 628 paired slots; 4 slots on objects neither side draws not graded; coordinates are NOT compared by v1",
-    "counts": [
-     {
-      "family": "lines",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     },
-     {
-      "family": "labels",
-      "vendor": 316,
-      "ours": 316,
-      "agree": true
-     },
-     {
-      "family": "boxes",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     },
-     {
-      "family": "tables",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     },
-     {
-      "family": "tableCells",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     }
-    ],
-    "texts": [
-     {
-      "family": "labels text",
-      "agree": true,
-      "onlyVendor": [],
-      "onlyOurs": []
-     },
-     {
-      "family": "tableCells text",
-      "agree": true,
-      "onlyVendor": [],
-      "onlyOurs": []
-     }
-    ],
-    "colours": [
-     {
-      "family": "labels colour",
-      "agree": true,
-      "slots": 632,
-      "agreeing": 628,
-      "themeRelative": 0,
-      "differing": 0,
-      "undecodable": 0,
-      "undrawn": 4,
-      "undrawnDiffering": 0,
-      "first": null,
-      "firstUndrawn": null
-     }
-    ],
-    "colourUnpaired": {
-     "ours": 0,
-     "vendor": 0
-    }
+    "verdict": "DIVERGE",
+    "withheld": "pine:object-ops-refused",
+    "reason": "TradingView holds 316 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 1 drawing steps (dropped: create:label ×1; pine:block)"
    },
-   "verdict": "MATCH",
-   "reason": "all 3 items agree",
-   "verdictWithoutColour": "MATCH",
+   "verdict": "DIVERGE",
+   "reason": "1 of 3 compared items diverge",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
    "objectsV2": {
-    "verdict": "INCONCLUSIVE",
-    "verdictWithoutX": "MATCH",
-    "v1": "MATCH",
-    "pairedNothing": false,
-    "differsOnlyByCreationOrder": false,
-    "reason": "every paired record agrees on 2828 graded fields; x: 0 graded (0 differ), 316 not resolvable to a bar (the capture records no x table (taken before U13)), so x is not witnessed and this is not a MATCH (G1); v1: object counts and texts agree; colours agree on 628 paired slots; 4 slots on objects neither side draws not graded; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
-    "first": null,
-    "firstWithoutX": null,
-    "x": {
-     "graded": 0,
-     "agreeing": 0,
-     "differing": 0,
-     "missing": 316,
-     "missingWhy": {
-      "the capture records no x table (taken before U13)": 316
-     },
-     "incompleteFamilies": [
-      "labels"
-     ]
-    },
-    "families": [
-     {
-      "family": "lines",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "labels",
-      "paired": 316,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 2828,
-      "agreeing": 2828,
-      "differing": 0,
-      "notGraded": 16,
-      "undecoded": {},
-      "byField": {
-       "x": {
-        "agree": 0,
-        "differ": 0,
-        "notGraded": 316
-       },
-       "y": {
-        "agree": 316,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "yloc": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "text": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "style": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "size": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "textalign": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "tooltip": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "color": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "textcolor": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       }
-      },
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": true,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 316,
-       "missingWhy": {
-        "the capture records no x table (taken before U13)": 316
-       },
-       "first": null
-      },
-      "xIncomplete": true,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "boxes",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "tables",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "tableCells",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "linefills",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     }
-    ],
+    "verdict": "DIVERGE",
+    "verdictWithoutX": "DIVERGE",
+    "v1": "DIVERGE",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: TradingView holds 316 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 1 drawing steps (dropped: create:label ×1; pine:block)",
+    "families": [],
     "ungraded": {
      "lines": [
       "xloc",
@@ -226911,48 +226854,8 @@
      "title": "D01_sma3_plot",
      "ours": "value",
      "rule": "M1-title",
-     "verdict": "MATCH",
-     "reason": "8507 steady-state bars agree",
-     "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 3,
-     "color": "compared",
-     "stats": {
-      "bars": 8507,
-      "compared": 8507,
-      "oursUnread": 0,
-      "withheldBars": 0,
-      "withheldVendorValued": 0,
-      "withheldWarmupVendorValued": 0,
-      "floatOrderFloorUsed": 0,
-      "matching": 8507,
-      "vendorRowsMissing": 0,
-      "naMismatches": 0,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 4459,
-      "colorWithheld": 0,
-      "colorComparable": 4459,
-      "valued": 4459,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": null,
-      "warmup": {
-       "bars": 0,
-       "compared": 0,
-       "divergent": 0,
-       "first": null
-      },
-      "steady": {
-       "bars": 8507,
-       "compared": 8507,
-       "divergent": 0,
-       "first": null,
-       "last": null,
-       "pattern": null
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for value (pine:block)"
     },
     {
      "id": "plot_1",
@@ -227011,313 +226914,23 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "MATCH",
-    "verdictWithoutColour": "MATCH",
-    "reason": "object counts and texts agree; colours agree on 1002 paired slots; coordinates are NOT compared by v1",
-    "counts": [
-     {
-      "family": "lines",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     },
-     {
-      "family": "labels",
-      "vendor": 501,
-      "ours": 501,
-      "agree": true
-     },
-     {
-      "family": "boxes",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     },
-     {
-      "family": "tables",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     },
-     {
-      "family": "tableCells",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     }
-    ],
-    "texts": [
-     {
-      "family": "labels text",
-      "agree": true,
-      "onlyVendor": [],
-      "onlyOurs": []
-     },
-     {
-      "family": "tableCells text",
-      "agree": true,
-      "onlyVendor": [],
-      "onlyOurs": []
-     }
-    ],
-    "colours": [
-     {
-      "family": "labels colour",
-      "agree": true,
-      "slots": 1002,
-      "agreeing": 1002,
-      "themeRelative": 0,
-      "differing": 0,
-      "undecodable": 0,
-      "undrawn": 0,
-      "undrawnDiffering": 0,
-      "first": null,
-      "firstUndrawn": null
-     }
-    ],
-    "colourUnpaired": {
-     "ours": 0,
-     "vendor": 0
-    }
+    "verdict": "DIVERGE",
+    "withheld": "pine:object-ops-refused",
+    "reason": "TradingView holds 501 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 1 drawing steps (dropped: create:label ×1; pine:block)"
    },
-   "verdict": "MATCH",
-   "reason": "all 3 items agree",
-   "verdictWithoutColour": "MATCH",
+   "verdict": "DIVERGE",
+   "reason": "1 of 3 compared items diverge",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
    "objectsV2": {
-    "verdict": "INCONCLUSIVE",
-    "verdictWithoutX": "MATCH",
-    "v1": "MATCH",
-    "pairedNothing": false,
-    "differsOnlyByCreationOrder": false,
-    "reason": "every paired record agrees on 4509 graded fields; x: 0 graded (0 differ), 501 not resolvable to a bar (the capture records no x table (taken before U13)), so x is not witnessed and this is not a MATCH (G1); v1: object counts and texts agree; colours agree on 1002 paired slots; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
-    "first": null,
-    "firstWithoutX": null,
-    "x": {
-     "graded": 0,
-     "agreeing": 0,
-     "differing": 0,
-     "missing": 501,
-     "missingWhy": {
-      "the capture records no x table (taken before U13)": 501
-     },
-     "incompleteFamilies": [
-      "labels"
-     ]
-    },
-    "families": [
-     {
-      "family": "lines",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "labels",
-      "paired": 501,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 4509,
-      "agreeing": 4509,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {
-       "x": {
-        "agree": 0,
-        "differ": 0,
-        "notGraded": 501
-       },
-       "y": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "yloc": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "text": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "style": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "size": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "textalign": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "tooltip": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "color": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "textcolor": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       }
-      },
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": true,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 501,
-       "missingWhy": {
-        "the capture records no x table (taken before U13)": 501
-       },
-       "first": null
-      },
-      "xIncomplete": true,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "boxes",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "tables",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "tableCells",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "linefills",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     }
-    ],
+    "verdict": "DIVERGE",
+    "verdictWithoutX": "DIVERGE",
+    "v1": "DIVERGE",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: TradingView holds 501 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 1 drawing steps (dropped: create:label ×1; pine:block)",
+    "families": [],
     "ungraded": {
      "lines": [
       "xloc",
@@ -227362,48 +226975,8 @@
      "title": "D02_ema3_plot",
      "ours": "value",
      "rule": "M1-title",
-     "verdict": "MATCH",
-     "reason": "666 steady-state bars agree",
-     "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 3,
-     "color": "compared",
-     "stats": {
-      "bars": 666,
-      "compared": 666,
-      "oursUnread": 0,
-      "withheldBars": 0,
-      "withheldVendorValued": 0,
-      "withheldWarmupVendorValued": 0,
-      "floatOrderFloorUsed": 0,
-      "matching": 666,
-      "vendorRowsMissing": 0,
-      "naMismatches": 0,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 314,
-      "colorWithheld": 0,
-      "colorComparable": 314,
-      "valued": 314,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": null,
-      "warmup": {
-       "bars": 0,
-       "compared": 0,
-       "divergent": 0,
-       "first": null
-      },
-      "steady": {
-       "bars": 666,
-       "compared": 666,
-       "divergent": 0,
-       "first": null,
-       "last": null,
-       "pattern": null
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for value (pine:block)"
     },
     {
      "id": "plot_1",
@@ -227462,313 +227035,23 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "MATCH",
-    "verdictWithoutColour": "MATCH",
-    "reason": "object counts and texts agree; colours agree on 628 paired slots; 4 slots on objects neither side draws not graded; coordinates are NOT compared by v1",
-    "counts": [
-     {
-      "family": "lines",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     },
-     {
-      "family": "labels",
-      "vendor": 316,
-      "ours": 316,
-      "agree": true
-     },
-     {
-      "family": "boxes",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     },
-     {
-      "family": "tables",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     },
-     {
-      "family": "tableCells",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     }
-    ],
-    "texts": [
-     {
-      "family": "labels text",
-      "agree": true,
-      "onlyVendor": [],
-      "onlyOurs": []
-     },
-     {
-      "family": "tableCells text",
-      "agree": true,
-      "onlyVendor": [],
-      "onlyOurs": []
-     }
-    ],
-    "colours": [
-     {
-      "family": "labels colour",
-      "agree": true,
-      "slots": 632,
-      "agreeing": 628,
-      "themeRelative": 0,
-      "differing": 0,
-      "undecodable": 0,
-      "undrawn": 4,
-      "undrawnDiffering": 0,
-      "first": null,
-      "firstUndrawn": null
-     }
-    ],
-    "colourUnpaired": {
-     "ours": 0,
-     "vendor": 0
-    }
+    "verdict": "DIVERGE",
+    "withheld": "pine:object-ops-refused",
+    "reason": "TradingView holds 316 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 1 drawing steps (dropped: create:label ×1; pine:block)"
    },
-   "verdict": "MATCH",
-   "reason": "all 3 items agree",
-   "verdictWithoutColour": "MATCH",
+   "verdict": "DIVERGE",
+   "reason": "1 of 3 compared items diverge",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
    "objectsV2": {
-    "verdict": "INCONCLUSIVE",
-    "verdictWithoutX": "MATCH",
-    "v1": "MATCH",
-    "pairedNothing": false,
-    "differsOnlyByCreationOrder": false,
-    "reason": "every paired record agrees on 2828 graded fields; x: 0 graded (0 differ), 316 not resolvable to a bar (the capture records no x table (taken before U13)), so x is not witnessed and this is not a MATCH (G1); v1: object counts and texts agree; colours agree on 628 paired slots; 4 slots on objects neither side draws not graded; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
-    "first": null,
-    "firstWithoutX": null,
-    "x": {
-     "graded": 0,
-     "agreeing": 0,
-     "differing": 0,
-     "missing": 316,
-     "missingWhy": {
-      "the capture records no x table (taken before U13)": 316
-     },
-     "incompleteFamilies": [
-      "labels"
-     ]
-    },
-    "families": [
-     {
-      "family": "lines",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "labels",
-      "paired": 316,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 2828,
-      "agreeing": 2828,
-      "differing": 0,
-      "notGraded": 16,
-      "undecoded": {},
-      "byField": {
-       "x": {
-        "agree": 0,
-        "differ": 0,
-        "notGraded": 316
-       },
-       "y": {
-        "agree": 316,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "yloc": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "text": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "style": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "size": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "textalign": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "tooltip": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "color": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "textcolor": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       }
-      },
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": true,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 316,
-       "missingWhy": {
-        "the capture records no x table (taken before U13)": 316
-       },
-       "first": null
-      },
-      "xIncomplete": true,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "boxes",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "tables",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "tableCells",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "linefills",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     }
-    ],
+    "verdict": "DIVERGE",
+    "verdictWithoutX": "DIVERGE",
+    "v1": "DIVERGE",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: TradingView holds 316 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 1 drawing steps (dropped: create:label ×1; pine:block)",
+    "families": [],
     "ungraded": {
      "lines": [
       "xloc",
@@ -227813,48 +227096,8 @@
      "title": "D02_ema3_plot",
      "ours": "value",
      "rule": "M1-title",
-     "verdict": "MATCH",
-     "reason": "8507 steady-state bars agree",
-     "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 3,
-     "color": "compared",
-     "stats": {
-      "bars": 8507,
-      "compared": 8507,
-      "oursUnread": 0,
-      "withheldBars": 0,
-      "withheldVendorValued": 0,
-      "withheldWarmupVendorValued": 0,
-      "floatOrderFloorUsed": 0,
-      "matching": 8507,
-      "vendorRowsMissing": 0,
-      "naMismatches": 0,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 4459,
-      "colorWithheld": 0,
-      "colorComparable": 4459,
-      "valued": 4459,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": null,
-      "warmup": {
-       "bars": 0,
-       "compared": 0,
-       "divergent": 0,
-       "first": null
-      },
-      "steady": {
-       "bars": 8507,
-       "compared": 8507,
-       "divergent": 0,
-       "first": null,
-       "last": null,
-       "pattern": null
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for value (pine:block)"
     },
     {
      "id": "plot_1",
@@ -227913,313 +227156,23 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "MATCH",
-    "verdictWithoutColour": "MATCH",
-    "reason": "object counts and texts agree; colours agree on 1002 paired slots; coordinates are NOT compared by v1",
-    "counts": [
-     {
-      "family": "lines",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     },
-     {
-      "family": "labels",
-      "vendor": 501,
-      "ours": 501,
-      "agree": true
-     },
-     {
-      "family": "boxes",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     },
-     {
-      "family": "tables",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     },
-     {
-      "family": "tableCells",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     }
-    ],
-    "texts": [
-     {
-      "family": "labels text",
-      "agree": true,
-      "onlyVendor": [],
-      "onlyOurs": []
-     },
-     {
-      "family": "tableCells text",
-      "agree": true,
-      "onlyVendor": [],
-      "onlyOurs": []
-     }
-    ],
-    "colours": [
-     {
-      "family": "labels colour",
-      "agree": true,
-      "slots": 1002,
-      "agreeing": 1002,
-      "themeRelative": 0,
-      "differing": 0,
-      "undecodable": 0,
-      "undrawn": 0,
-      "undrawnDiffering": 0,
-      "first": null,
-      "firstUndrawn": null
-     }
-    ],
-    "colourUnpaired": {
-     "ours": 0,
-     "vendor": 0
-    }
+    "verdict": "DIVERGE",
+    "withheld": "pine:object-ops-refused",
+    "reason": "TradingView holds 501 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 1 drawing steps (dropped: create:label ×1; pine:block)"
    },
-   "verdict": "MATCH",
-   "reason": "all 3 items agree",
-   "verdictWithoutColour": "MATCH",
+   "verdict": "DIVERGE",
+   "reason": "1 of 3 compared items diverge",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
    "objectsV2": {
-    "verdict": "INCONCLUSIVE",
-    "verdictWithoutX": "MATCH",
-    "v1": "MATCH",
-    "pairedNothing": false,
-    "differsOnlyByCreationOrder": false,
-    "reason": "every paired record agrees on 4509 graded fields; x: 0 graded (0 differ), 501 not resolvable to a bar (the capture records no x table (taken before U13)), so x is not witnessed and this is not a MATCH (G1); v1: object counts and texts agree; colours agree on 1002 paired slots; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
-    "first": null,
-    "firstWithoutX": null,
-    "x": {
-     "graded": 0,
-     "agreeing": 0,
-     "differing": 0,
-     "missing": 501,
-     "missingWhy": {
-      "the capture records no x table (taken before U13)": 501
-     },
-     "incompleteFamilies": [
-      "labels"
-     ]
-    },
-    "families": [
-     {
-      "family": "lines",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "labels",
-      "paired": 501,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 4509,
-      "agreeing": 4509,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {
-       "x": {
-        "agree": 0,
-        "differ": 0,
-        "notGraded": 501
-       },
-       "y": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "yloc": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "text": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "style": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "size": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "textalign": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "tooltip": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "color": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "textcolor": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       }
-      },
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": true,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 501,
-       "missingWhy": {
-        "the capture records no x table (taken before U13)": 501
-       },
-       "first": null
-      },
-      "xIncomplete": true,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "boxes",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "tables",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "tableCells",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "linefills",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     }
-    ],
+    "verdict": "DIVERGE",
+    "verdictWithoutX": "DIVERGE",
+    "v1": "DIVERGE",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: TradingView holds 501 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 1 drawing steps (dropped: create:label ×1; pine:block)",
+    "families": [],
     "ungraded": {
      "lines": [
       "xloc",
@@ -228264,48 +227217,8 @@
      "title": "D03_rma3_plot",
      "ours": "value",
      "rule": "M1-title",
-     "verdict": "MATCH",
-     "reason": "666 steady-state bars agree",
-     "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 3,
-     "color": "compared",
-     "stats": {
-      "bars": 666,
-      "compared": 666,
-      "oursUnread": 0,
-      "withheldBars": 0,
-      "withheldVendorValued": 0,
-      "withheldWarmupVendorValued": 0,
-      "floatOrderFloorUsed": 0,
-      "matching": 666,
-      "vendorRowsMissing": 0,
-      "naMismatches": 0,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 314,
-      "colorWithheld": 0,
-      "colorComparable": 314,
-      "valued": 314,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": null,
-      "warmup": {
-       "bars": 0,
-       "compared": 0,
-       "divergent": 0,
-       "first": null
-      },
-      "steady": {
-       "bars": 666,
-       "compared": 666,
-       "divergent": 0,
-       "first": null,
-       "last": null,
-       "pattern": null
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for value (pine:block)"
     },
     {
      "id": "plot_1",
@@ -228364,313 +227277,23 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "MATCH",
-    "verdictWithoutColour": "MATCH",
-    "reason": "object counts and texts agree; colours agree on 628 paired slots; 4 slots on objects neither side draws not graded; coordinates are NOT compared by v1",
-    "counts": [
-     {
-      "family": "lines",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     },
-     {
-      "family": "labels",
-      "vendor": 316,
-      "ours": 316,
-      "agree": true
-     },
-     {
-      "family": "boxes",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     },
-     {
-      "family": "tables",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     },
-     {
-      "family": "tableCells",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     }
-    ],
-    "texts": [
-     {
-      "family": "labels text",
-      "agree": true,
-      "onlyVendor": [],
-      "onlyOurs": []
-     },
-     {
-      "family": "tableCells text",
-      "agree": true,
-      "onlyVendor": [],
-      "onlyOurs": []
-     }
-    ],
-    "colours": [
-     {
-      "family": "labels colour",
-      "agree": true,
-      "slots": 632,
-      "agreeing": 628,
-      "themeRelative": 0,
-      "differing": 0,
-      "undecodable": 0,
-      "undrawn": 4,
-      "undrawnDiffering": 0,
-      "first": null,
-      "firstUndrawn": null
-     }
-    ],
-    "colourUnpaired": {
-     "ours": 0,
-     "vendor": 0
-    }
+    "verdict": "DIVERGE",
+    "withheld": "pine:object-ops-refused",
+    "reason": "TradingView holds 316 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 1 drawing steps (dropped: create:label ×1; pine:block)"
    },
-   "verdict": "MATCH",
-   "reason": "all 3 items agree",
-   "verdictWithoutColour": "MATCH",
+   "verdict": "DIVERGE",
+   "reason": "1 of 3 compared items diverge",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
    "objectsV2": {
-    "verdict": "INCONCLUSIVE",
-    "verdictWithoutX": "MATCH",
-    "v1": "MATCH",
-    "pairedNothing": false,
-    "differsOnlyByCreationOrder": false,
-    "reason": "every paired record agrees on 2828 graded fields; x: 0 graded (0 differ), 316 not resolvable to a bar (the capture records no x table (taken before U13)), so x is not witnessed and this is not a MATCH (G1); v1: object counts and texts agree; colours agree on 628 paired slots; 4 slots on objects neither side draws not graded; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
-    "first": null,
-    "firstWithoutX": null,
-    "x": {
-     "graded": 0,
-     "agreeing": 0,
-     "differing": 0,
-     "missing": 316,
-     "missingWhy": {
-      "the capture records no x table (taken before U13)": 316
-     },
-     "incompleteFamilies": [
-      "labels"
-     ]
-    },
-    "families": [
-     {
-      "family": "lines",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "labels",
-      "paired": 316,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 2828,
-      "agreeing": 2828,
-      "differing": 0,
-      "notGraded": 16,
-      "undecoded": {},
-      "byField": {
-       "x": {
-        "agree": 0,
-        "differ": 0,
-        "notGraded": 316
-       },
-       "y": {
-        "agree": 316,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "yloc": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "text": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "style": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "size": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "textalign": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "tooltip": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "color": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       },
-       "textcolor": {
-        "agree": 314,
-        "differ": 0,
-        "notGraded": 2
-       }
-      },
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": true,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 316,
-       "missingWhy": {
-        "the capture records no x table (taken before U13)": 316
-       },
-       "first": null
-      },
-      "xIncomplete": true,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "boxes",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "tables",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "tableCells",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "linefills",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     }
-    ],
+    "verdict": "DIVERGE",
+    "verdictWithoutX": "DIVERGE",
+    "v1": "DIVERGE",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: TradingView holds 316 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 1 drawing steps (dropped: create:label ×1; pine:block)",
+    "families": [],
     "ungraded": {
      "lines": [
       "xloc",
@@ -228715,48 +227338,8 @@
      "title": "D03_rma3_plot",
      "ours": "value",
      "rule": "M1-title",
-     "verdict": "MATCH",
-     "reason": "8507 steady-state bars agree",
-     "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
-     "derivedLookback": 3,
-     "color": "compared",
-     "stats": {
-      "bars": 8507,
-      "compared": 8507,
-      "oursUnread": 0,
-      "withheldBars": 0,
-      "withheldVendorValued": 0,
-      "withheldWarmupVendorValued": 0,
-      "floatOrderFloorUsed": 0,
-      "matching": 8507,
-      "vendorRowsMissing": 0,
-      "naMismatches": 0,
-      "valueMismatches": 0,
-      "colorMismatches": 0,
-      "colorCompared": 4459,
-      "colorWithheld": 0,
-      "colorComparable": 4459,
-      "valued": 4459,
-      "maxAbs": 0,
-      "maxRel": 0,
-      "firstDivergence": null,
-      "warmup": {
-       "bars": 0,
-       "compared": 0,
-       "divergent": 0,
-       "first": null
-      },
-      "steady": {
-       "bars": 8507,
-       "compared": 8507,
-       "divergent": 0,
-       "first": null,
-       "last": null,
-       "pattern": null
-      },
-      "vendorRowGapsAfterStart": 0
-     }
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — computeFor returned no column for value (pine:block)"
     },
     {
      "id": "plot_1",
@@ -228815,313 +227398,23 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "MATCH",
-    "verdictWithoutColour": "MATCH",
-    "reason": "object counts and texts agree; colours agree on 1002 paired slots; coordinates are NOT compared by v1",
-    "counts": [
-     {
-      "family": "lines",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     },
-     {
-      "family": "labels",
-      "vendor": 501,
-      "ours": 501,
-      "agree": true
-     },
-     {
-      "family": "boxes",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     },
-     {
-      "family": "tables",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     },
-     {
-      "family": "tableCells",
-      "vendor": 0,
-      "ours": 0,
-      "agree": true
-     }
-    ],
-    "texts": [
-     {
-      "family": "labels text",
-      "agree": true,
-      "onlyVendor": [],
-      "onlyOurs": []
-     },
-     {
-      "family": "tableCells text",
-      "agree": true,
-      "onlyVendor": [],
-      "onlyOurs": []
-     }
-    ],
-    "colours": [
-     {
-      "family": "labels colour",
-      "agree": true,
-      "slots": 1002,
-      "agreeing": 1002,
-      "themeRelative": 0,
-      "differing": 0,
-      "undecodable": 0,
-      "undrawn": 0,
-      "undrawnDiffering": 0,
-      "first": null,
-      "firstUndrawn": null
-     }
-    ],
-    "colourUnpaired": {
-     "ours": 0,
-     "vendor": 0
-    }
+    "verdict": "DIVERGE",
+    "withheld": "pine:object-ops-refused",
+    "reason": "TradingView holds 501 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 1 drawing steps (dropped: create:label ×1; pine:block)"
    },
-   "verdict": "MATCH",
-   "reason": "all 3 items agree",
-   "verdictWithoutColour": "MATCH",
+   "verdict": "DIVERGE",
+   "reason": "1 of 3 compared items diverge",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
    "objectsV2": {
-    "verdict": "INCONCLUSIVE",
-    "verdictWithoutX": "MATCH",
-    "v1": "MATCH",
-    "pairedNothing": false,
-    "differsOnlyByCreationOrder": false,
-    "reason": "every paired record agrees on 4509 graded fields; x: 0 graded (0 differ), 501 not resolvable to a bar (the capture records no x table (taken before U13)), so x is not witnessed and this is not a MATCH (G1); v1: object counts and texts agree; colours agree on 1002 paired slots; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
-    "first": null,
-    "firstWithoutX": null,
-    "x": {
-     "graded": 0,
-     "agreeing": 0,
-     "differing": 0,
-     "missing": 501,
-     "missingWhy": {
-      "the capture records no x table (taken before U13)": 501
-     },
-     "incompleteFamilies": [
-      "labels"
-     ]
-    },
-    "families": [
-     {
-      "family": "lines",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "labels",
-      "paired": 501,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 4509,
-      "agreeing": 4509,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {
-       "x": {
-        "agree": 0,
-        "differ": 0,
-        "notGraded": 501
-       },
-       "y": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "yloc": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "text": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "style": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "size": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "textalign": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "tooltip": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "color": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       },
-       "textcolor": {
-        "agree": 501,
-        "differ": 0,
-        "notGraded": 0
-       }
-      },
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": true,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 501,
-       "missingWhy": {
-        "the capture records no x table (taken before U13)": 501
-       },
-       "first": null
-      },
-      "xIncomplete": true,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "boxes",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "tables",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "tableCells",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     },
-     {
-      "family": "linefills",
-      "paired": 0,
-      "unpairedVendor": 0,
-      "unpairedOurs": 0,
-      "graded": 0,
-      "agreeing": 0,
-      "differing": 0,
-      "notGraded": 0,
-      "undecoded": {},
-      "byField": {},
-      "first": null,
-      "firstWithoutX": null,
-      "agree": null,
-      "agreeWithoutX": null,
-      "x": {
-       "graded": 0,
-       "agreeing": 0,
-       "differing": 0,
-       "missing": 0,
-       "missingWhy": {},
-       "first": null
-      },
-      "xIncomplete": false,
-      "differsOnlyByCreationOrder": false
-     }
-    ],
+    "verdict": "DIVERGE",
+    "verdictWithoutX": "DIVERGE",
+    "v1": "DIVERGE",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: TradingView holds 501 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 1 drawing steps (dropped: create:label ×1; pine:block)",
+    "families": [],
     "ungraded": {
      "lines": [
       "xloc",

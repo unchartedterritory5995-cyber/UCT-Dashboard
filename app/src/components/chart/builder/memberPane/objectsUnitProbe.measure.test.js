@@ -45,7 +45,7 @@ import { runHalfOf, carriesRunHalf, runtimeObjectsOf, runtimeObjectsWithheldOf }
 import { __permitRuntimePaneForTests } from '../../engine/runtimePaneGate'
 import {
   __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList, setRuntimeAllowList, setRuntimeKillList,
-  setRuntimeCapabilityAdmission, latchRuntimeAdmission, __resetRuntimeAdmission,
+  setRuntimeCapabilityAdmission, latchRuntimeAdmission, __resetRuntimeAdmission, runtimeSourceHash,
 } from '../../engine/runtimeKill'
 import { loadCapture } from '../../engine/__tests__/vendorHarness/harness.js'
 import { toProductBars } from '../../engine/__tests__/vendorHarness/ourSide.js'
@@ -95,13 +95,15 @@ function armPane() {
 }
 
 /** PRODUCTION's lists and this source's admission verdict, latched as the page latches them. */
-function productionLists(input, row) {
+function productionLists(input, row, source) {
   __resetRuntimeAllowList()
   __resetRuntimeAdmission()
   setRuntimeKillList(input.killList || [])
   setRuntimeAllowList(input.allowList || [])
   setRuntimeCapabilityAdmission(true)
-  latchRuntimeAdmission(row.hash, row.verdict)
+  // ⚠️ under the hash of the text AS THE DOOR READS IT (a CRLF checkout hashes otherwise than the input's
+  // universal-newline hash; latched under that one, the door found no verdict: the first cut's defect)
+  latchRuntimeAdmission(runtimeSourceHash(source), row.verdict)
 }
 
 function grantLists(input) {
@@ -110,9 +112,9 @@ function grantLists(input) {
   __allowEveryRuntimeScriptForTests()
 }
 
-function doorOf(source, routeDirty) {
+function doorOf(source) {
   let d
-  try { d = memberPaneDefinition({ source, id: DEF_ID, name: 'objects probe', routeDirty }) } catch (err) {
+  try { d = memberPaneDefinition({ source, id: DEF_ID, name: 'objects probe' }) } catch (err) {
     return { d: null, row: { threw: short((err && err.message) || err) } }
   }
   const t = d.translation || {}
@@ -139,16 +141,14 @@ function doorOf(source, routeDirty) {
       runHalf: d.runHalf ? 'minted' : null,
       runHalfDeclined: d.runHalfDeclined ? { code: d.runHalfDeclined.code, why: short(d.runHalfDeclined.why) } : null,
       costRoute: d.costRoute ? { moved: !!d.costRoute.moved, code: d.costRoute.code || null } : null,
-      dirtyRoute: d.dirtyRoute ? { moved: !!d.dirtyRoute.moved, lost: d.dirtyRoute.lost || null,
-        code: d.dirtyRoute.code || null, why: short(d.dirtyRoute.why) } : null,
       ownObjects: !!(d.definition && d.definition.compute && d.definition.compute.objects === true),
     },
   }
 }
 
-/** One bind of a minted run half on the reference bars: the binder's own call. */
-/** One bind of the door's document on the reference bars, the binder's own call: a run half's state, or
- *  a runtime document's column errors and the drawings its run kept (counts by family) or withheld. */
+/** One bind of the door's document on the reference bars, the binder's own call: a run half's state (and,
+ *  served, the drawings it draws, counts by family), or a runtime document's column errors and the drawings
+ *  its run kept (counts by family) or withheld. */
 function bindRunHalf(d) {
   const runtimeDoc = !!(d && d.ok && d.definition && d.definition.compute && d.definition.compute.kind === 'runtime')
   if (!d || !d.ok || !(carriesRunHalf(d.definition) || runtimeDoc)) return null
@@ -166,7 +166,12 @@ function bindRunHalf(d) {
         objectsWithheld: runtimeObjectsWithheldOf(cols), withheldFamilies: objs && objs.withheld ? Object.keys(objs.withheld) : [] }
     }
     const half = runHalfOf(cols)
-    return half ? { state: half.state, code: half.code || null, why: short(half.why || half.reason || null) } : { state: null }
+    if (!half) return { state: null }
+    const objs = half.state === 'served' ? runtimeObjectsOf(cols) : null
+    const fam = {}
+    for (const o of (objs && objs.live) || []) fam[o.family] = (fam[o.family] || 0) + 1
+    return { state: half.state, code: half.code || null, why: short(half.why || half.reason || null),
+      ...(objs ? { objects: fam } : {}) }
   } catch (err) {
     return { threw: short((err && err.message) || err) }
   } finally {
@@ -199,21 +204,19 @@ describe.skipIf(!RUN)('objects unit: the runtime lane asked of the attached-dirt
     const out = []
     for (const row of input.rows) {
       const source = fs.readFileSync(row.path, 'utf8')
-      const lane = (lists, routeDirty) => {
+      const lane = (lists) => {
         armPane()
         lists()
-        const a = doorOf(source, routeDirty)
+        const a = doorOf(source)
         const bind = bindRunHalf(a.d)
         vi.unstubAllEnvs()
         return { ...a.row, bind }
       }
       out.push({ key: row.key, unit: row.unit, hash: row.hash, admitted: row.verdict.admitted, missing: row.missing,
-        // the door as master answers it (the dirty route off), production's lists and the grant
-        prod: lane(() => productionLists(input, row), false),
-        grant: lane(() => grantLists(input), false),
-        // the door with the dirty route (PARITY UNIT 1), the same two list states
-        prodRoute: lane(() => productionLists(input, row), true),
-        grantRoute: lane(() => grantLists(input), true),
+        // the door (unchanged by this unit) and its run half bound by the rail of the tree it runs on (the
+        // lost-drawings rule, or master's for the BEFORE column), production's lists and the grant
+        prod: lane(() => productionLists(input, row, source)),
+        grant: lane(() => grantLists(input)),
         build: buildOf(source) })
     }
     fs.writeFileSync(OUT, JSON.stringify({ engineFile: 'scriptEngineVersion.js', rows: out }, null, 1))

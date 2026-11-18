@@ -3,24 +3,24 @@
   "capture": {
    "scripts": 867,
    "admitted": 442,
-   "runtimeLane": 82,
-   "hostLane": 234,
+   "runtimeLane": 72,
+   "hostLane": 244,
    "refused": 126,
    "coreOnly": 44
   },
   "committed": {
    "scripts": 266,
    "admitted": 100,
-   "runtimeLane": 27,
-   "hostLane": 45,
+   "runtimeLane": 25,
+   "hostLane": 47,
    "refused": 28,
    "coreOnly": 4
   },
   "reference": {
    "scripts": 271,
    "admitted": 154,
-   "runtimeLane": 26,
-   "hostLane": 88,
+   "runtimeLane": 23,
+   "hostLane": 91,
    "refused": 40,
    "coreOnly": 7
   },
@@ -108,7 +108,7 @@
   },
   {
    "capture": "atr-support-and-resistance-rddt-1d-2026-09-28",
-   "lane": "runtime",
+   "lane": "host",
    "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -126,7 +126,7 @@
   },
   {
    "capture": "atr-support-and-resistance-spy-1d-2026-10-03",
-   "lane": "runtime",
+   "lane": "host",
    "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -3176,7 +3176,7 @@
   },
   {
    "capture": "volume-profile-rddt-1d-2026-09-28",
-   "lane": "runtime",
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -3202,7 +3202,7 @@
   },
   {
    "capture": "volume-profile-spy-1d-2026-10-03",
-   "lane": "runtime",
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -5628,8 +5628,8 @@
   },
   {
    "capture": "vw-w3n-draw-block-history-a-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
    "production": "DIVERGE",
    "caps": [
     "conditional-ta",
@@ -5641,8 +5641,8 @@
   },
   {
    "capture": "vw-w3n-draw-block-history-a-spy-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
    "production": "DIVERGE",
    "caps": [
     "conditional-ta",
@@ -5654,8 +5654,8 @@
   },
   {
    "capture": "vw-w3n-draw-block-history-b-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
    "production": "DIVERGE",
    "caps": [
     "conditional-ta",
@@ -5667,8 +5667,8 @@
   },
   {
    "capture": "vw-w3n-draw-block-history-b-spy-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
    "production": "DIVERGE",
    "caps": [
     "conditional-ta",
@@ -5680,8 +5680,8 @@
   },
   {
    "capture": "vw-w3n-draw-block-history-c-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
    "production": "DIVERGE",
    "caps": [
     "conditional-ta",
@@ -5693,8 +5693,8 @@
   },
   {
    "capture": "vw-w3n-draw-block-history-c-spy-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
    "production": "DIVERGE",
    "caps": [
     "conditional-ta",
@@ -6605,7 +6605,7 @@
   },
   {
    "key": "reference:auto-trendlines-by-pivots-perfect-non-repainting-lines-spyqqq-daily-pr__8b82863b79",
-   "lane": "runtime",
+   "lane": "host",
    "guard": null,
    "declined": null,
    "caps": [
@@ -7153,7 +7153,7 @@
   },
   {
    "key": "reference:fourier-extrapolator-of-price-w-projection-forecast-loxx__5c7061572f",
-   "lane": "runtime",
+   "lane": "host",
    "guard": null,
    "declined": null,
    "caps": [
@@ -7445,7 +7445,7 @@
   },
   {
    "key": "reference:liquidity-heatmap-swiftedge__8291fe0662",
-   "lane": "runtime",
+   "lane": "host",
    "guard": null,
    "declined": null,
    "caps": [
@@ -9869,6 +9869,84 @@
     "udt",
     "var",
     "while"
+   ]
+  },
+  {
+   "capture": "vw-w3n-draw-block-history-a-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "conditional-ta",
+    "core",
+    "if-block",
+    "obj:label",
+    "reassign"
+   ]
+  },
+  {
+   "capture": "vw-w3n-draw-block-history-a-spy-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "conditional-ta",
+    "core",
+    "if-block",
+    "obj:label",
+    "reassign"
+   ]
+  },
+  {
+   "capture": "vw-w3n-draw-block-history-b-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "conditional-ta",
+    "core",
+    "if-block",
+    "obj:label",
+    "reassign"
+   ]
+  },
+  {
+   "capture": "vw-w3n-draw-block-history-b-spy-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "conditional-ta",
+    "core",
+    "if-block",
+    "obj:label",
+    "reassign"
+   ]
+  },
+  {
+   "capture": "vw-w3n-draw-block-history-c-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "conditional-ta",
+    "core",
+    "if-block",
+    "obj:label",
+    "reassign"
+   ]
+  },
+  {
+   "capture": "vw-w3n-draw-block-history-c-spy-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "DIVERGE",
+   "production": "DIVERGE",
+   "caps": [
+    "conditional-ta",
+    "core",
+    "if-block",
+    "obj:label",
+    "reassign"
    ]
   },
   {
