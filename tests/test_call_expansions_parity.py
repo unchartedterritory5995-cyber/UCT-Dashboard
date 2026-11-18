@@ -45,7 +45,10 @@ CASES = [
     # (2026-10-30) Parabolic SAR over accum4, inside its measured domain
     ("sar", [n(0.02), n(0.2)]), ("sar", [n(0.03), n(0.3)]), ("sar", [n(0.02), n(1)]),
     ("sarDirection", [n(0.02), n(0.2)]), ("sarDirection", [n(0.1), n(0.5)]),
+    # (2026-11-18) the Fisher Transform over accum2, at the two lengths it was graded at and two more
+    ("fisher", [n(9)]), ("fisher", [n(20)]), ("fisher", [n(2)]), ("fisher", [n(10.0)]),
     # declined (null) in both lanes
+    ("fisher", [n(1)]), ("fisher", [n(9.5)]), ("fisher", [{"type": "series", "name": "len"}]),
     ("linreg", [CLOSE, n(1)]), ("linreg", [CLOSE, {"type": "series", "name": "len"}]),
     ("vwma", [CLOSE, n(2.5)]), ("correlation", [CLOSE, SPY, n(1)]), ("roc", [CLOSE, n(0)]),
     ("bbUpper", [CLOSE, n(20.5), n(2)]),
@@ -68,7 +71,7 @@ def test_the_two_lanes_build_byte_identical_trees():
     server = [ce.expand_call({"type": "call", "name": name, "args": args}) for name, args in CASES]
     assert json.dumps(server, sort_keys=True) == json.dumps(browser, sort_keys=True)
     # 9 -> 14 (2026-10-30): five SAR settings outside the measured domain.
-    assert sum(1 for t in server if t is None) == 15    # the declined cases are declined in both
+    assert sum(1 for t in server if t is None) == 18    # the declined cases are declined in both (15, and fisher's 3)
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not on PATH")
@@ -78,6 +81,27 @@ def test_the_two_lanes_name_the_same_functions_and_signatures():
     res = subprocess.run(["node", "--input-type=module", "-e", script], capture_output=True, text=True, timeout=60)
     assert res.returncode == 0, res.stderr
     assert json.loads(res.stdout) == [[k, v[0], v[1], v[2]] for k, v in ce.CALL_EXPANSIONS.items()]
+
+
+def test_the_fisher_transform_is_exactly_the_tree_that_was_graded():
+    """The grade is the grade of ONE tree (`tests/fixtures/ast/fisher_graded.json` says what it was
+    graded against). The server's builder must produce that tree, to the hash, at both graded
+    lengths; the window's builder is held to the same file by `callExpansions.test.js`, and to this
+    one byte for byte by the parity test above."""
+    import io as _io
+    from api.services import user_definitions as ud
+    doc = json.loads(_io.open(Path(__file__).parent / "fixtures" / "ast" / "fisher_graded.json", encoding="utf-8").read())
+    assert set(doc["graded"]) == {"9", "20"}
+    for length, graded in doc["graded"].items():
+        tree = ce.expand_call({"type": "call", "name": "fisher", "args": [n(int(length))]})
+        assert ud.ast_hash(tree) == graded, length
+    # CONTROL: the hash sees one number moved anywhere (another length, another window)
+    assert ud.ast_hash(ce.expand_call({"type": "call", "name": "fisher", "args": [n(10)]})) not in doc["graded"].values()
+    assert ud.ast_hash(ce.fisher_tree(n(9), warmup=299)) != doc["graded"]["9"]
+    # what it is: two linked running values restarted FISHER_WARMUP bars back, the second one drawn
+    tree = ce.expand_call({"type": "call", "name": "fisher", "args": [n(9)]})
+    assert tree["name"] == "accum2" and [a.get("value") for a in tree["args"][:4]] == [2, ce.FISHER_WARMUP, 0, 0]
+    assert ce.FISHER_WARMUP == 300
 
 
 def test_supertrend_reads_its_own_past_through_the_manifests_binding():

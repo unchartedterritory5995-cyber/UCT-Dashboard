@@ -490,3 +490,41 @@ with the volume test reversed, so it is entered the same way.
 
 A day of equal volume leaves it unchanged (volume must be strictly above the bar before, as the capture confirms). The name is no longer in the list of names UCT withholds. With the capture it stands on all three tiers.
 
+## Fisher Transform: offered as a function, on a capture
+
+The 32nd entry, and the first whose formula is several LINKED running values that are
+path-dependent by their shape. (It is listed further up among the names UCT withholds: it left
+that list by being checked, as a name does.)
+
+| | |
+|---|---|
+| Formula | `fisher(length)`, and the trigger line `fisher(length)[1]`. The function stands for the whole recurrence (`callExpansions.js::fisherTree`, mirrored on the server): x = where the bar's midpoint (hl2) sits in its range over `length` bars; value = 0.66 x (x - 0.5) + 0.67 x the previous value, then SNAPPED (above 0.99 it becomes 0.999, below -0.99 it becomes -0.999); fisher = 0.5 x ln((1 + value) / (1 - value)) + 0.5 x the previous fisher |
+| Published definition (tier b) | Tulip Indicators' page and its source (LGPL v3), read 2026-11-18, citing Ehlers (Stocks & Commodities V.20:11). The page gives the smoothing and the log; the snap is in the source only. TradingView's help page gives only the transform. Another vendor publishes a different form under the same name (0.5 and 0.5 smoothing, a quarter of the log, a 0.9999 cap): this entry is TradingView's |
+| Value check (tier a) | `tests/test_named_indicators_values.py::fisher_transform`: the recursion written bar by bar, restarted 300 bars back as the engine holds it, against the entry on every settled bar at two lengths; and the restarted value against the same recursion carried from the first bar (equal to the last digit; a restart of 6 bars is not) |
+| Capture against TradingView's built-in | EQUAL AFTER WARM-UP (run studio-builtins-2026-11-18: SPY daily from its listing, 8,509 bars, lengths 9 and 20). Both lines are equal on every bar this entry has a value for: 8,209 of 8,209 at each length, the largest relative difference 3 parts in 10 quadrillion. The trigger is the Fisher line one bar earlier on every bar |
+
+**Why it is a function and not a written-out formula.** The formula language cannot name an
+intermediate result, so the snap writes the smoothed value three times and the Fisher line needs it
+twice more on the same bar: 401 nodes a line. Written out, the assistant could not produce it (its
+answer has a length limit), the view sent with a follow-up request was 49 KB against the 32 KB a
+request may carry, and its one length sat in 54 places. As `fisher(9)` it is one node with one
+number, as SuperTrend and Parabolic SAR are.
+
+**Why it is offered at all.** The value it feeds back is snapped by a choice on its own value, so by
+its shape nothing proves that where it started stops mattering, and Create Indicator refuses that
+shape when it is written out by hand (ruling 2026-11-18: several linked running values are built
+from a member's words only when they provably settle). This one is offered on evidence instead, per
+indicator: the capture above shows the 300-bar restart equal to TradingView's own carried values on
+every bar it has one.
+
+**The grade is the grade of one tree.** `tests/fixtures/ast/fisher_graded.json` holds the hash of
+the formula tree that was graded at each length. Both builders (the window's and the server's) are
+held to it and to each other byte for byte, so the code cannot drift from what was graded. A change
+that moves a hash is a new formula and needs a new grade.
+
+**What it costs.** It is recomputed from 300 bars back on every bar, so the first 300 bars of a
+chart's history have no value, where TradingView's has one from the first full range. With 300 bars
+of restart a length past 659 reaches further back than any formula may, and is refused for that.
+
+No Pine name was added: Pine has no `ta.fisher`, and the translator has no entry for this function.
+

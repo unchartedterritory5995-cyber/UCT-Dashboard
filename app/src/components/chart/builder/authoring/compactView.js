@@ -86,8 +86,11 @@ function outputView(def, o, scope, gateCtx, chartVerdict, primary, helpers) {
     // values listed every coefficient of every repeat (measured: 192 slots and 21 KB for one line,
     // 49 KB for the indicator against the 32 KB a request may carry, so NO further request on that
     // indicator could be sent at all).
+    // ⛔ ASKED OF THE COLLAPSED TREE (`shown`), the one a slot's path is written against. Asked of
+    // the stored expansion, the path of `fisher(9)`'s length (its first argument) lands inside the
+    // linked running values the call stands for, and the one number a member may change was hidden.
     slots: tree ? slotsOfTree(o.key, tree)
-      .filter((s) => { const segs = parsePath(s.path); return !segs || !runningValueOwns(tree, segs) })
+      .filter((s) => { const segs = parsePath(s.path); return !segs || !runningValueOwns(shown, segs) })
       .map(({ id, kind, role, value, label }) => ({ id, kind, role, value, label })) : [],
     clauses: tree ? clausesOfTree(o.key, tree).map(({ id, join, node }) => {
       let s = null
