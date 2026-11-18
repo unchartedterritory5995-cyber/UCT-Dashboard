@@ -219,7 +219,7 @@ def _ty(t) -> str | None:
 
 def _oi_deltas(keys):
     """Return (deltas, d_last, d_prior) from the **Massive/OCC-accurate** isolated
-    table (api/oi_massive_snapshots), NOT the shared Schwab-sourced
+    table (api/oi_massive_snapshots), NOT the shared (then Schwab-sourced)
     contract_oi_snapshots — the latter lags OCC ~a day (verified 2026-08-24: our
     Schwab snap 53,028 vs Massive 74,259 = UW's current, for PFE 27P 9/18; UW ΔOI =
     74,259−53,028 = +21,231 exact). deltas = {contract_key: (prior_oi, last_oi)} over
