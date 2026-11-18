@@ -18,6 +18,7 @@ import {
   normPeriodSide, normPeriodUnit, parsePeriodDate, parsePeriodRange, parsePeriodSide, parsePeriodUnit, periodChangeCommandArgs,
   periodChangeUrl, periodGroupsRead, periodGroupsUrl, periodRead, periodRequest, rangeDates, shiftDay, sideRows, snapNote,
 } from './periodChangeModel'
+import PRESET_CASES from './periodPresets.fixture.json'
 
 const TODAY = '2026-11-17'
 const OK = {
@@ -102,6 +103,14 @@ describe('PCHG dates', () => {
 
   it('the one-click ranges start from the last day before the period', () => {
     expect(rangeDates('mtd', TODAY)).toEqual({ start: '2026-10-31', end: TODAY })
+    // ONE table for the client and the server: scan_period.preset_ranges keeps these seven ranges
+    // built, by the same dates (tests/test_scan_period_presets.py reads the same file).
+    expect(PRESET_CASES.length).toBeGreaterThanOrEqual(5)
+    for (const c of PRESET_CASES) {
+      for (const key of ['mtd', 'qtd', 'ytd', 'm1', 'm3', 'm6', 'y1']) {
+        expect([c.today, key, rangeDates(key, c.today)]).toEqual([c.today, key, { start: c[key], end: c.today }])
+      }
+    }
     expect(rangeDates('qtd', TODAY)).toEqual({ start: '2026-09-30', end: TODAY })
     expect(rangeDates('ytd', TODAY)).toEqual({ start: '2025-12-31', end: TODAY })
     expect(rangeDates('m1', TODAY)).toEqual({ start: '2026-10-17', end: TODAY })

@@ -1,8 +1,8 @@
 {
  "schema": "uct.pine-coverage-map/v1",
  "generatedBy": "tools/pine_coverage/coverage_map.py",
- "measuredOn": "2026-11-17",
- "masterSha": "1df860c1e8",
+ "measuredOn": "2026-11-18",
+ "masterSha": "99de72e7c0",
  "headline": {
   "definition": "A script TRANSFERS FULLY when the production member door (memberPaneDefinition -> installUserDefinitions; objects-only pane armed, runtime pane dark) attaches it with zero refusals, with nothing dropped or withheld from its object program and no per-bar paint withheld. Door acceptance, not numeric parity.",
   "sample": 679,
@@ -7006,12 +7006,13 @@
     "transfer": 80
    }
   },
-  "runtimeAttached": 70,
+  "runtimeAttached": 88,
   "runtimeAttachedOrderStrategies": [
    "builtin:parabolic-sar-strategy__Parabolic1SA",
    "committed:flawless-victory-strategy__1BVZuaaWOU",
    "committed:vwap-fibo-dev-extensions-strategy__mR2vfyGjUv",
-   "reference:trailing-sl-strategy-quantnomad__kvEZ1RweKL"
+   "reference:trailing-sl-strategy-quantnomad__kvEZ1RweKL",
+   "reference:ut-bot-strategy__VynMPwQs9U"
   ],
   "walls": {
    "notTransferring": 394,
@@ -7019,8 +7020,8 @@
    "touches": {
     "pine:builtin": 89,
     "runtime:library": 60,
-    "pine:function": 54,
     "runtime:call-undeclared-builtin-state": 54,
+    "pine:function": 53,
     "runtime:request-with-state": 39,
     "runtime:statement": 37,
     "pine:request": 35,
@@ -7040,12 +7041,12 @@
     "pine:type": 8,
     "runtime:unbound": 8,
     "runtime:nothing-drawn": 7,
+    "pine:arity": 6,
     "pine:drawing": 6,
     "runtime:call-text-state": 6,
     "runtime:history-expression": 6,
     "runtime:lower": 6,
     "budget:lookback": 5,
-    "pine:arity": 5,
     "pine:collection": 5,
     "pine:library-denied": 5,
     "pine:offset-literal": 5,
@@ -7989,7 +7990,7 @@
      "runtime:request-with-state",
      "runtime:request-with-state",
      "runtime:function",
-     "pine:function",
+     "pine:arity",
      "runtime:function"
     ],
     "committed:momentum-based-zigzag__38d39d2d6c": [],
@@ -9735,9 +9736,9 @@
   "parity": {
    "captures": 837,
    "verdicts": {
-    "DIVERGE": 66,
-    "INCONCLUSIVE": 489,
-    "MATCH": 262,
+    "DIVERGE": 67,
+    "INCONCLUSIVE": 465,
+    "MATCH": 285,
     "MATCH_SUBSTITUTED": 20
    },
    "productionVerdicts": {
@@ -9748,9 +9749,10 @@
    "changed": {
     "DIVERGE->MATCH": 2,
     "DIVERGE->MATCH_SUBSTITUTED": 12,
-    "INCONCLUSIVE->DIVERGE": 6,
-    "INCONCLUSIVE->MATCH": 72,
-    "INCONCLUSIVE->MATCH_SUBSTITUTED": 8
+    "INCONCLUSIVE->DIVERGE": 7,
+    "INCONCLUSIVE->MATCH": 99,
+    "INCONCLUSIVE->MATCH_SUBSTITUTED": 8,
+    "MATCH->INCONCLUSIVE": 4
    },
    "changes": [
     {
@@ -9902,6 +9904,16 @@
      "file": "tests/fixtures/vendor/harness/long_tail__09-signal-follow-through-ledger-spy-1d-2026-11-15.json",
      "from": "INCONCLUSIVE",
      "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/macd-shortlong-strategy-for-tradingview-input-optimizer-rddt-1d-2026-10-02.json",
+     "from": "MATCH",
+     "to": "INCONCLUSIVE"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/macd-shortlong-strategy-for-tradingview-input-optimizer-spy-1d-2026-10-03.json",
+     "from": "MATCH",
+     "to": "INCONCLUSIVE"
     },
     {
      "file": "tests/fixtures/vendor/harness/mid_engagement__20-mann-kendall-trend-significance-rddt-1d-2026-11-15.json",
@@ -10057,6 +10069,21 @@
      "file": "tests/fixtures/vendor/harness/rs-rating-fred6724-setf-rddt-1d-2026-11-16.json",
      "from": "DIVERGE",
      "to": "MATCH_SUBSTITUTED"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/supertrend-strategy-spy-1d-2026-10-02.json",
+     "from": "INCONCLUSIVE",
+     "to": "DIVERGE"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto-rddt-1d-2026-10-02.json",
+     "from": "MATCH",
+     "to": "INCONCLUSIVE"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto-spy-1d-2026-10-03.json",
+     "from": "MATCH",
+     "to": "INCONCLUSIVE"
     },
     {
      "file": "tests/fixtures/vendor/harness/trend-targets-algoalpha-rddt-1d-2026-10-02.json",
@@ -10229,6 +10256,141 @@
      "to": "MATCH"
     },
     {
+     "file": "tests/fixtures/vendor/harness/w9-d11-late-first-use-rpt-rddt-1d-2026-11-16.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-g1-v3-properties-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-k1-commission-pct-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-k2-commission-contract-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-k3-commission-order-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-k4-slippage-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-mk1-markers-rddt-1d-2026-11-16.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-mk1-markers-rpt-rddt-1d-2026-11-16.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-p3-every-tick-history-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-q-s1a-size-v2-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-q-s1a-size-v4-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-q-s1a-size-v5cash-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-q-s1a-size-v5pct-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-q-s1a-size-v6-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-q-s1b-defaults-v4-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-q-s1b-defaults-v5-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-q-s1b-defaults-v6-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-q-s1e-live-past-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-q-s1i-short-v6-rddt-1d-2026-11-16.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-q-s1k-exit-levels-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-q-s1k-exit-levels-v6-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-q-s1p-when-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-r1-risk-allow-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-r1-risk-ddown-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-x3-oca-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-x4-order-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
+     "file": "tests/fixtures/vendor/harness/w9-x5-cancel-rddt-1d-2026-11-15.json",
+     "from": "INCONCLUSIVE",
+     "to": "MATCH"
+    },
+    {
      "file": "tests/fixtures/vendor/harness/wyckoff-accumulation-distribution-rddt-1d-2026-10-02.json",
      "from": "INCONCLUSIVE",
      "to": "MATCH"
@@ -10255,7 +10417,6 @@
     }
    ],
    "runtimeDeclines": {
-    "pine:strategy-call": 62,
     "runtime:library": 37,
     "pine:request": 29,
     "pine:builtin": 27,
@@ -10266,14 +10427,15 @@
     "pine:library-denied": 9,
     "runtime:conditional-history": 9,
     "runtime:loop": 9,
+    "runtime:call-undeclared-builtin-state": 8,
     "runtime:block-value": 7,
-    "runtime:call-undeclared-builtin-state": 6,
     "runtime:request": 6,
     "pine:arity": 5,
     "runtime:function-global-state": 5,
     "runtime:history-dynamic-offset": 5,
     "pine:drawing": 4,
     "runtime:function": 4,
+    "runtime:strategy-repaint": 4,
     "pine:statement": 3,
     "runtime:colour": 3,
     "runtime:output-map": 3,
@@ -10287,6 +10449,7 @@
     "runtime:directive": 2,
     "runtime:history-expression": 2,
     "runtime:object-op": 2,
+    "runtime:strategy-value": 2,
     "pine:state": 1,
     "pine:text-value": 1,
     "runtime:call-text-state": 1,
@@ -10296,11 +10459,22 @@
     "requested": "runtime-on",
     "objectsOnlyPane": true,
     "gateOpen": true,
-    "declined": 330,
+    "declined": 276,
     "gated": 0,
-    "runtimeDrawn": 96,
-    "hostRefused": 458,
-    "reachedRuntime": 426
+    "runtimeDrawn": 172,
+    "hostRefused": 480,
+    "reachedRuntime": 448,
+    "strategy": {
+     "brokerGate": true,
+     "graded": 76,
+     "brokerRuns": 61,
+     "verdicts": {
+      "INCONCLUSIVE": 28,
+      "EXPECTED-REFUSAL": 11,
+      "UNGRADABLE": 10,
+      "MATCH": 27
+     }
+    }
    }
   }
  },
@@ -10892,6 +11066,41 @@
    "native": "reachable",
    "pine": "ruled",
    "guard": "pine:function"
+  },
+  {
+   "name": "sessionOpen",
+   "call": "sessionOpen()",
+   "native": "reachable",
+   "pine": "reachable",
+   "guard": null
+  },
+  {
+   "name": "sessionHigh",
+   "call": "sessionHigh()",
+   "native": "reachable",
+   "pine": "reachable",
+   "guard": null
+  },
+  {
+   "name": "sessionLow",
+   "call": "sessionLow()",
+   "native": "reachable",
+   "pine": "reachable",
+   "guard": null
+  },
+  {
+   "name": "openingRangeHigh",
+   "call": "openingRangeHigh(14)",
+   "native": "reachable",
+   "pine": "reachable",
+   "guard": null
+  },
+  {
+   "name": "openingRangeLow",
+   "call": "openingRangeLow(14)",
+   "native": "reachable",
+   "pine": "reachable",
+   "guard": null
   },
   {
    "name": "vwap",
