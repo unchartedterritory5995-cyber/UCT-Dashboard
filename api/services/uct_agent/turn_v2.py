@@ -79,6 +79,7 @@ _DOMAIN_OF = {
     "watchlist": "watchlist", "layout": "layout",
     "indicator": "indicator", "indicatorCopy": "indicator", "indicatorStyle": "indicator", "indicatorTemplate": "indicator", "definition": "indicator",
     "volumeProfile": "indicator",                       # a chart's Volume Profile overlay (Chart Settings → Indicators; the carved-out key)
+    "headerValue": "indicator",                         # an indicator line's latest value in the chart header (the chip's "Value in header")
     "drawing": "drawing", "alert": "alert", "indicatorAlert": "alert", "screener": "screener",
     "stock": "data", "index": "data", "commodity": "data", "crypto": "data", "news": "news", "research": "research",
     "newsLibrary": "news",                                # the member's UCT News library: saved headlines, notes, collections

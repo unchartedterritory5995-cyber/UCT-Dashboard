@@ -11280,6 +11280,10 @@
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -11660,6 +11664,10 @@
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -12036,6 +12044,10 @@
      {
       "id": "volumeProfile",
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
      },
      {
       "id": "drawingOps",
@@ -12422,6 +12434,10 @@
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -12797,6 +12813,10 @@
      {
       "id": "volumeProfile",
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
      },
      {
       "id": "drawingOps",
@@ -13177,6 +13197,10 @@
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -13553,6 +13577,10 @@
      {
       "id": "volumeProfile",
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
      },
      {
       "id": "drawingOps",
@@ -14200,6 +14228,10 @@
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -14579,6 +14611,10 @@
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -14954,6 +14990,10 @@
      {
       "id": "volumeProfile",
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
      },
      {
       "id": "drawingOps",
@@ -15594,6 +15634,10 @@
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -15970,6 +16014,10 @@
      {
       "id": "volumeProfile",
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
      },
      {
       "id": "drawingOps",
@@ -16617,6 +16665,10 @@
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -17254,6 +17306,10 @@
      {
       "id": "volumeProfile",
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
      },
      {
       "id": "drawingOps",
@@ -17895,6 +17951,10 @@
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -18271,6 +18331,10 @@
      {
       "id": "volumeProfile",
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
      },
      {
       "id": "drawingOps",
@@ -18918,6 +18982,10 @@
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -19294,6 +19362,10 @@
      {
       "id": "volumeProfile",
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
      },
      {
       "id": "drawingOps",
@@ -19680,6 +19752,10 @@
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -20062,6 +20138,10 @@
      {
       "id": "volumeProfile",
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
      },
      {
       "id": "drawingOps",
@@ -20448,6 +20528,10 @@
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -20824,6 +20908,10 @@
      {
       "id": "volumeProfile",
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
      },
      {
       "id": "drawingOps",
@@ -21204,6 +21292,10 @@
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -21579,6 +21671,10 @@
      {
       "id": "volumeProfile",
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
      },
      {
       "id": "drawingOps",
@@ -21957,6 +22053,10 @@
      {
       "id": "volumeProfile",
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
      },
      {
       "id": "drawingOps",
@@ -22595,6 +22695,10 @@
      {
       "id": "volumeProfile",
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
      },
      {
       "id": "drawingOps",
@@ -23237,6 +23341,10 @@
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -23874,6 +23982,10 @@
      {
       "id": "volumeProfile",
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
      },
      {
       "id": "drawingOps",
@@ -24515,6 +24627,10 @@
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
      },
      {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
+     },
+     {
       "id": "drawingOps",
       "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
      },
@@ -24890,6 +25006,10 @@
      {
       "id": "volumeProfile",
       "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "headerValue",
+      "title": "An indicator line’s latest value in the chart header: show it, take it out"
      },
      {
       "id": "drawingOps",

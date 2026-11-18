@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 234,
-  "withProductionKinds": 205,
+  "all": 235,
+  "withProductionKinds": 206,
   "darkGated": 29
  },
  "totals": {
-  "capabilities": 234,
-  "withAnyRegressionCase": 182,
+  "capabilities": 235,
+  "withAnyRegressionCase": 183,
   "perProtection": {
    "nl": {
-    "covered": 179,
-    "applicable": 234
+    "covered": 180,
+    "applicable": 235
    },
    "routing": {
-    "covered": 176,
-    "applicable": 234
+    "covered": 177,
+    "applicable": 235
    },
    "args": {
-    "covered": 182,
-    "applicable": 234
+    "covered": 183,
+    "applicable": 235
    },
    "execution": {
-    "covered": 179,
-    "applicable": 234
+    "covered": 180,
+    "applicable": 235
    },
    "receipt": {
-    "covered": 151,
-    "applicable": 234
+    "covered": 152,
+    "applicable": 235
    },
    "refusal": {
     "covered": 35,
-    "applicable": 234
+    "applicable": 235
    },
    "permission": {
-    "covered": 227,
-    "applicable": 234
+    "covered": 228,
+    "applicable": 235
    },
    "undo": {
-    "covered": 84,
-    "applicable": 143
+    "covered": 85,
+    "applicable": 144
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 234
+    "applicable": 235
    },
    "phrasings": {
-    "covered": 175,
-    "applicable": 234
+    "covered": 176,
+    "applicable": 235
    }
   }
  },
@@ -5253,6 +5253,60 @@
     "refusal": [],
     "permission": [],
     "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "headerValue.set": {
+   "domain": "headerValue",
+   "group": "headerValue",
+   "target": "chart",
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": true,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": true,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 3,
+   "evidence": {
+    "nl": [
+     "headerValue.set: \"show the rsi value in the header\"",
+     "headerValue.set: \"put rsi's latest value in the chart header\"",
+     "headerValue.set: \"pin the rsi reading to the header\""
+    ],
+    "routing": [
+     "headerValue.set: \"show the rsi value in the header\"",
+     "headerValue.set: \"put rsi's latest value in the chart header\"",
+     "headerValue.set: \"pin the rsi reading to the header\""
+    ],
+    "args": [
+     "corpus headerValue.set"
+    ],
+    "execution": [
+     "headerValue.set (c)"
+    ],
+    "receipt": [
+     "headerValue.set (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [
+     "headerValue.set: undo restores"
+    ],
     "multiStep": [],
     "phrasings": []
    }

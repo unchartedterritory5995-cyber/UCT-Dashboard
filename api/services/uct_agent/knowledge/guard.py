@@ -66,6 +66,9 @@ _INJECTION = re.compile(
     # Charts family (2026-11-12): the volumeProfile domain (volumeProfile.set as a bare name — any volumeProfile.<verb>); its
     # own branch, so the domain list above is untouched; stricter only. Prose "volume profile" has no dot and passes.
     r"|\bvolumeProfile\.[a-z][A-Za-z]*\b"
+    # Charts family (C1-100 / C2-041): the headerValue domain (headerValue.set as a bare name); its own branch, stricter
+    # only. Prose ("put the RSI value in the header") has no dotted name and passes.
+    r"|\bheaderValue\.[a-z][A-Za-z]*\b"
     r"|\b(call|use|invoke)\s+the\s+\w+\s+tool\b|\btool_use\b|\bfunction_call\b",
     re.I)
 _CTRL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")

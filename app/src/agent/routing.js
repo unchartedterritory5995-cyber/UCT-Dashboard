@@ -248,6 +248,13 @@ export const GROUPS = [
     words: [
       /\bvolume[\s-]?profiles?\b|\bvol profile\b|\bvpvr\b|\bvisible range volume\b/,
       /\b(?:add|show|hide|remove|turn on|turn off|enable|disable|switch on|switch off|toggle)\s+(?:the\s+|my\s+)?vp\b|\bvp\s+(?:on|off|bins?)\b/] },
+  // Charts family (C1-100 / C2-041): an indicator line's latest value in the chart header (headerValue.set), its OWN words-only
+  // group (as volumeProfile): never a filler, so no existing group and no unrecognised request changes. Its words need HEADER and
+  // a value word or an indicator word; the header's stats / Bar info rows stay chart.setSetting's (routing only ADDS).
+  { id: 'headerValue', title: 'An indicator line’s latest value in the chart header: show it, take it out', domains: ['headerValue'], fillLast: true, wordsOnly: true,
+    words: [
+      /\b(?:values?|readings?|numbers?|readouts?)\b.*\bheader\b|\bheader\b.*\b(?:values?|readings?|readouts?)\b/,
+      /\b(?:rsi|macd|atr|adx|cci|mfi|obv|vwap|stoch\w*|bollinger\w*|ema|sma|wma|moving average|indicators?|\d{1,3} ?(?:ema|sma|wma|ma))\b.*\bheader\b/] },
   // ⭐ W1-B (2026-11-02): the TIME-ANCHORED tools in their OWN small group (as chartSetup is), so the drawings group keeps
   // its size and every group still fits a reroute beside the NL-1 core. Membership is by ACTION NAME (`actions`), not by
   // domain: the tools stay `drawing.*` on the drawing kind. Listed BEFORE drawings so "draw a trendline from…" takes this.
