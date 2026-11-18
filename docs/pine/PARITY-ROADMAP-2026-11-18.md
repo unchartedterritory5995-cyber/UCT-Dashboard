@@ -735,6 +735,39 @@ computes needs one (`scriptEngineVersion.js`); an evidence-only unit (admission)
   higher-timeframe request. Missing: both (queue rows).
 - **Risk:** realtime repainting of the requested expression; lookahead. Engine number: yes.
 
+### U-REQ-HOIST-COLUMN `request-hoisted-column` (part of U-REQ): a history read in a request's hoisted statements is read from the chart's bars
+
+Added 2026-11-18 (coordinator ruling, from the PA ZigZag Fibonacci FAN DIVERGE at Alt Timeframe 1W / 1M, run
+`rozz-2026-11-18`, local; it is not U-HTF-CALENDAR: NYSE:RDDT's history starts in 2024).
+- **TradingView:** the script requests `zigzag()` at the weekly / monthly context (`lookahead_on`). The function's
+  `_isUp[1]` and `_isDown[1]` are the PREVIOUS requested bar's: TradingView's model of the script over the weekly and
+  monthly folds of its own daily bars reproduces the vendor's `zigzag` on every period (RDDT 140 / 140 weeks and
+  33 / 33 months, SPY 1,765 / 1,765 and 407 / 407).
+- **Ours today:** the function body (`int _dir = na , _dir := …` is a recurrence, so it is lowered as statements) is
+  hoisted into the request's region. Its `_isUp[1]` / `_isDown[1]` are pure subtrees, lowered as COLUMNS of the
+  columnar lane, which computes them once over THIS chart's daily bars. The request's sub-run (`vm.js::runRequest`)
+  is handed the chart's columns (`columns: ctx.columns`) and reads them at the requested bar's index, so on weekly bar
+  j `_isUp[1]` is the chart's daily `close[j-1] >= close[j-2]`. The guard that refuses a column inside a request
+  (`pineRuntimeFrontend.js`, `carriesColumn(valueIr)`) walks the request's VALUE only, never its hoisted statements, so
+  this one is drawn. Everything else the request reads is right (one request per value, our side, RDDT 1W: `_isUp`,
+  `_isDown`, `close[1]`, `ta.highest(2)`, `ta.lowest(2)` equal TradingView's on 140 / 140 weeks), and a model in which
+  only those two reads come from the chart's bars reproduces our `zigzag` exactly (140 / 140 weeks, 33 / 33 months).
+- **The first bar:** RDDT 1W bar 6 (2024-04-01, the third week). TradingView reads the second week for `_isUp[1]`
+  (49.32 >= 46, true), so `_dir` turns -1 and `zigzag` is 74.9; ours reads chart bar 1 (2024-03-22, 46 >= 50.44,
+  false): `zigzag` na. The other three captures part at the bars the evidence names (RDDT 1M bar 278, SPY 1W bar 15,
+  SPY 1M bar 64).
+- **Smallest honest change:** first the guard, because the value is wrong rather than refused: `carriesColumn` walks
+  the hoisted statements too, so such a request refuses by name. Then the serve: a history read inside a request's
+  region lowered as the region's own slot history (committed per requested bar, as `_dir[1]` already is), never a
+  column.
+- **Evidence:** the four `rozz-2026-11-18` captures (`pa-zigzag-fibonacci-fan-alt{w,m}-{rddt,spy}-1d-2026-11-17`) are
+  the witnesses; today they are graded only through the harness's moved-timeframe switch
+  (`docs/pine/evidence/2026-11-18-timeframe-input-setting/EVIDENCE.md`). No member surface draws them: a moved
+  timeframe is read-only, and no `request-other` row is admitted. Until the guard lands, a request capture whose
+  request region hoists such a read is not `request-other` evidence.
+- **Risk:** any requested function body in statement form with a history read of a binding, on another symbol as
+  much as another timeframe. Engine number: yes (a value moves, or refuses).
+
 ### U-DAILY `daily-on-intraday` (part of U-REQ): a DAILY read on an intraday chart
 
 Added 2026-11-18 by the coordinator, measured by the Create Indicator capability census; **the 1D

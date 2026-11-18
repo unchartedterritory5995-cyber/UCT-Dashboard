@@ -67,11 +67,21 @@ Re-graded as captured (patrick-54's run `rozz-2026-11-18`, packet `61a1e407…`;
 | `…-altm-rddt-1d-2026-11-17` (1M) | INCONCLUSIVE | DIVERGE, 9 of 10: `zigzag` 7 bars from bar 278 (vendor 130.11, ours na); fib levels 305 bars (vendor na, ours a value) |
 | `…-altm-spy-1d-2026-11-17` (1M) | INCONCLUSIVE | DIVERGE, 9 of 10: `zigzag` 134 bars from bar 64; fib levels 6,207 bars from bar 65 |
 
-Before this branch all four refused "Alt Timeframe (tf) was moved and is not a setting of our document". The cause of
-the difference is not settled here: the script requests `zigzag()` (a function with its own pivots and history) at
-the weekly / monthly context with `lookahead_on`, gated by `ta.change(time(tf)) != 0`. Either the run's weekly
-evaluation of that function or its alignment differs; it is engine work under the request unit, and these four
-captures are its witnesses.
+Before this branch all four refused "Alt Timeframe (tf) was moved and is not a setting of our document".
+
+**The cause, named (coordinator ruling 4, 2026-11-18): not the setting, and not U-HTF-CALENDAR.** The setting
+reaches the run and the weekly / monthly bars are right; the wall is in the request's evaluation, and it is on the
+roadmap as **U-REQ-HOIST-COLUMN** (part of U-REQ). The script requests `zigzag()`, whose `_dir` recurrence makes the
+body lower as statements hoisted into the request's region; there, `_isUp[1]` and `_isDown[1]` are lowered as
+columns, computed once over the chart's DAILY bars, and the request's sub-run reads them at the requested bar's index
+(`vm.js::runRequest` hands it `ctx.columns`; the column guard `carriesColumn` walks the request's value, not its
+hoisted statements). Measured on our side with one request per value (RDDT 1W): `_isUp`, `_isDown`, `close[1]`,
+`ta.highest(2)`, `ta.lowest(2)` equal TradingView's on 140 / 140 weeks; `_dir` does not (109 / 140); a model in which
+only `_isUp[1]` / `_isDown[1]` read the chart's bar j-1 reproduces our `zigzag` on 140 / 140 weeks and 33 / 33 months,
+and TradingView's model reproduces the vendor's on 140 / 140, 33 / 33 (RDDT) and 1,765 / 1,765, 407 / 407 (SPY).
+Hoisting the request out of the ternary, and writing `_dir`'s comma line as two lines, change nothing. First bar:
+RDDT 1W bar 6 (2024-04-01): TradingView's `_isUp[1]` is the previous week's (49.32 >= 46, true), so `zigzag` = 74.9;
+ours is chart bar 1's (2024-03-22, 46 >= 50.44, false), so na.
 
 ## 4. Rails and mutation proofs
 
@@ -88,8 +98,11 @@ restored from a saved copy and checked byte-equal (never `git checkout`), one he
 | M5 a save keeps the projected setting | `paramInputs.js` | RED, 1 rail red, restored byte-equal: yes |
 | M6 the door mints the setting | `runtimeInputs.js` | RED, 2 rails red, restored byte-equal: yes |
 | M7 the alert lane never withholds a moved timeframe | `alert_user_series.py` | RED, 3 rails red, restored byte-equal: yes |
+| M8 a locked setting is not inert (`fieldFromInput` ignores `locked`) | `indicatorRegistry.js` | RED, 2 rails red, restored byte-equal: yes |
+| M9 the dialog draws a locked setting live | `IndicatorSettingsDialog.jsx` | RED, 1 rail red, restored byte-equal: yes |
+| M10 the projection never locks | `runtimeInputs.js` | RED, 2 rails red, restored byte-equal: yes |
 
-Controls: the JS rail and the Python rail green before the first mutant and after the last restore (CONTROL (no mutant) js 0 / py 0, CONTROL after restore js 0 / py 0).
+Controls: the JS rail and the Python rail green before the first mutant and after the last restore (CONTROL (no mutant) js 0 / py 0, CONTROL after restore js 0 / py 0), for M1-M7 and again for M8-M10 (their JS rail adds the dialog test).
 Not railed: `_prime_runtime_batch` skipping a moved member (a defence: the per-cycle `column` call withholds it by name whatever the batch did).
 
 ## 5. Runs
@@ -101,3 +114,5 @@ Not railed: `_prime_runtime_batch` skipping a moved member (a defence: the per-c
 | the four `rozz-2026-11-18` captures | section 3 |
 | remote tests (GitHub runners), engine + builder + hooks vitest, 6 shards, at `764c1c744e` | green except `src/hooks/usePreferences.additionsOnly.test.js` (`pages/screener/focus/board/useScanBoard.js`: 2 opaque `setPref` sites, 1 baselined), which this branch does not touch |
 | remote pytest: the alert, admission, capability, run-half, refusal-code and ledger rails | green |
+| the two checks red on #1831's first push (run 44285510851) | fixed: the seam rail matched a MENTION of `__serveEveryTimeframeSettingForTests` (the engine ledger's sentence), so it now matches an import or a call (with controls that a mention passes and an import and a call fail); and `tools/whole_app_engine_rails.txt` lists `timeframeInputSetting.test.js` (its seam rail walks `app/src`) |
+| the read-only UI rails, local: `timeframeInputSetting`, `IndicatorSettingsDialog.timeframeLocked`, `runtimeInputs`, `runtimeInputKinds`, the dialog's own tests, the phone sheet's text and groups, the settings modal's a11y names | 8 files, 87 / 87 |
