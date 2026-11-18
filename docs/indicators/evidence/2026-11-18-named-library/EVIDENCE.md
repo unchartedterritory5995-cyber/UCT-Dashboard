@@ -103,10 +103,25 @@ What it decided:
 
 Double Exponential Moving Average, Triple Exponential Moving Average, Chande Momentum Oscillator and
 Stochastic RSI. Each has tier (a) (an independent calculation, at its defaults and at other numbers) and
-tier (b) (the pages read are in the entry). All four are TradingView built-ins; their captures are
-queued, and until they are graded the entries carry no capture and claim nothing about TradingView.
-Where sources give different default lengths, the entry's note says which it uses and why (TradingView's
-built-in default, since that is the chart a member compares against).
+tier (b) (the pages read are in the entry). Where sources give different default lengths, the entry's
+note says which it uses and why (TradingView's built-in default, since that is the chart a member
+compares against).
+
+All four are TradingView built-ins and were captured in a second session (the same method, the same
+two charts) and graded by `grade_builtins2.py`:
+
+| entry | TradingView built-in | SPY | RDDT | grade |
+|---|---|---|---|---|
+| Double Exponential Moving Average | Double exponential moving average | 8,493 of 8,493 | 652 of 652 | EQUAL |
+| Triple Exponential Moving Average | Triple exponential moving average | 8,485 of 8,485 | 644 of 644 | EQUAL |
+| Chande Momentum Oscillator | Chande momentum oscillator | 8,500 of 8,500 | 659 of 659 | EQUAL |
+| Stochastic RSI (K and D) | Stochastic RSI | 8,480 and 8,478, all | 639 and 637, all | EQUAL |
+
+**The Detrended Price Oscillator is not in the library yet, and the capture says why it can be.** No
+page read states what "length / 2 + 1" bars back means at TradingView's default length of 21. The
+capture does: close minus the 21-bar average from **11** bars back equals TradingView's default plot on
+all 8,478 bars (10 and 12 match none). So the half is taken as a whole number. The entry waits only on
+the library being able to hold a parameter whose number sits in the formula in a derived form.
 
 ## Held names: known by name, no checked formula
 
@@ -150,6 +165,26 @@ they are built to a checked formula rather than refused.
 **Where it applies.** The chart conversation door only (`plan(strict_names=True)`). The Screener door's
 planner is unchanged. An unknown name's refusal on the chart door now ends with the way forward:
 describe the rule in your own words.
+
+**A request opener is grammar (slice 3).** The same measurement showed the *older* rule refusing
+requests it should never have touched. A request that opens with a verb has a capital on the verb, so
+"Add Inside bar" read as an indicator called "Add Inside" and was refused before any model call. So did
+"Show Weekly pivot points", "Highlight Mondays", "Mark Fridays in blue" and "Add The 10:00 bar marked".
+Of 140 indicator ideas written "Add <Idea>", 56 were refused for that reason alone. On the chart door,
+an opener standing first in its sentence is now taken off the run before the question "is this a name?"
+is asked: those 56 fall to 4 (two held names and two genuine unknown names), and a real name after an
+opener is still caught, named without the opener ("Gann Fan", never "Add Gann Fan").
+
+A second option was measured and rejected: treating a *single* capitalised word that nothing accounts
+for as an unknown name. Without a dictionary it cannot tell an eponym ("Klinger") from an ordinary word
+("Distribution", "Support", "Drawdown"), and it refused 27 more plain "Add <Idea>" requests and one
+evaluation case ("... when the sector is Technology"). A single-word proper name stays outside this
+rule; the library catches the ones it holds, by lookup.
+
+**"Moving average" (slice 3).** The bare phrase was no phrase of the chart door, so "Plot the Moving
+Average" and "Add a 50 day Moving Average" were unknown named indicators. It is a term now, with the
+rule for the part it leaves open: use the kind the member's words or the chart settle, otherwise a
+simple average, said in the assumptions.
 
 **What it does not do.** A name written in lowercase is not a Title-Case run and is not caught by this
 rule; a held or library name is caught in any spelling, because it is looked up, not guessed from shape.

@@ -34,7 +34,14 @@
     {"message": "show the Awesome Oscillator", "model": true, "terms": ["awesome_oscillator"]},
     {"message": "add the kaufman adaptive moving average", "model": true, "terms": ["kaufman_adaptive_moving_average"], "not_terms": ["sma", "ema"]},
     {"message": "plot connors rsi", "model": true, "terms": ["connors_rsi"], "not_terms": ["rsi"]},
+    {"message": "Highlight Mondays", "model": true},
+    {"message": "Add Inside bar", "model": true},
+    {"message": "Show Weekly pivot points", "model": true},
+    {"message": "Add a 50 day Moving Average", "model": true, "terms": ["moving_average"], "not_terms": ["sma", "ema"]},
+    {"message": "Plot the Moving Average", "model": true, "terms": ["moving_average"]},
     {"message": "Add the Gann Fan", "refused": "Gann Fan"},
+    {"message": "Add Gann Fan", "refused": "Gann Fan"},
+    {"message": "Add the Schaff Trend Cycle", "refused": "Schaff Trend Cycle"},
     {"message": "show the Klinger Oscillator", "refused": "Klinger Oscillator"}
   ]
 }

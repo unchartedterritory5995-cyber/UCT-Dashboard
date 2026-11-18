@@ -349,15 +349,12 @@ def test_the_pieces_of_the_rule():
     lex = c.CHART_LEXICON
 
     def foreign(text):
-        return dc._foreign_words(text, list(dc._WORD_TOKEN.finditer(text)), lex)
-    assert foreign("add the Schaff Trend Cycle") == ["Schaff"]            # "trend" is known, "cycle" is vocabulary
-    assert foreign("Schaff Trend Cycle") == ["Schaff"]                    # first in the message, and no word requests open with
-    assert foreign("Add Bollinger Bands") == []                           # an opener standing first; the rest is known
-    assert "Add" not in foreign("Done. Add Bollinger Bands")              # a new sentence starts again
-    assert "Add" in foreign("so Add Bollinger Bands")                     # an opener is excused only where a sentence opens
-    assert foreign("please show Rate Of Change") == []                    # a grammar word inside a known phrase
-    assert foreign("the Klinger Volume Oscillator") == ["Klinger"]
-    assert foreign("the Volume Oscillator") == []                         # the product's own vocabulary
+        return dc._foreign_words(list(dc._WORD_TOKEN.finditer(text)), lex)
+    assert foreign("Schaff Trend Cycle") == ["Schaff"]                    # "trend" is known, "cycle" is vocabulary
+    assert foreign("Bollinger Bands") == [] and foreign("Rate Of Change") == []
+    assert foreign("Klinger Volume Oscillator") == ["Klinger"]
+    assert foreign("Volume Oscillator") == []                             # the product's own vocabulary
+    assert foreign("Add Bollinger Bands") == []                           # an opener is no part of a name, wherever it stands
     assert dc.NAME_MAX_WORDS == 4
     assert {"add", "show", "plot"} <= dc._SENTENCE_OPENERS and "klinger" not in dc._SENTENCE_OPENERS
     assert not (dc._SENTENCE_OPENERS & {"oscillator", "average", "index", "bands"})   # never a word a name is made of

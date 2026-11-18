@@ -2591,11 +2591,22 @@ def _lexicon_vocabulary(lexicon: Mapping[str, Any]) -> frozenset:
     return held[1]
 
 
-def _foreign_words(text: str, words: List[Any], lexicon: Mapping[str, Any]) -> List[str]:
-    """The words of one Title-Case run that NOTHING accounts for: not a request's opening word
-    standing first in its sentence (capitalised by grammar: "Add Bollinger Bands"), not a grammar
-    word, and not a word of the product's own vocabulary. (A word that is part of something
-    already understood needs no clause of its own: every word of a lexicon phrase IS vocabulary.)
+def _opens_a_sentence(text: str, w: Any) -> bool:
+    """Is this word a request OPENER standing first in its sentence ("Add ...", "Done. Show ...")?
+    Its capital is grammar. ⭐ MEASURED 2026-11-18: counted as the first word of a name, it made
+    "Add Inside bar", "Show Weekly pivot points", "Highlight Mondays", "Mark Fridays in blue" and
+    "Add The 10:00 bar marked" unknown indicators called "Add Inside", "Show Weekly", "Highlight
+    Mondays", "Mark Fridays" and "Add The": 56 of 140 indicator ideas written "Add <Idea>" were
+    refused before any model call for that reason alone."""
+    before = text[:w.start()].rstrip()
+    return (not before or before[-1] in ".!?;:\n") and w.group(0).lower() in _SENTENCE_OPENERS
+
+
+def _foreign_words(words: List[Any], lexicon: Mapping[str, Any]) -> List[str]:
+    """The words of one Title-Case run that NOTHING accounts for: not a grammar word, and not a
+    word of the product's own vocabulary. (A word that is part of something already understood
+    needs no clause of its own: every word of a lexicon phrase IS vocabulary. A request opener
+    standing first is taken off the run before this is asked: `_opens_a_sentence`.)
 
     ⭐ MEASURED BEFORE IT WAS WRITTEN (2026-11-18, 604 requests: the plain-English corpus, every
     evaluation case, 102 live-round requests and 140 indicator ideas in three spellings). Counting
@@ -2609,10 +2620,8 @@ def _foreign_words(text: str, words: List[Any], lexicon: Mapping[str, Any]) -> L
     out: List[str] = []
     for w in words:
         word = w.group(0)
-        before = text[:w.start()].rstrip()
-        if (not before or before[-1] in ".!?;:\n") and word.lower() in _SENTENCE_OPENERS:
-            continue
-        if word.lower() in _NAME_GRAMMAR:
+        # (an opener is no part of a name wherever it stands: "so Add Bollinger Bands")
+        if word.lower() in _NAME_GRAMMAR or word.lower() in _SENTENCE_OPENERS:
             continue
         stems, _cost = _stem_key(_form_tokens(word))
         if stems and all(st in vocabulary for st in stems):
@@ -2654,15 +2663,18 @@ def _named_phrases(prompt: str, already_found: List[dict],
         while (j < n and _is_name_word(words[j].group(0))
                and text[words[j - 1].end():words[j].start()].isspace()):
             j += 1
-        if j - i >= 2:
-            start, end = words[i].start(), words[j - 1].end()
+        # ⭐ A REQUEST OPENER IS NOT PART OF A NAME (`strict_lexicon` only): "Add Inside bar" is the
+        # word "Inside" after a verb, not an indicator called "Add Inside".
+        first = i + 1 if strict_lexicon is not None and _opens_a_sentence(text, words[i]) else i
+        if j - first >= 2:
+            start, end = words[first].start(), words[j - 1].end()
             phrase = text[start:end]
             overlaps = any(start < f["end"] and f["start"] < end for f in already_found)
             # ⭐ THE WHOLE-PHRASE RULE (`strict_lexicon`): one known word inside a short Title-Case
             # name no longer accounts for the name. "Schaff Trend Cycle" knows "trend"; it is
             # still a name nobody here has a formula for.
-            if not overlaps or (strict_lexicon is not None and j - i <= NAME_MAX_WORDS
-                                and _foreign_words(text, words[i:j], strict_lexicon)):
+            if not overlaps or (strict_lexicon is not None and j - first <= NAME_MAX_WORDS
+                                and _foreign_words(words[first:j], strict_lexicon)):
                 out.append({"kind": NAMED_ENTRY, "key": phrase, "section": None,
                             "start": start, "end": end, "matched_as": phrase})
             i = j

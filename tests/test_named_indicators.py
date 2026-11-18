@@ -146,15 +146,18 @@ def test_the_evidence_says_what_was_read_and_where():
 
 
 def test_what_the_library_claims_about_tradingview_is_what_was_graded():
-    """Eleven entries are TradingView built-ins and were graded against them (2026-11-18; the method
-    and grades are in docs/indicators/evidence/2026-11-18-named-library/). Eight are equal on every
+    """Fifteen entries are TradingView built-ins and were graded against them (2026-11-18; the method
+    and grades are in docs/indicators/evidence/2026-11-18-named-library/). Twelve are equal on every
     bar; two are equal after their first bars; the McGinley Dynamic's formula is TradingView's and
     UCT's 300-bar restart of it is not bar-equal, so it claims nothing. Two are not TradingView
     built-ins and have no capture."""
     grade = {e["id"]: (e["evidence"]["capture"] or {}).get("grade") for e in ni.entries()}
     assert sorted(i for i, g in grade.items() if g == "EQUAL") == sorted([
         "awesome_oscillator", "chaikin_money_flow", "choppiness_index", "coppock_curve", "elder_ray",
-        "true_strength_index", "ultimate_oscillator", "vortex_indicator"])
+        "true_strength_index", "ultimate_oscillator", "vortex_indicator",
+        # the second batch, slice 2's four entries: equal on every bar of both charts
+        "double_exponential_moving_average", "triple_exponential_moving_average", "chande_momentum_oscillator",
+        "stochastic_rsi"])
     assert sorted(i for i, g in grade.items() if g == "EQUAL AFTER WARM-UP") == ["chandelier_exit", "connors_rsi"]
     assert grade["mcginley_dynamic"] == "FORMULA EQUAL, RESTART DIFFERS"
     assert grade["kaufman_adaptive_moving_average"] is None and grade["squeeze_momentum"] is None

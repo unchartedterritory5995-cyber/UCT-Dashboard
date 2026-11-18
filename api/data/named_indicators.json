@@ -3731,7 +3731,16 @@
      "says": "EMA1 = EMA(price, n); EMA2 = EMA(EMA1, n); DEMA = 2 x EMA1 - EMA2. Mulloy, Technical Analysis of Stocks & Commodities, January 1994.",
      "note": "Length 9 is TradingView's default; StockCharts uses 20."
     },
-    "capture": null
+    "capture": {
+     "id": "builtin2-2026-11-18",
+     "against": "TradingView built-in: Double exponential moving average",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars",
+      "NYSE:RDDT 1D, 668 bars"
+     ],
+     "grade": "EQUAL",
+     "detail": "Equal on every bar both charts have a value for."
+    }
    },
    "versions": [
     {
@@ -3938,7 +3947,16 @@
      "says": "EMA1 = EMA(price); EMA2 = EMA(EMA1); EMA3 = EMA(EMA2), one period; TEMA = 3 x EMA1 - 3 x EMA2 + EMA3.",
      "note": "Length 9 is TradingView's default; StockCharts uses 20."
     },
-    "capture": null
+    "capture": {
+     "id": "builtin2-2026-11-18",
+     "against": "TradingView built-in: Triple exponential moving average",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars",
+      "NYSE:RDDT 1D, 668 bars"
+     ],
+     "grade": "EQUAL",
+     "detail": "Equal on every bar both charts have a value for."
+    }
    },
    "versions": [
     {
@@ -4212,7 +4230,16 @@
      "says": "CMO = 100 x (Su - Sd) / (Su + Sd): Su is the sum of the close-to-close gains over the period, Sd the sum of the losses (as positive numbers). Plain sums; no smoothing.",
      "note": "Length 9 is TradingView's built-in default; its help page and Fidelity say 20 is usual."
     },
-    "capture": null
+    "capture": {
+     "id": "builtin2-2026-11-18",
+     "against": "TradingView built-in: Chande momentum oscillator",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars",
+      "NYSE:RDDT 1D, 668 bars"
+     ],
+     "grade": "EQUAL",
+     "detail": "Equal on every bar both charts have a value for."
+    }
    },
    "versions": [
     {
@@ -4506,7 +4533,16 @@
      "says": "StochRSI = (RSI - lowest RSI) / (highest RSI - lowest RSI) over the lookback (Chande and Kroll, The New Technical Trader, 1994). TradingView draws it 0 to 100 as K, a 3-bar simple average of that, and D, a 3-bar simple average of K.",
      "note": "The original is one line from 0 to 1 with no smoothing; this is TradingView's K and D form, 0 to 100."
     },
-    "capture": null
+    "capture": {
+     "id": "builtin2-2026-11-18",
+     "against": "TradingView built-in: Stochastic RSI",
+     "charts": [
+      "AMEX:SPY 1D, 8,509 bars",
+      "NYSE:RDDT 1D, 668 bars"
+     ],
+     "grade": "EQUAL",
+     "detail": "Equal on every bar both charts have a value for."
+    }
    },
    "versions": [
     {

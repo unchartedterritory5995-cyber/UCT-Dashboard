@@ -825,6 +825,19 @@ def _chart_form(tree: Any) -> Optional[Dict[str, Any]]:
     return out
 
 
+#: ⭐ 2026-11-18 -- PHRASES EVERY TRADER SAYS THAT NAME NO ONE FUNCTION. "Plot the Moving Average" and
+#: "Add a 50 day Moving Average" were refused before any model call: the bare phrase was no phrase
+#: of this door, so in Title Case it read as an unknown named indicator. Each is a TERM here, with
+#: the rule for what to do about the part it leaves open.
+GENERIC_SECTION = "generic_phrases"
+GENERIC_PHRASES: Mapping[str, Tuple[str, str]] = {
+    "moving average": (
+        "moving_average",
+        "a moving average with no kind named. If the member's words or the indicator already on the chart settle "
+        "which kind (simple, exponential, weighted), use that. Otherwise use a simple average (sma) and say so in "
+        "`assumptions`, so the member can change it"),
+}
+
 #: ⭐ THE NAMED-INDICATOR LIBRARY -- the rules the model reads beside a name the member wrote.
 NAMED_RULE = ("a NAMED indicator: UCT builds it to ONE checked formula. For each output you build, copy "
               "its `tree` exactly. The only numbers that may differ are the ones in `numbers`, and only when "
@@ -1007,6 +1020,8 @@ def _matched_term(t: Mapping[str, Any]) -> Dict[str, Any]:
     out: Dict[str, Any] = {"wrote": t.get("matched_as"), "entry": t.get("name")}
     if t.get("section") == named_indicators.SECTION:
         return {**out, **_named_term(named_indicators.entry(t.get("name")))}
+    if t.get("section") == GENERIC_SECTION:
+        return {**out, "rule": next(rule for key, rule in GENERIC_PHRASES.values() if key == t.get("name"))}
     twin = CHART_TWINS.get(t.get("name")) if isinstance(t.get("name"), str) else None
     if twin is not None:
         out["chart_formula"] = dc.formula_for(twin)
@@ -2362,6 +2377,11 @@ def _chart_lexicon(base: Mapping[str, Any]) -> Dict[str, Any]:
             continue
         index[stems] = [{"kind": dc.TABLE_ENTRY, "key": column, "section": ast_table.SCALARS_SECTION,
                          "words": words, "cost": cost}]
+    for phrase, (key, _rule) in GENERIC_PHRASES.items():
+        words = dc._form_tokens(phrase)
+        stems, cost = dc._stem_key(words)
+        if stems not in index:
+            index[stems] = [{"kind": dc.TABLE_ENTRY, "key": key, "section": GENERIC_SECTION, "words": words, "cost": cost}]
     # ⭐ THE NAMED-INDICATOR LIBRARY -- a name in it ("McGinley Dynamic", "connors rsi") is a term of
     # its entry, so the planner's Title-Case rule finds it already accounted for and `_matched_term`
     # hands the assistant the ONE checked formula. ⛔ ADDED, NEVER REPLACED, as above; a name that
