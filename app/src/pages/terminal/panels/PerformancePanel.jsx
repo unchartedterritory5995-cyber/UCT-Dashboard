@@ -263,7 +263,8 @@ function PerformanceBody({ pick, registry, code, several }) {
         dollars lost, after fees. Expectancy in R is the average result per trade, in units of the risk taken. Edge score
         is the Journal&apos;s own: win rate times profit factor (before fees, counted up to 5) times how steady your R
         results are. A number from fewer than {count(CONFIDENCE_MIN)} trades is marked a small sample. A sign (+/-) marks
-        every gain and loss, so color is never the only signal. For every chart and filter, open the{' '}
+        every gain and loss, so color is never the only signal. For your record on one stock, type its ticker and
+        MYH (<kbd>NVDA MYH</kbd>). For every chart and filter, open the{' '}
         <PanelCommand cmd="JRNL" label="Open the Journal">Journal (JRNL)</PanelCommand>.
         {readAt ? ` Read at ${formatTimeEt(readAt, { zoneSuffix: 'ET', absent: '' })}.` : ''}
       </p>

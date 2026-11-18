@@ -4445,6 +4445,15 @@ def register_transcript_index_jobs(scheduler):
                 _ilog.info("[tindex] pruned %s calls past the retention window", dropped)
         except Exception as exc:
             _ilog.warning("[tindex] sweep failed: %s", exc)
+        # "What CEOs are saying" (the Terminal's CEOS panel) is worked out from this same index,
+        # so its once-a-day build rides this sweep instead of a schedule of its own: it runs after
+        # the index is current, on the one service that holds the index, and never on a request.
+        try:
+            from api.services import call_themes
+            if call_themes.refresh_if_due():
+                _ilog.info("[call-themes] daily build started after the index sweep")
+        except Exception as exc:
+            _ilog.warning("[call-themes] daily build could not start: %s", exc)
 
     for hour, minute in ((6, 45), (20, 45)):
         scheduler.add_job(
@@ -4501,6 +4510,47 @@ def register_transcript_keyword_jobs(scheduler):
         _run_keyword_alert_scan,
         trigger=CronTrigger(day_of_week="mon-fri", hour=18, minute=30, timezone=_ET),
         id="transcript_keyword_alerts", replace_existing=True)
+    return True
+
+
+def register_list_alert_jobs(scheduler):
+    """The Terminal list alerts (owner pick 2026-11-17): tell a member when a stock they
+    follow comes onto the New 52-week highs list, the confluence board or the repeat-hit
+    option contracts list (`api/services/list_alerts.py`).
+
+    Registered unconditionally and the SERVICE decides whether to do anything: it is off
+    unless `TERMINAL_LIST_ALERTS_ENABLED` is `1` (or `admin`, the owner's preview), read on
+    every run, and off it returns before it opens a database or reads a list. Registering
+    it dark keeps arming it an env change rather than a deploy.
+
+    Weekdays at `list_alerts.CHECK_TIMES_ET`, both after the close: each list is read ONCE
+    per run for every member. The second pass is the retry for a list that was not ready
+    and a delivery that reached nobody; the per-session record means it can never repeat a
+    message. The service itself refuses a run before the close, so the by-contract read on
+    the flow-worker is never made in market hours.
+
+    Returns True once the jobs are registered."""
+    # Imported inside the function like every other registrar here.
+    from apscheduler.triggers.cron import CronTrigger
+    from api.services import list_alerts
+
+    _lalog = logging.getLogger(__name__)
+
+    def _run_list_alerts():
+        try:
+            if not list_alerts.enabled():
+                return
+            # `run_evening` logs its own receipt (what was read, sent and skipped).
+            list_alerts.run_evening()
+        except Exception as exc:
+            _lalog.warning("[list-alerts] scheduled run failed: %s", exc)
+
+    for hour, minute in list_alerts.CHECK_TIMES_ET:
+        scheduler.add_job(
+            _run_list_alerts,
+            trigger=CronTrigger(day_of_week="mon-fri", hour=hour, minute=minute, timezone=_ET),
+            id=f"list_alerts_{hour:02d}{minute:02d}", max_instances=1, coalesce=True,
+            misfire_grace_time=1800, replace_existing=True)
     return True
 
 
@@ -8699,6 +8749,17 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[scheduler] screener job registration error: {e}")
 
+        # -- Terminal list alerts (dark unless TERMINAL_LIST_ALERTS_ENABLED) --
+        # In its own try: a failure here skips nothing above or below, and the
+        # other way round.
+        try:
+            if register_list_alert_jobs(_scheduler):
+                logging.getLogger(__name__).info(
+                    "[startup] terminal list alerts: jobs registered (weekday evenings ET; "
+                    "nothing runs unless TERMINAL_LIST_ALERTS_ENABLED is set)")
+        except Exception as e:
+            print(f"[scheduler] list alerts registration error: {e}")
+
         # -- Nightly closed-bar Signature sweep (Phase A) -------------------
         try:
             register_signature_sweep_job(_scheduler)
@@ -12054,6 +12115,8 @@ from api.routers import alert_outbound as alert_outbound_router  # noqa: E402  (
 app.include_router(alert_outbound_router.router)
 from api.routers import screen_promote as screen_promote_router  # noqa: E402  (FT-027, dark)
 app.include_router(screen_promote_router.router)
+from api.routers import list_alerts as list_alerts_router  # noqa: E402  (Terminal list alerts, dark)
+app.include_router(list_alerts_router.router)
 from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)
 app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)

@@ -212,7 +212,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `j2_gallery_follows` | `author_id` (the member's id) | Direct | `DELETE FROM j2_gallery_follows WHERE author_id = ?` |
 | `indicator_gap_hits` | `member_key` (`_gap_member_key(user_id)`, a keyed hash of the member's id) | Direct | `DELETE FROM indicator_gap_hits WHERE member_key = ?` with `_gap_member_key(user_id)` |
 
-**user_definitions.db** -- a second database, which no statement on auth.db reaches: **7 tables**, deleted by `api/services/user_definitions_erasure.py` through `user_definitions.purge_user`.
+**user_definitions.db** -- a second database, which no statement on auth.db reaches: **8 tables**, deleted by `api/services/user_definitions_erasure.py` through `user_definitions.purge_user`.
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
@@ -220,6 +220,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `definition_shares` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_shares WHERE user_id = ?` |
 | `definition_listings` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_listings WHERE user_id = ?` |
 | `definition_listing_takedowns` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_listing_takedowns WHERE user_id = ?` |
+| `definition_load_measurements` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_load_measurements WHERE user_id = ?` |
 | `user_definition_relint_log` | `user_id` | Direct (user_definitions.db) | `DELETE FROM user_definition_relint_log WHERE user_id = ?` |
 | `definition_engine_status` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_engine_status WHERE user_id = ?` |
 | `definition_status_headlines` | `user_id` | Direct (user_definitions.db) | `DELETE FROM definition_status_headlines WHERE user_id = ?` |
@@ -245,7 +246,7 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `alert_fires` | `user_id` | Direct (alert_taxonomy.db) | `DELETE FROM alert_fires WHERE user_id = ?` |
 | `alert_predicates` | `user_id` | Direct (alert_taxonomy.db) | `DELETE FROM alert_predicates WHERE user_id = ?` |
 
-**screener.db** -- a second database, which no statement on auth.db reaches: **7 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
+**screener.db** -- a second database, which no statement on auth.db reaches: **10 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
 
 | Table | Owner key | Ownership | How the purge deletes it |
 |---|---|---|---|
@@ -256,6 +257,9 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 | `spec_alert_subs` | `user_id` | Direct (screener.db) | `DELETE FROM spec_alert_subs WHERE user_id = ?` |
 | `rs_screen_alert_subs` | `user_id` | Direct (screener.db) | `DELETE FROM rs_screen_alert_subs WHERE user_id = ?` |
 | `rs_screen_alerts_fired` | `user_id` | Direct (screener.db) | `DELETE FROM rs_screen_alerts_fired WHERE user_id = ?` |
+| `list_alert_subs` | `user_id` | Direct (screener.db) | `DELETE FROM list_alert_subs WHERE user_id = ?` |
+| `list_alert_messages` | `user_id` | Direct (screener.db) | `DELETE FROM list_alert_messages WHERE user_id = ?` |
+| `list_alerts_told` | `user_id` | Direct (screener.db) | `DELETE FROM list_alerts_told WHERE user_id = ?` |
 
 **calendar_alerts.db** -- a second database, which no statement on auth.db reaches: **1 tables**, deleted by `api/services/alert_erasure.py` through `alert_erasure.purge_user`.
 

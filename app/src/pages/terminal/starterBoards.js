@@ -57,8 +57,8 @@ export const STARTER_BOARDS = Object.freeze([
   {
     id: 'earnings-season',
     name: 'Earnings season',
-    about: 'Who reported and how each stock moved, the earnings calendar, and a search of what companies said about guidance on their calls.',
-    commands: ['EMOV', 'CAL', 'TSRC guidance'],
+    about: 'Who reports next and the move options are pricing, who reported and how each stock moved, the earnings calendar, and a search of what companies said about guidance on their calls.',
+    commands: ['ERNS', 'EMOV', 'CAL', 'TSRC guidance'],
   },
   {
     id: 'options-flow',

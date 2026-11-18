@@ -193,6 +193,19 @@ describe('the neighbor hold deepens the next rows once the member rests', () => 
     }
   })
 
+  it('a window that THROWS ends that row as a named failure (TERM-033), and the next row is still deepened', async () => {
+    // Without the named sentinel the rejection escapes `deepen` and the timer's catch swallows the
+    // WHOLE run: BBB, the next row, would never be deepened.
+    const t = await boot({ windowAnswer: (key) => { if (key.startsWith('AAA')) throw new Error('window read failed'); return { ok: true, added: HISTORY_WINDOW_BARS } } })
+    t.seed('AAA'); t.seed('BBB')
+    const hold = t.pf.createNeighborHold()
+    hold.set(['AAA', 'BBB'], '5', { deep: ['AAA', 'BBB'] })
+    await t.fire()
+    expect(t.scrolls.filter(([key]) => key === t.k('AAA')).length).toBe(1)
+    expect(t.scrolls.filter(([key]) => key === t.k('BBB')).length).toBe(PREFETCH_WINDOWS)
+    expect(t.snaps.get(t.k('AAA')).depth).toBe(470)                  // a failed window adds nothing
+  })
+
   it('intraday only, and only rows the hold holds', async () => {
     const t = await boot()
     t.seed('AAA', 'D'); t.seed('BBB'); t.seed('ZZZ')

@@ -669,6 +669,152 @@ def _identity_source(symbol: str, tf: str) -> list[dict]:
     return _bf._fmt_sqlite_bars(rows, tf, None) if rows else []
 
 
+# ── Step 4: a W/M series is never shallower than the daily series ──────────────
+# ⚰️ MEASURED ON PRODUCTION 2026-11-18. Weekly META started 2022-06-10, but daily META started at
+# Facebook's 2012 IPO. XYZ weekly started in 2025 (Square's daily: 2015). WBD, TFC and ELV (monthly)
+# showed the same thing. Each of these symbols was renamed or merged. Massive keys a symbol's
+# aggregates from the rename, and the W/M rows carry a gap there, so the reuse cutoff (step 1) cut
+# every week before it. The daily store holds the whole lineage with no gap, so its cutoff kept
+# the history. One company, two depths, depending on the timeframe.
+# The older W/M bars are built from the served daily series with the one W/M resampler, and only
+# when both series agree where they meet.
+#: A W/M series starting this many days after the stored daily series is shallow.
+_DEEPEN_MIN_DAYS = {"W": 14, "M": 62}
+#: The newest built bar must sit this close before the first stored one: no hole at the join.
+_DEEPEN_JOIN_DAYS = {"W": 10, "M": 40}
+#: Closes of the stored bars right after the first (the first can be a partial period) must agree.
+_DEEPEN_CHECK_BARS = 3
+_DEEPEN_TOL = 0.02
+#: The W/M series built from the daily series, per (ticker, tf), as tuples: a fill reads and resamples
+#: the daily store (30-60 ms for META, measured on the local store copy 2026-11-18) once per TTL, not
+#: on every uncached W/M read. Tuples keep an entry small (~120 bytes a period); only renamed or
+#: holed series ever get here.
+_BUILT_CACHE = TTLCache(max_size=128)
+_BUILT_TTL = 600
+
+
+def _store_first(symbol: str, tf: str) -> date | None:
+    """The first stored bar's date for (symbol, tf), or None."""
+    from api.services import bars_fetch as _bf
+    v = _bf._sqlite.get_first_ts(symbol, tf)
+    if v is None:
+        return None
+    s = str(v)
+    return _pd(f"{s[:4]}-{s[4:6]}-{s[6:8]}")
+
+
+def _reaches_store_head(ticker: str, bars: list[dict], tf: str) -> bool:
+    """Do these W/M bars start at the store's first row? A slice of the newest N rows does not, and
+    it is never deepened: a 600-bar first paint of AAPL weekly starts in 2015 on purpose."""
+    try:
+        first = _store_first(ticker, tf)
+    except Exception:  # noqa: BLE001 - no answer: not deepened
+        return False
+    b0 = _pd(bars[0].get("t")) if bars else None
+    return first is not None and b0 is not None and b0 <= first
+
+
+def _close_agrees(a: dict, b: dict) -> bool:
+    try:
+        x, y = float(a["c"]), float(b["c"])
+    except (KeyError, TypeError, ValueError):
+        return False
+    return x > 0 and y > 0 and abs(y / x - 1) <= _DEEPEN_TOL
+
+
+def _holes(bars: list[dict], tf: str) -> list[int]:
+    """Indexes `i` where a hole longer than the join limit sits between bars[i-1] and bars[i]."""
+    out, prev = [], _pd(bars[0].get("t")) if bars else None
+    for i in range(1, len(bars)):
+        d = _pd(bars[i].get("t"))
+        if prev and d and (d - prev).days > _DEEPEN_JOIN_DAYS[tf]:
+            out.append(i)
+        prev = d or prev
+    return out
+
+
+def _agree(stored: list[dict], by_t: dict) -> bool | None:
+    """True: every stored bar the built series also holds agrees on its close (one at least).
+    False: one disagrees. None: no bar in common, nothing proven."""
+    agreed = 0
+    for b in stored:
+        s = by_t.get(str(b.get("t"))[:10])
+        if s is None:
+            continue
+        if not _close_agrees(b, s):
+            return False
+        agreed += 1
+    return True if agreed else None
+
+
+def _whole(b: dict, by_t: dict) -> dict:
+    """The built bar for a stored bar's period when the stored one is a partial period (the rename
+    week: META's first weekly bar held Thursday and Friday only); else the stored bar."""
+    s = by_t.get(str(b.get("t"))[:10])
+    if s is not None and _close_agrees(b, s) and float(s.get("v") or 0) > float(b.get("v") or 0):
+        return s
+    return b
+
+
+def _built_periods(ticker: str, tf: str) -> list[dict]:
+    """The served daily series resampled to `tf` with `bars_fetch._resample_*_iso` (fresh dicts)."""
+    key = f"{ticker}:{tf}"
+    hit = _BUILT_CACHE.get(key)
+    if hit is None:
+        daily = sanitize_daily_bars(ticker, _identity_source(ticker, "D"), "D")
+        from api.services import bars_fetch as _bf
+        resample = _bf._resample_weekly_iso if tf == "W" else _bf._resample_monthly_iso
+        built = resample(daily, ticker=ticker) if daily else []
+        hit = tuple((str(b["t"])[:10], b["o"], b["h"], b["l"], b["c"], b.get("v")) for b in built)
+        _BUILT_CACHE.set(key, hit, ttl=_BUILT_TTL)
+    return [{"t": t, "o": o, "h": h, "l": l, "c": c, "v": v} for t, o, h, l, c, v in hit]
+
+
+def _deepen_from_daily(ticker: str, bars: list[dict], tf: str, head: bool = True) -> list[dict]:
+    """`bars` (a sanitized W/M series) with the periods the served daily series holds and they lack,
+    built with `bars_fetch._resample_*_iso`: the older periods when the series starts at its store's
+    head (`head`) and the daily series reaches further back, and the periods inside a hole. Each
+    fill needs the stored bars next to it to agree with the built ones, and must close its gap;
+    otherwise that part is unchanged. A partial period at a fill's edge becomes the whole one."""
+    w0 = _pd(bars[0].get("t")) if bars else None
+    if w0 is None:
+        return bars
+    lead = False
+    if head:
+        d0 = _store_first(ticker, "D")
+        lead = d0 is not None and (w0 - d0).days >= _DEEPEN_MIN_DAYS[tf]
+    holes = _holes(bars, tf)
+    if not lead and not holes:
+        return bars
+    built = _built_periods(ticker, tf)
+    if not built:
+        return bars
+    by_t = {str(b["t"])[:10]: b for b in built}
+    keys = [str(b["t"])[:10] for b in built]
+    n = _DEEPEN_CHECK_BARS
+    out = list(bars)
+    # Interior holes, newest first so earlier indexes stay valid.
+    for i in reversed(holes):
+        lo, hi = str(out[i - 1]["t"])[:10], str(out[i]["t"])[:10]
+        inside = [by_t[k] for k in keys if lo < k < hi]
+        if not inside or _agree(out[max(0, i - n):i] + out[i:i + n], by_t) is not True:
+            continue
+        if _holes([out[i - 1]] + inside + [out[i]], tf):
+            continue  # the fill must close the hole, all of it
+        out[i:i] = inside
+        j = i + len(inside)
+        if j < len(out) - 1:   # never the newest bar: the live, developing period stays as served
+            out[j] = _whole(out[j], by_t)
+    if lead:
+        first_t = str(out[0]["t"])[:10]
+        older = [by_t[k] for k in keys if k < first_t]
+        # The head itself can be a partial period: the bars after it prove the series.
+        if (older and _agree(out[1:1 + n], by_t) is True
+                and (w0 - _pd(older[-1]["t"])).days <= _DEEPEN_JOIN_DAYS[tf]):
+            out = older + [_whole(out[0], by_t)] + out[1:]
+    return out
+
+
 # ── Public entry point ──────────────────────────────────────────────────────
 def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
     """Normalize a D/W/M bars list (list of {t,o,h,l,c,v}, ascending by t).
@@ -678,6 +824,9 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
     if not _ENABLED or not bars or tf not in ("D", "W", "M"):
         return bars
     try:
+        # Read before step 1 changes the head: only a series that starts at its store's first row
+        # gets older periods from the daily series (step 4).
+        head = tf in ("W", "M") and _reaches_store_head(ticker, bars, tf)
         meta = _meta_cached(ticker)                      # None on cold miss (+warm)
         bars = _apply_listing_cutoff(bars, meta)
         # Another company's bars INSIDE the series (bars_identity: META's 2021-06-30 .. 2022-01-28
@@ -718,6 +867,11 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
                 _schedule_store_repair(ticker, tf)
         if tf == "D":
             bars = _clamp_wicks(bars)
+        elif bars:
+            try:
+                bars = _deepen_from_daily(ticker, bars, tf, head)
+            except Exception as e:  # noqa: BLE001 - the stored depth is still a chart
+                _log.warning("W/M deepen failed for %s tf=%s: %s", ticker, tf, e)
         return bars
     except Exception as e:  # noqa: BLE001
         _log.warning("sanitize_daily_bars failed for %s tf=%s: %s", ticker, tf, e)

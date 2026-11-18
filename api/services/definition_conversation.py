@@ -65,6 +65,7 @@ from jsonschema import Draft202012Validator
 from api.services import ast_interpret, ast_lint, call_expansions, conversation_preflight, user_definitions
 from api.services import definition_concierge as dc
 from api.services import chart_twins
+from api.services import named_indicators
 from api.services.ast_budget import BudgetExceeded, check_budget
 from api.services.ast_interpret import TableRefusal
 from api.services.catalyst import cost_guard
@@ -296,6 +297,11 @@ def anthropic_tool() -> Dict[str, Any]:
 #: are reported under ``dc.REFUSALS``. ⛔ Disjoint from every other door's phrases
 #: (``tests/test_p2_truth_server.py`` asserts it).
 REFUSALS: Mapping[str, str] = {
+    # ⭐ THE NAMED-INDICATOR LIBRARY (`named_indicators.py`)
+    "named:formula": (
+        "the UCT Agent did not build that named indicator to UCT's checked formula, so nothing was changed"),
+    "named:unchecked": (
+        "that indicator is not in UCT's checked library yet, so the assistant will not build it by name"),
     # ⭐ BATCH 2 -- linreg / correlation / vwma / roc / mom / Keltner with an unusable length
     "resolve:expansion": (
         "a formula function was given a length it cannot use (a whole number is needed)"),
@@ -819,11 +825,515 @@ def _chart_form(tree: Any) -> Optional[Dict[str, Any]]:
     return out
 
 
+#: ⭐ 2026-11-18 -- PHRASES EVERY TRADER SAYS THAT NAME NO ONE FUNCTION. "Plot the Moving Average" and
+#: "Add a 50 day Moving Average" were refused before any model call: the bare phrase was no phrase
+#: of this door, so in Title Case it read as an unknown named indicator. Each is a TERM here, with
+#: the rule for what to do about the part it leaves open.
+GENERIC_SECTION = "generic_phrases"
+#: ⭐ OWNER RULING, 2026-11-18: A MOVING AVERAGE WITH NO KIND NAMED IS A QUESTION, NEVER AN ASSUMPTION.
+#: Members say which they mean ("50 EMA", "a 50 day simple moving average"); when they do not, ASK.
+#: For a NEW indicator the door asks itself, before any model call (`asks_which_average`), so the
+#: answer is the same every time and costs nothing. Beside an indicator already on the chart the
+#: assistant reads the chart, under this rule.
+MOVING_AVERAGE_RULE = (
+    "a moving average with no kind named. If the member's words name the kind, or the indicator already on the "
+    "chart uses one kind of average and they plainly mean that one, use it. Otherwise ASK which kind "
+    "(disposition clarify, one question offering Simple, Exponential, Weighted, Hull and Volume-weighted). "
+    "NEVER assume a kind")
+GENERIC_PHRASES: Mapping[str, Tuple[str, str]] = {
+    "moving average": ("moving_average", MOVING_AVERAGE_RULE),
+    "ma": ("moving_average", MOVING_AVERAGE_RULE),
+    "dma": ("moving_average", MOVING_AVERAGE_RULE),
+}
+#: The terms that NAME a kind of average. One of them beside the bare phrase settles it.
+AVERAGE_TERMS = frozenset({"sma", "ema", "wma", "hma", "vwma", "alma"})
+# --------------------------------------------------------------------------- #
+# ⭐ CLARIFY FIRST (owner direction, 2026-11-18): "always clarify". When a choice that changes the
+# MATHS is not settled, the door asks ONE short question with the options before anything is built,
+# and never guesses. The questions are DATA (`api/data/clarify_questions.json`); WHEN one is open is
+# read here, from what the planner already found. No model call: the same question every time.
+# --------------------------------------------------------------------------- #
+
+CLARIFY_PATH = Path(__file__).resolve().parents[1] / "data" / "clarify_questions.json"
+
+
+@functools.lru_cache(maxsize=1)
+def clarify_registry() -> Dict[str, Dict[str, Any]]:
+    """The door's own questions, by id, in the order they are asked."""
+    doc = json.loads(CLARIFY_PATH.read_text(encoding="utf-8"))
+    return {q["id"]: q for q in doc["questions"]}
+
+
+def clarify_question(question_id: str) -> Dict[str, Any]:
+    """One registry question in the patch contract's shape: {id, text, choices}."""
+    q = clarify_registry()[question_id]
+    return {"id": q["id"], "text": q["text"], "choices": list(q["choices"])}
+
+
+#: (kept by name for the tests that pin it) the first question of the registry.
+AVERAGE_QUESTION: Mapping[str, Any] = clarify_question("average_kind")
+
+_CROSS_WORD = re.compile(r"\bcross(?:es|ed|ing|over|overs)?\b", re.I)
+_PRICE_WORD = re.compile(r"\bprice\b", re.I)
+#: More than one average in one request.
+_SEVERAL_AVERAGES = re.compile(r"\b(?:averages|emas|smas|wmas|hmas|mas|ribbon|ribbons)\b", re.I)
+#: Words that say WHEN a cross counts: on the close, or as soon as price trades through.
+_CROSS_SETTLED = re.compile(
+    r"\b(?:close|closes|closed|closing|touch|touches|touched|intraday|intrabar|wick|wicks|trades?\s+through|high|low)\b", re.I)
+
+
+def open_questions(understood: Mapping[str, Any]) -> List[str]:
+    """The registry questions this request leaves OPEN, in the order they are asked.
+
+    ⭐ MEASURED BEFORE IT WAS WRITTEN (2026-11-18, 320 first-turn requests on file): 11 leave the
+    kind of average open, 8 the length (every one a bare name such as "Simple moving average"),
+    and none the meaning of a cross. A convention the product already holds is never a question:
+    a named-library indicator brings its own numbers, so naming one asks nothing here."""
+    names = [t.get("name") for t in understood.get("terms") or [] if isinstance(t, Mapping)]
+    bare = "moving_average" in names
+    # a library entry that IS a kind of average names the kind and brings its own numbers
+    library = [e for e in understood.get("named") or [] if e.get("family") == "average"]
+    kinds = [n for n in names if n in AVERAGE_TERMS]
+    numbers = (understood.get("notes") or {}).get("member_numbers") or []
+    words = str(understood.get("request_text") or "")
+    found = set()
+    if bare and not kinds and not library:
+        found.add("average_kind")
+    # (ONE average: "a ribbon of EMAs" or "moving averages" wants several lengths, which this
+    # question's choices cannot give; that request is the assistant's to ask about)
+    if (bare or kinds) and not numbers and not library and not _SEVERAL_AVERAGES.search(words):
+        found.add("average_length")
+    if _CROSS_WORD.search(words) and _PRICE_WORD.search(words) and not _CROSS_SETTLED.search(words):
+        found.add("cross_meaning")
+    return [qid for qid in clarify_registry() if qid in found]
+
+
+def door_question(understood: Mapping[str, Any], view: Any) -> Optional[str]:
+    """The ONE question the door asks before building, or None. Only for a NEW indicator and only
+    for a request to build: a question from the member is answered, and beside an indicator already
+    on the chart the assistant reads the chart (under the rules it is handed)."""
+    if understood.get("advisory"):
+        return None
+    if isinstance(view, Mapping) and isinstance(view.get("definition"), Mapping):
+        return None
+    still_open = open_questions(understood)
+    return still_open[0] if still_open else None
+
+
+def asks_which_average(understood: Mapping[str, Any], view: Any) -> bool:
+    """Is the kind of a moving average the question this request gets?"""
+    return door_question(understood, view) == "average_kind"
+
+
+def _question_asked_in(text: Any) -> Optional[str]:
+    """The registry question a line of the conversation IS, if any."""
+    said = str(text or "")
+    return next((qid for qid, q in clarify_registry().items() if q["text"] in said), None)
+
+
+def with_pending_answers(message: str, turns: List[Dict[str, str]], chart: Any) -> str:
+    """The message to read this turn as: the request plus the answer when it answers one of the
+    door's own questions (`pending_answer`), else the message itself."""
+    got = pending_answer(message, turns, chart)
+    return got["message"] if got else message
+
+
+def pending_answer(message: str, turns: List[Dict[str, str]], chart: Any) -> Optional[Dict[str, Any]]:
+    """⭐ AN ANSWER IS THE REQUEST PLUS THE ANSWER. When the last thing said to the member was one of
+    the door's own questions and this message SETTLES it, the turn is read as the words they
+    first wrote and what they have answered since: "Add a moving average. Exponential (EMA). 50".
+    So the next open question is asked, or the build goes ahead with everything they said.
+
+    A message that does not settle the question is a new request and stands alone (the member
+    changed their mind; nothing is asked twice).
+
+    Returns ``{question, message, answer}`` (the question settled, the whole request, the answer
+    as read), or None."""
+    j = len(turns) - 1
+    asked = _question_asked_in(turns[j]["text"]) if j >= 1 and turns[j]["role"] == "assistant" else None
+    if asked is None:
+        return None
+    said: List[str] = []
+    while j >= 1 and turns[j]["role"] == "assistant" and _question_asked_in(turns[j]["text"]) \
+            and turns[j - 1]["role"] == "member":
+        said.append(turns[j - 1]["text"].strip().rstrip("."))
+        j -= 2
+    original = ". ".join(reversed(said))
+    # a plain word for one of the choices ("simple", "exponential") is read as that choice
+    answer = message.strip()
+    typed = " " + " ".join(dc._form_tokens(answer)) + " "
+    also = [(w, label) for label, words in (clarify_registry()[asked].get("also") or {}).items() for w in words]
+    for w, label in sorted(also, key=lambda pair: -len(pair[0])):          # the longest first: "volume weighted" before "weighted"
+        if f" {w} " in typed:
+            answer = answer if label in answer else f"{answer} ({label})"
+            break
+    combined = f"{original}. {answer}"
+    if not original or len(combined) > MAX_MESSAGE_CHARS:
+        return None
+    before, after = understand_turn(original, chart), understand_turn(combined, chart)
+    if before["refusal"] is not None or after["refusal"] is not None:
+        return None
+    if asked in open_questions(before) and asked not in open_questions(after):
+        return {"question": asked, "message": combined, "answer": answer}
+    return None
+
+
+# ⭐ LEARN THE MEMBER (owner direction, 2026-11-18; `indicator_memory.py`). An ANSWER to one of the
+# door's questions is remembered in the member's own account. Next time that choice is open the
+# door uses it and SAYS so, instead of asking again. Only closed values are kept: a choice's own
+# value or a number, never a word the member typed.
+
+def answer_value(question_id: str, answered: Mapping[str, Any], chart: Any) -> Optional[Tuple[Any, str]]:
+    """What the member CHOSE, as (closed value, the label it is shown by), or None when their
+    answer is not one of the question's own choices (then nothing is remembered)."""
+    question = clarify_registry()[question_id]
+    values = question.get("values") or {}
+    after = understand_turn(answered["message"], chart)
+    if question_id == "average_kind":
+        names = [t.get("name") for t in after.get("terms") or []]
+        chosen = next((n for n in names if n in AVERAGE_TERMS), None)
+        if chosen is None and any(e.get("id") == "kaufman_adaptive_moving_average" for e in after.get("named") or []):
+            chosen = "kama"
+        return next(((chosen, label) for label, value in values.items() if value == chosen), None)
+    if question_id == "average_length":
+        mine = (understand_turn(answered["answer"], chart).get("notes") or {}).get("member_numbers") or []
+        number = mine[0].get("value") if mine else None
+        if isinstance(number, (int, float)) and not isinstance(number, bool) and float(number).is_integer() \
+                and 1 <= number <= 960:
+            return int(number), str(int(number))
+        return None
+    if question_id == "cross_meaning":
+        said = answered["answer"].lower()
+        chosen = "close" if re.search(r"\bclos", said) else "touch" if _CROSS_SETTLED.search(said) else None
+        return next(((chosen, label) for label, value in values.items() if value == chosen), None)
+    return None
+
+
+def remembered_defaults(message: str, understood: Dict[str, Any], view: Any, chart: Any,
+                        memory: Any) -> Tuple[str, Dict[str, Any], List[Tuple[str, str]]]:
+    """The request with the member's REMEMBERED choices added where the door would otherwise ask:
+    (the message, how it reads now, [(question id, the choice used)]). Only a question whose
+    registry entry says `remember: default`, and only while the remembered choice still SETTLES
+    the question (one the door no longer reads is asked again)."""
+    used: List[Tuple[str, str]] = []
+    if memory is None:
+        return message, understood, used
+    for _ in clarify_registry():
+        asking = door_question(understood, view)
+        if asking is None:
+            break
+        question, kept = clarify_registry()[asking], memory.choice(asking)
+        if question.get("remember") != "default" or not kept:
+            break
+        joined = f"{message.strip().rstrip('.')}. {kept['label']}"
+        if len(joined) > MAX_MESSAGE_CHARS:
+            break
+        again = understand_turn(joined, chart)
+        if again["refusal"] is not None or asking in open_questions(again):
+            break                                    # it no longer settles the question: ask
+        message, understood = joined, again
+        used.append((asking, kept["label"]))
+    return message, understood, used
+
+
+def offered_first(question: Dict[str, Any], memory: Any) -> Dict[str, Any]:
+    """The question with the member's LAST answer first (`remember: offer`): a length they used
+    before is the likeliest again, but it is never applied without being chosen."""
+    entry = clarify_registry()[question["id"]]
+    kept = memory.choice(question["id"]) if memory is not None and entry.get("remember") == "offer" else None
+    if not kept:
+        return question
+    mine = f"{kept['label']} (your last)"
+    rest = [c for c in question["choices"] if c != kept["label"]]
+    return {**question, "choices": ([mine] + rest)[:6]}
+
+
+# ⭐ VISIBLE, EDITABLE, FORGETTABLE (slice C). What the door remembers about a member is theirs to
+# see and change: Settings shows it ("What Create Indicator remembers"), each entry with where it
+# came from, and can change or forget it. Every write is checked HERE against the registry, so a
+# member can only ever store one of a question's own choices.
+
+MEMORY_LENGTH_RANGE = (1, 960)
+
+
+def memory_choices(question_id: str) -> List[Dict[str, Any]]:
+    """The choices a member may keep for one question, as {label, value}."""
+    question = clarify_registry()[question_id]
+    values = question.get("values")
+    if values:
+        return [{"label": label, "value": values[label]} for label in question["choices"]]
+    return [{"label": label, "value": int(label)} for label in question["choices"] if label.isdigit()]
+
+
+def memory_view(memory: Any) -> Dict[str, Any]:
+    """What Settings shows: every question the door can remember an answer to, and this member's
+    answer where they have one. Only what the registry still knows is shown (an entry for a
+    question that no longer exists is not)."""
+    kept = memory.read()["choices"] if memory is not None else {}
+    rows = []
+    for qid, question in clarify_registry().items():
+        mine = kept.get(qid)
+        rows.append({
+            "id": qid, "title": question["title"], "question": question["text"],
+            # what an answer does next time, in the member's words
+            "use": ("Used without asking, and said each time." if question.get("remember") == "default"
+                    else "Asked each time, with yours listed first."),
+            "choices": memory_choices(qid),
+            "any_number": qid == "average_length",
+            "remembered": None if not mine else {
+                "label": mine["label"], "value": mine["value"], "last": mine["last"], "times": mine["times"],
+                "from": mine["from"]},
+        })
+    return {"questions": rows, "remembers": sum(1 for r in rows if r["remembered"])}
+
+
+def set_memory(memory: Any, question_id: Any, value: Any) -> bool:
+    """The member sets a remembered choice themselves. True when it was stored; False when the
+    value is not one this question can hold (nothing is written)."""
+    question = clarify_registry().get(question_id) if isinstance(question_id, str) else None
+    if question is None or isinstance(value, bool):
+        return False
+    if question_id == "average_length":
+        lo, hi = MEMORY_LENGTH_RANGE
+        if not isinstance(value, (int, float)) or not float(value).is_integer() or not (lo <= value <= hi):
+            return False
+        return memory.remember(question_id, int(value), str(int(value)), source="settings")
+    label = next((c["label"] for c in memory_choices(question_id) if c["value"] == value), None)
+    return label is not None and memory.remember(question_id, value, label, source="settings")
+
+
+def as_before_notes(used: List[Tuple[str, str]]) -> List[Dict[str, Any]]:
+    """What the member is told when the door used a remembered choice instead of asking."""
+    notes = []
+    for qid, label in used:
+        question = clarify_registry()[qid]
+        words = (question.get("said") or {}).get(label, label)      # the choice as it reads in a sentence
+        notes.append({"text": question["as_before"].format(choice=words)[:named_indicators.SENTENCE_MAX]})
+    return notes
+
+
+#: ⭐ THE NAMED-INDICATOR LIBRARY -- the rules the model reads beside a name the member wrote.
+NAMED_RULE = ("a NAMED indicator: UCT builds it to ONE checked formula. For each output you build, copy "
+              "its `tree` exactly. The only numbers that may differ are the ones in `numbers`, and only when "
+              "the member gave their own (within min and max, the same number everywhere that parameter "
+              "appears). Use `placement` and each output's `label`. Never write your own version of it; if "
+              "what the member asked cannot be this formula, emit no ops and say so in `note`")
+NAMED_UNCHECKED_RULE = ("in UCT's library but its formula is NOT CHECKED YET: you may discuss it, never "
+                        "author with it")
+#: What a member is told for a Title-Case name nothing here knows: the way forward, not a dead end.
+UNKNOWN_NAME_REASON = ('"{name}" is not an indicator UCT knows by name. Describe the rule itself in your own '
+                       "words (what it measures, over how many bars) and the assistant will build exactly that.")
+#: A name with no checked formula, beside the member's OWN description of the rule.
+NAMED_OWN_WORDS_RULE = ("UCT has NO checked formula for this name. Build ONLY the rule the member's own words "
+                        "describe, exactly as they describe it. Add nothing you know about the name beyond their "
+                        "words. If their words do not state a rule you can build, emit no ops and say so in `note`")
+NAMED_GATE = "named:formula"
+NAMED_UNCHECKED_GATE = "named:unchecked"
+
+
+def _named_term(e: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
+    """What the assistant is handed for a library name: the formula as data, never a recollection."""
+    if e is None:
+        return {}
+    if not named_indicators.passes(e):
+        return {"named_indicator": e["name"], "rule": NAMED_UNCHECKED_RULE}
+    at = named_indicators.defaults(e)
+    return {
+        "named_indicator": e["name"], "placement": e["placement"],
+        "outputs": [{"key": o["key"], "label": o["label"], "type": o["type"],
+                     "formula": named_indicators.formula_at(o["formula"], at), "tree": o["tree"]}
+                    for o in e["outputs"]],
+        "numbers": [{"name": p["label"], "in_the_formula": named_indicators.number_text(p["default"]),
+                     "min": p["min"], "max": p["max"], "whole_number": bool(p.get("integer"))}
+                    for p in e["params"]],
+        "rule": NAMED_RULE,
+    }
+
+
+def named_in(terms: Any) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """The library entries a turn's terms name: (those the assistant may build, those not checked
+    yet as {entry, wrote}). Each entry once, in the order written."""
+    ready: List[Dict[str, Any]] = []
+    unchecked: List[Dict[str, Any]] = []
+    seen: set = set()
+    for t in terms or []:
+        if not isinstance(t, Mapping) or t.get("section") != named_indicators.SECTION or t.get("name") in seen:
+            continue
+        seen.add(t.get("name"))
+        e = named_indicators.entry(t.get("name"))
+        if e is None:
+            continue
+        if named_indicators.passes(e):
+            ready.append(e)
+        else:
+            unchecked.append({"entry": e, "wrote": t.get("matched_as")})
+    return ready, unchecked
+
+
+def described_in_own_words(plain: str, chart: Any) -> bool:
+    """Did the member DESCRIBE a rule beside the unchecked name(s) they wrote? Asked of what is
+    left of the message once those names are taken out.
+
+    ⭐ A SMALL, MEASURED TEST, NOT A JUDGEMENT OF MEANING (2026-11-18, fourteen wordings): the rest
+    must name at least one thing a formula reads (a vocabulary term, or a ticker) and at least two
+    of {terms, tickers, the member's numbers} in all. "Mansfield relative strength versus SPY over
+    52 weeks" is a description (a ticker and a number); "Add the Pocket Pivot", "pocket pivot
+    marker in a lower pane" and "TTM Squeeze 20 2 1.5" (numbers and no rule) are not. Both ways of
+    being wrong are soft: a description judged missing gets the way forward; one judged present is
+    built from the member's words alone and labelled as their own formula."""
+    found = dc._matches(plain, CHART_LEXICON)
+    cut = sorted(((f["start"], f["end"]) for f in found if f.get("section") == named_indicators.SECTION
+                  and not named_indicators.passes(named_indicators.entry(f["key"]) or {})), reverse=True)
+    rest = plain
+    for a, b in cut:
+        rest = rest[:a] + " " + rest[b:]
+    if not rest.strip():
+        return False
+    understanding = dc.plan(rest, dc.INDICATOR_KIND, lexicon=CHART_LEXICON)
+    reads = len(understanding.get("terms") or []) + len(understanding.get("concepts") or []) + len(
+        conversation_preflight.named_tickers(rest, chart))
+    return reads >= 1 and reads + len(understanding.get("numbers") or []) >= 2
+
+
+def own_words_notes(envelope: Mapping[str, Any], own_words: Any) -> List[Dict[str, Any]]:
+    """What the member is told about every output of a turn that named an unchecked indicator and
+    described the rule: it is THEIR formula. UCT has checked none under that name."""
+    if not own_words:
+        return []
+    names = " or ".join(e["name"] for e in own_words)
+    text = f"Built from your own description, as your own formula. UCT has not checked a formula for {names}."
+    return [{"output": key, "text": text[:named_indicators.SENTENCE_MAX]}
+            for key, _tree in _patch_outputs(envelope) if isinstance(key, str)]
+
+
+def _patch_outputs(envelope: Mapping[str, Any]) -> List[Tuple[Any, Any]]:
+    """Every (output key, tree) a patch brings a formula in by."""
+    found: List[Tuple[Any, Any]] = []
+    for op in envelope.get("ops") or []:
+        if not isinstance(op, Mapping):
+            continue
+        if op.get("op") == "create":
+            found.extend((o.get("key"), o.get("tree")) for o in op.get("outputs") or [] if isinstance(o, Mapping))
+        elif op.get("op") == "add_output":
+            found.append((op.get("key"), op.get("tree")))
+        elif op.get("op") == "set_output_tree":
+            found.append((op.get("output"), op.get("tree")))
+    return found
+
+
+def _view_trees(view: Any) -> List[Any]:
+    definition = view.get("definition") if isinstance(view, Mapping) else None
+    outputs = definition.get("outputs") if isinstance(definition, Mapping) else None
+    return [o.get("tree") for o in outputs or [] if isinstance(o, Mapping)]
+
+
+def check_named(envelope: Mapping[str, Any], view: Any, named: Any) -> None:
+    """⛔ NEVER APPROXIMATED. The member named a library indicator, so a patch that brings a formula
+    in must hold that indicator's checked formula (`named_indicators.output_in`: equal in shape
+    and in every number but a declared parameter's) -- or the indicator already on the chart must.
+    Anything else is refused with the checked formula as the repair's diagnostic; wrong twice ends
+    in a refusal, never in something near it."""
+    if not named:
+        return
+    trees = [tree for _key, tree in _patch_outputs(envelope)]
+    if not trees:
+        return                                       # no formula enters by this patch
+    inputs = sorted(declared_inputs(envelope, view))
+    existing = _view_trees(view)
+    for e in named:
+        if named_indicators.held(trees, e, inputs) or named_indicators.held(existing, e, inputs):
+            continue
+        at = named_indicators.defaults(e)
+        formulas = "; ".join(f"{o['key']} = {named_indicators.formula_at(o['formula'], at)}" for o in e["outputs"])
+        numbers = ", ".join(f"{p['label']} {named_indicators.number_text(p['default'])} "
+                            f"({named_indicators.number_text(p['min'])} to {named_indicators.number_text(p['max'])})"
+                            for p in e["params"])
+        raise _Refused(
+            NAMED_GATE,
+            f"the member named {e['name']}, which UCT builds to ONE checked formula, and no formula in this "
+            f"patch holds it. Copy the `tree` given for it in uct_language_notes.matched_terms exactly "
+            f"({formulas}). Only these numbers may differ, and only to the member's own: {numbers}. "
+            "If the member wants something this formula cannot be, emit no ops and say so in `note`.",
+            member=e["name"])
+
+
+def named_notes(envelope: Mapping[str, Any], view: Any, named: Any) -> List[Dict[str, Any]]:
+    """One assumption per output this patch builds to a library formula: what it was built to and
+    how that formula was checked, in the member's words."""
+    return [{"output": key, "text": named_indicators.member_sentence(e, got)}
+            for key, e, got in _named_outputs(envelope, view, named)]
+
+
+def _named_outputs(envelope: Mapping[str, Any], view: Any, named: Any) -> List[Tuple[str, Dict[str, Any], Any]]:
+    """(output key, library entry, the numbers it was built with) for each output of this patch that
+    holds a library formula."""
+    found: List[Tuple[str, Dict[str, Any], Any]] = []
+    if not named:
+        return found
+    inputs = sorted(declared_inputs(envelope, view))
+    for key, tree in _patch_outputs(envelope):
+        if not isinstance(key, str):
+            continue
+        for e in named:
+            got = next((g for g in (named_indicators.output_in(tree, e, o, inputs) for o in e["outputs"]) if g is not None), None)
+            if got is not None:
+                found.append((key, e, got))
+                break
+    return found
+
+
+def named_built(envelope: Mapping[str, Any], view: Any, named: Any) -> List[str]:
+    """The ids of the library entries this patch built, each once, in the order built."""
+    ids: List[str] = []
+    for _key, e, _got in _named_outputs(envelope, view, named):
+        if e["id"] not in ids:
+            ids.append(e["id"])
+    return ids
+
+
+def refused_names(not_understood: Any) -> List[str]:
+    """The phrases a turn was refused for AS UNKNOWN NAMES (the planner's name rule, answered with
+    this door's own sentence), as written. For the record's use only: `asked_names` turns them into
+    catalogue ids and they go no further."""
+    return [n["phrase"] for n in not_understood or []
+            if isinstance(n, Mapping) and isinstance(n.get("phrase"), str)
+            and n.get("reason") == UNKNOWN_NAME_REASON.format(name=n["phrase"])]
+
+
+def asked_names(message: Any, refused: Any = ()) -> List[str]:
+    """⭐ WHICH WELL-KNOWN NAMES A REQUEST ASKED FOR, AS CATALOGUE IDS (`indicator_names`): every
+    catalogue name written in it, and `other` when a phrase refused as an unknown name is in no
+    catalogue row. IDS ONLY: nothing a member typed is in the answer."""
+    from api.services import indicator_names
+    ids = indicator_names.names_in(message)
+    if any(not indicator_names.names_in(phrase) for phrase in refused or ()):
+        ids = ids[:indicator_names.MAX_PER_TURN] + [indicator_names.OTHER]
+    return ids
+
+
+def _with_door_notes(envelope: Dict[str, Any], notes: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """The patch with the door's own notes ahead of what it already carries (never more than the
+    contract allows; a note already there for that output, word for word, is not repeated)."""
+    if not notes:
+        return envelope
+    have = [a for a in (envelope.get("assumptions") or []) if isinstance(a, Mapping)]
+    # (a note may have NO `output`: "as you chose before" is about the whole indicator. Read it with
+    # .get: indexed, it raised on any turn whose patch already carried an assumption.)
+    fresh = [n for n in notes if not any(a.get("output") == n.get("output") and a.get("text") == n["text"] for a in have)]
+    out = dict(envelope)
+    out["assumptions"] = (fresh + have)[:MAX_ASSUMPTIONS]
+    return out
+
+
 def _matched_term(t: Mapping[str, Any]) -> Dict[str, Any]:
     """One term the member wrote that names a table entry. ⭐ L4: a Screener column with a
     chart twin carries the house formula, so "ADR %" on a chart is the Screener's ADR %
     (21 sessions of (high - low) / close), not whatever the model would improvise."""
     out: Dict[str, Any] = {"wrote": t.get("matched_as"), "entry": t.get("name")}
+    if t.get("section") == named_indicators.SECTION:
+        return {**out, **_named_term(named_indicators.entry(t.get("name")))}
+    if t.get("section") == GENERIC_SECTION:
+        return {**out, "rule": next(rule for key, rule in GENERIC_PHRASES.values() if key == t.get("name"))}
     twin = CHART_TWINS.get(t.get("name")) if isinstance(t.get("name"), str) else None
     if twin is not None:
         out["chart_formula"] = dc.formula_for(twin)
@@ -2179,6 +2689,27 @@ def _chart_lexicon(base: Mapping[str, Any]) -> Dict[str, Any]:
             continue
         index[stems] = [{"kind": dc.TABLE_ENTRY, "key": column, "section": ast_table.SCALARS_SECTION,
                          "words": words, "cost": cost}]
+    for phrase, (key, _rule) in GENERIC_PHRASES.items():
+        words = dc._form_tokens(phrase)
+        stems, cost = dc._stem_key(words)
+        if stems not in index:
+            index[stems] = [{"kind": dc.TABLE_ENTRY, "key": key, "section": GENERIC_SECTION, "words": words, "cost": cost}]
+    # ⭐ THE NAMED-INDICATOR LIBRARY -- a name in it ("McGinley Dynamic", "connors rsi") is a term of
+    # its entry, so the planner's Title-Case rule finds it already accounted for and `_matched_term`
+    # hands the assistant the ONE checked formula. ⛔ ADDED, NEVER REPLACED, as above; a name that
+    # could not be added is a failing test (`tests/test_named_indicators.py`), never a silent skip.
+    # ⭐ A BUCKET THAT ONLY SAYS "NOT AVAILABLE" MAY BE TAKEN (slice 2): "pocket pivot" was already a
+    # phrase here, as one value of a Screener TEXT column no formula can read; on this door that
+    # answered "not available" and handed the request on. A library name (built, or held and
+    # refused by name with the way forward) is the better answer, so it takes that bucket. A
+    # bucket holding anything else is still never replaced.
+    for phrase, entry_id in named_indicators.phrases():
+        words = dc._form_tokens(phrase)
+        stems, cost = dc._stem_key(words)
+        if stems in index and not all(r.get("kind") == dc.EXCLUDED_ENTRY for r in index[stems]):
+            continue
+        index[stems] = [{"kind": dc.TABLE_ENTRY, "key": entry_id, "section": named_indicators.SECTION,
+                         "words": words, "cost": cost}]
     return {"index": index, "max_words": max((len(k) for k in index), default=1),
             "collisions": {k: v for k, v in (base.get("collisions") or {}).items() if k in index
                            and index[k] is base["index"].get(k)}}
@@ -2623,8 +3154,11 @@ def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
 def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
              snippets: Any = None, chart: Any = None, admin: bool = False,
              conversation_id: Any = None, examples: Any = False,
-             browser_refusal: Any = None) -> Dict[str, Any]:
+             browser_refusal: Any = None, memory: Any = None) -> Dict[str, Any]:
     """One conversational turn. NEVER raises.
+
+    ``memory`` is this member's remembered choices (`indicator_memory.Memory`), or None for a turn
+    that remembers nothing and uses nothing remembered (every test that does not ask for one).
 
     ``{ok: True, disposition: 'change'|'answer'|'clarify'|'unsupported', reply,
     turn: 'question'|'patch'|'noop', envelope, not_understood, unavailable, tokens,
@@ -2657,7 +3191,7 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
             result = _converse_turn(message, user_id=user_id, view=view, authoring=authoring,
                                     snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls,
                                     trace=trace, admin=admin, examples=examples is True,
-                                    refused_by_browser=browser_refusal)
+                                    refused_by_browser=browser_refusal, memory=memory)
         else:
             result = {"ok": False, "gate": "rate:busy", "reason": dc.REFUSALS["rate:busy"]}
     latency_ms = int((time.monotonic() - started) * 1000)
@@ -2672,7 +3206,7 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
     except Exception:                              # noqa: BLE001 -- telemetry never breaks a turn
         logger.exception("[converse] usage accounting failed")
     _record_turn(user_id, conversation_id, result, admin=admin, message=message,
-                 latency_ms=latency_ms)
+                 latency_ms=latency_ms, learned=trace)
     # ⭐ F1 (2026-11-16): how much of today's allowance is left, so the dock can say so before
     # it runs out rather than only when it has. A SHARE, never dollars. Never breaks a turn.
     try:
@@ -2809,8 +3343,29 @@ def turn_stamps() -> Dict[str, Any]:
     return out
 
 
+def learned_fields(result: Mapping[str, Any], learned: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
+    """⭐ LEARN AS A PRODUCT: what a turn says about questions, memory and names, as CLOSED IDS (a
+    registry question id, a library entry id, a name-catalogue id). Each is held to its own closed
+    set again where it is stored (`indicator_telemetry._VALUE_RULES`).
+
+      asked         the registry question the door asked, or ``assistant`` for one the assistant asked
+      answered      the registry question this turn's message answered
+      remembered    the registry questions answered from the member's memory instead of asking
+      named_built   the library entries the change built
+      named_held    the held names the turn was refused for
+      unknown_name  the catalogue names the request asked for (``other``: a refused name in no row)
+    """
+    t = learned or {}
+    csv = lambda ids: ",".join(i for i in ids or [] if isinstance(i, str)) or None  # noqa: E731
+    asked = t.get("asked") or ("assistant" if result.get("ok") and result.get("turn") == "question" else None)
+    return {"asked": asked, "answered": t.get("answered"), "remembered": csv(t.get("remembered")),
+            "named_built": csv(t.get("named_built")), "named_held": csv(t.get("named_held")),
+            "unknown_name": csv(t.get("unknown_name"))}
+
+
 def _record_turn(user_id: Any, conversation_id: Any, result: Mapping[str, Any], *,
-                 admin: bool, message: Any, latency_ms: int) -> None:
+                 admin: bool, message: Any, latency_ms: int,
+                 learned: Optional[Mapping[str, Any]] = None) -> None:
     """⛔ NEVER RAISES and stores SHAPE ONLY (indicator_telemetry's allowlists)."""
     try:
         from api.services import indicator_telemetry
@@ -2841,6 +3396,7 @@ def _record_turn(user_id: Any, conversation_id: Any, result: Mapping[str, Any], 
             latency_ms=latency_ms,
             op_kinds=",".join(o for o in ops if isinstance(o, str)) or None,
             preflight=bool(result.get("preflight")),
+            **learned_fields(result, learned),
             **turn_stamps(),
         )
     except Exception:                              # noqa: BLE001
@@ -2885,7 +3441,10 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
     # (`derivedName.memberCueNames`, one shared rule in `preflightRules.json`).
     member_names, unnamed = conversation_preflight.naming_split(message)
     plain = _product_nouns_plain(unnamed if member_names else message)
-    understanding = dc.plan(plain, dc.INDICATOR_KIND, lexicon=CHART_LEXICON) if plain.strip() else \
+    # ⭐ 2026-11-18 -- THE WHOLE-PHRASE RULE, on this door: a short Title-Case name with an unknown word
+    # in it is an unknown name even when another of its words is known (`dc._foreign_words`).
+    understanding = dc.plan(plain, dc.INDICATOR_KIND, lexicon=CHART_LEXICON, strict_names=True,
+                            name_refusal=UNKNOWN_NAME_REASON) if plain.strip() else \
         {"understood": "", "not_understood": [], "unavailable": [], "concepts": []}
     not_understood = understanding["not_understood"]
     unavailable = understanding["unavailable"]
@@ -2905,7 +3464,29 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
     else:
         request_text = understanding["understood"]
 
+    # ⭐ THE NAMED-INDICATOR LIBRARY -- a name whose formula is not checked yet is refused BY NAME
+    # on an authoring turn (never handed to a model that could approximate it); on a question it is
+    # discussed, and the advisory backstop below keeps that turn from coming back as a change.
+    # ⭐ ONLY THE NAME IS WITHHELD. With the member's own description of the rule beside it, the
+    # turn goes on: the assistant is told to build that description and nothing else, and the door
+    # labels the result as the member's own formula (`own_words_notes`).
+    named, unchecked = named_in(understanding.get("terms"))
+    own_words: List[Dict[str, Any]] = []
+    if unchecked and not advisory:
+        if not described_in_own_words(plain, chart):
+            return {"refusal": {"ok": False, "gate": NAMED_UNCHECKED_GATE,
+                                "reason": named_indicators.way_forward(unchecked[0]["entry"]),
+                                "not_understood": not_understood, "unavailable": unavailable},
+                    "held": [u["entry"]["id"] for u in unchecked]}
+        own_words = [u["entry"] for u in unchecked]
+    elif unchecked:
+        discussed = discussed + [{"phrase": u["wrote"], "gate": NAMED_UNCHECKED_GATE,
+                                  "reason": named_indicators.way_forward(u["entry"])} for u in unchecked]
+
     notes = _language_notes(understanding)
+    for term in notes["matched_terms"] if own_words else ():
+        if term.get("rule") == NAMED_UNCHECKED_RULE:
+            term["rule"] = NAMED_OWN_WORDS_RULE
     if discussed:
         notes["not_understood"] = []
         notes["not_in_vocabulary"] = [{"phrase": n.get("phrase"), "rule": NOT_IN_VOCABULARY_RULE}
@@ -2917,7 +3498,7 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
     return {"refusal": None, "request_text": request_text, "notes": notes,
             "advisory": advisory, "other_sym": other_sym, "discussed": discussed,
             "not_understood": not_understood, "unavailable": unavailable,
-            "terms": understanding.get("terms") or []}
+            "terms": understanding.get("terms") or [], "named": named, "own_words": own_words}
 
 
 def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
@@ -2925,7 +3506,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
                    calls: List[Dict[str, Any]],
                    trace: Optional[Dict[str, Any]] = None,
                    admin: bool = False, examples: bool = False,
-                   refused_by_browser: Any = None) -> Dict[str, Any]:
+                   refused_by_browser: Any = None, memory: Any = None) -> Dict[str, Any]:
     trace = trace if trace is not None else {}
     try:
         message, view, state, turns = _bounded_inputs(message, view, authoring, snippets)
@@ -2933,11 +3514,45 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         return {"ok": False, "gate": refused.gate, "reason": refused.reason}
     revision = view["revision"]
 
+    answered = pending_answer(message, turns, chart)            # an answer is the request plus the answer
+    if answered:
+        message = answered["message"]
+        trace["answered"] = answered["question"]
+        chose = answer_value(answered["question"], answered, chart) if memory is not None else None
+        if chose is not None:
+            memory.remember(answered["question"], chose[0], chose[1])
     understood_turn = understand_turn(message, chart)
+    try:                                           # the record's own reading: it never costs a turn
+        refused_as_names = refused_names((understood_turn["refusal"] or understood_turn).get("not_understood"))
+        trace["unknown_name"] = asked_names(message, refused_as_names)
+    except Exception:                              # noqa: BLE001
+        logger.exception("[converse] the name catalogue could not be read for the record")
     if understood_turn["refusal"] is not None:
+        trace["named_held"] = understood_turn.get("held") or []
         if understood_turn["refusal"].get("preflight"):
             logger.info("[converse] preflight %s (no model call)", understood_turn["refusal"]["gate"])
         return understood_turn["refusal"]
+    # what this member chose before stands in for the question (and is said, below)
+    message, understood_turn, as_before = remembered_defaults(message, understood_turn, view, chart, memory)
+    if as_before:
+        trace["remembered"] = [qid for qid, _label in as_before]
+    asking = door_question(understood_turn, view)
+    if asking is not None:
+        trace["asked"] = asking
+        # ⭐ THE DOOR ASKS, with no model call: the same question every time, for nothing. ONE
+        # question; the next open one is asked on the next turn (`with_pending_answers`).
+        question = {"contract": PATCH_CONTRACT, "baseRevision": revision, "ops": [], "disposition": "clarify",
+                    "questions": [offered_first(clarify_question(asking), memory)]}
+        try:
+            question = check_envelope(question, revision, view)
+        except _Refused:                           # never: the question is this door's own. If it ever is, the model asks.
+            logger.exception("[converse] the door's own question did not pass the door")
+        else:
+            logger.info("[converse] the door asked %s (no model call)", asking)
+            return {"ok": True, "disposition": "clarify", "reply": "", "turn": "question", "envelope": question,
+                    "asked_by": "door", "asked": asking, "not_understood": understood_turn["not_understood"],
+                    "unavailable": understood_turn["unavailable"],
+                    "tokens": {"input": 0, "output": 0}, "cost_usd": 0.0, "attempts": 0, "model": None}
     request_text = understood_turn["request_text"]
     notes = understood_turn["notes"]
     advisory = understood_turn["advisory"]
@@ -2945,6 +3560,8 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     discussed = understood_turn["discussed"]
     not_understood = understood_turn["not_understood"]
     unavailable = understood_turn["unavailable"]
+    named = understood_turn.get("named") or []
+    own_words = understood_turn.get("own_words") or []
     # ⭐ L5 -- WORKED EXAMPLES (`worked_examples.py`): for a NEW indicator, the nearest one or two of
     # UCT's own checked builds ride along INSIDE <uct_language_notes> (data, by the instructions' own
     # rule; the cached instruction block is untouched). Dark for members; an admin turn can ask.
@@ -3036,7 +3653,12 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         try:
             envelope = check_envelope(candidate, revision, view)
             check_output_renames(envelope, message, view, turns)
+            check_named(envelope, view, named)                 # a named indicator is its checked formula, or nothing
             envelope = with_running_value_notes(envelope)      # the door says where a running value starts
+            envelope = _with_door_notes(envelope, named_notes(envelope, view, named))
+            envelope = _with_door_notes(envelope, own_words_notes(envelope, own_words))
+            if envelope.get("disposition") == "change":
+                envelope = _with_door_notes(envelope, as_before_notes(as_before))
             if replayed and envelope.get("ops") == replayed[0].get("ops"):
                 raise _Refused("envelope:reference",
                                f"this is the patch the app already refused ({replayed[1]}); change it")
@@ -3071,11 +3693,11 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         # ⭐ PHASE 5: another symbol is authorable now, so a change for one is
         # refused only when it reads NONE of the symbols the member named (the
         # substitution). "From SPY to QQQ" names both; a change reading QQQ is it.
-        named = {conversation_preflight.store_ticker(t)
-                 for t in conversation_preflight.named_tickers(message, chart)} | (
+        named_syms = {conversation_preflight.store_ticker(t)
+                      for t in conversation_preflight.named_tickers(message, chart)} | (
             {conversation_preflight.store_ticker(other_sym)} if other_sym else set())
         reads_other = bool(other_sym) and bool(
-            named & {conversation_preflight.store_ticker(t) for t in envelope_tickers(envelope)})
+            named_syms & {conversation_preflight.store_ticker(t) for t in envelope_tickers(envelope)})
         unasked = unasked_tickers(envelope, message, view)
         if envelope.get("disposition") == "change" and unasked:
             refused = _Refused("unsupported:symbol-unasked", f"reads {', '.join(unasked)}",
@@ -3104,7 +3726,9 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         else:
             turn = "noop"
         reply = envelope.get("reply")
+        trace["named_built"] = named_built(envelope, view, named)   # what the patch holds; nothing on a turn with no formula
         return {
+            **({"remembered": [qid for qid, _label in as_before]} if as_before else {}),
             "ok": True,
             "disposition": envelope["disposition"],
             "reply": reply.strip() if isinstance(reply, str) else "",
