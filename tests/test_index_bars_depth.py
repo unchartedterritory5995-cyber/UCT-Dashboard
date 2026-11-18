@@ -181,8 +181,24 @@ def test_D3_the_yfinance_fallback_reads_its_full_period_and_is_cut_at_the_same_s
     assert [b["t"] for b in out] == [_utc("1990-01-02"), _utc("2026-11-13")]
 
 
-def test_D3_weekly_and_intraday_periods_are_unchanged():
-    assert index_bars.PERIOD_MAP["1wk"] == "10y" and index_bars.PERIOD_MAP["60m"] == "60d"
+def test_D3_weekly_and_the_finer_intraday_periods_are_unchanged():
+    assert index_bars.PERIOD_MAP["1wk"] == "10y"
+    for interval in ("1m", "2m", "5m", "15m", "30m", "90m"):
+        assert index_bars.PERIOD_MAP[interval] in ("7d", "60d"), interval
+
+
+def test_D3b_hourly_reaches_yfinance_s_730_days():
+    """RS RATING L12: an hourly chart (an index's own, and Fred RS's RS line on any 1h chart) reads SP:SPX at its own
+    period; 60 days of it covered only the last 60 sessions of a 1h chart. yfinance serves 730 days of 60m."""
+    assert index_bars.PERIOD_MAP["60m"] == "730d"
+
+
+def test_D3c_an_hourly_fetch_asks_yfinance_for_730_days(monkeypatch):
+    seen = []
+    monkeypatch.setattr(index_bars, "_fetch_yf", lambda sym, interval, period, divisor: seen.append((sym, interval, period)) or
+                        [{"t": 1794929400 + 3600 * i, "o": 1, "h": 1, "l": 1, "c": 1, "v": 0} for i in range(20)])
+    index_bars._fetch_full_series("SPX", "60")
+    assert seen == [("^GSPC", "60m", "730d")]
 
 
 # -- D4 -------------------------------------------------------------------------------------

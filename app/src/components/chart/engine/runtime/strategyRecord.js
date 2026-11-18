@@ -273,27 +273,42 @@ export function strategyRecordOf({ summary, decl, barTimes, historyWindowBars, c
  * report then holds only the refusal, `brokerReport.js`), carrying the broker's own guard and rule and a sentence
  * in the member's words (no guard id, no rule id). A shape-valid v1 record, so every reader (the report panel, the
  * trade markers, the service's codec) reads it as it reads any other.
- * @param {{decl?:object, barTimes:any[], historyWindowBars?:number, confirmed?:boolean, refused:Error}} p
+ * @param {{decl?:object, barTimes:any[], historyWindowBars?:number, confirmed?:boolean, refused:Error, withheld?:number}} p
+ *   `withheld`: how many outputs a broker value reaches, withheld by name beside the record (`strategyDisarmOf`)
  */
-export function refusedStrategyRecordOf({ decl, barTimes, historyWindowBars, confirmed, refused }) {
+export function refusedStrategyRecordOf({ decl, barTimes, historyWindowBars, confirmed, refused, withheld = 0 }) {
   const n = Array.isArray(barTimes) ? barTimes.length : 0
   const hwb = Number.isInteger(historyWindowBars) && historyWindowBars > 0 ? historyWindowBars : Math.max(1, n)
   const rec = strategyRecordOf({ summary: { record: { orders: [], trades: [], rulesUsed: [] } }, decl, barTimes,
     historyWindowBars: hwb, confirmed })
   rec.window.bars = Math.min(rec.window.bars, hwb)
   rec.refusals = [{ guard: (refused && refused.guard) || null, rule: (refused && (refused.rule || refused.probe)) || null,
-    sentence: backtestRefusedSentence(refused, n) }]
+    sentence: backtestRefusedSentence(refused, n, withheld) }]
   return rec
 }
 
-/** The member's sentence for a backtest the broker refused while the plots are drawn. */
-export function backtestRefusedSentence(refused, bars) {
+/** The member's sentence for a backtest the broker refused while the plots are drawn (`withheld`: how many outputs
+ *  showing the backtest's own values are not drawn). */
+export function backtestRefusedSentence(refused, bars, withheld = 0) {
   const why = refused && refused.name === 'BrokerUnpinned'
     ? 'it rests on a strategy rule that no comparison with TradingView has confirmed yet'
     : refused && (refused.probe === 'Q-S1n' || refused.name === 'BrokerStart')
       ? `it needs this symbol's history from its first bar, and this chart holds its most recent ${bars} bars`
       : String((refused && refused.message) || 'the strategy emulator could not run it').replace(/\s*\(unsettled:[^)]*\)\s*$/, '')
-  return `The backtest is not run on this chart: ${why}. The script's plots are drawn.`
+  return `The backtest is not run on this chart: ${why}. `
+    + (withheld > 0 ? "The script's plots are drawn, except those that show the backtest's own values."
+      : "The script's plots are drawn.")
+}
+
+/** ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — the guard a plot or paint is withheld under when its broker run
+ *  was refused and a broker value reaches it (`strategyTaint.js::strategyDisarmOf`): the strategy value it draws is
+ *  not served on this chart (`pineRuntimeFrontend.js` REFUSALS, `runtime:strategy-value`). */
+export const DISARMED_WITHHELD_GUARD = 'runtime:strategy-value'
+
+/** The member's sentence for one such output (`w`: `{word, name}` from `strategyDisarmOf`), no guard id in it. */
+export function disarmedWithheldSentence(w) {
+  return `this \`${(w && w.name) || 'plot'}\` shows \`${(w && w.word) || 'a strategy value'}\`, a value of the backtest, and the `
+    + 'backtest is not run on this chart, so it is not drawn rather than drawn without it'
 }
 
 /** Attach a record to a column record (non-enumerable). */

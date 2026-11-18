@@ -31,6 +31,7 @@ import { slotsOfTree, outputTrees, nodeAt, parsePath } from './slots'
 import { nameOfTree } from './derivedName'
 import { PATCH_CONTRACT, PATCH_LIMITS } from './patchValidate'
 import { collapseExpansions } from '../../engine/ast/callExpansions'
+import { libraryParts } from './checkedLibrary'
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
 const isOp = (n, name) => isObj(n) && n.type === 'op' && n.name === name
@@ -82,22 +83,77 @@ function captionOf(parent, node) {
  */
 export function settingsOf(def) {
   if (!isObj(def)) return []
-  return settingsOfTrees(outputTrees(def))
+  return settingsOfTrees(outputTrees(def), { inputs: (Array.isArray(def.inputs) ? def.inputs : []).map((x) => x && x.key) })
+}
+
+// ⭐ 2026-11-18 — A CHECKED LIBRARY INDICATOR'S SETTINGS ARE THE ENTRY'S OWN (`checkedLibrary.js`).
+// Where a formula holds a library output, the numbers inside it are not read one by one. Each
+// DECLARED setting of the entry is one setting here, holding every place it sits, in every output
+// of that indicator that has the same value: KAMA's efficiency length is one field for its two
+// places, and the Directional Movement Index's length moves +DI, -DI and ADX together. A change is
+// one patch with one edit per place, applied whole or not at all, so one place can never move
+// alone. A number of the formula that is NOT a declared setting (the 2 in 2 / (n + 1), the 0 in
+// 0 - volume) is not a setting: changing it would make a different indicator.
+const pathKey = (segs) => segs.join('.')
+
+/** `{slot path → {part, param}}` for every setting place, and the paths of the parts themselves. */
+function libraryPlaces(tree, inputs) {
+  const sites = new Map()
+  const roots = []
+  for (const part of libraryParts(tree, inputs)) {
+    roots.push(pathKey(part.at))
+    const params = new Map(part.entry.params.map((p) => [p.key, p]))
+    for (const place of part.places) {
+      sites.set(pathKey(place.offset ? [...place.path, 'n'] : place.path), { part, param: params.get(place.key) })
+    }
+  }
+  const inside = (segs) => roots.some((r) => r === '' || pathKey(segs) === r || pathKey(segs).startsWith(`${r}.`))
+  return { sites, inside }
+}
+
+/** Why `value` is outside what a library setting can be, in a member's words; null when it can. */
+function libraryRefusal(setting, value) {
+  const { min, max, integer } = setting.library
+  if (integer && !Number.isInteger(value)) return `This is a count of bars: a whole number from ${min} to ${max}.`
+  if (value < min || value > max) {
+    return integer
+      ? `This is a count of bars: a whole number from ${min} to ${max} (a chart holds ${max} bars, so a longer one could never have a value).`
+      : `Enter a number from ${min} to ${max}.`
+  }
+  return null
 }
 
 /**
  * The same, over bare trees: `[{key, tree}]` in plot order. The New formula window's form holds
  * formulas, not a definition, and derives its Inputs from them with this.
  */
-export function settingsOfTrees(list) {
+export function settingsOfTrees(list, { inputs = [] } = {}) {
   const outputs = (Array.isArray(list) ? list : []).filter((o) => o && typeof o.key === 'string' && isObj(o.tree))
   const trees = new Map(outputs.map((o) => [o.key, collapseExpansions(o.tree)]))
+  const library = new Map([...trees].map(([key, tree]) => [key, libraryPlaces(tree, inputs)]))
   const groups = new Map()
   for (const slot of outputs.flatMap((o) => slotsOfTree(o.key, o.tree))) {
     if (slot.kind !== 'number' || typeof slot.value !== 'number' || !Number.isFinite(slot.value)) continue
     const tree = trees.get(slot.output)
     const segs = parsePath(slot.path)
     if (!tree || !segs) continue
+    const lib = library.get(slot.output)
+    const site = lib.sites.get(slot.path)
+    if (site) {
+      // one setting per declared parameter of the entry, at one value, across its outputs
+      const { part, param } = site
+      const sign = `library|${part.entry.id}|${param.key}|${slot.value}`
+      const had = groups.get(sign)
+      if (had) { had.slots.push(slot.id); continue }
+      groups.set(sign, {
+        caption: param.label, captionFull: param.label, role: param.integer ? 'length' : 'multiple',
+        value: slot.value, whole: !!param.integer, min: param.min, negated: false, slots: [slot.id],
+        library: { id: part.entry.id, name: part.entry.name, param: param.key, label: param.label,
+          min: param.min, max: param.max, integer: !!param.integer },
+      })
+      continue
+    }
+    if (lib.inside(segs.filter((x) => x !== 'n'))) continue                // the formula's own number, not a setting
     const offset = segs[segs.length - 1] === 'n'
     const at = offset ? segs.slice(0, -1) : segs
     const node = nodeAt(tree, at)
@@ -117,7 +173,16 @@ export function settingsOfTrees(list) {
       min: whole ? 1 : null, negated: !!slot.negated, slots: [slot.id],
     })
   }
-  return [...groups.values()].map((g) => ({ ...g, id: g.slots.join('|') }))
+  const all = [...groups.values()]
+  // The bare label ("Efficiency length") when every setting belongs to ONE library indicator. The
+  // indicator's name goes in front when the caption has to tell settings apart: two library
+  // indicators, or a library setting beside a number of the member's own formula.
+  const held = new Set(all.filter((g) => g.library).map((g) => g.library.id))
+  const prefix = held.size > 1 || (held.size === 1 && all.some((g) => !g.library))
+  return all.map((g) => {
+    const caption = g.library && prefix ? `${g.library.name}: ${g.library.label}` : g.caption
+    return { ...g, caption: g.library ? caption : g.caption, captionFull: g.library ? caption : g.captionFull, id: g.slots.join('|') }
+  })
 }
 
 /** How many tunable numbers `def` has (the Inputs count). */
@@ -126,6 +191,7 @@ export const settingsCount = (def) => settingsOf(def).length
 /** Why `value` cannot be this setting's value, in a member's words; null when it can. */
 export function settingRefusal(setting, value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return 'Enter a number.'
+  if (setting.library) return libraryRefusal(setting, value)
   if (setting.whole && (!Number.isInteger(value) || value < 1)) return 'This is a count of bars: a whole number of at least 1.'
   // ⛔ A NUMBER KEEPS ITS SIGN HERE. Crossing zero changes the formula's shape (a minus sign appears
   // or goes), which is a change to describe, not a value to type.

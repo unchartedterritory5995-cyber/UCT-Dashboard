@@ -66,6 +66,9 @@
   "percentage_price_oscillator": {
    "1": "sha256:7b618c26461616ed8f5bfb976bfcb2254b8f2d57fa2e5029aabd0f6fe67ce31f"
   },
+  "positive_volume_index": {
+   "1": "sha256:09b2ad3a469bfdd14274db24d3f0bf4761c7f8f809aa600e8c2a7ad33f3895f9"
+  },
   "price_volume_trend": {
    "1": "sha256:63416f369155d19169a378b6d342551a12a20dd31a14520604cb0c2b64d94edb"
   },

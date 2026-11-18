@@ -2896,6 +2896,10 @@ function copyColumns(out) {
  *  (`run-half:object-rail`, `run-half:host-object-withheld`), and a run half with nothing
  *  comparable is refused (`run-half:no-comparable-objects`) unless recorded evidence admits its
  *  script. A drawing-only script (no plot mapped) is therefore never served on its gates alone.
+ *  ⭐⭐ PARITY UNIT 1 (`objects`, 2026-11-18) — when the host document DRAWS an object program, a
+ *  drawing the run makes at a call that program lost (or in a family the host withholds whole on these
+ *  bars) is the run's to draw, on the gates above (`runHalfObjectRail.js`, the lost-drawings rule);
+ *  every site the host draws is still held to the host's, and the plots stay the host's columns.
  *  Every answer is noted for the refusal telemetry (`runHalfTelemetry.js`).
  *  The answer rides non-enumerable (`runtimeObjects.js::RUN_HALF_KEY`): `served` with the
  *  run's drawings beside it (`RUNTIME_OBJECTS_KEY`, the RT5 shape the binder already draws),

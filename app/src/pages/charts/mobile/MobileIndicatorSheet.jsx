@@ -558,7 +558,8 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
 
   const renderStudyField = (f) => {
     const cur = studyModel.values[f.key]
-    const active = evalActiveWhen(f.activeWhen, studyModel.values)
+    // a LOCKED setting (`f.disabled`, its sentence the visible tip) is inert like an inactive one
+    const active = !f.disabled && evalActiveWhen(f.activeWhen, studyModel.values)
     const id = `${uid}-${f.key}`
     const common = {
       inputKey: f.key,

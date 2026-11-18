@@ -158,6 +158,15 @@ _GAP_MIN_DAYS = 21            # a gap this big + a listing-date match ⇒ reuse
 _GAP_STANDALONE_DAYS = 150    # a gap this big ⇒ reuse even without listing metadata
 _GAP_ALIGN_TOL_DAYS = 12      # gap must resume within this many days of the listing
 _REUSE_PRICE_FACTOR = 4.0    # a gap WITH a ≥4× (or ≤¼×) price jump ⇒ reuse, no metadata
+#: The calendar days one bar of each timeframe spans when NOTHING is missing. A gap is measured as the
+#: EXCESS over it, so every threshold above means "days of missing history" on every timeframe.
+#: ⚰️ 2026-11-18: the gap was a raw step, and a MONTHLY series' every step (28-31 days) is >= 21. Its
+#: "largest gap" was simply its first 31-day step, resuming on the month after the listing month (RDDT
+#: 2024-04-01, SPY 1993-02-01), which sits within the alignment tolerance of the cached ipoDate (2024-03-21,
+#: 1993-01-29): the cut dropped the LISTING MONTH (TradingView's 1M chart has it: RDDT from 2024-03-01, 33
+#: months). Only where the profile was cached, so it came and went with the metadata cache; the
+#: metadata-free price-ratio branch could cut the same false gap on a volatile month. Daily is unchanged.
+_NOMINAL_STEP_DAYS = {"D": 0, "W": 7, "M": 31}
 _SPLIT_TOL = 0.15            # |observed/expected − 1| ≤ this ⇒ boundary is unadjusted
 _WICK = 1.40                 # a wick > body*this AND > neighbor*this is a lone spike
 
@@ -383,54 +392,65 @@ def _meta_cached(ticker: str) -> dict | None:
 
 
 # ── Step 1: ticker-reuse listing cutoff ─────────────────────────────────────
-def _apply_listing_cutoff(bars: list[dict], meta: dict | None) -> list[dict]:
+def _resume_aligns_with_listing(resume_d, ipo, tf: str) -> bool:
+    """Does the bar that resumes after the gap open the new listing? Within the tolerance of the
+    listing day, or (M) the listing day lies inside the resume bar's own month: a monthly bar is keyed
+    on its month's 1st, so a listing late in the month is still that month's. (A weekly bar is keyed on
+    its Friday, and every day of its week is within the tolerance already.)"""
+    if abs((resume_d - ipo).days) <= _GAP_ALIGN_TOL_DAYS:
+        return True
+    return tf == "M" and (resume_d.year, resume_d.month) == (ipo.year, ipo.month)
+
+
+def _apply_listing_cutoff(bars: list[dict], meta: dict | None, tf: str = "D") -> list[dict]:
     """Drop the OLD security's bars from a recycled ticker.
 
     A reused ticker has a large data gap whose resumption aligns with the new
     security's listing date. Normal continuously-traded tickers have no such gap,
     so this is a fast no-op for them (single O(bars) scan, no metadata needed
-    unless a suspicious gap is present)."""
+    unless a suspicious gap is present).
+
+    ⭐ PERIOD-AWARE (2026-11-18): a gap is the EXCESS of a step over one bar's span
+    (`_NOMINAL_STEP_DAYS`: a month's 31 days, a week's 7, a day's 0), so a monthly
+    series' ordinary month-to-month step is no gap, and the listing alignment reads
+    the resume bar's PERIOD (a monthly bar is keyed on its month's 1st, a weekly one
+    on its Friday, while the listing day falls anywhere inside it)."""
     if len(bars) < 2:
         return bars
-    # Largest gap + the index of the bar that RESUMES trading after it.
-    best_gap, resume_idx = 0, 0
+    # The series starts at the bar after the NEWEST listing break, the store's own rule
+    # (`listing_break.is_break`, so the chart and the RS Rating / screener agree on where a
+    # symbol's history starts):
+    #   * a gap >= _GAP_MIN_DAYS WITH a >= _REUSE_PRICE_FACTOR close jump either way (SPCX:
+    #     ~$22 SPAC ETF -> ~$150 SpaceX; DRAM: ~$1 Dataram -> ~$50 ETF). A multi-week HALT of
+    #     the same company resumes near its pre-halt price, and a reverse split is same-day.
+    #     Metadata-free, so it cuts on the FIRST serve, before the ipoDate metadata warms;
+    #   * a gap >= _GAP_STANDALONE_DAYS on its own;
+    #   * and, the chart's own third branch, a gap >= _GAP_MIN_DAYS that resumes within
+    #     _GAP_ALIGN_TOL_DAYS of the provider's listing date (a halt of the SAME company keeps
+    #     its old ipoDate, so it never aligns).
+    # ⚰️ 2026-11-18, production: this judged only the LARGEST gap. A symbol held by three
+    # securities lost the oldest one and kept the middle one: ADPT served Adeptus Health
+    # 2014-06 .. 2017-04 ($1.41) in front of Adaptive Biotechnologies (2019-06-27, $40.30),
+    # while the store readers already cut at the newest break.
+    # ⭐ PERIOD-AWARE (2026-11-18): every gap below is the EXCESS of a step over one bar's span
+    # (`_NOMINAL_STEP_DAYS`), so `is_break` is asked about days of MISSING history on every timeframe
+    # (a daily step is unchanged; a monthly series' 31-day step is no gap), and a monthly resume bar
+    # aligns with a listing inside its own month (`_resume_aligns_with_listing`).
+    step = _NOMINAL_STEP_DAYS.get(tf, 0)
+    from api.services import listing_break as _lb
+    ipo = _pd((meta or {}).get("ipo"))
+    cut = 0
     prev_d = _pd(bars[0]["t"])
     for i in range(1, len(bars)):
         d = _pd(bars[i]["t"])
         if prev_d and d:
-            g = (d - prev_d).days
-            if g > best_gap:
-                best_gap, resume_idx = g, i
+            g = (d - prev_d).days - step
+            if g >= _GAP_MIN_DAYS and (
+                    _lb.is_break(g, bars[i - 1].get("c"), bars[i].get("c"))
+                    or (ipo is not None and _resume_aligns_with_listing(d, ipo, tf))):
+                cut = i
         prev_d = d
-    if best_gap < _GAP_MIN_DAYS:
-        return bars  # no reuse signature at all
-
-    # METADATA-FREE reuse detection: a gap WITH a large price discontinuity is a
-    # recycled ticker — the OLD security traded at a totally different scale than
-    # the new listing (SPCX: ~$22 SPAC ETF → ~$150 SpaceX; DRAM: ~$1 Dataram →
-    # ~$50 ETF). A legit multi-week HALT of the same company resumes near its
-    # pre-halt price, so it won't trip this. This cuts on the FIRST serve, before
-    # the ipoDate metadata warms — no ~1s pre-IPO flash. (A gap ≥ _GAP_MIN_DAYS
-    # rules out a reverse split, which is same-day.)
-    prev_c = bars[resume_idx - 1].get("c")
-    cur_c = bars[resume_idx].get("c")
-    if prev_c and cur_c and prev_c > 0:
-        ratio = cur_c / prev_c
-        if ratio >= _REUSE_PRICE_FACTOR or ratio <= 1.0 / _REUSE_PRICE_FACTOR:
-            return bars[resume_idx:]
-
-    ipo = _pd((meta or {}).get("ipo"))
-    resume_d = _pd(bars[resume_idx]["t"])
-
-    # Prefer the gap whose resume aligns with the listing date (precise + safe:
-    # a legit multi-week halt of the SAME company keeps its old ipoDate, so it
-    # won't align with the gap and won't be cut).
-    if ipo and resume_d and abs((resume_d - ipo).days) <= _GAP_ALIGN_TOL_DAYS:
-        return bars[resume_idx:]
-    # No listing metadata (cold cache): only cut on an UNMISTAKABLE gap.
-    if best_gap >= _GAP_STANDALONE_DAYS:
-        return bars[resume_idx:]
-    return bars
+    return bars[cut:] if cut else bars
 
 
 # ── Step 2: split-adjustment self-heal ──────────────────────────────────────
@@ -828,7 +848,7 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
         # gets older periods from the daily series (step 4).
         head = tf in ("W", "M") and _reaches_store_head(ticker, bars, tf)
         meta = _meta_cached(ticker)                      # None on cold miss (+warm)
-        bars = _apply_listing_cutoff(bars, meta)
+        bars = _apply_listing_cutoff(bars, meta, tf)
         # Another company's bars INSIDE the series (bars_identity: META's 2021-06-30 .. 2022-01-28
         # was the Roundhill ETF at ~$15): replaced by the company's own bars under the symbol it
         # traded as then, or dropped. Before the split repair, so a filled window is adjusted with

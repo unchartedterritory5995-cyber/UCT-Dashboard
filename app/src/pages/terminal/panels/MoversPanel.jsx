@@ -62,7 +62,9 @@ const COLUMNS = [
   { key: 'last', label: 'Last ($)' },
   { key: 'pct', label: '% Chg' },
   { key: 'ah', label: 'After hours', postOnly: true, title: 'Move since the 4:00 PM close' },
-  { key: 'volume', label: 'Volume', title: 'Shares traded today (pre and post market included outside the regular session)' },
+  // phoneHide: at 390px the table was 165px wider than the screen. The share count steps aside on a
+  // phone; Vol × avg, the reading the Volume lens ranks by, stays.
+  { key: 'volume', label: 'Volume', phoneHide: true, title: 'Shares traded today (pre and post market included outside the regular session)' },
   { key: 'volVsAvg', label: 'Vol × avg', title: 'Today\'s volume against normal. Where the Volume Surge scanner tracks the name: volume so far against the prior session\'s volume scaled to this time of day. Else the catalyst board\'s "today vs 30-day average"' },
 ]
 
@@ -215,7 +217,8 @@ export default function MoversPanel({ lens: lensProp = null, mine: mineProp = fa
                   // % Chg header says it: a caret plus "by size", and aria-sort "other".
                   const bySize = c.key === 'pct' && sort?.key === 'absPct'
                   return (
-                  <th scope="col" key={c.key} aria-sort={bySize ? 'other' : ariaSortFor(sort, c.key, 'none')}
+                  <th scope="col" key={c.key} className={c.phoneHide ? styles.phoneHide : undefined}
+                    aria-sort={bySize ? 'other' : ariaSortFor(sort, c.key, 'none')}
                     title={bySize ? 'Sorted by the size of the move, up or down. Click to sort by % change.' : c.title}>
                     <button type="button" className={styles.sortBtn} onClick={() => toggleSort(c.key)}
                       data-testid={`terminal-movers-sort-${c.key}`}>
@@ -227,7 +230,7 @@ export default function MoversPanel({ lens: lensProp = null, mine: mineProp = fa
                   </th>
                   )
                 })}
-                <th scope="col">Why</th>
+                <th scope="col" className={styles.whyCell}>Why</th>
               </tr>
             </thead>
             <tbody>
@@ -244,7 +247,7 @@ export default function MoversPanel({ lens: lensProp = null, mine: mineProp = fa
                         <span className={styles.rowNum}>{i + 1}</span>
                         <span className={styles.sym}>{r.sym}</span>
                         <WatchMark sym={r.sym} overlay={!aside(r)} />
-                        {aside(r) ? <span className={styles.muted}> {aside(r)}</span> : null}
+                        {aside(r) ? <span className={`${styles.muted} ${styles.asideTag}`}> {aside(r)}</span> : null}
                       </button>
                     </td>
                     <td>{formatNumber(r.last, { decimals: 2 })}</td>
@@ -254,11 +257,11 @@ export default function MoversPanel({ lens: lensProp = null, mine: mineProp = fa
                         {formatPercent(r.ah, { decimals: 2, signed: true })}
                       </td>
                     )}
-                    <td>{formatCompactTerminal(r.volume)}</td>
+                    <td className={styles.phoneHide}>{formatCompactTerminal(r.volume)}</td>
                     <td title={VOL_SOURCE_TEXT[r.volSource]}>
                       {r.volVsAvg != null ? `${formatNumber(r.volVsAvg, { decimals: 1 })}×` : formatNumber(null)}
                     </td>
-                    <td>
+                    <td className={styles.whyCell}>
                       {why ? (
                         <button type="button" className={styles.whyBtn} aria-expanded={open === r.sym}
                           onClick={() => setOpen(open === r.sym ? null : r.sym)} data-testid={`terminal-movers-why-${r.sym}`}>

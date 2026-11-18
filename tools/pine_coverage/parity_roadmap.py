@@ -256,6 +256,24 @@ NEVER_SERVE = [
      lambda f: bool(f.get("orderAlerts"))),
 ]
 FEATURE_ONLY = frozenset({"broker"})
+# ── RULED BY NAME (coordinator, 2026-11-18): a never-serve script whose class no detector above reads off its
+# source, with the witness that settled it. ⛔ A ruling, never a guess: each names the run that witnessed it.
+# These three read crypto pairs as SYMBOL INPUT DEFAULTS the facts do not hold as venues (a v4 `input('BINANCE:
+# ...', title=input.symbol)`; bare `XRPUSDT`-style pairs with no prefix): we hold no crypto data, and TradingView
+# itself refuses every one at its defaults ("Invalid symbol"), so no capture of them can be taken either
+# (capture run objunit-2026-11-18, packet 582f2cf1e50b7fbb1939bf9d4fd38017981ac9d4c5aeb290f3add37703ccf596,
+# 0 of 6 capturable; the 2026-11-15 attempt the same).
+RULED_NEVER_SERVE = {
+    "committed:supertrend-explorer__V4MsmtCeKs": (
+        "other-feeds", "nine BINANCE: crypto pairs (BINANCE:EOSBTC ...) as symbol input defaults; TradingView "
+        "refuses it at its defaults (\"Invalid symbol\"), run objunit-2026-11-18"),
+    "reference:custom-screener-with-alerts__dd1bf69eb8": (
+        "other-feeds", "40 crypto pairs (XRPUSDT, BTCUSDT ...) as symbol input defaults; TradingView refuses it "
+        "at its defaults (\"Invalid symbol\"), run objunit-2026-11-18"),
+    "reference:screener-for-40-instruments__a009097811": (
+        "other-feeds", "40 crypto pairs (XRPUSDT, BTCUSDT ...) as symbol input defaults; TradingView refuses it "
+        "at its defaults (\"Invalid symbol\"), run objunit-2026-11-18"),
+}
 # In scope as their own DATA units (owner scope), so NOT never-serve: the decision is the data, not the engine.
 DATA_DECISIONS = [
     ("breadth", "US market breadth series (USI:ADVN.NY family, ADD, TICK, TRIN): our own breadth data",
@@ -621,6 +639,9 @@ def build(m, facts_doc, map_sha=None):
         f = facts.get(k)
         for c in classify(f, NEVER_SERVE):
             never[c].append(k)
+        ruled = RULED_NEVER_SERVE.get(k)
+        if ruled and k not in never[ruled[0]]:
+            never[ruled[0]].append(k)   # a ruling by name (`RULED_NEVER_SERVE`), its witness beside it below
         for c in classify(f, DATA_DECISIONS):
             data_dec[c].append(k)
     # a script that needs data we cannot hold can never transfer fully; the broker class is a FEATURE (the order
@@ -742,8 +763,12 @@ def build(m, facts_doc, map_sha=None):
         "units": unit_rows,
         "unitPairs": unit_pairs[:40],
         "buildOrder": order,
-        "neverServe": [{"class": cid, "title": t, "refusal": code, "scripts": never.get(cid, []),
-                        "count": len(never.get(cid, []))} for cid, t, code, _r in NEVER_SERVE],
+        "neverServe": [{"class": cid, "title": t, "refusal": code, "scripts": sorted(never.get(cid, [])),
+                        "count": len(never.get(cid, [])),
+                        **({"ruledByName": {k: why for k, (c2, why) in sorted(RULED_NEVER_SERVE.items())
+                                            if c2 == cid and k in never.get(cid, [])}}
+                           if any(c2 == cid and k in never.get(cid, []) for k, (c2, _w) in RULED_NEVER_SERVE.items())
+                           else {})} for cid, t, code, _r in NEVER_SERVE],
         "externalWalls": EXTERNAL_WALLS,
         "authoringClasses": [{"reason": r_, "ideas": n_, "pine": p_, "classification": c_, "unit": u_, "note": x_}
                              for r_, n_, p_, c_, u_, x_ in AUTHORING_CLASSES],
