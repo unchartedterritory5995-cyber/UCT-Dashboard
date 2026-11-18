@@ -9,6 +9,10 @@ export { default as BoardFromList } from './BoardFromList'
 export { default as PanelSkeleton } from './PanelSkeleton'
 export { default as PanelState } from './PanelState'
 export { default as PanelSymbol } from './PanelSymbol'
+// Watchlist marks: the context and the mark. The provider that feeds them is imported by path
+// (WatchMarksProvider.jsx), by the shell's route alone.
+export { WatchMarksContext, useWatchMark, usePanelDrawsWatchMark } from './watchMarks'
+export { default as WatchMark } from './WatchMark'
 export { default as SecurityHeadline } from './SecurityHeadline'
 export { default as TickerNotFound, notFoundOf } from './TickerNotFound'
 export { default as PanelCommand } from './PanelCommand'

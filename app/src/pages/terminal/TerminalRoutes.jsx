@@ -15,6 +15,9 @@ import useTerminalNext, { LEGACY_CALENDAR_PATH, TERMINAL_PATH, calendarIntoShell
 // those two pull the whole function registry into the app entry chunk (lane w9-10).
 import { TERMINAL_BOARDS_PREF, isGuardedStatus, readKeepCalendar } from './boardPrefs'
 import { PanelSkeleton } from '../../components/terminal'
+// Watchlist marks: ONE read of the member's names for every list in the shell. It reads the key
+// the app shell already keeps warm (LogoPrewarm), so this adds no poll and little code here.
+import WatchMarksProvider from '../../components/terminal/WatchMarksProvider'
 
 /** `/calendar`: today's page, or — for an admitted member — the shell's Calendar section.
  *
@@ -68,5 +71,5 @@ export function TerminalRoute({ children }) {
   const open = useTerminalNext()
   const { search, hash } = useLocation()
   if (!open) return <Navigate to={shellOutToCalendar(search, hash)} replace />
-  return children
+  return <WatchMarksProvider>{children}</WatchMarksProvider>
 }
