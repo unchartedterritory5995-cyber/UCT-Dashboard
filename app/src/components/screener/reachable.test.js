@@ -825,6 +825,9 @@ const AWAITING_A_DECISION = {
   'app/src/components/chart/rails/railSupport.js':
     'Shared support for the chart-data P0 rails (193c79dcb5), read only by those rails and '
     + 'railScan.js. Move under a testing/ path.',
+  'app/src/components/chart/builder/memberPane/costRouteParity.js':
+    'Route-by-cost parity checker (#1711, engine 73): compares a host document and its runtime '
+    + 'twin bar for bar; read only by routeByCost / costRoute tests. Move under a testing/ path.',
   }
 
 /**
