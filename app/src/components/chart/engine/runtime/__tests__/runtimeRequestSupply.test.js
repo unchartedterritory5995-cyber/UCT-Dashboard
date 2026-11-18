@@ -176,6 +176,9 @@ describe('L5 (b)(c) — the supply is the host bind\'s decision', () => {
 })
 
 describe('L5 (d) — the run half is minted when its requests are servable by the host\'s rules', () => {
+  // ⭐⭐ PARITY UNIT 1 (`objects`) — these rails test the RUN HALF's request gate. The own-symbol weekly fixture
+  // is a host document the dirty route MOVES to the runtime lane (`dirtyRoute.js`), so the door is asked without
+  // the route (`routeDirty: false`): the run half is the answer for a host-partial document the route keeps.
   const LF = String.fromCharCode(10)
   const SRC = (req) => ['//@version=5', 'indicator("rh req", overlay = true)', `w = ${req}`, 'plot(w, "w")',
     'if barstate.islast', '    for i = 0 to 4', '        if close[i] > open[i]', '            label.new(bar_index - i, high[i], "up")'].join(LF)
@@ -186,21 +189,21 @@ describe('L5 (d) — the run half is minted when its requests are servable by th
   afterEach(() => { vi.unstubAllEnvs() })
 
   it('an own-symbol weekly merge: minted', () => {
-    const d = memberPaneDefinition({ source: SRC('request.security(syminfo.tickerid, "W", close)'), id: 'u_l5rh1', name: 'm' })
+    const d = memberPaneDefinition({ source: SRC('request.security(syminfo.tickerid, "W", close)'), id: 'u_l5rh1', name: 'm', routeDirty: false })
     expect(d.ok, d.reason).toBe(true)
     expect(d.runHalfDeclined).toBeUndefined()
     expect(d.definition.compute.runtimeObjects).toBeTruthy()
   })
 
   it('another symbol at the chart\'s own timeframe: minted (the bind serves it per chart)', () => {
-    const d = memberPaneDefinition({ source: SRC('request.security("AMEX:SPY", timeframe.period, close)'), id: 'u_l5rh2', name: 'm' })
+    const d = memberPaneDefinition({ source: SRC('request.security("AMEX:SPY", timeframe.period, close)'), id: 'u_l5rh2', name: 'm', routeDirty: false })
     expect(d.ok, d.reason).toBe(true)
     expect(d.runHalfDeclined).toBeUndefined()
     expect(d.definition.compute.runtimeObjects).toBeTruthy()
   })
 
   it('⛔ CONTROL: a request the host cannot read (a computed symbol) still declines runtime:request', () => {
-    const d = memberPaneDefinition({ source: SRC('request.security(close > open ? "AMEX:SPY" : "NASDAQ:QQQ", timeframe.period, close)'), id: 'u_l5rh3', name: 'm' })
+    const d = memberPaneDefinition({ source: SRC('request.security(close > open ? "AMEX:SPY" : "NASDAQ:QQQ", timeframe.period, close)'), id: 'u_l5rh3', name: 'm', routeDirty: false })
     if (d.runHalfDeclined) expect(d.runHalfDeclined.code).not.toBe(undefined)
     expect(d.definition ? d.definition.compute.runtimeObjects : undefined).toBeUndefined()
   })

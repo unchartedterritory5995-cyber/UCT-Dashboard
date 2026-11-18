@@ -2182,8 +2182,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     if ((o.hidden && o.hiddenReason !== 'constant') || o._authorHidden === true) {
       // ⭐⭐ PARITY UNIT 1 — a document the DIRTY ROUTE moves keeps every row its author hid that the host
       // document carried (`carryHidden`, translation output indices): hidden, never drawn, but computed, as the
-      // host document computed it (TradingView computes a `display.none` plot too; the reference, `display.none`:
-      // "Display nowhere"). Every other runtime document is unchanged.
+      // host document computed it (the reference, `display.none`: "Specifies that the values or visuals are not
+      // displayed anywhere by default", not that they are not computed). Every other runtime document is unchanged.
       if (carryHidden && carryHidden.has(index) && o.hiddenReason === 'author') hiddenCarried.push({ o, index })
       continue
     }

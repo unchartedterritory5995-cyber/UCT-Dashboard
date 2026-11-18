@@ -74,6 +74,8 @@ describe('one pairing, both lanes', () => {
 })
 
 describe('⛔ the run half\'s door declines a run whose outputs do not pair', () => {
+  // ⭐⭐ PARITY UNIT 1 (`objects`) — the RUN HALF's pairing gate; the fixture is one the dirty route would move
+  // to the runtime lane, so the door is asked without the route (`routeDirty: false`).
   const LF = String.fromCharCode(10)
   const SRC = ['//@version=5', 'indicator("run half", overlay = true)', 'm = ta.sma(close, 5)', 'plot(m, "m")',
     'if barstate.islast', '    for i = 0 to 4', '        if close[i] > open[i]', '            label.new(bar_index - i, high[i], "up")'].join(LF)
@@ -85,7 +87,7 @@ describe('⛔ the run half\'s door declines a run whose outputs do not pair', ()
 
   it('one plot more on the run: declined runtime:output-map, nothing minted', () => {
     extra.on = true
-    const d = memberPaneDefinition({ source: SRC, id: 'u_member-pane-rhmap', name: 'm' })
+    const d = memberPaneDefinition({ source: SRC, id: 'u_member-pane-rhmap', name: 'm', routeDirty: false })
     expect(d.ok, d.reason).toBe(true)
     expect(d.runHalfDeclined && d.runHalfDeclined.code).toBe('runtime:output-map')
     expect(d.definition.compute.runtimeObjects).toBeUndefined()
@@ -94,7 +96,7 @@ describe('⛔ the run half\'s door declines a run whose outputs do not pair', ()
   it('X2: a run that reads another symbol or timeframe is declined runtime:request', () => {
     extra.on = true
     extra.mode = 'requests'
-    const d = memberPaneDefinition({ source: SRC, id: 'u_member-pane-rhmap', name: 'm' })
+    const d = memberPaneDefinition({ source: SRC, id: 'u_member-pane-rhmap', name: 'm', routeDirty: false })
     expect(d.runHalfDeclined && d.runHalfDeclined.code).toBe('runtime:request')
     expect(d.definition.compute.runtimeObjects).toBeUndefined()
   })
@@ -102,13 +104,13 @@ describe('⛔ the run half\'s door declines a run whose outputs do not pair', ()
   it('X3: a run with an unsettled na test is declined runtime:na-test', () => {
     extra.on = true
     extra.mode = 'naTests'
-    const d = memberPaneDefinition({ source: SRC, id: 'u_member-pane-rhmap', name: 'm' })
+    const d = memberPaneDefinition({ source: SRC, id: 'u_member-pane-rhmap', name: 'm', routeDirty: false })
     expect(d.runHalfDeclined && d.runHalfDeclined.code).toBe('runtime:na-test')
     expect(d.definition.compute.runtimeObjects).toBeUndefined()
   })
 
   it('CONTROL: the real probe pairs, and the run half is minted', () => {
-    const d = memberPaneDefinition({ source: SRC, id: 'u_member-pane-rhmap', name: 'm' })
+    const d = memberPaneDefinition({ source: SRC, id: 'u_member-pane-rhmap', name: 'm', routeDirty: false })
     expect(d.runHalf).toEqual({ minted: true, columns: 1 })
   })
 })
