@@ -122,6 +122,67 @@ describe('array.indexof / array.includes find a number within the epsilon (B27 B
   })
 })
 
+// ⭐ engine NUMBER PENDING (Q-FCMP3, vw-fcmp-arrays, run fcmp3b-2026-11-18, packet b400024aa71d: AMEX:SPY and
+// NYSE:RDDT 1D from the listing, the same reading on every bar of both). TradingView's readings, row by row: the
+// first describe holds the kernels' answers to the committed captures' own rows.
+const ARR = (sym) => JSON.parse(readFileSync(`../tests/fixtures/vendor/harness/vw-fcmp-arrays-${sym}-1d-2026-11-18.json`, 'utf8'))
+describe('the Q-FCMP3 kernels answer every row as the committed captures read it (A01-A16)', () => {
+  const budget = { charge() {} }
+  const e = 3e-14, z = 9e-11, far = 3e-10, s3 = [1.0, 2.0, 3.0]
+  const f = (name, arr, v) => ARRAY_FNS[`array.${name}`].fn([arr, v], budget)
+  const ours = [
+    f('lastindexof', [1.0, 2.0, 1.0], 1.0), f('lastindexof', [1.0, 2.0, 1.0 + e], 1.0), f('lastindexof', [1.0, 2.0], 1.0 + e),
+    f('lastindexof', [1.0, 2.0], 1.0 + z), f('lastindexof', [1.0, 2.0], 1.0 + far),
+    f('binary_search', s3, 2.0), f('binary_search', s3, 2.0 + e), f('binary_search', s3, 2.0 - e), f('binary_search', s3, 2.0 + z),
+    f('binary_search', s3, 2.0 + far), f('binary_search_leftmost', s3, 2.0 - e), f('binary_search_leftmost', s3, 2.0 - z),
+    f('binary_search_rightmost', s3, 2.0 + e), f('binary_search_rightmost', s3, 2.0 + z), f('binary_search_leftmost', s3, 2.0 - far),
+    f('binary_search_rightmost', s3, 2.0 + far),
+  ]
+  for (const sym of ['spy', 'rddt']) {
+    it(`vw-fcmp-arrays-${sym}: every row, on every bar, is the kernels' answer`, () => {
+      const cap = ARR(sym)
+      cap.study.plots.slice(1).forEach((pl, k) => {
+        const at = cap.plotValues.fields.indexOf(pl.id)
+        expect(new Set(cap.plotValues.rows.map((r) => r[at])), pl.title).toEqual(new Set([ours[k]]))
+      })
+    })
+  }
+})
+describe('array.lastindexof finds a number within the epsilon, from the end (A01-A05); text stays strict', () => {
+  const budget = { charge() {} }
+  const last = (arr, v) => ARRAY_FNS['array.lastindexof'].fn([arr, v], budget)
+  it('A01 the exact control: 2', () => expect(last([1.0, 2.0, 1.0], 1.0)).toBe(2))
+  it('A02 the last element is 1 + 3e-14: 2 (exact would be 0)', () => expect(last([1.0, 2.0, 1.0 + 3e-14], 1.0)).toBe(2))
+  it('A03 / A04 the target is 1 + 3e-14 / 1 + 9e-11: 0 (exact would be -1)', () => {
+    expect(last([1.0, 2.0], 1.0 + 3e-14)).toBe(0)
+    expect(last([1.0, 2.0], 1.0 + 9e-11)).toBe(0)
+  })
+  it('A05 outside the epsilon: -1; an `na` element matches nothing; text is strict', () => {
+    expect(last([1.0, 2.0], 1.0 + 3e-10)).toBe(-1)
+    expect(last([1.0, NaN, 2.0], 2.0)).toBe(2)
+    expect(last([NaN, 1.0, NaN], 1.0)).toBe(1)
+    expect(last(['a', 'b', 'a'], 'a')).toBe(2)
+    expect(last(['a'], 'a ')).toBe(-1)
+  })
+})
+
+describe('the three binary searches stay EXACT, as measured (A06-A16): a built-in is not the operator rule', () => {
+  const budget = { charge() {} }
+  const s3 = [1.0, 2.0, 3.0]
+  const bs = (name, v) => ARRAY_FNS[`array.${name}`].fn([s3, v], budget)
+  it('binary_search: 2 is at 1 (A06); 2 + 3e-14, 2 - 3e-14 and 2 + 9e-11 are not found (A07-A09: -1, tolerant would be 1)', () => {
+    expect(bs('binary_search', 2.0)).toBe(1)
+    expect([2.0 + 3e-14, 2.0 - 3e-14, 2.0 + 9e-11].map((v) => bs('binary_search', v))).toEqual([-1, -1, -1])
+    expect(bs('binary_search', 2.0 + 3e-10)).toBe(-1)                                             // A10
+  })
+  it('binary_search_leftmost of 2 - 3e-14 / 2 - 9e-11 is 0 (A11 / A12, tolerant would be 1); 2 - 3e-10: 0 (A15)', () => {
+    expect([2.0 - 3e-14, 2.0 - 9e-11, 2.0 - 3e-10].map((v) => bs('binary_search_leftmost', v))).toEqual([0, 0, 0])
+  })
+  it('binary_search_rightmost of 2 + 3e-14 / 2 + 9e-11 is 2 (A13 / A14, tolerant would be 1); 2 + 3e-10: 2 (A16)', () => {
+    expect([2.0 + 3e-14, 2.0 + 9e-11, 2.0 + 3e-10].map((v) => bs('binary_search_rightmost', v))).toEqual([2, 2, 2])
+  })
+})
+
 describe('the built-ins measured EXACT stay exact for a Pine document (a built-in is not the operator rule)', () => {
   it('ta.crossover / highest / math.max / math.sign have no Pine variant', () => {
     for (const k of ['crossOver', 'crossUnder', 'highest', 'lowest', 'max', 'min', 'sign', 'pivotHigh', 'pivotLow', 'mode']) {

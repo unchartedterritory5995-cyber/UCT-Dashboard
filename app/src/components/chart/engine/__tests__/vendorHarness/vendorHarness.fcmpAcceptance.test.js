@@ -94,3 +94,25 @@ for (const lane of Object.keys(LANES)) {
     })
   })
 }
+
+// ⭐ engine NUMBER PENDING (Q-FCMP3, packet b400024aa71d, run fcmp3b-2026-11-18): vw-fcmp-arrays on AMEX:SPY and
+// NYSE:RDDT 1D from the listing. Arrays run on the runtime lane only: the production lane (runtime dark) refuses the
+// script by name (`pine:collection`); the runtime-on lane draws it, and every row agrees with TradingView on every
+// bar: array.lastindexof within the epsilon (A02-A04), the three binary searches exactly (A07-A14).
+const ARRAYS = ['spy', 'rddt'].map((s) => `vw-fcmp-arrays-${s}-${D}`)
+describe('Q-FCMP3 vw-fcmp-arrays: refused by name on the production lane, every row MATCH on the runtime-on lane', () => {
+  it.each(ARRAYS)('%s, production: refused by name (pine:collection)', (id) => {
+    const v = grade(load(id), 'production')
+    expect(v.verdict).toBe('INCONCLUSIVE')
+    expect(v.reason).toMatch(/pine:collection/)
+  })
+  it.each(ARRAYS)('%s, runtime-on: drawn by the runtime lane, all 17 rows MATCH', (id) => {
+    for (const [k, val] of Object.entries(LANES['runtime-on'])) vi.stubEnv(k, val)
+    const d = memberPaneDefinition({ source: load(id).source.text, id: 'u_fcmp-lane', name: 'lane' })
+    expect([d.ok, d.lane], id).toEqual([true, 'runtime'])
+    const v = grade(load(id), 'runtime-on')
+    expect(v.plots.length).toBe(17)
+    for (const p of v.plots) expect(p.verdict, `${p.title}: ${p.reason}`).toBe('MATCH')
+    expect(v.verdict).toBe('MATCH')
+  })
+})
