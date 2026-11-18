@@ -2072,6 +2072,9 @@ export function gradeStrategy(g) {
     if (valuesNow.status !== 'ok') {
       return { verdict: 'INCONCLUSIVE', step: 7, reason: `the value series cannot be paired: ${valuesNow.reason || 'unpaired'}`, first: null, graded: covered, ...extra }
     }
+    // a slot paired by identity whose value is not a series compared here (a colour, an alert condition) is
+    // LISTED with the call it serves, never dropped (2026-11-17: the paint grade grades colours)
+    if (Array.isArray(valuesNow.notCompared) && valuesNow.notCompared.length) extra.ungradedValues = valuesNow.notCompared
     const v = compareValueSeries(valuesNow.series, graded || span)
     if (v.verdict !== 'MATCH') return { ...v, step: 7, graded: covered, ...extra }
     covered.values = valuesNow.series.length
