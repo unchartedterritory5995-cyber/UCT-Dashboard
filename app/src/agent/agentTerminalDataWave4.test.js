@@ -562,10 +562,13 @@ describe('routing words', () => {
     expect([...g.actions].sort()).toEqual([...ALL].sort())
     expect(g.domains).toEqual([])
     expect(g.title.length).toBeLessThanOrEqual(160)                  // the server cuts a group title at 160 characters (turn.py validate_routing)
-    // the server keeps only MAX_GROUPS groups: this wave's is the 46th of 48
+    // the server keeps only MAX_GROUPS groups: this wave's is the 46th of 48, straight after wave 3's (a later wave's group
+    // comes after it: agentTerminalDataWave5.test.js pins the count as it stands)
     const max = Number(/^MAX_GROUPS\s*=\s*(\d+)\s*$/m.exec(py('api/services/uct_agent/turn.py'))[1])
-    expect([GROUPS.length, max]).toEqual([46, 48])
-    expect(GROUPS.map(x => x.id).slice(-2)).toEqual([WAVE3_GROUP, ROUTE_GROUP])
+    const ids = GROUPS.map(x => x.id)
+    expect([ids.indexOf(ROUTE_GROUP) + 1, max]).toEqual([46, 48])
+    expect(GROUPS.length).toBeLessThanOrEqual(max)
+    expect(ids.slice(44, 46)).toEqual([WAVE3_GROUP, ROUTE_GROUP])
   })
 
   it.each([[null, 'data off'], [[], 'nothing activated'], [['quote', 'themes', 'earnings', 'sectors.performance', 'earnings.reactions'], 'other kinds only']])('dark (%j, %s): the group has no words, and the data group keeps exactly routing.js\'s', async (kinds) => {

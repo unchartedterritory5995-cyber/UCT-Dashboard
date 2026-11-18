@@ -296,6 +296,29 @@ const TERMINAL_DATA = {
     return { data: { mode: 'group', ...common, name: p.group, found: true, group_pct: 15, rows: rows.slice(0, p.limit || 25), count: 4, shown: Math.min(4, p.limit || 25), known: 4, ranked: 3, on_board: 2,
       sort: p.sort || 'pct', dir: p.dir || 'desc', rs_state: 'held', flow_state: 'held', flow_built_at: '2026-11-03T15:45:00Z' } }
   },
+  // Terminal data wave 5 (dark kinds `short.interest`, `short.list`; MD-1 §4.14): the same rule — each adapter's own data
+  // shape, made-up names and figures. `as_of` is the settlement date (never the day of the read).
+  'short.interest': (p) => {
+    const report = (day, short, change, o = {}) => ({ settlement_date: day, short_interest: short, avg_daily_volume: 1000000, days_to_cover: 6, change_shares: change, change_pct: change == null ? null : 50, ...o })
+    const reports = [report('2026-10-15', 3000000, 1000000), report('2026-09-30', 2000000, 1000000, { days_to_cover: 4 }), report('2026-09-15', 1000000, null, { days_to_cover: null })]
+    const days = [{ date: '2026-10-30', short_volume: 400000, total_volume: 1000000, short_volume_ratio: 40 }, { date: '2026-10-29', short_volume: 300000, total_volume: null, short_volume_ratio: null }]
+    const shown = reports.slice(0, p.reports || 12)
+    return { freshness: 'historical', as_of: '2026-10-15T04:00:00Z', data: { sym: String(p.symbol || '').toUpperCase(), settlement_date: '2026-10-15', latest: reports[0], publication_estimate: '2026-10-26',
+      read_at: '2026-11-03T15:40:00Z', held: 'fresh', interest: { state: 'ok', reason: null, http_status: 200, reports: shown, count: 3, shown: shown.length, cut: false, first_date: '2026-09-15' },
+      volume: { state: 'ok', reason: null, http_status: 200, days: days.slice(0, p.days || 10), count: 2, shown: Math.min(2, p.days || 10), window_days: 60 },
+      float: { shares: 10000000, pct_float: 30, withheld: false, state: 'ok', source: 'fixture' }, source: 'fixture' } }
+  },
+  'short.list': (p) => {
+    const row = (sym, short, dtc, prev, o = {}) => ({ sym, short_interest: short, avg_daily_volume: 1000000, days_to_cover: dtc, prev_short_interest: prev, change_shares: prev == null ? null : short - prev,
+      change_pct: prev == null ? null : Math.round((short - prev) / prev * 1000) / 10, float_shares: 10000000, pct_float: short / 100000, ...o })
+    const all = [row('CCC', 900000, 9, null, { float_shares: null, pct_float: null }), row('AAA', 3000000, 6, 2000000), row('BBB', 600000, 1.2, 1000000)]
+    const rank = p.rank || 'dtc'
+    const ranked = rank === 'up' ? all.filter(r => r.change_pct > 0) : rank === 'down' ? all.filter(r => r.change_pct < 0) : rank === 'float' ? all.filter(r => r.pct_float != null).sort((a, b) => b.pct_float - a.pct_float) : all
+    const rows = ranked.slice(0, p.limit || 25)
+    return { freshness: 'historical', as_of: '2026-10-15T04:00:00Z', data: { rank, settlement_date: '2026-10-15', previous_settlement_date: '2026-09-30', newer_report_landing: null, newer_report_due: null,
+      publication_estimate: '2026-10-26', read_at: '2026-11-03T15:40:00Z', held: 'held', count: 3, universe: 4, ranked: ranked.length, limit: p.limit || 25, shown: rows.length, cut: rows.length < ranked.length, rows,
+      floor_shares: rank === 'up' || rank === 'down' ? 500000 : null, float: { state: 'ok', with_float: 2, withheld: 0, source: 'fixture' }, check: null, source: 'fixture' } }
+  },
 }
 // SG-1: T13–T18 sit FAR below their 52-week high (the Screener's sign: a distance from a high is NEGATIVE) and meet every
 // other condition of the owner's screen — so only a correctly signed "near the high" filter leaves them out
@@ -486,7 +509,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (u === '/api/agent/data' && ['index.quote', 'commodity.quote', 'crypto.quote'].includes(body?.kind)) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'refused', freshness: 'unavailable', as_of: null, stale: false, notes: ['no licensed source'], data: null })
     }
-    // terminal data waves 1 to 4 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
+    // terminal data waves 1 to 5 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
     if (u === '/api/agent/data' && TERMINAL_DATA[body?.kind]) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'periodic', as_of: null, fetched_at: '2026-11-03T16:00:00Z', delay_s: null,
         stale: false, source: 'fixture', coverage: null, notes: [], provider_calls: 0, ...TERMINAL_DATA[body.kind](body.params || {}) })

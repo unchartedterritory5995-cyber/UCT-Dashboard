@@ -20,6 +20,8 @@
     "levels.gamma",
     "ratings",
     "rs.leadership",
+    "short.interest",
+    "short.list",
     "themes.rotation"
   ],
   "local_only_actions": [
@@ -42,6 +44,8 @@
     "stock.groupDrill",
     "stock.longRunLeaders",
     "stock.sessionHighsLows",
+    "stock.shortInterest",
+    "stock.shortList",
     "stock.themeRotation",
     "stock.topFlowPicks",
     "stock.yearlyHighsLows"

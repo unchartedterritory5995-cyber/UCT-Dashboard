@@ -611,6 +611,23 @@ def test_a_refused_market_read_is_unavailable_remembered_and_one_line(vendor, ca
     assert stock["interest"]["state"] == "unavailable" and len(vendor.asked(sd.INTEREST)) == 1
 
 
+def test_the_read_only_accessor_says_what_the_last_build_said_and_starts_nothing(vendor):
+    """`held_market` with no list held: the standing answer of the last build (what `get_market` gives without
+    starting another), then nothing once that answer has lapsed. It never asks the vendor and never starts a job."""
+    assert sd.held_market() == (None, "not_held") and vendor.calls == []
+    vendor.fail[sd.INTEREST] = massive._ERR.auth_error("Massive rejected (403)", status=403)
+    refused = sd.get_market(wait_s=10)
+    drain()
+    calls = len(vendor.calls)
+    assert refused["reason"] == "refused" and sd.held_market("up") == (refused, "not_held") == (sd.get_market("up"), "not_held")
+    assert sd.held_market("banana") == ({"status": "bad_rank", "ranks": ["dtc", "up", "down", "float"]}, "refused")
+    with sd._lock:
+        assert sd._market["inflight"] is None
+        sd._market["block"] = (time.time() - 1, refused)             # the answer has lapsed
+    assert sd.held_market() == (None, "not_held")
+    assert len(vendor.calls) == calls == 1                           # only the one build above asked the vendor
+
+
 def test_a_refusal_after_a_list_is_held_keeps_the_list_and_says_the_check_was_refused(vendor):
     vendor.rows[sd.INTEREST] = market_rows()
     held = sd.get_market(wait_s=10)
