@@ -33,18 +33,54 @@ export function lakeSymbol(sym) {
 }
 
 /** The index's periods of one series that overlap [from, to] (epoch seconds, either may be null),
- *  oldest first: `[{ period, bars, bytes, crc, first, last }]`. */
+ *  oldest first: `[{ period, bars, bytes, crc, first, last }]`.
+ *
+ *  An entry may count only part of its piece (tools/history_lake/identity.py, 2026-11-17): `from`
+ *  (inclusive) and `until` (exclusive) bound the bars that belong to this symbol's company (a reused
+ *  ticker's earlier holder is cut away), and `sym` + `period` name a piece stored under the symbol
+ *  the company traded as before (META's 2012-2022 bars are FB's pieces). `first` / `last` here are
+ *  that window, and loadBars keeps only the bars inside it. */
 export function periodsFor(index, series, { from = null, to = null } = {}) {
   const periods = index && index.series && index.series[series]
   if (!periods || typeof periods !== 'object') return []
   const out = []
-  for (const [period, e] of Object.entries(periods)) {
+  for (const [key, e] of Object.entries(periods)) {
     if (!e || !Number.isFinite(e.first) || !Number.isFinite(e.last)) continue
-    if (from != null && e.last < from) continue
-    if (to != null && e.first > to) continue
-    out.push({ period, ...e })
+    const [lo, hi] = windowOf(e)
+    if (hi < lo) continue
+    if (from != null && hi < from) continue
+    if (to != null && lo > to) continue
+    out.push({ period: key, ...e, first: lo, last: hi })
   }
   out.sort((a, b) => a.first - b.first)
+  return out
+}
+
+/** [first, last] of the bars an entry counts (its piece's, narrowed by `from` / `until`). */
+function windowOf(e) {
+  const lo = Number.isFinite(e.from) ? Math.max(e.first, e.from) : e.first
+  const hi = Number.isFinite(e.until) ? Math.min(e.last, e.until - 1) : e.last
+  return [lo, hi]
+}
+
+/** The symbol a piece is stored under: its own, or the one a stitched entry names. */
+function ownerOf(symbol, entry) {
+  return typeof entry.sym === 'string' && entry.sym ? entry.sym : symbol
+}
+
+/** Keep the bars inside the entry's window (no copy when nothing is cut). */
+function clip(cols, entry) {
+  const hasFrom = Number.isFinite(entry.from)
+  const hasUntil = Number.isFinite(entry.until)
+  if (!hasFrom && !hasUntil) return cols
+  const t = cols.t
+  let a = 0
+  let b = t.length
+  if (hasFrom) while (a < b && t[a] < entry.from) a++
+  if (hasUntil) while (b > a && t[b - 1] >= entry.until) b--
+  if (a === 0 && b === t.length) return cols
+  const out = {}
+  for (const k of Object.keys(cols)) out[k] = cols[k].subarray(a, b)
   return out
 }
 
@@ -115,7 +151,8 @@ export function createHistorySource(o = {}) {
     if (!placed(entry)) {
       throw new HistoryError(`${symbol} ${series}/${entry.period}: the index gives no place for the piece`, { stale: true })
     }
-    const url = pieceUrl(symbol, series, entry)
+    const owner = ownerOf(symbol, entry)
+    const url = pieceUrl(owner, series, entry)
     const res = await get(url, signal)
     if (res.status === 409 || res.status === 404) {
       throw new HistoryError(`${symbol} ${series}/${entry.period}: the index is out of date`, { status: res.status, stale: true })
@@ -125,10 +162,10 @@ export function createHistorySource(o = {}) {
     if (!headerJson) throw new HistoryError(`${symbol} ${series}/${entry.period}: no piece header in the answer`)
     const d = decodeColumns(headerJson, new Uint8Array(await res.arrayBuffer()))
     const hd = d.header
-    if (hd.symbol !== symbol || hd.series !== series || hd.period !== entry.period || hd.crc !== entry.crc) {
+    if (hd.symbol !== owner || hd.series !== series || hd.period !== entry.period || hd.crc !== entry.crc) {
       throw new PieceError(`${symbol} ${series}/${entry.period}: the answer is a different piece`)
     }
-    return toFloats(d)
+    return clip(toFloats(d), entry)
   }
 
   /**
@@ -170,7 +207,7 @@ export function createHistorySource(o = {}) {
   async function warmPieces(sym, series, entries) {
     const symbol = lakeSymbol(sym)
     await mapLimit((entries || []).filter(placed), maxParallel, async (e) => {
-      try { const res = await get(pieceUrl(symbol, series, e)); if (res.ok) await res.arrayBuffer() } catch { /* a warm only */ }
+      try { const res = await get(pieceUrl(ownerOf(symbol, e), series, e)); if (res.ok) await res.arrayBuffer() } catch { /* a warm only */ }
     })
   }
 

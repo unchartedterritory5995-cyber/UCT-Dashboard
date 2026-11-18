@@ -1510,6 +1510,114 @@
     ]
    }
   ],
+  "browser-sends-its-refusal-back#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built the average.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Average",
+      "placement": "price",
+      "primary": "ema10",
+      "outputs": [
+       {
+        "key": "ema10",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 10
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_paint",
+      "output": "ema10",
+      "channel": "barcolor",
+      "color": "#089981"
+     }
+    ]
+   },
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built the average and coloured the candles.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Average",
+      "placement": "price",
+      "primary": "ema10",
+      "outputs": [
+       {
+        "key": "ema10",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 10
+          }
+         ]
+        }
+       },
+       {
+        "key": "above",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "call",
+           "name": "ema",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 10
+            }
+           ]
+          }
+         ]
+        },
+        "hidden": true
+       }
+      ]
+     },
+     {
+      "op": "set_paint",
+      "output": "above",
+      "channel": "barcolor",
+      "color": "#089981"
+     }
+    ]
+   }
+  ],
   "ctl-other-symbol#0": [
    {
     "contract": "uct.authoring.patch/1",

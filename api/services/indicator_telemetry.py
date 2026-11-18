@@ -180,13 +180,58 @@ EVENT_SCHEMAS: dict = {
 # words it was computed from are never stored.
 
 #: The op names a `converse_turn` may report (the patch contract's 22).
-_CONVERSE_OPS = frozenset({
+#: The operations as they stood when this list was hand-typed. ⚰️ 2026-11-17: it was THE list, and
+#: seven operations added to the patch contract after it (`set_color_states`, `set_color_rule`,
+#: `set_table`, `remove_table`, `set_input`, `remove_input`, `set_calculation_timeframe`) were not in
+#: it, so every turn that used one had its whole `op_kinds` dropped: the record of what the newest
+#: features built was the part that went missing. It survives only as the answer when the contract
+#: cannot be read.
+_CONVERSE_OPS_AS_TYPED = frozenset({
     "create", "rename_definition", "add_output", "remove_output", "rename_output",
     "set_output_tree", "set_slot", "add_clause", "remove_clause", "set_intent",
     "set_placement", "set_style", "set_marker", "remove_marker", "set_paint",
     "remove_paint", "request_info_value", "request_alert", "cancel_request",
     "set_levels", "set_fill", "remove_fill",
 })
+
+
+def contract_ops() -> frozenset:
+    """Every operation the patch contract defines (`patchSchema.json`, each `$defs.op_*`'s `op`).
+    DERIVED, never restated: a new operation is countable the day it is authorable. Never raises:
+    telemetry must not take the door down, so an unreadable contract answers the typed list."""
+    try:
+        from pathlib import Path
+        path = (Path(__file__).resolve().parents[2] / "app" / "src" / "components" / "chart" / "builder"
+                / "authoring" / "patchSchema.json")
+        defs = json.loads(path.read_text(encoding="utf-8"))["$defs"]
+        ops = frozenset(v["properties"]["op"]["const"] for k, v in defs.items()
+                        if k.startswith("op_") and isinstance(v, dict)
+                        and isinstance(v.get("properties", {}).get("op", {}).get("const"), str))
+        if ops:
+            return ops
+        log.error("[indicator-telemetry] the patch contract defines no operations; using the typed list")
+    except Exception:  # noqa: BLE001
+        log.exception("[indicator-telemetry] the patch contract could not be read; using the typed list")
+    return _CONVERSE_OPS_AS_TYPED
+
+
+_CONVERSE_OPS = contract_ops()
+
+#: ⭐ 2026-11-17 -- WHICH BROWSER RULE SENT A PATCH BACK. When the browser's patch engine refuses a
+#: change the door offered, it sends its refusal back for one repair
+#: (`definition_conversation.browser_refusal`); each refusal begins with the engine's own code
+#: (`color:condition-output`, `fill:not-series`, `calc-tf:lower`). Counted, they say which rules
+#: the assistant trips most: the ranked list of what to teach it, or what the door should check.
+#: ⛔ The codes arrive from the client, and the engine that owns them is not importable here, so
+#: this is a strict SHAPE and not a closed set: two short lowercase slugs, letters and hyphens only
+#: (no digits, no spaces), at most four. It cannot carry a sentence.
+BROWSER_CODE = re.compile(r"[a-z][a-z-]{1,15}:[a-z][a-z-]{1,23}")
+BROWSER_CODES_MAX = 4
+
+
+def _browser_codes_ok(v: str) -> bool:
+    parts = [p for p in v.split(",") if p]
+    return 0 < len(parts) <= BROWSER_CODES_MAX and all(BROWSER_CODE.fullmatch(p) for p in parts)
 #: What a turn's result WAS -- distinct product signals, never one "failed".
 FAILURE_CLASSES = frozenset({
     "ok",                 # the model answered within the contract (any disposition)
@@ -241,6 +286,7 @@ _VALUE_RULES: dict = {
         "repair_gate": re.compile(r"[a-z_-]{2,32}:[a-z0-9_-]{2,48}"),
         "input_wrapper": frozenset({"args"}),
         "op_kinds": _csv_of(_CONVERSE_OPS),
+        "browser_codes": _browser_codes_ok,
         # What produced the turn (`definition_conversation.turn_stamps`). Each is a
         # strict pattern, never free text: a hash, a version, a model id.
         "prompt_sha": re.compile(r"[0-9a-f]{16}"),
@@ -269,7 +315,7 @@ EVENT_SCHEMAS.update({
         "mended": (str,),
         "usd": _N, "input_tokens": _N, "output_tokens": _N,
         "cache_read_tokens": _N, "cache_write_tokens": _N, "latency_ms": _N,
-        "op_kinds": (str,), "preflight": (bool,),
+        "op_kinds": (str,), "preflight": (bool,), "browser_codes": (str,),
         "prompt_sha": (str,), "vocab_version": (str,), "model": (str,), "engine": (int,),
     },
     "studio_action": {
@@ -527,6 +573,11 @@ def _turn_block(sel: list) -> dict:
         "by_failure_class": _tally(p.get("failure_class") for _, _, p in sel),
         "unsupported_demand": _tally(p.get("unsupported_category") for _, _, p in sel),
         "op_kinds": _tally(o for _, _, p in sel for o in (p.get("op_kinds") or "").split(",") if o),
+        # ⭐ WHICH CHECK CAUSED EACH REPAIR (the scoreboard's "which check caught it"): the door's own
+        # gate, or `browser:refused` when the browser sent its refusal back; and for those, which of
+        # the browser's rules. The top of each list is what to teach the assistant next.
+        "repair_gates": _tally(p.get("repair_gate") for p in model_turns),
+        "browser_refusals": _tally(c for p in model_turns for c in (p.get("browser_codes") or "").split(",") if c),
     }
 
 

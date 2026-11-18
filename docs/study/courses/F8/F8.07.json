@@ -868,9 +868,9 @@
    "key": "w1",
    "title": "Trading is a performance",
    "steps": [
-    "Singers, musicians and athletes all warm up before they perform. Coach Brett Steenbarger wants you to do the same.",
-    "Treat trading as a profession. Elite performers spend more time preparing than performing.",
-    "So your trading day has three parts: warm up, trade, cool down."
+    "Singers, musicians, athletes. Nobody serious walks out cold. They warm up first, and so should you.",
+    "Treat trading like a profession. The best performers spend more time preparing than performing.",
+    "So your day has three parts. Warm up, trade, cool down."
    ],
    "facts": [
     "fa1",
@@ -883,32 +883,36 @@
    "key": "w2",
    "title": "Before the open",
    "steps": [
-    "Start with the game plan: today's names, the levels, and an entry and stop for each.",
-    "Then check the trader. How you slept, what's on your mind, which mistake is most likely today.",
-    "Write an if-then rule for that mistake, like stepping away after a set loss. Commit to it before the bell."
+    "Start with the game plan. Today's names, the levels, and an entry, stop and size for each one.",
+    "Then check the trader. How you slept, what's on your mind, which mistake is most likely to bite today.",
+    "Write an if-then for that mistake, like a 15-minute break when the urge hits. Commit to it before the bell.",
+    "Tired, sick, angry or distracted, and it's a no-new-trades day. That's part of the plan too."
    ],
    "facts": [
     "ta5",
     "fe2",
+    "hd39",
     "fg1",
     "ta6",
     "wa1",
     "wa2",
-    "tb4"
+    "tb4",
+    "hf67"
    ]
   },
   {
    "key": "w3",
    "title": "During and after",
    "steps": [
-    "During the session, trade the plan. Take short breaks before you're drained, not after.",
-    "After the close, write it up while it's fresh: what went well, what went wrong, what to do better.",
-    "Then pick one thing to work on tomorrow. One thing, and specific. Small daily steps add up."
+    "During the session, trade the plan. Take a short break before you're drained, not after.",
+    "After the close, write it up while it's fresh. What went well, what went wrong, what you'd do better.",
+    "Then pick one thing to work on tomorrow. One thing, and specific. Small steps every day add up."
    ],
    "facts": [
     "ta7",
     "tb1",
     "ta10",
+    "hb27",
     "fc1",
     "ta2",
     "ff1",
@@ -924,16 +928,16 @@
    "skill": "psych.routine",
    "rung": 1,
    "format": "mcq",
-   "q": "Top singers, musicians and athletes share one habit before they perform. Steenbarger wants traders to copy it. What is it?",
+   "q": "Singers, musicians and pro athletes all do one thing before they perform. What should you copy from them before the open?",
    "choices": [
-    "They run a warm-up routine first",
-    "They start cold and ease in",
-    "They follow a lucky ritual",
-    "They rest to save energy"
+    "Run a warm-up routine first",
+    "Start cold and ease into it",
+    "Do a lucky ritual",
+    "Rest up to save your energy"
    ],
-   "answer": "They run a warm-up routine first",
-   "why": "They run a warm-up routine first. Steenbarger notes that singers, musicians and athletes all have warm-up routines. A warm-up practises the skills you are about to use. Tendler says the same for trading: get your mind ready before you trade, the way an athlete readies the body. Skip it and you start dull, at risk of mistakes and missed chances. A warm-up is not a lucky habit or a rest. It is practice with a job to do.",
-   "lesson_line": "Nobody serious performs cold. Warm up before the open.",
+   "answer": "Run a warm-up routine first",
+   "why": "Warm up first. Nobody serious walks on stage cold, and the open is our stage. A warm-up practises the exact skills you're about to use: reading the chart, sticking to your levels, taking your stop. Skip it and your first few trades become the warm-up. That's where the sloppy entries and the missed setups come from. I want to be sharp on the first trade, not the fifth.",
+   "lesson_line": "Nobody good performs cold. Warm up before the open.",
    "facts": [
     "fa1",
     "fa7",
@@ -941,11 +945,11 @@
     "ta4b"
    ],
    "wrong": {
-    "They start cold and ease in": "That makes your first trades the warm-up. Tendler: without one, you're not sharp at the start and you risk mistakes.",
-    "They follow a lucky ritual": "A ritual for luck has no job to do. Steenbarger's warm-up practises the exact skills you're about to use.",
-    "They rest to save energy": "Resting is not readying. Tendler: before you trade, get your mind ready, much like an athlete readies their body."
+    "Start cold and ease into it": "Then your first trades are the warm-up, and you pay for them. Cold is when you miss the trigger or fumble the order.",
+    "Do a lucky ritual": "A ritual for luck has no job to do. A warm-up has one: it practises what you're about to do.",
+    "Rest up to save your energy": "Rest is for the night before. The time before the open is for getting your head in the game."
    },
-   "simple": "They run a warm-up routine first, because a warm-up gets your mind ready, the way an athlete gets the body ready.",
+   "simple": "Warm up first, because a warm-up gets your head sharp before the first trade, not after it.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -953,23 +957,26 @@
      "two publishers agree (Steenbarger, Tendler); a stable idea"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Brett Steenbarger, a trading coach, points out that singers, musicians and athletes all have warm-up routines, and that warm-ups practise the functions we most want to use. Jared Tendler: before you trade, get your mind ready, much like an athlete readies their body. Without it you won't be sharp when you start."
+   }
   },
   {
    "key": "q02",
    "skill": "psych.routine",
    "rung": 1,
    "format": "mcq",
-   "q": "Tendler and Steenbarger both build the trading day in the same order. Which order is it?",
+   "q": "You want a daily routine you can run every single session. How do you lay out the trading day?",
    "choices": [
     "Warm up, trade, cool down",
     "Trade first, warm up as you go",
     "Warm up, trade, then log off",
-    "Plan Sunday, trade all week"
+    "Plan Sunday, then trade all week"
    ],
    "answer": "Warm up, trade, cool down",
-   "why": "Warm up, trade, cool down. Tendler's routine has a warm-up before the session, a routine during it and a cool-down after it. Steenbarger reviews his rules before trading starts and again at the end of trading. Then he picks a rule or two to focus on next session. The cool-down is not just logging off: what you do after the session is about tomorrow. A weekly review adds to the daily one. It does not replace it.",
-   "lesson_line": "Three parts, every day: before the open, during the session, after the close.",
+   "why": "Three parts: warm up, trade, cool down. Every day. The warm-up gets your levels and your head ready before the bell. During the session you trade the plan and take breaks. After the close you write it up and pick what to fix tomorrow. That last part is the one most people skip, and it's the one that makes you better. A Sunday review is great, but it rides on top of the daily one. It doesn't replace it.",
+   "lesson_line": "Before the open, during the session, after the close. Every day.",
    "facts": [
     "ta1",
     "fb1",
@@ -979,11 +986,11 @@
     "fi1"
    ],
    "wrong": {
-    "Trade first, warm up as you go": "Then the market is your warm-up, and it charges for it. The warm-up comes before your first order.",
-    "Warm up, trade, then log off": "That skips the review. Tendler says what you do after the session is all about tomorrow.",
-    "Plan Sunday, trade all week": "A weekly review helps, but the routine is daily. Tendler warms up before each session, and Steenbarger reviews his rules before trading starts."
+    "Trade first, warm up as you go": "Then the market's your warm-up, and it charges for it. Get ready before your first order.",
+    "Warm up, trade, then log off": "That skips the review. What you do after the close is all about tomorrow.",
+    "Plan Sunday, then trade all week": "A weekly plan helps, but the routine is daily. Every session gets its own warm-up and its own write-up."
    },
-   "simple": "Warm up, trade, cool down, because both coaches get ready before the session and review after it.",
+   "simple": "Warm up, trade, cool down, because you get ready before the bell and learn from the day after it.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -991,22 +998,25 @@
      "two publishers agree (Tendler, Steenbarger); a stable idea"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Jared Tendler builds routines around a warm-up before the session, a routine during it and a cool-down after it. Brett Steenbarger reviews his rules before trading starts and again at the end of trading, then targets one or more rules to focus on in the coming session."
+   }
   },
   {
    "key": "q03",
    "skill": "psych.routine",
    "rung": 1,
    "format": "tf",
-   "q": "A good warm-up gets your own head ready, not just your charts and levels.",
+   "q": "Checking your own mood and focus belongs in your warm-up, right next to your charts and levels.",
    "answer": "True",
-   "why": "True. Steenbarger's warm-up should put you in the mental, physical and emotional state you need to trade your best. Tendler adds a mental game plan for the problems most likely to hit you, such as tilt, boredom or losing focus. Charts and levels are only part of the job. The trader is the other part, and it can't wait until the bell.",
+   "why": "True. The charts are half the job. You're the other half. Before the bell I want to know what kind of head I'm in. Tired, still mad about yesterday's loss, or bored and itching to press buttons. Name the problem most likely to hit you today and decide how you'll handle it. A clean watchlist doesn't help much if the person trading it is on tilt, trading off emotion instead of the plan.",
    "lesson_line": "Warm up the trader, not just the watchlist.",
    "facts": [
     "fa2",
     "ta6"
    ],
-   "simple": "True, because a good warm-up gets your mind and feelings ready too, not just your charts.",
+   "simple": "True, because a warm-up gets your head ready too, not just your charts.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1014,22 +1024,25 @@
      "two publishers agree (Steenbarger, Tendler); a stable idea"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Brett Steenbarger: your trading warm-up should put you in the mental, physical and emotional state you need to do your best trading. Jared Tendler adds a mental game plan for the problems most likely to affect you, such as tilt, boredom and focus."
+   }
   },
   {
    "key": "q04",
    "skill": "psych.routine",
    "rung": 2,
    "format": "mcq",
-   "q": "Which job belongs in your warm-up before the open?",
+   "q": "Five names on your watchlist for today. What do you write down for each one before the bell?",
    "choices": [
-    "Entry, stop and size per name",
-    "Scan chat rooms for hot tips",
-    "Wait and decide at the open",
-    "Set a profit goal for today"
+    "Its entry, stop and size",
+    "What the chat room thinks",
+    "Nothing, decide at the open",
+    "Today's profit goal"
    ],
-   "answer": "Entry, stop and size per name",
-   "why": "Entry, stop and size per name. Our rule: every planned buy has its entry, stop and size written down before the market opens. An SMB trader's morning plan, shared by Steenbarger, needs an entry, stop, target and risk amount for every idea. Tendler's warm-up covers the levels and the names you're watching that day. Investopedia: have set levels in mind for every stock you plan to trade. This does not mean you must buy every name. It means no buy happens without a plan.",
+   "answer": "Its entry, stop and size",
+   "why": "Entry, stop and size, for every name. Every buy we make has those three written down before the market opens. At the open things move fast. You don't want to be doing math with your finger on the button. Decide the trigger, the stop and the share count while you're calm, then set an alert at each trigger. Now the open is just execution. It doesn't mean you buy all five. It means nothing gets bought without a plan.",
    "lesson_line": "Every name on today's list gets its levels before the bell.",
    "facts": [
     "ta5",
@@ -1040,11 +1053,11 @@
     "fq1"
    ],
    "wrong": {
-    "Scan chat rooms for hot tips": "A hot tip is someone else's idea, not your plan. Our rule: never take a trade from an alert, a post or a video without your own entry, stop and size.",
-    "Wait and decide at the open": "That's playing it by ear. Investopedia's rule: have set levels in mind for every stock you plan to trade.",
-    "Set a profit goal for today": "A dollar goal is a result, not a plan. Steenbarger: focus on the processes that generate profits over time."
+    "What the chat room thinks": "That's someone else's idea, not your plan. We never take a trade off an alert, a post or a video without our own entry, stop and size.",
+    "Nothing, decide at the open": "That's playing it by ear at the fastest, noisiest part of the day. Set your levels before the bell.",
+    "Today's profit goal": "A dollar goal is a result you don't control. Plan what you do control: where you get in, where you're wrong, how big."
    },
-   "simple": "Write down each stock's entry, stop and size before the open, so you trade a plan, not a guess.",
+   "simple": "Write each name's entry, stop and size before the bell, so the open is execution, not guesswork.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1053,23 +1066,27 @@
      "fixed before (chat-room note)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "An SMB trader's morning plan, published by Brett Steenbarger, needs entries, stops, targets and a risk amount for every idea. Investopedia: don't play it by ear, have pre-fixed levels in mind for every stock you plan to trade."
+   }
   },
   {
    "key": "q05",
    "skill": "psych.routine",
    "rung": 2,
    "format": "tf",
-   "q": "Your trading routine starts the night before, with how you sleep.",
+   "q": "Your trading day really starts the night before, with how well you sleep.",
    "answer": "True",
-   "why": "True. Steenbarger finds that a surprising share of what sets traders up for success during the day happens the night before. He cites a study in which sleepy people made worse financial decisions. Tendler's daily routine covers the basics: food, exercise, recharging and sleep. This is not a rule about how many hours to sleep. It means last night is part of today's state, and your warm-up should check it.",
+   "why": "True. A bad night shows up in your trading the next day. One study found sleepy people made worse money decisions. So tonight is part of tomorrow's prep. The basics matter: when you eat, when you exercise, when you shut it down and sleep. There's no magic number of hours here. Just check it in your warm-up. If you slept badly and feel tired, that's a no-new-trades day for us.",
    "lesson_line": "Tomorrow's warm-up starts with tonight's sleep.",
    "facts": [
     "fg1",
     "fg2",
-    "ta3"
+    "ta3",
+    "hf67"
    ],
-   "simple": "True, because a surprising share of what sets up a good trading day happens the night before.",
+   "simple": "True, because how you slept shows up in how you trade the next day.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1077,23 +1094,26 @@
      "two publishers agree (Steenbarger, Tendler); no number taught"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Brett Steenbarger finds that a surprising proportion of what sets traders up for success during the day is what happened the previous night. He cites a study where sleepy subjects made worse financial decisions. Jared Tendler's daily routine covers what and when you eat, exercise, recharge and sleep."
+   }
   },
   {
    "key": "q06",
    "skill": "psych.routine",
    "rung": 2,
    "format": "mcq",
-   "q": "Steenbarger treats trading as a performance field, like sport or music. In that view, what builds top performance?",
+   "q": "You want to get a lot better at trading this year. Where does that improvement really come from?",
    "choices": [
-    "Directed practice and review",
-    "A sharper set of chart indicators",
-    "A good newsletter's stock tips",
+    "Practice, prep and review",
+    "Sharper chart indicators",
+    "Hot tips from other traders",
     "Natural talent and instinct"
    ],
-   "answer": "Directed practice and review",
-   "why": "Directed practice and review. Steenbarger notes that every performance field uses practice sessions to keep the performer in shape and rehearse the challenges of live performance. Elite performers spend more time practising and preparing than performing. In a Fidelity piece, he and Adrienne Toghraie add that elite performance won't come from better indicators, faster software or newsletter tips. Investopedia agrees that discipline can't be found in expensive trading software. Better tools don't replace the practice.",
-   "lesson_line": "Train like an athlete: prepare, perform, review. Better tools don't replace the reps.",
+   "answer": "Practice, prep and review",
+   "why": "Practice, prep and review. Look at the fields where people perform under pressure, like sport, music and chess. The best spend more time practising and preparing than performing. Trading's the same. A new indicator is still you reading it, and a tip is someone else's read. The reps are what build you: prep before the open, trade the plan, review the film after. Nobody sells discipline. You build it.",
+   "lesson_line": "Train like an athlete: prep, perform, review. Better tools don't replace the reps.",
    "facts": [
     "fi3",
     "fz1",
@@ -1105,11 +1125,11 @@
     "ib6"
    ],
    "wrong": {
-    "A sharper set of chart indicators": "Steenbarger and Toghraie: better golf clubs won't turn a duffer into a pro. Only directed development builds the skill.",
-    "A good newsletter's stock tips": "Tips are someone else's thinking. Steenbarger and Toghraie list newsletter tips among the things that won't create elite performance.",
-    "Natural talent and instinct": "This view puts the work first. Steenbarger: elite performers spend more time practising and preparing than performing."
+    "Natural talent and instinct": "Talent helps, but top performers in sport, music and chess still practise more than they perform. The work comes first.",
+    "Sharper chart indicators": "Better golf clubs don't turn a hacker into a pro. Same with indicators. The skill is in you, not the screen.",
+    "Hot tips from other traders": "A tip is someone else's read. Use it as an idea if you like, then do your own work: your entry, your stop, your size."
    },
-   "simple": "Practice and review, because the best in any field train far more than they perform.",
+   "simple": "Practice, prep and review, because top performers in sport and music practise more than they perform.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1118,7 +1138,10 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Brett Steenbarger: elite performers in music, theater, sports and chess spend more time practicing and preparing than performing. In a Fidelity piece he co-wrote with Adrienne Toghraie: elite performance won't be found in better indicators, faster software or newsletter tips, and better golf clubs will not turn a duffer into a pro. Investopedia: discipline can't be found in expensive trading software."
+   }
   },
   {
    "key": "q07",
@@ -1156,16 +1179,16 @@
    "skill": "psych.routine",
    "rung": 3,
    "format": "mcq",
-   "q": "Steenbarger has a one-line definition of good trading that explains why routines matter. Which is it?",
+   "q": "You've run the same routine every day for months. What's it supposed to turn your trading into?",
    "choices": [
-    "Doing the ideal thing automatically",
-    "Never feeling any fear or any greed",
-    "Taking every setup the market gives you",
+    "The right moves become automatic",
+    "Never feeling any fear or greed",
+    "Taking every setup that shows up",
     "Winning more trades than you lose"
    ],
-   "answer": "Doing the ideal thing automatically",
-   "why": "Doing the ideal thing automatically. Steenbarger: good trading could be 'doing automatically what you would ideally do by choice'. A routine you keep turns your strengths into automatic habits. Tendler wants the same: a habit so ingrained you can't not do it. This does not mean trading without feeling. Steenbarger says we can't, and shouldn't, remove emotion from trading.",
-   "lesson_line": "Repeat the right steps until you no longer need the checklist.",
+   "answer": "The right moves become automatic",
+   "why": "The right moves become automatic. That's the whole point of a routine. Find what you do well, then repeat it until you can't not do it. Writing the plan, setting the stop, taking the loss when it's hit. When those run on autopilot, you stop burning energy fighting yourself. It doesn't mean you stop feeling things. You'll still feel fear and greed. The habits just carry you through it.",
+   "lesson_line": "Repeat the right steps until you don't need the checklist.",
    "facts": [
     "fj2",
     "fp1",
@@ -1175,11 +1198,11 @@
     "fj1"
    ],
    "wrong": {
-    "Never feeling any fear or any greed": "Steenbarger says we can't, and shouldn't, remove emotion from trading. The routine works with it.",
-    "Taking every setup the market gives you": "That's overtrading. Steenbarger: routines let you process the market efficiently and stick to what you do best.",
-    "Winning more trades than you lose": "That's an outcome. Steenbarger defines good trading by what you do, and he judges the process that pays over time."
+    "Winning more trades than you lose": "That's an outcome, and you don't control it. Good trading is about what you do, trade after trade.",
+    "Never feeling any fear or greed": "Not happening, and you don't need it. You can't remove emotion from trading. The routine works with it.",
+    "Taking every setup that shows up": "That's overtrading. A routine keeps you on what you do best, not on everything that moves."
    },
-   "simple": "Doing the ideal thing automatically, because a routine turns your best habits into things you do without forcing them.",
+   "simple": "The right moves become automatic, because a routine you keep turns your best habits into things you don't have to force.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1187,23 +1210,26 @@
      "fixed before (key reworded to keep 'ideally')"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Brett Steenbarger: a definition of good trading could be doing automatically what you would ideally do by choice. When we establish a routine and make it routine, we take our strengths and make them automatic. Jared Tendler wants a habit so ingrained that you can't not do it."
+   }
   },
   {
    "key": "q09",
    "skill": "psych.routine",
    "rung": 4,
    "format": "mcq",
-   "q": "Your charts are marked up for today. What else do you check before the open?",
+   "q": "Your levels are set for today's names. What else needs checking before the bell?",
    "choices": [
     "Earnings dates and overnight news",
-    "Nothing, charts are enough",
+    "Nothing, the charts are enough",
     "Where the market will close",
-    "Winning back yesterday's loss"
+    "A plan to win back yesterday's loss"
    ],
    "answer": "Earnings dates and overnight news",
-   "why": "Earnings dates and overnight news. Our rule: no new buys in the 3 days before an earnings report, so check each name's date. Schwab notes that news outside trading hours can make a stock open far from its last close. Investopedia's rules include keeping track of the events that affect stocks. Steenbarger's morning also takes an advance look at the economic reports due that day. Knowing them is not a reason to sit out: we trade Fed and CPI days like any other day.",
-   "lesson_line": "Before the bell, know each name's earnings date and the overnight news.",
+   "why": "Earnings dates and overnight news. Check the date on every name. We don't buy in the 3 days before an earnings report. A report can gap a stock right past your stop overnight, and no stop can catch that. Then scan the overnight news. News outside market hours can open a stock far above or below where it closed, and your levels need to know that. Fed and CPI days are different. Know they're coming, but we trade them like any other day.",
+   "lesson_line": "Before the bell, know every name's earnings date and the overnight news.",
    "facts": [
     "hb22",
     "wc2",
@@ -1214,11 +1240,11 @@
     "wc3"
    ],
    "wrong": {
-    "Nothing, charts are enough": "News outside trading hours can make a stock open far above or below its last close. Check it before you trade.",
-    "Where the market will close": "Nobody knows that. Trading is about probabilities, not certainties. Prep covers what's on the calendar, not a forecast.",
-    "Winning back yesterday's loss": "That's revenge trading, planned in advance. Investopedia: don't try to make up for a losing trade by trading more."
+    "Where the market will close": "Nobody knows that. Trading's about probabilities, not certainties. Prep what's on the calendar, not a forecast.",
+    "Nothing, the charts are enough": "Charts don't show tonight's news or next week's report. A gap open can blow right through your levels.",
+    "A plan to win back yesterday's loss": "That's revenge trading, planned ahead of time. Trading more to make up a loss is a recipe for disaster."
    },
-   "simple": "Check earnings dates and overnight news: no new buys in the 3 days before earnings, and news can gap a stock.",
+   "simple": "Check earnings dates and overnight news, because a report or a news gap can blow right past your levels.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1226,40 +1252,41 @@
      "rests on the owner's rulebook (B22, C32)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q10",
    "skill": "psych.routine",
    "rung": 4,
    "format": "scenario",
-   "story": "You know your pattern. After a losing trade, you rush into the next one. Today's charts and levels are ready.",
-   "q": "What should your warm-up add?",
+   "story": "You know your weak spot. After a losing trade, you rush right into the next one. Today's charts and levels are done.",
+   "q": "What else goes in your warm-up today?",
    "choices": [
     "A written if-then plan for it",
     "Nothing, the charts are all set",
-    "A reminder to stay positive today",
-    "Smaller size on every trade today"
+    "A note to stay positive",
+    "Smaller size on every trade"
    ],
    "answer": "A written if-then plan for it",
-   "why": "A written if-then plan for it. Tendler's warm-up includes a plan for the problems most likely to hit you. Schwab suggests written if-then plans, committed to before every session. One example: take 15 minutes when you feel an urge to break a rule. Our rule covers the second chance. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop. Positive thinking alone won't stop the rush.",
-   "lesson_line": "Know your pattern. Write the rule for it before the bell, not after the damage.",
+   "why": "Write an if-then plan for it. You already know how this one goes, so decide the answer now, while you're calm. Something like: if I take a loss and feel the itch to jump back in, then I stand up and take 15 minutes. If the setup triggers again, it's a new trade with its own stop. Write it down before the bell. In the moment, the sting of the loss argues louder than any good intention. A plan you made calm wins that argument.",
+   "lesson_line": "Know your pattern. Write the plan for it before the bell, not after the damage.",
    "facts": [
     "ta6",
     "wa1",
     "wa2",
     "fh3",
     "wa9",
-    "hb21"
+    "hb21",
+    "hb17"
    ],
    "wrong": {
-    "Nothing, the charts are all set": "The charts are set. The trader isn't. A pattern you already know needs a plan too.",
-    "A reminder to stay positive today": "Schwab: positive thinking alone won't do the trick. You need a specific response, decided in advance.",
-    "Smaller size on every trade today": "Smaller size makes the rush cheaper, not rarer. Tendler's warm-up plans a response to the problem most likely to hit you."
+    "Nothing, the charts are all set": "The charts are ready. You aren't. A pattern you already know needs its own plan.",
+    "A note to stay positive": "Positive thinking alone won't stop the rush. You need a specific move, decided ahead of time.",
+    "Smaller size on every trade": "That makes the rush cheaper, not rarer. Fix the habit. We don't cut size after losses. Only a drawdown in the account does that."
    },
-   "simple": "Add a written if-then plan for that pattern, because a plan made before the bell beats a rush made in the moment.",
+   "simple": "Write an if-then plan for it, because a response you decided calmly beats the rush you feel after a loss.",
    "deeper": {
-    "example": "Written before the open: if I feel the urge to jump straight back in after a loss, then I stand up and take 15 minutes before the next order. If the setup triggers again, then it is a new trade with its own stop and every rule. The rule decides, not the sting of the last loss."
+    "example": "Written before the open: if I feel the urge to jump straight back in after a loss, then I stand up and take 15 minutes before the next order. If the setup triggers again, then it's a new trade with its own stop and every rule. Jared Tendler's warm-up includes a plan for the problems most likely to affect you. Schwab suggests written if-then plans, committed to before every session."
    },
    "tier": "core",
    "risk": {
@@ -1268,22 +1295,22 @@
      "rests on the owner's rulebook (B21); Schwab's other example, stepping away for the day after a set loss, is a daily loss limit our rule (B15) rejects, so it is not taught"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q11",
    "skill": "psych.routine",
    "rung": 4,
    "format": "mcq",
-   "q": "Before the open, Steenbarger rehearses how he'd respond to early strength or weakness. What's the point of rehearsing?",
+   "q": "Before the open you run through it: if the market rips early I'll do this, if it dumps I'll do that. Why bother?",
    "choices": [
-    "To follow your plan when it gets real",
-    "To forecast where the market will open",
-    "To find more reasons to take trades",
-    "To take emotion out of trading"
+    "To follow the plan when it's real",
+    "To predict where the market opens",
+    "To find more reasons to trade",
+    "To take emotion out of it"
    ],
-   "answer": "To follow your plan when it gets real",
-   "why": "To follow your plan when it gets real. Steenbarger: decisions you plan in one state won't always be the ones you act on in another. Schwab says mentally practising the ideal response should help you carry it out when the situation arises for real. Rehearse your plan before the session, or the market will test it for you. Rehearsal is not a forecast: running many scenarios keeps you from getting locked into one.",
+   "answer": "To follow the plan when it's real",
+   "why": "So you actually follow the plan when it's real. A plan made calm before the bell doesn't always survive a fast open. You're in a different head by then. Rehearsing closes that gap. You've already seen the early dump in your mind and already know what you'll do, so you just do it. Either you test the plan in rehearsal, or the market tests it with your money. And it's not a forecast. Running a few scenarios keeps you from marrying one.",
    "lesson_line": "Rehearse the response before the bell, so the market isn't your first test.",
    "facts": [
     "fa4",
@@ -1295,11 +1322,11 @@
     "fh3"
    ],
    "wrong": {
-    "To forecast where the market will open": "Rehearsal isn't a forecast. Steenbarger runs through many scenarios so he doesn't get locked into any one.",
-    "To find more reasons to take trades": "Rehearsal is about how you respond, not how often you trade.",
-    "To take emotion out of trading": "Steenbarger: we cannot, and should not, remove emotion from trading. Control comes from preparing your responses, not from staying Zen."
+    "To predict where the market opens": "Rehearsal isn't a forecast. You run several scenarios so you don't get stuck on one.",
+    "To find more reasons to trade": "Rehearsal is about how you respond, not how often you trade.",
+    "To take emotion out of it": "You can't remove emotion, and you don't need to. You prepare your response so emotion doesn't make the call."
    },
-   "simple": "To follow your plan when it gets real, because a plan you have practised is easier to carry out under pressure.",
+   "simple": "So you follow the plan for real, because a response you've practised is easier to carry out under pressure.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1307,7 +1334,10 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Brett Steenbarger mentally rehearses how he'd respond to early weakness or strength as the open approaches. His line: either you battle test your plans in rehearsal mode or they will be tested in actual battle. Schwab: if a trader mentally practices the ideal response, it should help them execute when the situation arises for real."
+   }
   },
   {
    "key": "q12",
@@ -1345,17 +1375,18 @@
    "skill": "psych.routine",
    "rung": 5,
    "format": "tf",
-   "q": "Getting very excited after wins is harmless. Only the sting after losses hurts your trading.",
+   "q": "Getting really fired up after a big win is harmless to your trading.",
    "answer": "False",
-   "why": "False. In a study of 80 day traders, those whose emotional reactions to gains and to losses were more intense traded significantly worse. Schwab notes that studies consistently link intense emotional reactions to poor trading performance. This is one study, and it shows a link, not proof of cause. The lesson for the routine: check in after a big win, not only after a loss.",
-   "lesson_line": "Check in after wins too. A big high is a warning sign, just like a big low.",
+   "why": "False. A big high after a win can hurt you the same way a big low after a loss can. In a study of 80 day traders, the ones who reacted more intensely to gains and to losses traded significantly worse. It's one study, and it shows a link, not proof. But think about how it plays out. You hit a big winner, you feel bulletproof, and the next trade gets sloppy. That's also why we never raise risk past the rules after a run of winners. Feeling good is fine. Feeling invincible is the warning sign.",
+   "lesson_line": "Check in after big wins too. A big high is a warning sign, just like a big low.",
    "facts": [
     "na1",
     "na2",
     "wa5",
-    "fh4"
+    "fh4",
+    "hd45"
    ],
-   "simple": "False, because traders who reacted strongly to wins as well as losses traded worse in a study of 80 day traders.",
+   "simple": "False, because a big high after a win can make you sloppy, just like a big low after a loss.",
    "deeper": {
     "counter": "Feeling good after a win is normal and not the problem. Steenbarger, one of the study's authors, says we cannot and should not remove emotion from trading. The warning is about intensity: a big high, like a big low, is a state to notice before the next order."
    },
@@ -1366,7 +1397,7 @@
      "NBER study plus Schwab; the 80 is in the quote and does not change"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q14",
@@ -1374,7 +1405,7 @@
    "rung": 5,
    "format": "scenario",
    "story": "A fight with your landlord is still on your mind. The open is an hour away.",
-   "q": "What does Tendler suggest you do first?",
+   "q": "What do you do with it first?",
    "choices": [
     "Write it out, then set it aside",
     "Push it down and focus on charts",
@@ -1382,7 +1413,7 @@
     "Cut your size to allow for it"
    ],
    "answer": "Write it out, then set it aside",
-   "why": "Write it out, then set it aside. Tendler suggests writing for up to 15 minutes, one hour before you trade. It gets the emotion out so you can put it away for now. Schwab notes that writing about worries before a high-pressure event frees up working memory for the task. If writing it out doesn't settle you, our rule takes over: tired, sick, angry or distracted means no new trades that day.",
+   "why": "Write it out, then put it away. Grab a notebook and write for up to 15 minutes: what happened, how you feel, what you'll do about it later. Getting it on paper frees up the part of your head the market needs. Then it waits until after the close. If it's still eating at you at the open, that's a distracted day. Distracted means no new trades for us.",
    "lesson_line": "Get it on paper, then draw a line under it. It waits until after the close.",
    "facts": [
     "tb4",
@@ -1391,11 +1422,11 @@
     "hf67"
    ],
    "wrong": {
-    "Push it down and focus on charts": "Pushed down, it keeps pulling at your attention. Writing it out frees that attention for the market.",
-    "Trade to take your mind off it": "That puts money on a distracted mind. A trade is not a way to stop thinking about something else.",
-    "Cut your size to allow for it": "Smaller size doesn't clear your head. Tendler's first step is to write it out. Still distracted at the open? Our rule: no new trades that day."
+    "Push it down and focus on charts": "Pushed down, it keeps tugging at you all morning. Writing it out clears the space.",
+    "Trade to take your mind off it": "That's putting money on a distracted head. A trade isn't a way to stop thinking about something.",
+    "Cut your size to allow for it": "Smaller size doesn't clear your head. Write it out first. Still distracted at the open? No new trades today."
    },
-   "simple": "Write it out, then set it aside, because getting a worry on paper frees your mind for the market.",
+   "simple": "Write it out and set it aside, because getting a worry on paper frees your head for the market.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1403,7 +1434,10 @@
      "rests on the owner's rulebook (F67) as the fallback; key is Tendler's advice, named in the question"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Jared Tendler suggests writing for up to 15 minutes, one hour before you trade, to get some of the emotion out so you can put it away for now. Schwab notes that writing about worries before a high-pressure event frees up working memory for the task at hand."
+   }
   },
   {
    "key": "q15",
@@ -1411,7 +1445,7 @@
    "rung": 6,
    "format": "scenario",
    "story": "It's 11:30 a.m. You were sharp all morning. Now you notice you've read the same chart twice without taking it in.",
-   "q": "What does a good in-session routine say?",
+   "q": "What's the call?",
    "choices": [
     "Step away for a short break now",
     "Push through until the close",
@@ -1419,7 +1453,7 @@
     "Rest after your first mistake"
    ],
    "answer": "Step away for a short break now",
-   "why": "Step away for a short break now. Reading the same chart twice without taking it in is an early warning sign. Tendler says don't wait until you need a break: take it before your energy nosedives. Fatigue weakens your control of your emotions, and that raises the odds of a mistake. Steenbarger adds that fatigue makes mistakes and old habits more likely. The break comes early, before you're tired. Once you are tired, our rule says no new trades that day.",
+   "why": "Take a short break, now. Reading the same chart twice without taking it in is your early warning. Don't wait until you need the break. By then you're already making mistakes. Fatigue makes it harder to control your emotions, and that's when old bad habits creep back in. Walk away, get some air, come back fresh. If the break doesn't fix it and you're just plain tired, you're done for the day. Tired means no new trades for us.",
    "lesson_line": "Breaks are part of the plan. Take one before you're running on empty.",
    "facts": [
     "ta7",
@@ -1428,11 +1462,11 @@
     "hf67"
    ],
    "wrong": {
-    "Trade more to get your edge back": "More orders won't bring your focus back. Tendler: fatigue weakens emotional control and raises the odds of a mistake.",
-    "Push through until the close": "Steenbarger: in a fatigued state you're more likely to make mistakes and slip into old habits that cost money.",
-    "Rest after your first mistake": "That's waiting until you need it. Tendler: key on early warning signs and take a break before your energy nosedives."
+    "Trade more to get your edge back": "More orders won't bring your focus back. They just give a tired head more chances to slip.",
+    "Push through until the close": "Grinding on tired is when mistakes and old habits show up, and they cost money.",
+    "Rest after your first mistake": "That's waiting until you need it. The warning sign is here now. Take the break before the mistake."
    },
-   "simple": "Step away for a short break now, before fatigue sets in, because fatigue weakens emotional control and leads to mistakes.",
+   "simple": "Take a short break now, before fatigue turns into mistakes.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1440,24 +1474,27 @@
      "rests on the owner's rulebook (F67) as the fallback"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Jared Tendler: don't wait until you need a break. Key on early warning signs so you can take one before your energy nosedives, because fatigue decreases your ability to control your emotions. Brett Steenbarger: in the fatigued state we're more likely to make mistakes and fall into old habit patterns that cost us money."
+   }
   },
   {
    "key": "q16",
    "skill": "psych.routine",
    "rung": 6,
    "format": "tf",
-   "q": "Writing up today's trades on the weekend works as well as writing them up right after the close.",
+   "q": "Saving today's trade write-ups for the weekend works just as well as doing them today.",
    "answer": "False",
-   "why": "False. Tendler: as soon as you walk away, details start to disappear. The best time to get the emotion out is soon after you're done. Steenbarger reviews at the end of each trading day. Our rule: journal every trade the same day and review the week every weekend, ideally. The weekend review is good. It adds to the daily write-up and does not replace it.",
-   "lesson_line": "Write it while it's fresh. By the weekend, many details are gone.",
+   "why": "False. Write them up today. The minute you walk away, details start to go. Why you took it, what you saw, what you felt when it moved against you. By Saturday it's a blur and you're filling gaps from memory. We journal every trade the same day and review the week every weekend, ideally. The weekend review is great. It sits on top of the daily journal. It doesn't replace it.",
+   "lesson_line": "Write it while it's fresh. By the weekend, half of it's gone.",
    "facts": [
     "ta10",
     "tb3",
     "fb2",
     "hb27"
    ],
-   "simple": "False, because details fade fast once you walk away, so write up today's trades the same day.",
+   "simple": "False, because details fade fast once you walk away, so write today's trades up today.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1466,7 +1503,10 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Jared Tendler: as soon as you walk away, details start to disappear, and the best time to get the emotion out is soon after you're done. Brett Steenbarger reviews at the end of each trading day."
+   }
   },
   {
    "key": "q17",
@@ -1482,7 +1522,7 @@
     "Take a small starter position"
    ],
    "answer": "Hold off, no plan means no buy",
-   "why": "Hold off, no plan means no buy. Our rule: every planned buy has its entry, stop and size written down before the market opens. You have none. Without a warm-up, Tendler says you're not sharp and you risk mistakes. Investor.gov's advice: don't ever invest in anything you haven't researched.",
+   "why": "Hold off. No plan, no buy. Every buy we make has its entry, stop and size written down before the open, and you've got none of that. You don't know where you're wrong on this stock, so you can't size it. A runner you've never studied is exactly the trade that burns you when you're rushed. Let it go. If it still looks good tonight, do the work and write the plan for tomorrow.",
    "lesson_line": "No plan, no buy. Entry, stop and size go on paper before the open.",
    "facts": [
     "hd39",
@@ -1493,13 +1533,13 @@
     "ny1"
    ],
    "wrong": {
-    "Buy the runner before it gets away": "It's premarket, and our rule says no new buys outside regular trading hours. You also have no levels, no stop and no research.",
-    "Trade your normal size, prep later": "Prep later means trading unprepared now. Steenbarger: many trading problems start because the right skills were never warmed up.",
-    "Take a small starter position": "Small or not, it's a buy with no levels and no stop. Our rule: every planned buy has its entry, stop and size written down before the open."
+    "Buy the runner before it gets away": "It's premarket, and we don't buy outside regular trading hours. You also have no levels, no stop and no research on it.",
+    "Trade your normal size, prep later": "Prep later means trading unprepared now. A lot of trading problems start with a skipped warm-up.",
+    "Take a small starter position": "Small or not, it's a buy with no stop. Without a stop you can't size it at all."
    },
    "simple": "Hold off, because a buy with no levels, no stop and no research is a guess, not a plan.",
    "deeper": {
-    "trap": "The runner is the trap. It looks like the best trade of the day because it is moving. But you know nothing about it: no levels, no stop, no research. Our rule wants every planned buy's entry, stop and size written down before the open. This one has none."
+    "trap": "The runner is the trap. It looks like the best trade of the day because it's moving. But you know nothing about it: no levels, no stop, no research. Investor.gov: don't ever invest in anything you haven't thoroughly and independently researched. Brett Steenbarger: many trading problems occur simply because the right functions were never warmed up."
    },
    "tier": "extended",
    "risk": {
@@ -1510,7 +1550,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
@@ -1545,7 +1585,7 @@
    "rung": 7,
    "format": "scenario",
    "story": "Your review lists six fixes: entries, stops, size, sleep, focus and patience. You want all six fixed by tomorrow.",
-   "q": "What goal do you set for tomorrow?",
+   "q": "Which goal do you take into tomorrow?",
    "choices": [
     "One fix, stated specifically",
     "Work on all six fixes at once",
@@ -1553,7 +1593,7 @@
     "No goal, just trade and see"
    ],
    "answer": "One fix, stated specifically",
-   "why": "One fix, stated specifically. Steenbarger: with too many goals, traders find it hard to give each one proper attention, and vague goals get the least follow-through. His answer is one goal at a time, worked on every day. Tendler says the same: start small, one thing at a time. 'Just be more disciplined' is a good intention, not a goal: you can't check it at the close. The other fixes wait their turn.",
+   "why": "One fix, and make it specific. Six goals at once and none of them gets real attention. Pick the one costing you the most. Then say it so you can check it at the close, like 'every buy has its stop written down before the open.' Be more disciplined isn't a goal. It's a good intention, and you can't grade it. Work that one fix every day until it sticks. Then the next one. One thing at a time.",
    "lesson_line": "One goal, specific enough to check at the close. Then the next one.",
    "facts": [
     "fc1",
@@ -1563,11 +1603,11 @@
     "fl4"
    ],
    "wrong": {
-    "Work on all six fixes at once": "Too many goals, and none gets proper attention. Steenbarger works one goal at a time, every day.",
+    "Work on all six fixes at once": "Too many goals, and none of them gets proper attention. You end up fixing nothing.",
     "Just be more disciplined": "That's a good intention, not a goal. You can't check it at the close.",
-    "No goal, just trade and see": "Experience alone isn't enough. Steenbarger: guided experience, informed by goals and feedback, gets you where you want to go."
+    "No goal, just trade and see": "Experience alone doesn't teach much. Experience aimed at a goal, with feedback, is what moves you forward."
    },
-   "simple": "Pick one fix and state it clearly, because too many goals split your focus and vague goals get the least follow-through.",
+   "simple": "Pick one fix and say it clearly, because too many goals split your focus and vague goals rarely stick.",
    "deeper": {
     "trap": "Six fixes feels thorough, and that is the trap. Steenbarger finds that a long list of goals makes it hard to prioritise and to give each one proper attention. Pick one fix, state it so you can check it at the close, and work on it every day. The rest wait their turn."
    },
@@ -1578,16 +1618,16 @@
      "two publishers agree (Steenbarger, Tendler); a stable idea"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
    "skill": "psych.routine",
    "rung": 8,
    "format": "tf",
-   "q": "You ran your routine perfectly and still lost money today. That means the routine is broken.",
+   "q": "A losing day after you ran your routine perfectly means the routine is broken.",
    "answer": "False",
-   "why": "False. Tendler: routines don't guarantee your best performance, but they make it more likely. They increase the odds of good results. Schwab: trading is about probabilities, not certainties. Steenbarger: focus on small wins and the processes that generate profits over time. One losing day after a well-run routine says little on its own. Judge the routine by the process over time.",
+   "why": "False. One red day tells you almost nothing. A routine raises your odds. It doesn't guarantee a green day. Trading's about probabilities, not certainties, so you'll lose on days you did everything right. That's normal. At the close, check one thing: whether you followed it. If you did, that's a good day, even red. Judge the routine over weeks, not one session. Change it after every loss and you'll never learn if it works.",
    "lesson_line": "One red day says little about a good routine. Judge it over weeks.",
    "facts": [
     "ta14",
@@ -1606,7 +1646,7 @@
      "three publishers agree (Tendler, Schwab, Steenbarger)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
@@ -1616,13 +1656,13 @@
    "story": "Best week of your year. You journaled every trade the same day. This weekend you plan to skip the weekly review. Things are clearly working.",
    "q": "Is skipping it a problem?",
    "choices": [
-    "Yes, good weeks hold lessons to repeat",
-    "No, reviews are for losing weeks",
-    "No, but raise your size next week",
-    "Yes, the profit still needs to be logged"
+    "Yes, a good week has lessons",
+    "No, reviews are for bad weeks",
+    "No, but size up next week",
+    "Yes, the profit needs logging"
    ],
-   "answer": "Yes, good weeks hold lessons to repeat",
-   "why": "Yes. Good weeks hold lessons to repeat. Steenbarger turns what you did well into goals to repeat and expand. Studying your successes is how you find your best practices. Tendler warns that dropping the journal when things go well is a sign of subtle overconfidence. Our rule: review the week every weekend, ideally. A great week is not a reason to skip it, or to raise risk past the rules.",
+   "answer": "Yes, a good week has lessons",
+   "why": "Yes, it's a problem. A great week is the best film you'll get. Something you did worked, and you want to know exactly what, so you can do it again on purpose. Maybe it was the setups, the patience or the entries. Find it and make it a goal to repeat. Watch the other thing too. Dropping the review when you're hot is a sign of quiet overconfidence. Next comes sizing up past the rules, and we never do that after a run of winners.",
    "lesson_line": "Review the great weeks too. That's where you learn what to repeat.",
    "facts": [
     "fi2",
@@ -1632,13 +1672,13 @@
     "hb27"
    ],
    "wrong": {
-    "No, reviews are for losing weeks": "Steenbarger: studying your successes is how you define your best practices.",
-    "No, but raise your size next week": "Skipping the review is the problem. Size is a separate call, and our rule caps it: never raise risk past the rules after a run of winners.",
-    "Yes, the profit still needs to be logged": "You journaled every trade the same day, so the profit is already logged. The weekly review is for lessons: what you did well becomes a goal to repeat."
+    "No, reviews are for bad weeks": "Studying your wins is how you find your best practices. The bad weeks only tell you half the story.",
+    "No, but size up next week": "Skipping the review is the problem. And a hot week never earns more risk than the rules allow.",
+    "Yes, the profit needs logging": "You journaled every trade the same day, so it's logged. The weekly review is for lessons, not bookkeeping."
    },
-   "simple": "Yes, because a great week shows you what to repeat, and dropping the review when things go well is a warning sign.",
+   "simple": "Yes, because a great week shows you what to repeat, and skipping the review when you're hot is how you get sloppy.",
    "deeper": {
-    "trap": "A hot streak is when the process quietly slips. Tendler sees traders journal regularly, then fall off when they're doing well, a sign of subtle overconfidence. The next step can be raising risk past the rules, which our rule forbids after a run of winners. The review shows what really drove the week, so you can repeat it on purpose."
+    "trap": "A hot streak is when the process quietly slips. Jared Tendler sees traders journal regularly, then fall off when they're doing well, a sign of subtle overconfidence. The next step can be raising risk past the rules, which we never do after a run of winners. Brett Steenbarger: studying your successes is how you define your best practices."
    },
    "tier": "expert",
    "risk": {
@@ -1647,7 +1687,7 @@
      "rests on the owner's rulebook (D45, B27)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q22",
@@ -1655,15 +1695,15 @@
    "rung": 9,
    "format": "scenario",
    "story": "You slept badly and feel tired. You skipped your warm-up. Ten minutes after the open, your first trade is a loss. You want right back in.",
-   "q": "What's the right call?",
+   "q": "What now?",
    "choices": [
     "Step away, no new trades today",
     "Jump back in to make it back",
     "Keep trading, tighten stops",
-    "Do the warm-up, trade again"
+    "Do the warm-up, then trade again"
    ],
    "answer": "Step away, no new trades today",
-   "why": "Step away, no new trades today. Our rule: tired, sick, angry or distracted means no new trades that day. You were tired before the first loss, so the rule already applied. Tendler explains why: when you're tired, your emotions get bigger while your ability to deal with them shrinks. The urge to get right back in is revenge trading. Investopedia: don't try to make up for a losing trade by trading more. The rule covers that day only.",
+   "why": "Step away. You're done for the day. You were tired before that first trade, and tired means no new trades for us. The loss just proved the point. When you're tired your emotions get bigger and your ability to handle them shrinks. That itch to get it right back is revenge trading, and it turns one small loss into a bad day. Shut it down, sleep, and come back tomorrow with a real warm-up. It's one day. The market will be there.",
    "lesson_line": "Tired, sick, angry or distracted: no new trades that day. A late warm-up doesn't change that.",
    "facts": [
     "hf67",
@@ -1672,13 +1712,13 @@
     "ta4b"
    ],
    "wrong": {
-    "Jump back in to make it back": "That's revenge trading. Investopedia: don't try to make up for a losing trade by trading more.",
-    "Keep trading, tighten stops": "A tighter stop doesn't fix a tired, rattled mind. The problem is the trader, not the stop. Tired means no new trades that day.",
-    "Do the warm-up, trade again": "A late warm-up doesn't lift the rule. You feel tired, and our rule says tired means no new trades that day."
+    "Jump back in to make it back": "That's revenge trading. Trading more to win back a loss is a recipe for disaster.",
+    "Keep trading, tighten stops": "A tighter stop doesn't fix a tired head. The problem is the trader, not the stop.",
+    "Do the warm-up, then trade again": "A late warm-up isn't a reset button. You're still tired, and tired means no new trades today."
    },
-   "simple": "Stop for the day, because you feel tired, and a tired trader takes no new trades that day under our rule.",
+   "simple": "Stop for the day, because you're tired, and a tired trader takes no new trades.",
    "deeper": {
-    "trap": "The trap is treating the warm-up as a reset button. Skipping it was not the real problem. You are tired, and our rule says tired means no new trades that day, warm-up or not. The quick loss and the urge to win it back show why. Tired, your emotions get bigger while your ability to deal with them shrinks."
+    "trap": "The trap is treating the warm-up as a reset button. Skipping it wasn't the real problem. You're tired, and tired means no new trades that day, warm-up or not. Jared Tendler: when you're tired, your emotions get bigger while your ability to deal with them is more limited."
    },
    "tier": "expert",
    "risk": {
@@ -1688,7 +1728,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q23",
@@ -1696,15 +1736,15 @@
    "rung": 9,
    "format": "scenario",
    "story": "Same routine for two years. The market has gone from smooth trends to choppy swings. Your results have gone flat.",
-   "q": "What does Steenbarger suggest?",
+   "q": "What do you do with your routine?",
    "choices": [
-    "Rework the routine, keep what works",
-    "Stick with it, since it worked before",
-    "Drop routines and trade on feel",
-    "Copy a routine from a top trader"
+    "Rework it, keep what works",
+    "Stick with it, it worked before",
+    "Drop routines, trade on feel",
+    "Copy a top trader's routine"
    ],
-   "answer": "Rework the routine, keep what works",
-   "why": "Rework the routine, keep what works. Steenbarger: routine is the friend of efficiency and the enemy of change. Reworking old processes and adding new ones is what keeps traders profitable when markets go from trending to choppy. There's a world of difference between five years of experience and one year repeated five times. This does not mean dropping routines: they are what let you process the market efficiently.",
+   "answer": "Rework it, keep what works",
+   "why": "Rework it, and keep what still works. A routine makes you efficient, but it can also lock you into a market that's gone. Your prep was built for smooth trends. Chop needs something different, so find the steps that keep failing and change them. Keep the ones that still pull their weight, like setting levels before the open. Running the same routine in a new market isn't more experience. It's the same year, repeated.",
    "lesson_line": "Keep the routine, but review it. When the market changes, your prep changes too.",
    "facts": [
     "fj3",
@@ -1715,13 +1755,13 @@
     "fr1"
    ],
    "wrong": {
-    "Stick with it, since it worked before": "Steenbarger: there's a world of difference between five years of experience and one year repeated five times.",
-    "Drop routines and trade on feel": "That throws out what works with what doesn't. Routines are what let you process the market efficiently.",
-    "Copy a routine from a top trader": "A routine works when it's built on what you do best. Steenbarger: study your own successes to define your best practices."
+    "Stick with it, it worked before": "It worked in the old market. Five years of experience beats one year repeated five times.",
+    "Drop routines, trade on feel": "That throws out what works along with what doesn't. Routines are how you process the market efficiently.",
+    "Copy a top trader's routine": "Their routine fits their strengths. Build yours on what you do best, from your own wins."
    },
-   "simple": "Rework the routine and keep what works, because a routine that never changes stops fitting when the market changes.",
+   "simple": "Rework it and keep what works, because a routine that never changes stops fitting when the market does.",
    "deeper": {
-    "example": "Say your routine was built for smooth trends. In choppy swings, some steps keep failing. Keep the parts that still work, such as setting levels before the open, and rework the parts that no longer fit. Steenbarger: reworking old processes and adding new ones keeps traders profitable when markets turn volatile and choppy."
+    "example": "Say your routine was built for smooth trends. In choppy swings, some steps keep failing. Keep the parts that still work and rework the rest. Brett Steenbarger: routine is the friend of efficiency and the enemy of change, and reworking old processes is what keeps traders profitable when markets go from trending to choppy."
    },
    "tier": "expert",
    "risk": {
@@ -1730,7 +1770,7 @@
      "Steenbarger plus Investopedia agree; a stable idea"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1775,39 +1815,37 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from fa1/fa7/ta4a: the warm-up. Matches. Lengths 32/33/33/30, no tell; every note rests on fa7, ta4a or ta4b.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Plain, mentor register; cold-start cost explained. Facts fa1/fa7/ta4a/ta4b hold. Coaches in deeper only."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Why rests on ta1, fb1-fb3, ta9, fi1; 'a rule or two' matches fb3. No unsupported line."
+   "notes": "Day laid out as ours; the why gives the reason the cool-down matters. Sunday review correctly framed as on top of the daily one."
   },
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "True from fa2 + ta6; no absolute in the statement. Overlaps q10's 'Nothing, the charts are all set' only as background, does not hand over q10's key."
+   "fixed": true,
+   "notes": "Stem argued its own answer ('is half done') and bolted two sentences together (rule 26: one plain claim; rule 28: not leading). Rewritten as one plain claim, still True, so the 2-of-5 true balance holds. Why kept."
   },
   "q04": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from hd39 (D39) + fe2: entry, stop and size. Matches. Lengths 29/32/29/29. Chat-room note rests on hf66 (F66). q17 applies this rule at rung 7; progression, not a giveaway.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Five-name watchlist gives the screen; the how (alert at each trigger) and the reason (no math at the open) are there. hd39/hf66 stated as ours correctly."
   },
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Simple now matches fg1 ('a surprising proportion')."
+   "fixed": true,
+   "notes": "'Sleepy people make worse money decisions, and a study found exactly that' stated the finding as a general fact before the study. Now one study, said as one study (fg2). Rest kept; tired means no new trades (hf67) stays."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Own answer from fi3, fd1, fz1, fz2, fz4 before the key: directed practice and review. Matches. Quotes fz1, fz2, fz4 re-read on the live Fidelity page (authors Steenbarger and Toghraie); lengths 28/33/30/26, no tell. Break found in the simple: 'the best in any field spend more time on practice' overreaches fd1, which names elite performers in music, theater, sports and chess only. Simple now restates fd1's own claim. Newsletter-tips owner flag stays as recorded in risk/conflicts."
+   "notes": "TRUTH: the simple ('the best performers in any field') and the talent note ('the best in every field') put back the overreach the 11-09 checker removed: fd1 names music, theater, sports and chess only. Also the open owner flag in conflicts: we run a newsletter and alerts, so 'A good newsletter's tips' as the named mistake, with 'following them never builds your own read', knocks our own product. Now 'Hot tips from other traders', and the note says what we do with a tip (an idea, then your own entry, stop and size, hf66)."
   },
   "q07": {
    "status": "cut",
@@ -1819,26 +1857,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from fj2. Matches. Overtrading note now rests on fj1; outcome note on fq1. Lengths 35/35/39/33, no tell."
+   "notes": "Routine-for-months stem is a real situation; definition moved to deeper; emotion line matches fh4."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from hb22 (B22) + wc2: earnings dates and overnight news. Matches. 3 days is in hb22; C32 handled correctly. Lengths 33/34/33/32. No longer hands over q04's key.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Reason for the 3-day earnings line (a gap no stop catches) is right; Fed/CPI traded like any day (hc32). 3 is cited in hb22."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Own answer from ta6 + wa1: a written if-then plan. Matches. Lengths 29/31/33/33; key does not echo the story. Smaller size is not forbidden (A1 lets risk vary with recent results), but it does not answer the stem's pattern; the wrong note says so without claiming a rule. Break in the deeper example: it applies Schwab's 15 minutes (wa2) to a different trigger ('if I take a loss'), while wa2's trigger is 'an urge to break a trading rule'. Read as written it is a mandatory pause after every loss, which is not in any quote. Trigger now matches the story's urge, so the 15 rests on wa2."
+   "notes": "Size note said 'We don't shrink size because of a mood'. Our line (hb17) is narrower and firmer: we don't cut size after losses, only a drawdown in the account cuts it. Said that way now. Rest is good: the if-then written in the member's words."
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Stem is the rehearsal in his words; 'tests it with your money', 'marrying one'. fa4/fh1/fo2/fa8 hold."
   },
   "q12": {
    "status": "cut",
@@ -1848,33 +1885,33 @@
   },
   "q13": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "TRUTH: 'just as dangerous' claims an equal size the study never measured, and 'the most intense' overstates 'more intense' (na1, correlational). Now 'can hurt you the same way' and 'reacted more intensely'. hd45 tie kept."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key is Tendler's advice named in the stem (tb4, tb5, wa3); F67 is the stated fallback, consistent with q15/q22. Whether a write-out can restore a distracted trader the same day stays the resolver's owner flag."
+   "notes": "Notebook how and the distracted line (hf67) are right; 15 minutes cited in tb4; the hour-before fits the story."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from ta7: break early on a warning sign. Matches; no choice offers 'no trades today', so no rival under F67. Lengths 31/28/32/29. Whether the story's sign already counts as tired/distracted under F67 stays on the resolver's owner flag."
+   "notes": "Early-warning break, then tired means done; ta7/ta8/fn1/hf67 hold."
   },
   "q16": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Says what you lose by Saturday; hb27 stated as ours with 'ideally' kept."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from D39, E58 and ig1 (Investor.gov, Tier 1: never invest in anything you haven't researched): hold off. Matches. Tried: 'planned buy' loophole in D39 (an unplanned buy is not literally named) is closed by ig1 and by F64/D44 in the rulebook; 'small starter' also clashes with A5 (one price, one stop, no adding); 9:30 is in the story and ny1; wc1 opening-bell line already removed per C30. Lengths 30/34/34/28, no tell. No rival answer."
+   "notes": "Strong: no stop means no size; premarket and no buys outside regular hours (he58) true at 9:25 ET."
   },
   "q18": {
    "status": "cut",
@@ -1886,32 +1923,31 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from fc1, fc2, fc3 (all three re-read on the live FIGS page) + ta2: one fix, stated specifically. Matches. Lengths 28/29/24/27; 'Just be more disciplined' is one goal but vague, so it tests fc3 rather than repeating q07. No rulebook clash. 'Tendler says the same' overlaps q07's line, but q19's why is shown only after answering and q07 sits earlier (rung 3 vs 7)."
+   "notes": "Checkable goal example built on our written-stop line; fc1/fc2/fc3/fl4 hold."
   },
   "q20": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Process over one result; the close-of-day question is practical. fq1/ta14/wc3 hold."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Own answer from fi2, fr1 (both re-read on the live pages), tb6 (re-read: 'it' is journaling) and B27: yes, good weeks hold lessons. Matches. Two Yes, two No; key 38 chars, longest is a wrong choice (40). 'Profit still needs to be logged' is closed by the story (journaled every trade the same day). Break in the wrong note for 'No, but raise your size next week': it answers a choice about raising size with D45 alone, which reads as if raising size after wins is against our rules, while A1 lets risk vary with recent results inside 0.25%-2% and only D45's 'past the rules' is forbidden (the same po"
+   "fixed": false,
+   "notes": "'Best film you'll get'; overconfidence slide to sizing up ties to hd45. Choices use commas, not 'Yes;'."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from hf67 (F67): story states 'feel tired' before the loss, so no new trades that day; not a daily loss limit (B15). Lengths 30/28/32/32. Consistent with q14/q15.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Blunt verdict, tired rule already applied before the loss, late warm-up is no reset. td2/ib2/hf67 hold."
   },
   "q23": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Rework, keep what works; 'the same year, repeated' from fj4. Copying a top trader's routine is a fair named mistake."
   }
  }
 }

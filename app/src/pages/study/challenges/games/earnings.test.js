@@ -546,14 +546,15 @@ describe('the F5.08 unit in the repo', () => {
   it('lifts out exactly the sentences that say what the stock did', () => {
     const stocks = Object.fromEntries(items.map(({ key, reveal }) => [key, splitWhy(reveal, truthFor(key)).stock]))
     expect(stocks).toEqual({
-      q01: [], q02: [], q04: [], q05: [], q06: [], q07: [], q08: [], q09: [], q10: [], q11: [], q12: [], q13: [], q15: [], q16: [], q24: [],
-      q14: ['Shares plunged nearly 20% the next day.'],
+      q01: [], q02: [], q04: [], q05: [], q06: [], q07: [], q08: [], q09: [], q10: [], q11: [], q12: [], q13: [], q15: [], q24: [],
+      // the voice rewrite (2026-11-17) reworded these whys in the owner's voice; each still ends on what the stock did
+      q14: ['Nike plunged nearly 20% the next day, and CNBC tied it to the cut.'],
+      q16: ['Target fell nearly 25% that day.'],
       q17: ['The stock closed down 11.38% that day.'],
       q18: ['The stock plunged 35% in one day.'],
       q19: ['The stock closed up 23% the next day.'],
-      // the overbuild (2026-11-11) rewrote these whys; each still ends on what the stock did (2026-11-14 reorder)
-      q20: ['Yet Nike plunged nearly 20%, Netflix fell 35% in one day and Alphabet rose 10%.'],
-      q21: ['Its revenue beat, it lowered its 2023 cost outlook, and it closed up 23% the next day.'],
+      q20: ['Three beats, and here\'s what the stocks did: Nike plunged nearly 20%, Netflix fell 35% in one day, and Alphabet rose 10%.'],
+      q21: ['Meta closed up 23% the next day.'],
       q22: ['Target fell nearly 25%, and both had their worst days since 1987.'],
       q23: ['Nike plunged nearly 20%.', 'Alphabet rose 10%, its sharpest rally since July 2015.'],
     })

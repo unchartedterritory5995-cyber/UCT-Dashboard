@@ -177,14 +177,20 @@ def base_lock(git=None):
 def merge_base_mode(env=None, git=None) -> str:
     """skip-master: running ON master (the master deploy gate: GITHUB_REF refs/heads/master, or HEAD == origin/master) —
     comparing master with itself is meaningless, and this check must never turn the release gate red;
-    strict: a push to an agent/** branch (Agent CI) — an unresolvable base FAILS;
+    strict: a push to an agent/** branch (Agent CI), or a workflow_dispatch evidence run whose HEAD is not master's tip
+            (P2: GITHUB_REF is refs/heads/master there, so it must not count as "on master") — an unresolvable base FAILS;
     lenient: anything else (a PR merge ref, a local run) — an unresolvable base is a printed notice."""
     env = os.environ if env is None else env
     git = git or _git
     ref = env.get("GITHUB_REF", "")
+    head, om = (git("rev-parse", "HEAD") or "").strip(), (git("rev-parse", "origin/master") or "").strip()
+    if env.get("GITHUB_EVENT_NAME") == "workflow_dispatch":
+        # A P2 evidence run: dispatched FROM master (GITHUB_REF is refs/heads/master) but checked out at a built merge
+        # commit, so GITHUB_REF says nothing about what is under test. Skip only when HEAD really is master's tip;
+        # otherwise this IS the evidence for a PR, and the job fetches origin/master, so an unresolvable base FAILS.
+        return "skip-master" if head and om and head == om else "strict"
     if ref == "refs/heads/master":
         return "skip-master"
-    head, om = (git("rev-parse", "HEAD") or "").strip(), (git("rev-parse", "origin/master") or "").strip()
     if head and om and head == om:
         return "skip-master"
     return "strict" if ref.startswith("refs/heads/agent/") else "lenient"
@@ -302,6 +308,28 @@ def test_merge_base_check_never_blocks_the_master_gate():
     assert ok is False and "moved or renamed lock" in msg          # the folder renamed away: the rail file betrays the suite
     neither = lambda *a: ("mb1\n" if a[0] == "merge-base" else ("x" if a == ("rev-parse", "HEAD") else ("y" if a[0] == "rev-parse" else None)))
     assert merge_base_check({"CI": "true", "GITHUB_REF": "refs/heads/agent/qa/x"}, neither)[0] is True
+
+
+
+def test_merge_base_check_runs_on_a_dispatch_evidence_run():
+    """P2 evidence runs are workflow_dispatch FROM master (GITHUB_REF refs/heads/master) at a built merge commit M whose
+    first parent is master's tip. The weakening check must RUN there (strict), not skip as if on master: otherwise a PR
+    that weakens the baseline passes its own CI evidence (AUDIT F4, 2026-11-17)."""
+    dispatch = {"CI": "true", "GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_REF": "refs/heads/master"}
+    at_m = lambda *a: ("M" * 40 + "\n" if a == ("rev-parse", "HEAD") else ("T" * 40 + "\n" if a[0] == "rev-parse" else None))
+    assert merge_base_mode(dispatch, at_m) == "strict"
+    nothing = lambda *a: None                                   # no origin/master fetched: strict means it FAILS
+    assert merge_base_mode(dispatch, nothing) == "strict"
+    assert merge_base_check(dispatch, nothing)[0] is False
+    # it still skips when the dispatched run really sits on master's tip
+    same = lambda *a: "abc123\n" if a[0] == "rev-parse" else None
+    assert merge_base_mode(dispatch, same) == "skip-master"
+    # the master deploy gate (a push / workflow_run on master) is unchanged
+    assert merge_base_mode({"CI": "true", "GITHUB_EVENT_NAME": "push", "GITHUB_REF": "refs/heads/master"}, at_m) == "skip-master"
+    # a weakening at the merge base is reported on a dispatch run, exactly as on an agent/** push
+    mb = lambda *a: ("mb1\n" if a[0] == "merge-base" else at_m(*a) if a[0] == "rev-parse" else '{"format": "x"}')
+    ok, msg = merge_base_check(dispatch, mb, state=({"format": "y"}, {}, {}))
+    assert ok is False and "lock format changed" in msg
 
 
 def test_lock_format_is_current():

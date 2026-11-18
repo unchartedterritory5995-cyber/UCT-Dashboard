@@ -579,6 +579,18 @@ Ordered by how many setups each touches, biggest first.
 
 **Our default (a recommendation, not a ruling).** The normal grade table (D38, E49), no setup cap; the lesson says most capitulations grade B or lower. Reason: the grade already carries the risk; a setup cap doubles it.
 
+### D-042. The flat base first-week test (within 3% of the left-side high)
+
+**Setups touched:** the flat base card (01) and every base card that counts from the left-side high (setups/GLOSSARY.md `left_side_high`).
+
+**The question.** The owner, 2026-11-16, on a question teaching it: "oh please that is far too strict, bad question and bad answer bad bad bad". The test comes from our scanner code (`base_catalog.py`), not from his rulebook, and the glossary's left-side high definition carries it. The course no longer teaches it (REVIEW_LEARNINGS rule 22). Should the scanner and the glossary loosen it, or drop it?
+
+**Options.** (a) drop the first-week test and find the left-side high by the 100-session high alone; (b) keep a looser number (he names it); (c) keep it in the scanner only, as a way to find candidates, never taught.
+
+**Evidence.** MarketSmith names the left-side high; the 3% first-week test is ours ([UCT code: `base_catalog.py`], dossier 01).
+
+**Our default (a recommendation, not a ruling).** (c) until he rules: the course does not teach it, and the scanner is left unchanged (a product change is his call).
+
 ---
 
 ## Part B: setup-specific decisions
@@ -2793,5 +2805,7 @@ the ruling it restates; where a line and a ruling above differ, the ruling wins.
 - A gap up past a profit level at the open is not an automatic sell; selling part into a big gap is an optional judgment. (gap-open sell)
 - A heavy-volume down day in a pullback does not void the setup; it is a distribution day to be mindful of, a warning and a lower grade. (heavy-volume down day)
 - Shorting is recommended only for traders who have already made $1 million trading. (D-001)
+- We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan. (ADD-WINNER, 2026-11-17, with A5)
+- For a long, the 50-day above the 200-day is mostly a must, not always; an exception is a judgment call. Below the 200-day stays a hard no for stocks. (MA-50-200, 2026-11-17, with D-009)
 - A strong move may be bought at the trigger right at the open; waiting for the first 30 minutes is the default, not a must. (D-031)
 - Too stretched to buy: skip a long that is more than 10% above its 9 EMA. (C29, read through D-021; the owner to confirm, D-017)

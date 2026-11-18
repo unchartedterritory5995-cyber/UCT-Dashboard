@@ -32,11 +32,12 @@ from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional
 
 try:
-    from . import factors, pack, piece
+    from . import factors, identity, pack, piece
     from .build import BuildError, _json_bytes, _write_atomic
 except ImportError:  # script mode
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import factors  # type: ignore[no-redef]
+    import identity  # type: ignore[no-redef]
     import pack  # type: ignore[no-redef]
     import piece  # type: ignore[no-redef]
     from build import BuildError, _json_bytes, _write_atomic  # type: ignore[no-redef]
@@ -147,7 +148,7 @@ def explode(packs: Dict[tuple, Path], indexes: Dict[str, dict], out: Path) -> in
     for sym, doc in indexes.items():
         d = {"v": doc["v"], "symbol": sym, "series": {
             s: {per: {k: v for k, v in e.items() if k != "off"} for per, e in ps.items()} for s, ps in doc["series"].items()}}
-        for k in ("splits", "splits_as_of"):
+        for k in ("splits", "splits_as_of", "identity"):
             if k in doc:
                 d[k] = doc[k]
         plain[sym] = d
@@ -263,6 +264,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--explode", type=Path, help="also write a per-piece tree here")
     ap.add_argument("--splits", type=Path, help='the split reference, {"rows": [...]}')
     ap.add_argument("--as-of", help="YYYY-MM-DD: the last date whose splits are executed (with --splits)")
+    ap.add_argument("--ticker-events", type=Path,
+                    help="ref/ticker_events.jsonl: cut reused tickers, stitch renamed companies (identity.py)")
     ap.add_argument("--no-check", action="store_true", help="skip reading every piece header")
     ap.add_argument("--upload", action="store_true")
     ap.add_argument("--bucket")
@@ -285,6 +288,12 @@ def main(argv: Optional[List[str]] = None) -> int:
             if not rows:
                 raise BuildError(f"{args.splits} has no rows")
             print(f"{stamp_indexes(indexes, rows, args.as_of):,} symbols with splits")
+        if args.ticker_events:
+            # after the splits: the split tables follow the same windows as the pieces
+            plans = identity.plan(identity.load_records(args.ticker_events), have=indexes.keys())
+            st = identity.apply(indexes, plans)
+            print(f"identity: {st['cut']} symbols cut, {st['stitched']} stitched "
+                  f"({st['entries_added']:,} entries added, {st['entries_dropped']:,} dropped)")
         if args.out:
             print(f"{write_indexes(indexes, args.out):,} indexes written")
         if args.explode:

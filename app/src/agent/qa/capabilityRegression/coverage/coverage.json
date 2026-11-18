@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 227,
+  "all": 231,
   "withProductionKinds": 205,
-  "darkGated": 22
+  "darkGated": 26
  },
  "totals": {
-  "capabilities": 227,
-  "withAnyRegressionCase": 175,
+  "capabilities": 231,
+  "withAnyRegressionCase": 179,
   "perProtection": {
    "nl": {
-    "covered": 172,
-    "applicable": 227
+    "covered": 176,
+    "applicable": 231
    },
    "routing": {
-    "covered": 169,
-    "applicable": 227
+    "covered": 173,
+    "applicable": 231
    },
    "args": {
-    "covered": 175,
-    "applicable": 227
+    "covered": 179,
+    "applicable": 231
    },
    "execution": {
-    "covered": 172,
-    "applicable": 227
+    "covered": 176,
+    "applicable": 231
    },
    "receipt": {
-    "covered": 144,
-    "applicable": 227
+    "covered": 148,
+    "applicable": 231
    },
    "refusal": {
     "covered": 35,
-    "applicable": 227
+    "applicable": 231
    },
    "permission": {
-    "covered": 220,
-    "applicable": 227
+    "covered": 224,
+    "applicable": 231
    },
    "undo": {
     "covered": 84,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 227
+    "applicable": 231
    },
    "phrasings": {
-    "covered": 168,
-    "applicable": 227
+    "covered": 172,
+    "applicable": 231
    }
   }
  },
@@ -9704,6 +9704,60 @@
     "phrasings": []
    }
   },
+  "stock.earningsReactions": {
+   "domain": "stock",
+   "group": "marketBoards",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.earningsReactions: \"show me the latest earnings reactions\"",
+     "stock.earningsReactions: \"how did the latest earnings reporters move\"",
+     "stock.earningsReactions: \"earnings reactions\"",
+     "stock.earningsReactions: \"how did the stocks that just reported earnings react\""
+    ],
+    "routing": [
+     "stock.earningsReactions: \"show me the latest earnings reactions\"",
+     "stock.earningsReactions: \"how did the latest earnings reporters move\"",
+     "stock.earningsReactions: \"earnings reactions\"",
+     "stock.earningsReactions: \"how did the stocks that just reported earnings react\""
+    ],
+    "args": [
+     "corpus stock.earningsReactions"
+    ],
+    "execution": [
+     "stock.earningsReactions (c)"
+    ],
+    "receipt": [
+     "stock.earningsReactions (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.expectedMove": {
    "domain": "stock",
    "group": "data",
@@ -9750,6 +9804,114 @@
     ],
     "receipt": [
      "stock.expectedMove (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.flowRecord": {
+   "domain": "stock",
+   "group": "marketBoards",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.flowRecord: \"what is the flow record's win rate\"",
+     "stock.flowRecord: \"how has the flow record done\"",
+     "stock.flowRecord: \"flow record results\"",
+     "stock.flowRecord: \"what is the win rate of the flow picks\""
+    ],
+    "routing": [
+     "stock.flowRecord: \"what is the flow record's win rate\"",
+     "stock.flowRecord: \"how has the flow record done\"",
+     "stock.flowRecord: \"flow record results\"",
+     "stock.flowRecord: \"what is the win rate of the flow picks\""
+    ],
+    "args": [
+     "corpus stock.flowRecord"
+    ],
+    "execution": [
+     "stock.flowRecord (c)"
+    ],
+    "receipt": [
+     "stock.flowRecord (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.gammaLevels": {
+   "domain": "stock",
+   "group": "marketBoards",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.gammaLevels: \"gamma levels for NVDA\"",
+     "stock.gammaLevels: \"where is the call wall on NVDA\"",
+     "stock.gammaLevels: \"NVDA gamma walls\"",
+     "stock.gammaLevels: \"what is the zero gamma level for NVDA\""
+    ],
+    "routing": [
+     "stock.gammaLevels: \"gamma levels for NVDA\"",
+     "stock.gammaLevels: \"where is the call wall on NVDA\"",
+     "stock.gammaLevels: \"NVDA gamma walls\"",
+     "stock.gammaLevels: \"what is the zero gamma level for NVDA\""
+    ],
+    "args": [
+     "corpus stock.gammaLevels"
+    ],
+    "execution": [
+     "stock.gammaLevels (c)"
+    ],
+    "receipt": [
+     "stock.gammaLevels (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -10120,6 +10282,60 @@
     "args": [],
     "execution": [],
     "receipt": [],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.topFlowPicks": {
+   "domain": "stock",
+   "group": "marketBoards",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.topFlowPicks: \"show me the top flow picks\"",
+     "stock.topFlowPicks: \"how are the top flow picks doing\"",
+     "stock.topFlowPicks: \"what are the top flow picks\"",
+     "stock.topFlowPicks: \"top flow picks\""
+    ],
+    "routing": [
+     "stock.topFlowPicks: \"show me the top flow picks\"",
+     "stock.topFlowPicks: \"how are the top flow picks doing\"",
+     "stock.topFlowPicks: \"what are the top flow picks\"",
+     "stock.topFlowPicks: \"top flow picks\""
+    ],
+    "args": [
+     "corpus stock.topFlowPicks"
+    ],
+    "execution": [
+     "stock.topFlowPicks (c)"
+    ],
+    "receipt": [
+     "stock.topFlowPicks (c)"
+    ],
     "refusal": [],
     "permission": [],
     "undo": [],

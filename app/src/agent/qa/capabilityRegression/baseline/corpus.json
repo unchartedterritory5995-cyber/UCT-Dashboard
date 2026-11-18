@@ -13380,6 +13380,188 @@
         "who talked about tariffs on their earnings call",
         "find mentions of tariffs in earnings call transcripts"
       ]
+    },
+    {
+      "id": "stock.gammaLevels",
+      "source": "Terminal data wave 3 (11-17): the Agent half of the LVL panel's options levels, the TOPF panel, the Flow Record page and the EMOV panel, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.gammaLevels"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.gammaLevels"
+      ],
+      "ownWords": [
+        "marketBoards"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.gammaLevels",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*levels\\.gamma.*\"params\":\\{\"symbol\":\"NVDA\"\\}"
+        ],
+        "says": [
+          "NVDA gamma levels from options expiring within a week",
+          "not a quote of the moment"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "gamma levels for NVDA",
+        "where is the call wall on NVDA",
+        "NVDA gamma walls",
+        "what is the zero gamma level for NVDA"
+      ]
+    },
+    {
+      "id": "stock.topFlowPicks",
+      "source": "Terminal data wave 3 (11-17): the Agent half of the LVL panel's options levels, the TOPF panel, the Flow Record page and the EMOV panel, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.topFlowPicks"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.topFlowPicks"
+      ],
+      "ownWords": [
+        "marketBoards"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.topFlowPicks",
+            "target": "$stockData",
+            "args": {
+              "status": null,
+              "direction": null,
+              "sort": null,
+              "limit": null,
+              "symbol": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*flow\\.topPicks.*\"params\":\\{\"status\":\"all\",\"direction\":\"any\",\"sort\":\"gain\",\"limit\":20\\}"
+        ],
+        "says": [
+          "UCT Top Flow picks:",
+          "not the stock's move",
+          "too new to score",
+          "It is not a recommendation"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "show me the top flow picks",
+        "how are the top flow picks doing",
+        "what are the top flow picks",
+        "top flow picks"
+      ]
+    },
+    {
+      "id": "stock.flowRecord",
+      "source": "Terminal data wave 3 (11-17): the Agent half of the LVL panel's options levels, the TOPF panel, the Flow Record page and the EMOV panel, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.flowRecord"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.flowRecord"
+      ],
+      "ownWords": [
+        "marketBoards"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.flowRecord",
+            "target": "$stockData",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*flow\\.record.*\"params\":\\{\\}"
+        ],
+        "says": [
+          "UCT Flow Record:",
+          "Losers are in every rate",
+          "Past results, not a forecast"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "what is the flow record's win rate",
+        "how has the flow record done",
+        "flow record results",
+        "what is the win rate of the flow picks"
+      ]
+    },
+    {
+      "id": "stock.earningsReactions",
+      "source": "Terminal data wave 3 (11-17): the Agent half of the LVL panel's options levels, the TOPF panel, the Flow Record page and the EMOV panel, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.earningsReactions"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.earningsReactions"
+      ],
+      "ownWords": [
+        "marketBoards"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.earningsReactions",
+            "target": "$stockData",
+            "args": {
+              "date": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*earnings\\.reactions.*\"params\":\\{\"limit\":25\\}"
+        ],
+        "says": [
+          "Earnings reactions for",
+          "close-to-close change around the report"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "show me the latest earnings reactions",
+        "how did the latest earnings reporters move",
+        "earnings reactions",
+        "how did the stocks that just reported earnings react"
+      ]
     }
   ],
   "refusals": [

@@ -32,7 +32,7 @@ import webbrowser
 
 LOCK = threading.Lock()
 VERDICT_VALUES = ("keep", "fix", "cut", "ask", "note", "old", "same", "new", "")
-KINDS = ("q", "rule", "decision", "unit", "general", "ab")
+KINDS = ("q", "rule", "decision", "unit", "general", "ab", "walk")
 MAX_BODY = 64 * 1024
 BACKUP_EVERY = 50
 BACKUPS_KEPT = 40
@@ -219,9 +219,17 @@ def make_handler(store: Store, static_dir: str, data_dir: str):
                 tags = [str(t)[:60] for t in (body.get("tags") or []) if isinstance(t, str)][:12]
                 rec = {
                     "id": rid, "kind": kind, "unit": str(body.get("unit") or "")[:40], "key": str(body.get("key") or "")[:20],
-                    "v": v, "note": str(body.get("note") or "")[:4000], "tags": tags,
+                    # 2026-11-17, owner: "there is no place for me to give good feedback": a note may be long (it
+                    # carries his teaching on the rules, the setup and the market), and `teach` keeps it by part
+                    "v": v, "note": str(body.get("note") or "")[:16000], "tags": tags,
                     "q": str(body.get("q") or "")[:300], "at": now(),
                 }
+                teach = body.get("teach")
+                if isinstance(teach, dict):
+                    parts = {str(k)[:24]: str(t)[:8000] for k, t in list(teach.items())[:8]
+                             if isinstance(t, str) and t.strip()}
+                    if parts:
+                        rec["teach"] = parts
                 try:
                     with LOCK:
                         count = store.append(rec)

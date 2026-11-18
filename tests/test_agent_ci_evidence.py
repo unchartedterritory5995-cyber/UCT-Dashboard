@@ -28,9 +28,9 @@ def _fx():
     return copy.deepcopy(FIXTURE)
 
 
-def _decide(fx, accept=(ev.PR_EVENT,), busy=False, keys=None):
+def _decide(fx, accept=(ev.PR_EVENT,), busy=False, keys=None, ref_sha="d" * 40):
     return ev.decide(fx["pr"], fx["base_tip"], fx["runs"], KEYS if keys is None else keys, fx["expected_tree"], accept, busy,
-                     fx["changed_paths"], PROTECTED)
+                     fx["changed_paths"], PROTECTED, ref_sha)
 
 
 def _code(result):
@@ -117,9 +117,9 @@ CASES = {
     "records-disagree-on-tree": (lambda f: _recs(f)["browser-5"].update(tree="f" * 40), "record-mismatch"),
     "records-disagree-on-sha": (lambda f: _recs(f)["browser-5"].update(sha="f" * 40), "record-mismatch"),
     # the merge ref
-    "not-a-merge-commit": (lambda f: [r.update(parents=["b" * 40]) for r in _recs(f).values()], "stale-merge-ref"),
-    "stale-base": (lambda f: f.update(base_tip="a" * 40), "stale-merge-ref"),
-    "stale-head": (lambda f: f["pr"].update(head_sha="a" * 40), "stale-merge-ref"),
+    "not-a-merge-commit": (lambda f: [r.update(parents=["b" * 40]) for r in _recs(f).values()], "wrong-parents"),
+    "stale-base": (lambda f: f.update(base_tip="a" * 40), "stale-base"),
+    "stale-head": (lambda f: f["pr"].update(head_sha="a" * 40), "stale-head"),
     # the tree
     "tree-mismatch": (lambda f: f.update(expected_tree="a" * 40), "tree-mismatch"),
     # F1: the PR's own diff
@@ -340,6 +340,12 @@ class FakeGh:
             return {"jobs": run["jobs"]}
         raise AssertionError(path)
 
+    def remote_ref(self, ref):
+        self.calls.append(f"ls-remote {ref}")
+        return self.ref_sha.get(ref) if isinstance(self.ref_sha, dict) else self.ref_sha
+
+    ref_sha = None
+
     def download(self, run_id, name, dest):
         key = name[len(f"{ev.ARTIFACT_PREFIX}{self.fx['pr']['number']}-"):]
         pathlib.Path(dest).mkdir(parents=True)
@@ -348,8 +354,8 @@ class FakeGh:
 
 def _gather_decide(api, accept_dispatch=False):
     fx = api.fx
-    pr, tip, runs, busy, changed = ev.gather(api, fx["pr"]["number"], KEYS, accept_dispatch)
-    return ev.decide(pr, tip, runs, KEYS, fx["expected_tree"], BOTH if accept_dispatch else (ev.PR_EVENT,), busy, changed, PROTECTED)
+    pr, tip, runs, busy, changed, ref_sha = ev.gather(api, fx["pr"]["number"], KEYS, accept_dispatch)
+    return ev.decide(pr, tip, runs, KEYS, fx["expected_tree"], BOTH if accept_dispatch else (ev.PR_EVENT,), busy, changed, PROTECTED, ref_sha)
 
 
 def test_gather_reads_the_run_and_its_records_and_passes():
@@ -396,7 +402,8 @@ def test_verify_cli_turns_an_api_error_into_fail(monkeypatch, capsys):
 
 def _stub_gather(monkeypatch, fx):
     monkeypatch.setattr(ev, "GhApi", lambda repo: None)
-    monkeypatch.setattr(ev, "gather", lambda api, n, keys, accept_dispatch: (fx["pr"], fx["base_tip"], fx["runs"], False, fx["changed_paths"]))
+    monkeypatch.setattr(ev, "gather", lambda api, n, keys, accept_dispatch: (fx["pr"], fx["base_tip"], fx["runs"], False, fx["changed_paths"],
+                                                                            "d" * 40 if accept_dispatch else None))
 
 
 def test_F3_cli_refuses_a_dispatch_only_run_without_the_flag(monkeypatch, capsys):
@@ -473,7 +480,7 @@ def test_build_record_for_a_rearm_dispatch_binds_the_input_merge_sha():
 def test_build_record_marks_an_unreadable_report_and_a_non_merge(tmp_path):
     rec = ev.build_record("browser-1", PR_ENV, PR_PAYLOAD, M, "e" * 40, [B], vitest=[str(tmp_path / "missing.json")])
     assert rec["reports_unreadable"] == [str(tmp_path / "missing.json")]
-    assert rec["base_sha"] is None and rec["head_sha"] is None   # verify() refuses it as stale-merge-ref
+    assert rec["base_sha"] is None and rec["head_sha"] is None   # verify() refuses it as wrong-parents
 
 
 def test_record_cli_on_a_real_merge_commit(tmp_path, monkeypatch):
@@ -501,118 +508,420 @@ def test_record_cli_on_a_real_merge_commit(tmp_path, monkeypatch):
     assert rec["parents"] == [base, head] and rec["sha"] == merge and rec["tree"] == git("rev-parse", "HEAD^{tree}")
 
 
-# ---- the re-arm dispatcher ------------------------------------------------------------------------------------------
+
+
+# ---- P2b: a re-arm run on the tool's OWN merge commit (refs/agent-ci-evidence/pr-<N>) ----------------------------
+def test_P2b_a_rearm_run_on_the_tools_merge_commit_passes():
+    verdict, reason, evidence = _decide(_dispatch_fx(), accept=BOTH, ref_sha=M)
+    assert verdict == "PASS", reason
+    assert (evidence["base_sha"], evidence["head_sha"], evidence["tree"], evidence["event"]) == (B, H, "e" * 40, "workflow_dispatch")
+
+
+P2B_CASES = {
+    # AUDIT #2: a forged commit with the RIGHT parents but the wrong tree never passes (content, not ref name / author)
+    "forged-right-parents-wrong-tree": (lambda f: f.update(expected_tree="a" * 40), "tree-mismatch"),
+    "stale-base": (lambda f: f.update(base_tip="a" * 40), "stale-base"),
+    "moved-head": (lambda f: f["pr"].update(head_sha="a" * 40), "stale-head"),
+    "one-parent": (lambda f: [r.update(parents=[B]) for r in _recs(f).values()], "wrong-parents"),
+    "three-parents": (lambda f: [r.update(parents=[B, H, "a" * 40]) for r in _recs(f).values()], "wrong-parents"),
+    "no-parents": (lambda f: [r.update(parents=None) for r in _recs(f).values()], "wrong-parents"),
+    "swapped-parents": (lambda f: [r.update(parents=[H, B]) for r in _recs(f).values()], "stale-base"),
+    # unsanctioned ref / branch: only master's agent-ci.yml, dispatched (records from refs/heads/master), counts
+    "dispatch-from-evidence-ref": (lambda f: _run(f).update(head_branch="agent-ci-evidence/pr-1700"), "dispatch-ref"),
+    "dispatch-from-pr-branch": (lambda f: _run(f).update(head_branch="agent/pl/x"), "dispatch-ref"),
+    "record-ran-from-evidence-ref": (lambda f: _recs(f)["union"].update(ref="refs/agent-ci-evidence/pr-1700"), "dispatch-ref"),
+    "record-ran-from-a-branch": (lambda f: _recs(f)["server"].update(ref="refs/heads/agent/pl/x"), "dispatch-ref"),
+    "push-run-on-the-evidence-ref": (lambda f: _run(f).update(event="push", head_branch="agent-ci-evidence/pr-1700"), "no-run"),
+}
+
+
+@pytest.mark.parametrize("case", sorted(P2B_CASES))
+def test_P2b_every_rearm_fail_path(case):
+    mutate, code = P2B_CASES[case]
+    fx = _dispatch_fx()
+    mutate(fx)
+    verdict, reason, evidence = _decide(fx, accept=BOTH, ref_sha=M)
+    assert verdict == "FAIL" and evidence == {} and _code((verdict, reason, None)) == code, (case, reason)
+
+
+@pytest.mark.parametrize("ref_sha", [None, "", "a" * 40, M[:39], M.upper(), "refs/heads/master"])
+def test_P2b_a_rearm_commit_counts_only_while_the_tools_ref_points_at_it(ref_sha):
+    assert _code(_decide(_dispatch_fx(), accept=BOTH, ref_sha=ref_sha)) == "evidence-ref"
+
+
+def test_P2b_the_evidence_ref_guard_does_not_touch_pull_request_runs():
+    assert _code(_decide(_fx(), accept=BOTH, ref_sha=None)) == "PASS"
+
+
+def test_P2b_gather_reads_the_tools_ref_only_with_accept_dispatch():
+    fx = _dispatch_fx()
+    disp = dict(copy.deepcopy(_run(fx)), id=_run(fx)["id"], created_at="2026-11-17T12:00:00Z")
+    fx["runs"][0] = dict(_run(fx), event="pull_request", head_branch="agent/pl/x", path=None)   # the PR run (older)
+    for r in _recs(fx).values():
+        r["event"], r["ref"] = "workflow_dispatch", "refs/heads/master"   # records belong to the newer dispatch run
+    api = FakeGh(fx, dispatch_runs=[disp])
+    api.ref_sha = {ev.evidence_ref(1700): M}
+    assert _code(_gather_decide(api, accept_dispatch=True)) == "PASS"
+    assert "ls-remote refs/agent-ci-evidence/pr-1700" in api.calls
+    api.ref_sha = {ev.evidence_ref(1700): "a" * 40}                      # a later re-arm overwrote it
+    assert _code(_gather_decide(api, accept_dispatch=True)) == "evidence-ref"
+    api.ref_sha = {}                                                     # deleted
+    assert _code(_gather_decide(api, accept_dispatch=True)) == "evidence-ref"
+    plain = FakeGh(_fx())
+    _gather_decide(plain)
+    assert not any(c.startswith("ls-remote") for c in plain.calls)
+
+
+def test_P2b_self_protection_is_still_the_prs_diff_vs_its_merge_base(monkeypatch):
+    """AUDIT #5: building our own merge commit never narrows self-protection. The changed-path list is pulls/N/files
+    (the PR vs its merge base with master), whatever the evidence commit's own diff is, and a protected path there
+    FAILs even when the re-arm evidence is otherwise perfect."""
+    fx = _dispatch_fx()
+    fx["changed_paths"] = fx["changed_paths"] + ["tools/agent_ci_rearm.py"]
+    api = FakeGh(fx, dispatch_runs=[dict(copy.deepcopy(_run(fx)), created_at="2026-11-17T12:00:00Z")])
+    api.ref_sha = M
+    seen = []
+    real = acr.pr_changed_paths
+    monkeypatch.setattr(acr, "pr_changed_paths", lambda a, n: seen.append(n) or real(a, n))
+    assert _code(_gather_decide(api, accept_dispatch=True)) == "self-protected-diff"
+    assert seen == [1700] and any(c.startswith("pulls/1700/files") for c in api.calls)
+    assert not any("compare/" in c or "/commits/" in c for c in api.calls), "the diff must not come from the evidence commit"
+    # and decide() takes the list as given: an empty evidence-commit diff cannot launder a protected PR diff
+    assert _code(_decide(fx, accept=BOTH, ref_sha=M)) == "self-protected-diff"
+
+
+# ---- rail: NOTHING fires on, or watches, refs/agent-ci-evidence/** (derived from .github/workflows/*.yml) -------------
+WF_DIR = ROOT / ".github" / "workflows"
+REF_TRIGGERS = ("push", "create", "delete", "pull_request", "pull_request_target")
+
+
+def _on(doc):
+    on = doc.get(True, doc.get("on"))
+    if isinstance(on, str):
+        return {on: None}
+    if isinstance(on, list):
+        return {k: None for k in on}
+    return on or {}
+
+
+def _fires(trigger: str, cfg, full_ref: str) -> bool:
+    """GitHub semantics: push / create / delete fire only for refs/heads/** and refs/tags/**; a pull_request's head is
+    always a branch. Branch / tag filters are GitHub globs (`*` stops at `/`, `**` crosses it)."""
+    cfg = cfg if isinstance(cfg, dict) else {}
+    if full_ref.startswith("refs/heads/"):
+        name, inc, exc, other = full_ref[len("refs/heads/"):], "branches", "branches-ignore", ("tags", "tags-ignore")
+    elif full_ref.startswith("refs/tags/") and trigger in ("push", "create", "delete"):
+        name, inc, exc, other = full_ref[len("refs/tags/"):], "tags", "tags-ignore", ("branches", "branches-ignore")
+    else:
+        return False
+    if trigger in ("create", "delete"):
+        return True
+    if trigger in ("pull_request", "pull_request_target"):
+        return inc == "branches"   # the evidence ref can never be a PR head; a branch of that name could (base filters aside)
+    if inc in cfg:
+        return acr.matches(name, list(cfg[inc]))
+    if exc in cfg:
+        return not acr.matches(name, list(cfg[exc]))
+    return not any(k in cfg for k in other)   # only the other kind is filtered: this kind never fires
+
+
+def _workflows():
+    import yaml
+    out = {}
+    for f in sorted([*WF_DIR.glob("*.yml"), *WF_DIR.glob("*.yaml")]):
+        out[f.name] = yaml.safe_load(f.read_text(encoding="utf-8"))
+    assert len(out) > 20, "found too few workflows: the rail is not reading .github/workflows"
+    return out
+
+
+def _firing(full_ref):
+    return sorted((name, t) for name, doc in _workflows().items() for t, cfg in _on(doc).items()
+                  if t in REF_TRIGGERS and _fires(t, cfg, full_ref))
+
+
+def test_P2b_rail_no_workflow_trigger_fires_on_the_evidence_ref():
+    assert rearm.EVIDENCE_NS == ev.EVIDENCE_NS == "refs/agent-ci-evidence/"
+    for n in (1, 1700, 99999):
+        assert rearm.evidence_ref(n) == ev.evidence_ref(n)
+        assert _firing(rearm.evidence_ref(n)) == [], rearm.evidence_ref(n)
+
+
+def test_P2b_rail_the_matcher_is_live_and_a_branch_name_would_have_fired():
+    """Why the evidence ref is NOT a branch: several workflows push-trigger on every branch (derived, not typed)."""
+    assert ("agent-ci.yml", "push") in _firing("refs/heads/agent/pl/x")
+    assert ("master-deploy-gate.yml", "push") in _firing("refs/heads/master")
+    assert ("agent-ci.yml", "push") not in _firing("refs/heads/agent-ci-evidence/pr-1700")   # agent/** would not match...
+    assert _firing("refs/heads/agent-ci-evidence/pr-1700"), "...but unfiltered push triggers would"
+
+
+def test_P2b_rail_nothing_else_watches_the_evidence_namespace():
+    """Only agent-ci.yml may NAME refs/agent-ci-evidence (comments / input description), and no workflow reads it."""
+    for name in _workflows():
+        text = (WF_DIR / name).read_text(encoding="utf-8")
+        if name == "agent-ci.yml":
+            hits = [ln for ln in text.splitlines() if "agent-ci-evidence/" in ln]
+            assert hits and all(ln.lstrip().startswith(("#", "description:")) for ln in hits), hits
+        else:
+            assert "agent-ci-evidence/" not in text, f"{name} watches the tool-owned evidence ref namespace"
+    writers = sorted(p.name for p in (ROOT / "tools").glob("*.py") if "agent-ci-evidence/" in p.read_text(encoding="utf-8", errors="replace"))
+    assert writers == ["agent_ci_evidence.py", "agent_ci_rearm.py"], writers
+
+
+# ---- the re-arm tool (P2b): builds the merge itself, pushes ONLY its own ref, dispatches once -------------------------
 REPO = "o/r"
 
 
-def _pr_json(**over):
-    pr = {"number": 1700, "state": "open", "merged": False, "mergeable": True, "merge_commit_sha": M,
-          "head": {"sha": H, "ref": "agent/pl/x", "repo": {"full_name": REPO}}, "base": {"ref": "master", "repo": {"full_name": REPO}}}
+def _git(repo, *a, env=None):
+    return subprocess.run(["git", "-C", str(repo), *a], check=True, capture_output=True, text=True, env=env).stdout.strip()
+
+
+def _commit(repo, msg, **files):
+    for name, body in files.items():
+        (repo / name).write_text(body, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "-c", "user.email=a@b", "-c", "user.name=a", "commit", "-q", "--allow-empty", "-m", msg)
+    return _git(repo, "rev-parse", "HEAD")
+
+
+@pytest.fixture
+def repo(tmp_path, monkeypatch):
+    """A throwaway repo: base -> master tip (edits a.txt), base -> PR head (edits b.txt), plus a conflicting head."""
+    r = tmp_path / "repo"
+    r.mkdir()
+    _git(r, "init", "-q", "-b", "master")
+    _commit(r, "base", **{"a.txt": "a\n", "b.txt": "b\n"})
+    _git(r, "checkout", "-q", "-b", "agent/pl/x")
+    head = _commit(r, "head", **{"b.txt": "b2\n"})
+    _git(r, "checkout", "-q", "-b", "agent/pl/conflict", "master")
+    clash = _commit(r, "clash", **{"a.txt": "zz\n"})
+    _git(r, "checkout", "-q", "master")
+    tip = _commit(r, "tip", **{"a.txt": "a2\n"})
+    monkeypatch.chdir(r)
+    return types.SimpleNamespace(path=r, tip=tip, head=head, clash=clash)
+
+
+def _pr_json(head_sha, **over):
+    pr = {"number": 1700, "state": "open", "merged": False,
+          "head": {"sha": head_sha, "ref": "agent/pl/x", "repo": {"full_name": REPO}}, "base": {"ref": "master", "repo": {"full_name": REPO}}}
     pr.update(over)
     return pr
 
 
-@pytest.mark.parametrize("over,parents,ok,why", [
-    ({}, [B, H], True, "merge ref"),
-    ({"state": "closed"}, [B, H], False, "not open"),
-    ({"merged": True}, [B, H], False, "not open"),
-    ({"base": {"ref": "agent/int"}}, [B, H], False, "targets"),
-    ({"head": {"sha": H, "ref": "charts/x", "repo": {"full_name": REPO}}}, [B, H], False, "agent/**"),
-    ({"head": {"sha": H, "ref": "agent/x", "repo": {"full_name": "fork/r"}}}, [B, H], False, "agent/**"),
-    ({"mergeable": False}, [B, H], False, "conflict"),
-    ({"mergeable": None}, None, False, "not computed"),
-    ({}, ["a" * 40, H], False, "stale"),
-    ({}, [B, "a" * 40], False, "stale"),
-    ({}, [B], False, "stale"),
-])
-def test_rearm_check(over, parents, ok, why):
-    got, reason = rearm.check(_pr_json(**over), REPO, B, parents)
-    assert got is ok and why in reason, reason
-
-
-def _fake_gh(prs):
-    """GET responses: pulls/N yields each of `prs` in turn (the last repeats); base tip B; merge commit parents [B, H]."""
-    seq = list(prs)
-    calls = []
+def _rearm(repo, argv=(), pr=None, tip=None, push_rc=0, dispatch_rc=0, fetch_rc=0, merge_tree_rc=None):
+    """Run rearm.main with GitHub faked: GETs answer from `pr` / `tip`; fetch / push / gh are recorded, never executed;
+    every other git command runs for real in the throwaway repo."""
+    log = []
+    pr = pr if pr is not None else _pr_json(repo.head)
 
     def get(path):
-        calls.append(path)
-        if path.endswith("/pulls/1700"):
-            return seq.pop(0) if len(seq) > 1 else seq[0]
-        if "/git/ref/heads/" in path:
-            return {"object": {"sha": B}}
-        if "/commits/" in path:
-            return {"parents": [{"sha": B}, {"sha": H}]}
+        log.append(("GET", path))
+        if path == f"repos/{REPO}/pulls/1700":
+            return pr
+        if path == f"repos/{REPO}/git/ref/heads/master":
+            return {"object": {"sha": tip or repo.tip}}
         raise AssertionError(path)
-    return get, calls
+
+    def run(argv_, **kw):
+        log.append(list(argv_))
+        rc = {"fetch": fetch_rc, "push": push_rc}.get(argv_[1]) if argv_[0] == "git" else dispatch_rc
+        if argv_[0] == "gh" or argv_[1] in ("fetch", "push"):
+            return types.SimpleNamespace(returncode=rc, stdout="", stderr="boom" if rc else "")
+        assert argv_[0] == "git" and argv_[1] in ("rev-parse", "merge-tree", "commit-tree", "cat-file"), argv_
+        if argv_[1] == "merge-tree" and merge_tree_rc is not None:   # git itself failed (not a conflict)
+            return types.SimpleNamespace(returncode=merge_tree_rc, stdout="", stderr="fatal: boom")
+        return subprocess.run(argv_, capture_output=True, text=True, env=kw.get("env"))
+
+    rc = rearm.main(["--pr", "1700", "--repo", REPO, *argv], get=get, run=run)
+    pushes = [c for c in log if isinstance(c, list) and c[:2] == ["git", "push"]]
+    gh = [c for c in log if isinstance(c, list) and c[0] == "gh"]
+    return rc, pushes, gh, log
 
 
-class _Clock:
-    def __init__(self):
-        self.t = 0.0
-
-    def now(self):
-        return self.t
-
-    def sleep(self, s):
-        self.t += s
-
-
-def test_rearm_dispatches_exactly_once_for_the_named_pr_only(capsys):
-    get, _ = _fake_gh([_pr_json(mergeable=None), _pr_json()])
-    runs, clock = [], _Clock()
-    rc = rearm.main(["--pr", "1700", "--repo", REPO], get=get, run=lambda argv, **k: runs.append(argv) or types.SimpleNamespace(returncode=0, stdout="", stderr=""),
-                    sleep=clock.sleep, now=clock.now)
-    assert rc == 0 and runs == [rearm.dispatch_argv(REPO, 1700, M)]
-    assert runs[0] == ["gh", "workflow", "run", "agent-ci.yml", "-R", REPO, "--ref", "master", "-f", "pr=1700", "-f", f"merge_sha={M}"]
-
-
-def test_rearm_refuses_without_dispatching():
-    for prs in ([_pr_json(state="closed")], [_pr_json(mergeable=False)], [_pr_json(base={"ref": "agent/int"})]):
-        get, _ = _fake_gh(prs)
-        runs = []
-        assert rearm.main(["--pr", "1700", "--repo", REPO], get=get, run=lambda a, **k: runs.append(a), sleep=lambda s: None) == rearm.REFUSED
-        assert runs == []
+def test_P2b_rearm_builds_the_merge_pushes_its_own_ref_and_dispatches_once(repo, capsys):
+    rc, pushes, gh, log = _rearm(repo)
+    assert rc == 0, capsys.readouterr().out
+    assert len(pushes) == 1 and len(gh) == 1
+    c = pushes[0][-1].split(":")[0].lstrip("+")
+    assert pushes[0] == ["git", "push", "--quiet", f"https://github.com/{REPO}.git", f"+{c}:refs/agent-ci-evidence/pr-1700"]
+    assert gh[0] == ["gh", "workflow", "run", "agent-ci.yml", "-R", REPO, "--ref", "master", "-f", "pr=1700", "-f", f"merge_sha={c}"]
+    assert log.index(pushes[0]) < log.index(gh[0]), "dispatch before the commit is reachable"
+    assert ["git", "fetch", "--no-tags", "--quiet", f"https://github.com/{REPO}.git", repo.tip, repo.head] in log
+    assert ev.commit_parents  # the CI-side parent reader agrees with the tool:
+    body = _git(repo.path, "cat-file", "-p", c)
+    assert [ln.split()[1] for ln in body.splitlines() if ln.startswith("parent ")] == [repo.tip, repo.head]
+    tree = _git(repo.path, "rev-parse", f"{c}^{{tree}}")
+    assert tree == _git(repo.path, "merge-tree", "--write-tree", repo.tip, repo.head)
+    assert _git(repo.path, "show", f"{c}:a.txt") == "a2" and _git(repo.path, "show", f"{c}:b.txt") == "b2"
+    assert f"--tree {tree} --accept-dispatch" in capsys.readouterr().out
+    # deterministic: the same (tip, head) yields the same evidence commit
+    assert _rearm(repo)[1] == pushes
 
 
-def test_rearm_stale_merge_ref_times_out_and_never_dispatches():
-    get, calls = _fake_gh([_pr_json(mergeable=None)])
-    runs, clock = [], _Clock()
-    rc = rearm.main(["--pr", "1700", "--repo", REPO, "--timeout", "20"], get=get, run=lambda a, **k: runs.append(a),
-                    sleep=clock.sleep, now=clock.now)
-    assert rc == rearm.REFUSED and runs == [] and clock.t <= 25   # bounded wait, reads only
+def test_P2b_rearm_refuses_a_merge_conflict_and_pushes_nothing(repo, capsys):
+    rc, pushes, gh, log = _rearm(repo, pr=_pr_json(repo.clash))
+    assert rc == rearm.REFUSED and pushes == [] and gh == []
+    assert "merge conflict" in capsys.readouterr().out
+    assert not any(isinstance(c, list) and c[1] == "commit-tree" for c in log)
 
 
-def test_rearm_dry_run_and_a_failed_dispatch_is_not_retried():
-    get, _ = _fake_gh([_pr_json()])
-    runs = []
-    assert rearm.main(["--pr", "1700", "--repo", REPO, "--dry-run"], get=get, run=lambda a, **k: runs.append(a)) == 0 and runs == []
-    calls = []
-    fail = lambda a, **k: calls.append(a) or types.SimpleNamespace(returncode=1, stdout="", stderr="HTTP 422")
-    assert rearm.main(["--pr", "1700", "--repo", REPO], get=get, run=fail) == rearm.FAILED and len(calls) == 1
+def test_P2b_rearm_refuses_when_the_merge_is_not_a_two_parent_commit(repo, capsys):
+    """PR head == master tip: commit-tree drops the duplicate parent; the re-read catches it."""
+    rc, pushes, gh, _ = _rearm(repo, pr=_pr_json(repo.tip))
+    assert rc == rearm.REFUSED and pushes == [] and gh == []
+    assert "parents" in capsys.readouterr().out
 
 
-def test_F2_rearm_has_no_ref_option_and_always_dispatches_master():
-    get, _ = _fake_gh([_pr_json()])
+def test_P2b_rearm_refuses_when_the_commits_cannot_be_fetched(repo, capsys):
+    rc, pushes, gh, _ = _rearm(repo, fetch_rc=128)
+    assert rc == rearm.REFUSED and pushes == [] and gh == []
+    assert "cannot fetch" in capsys.readouterr().out
+    rc, pushes, gh, log = _rearm(repo, tip="f" * 40)   # a tip the fetch did not bring
+    assert rc == rearm.REFUSED and pushes == [] and gh == []
+    assert "is not a local commit" in capsys.readouterr().out
+    assert not any(isinstance(c, list) and c[1] == "merge-tree" for c in log)
+
+
+def test_P2b_rearm_refuses_when_merge_tree_itself_fails(repo, capsys):
+    rc, pushes, gh, log = _rearm(repo, merge_tree_rc=128)
+    assert rc == rearm.REFUSED and pushes == [] and gh == []
+    assert "merge-tree failed" in capsys.readouterr().out
+    assert not any(isinstance(c, list) and c[1] == "commit-tree" for c in log)
+
+
+@pytest.mark.parametrize("over", [{"state": "closed"}, {"merged": True}, {"base": {"ref": "agent/int"}},
+                                  {"head": {"sha": "c" * 40, "ref": "charts/x", "repo": {"full_name": REPO}}},
+                                  {"head": {"sha": "c" * 40, "ref": "agent/x", "repo": {"full_name": "fork/r"}}},
+                                  {"head": {"sha": "short", "ref": "agent/x", "repo": {"full_name": REPO}}}])
+def test_P2b_rearm_refuses_before_any_git_command(repo, over):
+    rc, pushes, gh, log = _rearm(repo, pr=_pr_json(repo.head, **over))
+    assert rc == rearm.REFUSED and not any(isinstance(c, list) for c in log)
+
+
+def test_P2b_rearm_ignores_githubs_stale_test_merge(repo):
+    """The P2 liveness gap: GitHub's merge_commit_sha / mergeable are stale or null. P2b never reads them."""
+    rc, pushes, _, log = _rearm(repo, pr=_pr_json(repo.head, mergeable=None, merge_commit_sha="a" * 40))
+    assert rc == 0 and len(pushes) == 1 and not any("/commits/" in str(c) for c in log)
+
+
+def test_P2b_rearm_dry_run_builds_but_pushes_and_dispatches_nothing(repo, capsys):
+    rc, pushes, gh, _ = _rearm(repo, ["--dry-run"])
+    assert rc == 0 and pushes == [] and gh == []
+    assert "DRY-RUN would run: git push" in capsys.readouterr().out
+
+
+def test_P2b_a_failed_push_dispatches_nothing_and_a_failed_dispatch_is_not_retried(repo):
+    rc, pushes, gh, _ = _rearm(repo, push_rc=1)
+    assert rc == rearm.FAILED and len(pushes) == 1 and gh == []
+    rc, pushes, gh, _ = _rearm(repo, dispatch_rc=1)
+    assert rc == rearm.FAILED and len(pushes) == 1 and len(gh) == 1
+
+
+# AUDIT #4: the push target is hard-coded; it can never be master, production, agent/*, refs/pull/*, handoff/* ...
+FORBIDDEN_REFSPECS = [
+    "+{c}:refs/heads/master", "+{c}:master", "+{c}:refs/heads/production", "+{c}:production",
+    "+{c}:refs/heads/agent/pl/x", "+{c}:agent/pl/x", "+{c}:refs/pull/1700/merge", "+{c}:refs/pull/1700/head",
+    "+{c}:refs/heads/handoff/x", "+{c}:handoff/x", "+{c}:refs/tags/v1",
+    "+{c}:refs/agent-ci-evidence/pr-1701",            # another PR's evidence ref
+    "+{c}:refs/agent-ci-evidence/pr-1700/x", "+{c}:refs/agent-ci-evidence/pr-01700", "+{c}:refs/agent-ci-evidence/master",
+    "+{c}:refs/heads/agent-ci-evidence/pr-1700",      # a BRANCH of that name (push triggers would fire)
+    "+{o}:refs/agent-ci-evidence/pr-1700",            # some other commit
+    ":refs/agent-ci-evidence/pr-1700",                # a delete
+    "+HEAD:refs/agent-ci-evidence/pr-1700", "{c}:refs/agent-ci-evidence/pr-1700 ",
+]
+
+
+@pytest.mark.parametrize("spec", FORBIDDEN_REFSPECS)
+def test_P2b_the_push_guard_refuses_every_other_target(spec):
+    c, o = "1" * 40, "2" * 40
+    argv = ["git", "push", "--quiet", f"https://github.com/{REPO}.git", spec.format(c=c, o=o)]
+    with pytest.raises(rearm.Refused):
+        rearm.assert_push_is_own_ref(argv, 1700, c)
+
+
+@pytest.mark.parametrize("argv", [
+    ["git", "push", "--quiet", "--mirror", "u", "+{c}:refs/agent-ci-evidence/pr-1700"],
+    ["git", "push", "--quiet", "--all", "u"],
+    ["git", "push", "--quiet", "--tags", "u", "+{c}:refs/agent-ci-evidence/pr-1700"],
+    ["git", "push", "--quiet", "--delete", "u", "refs/agent-ci-evidence/pr-1700"],
+    ["git", "push", "--quiet", "--prune", "u", "+{c}:refs/agent-ci-evidence/pr-1700"],
+    ["git", "push", "--quiet", "u", "+{c}:refs/agent-ci-evidence/pr-1700", "+{c}:refs/heads/master"],
+    ["git", "push", "u", "+{c}:refs/agent-ci-evidence/pr-1700"],
+    ["git", "fetch", "--quiet", "u", "+{c}:refs/agent-ci-evidence/pr-1700"],
+])
+def test_P2b_the_push_guard_refuses_widening_options_and_extra_refspecs(argv):
+    c = "1" * 40
+    with pytest.raises(rearm.Refused):
+        rearm.assert_push_is_own_ref([a.format(c=c) for a in argv], 1700, c)
+
+
+def test_P2b_the_push_target_comes_only_from_the_integer_pr_number():
+    c = "1" * 40
+    argv = rearm.push_argv(REPO, 1700, c)
+    rearm.assert_push_is_own_ref(argv, 1700, c)   # the tool's own argv passes its own guard
+    assert argv[-1] == f"+{c}:refs/agent-ci-evidence/pr-1700"
+    for bad in ("1700", "1700:refs/heads/master", 0, -1, True, 1700.0, None):
+        with pytest.raises(rearm.Refused):
+            rearm.evidence_ref(bad)
+    for opt in ("--ref", "--refspec", "--remote", "--evidence-ref", "--branch", "--force"):
+        with pytest.raises(SystemExit):
+            rearm.main(["--pr", "1700", "--repo", REPO, opt, "refs/heads/master"], get=lambda p: pytest.fail("read"),
+                       run=lambda a, **k: pytest.fail("ran"))
+
+
+def test_P2b_rearm_refuses_a_push_argv_aimed_elsewhere(repo, monkeypatch):
+    """Whatever produced the argv (a future edit), the guard runs before anything is pushed."""
+    monkeypatch.setattr(rearm, "push_argv", lambda repo_, n, c: ["git", "push", "--quiet", "u", f"+{c}:refs/heads/master"])
+    rc, pushes, gh, _ = _rearm(repo)
+    assert rc == rearm.REFUSED and pushes == [] and gh == []
+
+
+def test_F2_rearm_has_no_ref_option_and_always_dispatches_master(repo):
     for argv in (["--ref", "agent/pl/x"], ["--ref", "master"], ["--ref=agent/pl/x"]):
         with pytest.raises(SystemExit):
-            rearm.main(["--pr", "1700", "--repo", REPO, *argv], get=get, run=lambda a, **k: pytest.fail("dispatched"))
+            rearm.main(["--pr", "1700", "--repo", REPO, *argv], get=lambda p: None, run=lambda a, **k: pytest.fail("ran"))
     argv = rearm.dispatch_argv(REPO, 1700, M)
     assert argv[argv.index("--ref") + 1] == "master" and argv.count("--ref") == 1
 
 
-def test_F2_rearm_hard_refuses_a_non_master_workflow_ref(monkeypatch):
-    get, _ = _fake_gh([_pr_json()])
+def test_F2_rearm_hard_refuses_a_non_master_workflow_ref(repo, monkeypatch):
     monkeypatch.setattr(rearm, "WORKFLOW_REF", "agent/pl/x")
-    runs = []
-    assert rearm.main(["--pr", "1700", "--repo", REPO], get=get, run=lambda a, **k: runs.append(a)) == rearm.REFUSED and runs == []
+    rc, pushes, gh, _ = _rearm(repo)
+    assert rc == rearm.REFUSED and pushes == [] and gh == []
 
 
 def test_rearm_takes_exactly_one_pr():
     with pytest.raises(SystemExit):
         rearm.main([], get=lambda p: None)
     for argv in (["--pr", "1700", "--pr", "1700"], ["--pr", "1700", "--pr", "1699"], ["--pr", "0"]):   # never two, never 0
-        get, calls = _fake_gh([_pr_json()])
-        runs = []
-        assert rearm.main([*argv, "--repo", REPO], get=get, run=lambda a, **k: runs.append(a)) == rearm.REFUSED, argv
-        assert runs == [] and calls == [], argv   # refused before a single read
+        calls = []
+        assert rearm.main([*argv, "--repo", REPO], get=lambda p: calls.append(p), run=lambda a, **k: calls.append(a)) == rearm.REFUSED, argv
+        assert calls == [], argv   # refused before a single read
+
+
+# --- GhApi.remote_ref: exact-ref filter on `git ls-remote` output (AUDIT T2 #1696 survivor 2) -----------------
+# ls-remote patterns match by trailing path components, so a foreign ref such as refs/x/refs/agent-ci-evidence/pr-7
+# also matches the pattern. remote_ref must return only the EXACT ref, and None when it is absent or ambiguous.
+
+def _ls_remote_returning(monkeypatch, stdout):
+    def fake_run(argv, **kw):
+        assert argv[:2] == ["git", "ls-remote"], argv
+        return types.SimpleNamespace(returncode=0, stdout=stdout, stderr="")
+    monkeypatch.setattr(ev.subprocess, "run", fake_run)
+
+
+def test_remote_ref_returns_the_exact_ref_not_a_suffix_matching_foreign_ref(monkeypatch):
+    ref = "refs/agent-ci-evidence/pr-7"
+    _ls_remote_returning(monkeypatch, f"{'b' * 40}\trefs/x/{ref}\n{'a' * 40}\t{ref}\n")
+    assert ev.GhApi("o/r").remote_ref(ref) == "a" * 40
+
+
+def test_remote_ref_ignores_a_foreign_ref_alone(monkeypatch):
+    ref = "refs/agent-ci-evidence/pr-7"
+    _ls_remote_returning(monkeypatch, f"{'b' * 40}\trefs/x/{ref}\n")
+    assert ev.GhApi("o/r").remote_ref(ref) is None
+
+
+def test_remote_ref_is_none_when_the_exact_ref_is_listed_twice(monkeypatch):
+    ref = "refs/agent-ci-evidence/pr-7"
+    _ls_remote_returning(monkeypatch, f"{'a' * 40}\t{ref}\n{'c' * 40}\t{ref}\n")
+    assert ev.GhApi("o/r").remote_ref(ref) is None

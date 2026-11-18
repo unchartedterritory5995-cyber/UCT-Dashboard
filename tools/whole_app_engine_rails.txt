@@ -20,6 +20,7 @@ src/components/chart/engine/__tests__/eventColumns.test.js
 src/components/chart/engine/__tests__/flipB.test.jsx
 src/components/chart/engine/__tests__/flipCGeometry.test.jsx
 src/components/chart/engine/__tests__/flipCRecord.test.js
+src/components/chart/engine/__tests__/hostLaneWorker.rail.test.js
 src/components/chart/engine/__tests__/jsdocParams.test.js
 src/components/chart/engine/__tests__/legendFromDefinitions.test.jsx
 src/components/chart/engine/__tests__/listingDeepen.test.js
