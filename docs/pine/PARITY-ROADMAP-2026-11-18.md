@@ -580,7 +580,7 @@ own identifiers are counted as one row). This is each unit's queue:
 `runtime:conditional-history` stopping on `and` in 7 scripts is Pine v6's lazy `and` / `or`: a call on
 the right of `and` runs only on bars where the left is true, so it keeps call-site history.
 
-### 4.4 Two walls the 1D census cannot see (added 2026-11-18)
+### 4.4 Three walls the 1D census cannot see (added 2026-11-18)
 
 The census runs every script on one daily chart whose history starts at RDDT's 2024 listing. A wall that
 needs an intraday chart, or a longer history, does not show in its rows. Two were measured tonight by
@@ -590,9 +590,10 @@ other sessions and are recorded with their witnesses (`externalWalls`):
 |---|---|---|---|
 | **A running value anchored at the first bar (an all-time ratchet, an all-time high, an anchored VWAP reaching past the look-back cap)** (`first-bar-anchor`) | `first-bar-anchor` | host `budget:lookback` (cap 960 bars, ruled not raised 2026-11-17); the runtime lane runs from the first bar the chart hands it, so it is a wall there only when that bar is not TradingView's | measured 2026-11-18 by another session (local): SPY 1D from the 1993 listing, a level rising since the listing is 82% bar-equal to a windowed value at W=900 and 20% off at worst; McGinley 14 (a decaying recurrence) is bit-equal at W=300. A decaying recurrence converges inside a window; a running extreme or sum does not, at any W the cap allows |
 | **A DAILY read on an intraday chart (previous day's high / low / close, daily pivots): a request.security to a higher timeframe** (`daily-on-intraday`) | `request` | host `tf` reads weekly and monthly only (`pine:request`: "another timeframe as `tf` (weekly and monthly ...)"); the session-reader spelling exceeds `budget:lookback` (1361 vs 960). On the 1D census a "D" request is the chart's own timeframe, so it never shows | measured 2026-11-18 by the Create Indicator capability census (local REPORT.md): 2 of 177 ideas (previous day H/L/C, daily pivots) blocked by exactly this |
+| **U-CONFIRM: when TradingView confirms a closed daily bar for a strategy** (`strategy-bar-confirm`, kind `evidence`: an open question, not an engine gap) | `strategy` | the census treats every closed bar as confirmed; the grade cuts only an ABSENT newest value row of a strategy capture (an `na` row, or a row missing anywhere else, is compared) | r1-strategy-draws-rddt-1d-2026-10-02: 636 bars and 635 value rows, bar 635's session closed at 20:00Z and the capture was taken at 22:57Z (`newestBarIsForming` false); its indicator twin (no broker) holds all 636. The 2026-11-16 report captures (22:09-23:18Z) hold the same shape |
 
-Both are written up in section 5 (U-DAILY, U-ANCHOR). They carry no sample count, because nothing has
-measured one. The census needs an intraday chart and a long-history chart before this can change.
+All three are written up in section 5 (U-DAILY, U-ANCHOR, U-CONFIRM). They carry no sample count, because
+nothing has measured one. The census needs an intraday chart and a long-history chart before this can change.
 
 ### 4.5 The Create Indicator capability census, classified against Pine
 
@@ -666,6 +667,19 @@ computes needs one (`scriptEngineVersion.js`); an evidence-only unit (admission)
   B-STOP-LIMIT, B-EXIT-LEVELS and `w9-q-s1a-size-stop-v6`.
 - **Risk:** a wrong fill is a wrong P&L a member trusts. No engine number for the registry row; each
   broker rule is its own engine unit (as e68's were).
+
+### U-CONFIRM `strategy-bar-confirm` (part of U-STRAT): when TradingView confirms a closed daily bar (EVIDENCE)
+
+- **TradingView:** a strategy with `calc_on_every_tick = false` (the default) runs a bar once TradingView
+  CONFIRMS it. Measured: a strategy captured after the session close can hold a newest bar its strategy has
+  not run (no value row there), while an indicator captured on the same chart minutes later holds it.
+- **Ours today:** the engine runs every closed bar; it does not guess when TradingView confirms one (coordinator
+  ruling 2026-11-18). The harness grades a strategy capture on the bars its strategy RAN: an ABSENT newest value
+  row is cut on both sides, keyed on the row being absent, never on an `na` value
+  (`__tests__/vendorHarness/strategyLane.js::strategyRanView`, rails `strategyLane.test.js` SL2 / SL2b).
+- **Evidence that would pin it:** one strategy captured just before and just after TradingView confirms a closed
+  daily bar (the same chart, the same script), so the moment of confirmation is read, not assumed.
+- **Risk:** none served today: the question decides one newest bar of a strategy run.
 
 ### U-LIB `libraries`: Pine library imports
 
