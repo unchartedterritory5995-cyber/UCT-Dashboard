@@ -21,11 +21,15 @@ import {
   setRuntimeCapabilityAdmission, latchRuntimeAdmission, runtimeSourceHash,
 } from '../../runtimeKill'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
+import { strategyBrokerFlag } from './strategyLane'
 
 const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
   .match(/source\.(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
 vi.stubEnv(flagOf('src/components/chart/engine/objectsOnlyPaneGate.js'), '1')
 vi.stubEnv(flagOf('src/components/chart/engine/runtimePaneGate.js'), '1')
+// ⭐⭐ (strategy-decl admission) — the strategy broker's flag ON, as the production build arms it (`Dockerfile.web`) and
+// as the reach run measured it (`capabilityAdmission.measure.test.js`): a strategy's door mints the broker document
+vi.stubEnv(strategyBrokerFlag(), '1')
 
 const registry = JSON.parse(fs.readFileSync(path.join(REPO, 'api/data/pine_runtime_allowlist.json'), 'utf8')).capabilities
 const verdicts = JSON.parse(fs.readFileSync(path.join(REPO, 'docs/pine/vendor-harness/runtime-on/verdicts.json'), 'utf8'))

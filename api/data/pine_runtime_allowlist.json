@@ -688,6 +688,16 @@
         {"capture": "trend-targets-algoalpha-spy-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"}
       ],
       "note": "COND-TA (U2, engine 58, 2026-11-15): conformant. The runtime lane is TradingView-exact on every conditional ta.* it serves and refuses the rest by name (runtime:conditional-history): ta.sma / ta.ema / ta.rma in a root if / switch block (v4 bare spellings included; v1-v3 refused), and in a v6 root ?: arm with one-argument ta.change, as per-call-site state stepped only on the runs (pineRuntimeFrontend.js servedCondCall / W4 T4); witnessed by vw-call-site-history C03 / C04 / D02 and vw-arm-history T03 / T04 / T05 / K02 / K03 (rails runtime/__tests__/conditionalCallSite.test.js, ast/condTaLanes.test.js: 0 wrong bars). The R4 note this replaces ('computed from EVERY bar on the plot lane') described the lane before WS-C (#557). Evidence: the runtime-on harness verdicts of 2026-11-13 (docs/pine/vendor-harness/runtime-on/verdicts.json), each capture drawn by the runtime lane (plan-1114 capadmit2-evidence.json, CAPADMIT_MODE=lanes); their conditional calls are input-decided or every-bar, so the per-run machinery itself is witnessed by the probe rails above. vw-deadband-ticks-brk-a's DIVERGE is not this capability: docs/pine/evidence/2026-11-15-cond-ta/EVIDENCE.md."
+    },
+    "strategy-decl": {
+      "status": "conformant",
+      "admitted": true,
+      "evidence": [
+        {"capture": "supertrend-strategy-rddt-1d-2026-11-17", "script": "SuperTrend STRATEGY", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "supertrend-strategy-alab-1d-2026-11-17", "script": "SuperTrend STRATEGY", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "w9-q-s1p-when-rddt-1d-2026-11-15", "script": "W9_Q_S1P_WHEN", "community": false, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "strategy() declarations, the strategy run by the simulated broker (simulated fills, never an order): admitted on the one evidence rule (owner ruling 2026-11-17: Strategy Tester reports served through the broker emulator only where TradingView captures witness them). Evidence: supertrend-strategy (corpus/committed, MPL-2.0, community) on NYSE:RDDT 1D (Q-SD1, 11 trades) and NASDAQ:ALAB 1D (Q-SD2, 13 trades), and our probe W9-Q-S1p (B-WHEN) on NYSE:RDDT 1D: each MATCH in the runtime-on harness at engine 73 (PREP) with the strategy broker gate ON, drawn by the runtime lane (its broker document; laneEvidence brokerRuns), the fold of the indicator grade (every plot, the barcolor paint, objects) and the strategy grade (every trade and fill, every stated report slot, every value series): rows replaced in docs/pine/vendor-harness/runtime-on/verdicts.json. Admission is a door, not a pin: a strategy's backtest is still served only where every broker rule it rests on is pinned (brokerPins.resolved.json), and refused by name otherwise (strategyServeCensus.test.js, tests/test_strategy_serve_arming.py)."
     }
   }
 }
