@@ -51,6 +51,7 @@ import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engi
 import { hostKnownDivergenceOf } from '../../engine/hostKnownDivergence'
 import { hostLaneCostOf } from '../../engine/hostLaneCost'
 import { sameDrawnSurface } from './costRoute'
+import { hostLossOf, drawsWhatTheHostLost, hostAuthorHiddenOutputsOf } from './dirtyRoute'
 import { objectLossNote, RUN_HALF_DRAWING_SENTENCE } from '../../engine/ast/objectLoss'
 // ⭐ ENGINE 53 — the run half's door reads the store's cap as the save door counts it.
 import { DOCUMENT_BYTE_BUDGET } from '../../engine/ast/graphDocument'
@@ -293,7 +294,7 @@ function calcBarsMeta(t) {
   return { calcBarsCount: t.calcBarsCount, ...(t.calcBarsRequest === true ? { calcBarsRequest: true } : {}) }
 }
 
-export function memberPaneDefinition({ source, id, name, translation = null, enumInputs = true, routeHostPartial = true } = {}) {
+export function memberPaneDefinition({ source, id, name, translation = null, enumInputs = true, routeHostPartial = true, routeDirty = true } = {}) {
   const no = (reason, guard = null, t = null) => ({
     ok: false, definition: null, reason, guard, translation: t, rows: [], notes: [],
   })
@@ -1264,7 +1265,7 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     }
     return no(installWhy.reason, installWhy.guard, t)
   }
-  return routeByCost({ source, id, name, t, no, host: {
+  const hostAnswer = {
     ok: true,
     definition: docOut,
     reason: null,
@@ -1283,7 +1284,54 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // declined (by code, for the census); absent for a script whose drawings are complete.
     ...(runHalfOut && runHalfOut.runtimeObjects ? { runHalf: { minted: true, columns: Object.keys(runHalfOut.runtimeObjects.outputs).length } } : {}),
     ...(runHalfOut && runHalfOut.declined ? { runHalfDeclined: runHalfOut.declined } : {}),
-  } })
+  }
+  // ⭐⭐ PARITY UNIT 1 (`objects`, NUMBER PENDING) — a host document that LOST drawings or paints is offered
+  // to the runtime lane, and moved only when that lane draws everything it draws plus what it lost
+  // (`dirtyRoute.js`). The paints counted are the ones withheld by name that this document does not draw
+  // (a run-read paint, DIV-4, is drawn; one the author hid draws nothing on TradingView either).
+  const lost = routeDirty === false ? null : hostLossOf({
+    loss: objectsGate.loss,
+    paintsWithheld: allPaints.filter((p) => p.withheld && !p.hidden && !rtReadLines.has(`${p.kind}@${p.line}`)).length,
+  })
+  if (lost) {
+    const routed = routeDirtyHost({ host: hostAnswer, source, id, name, t, no, lost })
+    if (routed.moved) return routed.answer
+    return routeByCost({ source, id, name, t, no, host: routed.answer })
+  }
+  return routeByCost({ source, id, name, t, no, host: hostAnswer })
+}
+
+/** ⭐⭐ PARITY UNIT 1 (`objects`, NUMBER PENDING, docs/pine/evidence/2026-11-18-objects-unit/EVIDENCE.md) —
+ *  THE HOST ANSWER, OR THE SAME SCRIPT DRAWN BY THE RUNTIME LANE WHEN THE HOST ONE LOST DRAWINGS.
+ *
+ *  The host lane attached the script and its object program could not carry some of its drawings (or a
+ *  paint was withheld by name). It is offered to the runtime lane exactly as a host refusal is (`routed:
+ *  false`), and MOVED only when that lane builds it, admits it (its kill list, allowlist and capability
+ *  verdict) and draws everything the host document draws plus what it lost (`dirtyRoute.js::
+ *  drawsWhatTheHostLost`). Anything else keeps the host answer, carrying `dirtyRoute` (why it stayed) for
+ *  the census. ⛔ Only while the runtime pane is on for THIS viewer: with it off nothing is asked and the
+ *  answer is byte-identical to before. Returns `{moved, answer}`. */
+function routeDirtyHost({ host, source, id, name, t, no, lost }) {
+  if (!runtimePaneEnabled()) return { moved: false, answer: host }
+  // ⛔ The refusal `runtimeLaneDefinition` builds on a decline is never read (the host answer stands),
+  // so it carries no guard of its own: a code nobody can be shown is not minted.
+  // the rows the author hid that the host document computes: the moved document computes them too
+  const hidden = hostAuthorHiddenOutputsOf(host)
+  const run = runtimeLaneDefinition({
+    source, id, name, t, no, routed: false, hostGuard: null,
+    hostReason: 'its formula lane could not make some of its drawings',
+    drawnBecause: 'because drawn as formulas some of its drawings could not be made',
+    carryHidden: hidden,
+  })
+  const doc = run && run.ok ? run.definition : null
+  if (!doc || !doc.compute || doc.compute.kind !== 'runtime') {
+    const declined = run && run.runtimeDeclined
+    return { moved: false, answer: { ...host, dirtyRoute: { moved: false, lost,
+      code: (declined && declined.code) || null, why: (declined && declined.why) || null } } }
+  }
+  const same = drawsWhatTheHostLost(host, run, lost, hidden)
+  if (!same.ok) return { moved: false, answer: { ...host, dirtyRoute: { moved: false, lost, code: same.code, why: same.why } } }
+  return { moved: true, answer: { ...run, dirtyRoute: { moved: true, lost } } }
 }
 
 /** ⭐⭐ ROUTE BY COST (NUMBER PENDING, docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md) —
@@ -2035,7 +2083,7 @@ function runtimeShiftContext(source, version, specs) {
  * of the one is the n-th of the other — and when the counts differ the mapping
  * is unknown, which is a refusal, never a guess.
  */
-function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = null, routed = true, no, drawnBecause = null }) {
+function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = null, routed = true, no, drawnBecause = null, carryHidden = null }) {
   const decline = (code, why) => {
     const refusal = routed
       ? no(`${hostReason} — and the per-bar lane that could draw it declined: ${why}`, 'pine:state', t)
@@ -2117,6 +2165,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   const seen = new Map()
   const carried = []
   const withheld = []
+  const hiddenCarried = []
   // ⭐ WS-E — read once: the statements and literal settings `runtimeRowShift` reads,
   // and the settings a carried displacement pins at the author's default.
   const shiftCtx = runtimeShiftContext(source, t && t.version, runtimeInputSpecsOf(source).specs)
@@ -2130,7 +2179,14 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // host's screening judgement, not the author's, and TradingView draws the line. ⚰️ vw-array-na lost
     // `plot(array.min(a))` and four siblings here ("hidden helper or beyond its row ceiling") while the
     // run computed them (TradingView: 1, 3, 6, 2, na).
-    if ((o.hidden && o.hiddenReason !== 'constant') || o._authorHidden === true) continue
+    if ((o.hidden && o.hiddenReason !== 'constant') || o._authorHidden === true) {
+      // ⭐⭐ PARITY UNIT 1 — a document the DIRTY ROUTE moves keeps every row its author hid that the host
+      // document carried (`carryHidden`, translation output indices): hidden, never drawn, but computed, as the
+      // host document computed it (TradingView computes a `display.none` plot too; the reference, `display.none`:
+      // "Display nowhere"). Every other runtime document is unchanged.
+      if (carryHidden && carryHidden.has(index) && o.hiddenReason === 'author') hiddenCarried.push({ o, index })
+      continue
+    }
     const label = o.title || `${o.kind} ${ord + 1}`
     // ⭐ WS-E — a leftward `offset` is carried (`runtimeRowShift`), the rest withheld.
     const shift = runtimeRowShift(o, shiftCtx)
@@ -2325,6 +2381,23 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
         })
       })
     }
+  }
+  // ⭐⭐ PARITY UNIT 1 — the author-hidden rows the dirty route carries, minted after every drawn row and colour
+  // column (keyed by the same counter, so no key collides), each naming its run output and the host output it is.
+  // They ride in `colourRows` (the document's hidden columns) AND in the answer's rows, where the pane and the
+  // vendor harness find a row by the host output it is (`output`), as they find the host document's hidden rows.
+  const hiddenRows = []
+  for (const { o, index } of hiddenCarried) {
+    const out = runOutputOf.get(index)
+    if (!Number.isInteger(out)) continue
+    const key = keyAt(Math.max(drawnRows.length, 1) + colourRows.length)
+    outputs[key] = out
+    const row = {
+      key, label: o.title || '', source: '0', ast: { type: 'num', value: 0 }, mode: repaint.mode, readback: '',
+      style: 'line', hidden: true, output: index,
+    }
+    colourRows.push(row)
+    hiddenRows.push(row)
   }
   // ⭐⭐ WS-E — A DOCUMENT THAT DRAWS NOTHING DECLINES, NOW COUNTING ITS PAINTS.
   // ⚰️ This stood above the paints and asked only for a ROW or the run's own
@@ -2591,7 +2664,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     reason: null,
     guard: null,
     translation: t,
-    rows,
+    rows: hiddenRows.length ? [...rows, ...hiddenRows] : rows,
     notes,
     requirementTags: [],
     lane: 'runtime',

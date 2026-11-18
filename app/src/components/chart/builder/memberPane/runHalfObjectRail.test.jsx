@@ -68,7 +68,10 @@ const MATCH = (capture) => ({ capture, verdict: 'MATCH', objectsV2: true, runtim
 const admit = (...srcs) => setRunHalfObjectEvidence(srcs.map((src) => ({ sha256: runtimeSourceHash(src), captures: [MATCH('a'), MATCH('b')] })))
 
 let seq = 0
-const door = (source = SRC, opts = {}) => memberPaneDefinition({ source, name: 'rh', ...opts, id: opts.id || `u_member-pane-ro${++seq}` })
+// ⭐⭐ PARITY UNIT 1 (`objects`) — this rail tests the RUN HALF, the answer for a host-partial document the
+// dirty route does not move (`dirtyRoute.js`: a fill the runtime lane does not draw, a decline). Its fixture
+// is one the route WOULD move to the runtime lane, so the door is asked without the route (`routeDirty: false`).
+const door = (source = SRC, opts = {}) => memberPaneDefinition({ source, name: 'rh', routeDirty: false, ...opts, id: opts.id || `u_member-pane-ro${++seq}` })
 function install(def) {
   const { installed, errors } = registry.installUserDefinitions([def])
   expect(installed.length, errors.join(' | ')).toBe(1)

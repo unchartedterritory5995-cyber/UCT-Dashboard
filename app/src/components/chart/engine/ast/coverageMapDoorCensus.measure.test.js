@@ -233,6 +233,12 @@ function oneDoor(source, { runtimeDetail = RT_ON, bound = false } = {}) {
     notes: (d.notes || []).map((n) => (n && n.name) || null).filter(Boolean),
     refusals,
     ...(boundWhy ? { boundWhy } : {}),
+    // ⭐⭐ PARITY UNIT 1 (`objects`, 2026-11-18) — an ATTACHED host step that lost drawings or paints is
+    // offered to the runtime lane (`memberPaneDefinition.js::routeDirtyHost`): moved (the step's lane is
+    // then `runtime`), or kept with the decline's code; and its run half, minted or declined by code. The
+    // census used to record neither, so an attached-dirty row had no runtime reading at all.
+    ...(d.dirtyRoute ? { dirtyRoute: { moved: !!d.dirtyRoute.moved, code: d.dirtyRoute.code || null } } : {}),
+    ...(d.runHalf ? { runHalf: 'minted' } : (d.runHalfDeclined ? { runHalf: `declined:${d.runHalfDeclined.code}` } : {})),
     ...(runtimeDetail ? {
       runtimeDeclined: d.runtimeDeclined ? { code: d.runtimeDeclined.code, why: short(d.runtimeDeclined.why, 300) } : null,
       rtProbe: d.runtimeDeclined ? runtimeProbeOf(source, d.runtimeDeclined) : null,
