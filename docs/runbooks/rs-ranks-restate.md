@@ -137,7 +137,7 @@ universe definitions. Ranked over the cap universe our ratings sat 5 to 8 points
 ranks every stock); ranked over everything they sit 3.0 points from Deepvue's on average, bias +0.1, 285 of 305
 comparisons (93 %) within 10. Removing warrants, rights, units and preferreds moved the mean miss by 0.02 points, a $1 or
 $5 price floor made it 2.7 and 7.4 points worse, and a $250k dollar-volume floor 2.6 worse; the simplest rule won. The
-record is `tests/fixtures/indicators/rs_parity_deepvue_universe.json`.
+record is `tests/fixtures/indicators/rs_parity_reference_universe.json`.
 
 ## What members will see
 

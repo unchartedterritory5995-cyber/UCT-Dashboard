@@ -345,6 +345,29 @@ function identityTextOf(inp, raw, def, inputs) {
   return identityTextFor(def, inp.key, raw, inputs)
 }
 
+/** Does a chip readout row of this key REPLACE the identity part (`stampReadout`)? */
+function serverResolvesChipKey(def, key) {
+  return !!(def && Array.isArray(def.readout) && def.readout.some((r) => r && r.key === key && r.chip === true))
+}
+
+/** An option the SERVER resolves into a symbol is labelled `… (auto)` in the menu (`Sector (auto)`,
+ *  `Industry group (auto)`, `Theme (auto)`); its code names nothing a member can read. */
+const AUTO_OPTION_LABEL = /\(auto\)\s*$/i
+
+/** What an unresolved, server-resolved enum choice prints: an AUTO option's label, else the code
+ *  exactly as before (`SPY` whatever its label says); any other value is unchanged. */
+function unresolvedChoiceText(def, key, text) {
+  const inp = (def.inputs || []).find((i) => i && i.key === key)
+  if (!inp || inp.type !== 'enum' || typeof text !== 'string') return text
+  for (const o of (Array.isArray(inp.options) ? inp.options : [])) {
+    const value = Array.isArray(o) ? o[0] : (o && o.value)
+    const label = Array.isArray(o) ? o[1] : (o && o.label)
+    if (value !== text) continue
+    return typeof label === 'string' && AUTO_OPTION_LABEL.test(label) ? label : text
+  }
+  return text
+}
+
 /** `legendParams` whose input is a named choice, resolved for THIS instance:
  *  `Map(key → value)`, declaration order. Empty for every numeric parameter. */
 function legendIdentityParts(def, inputs) {
@@ -413,12 +436,24 @@ function stampReadout(chip, def, inputs, opts) {
     }
   }
   const extra = []
+  const resolved = new Set()
   if (rows && rows.length) {
     for (const r of readoutChipRows(def, rows)) {
-      if (identity.has(r.key)) identity.set(r.key, r.text)
+      if (identity.has(r.key)) { identity.set(r.key, r.text); resolved.add(r.key) }
       // ⭐ VA2 — a row's `chipPrefix` word rides the pane label only (`fast 91`).
       else extra.push(typeof r.chipText === 'string' && r.chipText ? r.chipText : r.text)
     }
+  }
+  // ⭐ 2026-11-15 — A CHOICE THE SERVER RESOLVES, NOT RESOLVED YET, NEVER PRINTS ITS CODE. An identity part
+  // that a chip row of the same key replaces (the RS benchmark: `scalar:benchmark.name`) stands as the
+  // member's request until that row lands, which is honest; but an AUTO option's code names nothing
+  // (`UCT RS · SECTOR`, measured by the stale-rail repair, PR #1367: no envelope yet, or a v3 payload
+  // without `benchmark.name`). Such a part prints its option's LABEL (`Sector (auto)`), unless the label
+  // is an AUTO option (its menu label ends `(auto)`); a symbol code (`SPY`) prints as before. Only these parts: every other identity part,
+  // and every definition without such a row, reads exactly as before.
+  for (const [k, v] of identity) {
+    if (resolved.has(k) || !serverResolvesChipKey(def, k)) continue
+    identity.set(k, unresolvedChoiceText(def, k, v))
   }
   const lead = [...identity.values()].map((v) => ` · ${v}`).join('')
   const sibling = typeof chip.suffix === 'string' ? chip.suffix : ''
@@ -436,18 +471,24 @@ function stampReadout(chip, def, inputs, opts) {
 /** A plot's colour for THIS instance. Mirrors `pool.resolvePlotForInstance`
  *  without importing it, because that module carries the LWC option vocabulary
  *  and the legend needs one field. */
-function resolvePlotColor(plot, inputs, def) {
+function resolvePlotColor(plot, inputs, def, theme = null) {
   // ⛔ THE CHIP WRITES THIS INTO CSS. A stored definition, a shared one, or a shared
   // layout's instance input may carry any string here — only `safeCssColour` values
   // leave (objectColour.js); anything else wears no colour.
+  // ⭐ ENGINE 58 — a THEME reference (`chart.fg_color@85`) is resolved against the
+  // chart it is drawn on (`opts.theme`, `objectTheme.chartThemeOf`), as the line is
+  // (`pool.withThemeColour`); with no theme it wears the legend's own ink.
   const refKey = plot.$refs && plot.$refs.color
   if (refKey) {
-    if (inputs && inputs[refKey] !== undefined) return safeCssColour(inputs[refKey])
+    if (inputs && inputs[refKey] !== undefined) return safeCssColour(inputs[refKey], theme)
     const declared = (def.inputs || []).find(i => i && i.key === refKey)
-    if (declared && declared.default !== undefined) return safeCssColour(declared.default)
+    if (declared && declared.default !== undefined) return safeCssColour(declared.default, theme)
   }
-  return safeCssColour(plot.color)
+  return safeCssColour(plot.color, theme)
 }
+
+/** The chart theme a chip's colour is resolved against (`opts.theme`), or null. */
+const chipThemeOf = (opts) => (opts && opts.theme && typeof opts.theme === 'object' ? opts.theme : null)
 
 /**
  * One chip per *(series, plot-that-declares-a-`legend`)*.
@@ -572,7 +613,7 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, 
     // The colour a chip wears is the colour the LINE wears, so it is resolved the
     // same way the binder resolves it — through this lane's own inputs, never the
     // definition default alone.
-    const resolved = resolvePlotColor(plot, inputs, def)
+    const resolved = resolvePlotColor(plot, inputs, def, chipThemeOf(opts))
     const decimals = Number.isInteger(plot.legend.decimals) ? plot.legend.decimals : DEFAULT_DECIMALS
     // ⭐ THE DECLARATION TRAVELS WITH THE CHIP — see `chipValueText`.
     const compact = plot.legend.compact === true
@@ -1035,7 +1076,7 @@ export function legendChips(bindings, seriesData, registry, instances, opts) {
     const kept = mine.filter((c) => !(c.sparse === true && c.value == null))
     out.push(...(kept.length ? kept : mine.slice(0, 1)).map((c) => { const o = { ...c }; delete o.sparse; return o }))
   }
-  return out
+  return withInstanceSuffixes(out)
 
   function pushInstanceChips(inst) {
     if (!inst || typeof inst !== 'object' || typeof inst.instanceId !== 'string') return
@@ -1082,7 +1123,7 @@ export function legendChips(bindings, seriesData, registry, instances, opts) {
         plotKey: plot.key,
         instanceId: inst.instanceId,
         label,
-        color: resolvePlotColor(plot, inputs, def),
+        color: resolvePlotColor(plot, inputs, def, chipThemeOf(opts)),
         decimals: Number.isInteger(plot.legend.decimals) ? plot.legend.decimals : DEFAULT_DECIMALS,
         compact: plot.legend.compact === true,
         value: null,
@@ -1108,6 +1149,39 @@ export function legendChips(bindings, seriesData, registry, instances, opts) {
       }, def, inputs, opts))
     }
   }
+}
+
+/**
+ * ⭐⭐ A LABEL-ONLY CHIP CARRIES ITS INSTANCE'S SIBLING SUFFIX (the Fred RS 10-member sweep, 2026-11-18).
+ *
+ * `disambiguateSiblings` numbers only the chips that computed (`engineChips`); a plot that computed
+ * nothing (Fred RS's three averages, `na` until switched on) is named here from the instance's own
+ * name, unnumbered. With one copy every chip of the instance reads `Fred RS` and `legendRows` folds
+ * them into one row; with two, the drawn chips read `Fred RS #1` / `Fred RS #2` and the empty ones
+ * still `Fred RS`, so each copy grew a second, valueless `Fred RS` row (TradingView: one row a copy).
+ * A label-only chip whose label is the BASE a numbered chip of the same instance was suffixed from
+ * takes that suffix too, so the instance's chips share one name again. Nothing else moves: an
+ * instance no chip of which was numbered, and a chip with another name, are left exactly as they are.
+ */
+function withInstanceSuffixes(chips) {
+  const byInstance = new Map()
+  for (const c of chips) {
+    if (!c || typeof c.suffix !== 'string' || !c.suffix || typeof c.label !== 'string' || !c.label.endsWith(c.suffix)) continue
+    const base = c.label.slice(0, c.label.length - c.suffix.length)
+    if (!byInstance.has(c.instanceId)) byInstance.set(c.instanceId, new Map())
+    byInstance.get(c.instanceId).set(base, c.suffix)
+  }
+  if (!byInstance.size) return chips
+  for (const c of chips) {
+    if (!c || (typeof c.suffix === 'string' && c.suffix) || typeof c.label !== 'string') continue
+    const suffix = byInstance.has(c.instanceId) ? byInstance.get(c.instanceId).get(c.label) : undefined
+    if (!suffix) continue
+    const label = `${c.label}${suffix}`
+    if (c.text === c.label) c.text = label
+    c.label = label
+    c.suffix = suffix
+  }
+  return chips
 }
 
 // ─── PART E · TELLING TWO COPIES OF ONE DEFINITION APART ─────────────

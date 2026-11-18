@@ -22,7 +22,7 @@ const pct = v => (Number.isFinite(v) ? `${v > 0 ? '+' : v < 0 ? '−' : ''}${Mat
 // Then the row's relative strength, said once each (2a-08b): the ONE RS-line fact (the most
 // specific flag that fired, else the line's phase) and the RS rating with its week's move folded
 // in. Each is null when the row carries no RS columns, so a row without them reads as before.
-const facts = row => [volumeFact(row), plainFact('adr_pct', row.adr_pct), rsLineFact(row), rsRatingFact(row)].filter(Boolean).join(' · ')
+export const paneFacts = row => [volumeFact(row), plainFact('adr_pct', row.adr_pct), rsLineFact(row), rsRatingFact(row)].filter(Boolean).join(' · ')
 
 // ⭐ THE CHART IS THE /charts CHART WIDGET (2026-10-18), see ScreenerChartWidget.jsx. This pane
 // keeps what is the screener's own: the row's identity, setup, facts, earnings, why-strip and
@@ -39,7 +39,10 @@ const isEditable = t => /^(input|textarea|select)$/i.test(t?.tagName || '') || !
 // for any other ticker never re-renders the pane. `onNavKey`: ↑/↓ pressed anywhere in the pane
 // step the list (B7) — the pane is focusable, so a click on the chart keeps the keys working.
 // `busy`: the list answers the previous screen; the row actions say so (and the page ignores them).
-function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFlagged, onWatch, onNavKey, structures, theme = null, busy = false, phone = false }) {
+// `chrome` (the scan board; 'full' everywhere else): 'slim' drops the identity line (the chart
+// widget's own header names the stock), 'bare' keeps the chart alone (the board's "Why it's here"
+// widget carries the rest). `newsMode` / `newsTarget`: where the News widget goes (ScreenerChartWidget).
+function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFlagged, onWatch, onNavKey, structures, theme = null, busy = false, phone = false, chrome = 'full', newsMode = 'under', newsTarget = null }) {
   const ink = useThemeInk(PIVOT_INK)
   // The head structure's pivot, titled for it ("Flat base pivot"), and hidden once the row's bars
   // are stale (setupLine.pivotLine). Primitives into the memo, so a tick never rebuilds the lines.
@@ -59,12 +62,12 @@ function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFl
   const live = Number.isFinite(livePx) ? { price: livePx, change_pct: liveChg } : null
   const { price, chg } = livePriceOf(row, live)
   const s = setupLine({ ...row, price }, structures, { now: now ?? Date.now() })
-  const factText = facts(row)
+  const factText = paneFacts(row)
   const earn = earningsText(row.next_earnings_date, now)
   const industry = row.industry || row.sector
   return (
-    <section className={`${styles.pane} ${busy ? styles.paneBusy : ''}`} data-testid="focus-chart-pane" aria-label={`${row.ticker} chart`} aria-busy={busy || undefined} tabIndex={-1} onKeyDown={onKeyDown}>
-      <div className={styles.paneHead}>
+    <section className={`${styles.pane} ${busy ? styles.paneBusy : ''}`} data-chrome={chrome === 'full' ? undefined : chrome} data-testid="focus-chart-pane" aria-label={`${row.ticker} chart`} aria-busy={busy || undefined} tabIndex={-1} onKeyDown={onKeyDown}>
+      {chrome === 'full' && <div className={styles.paneHead}>
         <h2 className={styles.paneTicker}>{row.ticker}</h2>
         {(row.company || industry) && (
           <span className={styles.paneSub}>
@@ -75,8 +78,8 @@ function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFl
         <span className={styles.spacer} />
         <span className={styles.panePrice}>{fmt(price)}</span>
         <span className={chg > 0 ? styles.up : chg < 0 ? styles.down : styles.flat}>{pct(chg)}</span>
-      </div>
-      <div className={styles.paneMeta}>
+      </div>}
+      {chrome !== 'bare' && <div className={styles.paneMeta}>
         <span className={styles.setupTag} title={s.title || undefined} data-testid="pane-setup">{s.text}</span>
         {s.detail && <span className={styles.setupTag}>{s.detail}</span>}
         {/* The pivot is the head structure's, so when another structure leads it is named. */}
@@ -90,11 +93,11 @@ function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFl
             {earn.text}
           </span>
         )}
-      </div>
+      </div>}
       <div className={styles.chartBox} data-testid="pane-chart-layer">
-        <PaneChart sym={row.ticker} priceLines={priceLines} phone={phone} />
+        <PaneChart sym={row.ticker} priceLines={priceLines} phone={phone} newsMode={newsMode} newsTarget={newsTarget} />
       </div>
-      <div className={styles.paneFoot}>
+      {chrome !== 'bare' && <div className={styles.paneFoot}>
         <WhyStrip items={why.items} more={why.more} onMore={onOpenFilters} />
         <span className={styles.spacer} />
         <div className={styles.paneActions}>
@@ -104,7 +107,7 @@ function ChartPane({ row, livePx, liveChg, why, now, onOpenFilters, onFlag, isFl
           <button type="button" className={`${styles.btnPrimary} ${busy ? styles.btnBusy : ''}`}
             aria-disabled={busy ? 'true' : undefined} title={busy ? BUSY_TITLE : undefined} onClick={() => onWatch(row)}>Add to watchlist</button>
         </div>
-      </div>
+      </div>}
     </section>
   )
 }

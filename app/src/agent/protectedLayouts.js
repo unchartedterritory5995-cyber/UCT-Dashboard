@@ -71,7 +71,7 @@ export function protectionRefusal(host, plan, ops = []) {
   if (open) {
     // M3: a draft preview SHOWS on a chart (never persisted) — still not on a protected board
     if (changed.some(p => ON_THE_BOARD.has(p.kind)) || ops.some(o => o?.action === 'layout.saveCurrent' || o?.action === 'indicator.previewDraft')) {
-      return openWord(open) || `“${open.name}” is a protected layout, so UCT Agent doesn't change anything on it. Open another layout first (Layouts ▾).`
+      return openWord(open) || `“${open.name}” is a protected layout, so UCT Agent doesn't change anything on it. Open another layout first (the layout name, top left).`
     }
   }
   const snap = host?.layouts?.snapshot?.()

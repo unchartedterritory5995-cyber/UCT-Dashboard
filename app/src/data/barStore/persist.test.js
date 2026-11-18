@@ -374,6 +374,52 @@ describe('review fix 6: deep history, holes, basis', () => {
     expect(rowsOf(h)).toEqual(rowsOf(s))
   })
 
+  it('a series deeper than HIST_PERSIST_MAX_BARS persists only its newest rows, and reloads as one contiguous run', async () => {
+    const { HIST_PERSIST_MAX_BARS } = await import('../../utils/historyPrepend')
+    const big = sessions(Math.ceil((HIST_PERSIST_MAX_BARS + 1500) / 78))
+    vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime((big[big.length - 1].t + 120) * 1000)
+    const nowMs = (big[big.length - 1].t + 120) * 1000
+    const registry = createRegistry({ ctx: () => ({ nowMs }) })
+    const k = keyOf({ sym: 'CAP', tf: '5' })
+    registry.dispatch(k, { type: 'rest-full', key: k, payload: { ticker: 'CAP', tf: '5', bars: big.slice(-2000) } })
+    registry.dispatch(k, { type: 'scroll-back', key: k, payload: { bars: big.slice(0, -1999) } })
+    expect(registry.peek(k).depth).toBeGreaterThan(HIST_PERSIST_MAX_BARS)
+    await createPersist({ registry }).writeOnce(k)
+    const { idbGetHistory } = await import('../../utils/barsIDB')
+    const seg = await idbGetHistory('CAP', '5')
+    // (the newest bar is the forming bucket at `nowMs`: never persisted, so the closed rows end one earlier)
+    const closed = big.slice(0, -1)
+    expect(seg.length).toBe(HIST_PERSIST_MAX_BARS)
+    expect(seg[seg.length - 1].t).toBe(closed[closed.length - 1].t)
+    expect(seg[0].t).toBe(closed[closed.length - HIST_PERSIST_MAX_BARS].t)
+    memClear()
+    const again = createRegistry({ ctx: () => ({ nowMs }) })
+    await createPersist({ registry: again }).hydrate(k)
+    const h = again.peek(k)
+    expect(h.depth).toBe(HIST_PERSIST_MAX_BARS)
+    expect(h.bars[0].t).toBe(closed[closed.length - HIST_PERSIST_MAX_BARS].t)   // the newest run, contiguous
+    expect(h.bars.every((b, i) => i === 0 || b.t > h.bars[i - 1].t)).toBe(true)
+  })
+
+  it('a capped segment is NOT rewritten by a write that only moved the tail', async () => {
+    const { HIST_PERSIST_MAX_BARS } = await import('../../utils/historyPrepend')
+    const big = sessions(Math.ceil((HIST_PERSIST_MAX_BARS + 1500) / 78))
+    const nowMs = (big[big.length - 1].t + 120) * 1000
+    vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(nowMs)
+    const registry = createRegistry({ ctx: () => ({ nowMs }) })
+    const k = keyOf({ sym: 'CAQ', tf: '5' })
+    registry.dispatch(k, { type: 'rest-full', key: k, payload: { ticker: 'CAQ', tf: '5', bars: big.slice(-2000, -1) } })
+    registry.dispatch(k, { type: 'scroll-back', key: k, payload: { bars: big.slice(0, -1999) } })
+    const persist = createPersist({ registry })
+    await persist.writeOnce(k)
+    const rec = fakeDb._rows().get('CAQ_5@hist')
+    expect(rec).toBeTruthy()
+    rec.__sentinel = 1                                              // marks THIS stored record
+    registry.dispatch(k, { type: 'rest-delta', key: k, payload: { ticker: 'CAQ', tf: '5', bars: big.slice(-1), since: big[big.length - 2].t } })
+    await persist.writeOnce(k)
+    expect(fakeDb._rows().get('CAQ_5@hist').__sentinel).toBe(1)    // not rewritten
+  })
+
   it('INVARIANT: a @hist segment on another basis (a split since it was written) is refused whole', async () => {
     await persistedDeep()
     const { idbGetHistory } = await import('../../utils/barsIDB')

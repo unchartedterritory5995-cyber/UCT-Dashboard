@@ -446,7 +446,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
     <div ref={rootRef} className={styles.root} style={rootStyle}>
       {settingsOpen && (
         <NewsSettingsPanel
-          title="UCT Terminal Settings"
+          title="UCT Terminal settings"
           widgetType="calendar"
           showPerf={false}
           textHint="names & EPS"

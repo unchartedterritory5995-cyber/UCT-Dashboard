@@ -172,11 +172,11 @@ _state = {
     "reclassified_total": 0,         # cumulative rows whose Side was recovered via NBBO re-pass
     "last_reclassify_count": 0,      # rows recovered in the most recent re-pass
     "fast_path_subscribes": 0,       # cumulative new contracts fast-path-subscribed on first big print
-    # Phase 2f: on-demand OI fetch via Schwab
+    # Phase 2f: on-demand OI fetch (Massive chain snapshot, via oi_snapshots)
     "oi_fetch_queue_size": 0,        # contracts pending on-demand fetch
-    "oi_fetch_batches_sent": 0,      # cumulative Schwab batch calls
-    "oi_fetch_contracts_resolved": 0, # contracts where Schwab returned OI > 0
-    "oi_fetch_contracts_unresolved": 0, # contracts where Schwab returned no data
+    "oi_fetch_batches_sent": 0,      # cumulative OI batch calls
+    "oi_fetch_contracts_resolved": 0, # contracts where the fetch returned OI > 0
+    "oi_fetch_contracts_unresolved": 0, # contracts where the fetch returned no data
     # Stage-2 batch-cap (2026-07-22): how many unresolved contracts we DIDN'T
     # flow-probe this/most flushes because the count/time cap tripped (they went
     # to Stage-3 instead). A climbing _last during RTH = bursts of fresh
@@ -259,7 +259,7 @@ def _log_q_event(action: str, occ: str, reason: str = None,
 
 # Phase 2f: on-demand OI fetch queue. The flusher adds contracts that miss
 # the 2-stage snapshot+flow lookup; a background task drains the queue and
-# fetches from Schwab in batches. Results persist to contract_oi_snapshots
+# fetches OI in batches. Results persist to contract_oi_snapshots
 # so subsequent flushes pick them up via Stage 1.
 _oi_fetch_queue: list = []    # list of (sym, cp_letter, strike, exp_mdy) tuples
 _oi_fetch_seen: set = set()   # contracts we've already queued this session (dedup)
@@ -580,7 +580,7 @@ _OI_FALLBACK_TTL = float(os.environ.get("MASSIVE_OI_FALLBACK_CACHE_TTL", "600"))
 # to 3 ORDER-BY-id-DESC probes PER EVENT (the 86.7s-of-88.7s batch on 7/17).
 # These caps bound Stage-2's cost per flush: a hard probe COUNT cap and a wall-
 # clock TIME BUDGET. Whatever we don't probe stays unresolved → Stage-3 (the
-# on-demand Schwab queue, drained every 20s) picks it up and Stage-1 has it next
+# on-demand OI queue, drained every 20s) picks it up and Stage-1 has it next
 # batch. So the only cost of skipping is OI arriving a cycle later, never tape
 # latency. Set MASSIVE_OI_STAGE2_MAX_PROBES=0 to disable Stage-2 entirely.
 _OI_STAGE2_MAX_PROBES = int(os.environ.get("MASSIVE_OI_STAGE2_MAX_PROBES", "60"))
@@ -692,7 +692,7 @@ def _load_oi_for_events(events: list) -> dict:
                 # the flusher for seconds — starving the WS reader so new prints
                 # land late. Bound Stage-2 by a probe COUNT cap and a wall-clock
                 # TIME BUDGET; anything past the cap stays unresolved and is
-                # handled by Stage-3 (on-demand Schwab) below.
+                # handled by Stage-3 (on-demand OI fetch) below.
                 sql2 = """
                     SELECT OI FROM flow
                     WHERE Symbol = ? AND CallPut = ? AND Strike = ?
@@ -754,9 +754,9 @@ def _load_oi_for_events(events: list) -> dict:
     except Exception as e:
         logger.warning("[massive-ws] OI batch lookup failed: %s", e)
 
-    # Phase 2f: Stage 3 -- enqueue unresolved contracts for on-demand Schwab
+    # Phase 2f: Stage 3 -- enqueue unresolved contracts for the on-demand OI
     # fetch. The background oi_fetch_manager task drains the queue every 20s,
-    # calls Schwab in batch, and persists to contract_oi_snapshots. The NEXT
+    # fetches OI in batch, and persists to contract_oi_snapshots. The NEXT
     # batch of events for these contracts will hit Stage 1 (snapshot cache)
     # and get the OI for free.
     #
@@ -769,7 +769,7 @@ def _load_oi_for_events(events: list) -> dict:
             continue
         sym = e.root
         if sym and sym[-1].isdigit():
-            # Adjusted/when-issued -- Schwab will 400, don't bother
+            # Adjusted/when-issued -- no chain is served, don't bother
             continue
         cp_letter = 'C' if e.cp == 'CALL' else 'P'
         exp_mdy = f"{e.expiry.month}/{e.expiry.day}/{e.expiry.year}"
@@ -845,7 +845,7 @@ def _load_ticker_metadata(symbols: list) -> dict:
 
     Reuses the same pattern as flow_db.get_mktcap_batch -- any ticker that's
     ever been in FlowDB (from a BBS upload, prior Bullflow, etc.) has its
-    metadata cached and we can read it for free without hitting Schwab.
+    metadata cached and we can read it for free without a vendor call.
 
     Returns: {"AAPL": {"mktcap": 3100000000000, "sector": "Technology"}, ...}
     Symbols never seen before are simply omitted.
@@ -1389,7 +1389,7 @@ def _build_warm_start_contracts(limit: int = 950) -> list:
 # Phase 2b: Spot price cache with TTL. Populated lazily by a background
 # fetcher task that drains _spot_fetch_queue every 10 seconds. Same pattern
 # as Phase 2f on-demand OI fetch -- the flusher queues symbols, background
-# task hits Schwab, results land in cache; next flush picks them up.
+# task fetches OI, results land in cache; next flush picks them up.
 #
 # This means the FIRST event on a previously-unknown symbol gets spot=0,
 # but subsequent events (for active symbols, common case) get real spot.
@@ -2750,12 +2750,12 @@ async def _run_session(ws):
     async def oi_fetch_manager():
         """Phase 2f: drain the on-demand OI fetch queue every 20 seconds.
 
-        Calls Schwab in batches of up to 200 contracts per call. Persists
-        results to contract_oi_snapshots with source='ondemand-schwab' so
+        Fetches OI in batches of up to 200 contracts per call. Persists
+        results to contract_oi_snapshots with source='ondemand' so
         subsequent event batches pick them up via Stage 1 (DB cache).
 
         20-second cadence is a compromise:
-        - Faster (e.g., 5s) -- more Schwab calls but contracts get OI sooner
+        - Faster (e.g., 5s) -- more vendor calls but contracts get OI sooner
         - Slower (e.g., 60s) -- fewer calls but multi-fire contracts miss OI
           on their first 2-3 fires.
 
@@ -2769,7 +2769,7 @@ async def _run_session(ws):
             except asyncio.TimeoutError:
                 pass
             else:
-                # Session tearing down: skip the final Schwab batch during
+                # Session tearing down: skip the final OI batch during
                 # teardown; the next session re-queues unresolved contracts.
                 break
             if not _oi_fetch_queue:
@@ -2778,7 +2778,7 @@ async def _run_session(ws):
             batch = _oi_fetch_queue[:]
             _oi_fetch_queue.clear()
             _state["oi_fetch_queue_size"] = 0
-            # Cap to 200 per Schwab call. Anything over goes back to the
+            # Cap to 200 per fetch. Anything over goes back to the
             # queue for the next 20s cycle.
             if len(batch) > 200:
                 overflow = batch[200:]

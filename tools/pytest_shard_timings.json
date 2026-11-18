@@ -1955,7 +1955,7 @@
   "tests/test_rs_learn_seed.py": 85,
   "tests/test_rs_lists.py": 3381,
   "tests/test_rs_mansfield.py": 165,
-  "tests/test_rs_parity_deepvue.py": 62,
+  "tests/test_rs_parity_reference.py": 62,
   "tests/test_rs_phase3_math.py": 302,
   "tests/test_rs_phase3_parity.py": 80,
   "tests/test_rs_provider_budget.py": 10133,

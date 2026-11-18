@@ -1,0 +1,52 @@
+/* The chart header's chart-type switch (owner 11-15): a grey icon button like the header's
+   other icons, and the board-menu dropdown (#111214 panel, #ededed rows, grey icons, a ✓). */
+.btn {
+  display: inline-flex; align-items: center; gap: 2px; height: 26px; padding: 0 5px; margin: 0 2px;
+  flex: 0 0 auto; border: none; border-radius: 6px; background: none; cursor: pointer;
+  color: var(--widget-text, var(--text-muted, #cfcac0));
+}
+.btn:hover, .btnOn { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+.caret { font-size: 9px; opacity: 0.7; }
+.menu {
+  position: fixed; z-index: 6000; width: 200px; padding: 5px; display: flex; flex-direction: column; gap: 1px;
+  background: #111214; border: 1px solid #383b41; border-radius: 10px; box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-sans); color-scheme: dark;
+}
+.item {
+  display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: none; border-radius: 6px;
+  background: none; cursor: pointer; text-align: left; font: 500 13px var(--font-sans); color: #ededed;
+}
+.item:hover, .item:focus-visible { background: #1a1b1f; color: #f8f7f3; outline: none; }
+.itemOn { color: #f8f7f3; font-weight: 600; }
+.glyph { display: inline-flex; color: #a9a59b; flex: 0 0 auto; }
+.itemOn .glyph { color: #ededed; }
+.label { flex: 1 1 auto; }
+.check { color: var(--ut-gold); font-size: 12px; } /* gold mix: the chosen ✓ */
+
+/* Its own control (owner 11-15): hairlines either side and a little air, so it never reads as
+   one more timeframe; a soft rounded backing at rest. */
+.btn { position: relative; height: 26px; padding: 0 6px 0 7px; margin: 0 10px; border-radius: 7px; background: rgba(248, 247, 243, 0.05); }
+.btn::before, .btn::after { content: ''; position: absolute; top: 4px; bottom: 4px; width: 1px; background: var(--widget-divider, #2a2c31); pointer-events: none; }
+.btn::before { left: -8px; }
+.btn::after { right: -8px; }
+.btn:hover, .btnOn { background: rgba(248, 247, 243, 0.11); }
+
+/* Second pass (owner 11-15): no grey square at rest — just the icon between its hairlines; a soft
+   shade only on hover / while the menu is open. */
+.btn { background: none; padding: 0 4px; }
+.btn:hover, .btnOn { background: rgba(248, 247, 243, 0.08); }
+
+/* The date box that follows draws its own divider on its left — one line between them, not two. */
+.btn::after { display: none; }
+.btn { margin-right: 6px; }
+/* No extra air after it: the date box brings its own gap + divider. */
+.btn { margin-right: 0; padding-right: 2px; }
+/* Centred between the two hairlines (owner 11-15): 6px from the left line to the button, the
+   same 6px the date box keeps before its own line; even padding inside. */
+.btn { margin-left: 8px; padding: 0 3px; }
+.btn::before { left: -7px; }
+/* No ▾ (owner 11-15, like TradingView): the candles sit in the exact middle between the hairlines. */
+.btn { padding: 0 4px; }
+
+/* the header icon is the list's own icon, a size up and a touch taller (owner 11-15) */
+.glyphBig { display: inline-flex; transform: scaleY(1.1); }

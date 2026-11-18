@@ -15,6 +15,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { AuthContext } from '../../../context/AuthContext'
 import { parseFormula } from '../engine/ast/parse'
 import BuilderSheet, { buildDefinition } from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { evaluateFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { BUILDER_INPUT_SCOPE } from './builderInputs'
 import { BACKTEST_ENDPOINT, RECORD_ENDPOINT } from './EvidenceTab'
@@ -107,6 +108,7 @@ function mount() {
 }
 const tab = (name) => screen.queryByRole('tab', { name })
 async function clickEdit(name = 'Above the 50') {
+  toStart()
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: `Edit ${name}` })) })
   await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS) })
   await flush()
@@ -118,6 +120,7 @@ afterEach(() => { cleanup(); vi.useRealTimers() })
 describe('BuilderSheet — the Evidence tab', () => {
   it('a NEW sheet has no Evidence tab (nothing saved to show evidence for)', async () => {
     mount(); await flush()
+    writeMyself()
     expect(tab(/formula/i)).toBeTruthy()
     expect(tab(/evidence/i)).toBeNull()
   })
@@ -154,8 +157,12 @@ describe('BuilderSheet — the Evidence tab', () => {
     await flush()
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'New formula' })) })
     await flush()
+    // Direction A: "New formula" is the start view; the editor it opens next is on Formula
+    expect(screen.getByTestId('start-formula')).toBeTruthy()
     expect(tab(/evidence/i)).toBeNull()
     expect(screen.queryByTestId('evidence-tab')).toBeNull()
+    writeMyself()
+    expect(tab(/evidence/i)).toBeNull()
     expect(tab(/formula/i)).toHaveAttribute('aria-selected', 'true')
   })
 
@@ -167,12 +174,15 @@ describe('BuilderSheet — the Evidence tab', () => {
     H.rows = [storedRow()]
     mount(); await flush()
     await clickEdit()
-    await act(async () => { fireEvent.click(tab(/conditions/i)) })
+    openSource('picker')
     await flush()
     expect(tab(/conditions/i)).toHaveAttribute('aria-selected', 'true')
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'New formula' })) })
     await flush()
-    expect(tab(/conditions/i)).toHaveAttribute('aria-selected', 'true')
+    // Direction A: "New formula" from ANY tab is the start view — a new formula with no
+    // door — and the Conditions tab left open does not suppress its describe box.
+    expect(screen.getByTestId('start-picker')).toBeTruthy()
+    expect(screen.getByTestId('concierge-box').dataset.kind).toBe('indicator')
     expect(tab(/evidence/i)).toBeNull()
   })
 })
@@ -191,7 +201,7 @@ describe('BuilderSheet — Evidence for a definition whose box has moved on', ()
     // the repo's own handle for the value carrier: an EXACT label. A regex
     // matches the editor lane's second labelled node too and throws on
     // 'multiple elements' — measured.
-    const box = screen.getByLabelText('Formula')
+    const box = formulaBox()
     await act(async () => { fireEvent.change(box, { target: { value: 'close > sma(close, 200)' } }) })
     await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS) })
     await flush()
@@ -239,7 +249,7 @@ describe('BuilderSheet — Evidence for a definition whose box has moved on', ()
     mount(); await flush()
     await clickEdit('Two plots')
     await act(async () => {
-      fireEvent.change(screen.getByLabelText('Formula'), { target: { value: 'sma(close, 99)' } })
+      fireEvent.change(formulaBox(), { target: { value: 'sma(close, 99)' } })
     })
     await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS) })
     await flush()
@@ -255,7 +265,7 @@ describe('BuilderSheet — Evidence for a definition whose box has moved on', ()
     H.rows = [storedRow()]
     mount(); await flush()
     await clickEdit()
-    await act(async () => { fireEvent.click(screen.getByTestId('add-plot')) })
+    await act(async () => { fireEvent.click((openPlots(), screen.getByTestId('add-plot'))) })
     await flush()
     await act(async () => { fireEvent.click(tab(/evidence/i)) })
     await flush()

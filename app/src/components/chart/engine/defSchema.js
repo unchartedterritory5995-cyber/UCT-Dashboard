@@ -151,6 +151,7 @@ import { isValidTf } from '../timeframes'
 // validator live beside its reader, `paneTable.js`, which imports nothing of
 // this module — so there is no cycle.
 import { validatePaneTable } from './paneTable'
+import { STRATEGY_WINDOW_HISTORY } from './runtime/strategyRecord.js'
 import { isOptionsSource, OPTIONS_SOURCES, optionLabelFor, humanizeOptionValue } from './optionsSources'
 // ⭐ The line-end label (`plots[].endLabel`, UCT RS split U2): grammar beside its
 // reader, `endLabel.js`, which imports nothing of this module.
@@ -783,7 +784,7 @@ function noteRef(plot, field, key) {
 
 // ─── Section validators ──────────────────────────────────────────────────────
 
-function validateCompute(compute, errors, inputScope) {
+function validateCompute(compute, errors, inputScope, meta) {
   if (!isPlainObject(compute)) {
     errors.push(`compute: required object, got ${fmt(compute)}`)
     return
@@ -829,7 +830,7 @@ function validateCompute(compute, errors, inputScope) {
   if (compute.kind === 'ast') {
     validateAstCompute(compute, errors, inputScope)
   } else if (compute.kind === 'runtime') {
-    validateRuntimeCompute(compute, errors)
+    validateRuntimeCompute(compute, errors, meta)
   } else {
     // ⛔ THE MULTI-TREE KEYS BELONG TO THE `ast` LANE ALONE. On any other kind
     // they would be preserved by the unknown-key policy and read by nothing —
@@ -860,7 +861,7 @@ function validateCompute(compute, errors, inputScope) {
  * save door has its own branch for it (`api/services/runtime_definitions.py`,
  * these same rules), switched off by default (`PINE_RUNTIME_SAVE_ENABLED`).
  */
-function validateRuntimeCompute(compute, errors) {
+function validateRuntimeCompute(compute, errors, meta) {
   if (!isNonEmptyString(compute.source)) {
     errors.push(`compute.source: a "runtime" definition carries the script it runs — required non-empty string, got ${fmt(compute.source)}`)
   }
@@ -870,7 +871,12 @@ function validateRuntimeCompute(compute, errors) {
     errors.push(`compute.objects: when present, true (the run draws the document's objects), got ${fmt(compute.objects)}`)
   }
   const ownObjects = compute.objects === true
-  if (!isPlainObject(compute.outputs) || (!ownObjects && !Object.keys(compute.outputs).length)) {
+  // ⭐⭐ W9 ARMED ROUTE (2026-11-16) — a document that runs the strategy broker (`meta.runtimeHistory` is the
+  // strategy window, stamped by the member door only with the dark broker gate on) may map NO plot either: a
+  // tester-only strategy's output is its trades (the record, the markers, the report), not a row.
+  // `api/services/runtime_definitions.py` holds the same rule.
+  const brokerDoc = isPlainObject(meta) && meta.runtimeHistory === STRATEGY_WINDOW_HISTORY
+  if (!isPlainObject(compute.outputs) || (!ownObjects && !brokerDoc && !Object.keys(compute.outputs).length)) {
     errors.push(`compute.outputs: a "runtime" definition maps each plot key to a runtime output index — required non-empty object, got ${fmt(compute.outputs)}`)
   } else {
     for (const [key, index] of Object.entries(compute.outputs)) {
@@ -2108,6 +2114,15 @@ function validatePlacement(placement, errors) {
     errors.push(
       `placement.ownScale: expected a boolean (true draws on its own invisible scale under the bars ` +
       `when the indicator is on the price pane), got ${fmt(placement.ownScale)}`,
+    )
+  }
+  // PRICE-SCALE JOIN (2026-11-16): `joinPriceScale`, stamped on a Pine translation that
+  // declares `overlay = true` (`memberPaneDefinition.joinsPriceScale`). Behavioural, so only
+  // a real boolean is admitted, for the reason `ownScale` gives above.
+  if (placement.joinPriceScale !== undefined && typeof placement.joinPriceScale !== 'boolean') {
+    errors.push(
+      `placement.joinPriceScale: expected a boolean (true lets an imported overlay script's plots ` +
+      `take part in the price pane's autoscale), got ${fmt(placement.joinPriceScale)}`,
     )
   }
 
@@ -4398,7 +4413,7 @@ export function validateDefinition(def) {
     // malformed input row is reported by its own validator, while
     // `declaredInputs` skips anything without a usable string `key`, so a bad
     // row can only make the scope SMALLER — never invent a shadow.
-    validateCompute(out.compute, errors, declaredInputs(out))
+    validateCompute(out.compute, errors, declaredInputs(out), out.meta)
     validateMeta(out.meta, out, errors)
     validatePlacement(out.placement, errors)
 

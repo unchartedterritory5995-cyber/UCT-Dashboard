@@ -1,0 +1,1425 @@
+{
+ "contract": "uct.converse-eval.cases/1",
+ "_": "The UCT house indicators as cases (Studio plan C1 / L2). Each request is the one the house indicator was built from, and `expect.outputs` are the reference trees of every output its patch builds; the scripted answer is that patch. Generated from api/data/worked_examples.json. Indicators that read another symbol or timeframe are left out: the runner has one synthetic symbol on one timeframe.",
+ "chart": {
+  "sym": "TEST",
+  "tf": "D"
+ },
+ "corpus": null,
+ "cases": [
+  {
+   "id": "house-distribution-day-count",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Count distribution days on this chart: a day that closes down at least 0.2 percent on higher volume than the day before. Show a running count over the last 25 sessions in a lower pane, and mark each distribution day with a small red dot above the bar.",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "key": "ddCount",
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "sum",
+         "args": [
+          {
+           "type": "op",
+           "name": "?:",
+           "args": [
+            {
+             "type": "op",
+             "name": "&&",
+             "args": [
+              {
+               "type": "op",
+               "name": "<=",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "op",
+                 "name": "*",
+                 "args": [
+                  {
+                   "type": "offset",
+                   "value": 1,
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  },
+                  {
+                   "type": "num",
+                   "value": 0.998
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "op",
+               "name": ">",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "volume"
+                },
+                {
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "volume"
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 1
+            },
+            {
+             "type": "num",
+             "value": 0
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 25
+          }
+         ]
+        }
+       },
+       {
+        "key": "isDD",
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": "<=",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "offset",
+               "value": 1,
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 0.998
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "volume"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "volume"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "house-atr-extension",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Show how extended price is above its 50 day simple moving average, measured in multiples of the 14 day ATR, and colour the line red above 7 and orange above 4.",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "key": "ext",
+        "type": "series",
+        "tree": {
+         "type": "op",
+         "name": "/",
+         "args": [
+          {
+           "type": "op",
+           "name": "-",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "call",
+             "name": "sma",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 50
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "atr",
+           "args": [
+            {
+             "type": "series",
+             "name": "high"
+            },
+            {
+             "type": "series",
+             "name": "low"
+            },
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "house-volume-with-50-average",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Volume bars with a 50 day average line; colour a bar blue when it is an up day on volume more than 40 percent above average, and pink when it is a down day on volume more than 40 percent above average.",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "key": "vol",
+        "type": "series",
+        "tree": {
+         "type": "series",
+         "name": "volume"
+        }
+       },
+       {
+        "key": "avg",
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "sma",
+         "args": [
+          {
+           "type": "series",
+           "name": "volume"
+          },
+          {
+           "type": "num",
+           "value": 50
+          }
+         ]
+        }
+       },
+       {
+        "key": "upSurge",
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "volume"
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "call",
+               "name": "sma",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "volume"
+                },
+                {
+                 "type": "num",
+                 "value": 50
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 1.4
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       },
+       {
+        "key": "downSurge",
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": "<",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "volume"
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "call",
+               "name": "sma",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "volume"
+                },
+                {
+                 "type": "num",
+                 "value": 50
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 1.4
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "house-gap-up-on-volume",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Mark a gap up of 4% or more on above-average volume (volume above its 50-day average) with an arrow under the bar.",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "key": "gapUpVol",
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": ">=",
+           "args": [
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "-",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "open"
+                  },
+                  {
+                   "type": "offset",
+                   "value": 1,
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 100
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 4
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "volume"
+            },
+            {
+             "type": "call",
+             "name": "sma",
+             "args": [
+              {
+               "type": "series",
+               "name": "volume"
+              },
+              {
+               "type": "num",
+               "value": 50
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "house-inside-outside-bars",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Paint inside bars grey and outside bars purple, and leave every other bar its normal colour.",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "key": "insideBar",
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": "<=",
+           "args": [
+            {
+             "type": "series",
+             "name": "high"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">=",
+           "args": [
+            {
+             "type": "series",
+             "name": "low"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "low"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       },
+       {
+        "key": "outsideBar",
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "high"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": "<",
+           "args": [
+            {
+             "type": "series",
+             "name": "low"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "low"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "house-average-daily-range",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Average daily range percent over 20 days, where each day's range is its high divided by its low minus one, shown as a number in a small table in the top right together with today's range as a percent of that average.",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "key": "adr",
+        "type": "series",
+        "tree": {
+         "type": "op",
+         "name": "*",
+         "args": [
+          {
+           "type": "call",
+           "name": "sma",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "high"
+                },
+                {
+                 "type": "series",
+                 "name": "low"
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 1
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 20
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 100
+          }
+         ]
+        }
+       },
+       {
+        "key": "todayPct",
+        "type": "series",
+        "tree": {
+         "type": "op",
+         "name": "*",
+         "args": [
+          {
+           "type": "op",
+           "name": "/",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "high"
+                },
+                {
+                 "type": "series",
+                 "name": "low"
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 1
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "sma",
+             "args": [
+              {
+               "type": "op",
+               "name": "-",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "/",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "high"
+                  },
+                  {
+                   "type": "series",
+                   "name": "low"
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 1
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 20
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 100
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "house-flat-base",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Shade a flat base in the background: the highest high and the lowest low of the last 25 sessions are within 15% of each other, the close is within 15% of the 52-week high, and the close 25 sessions ago was at least 20% above the close 125 sessions ago.",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "key": "flatBase",
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": "&&",
+           "args": [
+            {
+             "type": "op",
+             "name": "<=",
+             "args": [
+              {
+               "type": "call",
+               "name": "highest",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "high"
+                },
+                {
+                 "type": "num",
+                 "value": 25
+                }
+               ]
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "call",
+                 "name": "lowest",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "low"
+                  },
+                  {
+                   "type": "num",
+                   "value": 25
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 1.15
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": ">=",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "call",
+                 "name": "highest",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "high"
+                  },
+                  {
+                   "type": "num",
+                   "value": 252
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 0.85
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">=",
+           "args": [
+            {
+             "type": "offset",
+             "value": 25,
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "offset",
+               "value": 125,
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 1.2
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "house-up-down-volume-ratio-50",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Up/down volume ratio over 50 days in a lower pane, with a line at 1.0 and green shading while it is above 1.2.",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "key": "udr",
+        "type": "series",
+        "tree": {
+         "type": "op",
+         "name": "/",
+         "args": [
+          {
+           "type": "call",
+           "name": "sum",
+           "args": [
+            {
+             "type": "op",
+             "name": "?:",
+             "args": [
+              {
+               "type": "op",
+               "name": ">",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "series",
+               "name": "volume"
+              },
+              {
+               "type": "num",
+               "value": 0
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 50
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "sum",
+           "args": [
+            {
+             "type": "op",
+             "name": "?:",
+             "args": [
+              {
+               "type": "op",
+               "name": "<",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "series",
+               "name": "volume"
+              },
+              {
+               "type": "num",
+               "value": 0
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 50
+            }
+           ]
+          }
+         ]
+        }
+       },
+       {
+        "key": "strong",
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "op",
+           "name": "/",
+           "args": [
+            {
+             "type": "call",
+             "name": "sum",
+             "args": [
+              {
+               "type": "op",
+               "name": "?:",
+               "args": [
+                {
+                 "type": "op",
+                 "name": ">",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "offset",
+                   "value": 1,
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "series",
+                 "name": "volume"
+                },
+                {
+                 "type": "num",
+                 "value": 0
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 50
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "sum",
+             "args": [
+              {
+               "type": "op",
+               "name": "?:",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "<",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "offset",
+                   "value": 1,
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "series",
+                 "name": "volume"
+                },
+                {
+                 "type": "num",
+                 "value": 0
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 50
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 1.2
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "house-follow-through-day",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Mark a follow-through day: a close up 1.7% or more on higher volume than the day before, but only from day 4 through day 12 after the lowest low of the last 50 sessions.",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "key": "ftd",
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": "&&",
+           "args": [
+            {
+             "type": "op",
+             "name": ">=",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "-",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "offset",
+                   "value": 1,
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 0.017
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": ">",
+             "args": [
+              {
+               "type": "series",
+               "name": "volume"
+              },
+              {
+               "type": "offset",
+               "value": 1,
+               "args": [
+                {
+                 "type": "series",
+                 "name": "volume"
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": "&&",
+           "args": [
+            {
+             "type": "op",
+             "name": ">=",
+             "args": [
+              {
+               "type": "call",
+               "name": "lowestbars",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "low"
+                },
+                {
+                 "type": "num",
+                 "value": 50
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 4
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": "<=",
+             "args": [
+              {
+               "type": "call",
+               "name": "lowestbars",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "low"
+                },
+                {
+                 "type": "num",
+                 "value": 50
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 12
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-unknown-name",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Add the Gann Fan",
+     "model_expected": false,
+     "expect": {
+      "kind": "refused",
+      "max_model_calls": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-other-symbol",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Highlight when the close is above the SPY close",
+     "expect": {
+      "kind": "safe-change-allowed",
+      "named_symbols": [
+       "SPY"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-screener-text",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Highlight it when the sector is Technology",
+     "expect": {
+      "kind": "none"
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-ambiguous",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Show RSI 14 above 70.",
+     "role": "setup",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "words": "add volume confirmation",
+     "expect": {
+      "kind": "clarify",
+      "name_fixed": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-rename-nothing",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Show RSI 14 above 70.",
+     "role": "setup",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "words": "rename it",
+     "expect": {
+      "kind": "none",
+      "name_fixed": true
+     }
+    }
+   ]
+  }
+ ],
+ "left_out": [
+  "relative_strength_vs_spy",
+  "rs_new_high_vs_spy",
+  "percent_distance_from_10_week_ma",
+  "tight_weekly_closes",
+  "previous_week_high_low"
+ ]
+}

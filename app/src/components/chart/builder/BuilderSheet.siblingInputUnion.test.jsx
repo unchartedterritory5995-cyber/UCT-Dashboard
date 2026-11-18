@@ -17,6 +17,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'
 
@@ -75,7 +76,7 @@ async function mount() {
     </AuthContext.Provider>,
   )
   await act(async () => { await Promise.resolve() })
-  fireEvent.click(screen.getByRole('tab', { name: /^import$/i }))
+  openSource('pine')
 }
 
 // ⛔ TWO CYCLES, AND THE SECOND IS NOT PADDING. The import writes the member

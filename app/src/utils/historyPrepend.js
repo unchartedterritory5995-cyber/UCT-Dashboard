@@ -198,6 +198,39 @@ export const TAIL_ENTRY_MAX_BARS = 3000
 /** Background prefetch after first paint stops once the series holds this many bars. */
 export const HISTORY_PREFETCH_TARGET_BARS = TAIL_ENTRY_MAX_BARS + PREFETCH_WINDOWS * HISTORY_WINDOW_BARS
 
+// ── DEEPER FROM THE LAKE (2026-11-17) ────────────────────────────────────────────────────────────
+// The windows above were sized for the SERVER (one bounded provider call each; a deep read that
+// misses bars-api's page cache is disk-bound: 20,000 rows ~0.5 s cold). The history lake answers
+// from immutable pieces at the edge (a month of 1m, a quarter of 5m, a year of 15/30/60m per piece,
+// cached by the browser for a year), so a lake window is as big as a piece and the background depth
+// target is set by what the chart can hold, not by what one request should cost. Indicator plots
+// draw at most the plot window (chart/engine/plotWindow.js), so a deeper series does not make a
+// repaint dearer.
+/** Bars per scroll-back window when the lake carries the key. */
+export const LAKE_WINDOW_BARS = 6000
+/** Background depth (the chart a member rests on, and the list rows next to it) when the lake carries
+ *  the key. Under every intraday depth cap (data/barStore/registry DEFAULT_DEPTH_CAPS, 1m 20,000). */
+export const LAKE_PREFETCH_TARGET_BARS = 20000
+/** The deep-history segment persisted to IndexedDB holds at most this many of the newest bars: what
+ *  the lake brings deeper comes back from the browser's HTTP cache, and a 20,000-row segment would be a
+ *  large structured clone on the main thread each time it grows. Exactly today's background depth. */
+export const HIST_PERSIST_MAX_BARS = HISTORY_PREFETCH_TARGET_BARS
+// ⭐ ZOOMED ALL THE WAY OUT, AT ONCE (2026-11-18, owner: "on an hourly chart of Apple I can instantly
+// zoom all the way out and scroll back"). A store bar of the lake is any bar the raw data has, pre- and
+// after-hours included, so 20,000 store bars showed only ~10,000 regular-session bars: about 5 years of
+// 60m and 2.5 years of 30m. Hourly and 30-minute are small per year (a lake piece is a whole year, ~10 B
+// a bar over the wire), so they load deep: 60m about 15 years, 30m about 6. Every other intraday
+// timeframe keeps 20,000. Each stays under its registry depth cap (DEFAULT_DEPTH_CAPS).
+export const LAKE_TARGET_BARS_BY_TF = Object.freeze({ '60': 50000, '30': 40000 })
+/** The lake depth (store bars) one load brings for a timeframe ('1', '5', '15', '30', '60'). */
+export function lakeTargetBars(tf) {
+  return LAKE_TARGET_BARS_BY_TF[String(tf)] ?? LAKE_PREFETCH_TARGET_BARS
+}
+/** The background depth target for a key: deeper when the lake carries it (and per timeframe there). */
+export function prefetchTargetBars(lakeCarries, tf) {
+  return lakeCarries ? lakeTargetBars(tf) : HISTORY_PREFETCH_TARGET_BARS
+}
+
 /** True when `hist` can be prepended to `tail` without drawing a hole: it holds bars
  *  older than the tail AND its newest bar reaches the tail's oldest. */
 export function historyReachesTail(hist, tail) {

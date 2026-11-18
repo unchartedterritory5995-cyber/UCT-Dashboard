@@ -23,6 +23,8 @@
 // zero. An object at coordinate zero is a drawing; an object that did not draw
 // is a fact.
 import { nodeTree } from './ast/graph'
+import { runHalfOnlySettingMoved } from './runHalfInputs.js'
+import { calcBarsWindowOf } from './calcBarsWindow.js'
 import { graphNodesReferenced, bindObjectProgram, runtimeAtIndex, withBarIndexHeld } from './ast/objectProgram'
 import {
   interpret, maxLookback, readsSwitchedState, probeValuesOf, PREFIX_PROBE, switchedDependencyMask,
@@ -30,10 +32,15 @@ import {
 } from './ast/interpret'
 import { barIndexClass } from './ast/barIndexShift'
 import { RECURRENCES } from './ast/parse.js'
+// ⭐ HOST WORKER — the helpers from where they live (`astColumns.js`, `ast/bind`), not through the chart
+// registry's re-exports (the same functions), and the registry's `computeFor` through its seam: this
+// module's closure is then host-neutral, so the host object lane can be evaluated in a worker
+// (`hostLaneAsync.js`, `tools/pine_runtime_closure.mjs`).
 import {
-  resolveInputs, treeScalars, bindConstsFor, historyFromListingFor, listingOptsFor, barIndexAbsoluteFor, varOriginAbsoluteFor, otherSymbolsFor, lowerTfFor, computeFor,
+  resolveInputs, treeScalars, historyFromListingFor, listingOptsFor, barIndexAbsoluteFor, varOriginAbsoluteFor, otherSymbolsFor, lowerTfFor,
   runtimeErrorStopOf,
-} from './nativeRegistry'
+} from './astColumns.js'
+import { bindConstsFor } from './ast/bind'
 import { otherSymbolRefusalOfTree } from './otherSymbols'
 import { periodReadsObjectRefusal } from './periodReads'
 import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
@@ -43,7 +50,7 @@ import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
 import { runtimeErrorStopFor } from './runtimeErrorStop'
 import { foldBound } from './ast/bind'
 import { barOpenInstant } from '../indicators.js'
-import { registeredObjectRuntimeValues, inputsAtDefaults } from './objectRuntimeSeam.js'
+import { registeredObjectRuntimeValues, inputsAtDefaults, registeredObjectComputeFor } from './objectRuntimeSeam.js'
 
 // ─── ⭐⭐ C18 — THE RUNTIME LANE, FOR THE VALUES ONLY AN IMPERATIVE RUN COMPUTES ──
 //
@@ -610,6 +617,9 @@ function chartClockRows(map) {
 export function objectReaderFor(definition, bars, opts = {}) {
   const stored = definition && definition.objects
   if (!stored || !Array.isArray(stored.ops) || !stored.ops.length) return null
+  // ⭐ SETTINGS PARITY (2c) — a setting only the run half reads has been moved: this program
+  // folded it at the author's default, so it draws nothing (`runHalfInputs.runHalfOnlySettingMoved`)
+  if (runHalfOnlySettingMoved(definition, opts.inputs)) return null
   // ⭐⭐ C29 — the plot lane's own rule (`periodReads.js`): a document folded at
   // another chart period draws NOTHING here rather than the other period's text.
   if (periodReadsObjectRefusal(definition, opts.tf)) return null
@@ -618,9 +628,13 @@ export function objectReaderFor(definition, bars, opts = {}) {
   // is read here — the same decision the plot lane takes (`runtimeErrorStop.js`,
   // one evaluation for both).
   if (definition.meta && definition.meta.runtimeErrors) {
-    const stop = runtimeErrorStopFor(definition, bars, opts.inputs, {
+    // ⭐⭐ CBC-FMT — over the `calc_bars_count` window when the document has one: an error
+    // reached only on bars before the window is not reached on TradingView (it never computes
+    // them), so it must not stop the picture (`engine/calcBarsWindow.js`).
+    const win = calcBarsWindowOf(definition, bars)
+    const stop = runtimeErrorStopFor(definition, win ? win.rows : bars, opts.inputs, {
       tf: opts.tf, symbol: opts.symbol, newestBarIsForming: opts.newestBarIsForming ?? null,
-      historyFromListing: opts.historyFromListing === true,
+      historyFromListing: win ? true : opts.historyFromListing === true,
     })
     if (stop && stop.reached) return null
   }
@@ -628,8 +642,9 @@ export function objectReaderFor(definition, bars, opts = {}) {
   // stopped: the run is the authority there, and it is memoised per bars array.
   if (definition.compute && definition.compute.kind === 'runtime') {
     let cols = null
+    const computeFor = registeredObjectComputeFor()
     try {
-      cols = computeFor(definition, bars, opts.inputs, {
+      cols = computeFor && computeFor(definition, bars, opts.inputs, {
         tf: opts.tf, symbol: opts.symbol, newestBarIsForming: opts.newestBarIsForming ?? null,
         ...(opts.historyFromListing === true ? { historyFromListing: true } : {}),
       })

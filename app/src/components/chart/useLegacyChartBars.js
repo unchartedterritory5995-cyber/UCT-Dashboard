@@ -30,6 +30,7 @@ import { classifyIntradayTail, isCacheCurrentForView, expectedFormingBar, isDail
 import { createTailPollState, nextTailPollMs, tailRetriesExhausted, intradayDedupMs } from '../../utils/intradayTailPoll'
 import { resample, resampleForSpec } from '../../utils/resampleBars'
 import { FIRST_PAINT_BARS, firstPaintBarsFor, spliceDeepLeftOfFresh } from '../../utils/barsBackfill'
+import { barsHistoryUrl } from '../../data/barStore/network'
 
 // Cold-start first-paint safety valve: the longest the FIRST chart paint may wait on
 // the local IndexedDB read before falling through to a full server fetch. A fresh
@@ -150,6 +151,12 @@ export function resolveDailyTodaySeed({ sym, resolvedTf, _developingBarISO, _eff
   } catch { /* no seed */ }
   return null
 }
+
+/** TERM-033: what the delta request's device-cache seed resolves to when the read FAILED or did not
+ *  land within `_IDB_TAIL_WAIT_MS`. It is "no seed", never "no bars": the request then goes out
+ *  without a `since` base (a full read), exactly as for a key the cache does not hold. */
+const NO_IDB_SEED = null
+const noIdbSeed = () => NO_IDB_SEED
 
 export function useLegacyChartBars({
   sym, resolvedTf, _barsTf, _econId, showExtended, isIntraday, dedupMs, breadthSeries, replayCutoff,
@@ -612,7 +619,7 @@ export function useLegacyChartBars({
     }
   }
   const histUrl = _histFire
-    ? `/api/bars-history/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${_fullTarget}${_histSealedDate ? `&d=${_histSealedDate}` : ''}`
+    ? barsHistoryUrl(sym, resolvedTf, _histSealedDate)   // THE history URL (data/barStore/network.js; = bars=_fullTarget)
     : null
   // ── THE INTRADAY TAIL KEY (2026-11-10) ─────────────────────────────────────────
   // ⛔⛔ `since` IS NOT PART OF THE KEY ANY MORE. With `&since=<tail>` in the URL, every
@@ -663,8 +670,8 @@ export function useLegacyChartBars({
           seed = { bars: mem, t: mt, rf: null }
         } else {
           const rd = _idbReadRef.current?.key === req.key ? _idbReadRef.current.p : null
-          const entry = rd ? await Promise.race([rd.catch(() => null),
-            new Promise((r) => setTimeout(() => r(null), _IDB_TAIL_WAIT_MS))]) : null
+          const entry = rd ? await Promise.race([rd.catch(noIdbSeed),
+            new Promise((r) => setTimeout(() => r(NO_IDB_SEED), _IDB_TAIL_WAIT_MS))]) : NO_IDB_SEED
           if (entry?.bars?.length && typeof entry.lastT === 'number'
               && classifyIntradayTail(entry.lastT, req.tf) !== 'gapped') {
             seed = { bars: entry.bars, t: entry.lastT, rf: typeof entry.repairFromT === 'number' ? entry.repairFromT : null }

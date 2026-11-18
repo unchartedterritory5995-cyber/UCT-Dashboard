@@ -1,0 +1,11 @@
+# Packages the CI TEST runs install on top of requirements.txt, and the production image does NOT.
+#
+# Installed by the nightly full suite's pytest shards (.github/workflows/full-suite-report.yml) and by the
+# remote lane's pytest job (.github/workflows/remote-tests.yml). Each line names the suites that need it.
+# Not named requirements*.txt on purpose: railway.web.json watches that pattern, and a test-only package
+# must never redeploy the site.
+#
+# tools/history_lake/piece.py imports brotli at module level; tests/test_history_lake_{build,jobs,merge,
+# pack,piece,stamp}.py could not even be collected without it (remote run 44307066612, 2026-11-18).
+# Pinned to the version the history-lake publish runs with on the dev PC.
+brotli==1.2.0

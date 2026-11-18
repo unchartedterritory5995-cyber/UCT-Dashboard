@@ -1223,6 +1223,30 @@
    "source": "d1",
    "quote": "TIGR | 2024-10-07 | +327% in 15 sessions (+269% in 60); 67% over 9 EMA, 192% over 50-day, ATR x24.6; 4/4 boxes; gap +12.1%; vol 1.56x 20-day high; above 200-day",
    "claim": "TIGR, climax 2024-10-07: Bracco's own named example, four of four boxes, a 12.1% gap, volume 1.56 times the 20-day high."
+  },
+  {
+   "id": "r07",
+   "source": "h2",
+   "quote": "Shorts may be taught, but every short lesson says shorting is recommended only for traders who have already made $1 million trading.",
+   "claim": "Shorting is recommended only for traders who have already made $1 million trading (D-001)."
+  },
+  {
+   "id": "r08",
+   "source": "h2",
+   "quote": "Below the 200-day is a hard no for stocks.",
+   "claim": "Below the 200-day is a hard no for stocks; indexes and levered ETFs are the one exception (D-009)."
+  },
+  {
+   "id": "r09",
+   "source": "hw",
+   "quote": "Every setup, long or short, enters as price trades through its trigger during the day, never at the close.",
+   "claim": "Every setup enters as price trades through its trigger during the day, never at the close (D-003)."
+  },
+  {
+   "id": "rw_add",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy full size at one price with one stop and never add to a loser; adding to a working winner is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1230,10 +1254,10 @@
    "key": "w1",
    "title": "GDS, February 2025: the textbook climax",
    "steps": [
-    "GDS, February 2025. A 13-session run from a flat base, up 145%, four of four boxes.",
-    "On 2025-02-20 it gaps up 15.4% on record volume, the highest of the run. Nothing at the open.",
-    "The trigger lives on the 5-minute chart: the break under VWAP after the high. Our daily stand-in is the red close, 48.50.",
-    "Stop a few cents over the day's high, 52.56. Target the daily 9 EMA: reached in 2 sessions, 3R on day 5."
+    "I only recommend shorting to traders who've already made $1 million trading. With that said, here's the cleanest one we found.",
+    "GDS, February 2025: up 145% in 13 sessions off a flat base. February 20 it gaps up 15.4% on record volume.",
+    "Nothing at the open. Wait for the crack, a break under VWAP after the high. Short it, stop just over the high.",
+    "Cover at the daily 9 EMA. It got there in 2 sessions, and 3R came by day 5."
    ],
    "facts": [
     "d01",
@@ -1245,17 +1269,19 @@
     "c04",
     "c05",
     "h05",
-    "b14"
+    "b14",
+    "c42",
+    "r07"
    ]
   },
   {
    "key": "w2",
    "title": "CGC, February 2021: three gaps into the top",
    "steps": [
-    "CGC, February 2021: a cannabis mania. Up 74% in 12 sessions, three gap days in a row into the climax.",
-    "On 2021-02-10 it gaps up 7.6% on 3x volume and prints a long upper wick: it opens higher and closes lower.",
-    "Short at the crack. On daily bars that is the close, 521.70. Stop just over the high, 565.54.",
-    "The 9 EMA comes the next day, 3R on day 2, 5R in 6 weeks. Failure mode: a reclaim of the high."
+    "CGC, February 2021, the cannabis mania. Up 74% in 12 sessions, gapping up three days in a row into the top.",
+    "February 10 it gaps up 7.6% on 3 times volume. Opens higher, closes lower, with a long upper wick. That's the shape.",
+    "On daily bars the short is the close, 521.70, stop just over the high at 565.54. That's 8.4% away.",
+    "Past 5%, I mostly wait for a tighter trigger. Reclaim the high and you're out. This hit the 9 EMA next day."
    ],
    "facts": [
     "d04",
@@ -1264,17 +1290,19 @@
     "b21",
     "c05",
     "c06",
-    "h05"
+    "h05",
+    "r01",
+    "r02"
    ]
   },
   {
    "key": "w3",
-   "title": "BILI, October 2024: a wide stop, fewer shares",
+   "title": "BILI, October 2024: a stop past 5%",
    "steps": [
-    "BILI, October 2024. A twelve-session vertical on China stimulus, up 121%, three of four boxes.",
-    "On 2024-10-02 it gaps up 11.3% on the biggest volume of the run and closes in the lower third.",
-    "Short the crack; on daily bars the close, 29.66. Stop over the high, 31.81, 7.2% away: fewer shares.",
-    "The 9 EMA in 4 sessions, 3R on day 4, 5.46R at best. Paid at the 9 EMA, or not at all."
+    "BILI, October 2024. China stimulus sends it up 121% in twelve sessions, straight up.",
+    "October 2 it gaps up 11.3% on the biggest volume of the run, then closes in the lower third. It cracked.",
+    "On daily bars, short 29.66, stop 31.81. That's 7.2%, past our 5%. I'd mostly wait. Take it, and it's fewer shares.",
+    "It hit the 9 EMA in 4 sessions. This setup pays there within a few sessions, or not at all."
    ],
    "facts": [
     "d07",
@@ -1283,7 +1311,9 @@
     "h09",
     "h18",
     "h05",
-    "d30"
+    "d30",
+    "r01",
+    "r02"
    ]
   }
  ],
@@ -1294,34 +1324,33 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "ps.parabolic_not_linear",
-   "q": "In one line, what is a Parabolic Short?",
+   "q": "A red-hot stock has gone vertical for days and gaps up again this morning. What trade are we hunting here?",
    "choices": [
-    "A short of a vertical run as it cracks",
-    "Shorting any stock under its 200-day",
-    "A short at the top before the crack",
-    "A long bought as a crash day turns"
+    "Short it once it cracks",
+    "Short the gap right at the open",
+    "Buy the gap, it's the strongest name",
+    "Nothing, never short a leader"
    ],
-   "answer": "A short of a vertical run as it cracks",
-   "why": "A short of a vertical run as it cracks. Bracco: the burst is a 3-5 day move, the final leg of a parabolic run. It follows a big advance, large caps up 50% or more and small caps 300% or more. We short only after the crack, never the run itself. It is a mean-reversion trade that sometimes, not always, marks a lasting top.",
-   "lesson_line": "You short the crack of a vertical run, never the run itself.",
+   "answer": "Short it once it cracks",
+   "why": "Short it once it cracks. That's the parabolic short. The burst is a 3-5 day move, the last vertical leg of a big run. We never short the climb itself. We wait for the crack, the break back under VWAP, and short that. It's a mean-reversion trade: a stretched stock snapping back. Sometimes it marks a lasting top, not always. One more thing. I only recommend shorting to traders who have already made $1 million trading.",
+   "lesson_line": "Let it go vertical. Short the crack, never the climb.",
    "facts": [
     "b01",
     "s10",
-    "k01",
-    "c42",
-    "b30",
-    "c12",
-    "b13",
     "c04",
-    "c19",
-    "d09"
+    "b13",
+    "s15",
+    "b30",
+    "c42",
+    "r07",
+    "k01"
    ],
    "wrong": {
-    "Shorting any stock under its 200-day": "This setup lives far above its 200-day, in one of the hottest stocks in the market.",
-    "A short at the top before the crack": "Shorting at the day's highs can be a dangerous trap. We wait for the break back under VWAP.",
-    "A long bought as a crash day turns": "That is the Parabolic Long, the mirror image: a burst down, bought on the intraday turn."
+    "Short the gap right at the open": "That's shorting into strength at the highs. The gap can keep running, and you're the one who gets run over.",
+    "Buy the gap, it's the strongest name": "That's chasing the last leg. The stock is as stretched as it gets, right where it tends to snap back.",
+    "Nothing, never short a leader": "Leaders going parabolic is exactly where this trade lives. A cycle often ends with the best names blowing off."
    },
-   "simple": "We short a stock that went vertical, but only once it starts to crack, never while it is still climbing.",
+   "simple": "We short a stock that went vertical, but only once it cracks, never while it's still climbing.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1329,7 +1358,7 @@
      "defines the setup by the owner's house definition (B26)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
@@ -1337,30 +1366,29 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "ps.above_200",
-   "q": "Our rule says no shorts above the 200-day, with one exception. Which short is it?",
+   "q": "We don't short stocks above their 200-day, with one exception. Which short can you take up there?",
    "choices": [
-    "A parabolic short, as Bracco has it",
-    "Any short once a stock is up 50%",
-    "A short taken while the market is Red",
-    "A short at an obvious round number"
+    "A parabolic short off a climax",
+    "Any short once it's up 50%",
+    "Any short when the market's Red",
+    "A short at a big round number"
    ],
-   "answer": "A parabolic short, as Bracco has it",
-   "why": "A parabolic short. Our rule is shorts only below the 200-day, never above it unless the short is a parabolic short. Bracco's post is what defines one. A big percent gain does not open that door. A Red market does not open it either.",
-   "lesson_line": "Above the 200-day there is one short we take, and Bracco's post says what it is.",
+   "answer": "A parabolic short off a climax",
+   "why": "A parabolic short off a climax. Above the 200-day, that's the one short we take. Everything else up there is a stock in an uptrend, and shorting uptrends is how you get run over. The parabolic one is different. It's one of the hottest stocks in the market, far above its 200-day, and it just blew off in a burst. A big percent gain alone doesn't open that door. Neither does the market reading or a round number.",
+   "lesson_line": "Above the 200-day there's one short we take: the parabolic one.",
    "facts": [
     "h01",
     "h04",
     "c42",
-    "s11",
-    "c37"
+    "s11"
    ],
    "wrong": {
-    "Any short once a stock is up 50%": "A percent gain is not the test. The exception is the parabolic short, as Bracco defines it.",
-    "A short taken while the market is Red": "The market reading is not what lets a short sit above the 200-day. The parabolic definition is.",
-    "A short at an obvious round number": "Round numbers are where climax points often come. They are not an exception to the 200-day rule."
+    "Any short once it's up 50%": "A percent gain isn't the test. Plenty of strong stocks are up 50% and still trending. Only the parabolic climax qualifies.",
+    "Any short when the market's Red": "Red on our market filter means we're mostly in cash. It doesn't change where the stock sits against its 200-day.",
+    "A short at a big round number": "Round numbers are where climax points often come. That's a cue, not a pass to short above the 200-day."
    },
    "house": true,
-   "simple": "Our 200-day rule has one exception, the parabolic short as Bracco defines it.",
+   "simple": "Above the 200-day we only short a parabolic climax. Nothing else gets us short up there.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1370,7 +1398,7 @@
      "the exception test is held (D-040); the key uses only B26's own words"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
@@ -1378,17 +1406,18 @@
    "rung": 1,
    "format": "tf",
    "criterion": "ps.climax_gap",
-   "q": "Bracco will not take the climax-day short without a gap up on the climax day.",
+   "q": "We need a gap up on the climax day before we'll short it.",
    "answer": "True",
-   "why": "True. Bracco writes that you never know exactly when the climax day will hit, but he won't short without that gap-up. Our criteria card requires it too: the climax day must open above the prior close. A gap of 5% or more is stronger. Any open above the prior close meets the rule.",
+   "why": "True. No gap up, no trade. Bracco won't short without that gap-up, and neither do we. The gap is the exhaustion, the run spending its last buyers at the open. Any open above the prior close counts. A gap of 5% or more is the stronger one. Without the gap, a red day is just a red day.",
    "lesson_line": "No gap up, no climax-day short.",
    "facts": [
     "b06",
     "c01",
-    "h02"
+    "h02",
+    "g01"
    ],
    "house": true,
-   "simple": "True, because Bracco says he will not short a climax day unless it gaps up.",
+   "simple": "True. The gap up is the run's last rush of buyers, so without it there's nothing to short.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1396,7 +1425,7 @@
      "rests on the owner's rulebook and the criteria card (the climax gap is settled there; the owner may loosen it)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q04",
@@ -1404,8 +1433,8 @@
    "rung": 1,
    "format": "fill",
    "criterion": "ps.cover_9ema",
-   "q": "Tap the number that fits the blank.",
-   "sentence": "The target of a Parabolic Short is the daily ___ EMA.",
+   "q": "You're short the crack on a climax day. Where are you looking to cover?",
+   "sentence": "I cover a parabolic short at the daily ___ EMA.",
    "bank": [
     "9",
     "21",
@@ -1414,14 +1443,15 @@
     "5"
    ],
    "answer": "9",
-   "why": "9. The 9 EMA is the exponential moving average of the daily closes, so recent days count most. Bracco calls it a magnet for mean reversion: a stretched stock tends to get pulled back toward it. That makes it the level you cover at, so know where it sits before you short. Our rule names the 9-day average as this setup's target.",
-   "lesson_line": "The trade runs to the 9 EMA. Know where it sits before you short.",
+   "why": "9. The daily 9 EMA is the target. A stock stretched this far gets pulled back toward it like a magnet. That snap back is the trade. Before you short, find the 9 EMA and count how far away it is in R. If it's close, the trade is small. The longer averages are way too far off to plan around.",
+   "lesson_line": "The 9 EMA is the target. Know where it sits before you short.",
    "facts": [
     "h05",
-    "b14"
+    "b14",
+    "b23"
    ],
    "house": true,
-   "simple": "The target is the daily 9 EMA, which Bracco says pulls a stretched stock back like a magnet.",
+   "simple": "The daily 9 EMA. A stretched stock snaps back toward it, so that's where you cover.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1430,7 +1460,7 @@
      "how much comes off at the 9 EMA is held (D-013); the key is the level only"
     ]
    },
-   "batch": "fills"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q05",
@@ -1438,29 +1468,30 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "ps.stop",
-   "q": "Where does the stop sit on a Parabolic Short?",
+   "q": "You just shorted the VWAP break on a climax day. Where does your stop go?",
    "choices": [
-    "A few cents over the day's high",
-    "A few cents under the low",
-    "At the 9 EMA, below the price",
-    "A fixed 3% above your fill"
+    "Just over the high of the day",
+    "Just under the low of the day",
+    "At the 9 EMA, under price",
+    "A flat 3% above your entry"
    ],
-   "answer": "A few cents over the day's high",
-   "why": "A few cents over the climax day's high. Bracco's thesis is that the top is in, so the day's high is the line. Our card puts the stop a few cents over the high at the time of entry. Kullamagi agrees: the stop is the highs of the day. It is a level on the chart, not a percent of your fill.",
-   "lesson_line": "The stop is over the day's high. If that goes, the top was not in.",
+   "answer": "Just over the high of the day",
+   "why": "Just over the high of the day. The whole idea is that the top is in. If price gets back over that high, the top wasn't in and you're wrong. So the stop goes a few cents over it. It's a level on the chart, not a percent you picked. Then the size comes from that stop.",
+   "lesson_line": "The stop lives over the high. Lose that and the top wasn't in.",
    "facts": [
     "b15",
-    "h05",
     "c05",
-    "k03"
+    "h05",
+    "b16",
+    "h12"
    ],
    "wrong": {
-    "A few cents under the low": "That is a long's stop. A short's stop sits above price.",
-    "At the 9 EMA, below the price": "The 9 EMA is the target, not the stop. A short's stop sits above price.",
-    "A fixed 3% above your fill": "The stop is a level on the chart, the day's high, not a percent."
+    "Just under the low of the day": "That's a long's stop. On a short your risk is price going up, so the stop sits above.",
+    "At the 9 EMA, under price": "The 9 EMA is where you cover. It's below price, so it can't be the stop on a short.",
+    "A flat 3% above your entry": "The stop goes where the chart says you're wrong, the high of the day. A percent you pick ignores the chart."
    },
    "house": true,
-   "simple": "The stop goes a few cents over the day's high, because if price gets back there the top was not in.",
+   "simple": "Over the high of the day. If price gets back above it, the top wasn't in.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1468,7 +1499,7 @@
      "rests on the owner's rulebook (D47) and the criteria card (settled stop)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q06",
@@ -1476,19 +1507,18 @@
    "rung": 1,
    "format": "tf",
    "criterion": "ps.open_wait",
-   "q": "On the climax day you short the gap up at the open, before the high is set.",
+   "q": "On the climax day, you short the gap right at the open.",
    "answer": "False",
-   "why": "False. After the gap up, nothing at the open. The short comes later, when the stock breaks back under VWAP after the high is set, usually 10 to 60 minutes in. Shorting at the day's highs can be a dangerous trap. Kullamagi: do not be early, and let the amateur shorts get run over.",
+   "why": "False. Nothing at the open. A climax gap can keep running, and shorting the highs is how you get run over. Let it set the high first. The trade is the break back under VWAP, often 10 to 60 minutes in. That's when you know sellers have finally shown up.",
    "lesson_line": "The open is for watching. The crack is for shorting.",
    "facts": [
     "c03",
     "b13",
-    "k04",
-    "k05",
-    "c04"
+    "c04",
+    "b11"
    ],
    "house": true,
-   "simple": "False. After the gap up we do nothing at the open, because shorting at the day's highs is a dangerous trap.",
+   "simple": "False, we let it set the high and wait for the break under VWAP. Shorting the open is shorting strength.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1496,7 +1526,7 @@
      "rests on the card's proposed open-wait rule"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
@@ -1504,30 +1534,31 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "ps.burst_boxes",
-   "q": "Which of these is one of Bracco's burst boxes?",
+   "q": "A stock has been running hard. Which of these makes it look more like a parabolic burst?",
    "choices": [
     "Two straight overnight gap ups",
-    "A close under the 50-day",
-    "Volume falling for two days",
-    "A ten-week base before it"
+    "A close back under the 50-day",
+    "Volume drying up the last two days",
+    "A ten-week base right before"
    ],
    "answer": "Two straight overnight gap ups",
-   "why": "Two straight overnight gap ups. Bracco's boxes are three straight up days and two straight overnight gap ups. Add two of three days of range expansion and two days of rising volume. Then a gap up on the climax day. Not every box must be checked, but the more that are, the stronger the setup.",
+   "why": "Two straight overnight gap ups. That's one of the boxes we check on a burst. The others: three straight up days, and two of three days with a bigger percent gain than the day before. Then two days of rising volume, and a gap up on the climax day. You don't need every box. The more you check, the stronger the setup.",
    "lesson_line": "Count the boxes: up days, gap ups, bigger gains, rising volume, the climax gap.",
    "facts": [
     "h02",
     "b02",
     "b03",
     "b04",
-    "b05"
+    "b05",
+    "b07"
    ],
    "wrong": {
-    "A close under the 50-day": "A burst runs far above its averages. A close under the 50-day is a different chart.",
-    "Volume falling for two days": "The box is rising volume, each day higher than the last.",
-    "A ten-week base before it": "The boxes count the burst's last days, not the base before it."
+    "A close back under the 50-day": "A burst runs far above its averages. A close under the 50-day is a stock breaking down, not blowing off.",
+    "Volume drying up the last two days": "In a burst we want volume rising, each day bigger than the last. Drying up is what we like in a base.",
+    "A ten-week base right before": "A base is where a run starts. The boxes count the last few days, where it goes vertical."
    },
    "house": true,
-   "simple": "Two straight overnight gap ups is one of Bracco's boxes for a burst.",
+   "simple": "Two straight gap ups. A burst is fast and speeding up, and back-to-back gaps show buyers paying up.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1536,7 +1567,7 @@
      "the count of boxes needed is held (D-040); only the boxes themselves are keyed"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
@@ -1544,7 +1575,7 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "ps.vwap_trigger",
-   "q": "The climax day gaps up, runs higher for 20 minutes, then turns. What is the first entry?",
+   "q": "The climax day gaps up and runs for 20 minutes, then rolls over. Where's your first entry?",
    "choices": [
     "The break back under VWAP",
     "The first print at the open",
@@ -1552,24 +1583,23 @@
     "A daily close under the 9 EMA"
    ],
    "answer": "The break back under VWAP",
-   "why": "The break back under VWAP. Bracco: typically 10 to 60 minutes after the open, sellers emerge and the stock starts to reverse. He calls that pattern the U-Turn. The first entry is a breakdown below VWAP, and he never enters before that. Our card says short on that break after the high is set. It is not the open, a green bar or a daily close.",
-   "lesson_line": "The first entry is the VWAP break after the high is set.",
+   "why": "The break back under VWAP. Bracco calls this shape the U-Turn: it runs early, then sellers show up 10 to 60 minutes in. He never enters before price at least breaks VWAP, and neither do we. Under VWAP, the average buyer today is losing money. Those gap chasers are trapped, and that's your edge. Send the market order on the break, stop over the high of the day.",
+   "lesson_line": "First entry: the VWAP break after the high is in.",
    "facts": [
     "b11",
     "b12",
     "b26",
-    "c03",
     "c04",
-    "k07",
-    "k06"
+    "h08",
+    "c05"
    ],
    "wrong": {
-    "The first green 5-minute bar": "A green bar is strength. The entry is the break down, under VWAP.",
-    "A daily close under the 9 EMA": "The 9 EMA is where the trade ends, not where it starts.",
-    "The first print at the open": "Nothing at the open. The high is not set yet."
+    "The first green 5-minute bar": "A green bar is buyers still pushing. You want the break down, not a bounce.",
+    "A daily close under the 9 EMA": "The 9 EMA is where you cover. By the time it closes under it, the trade's already done.",
+    "The first print at the open": "The high isn't set yet at the open. Short there and you're guessing at the top."
    },
    "house": true,
-   "simple": "You short the first time price breaks back under VWAP after the high is set, not at the open.",
+   "simple": "Short the break under VWAP. That's when the gap buyers are trapped and sellers have taken over.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1578,7 +1608,7 @@
      "several agreeing quotes"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q09",
@@ -1586,18 +1616,17 @@
    "rung": 2,
    "format": "tf",
    "criterion": "ps.red_close_daily",
-   "q": "On daily bars, the stand-in for the intraday crack is a climax day that closes above its open.",
+   "q": "On a daily chart, a climax day that closes green is the crack.",
    "answer": "False",
-   "why": "False. On daily bars the stand-in for the intraday crack is a climax day that closes under its open. It opens higher and closes lower. Shorting a green climax day won 23% of the time. The real trigger is the break under VWAP, which a daily bar cannot show.",
-   "lesson_line": "Opens higher, closes lower: that is the crack on a daily chart.",
+   "why": "False. On a daily chart the crack is a close under the open: it opens higher and closes lower. A green close means buyers held it all day. Shorting a green climax day won 23% of the time. The real trigger is the VWAP break during the day. The red daily bar is just how that looks afterward.",
+   "lesson_line": "Opens higher, closes lower. That's the crack on a daily chart.",
    "facts": [
     "c02",
     "b21",
-    "u02",
-    "b11"
+    "c04"
    ],
    "house": true,
-   "simple": "False. On a daily chart the crack is a close under the open, and shorting a green climax day won only 23% of the time.",
+   "simple": "False, the crack on a daily chart is a red close under the open. Green means buyers still won the day.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1606,7 +1635,7 @@
      "rests on the card's daily-bar stand-in"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q10",
@@ -1651,28 +1680,28 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "ps.prior_move",
-   "q": "By Kullamagi's rule, how far has a larger-cap stock run before it is a candidate?",
+   "q": "Kullamagi's rule of thumb for a larger-cap parabolic short: how far has the stock already run?",
    "choices": [
-    "50% to 100% or more in days or weeks",
-    "10% to 20% in the past few months",
-    "300% to 1,000% or more in days or weeks",
-    "The run does not matter; the gap does"
+    "50% to 100%+ in days or weeks",
+    "10% to 20% over a few months",
+    "300% to 1,000%+ in days or weeks",
+    "Doesn't matter, only the gap"
    ],
-   "answer": "50% to 100% or more in days or weeks",
-   "why": "50% to 100% or more in days or weeks. Kullamagi's floor for a larger cap is a stock up 50-100%+ in a few days or weeks. A smaller cap needs 300-1000%+. Our card takes 50% or more for large caps. The run is only the entry ticket. Bracco calls judging by percent gain alone a frequent mistake, so the chart's shape must fit too.",
-   "lesson_line": "A big run comes first. Half again its price, at least, in days or weeks.",
+   "answer": "50% to 100%+ in days or weeks",
+   "why": "50% to 100% or more, in days or weeks. That's Kullamagi's bar for a larger cap. For a smaller cap he wants 300% to 1,000% or more. Think of the run as the ticket in. A stock has to be stretched before there's anything to snap back. But the percent alone isn't the test. Bracco calls judging by percent gain alone a frequent mistake. The shape has to be vertical too.",
+   "lesson_line": "Big run first. Then look at the shape.",
    "facts": [
     "k01",
-    "c12",
-    "b22"
+    "b22",
+    "c12"
    ],
    "wrong": {
-    "The run does not matter; the gap does": "The gap ends a run. Without the large advance there is nothing to exhaust.",
-    "10% to 20% in the past few months": "That is far below Kullamagi's floor of 50%. It is an ordinary move, not a parabolic run.",
-    "300% to 1,000% or more in days or weeks": "That is his bar for a smaller cap, not a larger one."
+    "10% to 20% over a few months": "That's a normal move. Nothing is stretched enough to snap back.",
+    "300% to 1,000%+ in days or weeks": "That's his bar for a smaller cap, not a larger one.",
+    "Doesn't matter, only the gap": "The gap ends a run. Without a big run first, there's nothing for it to exhaust."
    },
    "house": true,
-   "simple": "A larger-cap stock must be up 50% to 100% or more in days or weeks first, by Kullamagi's rule.",
+   "simple": "A larger cap needs to be up a lot, fast. Without a big run first, there's nothing to snap back.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1684,7 +1713,7 @@
    "depends_on": [
     "D-122"
    ],
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q12",
@@ -1692,16 +1721,16 @@
    "rung": 2,
    "format": "scenario",
    "criterion": "ps.not_this",
-   "q": "Is this our Parabolic Short?",
+   "q": "Can you short this one?",
    "choices": [
-    "No; the run is still too young",
-    "Yes; the gap and red close fit it",
-    "Yes; the gap up is the trigger",
-    "No; the gap is under the 5% minimum"
+    "No, the run's too young",
+    "Yes, gap up and a red close",
+    "Yes, the gap is the trigger",
+    "No, the gap is under 5%"
    ],
-   "answer": "No; the run is still too young",
-   "why": "No. A stock in week one out of a long base is not this setup. Bracco calls that kind of trade very short lived. RGTI fit this case: fresh out of a base, it made a new high on day 6 and took the stop. Size does not fix a wrong setup.",
-   "lesson_line": "Right candle, wrong week. A stock just out of a base is not this setup.",
+   "answer": "No, the run's too young",
+   "why": "No. Pass on this one. It's three days out of a six-month base. That's a fresh breakout, not a tired run. Bracco calls a short like that very short lived at best. RGTI was this case: fresh out of a base, it made a new high on day 6 and took the stop. The candle looks right. The context is wrong.",
+   "lesson_line": "Right candle, wrong week. A fresh breakout isn't a climax.",
    "facts": [
     "c09",
     "s04",
@@ -1711,13 +1740,13 @@
     "c04"
    ],
    "wrong": {
-    "Yes; the gap and red close fit it": "The daily shape fits, the context does not. Three days out of a base is not an exhausted run.",
-    "No; the gap is under the 5% minimum": "5% or more is the stronger mark, not a minimum. Any gap up passes the gate. The young run is the problem.",
-    "Yes; the gap up is the trigger": "The gap is the setup, and the trigger is the break under VWAP. A stock this young has no setup."
+    "Yes, gap up and a red close": "The daily bar fits, the context doesn't. Three days out of a base, there's no exhausted run to short.",
+    "Yes, the gap is the trigger": "The gap sets it up and the VWAP break triggers it. A stock this fresh has no setup anyway.",
+    "No, the gap is under 5%": "5% or more is the stronger gap, not a minimum. Any gap up passes. The young run is the problem."
    },
    "house": true,
-   "story": "A stock broke out of a six-month base three days ago. Two up days, then today it gaps up 4% and closes red.",
-   "simple": "No. A stock only three days out of a six-month base is too young a run to be exhausted.",
+   "story": "Three days ago this stock broke out of a six-month base. Two up days. Today it gaps up 4% and closes red.",
+   "simple": "No, it just broke out of a long base. A fresh breakout isn't a tired run, so there's nothing to fade.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1725,7 +1754,7 @@
      "rests on the owner's rulebook (B26) and the card's not-this-setup list"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q13",
@@ -1733,17 +1762,16 @@
    "rung": 2,
    "format": "tf",
    "criterion": "ps.borrow",
-   "q": "A hard-to-borrow stock with a high borrow fee is skipped, even on a perfect climax day.",
+   "q": "A climax short you can't borrow at a fair fee is a pass, however good the chart looks.",
    "answer": "True",
-   "why": "True. Our rule is to skip a short when the stock is hard to borrow or the borrow fee is high. The card asks for shares available to borrow at a fair fee, and squeeze names are often hard to borrow. Kullamagi has locates through his brokers that most retail brokers do not offer.",
-   "lesson_line": "No borrow, no trade. The chart does not pay the fee.",
+   "why": "True. Pass. If the stock is hard to borrow or the fee is high, we skip it. Squeeze names are often hard to borrow, and a high fee eats into the trade before it even moves. Check the borrow with your broker before the climax day, not at the trigger.",
+   "lesson_line": "No borrow, no trade.",
    "facts": [
     "h06",
-    "c39",
-    "k08"
+    "c39"
    ],
    "house": true,
-   "simple": "True, because we skip any short we cannot borrow at a fair fee.",
+   "simple": "True, no borrow at a fair fee means no trade. The chart doesn't pay the fee.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1751,7 +1779,7 @@
      "rests on the owner's rulebook (D48)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q14",
@@ -1759,28 +1787,30 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "ps.order",
-   "q": "The VWAP break prints. What order do you send?",
+   "q": "The VWAP break prints on the climax day. What order do you send?",
    "choices": [
-    "A market order, sent at once",
-    "A limit order a few cents lower",
+    "A market order, right now",
+    "A limit a few cents lower",
     "A sell-stop under the day's low",
     "Wait for the 5-minute bar to close"
    ],
-   "answer": "A market order, sent at once",
-   "why": "A market order, sent at once. Our entries are market orders. The trigger has printed and the stop is already known, so there is nothing to wait for. A limit order is not how we enter. Bracco's second entry, at the break of the day's low, is not taught: one entry, full size, one stop.",
-   "lesson_line": "When the trigger prints, you are in at market.",
+   "answer": "A market order, right now",
+   "why": "A market order, right now. The trigger printed and your stop is already known, a few cents over the high of the day. There's nothing left to wait for. A limit order can leave you watching it fall without you. The sell-stop under the day's low is Bracco's second entry. We don't take it. One entry, full size, one stop.",
+   "lesson_line": "Trigger prints, you're in at market.",
    "facts": [
     "h08",
     "c04",
-    "c47"
+    "c47",
+    "rw_add",
+    "c05"
    ],
    "wrong": {
-    "A sell-stop under the day's low": "That is Bracco's second entry, which we do not take. One entry, at the VWAP break.",
-    "A limit order a few cents lower": "Our entries are market orders, not limit orders.",
-    "Wait for the 5-minute bar to close": "The trigger is the break under VWAP, not a bar close."
+    "A sell-stop under the day's low": "That's Bracco's second entry, at the break of the day's low. We take one entry, at the VWAP break.",
+    "Wait for the 5-minute bar to close": "The trigger is the break, not a bar close. Waiting just gives you a worse fill and a wider stop.",
+    "A limit a few cents lower": "You might never get filled. On a fast crack, price can be gone before it comes back to your limit."
    },
    "house": true,
-   "simple": "Send a market order right when the VWAP break prints, because our entries are market orders.",
+   "simple": "A market order the moment it breaks. The stop is known, so waiting only costs you a worse fill.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1788,7 +1818,7 @@
      "rests on the owner's rulebook (E57, one entry, settled)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q15",
@@ -1796,32 +1826,33 @@
    "rung": 2,
    "format": "scenario",
    "criterion": "ps.stop_reclaim",
-   "q": "What now?",
+   "q": "It's through your stop by a few cents. What do you do?",
    "choices": [
-    "Out; the high is reclaimed",
-    "Hold; it is only a few cents",
-    "Widen the stop to 54.00",
-    "Add; the thesis still holds"
+    "Out, the high is reclaimed",
+    "Hold, it's only a few cents",
+    "Move the stop up to 54.00",
+    "Add, the top is still in"
    ],
-   "answer": "Out; the high is reclaimed",
-   "why": "Out. The stop sat at 52.56, a few cents over the high, and the stock now trades 52.60. If the price reclaims the day's high, the thesis or the timing was wrong, and you exit. The stop is the exit and it never widens. Parabolic advances often go further than anyone thinks, so you do not add either.",
-   "lesson_line": "The day's high is the line. Over it, you are wrong, and wrong is flat.",
+   "answer": "Out, the high is reclaimed",
+   "why": "Out. It's 52.60, through your 52.56 stop. Price is back over the high of the day, so the top wasn't in, or your timing was off. Either way you're flat. The stop is the exit, and it never moves wider. Don't add either. Parabolic runs go further than anyone thinks, and adding turns a small loss into a big one.",
+   "lesson_line": "Over the high, you're wrong. Wrong is flat.",
    "facts": [
     "b16",
     "c06",
     "h11",
     "s12",
+    "c24",
     "c29",
     "c46"
    ],
    "wrong": {
-    "Hold; it is only a few cents": "A few cents over the high is over the high. A new high means the top was not in.",
-    "Widen the stop to 54.00": "The stop never widens. Parabolic advances go further than anyone thinks.",
-    "Add; the thesis still holds": "Bracco never adds when he is down. Neither do we."
+    "Hold, it's only a few cents": "A few cents over the high is over the high. A new high says the top wasn't in.",
+    "Move the stop up to 54.00": "Widening the stop turns a planned loss into an open-ended one. It never moves wider.",
+    "Add, the top is still in": "Adding to a losing short is the named mistake. Bracco never adds when he's down, and neither do we."
    },
    "house": true,
-   "story": "You shorted the VWAP break at 48.50. Your stop line, over the day's high, is 52.56. At 2 pm it trades 52.60.",
-   "simple": "Get out, because price is back over the day's high, so the top was not in.",
+   "story": "You shorted the VWAP break at 48.50. Your stop is 52.56, a few cents over the high of the day. At 2 pm it trades 52.60.",
+   "simple": "Get out. Price is back over the high of the day, so the top wasn't in.",
    "deeper": {
     "example": "A reclaim can come after a long wait. PLUG's climax was 2021-01-13. A marginal higher high eight sessions later took the stop, and the real top came on 2021-01-26. Out is still out, even when the stock then turns."
    },
@@ -1832,7 +1863,7 @@
      "rests on the owner's rulebook (A4, the stop never widens; settled)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q16",
@@ -1840,32 +1871,30 @@
    "rung": 3,
    "format": "scenario",
    "criterion": "ps.climax_volume",
-   "q": "On the climax day, what should the volume look like?",
+   "q": "Check the volume on that last bar. What do you want to see there?",
    "choices": [
-    "The highest of the whole run",
+    "The biggest volume of the run",
     "Lighter than the day before",
-    "Average; volume does not matter",
+    "Average, volume doesn't matter",
     "Heavy only in the last hour"
    ],
-   "answer": "The highest of the whole run",
-   "why": "The highest of the whole run. Bracco: the climax day almost invariably shows the highest opening volume of the entire run. A big spike after a massive move signals exhaustion. StockCharts says an exhaustion gap also shows high volume. Our card wants the day's volume, and ideally its first 5 to 15 minutes, the highest of the run. TIGR, Bracco's own example, printed 1.56x the highest volume of its prior 20 sessions. It is a tell, not a trigger. The trigger is the break under VWAP.",
-   "lesson_line": "The crowd buys the top. Record volume on the climax day is the tell.",
+   "answer": "The biggest volume of the run",
+   "why": "The biggest volume of the run. That's the crowd showing up all at once. A spike like that after a massive move signals exhaustion: the last buyers are in. TIGR printed 1.56x the highest volume of its prior 20 sessions here. It raises the grade. It's a tell, though, not the trigger. You still wait for the VWAP break.",
+   "lesson_line": "Record volume on the climax day is the crowd buying the top.",
    "facts": [
     "b17",
     "s03",
     "c11",
-    "g02",
-    "g01",
-    "c35",
-    "d37"
+    "d37",
+    "s07"
    ],
    "wrong": {
-    "Lighter than the day before": "Lighter volume is not a climax. The card wants a record; rising but not a record is only a B- mark.",
-    "Average; volume does not matter": "Volume is half of Bracco's first two checks: range and volume expansion.",
-    "Heavy only in the last hour": "The record volume comes at the open, in the first minutes of the gap."
+    "Lighter than the day before": "Lighter volume says the crowd isn't there. A climax is everybody piling in at once.",
+    "Heavy only in the last hour": "The big volume shows up early, in the first minutes after the gap.",
+    "Average, volume doesn't matter": "Range and volume expanding together is half of what makes a run parabolic."
    },
    "house": true,
-   "simple": "Volume should be the highest of the whole run, since a huge spike after a big move signals exhaustion.",
+   "simple": "The heaviest volume of the whole run. That spike is the crowd piling in at the top.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1873,8 +1902,8 @@
      "wrong note fixed before (B- row wording)"
     ]
    },
-   "batch": "visuals-3",
-   "story": "After a burst. The last bar is the climax day.",
+   "batch": "voice-8-2026-11-17",
+   "story": "A burst into a gap up. The last bar on this chart is the climax day.",
    "chart": {
     "sym": "TIGR",
     "asof": "2024-10-07",
@@ -1888,18 +1917,19 @@
    "rung": 3,
    "format": "tf",
    "criterion": "ps.not_this",
-   "q": "A stock that climbed in steady stair-steps for a year is a Parabolic Short once it is up 100%.",
+   "q": "A stock that climbed in steady stair-steps for a year is a parabolic short once it's up 100%.",
    "answer": "False",
-   "why": "False. Bracco says to avoid a steady, controlled ascent for Parabolic Shorts: it reflects sustained strength and can persist for an extended period. He also names judging by percent gain alone, without the chart's structure, as a frequent mistake. Our card agrees: a steady, linear trend however far it has run is not this setup, as with AAPL in 2023.",
-   "lesson_line": "Percent gain is not the test. Shape is. Stair-steps are not a parabola.",
+   "why": "False. A steady climb is strength, and it can keep going a long time. Bracco says to avoid that controlled ascent for this trade. Parabolic means the pauses get shorter and the pullbacks shrink as it speeds up. Judging by the percent gain alone is a frequent mistake. AAPL in 2023 was the classic linear trend.",
+   "lesson_line": "Percent gain isn't the test. Shape is.",
    "facts": [
     "b09",
     "b22",
     "c09",
+    "b10",
     "c25"
    ],
    "house": true,
-   "simple": "False, because a steady climb shows lasting strength, and the size of the gain alone does not make a stock parabolic.",
+   "simple": "False, stair-steps are strength, not a blow-off. The shape decides, not the size of the gain.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1907,7 +1937,7 @@
      "the card's not-this line (c09) is a proposed rule; Bracco's own words agree"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
@@ -1915,15 +1945,15 @@
    "rung": 3,
    "format": "scenario",
    "criterion": "ps.earnings",
-   "q": "Short the VWAP break today?",
+   "q": "The trigger just fired. Do you take it?",
    "choices": [
-    "No; a report inside 3 sessions",
-    "No; a 9% gap is too big to short",
-    "Yes; the setup triggered today",
-    "Yes; at half the usual size"
+    "No, earnings are too close",
+    "No, a 9% gap is too big",
+    "Yes, the setup just triggered",
+    "Yes, but at half size"
    ],
-   "answer": "No; a report inside 3 sessions",
-   "why": "No. We take no new short within 3 sessions of a report, and this one reports after tomorrow's close. The account rule is no new trades in the 3 days before an earnings report. Hold through one only if the trade is up 5R. A textbook burst and a big gap do not change that.",
+   "answer": "No, earnings are too close",
+   "why": "No. Earnings land inside 3 sessions, and we don't open a new short that close to a report. A report can gap the stock either way, right through your stop, and a stop can't catch a gap. However clean the burst, the calendar says pass. Check the report date before the climax day, so it never surprises you at the trigger.",
    "lesson_line": "Earnings inside three days is a pass, however good the chart.",
    "facts": [
     "h15",
@@ -1931,13 +1961,13 @@
     "c01"
    ],
    "wrong": {
-    "Yes; the setup triggered today": "The trigger fired and the calendar still says no. The earnings rule is a hard line.",
-    "Yes; at half the usual size": "Size does not fix report risk. Smaller is still in.",
-    "No; a 9% gap is too big to short": "The gap is part of the setup, not the problem. A gap of 5% or more is stronger. The report is why we pass."
+    "No, a 9% gap is too big": "The gap is part of the setup, and 5% or more is the stronger one. The report is the problem.",
+    "Yes, the setup just triggered": "It did, and the calendar still says no. A report inside 3 sessions is a pass.",
+    "Yes, but at half size": "Smaller is still in. Size doesn't fix a gap through your stop."
    },
    "house": true,
-   "story": "The burst is textbook and the climax day gaps up 9%. Earnings come after the close tomorrow.",
-   "simple": "No, because a report is due inside 3 sessions, and we take no new short that close to earnings.",
+   "story": "Textbook burst. The climax day gaps up 9% and cracks under VWAP. Earnings come out after the close tomorrow.",
+   "simple": "No. A report inside three sessions can gap it right through your stop, so we pass.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1945,7 +1975,7 @@
      "rests on the owner's rulebook (B22, settled)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
@@ -1953,7 +1983,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "ps.climax_gap",
-   "q": "The prior close is 42.00 and the climax day opens at 48.47. How big is the gap up?",
+   "q": "Prior close 42.00. The climax day opens at 48.47. How big is the gap up?",
    "answer": "15.4%",
    "calc": {
     "fn": "pct_change",
@@ -1963,8 +1993,8 @@
     },
     "round": 1
    },
-   "why": "15.4%. The gap is the open minus the prior close: 48.47 minus 42.00. Divide by the prior close, 42.00, and show it as a percent. Our card needs the climax day to open above the prior close, and a gap of 5% or more is stronger. GDS also gapped 15.4%, on record volume, and closed red. The prices here are made up for the drill.",
-   "lesson_line": "Measure the gap in percent. A gap of 5% or more is the stronger one.",
+   "why": "15.4%. Take the open minus the prior close: 48.47 minus 42.00 is 6.47. Then divide by the prior close: 6.47 over 42.00 comes to 15.4%. That's a big gap. Any open over the prior close passes, and 5% or more is the stronger gap. GDS gapped 15.4% on its climax day, on record volume, then closed red.",
+   "lesson_line": "Measure the gap against the prior close.",
    "facts": [
     "c01",
     "g02",
@@ -1972,7 +2002,7 @@
    ],
    "house": true,
    "suffix": "%",
-   "simple": "The open is 15.4 percent above the prior close, which is a big gap up.",
+   "simple": "The open is 15.4 percent over the prior close. That's a big gap, well past the stronger mark.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1980,7 +2010,7 @@
      "a computed key (percent change)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "13.3%",
     "6.5%",
@@ -1988,9 +2018,9 @@
     "15.4%"
    ],
    "wrong": {
-    "13.3%": "Divided by the open. The gap is measured against the prior close.",
-    "115.4%": "Divided the open by the prior close and forgot to subtract 1.",
-    "6.5%": "Read the dollar gap as a percent. Divide it by the prior close first."
+    "13.3%": "You divided by the open. Measure the gap against the prior close.",
+    "115.4%": "That's the open as a share of the prior close. Take the prior close off first.",
+    "6.5%": "That's the dollar gap, 6.47, read as a percent. Divide it by the prior close first."
    }
   },
   {
@@ -1999,31 +2029,32 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "ps.window",
-   "q": "The climax day is Tuesday. You are stopped out of the short that day. Wednesday it cracks under VWAP again. Allowed?",
+   "q": "The climax is Tuesday and you get stopped out that day. Wednesday it cracks under VWAP again. Can you take it?",
    "choices": [
-    "Yes; a new trigger in the window",
-    "No; one try per climax move",
-    "Yes; keep Tuesday's stop",
-    "No; a stop-out ends it"
+    "Yes, a new trigger in the window",
+    "No, you only get one try per climax",
+    "Yes, but keep Tuesday's stop",
+    "No, a stop-out ends the idea"
    ],
-   "answer": "Yes; a new trigger in the window",
-   "why": "Yes. After a stop-out we short again only if the setup triggers again. It is a new trade with its own stop and every rule. The idea has a 1 to 2 day window, and Wednesday is the day after the climax, inside it. One stock gets at most 3 tries in a week and 6 in a month.",
-   "lesson_line": "A stop-out is not a verdict. The next trigger is a new trade, inside the window.",
+   "answer": "Yes, a new trigger in the window",
+   "why": "Yes. A stop-out isn't a verdict on the idea. A fresh trigger is a new trade, with its own stop and every rule. Each idea gets a 1 to 2 day window, and Wednesday is inside it. Two failed triggers, or the window passing, ends it. On top of that, one stock gets at most 3 tries a week and 6 a month.",
+   "lesson_line": "A stop-out isn't a verdict. The next trigger is a new trade.",
    "facts": [
     "c13",
     "h17",
     "h16",
-    "m01"
+    "m01",
+    "c05"
    ],
    "wrong": {
-    "No; one try per climax move": "The cap is 3 tries in a week and 6 in a month, not one.",
-    "Yes; keep Tuesday's stop": "A new trade has its own stop, set at its own entry.",
-    "No; a stop-out ends it": "One stop-out does not close it. Two failed triggers, or the window passing, drops the idea."
+    "No, you only get one try per climax": "The cap is 3 tries a week and 6 a month on one stock. One stop-out doesn't end it.",
+    "Yes, but keep Tuesday's stop": "A new trade gets its own stop, a few cents over the high of the day when you enter.",
+    "No, a stop-out ends the idea": "One stop-out doesn't close it. Two failed triggers, or the window passing, does."
    },
    "house": true,
-   "simple": "Yes, because after a stop-out a new trigger inside the 1 to 2 day window is a new trade with its own stop.",
+   "simple": "Yes. A fresh trigger inside the window is a new trade with its own stop.",
    "deeper": {
-    "trap": "A second failed trigger ends it. Our card drops the idea when the trigger fails twice or the window passes. That holds even if the cap of 3 tries a week is not used up."
+    "trap": "A second failed trigger ends it. The idea is dropped when the trigger fails twice or the window passes, even with tries left in the week."
    },
    "tier": "core",
    "risk": {
@@ -2032,7 +2063,7 @@
      "rests on the owner's rulebook (B21 and E56, settled)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
@@ -2040,16 +2071,16 @@
    "rung": 3,
    "format": "tf",
    "criterion": "ps.liquidity",
-   "q": "We short parabolic names only at $10 or more that trade at least $20 million a day.",
+   "q": "We only short stocks at $10 or more that trade at least $20 million a day.",
    "answer": "True",
-   "why": "True. Our rule is to trade only stocks at $10 or more that trade at least $20 million a day. The card asks for a price of $10 or more and $20 million or more traded a day on average. It is a floor to pass before any chart is read, not a sign to short.",
-   "lesson_line": "Liquidity first. A price of $10 and $20 million a day are the floor.",
+   "why": "True. Same floor as every trade we take: $10 or more, and at least $20 million traded a day. Squeeze names can be thin, and a thin stock gaps and slips right past your stop. Check liquidity before you even look at the chart. If it fails, there's no chart to read.",
+   "lesson_line": "Liquidity first. $10 and $20 million a day, then the chart.",
    "facts": [
     "h07",
     "c40"
    ],
    "house": true,
-   "simple": "True, because we trade only stocks priced at $10 or more that trade at least $20 million a day.",
+   "simple": "True, $10 and $20 million a day is the floor. Thin names slip right past your stop.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2057,7 +2088,7 @@
      "rests on the owner's rulebook (B23, settled)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q22",
@@ -2138,7 +2169,7 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "ps.extension",
-   "q": "The prior close is 48.50 and the 9-day EMA sits at 40.00. How far above the average is that close?",
+   "q": "The stock closed at 48.50 and its 9 EMA sits at 40.00. How stretched is it over the 9 EMA?",
    "answer": "21.25%",
    "calc": {
     "fn": "pct_change",
@@ -2148,17 +2179,16 @@
     },
     "round": 2
    },
-   "why": "21.25%. The stretch is the close minus the average: 48.50 minus 40.00. Divide by the average, 40.00, and show it as a percent. We read a chart in percents: how far a stock is stretched above its averages. Bracco's checklist lists percent extensions from moving averages and ATR multiples from the 50-day. This only measures the stretch. It is not a cut-off.",
+   "why": "21.25%. Close minus the 9 EMA: 48.50 minus 40.00 is 8.50. Then divide by the 9 EMA: 8.50 over 40.00 is 21.25%. We read charts in percents, and this is how you measure the stretch. It also shows how much room there is for the snap back. It's a measurement, not a cutoff. A stretch alone doesn't make it parabolic. The shape still has to be vertical.",
    "lesson_line": "Measure the stretch in percent before you call anything parabolic.",
    "facts": [
     "h22",
     "s01",
-    "s02",
     "s05"
    ],
    "house": true,
    "suffix": "%",
-   "simple": "The close is 21.25 percent above the 9-day average: the difference divided by the average.",
+   "simple": "It's 21.25 percent over its 9 EMA. The bigger that stretch, the more room for a snap back.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -2167,7 +2197,7 @@
      "the extension floor is held (D-040); this question computes a percent only"
     ]
    },
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "21.25%",
     "121.25%",
@@ -2175,9 +2205,9 @@
     "212.50%"
    ],
    "wrong": {
-    "121.25%": "Divided the close by the average and forgot to subtract 1.",
-    "82.47%": "Gave the average as a share of the close.",
-    "212.50%": "Slipped the decimal point one place right."
+    "121.25%": "That's the close as a share of the 9 EMA. Take the 9 EMA off first.",
+    "82.47%": "That's the 9 EMA as a share of the close, flipped the wrong way.",
+    "212.50%": "The decimal slipped one place."
    }
   },
   {
@@ -2186,7 +2216,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "ps.stop",
-   "q": "How wide is the stop, as a percent of the fill?",
+   "q": "How far away is that stop, as a percent of your entry?",
    "answer": "7.25%",
    "calc": {
     "fn": "arith",
@@ -2197,8 +2227,8 @@
     },
     "round": 2
    },
-   "why": "7.25%. The stop width is the stop minus the fill: 31.81 minus 29.66. Divide by the fill, 29.66, and show it as a percent. We prefer a stop 1-3% away, 3.5% is good, and up to 5% is acceptable. This one is past 5%, so we mostly wait for a tighter trigger. These are BILI's numbers, listed at 7.2% in our data.",
-   "lesson_line": "A stop past 5% is too wide to take. Wait for a tighter trigger.",
+   "why": "7.25%. Stop minus entry: 31.81 minus 29.66 is 2.15 a share. Divide that by your entry and times 100: 2.15 over 29.66 is 7.25%. That's wider than I like. We want 1-3%, 3.5% is good, and up to 5% we accept. Past 5%, I mostly wait for a tighter trigger, one where the high sits closer to my entry. A wide stop also means fewer shares for the same dollar risk.",
+   "lesson_line": "Past 5%, wait for a tighter trigger.",
    "facts": [
     "h18",
     "h09",
@@ -2208,9 +2238,9 @@
    ],
    "house": true,
    "suffix": "%",
-   "simple": "The stop is 7.25 percent from the fill. That is past what we accept, so we wait for a tighter trigger.",
+   "simple": "The stop is 7.25 percent away. That's past what we accept, so I'd mostly wait for a tighter trigger.",
    "deeper": {
-    "example": "On our daily-bar read of BILI, a stop 7.2% away still saw the 9 EMA in 4 sessions and 3R on day 4. It worked, but that stop is past the 5% we accept, so we mostly wait for a tighter trigger."
+    "example": "On our daily-bar read of BILI, a stop 7.2% away still saw the 9 EMA in 4 sessions. It hit 3R on day 4. It worked, but that stop is past the 5% we accept, so we mostly wait for a tighter trigger."
    },
    "tier": "core",
    "risk": {
@@ -2220,7 +2250,7 @@
      "stop width options are held (D-005); only A13's 3% and A5's size-from-the-stop are keyed"
     ]
    },
-   "batch": "visuals-3",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "6.76%",
     "7.25%",
@@ -2228,11 +2258,11 @@
     "0.07%"
    ],
    "wrong": {
-    "6.76%": "Divided by the stop. Stop width is measured against the fill.",
-    "2.15%": "Read the dollar gap as a percent. Divide it by the fill first.",
-    "0.07%": "Forgot to multiply by 100, so the percent came out far too small."
+    "6.76%": "You divided by the stop. Measure it against your entry.",
+    "2.15%": "That's the dollar distance. Divide it by the entry to get the percent.",
+    "0.07%": "You forgot to multiply by 100."
    },
-   "story": "Short at 29.66 with the stop at 31.81, a few cents over the climax day's high.",
+   "story": "You're short at 29.66. The stop goes a few cents over the climax high, at 31.81.",
    "chart": {
     "sym": "BILI",
     "asof": "2024-10-02",
@@ -2246,7 +2276,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "ps.stop",
-   "q": "How many shares does the risk allow?",
+   "q": "How many shares do you short?",
    "answer": "61 shares",
    "calc": {
     "fn": "shares_from_risk",
@@ -2258,16 +2288,18 @@
     },
     "round": 0
    },
-   "why": "61 shares. The risk dollars are 50,000 x 0.5%. The stop distance is 52.56 minus 48.50. Divide the risk dollars by the stop distance and round down to 61. Rounding down keeps the risk at or under 0.5%. The position cap can only make the size smaller. Stop first, size last. If the honest stop does not fit, skip. GDS reached 3R on day 5.",
-   "lesson_line": "Stop first, distance second, size last. The same on the short side.",
+   "why": "61 shares. 0.5% of 50,000 is $250 at risk. 52.56 minus 48.50 is 4.06 a share. 250 over 4.06 is 61.58, round down to 61. Rounding down keeps you at or under your risk. Now look at that stop: 8.37% away. That's past the 5% I accept, so most days I'd wait for a tighter trigger. If you take one like this, the size comes from the stop. Never the other way around.",
+   "lesson_line": "Stop first, distance second, size last. Same on the short side.",
    "facts": [
     "h09",
     "h12",
-    "d02"
+    "d02",
+    "r01",
+    "r02"
    ],
    "house": true,
    "suffix": " shares",
-   "simple": "Risk 0.5 percent of the account, divide by the stop distance, and round down to 61 shares.",
+   "simple": "61 shares, the risk divided by the distance to the stop and rounded down. The stop sets the size.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2275,7 +2307,7 @@
      "a computed key (position size from risk)"
     ]
    },
-   "batch": "visuals-3",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "62 shares",
     "123 shares",
@@ -2283,11 +2315,11 @@
     "5 shares"
    ],
    "wrong": {
-    "62 shares": "Rounded up. That pushes the risk over 0.5%, so always round down.",
-    "123 shares": "Doubled the risk percent. Use the 0.5% the question gives.",
-    "5 shares": "Divided the risk dollars by the fill price, not by the stop distance."
+    "62 shares": "You rounded up. That puts you over your risk. Always round down.",
+    "123 shares": "You doubled the risk. Stick with the 0.5% you set.",
+    "5 shares": "You divided by the share price. Divide the dollar risk by the stop distance."
    },
-   "story": "Short at 48.50 with the stop at 52.56. Account 50,000, risk 0.5%.",
+   "story": "You're short at 48.50 with your stop at 52.56, just over the high of the day. Account 50,000. You risk 0.5% on the trade.",
    "chart": {
     "sym": "GDS",
     "asof": "2025-02-20",
@@ -2341,16 +2373,16 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "ps.stop_gap",
-   "q": "Where is the stop now?",
+   "q": "Your stop got gapped. Where is it now?",
    "choices": [
     "53.40, the first 30-minute high",
     "52.70, the first 30-minute low",
-    "Keep 52.56; it was the rule",
-    "Get out; the gap is past 2R"
+    "Still 52.56, the stop is the stop",
+    "Out now, it's past 2R"
    ],
    "answer": "53.40, the first 30-minute high",
-   "why": "53.40. A gap through the stop hands the decision to the first 30-minute bar. For a short, its high is the new stop. The gap rule has a ceiling of 2R: past it, get out. 53.40 is inside that ceiling, so the new stop stands. The gap rule is the one exception to a stop that never moves wider.",
-   "lesson_line": "A gap over the stop is the one exception. The first 30 minutes decide.",
+   "why": "53.40, the high of that first 30-minute bar. A gap through your stop is the one time the stop can move. The first 30 minutes decide, and on a short the new stop is that bar's high. There's a ceiling: if those 30 minutes take the loss past 2R, you're out. 53.40 is well inside that. So the new stop stands, and you don't panic-cover the first print.",
+   "lesson_line": "A gap through the stop: the first 30 minutes decide.",
    "facts": [
     "h13",
     "h14",
@@ -2358,13 +2390,13 @@
     "h11"
    ],
    "wrong": {
-    "Keep 52.56; it was the rule": "Price is already through it. The gap rule replaces it with the 30-minute high.",
-    "Get out; the gap is past 2R": "53.40 is inside the 2R ceiling. The ceiling has not been hit.",
-    "52.70, the first 30-minute low": "The low is the long-side version. A short's stop sits above price, so it is the bar's high."
+    "52.70, the first 30-minute low": "The bar's low is the long-side version. On a short the risk is up, so it's the high.",
+    "Still 52.56, the stop is the stop": "Price is already through it. The gap rule hands the stop to the first 30-minute bar.",
+    "Out now, it's past 2R": "A loss at 53.40 is nowhere near 2R. The ceiling hasn't been hit."
    },
    "house": true,
-   "story": "Short at 48.50, stop 52.56. Next morning it gaps open at 53.00, through your stop. The first 30-minute bar runs from 52.70 to 53.40.",
-   "simple": "A gap through the stop gives the first 30 minutes the decision. For a short, the high of that bar, 53.40, is the new stop.",
+   "story": "Short at 48.50, stop 52.56. Next morning it gaps open at 53.00, right through your stop. The first 30-minute bar runs 52.70 to 53.40.",
+   "simple": "53.40. On a gap through your stop, the first half hour's high is the new stop, as long as you're inside 2R.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2372,7 +2404,7 @@
      "rests on the owner's gap rule (B20)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q29",
@@ -2380,17 +2412,17 @@
    "rung": 4,
    "format": "tf",
    "criterion": "ps.one_entry",
-   "q": "Our rule adds a second short when the stock breaks the day's low.",
+   "q": "When the stock breaks the day's low, we add a second short to the position.",
    "answer": "False",
-   "why": "False. Bracco's first entry is the break under VWAP, followed by a second short when the stock breaches the day's lows. Our rule is the full size at one price with one stop, no adding. The second entry is not taught.",
-   "lesson_line": "One entry, one stop, full size. That is the whole position.",
+   "why": "False. One entry, full size, one stop. That's the whole position. Bracco takes a second short when it breaks the day's lows. We don't plan one. A rare add to a winner is a feel call, never the plan. Adding later means a bigger position under the same stop over the high, so a squeeze hurts more. Pick your spot at the VWAP break and size it right there.",
+   "lesson_line": "One entry, one stop, full size.",
    "facts": [
-    "h10",
+    "rw_add",
     "c17",
     "b27"
    ],
    "house": true,
-   "simple": "False. Bracco takes a second entry, but we take one entry at full size with one stop.",
+   "simple": "False, we short once, full size, with one stop. Adding later only makes a squeeze hurt more.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2398,7 +2430,7 @@
      "rests on the owner's one-entry rule (A5)"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q30",
@@ -2406,31 +2438,30 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "ps.no_chase",
-   "q": "By our card, short it here?",
+   "q": "You missed the trigger. Do you short it here?",
    "choices": [
-    "No; more than 4% under the break",
-    "Yes; the crack is real and clean",
-    "Yes; the stop is still over the high",
-    "No; shorts belong at the day's high"
+    "No, it's too far past the break",
+    "Yes, the crack is real",
+    "Yes, the stop's still over the high",
+    "No, shorts belong at the high"
    ],
-   "answer": "No; more than 4% under the break",
-   "why": "No. 47.50 sits more than 4% under the 50.00 break, so we skip. No chasing: never go more than 4% past the trigger, mirrored for a short. The stop stays over the high, so a late fill means a wider stop and fewer shares. A clean crack does not change that.",
-   "lesson_line": "I would rather miss it than chase it. Four percent and done, both ways.",
+   "answer": "No, it's too far past the break",
+   "why": "No. 47.50 is more than 4% under the 50.00 break. We never chase more than 4% past a trigger, and on a short that's mirrored. Chase it and your stop stays up over the high, so it's wider and you get fewer shares for the same risk. Worse fill, worse trade. I'd rather miss it than chase it.",
+   "lesson_line": "I'd rather miss it than chase it. 4% and done, both ways.",
    "facts": [
     "c16",
     "h24",
     "h23",
-    "b13",
     "h09"
    ],
    "wrong": {
-    "Yes; the crack is real and clean": "Real and clean can both be true and the entry still too far away. The chase line is 4%.",
-    "No; shorts belong at the day's high": "Shorting at the day's highs is a dangerous trap. The entry is the break under VWAP, and this one has gone.",
-    "Yes; the stop is still over the high": "The stop stays over the high, so a late fill means a wider stop and fewer shares. The chase line is 4%."
+    "Yes, the crack is real": "Real and clean doesn't make it a good entry. Past 4%, you're chasing.",
+    "Yes, the stop's still over the high": "That's the problem. The stop's still up there, so it's wider and your size shrinks.",
+    "No, shorts belong at the high": "Shorting the highs is a trap. The entry was the VWAP break, and it's gone."
    },
    "house": true,
-   "story": "The VWAP break printed at 50.00 while you were away. Now it trades 47.50, still well above the 9 EMA.",
-   "simple": "Skip it. The stock is already more than 4% under the 50.00 break, and chasing a late short is not our rule.",
+   "story": "The VWAP break printed at 50.00 while you were on a call. Now it trades 47.50, still well above the 9 EMA.",
+   "simple": "No, it's already more than 4 percent under the break. Chasing means a wider stop and fewer shares.",
    "deeper": {
     "trap": "A clean crack is not a free pass. The 4% line is about price, not about how good the chart looks. A late fill keeps the same stop over the high, so the stop is wider and the share count smaller. Miss it and wait for the next idea."
    },
@@ -2442,7 +2473,7 @@
      "the key needs a percent worked out from two prices"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q31",
@@ -2517,16 +2548,16 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "ps.burst_boxes",
-   "q": "Two climax days. One: four boxes, a 15% gap, record volume. The other: two boxes, a 2% gap, average volume. Which is stronger?",
+   "q": "Two climax days. One has four boxes, a 15% gap and record volume. The other: two boxes, a 2% gap, average volume. Which do you want?",
    "choices": [
-    "The four-box day; more boxes win",
-    "The two-box day; quieter is safer",
-    "Equal; only the crack itself counts",
-    "Neither; only percent gain counts"
+    "The four-box day, by a mile",
+    "The two-box day, it's quieter",
+    "Either, only the crack counts",
+    "Neither, only percent gain counts"
    ],
-   "answer": "The four-box day; more boxes win",
-   "why": "The four-box day. The more boxes checked, the stronger the setup. A gap of 5% or more is stronger, and the climax day's volume should be the highest of the run. The crack is the trigger, not the strength of the setup. Percent gain alone is no test: Bracco calls that a frequent mistake.",
-   "lesson_line": "More boxes, a bigger gap, a record crowd: the stronger climax.",
+   "answer": "The four-box day, by a mile",
+   "why": "The four-box day, by a mile. Every box is more proof the run is exhausted. Four boxes, a gap of 5% or more and the heaviest volume of the run all say the crowd is all in. The cleaner setup is the one I'd size up on. Both still need the crack under VWAP before you short.",
+   "lesson_line": "More boxes, bigger gap, record crowd: that's the stronger climax.",
    "facts": [
     "b07",
     "h03",
@@ -2536,12 +2567,12 @@
     "c04"
    ],
    "wrong": {
-    "The two-box day; quieter is safer": "Quiet is not safe here. The stronger setup checks more boxes, gaps 5% or more and prints the highest volume of the run.",
-    "Equal; only the crack itself counts": "The crack is the trigger. Boxes, gap and volume decide how strong the setup is.",
-    "Neither; only percent gain counts": "Bracco calls relying on percent gain alone a frequent mistake. Boxes, gap and volume tell you more."
+    "The two-box day, it's quieter": "Quiet isn't safe here. Fewer boxes means less proof the run is done.",
+    "Either, only the crack counts": "The crack is the trigger. The boxes, the gap and the volume tell you how good the setup is.",
+    "Neither, only percent gain counts": "Bracco calls judging by percent gain alone a frequent mistake. The boxes tell you more."
    },
    "house": true,
-   "simple": "The four-box day is stronger. More boxes checked means a stronger setup, and a big gap on record volume points the same way.",
+   "simple": "The four-box day. More boxes, a bigger gap and record volume mean the run is more likely done.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2550,7 +2581,7 @@
      "grading is discretionary (E50)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q34",
@@ -2558,7 +2589,7 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "ps.vwap_trigger",
-   "q": "Which of Bracco's intraday patterns is that?",
+   "q": "Bracco has names for his intraday patterns. Which one is this?",
    "choices": [
     "Long-Drawn-Out Range Breakdown",
     "The U-Turn, a run then a VWAP break",
@@ -2566,27 +2597,26 @@
     "The second short at the day's low"
    ],
    "answer": "Long-Drawn-Out Range Breakdown",
-   "why": "The Long-Drawn-Out Range Breakdown: a tight range for the first one to two hours. Bracco sees it more often in setups that do not fully meet all criteria. His preferred pattern is the U-Turn, a break under VWAP 10 to 60 minutes in.",
-   "lesson_line": "A clean U-Turn turns 10 to 60 minutes in. Two hours of chop first is the drawn-out version.",
+   "why": "The Long-Drawn-Out Range Breakdown: a tight range for the first one to two hours, then the break. Bracco sees it more in his 3 or 4-star setups, the ones that don't check every box. His favorite is the U-Turn, which runs early and cracks 10 to 60 minutes in. Two hours of chop first says the sellers took their time. Still a trade, just not the cleanest one.",
+   "lesson_line": "A clean U-Turn cracks early. Two hours of chop first is the drawn-out one.",
    "facts": [
     "b24",
     "b25",
     "b11",
     "b26",
-    "b19",
     "b20",
-    "b27",
     "c04",
+    "c33",
     "h04"
    ],
    "wrong": {
-    "The U-Turn, a run then a VWAP break": "The U-Turn turns 10 to 60 minutes in. Two hours of range is the drawn-out version.",
-    "Quick Opening Range Breakdown": "That one sets its high on the first 5-minute candle and often shows on day 1 or 2 of the burst. This day chopped for two hours first.",
-    "The second short at the day's low": "That is the second short, taken after the VWAP break when the stock breaches the day's lows. Here the VWAP break is the first move."
+    "The U-Turn, a run then a VWAP break": "The U-Turn cracks 10 to 60 minutes in. Two hours of range first is the drawn-out version.",
+    "Quick Opening Range Breakdown": "That one sets its high on the first 5-minute candle. This day chopped for two hours first.",
+    "The second short at the day's low": "That's an add after the VWAP break, at the day's lows. Here the VWAP break is the first move."
    },
    "house": true,
-   "story": "The climax day gaps up, then chops in a tight range for two hours before breaking under VWAP.",
-   "simple": "Two hours of tight range before the VWAP break is Bracco's Long-Drawn-Out Range Breakdown.",
+   "story": "The climax day gaps up, then chops in a tight range for two hours before it finally breaks under VWAP.",
+   "simple": "That's the drawn-out range breakdown. Two hours of chop before the break, which Bracco sees more in weaker setups.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2594,7 +2624,7 @@
      "the star grades are Bracco's, not ours"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q35",
@@ -2602,17 +2632,17 @@
    "rung": 5,
    "format": "tf",
    "criterion": "ps.breakeven",
-   "q": "If you still hold the short, the stop moves to breakeven at 2R to 5R, ideally. On this setup the 9 EMA usually comes first.",
+   "q": "Once you're up 2R on the short, you can move your stop down to breakeven.",
    "answer": "True",
-   "why": "True. Our rulebook moves the stop to breakeven at 2R to 5R, ideally. The card names 2R for this setup if the short is held. The 9 EMA cover usually comes first, so breakeven often never comes into play. The stop only moves in your favor, never wider.",
-   "lesson_line": "Breakeven at 2R to 5R if you are still in. Usually the 9 EMA ends the trade first.",
+   "why": "True. Anywhere from 2R to 5R, or at your first sell, you can pull the stop to your entry. That's a judgment call, not a fixed spot. On this setup the 9 EMA often comes first, and that's where you cover anyway. The stop only ever moves in your favor.",
+   "lesson_line": "Breakeven between 2R and 5R, your call. The 9 EMA often pays you first.",
    "facts": [
     "h20",
-    "c41",
-    "h11"
+    "h11",
+    "c41"
    ],
    "house": true,
-   "simple": "True. Breakeven comes at 2R to 5R if you are still in, and on this setup the 9 EMA usually ends the trade first.",
+   "simple": "True, between 2R and 5R you can move the stop to breakeven. It only moves your way.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2621,7 +2651,7 @@
      "the card names 2R"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q36",
@@ -2629,32 +2659,32 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "ps.time_limit",
-   "q": "By our card, what now?",
+   "q": "Three days in and no 9 EMA. What's the play?",
    "choices": [
-    "Cover; this setup's time is up",
-    "Hold; the stop is a long way off",
-    "Add more; it has not squeezed yet",
-    "Hold until the 10-day time stop"
+    "Cover, its time is up",
+    "Hold, the stop's far away",
+    "Add, it hasn't squeezed yet",
+    "Hold to the 10-day time stop"
    ],
-   "answer": "Cover; this setup's time is up",
-   "why": "Cover. If the 9 EMA is not reached within 3 sessions of entry, cover. The 10-day time stop is only the outer limit for any trade. A far stop means fewer shares, not more patience, and we never add. TSLA touched the 9 EMA only on day 8, by then above the entry, then chopped for 25 sessions before the stop.",
-   "lesson_line": "This trade pays fast or not at all. Three sessions without the 9 EMA is the exit.",
+   "answer": "Cover, its time is up",
+   "why": "I'd cover. This trade gets paid fast or not at all. When it works, the snap back to the 9 EMA comes in a few sessions. Three sessions of chop under the high says it isn't working. Don't add, and don't lean on that far stop. A stop 20% away was way past what I'd take on a fresh short in the first place. TSLA here touched the 9 EMA only on day 8, by then above the entry. Then it chopped until day 25 took the stop.",
+   "lesson_line": "Paid at the 9 EMA in a few sessions, or not at all.",
    "facts": [
     "c14",
     "d17",
     "d18",
+    "d30",
     "h19",
-    "h10",
-    "h09"
+    "rw_add"
    ],
    "wrong": {
-    "Hold; the stop is a long way off": "A far stop is a reason for fewer shares, not for waiting. The time limit has run out.",
-    "Hold until the 10-day time stop": "The 10-day rule is the outer limit for any trade. This setup's own limit is 3 sessions.",
-    "Add more; it has not squeezed yet": "Never add to a parabolic short. Not squeezed yet is not a reason."
+    "Hold, the stop's far away": "A far stop is a reason to pass or size way down. It's no reason to sit in a dead trade.",
+    "Add, it hasn't squeezed yet": "Never add to a losing short. Not squeezed yet isn't a reason.",
+    "Hold to the 10-day time stop": "Our 10-day time stop is the outer limit on any trade, not the plan here. This one pays in a few sessions or not at all."
    },
    "house": true,
-   "story": "Short at 99.80 with the stop at 119.80. Three sessions later the 9 EMA is still not reached and it chops under its high.",
-   "simple": "Cover now. This setup must reach the 9 EMA within 3 sessions, and the 10-day limit is only the outer edge.",
+   "story": "You're short at 99.80 with the stop at 119.80. Three sessions later it still hasn't touched the 9 EMA. It just chops under the high.",
+   "simple": "Cover. This trade pays fast or not at all, and three sessions of chop says it isn't working.",
    "deeper": {
     "example": "TSLA 2020-07-13: short 99.80, stop 119.80. It gave 0.44R at best. The 9 EMA was only touched on day 8, and by then it sat above the entry. Twenty-five sessions of chop under the climax high followed, with a report inside the window."
    },
@@ -2666,7 +2696,7 @@
      "rests on the owner's time stop (C33)"
     ]
    },
-   "batch": "visuals-3",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "TSLA",
     "asof": "2020-07-13",
@@ -2680,16 +2710,16 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "ps.cover_9ema",
-   "q": "Which yardstick fits this trade?",
+   "q": "Where are you covering this one?",
    "choices": [
-    "The 9 EMA, which acts as a magnet",
-    "A fixed 3R, set before the trade",
-    "The 50-day as the target",
-    "The swing low as the target"
+    "At the 9 EMA, close as it is",
+    "At a fixed 3R, set in advance",
+    "At the 50-day",
+    "At the last swing low"
    ],
-   "answer": "The 9 EMA, which acts as a magnet",
-   "why": "The 9 EMA. Our rule names the 9-day average as a parabolic short's target, and Bracco calls the trade complete once it is tested. A fixed multiple of R is not the exit here, because the level sets the exit. On MSTR the 9 EMA was 0.14R away and the stock never gave more than 0.77R before chopping. That is a trade the 9 EMA target handles and a fixed 3R test cannot.",
-   "lesson_line": "The target is a level, not a multiple. When the level is close, the trade is small.",
+   "answer": "At the 9 EMA, close as it is",
+   "why": "At the 9 EMA, even this close. The target is a level, not a multiple of R. The 9 EMA is the magnet, and once it's tested on the backside the trade's done. Here that's only 0.14R, a tiny win. A fixed 3R was never on the table: MSTR never gave more than 0.77R before it chopped. When the 9 EMA is that close, the trade is small. Know that before you short.",
+   "lesson_line": "The target is a level, not a multiple. Close level, small trade.",
    "facts": [
     "c44",
     "h05",
@@ -2697,12 +2727,12 @@
     "b14"
    ],
    "wrong": {
-    "The 50-day as the target": "Bracco's target is the 9 EMA, not the 50-day.",
-    "The swing low as the target": "The rule names a moving average, not a low on the chart. Bracco's target is the 9 EMA, which acts as a magnet for mean reversion.",
-    "A fixed 3R, set before the trade": "The stock never gave more than 0.77R, so a fixed 3R was never on the table here. The 9 EMA is the level this setup is judged by."
+    "At a fixed 3R, set in advance": "It never gave more than 0.77R. A fixed 3R was never coming. The 9 EMA sets the exit.",
+    "At the 50-day": "Way too far. The trade ends at the 9 EMA, the first average it snaps back to.",
+    "At the last swing low": "We cover at the 9 EMA, not a low on the chart. That's where the snap back is done."
    },
    "house": true,
-   "simple": "The target is the 9 EMA, a level and not a multiple. Here it is only 0.14R away.",
+   "simple": "At the 9 EMA, even if it's close. The target is a level, so a nearby 9 EMA means a small trade.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2711,8 +2741,8 @@
      "MSTR figures come from our own scan"
     ]
    },
-   "batch": "visuals-3",
-   "story": "Shorted on the climax day. The target is only 0.14R away.",
+   "batch": "voice-8-2026-11-17",
+   "story": "You shorted the climax day. The 9 EMA is only 0.14R away.",
    "chart": {
     "sym": "MSTR",
     "asof": "2024-11-21",
@@ -2726,35 +2756,32 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "ps.window",
-   "q": "What is the lesson?",
+   "q": "What does this one teach you?",
    "choices": [
     "A mania can top more than once",
-    "Do not short a mania",
-    "Use a wider stop in a mania",
+    "Never short a mania",
+    "Use a wider stop on a hot mania",
     "Hold past the 9 EMA for 3R"
    ],
    "answer": "A mania can top more than once",
-   "why": "A mania can top more than once. The cover rule takes the trade out at the 9 EMA on day 2, at 0.52R. Holding on meant the new high on day 3 took the stop. Twenty sessions later the stock was 27.7% higher. In our data, three of the four losing examples made a new high within three to ten sessions. That is what the 1 to 2 day window and the three-tries cap are for.",
-   "lesson_line": "A mania can top twice. Take the 9 EMA, respect the stop, and do not chase the next one.",
+   "why": "A mania can top more than once. The plan paid you at the 9 EMA on day 2, at 0.52R. Take it there and you're out with a small win. Stay in past it, and the new high on day 3 takes your stop. Twenty sessions later the stock was 27.7% higher. The first climax of a mania is often not the last. That's why each idea gets a short window and a cap on tries.",
+   "lesson_line": "Manias top twice. Take the 9 EMA, respect the stop.",
    "facts": [
     "d15",
     "d16",
     "d31",
-    "c29",
-    "c46",
-    "h11",
-    "c05",
+    "c13",
     "d30",
-    "b30"
+    "h11"
    ],
    "wrong": {
-    "Do not short a mania": "Hot runaway stocks are exactly where this setup lives. The lesson is the window and the tries cap, not skipping it.",
-    "Use a wider stop in a mania": "The stop is the exit. It never moves wider, and a few cents over the climax high is the rule.",
-    "Hold past the 9 EMA for 3R": "This setup is paid at the 9 EMA, inside a few sessions, or not at all. Holding past it is how 0.52R became a stop-out."
+    "Hold past the 9 EMA for 3R": "This trade is paid at the 9 EMA or not at all. Holding past it is how 0.52R became a stop-out.",
+    "Never short a mania": "Hot runaway names are where this trade lives. The lesson is to take the 9 EMA and respect the window.",
+    "Use a wider stop on a hot mania": "The stop never moves wider. A few cents over the climax high is the line."
    },
    "house": true,
-   "story": "Short at 60.68 with the stop at 65.34. Day 2 touches the 9 EMA at 0.52R. Day 3 prints a new high and takes the stop. Twenty sessions later the stock is 27.7% higher.",
-   "simple": "A mania can top twice, so we take the 9 EMA when it comes and do not chase the next climax.",
+   "story": "Short at 60.68, stop 65.34. Day 2 touches the 9 EMA, 0.52R in your favor. Day 3 prints a new high and takes the stop. Twenty sessions later it's 27.7% higher.",
+   "simple": "A hot stock can top twice. Take the 9 EMA when it comes, and don't keep chasing the next top.",
    "deeper": {
     "trap": "Hindsight says it was a bad short. It was not: the plan paid at the 9 EMA on day 2, and the stop did its job on day 3. The lesson is the window and the tries cap, not never short a mania."
    },
@@ -2766,7 +2793,7 @@
      "window and tries cap rest on the owner's rulebook (E56)"
     ]
    },
-   "batch": "visuals-3",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "QCOM",
     "asof": "1999-12-22",
@@ -2836,30 +2863,30 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "ps.inv_vwap_reclaim",
-   "q": "By our card, what now?",
+   "q": "It's back over VWAP. What do you do?",
    "choices": [
-    "Out; the VWAP reclaim ends it",
-    "Hold until 33.40 is retaken",
-    "Add; VWAP is just noise",
-    "Cover half; hold the rest"
+    "Out, the VWAP reclaim ends it",
+    "Hold until 33.40 is taken out",
+    "Add, VWAP is just noise",
+    "Cover half, hold the rest"
    ],
-   "answer": "Out; the VWAP reclaim ends it",
-   "why": "Out. A VWAP reclaim after a VWAP-fail entry is the exit, in full, not a trim. Kullamagi: the stop is the highs of the day, or if VWAP fails, a reclaim of the VWAP. The day's high, 33.40, is the stop for a break-under-VWAP entry. This entry was the failed bounce, so its exit is the reclaim.",
-   "lesson_line": "You entered on the failed bounce at VWAP. A reclaim of VWAP says the bounce did not fail.",
+   "answer": "Out, the VWAP reclaim ends it",
+   "why": "Out. You shorted because VWAP held as a ceiling on the bounce. Now price is back over it, so the reason for the trade is gone. It's Kullamagi's entry, and he exits it on the VWAP reclaim, not the high of the day. 33.40 is the stop for a VWAP-break entry. This one comes off on the reclaim, all of it. Don't sit there waiting for the high to prove it.",
+   "lesson_line": "Short the failed bounce, exit on the reclaim.",
    "facts": [
-    "c15",
     "k03",
     "k07",
+    "c15",
     "h11"
    ],
    "wrong": {
-    "Hold until 33.40 is retaken": "The day's high is the stop for a VWAP-break entry. For a VWAP-fail entry the reclaim is the exit.",
-    "Add; VWAP is just noise": "VWAP is the one intraday line Kullamagi uses. A reclaim is the thesis failing, not noise.",
-    "Cover half; hold the rest": "The reclaim is a full exit, not a trim. Holding half keeps a thesis that has already failed."
+    "Hold until 33.40 is taken out": "That's the stop for a VWAP-break entry. You entered on the failed bounce, so the reclaim is your exit.",
+    "Add, VWAP is just noise": "VWAP is the one intraday line Kullamagi uses. A reclaim is your idea failing, not noise.",
+    "Cover half, hold the rest": "The reason for the trade is gone. Holding half keeps a trade with no reason left."
    },
    "house": true,
-   "story": "You shorted a failed bounce into VWAP at 31.20; the day's high is 33.40. An hour later it trades back above VWAP.",
-   "simple": "Get out. You entered on a failed bounce at VWAP, so a move back above VWAP means the bounce did not fail.",
+   "story": "You shorted a failed bounce into VWAP at 31.20, Kullamagi's entry. The high of the day is 33.40. An hour later it trades back over VWAP.",
+   "simple": "Get out. You shorted because VWAP held as a ceiling, and now price is back above it.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2868,7 +2895,7 @@
      "the failed-bounce entry is Kullamagi's"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q42",
@@ -2876,15 +2903,15 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "ps.burst_boxes",
-   "q": "What is it?",
+   "q": "Same red candle as a climax. What setup is this?",
    "choices": [
-    "A News Failure on the gap up",
-    "A Parabolic Short on the gap up",
-    "A Wedge Drop on the gap up",
-    "A Parabolic Long on the gap up"
+    "A News Failure, not a burst",
+    "A Parabolic Short on the gap",
+    "A Wedge Drop off the top",
+    "A Parabolic Long on the gap"
    ],
-   "answer": "A News Failure on the gap up",
-   "why": "A News Failure shape. A good-news gap up that closes red with no burst before it. A Parabolic Short needs the 3-5 day burst first. AAOI had 2 of 4 boxes, no three straight up closes and no acceleration. It ran 2.16R, then stopped.",
+   "answer": "A News Failure, not a burst",
+   "why": "A News Failure. A good-news gap up that closes red, with no burst before it. The candle looks like a climax. The days before it don't. A parabolic short needs the 3-5 day burst first, the run going vertical into the gap. This one had 2 of 4 boxes, no three straight up closes and no acceleration. AAOI was this exact case. Look left before you name the candle.",
    "lesson_line": "Same candle, different setup. Look at the days before the gap.",
    "facts": [
     "d28",
@@ -2895,13 +2922,13 @@
     "c19"
    ],
    "wrong": {
-    "A Parabolic Short on the gap up": "No burst, no parabola. The slow drift before the gap is the tell.",
-    "A Wedge Drop on the gap up": "A Wedge Drop comes days after a top, at the averages, under the 200-day. This is a gap up out of a slow drift.",
-    "A Parabolic Long on the gap up": "A Parabolic Long needs a burst down and a gap down. This gapped up."
+    "A Parabolic Short on the gap": "No burst, no parabola. A slow drift before the gap is the giveaway.",
+    "A Wedge Drop off the top": "A Wedge Drop comes days after a top, sitting on the averages under the 200-day. This one's a gap up out of a drift.",
+    "A Parabolic Long on the gap": "A Parabolic Long is a burst down into a gap down. This gapped up."
    },
    "house": true,
-   "story": "A stock drifted up slowly for weeks. Today it gaps up 27.7% on a surprise headline and closes red. It had no three straight up closes and no acceleration before it.",
-   "simple": "It drifted up slowly, then gapped up on a headline and closed red, so it is a News Failure.",
+   "story": "This stock drifted up slowly for weeks. Today it gaps up 27.7% on a surprise headline and closes red. No three straight up days before it, no speed-up.",
+   "simple": "A News Failure. It drifted up slowly, then gapped on a headline and closed red, with no burst before it.",
    "deeper": {
     "trap": "The candle looks the same: a big gap up that closes red. The difference is the days before it. A Parabolic Short needs the burst first. A one-day 27.7% gap after a slow rise is the News Failure shape, which needs no burst."
    },
@@ -2912,7 +2939,7 @@
      "figures come from our own scan"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q43",
@@ -2920,34 +2947,33 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "ps.parabolic_not_linear",
-   "q": "Our card checks the last three 5-day ranges. What is its read?",
+   "q": "Do those weekly ranges say parabolic?",
    "choices": [
-    "Not parabolic; ranges did not expand",
-    "Parabolic; the red close is the crack",
-    "Parabolic; three weeks of range",
-    "Not parabolic; it is above its 200-day"
+    "No, the middle week shrank",
+    "Yes, the red close is the crack",
+    "Yes, three big weeks of range",
+    "No, it's above its 200-day"
    ],
-   "answer": "Not parabolic; ranges did not expand",
-   "why": "Not parabolic. Our card wants the last 2 to 3 weekly ranges each larger than the one before. Here all three are given: 12.33, 5.27 and 13.33, so the middle week shrank. Bracco calls consecutive weeks of range expansion extremely important. This was a steady leader's one-day reversal, the linear case. NVDA gave 1.19R in our scan. The 200-day is not the test, because our rule lets a parabolic short sit above it.",
-   "lesson_line": "A leader's one bad day is not a climax. The weeks before it decide.",
+   "answer": "No, the middle week shrank",
+   "why": "No. In a parabolic run each week's range is bigger than the one before. Here it went 12.33, then 5.27, then 13.33. The middle week shrank, so it's a bumpy climb, not one that's speeding up. Bracco calls back-to-back weeks of range expansion extremely important. This was a steady leader having one bad day. NVDA gave 1.19R before the stop. The 200-day isn't the test, since a parabolic short can sit above it.",
+   "lesson_line": "A leader's one bad day isn't a climax. The weeks before it decide.",
    "facts": [
     "d26",
     "d27",
     "c10",
     "s09",
-    "h01",
-    "b22"
+    "h01"
    ],
    "wrong": {
-    "Parabolic; the red close is the crack": "The crack only matters on a parabolic run. This run was linear.",
-    "Not parabolic; it is above its 200-day": "Our rule lets a parabolic short sit above the 200-day. The 200-day is not what rules this out; the shrinking weekly range is.",
-    "Parabolic; three weeks of range": "Three weeks of range is not three weeks of expanding range. The middle week shrank."
+    "Yes, the red close is the crack": "The crack only matters on a parabolic run. This run was linear.",
+    "Yes, three big weeks of range": "Big isn't the test. Each week has to be bigger than the last, and the middle one shrank.",
+    "No, it's above its 200-day": "A parabolic short is the one short we take above the 200-day. The shrinking week is what rules it out."
    },
    "house": true,
-   "story": "A strong leader at highs. The three 5-day ranges before the last bar were 12.33, 5.27 and 13.33 points. The last bar gaps up and closes red.",
-   "simple": "The read is not parabolic. The middle week's range shrank to 5.27, so the weekly ranges did not each grow.",
+   "story": "A strong leader at highs. Its last three weekly ranges were 12.33, 5.27 and 13.33 points. Today it gaps up and closes red.",
+   "simple": "No, the middle week's range shrank, so the climb wasn't speeding up. One bad day at highs isn't a climax.",
    "deeper": {
-    "trap": "A single big red day at highs looks like a climax. The weeks before it decide. Two big weeks around one small week is a bumpy climb, not an accelerating one. Bracco warns that judging by percent gain alone, without structure, is a frequent mistake."
+    "trap": "A single big red day at highs looks like a climax. The weeks before it decide. Two big weeks around one small week is a bumpy climb, not an accelerating one. Bracco warns that judging by percent gain alone, without the structure, is a frequent mistake."
    },
    "tier": "extended",
    "risk": {
@@ -2957,7 +2983,7 @@
      "figures come from our own scan"
     ]
    },
-   "batch": "visuals-3",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "NVDA",
     "asof": "2024-03-08",
@@ -2971,31 +2997,31 @@
    "rung": 6,
    "format": "mcq",
    "criterion": "ps.climax_gap",
-   "q": "A 4-day burst ends in a gap on day 5 and the day reverses. The burst ran down. Which trade is it?",
+   "q": "An index ETF drops four days straight in a burst, gaps down on day 5, then turns up during the day. Which trade is it?",
    "choices": [
-    "The Parabolic Long, on the turn up",
+    "The Parabolic Long, on the turn",
     "The Parabolic Short, on the crack",
-    "No trade; no longs below the 200-day",
-    "A Wedge Drop, on the gap down"
+    "A Wedge Drop on the gap down",
+    "No trade, it's below the 200-day"
    ],
-   "answer": "The Parabolic Long, on the turn up",
-   "why": "The Parabolic Long. It is the mirror image: a burst down, a gap down on the climax day, bought on the intraday turn. The stop sits under the low and the 9 EMA is above. Our rulebook calls the long the mirror of the short.",
-   "lesson_line": "Look which way the burst went. Down means the long, with everything flipped.",
+   "answer": "The Parabolic Long, on the turn",
+   "why": "The Parabolic Long. It's the short flipped: a burst down, a gap down on the climax day, bought on the turn during the day. The stop goes under the low of the day, and the 9 EMA above is the target. Everything flips. One catch on the 200-day. Below it, stocks are a hard no. Only an index or a levered ETF gets this exception.",
+   "lesson_line": "Check which way the burst went. Down means the long, with everything flipped.",
    "facts": [
     "c19",
     "h03",
     "b01",
     "c21",
     "h01",
-    "r06"
+    "r08"
    ],
    "wrong": {
     "The Parabolic Short, on the crack": "A short needs a burst up and a gap up. This burst ran down.",
-    "A Wedge Drop, on the gap down": "A Wedge Drop comes after a 3 to 10 day stall at the 9 EMA, and only below the 200-day. This is a burst down, not a stall.",
-    "No trade; no longs below the 200-day": "Our 200-day rule has an exception for the parabolic long, the mirror image: a burst down."
+    "A Wedge Drop on the gap down": "A Wedge Drop is a stall at the averages after a top, then a break lower. This one's a fast burst down.",
+    "No trade, it's below the 200-day": "On an index or a levered ETF we can buy a parabolic long under the 200-day. On a single stock it's a hard no."
    },
    "house": true,
-   "simple": "A burst down into a gap down that reverses is the Parabolic Long, the mirror of the short, bought on the turn.",
+   "simple": "The Parabolic Long, the short flipped. A burst down into a gap down, bought when it turns up.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3003,7 +3029,7 @@
      "rests on the owner's mirror rule (B26)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q45",
@@ -3011,34 +3037,32 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "ps.extension",
-   "q": "Which setup is that?",
+   "q": "It's a short, but which one?",
    "choices": [
-    "A Wedge Drop on the breakdown",
-    "A Parabolic Short on the breakdown",
-    "A Parabolic Long on the breakdown",
-    "A News Failure on the breakdown"
+    "A Wedge Drop on the break",
+    "A Parabolic Short on the break",
+    "A Parabolic Long on the break",
+    "A News Failure on the break"
    ],
-   "answer": "A Wedge Drop on the breakdown",
-   "why": "A Wedge Drop. It comes days later, after a 3 to 10 day stall within 1 ATR of the 9 EMA. It is taken only below the 200-day. A Parabolic Short is taken on the climax day itself, far above its 200-day. The Wedge Drop sits on the averages.",
-   "lesson_line": "Measure the distance from the averages. The climax is far from them; the Wedge Drop sits on them.",
+   "answer": "A Wedge Drop on the break",
+   "why": "A Wedge Drop. It comes days after the top, from a stall at the 9 EMA, and only under the 200-day. A parabolic short is a different animal. It happens on the climax day itself, with the stock stretched far above its averages. This one's sitting right on them. Check two things: the distance from the averages, and which side of the 200-day it's on.",
+   "lesson_line": "The climax is far from the averages. The Wedge Drop sits on them.",
    "facts": [
     "c21",
     "c20",
     "c22",
-    "c42",
-    "c19",
-    "r06"
+    "c42"
    ],
    "wrong": {
-    "A Parabolic Short on the breakdown": "The climax day is far above the averages. This stock is sitting on them, days after its top.",
-    "A Parabolic Long on the breakdown": "A long needs a burst down and a gap down. This is a stall after a top.",
-    "A News Failure on the breakdown": "A News Failure is a good-news gap up that closes red. There was no gap here, just a stall and a break."
+    "A Parabolic Short on the break": "The climax day is far above the averages. This stock is sitting on them, days after its top.",
+    "A Parabolic Long on the break": "A long needs a burst down and a gap down. This one's a stall after a top.",
+    "A News Failure on the break": "A News Failure is a good-news gap up that closes red. There was no gap here, just a stall and a break."
    },
    "house": true,
    "story": "A stock under its 200-day topped days ago, then stalled five days at its 9 EMA. Today it broke down out of that stall.",
-   "simple": "This is a Wedge Drop. It comes days after the top, from a stall at the 9 EMA under the 200-day.",
+   "simple": "A Wedge Drop. It's a stall at the 9 EMA days after the top, under the 200-day, then a break down.",
    "deeper": {
-    "trap": "Both are shorts, so the names are easy to mix up. Ask two things: how far is the price from its averages, and is it above or below the 200-day? Far above on the climax day is the Parabolic Short. On the averages, days later, under the 200-day, is the Wedge Drop."
+    "trap": "Both are shorts, so the names are easy to mix up. Check how far the price is from its averages, and which side of the 200-day it's on. Far above on the climax day is the Parabolic Short. On the averages, days later, under the 200-day, is the Wedge Drop."
    },
    "tier": "extended",
    "risk": {
@@ -3047,7 +3071,7 @@
      "rests on the card's setup definitions"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q46",
@@ -3055,7 +3079,7 @@
    "rung": 6,
    "format": "mcq",
    "criterion": "ps.cover_9ema",
-   "q": "Short 521.70, stop 565.54, the 9 EMA at 455.00. How many R is the cover at the 9 EMA?",
+   "q": "Short 521.70, stop 565.54, the 9 EMA at 455.00. How many R do you make covering at the 9 EMA?",
    "answer": "1.52R",
    "calc": {
     "fn": "r_multiple",
@@ -3067,8 +3091,8 @@
     },
     "round": 2
    },
-   "why": "1.52R. R is the stop minus the fill: 565.54 minus 521.70. The reward is the fill minus the target: 521.70 minus 455.00. Divide the reward by R to count the cover in R. The fill and stop are CGC's from our data. The 455.00 average is made up for the drill.",
-   "lesson_line": "Count the 9 EMA target in R before you short.",
+   "why": "1.52R. Your risk is the stop minus your entry: 565.54 minus 521.70 is 43.84 a share. Your gain is the entry minus the 9 EMA: 521.70 minus 455.00 is 66.70. 66.70 over 43.84 is 1.52R. Do this before you short, so you know what the trade can pay against what it risks. The entry and stop are CGC's. That stop sat 8.4% away, wider than I like. The 9 EMA level is made up for the drill.",
+   "lesson_line": "Count the 9 EMA in R before you short.",
    "facts": [
     "d05",
     "h05",
@@ -3076,7 +3100,7 @@
    ],
    "house": true,
    "suffix": "R",
-   "simple": "The cover is 1.52R, found by dividing the distance to the target by the distance to the stop.",
+   "simple": "1.52R. The gain to the 9 EMA divided by the risk to your stop.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -3085,7 +3109,7 @@
      "how much comes off at the 9 EMA is held (D-013); only the arithmetic is keyed"
     ]
    },
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "1.52R",
     "2.52R",
@@ -3093,9 +3117,9 @@
     "15.20R"
    ],
    "wrong": {
-    "2.52R": "Measured the reward from the stop instead of from the fill.",
-    "11.90R": "Divided the fill price by R, the stop distance.",
-    "15.20R": "Slipped the decimal point one place right."
+    "2.52R": "You measured from the stop, not your entry.",
+    "11.90R": "You divided your entry price by R. Divide the gain by R.",
+    "15.20R": "The decimal slipped one place."
    }
   },
   {
@@ -3104,24 +3128,21 @@
    "rung": 6,
    "format": "tf",
    "criterion": "ps.stop",
-   "q": "A stop over the climax high that is past 5% usually means waiting for a tighter trigger. You never pull the stop in to fit a size.",
+   "q": "When the honest stop over the climax high is more than 5% away, we mostly wait for a tighter trigger.",
    "answer": "True",
-   "why": "True. We prefer a stop 1-3% away, 3.5% is good, and up to 5% is acceptable. The climax high is often further: on our daily-bar examples GDS was 8.4%, BILI 7.2% and TPL 8.9% away. Past 5%, we mostly wait for a tighter trigger. We never pull the stop in to fit a size.",
-   "lesson_line": "You never pick a size and back-fit a stop under the day's high.",
+   "why": "True. We want the stop 1-3% away, 3.5% is good, and up to 5% we accept. The climax high is often further than that. In our daily-bar examples GDS was 8.4%, BILI 7.2% and TPL 8.9% away. Past 5%, I mostly wait for a tighter trigger. And never pull the stop in just to make the size fit. The stop goes where the chart says you're wrong.",
+   "lesson_line": "Never pick a size first and back-fit the stop.",
    "facts": [
-    "h18",
-    "h12",
-    "c05",
+    "r01",
+    "r02",
+    "r03",
     "d02",
     "d08",
     "d11",
-    "h09",
-    "r01",
-    "r02",
-    "r03"
+    "h12"
    ],
    "house": true,
-   "simple": "True. The climax high is often far from the fill, so past 5 percent we wait for a tighter trigger and never squeeze the stop.",
+   "simple": "True, past 5 percent I mostly wait for a tighter trigger. I never squeeze the stop to fit the size.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -3131,7 +3152,7 @@
      "the wider-than-3% claim comes from our own examples"
     ]
    },
-   "batch": "rulings"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q48",
@@ -3139,30 +3160,30 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "ps.one_entry",
-   "q": "Our rule?",
+   "q": "Do you add to it?",
    "choices": [
-    "No adding; one entry, one stop",
-    "Add half; improve average",
-    "Add if volume dries up",
-    "No adding; widen the stop"
+    "No, one entry, one stop",
+    "Yes, add half, better average",
+    "Add once volume dries up",
+    "No, but widen the stop"
    ],
-   "answer": "No adding; one entry, one stop",
-   "why": "No adding. The full size at one price with one stop. Bracco: parabolic advances often go further than anyone thinks, so he never adds when he is down. The stop is the exit and never moves wider, so widening it is no escape either.",
-   "lesson_line": "Averaging up a short is how a 1R loss becomes a blow-up.",
+   "answer": "No, one entry, one stop",
+   "why": "No. One entry, full size, one stop. That's the whole trade. Parabolic runs go further than anyone thinks. Bracco never adds when he's down, and neither do we. Add here and a squeeze hits a bigger position with the same stop. That's how a 1R loss turns into a blow-up. Widening the stop isn't an escape either. It only moves your way.",
+   "lesson_line": "Averaging up a short turns a 1R loss into a blow-up.",
    "facts": [
-    "h10",
+    "rw_add",
     "s12",
     "c24",
     "h11"
    ],
    "wrong": {
-    "Add half; improve average": "A better average with a bigger position is a bigger squeeze.",
-    "Add if volume dries up": "No condition opens the door. One entry, one stop, and the stop decides.",
-    "No adding; widen the stop": "The stop is the exit. It only moves in your favor, never wider."
+    "Yes, add half, better average": "A better average with a bigger position just means a bigger squeeze.",
+    "Add once volume dries up": "No signal makes adding to a loser okay. One entry, one stop.",
+    "No, but widen the stop": "The stop is the exit. It never moves wider."
    },
    "house": true,
-   "story": "Your short is nearly 1R against you, still under the day's high. A friend says average up, the top is in.",
-   "simple": "No adding. We take one entry at full size with one stop, because parabolic runs often go further than anyone thinks.",
+   "story": "Your short is almost 1R against you, still under the high of the day. A buddy in chat says add more, the top's in.",
+   "simple": "No, we take one entry with one stop. Adding to a losing short is how a small loss becomes a big one.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3170,7 +3191,7 @@
      "rests on the owner's one-entry and stop rules (A5, A4)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q49",
@@ -3178,31 +3199,31 @@
    "rung": 8,
    "format": "mcq",
    "criterion": "ps.index_stretched",
-   "q": "By Bracco, when do these climax moves often peak or unwind?",
+   "q": "Bracco has a tell for when these climax moves tend to peak. Which days does he watch?",
    "choices": [
-    "Thursday or Friday, monthly expiry",
-    "The very first day of a new rally",
+    "Thu or Fri into monthly expiry",
+    "The first day of a new rally",
     "A quiet week with no hype at all",
-    "The first week out of a long base"
+    "Week one out of a long base"
    ],
-   "answer": "Thursday or Friday, monthly expiry",
-   "why": "Thursdays or Fridays, especially right before or on monthly option expirations. That is Bracco's observation. Our card lists it as a cue, along with a short-term stretched index. These are cues, not triggers.",
-   "lesson_line": "Bracco watches Thursdays and Fridays into monthly expiration. It is a cue, not a trigger.",
+   "answer": "Thu or Fri into monthly expiry",
+   "why": "Thursdays and Fridays, especially into monthly options expiration. That's where Bracco sees a lot of these climaxes peak. Use it to get ready, not to get in. If a burst is building into expiry week, have it on your radar the night before, borrow checked. A Thursday into expiry with no burst, no gap and no crack is still nothing. You still short the VWAP break, whatever the day.",
+   "lesson_line": "Thursday or Friday into expiry is a cue, not a trigger.",
    "facts": [
-    "c38",
     "b28",
+    "c38",
     "s15",
     "c09"
    ],
    "wrong": {
-    "The very first day of a new rally": "Climaxes end cycles: Bracco says a cycle ends with the leaders going parabolic. A rally's first day has stretched nothing.",
-    "A quiet week with no hype at all": "No hype, no crowd to exhaust. Bracco ties these tops to a cycle ending with leaders going parabolic.",
-    "The first week out of a long base": "Week one out of a base is too early. Our card says that is not this setup."
+    "A quiet week with no hype at all": "No hype, no crowd to wear out. These tops come when everyone's piling in.",
+    "The first day of a new rally": "Nothing is stretched on day one of a rally. Climaxes come at the end of a run.",
+    "Week one out of a long base": "Week one out of a base is far too early. That's a breakout, not a climax."
    },
    "house": true,
-   "simple": "Bracco says these moves often peak or unwind on Thursdays or Fridays, especially right before or on monthly option expirations.",
+   "simple": "Thursdays and Fridays into monthly options expiration. It's a cue that helps, never the trigger.",
    "deeper": {
-    "trap": "Expiration week is a cue, not a trigger. A Thursday or Friday into expiration with no gap up, no crack and no burst is still not a trade. The cue only adds context to a climax that already meets the rules."
+    "trap": "Expiration week is a cue, not a trigger. A Thursday or Friday into expiration with no gap up, no crack and no burst is still not a trade. The cue only adds weight to a climax that already has everything else."
    },
    "tier": "expert",
    "risk": {
@@ -3212,7 +3233,7 @@
      "an options-calendar cue"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q50",
@@ -3220,31 +3241,31 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "ps.red_close_daily",
-   "q": "What was the mistake?",
+   "q": "That short lost. What was the mistake?",
    "choices": [
-    "Shorted strength: no crack, no burst",
-    "None; any gap up is a climax",
+    "Shorted strength, no crack",
+    "None, any gap up is a climax",
     "The stop over the high was tight",
-    "Entered late; open was the entry"
+    "Too late, the open was the entry"
    ],
-   "answer": "Shorted strength: no crack, no burst",
-   "why": "Shorting strength. The day closed above its open, so there was no crack, and one box is no burst. On daily bars a close under the open is the stand-in for the crack. Shorting a green climax day won 23% of the time. Shorting that close lost 4.5R on the next day's gap up.",
-   "lesson_line": "A green close with one box is strength. Shorting strength pays in R, the wrong way.",
+   "answer": "Shorted strength, no crack",
+   "why": "You shorted strength. The day closed 7.3% over its open, so it never cracked. One box isn't a burst either. A green close on a gap day means buyers held it all day. Shorting a green climax day won 23% of the time, and this one lost 4.5R on the next day's gap up. We short the VWAP break during the day, never the close. No crack, no trade.",
+   "lesson_line": "A green close with one box is strength. Don't short strength.",
    "facts": [
     "c43",
     "c23",
     "c02",
     "c03",
-    "c48"
+    "r09"
    ],
    "wrong": {
-    "None; any gap up is a climax": "A gap up that closes green has not cracked. The gap is the setup, the crack is the trigger.",
-    "The stop over the high was tight": "Nothing in the story says the stop was wrong. The mistake was the entry: a green day with one box.",
-    "Entered late; open was the entry": "Nothing at the open on the climax day. The mistake was what you shorted: a green close with one box."
+    "The stop over the high was tight": "The stop wasn't the problem. The entry was: a green day with one box.",
+    "None, any gap up is a climax": "A gap that closes green hasn't cracked. The gap sets it up, the crack triggers it.",
+    "Too late, the open was the entry": "Nothing at the open on a climax day. The problem was shorting a day that never cracked."
    },
    "house": true,
-   "story": "After a run. The last bar gaps up 2.2% and closes 7.3% above its open. Only one burst box is checked. You short the close anyway.",
-   "simple": "The mistake was shorting strength. The day closed above its open, so there was no crack, and one box is no burst.",
+   "story": "After a run, the last bar gaps up 2.2% and closes 7.3% over its open. Only one burst box is checked. You short the close anyway.",
+   "simple": "Shorting strength. It closed well over its open, so it never cracked, and one box isn't a burst.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3252,7 +3273,7 @@
      "figures come from our own scan"
     ]
    },
-   "batch": "visuals-3",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "MSTR",
     "asof": "2024-03-08",
@@ -3343,30 +3364,30 @@
    "q": "Where should the short have been?",
    "choices": [
     "At the VWAP break, after the turn",
-    "At the close; it is five stars",
+    "At the close, it's five stars",
     "At the break of the day's low",
-    "Nowhere; five-star climaxes are traps"
+    "Nowhere, five-star tops are traps"
    ],
    "answer": "At the VWAP break, after the turn",
-   "why": "At the VWAP break, after the turn. On this climax, SMCI on 2024-02-16, a short at the close put the stop 34.3% away and ran only 0.40R at best. A new high on day 10 took it. The VWAP break at 90.01 ran 1.16R before the same stop at 107.90. Even so, that stop is past the 5% we accept, so we would mostly wait for a tighter trigger.",
-   "lesson_line": "The entry is the VWAP break after the turn. Not the close of the climax day.",
+   "why": "At the VWAP break, after the turn. That's our entry on every short: during the day, never at the close. Shorting the close put the stop 34.3% away, and it ran only 0.40R before a new high on day 10 took it. The VWAP break at 90.01 ran 1.16R before the same 107.90 stop. Better, but that stop is still way past the 5% I accept. On a climax this wild, I'd mostly wait for a tighter trigger or let it go.",
+   "lesson_line": "Grade the setup, then pick the entry. Never the close.",
    "facts": [
     "d19",
     "d20",
     "d21",
-    "h12",
     "c04",
     "r01",
-    "r02"
+    "r02",
+    "r09"
    ],
    "wrong": {
-    "At the close; it is five stars": "Five stars does not fix a 34.3% stop. Past 5%, we mostly wait for a tighter trigger.",
-    "Nowhere; five-star climaxes are traps": "Five stars grades the setup, and its four boxes were real. The entry at the close was the problem; the VWAP break ran 1.16R against 0.40R.",
-    "At the break of the day's low": "That is Bracco's second entry, which we do not take. We use one entry, at the VWAP break."
+    "At the break of the day's low": "That's Bracco's second entry. We take one, at the VWAP break.",
+    "At the close, it's five stars": "Five stars grades the setup, not the entry. It doesn't fix a 34.3% stop.",
+    "Nowhere, five-star tops are traps": "The four boxes were real. The entry at the close was the problem."
    },
    "house": true,
-   "story": "Bracco's five-star climax, four of four boxes. The day closed at the low. A short at the close, 80.33, puts the stop at 107.90, 34.3% away.",
-   "simple": "Short at the VWAP break after the turn, since a short at the close puts the stop 34.3 percent away.",
+   "story": "A five-star climax, four of four boxes. The day closed at its low. Short the close at 80.33 and the stop goes to 107.90, 34.3% away.",
+   "simple": "At the VWAP break during the day. A short at the close put the stop 34.3 percent away.",
    "deeper": {
     "counter": "Five stars grades the setup, not the entry. SMCI's four of four boxes were real, and it was Bracco's own five-star example, yet the close-entry short lost. Grade and entry are two separate decisions."
    },
@@ -3379,7 +3400,7 @@
      "fixed before"
     ]
    },
-   "batch": "visuals-3",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "SMCI",
     "asof": "2024-02-16",
@@ -3437,30 +3458,30 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "ps.above_200",
-   "q": "Is the short allowed under our 200-day rule?",
+   "q": "It's still under the 200-day. Can you short it?",
    "choices": [
-    "Yes; shorts there need no exception",
-    "Yes; but only if the 200-day points down",
-    "No; a parabolic short must be above it",
-    "No; a gap up is a sign of strength"
+    "Yes, shorts under it are fine",
+    "Only if the 200-day points down",
+    "No, parabolic shorts need above",
+    "No, a gap up is strength"
    ],
-   "answer": "Yes; shorts there need no exception",
-   "why": "Yes. Our rule is shorts only below the 200-day, never above it unless the short is a parabolic short. This stock is below its 200-day, so the short needs no exception. The exception matters only above the line, where our card puts a climax. Being below the line is not enough alone. The short still needs its own trigger and stop.",
-   "lesson_line": "Below the 200-day a short needs no excuse. Above it, only the parabolic one.",
+   "answer": "Yes, shorts under it are fine",
+   "why": "Yes. Under the 200-day is where we short. The exception runs the other way: above the 200-day, the parabolic short is the only short we take. So below the line this one needs no excuse. It still needs the setup: the burst, the gap, the crack under VWAP and a stop over the high of the day.",
+   "lesson_line": "Under the 200-day a short needs no excuse. Above it, only the parabolic one.",
    "facts": [
     "h01",
     "c42"
    ],
    "wrong": {
-    "No; a parabolic short must be above it": "The exception lets a parabolic short sit above the line. It does not bar a short below it.",
-    "Yes; but only if the 200-day points down": "The rule asks where the stock sits, not which way the line points.",
-    "No; a gap up is a sign of strength": "The 200-day rule looks at where the stock sits, not at the gap. Below the line a short is allowed. The gap is part of the setup."
+    "Only if the 200-day points down": "The rule looks at where the stock sits, not which way the line points.",
+    "No, parabolic shorts need above": "The exception lets a parabolic short sit above the line. It doesn't stop you shorting below it.",
+    "No, a gap up is strength": "The gap is part of the setup. The 200-day only decides whether a short is allowed."
    },
    "house": true,
-   "story": "A stock below its 200-day rips higher in a burst, then ends with a 6% gap up and a closing reversal.",
-   "simple": "Yes, because a short below the 200-day needs no exception, and this stock is below it.",
+   "story": "A stock under its 200-day rips higher in a burst, then ends with a 6% gap up and a closing reversal.",
+   "simple": "Yes, shorts under the 200-day need no exception. You still need the gap, the crack and the stop.",
    "deeper": {
-    "trap": "Below the 200-day does not mean parabolic. The line only decides whether a short is allowed at all. The burst, the gap and the VWAP trigger still have to be there."
+    "trap": "Under the 200-day doesn't make it parabolic. The line only decides whether a short is allowed at all. The burst, the gap and the VWAP trigger still have to be there."
    },
    "tier": "extended",
    "risk": {
@@ -3472,7 +3493,7 @@
      "fixed before (the CAR example was removed)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q57",
@@ -3525,33 +3546,33 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "ps.inv_no_gap",
-   "q": "By our card, is it the climax-day short?",
+   "q": "Red close, record volume, but no gap. Is it the climax-day short?",
    "choices": [
-    "No; it never gapped up that day",
-    "Yes; the red close is the crack",
-    "Yes; record volume is enough",
-    "No; a burst needs five up days"
+    "No, it never gapped up",
+    "Yes, the red close is the crack",
+    "Yes, record volume is enough",
+    "No, a burst needs five up days"
    ],
-   "answer": "No; it never gapped up that day",
-   "why": "No. The climax day must open above the prior close, and Bracco will not short without that gap up. Our card says no gap up means it is not this setup. A red close on record volume without the gap is not this trade.",
-   "lesson_line": "The gap is the exhaustion. Without it the day is just a red day.",
+   "answer": "No, it never gapped up",
+   "why": "No. No gap up, no climax-day short. The gap is the exhaustion, the last buyers paying up at the open. This day opened under the prior close, so that last rush never came. Bracco won't short without that gap-up, and neither do we. Record volume and a red close make it feel like a climax. Without the gap, it's just a red day.",
+   "lesson_line": "The gap is the exhaustion. No gap, just a red day.",
    "facts": [
     "c08",
     "b06",
+    "c01",
     "h02",
-    "c02",
     "b01"
    ],
    "wrong": {
-    "Yes; the red close is the crack": "The crack only counts after the gap. The gap is a required box.",
-    "Yes; record volume is enough": "Volume adds strength to a climax that gapped up. The gap is the gate.",
-    "No; a burst needs five up days": "A burst is a 3 to 5 day move, so four days fits. The missing gap is the problem."
+    "Yes, the red close is the crack": "The crack only counts after a gap up. No gap, nothing to crack.",
+    "Yes, record volume is enough": "Volume adds weight to a climax that gapped. It doesn't replace the gap.",
+    "No, a burst needs five up days": "A burst runs 3-5 days, so four is fine. The missing gap is the problem."
    },
    "house": true,
    "story": "A four-day burst. Day five opens under the prior close, runs up, then closes red on record volume.",
-   "simple": "No. The climax day has to open above the prior close, and a red close on record volume does not replace the gap.",
+   "simple": "No. It opened under the prior close, so there was no gap up, and without the gap there's no climax short.",
    "deeper": {
-    "trap": "A red close on record volume feels like a climax. Do not let it talk you in. The gap up is the exhaustion, and without it the day is just a red day. Bracco: he will not short without that gap-up."
+    "trap": "A red close on record volume feels like a climax. Don't let it talk you in. The gap up is the exhaustion, and without it the day is just a red day. Bracco won't short without that gap-up."
    },
    "tier": "extended",
    "risk": {
@@ -3561,7 +3582,7 @@
      "rests on the owner's burst definition (B26)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q60",
@@ -3569,33 +3590,34 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "ps.time_limit",
-   "q": "What does the card teach from it?",
+   "q": "It finally paid 2.95R at best. What's the lesson?",
    "choices": [
-    "The time limit; the gap was small",
-    "Hold five weeks; it hit 2.95R",
-    "A 2.8% gap is a strong A+ cue",
-    "A low close means it falls"
+    "Out of time, and the gap was weak",
+    "Hold five weeks, it paid 2.95R",
+    "A 2.8% gap is a strong signal",
+    "A close at the low means it falls fast"
    ],
-   "answer": "The time limit; the gap was small",
-   "why": "The time limit, and a small gap grades lower. This climax had four boxes and a close at the day's low, but only a 2.8% gap. That is a weak mark on our card, where 5% or more is the A+ row. The card says to cover if the 9 EMA is not reached within 3 sessions of entry. Here the 9 EMA took 8 sessions, and the stock chopped under the climax high for five weeks. It reached 2.95R at best, but not by the plan.",
-   "lesson_line": "No 9 EMA within three sessions means the climax is out of time. Cover and move on.",
+   "answer": "Out of time, and the gap was weak",
+   "why": "It ran out of time, and the gap was its weak point. A 2.8% gap passes, but it's small. 5% or more is the strong one. The bigger issue is time. This trade pays at the 9 EMA in a few sessions, or not at all. Here the 9 EMA took 8 sessions, and the stock chopped under its high for five weeks. 2.95R was the best point, not the plan. One slow winner doesn't make sitting in dead shorts a good habit.",
+   "lesson_line": "No 9 EMA in a few sessions, the climax is out of time.",
    "facts": [
     "d10",
     "d11",
     "c14",
+    "c30",
     "c31",
-    "c30"
+    "d30"
    ],
    "wrong": {
-    "Hold five weeks; it hit 2.95R": "It reached 2.95R at best, but the 9 EMA took 8 sessions. The card's limit is 3.",
-    "A 2.8% gap is a strong A+ cue": "A gap of 5% or more is the A+ cue. A small gap is the weak point.",
-    "A low close means it falls": "A close at the low is not a promise. This one closed at the low and still chopped under its high for five weeks."
+    "Hold five weeks, it paid 2.95R": "2.95R was the best print, and the 9 EMA took 8 sessions. This trade isn't meant to sit that long.",
+    "A 2.8% gap is a strong signal": "5% or more is the strong gap. 2.8% was the weak spot.",
+    "A close at the low means it falls fast": "A close at the low is no promise. This one still chopped under its high for five weeks."
    },
    "house": true,
-   "story": "Four of four boxes and a close at the day's low, but the gap was 2.8%. Short 502.85, stop 547.76. The stock chops under its high for five weeks.",
-   "simple": "The card teaches the time limit, because the cover is due in 3 sessions and this one chopped for five weeks.",
+   "story": "Four of four boxes and a close at the low of the day, but the gap was only 2.8%. You're short 502.85, stop 547.76. It chops under the high for five weeks.",
+   "simple": "It ran out of time. This trade pays at the 9 EMA in a few sessions, and the small gap was its weak spot.",
    "deeper": {
-    "trap": "Do not take 2.95R as proof that holding works. It was the best point, and the trade took 8 sessions to reach the 9 EMA, with five weeks of chop under the high. One slow winner does not cancel a 3-session limit."
+    "trap": "Don't take 2.95R as proof that holding works. It was the best point, and the 9 EMA took 8 sessions, with five weeks of chop under the high. One slow winner doesn't change how this trade pays: fast, or not at all."
    },
    "tier": "expert",
    "risk": {
@@ -3606,7 +3628,7 @@
      "fixed before"
     ]
    },
-   "batch": "visuals-3",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "TPL",
     "asof": "2026-02-23",
@@ -3620,38 +3642,37 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "ps.not_this",
-   "q": "Bracco's name for that, and his view of it?",
+   "q": "Bracco has a name for this. What is it, and how does he feel about it?",
    "choices": [
-    "Quick range breakdown; not a fan",
-    "The U-Turn, which he likes best",
-    "A five-star climax; best of all",
-    "Long-drawn-out range; he avoids it"
+    "Quick range breakdown, not a fan",
+    "The U-Turn, his favorite",
+    "A five-star climax, the best kind",
+    "Drawn-out range, he avoids it"
    ],
-   "answer": "Quick range breakdown; not a fan",
-   "why": "The Quick Opening Range Breakdown: the high is set on the first 5-minute candle, then the 2- or 5-minute opening range breaks. Bracco says he is not particularly fond of it. It is less frequent and more challenging. It often appears on day 1 or 2 of the burst, typically too early in the move.",
-   "lesson_line": "A top on the first candle of day two is usually not the top.",
+   "answer": "Quick range breakdown, not a fan",
+   "why": "The Quick Opening Range Breakdown, and he's not a fan. The high comes on the first 5-minute candle, then the 2- or 5-minute opening range breaks. Bracco calls it less frequent and more challenging, and it needs caution. It often shows up on day 1 or 2 of the burst, too early in the move. The climax gap comes on day 3 to 5. So count the days before you trust a first-candle top.",
+   "lesson_line": "A first-candle top on day two is often not the top.",
    "facts": [
     "b20",
     "b19",
-    "c33",
-    "b11",
-    "b08",
-    "b24",
-    "b25",
     "b35",
     "b36",
-    "b37"
+    "b37",
+    "b08",
+    "b11",
+    "b24",
+    "c33"
    ],
    "wrong": {
-    "The U-Turn, which he likes best": "The U-Turn runs higher first and turns 10 to 60 minutes in. This topped on the first candle.",
-    "A five-star climax; best of all": "Day two of a burst is early. The climax gap usually comes on day 3 to 5.",
-    "Long-drawn-out range; he avoids it": "That one is a tight range for the first one to two hours. This topped on the first candle, so the name is wrong."
+    "The U-Turn, his favorite": "The U-Turn runs first and cracks 10 to 60 minutes in. This one topped on the first candle.",
+    "A five-star climax, the best kind": "Day two of a burst is early. The climax gap comes on day 3 to 5.",
+    "Drawn-out range, he avoids it": "That's a tight range for the first one to two hours. This topped on the very first candle."
    },
    "house": true,
-   "story": "Day two of a burst: two up days. Today it gaps up, sets its high on the first 5-minute candle and breaks the opening range low.",
-   "simple": "It is the Quick Opening Range Breakdown, which Bracco is not fond of and which often comes too early.",
+   "story": "Day two of a burst. Today it gaps up, sets its high on the first 5-minute candle and breaks the opening range low.",
+   "simple": "The Quick Opening Range Breakdown. Bracco isn't fond of it, since it often comes too early in the run.",
    "deeper": {
-    "trap": "Count the days before you trust a first-candle top. The climax gap usually comes on day 3 to 5 of the burst. On day 1 or 2 the same shape is typically too early in the move."
+    "trap": "Count the days before you trust a first-candle top. The climax gap comes on day 3 to 5 of the burst. On day 1 or 2, the same shape is often too early in the move."
    },
    "tier": "expert",
    "risk": {
@@ -3661,7 +3682,7 @@
      "fixed before: the key said weakest and least liked, which the post does not say; it now says not fond"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q62",
@@ -3686,32 +3707,33 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "ps.stop_gap",
-   "q": "What now?",
+   "q": "You're gapped way through your stop. What now?",
    "choices": [
-    "Out at once; past the 2R ceiling",
-    "New stop 74.00, the 30-minute high",
-    "Hold; it must come back to the 9 EMA",
-    "New stop 72.00, the opening price"
+    "Out at once, past the 2R line",
+    "New stop 74.00, the 30-min high",
+    "Hold, it has to come back down",
+    "New stop 72.00, the open"
    ],
-   "answer": "Out at once; past the 2R ceiling",
-   "why": "Out. The first 30 minutes decide, with a ceiling: if they take the loss past 2R, get out. The open at 72.00 is far past that ceiling, against a 60.00 entry and a 63.00 stop. The 30-minute high of 74.00 is worse. The 30-minute high is the new stop only inside the ceiling. This is the failure mode: a squeeze gaps up over the stop for 4R to 5R losses.",
-   "lesson_line": "The gap rule has a ceiling. Past 2R there is nothing to wait for.",
+   "answer": "Out at once, past the 2R line",
+   "why": "Out, right away. The gap rule gives the first 30 minutes a say, but with a ceiling: past 2R, you're out. The open at 72.00 is already 4R against your 60.00 entry and 63.00 stop. There's nothing to wait for. This is how this setup does real damage: a squeeze gaps over the stop for 4R to 5R losses. Take the hit and keep it from getting worse.",
+   "lesson_line": "The gap rule has a ceiling. Past 2R, you're out.",
    "facts": [
     "h14",
     "h13",
     "c07",
-    "c29"
+    "c29",
+    "h05"
    ],
    "wrong": {
-    "New stop 74.00, the 30-minute high": "The 30-minute high is the new stop only inside 2R. This gap is far past 2R at the open.",
-    "Hold; it must come back to the 9 EMA": "Nothing must. A squeeze gapping over the stop is how this setup takes 4R to 5R losses.",
-    "New stop 72.00, the opening price": "The rule never uses the open as the stop. The 30-minute high is the new stop, and only inside 2R."
+    "New stop 74.00, the 30-min high": "The 30-minute high is the new stop only inside 2R. This is way past it.",
+    "Hold, it has to come back down": "Nothing has to come back. A squeeze through your stop is how this trade does real damage.",
+    "New stop 72.00, the open": "The open is never the stop. And past 2R there's no new stop. You're out."
    },
    "house": true,
-   "story": "You shorted the crack at 60.00, stop 63.00. Overnight news; it opens at 72.00 and the first 30-minute high is 74.00.",
-   "simple": "Get out. The gap already took the loss past 2R, and the rule says past 2R in the first 30 minutes, you leave.",
+   "story": "You shorted the crack at 60.00, stop 63.00. Overnight news hits. It opens at 72.00, and the first 30-minute high is 74.00.",
+   "simple": "Get out. The gap already took you past 2R, and past 2R in the first half hour, you leave.",
    "deeper": {
-    "trap": "Nothing guarantees the stock returns to the 9 EMA. The gap rule is not a way to wait. It is a short window with a hard ceiling. Past 2R the plan is over, and a gap over the stop is the one way this setup does real damage."
+    "trap": "Nothing promises the stock comes back to the 9 EMA. The gap rule isn't a way to wait. It's a short window with a hard ceiling. Past 2R the plan is over."
    },
    "tier": "expert",
    "risk": {
@@ -3721,7 +3743,7 @@
      "the key needs a loss worked out from the story"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q64",
@@ -3729,31 +3751,31 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "ps.climax_gap",
-   "q": "Does the small gap rule it out?",
+   "q": "Small gap. Does that kill the trade?",
    "choices": [
-    "Not ruled out; a small gap grades lower",
-    "Ruled out; a gap must be 5% or more",
-    "Ruled out; small gaps lack exhaustion",
-    "Not ruled out; size is never graded"
+    "No, it passes, just weaker",
+    "Yes, it needs 5% or more",
+    "Yes, small gaps show no exhaustion",
+    "No, gap size doesn't matter"
    ],
-   "answer": "Not ruled out; a small gap grades lower",
-   "why": "Not ruled out. Our card requires the climax day to open above the prior close, and 1.7% does. A gap of 5% or more is the stronger A+ row, so 1.7% is a weaker mark, not a fail. SCHW in 1999 had four boxes and three record-volume days. It reached the 9 EMA the next session, and the 1.7% gap was its weak point.",
-   "lesson_line": "Any open above the prior close is enough. A big gap grades higher.",
+   "answer": "No, it passes, just weaker",
+   "why": "No. Any open over the prior close passes, and 1.7% does. It's just a weaker gap. 5% or more is the strong one. Weigh it against the rest of the chart. SCHW in 1999 had four boxes and three record-volume days, and it hit the 9 EMA the next session. The small gap was its weak point, not a deal breaker. That's a grading call, and it's judgment.",
+   "lesson_line": "Any gap up passes. A big gap grades higher.",
    "facts": [
     "c01",
+    "d12",
     "c31",
-    "c30",
-    "d12"
+    "c30"
    ],
    "wrong": {
-    "Ruled out; a gap must be 5% or more": "5% is the stronger mark, not the requirement. The requirement is any open above the prior close.",
-    "Ruled out; small gaps lack exhaustion": "SCHW's 1.7% gap came with four boxes, three record-volume days and the 9 EMA the next session. A small gap lowers one mark. It does not cancel the rest.",
-    "Not ruled out; size is never graded": "Size is graded. A gap of 5% or more is the A+ row; a small one is a B- mark."
+    "Yes, it needs 5% or more": "5% or more is the stronger gap, not the minimum. Any gap up passes.",
+    "Yes, small gaps show no exhaustion": "This one had four boxes and three record-volume days, and it hit the 9 EMA the next session.",
+    "No, gap size doesn't matter": "It matters. A bigger gap grades higher. A small one passes but counts for less."
    },
    "house": true,
-   "simple": "Not ruled out, because any open above the prior close meets the rule, and a gap of 5 percent or more only grades higher.",
+   "simple": "No, any gap up passes. A small one counts for less, but four boxes and record volume still carry it.",
    "deeper": {
-    "trap": "Do not read weak as skip. SCHW's 1.7% gap was the weak point. Yet it had four boxes and three record-volume days, and it reached the 9 EMA the next session. One weak mark lowers the grade. It does not cancel the others."
+    "trap": "Don't read weak as skip. SCHW's 1.7% gap was the weak point. Yet it had four boxes and three record-volume days, and it hit the 9 EMA the next session. One weak mark lowers the grade. It doesn't cancel the rest."
    },
    "tier": "expert",
    "risk": {
@@ -3764,8 +3786,8 @@
      "the count of boxes needed is held (D-040)"
     ]
    },
-   "batch": "visuals-3",
-   "story": "Four boxes and record volume, but the last bar's climax gap is only 1.7%.",
+   "batch": "voice-8-2026-11-17",
+   "story": "Four boxes and record volume, but the climax gap on the last bar is only 1.7%.",
    "chart": {
     "sym": "SCHW",
     "asof": "1999-04-14",
@@ -3779,16 +3801,16 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "ps.vwap_trigger",
-   "q": "Write the plan: entry, stop, target.",
+   "q": "Give me the plan: entry, stop, target.",
    "choices": [
-    "Market now; stop over the high; 9 EMA",
-    "Short the open; stop 3%; cover at 3R",
-    "Wait for the close; stop at the 9 EMA",
-    "Market now; stop at the VWAP; 9 EMA"
+    "Market now, stop over high, 9 EMA",
+    "Short the open, 3% stop, 3R",
+    "Wait for the close, stop at the 9 EMA",
+    "Market now, stop at VWAP, 9 EMA"
    ],
-   "answer": "Market now; stop over the high; 9 EMA",
-   "why": "Market now, stop a few cents over the day's high, target the daily 9 EMA. Our entries are market orders. The trigger is the break back under VWAP after the high is set. The stop sits a few cents over the climax day's high at entry. BILI: the daily stand-in short was 29.66 with the stop at 31.81, and the 9 EMA came in 4 sessions.",
-   "lesson_line": "Entry at the VWAP break, stop over the high, out at the 9 EMA.",
+   "answer": "Market now, stop over high, 9 EMA",
+   "why": "Market now, stop just over the high of the day, cover at the daily 9 EMA. The VWAP break is the trigger, so you're in at market. The stop goes a few cents over the high, where the idea's proven wrong. The target is the 9 EMA, the magnet it snaps back to. BILI's daily stand-in was a short at 29.66, stop 31.81, and the 9 EMA came in 4 sessions. That stop was 7.2% away, past the 5% I accept. On a stop that wide I mostly wait for a tighter trigger.",
+   "lesson_line": "VWAP break in, stop over the high, out at the 9 EMA.",
    "facts": [
     "c04",
     "c05",
@@ -3797,19 +3819,21 @@
     "d07",
     "d08",
     "d09",
-    "k03",
-    "c15"
+    "c15",
+    "r09",
+    "r01",
+    "r02"
    ],
    "wrong": {
-    "Short the open; stop 3%; cover at 3R": "Nothing at the open, the stop is a level not a percent, and the target is the 9 EMA.",
-    "Wait for the close; stop at the 9 EMA": "The close is a daily stand-in, not the trade. And the 9 EMA is below the price; it is the target.",
-    "Market now; stop at the VWAP; 9 EMA": "A VWAP reclaim is Kullamagi's exit for a VWAP-fail entry. For the VWAP-break entry the stop sits a few cents over the day's high."
+    "Short the open, 3% stop, 3R": "Nothing at the open, the stop is a level not a percent, and the target is the 9 EMA.",
+    "Wait for the close, stop at the 9 EMA": "We short the break during the day, never the close. And the 9 EMA is below price. It's the target.",
+    "Market now, stop at VWAP, 9 EMA": "A VWAP reclaim is the exit for a VWAP-fail entry. On a VWAP-break entry the stop goes over the high."
    },
    "house": true,
-   "story": "A 12-session vertical run, three of four boxes, an 11% gap on the biggest volume of the run. On the 5-minute chart, say it runs, then breaks VWAP.",
-   "simple": "Enter at market on the VWAP break, put the stop just over the day's high, and aim for the daily 9 EMA.",
+   "story": "A 12-session vertical run, three of four boxes, an 11% gap on the biggest volume of the run. On the 5-minute chart, it runs, then breaks VWAP.",
+   "simple": "Short at market on the VWAP break, stop just over the high, cover at the daily 9 EMA.",
    "deeper": {
-    "example": "BILI gapped up 11.3% on 2024-10-02 on the biggest volume of its run and closed in the lower half. Our daily stand-in for the plan was a short at 29.66 with the stop at 31.81. On the 5-minute chart the same plan starts earlier, at the VWAP break."
+    "example": "BILI gapped up 11.3% on 2024-10-02 on the biggest volume of its run and closed in the lower third. Our daily stand-in for the plan was a short at 29.66 with the stop at 31.81. On the 5-minute chart the same plan starts earlier, at the VWAP break."
    },
    "tier": "expert",
    "risk": {
@@ -3820,7 +3844,7 @@
      "fixed before"
     ]
    },
-   "batch": "visuals-3",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "BILI",
     "asof": "2024-10-02",
@@ -3834,28 +3858,28 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "ps.climax_gap",
-   "q": "After a burst. The last bar is the climax day. Read the bar: take it or pass?",
+   "q": "A burst into a gap up. The last bar is the climax day. Do you take the short, or pass?",
    "choices": [
-    "Take it; a gap up that closed red",
-    "Take it; short the next day's open",
-    "Pass; the day closed green, not red",
-    "Pass; there was no gap up today"
+    "Take it, a gap up that closed red",
+    "Take it, but short tomorrow's open",
+    "Pass, the day closed green",
+    "Pass, there was no gap up"
    ],
-   "answer": "Take it; a gap up that closed red",
-   "why": "Take it. The last bar opened above the prior close and closed red, in the lower half of its range. It came after a 13-session run with four of four boxes. The gap was about 15%, on record volume. Our rule needs a climax day that opens above the prior close. On daily bars the crack is a close under the open. The 9 EMA came in 2 sessions.",
-   "lesson_line": "Gap up, record volume, red close after a burst: that is the climax day.",
+   "answer": "Take it, a gap up that closed red",
+   "why": "Take it. The last bar opened above the prior close and closed red, in the lower half of its range. That's the crack on a daily chart. It came after a 13-session run with four of four boxes, on a gap of about 15% on record volume. That's GDS in February 2025, the cleanest one in our examples. On the day, you'd short the VWAP break. The 9 EMA came in 2 sessions.",
+   "lesson_line": "Burst, gap up, record volume, red close. That's the climax day.",
    "facts": [
     "c01",
     "c02",
     "c03",
-    "c20",
     "d01",
-    "d03"
+    "d03",
+    "c04"
    ],
    "wrong": {
-    "Pass; the day closed green, not red": "Look again: the last bar opened higher and closed lower, in the lower half of its range.",
-    "Pass; there was no gap up today": "The last bar opened well above the prior close. The gap is there.",
-    "Take it; short the next day's open": "This bar already cracked, so the short belongs to this climax day itself. Nothing at the open."
+    "Take it, but short tomorrow's open": "This bar already cracked. The short belongs to the climax day itself, not the next open.",
+    "Pass, the day closed green": "Look again. It opened higher and closed lower, in the bottom half of the bar.",
+    "Pass, there was no gap up": "It opened well above the prior close. The gap is right there."
    },
    "house": true,
    "chart": {
@@ -3864,9 +3888,9 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Take it, because the last bar opened above the prior close and then closed lower, which is the crack on a daily chart.",
+   "simple": "Take it. It gapped up after a burst and closed red, which is the crack on a daily chart.",
    "deeper": {
-    "trap": "A red close alone is not enough. It counts only after a burst and a gap up. A red day with no gap up, or with no burst before it, is a different day. Check the days before the last bar, then the gap, then the close."
+    "trap": "A red close alone isn't enough. It counts only after a burst and a gap up. Check the days before the last bar, then the gap, then the close."
    },
    "tier": "expert",
    "risk": {
@@ -3876,7 +3900,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q67",
@@ -3884,16 +3908,16 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "ps.red_close_daily",
-   "q": "After a burst. The last bar gapped up. Read the bar: take it or pass?",
+   "q": "A burst, and the last bar gapped up again. Read that bar. Short it, or pass?",
    "choices": [
-    "Pass; it closed near its high",
-    "Take it; the gap is the trigger",
-    "Take it; volume is huge",
-    "Pass; the climb was too steady"
+    "Pass, it closed near its high",
+    "Short it, the gap is the trigger",
+    "Short it, the volume is huge",
+    "Pass, the climb was too steady"
    ],
-   "answer": "Pass; it closed near its high",
-   "why": "Pass. Read where the bar closed against where it opened: 15.8% above its open, at 95% of its range. That is a green climax day with no crack, and on daily bars the crack is a close under the open. The top did come the next day, yet a short at this close was stopped out the next session.",
-   "lesson_line": "A gap that never looks back has not cracked. Wait for the red one.",
+   "answer": "Pass, it closed near its high",
+   "why": "Pass. Look where it closed against where it opened: 15.8% above the open, at 95% of the day's range. That's a green climax day with no crack. Buyers won the day. The real top did come the next day, but a short at this close was stopped the next session at 0R. Being right about the top isn't the same as having the entry. Wait for the red one.",
+   "lesson_line": "A gap that never looks back hasn't cracked. Wait for the red one.",
    "facts": [
     "c02",
     "c23",
@@ -3901,9 +3925,9 @@
     "d25"
    ],
    "wrong": {
-    "Take it; the gap is the trigger": "The gap is the setup. The crack is the trigger, and this bar closed near its high.",
-    "Take it; volume is huge": "Volume is one mark. It does not make a green day a crack.",
-    "Pass; the climb was too steady": "The card's test that failed on this bar was the close, not the shape of the run. A green close is the reason to pass."
+    "Short it, the gap is the trigger": "The gap sets it up. The crack is the trigger, and this bar closed near its high.",
+    "Short it, the volume is huge": "Volume raises the grade. It doesn't turn a green day into a crack.",
+    "Pass, the climb was too steady": "The shape wasn't the problem. The green close was."
    },
    "house": true,
    "chart": {
@@ -3912,9 +3936,9 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Pass, because the day closed near its high, so the stock never cracked.",
+   "simple": "Pass, it closed near its high, so it never cracked. Buyers still won that day.",
    "deeper": {
-    "counter": "The real top did come the next day, on 2020-02-04. Yet a short at the green close was stopped out. Being right about the top is not the same as having the right entry."
+    "counter": "The real top did come the next day, on 2020-02-04. Yet a short at the green close was stopped out. Being right about the top isn't the same as having the right entry."
    },
    "tier": "expert",
    "risk": {
@@ -3924,7 +3948,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q68",
@@ -3932,32 +3956,34 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "ps.window",
-   "q": "By our card's 1 to 2 day window, what now?",
+   "q": "Third crack in four days. Do you short it again?",
    "choices": [
-    "Drop the idea; the window has passed",
-    "Short again; three tries allowed",
-    "Short again; window resets daily",
-    "Drop the idea; the stop was tight"
+    "No, the idea's done",
+    "Yes, three tries are allowed",
+    "Yes, the window resets daily",
+    "No, the stop was too tight"
    ],
-   "answer": "Drop the idea; the window has passed",
-   "why": "Drop it. The card gives a 1 to 2 day window: if the trigger fails twice or the window passes, drop the idea. Both triggers failed and Thursday is past the window. Stamatoudis: if it does not work out, he skips the setup altogether. Three tries a week is the outer cap, not a licence to keep going. Obsessing over an idea after its window passes is a named mistake.",
-   "lesson_line": "Two tries in two days and nothing. The idea is over; obsessing over it is the mistake.",
+   "answer": "No, the idea's done",
+   "why": "No. Drop it. Each idea gets a 1 to 2 day window, and two failed triggers or the window passing ends it. You've got both. Three tries a week on one stock is the outer cap, not a license to keep swinging. I'd rather miss the move than get chopped up by one attempt after another. The first climax of a mania is often not the last. Wait for the next real one.",
+   "lesson_line": "Two tries, two days, nothing. The idea's over.",
    "facts": [
     "c13",
     "m01",
+    "m03",
     "c27",
-    "m03"
+    "d31",
+    "h16"
    ],
    "wrong": {
-    "Short again; three tries allowed": "Three a week is the outer cap, not a licence. By the window rule, two failures or two days ends the idea.",
-    "Short again; window resets daily": "The window is 1 to 2 days from the climax. It does not reset on a new day.",
-    "Drop the idea; the stop was tight": "The stop is the rule's stop, a few cents over the high. The window closing is the reason to drop it."
+    "Yes, three tries are allowed": "Three a week is the outer cap, not a target. Two failures ends the idea.",
+    "Yes, the window resets daily": "The window counts from the climax. It doesn't reset each morning.",
+    "No, the stop was too tight": "The stop was right, a few cents over the high. The window closing is why you drop it."
    },
    "house": true,
-   "story": "The climax came Monday. Tuesday and Wednesday, both triggers failed. Thursday the stock cracks under VWAP again.",
-   "simple": "Drop it. The window is 1 to 2 days, both triggers failed, and Thursday is past it.",
+   "story": "The climax came Monday. Tuesday and Wednesday, both triggers failed and stopped you out. Thursday it cracks under VWAP again.",
+   "simple": "No, two failed tries and the window's closed. Chasing a third is how you get chopped up.",
    "deeper": {
-    "trap": "The idea has a clock. A fresh look on Thursday feels new, but it is the same run with two failed triggers behind it. Stamatoudis would rather miss the move than be chopped up by many rapid attempts. Wait for the next climax, not a retry."
+    "trap": "The idea has a clock. A fresh crack on Thursday feels new, but it's the same run with two failed triggers behind it. Wait for the next climax, not a retry. Stamatoudis says the same: he'd rather miss the move than be chopped up by early attempts."
    },
    "tier": "expert",
    "risk": {
@@ -3967,7 +3993,7 @@
      "the window rule is the card's reading of Stamatoudis"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q69",
@@ -3975,17 +4001,18 @@
    "rung": 9,
    "format": "tf",
    "criterion": "ps.cover_9ema",
-   "q": "In our scan, over one in three close-entry climax shorts with a fixed stop reached 3R before the stop.",
+   "q": "In our scan, more than one in three climax shorts reached 3R before the stop.",
    "answer": "False",
-   "why": "False. In the scan, 18.8% reached 3R and 12.5% reached 5R before the stop. So fewer than one in five reached 3R. The scan used a fixed stop with no 9 EMA cover. It shows how seldom 3R comes, not what the trade earns.",
-   "lesson_line": "Three R was rare in our scan. Count the 9 EMA target in R before you short.",
+   "why": "False. Only 18.8% reached 3R before the stop, and 12.5% reached 5R. That's fewer than one in five. The scan shorted the close with a fixed stop and no 9 EMA cover. So don't plan this trade around 3R. Plan it around the 9 EMA, and count how many R that is before you short.",
+   "lesson_line": "3R was rare. Count the 9 EMA in R before you short.",
    "facts": [
     "d32",
     "d33",
+    "d36",
     "h05"
    ],
    "house": true,
-   "simple": "False, because only 18.8 percent of those shorts in our scan reached 3R before the stop.",
+   "simple": "False, fewer than one in five got to 3R. Plan around the 9 EMA, not a big multiple.",
    "deeper": {
     "trap": "The 18.8% is one scan of our own data, taken with a close-entry stand-in for the entry and a fixed stop. Treat it as a guide to the odds, not a promise."
    },
@@ -3999,7 +4026,7 @@
      "fixed before"
     ]
    },
-   "batch": "rulings"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q70",
@@ -4007,31 +4034,31 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "ps.burst_exception",
-   "q": "What does Bracco say about it?",
+   "q": "Only two up days. Is it still a candidate?",
    "choices": [
-    "Still viable, with that expansion",
-    "Not viable; expansion cannot add a day",
-    "Skip it; two days is another setup",
-    "Viable only after a third up day"
+    "Yes, with that expansion",
+    "No, it needs a third up day",
+    "No, two days is another setup",
+    "No, expansion can't stand in"
    ],
-   "answer": "Still viable, with that expansion",
-   "why": "Still viable. Bracco: with only two up days, a stock stays a viable candidate if those two days show significant price and ATR expansion. He adds that not every criterion needs to be satisfied, and the more boxes checked, the stronger. Our card allows 2 of 4 boxes only with exceptional extension.",
+   "answer": "Yes, with that expansion",
+   "why": "Yes, it can be. Bracco says a stock with only two up days stays a viable candidate. Those two days need big expansion in price and ATR, the average daily range. Not every box has to be checked. The more you check, the stronger the setup. So treat this as an exception, not a new normal. The two days have to be big.",
    "lesson_line": "Two up days can work, but only with big expansion.",
    "facts": [
     "b34",
-    "c49",
-    "b07"
+    "b07",
+    "c49"
    ],
    "wrong": {
-    "Skip it; two days is another setup": "He calls it a viable candidate when the two days show big price and ATR expansion.",
-    "Viable only after a third up day": "Waiting for a third day is not his rule. The expansion in the two days is the test.",
-    "Not viable; expansion cannot add a day": "Bracco says not every box needs to be satisfied, and he gives this very case."
+    "No, it needs a third up day": "Waiting for a third day isn't his test. The size of the two days is.",
+    "No, two days is another setup": "He calls it a viable candidate when the two days expand hard.",
+    "No, expansion can't stand in": "Bracco says not every box has to be checked, and he gives this exact case."
    },
    "house": true,
-   "story": "A stock rose only two days in a row before a climax-day gap up. Those two days showed sharp price and ATR expansion.",
-   "simple": "Two up days can still work if those two days show sharp price and ATR expansion, as Bracco says.",
+   "story": "This stock rose just two days in a row before the climax-day gap up. But those two days were huge, with big price and ATR expansion.",
+   "simple": "Yes, if those two days are big. Bracco keeps it as a candidate when price and range expand hard.",
    "deeper": {
-    "trap": "Do not read this as two days is fine. It is an exception, not a new rule. The expansion has to be large, and the more of the other boxes are checked, the stronger the setup. Our card allows it only with exceptional extension."
+    "trap": "Don't read this as two days is fine. It's an exception, not a new rule. The expansion has to be large, and the more of the other boxes you check, the stronger it is."
    },
    "tier": "expert",
    "risk": {
@@ -4041,7 +4068,7 @@
      "a single author's exception"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q71",
@@ -4185,32 +4212,31 @@
    "format": "scenario",
    "criterion": "ps.round_number",
    "story": "A large-cap leader is up 80% in 12 sessions. Today it gaps up on record volume, runs to 87.30, and breaks back under VWAP at 10:15. The chart is parabolic even on a log scale. No round number sits near the high.",
-   "q": "How does the missing round number count?",
+   "q": "No round number near the high. Does that change anything?",
    "choices": [
-    "Nothing; a round number is a cue only",
-    "The short waits for a round number",
-    "Skip it; climaxes need round numbers",
-    "Cut the size in half for lack of one"
+    "No, it's a cue, not a must",
+    "Wait for it to reach a round one",
+    "Skip it, tops need round numbers",
+    "Cut the size in half for it"
    ],
-   "answer": "Nothing; a round number is a cue only",
-   "why": "It counts for nothing against the trade. Bracco says most climax points occur around very obvious, round numbers, so one near the high is a plus. Our card calls it a cue. A chart parabolic even on a log scale is the strong form, and this one is. The short still rests on the climax gap, the VWAP break and the stop over the high.",
-   "lesson_line": "A round number is a plus for the grade. It is never a gate.",
-   "simple": "A round number is a cue that helps the grade. Its absence blocks nothing, since the trigger is the break under VWAP.",
+   "answer": "No, it's a cue, not a must",
+   "why": "No. A round number near the high is a nice extra. Bracco notes most climax points come around very obvious round numbers. It's a cue, though, not a requirement. This chart is parabolic even on a log scale, which is the strong form. The trade still rests on the gap, the VWAP break at 10:15 and a stop over 87.30.",
+   "lesson_line": "A round number is a plus. Never a gate.",
+   "simple": "Nothing, a round number is a nice extra, not a must. The gap, the crack and the stop make the trade.",
    "facts": [
     "s11",
     "c37",
     "c04",
-    "c05",
-    "h12"
+    "c05"
    ],
    "wrong": {
-    "The short waits for a round number": "A cue is not a gate. The trigger is the break back under VWAP after the high is set.",
-    "Skip it; climaxes need round numbers": "Bracco says most climax points come at round numbers, not all. It is a cue, not a requirement.",
-    "Cut the size in half for lack of one": "Size comes from the stop, not from a missing cue. A stop over the climax high sets the shares."
+    "Wait for it to reach a round one": "A cue isn't a trigger. The trigger already printed: the VWAP break.",
+    "Skip it, tops need round numbers": "Bracco says most climax points come at round numbers, not all of them.",
+    "Cut the size in half for it": "The size comes from your stop over the high, not from a missing cue."
    },
    "house": true,
    "tier": "extended",
-   "batch": "cover"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -4257,58 +4283,55 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Definition as a screen read; $1 million line (D-001) present. Wrong notes are named mistakes."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Right answer decided from cited quotes first and matches the key; no second defensible choice, tell, ungrounded number or rulebook conflict found."
+   "fixed": true,
+   "notes": "Truth fine (B26 exception, Red = mostly cash). Last line 'Bracco's post is what defines it for us' was working-file talk; replaced with why shorting an uptrend above the 200-day gets you run over."
   },
   "q03": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer decided from cited quotes first and matches the key; no second defensible choice, tell, ungrounded number or rulebook conflict found."
+   "notes": "b06/c01: gap required, 5%+ stronger. Plain claim, no 'but' clause."
   },
   "q04": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep is right: the daily 9 EMA is the cover level a trader plots; bank has real averages. New why defines the EMA and its use; facts h05/b14 support it; sentences short."
+   "notes": "Fill keeps the 'daily ___ EMA' sentence; 9 EMA cover is D47."
   },
   "q05": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "b15 stop over the high; size from the stop. Reads like the VOICE model."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "notes": "b11/b13: nothing at the open, VWAP break 10-60 min."
   },
   "q07": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Boxes b02-b07 correct; 'dries up' kept for bases."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key = card trigger (c04) and Bracco b11/b12; Kullamagi's first RED candle (k06) is not among the choices, so no second answer. Same rule as q27 at a lower rung; stems of q14/q30 presuppose the VWAP break but do not ask for the first entry. Accepted overlap."
+   "notes": "U-Turn b11/b12; market order and stop in the how."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key correct (straight negation of c02). The simple line says 'a green climax day won only 23%': it was SHORTING the green day that won 23%, not the day. Reworded."
+   "fixed": false,
+   "notes": "c02 23% green-close stat; trigger is the intraday VWAP break."
   },
   "q10": {
    "status": "cut",
@@ -4320,68 +4343,67 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer decided from cited quotes first and matches the key; no second defensible choice, tell, ungrounded number or rulebook conflict found."
+   "notes": "Kullamagi named in stem and why: the question is his rule of thumb (rule 13). k01 numbers right; b22 caveat."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "CHART DROPPED. On the bars RGTI doubled in 11 sessions (15 to 31.6, 28% over its 9 EMA, +191% in 60 sessions) with 4 up closes in a row before a pause, so a member sees a vertical run and the answer 'the run is still too young' contradicts the chart; the card's 'week one out of a base / 1 up day' is a box count, not what the chart shows. Original question restored (no chart)."
+   "fixed": false,
+   "notes": "c09 week 1 out of a base; RGTI d22/d23 new high on day 6."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer decided from cited quotes first and matches the key; no second defensible choice, tell, ungrounded number or rulebook conflict found."
+   "notes": "D48 borrow, with the how (check with the broker before the climax day)."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer decided from cited quotes first and matches the key; no second defensible choice, tell, ungrounded number or rulebook conflict found."
+   "notes": "E57 market order; one entry is the house rule (ps.one_entry)."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer decided from cited quotes first and matches the key; no second defensible choice, tell, ungrounded number or rulebook conflict found."
+   "notes": "a short through its stop is a loser, never add. Voice 4."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "TIGR 2024-10-07 checked on bars: gap +12.1%, volume 1.56x the prior-20 max (highest of the run), 67% over 9 EMA, +327% burst; asof is the climax day the question names; ticker only in why; d37 quote matches the dossier row. Right answer true."
+   "notes": "TIGR d37 1.56x; volume raises the grade, not the trigger."
   },
   "q17": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "b09/b10/b22 linear vs parabolic; AAPL 2023 (c09)."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer decided from cited quotes first and matches the key; no second defensible choice, tell, ungrounded number or rulebook conflict found."
+   "notes": "Report inside 3 sessions = pass (ps.earnings); the gap reason is given."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed the calc; answer choice shows it; each wrong choice recomputed as its stated mistake and is clearly different; no tell; why walks the steps."
+   "notes": "6.47/42.00 = 15.4%; 13.3 = 6.47/48.47; 115.4 and 6.5 match their notes."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "One failed trigger, Wednesday is session 1 after the climax, inside the card's 1 to 2 session window (c13, measure <= 2 sessions after the setup day); B21 + E56 allow a new trigger. Consistent with q68. Two Yes, two No, equal lengths.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "c13 window; E56 3 a week, 6 a month."
   },
   "q21": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "B23 floor with the reason (thin names slip the stop)."
   },
   "q22": {
    "status": "cut",
@@ -4399,19 +4421,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "8.50/40.00 = 21.25%; 121.25, 82.47 (40/48.5), 212.50 match. Says measurement, not cutoff (rule 22)."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Bars: BILI 2024-10-02 close 29.66, high 31.77, so stop 31.81 is 4 cents over the high and 7.25% from the fill; all text numbers match the dossier row. FIX: dropped chart.trade (check_course_charts fails any drawn trade with a stop over 6% from entry: 7.2%). The words keep the numbers."
+   "notes": "Numbers right (2.15/29.66 = 7.25%; 6.76 = 2.15/31.81) but the why said '2.15 over 29.66 is 0.07. Times 100, that's 7.25%', which does not multiply out. Steps rewritten; D-005 past-5% wait kept."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Bars: GDS 2025-02-20 close 48.50, high 52.50 (stop 52.56 over it); 3R on day 5 confirmed; 61 shares correct. FIX: dropped chart.trade (stop 8.4% from entry fails check_course_charts' 6% limit). Numbers stay in the words."
+   "fixed": false,
+   "notes": "250/4.06 = 61.58 -> 61; 123 = 500/4.06; 5 = 250/48.5; stop 8.37%, D-005 framing right."
   },
   "q27": {
    "status": "cut",
@@ -4423,19 +4445,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "notes": "B20: 53.40 is a 4.90 loss on a 4.06 R = 1.21R, inside 2R. Correct."
   },
   "q29": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "notes": "a planned second short is never the plan; False stays right. Voice 4."
   },
   "q30": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "notes": "47.50 vs 50.00 = 5%, past 4% (C28 mirrored, c16). 'I'd rather miss it than chase it.'"
   },
   "q31": {
    "status": "cut",
@@ -4453,37 +4475,37 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "notes": "c30 A+ row; grade sets size."
   },
   "q34": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "notes": "b24/b25/b26 names right."
   },
   "q35": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Both halves true: B19 (h20) and card c41. 'Moves in your favor' is the D47 mirror of A4. No conflict with q46/q37."
+   "notes": "Breakeven 2R to 5R or at the first sell, judgment (h20). The card's fixed 2R is gone."
   },
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Bars: TSLA 2020-07-13 close 99.80, days 1-3 trade 95-106 under the 119.67 climax high, 9 EMA first touched day 8, stopped day 25 (2020-08-17), best 0.44R: all match the story and why; forward 30 reaches day 25. FIX: dropped chart.trade (stop 20.0% from entry fails the 6% limit)."
+   "fixed": false,
+   "notes": "never add to a losing short. Voice 4."
   },
   "q37": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Bars: MSTR 2024-11-21 asof is the climax day; the 9 EMA at that bar sits 0.14R under the close with a stop 0.1% + 1c over the 543.00 high (0.144R); best R in the next 60 sessions 0.77R on day 26, inside forward 30. No trade drawn, correct (no dossier entry/stop row). 9 EMA is the right yardstick; ticker not in q/story/choices."
+   "notes": "c44 MSTR 0.14R / 0.77R; b23."
   },
   "q38": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Bars: QCOM 1999-12-22 close 60.68, high 65.27 (stop 65.34), day 2 low 57.28 touches the 9 EMA (58.2 same-day, 0.52R), day 3 high 66.06 over the climax high takes the stop, close on day 20 is +27.7% vs the entry: story exact; forward 30 covers it. FIX: dropped chart.trade (stop 7.7% from entry fails the 6% limit)."
+   "fixed": false,
+   "notes": "QCOM d15/d16 right; window and tries cap."
   },
   "q39": {
    "status": "cut",
@@ -4500,64 +4522,62 @@
   "q41": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Truth fine (k03/k07). 'Kullamagi says it plainly.' was filler that said nothing; the why now says what his exit is and why. Kullamagi stays: the question is his entry (rule 13)."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "CHART DROPPED. AAOI did not drift up slowly: the day before the gap bar it closed +57% (53.69 to 84.23 on 24.9M shares) and the gap bar opened 27.7% over that, so the last two bars are a two-day explosion (+239% in 60 sessions, 45% over its 9 EMA); 'no acceleration' and 'drifted slowly' are false on the chart. Original question restored (no chart)."
+   "fixed": false,
+   "notes": "AAOI d28/d29; News Failure vs burst."
   },
   "q43": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Bars: NVDA 2024-03-08 gap +2.7%, open to close -8.0%. The 12.33 / 5.27 / 13.33 ranges are the three 5-day blocks ending the DAY BEFORE the last bar; counting the last bar into the final block (what a member sees on the chart) gives 16.15 / 5.17 / 13.98, so 'last three weekly ranges' in the story was loose. FIX: story and question say '5-day ranges before the last bar'. The 1.19R the why names comes on day 29 (stop day 53), so forward raised from 20 to 30."
+   "fixed": false,
+   "notes": "NVDA weekly ranges, 1.19R (d27); 200-day note right."
   },
   "q44": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D-021 rename done in the Wedge Drop wrong text; r06 verbatim."
+   "notes": "Index ETF parabolic long; a stock under the 200-day is a hard no, only indexes and levered ETFs excepted (D-009). Right."
   },
   "q45": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D-021 rename in story, why, simple; nothing measured; entry on the breakdown is intraday."
+   "notes": "Wedge Drop vs parabolic; 9 EMA used (D-021)."
   },
   "q46": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "43.84 risk, 66.70 gain, 1.52R; 2.52 = 110.54/43.84; 11.90 = 521.70/43.84; 8.4% stop flagged wide."
   },
   "q47": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "agrees with ruling"
+   "notes": "D-005 r01/r02; GDS 8.4, BILI 7.2, TPL 8.9 recompute. Lesson line said 'back-fit a stop under the high' (a short's stop sits over the high); simplified."
   },
   "q48": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "adding to a losing short stays a never. Voice 4."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "fixed": true,
+   "notes": "Truth fine (b28). Why was thin ('That's Bracco's observation' plus the cue line). Rewritten with the practical how: on your radar the night before, borrow checked."
   },
   "q50": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Bars: MSTR 2024-03-08 gap +2.2%, open to close +7.3%, closed 142.56 near the 145.17 high; next day (replay day 1) opens 155.00 = 4.5R against a close-entry short, matching 'lost 4.5R'. Volume 0.65x the prior-20 max, no crack. asof is the day the member judges; no trade drawn. Right answer true."
+   "notes": "MSTR c43: +7.3% over the open, one box, -4.5R."
   },
   "q51": {
    "status": "cut",
@@ -4574,8 +4594,8 @@
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Bars: SMCI 2024-02-16 close 80.33 vs low 80.11 (closed at the low), high 107.79 (stop 107.90), 34.3%; best 0.40R, stopped day 10 (2024-03-04): all match. FIX: dropped chart.trade (34.3% stop fails the 6% limit and would squash the chart)."
+   "fixed": false,
+   "notes": "SMCI d19-d21: 34.3%, 0.40R, 90.01 at 1.16R; past 5% wait."
   },
   "q54": {
    "status": "cut",
@@ -4592,8 +4612,8 @@
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "CHART DROPPED. The premise is false on the bars: CAR 2020-06-08 closed 32.28 ABOVE its 200-day SMA (26.32); the dossier's own structure column says 'above 200-day' (its 'only one under the 200-day' prose is wrong), so 'below its 200-day, short needs no exception' would sit under a chart with price over the 200 SMA. No card example is below the 200-day. Original question restored (no chart)."
+   "fixed": false,
+   "notes": "CAR d14; B26 shorts below the 200-day; still needs the setup."
   },
   "q57": {
    "status": "cut",
@@ -4611,19 +4631,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits."
+   "notes": "ps.inv_no_gap; b06."
   },
   "q60": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Bars: TPL 2026-02-23 gap +2.8%, close 502.85 vs low 502.18, high 547.20 (stop 547.76); never trades over the climax high for 24 sessions (five weeks); 9 EMA day 8 (same-day EMA); best 2.95R is only reached on day 32 (2026-04-09), after the replay the writer set, though the why and a choice name 2.95R. FIX: forward 35 so the replay reaches it; dropped chart.trade (stop 8.9% fails the 6% limit)."
+   "fixed": false,
+   "notes": "TPL d10/d11; 9 EMA in 8 sessions; judgment framing."
   },
   "q61": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer decided from cited quotes first and matches the key; no second defensible choice, tell, ungrounded number or rulebook conflict found."
+   "notes": "b19/b20/b35-b37 Quick ORB."
   },
   "q62": {
    "status": "cut",
@@ -4635,50 +4655,49 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "R = 3.00; the open 72.00 is (72-60)/3 = 4R and the 30-minute high 74.00 is 4.67R, both past the B20 2R ceiling (h14, c07), in line with c29's 4R to 5R squeeze. Key unique; does not answer q28 (inside-2R case)."
+   "notes": "72.00 - 60.00 = 12.00 = 4R on a 3.00 R; past 2R, out (h14); c29 4R-5R damage."
   },
   "q64": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Bars: SCHW 1999-04-14 gap +1.7% (open 51.00 vs prior close 50.17), volume 28,492,200 vs prior-20 max 28,456,800 (a record), 9 EMA touched next session; ticker not in q/story/choices; the answer (a small gap grades lower, not ruled out) is true for the example."
+   "notes": "SCHW d12; any gap passes, 5% stronger."
   },
   "q65": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Bars: BILI 2024-10-02 gap +11.3%, volume 1.64x the prior-20 max, 9 EMA day 4 and 3R day 4 confirmed. Two text errors fixed: the deeper said the day 'closed in the lower third' but the close sits 37% up the day's range (lower half); and 'On the 5-minute chart it runs, then breaks VWAP' asserts an intraday path no bar can show (bars.db has daily only), so it is now framed as the plan's premise ('say it runs...'). No trade drawn, fine."
+   "notes": "Plan right, but it said the 7.2% stop only means 'the size comes down', which reads as taking a stop past 5%. Now: past the 5% I accept, mostly wait for a tighter trigger (D-005); r01/r02 added to facts."
   },
   "q66": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c01, c02, d01, d03). The wrong note for 'short the next day's open' says only 'taken on the climax day itself', which clashes with q20 (a new trigger next day is allowed) and with the card's pending P2 day-2 version. Reworded to say this bar already cracked. Also the why's exact '15.4%' gives away q19's numeric answer if q66 comes first; d03 grounds 'a 15% gap'."
+   "fixed": false,
+   "notes": "GDS d01/d03, about 15% gap, 9 EMA in 2."
   },
   "q67": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (d24, d25, c02). But q67 is the same TSLA 2020-02-03 bar as q32's text scenario, and its why is a near copy of q32's (and repeats the 23% line also in q09 and q50). Rewritten to teach the bar read itself; same grounded facts, no copied sentence."
+   "fixed": false,
+   "notes": "TSLA d24/d25: 15.8%, 95%, 0R."
   },
   "q68": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key derived from the cited quotes before reading the key; no second defensible answer, no tell, numbers grounded, sentences and choices within limits.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Stamatoudis was in the why without being the question's subject (rule 13); moved to deeper, and the why says it as our judgment."
   },
   "q69": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep; 9 EMA target or 3R as arithmetic/stat; short entry on a break not a close, outside D-003"
+   "notes": "d32 18.8% / 12.5%; close-entry caveat in deeper."
   },
   "q70": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key is b34 nearly word for word; b07 and c49 support the why. Asks for Bracco's view, so the pending D-040 does not change the key. Distinct from q12/q52 (fresh out of a base, no expansion)."
+   "notes": "b34 two-day exception."
   },
   "q71": {
    "status": "cut",
@@ -4708,7 +4727,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Tests ps.round_number as a cue, not a gate, by application (a clean climax with no round number near the high). Agrees with D-006 (a cue raises the grade, never a requirement). Quotes s11 and c37 word for word; c04, c05, h12 support the wrong notes. No live duplicate (the fill q51 was cut). Mild note: three of the four choices penalise the trade, but the right one is the criterion's own point and is not the longest or the only hedge."
+   "notes": "s11/c37 round-number cue; log scale is the strong form."
   }
  }
 }

@@ -272,15 +272,42 @@ class TestIndexBackedScan:
         assert first["fired"] == 1
         assert second["fired"] == 0, "a re-scan re-alerted the same call"
 
-    def test_looks_back_a_DAY_not_only_today(self, ka):
-        # A 16:30 ET call publishes its transcript ~2h later; a same-day window
-        # would miss every one of them on the 18:30 run that matters most.
+    def test_looks_back_TWO_BUSINESS_DAYS_not_only_today(self, ka):
+        # A 16:30 ET call publishes its transcript ~2h later, so it is first seen
+        # by the NEXT check; a same-day window would miss every one of them.
         import datetime
         idx = self._Index({"tariff": []})
         ka.run_scan_via_index(index=idx, subs={"tariff": ["u1"]},
                               deliver=lambda **k: None)
-        expected = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
-        assert idx.last["since"] == expected
+        assert idx.last["since"] == ka.default_since(datetime.date.today())
+        assert idx.last["since"] < (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+
+    def test_MONDAYS_check_reaches_back_past_the_weekend_to_fridays_calls(self, ka):
+        # The miss this fixes: a Friday call is indexed Friday night, after Friday's
+        # 18:30 check. With "yesterday or later" Monday's check started on SUNDAY and
+        # never read it. Every weekday must reach at least the previous business day.
+        import datetime
+        d = datetime.date
+        assert ka.default_since(d(2026, 11, 16)) == "2026-11-12"    # Monday    -> Thursday
+        assert ka.default_since(d(2026, 11, 17)) == "2026-11-13"    # Tuesday   -> Friday
+        assert ka.default_since(d(2026, 11, 18)) == "2026-11-16"    # Wednesday -> Monday
+        assert ka.default_since(d(2026, 11, 19)) == "2026-11-17"    # Thursday  -> Tuesday
+        assert ka.default_since(d(2026, 11, 20)) == "2026-11-18"    # Friday    -> Wednesday
+        # a manual run on a weekend still reaches Friday's calls
+        assert ka.default_since(d(2026, 11, 21)) == "2026-11-19"    # Saturday  -> Thursday
+        assert ka.default_since(d(2026, 11, 22)) == "2026-11-19"    # Sunday    -> Thursday
+        for offset in range(14):
+            today = d(2026, 11, 9) + datetime.timedelta(days=offset)
+            prev = today - datetime.timedelta(days=1)
+            while prev.weekday() >= 5:
+                prev -= datetime.timedelta(days=1)
+            assert ka.default_since(today) <= prev.isoformat(), today
+
+    def test_an_explicit_since_is_passed_through_untouched(self, ka):
+        idx = self._Index({"tariff": []})
+        ka.run_scan_via_index(index=idx, subs={"tariff": ["u1"]}, since="2026-01-05",
+                              deliver=lambda **k: None)
+        assert idx.last["since"] == "2026-01-05"
 
     def test_no_subscriptions_is_a_no_op_not_a_sweep(self, ka):
         out = ka.run_scan_via_index(index=self._Index({}), subs={},

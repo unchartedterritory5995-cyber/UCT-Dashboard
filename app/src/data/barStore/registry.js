@@ -33,7 +33,8 @@ export function defaultFrame(fn) {
 
 /** Default per-tf depth caps (bars held per entry). */
 export const DEFAULT_DEPTH_CAPS = Object.freeze({
-  '1': 20000, '5': 32000, '15': 32000, '30': 32000, '60': 32000, D: 12000, W: 4000, M: 1200,
+  // 30/60 hold the lake's deep load (utils/historyPrepend LAKE_TARGET_BARS_BY_TF)
+  '1': 20000, '5': 32000, '15': 32000, '30': 40000, '60': 50000, D: 12000, W: 4000, M: 1200,
 })
 export const DEFAULT_MAX_KEYS = 200
 export const DEFAULT_BAR_BUDGET = 2_500_000

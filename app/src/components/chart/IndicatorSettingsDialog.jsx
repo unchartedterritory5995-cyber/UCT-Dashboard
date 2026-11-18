@@ -527,7 +527,8 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
   const panelId = `${uid}-panel`
 
   const renderField = (field, inPack) => {
-    const active = evalActiveWhen(field.activeWhen, shown)
+    // a LOCKED setting (`field.disabled`, its sentence the visible tip below) is inert like an inactive one
+    const active = !field.disabled && evalActiveWhen(field.activeWhen, shown)
     const id = `${uid}-${field.key}`
     const labelId = `${id}-lbl`
     const tipId = field.tooltip ? `${id}-tip` : null
@@ -670,10 +671,11 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
           {field.type === 'toggle' && (
             <button
               type="button" role="switch" {...aria}
-              aria-checked={value !== false}
-              className={`${styles.toggle} ${value !== false ? styles.toggleOn : ''}`}
+              aria-checked={field.numeric ? Number(value) === 1 : value !== false}
+              className={`${styles.toggle} ${(field.numeric ? Number(value) === 1 : value !== false) ? styles.toggleOn : ''}`}
               onClick={() => {
-                const val = value === false
+                // a numeric switch (a Pine `bool` held as 1 / 0) writes 1 / 0
+                const val = field.numeric ? (Number(value) === 1 ? 0 : 1) : value === false
                 setDraft((d) => ({ ...d, [field.key]: val }))
                 pendingRef.current.set(field.key, val)
                 flushNow()

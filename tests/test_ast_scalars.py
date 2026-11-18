@@ -935,7 +935,13 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # bar-derived RS columns DECLARED (see the partition pin for the names and the
     # arithmetic), each with its own case in `tests/fixtures/ast/scalars.json`. The bar
     # half is untouched at 138 -- a per-symbol column names no bar function.
-    assert len(parts["bar"]) == 138 and len(parts["scalar"]) == 149
+    # (2026-11-14, engine 57) 138 -> 139: `stochPine` (Pine's `ta.stoch`). Scalars untouched.
+    # ⭐ bar half 139 -> 140 (2026-11-14, engine 56 A3): `boolNaWithheld`, the Pine door's
+    # marker for a v1-v5 `bool` `na` meeting an unwitnessed operator, with its own bar-corpus
+    # case (`pine_bool_na_withheld_is_its_operand`). The scalar half is untouched at 149.
+    # ⭐ bar half 140 -> 141 (2026-11-14, engine 56 S1): `tieNewest`, with its own bar-corpus case
+    # (`pine_tie_newest_is_its_operand`).
+    assert len(parts["bar"]) == 148 and len(parts["scalar"]) == 149
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     assert not (parts["bar"] & parts["scalar"])

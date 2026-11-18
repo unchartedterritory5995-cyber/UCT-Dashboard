@@ -34,6 +34,7 @@
 
 import { ENUM_NA_SENTENCE } from '../enumNaRule.js'
 import { MERGED_HEAD_REWRITE_SENTENCE } from '../objectCells.js'
+import { COUNT_AT_CAP_GUARD, COUNT_AT_CAP_PREFIX } from '../objectPool.js'
 
 /** The five answers a lost operation can have. */
 export const LOSS = Object.freeze({
@@ -619,6 +620,8 @@ export const NOT_SHOWN = Object.freeze({
   // C22 merge — a BOX in an array IS collected (witnessed, sonarlab-order-blocks-spy-1d,
   // `objectPool.js` C7); only a map, a matrix or a field of the script's own type is not
   COLLECTOR_HELD_BOX: 'objects:collector-held-box',
+  // DRAW-1 — the family's collector ran (`objectPool.js` COUNT_AT_CAP_GUARD)
+  COUNT_AT_CAP: COUNT_AT_CAP_GUARD,
 })
 
 const NOT_SHOWN_BECAUSE = Object.freeze({
@@ -633,6 +636,9 @@ const NOT_SHOWN_BECAUSE = Object.freeze({
   [NOT_SHOWN.COLLECTOR_HELD]: 'TradingView removes the oldest ones once the script holds more than its limit, '
     + 'and which ones it spares when the script keeps them in an array, a map, a matrix or a field of its own '
     + 'type has not been measured yet, so none are drawn rather than a guess.',
+  [NOT_SHOWN.COUNT_AT_CAP]: 'the script holds more of them than its maximum count, and TradingView describes that '
+    + 'count as approximate (more drawings than the specified count may be displayed), so which of the oldest '
+    + 'ones TradingView still shows is not known here; none are drawn rather than a guess.',
   [NOT_SHOWN.COLLECTOR_HELD_BOX]: 'TradingView removes the oldest ones once the script holds more than its limit, '
     + 'and which ones it spares when the script keeps them in a map, a matrix or a field of its own type has '
     + 'not been measured yet, so none are drawn rather than a guess.',
@@ -705,6 +711,7 @@ export function runtimeWithheldWhy(withheld) {
 export function runtimeWithheldCause(why, fam = null) {
   if (why === MERGED_HEAD_REWRITE_SENTENCE) return 'table:merged-head-rewrite'
   if (why === ENUM_NA_SENTENCE) return NOT_SHOWN.ENUM_NA
+  if (typeof why === 'string' && why.startsWith(COUNT_AT_CAP_PREFIX)) return NOT_SHOWN.COUNT_AT_CAP
   // ⭐ C22 merge — the store withholds a box only for a map / matrix / UDT holder
   // (`runtime/objectStore.js::collect`): its sentence never says "an array"
   if (typeof why === 'string' && COLLECTOR_HELD_RE.test(why)) {

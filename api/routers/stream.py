@@ -314,6 +314,57 @@ def _build_stale_events(tickers, now=None, bb=None):
     return events
 
 
+#: How much NEWER a Finnhub trade must be than the live feed's last trade before Finnhub's price is
+#: sent (the two feeds stamp the same print within about a second of each other).
+FRESHER_SOURCE_MARGIN_MS = 2000
+
+
+def _trade_ms(v) -> int | None:
+    """A trade time in epoch ms whatever unit it was stored in (Finnhub's trade handler keeps ms, the
+    tick recorder seconds); None when absent or not a time."""
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return None
+    if not x > 0:
+        return None
+    return int(x) if x > 1e12 else int(x * 1000)
+
+
+def _overlay_live(current: dict, sym: str, mp) -> None:
+    """Overlay the MASSIVE live quote (`mp`, bar_broadcaster.get_last_price) on the Finnhub entry in
+    `current`, in place. Only the price, the live day volume and the trade time are overlaid; the
+    client recomputes the day % from the price and the REST previous close.
+
+    ⭐ THE FRESHER SOURCE WINS (2026-11-17 audit, gap 2: stale shown as live). The live price used to
+    overlay Finnhub's whenever it existed, so a symbol whose live trades stopped arriving (the vendor
+    socket up, that symbol's flow lost) held a frozen price while Finnhub's own trades moved on. Now a
+    Finnhub trade more than FRESHER_SOURCE_MARGIN_MS newer than the live one keeps its own price."""
+    if not mp or mp.get("price") is None:
+        return
+    entry = current.get(sym)
+    live_ms = _trade_ms(mp.get("trade_ts"))
+    other_ms = _trade_ms(entry.get("timestamp")) if entry else None
+    if live_ms is not None and other_ms is not None and other_ms - live_ms > FRESHER_SOURCE_MARGIN_MS:
+        return
+    if entry is None:
+        entry = {}
+        current[sym] = entry
+    entry["price"] = mp["price"]
+    # Live cumulative day volume (Massive `av`) overlays the 15s REST value so the Volume column ticks too.
+    if mp.get("volume") is not None:
+        entry["volume"] = mp["volume"]
+    # Stamp the TRADE time, not this loop's send time: the client buckets the live price into a candle
+    # by `updated_at`, and send time put a 9:59:59.9 print into the 10:00 candle. `trade_ts` (ms) is the
+    # exact value; send time is only the fallback.
+    tts = mp.get("trade_ts")
+    if tts:
+        entry["updated_at"] = int(tts // 1000)
+        entry["trade_ts"] = int(tts)
+    else:
+        entry["updated_at"] = int(time.time())
+
+
 @router.get("/api/stream/prices")
 async def stream_prices(
     request: Request,
@@ -403,28 +454,7 @@ async def stream_prices(
                 # recomputes the day % from this price + the REST prev close.
                 if _bb is not None:
                     for sym in ticker_list:
-                        mp = _bb.get_last_price(sym)
-                        if mp and mp.get("price") is not None:
-                            entry = current.get(sym)
-                            if entry is None:
-                                entry = {}
-                                current[sym] = entry
-                            entry["price"] = mp["price"]
-                            # Live cumulative day volume (Massive `av`) overlays the
-                            # 15s REST value so the Volume column ticks too.
-                            if mp.get("volume") is not None:
-                                entry["volume"] = mp["volume"]
-                            # Stamp the TRADE time, not this loop's send time: the
-                            # client buckets the live price into a candle by
-                            # `updated_at`, and send time put a 9:59:59.9 print
-                            # into the 10:00 candle. `trade_ts` (ms) is the exact
-                            # value; send time is only the fallback.
-                            _tts = mp.get("trade_ts")
-                            if _tts:
-                                entry["updated_at"] = int(_tts // 1000)
-                                entry["trade_ts"] = int(_tts)
-                            else:
-                                entry["updated_at"] = int(time.time())
+                        _overlay_live(current, sym, _bb.get_last_price(sym))
 
                 # Only send if any ticker's price OR live volume actually changed
                 # (volume is included so the Volume column still ticks on a trade
@@ -658,30 +688,42 @@ async def stream_bars(
 
     async def event_generator():
         last_heartbeat = time.time()
+        # ⭐ EVENT-DRIVEN, NOT POLLED (2026-11-16). One pending `get()` per subscribed pair; the
+        # loop wakes the moment any queue receives a frame and sends it. This replaced a poll that
+        # slept 250 ms whenever nothing was ready, so a frame landing during the sleep waited up to
+        # 250 ms (~125 ms on average) before leaving the pod: production measured exchange -> pod
+        # dequeue at most 100 ms at the median and ~310 ms exchange -> browser, so most of the gap
+        # was this wait. It also costs less CPU than the poll it replaced (the reason the poll was
+        # slowed from 100 ms): an idle connection wakes once a second (WAIT_S) to notice a
+        # disconnect and keep the heartbeat on time, instead of four times a second.
+        WAIT_S = 1.0
+        getters: dict[int, asyncio.Task] = {}
         try:
             if resume is not None:
                 yield _frame("bars", json.dumps(resume), "resume")
             while True:
                 if await request.is_disconnected():
                     break
-                # Drain whatever is ready from any queue without blocking forever.
-                # We round-robin one wait at a time so no queue starves.
-                got_one = False
-                for (sym, tf, q) in queues:
-                    try:
-                        msg = q.get_nowait()
-                    except asyncio.QueueEmpty:
+                for i, (_sym, _tf, q) in enumerate(queues):
+                    if i not in getters:
+                        getters[i] = asyncio.ensure_future(q.get())
+                done, _pending = await asyncio.wait(
+                    set(getters.values()), timeout=WAIT_S, return_when=asyncio.FIRST_COMPLETED)
+                # Pairs in subscription order; within a pair, the frame the getter took and then
+                # whatever queued behind it, so each pair's frames keep their order.
+                for i, (_sym, _tf, q) in enumerate(queues):
+                    task = getters.get(i)
+                    if task is None or task not in done:
                         continue
-                    got_one = True
+                    del getters[i]
+                    msg = task.result()
                     yield _frame("bars", json.dumps(_contract_event(_bar_contract, msg, session)), "bar")
-
-                if not got_one:
-                    # 250ms idle floor — MATCH stream_prices (deliberately slowed
-                    # 100ms→250ms because every open tab holds one of these loops on the
-                    # single shared event loop; 20Hz here was 2x that tuned budget). The
-                    # broadcaster's 10Hz upstream throttle already caps freshness, so the
-                    # extra ≤250ms drain latency is imperceptible.
-                    await asyncio.sleep(0.25)
+                    while True:
+                        try:
+                            msg = q.get_nowait()
+                        except asyncio.QueueEmpty:
+                            break
+                        yield _frame("bars", json.dumps(_contract_event(_bar_contract, msg, session)), "bar")
 
                 if time.time() - last_heartbeat > 15:
                     # NAMED event (not a `:` comment): a bare comment keeps the
@@ -693,6 +735,8 @@ async def stream_bars(
                     yield _frame("bars", "{}", "heartbeat")
                     last_heartbeat = time.time()
         finally:
+            for task in getters.values():   # a disconnect leaves one pending get() per pair
+                task.cancel()
             unsubscribe("bars", _token)
             for (sym, tf, q) in queues:
                 if session == "rth":

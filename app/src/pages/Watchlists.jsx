@@ -38,6 +38,9 @@ import { useVirtualizer, observeElementRect } from '@tanstack/react-virtual'
 // every batch AND renders outright, or takes the windowed path for both — rather
 // than straddling the two and behaving differently column by column.
 const VIRTUALIZE_MIN_ROWS = 120
+// The rows ahead of a scan warmed URGENTLY (not held behind the daily pack ingest); the
+// screener's `URGENT_NEXT` (pages/screener/focus/useFocusSelection.js) is the same number.
+const SCAN_URGENT_NEXT = 2
 
 // rAF-debounced rect observer for the scan-list virtualizer. At a very narrow
 // widget width (a Scanner dragged/squeezed toward its minW) the list body's
@@ -95,7 +98,7 @@ import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
 import { subscribeChartReadouts, getChartReadout, hasFreshReadouts } from '../lib/chartReadoutStore'
 import useTagColors from '../hooks/useTagColors'
-import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, warmMemFromIDB, prewarmVisibleList, prefetchBarsToIDB } from '../utils/prefetchBars'
+import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, warmMemFromIDB, prewarmVisibleList, prefetchBarsToIDB, createNeighborHold } from '../utils/barsWarm'
 import { scanNeighbors } from '../utils/scanNeighbors'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
@@ -1881,6 +1884,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Only the chart's timeframe is touched (the promote used to read 5 timeframes x 12 rows
   // per press).
   const _scanPrevRef = useRef({ sym: null, idx: -1 })
+  // The store keeps the ±6 rows around the selection in memory while they are neighbors
+  // (barsWarm.createNeighborHold): a list warm of ~100 rows × (chart tf + daily) fills the
+  // store's LRU and evicted them before the member arrived (flip proof 2026-11-17).
+  const _holdRef = useRef(null)
+  if (!_holdRef.current) _holdRef.current = createNeighborHold()
+  useEffect(() => () => _holdRef.current.clear(), [])
   useEffect(() => {
     if (!selectedSym) return
     let flat = []
@@ -1905,8 +1914,21 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     const dir = (prev.sym && prev.idx >= 0 && prev.idx === (idx + 1) % len) ? -1 : 1
     const tf = warmTf || 'D'
     const around = scanNeighbors(flat, idx, dir, { ahead: 6, behind: 6 })
+    const next = scanNeighbors(flat, idx, dir, { ahead: SCAN_URGENT_NEXT, behind: 0 })
+    // `deep`: once the member rests here, the next rows' older history loads too, so the flip
+    // paints them as deep as the chart would reach after its own wait (createNeighborHold).
+    _holdRef.current.set(around, tf, { deep: next })
     warmMemFromIDB(around, [tf])
     prefetchBarsToIDB(scanNeighbors(flat, idx, dir, { ahead: 6, behind: 2 }), tf, { priority: true })
+    // ⭐ THE NEXT ROWS, URGENT (2026-11-17). The line above is a background warm, HELD while the
+    // daily pack ingests (`_holdBackgroundWarm`: a first visit is 90 s+, and a profile whose pack
+    // never stamped holds it for good). Measured in the flip proof with the pack unstamped: the
+    // neighbor warms never left, and every flip to an unwarmed row waited on its own request
+    // (first candles 96-221 ms). The screener already bypasses the hold for its next rows
+    // (useFocusSelection URGENT_NEXT); the watchlist now does the same for the rows the member
+    // is about to reach. Only the latest urgent call stays urgent: a held arrow key aborts the
+    // rows it has passed, so a fast scan costs at most SCAN_URGENT_NEXT requests in flight.
+    prefetchBars(next, tf, { urgent: true })
   }, [selectedSym, visibleSymsFlat, warmTf])
 
   // Prefetch all timeframes for current ticker + adjacent flagged tickers
@@ -3922,7 +3944,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               className={styles.ctxItem}
               data-menu-id="ai"
               onClick={() => { navigate(`/research/${ctxMenu.sym}?section=ai`); setCtxMenu(null) }}
-            ><UIcon name="sparkle" size={14} className={styles.ctxIcon} />Ask AI about {ctxMenu.sym}</button>
+            ><UIcon name="sparkle" size={14} className={styles.ctxIcon} />Ask the UCT Agent about {ctxMenu.sym}</button>
             <button
               className={styles.ctxItem}
               data-menu-id="compare"

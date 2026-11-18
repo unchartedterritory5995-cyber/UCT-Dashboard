@@ -26,7 +26,12 @@
 export const GUARD_NAMESPACES = Object.freeze([
   'pine', 'runtime', 'strategy', 'enum', 'thinkscript', 'pcf', 'canonicalise', 'objects', 'alert',
   'import', 'other-symbol', 'request', 'let', 'picker', 'budget', 'resolve', 'probe', 'engine', 'bind',
-  'consumer', 'presentation', 'sentence', 'chart', 'lower-tf', 'object', 'scan',
+  'consumer', 'presentation', 'sentence', 'chart', 'lower-tf', 'object', 'scan', 'pane',
+  // SETTINGS PARITY (2a): `setting:param-refused`, a folded length's stored value outside its bounds
+  'setting',
+  // HOST WORKER (2026-11-17): `host-lane:worker-unresponsive`, the host lane's background worker held
+  // a job past its watchdog (`hostLaneAsync.js`); the member reads its sentence on the strip
+  'host-lane',
 ])
 
 const GUARD_NS_ALT = GUARD_NAMESPACES.join('|')

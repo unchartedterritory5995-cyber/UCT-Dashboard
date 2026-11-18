@@ -1,7 +1,7 @@
 // useFocusSelection.js
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNeighborWarm } from '../../../hooks/useNeighborWarm'
-import { prefetchBars, prefetchBarsToIDB, prewarmVisibleList, warmMemFromIDB } from '../../../utils/prefetchBars'
+import { prefetchBars, prefetchBarsToIDB, prewarmVisibleList, warmMemFromIDB } from '../../../utils/barsWarm'
 
 // A focus walk is mostly downward: warm 4 ahead and 1 behind (not a symmetric
 // ±6), and let the NEXT 2 rows bypass the cold-start pack-ingest hold.

@@ -1,7 +1,8 @@
 """W9-T4-F1 -- the Python twin settles ``syminfo.mincontract`` exactly as bind.js.
 
 ``symbolScope.json::min_contract`` serves a row only with all five of value / witnesses / captured /
-how / captures, and today serves none (no capture of the probe exists). The JS rail
+how / captures. Since 2026-11-16 it serves NYSE, NYSE Arca and NASDAQ (value 1, the three captures of the
+committed probe merged by #1465); every other exchange serves none. The JS rail
 ``symbolScopeMinContract.test.js`` re-reads a row's captures; this one holds the Python loader and
 fold to the same rules, and the JS-vs-Python parity rail covers the fold on real symbols.
 """
@@ -12,13 +13,17 @@ from api.services import ast_bind as B
 FULL = {"value": 1, "witnesses": ["NYSE:RDDT"], "captured": "2026-11-08", "how": "h", "captures": ["x.json"]}
 
 
-def test_the_production_table_serves_no_row_until_a_capture_lands():
+# This was `test_the_production_table_serves_no_row_until_a_capture_lands` until the captures landed (2026-11-16).
+def test_the_production_table_serves_the_three_witnessed_exchanges():
     rows = {k for k in B._SYMBOL_SCOPE["min_contract"] if not k.startswith("_")}
     assert set(B.SYMBOL_MIN_CONTRACT) == rows
-    assert B.SYMBOL_MIN_CONTRACT == {}
+    assert B.SYMBOL_MIN_CONTRACT == {"NYSE": "1", "NYSE Arca": "1", "NASDAQ": "1"}
     c = B.symbol_constants({"ticker": "RDDT", "exchange": "NYSE"})
-    assert "syminfo.mincontract" not in c
-    assert c["syminfo.pointvalue"] == "1"  # control: the exchange's other witnessed fields still settle
+    assert c["syminfo.mincontract"] == "1"
+    assert c["syminfo.pointvalue"] == "1"  # the exchange's other witnessed fields settle as before
+    # control: an exchange with no row (and an unconfirmed one) settles none, never a guessed 1
+    assert "syminfo.mincontract" not in B.symbol_constants({"ticker": "X", "exchange": "NYSE American"})
+    assert "syminfo.mincontract" not in B.symbol_constants({"ticker": "AITX", "exchange": "OTC"})
 
 
 def test_a_complete_row_serves_decimal_text_like_js_String():

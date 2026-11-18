@@ -29,6 +29,7 @@ sixth route that rides in uncovered.
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import time
@@ -39,6 +40,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user, require_admin
+
+#: who took a library entry down, and when (the takedown table stores no admin id)
+_log = logging.getLogger("user_definitions.router")
 from api.services import indicator_telemetry as telemetry
 from api.services import runtime_definitions
 from api.services import scan_definition
@@ -101,6 +105,14 @@ class EngineStatusIn(BaseModel):
     engine: int = Field(..., ge=1)
     status: Literal["refused", "write-failed"]
     reason: str = Field(..., min_length=1, max_length=2000)
+
+
+class StatusHeadlineIn(BaseModel):
+    """⭐ STUDIO R4 — the owner's status-panel headline for their live version, and the script
+    engine that computed it (`svc.record_status_headline`). Bounded on every field."""
+    version: int = Field(..., ge=1)
+    engine: int = Field(..., ge=1)
+    headline: str = Field(..., min_length=1, max_length=svc.MAX_STATUS_HEADLINE_CHARS)
 
 
 # ── WS-I Part 2: the runtime-admission door's INVOCATION bound (review B1c, 2026-11-13) ──────
@@ -265,7 +277,7 @@ def _save_or_400(user_id, def_id: str, definition: dict,
     except runtime_definitions.CapabilityCheckBusy as exc:
         # WS-I Part 2 (re-review F1): the capability check was busy; retryable, nothing saved
         return JSONResponse(status_code=503, content={"detail": str(exc), "retryable": True},
-                            headers={"Retry-After": "2"})
+                            headers={"Retry-After": str(getattr(exc, "retry_after", 2))})
     except svc.SaveRefused as exc:
         # ⭐ P0/0P — THE ADMISSION REFUSAL IS STRUCTURED: a 422 whose `detail`
         # is still the store's own sentence (so every client that renders
@@ -432,7 +444,7 @@ def list_definitions(user: dict = Depends(require_paid),
             else svc.list_for_user(user["id"]))
     # WS-I Part 2: ONE detector budget for the whole list (a member has up to 50 rows; each row's
     # capability set is read from the store, and at most `DETECTOR_RUNS_PER_REQUEST` are computed)
-    budget = runtime_definitions.DetectorBudget()
+    budget = runtime_definitions.DetectorBudget(member=str(user["id"]))
     runtime_definitions.prefetch_capabilities(rows, budget)   # the stored sets in ONE query (flag on only)
     stamped = [_stamped(r, budget=budget) for r in rows]
     # ⭐ 2026-11-02 -- LINE IDENTITY, read for every row on ONE connection.
@@ -561,6 +573,9 @@ class ConverseIn(BaseModel):
     view: dict
     authoring: Optional[dict] = None
     snippets: Optional[list] = None
+    #: ⭐ L5 -- the MEASURING switch for worked examples. Honoured for an admin only
+    #: (`worked_examples.enabled`); from anyone else it is ignored, never an error.
+    examples: Optional[bool] = None
     # ⭐ P2X (owner decision 1). OPTIONAL, OPAQUE, CLIENT-GENERATED: keys the
     # per-conversation cost aggregate in `definition_conversation`. Typed `Any`
     # on purpose -- a malformed id is IGNORED by the service, never a 422, so
@@ -569,6 +584,15 @@ class ConverseIn(BaseModel):
     #: SLICE 2 — the chart the member is on: ``{sym, tf}`` only, for the
     #: deterministic pre-flight (another symbol / timeframe). Strings, bounded.
     chart: Optional[dict] = None
+    #: ⭐ 2026-11-17 — the browser refused the patch this door offered for this same turn:
+    #: ``{envelope, errors}``, the patch and the browser engine's own words. Untrusted and
+    #: optional; `definition_conversation.browser_refusal` decides whether it is used, and a
+    #: malformed one is ignored (an ordinary turn), never a 422.
+    browser_refusal: Optional[Any] = None
+    #: ⭐ 2026-11-18 — what this build of the browser accepts beyond the first contract
+    #: (``["note.by"]``). Optional and untrusted: an older tab omits it and gets the answer it
+    #: always got; anything that is not a list of known words is ignored, never a 422.
+    accepts: Optional[Any] = None
 
 
 def require_create_indicator_access(user: dict = Depends(require_paid)) -> dict:
@@ -612,7 +636,7 @@ def converse_definition(body: ConverseIn, user: dict = Depends(require_paid),
     global member budget, checked before every model call.
     """
     _charge_propose(str(user["id"]))
-    from api.services import definition_conversation
+    from api.services import definition_conversation, indicator_memory
     # ⭐ P2X owner decision 1: an ADMIN (the `require_admin` rule, role ==
     # 'admin') gets the conversation's admin allowance
     # (`definition_conversation.conversation_cap_usd`). Every other bound --
@@ -623,7 +647,62 @@ def converse_definition(body: ConverseIn, user: dict = Depends(require_paid),
     return definition_conversation.converse(
         body.message, user_id=user["id"], view=body.view,
         authoring=body.authoring, snippets=body.snippets, chart=chart,
-        admin=(user.get("role") == "admin"), conversation_id=body.conversationId)
+        admin=(user.get("role") == "admin"), conversation_id=body.conversationId,
+        examples=body.examples is True, browser_refusal=body.browser_refusal,
+        accepts=body.accepts,
+        # ⭐ what THIS member chose when the door asked before (their own account row, no one else's)
+        memory=indicator_memory.Memory(user["id"]),
+        # ⭐ and what they USUALLY use, read from their own saved indicators only when the door asks
+        saved=svc.list_for_user)
+
+
+def _saved_or_none(user_id: Any):
+    """This member's own saved indicators for the Settings card's "usual" lines, or None when the
+    store cannot be read (the card then shows no such line; nothing else about it changes)."""
+    try:
+        return svc.list_for_user(user_id)
+    except Exception:                              # noqa: BLE001
+        return None
+
+
+class AssistantMemoryIn(BaseModel):
+    """One remembered choice the member sets themselves: a question's id and one of that
+    question's own values (a choice id, or a whole number for a length)."""
+    question: str = Field(..., min_length=1, max_length=32)
+    value: Union[int, float, str] = Field(...)
+
+
+@router.get("/assistant-memory")
+def assistant_memory(user: dict = Depends(require_paid),
+                     _dark: dict = Depends(require_admin_dark_rollout)):
+    """WHAT CREATE INDICATOR REMEMBERS about this member (their own account row, no one else's):
+    every question it can remember an answer to, and their answer where they have one."""
+    from api.services import definition_conversation, indicator_memory
+    return definition_conversation.memory_view(indicator_memory.Memory(user["id"]), _saved_or_none(user["id"]))
+
+
+@router.put("/assistant-memory")
+def set_assistant_memory(body: AssistantMemoryIn, user: dict = Depends(require_paid),
+                         _dark: dict = Depends(require_admin_dark_rollout)):
+    """The member changes a remembered choice. The value must be one of that question's own
+    (checked against the registry); anything else is refused and nothing is written."""
+    from api.services import definition_conversation, indicator_memory
+    memory = indicator_memory.Memory(user["id"])
+    if not definition_conversation.set_memory(memory, body.question, body.value):
+        raise HTTPException(status_code=400, detail="That is not one of this question's choices.")
+    return definition_conversation.memory_view(memory, _saved_or_none(user["id"]))
+
+
+@router.delete("/assistant-memory")
+def forget_assistant_memory(question: Optional[str] = Query(None, max_length=32),
+                            user: dict = Depends(require_paid),
+                            _dark: dict = Depends(require_admin_dark_rollout)):
+    """Forget one remembered choice (`?question=`), or everything (no parameter): the row is
+    removed and nothing else holds a copy."""
+    from api.services import definition_conversation, indicator_memory
+    memory = indicator_memory.Memory(user["id"])
+    memory.forget(question)
+    return definition_conversation.memory_view(memory, _saved_or_none(user["id"]))
 
 
 @router.get("/library")
@@ -638,6 +717,37 @@ def public_library(limit: int = 24, after: Optional[int] = None,
     over, and the reason `test_the_library_route_is_not_shadowed` exists.
     """
     return svc.public_library(limit=limit, after=after)
+
+
+class _TakedownBody(BaseModel):
+    reason: str
+
+
+@router.post("/library/{token}/takedown")
+def take_down_listing(token: str, body: _TakedownBody, user: dict = Depends(require_paid)):
+    """ADMIN ONLY. Take a library entry down; its owner cannot list it again until it is
+    lifted. Their copy, their link and every installed copy are untouched. Declared
+    before `/{def_id}` for the same reason `/library` is."""
+    require_admin(user)
+    try:
+        out = svc.take_down(token, body.reason, down=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if out is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    _log.info("[library] takedown token=%s reason=%s by=%s", token[:12], body.reason, user.get("id"))
+    return out
+
+
+@router.delete("/library/{token}/takedown")
+def lift_listing_takedown(token: str, user: dict = Depends(require_paid)):
+    """ADMIN ONLY. Lift a takedown: the entry shows again if its owner still has it listed."""
+    require_admin(user)
+    out = svc.take_down(token, "other", down=False)
+    if out is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    _log.info("[library] takedown lifted token=%s by=%s", token[:12], user.get("id"))
+    return out
 
 
 @router.get("/capability-worker")
@@ -670,6 +780,19 @@ def runtime_kill(user: dict = Depends(require_paid)):
     # is byte for byte what it was before Part 2 and a client never asks the new door.
     if runtime_definitions.capability_admission_on():
         out["capability_admission"] = True
+    # ⭐ L7 -- the served scripts answered from UCT data, by source sha256 -> the Pine names, for the
+    # member door to disclose ("uses UCT data for: ..."). ABSENT while none is served, so that read is
+    # byte for byte what it was before L7. (Served since 2026-11-16: RS Rating, `syminfo.industry`.)
+    substituted = runtime_definitions.substituted_inputs()
+    if substituted:
+        out["substituted"] = substituted
+    # ⭐ RS RATING L8 -- the run half's object evidence (`runtime_definitions.run_half_evidence`, from the
+    # same committed allowlist records), latched by the member door into `runHalfRailSeam.js`. ABSENT
+    # while no served record carries an objects-v2 capture, so that read is byte for byte what it was
+    # before L8. (Served since 2026-11-16: RS Rating's three captures.)
+    evidence = runtime_definitions.run_half_evidence()
+    if evidence:
+        out["run_half_evidence"] = evidence
     return out
 
 
@@ -777,6 +900,26 @@ def record_engine_status(def_id: str, body: EngineStatusIn,
         return svc.record_engine_status(user["id"], def_id, version=body.version,
                                         engine=body.engine, status=body.status,
                                         reason=body.reason)
+    except svc.SaveConflict as exc:
+        return JSONResponse(status_code=409,
+                            content={"detail": str(exc), "conflict": exc.as_dict()})
+    except svc.ForkRefused as exc:
+        raise HTTPException(status_code=404, detail="Not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/{def_id}/status-headline")
+def record_status_headline(def_id: str, body: StatusHeadlineIn,
+                           user: dict = Depends(require_paid)):
+    """⭐ STUDIO R4 (Indicators backlog 43) — the owner's browser records the headline its status
+    panel shows for the LIVE version of the caller's own definition, with the engine that computed
+    it. The share preview, the install answer and the library entry then carry it for the version a
+    link pins (`svc.share_headlines`). Append-only; the document is never touched. 404 for a
+    definition that is not the caller's or not live, 409 for a version that is no longer live."""
+    try:
+        return svc.record_status_headline(user["id"], def_id, version=body.version,
+                                          engine=body.engine, headline=body.headline)
     except svc.SaveConflict as exc:
         return JSONResponse(status_code=409,
                             content={"detail": str(exc), "conflict": exc.as_dict()})
@@ -897,7 +1040,7 @@ def definition_history(def_id: str, user: dict = Depends(require_paid),
     # 300-version history is one capability lookup, not 300.
     latest = max((r.get("version") for r in rows if isinstance(r, dict)
                   and isinstance(r.get("version"), int)), default=None)
-    budget = runtime_definitions.DetectorBudget()
+    budget = runtime_definitions.DetectorBudget(member=str(user["id"]))
     rows = [dict(r, plot_identities=by_version.get(r.get("version"), {}))
             if isinstance(r, dict) else r
             for r in (runtime_definitions.stamp_served(
@@ -917,7 +1060,14 @@ def definition_history(def_id: str, user: dict = Depends(require_paid),
 #: plan upgrade that would not help. 409 is the same answer `table-version` gets
 #: and for the same shape of reason: the request conflicts with what the thing IS.
 _SHARE_STATUS = {"not-found": 404, "revoked": 410, "gone": 410,
-                 "table-version": 409, "requirements": 409}
+                 "table-version": 409, "requirements": 409,
+                 "taken-down": 403, "listing-limit": 409,
+                 # ⭐ STUDIO R6: over the library's load budget (`load_budget`), measured
+                 # by the server at listing. A conflict the owner resolves by simplifying.
+                 "load-budget": 409,
+                 # the measurement could not be MADE in time (no free slot, or stopped at its
+                 # time limit): nothing was listed or re-pinned; asking again is the remedy.
+                 "load-busy": 503}
 
 
 def _share_http(exc: "svc.ShareRefused") -> HTTPException:
@@ -948,7 +1098,7 @@ def publish_definition(def_id: str, user: dict = Depends(require_paid)):
     names the token that now serves it, so nothing about that is hidden.
     """
     try:
-        out = svc.publish(user["id"], def_id)
+        out = svc.publish(user["id"], def_id, role=user.get("role"))
     except svc.ShareRefused as exc:
         raise _share_http(exc) from exc
     except ValueError as exc:

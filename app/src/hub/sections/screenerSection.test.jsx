@@ -121,7 +121,10 @@ vi.mock('../../pages/screener/hooks/useScreenerScan', () => ({
 vi.mock('../../pages/screener/ScreensManager', () => ({ default: () => null }))
 vi.mock('../../components/screener/StructureProvenance', () => ({ default: () => null }))
 vi.mock('../../pages/charts/review/ReviewChartsButton', () => ({ default: () => null }))
-vi.mock('../../utils/prefetchBars', () => ({ prefetchBars: () => {} }))
+// The real module with its warmer silenced: the section's graph also reaches modules that
+// import OTHER names from it (barStore/network.js reads barsBeforeUrl), and a mock that only
+// knows `prefetchBars` failed the whole file at import.
+vi.mock('../../utils/prefetchBars', async (importOriginal) => ({ ...(await importOriginal()), prefetchBars: () => {} }))
 vi.mock('../../hooks/useRealtimePrices', () => ({
   default: () => ({ prices: PRICES, isStreaming: true }),
 }))

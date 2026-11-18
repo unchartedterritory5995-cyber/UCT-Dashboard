@@ -43,9 +43,16 @@ import { registerGuideCapabilities } from './capabilities/guide'
 import { registerMarketDataCapabilities } from './capabilities/marketDataQuote'
 import { registerMarketFactsCapabilities } from './capabilities/marketDataFacts'
 import { registerCotCapability } from './capabilities/cot'
+import { registerCatalystsCapability } from './capabilities/catalysts'
 import { registerKnowledgeCapabilities } from './capabilities/knowledge'
 import { registerResearchCapability } from './capabilities/research'
 import { registerHistoryCapability } from './capabilities/history'
+import { registerRsCapability } from './capabilities/rsLeadership'
+import { registerTerminalDataCapability } from './capabilities/terminalData'
+import { registerTerminalLocalCapabilities } from './capabilities/terminalDataLocal'
+import { registerTerminalWave2Capabilities } from './capabilities/terminalDataWave2'
+import { registerTerminalWave3Capabilities } from './capabilities/terminalDataWave3'
+import { registerTerminalWave4Capabilities } from './capabilities/terminalDataWave4'
 import { registerChartDescribeCapability } from './capabilities/chartDescribe'
 import { registerMultiChartCapabilities } from './capabilities/multiChart'
 // ⭐ W2-C1 (multi-page host): the pages' own capabilities — offered only on their surface (AgentProvider)
@@ -56,6 +63,8 @@ import { registerJournalCapabilities } from './capabilities/journal'
 import { registerCoachCapabilities } from './capabilities/coach'
 // C3-205..207 (pl-exec6): Tools → Custom-Period Sort — run a sort, dock its panel
 import { registerPeriodSortCapabilities } from './capabilities/periodSort'
+// Charts family (2026-11-15): the member's UCT News library — save a headline, its note, collections
+import { registerNewsLibraryCapabilities } from './capabilities/newsLibrary'
 // Tools → Compare Symbols: open the panel on its Rotation (RRG-style) or Overlay tab, switch between them
 import { registerComparePanelCapabilities } from './capabilities/comparePanel'
 
@@ -105,6 +114,7 @@ export function registerBuiltins() {
   registerCalendarCapabilities()
   registerJournalCapabilities()
   registerPeriodSortCapabilities()
+  registerNewsLibraryCapabilities()         // newsLibrary.*: the UCT News library's own writers (lib/tradeExchangeNewsLibrary.js)
   registerComparePanelCapabilities()        // compare.openView: the Compare panel's Rotation / Overlay view (a view, not saved)
   registerMultiChartCapabilities()   // pl-grid: the Multi Chart grid itself (C3-042..061)
 }
@@ -121,4 +131,11 @@ export function registerServerGatedBuiltins() {
   registerChartDescribeCapability()      // W2-B3: chart.describeSetup while the server serves `bars.daily`
   registerCoachCapabilities()            // Wave 3 (W3-1..4): coach.* / journal.* while the server serves `coach` (UCT_AGENT_COACH)
   registerCotCapability()                // Phase 2: cot.positioning while the server serves `cot.positioning`
+  registerCatalystsCapability()          // Phase 2: news.movers while the server serves `catalysts.board`
+  registerRsCapability()                 // Phase 2: rs.compare while the server serves `rs.leadership`
+  registerTerminalDataCapability()       // Terminal data wave 1: stock.sectorPerformance while the server serves `sectors.performance`
+  registerTerminalLocalCapabilities()    // Terminal data wave 1: four local-only answers, each while the server serves its own isolated kind
+  registerTerminalWave2Capabilities()    // Terminal data wave 2: five local-only answers, each while the server serves its own isolated kind
+  registerTerminalWave3Capabilities()    // Terminal data wave 3: four local-only answers, each while the server serves its own isolated kind
+  registerTerminalWave4Capabilities()    // Terminal data wave 4: three local-only answers, each while the server serves its own isolated kind
 }

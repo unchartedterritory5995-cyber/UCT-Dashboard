@@ -39,14 +39,18 @@ describe('KeywordAlerts', () => {
   it('names the delivery channel — a subscription with an invisible destination is unreasonable', async () => {
     global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: async () => listed(['tariff']) }))
     await mount()
-    expect(document.body.textContent).toMatch(/email \+ Discord/i)
+    // The channels a private alert really has (watchlist_alert_service.deliver_alert_payload):
+    // the alert bell and an email. It has had no Discord leg since private alerts lost it, and
+    // this line said "email + Discord" until 2026-11-17.
+    expect(document.body.textContent).toMatch(/alert bell \+ email/i)
+    expect(document.body.textContent).not.toMatch(/Discord/i)
   })
 
   it('says so when the pipeline is switched OFF rather than implying it will send', async () => {
     global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: async () => listed([], false) }))
     await mount()
     expect(document.body.textContent).toMatch(/paused/i)
-    expect(document.body.textContent).not.toMatch(/email \+ Discord/i)
+    expect(document.body.textContent).not.toMatch(/alert bell \+ email/i)
   })
 
   it('offers the term you just searched, not an empty box to retype into', async () => {

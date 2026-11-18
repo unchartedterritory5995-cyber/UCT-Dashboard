@@ -196,7 +196,7 @@ export function checkInstanceInput(def, key, value) {
   // ⭐ I-13: a colour must be one the chart can draw. The definition's own declared
   // default is always admitted, whatever its spelling, so "back to default" never refuses.
   if (declared.type === 'color' && coerced !== declared.default && !isValidColorValue(coerced)) {
-    return { ok: false, why: `"${key}" takes a colour such as #22c55e or a theme colour (token:bull), not ${JSON.stringify(value)}`, spec: declared }
+    return { ok: false, why: `"${key}" takes a color such as #22c55e or a theme color (token:bull), not ${JSON.stringify(value)}`, spec: declared }
   }
   return { ok: true, value: coerced }
 }

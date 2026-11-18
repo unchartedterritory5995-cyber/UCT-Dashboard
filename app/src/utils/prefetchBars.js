@@ -16,6 +16,7 @@ import { idbGet as _idbGetRaw, idbPutMonotonic as _idbPutMono } from './barsIDB'
 import { memHas as _memHasRaw, memPutMonotonic as _memPutMono, memPeek as _memPeekRaw, memPeekSavedAt as _memPeekSavedAtRaw } from './barsMemCache'
 import { seriesCacheTf, barsSessionQuery, barsGridQuery } from '../components/chart/barTime'
 import { setViewShowExtended } from './viewSession'
+import { isBarsSymbol } from './barsSymbol'
 import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor } from './barsBackfill'
 import { isDailyTailStale, isDailyTodayCloseProvisionalForPaint, dailyCachePaintVerdict, classifyIntradayTail, isCacheCurrentForView } from './marketSession'
 import { getTodayBar, todayPackUsable } from '../lib/todayPackClient'
@@ -248,10 +249,8 @@ function _barsFor(tf) {
 // a full answer lands, the rule stands down for that key for SHORT_FULL_TTL_MS (the chart's
 // `askFullForShortStore` has the same guard, `fullDone`). The cost is then exactly an empty
 // store's: one full window per key, the load these warmers were built for.
-// ⚠️ NOT YET IN THE BARSTORE FACADE (`data/barStore/prefetch.js`, behind the BARSTORE switch,
-// default off): it counts a short CURRENT key as warm, as this file did before. Port the rule
-// before that switch flips; its parity suite pins only a DEEP current store
-// (`data/barStore/prefetch.test.js`, "a durable warm skips ...").
+// ✅ PORTED to the BarStore facade (`data/barStore/prefetch.js`, SHORT_FULL_TTL_MS) on 2026-11-16,
+// pinned against this file by `data/barStore/prefetch.shortIntraday.test.js`.
 const SHORT_FULL_TTL_MS = 6 * 3600 * 1000
 const SHORT_FULL_MAX = 4000
 const _shortFullAt = new Map()   // `${sym}_${k}` -> when a full intraday answer landed
@@ -747,7 +746,12 @@ export async function prepareDailyForDisplay(sym, tf, { signal } = {}) {
 // holds the pack (a prefix, not a ticker); otherwise one shallow request
 // (~14 KB, a mem/sqlite hit server-side) per settled text, deduped per URL, skipped
 // while a network-fresh set is in memory. D/W/M only: intraday has `prepareForDisplay`.
-const TYPED_FRESH_MS = 60_000
+/** The typed warm's RE-ASK window: a set the network answered less than this long ago is not
+ *  asked for again while the member types. A request-dedup window, NOT TERM-006's age-display
+ *  floor (provenance/freshnessAge.js `AGE_FLOOR_MS`, when a panel must show its age): both are
+ *  60 s today by coincidence, and moving one must not move the other. ONE declaration for both
+ *  warmers: the BarStore facade (data/barStore/prefetch.js) imports it from here. */
+export const TYPED_REASK_MS = 60_000
 
 /** Would the chart paint this cached set as its FIRST frame without the network? Asks the
  *  chart's own authority (`dailyCachePaintVerdict`); the seed it can count on before Enter is
@@ -775,7 +779,7 @@ function _keepTypedWarm(url) { if (_typedLatest && _typedLatest.url === url) _ty
 export function __resetTypedWarm() { _typedLatest = null }
 
 export function warmTypedSymbol(sym, tf = 'D') {
-  if (!sym || !tf || !['D', 'W', 'M'].includes(String(tf))) return null
+  if (!isBarsSymbol(sym) || !tf || !['D', 'W', 'M'].includes(String(tf))) return null
   const S = String(sym).trim().toUpperCase()
   if (!/^[A-Z0-9][A-Z0-9.^-]{0,11}$/.test(S)) return null
   const url = _url(S, tf, false)
@@ -785,7 +789,7 @@ export function warmTypedSymbol(sym, tf = 'D') {
     _typedLatest = null
   }
   const saved = memPeekSavedAt(S, tf)
-  if (memHas(S, tf) && Number.isFinite(saved) && Date.now() - saved < TYPED_FRESH_MS) {
+  if (memHas(S, tf) && Number.isFinite(saved) && Date.now() - saved < TYPED_REASK_MS) {
     tellSymbolWarmers([S], tf, { priority: true })   // a known name, bars current: its companions may not be
     return null
   }
@@ -872,7 +876,7 @@ export function _isAuthoritativeAnswer(json, sym, tf) {
 // two rows a user is about to reach by keyboard — never for list-wide warming.
 export function prefetchBars(tickers, tf = 'D', { priority = false, urgent = false } = {}) {
   if (!tickers?.length) return
-  const syms = tickers.filter(Boolean)
+  const syms = tickers.filter(isBarsSymbol)
   tellSymbolWarmers(syms, tf, { priority: priority || urgent })
   const nUrgent = urgent ? Math.min(URGENT_MAX_PER_CALL, syms.length) : 0
   if (urgent) {
@@ -897,7 +901,7 @@ export function prefetchBars(tickers, tf = 'D', { priority = false, urgent = fal
 
 // Prefetch a single ticker for one timeframe (hover). ONE request, not eight.
 export function prefetchBar(sym, tf = 'D') {
-  if (!sym) return
+  if (!isBarsSymbol(sym)) return
   tellSymbolWarmers([sym], tf, { priority: true })
   _enqueue(_url(sym, tf))
   prefetchTickerMeta(sym)
@@ -913,7 +917,7 @@ export function prefetchBar(sym, tf = 'D') {
 // the chart's key, skips a (sym, tf) that is already durable and current, and repairs a
 // behind one with a `since=` tail.
 export function prefetchAllTimeframes(sym) {
-  if (!sym) return
+  if (!isBarsSymbol(sym)) return
   prefetchTickerMeta(sym)
   for (const tf of ALL_TFS) prefetchBarsToIDB([sym], tf)
 }
@@ -935,7 +939,7 @@ export function barsBeforeUrl(sym, tf, bars, toIso, q = '') {
   return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bars}${q}&to=${encodeURIComponent(toIso)}`
 }
 export function prefetchReplayTimeframes(sym, cutoffIso, { bars = 4000 } = {}) {
-  if (!sym || !cutoffIso) return
+  if (!isBarsSymbol(sym) || !cutoffIso) return
   for (const tf of REPLAY_WARM_TFS) {
     _enqueue(`${barsBeforeUrl(sym, tf, bars, cutoffIso, barsGridQuery(tf, _prefetchShowExtended))}&warm=1`, false)
   }
@@ -1062,7 +1066,7 @@ const SCAN_WARM_TFS = ['D', '5', '60', '30', '15']
 const SCAN_WARM_CAP = 100
 export function prefetchListAllTimeframes(tickers, { tfs = SCAN_WARM_TFS, cap = SCAN_WARM_CAP } = {}) {
   if (!tickers?.length) return
-  const list = [...new Set(tickers.filter(Boolean))].slice(0, cap)
+  const list = [...new Set(tickers.filter(isBarsSymbol))].slice(0, cap)
   if (!list.length) return
   for (const tf of tfs) prefetchBarsToIDB(list, tf)
 }
@@ -1092,7 +1096,8 @@ export function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immedia
   if (!tickers?.length) return
   // Told BEFORE the already-warm skips below: bars a member warmed yesterday are durable,
   // the companion lanes' data is per page load and may still be missing for these symbols.
-  tellSymbolWarmers(tickers.filter(Boolean), tf, { priority, visible })
+  tickers = tickers.filter(isBarsSymbol)
+  tellSymbolWarmers(tickers, tf, { priority, visible })
   const front = []
   for (const sym of tickers) {
     if (!sym) continue
@@ -1167,7 +1172,7 @@ function _memPromoteFresh(tf, lastT, savedAt = null, bars = null) {
 
 export function warmMemFromIDB(tickers, tfs = SCAN_WARM_TFS) {
   if (!tickers?.length) return
-  for (const sym of tickers) {
+  for (const sym of tickers.filter(isBarsSymbol)) {
     if (!sym) continue
     for (const tf of tfs) {
       const k = _ck(tf)                    // pinned: read and write the SAME key
@@ -1206,7 +1211,7 @@ export function listPrewarmDisabled() {
 
 export function prewarmVisibleList(tickers, { chartTf = 'D', memTop = 24, cap = 500 } = {}) {
   if (listPrewarmDisabled()) return
-  const list = [...new Set((tickers || []).filter(Boolean))].slice(0, cap)
+  const list = [...new Set((tickers || []).filter(isBarsSymbol))].slice(0, cap)
   if (!list.length) return
   // Warm ONLY the on-screen timeframe(s) for the whole list — that's what's scrolled.
   //
@@ -1297,7 +1302,7 @@ const DEEP_WARM_TFS = ['D', 'W', 'M']
 const DEEP_WARM_CAP = 120
 export function prefetchListDeep(tickers, { tfs = DEEP_WARM_TFS, cap = DEEP_WARM_CAP, priority = false } = {}) {
   if (!tickers?.length) return
-  const list = [...new Set(tickers.filter(Boolean))].slice(0, cap)
+  const list = [...new Set(tickers.filter(isBarsSymbol))].slice(0, cap)
   if (!list.length) return
   // Build the batch in TF-outer order (Daily first). `priority` (on-screen rows) pulls
   // it — and any of these already queued behind the background trickle — to the FRONT,

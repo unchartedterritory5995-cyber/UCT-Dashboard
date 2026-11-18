@@ -37,7 +37,7 @@ const EQUAL_SIZE = /\b(same|equal|even|identical) (size|sizes|sized|width|height
 
 /** Action groups, keyed by capability DOMAIN (the name prefix). Titles are shown to the model. */
 export const GROUPS = [
-  { id: 'charts', title: 'Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume', domains: ['chart', 'volume'],
+  { id: 'charts', title: 'Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume', domains: ['chart', 'volume'],
     // Gate B vocabulary (soft): an overlay or a symbol swap said without "compare" / "chart"
     vocab: [/\b(next to (this|it)|on top of (this|it)|swap \$?[a-z]{1,5} (for|with)|instead of \$?[a-z]{1,5})\b/],
     words: [/\bcharts?\b/, /\b(timeframe|daily|weekly|monthly|hourly|intraday|\d+ ?(min|minute|hour|hr)s?|1h|4h)\b/, /\b(candles?|candlesticks?|hollow|bars|hlc|line chart|area chart|heikin)\b/,
@@ -93,11 +93,21 @@ export const GROUPS = [
       // The verb (compare… / overlay / remove / drop / take off / clear) must govern the group noun within six words: a bare
       // "vs … themes" or a plural "overlays … group" (indicator talk) never reaches this group.
       /\b(?:compar\w*|overlay|remove|drop|take off|clear)\s+(?:[\w’'-]+\s+){0,6}?(?:groups?|sectors?|industr(?:y|ies)|themes?)\b|\b(?:groups?|sectors?|industr(?:y|ies)|themes?|semis)\b.*\b(?:overlays?|scale|comparisons?)\b/] },
+  // Charts family (2026-11-15): newsLibrary.* — the member's UCT News library (save / unsave a headline, its note, collections),
+  // in its OWN words-only group: never a filler. The words name a HEADLINE / story / article with a save / bookmark / note verb,
+  // the library itself, or a collection with its own verbs — never "save my layout", "save the screen", a watchlist note,
+  // "note to self", or a news question (news.latest).
+  { id: 'newsLibrary', title: 'Your UCT News library: save or unsave a headline, its note, collections', domains: ['newsLibrary'], fillLast: true, wordsOnly: true,
+    words: [
+      /\b(?:save|unsave|bookmark|unbookmark)\b[^.;!?]*\b(?:headlines?|stor(?:y|ies)|articles?|news items?)\b|\b(?:headlines?|stor(?:y|ies)|articles?)\b[^.;!?]*\b(?:to|in|from|out of) (?:my |the )?(?:news )?library\b/,
+      /\b(?:saved headlines|research library|news library)\b|\bmy (?:news )?collections\b/,
+      /\b(?:create|make|start|rename|delete|remove)\b[^.;!?]*\b(?:news )?collections?\b|\b(?:into|in|to|out of|from) (?:my |the )?[\w “”"'-]{1,40} collection\b/,
+      /\bnote\b[^.;!?]*\b(?:headline|story|article)\b|\b(?:headline|story|article)\b[^.;!?]*\bnote\b/] },
   // Family C (right-click and header parity, 2026-11-11): a chart's right-click Ask AI and the watermark's Reset position, in
   // their OWN words-only group (as compareGroups): never a filler, so no existing group and no unrecognised request changes.
   // "ask" / "watermark" are used elsewhere, so each needs its context: Ask AI with about / on / for or a chart word; the
   // watermark with a reset / back / default word (either order). No lookbehind (src/noRegexLookbehind.test.js).
-  { id: 'chartMenu', title: 'A chart’s right-click extras: open Ask AI about the chart’s stock; reset a dragged watermark to its default position', domains: ['chartMenu'], fillLast: true, wordsOnly: true,
+  { id: 'chartMenu', title: 'A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position', domains: ['chartMenu'], fillLast: true, wordsOnly: true,
     words: [
       /\b(?:ask|open|pull up|bring up|launch|use)\s+(?:the\s+)?ai\s+(?:about|on|for|regarding)\b|\bask\s+(?:the\s+)?ai\b.*\b(?:chart|stock|symbol|ticker|this one|name)\b/,
       /\bwatermark\b.*\b(?:reset|back|default|original|re-?cent(?:er|re)|where it was)\b|\b(?:reset|re-?cent(?:er|re)|restore|undrag)\b.*\bwatermark\b/] },
@@ -207,7 +217,7 @@ export const GROUPS = [
       /\b(preview|draft)\b/] },
   // ⭐ INDICATORS P2 (AGENT-CONTRACT-P2, 2026-10-27): how an indicator looks and where it draws, pane order and
   // size, duplicating and copying across charts — their own group, so the NL-1 core keeps its size.
-  { id: 'indicatorSetup', title: 'Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts', domains: ['indicatorStyle', 'indicatorCopy', 'pane'], fillLast: true,
+  { id: 'indicatorSetup', title: 'Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts', domains: ['indicatorStyle', 'indicatorCopy', 'pane'], fillLast: true,
     words: [/\b(thick|thicker|thin|thinner|width|dashed|dotted|solid|histogram|columns|plot style|line style)\b/, /\bpanes?\b/, /\b(above|below) (the )?(price|volume)\b/,
       /\b(own|separate|new) pane\b|\b(overlay|put|move)\b.*\b(on|onto) (the )?(price|volume)\b/, /\b(duplicate|copy|copies|clone)\b.*\b(indicators?|studies|rsi|macd|ema|sma)\b/, /\b(same|these|my) indicators\b/,
       /\b(make|turn|colou?r|paint)\b.*\bthe \d{1,3}\b.*\b(red|green|blue|white|black|orange|yellow|purple|pink|teal|gr[ae]y)\b/,
@@ -234,7 +244,7 @@ export const GROUPS = [
   // never a filler, so no existing group and no unrecognised request changes. The words name the PROFILE itself (volume
   // profile / VPVR / visible range volume); "VP" only beside an on / off verb or a bins word. A bare "volume" (the Volume
   // pane), "VWAP" and volume alerts are not its words.
-  { id: 'volumeProfile', title: 'A chart’s Volume Profile overlay: on / off, bins, colours', domains: ['volumeProfile'], fillLast: true, wordsOnly: true,
+  { id: 'volumeProfile', title: 'A chart’s Volume Profile overlay: on / off, bins, colors', domains: ['volumeProfile'], fillLast: true, wordsOnly: true,
     words: [
       /\bvolume[\s-]?profiles?\b|\bvol profile\b|\bvpvr\b|\bvisible range volume\b/,
       /\b(?:add|show|hide|remove|turn on|turn off|enable|disable|switch on|switch off|toggle)\s+(?:the\s+|my\s+)?vp\b|\bvp\s+(?:on|off|bins?)\b/] },
@@ -364,6 +374,14 @@ export const GROUPS = [
     words: [] },
   // W2-B1 (RS-1): `research.ask` rides in this group by domain ("why is X down", "what's driving …", catalysts);
   // W2-B2: `history.afterEvent` too ("how has X behaved after …", "what happens after …")
+  // Terminal data wave 1: the four local-only stock.* answers (analyst actions, session highs / lows, long-run leaders, dark
+  // pool levels) ride here by domain. Their own words are NOT listed below: capabilities/terminalDataLocal.js adds each one's
+  // (TERMINAL_ROUTE_WORDS) to this group only while that capability is registered (the server serves its kind), so on a dark
+  // server this group's words are exactly this list (pinned in agentTerminalData.test.js). The sector answer needs none.
+  // Terminal data wave 2: five more local-only stock.* answers (52-week highs / lows, theme rotation, the confluence board,
+  // the expected move, the earnings call search) ride here the same way: capabilities/terminalDataWave2.js adds each one's
+  // words (WAVE2_ROUTE_WORDS) only while that capability is registered (pinned in agentTerminalDataWave2.test.js).
+  // Terminal data wave 3's four stock.* answers are NOT in this group: see `marketBoards` at the end of the catalog.
   { id: 'data', title: 'Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)', domains: ['stock', 'news', 'research', 'history'],
     // CG-21 (corpus #774): "news" — not the News WIDGET ("add a news widget")
     words: [/\bnews\b(?! (?:widget|panel|tab|window)s?\b)/, /\b(headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sectors?|industry|market cap|float|why is|what does .+ do|what'?s driving|what is driving|off (its|the) (52[\s-]?week )?highs?)\b/,
@@ -503,6 +521,41 @@ export const GROUPS = [
   // capabilities/cot.js arms them only while the capability is registered (the server serves the `cot.positioning` kind), so on a
   // dark server this group never matches and routing is byte-identical to the base (as playbook / coach). Last in the catalog.
   { id: 'cot', title: 'CFTC COT futures positioning (specs, commercials, open interest): changes, N-year extremes, comparisons', domains: ['cot'], fillLast: true, wordsOnly: true,
+    words: [] },
+  // Phase 2 market intelligence (rs.compare): relative strength + sector / industry leadership + the market backdrop in its OWN
+  // group, WORDS-ONLY and fillLast (as indicatorCalc / chartMenu): never a filler, so no existing group and no unrecognised
+  // request changes. `words` stays EMPTY here: capabilities/rsLeadership.js arms them only while the capability is registered
+  // (the server serves the `rs.leadership` kind), so on a dark server this group never matches and routing is byte-identical.
+  { id: 'rs', title: 'Relative strength + leadership: a ticker\'s UCT RS Rating vs its industry / SPY, sector and industry rankings, the market backdrop', domains: ['rs'], fillLast: true, wordsOnly: true,
+    words: [] },
+  // Phase 2 catalysts (news.movers): UCT's catalyst board ("what's moving the market", "why is NVDA up", "catalysts for my
+  // watchlist this week") in its OWN group, WORDS-ONLY and fillLast (as periodSort / chartView): never a filler, so no existing
+  // group and no unrecognised request changes. `words` stays EMPTY here: capabilities/catalysts.js arms them only while the
+  // capability is registered (the server serves `catalysts.board`), so on a dark server routing is byte-identical to the base.
+  { id: 'catalysts', title: 'UCT catalyst board: what moved / is moving the market, why a stock is up or down (stored catalysts + headlines), catalysts for your tickers or watchlist',
+    domains: [], actions: ['news.movers'], fillLast: true, wordsOnly: true,
+    words: [] },
+  // Terminal data wave 3 (stock.gammaLevels / stock.topFlowPicks / stock.flowRecord / stock.earningsReactions): one stock's gamma
+  // walls, UCT's Top Flow picks, the Flow Record and a day's earnings reactions in their OWN group, WORDS-ONLY and fillLast (as cot /
+  // rs / catalysts): never a filler, so no existing group and no unrecognised request changes. They are listed by `actions` because
+  // their `stock` domain would put them in the `data` group, and that group has no room: with every dark kind served it already holds
+  // 20 actions, and four more put it past the routing budget whenever drawings or lists ride along (measured: two wave 1 / wave 2
+  // corpus phrasings stopped routing). `words` stays EMPTY here: capabilities/terminalDataWave3.js arms each capability's own words
+  // only while it is registered (the server serves its kind), so on a dark server this group never matches and routing is
+  // byte-identical to the base (pinned in agentTerminalDataWave3.test.js).
+  { id: 'marketBoards', title: 'Gamma walls of a stock (call wall, put wall, zero gamma), UCT\'s Top Flow picks and Flow Record win rates, how a day\'s earnings reporters moved',
+    domains: [], actions: ['stock.gammaLevels', 'stock.topFlowPicks', 'stock.flowRecord', 'stock.earningsReactions'], fillLast: true, wordsOnly: true,
+    words: [] },
+  // Terminal data wave 4 (stock.earningsSeason / stock.callThemes / stock.groupDrill): one day's earnings season, the phrases rising
+  // across earnings calls and the stocks inside one sector, industry or theme, in their OWN group for wave 3's reasons: WORDS-ONLY
+  // and fillLast, so it is never a filler and no existing group or unrecognised request changes; listed by `actions` because their
+  // `stock` domain would put them in the `data` group, which has no room under the routing budget. They are not added to
+  // `marketBoards` either: that group is held at its four actions (three more ride with every wave 3 ask and its title has no room
+  // to name seven things). `words` stays EMPTY here: capabilities/terminalDataWave4.js arms each capability's own words only while
+  // it is registered (the server serves its kind), so on a dark server this group never matches and routing is byte-identical to the
+  // base (pinned in agentTerminalDataWave4.test.js).
+  { id: 'marketViews', title: 'One day\'s earnings season (who reports, priced and past moves), phrases rising across earnings calls, the stocks inside one sector, industry or theme',
+    domains: [], actions: ['stock.earningsSeason', 'stock.callThemes', 'stock.groupDrill'], fillLast: true, wordsOnly: true,
     words: [] },
 ]
 // chartReplay: the replay bar's bare playback words, which route there ONLY while a chart's bar replay is on (namedGroups)

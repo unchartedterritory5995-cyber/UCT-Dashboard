@@ -23,34 +23,39 @@
 // path rather than a first attempt: the rows, the manifest placements and the
 // `buildDefinition` call are the shapes it already proved land a valid document.
 import { staticPlotRefusalsOf } from '../../engine/otherSymbols.js'
-import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR, strippedForScan, OBJECT_SITE_SOURCES } from '../../engine/ast/pine'
+import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR, strippedForScan, OBJECT_SITE_SOURCES, COLOUR_UNREAD, COLOUR_DEFAULT_UNWITNESSED, isPreV4PineVersion, LEGACY_PLOT_DEFAULT_TRANSP, NO_VERSION_GUARD, modernPineSyntaxIn, noVersionSentence } from '../../engine/ast/pine'
 import { withAlphaByte } from '../../designTokens'
-import { DEFAULT_SERIES_COLOUR, V3_DEFAULT_SERIES_OPACITY } from '../../engine/pinePalette'
+import { DEFAULT_SERIES_COLOUR } from '../../engine/pinePalette'
+import { THEME_FG } from '../../engine/objectTheme'
 import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '../../engine/ast/paneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
 import { strategyBrokerEnabled } from '../../engine/strategyBrokerGate'
 import { registerStrategyBrokerGate } from '../../engine/strategyBrokerGateRegistry'
 // W9-T1: the broker's build flag is read here (outside the server compute closure) and handed to the front end.
 registerStrategyBrokerGate(strategyBrokerEnabled)
-import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
-import { naConditionIsFalse } from '../../engine/ast/interpret'
-import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp, colourInputsTheRunReads } from '../../engine/runtime/runtimeColumns'
+import { PINE_RECURRENCE_ORIGIN, validateUserDefinitions } from '../../engine/nativeRegistry'
+import { checkBudget } from '../../engine/ast/budget'
+import { pineNaConditionIsFalse } from '../../engine/ast/interpret'
+import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp, colourInputsTheRunReads, libraryPinsOf } from '../../engine/runtime/runtimeColumns'
+import { requestTargetsUnservable } from '../../engine/runtime/requestSupply'
 import { STRATEGY_WINDOW_HISTORY } from '../../engine/runtime/strategyRecord'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { OHLC_DEF_STYLES } from '../../engine/defSchema'
-import { ensureRuntimeLane } from '../../engine/runtime/runtimeAsync'
+import { warmRuntimeLane } from '../../engine/runtime/runtimeAsync'
 // ⭐⭐ RT5 — a runtime document may draw its OWN objects (`runtimeObjectsDoor.js`).
 import { runtimeOwnObjectsOf, valueBuildDefersToDrawing } from './runtimeObjectsDoor'
 // ⭐⭐ ENGINE 53 — ONE row pairing for both lanes (the runtime document and the run half).
 import { pairRunRows } from './runRowPairing'
 import { runtimeInputSpecsOf, plotColourInputAt } from '../../engine/runtime/runtimeInputs'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
+import { hostKnownDivergenceOf } from '../../engine/hostKnownDivergence'
+import { hostLaneCostOf } from '../../engine/hostLaneCost'
+import { sameDrawnSurface } from './costRoute'
 import { objectLossNote, RUN_HALF_DRAWING_SENTENCE } from '../../engine/ast/objectLoss'
 // ⭐ ENGINE 53 — the run half's door reads the store's cap as the save door counts it.
 import { DOCUMENT_BYTE_BUDGET } from '../../engine/ast/graphDocument'
 import { storedBytesOf, sentDocument } from './storedBytes'
 import { runHalfProgramDigest, isGraphForm, RUN_HALF_PROGRAM_STAMP, RUN_HALF_PROGRAM_GRAPH_STAMP } from '../../engine/runHalfProgram'
-import { declaredCalcBarsOf } from '../../engine/runtime/objectStore'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
 import { memberInputTranslation, pineLineWidth } from '../builderInputs'
 import { manifestFromPlacements, paramLocatorsIn } from '../pineParamManifest'
@@ -62,6 +67,49 @@ import { buildDefinition } from '../BuilderSheet'
 import { DOOR_VERSION } from '../../engine/memberDocumentMigration'
 import { evaluateFormula } from '../FormulaField'
 import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey } from '../builderInputs'
+// ⭐ RS RATING L3 — the substituted-value disclosure (`syminfo.industry` / `sector` from UCT data).
+import { substitutionNotesFor } from '../../engine/ast/symbolSubstitution'
+
+// ─── ⭐⭐ SERVE OR REFUSE BY NAME (owner ruling 2026-11-17, delegated): A STRATEGY DRAWN WITHOUT ITS BACKTEST ─────
+//
+// The strategy report (`pane/AttachedStrategyReports.jsx`) is shown only for a document that RUNS the broker (the
+// strategy window, `strategyWindow.js::isStrategyWindowDefinition`). Every other document this door mints for a
+// strategy draws its plots and nothing of its orders. The serve audit (2026-11-17,
+// docs/pine/evidence/2026-11-17-serve-witnessed-strategies/EVIDENCE.md) found three ways that happened in SILENCE,
+// with no sentence on the pane: a runtime-lane document whose broker build declined (its `brokerDeclined` was dropped
+// on the floor), a host document kept because the armed route's broker document was declined (the reason was
+// dropped), and a host document of a script whose `strategy()` line the translator does not read at all (the script
+// was drawn as an indicator). Each now carries ONE disclosure, `STRATEGY_BACKTEST_NOTE`, naming why.
+// ⛔ The host document of a strategy whose declaration IS read keeps its existing answer and gains nothing here: the
+// import verdict already lists "the strategy's orders and backtest" as not imported (`importOutcome.js`, the
+// `pine:strategy-chart` note), unless the broker gate is on and the armed route declined, when this note says why.
+
+/** A source that DECLARES a strategy: `strategy(` opening a line (the call form; the census's own predicate,
+ *  `runtime/__tests__/strategyArmed.js` re-exports this one). */
+export const STRATEGY_DECLARATION = /^[ \t]*strategy[ \t]*\(/m
+export const declaresStrategy = (source) => typeof source === 'string' && STRATEGY_DECLARATION.test(source)
+/** The disclosure's name, as the pane lists it. */
+export const STRATEGY_BACKTEST_NOTE = 'Strategy backtest'
+/** ⭐ The ONE wording: the strategy's backtest is not run on this chart, and why (the decline, verbatim). */
+export function strategyBacktestNote(why) {
+  const w = typeof why === 'string' ? why.trim().replace(/[.\s]+$/, '') : ''
+  return {
+    name: STRATEGY_BACKTEST_NOTE,
+    note: 'This script is a strategy, and its backtest is not run on this chart, so no strategy report is shown '
+      + `and its orders are not simulated: ${w || 'this engine recorded no reason'}.`,
+  }
+}
+/** Why a runtime-lane document of a strategy holds no broker: the broker build's own refusal when the gate is on and it
+ *  declined (`pineRuntimeFrontend.js::buildRuntimeIr` `brokerDeclined`), else the gate itself. */
+export function strategyRunDeclinedWhy(probe) {
+  const bd = probe && probe.brokerDeclined
+  if (bd && (bd.message || bd.guard)) {
+    return `the backtest could not be built for it (${bd.guard || 'runtime:strategy-option'}): ${bd.message || 'no message'}`
+  }
+  return strategyBrokerEnabled()
+    ? 'none of its orders reached the backtest builder'
+    : 'strategy backtests are switched off in this build'
+}
 
 /** ⭐ ≈ A QUARTER OF THE CHART, and the unit is the schema's own.
  *  `defSchema` validates `placement.pane.height` as a FRACTION in (0, 1) — a
@@ -116,34 +164,133 @@ const keyAt = (i) => (i === 0 ? 'value' : `out${i + 1}`)
 /** ⭐⭐ WHAT TRADINGVIEW DRAWS WHEN THE AUTHOR NAMES NO COLOUR.
  *
  *  A `plot` / `plotshape` / `plotchar` that says nothing about colour draws
- *  `#2962FF` on TradingView at every version probed, v3 at 35% transparency —
- *  measured on live captures, see `DEFAULT_SERIES_COLOUR`. Without this the row
- *  reached the sheet colourless and the sheet gave it the engine's own gold, a
- *  colour the author never saw.
+ *  `#2962FF` on TradingView at every version probed — measured on live captures,
+ *  see `DEFAULT_SERIES_COLOUR`. Without this the row reached the sheet colourless
+ *  and the sheet gave it the engine's own gold, a colour the author never saw.
+ *  ⭐ ENGINE 58 — the transparency it takes (35 at v1-v3) is the TRANSLATION's
+ *  (`pine.js::legacyPlotDefault`, one authority); this door's own `version === 3`
+ *  copy was deleted. Only the hue is supplied here.
  *
  *  ⛔ APPLIED HERE, NOT IN THE TRANSLATOR. `presentation` reports what the author
- *  WROTE ("absent is absent"); a platform default is a rendering rule, and this
- *  is the one place a Pine row becomes something the chart renders.
+ *  WROTE ("absent is absent"); a platform default hue is a rendering rule, and
+ *  this is the one place a Pine row becomes something the chart renders.
  *
- *  ⛔ ONLY WHEN THE AUTHOR SAID NOTHING. A colour the translator could not carry
- *  (`colorDynamic`, `colorDynamicArity`) is the author speaking, and painting it
- *  blue would present a guess as their choice; it stays uncarried. `fill`,
- *  `hline` and the candle outputs have their own defaults, not yet measured. */
+ *  ⭐⭐ ENGINE 58 — AND A COLOUR THIS DOOR CANNOT SAY IS WITHHELD BY NAME, NEVER
+ *  DRAWN IN A STAND-IN. A row whose colour the translator could not read
+ *  (`colorDynamic`, `colorDynamicArity`, a `transp` it cannot fold) or whose
+ *  default has no capture (`colorWithheld` from the translator; a `plotarrow` or a
+ *  candle role that names no colour) reached the sheet colourless, and the sheet
+ *  drew it in `builderInputs`' gold `#c9a84c` — a colour TradingView never draws
+ *  (87 scripts / 273 plots). Now it carries `colorWithheld: {code, reason}` and is
+ *  drawn in the CHART'S NEUTRAL INK (`WITHHELD_COLOUR_INK`, the chart's own text
+ *  colour, resolved where it is drawn), with the disclosure "colour not reproduced:
+ *  <reason>" (`colourWithheldNotes`); its values, legend value and data window stay,
+ *  and a colour the member picks in its settings is drawn. The harness grades such a
+ *  colour INCONCLUSIVE by name and still grades the values.
+ *  ⭐ COORDINATOR RULING (engine 58 review, 2026-11-15, under the owner's delegation):
+ *  a whole-withheld colour is drawn neither INVISIBLE (that hides exact values) nor in
+ *  the GOLD (that passes a stand-in off as the author's colour), but in the neutral
+ *  ink, named. (R-G, the owner's "keep the line", is not reinterpreted here.) */
 const DEFAULT_COLOURED_KINDS = new Set(['plot', 'plotshape', 'plotchar'])
-function tradingViewDefaultColour(output, version) {
+/** ⭐ ENGINE 58 — "no colour": a hidden column's, an anchor row's, and a colour rule's
+ *  series colour (what a bar the rule gives no colour draws: nothing, as Pine's `na`). */
+export const COLOUR_NONE = '#00000000'
+/** ⭐ ENGINE 58 — the colour a WHOLE-withheld colour draws in: the chart's neutral ink,
+ *  a theme reference (`objectTheme.THEME_FG`) resolved against the chart it is drawn on
+ *  (`pool.withThemeColour`, the legend's `safeCssColour(…, theme)`). See the ruling above. */
+export const WITHHELD_COLOUR_INK = THEME_FG
+/** The presentation fields a withheld colour replaces. */
+const COLOUR_FIELDS = Object.freeze(['color', 'opacity', 'colorDynamic', 'colorDynamicArity', 'colorUp', 'colorDown',
+  'colorCondition', 'colorPalette', 'colorIndex', 'colorGradient', 'colorNaGated', 'colorWithheld'])
+
+function withheldColour(p, w) {
+  const out = { ...p }
+  for (const k of COLOUR_FIELDS) delete out[k]
+  return { ...out, color: WITHHELD_COLOUR_INK, colorWithheld: { code: w.code, reason: w.reason } }
+}
+
+/** ⭐⭐ ENGINE 58 — a translated row's presentation as the chart draws it: the
+ *  author's colour, TradingView's default hue for a row that names none, or the
+ *  colour withheld by name (see above). One function for the host rows and the
+ *  runtime document's static rows. */
+function pineRowPresentation(output) {
   const p = output.presentation || {}
-  if (!DEFAULT_COLOURED_KINDS.has(output.kind)) return p
+  if (p.colorDynamic || p.colorDynamicArity !== undefined) {
+    return withheldColour(p, {
+      code: COLOUR_UNREAD,
+      reason: p.colorDynamicArity !== undefined
+        ? `its colour picks among ${p.colorDynamicArity} colours by a rule this door cannot read yet`
+        : 'its colour is an expression this door cannot read yet',
+    })
+  }
+  if (p.colorWithheld && typeof p.colorWithheld.code === 'string') return withheldColour(p, p.colorWithheld)
   const saidSomething = p.color !== undefined || p.colorUp !== undefined
     || p.colorDown !== undefined || p.colorPalette !== undefined
     || p.colorGradient !== undefined
-    || p.colorDynamic || p.colorDynamicArity !== undefined
   if (saidSomething) return p
-  return {
-    ...p,
-    color: DEFAULT_SERIES_COLOUR,
-    // ⛔ An author's own `transp=` already set `opacity`; it is never overridden.
-    ...(version === 3 && p.opacity === undefined ? { opacity: V3_DEFAULT_SERIES_OPACITY } : {}),
+  if (!DEFAULT_COLOURED_KINDS.has(output.kind)) {
+    // ⛔ `plotarrow`'s `colorup` / `colordown`, a candle role's colours: this door
+    // does not read them (and a `plotarrow` that names none has no captured
+    // default), so its colour is withheld by name, never guessed. (S1 measured a
+    // v1-v3 `plotarrow`'s transparency, 35; the colours themselves are not carried.)
+    return withheldColour(p, {
+      code: output.kind === 'plotarrow' ? COLOUR_UNREAD : COLOUR_DEFAULT_UNWITNESSED,
+      reason: output.kind === 'plotarrow'
+        ? 'the up and down colours of a `plotarrow` are not carried by this door yet'
+        : `the colour TradingView gives a \`${output.kind}\` that names none is not captured`,
+    })
   }
+  return { ...p, color: DEFAULT_SERIES_COLOUR }
+}
+
+/** ⭐⭐ ENGINE 58 — what a row whose colour comes from a RULE (a condition, a
+ *  palette, a gradient, a run-computed colour) draws where the rule has NO colour
+ *  for a bar (a `na` gradient position, an index outside the palette): nothing,
+ *  by name. ⚰️ Such a point fell back to the series colour, which was the sheet's
+ *  gold. */
+const RULE_POINTS_WITHHELD = Object.freeze({
+  code: COLOUR_UNREAD,
+  reason: 'on a bar where its colour rule gives no colour, nothing is drawn',
+  points: true,
+})
+
+/** ⭐ ENGINE 58 — the built plots with each row's `colorWithheld` set on the plot
+ *  of the same key. */
+function withColourWithheld(plots, rows) {
+  const by = new Map((rows || []).filter((r) => r && r.colorWithheld).map((r) => [r.key, r.colorWithheld]))
+  if (!by.size) return plots
+  return (plots || []).map((pl) => (pl && by.has(pl.key) ? { ...pl, colorWithheld: { ...by.get(pl.key) } } : pl))
+}
+
+/** ⭐⭐ ENGINE 58 — the member's sentence for each VISIBLE row whose colour is
+ *  withheld whole. The code rides on the row (`plots[].colorWithheld`), never in
+ *  the words (NO-GUARD-IDS). */
+function colourWithheldNotes(rows) {
+  const out = []
+  for (const r of rows || []) {
+    const w = r && r.colorWithheld
+    if (!w || w.points || r.hidden) continue
+    const name = `\`${r.label || r.key}\``
+    out.push({
+      name: r.label || r.key,
+      note: `${name}: colour not reproduced: ${w.reason}. Its values are drawn in the chart's text `
+        + 'colour rather than one the script does not choose; pick a colour in its settings to change it.',
+    })
+  }
+  return out
+}
+
+/** ⭐⭐ CBC-FMT — the drawings note of a `calc_bars_count` document whose host object
+ *  program is withheld (phase 1: that program is computed over every bar). */
+export const CALC_BARS_DRAWINGS_NOTE = 'Its lines, labels, boxes and tables are not drawn: it is computed on '
+  + 'its last bars only (`calc_bars_count`), its plots are drawn over those bars, and its drawings could only be '
+  + 'made over every bar of the chart, which would be a different picture from TradingView’s.'
+
+/** ⭐⭐ CBC-FMT — `meta.calcBarsCount` (and `meta.calcBarsRequest`) off the translation, or
+ *  nothing: ONE stamp both lanes' documents carry. */
+function calcBarsMeta(t) {
+  if (!t || !Number.isInteger(t.calcBarsCount) || !(t.calcBarsCount > 0)) return {}
+  return { calcBarsCount: t.calcBarsCount, ...(t.calcBarsRequest === true ? { calcBarsRequest: true } : {}) }
 }
 
 export function memberPaneDefinition({ source, id, name, translation = null, enumInputs = true, routeHostPartial = true } = {}) {
@@ -187,6 +334,30 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     }
   }
 
+  // ⭐⭐ ENGINE 58 (review item 4, coordinator ruling) — NO `//@version` AND v4+ SYNTAX:
+  // TradingView would not compile it (no pragma is v1), so it is refused BY NAME on
+  // both lanes, before either is tried, and the member is asked for the header. No
+  // version is guessed. (A no-pragma script written in v1 forms is v1, unchanged.)
+  if (t && t.version === null) {
+    const form = modernPineSyntaxIn(source)
+    if (form) return no(noVersionSentence(form), NO_VERSION_GUARD, t)
+  }
+
+  // ⭐⭐ HOST KNOWN-DIVERGENCE (owner decision 2026-11-17) — A SCRIPT WITH A COMMITTED TRADINGVIEW
+  // CAPTURE THAT GRADES DIVERGE ON THE HOST LANE IS NOT DRAWN BY IT: refused by name
+  // (`pine:known-divergence`, `engine/hostKnownDivergence.js`), the host lane's twin of the runtime
+  // kill list. As for every host refusal, the runtime lane is offered it while that lane is on, and its
+  // own kill list, allowlist and admission decide; any decline leaves the member this sentence.
+  const hostListed = hostKnownDivergenceOf(source)
+  if (hostListed) {
+    if (runtimePaneEnabled()) {
+      return runtimeLaneDefinition({
+        source, id, name, t, hostReason: hostListed.reason, hostGuard: hostListed.guard, routed: false, no,
+      })
+    }
+    return no(hostListed.reason, hostListed.guard, t)
+  }
+
   // ⭐ THE FLAG IS READ HERE, ONCE. `paneGate` is a pure decision and stays one;
   // the UI layer is what knows how this build was configured.
   const allowObjectsOnly = objectsOnlyPaneEnabled()
@@ -212,6 +383,38 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     }
     return no(gate.reason, gate.guard, t)
   }
+  // ⭐⭐ W9 ARMED ROUTE (coordinator ruling 2026-11-16) — WITH THE DARK BROKER ON, A STRATEGY THAT PLACES ORDERS
+  // IS RUN BY THE BROKER, though the host lane can draw its plots: its trades are its output. The runtime lane
+  // builds it (`pineRuntimeFrontend.js::buildRuntimeIr`, every order-placing strategy) and stamps the strategy
+  // window. Asked of every `strategy()` declaration (an order call nested in a block leaves no host note), and the
+  // run decides: only one whose build skipped an order call is built by the broker. ⛔ Only a document that HOLDS
+  // the broker replaces the host's: any decline (the kill list, the starter allowlist, a broker build refusal, a
+  // pairing, a strategy that places no order) keeps the host document a member has today. Off (either gate),
+  // nothing here is asked and the document is exactly what it was.
+  // ⭐⭐ SERVE OR REFUSE BY NAME (2026-11-17) — the host document that stands after a declined broker document says
+  // why its backtest is not run (`strategyBacktestNote`); a host translation that never read the script's `strategy()`
+  // line says so too, whatever the gate (it was drawn as an indicator in silence).
+  let strategyNote = null
+  if (strategyBrokerEnabled() && runtimePaneEnabled() && t && t.declaration === 'strategy') {
+    const viaBroker = runtimeLaneDefinition({ source, id, name, t, hostReason: gate.reason, hostGuard: gate.guard, routed: false, no })
+    const d = viaBroker && viaBroker.ok ? viaBroker.definition : null
+    const brokerDoc = !!(d && d.compute && d.compute.kind === 'runtime' && d.meta && d.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY)
+    // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — AN ADMISSION NEVER TAKES AWAY WHAT A MEMBER SEES (owner rule,
+    // coordinator ruling 2026-11-18): a broker document that would withhold a plot or paint the host document shows
+    // (`takesAway`: a forward `offset`, a presentation the run does not carry) does NOT replace it; the member keeps the
+    // host document, and its note says why the backtest is not run. ⚰️ hull-moving-average-crossover-strategy: its
+    // `plot(..., offset = 3)` line, drawn by the host lane today, was withheld by the broker document.
+    const takesAway = brokerDoc ? (viaBroker.takesAway || []) : []
+    if (brokerDoc && !takesAway.length) return viaBroker
+    const declined = viaBroker && !viaBroker.ok ? viaBroker.runtimeDeclined : null
+    strategyNote = strategyBacktestNote(takesAway.length
+      ? `running the backtest here would leave ${takesAway.join(', ')} undrawn, so the chart draws the script without it`
+      : declined
+        ? `the per-bar lane that runs the backtest declined it: ${declined.why || declined.code}`
+        : strategyRunDeclinedWhy(viaBroker))
+  } else if (t && t.declaration !== 'strategy' && declaresStrategy(source)) {
+    strategyNote = strategyBacktestNote('its `strategy()` line is not one this engine reads, so the script is drawn as an indicator')
+  }
   // ⭐⭐ 2026-09-27 (owner ruling, option b) — WHAT THE OBJECT PROGRAM LOST.
   // `paneGate` has already refused a drawing-only script that lost a removal. A
   // script that ALSO plots reaches here with the same loss, and its plots are
@@ -221,6 +424,11 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // withholding is a narrowing of what it draws, never a new render path.
   const objectsGate = paneObjectsGate(t)
   const withholdObjects = !objectsGate.draw
+  // ⭐⭐ CBC-FMT — a `calc_bars_count` document's plots are computed over its window
+  // (`engine/calcBarsWindow.js`); the host object program has no window yet (phase 2:
+  // `objectReaderFor` over the window), so its drawings are withheld BY NAME rather than
+  // drawn over every bar beside plots drawn over the last N.
+  const windowed = Number.isInteger(t.calcBarsCount)
 
   // ⛔ THE ROWS ARE THE ONES A CHART CAN DRAW, and `hidden` is respected because
   // an author who wrote `display = display.none` meant it — Clouds' layer plots
@@ -248,12 +456,14 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // mistranslation wearing a label". Selection is `chooseOutput`'s and it already
   // declines a hidden row; this only decides what the document CONTAINS.
   // Carriage is not offer, and the acceptance pins that both ways.
-  const carryable = (t.outputs || [])
-    .filter((o) => o && o.ast && o.formula && !o.refusal && o.kind !== 'alertcondition')
-  const visible = carryable.filter((o) => !o.hidden).slice(0, CARRY_MAX)
+  // ⭐⭐ Engine 75 (#1788, fix/fill-anchor-display) — and DRAWING is not offer either: a
+  // fill anchor ruling 1.2 never offers is DRAWN unless its own `display` hides it
+  // (`paneHides`), as TradingView draws it.
+  const carryable = (t.outputs || []).filter(hostCarriesRow)
+  const visible = carryable.filter((o) => !paneHides(o)).slice(0, CARRY_MAX)
   const visibleSet = new Set(visible)
   const drawable = carryable
-    .filter((o) => !o.hidden ? visibleSet.has(o) : true)
+    .filter((o) => !paneHides(o) ? visibleSet.has(o) : true)
     .slice(0, DOC_CARRY_MAX)
   // ⛔ THE REFUSAL STILL KEYS OFF WHAT CAN BE *SEEN*. A script whose only rows are
   // hidden anchors draws nothing a member could look at, and saying "nothing a
@@ -267,7 +477,8 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   //
   // ⛔ SAME GATE, SAME DEFAULT. Off, this returns exactly the refusal it always
   // did, and the fact that it now asks a second question is invisible.
-  const drawsObjects = !withholdObjects && !!(t.objects && (t.objects.ops || []).length)
+  const hostObjectsWouldDraw = !withholdObjects && !!(t.objects && (t.objects.ops || []).length)
+  const drawsObjects = hostObjectsWouldDraw && !windowed
   // ⭐⭐ B1 — THE PAINTS (`bgcolor` / `barcolor`) THE TRANSLATOR CARRIED. A paint
   // that is withheld by name, hidden by its author (`display.none`) or `na` draws
   // nothing, so it never reaches the document; the withheld ones are disclosed
@@ -276,6 +487,9 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   const drawnPaints = allPaints.filter((p) => !p.withheld && !p.hidden && !p.na)
   const drawsPaints = drawnPaints.length > 0
   if (!visible.length && !(allowObjectsOnly && (drawsObjects || drawsPaints))) {
+    // ⭐⭐ CBC-FMT — a windowed script whose only drawing is its host object program: that
+    // program has no window yet, so it is refused by name, never "declares nothing".
+    if (windowed && hostObjectsWouldDraw) return no(CALC_BARS_DRAWINGS_NOTE, 'pine:calc-bars-objects', t)
     return no('this script declares nothing a chart can draw', null, t)
   }
   // ⛔ A PANE SCRIPT WHOSE ONLY DRAWING IS A BACKGROUND IS REFUSED BY NAME.
@@ -376,6 +590,9 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
         // ⛔ HIDDEN: it binds no series (R27 amended) and costs the member no
         // visible slot — `CARRY_MAX` bounds what is SEEN, and this is not.
         hidden: true,
+        // ⭐ ENGINE 58 — and no colour of its own: a hidden column draws nothing, so
+        // its colour input is none, never the sheet's gold.
+        color: COLOUR_NONE,
         // The marker that makes this row identifiable as DERIVED rather than
         // authored, for anything that counts outputs.
         conditionFor: formula,
@@ -387,7 +604,7 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     return key
   }
   const rows = drawable.map((o, i) => {
-    const p = tradingViewDefaultColour(o, t && t.version)
+    let p = pineRowPresentation(o)
     // A plot coloured by a condition between two static colours draws per point.
     const condKey = (typeof p.colorUp === 'string' && typeof p.colorDown === 'string')
       ? conditionColumnFor(p.colorCondition) : null
@@ -401,6 +618,13 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     const g = p.colorGradient
     const gradientKey = (!condKey && !paletteKey && g && typeof g.from === 'string' && typeof g.to === 'string')
       ? conditionColumnFor(g) : null
+    // ⭐⭐ ENGINE 58 — a row left with NO colour of its own and no rule carried
+    // (a rule whose column could not be minted) would draw the sheet's gold:
+    // withheld by name instead. A carried rule draws nothing where it has no colour.
+    const ruled = !!(condKey || paletteKey || gradientKey)
+    if (!ruled && typeof p.color !== 'string') {
+      p = withheldColour(p, { code: COLOUR_UNREAD, reason: 'its colour rule could not be carried' })
+    }
     // ⛔⛔ THE MODE COMES FROM THE LINTER, NEVER FROM A DEFAULT WRITTEN HERE.
     // `meta.repaint` is a TRUTH CLAIM a member makes decisions on, and the
     // install door refuses a declaration that disagrees with what it measures —
@@ -419,12 +643,18 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
       readback: (ev && ev.readback) || '',
       style: typeof p.style === 'string' ? p.style : 'line',
       ...rowColour(p),
+      // ⭐ ENGINE 58 — a rule row's series colour (what a bar with no rule colour
+      // falls back to) is NONE, never the sheet's gold; a withheld colour says why.
+      ...(ruled ? { color: COLOUR_NONE, colorWithheld: { ...RULE_POINTS_WITHHELD } } : {}),
+      ...(p.colorWithheld ? { colorWithheld: { ...p.colorWithheld } } : {}),
       // ⭐ (j) j.1 — THE AUTHOR'S OWN `display.none`, CARRIED AS WRITTEN. It was
       // hard-coded `false` because the filter above had already removed every
       // hidden row, so the field could only ever be false and said nothing. Now
       // it is the anchor's whole meaning: the renderer draws no series for it and
       // a fill may still reference it.
-      hidden: !!o.hidden,
+      // ⭐⭐ Engine 75 (#1788, fix/fill-anchor-display) — the AUTHOR's statement only
+      // (`paneHides`): an untitled fill anchor with no `display.none` is drawn.
+      hidden: paneHides(o),
       // ⚰️ `opacity` WAS DROPPED HERE, AND IT IS NOT DECORATION — measured on the
       // real chart, 2026-09-12 (T5 pixels). Volume v2's fourth plot is
       // `Scale Padding`: `color = #FFFFFF, opacity = 0, width = 1`, a series whose
@@ -443,6 +673,9 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
       // Clamped to the width input's own [1, 4], the Builder's Pine-import rule.
       ...(Number.isFinite(p.width) ? { width: pineLineWidth(p.width) } : {}),
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
+      // ⭐ ROW 42 — `plot.style_linebr` / `style_areabr` break at `na` (`pine.js`
+      // `PINE_BREAKING_STYLES`); every other style bridges, as TradingView draws it.
+      ...(p.sparse === true ? { sparse: true } : {}),
       ...(condKey ? { colorMode: `column:${condKey}`, colorUp: p.colorUp, colorDown: p.colorDown } : {}),
       ...(paletteKey ? { colorMode: `column:${paletteKey}`, colorPalette: p.colorPalette.slice() } : {}),
       ...(gradientKey ? {
@@ -526,7 +759,12 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
           const k = field && memberInputKey(field.name)
           if (!k) continue
           row.fill[side] = k
-          if (!fillColourSpecs.has(k)) fillColourSpecs.set(k, { key: k, type: 'color', label: field.title || k, default: field.hex })
+          if (field.own) row.fill[`${side}OwnAlpha`] = true
+          // ⭐ an input carrying its OWN transparency (`pine.js::fillColourInputsOf` `own`) is declared at that
+          // opacity, so the picker shows the author's 25% and a pick is the whole colour (`binder.bandColoursFor`)
+          if (!fillColourSpecs.has(k)) {
+            fillColourSpecs.set(k, { key: k, type: 'color', label: field.title || k, default: field.own && field.ownHex ? field.ownHex : field.hex })
+          }
         }
       } else if (Array.isArray(f.colorPalette) && f.colorPalette.length >= 2) {
         const palKey = conditionColumnFor(f.colorIndex)
@@ -700,6 +938,8 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     key: 'value',
     label: '',
     source: '0',
+    // ⭐ ENGINE 58 — a row that is never drawn has no colour: none, never the gold.
+    color: COLOUR_NONE,
     ast: Object.freeze({ type: 'num', value: 0 }),
     // ⛔⛔ THE STRING FROM `REPAINT_MODES`, NOT AN OLD VOCABULARY.
     // `worstRepaint([anchor.mode])` — the pipeline that stamps `meta.repaint` —
@@ -765,7 +1005,7 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
       // author asked for the price pane. `visualParitySet.test.js::documentOf`
       // still reads it the wrong way; the overlay case below is the rail.
       placement: (t.presentation && t.presentation.overlay === true)
-        ? { target: 'price' }
+        ? { target: 'price', ...(joinsPriceScale(t) ? { joinPriceScale: true } : {}) }
         : { target: 'pane', pane: { height: MEMBER_PANE_HEIGHT } },
       paramManifest: Object.keys(manifest).length ? manifest : null,
       // ⭐⭐ R2 STEP 6 — THE OBJECT PROGRAM RIDES ON THE PANE DOCUMENT TOO, OR
@@ -795,6 +1035,9 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // ⭐⭐ B1 — THE PAINTS RIDE ON THE DOCUMENT (`defSchema.validatePaints`), and
   // only when there are any, so every other document keeps its exact shape.
   if (docPaints.length) definition.paints = docPaints
+  // ⭐⭐ ENGINE 58 — a withheld colour's name rides on its built plot
+  // (`buildDefinition` projects only the fields it knows).
+  definition.plots = withColourWithheld(definition.plots, rows)
   // ⭐⭐ DIV-4 — A `barcolor` WHOSE COLOUR THE HOST LANE WITHHELD, READ FROM THE
   // PER-BAR RUN (`runtimeReadPaints`). Behind the runtime pane's own switch: off,
   // the document is exactly what it was.
@@ -818,7 +1061,10 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // the document's own script, by hash: what the bind and the store check the run half against
     definition.meta = { ...(definition.meta || {}), [RUN_HALF_SOURCE_STAMP]: runtimeSourceHash(source) }
     // Registered once a document that may need it exists (as a runtime document does).
-    ensureRuntimeLane()
+    // ⚡ And its worker spawned NOW (`warmRuntimeLane`), so its chunk loads while the preview
+    // fetches its bars rather than after the run is asked for. Behind the runtime pane's gate
+    // (`hostPartialRunHalf` declines without it), so a member it is off for fetches nothing.
+    warmRuntimeLane()
   }
   // ⛔⛔ THE DOOR NEVER GUESSES A PLACEMENT. Every locator above is one the
   // translator TAGGED (`paramLocatorsIn`): a literal that came from the parameter.
@@ -851,6 +1097,14 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     seen.add(`${drawingNote.name} :: ${drawingNote.note}`)
     notes.push(drawingNote)
   }
+  if (windowed && hostObjectsWouldDraw) notes.unshift({ name: 'Drawings', note: CALC_BARS_DRAWINGS_NOTE })
+  // ⭐⭐ RS RATING L3 — A VALUE FROM UCT DATA IN PLACE OF TRADINGVIEW'S IS SAID SO, BY NAME
+  // (`syminfo.industry` / `syminfo.sector`, `bind.js::classificationWith`). The program's
+  // substitution rule: disclosed at the member door, never passed off as TradingView's.
+  for (const n of substitutionNotesFor(source)) {
+    seen.add(`${n.name} :: ${n.note}`)
+    notes.push(n)
+  }
   for (const o of (t.outputs || [])) {
     for (const n of [...alertNoteForOutput(o), ...foldNotesForOutput(o)]) {
       const key = `${n.name} :: ${n.note}`
@@ -873,6 +1127,13 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     if (seen.has(key)) continue
     seen.add(key)
     notes.push({ name, note })
+  }
+  // ⭐⭐ ENGINE 58 — A COLOUR WITHHELD BY NAME IS SAID SO, row by row.
+  for (const n of colourWithheldNotes(rows)) {
+    const key = `${n.name} :: ${n.note}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    notes.push(n)
   }
   // ⭐ 2026-09-26 — A PARAMETER WITHHELD BECAUSE IT SETS A DISPLACEMENT THE
   // DOCUMENT CANNOT RECOMPUTE, said in words beside the others. Silence would
@@ -907,6 +1168,8 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // ⛔ THE TAG IS CARRIED, NOT THE FINISHED SENTENCE. The badge needs the bar
   // count, which only the chart knows; the producer still owns the wording
   // (`parse.js::requirementNote`) and the consumer supplies the number.
+  // ⭐⭐ SERVE OR REFUSE BY NAME (2026-11-17) — a strategy this host document draws without its backtest, and why
+  if (strategyNote) notes.push(strategyNote)
   const requirementTags = requirementTagsRaised(t)
   // ⭐ C48 — see `blockRuns` below: each drawable plot's own gates, by its key —
   // ⭐ H1 — and after them each colour condition column's (`colourBlockRunKeys`).
@@ -921,32 +1184,30 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     ...(definition.meta || {}),
     disclosures: notes.map((n) => ({ name: n.name, note: n.note })),
     requirementTags,
-    // ⭐⭐ C12w — THIS DOCUMENT'S `accum` RECURRENCES ARE PINE TRANSLATIONS
-    // (`pine.js`: `var` state and self-reference), so a series proven to start at
-    // the symbol's first-ever bar may seed them there (ruling R-W,
-    // `nativeRegistry.historyFromListingFor`). `meta` is the sanctioned home —
-    // ignore-and-preserve through validation, the round trip and the server —
-    // and it rides OUTSIDE the trees, so no tree hash moves. A document without
-    // it (saved before this, or from another translator) keeps the bounded window.
-    recurrenceOrigin: PINE_RECURRENCE_ORIGIN,
-    // ⭐⭐ THE DOOR STAMPS (`memberDocumentMigration.DOOR_VERSION`): the script's own
-    // `//@version` (null for a script with none — TradingView compiles it as v1)
-    // and the version of the door that wrote this document, so the next
-    // correction to what the door writes can be applied to it on load instead of
-    // guessed. Outside the trees: no tree hash, `def_hash` or `compute.fn` moves.
-    pineVersion: Number.isInteger(t.version) ? t.version : null,
-    doorVersion: DOOR_VERSION,
-    // ⭐⭐ F1 — THIS SCRIPT'S VERSION READS AN `na` `?:` TEST AS FALSE (v4+,
-    // `interpret.js::naConditionIsFalse`, witnessed by CAP's `rt1-na-test` for v4,
-    // v5 and v6). Applied only from the listing, beside `recurrenceOrigin`
-    // (`nativeRegistry.listingOptsFor`). Outside the trees, so no tree hash moves;
-    // a document without it keeps `TERNARY`'s answer.
-    ...(naConditionIsFalse(t.version) ? { naConditionFalse: true } : {}),
+    // ⭐⭐ C12w / F1 — the facts this document's TREES are evaluated under
+    // (`pineTreeStamps`, the ONE place they are written; the runtime document that
+    // carries this program stamps the same ones).
+    ...pineTreeStamps(t),
+    // ⭐⭐ CBC-FMT — the window this document is computed on (`calc_bars_count`), read by the
+    // one reader (`pine.js::declarationCalcBars`) and applied at the one seam
+    // (`nativeRegistry.computeFor` → `engine/calcBarsWindow.js`). Absent for every script
+    // that declares none, so no other document changes.
+    ...calcBarsMeta(t),
+    // ⭐⭐ U15 — THE LIBRARY VERSIONS THIS DOCUMENT WAS TRANSLATED AGAINST, each pinned by the
+    // sha256 of the code that was compiled (`[{path, sha256}]`). The trees already hold that
+    // code; every lane that links the source AGAIN (the run half, a runtime colour, the server
+    // job) is held to these pins and refuses a changed library by name. Absent unless the
+    // script imports one, so no other document changes.
+    ...(libraryPinsOf(t.libraries).length ? { libraries: libraryPinsOf(t.libraries) } : {}),
     // ⭐⭐ C26 — the other symbols the trees read and how the script SPELLED each
     // (`translatePine`'s `otherSymbols`). The bind decides from it which listing
     // TradingView means (`engine/otherSymbols.js`); absent for every script that
     // reads no other symbol, so no other document changes.
     ...(Array.isArray(t.otherSymbols) && t.otherSymbols.length ? { otherSymbols: t.otherSymbols } : {}),
+    // ⭐ SETTINGS PARITY (symbol) — an other symbol the trees read through ONE input
+    // (`translatePine`'s `symbolInputs`): the member's choice of it is a setting
+    // (`engine/symbolInputs.js`). Absent for every other script.
+    ...(Array.isArray(t.symbolInputs) && t.symbolInputs.length ? { symbolInputs: t.symbolInputs } : {}),
     // ⭐⭐ C41 — the lower timeframes the trees read (`translatePine`'s `lowerTf`,
     // one code per `ltf` node). A chart fetches this symbol's intraday bars for
     // them and the bind decides which are served (`engine/lowerTf.js`); absent
@@ -998,7 +1259,25 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
         + `the store counts it, past its ${DOCUMENT_BYTE_BUDGET}-byte cap` } }
     }
   }
-  return {
+  // ⛔⛔ DOOR-ROBUSTNESS — A DOCUMENT THE INSTALL DOOR WILL REFUSE IS REFUSED HERE, BY NAME.
+  // ⚰️ Measured on the engine-60 census: 11 of 679 sample scripts came back `ok: true` from this
+  // door and were then refused by `installUserDefinitions` (every one a `compute.budget` cap:
+  // lookback, distinct series, formula size). `MemberPane` installs nothing for such a document
+  // and says nothing, so the member read an empty pane with no reason; and because the host lane
+  // had "attached", the per-bar lane (the door's general fallback, RT1) was never asked.
+  // Now the SAME validation the install door runs is asked here (`hostInstallRefusalOf`): a
+  // refused document is a host refusal with the guard that decided it, offered to the runtime
+  // lane exactly as any other host refusal is, and read verbatim when that lane declines.
+  const installWhy = hostInstallRefusalOf(docOut, rows)
+  if (installWhy) {
+    if (runtimePaneEnabled()) {
+      return runtimeLaneDefinition({
+        source, id, name, t, hostReason: installWhy.reason, hostGuard: installWhy.guard, routed: false, no,
+      })
+    }
+    return no(installWhy.reason, installWhy.guard, t)
+  }
+  return routeByCost({ source, id, name, t, no, host: {
     ok: true,
     definition: docOut,
     reason: null,
@@ -1017,6 +1296,140 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     // declined (by code, for the census); absent for a script whose drawings are complete.
     ...(runHalfOut && runHalfOut.runtimeObjects ? { runHalf: { minted: true, columns: Object.keys(runHalfOut.runtimeObjects.outputs).length } } : {}),
     ...(runHalfOut && runHalfOut.declined ? { runHalfDeclined: runHalfOut.declined } : {}),
+  } })
+}
+
+/** ⭐⭐ ROUTE BY COST (NUMBER PENDING, docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md) —
+ *  THE HOST LANE'S ANSWER, OR THE SAME SCRIPT DRAWN BY THE RUNTIME LANE WHEN THE HOST ONE IS TOO DEAR.
+ *
+ *  The host lane computes on the member's main thread, inside the chart's paint, for every new bars
+ *  array; the runtime lane computes in a worker. A host document whose recurrences cost more than a
+ *  long task over 5,000 bars (`hostLaneCost.js`: no clock, a count off its own trees) is offered to
+ *  the runtime lane exactly as a host refusal is (`routed: false`), and MOVED only when that lane
+ *  builds it, admits it (its kill list, allowlist and capability verdict) and draws the same picture
+ *  (`costRoute.js::sameDrawnSurface`). Anything else keeps the host answer a member has today,
+ *  carrying `costRoute` (why it stayed) for the census; nothing a member reads changes.
+ *  ⛔ Only while the runtime pane is on for THIS viewer (`runtimePaneEnabled`): with it off nothing is
+ *  asked and the answer is byte-identical to before. */
+function routeByCost({ host, source, id, name, t, no }) {
+  if (!runtimePaneEnabled()) return host
+  const cost = hostLaneCostOf(host.definition)
+  if (!cost.over) return host
+  // ⛔ The refusal `runtimeLaneDefinition` builds on a decline is never read (the host answer stands),
+  // so it carries no guard of its own: a code nobody can be shown is not minted.
+  const run = runtimeLaneDefinition({
+    source, id, name, t, no, routed: false, hostGuard: null,
+    hostReason: `its formula lane would hold the chart for about ${cost.stepsPerBar} steps a bar`,
+    drawnBecause: 'because drawn as formulas it would hold the chart for a noticeable time on every update',
+  })
+  const doc = run && run.ok ? run.definition : null
+  if (!doc || !doc.compute || doc.compute.kind !== 'runtime') {
+    const declined = run && run.runtimeDeclined
+    return { ...host, costRoute: { moved: false, cost, code: (declined && declined.code) || null,
+      why: (declined && declined.why) || null } }
+  }
+  const same = sameDrawnSurface(host, run)
+  if (!same.ok) return { ...host, costRoute: { moved: false, cost, code: same.code, why: same.why } }
+  return { ...run, costRoute: { moved: true, cost } }
+}
+
+/** The guard an install refusal that is NOT a budget cap is named by: the document this door
+ *  built does not pass the install door's own validation (a schema rule, a repaint badge the
+ *  linter measures differently). A defect of this door, said as one. */
+export const HOST_INSTALL_GUARD = 'pine:install'
+
+/** What each `compute.budget` cap means, in a member's words. Keyed by the budget's own guard
+ *  (`budget.js::CAP_GUARD`); the numbers are the ones the budget measured. */
+const BUDGET_PLAIN = Object.freeze({
+  'budget:lookback': (m, cap) => `needs ${m} bars of history behind every bar, and one plot may reach back at most ${cap} here`,
+  'budget:series': (m, cap) => `reads ${m} different data series, and one plot may read at most ${cap} here`,
+  'budget:nodes': (m, cap) => `is a formula of ${m} steps, and one plot may hold at most ${cap} here`,
+})
+const BUDGET_CAP_OF = Object.freeze({
+  'budget:lookback': 'maxLookback', 'budget:series': 'maxSeriesRefs', 'budget:nodes': 'maxNodes',
+})
+
+/**
+ * ⭐⭐ WHY THE INSTALL DOOR WOULD REFUSE THIS HOST DOCUMENT, or null when it installs.
+ *
+ * ⛔ ONE AUTHORITY: the verdict is `validateUserDefinitions`' (what `installUserDefinitions`
+ * runs first), never a second copy of its rules. Only the SENTENCE is made here: for a budget
+ * cap, which plot and which number, in plain words (`checkBudget` over the document's own
+ * trees, to name the tree the validation stopped at); for anything else, the validation's own
+ * sentence under `HOST_INSTALL_GUARD`.
+ */
+export function hostInstallRefusalOf(doc, rows = []) {
+  if (!doc || !doc.compute || doc.compute.kind !== 'ast') return null
+  let verdict
+  try {
+    verdict = validateUserDefinitions([doc])
+  } catch (err) {
+    return { guard: HOST_INSTALL_GUARD, reason: `this script is not drawn: its document could not be checked (${String((err && err.message) || err)})` }
+  }
+  if ((verdict.defs || []).length > 0) return null
+  const trees = doc.compute.trees && typeof doc.compute.trees === 'object' && !Array.isArray(doc.compute.trees)
+    ? Object.entries(doc.compute.trees) : [[null, doc.compute.ast]]
+  for (const [key, ast] of trees) {
+    let b = null
+    try { b = checkBudget(ast, doc.compute.budget) } catch { b = null }
+    if (!b || b.ok || !BUDGET_PLAIN[b.guard]) continue
+    const capKey = BUDGET_CAP_OF[b.guard]
+    const row = (rows || []).find((r) => r && r.key === key) || (key === null ? (rows || [])[0] : null)
+    const title = row && typeof row.label === 'string' && row.label.trim() ? row.label.trim() : null
+    const which = title ? `its plot \`${title}\`` : (row && !row.hidden ? 'one of its plots' : 'one of the values it draws from')
+    // the budget's own explanation of a session-anchored reach, when it gave one
+    const tail = String(b.error || '').split(`the cap is ${b.caps[capKey]}`)[1] || ''
+    return {
+      guard: b.guard,
+      reason: `this script is not drawn: ${which} ${BUDGET_PLAIN[b.guard](b.measured[capKey], b.caps[capKey])}${tail}`,
+    }
+  }
+  const first = String((verdict.errors || [])[0] || 'the install door refused it without a reason')
+  return {
+    guard: HOST_INSTALL_GUARD,
+    reason: `this script is not drawn: the document built for it did not pass this engine's own check (${first})`,
+  }
+}
+
+/** ⭐⭐ THE FACTS A PINE TRANSLATION'S TREES ARE EVALUATED UNDER, written onto `meta` by
+ *  EVERY document that carries trees the Pine door translated: the host (`ast`) document,
+ *  and a runtime document that carries the host's object program (`objects: t.objects`).
+ *
+ *  · `recurrenceOrigin` (C12w) — the trees' `accum` recurrences are Pine translations
+ *    (`pine.js`: `var` state and self-reference), so a series proven to start at the
+ *    symbol's first-ever bar may seed them there (ruling R-W,
+ *    `nativeRegistry.historyFromListingFor`), and off it a `var` still holding what it held
+ *    before the loaded bars is withheld by name (`varOriginAbsoluteFor`). A document
+ *    without it (saved before this, or from another translator) keeps the bounded window;
+ *  · `pineVersion` / `doorVersion` — the script's own `//@version` (null for a script with
+ *    none: TradingView compiles it as v1) and the door that wrote the document
+ *    (`memberDocumentMigration.DOOR_VERSION`), so the next correction to what the door
+ *    writes can be applied on load instead of guessed;
+ *  · `naConditionFalse` (F1) — this version reads an `na` `?:` test as false (v4+,
+ *    `interpret.js::naConditionIsFalse`, witnessed by CAP's `rt1-na-test`), applied only from
+ *    the listing, beside `recurrenceOrigin` (`nativeRegistry.listingOptsFor`).
+ *  All ride on `meta`, the sanctioned home (ignore-and-preserve through validation, the round
+ *  trip and the server), OUTSIDE the trees: no tree hash, `def_hash` or `compute.fn` moves.
+ *
+ *  ⛔⛔ WHY ONE FUNCTION. The runtime document was minted WITHOUT these while it carried the
+ *  host's object program, so `objectReaderFor` evaluated that program's trees as if no Pine
+ *  door had written them: every `var` ran as a 250-bar window re-seeded on each bar, from
+ *  the listing as off it, and nothing withheld a bar that still read its seed. Measured on
+ *  `trend-targets-algoalpha` (NYSE:RDDT 1D from the listing, 666 bars, TradingView
+ *  2026-11-15): `trend` (`var`, flipped by `ta.crossunder(tL, tL[1])`) is a latch over a
+ *  supertrend whose bands are themselves recurrences, so the windowed `shortSignal` fired on
+ *  bar 656 instead of 653 and the last trade's five lines and five labels stood three bars
+ *  late, at the wrong prices ("Entry ▸ 90.97" where TradingView draws "Entry ▸ 134.70"),
+ *  while every plot (the run's) agreed. Restating the stamps on the second document is how
+ *  they went missing there; one writer keeps both documents' trees on the same rule. */
+export function pineTreeStamps(t) {
+  const version = t && Number.isInteger(t.version) ? t.version : null
+  return {
+    recurrenceOrigin: PINE_RECURRENCE_ORIGIN,
+    pineVersion: version,
+    doorVersion: DOOR_VERSION,
+    // (engine 56-v2: a PINE script with no `//@version` is v1, `pineNaConditionIsFalse`)
+    ...(pineNaConditionIsFalse(t && t.version) ? { naConditionFalse: true } : {}),
   }
 }
 
@@ -1056,7 +1469,7 @@ function hostPartialRunHalf({ source, id, t, objectsGate, drawable, definition, 
   if (!(Number.isInteger(diag.attemptedOps) && diag.attemptedOps > 0)) {
     return declined('run-half:no-drawing', 'the host object program attempted no drawing')
   }
-  if (declaredCalcBarsOf(strippedForScan(String(source || ''))) !== null) {
+  if (Number.isInteger(t && t.calcBarsCount)) {
     return declined('runtime:calc-bars-count', 'the script runs on its last bars only (`calc_bars_count`), '
       + 'and the host plots are drawn over every bar')
   }
@@ -1075,9 +1488,14 @@ function hostPartialRunHalf({ source, id, t, objectsGate, drawable, definition, 
     return declined(r.guard || 'runtime', `${r.guard || 'runtime'}${r.message ? ` — ${r.message}` : ''}`)
   }
   if (!(probe.objectOps > 0)) return declined('run-half:no-object-ops', 'the run lowered no drawing operation')
+  // ⭐⭐ RS RATING L5 (d) — the run is handed its requested bars by the host's rules
+  // (`runtime/requestSupply.js`), so a run half is minted when every request is one those rules
+  // can serve on some chart (the host's reading of it settled, look-ahead off, the chart's own
+  // timeframe or a weekly / monthly merge). Which chart serves it is the bind's, per chart, by
+  // name. The host document's own `meta.otherSymbols` makes the chart fetch what it reads.
   if (probe.requests > 0) {
-    return declined('runtime:request', `${probe.requests} \`request.security\` ${probe.requests === 1 ? 'reads' : 'read'} `
-      + "another symbol or timeframe, and the run is handed only the chart's own bars")
+    const why = requestTargetsUnservable(probe.requestTargets, probe.requests)
+    if (why) return declined('runtime:request', why)
   }
   if (probe.naTests > 0) {
     return declined('runtime:na-test', `${probe.naTests} ${probe.naTests === 1 ? 'condition' : 'conditions'} can read `
@@ -1088,7 +1506,8 @@ function hostPartialRunHalf({ source, id, t, objectsGate, drawable, definition, 
   if (!pairing.ok) return declined(pairing.code, pairing.why)
   const outputs = {}
   for (const [i, o] of drawable.entries()) {
-    if (o.hidden) continue
+    // every row the host document DRAWS (a fill anchor too: `paneHides`)
+    if (paneHides(o)) continue
     const index = (t.outputs || []).indexOf(o)
     const run = pairing.runOutputOf.get(index)
     if (!Number.isInteger(run)) {
@@ -1331,7 +1750,8 @@ function runtimeCandlePresentation(kind, version, ro, overlay) {
  *  `binder.pointColour`). Pine's `na` colour draws nothing there. Still WITHHELD
  *  BY NAME, each with its reason: a colour this lane could not compute; a shape
  *  (`plotshape` / `plotchar`) — the marker layer reads two colours, not a column;
- *  a script below v4 (no capture of its colour rules); a `transp =` this door
+ *  (⭐ engine 58: a v1-v3 script is no longer withheld — its default 35 is captured
+ *  and applied, `LEGACY_PLOT_DEFAULT_TRANSP`); a `transp =` this door
  *  cannot read, or one over a colour that may carry its own transparency (the
  *  vendor folds a style transparency into an OPAQUE colour only, and which bars
  *  are opaque is not provable here).
@@ -1345,6 +1765,9 @@ function runtimeRowPresentation(o, version, ro = null) {
     return { ok: false, why: 'its colour and style could not be read from the call' }
   }
   const raw = o.presentation || {}
+  // ⭐ ENGINE 58 — a colour the translation withheld by name (a v1-v3 default with
+  // no capture, a `transp` it cannot read) is withheld here by the same name.
+  if (raw.colorWithheld && typeof raw.colorWithheld.code === 'string') return { ok: true, p: pineRowPresentation(o) }
   if (raw.colorDynamic || raw.colorDynamicArity !== undefined || raw.colorUp !== undefined
     || raw.colorDown !== undefined || raw.colorPalette !== undefined || raw.colorGradient !== undefined) {
     const packed = runtimeRowColour(o, version, ro)
@@ -1353,9 +1776,13 @@ function runtimeRowPresentation(o, version, ro = null) {
     for (const k of ['color', 'opacity', 'colorDynamic', 'colorDynamicArity', 'colorUp', 'colorDown',
       'colorCondition', 'colorPalette', 'colorIndex', 'colorGradient', 'colorNaGated']) delete p[k]
     p.colorPacked = packed.colorPacked
+    // ⭐ ENGINE 58 — a bar the run gives the `na` colour draws nothing; the series
+    // colour behind it is none, never the sheet's gold.
+    p.color = COLOUR_NONE
+    p.colorWithheld = { ...RULE_POINTS_WITHHELD }
     return { ok: true, p, colourOutput: packed.colourOutput }
   }
-  return { ok: true, p: tradingViewDefaultColour(o, version) }
+  return { ok: true, p: pineRowPresentation(o) }
 }
 
 /** ⭐⭐ RT6 — the run's colour column for a row whose colour changes per bar, or
@@ -1364,17 +1791,21 @@ function runtimeRowPresentation(o, version, ro = null) {
 function runtimeRowColour(o, version, ro) {
   const why = (w) => ({ ok: false, why: `its colour changes from bar to bar, and ${w}` })
   if (o.kind !== 'plot') return why('a shape whose colour changes per bar is not carried by this lane yet')
-  if (!(Number.isInteger(version) && version >= 4)) {
-    return why(`the colour rules of a v${version ?? '1'} script have no capture here`)
-  }
   const c = ro && ro.colour
   if (!c || !Number.isInteger(c.output)) {
     return why(c && c.refused ? `this lane could not compute it (${c.refused})` : 'this lane could not find its `color =`')
   }
   if (ro.transp === 'unread') return why('its `transp =` is not a whole number written in the call')
-  const t = Number.isInteger(ro.transp) ? ro.transp : null
+  let t = Number.isInteger(ro.transp) ? ro.transp : null
+  // ⭐⭐ ENGINE 58 — a v1-v3 (or unannotated) plot with no `transp` draws at 35, the
+  // translation's rule (`pine.js::LEGACY_PLOT_DEFAULT_TRANSP`, 409 captures; a
+  // series colour among the witnessed forms). The styles and own-alpha colours it
+  // has no capture for were withheld by the translation (`colorWithheld`) or fail
+  // the opaque test below. ⚰️ Every v1-v3 runtime row with a per-bar colour was
+  // withheld whole ("no capture here") before the captures existed.
+  if (t === null && isPreV4PineVersion(version)) t = LEGACY_PLOT_DEFAULT_TRANSP
   if (t !== null && t > 0 && ro.colourOpaque !== true) {
-    return why('its `transp =` applies over a colour that may carry its own transparency, which no capture shows')
+    return why('a transparency applies over a colour that may carry its own, which no capture shows')
   }
   return { ok: true, colourOutput: c.output, colorPacked: t !== null && t > 0 ? { transparency: t } : {} }
 }
@@ -1386,12 +1817,11 @@ function runtimeRowColour(o, version, ro) {
  *  into an opaque colour only, so it is carried only over a colour provably
  *  opaque on every bar. */
 function runtimePaintColour(kind, version, ro) {
-  if (!(Number.isInteger(version) && version >= 4)) {
-    return { ok: false, why: `the paint rules of a v${version ?? '1'} script have no capture here` }
-  }
+  // ⭐ ENGINE 58 — v1-v3 and unannotated paints are captured too: a `barcolor` draws
+  // at 0 (S2-S6) and a `bgcolor` with no `transp` at 90 (S1, `vw-cs1-transp-v{1,2,3}`).
   if (ro.transp === 'unread') return { ok: false, why: 'its `transp =` is not a whole number written in the call' }
   let t = Number.isInteger(ro.transp) ? ro.transp : null
-  if (t === null && kind === 'bgcolor' && version <= 4) t = V4_BGCOLOR_DEFAULT_TRANSP
+  if (t === null && kind === 'bgcolor' && (isPreV4PineVersion(version) || version === 4)) t = V4_BGCOLOR_DEFAULT_TRANSP
   if (t !== null && t > 0 && ro.colourOpaque !== true) {
     return { ok: false, why: 'a transparency applies over a colour that may carry its own, which no capture shows' }
   }
@@ -1440,6 +1870,28 @@ function rowCallAt(stmts, line, kind) {
   let node = null
   try { node = parseWholeExpression(eq > 0 && boundName(toks, eq) ? toks.slice(eq + 1) : toks) } catch { return null }
   return node && node.type === 'call' && node.name === kind ? node : null
+}
+
+/**
+ * PRICE-SCALE JOIN (coordinator ruling 2026-11-16). On TradingView an `overlay = true` script's
+ * plots sit on the price scale and take part in its autoscale by default ("Scale price chart
+ * only" is off by default), so a line the author parks under the bars (RS Rating's RS line, at
+ * its `Offset`) is in view. This engine's price overlays are GUESTS that never stretch the
+ * candles' range (`placement.js`, `'exclude'`), which left such a line below the pane.
+ *
+ * So a Pine translation that declares `overlay = true` stamps `placement.joinPriceScale: true`,
+ * and the chart lets its plots drive the price scale (`eligibility.js::priceScaleJoinLook`).
+ * NOT stamped when the declaration takes the script off the price scale (`scale = scale.none`
+ * or `scale.left`) or passes a `scale` this door cannot name. A plot the author hid
+ * (`display.none`) gets no series, so it cannot move the range either way.
+ * Pine translations only: no native indicator carries the stamp, so the guest rule is unchanged
+ * for every one of them. A saved script gets the stamp when it is re-translated on the engine
+ * bump (`savedScriptUpgrade.js`).
+ */
+export function joinsPriceScale(t) {
+  const p = t && t.presentation
+  if (!p || p.overlay !== true) return false
+  return p.scale === undefined || p.scale === null || p.scale === 'right'
 }
 
 /** A displacement expression's whole-number value, over integer literals, the
@@ -1597,7 +2049,7 @@ function runtimeShiftContext(source, version, specs) {
  * of the one is the n-th of the other — and when the counts differ the mapping
  * is unknown, which is a refusal, never a guess.
  */
-function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = null, routed = true, no }) {
+function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = null, routed = true, no, drawnBecause = null }) {
   const decline = (code, why) => {
     const refusal = routed
       ? no(`${hostReason} — and the per-bar lane that could draw it declined: ${why}`, 'pine:state', t)
@@ -1627,6 +2079,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // ⭐⭐ RT5 — when the host object program would draw nothing here and the run
   // builds WITH its drawings, the document's objects come from its own run.
   const own = runtimeOwnObjectsOf({ source, t })
+  // ⛔ DRAW-1 — a host picture that lost a create is not drawn in the run's place (`runtimeObjectsDoor.js`)
+  if (own.declineHostPartial) return decline(own.guard, own.why)
   const ownObjects = !!own.probe
   const probe = own.probe || own.valueProbe || probeRuntimeProgram(source)
   if (!probe.ok) {
@@ -1642,9 +2096,17 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // passes no `requestBars`), so every value would be `na` where TradingView
   // draws one. The regex gate this replaces declined every `request.` by
   // accident; now that the class is stated, the decline has to be said.
+  // ⭐ RS RATING L5 — this chart's OWN symbol at a weekly / monthly merge is supplied to the
+  // run (`runtime/requestSupply.js`). Another symbol is not: a document drawn bar by bar carries
+  // no spelling table for the chart to fetch it by, so it keeps this decline, named.
   if (probe.requests > 0) {
-    return decline('runtime:request', `${probe.requests} \`request.security\` ${probe.requests === 1 ? 'reads' : 'read'} `
-      + "another symbol or timeframe, and this pane holds only the chart's own bars, so it is not drawn bar by bar")
+    const why = requestTargetsUnservable(probe.requestTargets, probe.requests)
+      || ((probe.requestTargets || []).some((t) => t && t.ticker)
+        ? 'it reads another symbol, which a script drawn bar by bar on its own pane is not handed yet' : null)
+    if (why) {
+      return decline('runtime:request', `${probe.requests} \`request.security\` ${probe.requests === 1 ? 'reads' : 'read'} `
+        + `another symbol or timeframe: ${why}, so it is not drawn bar by bar`)
+    }
   }
   // ⛔ RT1 — A `?:` WHOSE TEST CAN BE `na`, refused by name on the FALLBACK
   // (`lowerIr.js::naTestsOf` has the two vendor captures): this lane answers `na`
@@ -1678,14 +2140,22 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     seen.set(o.kind, ord + 1)
     // ⭐ H4 — a REFUSED row the author hid (`display.none`) is hidden too; only a
     // translated row ever carried `hidden` (`pine.js`, `_authorHidden`).
-    if (o.hidden || o._authorHidden === true) continue
+    // ⭐⭐ B7 (s20, 2026-11-15) — EXCEPT a row the HOST hid as `constant` ("reads no bar"): that is the
+    // host's screening judgement, not the author's, and TradingView draws the line. ⚰️ vw-array-na lost
+    // `plot(array.min(a))` and four siblings here ("hidden helper or beyond its row ceiling") while the
+    // run computed them (TradingView: 1, 3, 6, 2, na).
+    // ⭐⭐ Engine 75 (#1788, fix/fill-anchor-display) — nor a row the host hid as a `fill-anchor`
+    // (`paneHides`): ruling 1.2 never OFFERS it, and TradingView DRAWS it unless its own `display`
+    // hides it. ⚰️ supertrend-strategy's `mPlot` (Q-SD1 / Q-SD2: `display: 15`, `visible: true`) was
+    // "the member pane did not carry this output" here, its value and its colour never drawn.
+    if ((paneHides(o) && o.hiddenReason !== 'constant') || o._authorHidden === true) continue
     const label = o.title || `${o.kind} ${ord + 1}`
     // ⭐ WS-E — a leftward `offset` is carried (`runtimeRowShift`), the rest withheld.
     const shift = runtimeRowShift(o, shiftCtx)
-    if (!shift.ok) { withheld.push({ label, why: shift.why }); continue }
+    if (!shift.ok) { withheld.push({ label, why: shift.why, o }); continue }
     const out = runOutputOf.get(index)
     const pres = runtimeRowPresentation(o, t && t.version, probe.outputs[out])
-    if (!pres.ok) { withheld.push({ label, why: pres.why }); continue }
+    if (!pres.ok) { withheld.push({ label, why: pres.why, o }); continue }
     for (const k of shift.keys) shiftPinned.add(k)
     carried.push({ o, index, p: pres.p, out, colourOutput: pres.colourOutput, displace: shift.displace })
   }
@@ -1706,7 +2176,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
         || (run.ro.candle && run.ro.candle.display === 'display.none')) return
       const label = (run.ro.candle && run.ro.candle.title) || `${kind} ${ord + 1}`
       const pres = runtimeCandlePresentation(kind, t && t.version, run.ro, !!(t.presentation && t.presentation.overlay === true))
-      if (!pres.ok) { withheld.push({ label, why: pres.why }); return }
+      if (!pres.ok) { withheld.push({ label, why: pres.why, o: group[3] && group[3].o }); return }
       candleEntries.push({
         candle: kind,
         label,
@@ -1811,10 +2281,13 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       readback: '',
       style: typeof p.style === 'string' ? p.style : 'line',
       ...rowColour(p),
+      ...(p.colorWithheld ? { colorWithheld: { ...p.colorWithheld } } : {}),
       hidden: false,
       // `linewidth`, as the host lane's rows carry it (see that projection).
       ...(Number.isFinite(p.width) ? { width: pineLineWidth(p.width) } : {}),
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
+      // ⭐ ROW 42 — a "with breaks" style breaks at `na`, as the host lane's rows say.
+      ...(p && p.sparse === true ? { sparse: true } : {}),
       // ⭐ WS-E — a leftward `offset`, drawn by the binder as a host row's is.
       ...(Number.isInteger(displace) && displace < 0 ? { displace } : {}),
       // The host output this row draws — the vendor harness and the pane's
@@ -1878,7 +2351,9 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // while the run computed exactly the colour TradingView paints. A carried paint
   // is drawn by the renderer the host lane's paints use (`binder.paintRenderColours`),
   // under the hidden anchor row an objects-only document already carries (below).
-  if (!carried.length && !ownObjects && !docPaints.length) {
+  // ⭐⭐ W9 ARMED ROUTE — a document that holds the broker draws its trades (the record, the markers, the report),
+  // so a strategy with no other output is NOT "nothing drawn".
+  if (!carried.length && !ownObjects && !docPaints.length && probe.broker !== true) {
     const why = [...withheld.map((w) => `\`${w.label}\`: ${w.why}`),
       ...paintWithheld.map(({ p, why: w }) => `\`${p.kind}\`: ${w}`)]
     return decline(why.length ? 'runtime:withheld-all' : 'runtime:nothing-drawn', why.length
@@ -1892,10 +2367,13 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   const drawsObjects = !ownObjects && !own.hostWithheld && hostWouldDraw
   // ⭐ RT5 — a document whose only output is its drawings carries the hidden
   // anchor row an objects-only document carries (never offered, never drawn).
+  // ⭐⭐ W9 ARMED ROUTE — a broker document with no row of its own (a tester-only strategy) sits on the PRICE
+  // pane, where TradingView marks a strategy's trades; a pane of its own would hold nothing.
+  const brokerOnly = probe.broker === true && !rows.length
   if (!rows.length) {
     rows.push({
       key: 'value', label: '', source: '0', ast: { type: 'num', value: 0 }, mode: repaint.mode,
-      readback: '', style: 'line', hidden: true,
+      readback: '', style: 'line', hidden: true, color: COLOUR_NONE,
     })
   }
   // ⭐⭐ UIE PHASE 2 (M4) — THE SCRIPT'S OWN SETTINGS, as ordinary `defSchema` inputs
@@ -1947,8 +2425,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       readback: '',
       inputs: runtimeDocInputs(withObjectInputs(memberInputSpecs([]), drawsObjects ? t : null), runtimeInputs.specs),
       plots: [...rows, ...colourRows],
-      placement: (t.presentation && t.presentation.overlay === true)
-        ? { target: 'price' }
+      placement: (t.presentation && t.presentation.overlay === true) || brokerOnly
+        ? { target: 'price', ...(joinsPriceScale(t) ? { joinPriceScale: true } : {}) }
         : { target: 'pane', pane: { height: MEMBER_PANE_HEIGHT } },
       paramManifest: null,
       objects: drawsObjects ? t.objects : null,
@@ -1970,6 +2448,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // ⭐ W4-T13 - a candle row names its price and colour columns, set on the built plot for the
   // same reason (`buildDefinition` projects only the fields the host lane's rows carry).
   definition.plots = definition.plots.map((pl) => (pl && candleOf.has(pl.key) ? { ...pl, ...candleOf.get(pl.key) } : pl))
+  // ⭐⭐ ENGINE 58 — and a withheld colour's name (see the host lane's).
+  definition.plots = withColourWithheld(definition.plots, rows)
   // ⭐⭐ RT6 — the paints ride on the document (`defSchema.validatePaints`), only
   // when there are any, so every other runtime document keeps its exact shape.
   if (docPaints.length) definition.paints = docPaints
@@ -1986,17 +2466,26 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   }
   const notes = [{
     name: 'Drawn bar by bar',
+    // ⭐ ROUTE BY COST (NUMBER PENDING) — a script moved for its cost says so (`drawnBecause`); every
+    // other caller keeps the sentence it always had.
     note: 'This script is drawn by running it bar by bar, the way TradingView does, '
-      + 'because a single formula per line cannot hold it. Its settings can be changed '
+      + `${drawnBecause || 'because a single formula per line cannot hold it'}. Its settings can be changed `
       + 'like any indicator\'s; a value outside the script author\'s own bounds or options '
       + 'is refused by name, never stretched to fit.',
   }]
+  // ⭐⭐ SERVE OR REFUSE BY NAME (2026-11-17) — a strategy drawn bar by bar WITHOUT its broker says so, and why
+  // (the broker build's own refusal, `probe.brokerDeclined`, or the gate): only a broker document has a report.
+  if (probe.broker !== true && ((t && t.declaration === 'strategy') || declaresStrategy(source))) {
+    notes.push(strategyBacktestNote(strategyRunDeclinedWhy(probe)))
+  }
   if (runtimeInputs.skipped.length) {
     notes.push({
       name: 'Settings',
       note: `Kept at the author's default: ${runtimeInputs.skipped.map((x) => `\`${x.key}\` (${x.reason})`).join('; ')}.`,
     })
   }
+  // ⭐ ENGINE 58 — a colour withheld by name on a drawn row (see the host lane's).
+  for (const n of colourWithheldNotes(rows)) notes.push(n)
   for (const w of withheld) {
     notes.push({
       name: w.label,
@@ -2044,6 +2533,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
         + 'which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not.',
     })
   }
+  // ⭐⭐ RS RATING L3 — the substituted-value disclosure, the same sentence the host document says.
+  notes.push(...substitutionNotesFor(source))
   const drawingNote = ownObjects || own.hostWithheld ? null : objectLossNote(objectsGate.loss, { withheld: !objectsGate.draw })
   if (drawingNote) notes.unshift(drawingNote)
   if (!ownObjects && own.hostWithheld && hostWouldDraw) {
@@ -2072,6 +2563,14 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   definition.meta = {
     ...(definition.meta || {}),
     lane: 'runtime',
+    // ⭐⭐ THE HOST'S OBJECT PROGRAM RIDES HERE WITH THE FACTS ITS TREES ARE EVALUATED UNDER
+    // (`pineTreeStamps`): without them its `var` recurrences ran as 250-bar windows and drew
+    // trades on the wrong bars. Only when the program rides (`drawsObjects`): a runtime
+    // document with no host trees keeps its exact shape.
+    ...(drawsObjects ? pineTreeStamps(t) : {}),
+    // ⭐⭐ U15 — the library pins (see the host document's `meta.libraries`): a runtime document
+    // links its source on every run, in the browser and on the server, and is held to them.
+    ...(libraryPinsOf(probe.libraries || t.libraries).length ? { libraries: libraryPinsOf(probe.libraries || t.libraries) } : {}),
     // ⭐ RT1 — the script's identity for the kill switch and the server's save
     // door: the sha256 of the Pine source, recomputed by the server, never trusted.
     runtimeSourceHash: runtimeSourceHash(source),
@@ -2091,6 +2590,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // Every run re-checks them, so a later engine that orders outputs differently
     // refuses by name instead of drawing one plot under another's name.
     ...runtimeVersionStamp(probe.outputs),
+    // ⭐⭐ CBC-FMT — the same window stamp the host lane's document carries
+    ...calcBarsMeta(t),
     disclosures: notes.map((n) => ({ name: n.name, note: n.note })),
     requirementTags: [],
   }
@@ -2098,7 +2599,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // routes a script never loads the lane (`nativeRegistry.registerRuntimeLane`).
   // ⭐ RT1 — and, in a browser, the run goes off the main thread
   // (`runtime/runtimeAsync.js`).
-  ensureRuntimeLane()
+  // ⚡ And its worker spawned NOW (`warmRuntimeLane`): its ~1.3 MB chunk loads while the preview
+  // fetches its bars, not after the first run is posted. This path is reached only with the
+  // runtime pane switched on for this member, so a member it is off for fetches nothing.
+  warmRuntimeLane()
   return {
     ok: true,
     definition,
@@ -2113,6 +2617,14 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // it does not take runtime documents.
     saveable: true,
     withheld: withheld.map((w) => w.label),
+    // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — what this document withholds that the HOST document shows
+    // (`hostShowsRow`, `hostShowsPaint`): the armed route never replaces the host document with one that draws less
+    takesAway: [
+      ...withheld.filter((w) => hostShowsRow(w.o)).map((w) => shownRowName(w.o)),
+      ...paintWithheld.filter(({ p }) => hostShowsPaint(p)).map(({ p }) => shownPaintName(p)),
+    ],
+    // ⭐ SERVE OR REFUSE BY NAME (2026-11-17) — the broker build's refusal, for the armed route's host note
+    ...(probe.brokerDeclined ? { brokerDeclined: probe.brokerDeclined } : {}),
   }
 }
 
@@ -2314,6 +2826,55 @@ function guardInputSpecs(t, stamp, existing) {
  *  ⭐ A document saved in the old shape still renders TradingView's default and
  *  honours a pick: `pool.resolvePlotForInstance`. The alpha byte is TradingView's
  *  (`designTokens.withAlphaByte`). An opaque colour keeps its six digits. */
+/**
+ * ⭐⭐ Engine 75 (#1788, fix/fill-anchor-display) — DOES THE PANE HIDE THIS ROW THE HOST TRANSLATED?
+ *
+ * The host translation's `hidden` merges three statements (`pine.js` `hiddenReason`): the AUTHOR's
+ * `display = display.none` ('author'); an untitled plot of a bare price source that a `fill` names
+ * ('fill-anchor'); a column that reads no bar ('constant'). Only the first is about DRAWING. 'fill-anchor'
+ * is ruling 1.2's SCREENING judgement (a column offered under the script's title that is the author's ohlc4
+ * fill edge is a mistranslation wearing a label: never OFFERED, never SELECTED, `chooseOutput`), and it was
+ * never a statement about what TradingView draws.
+ *
+ * TradingView DRAWS such an anchor unless its own `display` hides it, read off its own records:
+ * supertrend-strategy's `mPlot = plot(ohlc4, title="", style=plot.style_circles, linewidth=0)` reads back
+ * `display: 15` (pane, data window, price scale, status line) and `visible: true` (Q-SD1, Q-SD2, and
+ * `supertrend-strategy-{rddt,spy}-1d-2026-10-02`), while pmax-explorer's identical line with
+ * `display=display.none` reads back `display: 0, visible: false`, and that one is 'author' here, hidden as
+ * before. So a fill anchor's visibility follows ONLY its own `display` argument.
+ * ('constant' keeps its lane's rule: the runtime lane draws it (B7), the host lane hides it as before.)
+ */
+function paneHides(o) {
+  return !!(o && o.hidden) && o.hiddenReason !== 'fill-anchor'
+}
+
+/** A host translation row the host document CARRIES (a translated formula, not refused, not an alert condition). */
+function hostCarriesRow(o) {
+  return !!(o && o.ast && o.formula && !o.refusal && o.kind !== 'alertcondition')
+}
+
+/** ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — a host row or paint the HOST document shows a member: carried
+ *  and not hidden (`paneHides`), the host lane's own rule. The armed route reads it to decide whether a broker document
+ *  would take anything away. */
+function hostShowsRow(o) {
+  return hostCarriesRow(o) && !paneHides(o)
+}
+function hostShowsPaint(p) {
+  return !!p && !p.withheld && !p.hidden && !p.na
+}
+/** What the member's legend calls a row (coordinator wording, 2026-11-18): "the 'Hull' line" by its TITLE, and "a line
+ *  this chart draws" only when it has none. Never an engine label (`plot 1`). */
+const SHOWN_ROW_NOUN = Object.freeze({ plot: 'line', plotshape: 'markers', plotchar: 'markers', plotarrow: 'arrows',
+  plotcandle: 'candles', plotbar: 'bars' })
+function shownRowName(o) {
+  const noun = SHOWN_ROW_NOUN[o && o.kind] || 'plot'
+  const title = o && typeof o.title === 'string' ? o.title.trim() : ''
+  return title ? `the '${title}' ${noun}` : `a ${noun} this chart draws`
+}
+function shownPaintName(p) {
+  return p && p.kind === 'barcolor' ? 'the bar colours this chart draws' : 'the background colour this chart draws'
+}
+
 function rowColour(p) {
   // ⛔ No colour of its own (a palette / condition / gradient row): its opacity is
   // the palette's shared alpha and stays where it was.

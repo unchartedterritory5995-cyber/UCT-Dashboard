@@ -130,6 +130,11 @@ const DRAG_HUD_LABELS = {
   pitchfork: 'pitchfork', avwap: 'anchored VWAP', text: 'note', measure: 'measurement',
   advance: 'price move',
 }
+/** The drawing's name for its menu's head label, sentence case ("Trend line"). */
+function drawingMenuName(d) {
+  const n = (d && DRAG_HUD_LABELS[d.type]) || 'drawing'
+  return n.charAt(0).toUpperCase() + n.slice(1)
+}
 /** A bar time (ISO day string or unix seconds) as short readout text; '' when unknown. */
 function fmtHudTime(t, futureBars) {
   let d = null
@@ -471,6 +476,13 @@ export default function ChartDrawingOverlay({
   // lets the chart pinch) + a long-press timer that opens the context menu.
   const activePointersRef = useRef(new Set())
   const longPressRef = useRef(null)
+  // ⛔ A PENDING LONG-PRESS DIES WITH THE OVERLAY (2026-11-18): the 450 ms timer was cleared on pointer up,
+  // cancel and a second finger, never on unmount, so an overlay removed within 450 ms of a press set state on an
+  // unmounted component (under jsdom it fired after teardown: "window is not defined", an unhandled error that
+  // turned a remote shard red with every test green).
+  useEffect(() => () => {
+    if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null }
+  }, [])
   // True only while a touch that landed ON a drawing is being routed through
   // handlePointerDown (from the wrapper touch listener). Lets the no-tool cursor
   // branch fire on touch the way `hoverActive` does for the mouse. Never true for
@@ -614,6 +626,9 @@ export default function ChartDrawingOverlay({
     if (vs) {
       const vIdx = paneIdxOf(vs)
       if (vIdx >= 0 && vIdx !== candlePaneIndex) volumePaneIndex = vIdx
+      // TradingView overlay (StockChart `dimVolumeSeries`): the bars sit BEHIND the
+      // candles, which keep the whole pane — there is no volume zone to carve out.
+      else if (vs.__uctDimmed) { /* price owns the plot */ }
       else {
         try {
           // Band layout: the overlay price scale's own top margin IS the divider.
@@ -3374,30 +3389,42 @@ const CONTROL_ICONS = {
 }
 
 // A full-width action row (icon + label), used for Duplicate / Lock / Delete.
-function MenuAction({ icon, label, onClick, danger = false, big = false }) {
-  // Match the chart right-click menu (ChartsWorkspace .chartCtx*): GOLD icons,
-  // white label text, gold-tinted hover that also golds the label. Destructive
-  // rows stay red (icon + text) as the one deliberate exception.
-  const GOLD = 'var(--menu-accent, var(--ut-gold, #c9a84c))'
-  const textBase = danger ? 'var(--color-danger, #ef5350)' : 'var(--menu-text, #ededed)'
-  const iconColor = danger ? 'var(--color-danger, #ef5350)' : GOLD
-  const hoverBg = danger ? 'rgba(239,83,80,0.14)' : 'var(--menu-accent-bg, rgba(201,168,76,0.12))'
-  const sz = big ? 18 : 14
+function MenuAction({ icon, label, onClick, danger = false, big = false, checked = false, shortcut = null }) {
+  // ⭐ UCT SIGNATURE floating-menu row (docs/uct-signature-style.md §3, lab "4 · Drawing edit
+  // menus"): 13px #ededed, grey #a9a59b icon; hover = card #1a1b1f, bright text, and the
+  // icon turns GOLD (§2b rule 6: the highlighted row of an action menu). A toggle that is
+  // ON shows a gold ✓ on the right (rule 3); a known keyboard shortcut sits on the right in
+  // faint grey. Destructive rows stay red (icon + text), the one deliberate exception.
+  const GOLD = 'var(--ut-gold, #dcbb5e)'
+  const textBase = danger ? 'var(--color-danger, #e8665a)' : '#ededed'
+  const textHover = danger ? 'var(--color-danger, #f0827a)' : '#f8f7f3'
+  const iconBase = danger ? 'var(--color-danger, #e8665a)' : '#a9a59b'
+  const iconHover = danger ? 'var(--color-danger, #f0827a)' : GOLD
+  const hoverBg = danger ? 'rgba(232,102,90,0.12)' : '#1a1b1f'
+  const sz = big ? 18 : 15
+  const paint = (el, on) => {
+    el.style.background = on ? hoverBg : 'none'
+    el.style.color = on ? textHover : textBase
+    const svg = el.querySelector('svg')
+    if (svg) svg.style.color = on ? iconHover : iconBase
+  }
   return (
     <button
       onClick={onClick}
       style={{
         display: 'flex', alignItems: 'center', gap: big ? 12 : 10, width: '100%',
-        padding: big ? '12px 18px' : '9px 11px', minHeight: big ? 44 : undefined, borderRadius: big ? 0 : 6,
+        padding: big ? '12px 18px' : '6px 10px', minHeight: big ? 44 : 30, borderRadius: big ? 0 : 6,
         background: 'none', border: 'none', color: textBase,
         cursor: 'pointer', fontFamily: 'inherit', fontSize: big ? 15 : 13, textAlign: 'left',
         transition: 'background 0.1s ease, color 0.1s ease',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = hoverBg; if (!danger) e.currentTarget.style.color = GOLD }}
-      onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = textBase }}
+      onMouseEnter={(e) => paint(e.currentTarget, true)}
+      onMouseLeave={(e) => paint(e.currentTarget, false)}
     >
-      <svg viewBox="0 0 16 16" width={sz} height={sz} fill="none" stroke={iconColor} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{ color: iconColor, flexShrink: 0 }}>{icon}</svg>
-      {label}
+      <svg viewBox="0 0 16 16" width={sz} height={sz} fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ color: iconBase, flexShrink: 0 }}>{icon}</svg>
+      <span style={{ flex: 1 }}>{label}</span>
+      {shortcut ? <span aria-hidden="true" style={{ color: '#93939a', fontSize: big ? 13 : 11 }}>{shortcut}</span> : null}
+      {checked ? <span aria-hidden="true" style={{ color: GOLD, fontSize: big ? 14 : 12, fontWeight: 600 }}>✓</span> : null}
     </button>
   )
 }
@@ -3407,16 +3434,38 @@ function MenuAction({ icon, label, onClick, danger = false, big = false }) {
 // TradingView mobile's idiom. Four 44px actions: the current-color Style dot
 // (opens the full DrawingContextMenu sheet), Duplicate, Lock, Delete. It owns
 // no state and invents no behavior: every handler is the context menu's own.
-function DrawingQuickBar({ drawing, bottomInset = 10, onStyle, onDuplicate, onToggleLock, onDelete, onUndo = null }) {
+function DrawingQuickBar({ drawing, bottomInset = 10, onStyle, onDuplicate, onToggleLock, onToggleHide = null, onDelete, onUndo = null }) {
+  // ⭐ UCT SIGNATURE (owner-approved lab "4 · Drawing edit menus", 2026-11-15): a graphite
+  // panel; the colour square; grey icon buttons that go gold under a MOUSE pointer
+  // (§2b rule 6 — a tap must not leave a sticky gold icon behind); a hairline; Delete,
+  // red only on hover. Lock wears a 2px gold underline while locked (the on-state mark).
+  // ⛔ THE TAP FLOOR STAYS 44px: this bar only renders for a coarse pointer, so the
+  // lab's 28×26 desktop box would be under the floor every touch surface here keeps.
   const locked = !!drawing.locked
+  const hidden = !!drawing.hidden
   const curColor = (drawing.type === 'advance' ? drawing.labelColor : drawing.color) || '#c9a84c'
+  const DIM = '#a9a59b'
+  const GOLD = 'var(--ut-gold, #dcbb5e)'
   const btn = {
+    position: 'relative',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     minWidth: 44, minHeight: 44, border: 'none', background: 'none',
-    color: 'var(--menu-text, #ededed)', cursor: 'pointer', borderRadius: 9,
+    color: DIM, cursor: 'pointer', borderRadius: 7,
     touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent', padding: 0,
   }
+  const hoverOn = (hoverColor) => ({
+    onPointerEnter: (e) => {
+      if (e.pointerType !== 'mouse') return
+      e.currentTarget.style.background = 'rgba(248,247,243,0.08)'
+      e.currentTarget.style.color = hoverColor
+    },
+    onPointerLeave: (e) => {
+      e.currentTarget.style.background = 'none'
+      e.currentTarget.style.color = DIM
+    },
+  })
   const stroke = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round' }
+  const divider = <span aria-hidden="true" style={{ width: 1, height: 18, background: '#26282c', margin: '0 3px', flex: 'none' }} />
   return (
     <div
       data-uct-qbar="1"
@@ -3426,50 +3475,68 @@ function DrawingQuickBar({ drawing, bottomInset = 10, onStyle, onDuplicate, onTo
       style={{
         position: 'absolute', left: '50%', transform: 'translateX(-50%)',
         bottom: bottomInset, zIndex: 41,
-        display: 'flex', alignItems: 'center', gap: 2, padding: '2px 5px',
-        background: 'var(--menu-surface, var(--menu-bg, #0e0e10))',
-        border: '1px solid var(--menu-border, #242426)', borderRadius: 13,
-        boxShadow: '0 6px 24px rgba(0,0,0,0.45)',
+        display: 'flex', alignItems: 'center', gap: 2, padding: 4,
+        background: '#111214',
+        border: '1px solid #383b41', borderRadius: 10,
+        boxShadow: '0 14px 36px rgba(0,0,0,0.55)',
         fontFamily: "'Instrument Sans', sans-serif", userSelect: 'none',
       }}
     >
-      <button type="button" style={btn} onClick={onStyle} aria-label="Style">
+      <button type="button" style={btn} onClick={onStyle} aria-label="Style" title="Color and style">
         <span style={{
-          width: 20, height: 20, borderRadius: '50%', background: curColor,
-          border: '1px solid var(--menu-border, #2c2c30)',
-          boxShadow: '0 0 0 1px var(--menu-bg, #0e0e10)',
+          width: 22, height: 22, borderRadius: 6, background: curColor,
+          boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)',
         }} />
       </button>
+      {divider}
       {onUndo && (
-        <button type="button" style={btn} onClick={onUndo} aria-label="Undo">
-          <svg width="18" height="18" viewBox="0 0 18 18" style={stroke} aria-hidden="true">
+        <button type="button" style={btn} onClick={onUndo} aria-label="Undo" title="Undo" {...hoverOn(GOLD)}>
+          <svg width="16" height="16" viewBox="0 0 18 18" style={stroke} aria-hidden="true">
             <path d="M6.5 4.5 3.5 7.5l3 3" />
             <path d="M3.5 7.5h6.75a3.75 3.75 0 0 1 0 7.5H8" />
           </svg>
         </button>
       )}
-      <button type="button" style={btn} onClick={onDuplicate} aria-label="Duplicate">
-        <svg width="18" height="18" viewBox="0 0 18 18" style={stroke} aria-hidden="true">
+      <button type="button" style={btn} onClick={onDuplicate} aria-label="Duplicate" title="Duplicate" {...hoverOn(GOLD)}>
+        <svg width="16" height="16" viewBox="0 0 18 18" style={stroke} aria-hidden="true">
           <rect x="6" y="6" width="9" height="9" rx="1.5" />
           <path d="M12 3.5H4.5A1.5 1.5 0 0 0 3 5v7.5" />
         </svg>
       </button>
       <button
         type="button"
-        style={{ ...btn, color: locked ? 'var(--ut-gold, #c9a84c)' : btn.color }}
+        style={btn}
         onClick={onToggleLock}
         aria-label={locked ? 'Unlock' : 'Lock'}
+        title={locked ? 'Locked: tap to unlock' : 'Lock'}
         aria-pressed={locked}
+        {...hoverOn(GOLD)}
       >
-        <svg width="18" height="18" viewBox="0 0 18 18" style={stroke} aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 18 18" style={stroke} aria-hidden="true">
           <rect x="4" y="8" width="10" height="7" rx="1.5" />
           {locked
             ? <path d="M6 8V6a3 3 0 0 1 6 0v2" />
             : <path d="M6 8V6a3 3 0 0 1 5.6-1.5" />}
         </svg>
+        {locked && (
+          <span aria-hidden="true" data-on-mark="" style={{
+            position: 'absolute', left: 13, right: 13, bottom: 6, height: 2, borderRadius: 2, background: GOLD,
+          }} />
+        )}
       </button>
-      <button type="button" style={{ ...btn, color: 'var(--loss, #ef4444)' }} onClick={onDelete} aria-label="Delete">
-        <svg width="18" height="18" viewBox="0 0 18 18" style={stroke} aria-hidden="true">
+      {onToggleHide && (
+        <button type="button" style={btn} onClick={onToggleHide}
+          aria-label={hidden ? 'Show' : 'Hide'} title={hidden ? 'Show' : 'Hide'} aria-pressed={hidden} {...hoverOn(GOLD)}>
+          <svg width="16" height="16" viewBox="0 0 16 16" style={stroke} aria-hidden="true">
+            {hidden
+              ? <><path d="M1.5 8S4 3.5 8 3.5c1 0 1.9.3 2.7.7M14.5 8s-1.2 2.2-3.4 3.4M8 12.5c-4 0-6.5-4.5-6.5-4.5" /><line x1="2.5" y1="2.5" x2="13.5" y2="13.5" /></>
+              : <><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z" /><circle cx="8" cy="8" r="2" /></>}
+          </svg>
+        </button>
+      )}
+      {divider}
+      <button type="button" style={btn} onClick={onDelete} aria-label="Delete" title="Delete" {...hoverOn('#f0827a')}>
+        <svg width="16" height="16" viewBox="0 0 18 18" style={stroke} aria-hidden="true">
           <path d="M3.5 5h11M7 5V3.5h4V5M5 5l.7 9.2A1.5 1.5 0 0 0 7.2 15.5h3.6a1.5 1.5 0 0 0 1.5-1.3L13 5" />
           <path d="M7.5 8v4.5M10.5 8v4.5" />
         </svg>
@@ -3589,18 +3656,19 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
   // Touch bottom-sheet gets roomier rows + bigger tap targets than the anchored menu.
   const rowStyle = sheet
     ? { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 18px', minHeight: 44 }
-    : { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px' }
+    : { display: 'flex', alignItems: 'center', gap: 10, padding: '6px 10px', minHeight: 30 }
   // "Color" reads like the other item labels (white, 13px) instead of a tiny dim
   // section caption, matching the chart right-click menu.
   const labelStyle = { fontSize: sheet ? 15 : 13, color: 'var(--menu-text, #ededed)', fontWeight: 500 }
   const sw = sheet ? 26 : 15         // color swatch size
   const wBtn = sheet ? 34 : 24       // width-button size
 
-  // Neutral-dark palette shared with the Chart Settings menu (--menu-* tokens).
+  // ⭐ UCT SIGNATURE floating menu (docs/uct-signature-style.md §3): panel #111214, 1px
+  // #383b41, radius 10, padding 5, shadow 0 14px 36px. Fixed dark, like every chart menu.
   const shell = sheet
     ? {
         position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 21,
-        background: 'var(--menu-surface, var(--menu-bg, #0e0e10))', borderTop: '1px solid var(--menu-border, #242426)',
+        background: '#111214', borderTop: '1px solid #383b41',
         borderTopLeftRadius: 14, borderTopRightRadius: 14,
         boxShadow: '0 -8px 28px rgba(0,0,0,0.55)',
         padding: '6px 0 max(14px, env(safe-area-inset-bottom))',
@@ -3610,9 +3678,9 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
     : {
         position: 'fixed', left: pos.left, top: pos.top,
         visibility: pos.ready ? 'visible' : 'hidden', zIndex: 21,
-        minWidth: 210, background: 'var(--menu-surface, var(--menu-bg, #0e0e10))', border: '1px solid var(--menu-border, #242426)',
-        borderRadius: 10, boxShadow: '0 12px 40px var(--menu-shadow, rgba(0,0,0,0.6))', padding: '5px',
-        color: 'var(--menu-text, #ededed)',
+        minWidth: 210, background: '#111214', border: '1px solid #383b41',
+        borderRadius: 10, boxShadow: '0 14px 36px rgba(0,0,0,0.55)', padding: '5px',
+        color: '#ededed',
         fontFamily: "'Instrument Sans', sans-serif", fontSize: 13, userSelect: 'none',
       }
 
@@ -3655,14 +3723,14 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
           style={{
             ...rowStyle, width: '100%', border: 'none', cursor: 'pointer', borderRadius: 6,
             fontFamily: 'inherit', color: 'var(--menu-text, #ededed)', textAlign: 'left',
-            background: open ? 'var(--menu-accent-bg, rgba(201,168,76,0.12))' : 'none',
+            background: open ? '#1a1b1f' : 'none',
           }}
-          onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
+          onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = '#1a1b1f' }}
           onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = 'none' }}
         >
           <span style={labelStyle}>{item.label}</span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-            <span style={{ width: sw, height: sw, borderRadius: '50%', background: val, border: '1px solid var(--menu-border, #2c2c30)', boxShadow: '0 0 0 1px var(--menu-bg, #0e0e10)' }} />
+            <span style={{ width: sw, height: sw, borderRadius: 4, background: val, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)' }} />
             {/* ⛔ THE SPACER IS NOT DECORATION. The row is right-aligned, so without
                 it the Fill swatch slides over into the gap where Border's line
                 preview sits and the two swatches in one section sit at different
@@ -3673,7 +3741,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
                 ? { display: 'block', width: 22, height: 0, borderTopWidth: Math.max(1, curWidth), borderTopStyle: curStyle === 'solid' ? 'solid' : curStyle, borderTopColor: val }
                 : { display: 'block', width: 22 }}
             />
-            <span style={{ color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 13 : 11 }} aria-hidden="true">{open ? '▾' : '▸'}</span>
+            <span style={{ color: '#93939a', fontSize: sheet ? 13 : 11 }} aria-hidden="true">{open ? '▾' : '▸'}</span>
           </span>
         </button>
       )
@@ -3704,25 +3772,16 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
             fontFamily: 'inherit', color: 'var(--menu-text, #ededed)', textAlign: 'left', background: 'none',
             opacity: locked ? 0.55 : 1,
           }}
-          onMouseEnter={(e) => { if (!locked) e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
+          onMouseEnter={(e) => { if (!locked) e.currentTarget.style.background = '#1a1b1f' }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
         >
           <span style={labelStyle}>{item.label}</span>
-          <span
-            aria-hidden="true"
-            style={{
-              marginLeft: 'auto', width: sheet ? 40 : 30, height: sheet ? 22 : 17, borderRadius: 999,
-              background: on ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-bg, #0e0e10)',
-              border: `1px solid ${on ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
-              position: 'relative', transition: 'background 120ms ease',
-            }}
-          >
-            <span style={{
-              position: 'absolute', top: 1, left: on ? (sheet ? 19 : 14) : 1,
-              width: sheet ? 18 : 13, height: sheet ? 18 : 13, borderRadius: '50%',
-              background: on ? '#0e0e10' : 'var(--menu-text-dim, #8a8a8f)',
-              transition: 'left 120ms ease',
-            }} />
+          {/* ⭐ UCT SIGNATURE: an ON setting shows a gold ✓ on the right (§2b rule 3) instead
+              of a gold pill switch; OFF shows nothing. The row is still `role="switch"`
+              with `aria-checked`, and the whole row toggles. */}
+          <span aria-hidden="true" data-switch-mark={on ? 'on' : 'off'}
+            style={{ marginLeft: 'auto', width: 14, textAlign: 'center', color: 'var(--ut-gold, #dcbb5e)', fontSize: sheet ? 14 : 12, fontWeight: 600 }}>
+            {on ? '✓' : ''}
           </span>
         </button>
       )
@@ -3749,9 +3808,9 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
             style={{
               ...rowStyle, width: '100%', border: 'none', cursor: 'pointer', borderRadius: 6,
               fontFamily: 'inherit', color: 'var(--menu-text, #ededed)', textAlign: 'left',
-              background: open ? 'var(--menu-accent-bg, rgba(201,168,76,0.12))' : 'none',
+              background: open ? '#1a1b1f' : 'none',
             }}
-            onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
+            onMouseEnter={(e) => { if (!open) e.currentTarget.style.background = '#1a1b1f' }}
             onMouseLeave={(e) => { if (!open) e.currentTarget.style.background = 'none' }}
           >
             <span style={labelStyle}>{item.label}</span>
@@ -3759,7 +3818,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
               <span style={{ color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 13 : 11, fontFamily: fontStackOf(drawing), maxWidth: 96, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {fontLabelFor(cur)}
               </span>
-              <span style={{ color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 13 : 11 }} aria-hidden="true">{open ? '▾' : '▸'}</span>
+              <span style={{ color: '#93939a', fontSize: sheet ? 13 : 11 }} aria-hidden="true">{open ? '▾' : '▸'}</span>
             </span>
           </button>
           {open && (
@@ -3767,7 +3826,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
               role="listbox"
               aria-label="Font"
               onPointerDown={(e) => e.stopPropagation()}
-              style={{ maxHeight: sheet ? 220 : 190, overflowY: 'auto', margin: '2px 0 4px', borderTop: '1px solid var(--menu-divider, #202022)', borderBottom: '1px solid var(--menu-divider, #202022)' }}
+              style={{ maxHeight: sheet ? 220 : 190, overflowY: 'auto', margin: '2px 0 4px', borderTop: '1px solid #2a2c31', borderBottom: '1px solid #2a2c31' }}
             >
               {FONT_OPTIONS.map((f) => {
                 const on = (f.value || '') === cur
@@ -3781,13 +3840,13 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
                       display: 'flex', alignItems: 'center', gap: 8, width: '100%',
                       padding: sheet ? '10px 18px' : '6px 11px', minHeight: sheet ? 40 : undefined,
                       border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left',
-                      color: on ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-text, #ededed)',
+                      color: on ? '#f8f7f3' : '#ededed', fontWeight: on ? 600 : 400,
                       fontFamily: f.value || 'inherit', fontSize: sheet ? 14 : 13,
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = '#1a1b1f' }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = 'none' }}
                   >
-                    <span aria-hidden="true" style={{ width: 12, flex: '0 0 12px', fontFamily: 'inherit' }}>{on ? '✓' : ''}</span>
+                    <span aria-hidden="true" style={{ width: 12, flex: '0 0 12px', fontFamily: 'inherit', color: 'var(--ut-gold, #dcbb5e)' }}>{on ? '✓' : ''}</span>
                     <span>{f.label}</span>
                   </button>
                 )
@@ -3819,14 +3878,14 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
       const setLevel = (lv, patch) => onSetProp?.('levels', withLevel(drawing, lv, patch))
       const setBand = (a, b, patch) => onSetProp?.('fills', withBand(drawing, a, b, patch))
       const rowH = sheet ? 34 : 22
-      const cap = { padding: sheet ? '8px 18px 3px' : '6px 11px 3px', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--menu-text-faint, #6b6b6b)', fontWeight: 600 }
+      const cap = { padding: sheet ? '8px 18px 3px' : '6px 11px 3px', fontSize: 10.5, color: '#93939a', fontWeight: 600 }
       const swatch = (color, onClick, title) => (
         <button
           type="button" title={title} onClick={onClick}
           style={{
-            width: sheet ? 22 : 14, height: sheet ? 22 : 14, borderRadius: '50%', flex: 'none',
-            background: color, border: '1px solid var(--menu-border, #2c2c30)',
-            boxShadow: '0 0 0 1px var(--menu-bg, #0e0e10)', cursor: 'pointer', padding: 0,
+            width: sheet ? 22 : 14, height: sheet ? 22 : 14, borderRadius: 4, flex: 'none',
+            background: color, border: 'none',
+            boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)', cursor: 'pointer', padding: 0,
           }}
         />
       )
@@ -3837,9 +3896,9 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
             style={{
               ...rowStyle, width: '100%', border: 'none', cursor: 'pointer', borderRadius: 6,
               fontFamily: 'inherit', color: 'var(--menu-text, #ededed)', textAlign: 'left',
-              background: fibOpen ? 'var(--menu-accent-bg, rgba(201,168,76,0.12))' : 'none',
+              background: fibOpen ? '#1a1b1f' : 'none',
             }}
-            onMouseEnter={(e) => { if (!fibOpen) e.currentTarget.style.background = 'var(--menu-accent-bg, rgba(201,168,76,0.12))' }}
+            onMouseEnter={(e) => { if (!fibOpen) e.currentTarget.style.background = '#1a1b1f' }}
             onMouseLeave={(e) => { if (!fibOpen) e.currentTarget.style.background = 'none' }}
           >
             <span style={labelStyle}>{item.label}</span>
@@ -3848,7 +3907,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
           {fibOpen && (
             <div
               onPointerDown={(e) => e.stopPropagation()}
-              style={{ maxHeight: sheet ? 300 : 330, overflowY: 'auto', margin: '2px 0 4px', borderTop: '1px solid var(--menu-divider, #202022)', borderBottom: '1px solid var(--menu-divider, #202022)' }}
+              style={{ maxHeight: sheet ? 300 : 330, overflowY: 'auto', margin: '2px 0 4px', borderTop: '1px solid #2a2c31', borderBottom: '1px solid #2a2c31' }}
             >
               <div style={cap}>Levels</div>
               {levels.map((lv) => (
@@ -3859,9 +3918,10 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
                     onClick={() => setLevel(lv.level, { visible: !lv.visible })}
                     style={{
                       width: 13, height: 13, flex: 'none', padding: 0, cursor: 'pointer', borderRadius: 3,
-                      border: `1px solid ${lv.visible ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
-                      background: lv.visible ? 'var(--menu-accent, #f0b23a)' : 'transparent',
-                      color: '#0e0e10', fontSize: 10, lineHeight: 1, fontWeight: 700,
+                      border: 'none',
+                      boxShadow: lv.visible ? 'inset 0 0 0 1px rgba(248,247,243,0.28)' : 'inset 0 0 0 1.5px rgba(248,247,243,0.22)',
+                      background: lv.visible ? '#2c2e33' : 'transparent',
+                      color: '#f8f7f3', fontSize: 9, lineHeight: 1, fontWeight: 700,
                     }}
                   >{lv.visible ? '✓' : ''}</button>
                   <span style={{
@@ -3879,7 +3939,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
                     style={{
                       marginLeft: 'auto', width: 18, height: 18, flex: 'none', padding: 0, cursor: 'pointer',
                       border: 'none', background: 'none', lineHeight: 1,
-                      color: levelAlerts?.has(lv.key) ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-text-faint, #4b4b4b)',
+                      color: levelAlerts?.has(lv.key) ? 'var(--ut-gold, #dcbb5e)' : '#6f6c66',
                     }}
                   >
                     <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
@@ -3887,7 +3947,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
                       <path d="M6.7 12.6a1.4 1.4 0 0 0 2.6 0" />
                     </svg>
                   </button>
-                  {swatch(lv.color, () => setColorPanel({ id: `fib:${lv.key}`, label: `Level ${num(lv.level)}`, line: false, fibLevel: lv.level, value: lv.color }), `Colour of level ${num(lv.level)}`)}
+                  {swatch(lv.color, () => setColorPanel({ id: `fib:${lv.key}`, label: `Level ${num(lv.level)}`, line: false, fibLevel: lv.level, value: lv.color }), `Color of level ${num(lv.level)}`)}
                 </div>
               ))}
 
@@ -3903,9 +3963,10 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
                       onClick={() => setBand(a, b, st.enabled ? { enabled: false } : { enabled: true, color: st.color || defaultBandColor(drawing, a) })}
                       style={{
                         width: 13, height: 13, flex: 'none', padding: 0, cursor: 'pointer', borderRadius: 3,
-                        border: `1px solid ${st.enabled ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
-                        background: st.enabled ? 'var(--menu-accent, #f0b23a)' : 'transparent',
-                        color: '#0e0e10', fontSize: 10, lineHeight: 1, fontWeight: 700,
+                        border: 'none',
+                        boxShadow: st.enabled ? 'inset 0 0 0 1px rgba(248,247,243,0.28)' : 'inset 0 0 0 1.5px rgba(248,247,243,0.22)',
+                        background: st.enabled ? '#2c2e33' : 'transparent',
+                        color: '#f8f7f3', fontSize: 9, lineHeight: 1, fontWeight: 700,
                       }}
                     >{st.enabled ? '✓' : ''}</button>
                     <span style={{
@@ -3915,7 +3976,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
                     <span style={{ marginLeft: 'auto', display: 'flex' }}>
                       {swatch(st.enabled ? st.color : 'transparent',
                         () => setColorPanel({ id: `fill:${key}`, label: `Fill ${num(a)} → ${num(b)}`, line: false, fibBand: [a, b], value: st.color || defaultBandColor(drawing, a) }),
-                        `Colour of the ${num(a)} to ${num(b)} band`)}
+                        `Color of the ${num(a)} to ${num(b)} band`)}
                     </span>
                   </div>
                 )
@@ -3952,10 +4013,10 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
                   style={{
                     width: sheet ? 34 : 24, height: sheet ? 34 : 24,
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    border: `1px solid ${on ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
+                    border: 'none',
                     borderRadius: 6,
-                    background: on ? 'var(--menu-accent-bg, rgba(240,178,58,0.14))' : 'var(--menu-bg, #0e0e10)',
-                    color: on ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-text-dim, #8a8a8f)',
+                    background: on ? '#2c2e33' : 'rgba(248,247,243,0.06)',
+                    color: on ? '#f8f7f3' : '#a9a59b',
                     cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, lineHeight: 1,
                     fontSize: sheet ? 13 : 11,
                   }}
@@ -3977,19 +4038,19 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
             aria-label="Smaller text"
             style={{
               width: sheet ? 34 : 24, height: sheet ? 34 : 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              border: '1px solid var(--menu-border, #2c2c30)', borderRadius: 6, background: 'var(--menu-bg, #0e0e10)',
-              color: 'var(--menu-text, #ededed)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, lineHeight: 1, fontSize: sheet ? 12 : 10,
+              border: 'none', borderRadius: 6, background: 'rgba(248,247,243,0.06)',
+              color: '#ededed', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, lineHeight: 1, fontSize: sheet ? 12 : 10,
             }}
           >A−</button>
-          <span style={{ minWidth: 26, textAlign: 'center', color: 'var(--menu-text-dim, #8a8a8f)', fontSize: sheet ? 14 : 12, fontVariantNumeric: 'tabular-nums' }}>{curFontSize}</span>
+          <span style={{ minWidth: 26, textAlign: 'center', color: '#a9a59b', fontSize: sheet ? 14 : 12, fontVariantNumeric: 'tabular-nums' }}>{curFontSize}</span>
           <button
             onClick={() => bumpFont(1)}
             title="Bigger"
             aria-label="Bigger text"
             style={{
               width: sheet ? 34 : 24, height: sheet ? 34 : 24, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              border: '1px solid var(--menu-border, #2c2c30)', borderRadius: 6, background: 'var(--menu-bg, #0e0e10)',
-              color: 'var(--menu-text, #ededed)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, lineHeight: 1, fontSize: sheet ? 16 : 13,
+              border: 'none', borderRadius: 6, background: 'rgba(248,247,243,0.06)',
+              color: '#ededed', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, lineHeight: 1, fontSize: sheet ? 16 : 13,
             }}
           >A+</button>
         </span>
@@ -4016,8 +4077,8 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
               placeholder="Price…"
               style={{
                 flex: 1, minWidth: 0, padding: sheet ? '9px 10px' : '5px 8px',
-                background: 'var(--menu-bg, #0e0e10)', border: '1px solid var(--menu-border, #2c2c30)',
-                borderRadius: 6, color: 'var(--menu-text, #ededed)', fontFamily: 'inherit',
+                background: '#0f1012', border: '1px solid #26282c',
+                borderRadius: 7, color: '#ededed', fontFamily: 'inherit',
                 fontSize: sheet ? 14 : 12, outline: 'none',
               }}
             />
@@ -4025,8 +4086,8 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
               onClick={submitLevel}
               style={{
                 padding: sheet ? '0 16px' : '0 11px', minHeight: sheet ? 40 : undefined,
-                background: 'var(--menu-accent-bg, rgba(240,178,58,0.14))', border: '1px solid var(--menu-border, #2c2c30)',
-                borderRadius: 6, color: 'var(--menu-text, #ededed)', cursor: 'pointer',
+                background: 'rgba(248,247,243,0.08)', border: 'none',
+                borderRadius: 7, color: '#f8f7f3', cursor: 'pointer',
                 fontFamily: 'inherit', fontSize: sheet ? 14 : 12, fontWeight: 600,
               }}
             >Set</button>
@@ -4046,7 +4107,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
       return (
         <div key="positionAlerts" onPointerDown={(e) => e.stopPropagation()}
           style={{ padding: sheet ? '6px 18px 8px' : '4px 11px 6px' }}>
-          <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--menu-text-faint, #6b6b6b)', fontWeight: 600, marginBottom: 4 }}>
+          <div style={{ fontSize: 10.5, color: '#93939a', fontWeight: 600, marginBottom: 4 }}>
             {`${item.label} (${side})`}
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -4062,10 +4123,10 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
                   onClick={() => setOne(lv)}
                   style={{
                     flex: 1, padding: sheet ? '9px 8px' : '5px 8px',
-                    background: on ? 'var(--menu-accent-bg, rgba(240,178,58,0.14))' : 'var(--menu-bg, #0e0e10)',
-                    border: `1px solid ${on ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
-                    borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontSize: sheet ? 13 : 11, fontWeight: 600,
-                    color: on ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-text, #ededed)',
+                    background: on ? '#2c2e33' : 'rgba(248,247,243,0.06)',
+                    border: 'none',
+                    borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit', fontSize: sheet ? 13 : 11, fontWeight: 600,
+                    color: on ? '#f8f7f3' : '#ededed',
                   }}
                 >{lv.label}</button>
               )
@@ -4076,9 +4137,9 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
             onClick={() => POSITION_LEVELS.filter((lv) => !levelAlerts?.has(levelKey(lv.level))).forEach(setOne)}
             style={{
               marginTop: 6, width: '100%', padding: sheet ? '9px 8px' : '5px 8px',
-              background: 'var(--menu-bg, #0e0e10)', border: '1px solid var(--menu-border, #2c2c30)',
-              borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontSize: sheet ? 13 : 11, fontWeight: 600,
-              color: 'var(--menu-text, #ededed)',
+              background: 'rgba(248,247,243,0.06)', border: 'none',
+              borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit', fontSize: sheet ? 13 : 11, fontWeight: 600,
+              color: '#ededed',
             }}
           >All three</button>
         </div>
@@ -4107,10 +4168,10 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
                 title={m.hint}
                 style={{
                   flex: 1, padding: sheet ? '9px 8px' : '5px 8px',
-                  background: alertBound === m.bound ? 'var(--menu-accent-bg, rgba(240,178,58,0.14))' : 'var(--menu-bg, #0e0e10)',
-                  border: `1px solid ${alertBound === m.bound ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
-                  borderRadius: 6,
-                  color: alertBound === m.bound ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-text-dim, #9a978f)',
+                  background: alertBound === m.bound ? '#2c2e33' : 'rgba(248,247,243,0.06)',
+                  border: 'none',
+                  borderRadius: 7,
+                  color: alertBound === m.bound ? '#f8f7f3' : '#a9a59b',
                   cursor: 'pointer', fontFamily: 'inherit', fontSize: sheet ? 13 : 11,
                   fontWeight: alertBound === m.bound ? 700 : 500,
                 }}
@@ -4133,8 +4194,8 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
                 title={`Alert when price crosses ${b.dir} this ${drawing?.type === 'horizontal' || drawing?.type === 'hray' ? 'line' : 'trendline'}${alertBound ? ' — and it follows the line if you move it' : ' — at a fixed level'}`}
                 style={{
                   flex: 1, padding: sheet ? '10px 8px' : '6px 8px',
-                  background: 'var(--menu-bg, #0e0e10)', border: `1px solid ${b.col}`,
-                  borderRadius: 6, color: b.col, cursor: 'pointer',
+                  background: 'rgba(248,247,243,0.04)', border: `1px solid ${b.col}`,
+                  borderRadius: 7, color: b.col, cursor: 'pointer',
                   fontFamily: 'inherit', fontSize: sheet ? 14 : 12, fontWeight: 700,
                 }}
               >{b.label}</button>
@@ -4170,12 +4231,15 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
         onClick={ACTION_HANDLERS[item.id]}
         danger={item.danger}
         big={sheet}
+        /* ⭐ the one keyboard shortcut this overlay really binds for a menu verb
+           (Delete / Backspace removes the selected, unlocked drawing) — desktop only */
+        shortcut={item.id === 'remove' && !sheet ? 'Del' : null}
         icon={typeof CONTROL_ICONS[item.id] === 'function' ? CONTROL_ICONS[item.id](drawing) : CONTROL_ICONS[item.id]}
       />
     )
   }
 
-  const divider = (key) => <div key={key} style={{ height: 1, background: 'var(--menu-divider, #202022)', margin: '5px 0' }} />
+  const divider = (key) => <div key={key} style={{ height: 1, background: '#2a2c31', margin: '4px 6px' }} />
 
   const inner = (
     <div
@@ -4190,11 +4254,15 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
         </div>
       )}
 
+      {/* ⭐ UCT SIGNATURE: the drawing's name heads the menu as a small grey group label. */}
+      <div data-drawing-menu-name="" style={{ padding: sheet ? '4px 18px 3px' : '5px 10px 3px', fontSize: sheet ? 12 : 10.5, color: '#93939a', fontWeight: 600 }}>
+        {drawingMenuName(drawing)}
+      </div>
       {sections.map((section, i) => (
         <React.Fragment key={section.id}>
           {i > 0 && divider(`sep-${section.id}`)}
           {section.title && (
-            <div style={{ padding: sheet ? '8px 18px 3px' : '6px 11px 3px', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--menu-text-faint, #6b6b6b)', fontWeight: 600 }}>
+            <div style={{ padding: sheet ? '8px 18px 3px' : '8px 10px 3px', fontSize: 10.5, color: '#93939a', fontWeight: 600 }}>
               {section.title}
             </div>
           )}

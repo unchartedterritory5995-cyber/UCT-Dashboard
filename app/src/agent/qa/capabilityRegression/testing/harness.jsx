@@ -32,6 +32,8 @@ import { mergeChartSettings } from '../../../../components/chart/chartDefaults'
 import { makeGridControl } from './gridStub'
 import * as nativeRegistry from '../../../../components/chart/engine/nativeRegistry'
 import { _resetAgentConfig, loadAgentConfig } from '../../../agentClient'
+import { publishWidgetDoor } from '../../../../pages/charts/widgetDoors'
+import { _resetNewsLibraryForTests } from '../../../capabilities/newsLibrary'
 
 const chart = (id, x, y, w, h) => ({ id, type: 'chart', x, y, w, h, color: 'N', opts: { settings: bareSettings() } })
 /** Named fixture boards. Charts are bare (the default 9/20/50/200 overlays removed, as a member's removal leaves them). */
@@ -70,6 +72,8 @@ export const BOARDS = {
   // chartFeatures: a chart whose Company Info panel is added (collapsed, on Ownership, dragged to 520px) and Earnings Strip shown
   DOCKED: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: bareSettings(), dock: { company: true, open: false, tab: 'ownership', rightW: 520, strip: true, stripH: 140 } } }], { 'N:c1': 'NVDA' }],
   WATERMARK: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: bareSettings(), watermarkPos: { x: 0.2, y: 0.8, anchor: null } } }], { 'N:c1': 'NVDA' }],
+  // newsLibrary.*: a chart beside a UCT News widget (its door: three rendered rows), over a library stand-in seeded per case
+  NEWS_LIB: () => [[chart('c1', 0, 0, 12, 20), { id: 'n1', type: 'tradeExchangeNews', x: 12, y: 0, w: 12, h: 20, color: 'A', opts: {} }], { 'N:c1': 'NVDA' }, { newsLibrary: true }],
   // a chart drawn with a GRADIENT background (live LT-3: "turn the gradient off on this chart")
   GRADIENT: () => [[{ ...chart('c1', 0, 0, 24, 20), opts: { settings: { ...bareSettings(), bgMode: 'gradient' } } }], { 'N:c1': 'NVDA' }],
   // one chart on its DEFAULT settings (EMA 9/20, SMA 50/200) with the indicator-alert library
@@ -161,6 +165,138 @@ const ASSET_ROUTES = { gold: { kind: 'commodity.quote', asset: 'gold', label: 'g
 // a made-up event-study answer (the study's own {lead, text, table, caveats} shape) — never a market value
 const SYNTH_STUDY = (sym) => ({ lead: `${sym} synthetic condition: 3 events (fixture)`, text: `${sym} synthetic condition: 3 events (fixture)\nSynthetic fixture study: no market value.`,
   table: { columns: [{ key: 'window', label: 'Window' }, { key: 'n', label: 'Events' }], rows: [{ window: '1 trading session', n: '3' }] }, caveats: ['Small sample (fixture).'] })
+// Terminal data wave 1 (dark kinds `analyst.actions`, `highsLows.session`, `sectors.performance`, `leaders.longRun`,
+// `levels.darkpool`): each kind's answer in the shape its adapter returns (api/services/uct_agent/marketdata/), with made-up
+// symbols and figures — never a market value. kind → (params) => the envelope fields that differ from a plain `periodic` ok.
+const TERMINAL_ANALYST = { upgrades: [{ ticker: 'AAA', action: 'Upgrade', firm: 'Example Securities', from_rating: 'Hold', to_rating: 'Buy', price_target: '$120' }],
+  downgrades: [{ ticker: 'CCC', action: 'Downgrade', firm: 'Sample Capital', from_rating: 'Buy', to_rating: 'Hold', price_target: null }],
+  pt_changes: [{ ticker: 'DDD', action: 'Raises PT', firm: 'Example Securities', from_rating: null, to_rating: 'Buy', price_target: 150 }] }
+const TERMINAL_DATA = {
+  'analyst.actions': (p) => {
+    const side = p.side || 'all'
+    const lists = Object.fromEntries(Object.entries(TERMINAL_ANALYST).map(([k, rows]) => [k, side === 'all' || side === k ? rows : []]))
+    return { as_of: '2026-11-03T05:00:00Z', data: { ...lists, summary: Object.fromEntries(Object.entries(lists).map(([k, rows]) => [k, rows.length])), side, wire_date: '2026-11-03', wire_status: 'fresh' } }
+  },
+  'highsLows.session': () => ({ data: { window: 'rth', active: true, date: '2026-11-03', asof: '2026-11-03T10:59:58-05:00', tick_at: '2026-11-03T15:59:58Z', group: null, value: null,
+    highs: [{ sym: 'AAA', price: 10.5, pct: 2.5, count: 12, ts: '2026-11-03T10:59:58-05:00', dir: 'high' }], lows: [{ sym: 'CCC', price: 20.25, pct: -4.1, count: 3, ts: '2026-11-03T10:59:58-05:00', dir: 'low' }],
+    highs_total: 40, lows_total: 2 } }),
+  'sectors.performance': (p) => ({ data: { period: p.period || 'Today', sessions: { Today: 1, '1W': 5, '1M': 21, '3M': 63 }[p.period || 'Today'],
+    sectors: [{ sector: 'Technology', ticker: 'XLK', change_pct: 2.1 }, { sector: 'Financials', ticker: 'XLF', change_pct: 1.4 }, { sector: 'Energy', ticker: 'XLE', change_pct: -0.9 }], missing: [] } }),
+  'leaders.longRun': (p) => ({ data: { list: p.list, family: 'gain', what: 'synthetic list (fixture)', status: 'ok',
+    results: [{ sym: 'AAA', price: 18, prev_close: 17.5, change_pct: 1.2, change_nd: 80, ref_close: 10 }, { sym: 'BBB', price: 9, prev_close: 9.1, change_pct: -1.1, change_nd: 50, ref_close: 6 }],
+    count: 2, as_of: '2026-11-03T10:59:30-05:00', computed_at: '2026-11-03T15:59:30Z' } }),
+  'levels.darkpool': (p) => ({ freshness: 'historical', as_of: '2026-11-02T21:00:00Z', data: { sym: String(p.symbol || '').toUpperCase(),
+    levels: [{ price: 98.5, notional: 12500000, printCount: 4, lastDate: '2026-11-02', lo: 98.4, hi: 98.6, rank: 2 }, { price: 101.25, notional: 25000000, printCount: 4, lastDate: '2026-10-29', lo: 101.15, hi: 101.35, rank: 1 }],
+    windowDays: 20, datesCovered: 14, version: 'fixture', asOf: 1793721600, computed_at: '2026-11-03T16:00:00Z', newest_print_date: '2026-11-02' } }),
+  // Terminal data wave 2 (dark kinds `highsLows.yearly`, `themes.rotation`, `confluence.board`, `earnings.expectedMove`,
+  // `earnings.callSearch`; MD-1 §4.11): the same rule — each adapter's own data shape, made-up names, figures and words.
+  'highsLows.yearly': (p) => {
+    const side = p.side || 'both'
+    const part = (items) => ({ state: 'ok', items, count: items.length })
+    return { as_of: '2026-11-03T15:59:05Z', data: { mode: 'live', why: null, session_date: '2026-11-03', side,
+      highs: side === 'lows' ? null : part([{ t: 'AAA', c: 10.5, pct: 9, vr: 1.8, v: 1200000, n: 'Fixture A' }, { t: 'BBB', c: 20.25, pct: 4.5, vr: 1.1, v: 800000, n: 'Fixture B' }]),
+      lows: side === 'highs' ? null : part([{ t: 'CCC', c: 5.75, pct: -6.2, vr: 2.4, v: 300000, n: 'Fixture C' }]),
+      basis: null, computed_at: '2026-11-03T15:59:30Z', missing: [] } }
+  },
+  'themes.rotation': (p) => {
+    const side = p.side || 'both'
+    const into = side === 'out' ? [] : [{ name: 'Fixture Theme A', ticker: 'fixture-a', '1w_return': 4.2, '1w_rank': 82, '1m_return': 1.1, '1m_rank': 41, '3m_return': 9, '3m_rank': 55, momentum_delta: 41 }]
+    const out = side === 'in' ? [] : [{ name: 'Fixture Theme B', ticker: 'fixture-b', '1w_return': -3.1, '1w_rank': 20, '1m_return': 2.2, '1m_rank': 48, '3m_return': 1, '3m_rank': 40, momentum_delta: -28 }]
+    return { data: { side, rotating_in: into, rotating_out: out, in_count: into.length, out_count: out.length, ranked: 12, threshold: 20,
+      generated_at: '2026-11-03T15:50:00+00:00', computed_at: '2026-11-03T15:50:00Z' } }
+  },
+  'confluence.board': (p) => {
+    const row = (sym, dir, status) => ({ sym, band: 'L', dir, status, sector: 'Fixture', dpn: 180000000, dpAvg: 101.4, dpLo: 98.5, dpHi: 104.25, dpLast: 103.1, bigPrint: 40000000, bigPrice: 101, bigDate: '10/29',
+      net: dir === 'BULL' ? 12500000 : -8000000, net5: 6000000, bull: 14000000, bear: 1500000, bullPct: 90.3, leapPrem: 5000000, leapShare: 0.41, freshRatio: 0.48,
+      top: { cp: dir === 'BULL' ? 'C' : 'P', strike: 120, exp: '1/15/2027', dte: 73, prem: 4200000 }, score: 2.4 })
+    const all = [row('AAA', 'BULL', 'BUILDING'), row('CCC', 'BEAR', 'STEADY')]
+    const want = { bull: 'BULL', bear: 'BEAR' }[p.direction] || null
+    const rows = all.filter(r => !want || r.dir === want)
+    return { data: { days: 30, window: 'Sep 22 \u2013 Oct 31, 2026', direction: p.direction || 'all', rows, count: rows.length, counts: { total: 2, bull: 1, bear: 1, building: 1 }, band_meta: {},
+      incomplete: false, built_at: '2026-11-03T15:45:00Z', refresh_minutes: 30 } }
+  },
+  'earnings.expectedMove': (p) => {
+    const sym = String(p.symbol || '').toUpperCase()
+    return { data: { symbol: sym, report_date: p.report_date || null,
+      live: { pct: 8.4, dollar: 10.5, strike: 125, spot: 125.3, call_mid: 5.6, put_mid: 4.9, iv_atm: 0.71, expiry: '2026-11-06', horizon: 'through 2026-11-06', asof: '2026-11-03T15:40:00+00:00', source: 'massive-chain' },
+      live_state: 'fresh', live_outcome: { kind: 'ok', reason: null }, read_at: '2026-11-03T15:40:00Z',
+      history: [{ sym, report_date: '2026-08-06', captured_at: '2026-08-05T02:00:00+00:00', pct: 6.2, dollar: 7.5, expiry: '2026-08-07', fiscal_year: 2026, fiscal_quarter: 2 }],
+      history_since: '2026-08-06', store_read: true } }
+  },
+  'earnings.callSearch': (p) => ({ as_of: '2026-11-02T05:00:00Z', data: { query: String(p.q || ''), symbol: p.symbol || null, since: p.since || null, total: 2, total_wider: false,
+    hits: [{ symbol: 'AAA', year: 2026, quarter: 3, date: '2026-10-29 17:00:00', snippet: 'a synthetic excerpt about <mark>fixture</mark> words \u2026 and nothing else', score: 9.5 },
+      { symbol: 'BBB', year: 2026, quarter: 3, date: '2026-10-27 17:00:00', snippet: 'another synthetic <mark>fixture</mark> excerpt', score: 7.25 }],
+    expanded: {}, index: { calls: 12, oldest: '2026-08-15', newest: '2026-11-02' } } }),
+  // Terminal data wave 3 (dark kinds `levels.gamma`, `flow.topPicks`, `flow.record`, `earnings.reactions`; MD-1 §4.12): the same
+  // rule — each adapter's own data shape, made-up names and figures.
+  'levels.gamma': (p) => ({ data: { sym: String(p.symbol || '').toUpperCase(), levels: [{ kind: 'callWall', price: 105 }, { kind: 'putWall', price: 95 }, { kind: 'zeroGamma', price: 98.5 }],
+    spot: 100, regime: 'choppy', version: 'fixture', asOf: 1793721000, computed_at: '2026-11-03T15:50:00Z', held: 'fresh', chain_source: 'massive', band_pct: 15, kept_minutes: 10, last_good_minutes: 30 } }),
+  'flow.topPicks': (p) => {
+    const row = (sym, dir, status, o = {}) => ({ id: `${sym}|C|100.0|1/15/2027`, sym, cp: dir === 'BULL' ? 'C' : 'P', strike: 100, exp: '1/15/2027', grade: 'A', dir, dateSaved: '2026-08-10', saved_date: '2026-08-10',
+      status, stopped: false, scored: true, prices: 3, entry: 2, latest_price: 3, latest_date: '2026-11-02', peak_price: 4, current_gain_pct: 50, max_gain_pct: 100, days_tracked: 2,
+      oi_evaluable: true, oi_confirmed: true, prem: 1500000, hits: 4, cap: 'Large Cap', src: ['massive'], ...o })
+    const all = [row('AAA', 'BULL', 'open'), row('BBB', 'BEAR', 'expired', { current_gain_pct: -50, max_gain_pct: -20, latest_price: 1, peak_price: 1.6, oi_confirmed: false }),
+      row('CCC', 'BULL', 'open', { scored: false, prices: 1, latest_price: 1.2, peak_price: null, current_gain_pct: null, max_gain_pct: null, days_tracked: null, oi_evaluable: false, oi_confirmed: false })]
+    const want = { bullish: 'BULL', bearish: 'BEAR' }[p.direction] || null
+    const rows = all.filter(r => (!p.status || p.status === 'all' || r.status === p.status) && (!want || r.dir === want) && (!p.symbol || r.sym === p.symbol))
+    return { freshness: 'historical', as_of: '2026-11-02T21:00:00Z', data: { status: p.status || 'all', direction: p.direction || 'any', sort: p.sort || 'gain', symbol: p.symbol || null, rows, count: rows.length,
+      counts: { total: 3, open: 2, expired: 1, scored: 2, too_new: 1, never_scored: 0 }, matching_too_new: rows.filter(r => !r.scored).length, unread: 0, min_prices: 2,
+      newest_price_date: '2026-11-02', newest_pick_date: '2026-08-10', days_since_newest_price: 1, days_since_newest_pick: 85, no_new_picks: true } }
+  },
+  'flow.record': () => {
+    const bucket = (picks, o = {}) => ({ picks, win_rate_10: picks ? 75 : null, win_rate_25: picks ? 50 : null, win_rate_50: picks ? 25 : null, pct_doubled: picks ? 12.5 : null,
+      avg_max_gain: picks ? 41.5 : null, median_max_gain: picks ? 22 : null, oi_confirmed_rate: picks ? 62.5 : null, oi_evaluated: picks, ...o })
+    const pick = (sym, gain) => ({ sym, cp: 'C', strike: 100, exp: '1/15/2027', grade: 'A', dateSaved: '2026-08-10', entry: 2, peak_price: 4, max_gain_pct: 100, days_tracked: 2, oi_confirmed: true, current_gain_pct: gain, latest_price: 2 * (1 + gain / 100) })
+    return { freshness: 'historical', as_of: '2026-11-02T21:00:00Z', data: { flagged: 10, picks_tracked: 8, too_new: 2, overall: bucket(8),
+      by_grade: ['A+', 'A', 'B', 'C', 'D'].map((grade, i) => ({ grade, ...bucket(i < 2 ? 4 : 0) })), recent_winners: [pick('AAA', 50)], recent_picks: [pick('AAA', 50), pick('BBB', -50)],
+      generated_at: '2026-11-03T15:58:00+00:00', computed_at: '2026-11-03T15:58:00Z', min_prices: 2, recent_window_days: 45, newest_price_date: '2026-11-02', newest_pick_date: '2026-08-10',
+      days_since_newest_price: 1, days_since_newest_pick: 85, no_new_picks: true } }
+  },
+  'earnings.reactions': (p) => {
+    const row = (sym, session, move, o = {}) => ({ sym, name: `Fixture ${sym}`, session, eps_act: 1.25, eps_est: 1, rev_act: 520, rev_est: 500, move, ...o })
+    const all = [row('BBB', 'bmo', -7.5, { eps_act: 0.8 }), row('AAA', 'amc', 4.25), row('CCC', 'tbd', null)]
+    return { freshness: 'historical', data: { date: p.date || '2026-11-02', day_kind: 'past', scheduled: 5, reporters: all.slice(0, p.limit || 25), count: 3, moves: 'held', moved: 2, up: 1, down: 1, flat: 0, no_move: 1 } }
+  },
+  // Terminal data wave 4 (dark kinds `earnings.season`, `earnings.callThemes`, `group.drill`; MD-1 §4.13): the same rule — each
+  // adapter's own data shape, made-up names and figures.
+  'earnings.season': (p) => {
+    const row = (sym, session, mc, o = {}) => ({ sym, name: `Fixture ${sym}`, session, mc_b: mc, eps_est: 1, eps_act: null, rev_est: 500, rev_act: null, reported: false, verdict: null,
+      priced: { pct: 6.2, dollar: 12.4, captured_at: '2026-11-02T16:35:04-05:00', expiry: '2026-11-06' }, past: { moves: [{ date: '2026-08-04', pct: 3.1 }, { date: '2026-05-05', pct: -2 }], avg_abs: 2.55, n: 2 },
+      past_state: 'ok', move: null, move_state: null, ...o })
+    const all = { bmo: [row('AAA', 'bmo', 900, { eps_act: 1.5, rev_act: 520, reported: true, verdict: 'beat', move: 3.21, move_state: 'live' }), row('BBB', 'bmo', 50, { priced: null, past: null, past_state: 'not_held' })],
+      amc: [row('CCC', 'amc', 300)], tbd: [] }
+    const want = p.session === 'bmo' || p.session === 'amc' ? [p.session] : ['bmo', 'amc', 'tbd']
+    const sessions = Object.fromEntries(['bmo', 'amc', 'tbd'].map(s => [s, want.includes(s) ? all[s] : []]))
+    const count = want.reduce((n, s) => n + all[s].length, 0)
+    return { data: { date: p.date || '2026-11-03', today: '2026-11-03', day_kind: 'today', default: !p.date, session: p.session || 'all', sessions, count, shown: count, scheduled: 3,
+      counts: { scheduled: 3, reported: 1, priced: 2, priced_withheld: 0, with_past: 2, past_not_held: 1, moved: 1 }, priced_state: 'read', moves_state: 'live',
+      calendar_as_of: '2026-11-03T15:50:00Z', built_at: '2026-11-03T15:58:00Z', capture: { hour_et: 16, minute_et: 35 }, range: { from: '2026-10-26', to: '2026-11-13' }, held: 'fresh', no_day: false } }
+  },
+  'earnings.callThemes': (p) => {
+    const row = (phrase, calls, pct, base, o = {}) => ({ phrase, words: phrase.split(' ').length, calls, pct, companies: calls - 2, base_calls: Math.round(base * 4), base_pct: base, base_raw_pct: base,
+      rise: Math.round((pct - base) * 10) / 10, ratio: base ? Math.round(pct / base * 10) / 10 : null, related: [], examples: ['AAA', 'BBB'], ...o })
+    const lists = { new: [row('fixture phrase', 40, 13.3, 0), row('synthetic words', 22, 7.3, 0.2)], rising: [row('made up theme', 90, 30, 18.5)] }
+    const want = p.list === 'new' || p.list === 'rising' ? [p.list] : ['new', 'rising']
+    const cut = (name) => (want.includes(name) ? lists[name].slice(0, p.limit || 10) : [])
+    return { as_of: '2026-11-02T05:00:00Z', data: { month: p.month || '2026-11', months: ['2026-11', '2026-10'], list: p.list || 'both', calls: 300, companies: 290,
+      baseline: { months: ['2026-08', '2026-09', '2026-10'], calls: 410, matched_pct: 87.5 }, floor: { calls: 8, companies: 6 }, new: cut('new'), rising: cut('rising'),
+      qualified: { new: 2, rising: 1 }, shown: { new: cut('new').length, rising: cut('rising').length }, built_at: '2026-11-03T11:00:00Z', refreshing: false,
+      corpus: { calls: 520, oldest: '2026-08-15', newest: '2026-11-02' }, rules: {} } }
+  },
+  'group.drill': (p) => {
+    const common = { range: p.range || 'ytd', start_day: '2025-12-31', end_day: '2026-11-02', built_at: '2026-11-03T15:55:00Z', held: 'fresh', partial_history: false, kind: p.kind || null }
+    if (!p.group) {
+      const lists = { sector: [{ name: 'Technology', pct: 15, count: 4 }, { name: 'Energy', pct: -5, count: 1 }], industry: [{ name: 'Semiconductors', pct: 20, count: 2 }, { name: 'Software', pct: 10, count: 2 }],
+        theme: [{ name: 'Fixture Theme', pct: 12.5, count: 2 }] }
+      const kinds = p.kind ? [p.kind] : ['sector', 'industry', 'theme']
+      return { data: { mode: 'groups', ...common, lists: Object.fromEntries(kinds.map(k => [k, lists[k]])), counts: Object.fromEntries(kinds.map(k => [k, lists[k].length])) } }
+    }
+    const row = (sym, pct, rs, flow) => ({ sym, pct, start_close: 100, end_close: 100 + pct, industry: 'Semiconductors', sector: 'Technology', rs, flow })
+    const rows = [row('AAA', 30, 97, { dir: 'BULL', status: 'BUILDING' }), row('BBB', 20, 55, null), row('DDD', 10, null, { dir: 'BEAR', status: 'STEADY' }), row('EEE', 0, 12, null)]
+    return { data: { mode: 'group', ...common, name: p.group, found: true, group_pct: 15, rows: rows.slice(0, p.limit || 25), count: 4, shown: Math.min(4, p.limit || 25), known: 4, ranked: 3, on_board: 2,
+      sort: p.sort || 'pct', dir: p.dir || 'desc', rs_state: 'held', flow_state: 'held', flow_built_at: '2026-11-03T15:45:00Z' } }
+  },
+}
 // SG-1: T13–T18 sit FAR below their 52-week high (the Screener's sign: a distance from a high is NEGATIVE) and meet every
 // other condition of the owner's screen — so only a correctly signed "near the high" filter leaves them out
 const FAR_FROM_HIGH = [-12, -18, -25, -30, -35, -40]
@@ -207,6 +343,32 @@ export const nlm1Of = (seed = {}) => (seed.nlm1 != null ? !!seed.nlm1 : (globalT
 // scripted STEP-1 server (testing/stepServer.js) instead of the v1 envelope queue, and the config says planner 'v2'.
 // Absent (every capability-regression suite), mountCase is exactly as before.
 let unpublishListView = null
+/** The UCT News library module's API (lib/tradeExchangeNewsLibrary.js) over an in-memory member library — the kind reads it
+ *  through `host.newsLibrary` in place of the page's module. Synthetic; ids are the NEWS_LIB rows'. */
+function newsLibraryStandIn(seed) {
+  let n = 0
+  const cols = (seed.collections || []).map(name => ({ id: `k${++n}`, name }))
+  const marks = new Map((seed.saved || []).map(id => [id, { event_id: id, note: seed.notes?.[id] || '', collection_ids: (seed.member?.[id] || []).map(nm => cols.find(c => c.name === nm)?.id).filter(Boolean), saved_at_ms: 1 }]))
+  const snap = () => ({ status: 'ready', ids: new Set(marks.keys()), collections: cols.map(c => ({ ...c, count: [...marks.values()].filter(m => m.collection_ids.includes(c.id)).length })),
+    notes: Object.fromEntries([...marks].map(([id, m]) => [id, m.note])), member: Object.fromEntries([...marks].map(([id, m]) => [id, [...m.collection_ids]])) })
+  let cur = snap()
+  const ok = (x = {}) => { cur = snap(); return { ok: true, ...x } }
+  const no = (error) => ({ ok: false, error })
+  return {
+    getSnapshot: () => cur, load: async () => { cur = snap(); return cur }, isSaved: (id) => marks.has(id),
+    save: async (id) => { if (!marks.has(id)) marks.set(id, { event_id: id, note: '', collection_ids: [], saved_at_ms: 2 }); return ok() },
+    remove: async (id) => { const m = marks.get(id); marks.delete(id); return ok({ removed: m ? { ...m, collection_ids: [...m.collection_ids] } : null }) },
+    undoRemove: async (r) => { if (r?.event_id) marks.set(r.event_id, { ...r, collection_ids: (r.collection_ids || []).filter(c => cols.some(x => x.id === c)) }); return ok() },
+    setNote: async (id, note) => { const m = marks.get(id); if (!m) return no('Save the headline before adding a note.'); m.note = note; return ok() },
+    createCollection: async (name) => { if (cols.some(c => c.name.toLowerCase() === name.toLowerCase())) return no(`You already have a collection named “${name}”.`); const c = { id: `k${++n}`, name }; cols.push(c); return ok({ body: c }) },
+    renameCollection: async (cid, name) => { const c = cols.find(x => x.id === cid); if (!c) return no('That collection could not be found.'); c.name = name; return ok() },
+    deleteCollection: async (cid) => { const i = cols.findIndex(x => x.id === cid); if (i < 0) return no('That collection could not be found.'); cols.splice(i, 1); for (const m of marks.values()) m.collection_ids = m.collection_ids.filter(x => x !== cid); return ok() },
+    setMembership: async (cid, id, member) => { const m = marks.get(id); if (!m) return no('Save the headline before adding it to a collection.'); m.collection_ids = member ? [...new Set([...m.collection_ids, cid])] : m.collection_ids.filter(x => x !== cid); return ok() },
+    setMembershipSaving: async (cid, id, member) => { if (member && !marks.has(id)) marks.set(id, { event_id: id, note: '', collection_ids: [], saved_at_ms: 2 }); const m = marks.get(id); m.collection_ids = member ? [...new Set([...m.collection_ids, cid])] : m.collection_ids.filter(x => x !== cid); return ok() },
+    fetchBookmark: async (id) => ({ ok: true, bookmark: marks.has(id) ? { ...marks.get(id) } : null }),
+  }
+}
+
 export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, stepScript = null } = {}) {
   // NLM-1 on (nlm1Of): BOTH switches on for this case (server config routing_v2 + the browser key); off: the browser kill
   // switch set to '0', so NLM-1 stays off whatever an earlier case left cached
@@ -323,6 +485,11 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     // the asset-class kinds (asset_quotes.py): no licensed source exists, so every read is the honest decline (`refused`)
     if (u === '/api/agent/data' && ['index.quote', 'commodity.quote', 'crypto.quote'].includes(body?.kind)) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'refused', freshness: 'unavailable', as_of: null, stale: false, notes: ['no licensed source'], data: null })
+    }
+    // terminal data waves 1 to 4 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
+    if (u === '/api/agent/data' && TERMINAL_DATA[body?.kind]) {
+      return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'periodic', as_of: null, fetched_at: '2026-11-03T16:00:00Z', delay_s: null,
+        stale: false, source: 'fixture', coverage: null, notes: [], provider_calls: 0, ...TERMINAL_DATA[body.kind](body.params || {}) })
     }
     if (u === '/api/agent/data') return json({ contract: 'MD-1.0', kind: body?.kind, params_echo: body?.params, status: 'unavailable', notes: [], data: null })
     return base(url, init)
@@ -534,6 +701,15 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     mounted.h.drawings = buildDrawingSource({ list: () => mounted.h.charts.list().map(c => ({ ...c, drawSym: c.symbol })) })      // (a TIMED board's charts carry their view: the loaded history)
     // a case may SEED drawings the Agent cannot draw itself (seed.drawings: { SYM: [drawing] }, e.g. a position for its alerts)
     for (const [sym, list] of Object.entries(seed.drawings || {})) for (const d of list) drawingsStore.addDrawing(sym, d)
+  }
+  // newsLibrary.*: the News widget's door (the rows it renders) and the member's library, as the library module's own API answers
+  // them (seed.newsLibrary: { saved, collections: [names], notes: { id: text }, member: { id: [names] } })
+  if (extra.newsLibrary) {
+    _resetNewsLibraryForTests()
+    const rows = [{ id: 'h1', text: 'SYNTHETIC: AMD guidance raised', tickers: ['AMD'], time: 1 }, { id: 'h2', text: 'SYNTHETIC: Fed minutes due', tickers: [], time: 2 },
+      { id: 'h3', text: 'SYNTHETIC: NVDA beats estimates', tickers: ['NVDA'], time: 3 }]
+    publishWidgetDoor('n1', () => ({ read: () => ({ search: '', visible: rows, selected: null }) }))
+    mounted.h.newsLibrary = newsLibraryStandIn(seed.newsLibrary || {})
   }
   // uctIntelligence.set: each chart's UCT Intelligence gates as StockChart publishes them (ChartPane → ChartWidget agent.uctIntelligence)
   if (extra.uctIntel) {

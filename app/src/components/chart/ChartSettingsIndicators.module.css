@@ -1,0 +1,402 @@
+/* Chart Settings → Indicators, UCT Signature (owner-approved Chart Settings Lab, 2026-11-15).
+   docs/uct-signature-style.md: graphite panel, soft cards, two greys, gold ONLY on the §2b marks
+   (the open category tab's underline, the ✓ in a dropdown, the "On chart" dot, the hovered icon in
+   the add list, the UCT Intelligence ✦).
+   ⚠️ Every element on this tab carries a plain marker word too (`insRowName`, `insField`…) so tests
+   and the UCT Agent can find it; the LOOK comes only from the hashed classes in this file. */
+
+.indTab {
+  --ci-panel: #111214; --ci-card: #1a1b1f; --ci-card-hi: #222327; --ci-sel: #2c2e33; --ci-well: #0f1012;
+  --ci-border: #383b41; --ci-line: #26282c; --ci-text: #ededed; --ci-bright: #f8f7f3; --ci-dim: #a9a59b;
+  --ci-label: #c9c6be; --ci-faint: #93939a; --ci-gold: var(--ut-gold, #dcbb5e);
+  display: flex; flex-direction: column; height: 100%; min-height: 0; position: relative;
+  color: var(--ci-text); font-size: 13px; font-family: var(--font-sans, inherit);
+}
+.indTab button { font-family: inherit; }
+.listView, .editorView { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.listView[hidden], .editorView[hidden] { display: none; }
+
+/* ── the one "+ Add indicator" (portaled into the window's own header row) ── */
+.headSlot { flex: 1 1 auto; display: flex; justify-content: flex-end; align-items: center; padding-right: 6px; min-width: 0; }
+.indTab > .headSlot { flex: 0 0 auto; padding: 0 22px 8px; }
+.addPrim {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border: 0; border-radius: 7px;
+  background: rgba(248, 247, 243, 0.08); color: #f8f7f3; font: 600 12.5px var(--font-sans, inherit); cursor: pointer; white-space: nowrap;
+}
+.addPrim:hover { background: rgba(248, 247, 243, 0.13); }
+.addPrim:focus-visible, .iconBtn:focus-visible, .pill:focus-visible, .footBtn:focus-visible, .insBack:focus-visible,
+.insRowPrimary:focus-visible, .resTitleRow:focus-visible, .insTab:focus-visible, .soft:focus-visible, .toggle:focus-visible {
+  outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px;
+}
+
+/* ── the list: one card per pane ── */
+.insStructure {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 2px 22px 14px; display: flex; flex-direction: column; gap: 10px;
+  scrollbar-width: thin; scrollbar-color: rgba(248, 247, 243, 0.2) transparent;
+}
+.insGroup { background: var(--ci-card); border-radius: 9px; flex: 0 0 auto; }
+.paneHead { display: flex; align-items: center; gap: 4px; min-height: 34px; padding: 4px 8px 4px 4px; }
+.paneName { flex: 1 1 auto; min-width: 0; font-size: 12px; font-weight: 600; color: var(--ci-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.paneName .insGroupHead { font: inherit; color: inherit; }
+.paneCount { font-size: 11px; color: var(--ci-faint); padding-right: 4px; }
+.insGroupRepair .paneName { color: var(--ci-label); }
+.insGroupWhy { margin: 0; padding: 0 12px 8px 30px; font-size: 11.5px; line-height: 1.4; color: var(--ci-faint); }
+.chev { width: 22px; height: 22px; }
+
+.insRow {
+  display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 6px 0 4px; border-top: 1px solid var(--ci-line);
+  cursor: pointer; position: relative;
+}
+.insRow:hover { background: rgba(248, 247, 243, 0.03); }
+.insRowSel { background: rgba(248, 247, 243, 0.05); }
+.insRowHeld { opacity: 0.4; }
+.insRowDropBefore { box-shadow: inset 0 2px 0 var(--ci-bright); }
+.insRowDropAfter { box-shadow: inset 0 -2px 0 var(--ci-bright); }
+.insRowLanded { animation: ciLand 1.3s ease-out; }
+@keyframes ciLand { from { background: rgba(248, 247, 243, 0.12); } to { background: transparent; } }
+.insRowGripSlot { order: 0; flex: 0 0 14px; width: 14px; display: inline-flex; justify-content: center; }
+.insRowGrip {
+  width: 14px; height: 22px; padding: 0; border: 0; background: none; color: var(--ci-faint); cursor: grab;
+  font-size: 12px; line-height: 22px; border-radius: 4px; user-select: none;
+}
+.insRowGrip[data-grip-inert] { cursor: default; opacity: 0.45; }
+.insRowGrip:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); }
+/* the vertical colour bar (matches the chart legend) — the swatch button sits invisibly over it */
+.rowBar {
+  order: 1; position: relative; flex: 0 0 14px; width: 14px; height: 22px; border-radius: 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.rowBar.hasPick:hover { background: rgba(248, 247, 243, 0.08); }
+.rowBar > button { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer; }
+.insRail { display: block; width: 3px; height: 16px; border-radius: 2px; background: transparent; flex: 0 0 auto; pointer-events: none; }
+.bigBar { width: 16px; height: 34px; flex-basis: 16px; order: 0; }
+.bigBar .insRail { width: 4px; height: 28px; }
+.insRowOff .rowBar { opacity: 0.4; }
+.insRowPrimary {
+  order: 2; flex: 1 1 auto; min-width: 0; height: 34px; display: flex; align-items: center; gap: 8px;
+  padding: 0 2px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 5px;
+}
+.insRowName { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.insRowOff .insRowName { color: var(--ci-faint); text-decoration: line-through; text-decoration-color: rgba(147, 147, 154, 0.6); }
+.insRowOffTag {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.tfTag { flex: 0 0 auto; font-size: 11px; color: var(--ci-dim); background: rgba(248, 247, 243, 0.06); border-radius: 5px; padding: 2px 7px; white-space: nowrap; }
+.rowActs { order: 3; display: flex; gap: 1px; margin-left: auto; flex: 0 0 auto; }
+.iconBtn {
+  width: 26px; height: 26px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--ci-dim);
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex: 0 0 auto;
+}
+.iconBtn:hover:not(:disabled) { background: rgba(248, 247, 243, 0.07); color: var(--ci-text); }
+.iconBtn:disabled { opacity: 0.3; cursor: default; }
+.iconBtn svg { display: block; }
+.rowActs .iconBtn, .paneActs .iconBtn { opacity: 0; transition: opacity 0.12s; }
+.insRow:hover .rowActs .iconBtn, .insRow:focus-within .rowActs .iconBtn, .insRowOff .rowActs [data-row-vis],
+.insGroup:hover .paneActs .iconBtn, .paneHead:focus-within .paneActs .iconBtn { opacity: 1; }
+.paneActs { display: flex; gap: 1px; }
+.paneActs .iconBtn { width: 24px; height: 24px; }
+
+/* the "Labels on the price scale" card */
+.optCard { background: var(--ci-card); border-radius: 9px; flex: 0 0 auto; }
+.optRow { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 6px 12px; cursor: pointer; }
+.optRow + .optRow { border-top: 1px solid var(--ci-line); }
+.optText { display: flex; flex-direction: column; min-width: 0; }
+.hint { font-size: 11px; color: var(--ci-faint); }
+
+/* soft square (UCT Signature on/off) — also what the inspector's own switches wear */
+.soft, .toggle {
+  width: 18px; height: 18px; flex: 0 0 18px; padding: 0; border: 0; border-radius: 5px; background: none; cursor: pointer;
+  box-shadow: inset 0 0 0 1.5px rgba(248, 247, 243, 0.22); display: inline-flex; align-items: center; justify-content: center; color: var(--ci-bright);
+}
+.soft:hover:not(:disabled), .toggle:hover:not(:disabled) { box-shadow: inset 0 0 0 1.5px rgba(248, 247, 243, 0.5); }
+.softOn, .toggleOn { background: var(--ci-sel); box-shadow: inset 0 0 0 1px rgba(248, 247, 243, 0.28); }
+.softOn:hover:not(:disabled), .toggleOn:hover:not(:disabled) { box-shadow: inset 0 0 0 1px rgba(248, 247, 243, 0.4); }
+.softKnob, .toggleKnob { display: none; }
+.softOn .softKnob, .toggleOn .toggleKnob {
+  display: block; width: 9px; height: 5px; border-left: 1.8px solid currentColor; border-bottom: 1.8px solid currentColor;
+  transform: translateY(-1px) rotate(-45deg);
+}
+.toggleOff, .soft:disabled, .toggle:disabled { opacity: 0.45; cursor: default; }
+
+/* footer: undo / redo + indicator sets */
+.tfoot { display: flex; align-items: center; gap: 4px; padding: 8px 16px 10px; border-top: 1px solid var(--ci-line); flex: 0 0 auto; position: relative; }
+.tfoot [data-guide="indicators.history"] button {
+  width: 26px; height: 26px; padding: 0; border: 0 !important; border-radius: 6px; background: none; color: var(--ci-dim);
+  font-size: 15px; display: inline-flex; align-items: center; justify-content: center;
+}
+.tfoot [data-guide="indicators.history"] button:hover:not(:disabled) { background: rgba(248, 247, 243, 0.07); color: var(--ci-text); }
+.tfoot [data-guide="indicators.history"] button:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); }
+.sp { flex: 1 1 auto; }
+.footBtn, .pill, .insAction, .insPresetReset, .insTfDone, .resAction {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px; border: 0; border-radius: 7px;
+  background: rgba(248, 247, 243, 0.06); color: var(--ci-text); font: 600 12px var(--font-sans, inherit); cursor: pointer; white-space: nowrap;
+}
+.pill { height: 28px; padding: 0 11px; }
+.footBtn:hover:not(:disabled):not([aria-disabled="true"]), .pill:hover, .insAction:hover:not(:disabled),
+.insPresetReset:hover:not(:disabled), .insTfDone:hover, .resAction:hover { background: rgba(248, 247, 243, 0.11); }
+.footBtn[aria-disabled="true"], .insAction:disabled, .insPresetReset:disabled { opacity: 0.55; cursor: default; }
+.insActionDanger { color: #e8665a; }
+.footBtn svg, .pill svg { color: var(--ci-dim); }
+.spark { color: var(--ci-gold); flex: 0 0 auto; }
+.pill .spark { color: var(--ci-gold); }
+.soonWrap { display: inline-flex; align-items: center; opacity: 0.55; }
+.templatesSlot:empty { display: none; }
+.templatesSlot { padding: 0 22px 10px; }
+
+.emptyAll { margin: 36px auto; display: flex; flex-direction: column; align-items: center; gap: 12px; color: var(--ci-dim); text-align: center; }
+.indEmptyLink { border: 0; background: none; color: var(--ci-bright); font: inherit; font-weight: 600; cursor: pointer; padding: 0; text-decoration: underline; }
+
+/* ── arrange panes ── */
+.insArrGroup { background: var(--ci-card); border-radius: 9px; cursor: grab; flex: 0 0 auto; }
+.insArrHead { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 8px 0 10px; }
+.insGrip { color: var(--ci-faint); font-size: 12px; }
+.insArrName { flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: 12px; }
+.insArrMove { display: flex; gap: 2px; }
+.insArrBtn { composes: iconBtn; font-size: 13px; }
+.insArrRows { display: flex; flex-wrap: wrap; gap: 2px 10px; padding: 0 12px 10px 30px; color: var(--ci-faint); font-size: 12px; }
+.insDropBefore { box-shadow: inset 0 2px 0 var(--ci-bright); }
+.insDragging { opacity: 0.4; }
+.arrangeHint { margin: 0; padding: 0 4px; font-size: 11.5px; color: var(--ci-faint); line-height: 1.45; }
+
+/* ── the per-indicator editor ── */
+.insPanel { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.edTop { padding: 0 18px 2px 14px; }
+.insBack {
+  display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; color: var(--ci-dim); cursor: pointer;
+  font: 600 12.5px var(--font-sans, inherit); padding: 4px 6px; border-radius: 6px;
+}
+.insBack:hover { background: rgba(248, 247, 243, 0.07); color: var(--ci-text); }
+.insHead { display: flex; align-items: center; gap: 10px; padding: 4px 14px 10px 16px; position: relative; }
+.insHeadText { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.insHeadName { font-size: 16px; font-weight: 700; color: var(--ci-bright); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.insHeadSub { font-size: 12px; color: var(--ci-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.insHeadKind { font: inherit; color: inherit; }
+.tacts { display: flex; gap: 2px; flex: 0 0 auto; }
+.insVis { composes: iconBtn; }
+.insVis.toggleOn, .insVis { box-shadow: none; background: none; width: 26px; height: 26px; flex-basis: 26px; }
+.insVis:hover { background: rgba(248, 247, 243, 0.07); color: var(--ci-text); }
+.aiBar {
+  display: flex; align-items: center; gap: 8px; margin: 0 18px 10px; height: 36px; padding: 0 4px 0 12px; border-radius: 9px;
+  background: var(--ci-card); color: var(--ci-dim); box-shadow: inset 0 0 0 1px rgba(248, 247, 243, 0.06); flex: 0 0 auto;
+}
+.aiBar input { flex: 1 1 auto; min-width: 0; border: 0; background: none; color: var(--ci-text); font: 500 12.5px var(--font-sans, inherit); outline: none; }
+.aiBar input::placeholder { color: var(--ci-faint); }
+.aiBar.soon { opacity: 0.55; }
+.aiBar input { text-overflow: ellipsis; padding-right: 6px; }
+.aiSoon { flex: 0 0 auto; margin-left: 0 !important; }
+.edBody {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 18px 18px; display: flex; flex-direction: column; gap: 6px;
+  scrollbar-width: thin; scrollbar-color: rgba(248, 247, 243, 0.2) transparent;
+}
+.insSection { display: flex; flex-direction: column; }
+.insSectionLabel { font-size: 11.5px; font-weight: 600; color: var(--ci-label); padding: 10px 4px 6px; }
+.edBody .insSectionLabel { padding-top: 8px; }
+.card { background: var(--ci-card); border-radius: 9px; display: flex; flex-direction: column; }
+.card > * + * { border-top: 1px solid var(--ci-line); }
+.insField { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; padding: 6px 12px; }
+.insFieldLabel { font-size: 13px; font-weight: 500; color: var(--ci-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.indLabelOff { color: var(--ci-faint); }
+.insFieldCtl { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex: 0 1 auto; min-width: 0; max-width: 64%; }
+.insFieldValue { color: var(--ci-dim); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.insCtlOff { opacity: 0.45; pointer-events: none; }
+/* on/off rows (owner 11-15, every Chart Settings row): the soft square sits LEFT of its label and the
+   whole row toggles (the click handler is on the editor body) */
+.insField:has(> .insFieldCtl > [role="switch"]) { flex-direction: row-reverse; justify-content: flex-end; gap: 10px; cursor: pointer; }
+.insField:has(> .insFieldCtl > [role="switch"]) > .insFieldCtl { max-width: none; }
+.leadField { justify-content: flex-start; gap: 10px; }
+/* a dropdown that looks like the window's other dropdowns (ChoiceMenu) */
+.indSelect {
+  appearance: none; -webkit-appearance: none; height: 28px; min-width: 96px; max-width: 230px; padding: 0 26px 0 10px; border: 0; border-radius: 7px;
+  background: rgba(248, 247, 243, 0.06) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='6' viewBox='0 0 9 6'%3E%3Cpath d='M1 1l3.5 3.5L8 1' fill='none' stroke='%23a9a59b' stroke-width='1.4'/%3E%3C/svg%3E") no-repeat right 10px center;
+  color: var(--ci-text); font: 600 12px var(--font-sans, inherit); cursor: pointer; color-scheme: dark; text-overflow: ellipsis;
+}
+.indSelect:hover:not(:disabled) { background-color: rgba(248, 247, 243, 0.11); }
+.indSelect:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
+.indSelect:disabled { opacity: 0.45; cursor: default; }
+.indSelect option { background: #111214; color: #ededed; }
+.indNum, .insText {
+  height: 28px; border: 1px solid rgba(248, 247, 243, 0.08); border-radius: 7px; background: rgba(248, 247, 243, 0.05);
+  color: var(--ci-text); padding: 0 8px; font: 500 12.5px var(--font-sans, inherit); color-scheme: dark;
+}
+.indNum { width: 70px; text-align: right; font-variant-numeric: tabular-nums; }
+.insText { width: min(180px, 100%); }
+.indNum:focus, .insText:focus { outline: none; border-color: rgba(248, 247, 243, 0.3); }
+.indNum:disabled { opacity: 0.45; }
+.insTextCell { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 3px; min-width: 0; }
+.insTextMiss { font-size: 11px; color: #e8665a; }
+.insSeg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 7px; background: rgba(248, 247, 243, 0.06); }
+.insSegBtn { height: 24px; padding: 0 10px; border: 0; border-radius: 5px; background: none; color: var(--ci-dim); font: 600 12px var(--font-sans, inherit); cursor: pointer; }
+.insSegBtnOn { background: var(--ci-sel); color: var(--ci-bright); }
+.insNote { font-size: 11.5px; color: var(--ci-faint); padding: 6px 12px 8px; line-height: 1.4; }
+.insPresetCtl { gap: 6px; }
+.insPresetOrigin { font-size: 11.5px; color: var(--ci-faint); padding: 4px 12px 8px; }
+.insGroupHead { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 34px; padding: 4px 12px; border: 0; background: none; color: var(--ci-label); font: 600 12px var(--font-sans, inherit); cursor: pointer; }
+.paneName .insGroupHead { display: inline; padding: 0; min-height: 0; width: auto; cursor: inherit; }
+.insGroupHeadIcon { color: var(--ci-dim); display: inline-flex; }
+.insGroupBody { display: flex; flex-direction: column; }
+.insGroupBody > * { border-top: 1px solid var(--ci-line); }
+.soonRow { opacity: 0.55; }
+.soonRow :disabled { opacity: 1; cursor: default; }
+.tfGrid, .insTfGroup { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 12px; padding: 10px 12px; }
+.insTfEditor { display: flex; flex-direction: column; }
+.insTfEditor > .insTfGroup + .insTfGroup { border-top: 1px solid var(--ci-line); }
+.insTfChip { display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; color: var(--ci-dim); cursor: pointer; padding: 2px 0; font: 500 12.5px var(--font-sans, inherit); text-align: left; }
+.insTfChip::before { content: ""; width: 18px; height: 18px; flex: 0 0 18px; border-radius: 5px; box-shadow: inset 0 0 0 1.5px rgba(248, 247, 243, 0.22); }
+.insTfChipOn { color: var(--ci-text); }
+.insTfChipOn::before {
+  background: var(--ci-sel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5' fill='none' stroke='%23f8f7f3' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat center;
+  box-shadow: inset 0 0 0 1px rgba(248, 247, 243, 0.28);
+}
+.insTfDone { margin: 0 12px 10px; align-self: flex-start; }
+.insActions { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 0 0; }
+.insEmpty { padding: 16px 4px; color: var(--ci-faint); }
+
+/* ⋯ / Indicator sets menus */
+.menu {
+  position: absolute; z-index: 30; min-width: 210px; padding: 5px; display: flex; flex-direction: column; gap: 1px;
+  background: var(--ci-panel); border: 1px solid var(--ci-border); border-radius: 10px; box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+}
+.menuItem {
+  display: flex; align-items: center; gap: 10px; border: 0; background: none; border-radius: 6px; padding: 7px 10px; text-align: left;
+  color: var(--ci-text); font: 500 13px var(--font-sans, inherit); cursor: pointer; white-space: nowrap;
+}
+.menuItem:hover:not(:disabled), .menuItem:focus-visible { background: var(--ci-card); color: var(--ci-bright); outline: none; }
+.menuItem:disabled { opacity: 0.45; cursor: default; }
+.menuItem > span:first-child { flex: 1 1 auto; }
+.menuLabel { padding: 7px 10px 3px; font-size: 11px; font-weight: 600; color: var(--ci-faint); }
+.menuNote { padding: 2px 10px 6px; font-size: 11px; color: var(--ci-faint); white-space: normal; max-width: 260px; }
+
+/* ── the Indicators browsing window (floats over Chart Settings) ── */
+.pickBackdrop {
+  position: fixed; inset: 0; z-index: 9100; display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(0, 0, 0, 0.45);
+}
+.pickWin {
+  position: relative; width: min(720px, 100%); height: min(600px, 92vh); display: flex; flex-direction: column;
+  background: var(--ci-panel); border: 1px solid var(--ci-border); border-radius: 12px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  overflow: hidden; color: var(--ci-text); font-size: 13px; font-family: var(--font-sans, inherit); cursor: default;
+}
+.insAdd { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.bHead { display: flex; align-items: center; gap: 8px; padding: 16px 52px 10px 18px; min-height: 54px; box-sizing: border-box; }
+.bTitle { margin: 0; flex: 1 1 auto; font-size: 15px; font-weight: 700; color: var(--ci-bright); }
+/* Describe first: the plain-words box, its examples and the other ways to start one. */
+.describeBlock { padding: 0 18px 2px; }
+.describeBar { margin: 0; height: 40px; }
+.describeBar input { font-size: 13px; }
+.describeChips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.describeChips .pill { font-weight: 500; }
+.describeAlt { margin: 8px 18px 10px; color: var(--ci-faint); font: 500 12px var(--font-sans, inherit); }
+.describeAlt button { border: 0; background: none; padding: 2px 0; color: var(--ci-label); font: inherit; cursor: pointer; }
+.describeAlt button:hover { color: var(--ci-bright); text-decoration: underline; }
+.describeAlt button:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 2px; border-radius: 3px; }
+.winClose {
+  position: absolute; top: 15px; right: 14px; z-index: 2; width: 26px; height: 26px; display: grid; place-items: center; border: 0;
+  border-radius: 7px; background: rgba(248, 247, 243, 0.06); color: var(--ci-dim); cursor: pointer; padding: 0;
+}
+.winClose:hover { background: rgba(248, 247, 243, 0.11); color: var(--ci-text); }
+.insSearchRow { padding: 0 18px 10px; }
+.indSearchWrap {
+  display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 6px 0 10px; border-radius: 8px;
+  background: var(--ci-well); border: 1px solid rgba(248, 247, 243, 0.07); color: var(--ci-faint);
+}
+.indSearchWrap:focus-within { border-color: rgba(248, 247, 243, 0.22); }
+.indSearchIcon { display: inline-flex; color: var(--ci-faint); }
+.indSearch { flex: 1 1 auto; min-width: 0; border: 0; background: none; outline: none; color: var(--ci-text); font: 500 13px var(--font-sans, inherit); }
+.indSearch::placeholder { color: var(--ci-faint); }
+.indSearch::-webkit-search-cancel-button { display: none; }
+.indClear { composes: iconBtn; width: 22px; height: 22px; font-size: 11px; }
+.insTabsWrap { padding: 0 18px; border-bottom: 1px solid var(--ci-line); }
+.insTabs { display: flex; gap: 16px; overflow-x: auto; scrollbar-width: none; }
+.insTabs::-webkit-scrollbar { display: none; }
+.insTab {
+  position: relative; flex: 0 0 auto; border: 0; background: none; padding: 8px 0 9px; color: var(--ci-dim);
+  font: 600 12.5px var(--font-sans, inherit); cursor: pointer; white-space: nowrap;
+}
+.insTab:hover { color: var(--ci-text); }
+.insTabOn { color: var(--ci-bright); }
+.insTabOn::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 2px; background: var(--ci-gold); }
+.insAddBody {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 18px 16px;
+  scrollbar-width: thin; scrollbar-color: rgba(248, 247, 243, 0.2) transparent;
+}
+.insAddGroup .insSectionLabel { padding: 12px 4px 6px; }
+.resList { list-style: none; margin: 0; padding: 0; background: var(--ci-card); border-radius: 9px; }
+.insAddGroup:first-child .resList:first-child { margin-top: 8px; }
+.resRow { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 0 8px 0 12px; cursor: pointer; }
+.resRow + .resRow { border-top: 1px solid var(--ci-line); }
+.resRow:hover { background: rgba(248, 247, 243, 0.025); }
+.resGlyph { display: inline-flex; flex: 0 0 auto; color: var(--ci-dim); }
+.resGlyph svg { width: 16px; height: 16px; }
+.resRow:hover .resGlyph, .resRow:focus-within .resGlyph { color: var(--ci-gold); } /* §2b-6: the action list's hovered icon */
+.resRefused:hover .resGlyph { color: var(--ci-dim); }
+.resMain { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.resMainStacked { flex-direction: column; align-items: flex-start; gap: 0; padding: 5px 0; }
+.resTitleRow {
+  display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; height: 36px; padding: 0; border: 0; background: none;
+  color: inherit; font: inherit; text-align: left; cursor: pointer; flex: 0 1 auto;
+}
+.resMainStacked .resTitleRow { height: auto; }
+.resName { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.resShort { color: var(--ci-faint); font-size: 11px; font-weight: 500; white-space: nowrap; }
+.resMine, .resPill, .resTier, .resRepaint {
+  font-size: 10px; font-weight: 600; color: var(--ci-dim); background: rgba(248, 247, 243, 0.06); border-radius: 5px; padding: 1px 6px; white-space: nowrap;
+}
+.resSub { color: var(--ci-faint); font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resMeta { color: var(--ci-faint); font-size: 11.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resRefused { cursor: default; }
+.resRefused .resName { color: var(--ci-faint); }
+.resRefusedWhy { font-size: 11px; color: var(--ci-faint); }
+.resRefusedLede { margin: 0 4px 8px; font-size: 11.5px; color: var(--ci-faint); }
+.resActions { display: flex; gap: 4px; flex: 0 0 auto; }
+/* A member's own row carries five doors (Modify, Edit formula, Custom copy, Run over a list, Share).
+   On the name's line they took all of its room: on production the name was cut to nothing and the
+   labels slid under the buttons. They sit on a line of their own, under the name, and wrap if the
+   window is narrow.
+   ⛔ THE DOORS ARE A CHILD OF `.resMain`, NOT OF THE ROW (the row is mark, `.resMain`, "+ Add"). So it
+   is `.resMain` that wraps: the name and its labels keep the first line, the doors take a whole
+   second one, already aligned under the name. The first attempt wrapped the ROW and gave the doors a
+   full-width basis inside a `.resMain` that could not wrap, which squeezed the name to zero width on
+   production (2026-11-17, read off the live page's own markup). */
+.resRowOwn { padding-bottom: 8px; }
+.resRowOwn .resMain { flex-wrap: wrap; row-gap: 0; }
+.resRowOwn .resActions { flex: 1 0 100%; flex-wrap: wrap; margin-top: -4px; }
+/* "+ Add" and "On chart" stay on the name's line instead of centring between the two */
+.resRowOwn .resAdd, .resRowOwn .resActive { align-self: flex-start; margin-top: 5px; }
+.resAction { height: 24px; padding: 0 8px; font-size: 11.5px; }
+.resActive { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; margin-left: auto; }
+.resActiveTag { font-size: 11px; font-weight: 500; color: var(--ci-dim); display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.resOnDot::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ci-gold); } /* §2b-7: already in use */
+.resAddMore { composes: iconBtn; }
+.resAdd {
+  flex: 0 0 auto; margin-left: auto; height: 26px; padding: 0 9px; border-radius: 6px; color: var(--ci-dim);
+  font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; white-space: nowrap;
+}
+.resRow:hover .resAdd { background: rgba(248, 247, 243, 0.08); color: var(--ci-bright); }
+.indEmpty { color: var(--ci-faint); padding: 24px 4px; text-align: center; }
+/* ── "Not quite it?" — the UCT Agent row under a search (UCT Signature R2, owner Option 1).
+   ⛔ Gold on the ✦ only (`.spark`); the row, its arrow and the links are neutral. */
+.agentRow {
+  display: flex; align-items: center; gap: 12px; width: 100%; box-sizing: border-box; padding: 12px 14px; text-align: left;
+  border: 1px solid #2a2c31; border-radius: 9px; background: #16171a; color: var(--ci-text); font: inherit; cursor: pointer;
+}
+.agentRow:hover { background: #1b1c20; border-color: var(--ci-border); }
+.agentRow:focus-visible, .agentAltLink:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
+.agentRow .spark { font-size: 15px; }
+.agentMain { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.agentName { font-size: 13px; font-weight: 600; color: var(--ci-bright); overflow-wrap: anywhere; }
+.agentSub { font-size: 11.5px; color: var(--ci-faint); }
+.agentArrow { flex: 0 0 auto; color: var(--ci-label); font-size: 14px; }
+.agentAlt { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 8px 2px 2px; font-size: 12px; color: var(--ci-faint); }
+.agentAltLink { border: 0; background: none; padding: 0; color: var(--ci-label); font: inherit; cursor: pointer; }
+.agentAltLink:hover { color: var(--ci-bright); }
+.indEmptyAction { margin-top: 12px; display: flex; justify-content: center; }
+.insSearching { color: var(--ci-faint); padding: 10px 12px; background: var(--ci-card); border-radius: 9px; }
+.insUnavailable { padding: 18px 6px; color: var(--ci-dim); }
+.insUnavailableLede { font-weight: 600; color: var(--ci-text); }
+.insUnavailableWhy { margin: 6px 0 0; color: var(--ci-faint); font-size: 12px; }
+
+@media (max-width: 620px) {
+  .insStructure { padding: 2px 12px 12px; }
+  .edBody { padding: 0 12px 14px; }
+  .aiBar { margin: 0 12px 10px; }
+}

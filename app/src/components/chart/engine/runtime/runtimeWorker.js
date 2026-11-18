@@ -12,9 +12,11 @@
 // is the columns, or the refusal / the script's own `runtime.error` as plain
 // fields the main thread rebuilds (`runtimeAsync.js`).
 import { computeRuntimeColumns, RUNTIME_PANE_TIME_BUDGET_MS } from './runtimeColumns.js'
+import { errorImageOf } from './errorImage.js'
 import { RUNTIME_OBJECTS_KEY, runtimeWarmupOf } from './runtimeObjects.js'
 // ⭐⭐ W9-T11 — the run's `strategy` record crosses beside the columns, like the drawings.
 import { runtimeStrategyOf } from './strategyRecord.js'
+import { calcBarsWindowReport } from '../calcBarsWindow.js'
 // ⭐⭐ W9-T11 (T1 review N1a) — THE WORKER IS ITS OWN MODULE GRAPH: the member door's
 // registration (`memberPaneDefinition.js`) never runs here, so without this the worker's
 // front end would read the registry's default (off) while the main thread's probe read the
@@ -29,28 +31,33 @@ registerStrategyBrokerGate(strategyBrokerEnabled)
 const clock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
 
 self.onmessage = (event) => {
-  const { id, def, rows, ctx } = event.data || {}
+  const { id, def, rows, ctx: plainCtx } = event.data || {}
   const startedAt = clock()
   try {
+    // ⭐ RS RATING L5 — the other-symbol cache crosses as plain entries (`runtimeAsync.js::messageOf`)
+    const ctx = plainCtx && Array.isArray(plainCtx.secondaryEntries)
+      ? (() => {
+        const { secondaryEntries, ...rest } = plainCtx
+        const secondary = new Map(secondaryEntries)
+        return { ...rest, secondary, exchangeOf: (k) => { const e = secondary.get(k); return (e && e.exchange) || null } }
+      })()
+      : plainCtx
     const columns = computeRuntimeColumns(def, rows || [], ctx || {}, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS })
     // ⭐ RT5 — the run's drawings are non-enumerable on the record, so a
     // structured clone would drop them; they cross beside it. ⭐ UIE PHASE 2 — the raw
     // payload, a WITHHELD one included (its sentence is the member's), and the warm-up
     // the run withheld off the listing, which the host object gate reads.
     self.postMessage({ id, ok: true, columns, objects: columns[RUNTIME_OBJECTS_KEY] || null,
-      warmup: runtimeWarmupOf(columns), strategy: runtimeStrategyOf(columns) })
+      warmup: runtimeWarmupOf(columns), strategy: runtimeStrategyOf(columns),
+      // ⭐⭐ CBC-FMT — the `calc_bars_count` window record crosses beside the columns too
+      calcBars: calcBarsWindowReport(columns) })
   } catch (err) {
     self.postMessage({
       id,
       ok: false,
-      error: {
-        name: (err && err.name) || 'Error',
-        message: String((err && err.message) || err),
-        guard: (err && err.guard) || null,
-        limit: (err && typeof err.limit === 'string') ? err.limit : null,
-        bar: err && Number.isInteger(err.bar) ? err.bar : null,
-        ms: Math.max(0, Math.round(clock() - startedAt)),
-      },
+      // ⛔⛔ EVERY FIELD THE MAIN THREAD READS CROSSES (`errorImage.js`): a hand-picked list here dropped
+      // `pending`, and a run waiting for another symbol's bars came back as a refusal (RS Rating L10b)
+      error: { ...errorImageOf(err), ms: Math.max(0, Math.round(clock() - startedAt)) },
     })
   }
 }

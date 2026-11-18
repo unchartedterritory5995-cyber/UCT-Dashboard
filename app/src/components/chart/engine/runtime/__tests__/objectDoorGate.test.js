@@ -255,8 +255,13 @@ describe('⭐⭐ W6-T5 array members are gated at the object door', () => {
     covariance: ['v = array.covariance(a, b)\n', REFUSED],
     percentile_nearest_rank: ['v = array.percentile_nearest_rank(a, 50)\n', REFUSED],
     sort: ['array.sort(a)\nv = array.get(a, 0)\n', { ok: true, labels: ['144.14'] }],
-    every: ['v = array.every(a) ? 1 : 0\n', REFUSED],
-    some: ['v = array.some(a) ? 1 : 0\n', REFUSED],
+    // ⭐ UDT unit — over a WRITTEN `array<bool>`: TradingView does not compile either over `a` (floats)
+    every: ['array<bool> bb = array.from(close > open, high > low)\nv = array.every(bb) ? 1 : 0\n', REFUSED],
+    some: ['array<bool> bb = array.from(close > open, high > low)\nv = array.some(bb) ? 1 : 0\n', REFUSED],
+    // ⭐ UDT unit — the binary searches: master refused them at the door (`runtime:array`) and still does
+    binary_search: ['v = array.binary_search(a, close)\n', REFUSED],
+    binary_search_leftmost: ['v = array.binary_search_leftmost(a, close)\n', REFUSED],
+    binary_search_rightmost: ['v = array.binary_search_rightmost(a, close)\n', REFUSED],
   }
   for (const [name, [body, master]] of Object.entries(SHAPES_A)) {
     it(`${name}: the door draws what master drew`, () => {

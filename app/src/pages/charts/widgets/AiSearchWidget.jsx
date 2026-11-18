@@ -1067,7 +1067,7 @@ export default function AiSearchWidget({
     >
       {chrome && settingsOpen && (
         <NewsSettingsPanel
-          title="AI Search Settings"
+          title="AI Search settings"
           widgetType="aisearch"
           showPerf={false}
           settings={aisSettings}
@@ -1156,7 +1156,7 @@ export default function AiSearchWidget({
           <div className={styles.empty}>
             <span className={styles.emptySpark}><Spark size={34} /></span>
             <div className={styles.emptyTitle}>
-              {scopeSym ? `Ask AI about ${scopeSym}` : 'Ask the markets anything'}
+              {scopeSym ? `Ask the UCT Agent about ${scopeSym}` : 'Ask the markets anything'}
             </div>
             <div className={styles.emptySub}>
               {scopeSym

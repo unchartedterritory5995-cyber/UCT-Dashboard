@@ -47,7 +47,7 @@ from api.services.bars_fetch import (
 # Re-export module for any consumer that imports `from api.routers import bars`
 from api.services import bars_fetch as _bars_fetch  # noqa: F401
 
-# Cash-settled indexes (SPX, NDX, VIX, RUT, DJX, XSP, XND) — Schwab's
+# Cash-settled indexes (SPX, NDX, VIX, RUT, DJX, XSP, XND) — the equity bar
 # /pricehistory silently returns empty for these, so route through yfinance.
 # See api/index_bars.py for the symbol map and divisor logic.
 from api.index_bars import is_index, fetch_index_bars
@@ -435,6 +435,37 @@ def _econ_refusal(ticker: str) -> JSONResponse:
     return resp
 
 
+#: How long a browser may keep "this is not a bars symbol". The answer is a property of the
+#: NAME, so it cannot go stale; an hour bounds any future change of heart.
+_THEME_INDEX_REFUSAL_MAX_AGE_S = 3600
+
+
+def is_theme_index_symbol(ticker) -> bool:
+    """Is this a THEME-INDEX identity (`$IDX:<THEME>`, any case)?
+
+    A theme index is a synthetic equal-weight series built from a theme's holdings
+    (api/services/theme_index.py) and read through `/api/theme-index/{slug}`. It has no
+    rows in bars.db and no provider carries it, so on this lane it could only ever answer
+    "warming": measured on production 2026-11-16, one pass through the app's pages made
+    123 requests of `/api/bars/$IDX:<theme>`, every one answered 503 `error: warming` with
+    `Retry-After: 3` (or an empty 200), and the "warming" answer invites the page to ask
+    again. It also kicked a background provider fetch for a symbol that cannot exist.
+
+    A SHAPE TEST, like `is_econ_symbol`: the whole `$IDX:` namespace belongs to theme
+    indexes, so an unknown theme is answered the same way."""
+    return isinstance(ticker, str) and ticker.strip().upper().startswith("$IDX:")
+
+
+def _theme_index_refusal(ticker: str, tf: str = "D") -> JSONResponse:
+    """200, an empty series, and why: the shape the page already reads as "stop asking"
+    (`no_data`), never the retryable "warming". Kept by the member's own browser for an hour
+    (`private`: no shared or edge cache), so a warm list that names a theme index costs one
+    request, once."""
+    resp = _no_data_response((ticker or "").strip(), tf if isinstance(tf, str) else "D", "not_a_bars_symbol")
+    resp.headers["Cache-Control"] = "private, max-age=%d" % _THEME_INDEX_REFUSAL_MAX_AGE_S
+    return resp
+
+
 def _breadth_etag(body: bytes) -> str:
     """Strong validator for a Breadth (or breadth-derived indicator) history body: payload hash +
     the authority token."""
@@ -471,6 +502,21 @@ def _is_market_indicator(ticker: str) -> bool:
     try:
         from api.services.market_indicators import registry as _mireg
         return _mireg.is_market_indicator(ticker)
+    except Exception:
+        return False
+
+
+def _is_pine_seed(ticker: str) -> bool:
+    """Is this a registered Pine Seeds series (`SEED_<SOURCE>:<SYMBOL>`)?
+
+    ⭐ THE SAME DOORS AS `_is_market_indicator`, AND FOR THE SAME REASON: the bars proxy,
+    the history proxy, `/api/bars`' serve branch and `/api/bars-history` must all agree. A seed has
+    no rows in bars.db, so a door that forgot it would serve a valid, cacheable empty 200.
+    Served from the web pod's `pine_seed_store` (docs/pine/RS-RATING-TRANSFER.md, L6).
+    """
+    try:
+        from api.services import pine_seed_store as _seeds
+        return _seeds.is_seed_symbol(ticker)
     except Exception:
         return False
 
@@ -516,6 +562,9 @@ def _bars_proxy_should_route(ticker: str, warm: int) -> bool:
     # Proxying one returns an empty chart. Same authority `serve_bars` routes on, so
     # the exclusion cannot drift from the routing.
     if _is_market_indicator(ticker):
+        return False
+    # A Pine seed is served from the web pod's `pine_seed_store`, like the above.
+    if _is_pine_seed(ticker):
         return False
     if os.environ.get("BARS_PROXY_ENABLED", "0") != "1":
         return False
@@ -579,6 +628,8 @@ async def get_bars(
     directly — they must never hit the proxy path."""
     if is_econ_symbol(ticker):          # ⛔ before proxy, provider, add-ons -- see is_econ_symbol
         return _econ_refusal(ticker)
+    if is_theme_index_symbol(ticker):   # ⛔ same place, same reason -- see is_theme_index_symbol
+        return _theme_index_refusal(ticker, tf)
     if not isinstance(session, str):    # called in-process: the Query() default object
         session = ""
     origin = os.environ.get("BARS_ORIGIN_URL", "").rstrip("/")
@@ -726,6 +777,25 @@ def _augment_daily_with_today(response, ticker: str):
         except Exception:                                          # noqa: BLE001
             pass  # a shape surprise must never block a good serve
     payload["bars"] = bars + [today_bar]
+    return JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
+
+
+def _augment_index_daily_with_today(response, ticker: str, now: float | None = None):
+    """A cash index's 200 daily answer with TODAY's session bar as its tail
+    (`index_bars.with_todays_session`: built from the index's own 5m bars of today's
+    regular session; none before the open, on a day with no session, or from a stale or
+    proxied 5m series). Returns the original response on ANY problem."""
+    try:
+        payload = orjson.loads(response.body)
+    except Exception:
+        return response
+    if not isinstance(payload, dict) or not isinstance(payload.get("bars"), list):
+        return response
+    from api import index_bars as _index_bars
+    out = _index_bars.with_todays_session(ticker, payload["bars"], now)
+    if out is None:
+        return response
+    payload["bars"] = out
     return JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
 
 
@@ -898,6 +968,20 @@ def _augment_with_bar_close_state(response, tf: str):
             newest = datetime(y, m, d, tzinfo=ZoneInfo("America/New_York")).timestamp()
         except Exception:
             return response
+    elif (tf == "D" and isinstance(newest, (int, float)) and not isinstance(newest, bool)
+          and newest >= 1_000_000_000 and int(newest) == newest and int(newest) % 86400 == 0):
+        # ⭐ RS RATING L10 — A CASH INDEX'S DAILY KEY IS THE UTC MIDNIGHT OF ITS SESSION DATE
+        # (`index_bars._utc_midnight`), not an instant: read as one it is the PREVIOUS ET
+        # evening, and today's forming index bar answered `false` ("settled"). Same rule as the
+        # string branch: the session date's midnight in ET (`bar_contract._session_date_of`,
+        # the one reader of that key).
+        try:
+            from zoneinfo import ZoneInfo
+            from api.services.bar_contract import _session_date_of
+            sd = _session_date_of(newest)
+            newest = datetime(sd.year, sd.month, sd.day, tzinfo=ZoneInfo("America/New_York")).timestamp()
+        except Exception:
+            return response
     if not isinstance(newest, (int, float)) or isinstance(newest, bool):
         return response
     try:
@@ -931,6 +1015,8 @@ def serve_bars(
     anyio worker thread is reused by the next request."""
     if is_econ_symbol(ticker):          # the tier + in-process callers enter here, not via get_bars
         return _econ_refusal(ticker)
+    if is_theme_index_symbol(ticker):   # the Worker sends /api/bars/* straight to the tier: it enters here
+        return _theme_index_refusal(ticker, tf)
     _bars_fetch.set_request_interactive(not warm)
     try:
         sess = _bars_fetch.normalize_session(session) if tf in _INTRADAY_TFS else None
@@ -1098,14 +1184,15 @@ def _serve_bars_impl(
     # daily payload, so the append is skipped anyway).
     _is_breadth = False
     _is_mkt_ind = False
+    _is_seed = False
     _drec = None
     _meta_pre = None
     try:
         try:
-            # Schwab /pricehistory doesn't serve cash-settled indexes — silently
+            # The equity bar path doesn't serve cash-settled indexes — silently
             # returns empty bar arrays for SPX/NDX/VIX/RUT/DJX/XSP/XND. Route
             # these through yfinance instead (SPX → ^GSPC, etc.). Equity and ETF
-            # tickers (SPY, TSLA, AAPL, ...) fall through to the existing Schwab
+            # tickers (SPY, TSLA, AAPL, ...) fall through to the existing equity
             # path unchanged.
             # DELISTED entity (dead company — Yahoo, Enron, Bear Stearns): serve its
             # FROZEN historical bars from an isolated path that fetches the provider symbol
@@ -1137,8 +1224,9 @@ def _serve_bars_impl(
             from api.services import delisted_registry as _delisted
             _is_breadth = _breadth_syms.is_breadth_symbol(ticker)
             _is_mkt_ind = (not _is_breadth) and _is_market_indicator(ticker)
-            _drec = None if (_is_breadth or _is_mkt_ind) else _delisted.resolve(ticker)
-            if not (_is_breadth or _is_mkt_ind or _drec):
+            _is_seed = (not _is_breadth) and (not _is_mkt_ind) and _is_pine_seed(ticker)
+            _drec = None if (_is_breadth or _is_mkt_ind or _is_seed) else _delisted.resolve(ticker)
+            if not (_is_breadth or _is_mkt_ind or _is_seed or _drec):
                 # Bar contract: the series meta is read BEFORE the rows, so an answer's
                 # rows are never older than the `series_rev` they carry.
                 from api.services.bar_contract import snapshot_meta as _snap_meta
@@ -1152,6 +1240,10 @@ def _serve_bars_impl(
                 from api.services.market_indicators import series as _mseries
                 _mark_serve("market-indicator")
                 response = JSONResponse(content=_mseries.build_bars(ticker, tf, bars))
+            elif _is_seed:
+                from api.services import pine_seed_store as _seeds
+                _mark_serve("pine-seed")
+                response = JSONResponse(content=_seeds.build_bars(ticker, tf, bars))
             elif _drec:
                 from api.services.bars_fetch import _get_delisted_bars_response
                 # serve_as=ticker keeps a bare aliased symbol (e.g. "BSC") consistent with
@@ -1291,11 +1383,21 @@ def _serve_bars_impl(
         # snapshot helper self-limits to an OPEN regular session (returns None
         # pre-market / weekend / holiday) with a per-ticker ~8s TTL, so a
         # scan/warm storm can't fan out one provider call per request.
-        if (tf == "D" and not to and not _is_breadth and _drec is None
+        if (tf == "D" and not to and not _is_breadth and not _is_seed and _drec is None
                 and not is_index(ticker)
                 and getattr(response, "status_code", 200) == 200):
             try:
                 response = _augment_daily_with_today(response, ticker)
+            except Exception:
+                pass  # never let the developing-bar append break a real serve
+
+        # ⭐ RS RATING L10 — A CASH INDEX'S DAILY ANSWER ENDS AT TODAY'S SESSION TOO, built from
+        # the index's own 5-minute bars (`index_bars.with_todays_session`). A SEPARATE block:
+        # the equity append above is untouched, and this one runs for `is_index` only.
+        if (tf == "D" and not to and is_index(ticker)
+                and getattr(response, "status_code", 200) == 200):
+            try:
+                response = _augment_index_daily_with_today(response, ticker)
             except Exception:
                 pass  # never let the developing-bar append break a real serve
 
@@ -1316,8 +1418,8 @@ def _serve_bars_impl(
         # developing, verified_through, grid, session, series_rev, cache_key — on every
         # tf and every serve branch, in the same single parse.
         if getattr(response, "status_code", 200) == 200:
-            _live_equity = (not _is_breadth and not _is_mkt_ind and _drec is None
-                            and not is_index(ticker))
+            _live_equity = (not _is_breadth and not _is_mkt_ind and not _is_seed
+                            and _drec is None and not is_index(ticker))
             try:
                 response = _augment_with_contract(
                     response, ticker, tf, session,
@@ -1452,6 +1554,10 @@ def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
             # new catalogue was added to `/api/bars` alone.
             from api.services.market_indicators import series as _mseries
             all_bars = (_mseries.build_bars(sym, tfu, bars) or {}).get("bars") or []
+        elif _is_pine_seed(sym):
+            # The third door (see `_is_pine_seed`): bars.db has no seed rows.
+            from api.services import pine_seed_store as _seeds
+            all_bars = (_seeds.build_bars(sym, tfu, bars) or {}).get("bars") or []
         elif is_index(sym):
             # Cash-settled indexes carry unix-ts + aren't date-sliceable here.
             return _no_store(JSONResponse(content={
@@ -1588,7 +1694,8 @@ async def get_bars_history(
     # depends on WHICH POD serves it has to be excluded at every routing decision, not
     # just the ones that look like routing.
     if origin and os.environ.get("BARS_HISTORY_PROXY_ENABLED", "0") == "1" \
-            and not _is_market_indicator(ticker) and not _is_breadth_symbol(ticker):
+            and not _is_market_indicator(ticker) and not _is_breadth_symbol(ticker) \
+            and not _is_pine_seed(ticker):
         # ⛔ BREADTH TOO, for the same reason: a breadth pseudo-ticker's sealed history is
         # composed on the web pod (collector rows + the OHLC store + the breadth authority
         # seam), none of which the worker has. `/api/bars` already keeps breadth local.
@@ -1785,6 +1892,14 @@ def bars_stream_status():
         out["websocket_channels"] = bar_stream.get_channel_counts()
     except Exception as e:  # noqa: BLE001
         out["websocket_channels_error"] = str(e)[:200]
+    try:
+        from api.services import feed_client
+        out["feed_source"] = feed_client.feed_source()
+        st = feed_client.status()
+        if st is not None:
+            out["feed_client"] = st
+    except Exception as e:  # noqa: BLE001
+        out["feed_client_error"] = str(e)[:200]
     return out
 
 

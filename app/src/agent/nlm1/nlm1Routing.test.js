@@ -185,7 +185,8 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
   // SERVER-ARMED words-only groups, BY NAME: their words are empty in routing.js until their capability registers (the server
   // serves the kind), so their own-words / fill checks live in their own file with the capability served. Only these ids are
   // skipped here; any OTHER words-only group with no words fails below, by name.
-  const SERVER_ARMED = new Map([['cot', 'agentCot.test.js']])
+  const SERVER_ARMED = new Map([['cot', 'agentCot.test.js'], ['catalysts', 'agentCatalysts.test.js'], ['rs', 'agentRsLeadership.test.js'],
+    ['marketBoards', 'agentTerminalDataWave3.test.js'], ['marketViews', 'agentTerminalDataWave4.test.js']])
   it.each([...SERVER_ARMED])('server-armed words-only group %s: its words are empty until armed, and %s pins its own words / fill', (id, file) => {
     const g = GROUPS.find(x => x.id === id)
     expect(g, `${id} is not a routing group`).toBeTruthy()
@@ -213,6 +214,8 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
     // #1082 (C3-205..207): Custom-Period Sort's own words — the tool's name, a rank / sort over dates, a Dock of the ranking
     // Charts family (2026-11-12): volumeProfile.set's own words — the profile named (volume profile / VPVR), or VP with an on / off verb
     volumeProfile: ['turn on volume profile', 'set the vpvr bins to 30', 'hide vp on this chart'],
+    // Charts family (2026-11-15): newsLibrary.*'s own words — a headline saved / noted, the library, a collection's own verbs
+    newsLibrary: ['save the NVDA headline', 'show my saved headlines', 'create a collection called Earnings', 'add a note to that headline: watch it'],
     periodSort: ['open the period sort for themes', 'rank stocks between 2026-01-02 and 2026-03-31', 'sort sectors from mar 3 to jun 30', 'dock the ranking as a widget'],
     // uctIntelligence.set: the chart INDICATOR by name (never "… with UCT Intelligence" authoring), or one of its panel's switches
     uctIntelligence: ['add uct intelligence to this chart', 'turn off auto patterns', 'turn on the setups layer', 'show candlestick patterns on this chart'],

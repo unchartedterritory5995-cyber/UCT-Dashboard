@@ -158,7 +158,7 @@ describe('WL · the words reach the walkthrough, with no model turn and no list 
 describe('WL · the whole path, every step on the real control', () => {
   it('from a board with no Watchlist widget: Widgets ▾ → Watchlist → ＋ New → name → Create → the list; only the member creates it', async () => {
     const { say } = await start()
-    await onIt(/Open Widgets ▾/, widgetsBtn)
+    await onIt(/Click \+ Add widget/, widgetsBtn)
     expect(card().textContent).toMatch(/1 of 6/)
     expect(screen.getByRole('button', { name: 'Skip' })).toBeTruthy()
     await toPicker()
@@ -229,7 +229,7 @@ describe('WL · the whole path, every step on the real control', () => {
     await start({ lists: [{ watchKey: 'user:9', watchName: 'Old' }] })
     await onIt(/Click ‹ Lists on this widget/, () => document.querySelector('[data-guide="watchlist.lists"]'))
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    await onIt(/Open Widgets ▾/, widgetsBtn)
+    await onIt(/Click \+ Add widget/, widgetsBtn)
   }, 30000)
 
   it('🔴 another widget already showing a list is not mistaken for the new one: only the pinned widget ends the steps', async () => {
@@ -273,7 +273,7 @@ describe('WL · Back and Next', () => {
     await start()
     await toPicker()
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
-    await onIt(/Open Widgets ▾/, widgetsBtn)
+    await onIt(/Click \+ Add widget/, widgetsBtn)
     expect(notice()).toBeNull()
   }, 30000)
 
@@ -282,7 +282,7 @@ describe('WL · Back and Next', () => {
     fireEvent.click(widgetsBtn())
     await onIt(/Click Watchlist/, chip)
     act(() => { closeMenu() })
-    await onIt(/Open Widgets ▾/, widgetsBtn)
+    await onIt(/Click \+ Add widget/, widgetsBtn)
     expect(notice()).toBeNull()
     fireEvent.click(widgetsBtn())
     await onIt(/Click Watchlist/, chip)
@@ -329,12 +329,12 @@ describe('WL · Exit and Escape, at any step', () => {
   }, 30000)
   it('a finished or cancelled walkthrough leaves nothing bound: the next one starts and Escape ends it', async () => {
     const { say } = await start()
-    await onIt(/Open Widgets ▾/, widgetsBtn)
+    await onIt(/Click \+ Add widget/, widgetsBtn)
     document.activeElement?.blur?.()
     fireEvent.keyDown(document.body, { key: 'Escape' })
     await waitFor(() => expect(card()).toBeNull())
     await say('show me how to create a watchlist')
-    await onIt(/Open Widgets ▾/, widgetsBtn)
+    await onIt(/Click \+ Add widget/, widgetsBtn)
     document.activeElement?.blur?.()
     fireEvent.keyDown(document.body, { key: 'Escape' })
     await waitFor(() => expect(card()).toBeNull())
@@ -362,14 +362,14 @@ describe('WL · a control that disappears', () => {
     await start()
     await toPicker()
     fireEvent.click(screen.getByTestId('remove-new0'))
-    await onIt(/Open Widgets ▾/, widgetsBtn)
+    await onIt(/Click \+ Add widget/, widgetsBtn)
     expect(notice()).toBeNull()
   }, 30000)
   it('the widget is closed on the name step: no earlier control left to return to but Widgets ▾, so it returns there', async () => {
     await start()
     await toName()
     fireEvent.click(screen.getByTestId('remove-new0'))
-    await onIt(/Open Widgets ▾/, widgetsBtn)
+    await onIt(/Click \+ Add widget/, widgetsBtn)
     expect(posts).toEqual([])
   }, 30000)
   it('the Widgets menu is not on screen at all (grid mode) → it says so and explains, and starts nothing', async () => {

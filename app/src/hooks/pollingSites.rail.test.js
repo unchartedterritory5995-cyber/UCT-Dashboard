@@ -263,6 +263,20 @@ const BARE_POLL_SITES = {
   // zero — and the shrink-or-fail half of this rail is what forced these three to
   // be looked at rather than quietly left behind.
   'app/src/hooks/useConfluence.js': 1,
+  // ⭐ A THIRD POST-CENSUS ROW (2026-11-16, fix/master-red-rails): `useUserDefinitions.js` re-reads the
+  // member's definitions every 15 s ONLY while a row is "still being checked" (runtime capability
+  // admission), and 0 otherwise. Bare `useSWR`, decided, not defaulted:
+  //   • it is a PENDING-CHECK poll that stops itself when the check lands, the same kind as
+  //     EvidenceTab's job poll above: `useMobileSWR` doubling it would slow the very row a member
+  //     is waiting to see draw;
+  //   • this hook mounts on the CHART path (`StockChart` -> `useInstalledUserDefinitions`), so the
+  //     wrapper's per-call-site `useMarketOpen` 60 s timer and visibilitychange listener would be
+  //     paid once per chart on screen, for a check that has nothing to do with market hours;
+  //   • the call site sets `revalidateOnFocus: false` by hand, and the poll still pauses while the
+  //     app is hidden (the app-wide SWR `isVisible`).
+  // ⚠️ And it is NUMERIC now. It arrived (175273594f) as the function form, which SWR 2.4.0 reads once
+  // at mount, so a cold load never polled; `useUserDefinitions.pendingPoll.test.jsx` measures the reads.
+  'app/src/hooks/useUserDefinitions.js': 1,
   // ⭐ THE 2026-09-25 SWEEP — nine sites had accumulated undeclared and this rail
   // had been red in the full suite for it (it only runs there). Each was decided
   // the way the header asks, not rubber-stamped:
@@ -475,6 +489,11 @@ const BARE_POLL_SITES = {
   'app/src/pages/terminal/panels/BreakoutPanel.jsx': 1,
   'app/src/pages/terminal/panels/marketRead.js': 1,
   'app/src/pages/terminal/panels/TwtPanel.jsx': 1,
+  // ⭐ UNVOL (#1832, 2026-11-18): the same terminal-panel decision, one site (`useScan`, three calls).
+  // 60 s only while the by-now reading is live and moving (`unvolIsMoving`), else 5 min, and the
+  // empty-pick probe and the last-session read tick at 5 min. It sets `revalidateOnFocus: false`
+  // itself, which is the half of the trade the wrapper would undo.
+  'app/src/pages/terminal/panels/UnusualVolumePanel.jsx': 1,
   'app/src/pages/terminal/panels/WatchlistPanel.jsx': 3,
 }
 

@@ -26,6 +26,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet, { buildDefinition } from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { evaluateFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { PINE_DEBOUNCE_MS, inspectSource } from './PineBox'
 import { BUILDER_INPUT_SCOPE } from './builderInputs'
@@ -55,16 +56,18 @@ const flush = async () => {
 const noop = () => {}
 
 function mount() {
-  return render(
+  const view = render(
     <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
         <BuilderSheet open onClose={noop} />
       </SWRConfig>
     </AuthContext.Provider>,
   )
+  writeMyself()
+  return view
 }
 
-const formulaField = () => screen.getByLabelText('Formula')
+const formulaField = () => formulaBox()
 const pasteField = () => screen.getByTestId('pine-box').querySelector('textarea')
 
 /** ⚠️ `getByRole`, NEVER `findByRole` — `findBy*` schedules a real-timer
@@ -82,7 +85,7 @@ async function settleFormula() {
 }
 
 async function paste(script) {
-  fireEvent.click(tab(/^import$/i))
+  openSource('pine')
   fireEvent.change(pasteField(), { target: { value: script } })
   await settlePaste()
 }
@@ -133,7 +136,7 @@ describe('🔴 the thinkScript door is REACHABLE from the builder', () => {
     mount()
     await flush()
     expect(screen.queryByTestId('pine-box')).toBe(null)
-    fireEvent.click(tab(/^import$/i))
+    openSource('pine')
     expect(screen.getByTestId('pine-box')).toBeTruthy()
     // ⭐ ONE BOX, NOT A SECOND PASTE TAB. A second paste tab would be a second
     // write path into the same field — thinkScript, Pine and PCF all arrive
@@ -148,8 +151,12 @@ describe('🔴 the thinkScript door is REACHABLE from the builder', () => {
     // reaches the engine through a different service entirely. What the ruling
     // forbids is a `thinkScript` tab beside `Import`, and that is what this now
     // asserts by NAME rather than by arithmetic.
-    const tabs = screen.queryAllByRole('tab').map((t) => t.textContent.trim().toLowerCase())
-    expect(tabs).toEqual(['library', 'conditions', 'import', 'screenshot', 'formula'])
+    // Direction A (2026-11-16): the editor's tabs are Formula · the ONE source tab
+    // ("Script", whatever the dialect) · Inputs · Plots · Ask — named here, not counted.
+    const tabs = screen.queryAllByRole('tab').map((t) => t.textContent.replace(/\s+/g, ' ').trim().toLowerCase())
+    expect(tabs.slice(0, 2)).toEqual(['formula', 'script'])
+    expect(tabs.filter((t) => t === 'script')).toHaveLength(1)
+    expect(tabs.some((t) => /^inputs/.test(t)) && tabs.some((t) => /^plots/.test(t))).toBe(true)
     expect(tabs.filter((t) => /pine|thinkscript|pcf|tc2000/.test(t)),
       'a per-dialect paste tab is the thing this case forbids').toEqual([])
   })

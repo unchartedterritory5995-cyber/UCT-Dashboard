@@ -306,6 +306,81 @@ def calc_value(calc: dict) -> float:
     return round(run_calc(calc), int(calc.get("round", 2)))
 
 
+def calc_steps(calc: dict) -> dict:
+    """The in-between numbers of a calc, so an explanation can show its work (his note: "show the steps", "explain how
+    it is calculated"; REVIEW_LEARNINGS rules 3 and 29). They ride in reveal facts.calc.steps, which the grounding
+    check reads, so "$500 at risk / 2.22 a share = 225.2, round down to 225" grounds. Before 2026-11-17 those numbers
+    were rejected as ungrounded and the checkers had to describe the steps without them. Only plain arithmetic of the
+    calc's own args, rounded to 2 decimals."""
+    a = (calc or {}).get("args") or {}
+    fn = (calc or {}).get("fn")
+    r2 = lambda x: round(float(x), 2)  # noqa: E731
+    try:
+        if fn == "shares_from_risk":
+            dollars = a["account"] * a["risk_pct"] / 100
+            per = abs(a["entry"] - a["stop"])
+            return {"risk_dollars": r2(dollars), "risk_per_share": r2(per), "raw_shares": r2(dollars / per),
+                    "stop_pct": r2(per / a["entry"] * 100)}
+        if fn in ("risk_dollars", "risk_pct_of_account"):
+            per = abs(a["entry"] - a["stop"])
+            out = {"risk_per_share": r2(per), "risk_dollars": r2(per * a["shares"])}
+            return out
+        if fn == "position_pct":
+            return {"position_dollars": r2(a["shares"] * a["price"])}
+        if fn == "r_multiple":
+            per = abs(a["entry"] - a["stop"])
+            gain = (a["exit"] - a["entry"]) if a.get("side", "long") == "long" else (a["entry"] - a["exit"])
+            return {"risk_per_share": r2(per), "gain_per_share": r2(gain)}
+        if fn == "pct_change":
+            return {"change": r2(a["end"] - a["start"])}
+        if fn == "spread_pct":
+            return {"spread": r2(a["ask"] - a["bid"]), "midpoint": r2((a["ask"] + a["bid"]) / 2)}
+        if fn == "dollar_volume":
+            return {}
+        # the options and account calcs (the F6 checker could not show "112.40 minus 105 is 7.40", 2026-11-17)
+        if fn in ("intrinsic", "extrinsic", "option_payoff"):
+            k, u = a["strike"], a["underlying"]
+            intr = max(0.0, u - k) if a["kind"] == "call" else max(0.0, k - u)
+            out = {"distance": r2(abs(u - k)), "intrinsic": r2(intr)}
+            if fn == "option_payoff":
+                per = intr - a["premium"] if a.get("side", "long") == "long" else a["premium"] - intr
+                out["per_share"] = r2(per)
+            return out
+        if fn == "vertical_payoff":
+            u = a["underlying"]
+            iv = (lambda k: max(0.0, u - k) if a["kind"] == "call" else max(0.0, k - u))
+            return {"long_leg": r2(iv(a["long_strike"])), "short_leg": r2(iv(a["short_strike"])),
+                    "per_share": r2(iv(a["long_strike"]) - iv(a["short_strike"]) - a["net_debit"]),
+                    "width": r2(abs(a["long_strike"] - a["short_strike"]))}
+        if fn == "margin_equity_pct":
+            return {"equity": r2(a["market_value"] - a["loan"])}
+        if fn == "drawdown_pct":
+            return {"drop": r2(a["peak"] - a["trough"])}
+        if fn == "short_pnl":
+            return {"per_share": r2(a["entry"] - a["exit"])}
+        if fn == "avg_price":
+            fills = a.get("fills") or []
+            return {"shares": r2(sum(f[0] for f in fills)), "cost": r2(sum(f[0] * f[1] for f in fills))}
+        if fn == "gain_to_recover":
+            return {"left": r2(100 - a["loss_pct"])}
+        if fn == "arith":
+            # every part of the expression, worked out ("(25.10 - 24.71) * 3" gives 0.39 and 1.17), so a plain
+            # arithmetic question can show its steps too (the SET.22 checker could not: "0.39 and 1.17" were rejected)
+            import ast
+            expr = str(a.get("expr") or "")
+            values = {k: v for k, v in a.items() if k != "expr" and isinstance(v, (int, float))}
+            tree = ast.parse(expr, mode="eval")
+            out, n = {}, 0
+            for node in ast.walk(tree):
+                if isinstance(node, ast.BinOp):
+                    n += 1
+                    out[f"step{n}"] = r2(_arith(ast.unparse(node), **values))
+            return out
+    except (KeyError, TypeError, ZeroDivisionError):
+        return {}
+    return {}
+
+
 def _num_text(x: float) -> str:
     return str(int(x)) if float(x).is_integer() else repr(float(x))
 
@@ -535,8 +610,19 @@ def question_problems(q: dict, *, unit: dict, facts: dict, sources: dict, skills
     if chart is not None:
         if not re.fullmatch(r"[A-Z][A-Z0-9.^-]{0,9}", str(chart.get("sym") or "")):
             out.append("chart.sym must be an upper-case ticker")
-        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(chart.get("asof") or "")):
-            out.append("chart.asof must be YYYY-MM-DD (the last visible day)")
+        tf = str(chart.get("tf") or "D")
+        if tf == "D":
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(chart.get("asof") or "")):
+                out.append("chart.asof must be YYYY-MM-DD (the last visible day)")
+        elif tf in INTRADAY_TFS:
+            # an intraday chart's asof is the START of its last visible bar, New York time, on the regular session's grid
+            p = intraday_asof_problem(str(chart.get("asof") or ""), tf)
+            if p:
+                out.append(p)
+        else:
+            out.append(f"chart.tf must be D or one of {', '.join(INTRADAY_TFS)} (minutes)")
+        if str(chart.get("sym") or "").upper() in INDEX_SERIES and tf != "D":
+            out.append("an index chart is daily (chart.tf D)")
         if not 20 <= int(chart.get("window", 120)) <= 400 or not 0 <= int(chart.get("forward", 20)) <= 250:
             out.append("chart.window must be 20-400 bars and chart.forward 0-250")
         sym = str(chart.get("sym") or "")
@@ -578,6 +664,62 @@ def question_problems(q: dict, *, unit: dict, facts: dict, sources: dict, skills
 #: history loaded ahead of a course chart's visible window, so the 50 and 200-day averages are drawn from its first
 #: visible candle (the drill opens on `visible_bars`; 2026-11-14)
 WARMUP_BARS = 200
+
+# ── intraday course charts (2026-11-15: the opening-range, 30-minute pivot, Go Signal, red-to-green and opening-drive
+# lessons). A chart may name `tf` 5 / 15 / 30 / 60 (minutes) with `asof` "YYYY-MM-DD HH:MM", the START of its last
+# visible bar in New York time on the regular session's grid (09:30 + a whole number of bars). The bank passes the
+# server that bar's exact unix time (`asof_key`) and an end for the replay (`forward_to_key`), so the import resolves it
+# from the pod's own bars when they are there; scripts/study/fill_course_charts.py fetches the rest from the provider
+# ON THE POD, checks each chart (check_course_charts.check_bars) and stores only the ones that pass. Regular hours only.
+INTRADAY_TFS = ("5", "15", "30", "60")
+#: hidden bars ahead of an intraday window, as WARMUP_BARS for a daily one: the member's own averages (the 9 and 21 EMA,
+#: the 50 and the 200) are formed from the first candle. It was 60 until 2026-11-16: the screen check found the 200's
+#: legend with no value on every intraday chart, because 60 bars cannot form a 200-bar average.
+INTRADAY_WARMUP = 200
+_NY = None
+
+# ── index history charts (2026-11-16, the owner's "Visual for all lessons really"): a history question that quotes an
+# index level ("the S&P 500 fell from 1,565 to 677") is drawn on that INDEX, not on a fund whose prices would not match
+# the words. The symbol is the chart's own name for the series; the value is Yahoo's, the source the app's index charts
+# already use (api/index_bars.py). The import never reads bars.db for these (`source: "index"`: an "SPX" row there, if
+# any, is not this series); scripts/study/fill_course_charts.py fetches each on the pod, runs check_course_charts and
+# stores only the charts that pass. Daily only. IXIC, not COMP, for the Nasdaq Composite: COMP is a listed stock.
+INDEX_SERIES = {"SPX": "^GSPC", "IXIC": "^IXIC", "NDX": "^NDX", "DJI": "^DJI", "RUT": "^RUT"}
+#: the indexes whose volume in that history is their own. Yahoo's Russell 2000 volume is the S&P 500's on 92.5% of days
+#: and its Nasdaq 100 volume the Composite's on 80% (measured 2026-11-16), so those two charts carry no volume at all
+#: rather than another index's.
+INDEX_OWN_VOLUME = frozenset({"SPX", "IXIC", "DJI"})
+#: the item's adjustment_basis for an index chart: index levels, never split-adjusted prices. The server's forward
+#: top-up and the replay's intraday fill read it and leave these charts to their stored bars.
+INDEX_BASIS = "index level"
+
+
+def _ny():
+    global _NY
+    if _NY is None:
+        from zoneinfo import ZoneInfo
+        _NY = ZoneInfo("America/New_York")
+    return _NY
+
+
+def intraday_asof_problem(asof: str, tf: str) -> Optional[str]:
+    m = re.fullmatch(r"(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})", asof)
+    if not m:
+        return "an intraday chart.asof must be 'YYYY-MM-DD HH:MM' (New York time, the start of the last visible bar)"
+    hh, mm = int(m[4]), int(m[5])
+    since_open = (hh * 60 + mm) - (9 * 60 + 30)
+    if not 0 <= since_open < 390:
+        return "an intraday chart.asof must fall in the regular session (09:30 to 15:59 New York)"
+    if since_open % int(tf):
+        return f"an intraday chart.asof must start a {tf}-minute bar (09:30 plus whole bars)"
+    return None
+
+
+def intraday_key(asof: str) -> int:
+    """'YYYY-MM-DD HH:MM' New York time -> the bar's unix time (the bars store each bar's start, in seconds)."""
+    import datetime as _dt
+    d = _dt.datetime.strptime(asof, "%Y-%m-%d %H:%M").replace(tzinfo=_ny())
+    return int(d.timestamp())
 
 
 def unit_problems(doc: dict, *, path: Optional[pathlib.Path] = None) -> list[str]:
@@ -634,6 +776,10 @@ def unit_problems(doc: dict, *, path: Optional[pathlib.Path] = None) -> list[str
             out.append(f"question key {key!r} missing or duplicate")
         keys.add(key)
         for p in question_problems(q, unit=doc, facts=facts, sources=sources, skills=skills):
+            out.append(f"{key}: {p}")
+        # a hand-written picture card is held to the built card's contract (calc_visuals.written_problems)
+        from scripts.study.calc_visuals import written_problems
+        for p in written_problems(q):
             out.append(f"{key}: {p}")
         if ((doc.get("verify") or {}).get(key) or {}).get("status") == "pass":   # what reaches a member
             said = [q.get(f) for f in ("q", "story", "why", "lesson_line", "sentence", "simple")] + list(q.get("choices") or []) \
@@ -707,9 +853,63 @@ def strict_grounding(it: dict) -> list[str]:
 
 # ── building ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
+_OWNER_ASIDE = re.compile(r"\s*\([^()]*(?:owner|docs/|\.json|\.md)[^()]*\)", re.I)
+
+
+def member_source_name(src: dict) -> str:
+    """The name a member reads under "Sources" on a reveal. Our own working files (the setup criteria cards, the
+    research dossiers, the rulebook, the verdict log) are cited by what they ARE to a member, never by a repo path or
+    "criteria card" (REVIEW_LEARNINGS rule 27: no working words in member text; the 2026-11-17 localhost review showed
+    "UCT setup criteria card: ... (docs/study/setups/criteria/01-flat-base.json ...)" as a dead link, three times)."""
+    url, pub, title = str(src.get("url") or ""), str(src.get("publisher") or ""), str(src.get("title") or "")
+    if url.startswith("repo:"):
+        path = url[5:].split("#")[0]
+        if path.endswith("sizing_rule.md") or "owner_verdicts" in path or "RULINGS" in path or "DECISIONS" in path:
+            return "Our trading rules"
+        if "/setups/criteria/" in path:
+            setup = re.split(r"\s+criteria card", title, flags=re.I)[0].strip() or "setup"
+            return f"Our {setup} playbook"
+        if "/setups/research/" in path:
+            setup = re.split(r"\s+dossier", title, flags=re.I)[0].strip() or "setup"
+            return f"Our {setup} research, on real charts"
+        if "GLOSSARY" in path:
+            return "Our setup glossary"
+        if path.startswith("app/"):
+            return _OWNER_ASIDE.sub("", title).split(":")[0].strip() or "The UCT app"
+        if "TRADE_PLANS" in path:
+            return "Our trade plans"
+        return "Our trading rules"          # the house rule files (OWNER_PRINCIPLES, REVIEW_LEARNINGS, the skill map)
+    pub = _OWNER_ASIDE.sub("", pub).strip()
+    # a title's trailing note about the owner ("...: the post the owner named for B26") is ours, not the source's
+    title = ":".join(p for i, p in enumerate(title.split(":")) if i == 0 or "owner" not in p.lower())
+    title = _OWNER_ASIDE.sub("", title).strip()
+    if "substack" in (pub + url).lower():   # on our Substack he writes as TSDR
+        title = re.sub(r"\bthe owner's\b", "TSDR's", title, flags=re.I)
+        title = re.sub(r"\bthe owner\b", "TSDR", title, flags=re.I)
+    return f"{pub}: {title}" if pub and title else (pub or title)
+
+
 def _source_cite(src: dict, fact: dict) -> dict:
-    return {"name": f"{src.get('publisher')}: {src.get('title')}", "url": src.get("url"),
+    url = src.get("url")
+    return {"name": member_source_name(src), "url": None if str(url or "").startswith("repo:") else url,
             "quote": fact.get("quote"), "accessed": src.get("accessed"), "tier": src.get("tier")}
+
+
+def _merge_cites(cites: list[dict]) -> list[dict]:
+    """One line per source on the reveal: facts cited from the same source merge, their quotes kept together (the
+    grounding check reads every quote, so none is dropped)."""
+    out: list[dict] = []
+    seen: dict[tuple, dict] = {}
+    for c in cites:
+        key = (c.get("name"), c.get("url"))
+        if key in seen:
+            prev = seen[key]
+            if c.get("quote") and c.get("quote") not in str(prev.get("quote") or ""):
+                prev["quote"] = f"{prev['quote']} … {c['quote']}" if prev.get("quote") else c["quote"]
+            continue
+        seen[key] = dict(c)
+        out.append(seen[key])
+    return out
 
 
 def _difficulty(rung: int) -> int:
@@ -730,7 +930,7 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
     for n, w in enumerate(doc.get("walkthroughs") or [], start=1):
         if only_passed and (verify.get(w.get("key")) or {}).get("status") != "pass":
             continue
-        cites = [_source_cite(sources.get(facts[f]["source"], {}), facts[f]) for f in w.get("facts") or [] if f in facts]
+        cites = _merge_cites([_source_cite(sources.get(facts[f]["source"], {}), facts[f]) for f in w.get("facts") or [] if f in facts])
         steps = [dedash(s) for s in w.get("steps") or []]
         it = {
             "id": item_id(ref_base, f"walk:{w.get('key')}"), "version": 1, "type": "walkthrough",
@@ -784,10 +984,13 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
         if q.get("calc"):
             val = calc_value(q["calc"])
             reveal_facts["calc"] = {"fn": q["calc"]["fn"], "args": q["calc"].get("args") or {}, "result": val}
+            steps = calc_steps(q["calc"])
+            if steps:
+                reveal_facts["calc"]["steps"] = steps      # the in-between numbers an explanation may show (calc_steps)
             if fmt == "numeric":
                 answer_json = {"answer": val, "accept": numeric_accept(val)}
         cited = [f for f in q.get("facts") or [] if f in facts]
-        cites = [_source_cite(sources.get(facts[f]["source"], {}), facts[f]) for f in cited]
+        cites = _merge_cites([_source_cite(sources.get(facts[f]["source"], {}), facts[f]) for f in cited])
         why, line = dedash(q.get("why") or ""), dedash(q.get("lesson_line") or "")
         reveal = {
             "unit": unit, "why": why, "lesson_line": line, "facts": reveal_facts,
@@ -811,9 +1014,11 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
             # drawn from the first visible candle (2026-11-14 screen check: a 120-bar chart drew no 200-day at all, and the
             # 50-day only from bar 50). visible_bars is what the drill opens on; the extra bars are only the averages' history.
             win = int(chart.get("window", 120))
+            ctf = str(chart.get("tf") or "D")
+            warm = WARMUP_BARS if ctf == "D" else INTRADAY_WARMUP
             # hide_ticker: a course chart is a real dated example, so its ticker (NVDA 2023, AMD 2018) would give the
             # outcome away before the answer; the server leaves it out of the set and the reveal names it (2026-11-14)
-            prompt["chart"] = {"window_bars": win + WARMUP_BARS, "visible_bars": win, "tf": "D", "forward_bars": int(chart.get("forward", 20)),
+            prompt["chart"] = {"window_bars": win + warm, "visible_bars": win, "tf": ctf, "forward_bars": int(chart.get("forward", 20)),
                                "hide_ticker": True}
             tr = chart.get("trade")
             if tr:
@@ -825,11 +1030,15 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
                 # the notes the answer card prints under the entry and the stop (2026-11-14: it printed "undefined"); both
                 # are what check_course_charts verifies for every drawn trade (the entry traded that day, the stop sits
                 # beyond the day's extreme). `source` lets the card name this example, not a setup's detector rules.
+                # an intraday chart's fill may come at its bar's close, after that bar's high, so its review counts from
+                # the next bar on (enters_intraday False) and names bars, not sessions (`unit`; the 2026-11-15 screen
+                # check: "ADVANCE ... on the buy day" quoted the fill bar's own earlier high, "hit after 1 session")
                 reveal["trade"] = {"entry": e, "stop": s, "t1": round(e + sign * 3 * risk, 2), "t2": round(e + sign * 5 * risk, 2),
-                                   "direction": "bearish" if sign < 0 else "bullish", "enters_intraday": True, "trim_r": [3, 5],
-                                   "source": "course",
-                                   "entry_note": "the fill on the chart's last day",
-                                   "stop_note": "over that day's high" if sign < 0 else "under that day's low"}
+                                   "direction": "bearish" if sign < 0 else "bullish", "enters_intraday": ctf == "D", "trim_r": [3, 5],
+                                   "source": "course", **({} if ctf == "D" else {"unit": "bar"}),
+                                   "entry_note": "the fill on the chart's last day" if ctf == "D" else "the fill on the chart's last bar",
+                                   "stop_note": (("over that day's high" if sign < 0 else "under that day's low") if ctf == "D"
+                                                 else ("over that bar's high" if sign < 0 else "under that bar's low"))}
         it = {
             "id": item_id(ref_base, f"q:{key}"), "version": 1, "type": "scenario" if fmt == "scenario" else "recall",
             "skill_id": q.get("skill"), "module": track, "difficulty": _difficulty(int(q.get("rung") or 1)),
@@ -838,10 +1047,22 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
             "lesson_text": (why + " " + line).strip(), "lesson_origin": "session", "review_status": "draft",
             "_key": key,
         }
-        if chart:
-            it.update(sym=str(chart["sym"]).upper(), asof=chart["asof"], adjustment_basis="split-adjusted",
-                      bars={"sym": str(chart["sym"]).upper(), "tf": "D", "asof": chart["asof"],
-                            "window": int(chart.get("window", 120)) + WARMUP_BARS, "forward": int(chart.get("forward", 20))})
+        if chart and str(chart.get("tf") or "D") != "D":
+            # an intraday chart: the server resolves it by exact unix times (the bar's start; the replay's end a week on,
+            # of which it keeps the first `forward` regular-session bars); fill_course_charts.py fetches what the pod
+            # does not hold. The item's asof is the day.
+            ctf, key0 = str(chart["tf"]), intraday_key(chart["asof"])
+            it.update(sym=str(chart["sym"]).upper(), asof=chart["asof"][:10], adjustment_basis="split-adjusted",
+                      bars={"sym": str(chart["sym"]).upper(), "tf": ctf, "asof": chart["asof"][:10], "asof_key": key0,
+                            "forward_to_key": key0 + 7 * 86400, "rth": True,
+                            "window": int(chart.get("window", 120)) + INTRADAY_WARMUP, "forward": int(chart.get("forward", 20))})
+        elif chart:
+            csym = str(chart["sym"]).upper()
+            index = csym in INDEX_SERIES
+            it.update(sym=csym, asof=chart["asof"], adjustment_basis=INDEX_BASIS if index else "split-adjusted",
+                      bars={"sym": csym, "tf": "D", "asof": chart["asof"],
+                            "window": int(chart.get("window", 120)) + WARMUP_BARS, "forward": int(chart.get("forward", 20)),
+                            **({"source": "index"} if index else {})})
         items.append(it)
     return items
 

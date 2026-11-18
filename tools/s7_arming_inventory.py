@@ -148,15 +148,18 @@ def fetch(base: str) -> dict:
         ctx = b.new_context(user_agent=UA)
         pg = ctx.new_page()
         try:
-            r = pg.request.post(f"{base}/api/auth/login",
-                                data=json.dumps({"email": email, "password": pw}),
-                                headers={"Content-Type": "application/json"})
-            if r.status != 200:
-                raise SystemExit(f"INCONCLUSIVE: login returned {r.status}")
-            resp = pg.request.get(f"{base}{REPORT_PATH}")
-            if resp.status != 200:
-                raise SystemExit(f"INCONCLUSIVE: {REPORT_PATH} returned {resp.status}")
-            return resp.json()
+            # tools/synthetic_session.py: signed OUT on leaving this block, however it is left.
+            try:
+                from tools import synthetic_session as S  # noqa: PLC0415 — package import
+            except ImportError:
+                import synthetic_session as S  # noqa: PLC0415 — script import (tools/ on sys.path)
+            with S.sign_in_playwright(pg, base, credentials=(email, pw)) as r:
+                if r.status != 200:
+                    raise SystemExit(f"INCONCLUSIVE: login returned {r.status}")
+                resp = pg.request.get(f"{base}{REPORT_PATH}")
+                if resp.status != 200:
+                    raise SystemExit(f"INCONCLUSIVE: {REPORT_PATH} returned {resp.status}")
+                return resp.json()
         finally:
             ctx.close(); b.close()
 

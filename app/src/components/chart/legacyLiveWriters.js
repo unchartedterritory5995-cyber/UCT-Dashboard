@@ -1003,9 +1003,17 @@ function legacyAfterSetData(ctx) {
       const openPrice = (isDW && liveSnap.day_open) ? liveSnap.day_open : (_lbSame ? lb.open : lp)
       const highPrice = isDW ? Math.max(liveSnap.day_high || openPrice, lp) : (_lbSame ? Math.max(lb.high, lp) : lp)
       const lowPrice = isDW ? Math.min((liveSnap.day_low && liveSnap.day_low > 0) ? liveSnap.day_low : openPrice, lp) : (_lbSame ? Math.min(lb.low, lp) : lp)
-      const newBar = { time: barTime, open: openPrice, high: highPrice, low: lowPrice, close: lp }
+      // Intraday, opened from ONE price (the chart mounted mid-bucket and the fetched tail
+      // ends a bucket earlier): that price is not the bucket's first trade, so the open is
+      // PROVISIONAL (lib/liveBarMerge I6) and the first push frame / fetched bucket replaces
+      // it. Unmarked, mergePushBar's open-once rule (I2) kept this mid-bucket price as the
+      // open, and H/L widened from it, until the next bucket (owner 2026-11-17, QQQ 1m).
+      const newBar = isIntradayTf && !_lbSame
+        ? provisionalOpen(barTime, lp)
+        : { time: barTime, open: openPrice, high: highPrice, low: lowPrice, close: lp,
+            ...(isIntradayTf && lb.provisional ? { provisional: true } : {}) }
       if (isOhlcType(cs.chartType)) {
-        candleSeriesRef.current.update(newBar)
+        candleSeriesRef.current.update({ time: barTime, open: newBar.open, high: newBar.high, low: newBar.low, close: newBar.close })
       } else {
         candleSeriesRef.current.update({ time: barTime, value: lp })
       }

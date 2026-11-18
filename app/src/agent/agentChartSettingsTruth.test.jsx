@@ -93,13 +93,14 @@ describe('D1 — the Volume pane on /charts', () => {
     expect(widget(board).opts.settings.volume.paneHeightPct).not.toBe(30)
   }, 40000)
 
-  it('own pane: /charts forces it, so the request refuses either way and changes nothing', async () => {
-    expect(paneLookProps({ cs: {}, theme: null, prefs: {} }).volumeSeparatePane).toBe(true)      // the fact the refusal states
+  it('own pane: /charts does not read separatePane (Display in decides), so the request refuses either way and changes nothing', async () => {
+    // owner 11-16: /charts DEFAULTS volume to its own pane and the member picks via ⋯ → Display in (`volume.displayIn`)
+    expect(paneLookProps({ cs: {}, theme: null, prefs: {} }).volumePaneByDefault).toBe(true)     // the fact the refusal states
     expect(settingDescriptor('volume.separatePane').inert).toBeTruthy()                           // ...and it is derived from that prop
     const { say, board } = p.mount(...ONE('NVDA'))
     const before = stored(board)
-    expect(await say1(say, 'volume.separatePane', false, 'put volume back on the price pane')).toMatch(/always draws Volume in its own pane/)
-    expect(await say1(say, 'volume.separatePane', true, 'put volume in its own pane')).toMatch(/always draws Volume in its own pane/)
+    expect(await say1(say, 'volume.separatePane', false, 'put volume back on the price pane')).toMatch(/Display in \(Own pane \/ Overlay on price\)/)
+    expect(await say1(say, 'volume.separatePane', true, 'put volume in its own pane')).toMatch(/Display in \(Own pane \/ Overlay on price\)/)
     expect(stored(board)).toBe(before)
   }, 40000)
 })

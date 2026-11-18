@@ -1,22 +1,21 @@
 """
 Massive OI snapshot fetcher.
 
-Parallels api/oi_snapshots.py (Schwab) but sources OI from Massive's REST
-options snapshot endpoint. Designed to be a drop-in alternative or a
-fallback when Schwab fails.
+Sources open interest from Massive's REST options snapshot endpoint. It is the
+one OI source behind api/oi_snapshots.py (Schwab, which it used to back up, was
+retired from the product on 2026-11-17).
 
 Architecture:
   - One HTTP call per UNDERLYING ticker (Massive's snapshot endpoint returns
     OI for all strikes/expirations on that underlying in one response).
-    For a typical batch of 50-200 contracts, this is 5-20 calls instead
-    of 50-200 individual Schwab calls.
+    For a typical batch of 50-200 contracts, this is 5-20 calls.
   - Per-ticker dedup: if the same underlying appears multiple times in
     one batch, fetch once and serve all from response.
   - Pagination: follows next_url if response is truncated (typically
     only on very active underlyings — SPY, QQQ — where chain has 5000+
     contracts).
-  - Error handling: returns None for unresolved contracts; caller treats
-    as "Schwab miss" and falls through.
+  - Error handling: returns None for unresolved contracts; the caller
+    stores nothing for them.
 
 CONFIRMED against Massive (2026-07-19):
   1. Endpoint: https://api.massive.com/v3/snapshot/options/{ticker}
@@ -52,7 +51,7 @@ in the flow-worker container (same reason the on-demand quote fetch is stdlib),
 so importing it here silently returned all-None whenever oi_fetch_manager
 called this on the worker.
 
-Drop-in interface match with Schwab module:
+Interface (the one api/oi_snapshots.py calls):
   _fetch_oi_all_async(batch) -> List[Tuple[contract_key, oi_or_None]]
 """
 import asyncio
@@ -114,14 +113,14 @@ def _with_key(url: str) -> str:
 
 
 def _contract_key(sym: str, cp_letter: str, strike, exp_mdy: str) -> str:
-    """Match the same contract_key format used by the Schwab module
-    and the contract_oi_snapshots table.
+    """The contract_key format of api/oi_snapshots.py (make_key) and the
+    contract_oi_snapshots table.
 
     Format: 'TICKER|C/P|float_strike|M/D/YYYY'
     Example: 'QCOM|C|192.5|8/7/2026'
 
     NOTE: exp_mdy is kept verbatim (not canonicalized) so the returned key
-    is byte-identical to the Schwab module's make_key() and merges back
+    is byte-identical to oi_snapshots.make_key() and merges back
     correctly in oi_snapshots._fetch_oi_all_async. Only the internal chain
     LOOKUP canonicalizes the date (see _canon_mdy).
     """
@@ -177,7 +176,7 @@ def _build_index_from_response(results, index: dict) -> None:
             continue
         if oi_int <= 0:
             # Massive returning 0 OI is meaningful (real fresh strike)
-            # but we let the consumer interpret. Schwab module also
+            # but we let the consumer interpret. oi_snapshots also
             # filters out 0; matching that for consistency.
             continue
         ctype = (details.get("contract_type") or "").lower()
@@ -327,14 +326,12 @@ def fetch_chain_price_oi(ticker: str) -> dict:
 
 
 async def _fetch_oi_all_async(batch: Iterable[tuple]) -> list:
-    """Public entry point — matches the Schwab module's interface.
+    """Public entry point — the interface api/oi_snapshots.py calls.
 
     Input: iterable of (sym, cp_letter, strike, exp_mdy) tuples
     Output: list of (contract_key, oi_or_None) tuples
 
-    contract_key uses the same format as the Schwab module so callers
-    can substitute this function for the Schwab one with no other
-    changes.
+    contract_key uses the same format as oi_snapshots.make_key().
     """
     # Drop module-level cache from any prior call to keep memory bounded
     _PER_CALL_CACHE.clear()
@@ -408,12 +405,12 @@ async def _fetch_oi_all_async(batch: Iterable[tuple]) -> list:
 
 
 def _fetch_oi_all(contracts: Iterable[tuple]) -> list:
-    """Synchronous wrapper (parity with the Schwab module's _fetch_oi_all)."""
+    """Synchronous wrapper (parity with oi_snapshots._fetch_oi_all)."""
     return asyncio.run(_fetch_oi_all_async(contracts))
 
 
 # ── Live single-contract FIELDS fallback for /options-quotes (2026-07-20) ────
-# When Schwab AND UW leave a contract without a usable price (far-dated /
+# When Unusual Whales leaves a contract without a usable price (far-dated /
 # illiquid LEAPS with no live NBBO), the router fills Now/OI/underlying from
 # Massive's real-time options snapshot. Uses the SINGLE-contract endpoint
 # (/v3/snapshot/options/{underlying}/{occ}) — one small call per missing
@@ -446,6 +443,7 @@ def _fields_from_result(item):
     lt = item.get("last_trade") or {}
     ua = item.get("underlying_asset") or {}
     gk = item.get("greeks") or {}
+    day = item.get("day") or {}
     mid = _num(lq.get("midpoint"))
     if mid is None:
         bid, ask = _num(lq.get("bid")), _num(lq.get("ask"))
@@ -461,6 +459,9 @@ def _fields_from_result(item):
         "mid": mid,
         "last": _num(lt.get("price")),
         "underlying": _num(ua.get("price")),
+        # The session's contract volume (added 2026-11-17 for the contract-history recorder,
+        # which took it from Schwab until then). None when the snapshot carries no day bar.
+        "volume": _num(day.get("volume")),
         "iv": _num(item.get("implied_volatility")),
         "delta": _num(gk.get("delta")),
         "gamma": _num(gk.get("gamma")),
@@ -519,7 +520,7 @@ async def _fetch_fields_all_async(batch):
 # built for the /flow SPY card, which only ever reads ~10-20 KNOWN contract keys
 # (the card's top-N by premium) out of that whole chain. This reuses the
 # per-contract single-endpoint mechanism above (built 2026-07-20 for
-# schwab_router.py, already production) scoped to just the requested contracts —
+# POST /api/schwab/options-quotes, already production) scoped to just the requested contracts —
 # eliminating the wasteful walk without touching the live-OI-first/daily-snapshot
 # -fallback logic in live_massive_router.py (that logic exists to guard against
 # the IREN 65C incident: the daily snapshot store read 558 vs. the real 13,816

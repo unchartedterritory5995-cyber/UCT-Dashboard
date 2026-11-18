@@ -104,12 +104,12 @@ describe('LegendRow — the three verbs', () => {
     fireEvent.click(row)
     // ⭐ ANCHORED TO THE ROW, NOT THE POINTER — a keyboard activation has no
     // coordinates, so one anchor serves click, right-click and Enter alike.
-    expect(h.onOpen).toHaveBeenCalledWith('ma:2', { x: 12, y: 43 })
+    expect(h.onOpen).toHaveBeenCalledWith('ma:2', { x: 12, y: 43, besideX: 126, rowTop: 22 })
     expect(onWrapper, 'a click reached the chart underneath').not.toHaveBeenCalled()
 
     h.onOpen.mockClear()
     fireEvent.contextMenu(row)
-    expect(h.onOpen, 'right-click opens a different surface').toHaveBeenCalledWith('ma:2', { x: 12, y: 43 })
+    expect(h.onOpen, 'right-click opens a different surface').toHaveBeenCalledWith('ma:2', { x: 12, y: 43, besideX: 126, rowTop: 22 })
 
     for (const key of ['Enter', ' ']) {
       h.onOpen.mockClear()
@@ -119,17 +119,17 @@ describe('LegendRow — the three verbs', () => {
     expect(onWrapper).not.toHaveBeenCalled()
   })
 
-  it('⭐⭐ the row WEARS ITS LINE COLOUR — no swatch, and no hover handler at all', () => {
-    // ⚰️ THE ROW WORE `style={{ color }}`, then a 2×9px rail instead, then an
-    // `onHover` that lifted the drawn series by a pixel. The rail and the lift are
-    // retired for good; the COLOUR came back the same day, on the owner's report
-    // that an indicator's name and value had always printed in the colour of its
-    // line. Hovering still reaches nothing but a CSS background.
+  it('⭐⭐ UCT SIGNATURE: the BAR wears the line colour, the vertical row does not — and no hover handler', () => {
+    // ⚰️ THE VERTICAL ROW WORE `style={{ color }}` (owner, 2026-09-14) until the UCT
+    // Signature lab (owner-approved 2026-11-15, "2 · Chart legend", L1 · Rows): the
+    // 3×13 colour bar is the key, the NAME is grey and the value bright white, so a
+    // nine-line stack reads calmly. The flat strip keeps its coloured text.
     const h = handlers()
     const { container } = render(
       <LegendRow rowId="ma:2" label="SMA 50" value="1" color="#c07be0" vertical {...h} />)
     const row = container.querySelector('[data-legend-row="ma:2"]')
-    expect(row.style.color, 'the row lost its line colour').toBe('rgb(192, 123, 224)')
+    expect(row.style.color, 'the vertical row is inked in the line colour again').toBe('')
+    expect(screen.getByText('SMA 50').style.color, 'the name is inked in the line colour again').toBe('')
     // ⚰️⚰️ "THE VALUE FOLLOWS THE LABEL, BY INHERITING" WAS THE RULE HERE AND IT IS
     // REVERSED. The owner's final colour system is COLOUR = which series, WHITE =
     // the market value: the LABEL carries the hue (it is the identity) and the
@@ -309,5 +309,102 @@ describe('LegendRow — the CSS artifact', () => {
     // pixel-parity baselines. These rows inherit the hide as DESCENDANTS.
     const offenders = (css().match(/^\.[A-Za-z][\w-]*/gm) || []).filter(c => /legend/i.test(c))
     expect(offenders).toEqual([])
+  })
+})
+
+// ═══ UCT SIGNATURE — the hover strip (owner-approved lab "2 · Chart legend", L1 · Rows) ═══
+describe('UCT Signature — hide · settings · more on the row', () => {
+  const full = (over = {}) => {
+    const h = { onOpen: vi.fn(), onToggleHidden: vi.fn(), onSettings: vi.fn(), ...over }
+    const wrapper = vi.fn()
+    const utils = render(
+      <div onClick={wrapper}>
+        <LegendRow rowId="ma:3" label="EMA 20" value="98.75" color="#d0607a" vertical {...h} />
+      </div>)
+    return { ...utils, h, wrapper, row: utils.container.querySelector('[data-legend-row="ma:3"]') }
+  }
+
+  it('renders the three icon buttons, named for the row, out of the tab order', () => {
+    const { row } = full()
+    const btns = [...row.querySelectorAll('[data-row-acts] button')]
+    expect(btns.map((b) => b.getAttribute('aria-label'))).toEqual(['Hide EMA 20', 'EMA 20 settings', 'More for EMA 20'])
+    for (const b of btns) {
+      expect(b.getAttribute('tabindex')).toBe('-1')
+      expect(b.textContent, 'a button added text to the row').toBe('')
+    }
+    // the row's own text is unchanged — still `label value`
+    expect(row.textContent).toBe('EMA 2098.75')
+  })
+
+  it('each button calls its verb with the ROW ID and stops at the button', () => {
+    const { row, h, wrapper } = full()
+    const [eye, gear, more] = row.querySelectorAll('[data-row-acts] button')
+    fireEvent.click(eye)
+    expect(h.onToggleHidden).toHaveBeenCalledWith('ma:3')
+    fireEvent.click(gear)
+    expect(h.onSettings).toHaveBeenCalledWith('ma:3')
+    expect(h.onOpen, 'a strip button also opened the row popover').not.toHaveBeenCalled()
+    fireEvent.click(more)
+    expect(h.onOpen).toHaveBeenCalledWith('ma:3', expect.objectContaining({ x: expect.any(Number) }))
+    expect(h.onOpen).toHaveBeenCalledTimes(1)
+    expect(wrapper, 'a strip click reached the chart').not.toHaveBeenCalled()
+  })
+
+  it('a key pressed on a button does not reach the row', () => {
+    const { row, h } = full()
+    fireEvent.keyDown(row.querySelector('[data-row-acts] button'), { key: 'Enter' })
+    expect(h.onOpen).not.toHaveBeenCalled()
+  })
+
+  it('a hidden row keeps only its eye, which says Show', () => {
+    const h = { onOpen: vi.fn(), onToggleHidden: vi.fn(), onSettings: vi.fn() }
+    render(<LegendRow rowId="ma:3" label="EMA 20" value="" vertical hidden {...h} />)
+    const row = document.querySelector('[data-legend-row="ma:3"]')
+    const btns = [...row.querySelectorAll('[data-row-acts] button')]
+    expect(btns.map((b) => b.getAttribute('aria-label'))).toEqual(['Show EMA 20'])
+    expect(row.className).toMatch(/rowActsHidden/)
+  })
+
+  it('⛔ no verbs, no strip: the one-door row, the read-only row and the flat strip are unchanged', () => {
+    const { container, unmount } = render(<LegendRow rowId="ma:3" label="EMA 20" value="1" vertical onOpen={vi.fn()} />)
+    expect(container.querySelector('button')).toBeNull()
+    unmount()
+    const r2 = render(<LegendRow rowId="ma:3" label="EMA 20" value="1" vertical onToggleHidden={vi.fn()} />)
+    expect(r2.container.querySelector('button'), 'a read-only row grew controls').toBeNull()
+    r2.unmount()
+    const r3 = render(<LegendRow rowId="ma:3" label="EMA 20" value="1" onOpen={vi.fn()} onToggleHidden={vi.fn()} onSettings={vi.fn()} />)
+    expect(r3.container.querySelector('button'), 'the flat strip grew controls').toBeNull()
+  })
+
+  it('a hidden row is struck through in #6f6c66 and is no longer faded as a whole', () => {
+    const c = read('./LegendRow.module.css')
+    expect(c).toMatch(/\.vRow\.rowHidden\s*\{[^}]*opacity:\s*1/)
+    const struck = /\.vRow\.rowHidden \.vLabel,\s*\.vRow\.rowHidden \.vVal\s*\{([^}]*)\}/.exec(c)
+    expect(struck).toBeTruthy()
+    expect(struck[1]).toMatch(/color:\s*#6f6c66/)
+    expect(struck[1]).toMatch(/text-decoration:\s*line-through/)
+    expect(c).toMatch(/\.rowActsHidden \.acts\s*\{[^}]*display:\s*flex/)
+  })
+})
+
+describe('UCT Signature — the row holds its hover state while its menu is open', () => {
+  const h = () => ({ onOpen: vi.fn(), onToggleHidden: vi.fn(), onSettings: vi.fn() })
+  it('menuOpen puts .rowActive on the row and aria-expanded on the ⋯', () => {
+    const { container } = render(<LegendRow rowId="volume" label="Volume" value="38.7M" vertical menuOpen {...h()} />)
+    const row = container.querySelector('[data-legend-row="volume"]')
+    expect(row.className).toMatch(/rowActive/)
+    const more = row.querySelector('button[aria-label="More for Volume"]')
+    expect(more.getAttribute('aria-expanded')).toBe('true')
+  })
+  it('closed: no .rowActive and no aria-expanded', () => {
+    const { container } = render(<LegendRow rowId="volume" label="Volume" value="38.7M" vertical {...h()} />)
+    const row = container.querySelector('[data-legend-row="volume"]')
+    expect(row.className).not.toMatch(/rowActive/)
+    expect(row.querySelector('button[aria-label="More for Volume"]').hasAttribute('aria-expanded')).toBe(false)
+  })
+  it('.rowActive shows the card and the strip exactly as :hover does', () => {
+    const css = read('LegendRow.module.css').replace(/\s+/g, '')
+    expect(css).toMatch(/\.rowActs:focus-visible::before,\.rowActive::before\{opacity:1;\}/)
+    expect(css).toMatch(/\.rowActive\.acts\{display:flex;\}/)
   })
 })

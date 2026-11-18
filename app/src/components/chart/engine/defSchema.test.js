@@ -1296,6 +1296,11 @@ describe('schema v2 — many trees, one hash', () => {
       .flatMap(([prefix, dir]) => readdirSync(dir)
         .filter((f) => f.endsWith('.js') && !f.endsWith('.test.js') && f !== 'defSchema.js')
         .map((f) => [prefix + f, readFileSync(resolve(dir, f), 'utf8')]))
+    /** ⛔ CODE, NEVER PROSE (2026-11-16). The sweep reads each module with its comments
+     *  removed: engine 66's history line in scriptEngineVersion.js says "`array.fill` past the
+     *  end", and a comment is not a reader of `plots[].fill`. Block and line comments only; a
+     *  `//` after a `:` or a quote (a URL in a string) is left alone. */
+    const codeOf = (src) => src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:\'"`])\/\/[^\n]*/g, '$1')
     /** ⛔ `.fill` NOT FOLLOWED BY `(`. `col.fill(NaN)` (interpret.js),
      *  `new Array(n).fill(0)` (paneLayout.js) and `ctx.fill()` are the Array and
      *  Canvas METHODS — a probe that counted those would report every renderer as
@@ -1310,7 +1315,10 @@ describe('schema v2 — many trees, one hash', () => {
     // names the readers, so a future change that quietly stops drawing bands
     // (or moves the reader somewhere this sweep cannot see) goes red in turn.
     it('the fill field is READ by exactly the modules that draw it — no more, no fewer', () => {
-      const readers = engineSources().filter(([, src]) => FIELD_READ.test(src)).map(([name]) => name)
+      const readers = engineSources().filter(([, src]) => FIELD_READ.test(codeOf(src))).map(([name]) => name)
+      // control: the comment stripper cannot hide a real read, and does hide prose
+      expect(FIELD_READ.test(codeOf('const w = plot.fill.with // a reader'))).toBe(true)
+      expect(FIELD_READ.test(codeOf('/** stops at `array.fill` past the end */ const n = 1'))).toBe(false)
       expect(readers.sort(),
         'the set of modules reading plots[].fill changed. C1-B gave the field a renderer: '
         + '`binder.js` is the ONE reader — it resolves `fill.with` to a sibling column and '
@@ -1318,8 +1326,19 @@ describe('schema v2 — many trees, one hash', () => {
         + 'A NEW name here is a second authority over one field; a MISSING one means the '
         + 'band stopped being drawn and every "fills are supported" claim went stale with it. '
         + '`memberDocumentMigration.js` reads it only to tell a STATIC band from a conditional '
-        + 'one before resolving a door-stamped opacity (`upgradeFromDoorStamps`); it draws nothing.',
-      ).toEqual(['binder.js', 'memberDocumentMigration.js'])
+        + 'one before resolving a door-stamped opacity (`upgradeFromDoorStamps`); it draws nothing. '
+        + '`otherSymbols.js` (`staticOtherSymbolRefusals`) and `astColumns.js` (`refuseColourReaders`, moved there '
+        + 'unchanged from `nativeRegistry.js` by HEADLESS R6) '
+        + 'read only `fill.colorMode`, to refuse BY NAME a plot whose band colour reads a refused '
+        + 'symbol (engine 55 review F1, 53589fa5a2); they draw nothing either.',
+      ).toEqual(['astColumns.js', 'binder.js', 'memberDocumentMigration.js', 'otherSymbols.js'])
+      // ⛔ and the two refusal readers read the band's COLOUR MODE only, never `fill.with` or a band
+      for (const name of ['astColumns.js', 'otherSymbols.js']) {
+        const src = engineSources().find(([n]) => n === name)[1]
+        const reads = src.match(/\.fill\b(?!\s*\()[.\w]*/g) || []
+        expect(reads.length, name).toBeGreaterThan(0)
+        expect(reads.every((r) => r === '.fill' || r === '.fill.colorMode'), `${name}: ${reads.join(', ')}`).toBe(true)
+      }
       // ⛔ AND THE PROBE IS NOT VACUOUS, in both directions. `defSchema.js` — the
       // one legitimate reader, excluded above — must MATCH, or the pattern has
       // rotted into one that reports every deletion as done; and the Array

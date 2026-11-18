@@ -57,27 +57,29 @@ def mint(base: str, email: str, password: str, user_id: str) -> str:
     )
     headers = {"Content-Type": "application/json", "User-Agent": UA}
 
-    login = urllib.request.Request(
-        f"{base}/api/auth/login",
-        data=json.dumps({"email": email, "password": password}).encode(),
-        headers=headers,
-    )
-    with opener.open(login, timeout=30) as resp:
-        payload = json.loads(resp.read())
-    if payload.get("requires_totp"):
+    # The script's own session only authorises the link (the device redeems a separate,
+    # single-use token), so tools/synthetic_session.py signs it OUT as soon as the link is minted.
+    try:
+        from tools import synthetic_session as S  # noqa: PLC0415 — package import
+    except ImportError:
+        import synthetic_session as S  # noqa: PLC0415 — script import (tools/ on sys.path)
+    try:
+        session = S.sign_in_urllib(opener, base, credentials=(email, password), timeout=30)
+    except S.TotpRequired:
         raise SystemExit(
             "⛔ The smoke account has TOTP enabled. A login link deliberately refuses such an "
             "account — it must never out-rank a second factor — so this path is closed until "
             "TOTP is removed from the synthetic account."
-        )
+        ) from None
 
-    req = urllib.request.Request(
-        f"{base}/api/auth/smoke-login-link",
-        data=json.dumps({"user_id": user_id}).encode(),
-        headers=headers,
-    )
-    with opener.open(req, timeout=30) as resp:
-        return json.loads(resp.read())["url"]
+    with session:
+        req = urllib.request.Request(
+            f"{base}/api/auth/smoke-login-link",
+            data=json.dumps({"user_id": user_id}).encode(),
+            headers=headers,
+        )
+        with opener.open(req, timeout=30) as resp:
+            return json.loads(resp.read())["url"]
 
 
 def self_check() -> int:

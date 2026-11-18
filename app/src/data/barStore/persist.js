@@ -49,7 +49,7 @@ import {
   idbPutMonotonic, idbGet, idbImportPack, idbPutHistory, idbGetHistory, idbGetHistoryEntry,
   _intradayGapStart, _newestInteriorHoleEnd,
 } from '../../utils/barsIDB'
-import { TAIL_ENTRY_MAX_BARS, historyLagsTail } from '../../utils/historyPrepend'
+import { TAIL_ENTRY_MAX_BARS, HIST_PERSIST_MAX_BARS, historyLagsTail } from '../../utils/historyPrepend'
 import { ACTION, parseKey, isDateTf, isIntradayTf, unixToDateLabel, keyOf } from './types'
 import { isSealedRow, bucketEnd, normT } from './reducer'
 
@@ -198,8 +198,11 @@ export function createPersist({
     // when its history grew past the segment or the tail is about to outrun it.
     if (isIntradayTf(p.tf) && rows.length > TAIL_ENTRY_MAX_BARS) {
       const h = hist.get(key)
-      if (!h || rows[0].t < h.first || historyLagsTail(h.last, rows)) {
-        const out = await IO.idbPutHistory(p.sym, p.cacheTf, rows, { meta: histStamp(s) })
+      // At most the newest HIST_PERSIST_MAX_BARS: deeper rows (the lake's) come back from the HTTP
+      // cache, and a whole 20,000-row series is a large structured clone on every growth.
+      const seg = rows.length > HIST_PERSIST_MAX_BARS ? rows.slice(-HIST_PERSIST_MAX_BARS) : rows
+      if (!h || seg[0].t < h.first || historyLagsTail(h.last, rows)) {
+        const out = await IO.idbPutHistory(p.sym, p.cacheTf, seg, { meta: histStamp(s) })
         if (out?.length) _noteHist(key, out)
       }
     }
@@ -271,9 +274,14 @@ export function createPersist({
      * dispatched with the gen it was read under, so a hit that lands after an invalidate is
      * dropped by the reducer.
      */
-    async hydrate(key) {
+    /**
+     * The SYNCHRONOUS half of `hydrate`: the mem record only. For a reader that already has an
+     * entry holding no rows (a peek made it before a warmer promoted the key to the mem cache)
+     * and must not start another pair of IDB reads to look again. Returns the mem entry or null.
+     */
+    hydrateMem(key) {
       const p = parseKey(key)
-      if (!p || p.window) return registry.getSnapshot(key)
+      if (!p || p.window) return null
       const gen = registry.getSnapshot(key).gen
       const m = IO.memPeekEntry(p.sym, p.cacheTf)
       if (m?.bars?.length) {
@@ -281,6 +289,13 @@ export function createPersist({
         registry.dispatch(key, { type: ACTION.MEM_HIT, key, gen, payload: { ...decodeEntry(key, m), saved_at: m.savedAt ?? null, repair_from: repair } })
         _noteSaved(key, m.savedAt)
       }
+      return m?.bars?.length ? m : null
+    },
+    async hydrate(key) {
+      const p = parseKey(key)
+      if (!p || p.window) return registry.getSnapshot(key)
+      const gen = registry.getSnapshot(key).gen
+      const m = this.hydrateMem(key)
       let e = null
       try { e = await IO.idbGet(p.sym, p.cacheTf) } catch { e = null }
       if (e?.bars?.length) {

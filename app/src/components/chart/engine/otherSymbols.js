@@ -45,6 +45,8 @@
 //     keeps its refusal (`other-symbol:class-share`).
 
 import { SYMBOL_EXCHANGE_CONFIRMED } from './ast/bind'
+import { isoDay, SERIES_GAPS_READ_NA, isoWeekDayOf, isoDayPlus, tfBucket } from './ast/interpret'
+import REQUEST_WITNESSES from './requestWitnesses.json'
 
 /** The venue spelling `pine.js::otherSymbolOf` records for the chart's own
  *  exchange (`ticker.new(syminfo.prefix, …)`). */
@@ -67,6 +69,13 @@ export const OTHER_SYMBOL_REFUSAL = Object.freeze({
   // ⭐ ENGINE 55 (review M1/L5) — an exchange outside the US listings our bar store holds
   // (`TSX:RY`, `XETR:SAP`), decided from the spelling alone (`spellingUnservable`).
   VENUE_FOREIGN: 'other-symbol:venue-foreign',
+  // ⭐ RS RATING L1b — a spelling served only behind a capture witness (`requestWitnesses.json`)
+  // whose capture has not landed, and one read on a timeframe its witness does not cover.
+  WITNESS_PENDING: 'other-symbol:witness-pending',
+  WITNESS_TIMEFRAME: 'other-symbol:witness-timeframe',
+  // ⭐ RS RATING L6b — `request.seed(source, symbol, …)` naming a seed our store does not
+  // register (`requestWitnesses.json`'s `seed` rows = `pine_seed_store.py::SEEDS`).
+  SEED_UNREGISTERED: 'other-symbol:seed-unregistered',
 })
 
 const CONFIRMED_PINE = new Set(Object.values(SYMBOL_EXCHANGE_CONFIRMED))
@@ -116,6 +125,300 @@ const US_LISTING_SHAPE = /^[A-Z]{1,5}(\.[A-Z])?$/
 // (`ADDYY`, `DECK`, `TICKS` are listings, and must not be told about breadth).
 const BREADTH_SHAPE = /^(ADVDEC|ADVN|ADVQ|ADV|DECN|DECQ|DECL|DEC|UNCH[NQ]?|UVOL[NQ]?|DVOL[NQ]?|TICK[QI]?|TRINQ?|ADDQ?|VOLDQ?)(\.[A-Z]{2})?$/
 
+// ─── ⭐⭐ RS RATING L1b — A SPELLING SERVED ONLY BEHIND ITS CAPTURE WITNESS ─────────────
+//
+// `requestWitnesses.json` holds the other-symbol spellings that are not a US listing
+// (`SP:SPX`, the S&P 500 index): each names the key our bars route serves it under, the
+// chart timeframes its witness covers, the capture that settles it and how that capture
+// places the series' bars on a chart's (`alignment`). ⛔ A row SERVES only when it carries a
+// `witness` and a `captured` date and its `alignment` is one this module knows; until then
+// `staticallyUnservable` (the one gate both lanes ask) refuses the spelling by name, citing
+// the queue row. So turning a spelling on is one data edit, and nothing else moves.
+
+/** How a witness places a series' bars on a chart's, by name. ⛔ An unknown name serves nothing. */
+export const WITNESS_ALIGNMENTS = Object.freeze({
+  // the series' bar of a session date is read on the chart bar of the same date
+  SAME_DATE: 'same-date',
+  // each series bar is read on the chart's NEXT session (Q-RS3: TradingView's `SP:SPX` on a
+  // stock's daily chart reads the previous session's SPX bar, as "D" and as timeframe.period)
+  PREVIOUS_SESSION: 'previous-session',
+  // ⭐ RS RATING L6b — each row on the chart bar of the same date, and a chart bar with no row
+  // reads `na` (no carry-forward), as witnessed (Q-RS2: TradingView's `request.seed`)
+  SAME_DATE_GAPS_NA: 'same-date-gaps-na',
+})
+
+// ─── ⭐⭐ RS RATING L11 (Q-RS7) — A WITNESSED SPELLING ON A CHART OF ANOTHER PERIOD ─────────
+//
+// A row's top-level `alignment` places its series on the chart timeframe(s) it lists with no
+// block of their own (`D`). A chart timeframe with a block (`periods.W`) is served from the series
+// HELD at another timeframe (`held`: our weekly SPX is ten years of yfinance keyed by Monday, and a
+// seed is served daily only, so on a weekly chart both are fetched and held at `D`), read the way
+// that block's capture witnessed, per request timeframe (`reads`):
+//   `period` — the read at the chart's own timeframe (`timeframe.period`): a FOLD of the held rows;
+//   `D`      — a daily read below the chart: the row's own DAILY read (its `alignment`), each chart
+//              bar then reading one of its period's rows (a SAMPLE).
+// ⛔ A read the block does not name, a block without `witness` + `captured`, an unknown fold or
+// sample: refused by name (`other-symbol:witness-timeframe`), never guessed.
+
+/** How a block reads its held rows, by name. ⛔ An unknown name serves nothing. */
+export const WITNESS_PERIOD_READS = Object.freeze({
+  // FOLD (a `period` read): the held daily rows folded into Monday-to-Sunday weeks (the weekly bar
+  // `interpret.js::resampleTo` builds, `bars_fetch._resample_weekly_iso`'s rule), each week read on
+  // the FOLLOWING calendar week's chart bar. Q-RS7 R1: TradingView's `SP:SPX` at `timeframe.period`
+  // on a weekly stock chart reads the previous week's last daily close on every settled week.
+  PREVIOUS_WEEK: 'previous-week',
+  // SAMPLE (a `D` read): each chart week reads the LAST of its rows (as the row's daily read placed
+  // them). Q-RS7 R2: `SP:SPX` at "D" on a weekly chart reads the previous-session value at the week's
+  // last session (its Thursday close in a full week).
+  WEEK_LAST_ROW: 'week-last-row',
+  // SAMPLE (a `D` read): each chart week reads the row dated its FIRST calendar day (Monday), and a
+  // week with no such row reads `na`. Q-RS7 R4: `request.seed` on a weekly chart.
+  WEEK_FIRST_DAY: 'week-first-day',
+})
+const PERIOD_FOLDS = Object.freeze([WITNESS_PERIOD_READS.PREVIOUS_WEEK])
+const BELOW_SAMPLES = Object.freeze([WITNESS_PERIOD_READS.WEEK_LAST_ROW, WITNESS_PERIOD_READS.WEEK_FIRST_DAY])
+/** The request timeframes a block may name below the chart, and the chart timeframes a block may
+ *  stand on: a daily read on a weekly chart is the one witnessed shape. */
+const HELD_TIMEFRAMES = Object.freeze({ W: 'D' })
+
+/** ⭐ RS RATING L11 — the key a series HELD at another timeframe rides the chart's secondary cache
+ *  under (`SPX@D` on a weekly chart), so it never collides with the same store ticker fetched at the
+ *  chart's own timeframe (a `sym:SPX` source). The store key itself where nothing is held. */
+export function heldSecondaryKey(store, held, chartTf) {
+  const s = String(store || '').trim().toUpperCase()
+  return held && String(held) !== String(chartTf == null ? '' : chartTf) ? `${s}@${held}` : s
+}
+
+/** `{symbol, tf}` a held key names (`SPX@D` → SPX at D), or null for an ordinary key. */
+export function heldKeyParts(key) {
+  const m = /^(.+)@(D)$/.exec(String(key || ''))
+  return m ? { symbol: m[1], tf: m[2] } : null
+}
+
+function witnessRowsOf(rows) {
+  const out = {}
+  for (const [k, v] of Object.entries(rows || {})) {
+    if (k.startsWith('_') || !v || typeof v !== 'object' || typeof v.store !== 'string') continue
+    const spelling = k.trim().toUpperCase()
+    out[spelling] = Object.freeze({ ...v, spelling,
+      timeframes: Object.freeze(Array.isArray(v.timeframes) ? v.timeframes.map(String) : []) })
+  }
+  return Object.freeze(out)
+}
+let _witnessRows = witnessRowsOf(REQUEST_WITNESSES && REQUEST_WITNESSES.rows)
+
+/** Every witness row, keyed by spelling. */
+export function requestWitnessRows() { return _witnessRows }
+
+/** ⛔ TEST SEAM — replace the rows (`null` restores the committed file). A rail injects the
+ *  witnessed row exactly as the landed capture's one data edit writes it. */
+export function setRequestWitnessRows(rows) {
+  _witnessRows = witnessRowsOf(rows || (REQUEST_WITNESSES && REQUEST_WITNESSES.rows))
+}
+
+/** The witness row a `venue` + `ticker` spelling names, or null. */
+export function witnessRowOf(venue, ticker) {
+  const v = String(venue == null ? '' : venue).trim().toUpperCase()
+  const t = String(ticker || '').trim().toUpperCase()
+  if (!v || v === '?' || v.startsWith('@') || !t) return null
+  return _witnessRows[`${v}:${t}`] || null
+}
+
+/** ⭐ RS RATING L6b — a Pine seed's spelling, `SEED_<SOURCE>:<SYMBOL>`. */
+export const SEED_SPELLING = /^(SEED_[A-Z0-9_]+):([A-Z0-9_.]+)$/
+
+/** Is this row's capture in, and does this module know how to place its bars? */
+export function witnessRowServes(row) {
+  return !!row && typeof row.witness === 'string' && row.witness.trim() !== ''
+    && typeof row.captured === 'string' && row.captured.trim() !== ''
+    && Object.values(WITNESS_ALIGNMENTS).includes(row.alignment)
+}
+
+function witnessPendingWhy(row) {
+  return { code: OTHER_SYMBOL_REFUSAL.WITNESS_PENDING, reason: `\`${row.spelling}\` is served only once a `
+    + `TradingView capture witnesses it (capture-queue row ${row.queue_row}, probe \`${row.probe}\`), and that `
+    + 'capture has not been matched, so what this indicator draws from it is not computed.' }
+}
+
+/** ⭐ RS RATING L11 — is this chart timeframe's block in (`witness` + `captured`), held at the one
+ *  witnessed timeframe, and does it name only reads this module knows? */
+export function periodBlockServes(block, chartTf) {
+  if (!block || typeof block !== 'object') return false
+  if (!(typeof block.witness === 'string' && block.witness.trim() && typeof block.captured === 'string' && block.captured.trim())) return false
+  if (!HELD_TIMEFRAMES[chartTf] || block.held !== HELD_TIMEFRAMES[chartTf]) return false
+  const reads = block.reads
+  if (!reads || typeof reads !== 'object' || !Object.keys(reads).length) return false
+  return Object.entries(reads).every(([code, how]) => (code === 'period' ? PERIOD_FOLDS.includes(how)
+    : code === HELD_TIMEFRAMES[chartTf] && BELOW_SAMPLES.includes(how)))
+}
+
+/**
+ * ⭐⭐ RS RATING L11 — HOW A WITNESS ROW IS READ ON THIS CHART, or null when it is not served here:
+ * `{held, key, fold, sample}` — the timeframe its series is fetched and held at, the secondary-cache
+ * key it rides (`heldSecondaryKey`), and the FOLD (a `period` read) or SAMPLE (a read below the chart)
+ * its block witnessed. A chart timeframe with no block is the row's own (`alignment`, held as is).
+ * @param {object} row
+ * @param {string} chartTf
+ * @param {string|null|undefined} code  the request's timeframe: `null` the chart's own
+ *   (`timeframe.period`), `'D'` a daily read; `undefined` the HOST bind, which serves the chart's own
+ *   read where the block declares one, else the daily read (every host tree reading such a spelling at
+ *   another period carries the daily base gate, `interpret.js::requestBaseNode`, and is withheld whole on
+ *   this chart, so only the run, which asks per request, reads it)
+ */
+export function witnessReadOf(row, chartTf, code) {
+  const tf = chartTf == null ? '' : String(chartTf)
+  if (!row || !row.timeframes.includes(tf)) return null
+  const block = row.periods && typeof row.periods === 'object' ? row.periods[tf] : null
+  if (!block) return { held: tf, key: heldSecondaryKey(row.store, tf, tf), fold: null, sample: null }
+  if (!periodBlockServes(block, tf)) return null
+  const reads = block.reads
+  let fold = null
+  let sample = null
+  if (code === undefined) {
+    if (reads.period) fold = reads.period
+    else sample = reads[block.held] || null
+  } else if (code === null) {
+    fold = reads.period || null
+  } else if (String(code) === block.held) {
+    sample = reads[block.held] || null
+  }
+  if (!fold && !sample) return null
+  return { held: block.held, key: heldSecondaryKey(row.store, block.held, tf), fold, sample }
+}
+
+/** The sentence for a witness row that is not served on this chart, or at this request's timeframe. */
+function witnessTimeframeWhy(row, chartTf, code) {
+  const tf = chartTf == null ? '' : String(chartTf)
+  const block = row.periods && typeof row.periods === 'object' && tf ? row.periods[tf] : null
+  if (!row.timeframes.includes(tf) || !block) {
+    const rows = [row.queue_row, ...Object.values(row.periods || {}).map((b) => b && b.queue_row)].filter(Boolean)
+    return `\`${row.spelling}\` is witnessed on ${row.timeframes.join(', ') || 'no'} charts only (capture-queue `
+      + `row${rows.length > 1 ? 's' : ''} ${rows.join(', ')}), and this chart is ${tf ? `\`${tf}\`` : 'of no stated timeframe'}`
+  }
+  if (!periodBlockServes(block, tf)) {
+    return `\`${row.spelling}\` on a \`${tf}\` chart is served only once a TradingView capture witnesses it there `
+      + `(capture-queue row ${block.queue_row}, probe \`${block.probe}\`), and that capture has not been matched`
+  }
+  const named = Object.keys(block.reads || {}).map((c) => (c === 'period' ? '`timeframe.period`' : `\`"${c}"\``))
+  return `\`${row.spelling}\` on a \`${tf}\` chart is witnessed only as read at ${named.join(' and at ')} (capture-queue `
+    + `row ${block.queue_row}), and this request reads it at \`"${code}"\``
+}
+
+/** ⭐ RS RATING L11 — the HELD timeframe and key a store ticker is fetched under on this chart (`SPX` on a
+ *  weekly chart: at `D`, as `SPX@D`), or null when it is fetched at the chart's own timeframe as itself.
+ *  One answer for the chart's fetch (`useSecondarySources`), the binder's memo and the harness. */
+export function heldFetchOf(store, chartTf) {
+  const s = String(store || '').trim().toUpperCase()
+  const tf = chartTf == null ? '' : String(chartTf)
+  for (const row of Object.values(_witnessRows)) {
+    if (!row || String(row.store).toUpperCase() !== s) continue
+    const block = row.periods && typeof row.periods === 'object' ? row.periods[tf] : null
+    if (block && row.timeframes.includes(tf) && periodBlockServes(block, tf)) {
+      return { symbol: s, tf: block.held, key: heldSecondaryKey(s, block.held, tf) }
+    }
+  }
+  return null
+}
+
+/** ⭐ RS RATING L11 — how many HELD daily rows a chart of `barCount` weekly bars needs: seven calendar
+ *  days a week (a seed's rows are calendar days; an index's sessions are fewer) and two weeks before the
+ *  first chart week (the previous week a fold reads, the previous session a daily read places), capped
+ *  at what the index door answers (`api/index_bars.py`, 12,500 sessions; from 1990 that is all of it). */
+export const HELD_DAILY_DEPTH_CAP = 12500
+export function heldDepthOf(barCount) {
+  const n = Number.isFinite(barCount) && barCount > 0 ? Math.floor(barCount) : 200
+  return Math.min(HELD_DAILY_DEPTH_CAP, n * 7 + 14)
+}
+
+/** ⭐ A witnessed series' bars keyed the way the chart keys its own: by SESSION DATE
+ *  (`interpret.js::isoDay` reads unix seconds, a `YYYYMMDD` int or an ISO day — an index's
+ *  daily bars carry unix seconds at the session's UTC midnight, a stock's an ISO date), then
+ *  placed by the row's `alignment`. A bar whose day cannot be read is dropped, never guessed. */
+export function witnessedBarsOf(row, bars) {
+  const keyed = []
+  for (const b of bars) {
+    const day = b && isoDay(b.t)
+    if (day) keyed.push(typeof b.t === 'string' && b.t === day ? b : { ...b, t: day })
+  }
+  if (row.alignment === WITNESS_ALIGNMENTS.SAME_DATE_GAPS_NA) {
+    Object.defineProperty(keyed, SERIES_GAPS_READ_NA, { value: true, enumerable: false })
+    return keyed
+  }
+  if (row.alignment !== WITNESS_ALIGNMENTS.PREVIOUS_SESSION) return keyed
+  // each bar is read on the NEXT session; the newest has none yet, so nothing reads it
+  const out = []
+  for (let j = 0; j + 1 < keyed.length; j += 1) out.push({ ...keyed[j], t: keyed[j + 1].t })
+  return out
+}
+
+/** ⭐⭐ RS RATING L11 (Q-RS7 R1) — `previous-week`: the held DAILY rows folded into Monday-to-Sunday
+ *  weeks (the weekly bar `interpret.js::resampleTo` builds: the first open, the highest high, the lowest
+ *  low, the last close, the summed volume), each week keyed as the product keys a weekly bar (its
+ *  FRIDAY, `isoWeekDayOf(·, 5)`) one calendar week LATER: a weekly chart bar reads the week before its
+ *  own. ⭐ Placed by the calendar, not by the next held week, so a chart week whose own daily rows have
+ *  not arrived yet still reads the week before it (the newest held week lands on a key no chart bar has).
+ *  ⛔ A row whose day cannot be read, or that is not after the row before it, is dropped, never merged
+ *  into the wrong week. */
+export function previousWeekBarsOf(bars) {
+  const weeks = []
+  let cur = null
+  let lastDay = ''
+  for (const b of bars) {
+    const day = b && isoDay(b.t)
+    if (!day || day <= lastDay) continue
+    lastDay = day
+    const friday = isoWeekDayOf(day, 5)
+    if (!cur || cur.friday !== friday) {
+      cur = { friday, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v || 0 }
+      weeks.push(cur)
+    } else {
+      cur.h = Math.max(cur.h, b.h)
+      cur.l = Math.min(cur.l, b.l)
+      cur.c = b.c
+      cur.v += (b.v || 0)
+    }
+  }
+  return weeks.map((w) => ({ t: isoDayPlus(w.friday, 7), o: w.o, h: w.h, l: w.l, c: w.c, v: w.v }))
+}
+
+/** ⭐⭐ RS RATING L11 (Q-RS7 R2 / R4) — WHICH ROW OF A DAILY SERIES EACH WEEKLY CHART BAR READS, by the
+ *  block's SAMPLE: `{index, withheld}`, `index[i]` the row of `series` chart bar `i` reads (`-1`: none,
+ *  Pine's `na`), `withheld` a 0/1 column. The chart bar's week is read off its own `t` (any day of the
+ *  week names it: the product's Friday key, a capture's Monday), so nothing here depends on how the
+ *  chart keys a week.
+ *    `week-last-row`  — the week's LAST row of `series` (the row's daily read already placed each row:
+ *                       `previous-session` puts each SPX bar on the next session, so the last row of a
+ *                       week is the bar of the session before its last). A week with no row after the
+ *                       series began is UNKNOWN (withheld); before it began, `na`.
+ *    `week-first-day` — the row dated the week's Monday; none reads `na` (the seed's witnessed gaps,
+ *                       `same-date-gaps-na`: known, never withheld).
+ *  `series` is the row's daily read (`witnessedBarsOf`), so the request's expression runs on DAILY bars
+ *  and only its value is sampled. */
+export function weekSampleOf(series, chartBars, sample) {
+  const n = Array.isArray(chartBars) ? chartBars.length : 0
+  const index = new Array(n).fill(-1)
+  const withheld = new Float64Array(n)
+  const known = sample === WITNESS_PERIOD_READS.WEEK_LAST_ROW || sample === WITNESS_PERIOD_READS.WEEK_FIRST_DAY
+  if (!known) { withheld.fill(1); return { index, withheld } }
+  const byWeek = new Map()
+  let firstDay = null
+  for (let j = 0; j < (series || []).length; j += 1) {
+    const day = series[j] && isoDay(series[j].t)
+    if (!day) continue
+    if (firstDay === null || day < firstDay) firstDay = day
+    if (sample === WITNESS_PERIOD_READS.WEEK_LAST_ROW) byWeek.set(tfBucket(day, 'W'), j)
+    else if (isoWeekDayOf(day, 1) === day && !byWeek.has(tfBucket(day, 'W'))) byWeek.set(tfBucket(day, 'W'), j)
+  }
+  for (let i = 0; i < n; i += 1) {
+    const day = chartBars[i] && isoDay(chartBars[i].t)
+    if (!day) { withheld[i] = 1; continue }
+    const j = byWeek.get(tfBucket(day, 'W'))
+    if (j !== undefined) index[i] = j
+    else if (sample === WITNESS_PERIOD_READS.WEEK_LAST_ROW && firstDay !== null && day > firstDay) withheld[i] = 1
+  }
+  return { index, withheld }
+}
+
 /**
  * ⭐⭐ ENGINE 55 — AN OTHER-SYMBOL SPELLING NO BINDING CAN EVER SERVE, decided from the
  * spelling alone: `{code, reason}`, or null when the bind must decide (a held listing,
@@ -141,6 +444,9 @@ const BREADTH_SHAPE = /^(ADVDEC|ADVN|ADVQ|ADV|DECN|DECQ|DECL|DEC|UNCH[NQ]?|UVOL[
 export function staticallyUnservable(ticker, venue) {
   const t = String(ticker || '').trim().toUpperCase()
   if (!t) return null
+  // ⭐ RS RATING L1b — a spelling with a witness row is decided by its row alone
+  const row = witnessRowOf(venue, t)
+  if (row) return witnessRowServes(row) ? null : witnessPendingWhy(row)
   const breadth = BREADTH_SHAPE.test(t)
   const notYet = breadth
     ? ' It is a market breadth series (advancing / declining issues or volume), and this breadth symbol is not available yet.'
@@ -173,9 +479,26 @@ export function staticallyUnservable(ticker, venue) {
 export function spellingUnservable(raw) {
   const s = String(raw == null ? '' : raw).trim().toUpperCase()
   if (!s) return null
+  // ⭐ RS RATING L6b — a Pine seed (`request.seed` reads `<SOURCE>:<SYMBOL>`, the source
+  // `SEED_…`): its row's decision, or `other-symbol:seed-unregistered`
+  const seed = SEED_SPELLING.exec(s)
+  if (seed) {
+    if (witnessRowOf(seed[1], seed[2])) {
+      const why = staticallyUnservable(seed[2], seed[1])
+      return why ? { ticker: seed[2], ...why } : null
+    }
+    return { ticker: s, code: OTHER_SYMBOL_REFUSAL.SEED_UNREGISTERED, reason: `\`${s}\` is a Pine Seeds series our `
+      + 'store does not hold (the seeds it serves are listed in `requestWitnesses.json`), so what this indicator draws '
+      + 'from it is not computed.' }
+  }
   const m = /^([A-Z][A-Z0-9_.]{0,15}):(.*)$/.exec(s)
   const venue = m ? m[1] : ''
   const ticker = m ? m[2].trim() : s
+  // ⭐ RS RATING L1b — a witness row's spelling (`SP:SPX`) is the row's to decide
+  if (m && witnessRowOf(venue, ticker)) {
+    const why = staticallyUnservable(ticker, venue)
+    return why ? { ticker, ...why } : null
+  }
   if (m && !US_EQUITY_VENUES.has(venue)) {
     const notYet = BREADTH_SHAPE.test(ticker)
       ? ' It is a market breadth series (advancing / declining issues or volume), and this breadth symbol is not available yet.'
@@ -424,6 +747,13 @@ export function fetchableOtherSymbols(def) {
   if (!def || !def.meta || !Array.isArray(def.meta.otherSymbols)) return []
   const out = []
   for (const { ticker, spellings } of otherSymbolRequestsOf(def)) {
+    // ⭐ RS RATING L1b — a witnessed row is fetched under its store key, and only when every
+    // spelling of the ticker is that one served row
+    const rows = spellings.map((v) => witnessRowOf(v, ticker))
+    if (rows.some(Boolean)) {
+      if (rows.every((r) => r && r === rows[0] && witnessRowServes(r))) out.push(rows[0].store)
+      continue
+    }
     if (!spellings.length || unservableSpelling(ticker)) continue
     // ⭐ C29 — a bare spelling (`''`) may be served too (when the store holds the
     // ticker on a witnessed exchange), so it is worth fetching; the bind decides.
@@ -460,6 +790,8 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
   const symbols = {}
   const served = []
   const refused = []
+  // ⭐ RS RATING L11 — a series served for a read BELOW the chart names how each chart bar samples it
+  const samples = {}
   const requests = otherSymbolRequestsOf(def)
   if (!requests.length) return { symbols, served, refused }
   const confirmedPine = confirmed === SYMBOL_EXCHANGE_CONFIRMED
@@ -488,6 +820,49 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
       // ⭐ `static`: decided by the spelling alone, so it is refused under the request
       // guard with the one sentence every door says (`staticOtherSymbolMessage`).
       refused.push({ ticker, code: hopeless.code, reason: hopeless.reason, static: true })
+      continue
+    }
+    // ⭐⭐ RS RATING L1b — A WITNESSED SPELLING (`SP:SPX`) IS ITS ROW'S: no exchange to match,
+    // served from the row's store key on the timeframes its witness covers, its bars keyed by
+    // session date and placed as the witness places them (`witnessedBarsOf`). A pending row
+    // never reaches here (`staticallyUnservable` refused it above).
+    const rows = spellings.map((v) => witnessRowOf(v, ticker))
+    if (rows.some(Boolean)) {
+      const row = rows.find(Boolean)
+      if (!rows.every((r) => r === row)) {
+        no(ticker, OTHER_SYMBOL_REFUSAL.VENUE_MISMATCH, `\`${ticker}\` is spelled both as \`${row.spelling}\` and as `
+          + 'another listing, which are different instruments under one name')
+        continue
+      }
+      const tf = ctx.tf == null ? '' : String(ctx.tf)
+      // ⭐⭐ RS RATING L11 — WHICH READ OF THE ROW THIS CHART IS (`witnessReadOf`): the row's own
+      // timeframe as before, or a block's (a weekly chart: the series held at `D`, folded for a
+      // `timeframe.period` read, sampled for a daily one). `ctx.requestCode` is the run's request
+      // timeframe (`requestSupply.js`); the host bind states none.
+      const read = witnessReadOf(row, tf, Object.prototype.hasOwnProperty.call(ctx, 'requestCode') ? ctx.requestCode : undefined)
+      if (!read) {
+        no(ticker, OTHER_SYMBOL_REFUSAL.WITNESS_TIMEFRAME, witnessTimeframeWhy(row, tf, ctx.requestCode))
+        continue
+      }
+      const entry = secondary ? secondary.get(read.key) : null
+      const held = entry && Array.isArray(entry.bars) ? entry.bars : null
+      if (!held || !held.length) {
+        no(ticker, OTHER_SYMBOL_REFUSAL.NO_BARS, `\`${row.spelling}\`'s bars for this timeframe are not in hand`
+          + (entry && entry.status ? ` (${entry.status})` : ''))
+        if (!entry || String(entry.status || '') === 'loading') refused[refused.length - 1].pending = true
+        continue
+      }
+      symbols[ticker] = read.fold === WITNESS_PERIOD_READS.PREVIOUS_WEEK ? previousWeekBarsOf(held) : witnessedBarsOf(row, held)
+      if (read.sample) samples[ticker] = read.sample
+      served.push(ticker)
+      continue
+    }
+    // ⭐ RS RATING L11 — a daily read of a LISTING below a weekly chart (the run's request, `ctx.below`):
+    // no capture witnesses how TradingView samples one there, and this chart holds only its weekly bars
+    if (ctx.below === true) {
+      no(ticker, OTHER_SYMBOL_REFUSAL.WITNESS_TIMEFRAME, `\`${ticker}\` is read at \`"D"\` below this `
+        + `${ctx.tf ? `\`${ctx.tf}\`` : ''} chart, and a daily read below the chart is witnessed only for the spellings `
+        + '`requestWitnesses.json` names a weekly read for (`SP:SPX`, the RS Rating seed), not for a listing')
       continue
     }
     const key = storeTickerOf(ticker)
@@ -552,7 +927,8 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
     symbols[ticker] = bars
     served.push(ticker)
   }
-  return { symbols, served, refused }
+  // ⭐ RS RATING L11 — `samples` only where one is read (a daily chart's answer keeps its shape)
+  return Object.keys(samples).length ? { symbols, served, refused, samples } : { symbols, served, refused }
 }
 
 /** ⭐⭐ ENGINE 55 — THE SETTLED REFUSAL A TREE READS, or null. `{guard, message}`
@@ -578,12 +954,32 @@ export function otherSymbolRefusalOfTree(tree, decision) {
 }
 
 /** A stable signature of what `resolveOtherSymbols` would supply — for a
- *  compute memo that must recompute when a secondary series lands. */
-export function otherSymbolsSignature(def, secondary) {
-  const tickers = symTickersOf(def)
-  if (!tickers.length) return ''
-  return tickers.map((t) => {
-    const e = secondary && typeof secondary.get === 'function' ? secondary.get(storeTickerOf(t)) : null
+ *  compute memo that must recompute when a secondary series lands.
+ *
+ *  ⭐⭐ RS RATING L10 — EVERY SERIES THE DOCUMENT READS, NOT ONLY THE ONES ITS PLOT TREES READ
+ *  (`otherSymbolRequestsOf`: the trees' `sym` reads AND the translation's recorded
+ *  `meta.otherSymbols`, which carry the run half's own reads). ⚰️ 2026-11-17, production, in
+ *  session: RS Rating added from "Your indicators" stayed refused `runtime:request` for minutes on
+ *  some loads. Its trees read only SPX; its rating label reads the seed (`request.seed` → RSRATING)
+ *  in the run half alone, so the signature was `SPX:…` only. When SPX landed before the seed (whose
+ *  fetch was waiting on a retry), the run refused, and the seed landing did not move the signature:
+ *  the binder's memo never recomputed. When both landed together, or the door's preview had
+ *  fetched both first, it drew. */
+export function otherSymbolsSignature(def, secondary, chartTf) {
+  const requests = otherSymbolRequestsOf(def)
+  if (!requests.length) return ''
+  // ⭐ RS RATING L6b — a witnessed spelling's series is held under its row's store key
+  // ⭐ RS RATING L11 — and, on a chart that holds it at another timeframe, under its held key
+  // (`SPX@D` on a weekly chart: `heldFetchOf`, the key the chart's fetch files it under)
+  const recorded = new Map(requests.map((r) => [r.ticker, r.spellings]))
+  const keyOf = (t) => {
+    const row = (recorded.get(t) || []).map((v) => witnessRowOf(v, t)).find(Boolean)
+    if (!row) return storeTickerOf(t)
+    const held = heldFetchOf(row.store, chartTf)
+    return held ? held.key : row.store
+  }
+  return requests.map(({ ticker: t }) => {
+    const e = secondary && typeof secondary.get === 'function' ? secondary.get(keyOf(t)) : null
     const bars = e && Array.isArray(e.bars) ? e.bars : null
     const last = bars && bars.length ? bars[bars.length - 1] : null
     return `${t}:${e ? e.status || '' : '-'}:${bars ? bars.length : 0}:${last ? `${last.t}/${last.c}` : ''}`

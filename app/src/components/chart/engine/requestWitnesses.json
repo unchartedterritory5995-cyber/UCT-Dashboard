@@ -1,0 +1,62 @@
+{
+  "_": "⭐⭐ RS RATING L1b / L6b (2026-11-14) — OTHER-SYMBOL SPELLINGS THAT ARE SERVED ONLY BEHIND A CAPTURE WITNESS. Each key is the spelling a script writes (`request.security(\"SP:SPX\", …)`; a seed as `request.seed(source, symbol, …)` spells `<SOURCE>:<SYMBOL>`, upper-cased). `store` is the key our bars route serves it under (`/api/bars/<store>`), `timeframes` the chart timeframes the witness covers, `queue_row` / `probe` the capture that settles it, `alignment` how the witness places the series' bars on a chart's bars (`otherSymbols.js::WITNESS_ALIGNMENTS`). ⛔ A ROW SERVES ONLY WHEN IT CARRIES `witness` (the capture) AND `captured` (its date) — the rule `symbolScope.json::confirmed` keeps: a row without a witness is an assertion wearing a data structure. Without them the spelling is refused BY NAME, citing its queue row (`otherSymbols.js::staticallyUnservable`, the one gate both lanes ask). Turning a row on is ONE data edit. ⭐ The `seed` rows are the frontend's manifest of `api/services/pine_seed_store.py::SEEDS`; `tests/test_pine_seed_manifest.py` rails that the two agree. ⭐⭐ RS RATING L11 (2026-11-17) — a chart timeframe with a block of its own (`periods.<tf>`) is served from the series HELD at another timeframe (`held`; fetched and cached under `<store>@<held>`, `otherSymbols.js::heldFetchOf`) and read per request timeframe as its capture witnessed (`reads`: `period` = the chart's own timeframe, a FOLD; `D` = a daily read below the chart, the row's daily read SAMPLED per chart bar; `otherSymbols.js::WITNESS_PERIOD_READS`). A block serves only with its own `witness` + `captured`; a timeframe listed in `timeframes` with no block is the row's own (`alignment`).",
+  "rows": {
+    "SP:SPX": {
+      "kind": "index",
+      "store": "SPX",
+      "timeframes": [
+        "D",
+        "W"
+      ],
+      "queue_row": "Q-RS3",
+      "probe": "tools/visual_conformance/probes/rs-spx-daily.pine",
+      "alignment": "previous-session",
+      "source": "api/index_bars.py: daily from FMP ^GSPC first, yfinance ^GSPC as the fallback (owner ruling 2026-11-14); `t` is unix seconds at the session date's UTC midnight, keyed by session date at bind",
+      "witness": "rs-spx-daily-rddt-1d-2026-11-15, rs-spx-daily-spy-1d-2026-11-15 (s10 batch, local; UCT probes)",
+      "captured": "2026-11-15",
+      "how": "TradingView's request.security(\"SP:SPX\", \"D\" and timeframe.period, open/high/low/close) on NYSE:RDDT 1D (666 bars, from the listing) and AMEX:SPY 1D: on EVERY chart bar both spellings read the PREVIOUS session's SPX bar, never the same day's. Graded against yfinance ^GSPC (the fallback; FMP needs a key): close 0/666 and 0/679 mismatches against the previous session (max 0.0102), low 0; open 20 and high 4 differ from yfinance's own opens/highs (yfinance quirks, not alignment). X04 (\"D\") == X05 (timeframe.period) on every bar. Hence `previous-session`: each SPX bar is read on the chart's NEXT session.",
+      "periods": {
+        "W": {
+          "held": "D",
+          "reads": {
+            "period": "previous-week",
+            "D": "week-last-row"
+          },
+          "queue_row": "Q-RS7",
+          "probe": "tools/visual_conformance/probes/rs-spx-daily.pine",
+          "witness": "rs-spx-daily-w-rddt-1w-2026-11-17, rs-rating-fred6724-w-rddt-1w-2026-11-17, rs-rating-fred6724-w-nvda-1w-2026-11-17 (rs-weekly-2026-11-17 batch, local; Q-RS7)",
+          "captured": "2026-11-17",
+          "how": "TradingView on NYSE:RDDT 1W (140 bars) and NASDAQ:NVDA 1W (1453 bars), newest week forming. R1, `timeframe.period` (X05; the RS line): EVERY settled week reads the PREVIOUS week's last daily SPX close (week of 2026-11-09 reads 2026-11-06's 7376.86; 2026-11-02 reads 2026-10-30's 7580.07): 139/139 RDDT weeks against FMP ^GSPC daily (max relative difference 0) and 138/138 against TradingView's own daily SP:SPX (from the committed rs-spx-daily-pm-rddt-1d-2026-11-16), holiday weeks included (Good Friday 2025-04-18 and 2026-04-03, 2026-07-03, every Monday holiday); RS Rating's RS line on RDDT 1W is exact on all 139 settled weeks with it (`previous-week`). R2, \"D\" (X01..X04): every settled week reads the previous-session-aligned daily bar at the week's LAST session (its Thursday in a full week: 2026-11-12's 7592.40 for the week of 2026-11-09; Wednesday in a Good Friday week), open/high/low/close all equal, 139/139 (`week-last-row` over the row's `previous-session` read). The SPX weekly store (`/api/bars/SPX?tf=W`, Monday keys, ten years of yfinance) is not used: the daily rows are fetched and held. ⛔ NOT WITNESSED, and served as the fold builds them: the weekly open/high/low at `timeframe.period` (only the close, X05, is captured). ⏳ The FORMING week reads the latest SPX value on TradingView (7340.53 on 2026-11-17, both reads); here it reads the previous week's close (R1) and the newest placed daily row (R2): the one known difference, owed to an in-session capture (PR 2)."
+        }
+      }
+    },
+    "SEED_FRED6725_RS_RATING:RSRATING": {
+      "kind": "seed",
+      "store": "SEED_FRED6725_RS_RATING:RSRATING",
+      "timeframes": [
+        "D",
+        "W"
+      ],
+      "queue_row": "Q-RS2",
+      "probe": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
+      "alignment": "same-date-gaps-na",
+      "source": "api/services/pine_seed_store.py: the NEWEST upload of the public mirror Fred6725/rs-log output/RSRATING.csv (replace-on-upload, 01ce0d567f); calendar-day rows, ISO `t`",
+      "witness": "rs-seed-rsrating-rddt-1d-2026-11-15 (s10 batch, local; UCT probe)",
+      "captured": "2026-11-15",
+      "how": "TradingView's request.seed('seed_fred6725_rs_rating','RSRATING', close/open/high) on NYSE:RDDT 1D (666 bars): na on every chart bar before 2026-10-07, then exactly the newest upload's weekday rows, each on the chart bar of the SAME DATE; weekend rows never land, and chart bars after the last row read na (no carry-forward). pine_seed_store replace-on-upload gives 0 mismatches on all 666 bars, values and na-ness (peer, 2026-11-15). Hence `same-date-gaps-na`: a chart bar with no row of its date reads na, which is known, not withheld.",
+      "periods": {
+        "W": {
+          "held": "D",
+          "reads": {
+            "D": "week-first-day"
+          },
+          "queue_row": "Q-RS7",
+          "probe": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
+          "witness": "rs-seed-rsrating-w-rddt-1w-2026-11-17 (rs-weekly-2026-11-17 batch, local; Q-RS7)",
+          "captured": "2026-11-17",
+          "how": "TradingView's request.seed('seed_fred6725_rs_rating','RSRATING', close/open/high) on NYSE:RDDT 1W (140 bars, captured 2026-11-17T21:18Z): each week reads the row dated its FIRST calendar day (Monday): the week of 2026-11-09 reads 39.88 (the 2026-11-09 row) although 2026-11-12..15 hold 12.98; the week of 2026-11-16 reads 12.98; the week of 2026-10-12, whose Monday has no row (the series begins 2026-10-13), reads na where the first row of the week would have been 190.9. 140/140 weeks, values and na, against pine_seed_store's replay of the rs-log upload af528c134fb9 (2026-11-17T09:39:26Z, the newest before the capture), the forming week included (`week-first-day`, the row's `same-date-gaps-na` read sampled)."
+        }
+      }
+    }
+  }
+}

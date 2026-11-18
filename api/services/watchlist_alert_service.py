@@ -517,6 +517,31 @@ def _deliver_alert(alert: dict, current_price: float, *,
     return _delivery_report(True, channels, errors)
 
 
+#: The last line of an alert email: where the member turns that alert off. Most alerts are set
+#: from a chart, so that is the default. An alert that is switched on somewhere else names that
+#: place instead (the RS screens' daily "joined and left" message is a switch on the screen
+#: itself, `screener/rs_screen_alerts.py`); sending its reader to the chart toolbar would send
+#: them to a place that does not hold the switch.
+EMAIL_FOOTER_DEFAULT = "Manage your alerts from the chart toolbar."
+EMAIL_FOOTERS = {
+    "rs_screen_alert": ("To stop this message, open the screen in the Screener and switch off "
+                        '"Tell me what joins and leaves".'),
+    "transcript_keyword": ("To stop this message, remove the word from your earnings call alerts: "
+                           "search it in the UCT Terminal with TSRC, or open a company's earnings "
+                           "call transcript and use SEARCH ALL TRANSCRIPTS."),
+    # The Terminal list alerts (`list_alerts.py`): one switch per list, drawn on the list
+    # itself (H52, CONFL, ACCUM) and again in Settings, Notifications.
+    "list_alert": ("To stop this message, open the list in the UCT Terminal (H52, CONFL or "
+                   'ACCUM) and switch off "Alert me when a stock I follow appears here", or '
+                   "open Settings, Notifications, List alerts."),
+}
+
+
+def email_footer(source) -> str:
+    """The email's last line for one alert source (the default for any other)."""
+    return EMAIL_FOOTERS.get(str(source or ""), EMAIL_FOOTER_DEFAULT)
+
+
 def deliver_alert_payload(
     user_id: str,
     sym: str,
@@ -672,7 +697,7 @@ def deliver_alert_payload(
                 <h2 style="color:#c9a84c;font-size:16px;margin:0 0 16px;">{_html.escape(title)}</h2>
                 <p style="color:#e8e0d0;font-size:14px;margin:0 0 16px;">{_html.escape(message)}</p>
                 <p style="color:#6b6a60;font-size:12px;margin:0;">
-                    Manage your alerts from the chart toolbar.
+                    {_html.escape(email_footer(source))}
                 </p>
             """)
             # ⭐ `send_email` HAS RETURNED A BOOL SINCE IT WAS WRITTEN, and this

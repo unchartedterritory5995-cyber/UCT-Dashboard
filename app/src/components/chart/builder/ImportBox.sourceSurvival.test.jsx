@@ -31,6 +31,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { PINE_DEBOUNCE_MS } from './PineBox'
 import { AuthContext } from '../../../context/AuthContext'
 import { translatePine } from '../engine/ast/pine'
@@ -53,13 +54,15 @@ const flush = async () => {
 const noop = () => {}
 
 function mount() {
-  return render(
+  const view = render(
     <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
         <BuilderSheet open onClose={noop} />
       </SWRConfig>
     </AuthContext.Provider>,
   )
+  writeMyself()
+  return view
 }
 
 /** ⚠️ `getByRole`, never `findByRole` — this file runs on fake timers. */
@@ -72,7 +75,7 @@ async function settle() {
 }
 
 async function typeScript(text) {
-  fireEvent.click(tab(/^import$/i))
+  openSource('pine')
   fireEvent.change(pasteField(), { target: { value: text } })
   await settle()
 }
@@ -105,9 +108,9 @@ describe('🔴 a script survives leaving the tab and asks before being discarded
     await typeScript(WORKS)
     expect(pasteField().value).toContain('ta.rsi')
 
-    fireEvent.click(tab(/^library$/i))
+    fireEvent.click(tab(/^formula$/i))
     await flush()
-    fireEvent.click(tab(/^import$/i))
+    openSource('pine')
     await flush()
 
     expect(pasteField().value, 'the script was destroyed by a tab click').toBe(WORKS)
@@ -118,9 +121,9 @@ describe('🔴 a script survives leaving the tab and asks before being discarded
     // empty, so nothing else in the sheet is holding a copy of this text.
     mount()
     await typeScript(HALF_WRITTEN)
-    fireEvent.click(tab(/^conditions$/i))
+    openSource('picker')
     await flush()
-    fireEvent.click(tab(/^import$/i))
+    openSource('pine')
     await flush()
     expect(pasteField().value).toBe(HALF_WRITTEN)
   })
@@ -143,7 +146,7 @@ describe('🔴 a script survives leaving the tab and asks before being discarded
     // nothing to lose; without this case the fix above could have been `dirty`
     // returning true always.
     mount()
-    fireEvent.click(tab(/^import$/i))
+    openSource('pine')
     await flush()
     fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }))
     await flush()

@@ -4,7 +4,7 @@
   "translates": true,
   "outputs": 2,
   "usable": 2,
-  "selectedFormula": "sma(stoch(rsi(close, 14), rsi(close, 14), rsi(close, 14), 14), 3)",
+  "selectedFormula": "sma(stochPine(rsi(close, 14), rsi(close, 14), rsi(close, 14), 14), 3)",
   "downstream": {
    "ok": true,
    "guard": null,
@@ -108,7 +108,7 @@
   "translates": true,
   "outputs": 5,
   "usable": 4,
-  "selectedFormula": "sma(stoch(high, low, close, 14), 3)",
+  "selectedFormula": "sma(stochPine(high, low, close, 14), 3)",
   "downstream": {
    "ok": true,
    "guard": null,

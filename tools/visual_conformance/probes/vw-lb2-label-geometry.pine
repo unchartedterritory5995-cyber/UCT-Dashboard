@@ -1,0 +1,33 @@
+//@version=5
+indicator("UCTPROBE_VW_LB2_LABEL_GEOMETRY", overlay = true, max_labels_count = 100, max_lines_count = 100)
+// Queue row Q-LB2 (2026-11-17). Q-LB1 measured, at size.normal only, that a label's lines are
+// px + 2 apart and centred, and that TradingView's single-line geometry differs from ours (size.large
+// is 18px, a body is px + 12 tall, style_none sits above its anchor, glyph text sits above the glyph).
+// This reads every size (the `Size` input, one capture per size) for every style: each label's text
+// names it ("S" single / "M"+"N" two lines, then the style's code), every label is anchored on a grey
+// row line, and a short grey tick marks its anchor. Body colours tell the four rows apart. On the PRICE
+// pane, rows spread over the last 150 bars' range, so a huge label does not reach the next row.
+sz = input.string(size.normal, "Size", options = [size.tiny, size.small, size.normal, size.large, size.huge])
+hi = ta.highest(high, 150)
+lo = ta.lowest(low, 150)
+if barstate.islast
+    lst = array.from(label.style_label_up, label.style_label_down, label.style_label_left, label.style_label_right, label.style_label_center, label.style_none, label.style_text_outline)
+    lco = array.from("u", "d", "l", "r", "c", "n", "o")
+    gst = array.from(label.style_circle, label.style_square, label.style_diamond, label.style_triangleup, label.style_triangledown, label.style_arrowup, label.style_arrowdown, label.style_xcross, label.style_cross, label.style_flag)
+    gco = array.from("ci", "sq", "di", "tu", "td", "au", "ad", "xx", "cr", "fl")
+    span = hi - lo
+    for row = 0 to 3
+        isGlyph = row >= 2
+        multi = row % 2 == 1
+        y = lo + span * (0.88 - row * 0.25)
+        sty = isGlyph ? gst : lst
+        cod = isGlyph ? gco : lco
+        bg = row == 0 ? color.orange : row == 1 ? color.teal : row == 2 ? color.purple : color.olive
+        n = array.size(sty)
+        line.new(bar_index - n * 14, y, bar_index + 2, y, color = color.gray)
+        for k = 0 to n - 1
+            x = bar_index - (n - 1 - k) * 14
+            line.new(x, y - span * 0.01, x, y + span * 0.01, color = color.gray)
+            tag = array.get(cod, k)
+            txt = multi ? "M" + tag + "\nN" + tag : "S" + tag
+            label.new(x, y, txt, style = array.get(sty, k), size = sz, color = bg, textcolor = color.black)

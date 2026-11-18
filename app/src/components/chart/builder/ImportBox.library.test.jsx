@@ -17,6 +17,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { PINE_DEBOUNCE_MS } from './PineBox'
 import { inspectLibrary, splitPaste } from './libraryIntake'
 import { AuthContext } from '../../../context/AuthContext'
@@ -38,20 +39,22 @@ const flush = async () => {
 const noop = () => {}
 
 function mount() {
-  return render(
+  const view = render(
     <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
         <BuilderSheet open onClose={noop} />
       </SWRConfig>
     </AuthContext.Provider>,
   )
+  writeMyself()
+  return view
 }
 
 const tab = (name) => screen.getByRole('tab', { name })
 const pasteField = () => screen.getByTestId('pine-box').querySelector('textarea')
 
 async function paste(text) {
-  fireEvent.click(tab(/^import$/i))
+  openSource('pine')
   fireEvent.change(pasteField(), { target: { value: text } })
   await act(async () => { vi.advanceTimersByTime(PINE_DEBOUNCE_MS + 1) })
   await flush()

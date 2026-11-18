@@ -38,7 +38,7 @@
 // ⛔ No copy in this file contains an em dash (rail: editorStatus.families.test.js).
 
 import { evaluability, LANES, STATUS, GATE_GUARDS } from '../engine/evaluability'
-import { TABLE } from '../engine/ast/parse'
+import { TABLE, noteHeading } from '../engine/ast/parse'
 import { OUTCOME, importOutcome } from '../engine/ast/importOutcome'
 import { BLOCK_RUNS_GUARD } from '../engine/blockRuns'
 import { OBJECT_REMOVAL_GUARD } from '../engine/ast/objectLoss'
@@ -123,10 +123,21 @@ export const FAMILIES = Object.freeze([
   {
     id: 'fault',
     exact: ['import:internal-error', 'runtime:failed', 'runtime:build', 'runtime:unnamed-refusal',
-      'runtime:not-from-listing', 'runtime:output-map', 'runtime:document'],
+      'runtime:not-from-listing', 'runtime:output-map', 'runtime:document',
+      // door robustness: the host document the door built did not pass the install door's own check
+      'pine:install'],
     prefix: ['runtime:worker-'],
     label: 'Engine fault',
     why: 'Our engine could not finish this script. That is on us, not your script.',
+  },
+  {
+    // HOST KNOWN-DIVERGENCE (owner decision 2026-11-17): a committed TradingView capture shows this script
+    // drawing something different (`engine/hostKnownDivergence.js`); the door's own sentence names the capture
+    id: 'divergence',
+    exact: ['pine:known-divergence'],
+    label: 'Differs from TradingView on a captured chart',
+    why: 'On a chart we captured from TradingView, this script draws something that differs from what '
+      + 'TradingView draws, so it is withheld until that is fixed. The message names the capture.',
   },
   {
     id: 'unverified',
@@ -167,7 +178,9 @@ export const FAMILIES = Object.freeze([
   {
     id: 'function',
     exact: ['pine:function-def', 'runtime:function', 'runtime:recursion', 'runtime:unbound',
-      'runtime:discarded-value'],
+      'runtime:discarded-value',
+      // legacy semantics B3 (landing train 1): a script function's history read inside a block, v1-v3
+      'pine:fn-history-in-block'],
     label: 'Your own functions',
     why: 'This function is written in a way we cannot run exactly yet.',
   },
@@ -185,7 +198,12 @@ export const FAMILIES = Object.freeze([
   },
   {
     id: 'library',
-    exact: ['pine:module', 'pine:declaration-library', 'runtime:library'],
+    // U15: the four ways a library the store HOLDS is still not compiled (no verified sha256,
+    // other code than the document was saved against, a non-commercial licence, the deny list).
+    exact: ['pine:module', 'pine:declaration-library', 'runtime:library',
+      'pine:library-no-sha', 'pine:library-changed', 'pine:library-licence', 'pine:library-denied',
+      // U15 Phase B: a v5 library in a v6 script whose code changed meaning in v6
+      'pine:library-version'],
     label: 'Imported libraries',
     why: 'This script imports a library we cannot load yet.',
   },
@@ -198,8 +216,10 @@ export const FAMILIES = Object.freeze([
   {
     id: 'presentation',
     exact: ['pine:colour-value', 'pine:text-value', 'pine:plot-offset', 'pine:alert-message',
-      'pine:paint-pane', 'runtime:colour', 'runtime:presentation', 'runtime:plot-id'],
-    prefix: ['pine:offset-negative', 'paint:', 'runtime:fill-'],
+      'pine:paint-pane', 'runtime:colour', 'runtime:presentation', 'runtime:plot-id',
+      // engine 58 colours (landing train 1): a colour withheld by name, never drawn in a made-up one
+      'pine:colour-unread', 'pine:colour-default-unwitnessed'],
+    prefix: ['pine:offset-negative', 'paint:', 'runtime:fill-', 'format:'],
     label: 'How it is drawn',
     why: 'The value is computed, but this way of drawing it is not supported yet, so it is not drawn '
       + 'rather than drawn differently.',
@@ -208,8 +228,10 @@ export const FAMILIES = Object.freeze([
     id: 'limits',
     exact: ['pine:window', 'pine:window-dependent', 'pine:budget', 'pine:timeout', 'runtime:limit',
       'runtime:time-budget', 'runtime:history-start', 'runtime:warmup-never-converges',
-      'chart:scalar-current-only'],
-    prefix: ['runtime:calc-bars-'],
+      'chart:scalar-current-only',
+      // door robustness: a plot past a host-lane compute budget, refused by the member door by name
+      'budget:lookback', 'budget:series', 'budget:nodes'],
+    prefix: ['runtime:calc-bars-', 'pine:calc-bars-'],
     label: 'History and compute limits',
     why: 'This needs more history or more computing than a chart here allows, so it is withheld.',
   },
@@ -219,7 +241,9 @@ export const FAMILIES = Object.freeze([
       'pine:role-order', 'pine:empty', 'pine:declaration', 'pine:offset-literal', 'pine:chart-only',
       'runtime:statement', 'runtime:expression-statement', 'runtime:switch', 'runtime:block-value',
       'runtime:operator', 'runtime:directive', 'runtime:declaration', 'runtime:version',
-      'runtime:lower', 'runtime:empty', 'runtime:udt-method', 'runtime:call-text-state', 'runtime:enum'],
+      'runtime:lower', 'runtime:empty', 'runtime:udt-method', 'runtime:call-text-state', 'runtime:enum',
+      // engine 58 review (landing train 1): no `//@version` header with v4+ syntax (TradingView reads it as v1)
+      'pine:version-missing'],
     prefix: ['runtime:loop'],
     label: 'A Pine construct we do not run yet',
     why: 'This line uses a part of the Pine language we cannot run exactly yet.',
@@ -580,7 +604,10 @@ export function statusItems(report, pane = null) {
   const outcome = (report && report.outcome) || {}
   for (const s of (outcome.semantic || [])) {
     if (!s) continue
-    items.push(item({ severity: SEVERITY.NOTE, kind: 'difference', name: s.name, guard: null, reason: s.note, line: s.line }))
+    // A fold's note is keyed by its CHANNEL (`baseTimeframeFolds`), an internal name: the heading a member reads is
+    // the label declared beside the sentence (closedTable `_folds.<channel>.memberLabel`, via parse.js::noteHeading),
+    // the same reader PineBox's note list uses. A function name such as `ta.rsi` passes through unchanged.
+    items.push(item({ severity: SEVERITY.NOTE, kind: 'difference', name: noteHeading(s.name), guard: null, reason: s.note, line: s.line }))
   }
   // What the chart's bind may refuse on some charts (data or period dependent).
   for (const it of [...blockRunItems(pane), ...periodReadItems(pane)]) items.push(it)
@@ -588,7 +615,7 @@ export function statusItems(report, pane = null) {
     for (const n of pane.notes) {
       if (!n || !n.note || said(n.note)) continue
       if (items.some((x) => x.kind === 'paint' && x.reason && n.note.includes(x.reason))) continue
-      items.push(item({ severity: SEVERITY.NOTE, kind: 'pane-note', name: n.name, guard: null, reason: n.note }))
+      items.push(item({ severity: SEVERITY.NOTE, kind: 'pane-note', name: noteHeading(n.name), guard: null, reason: n.note }))
     }
   }
   return items

@@ -7,8 +7,9 @@
 // element, or `[index_from, index_to)` with `index_to` exclusive (the manual's
 // own `a.fill(close, 1, 3)` writes indices 1 and 2); `insert` puts the element AT
 // `index` and moves the ones at or after it up by one. Every index the text does
-// not settle (negative, `insert` at `size`, a range past the array) STOPS the run
-// by name — Q-W19R2a asks TradingView.
+// not settle (negative, past `size`, a range past the array) STOPS the run by name
+// — Q-W19R2a asks TradingView. (`insert` AT `size` is an append since the UDT unit:
+// witnessed by a capture, see the rail.)
 //
 // ⛔ EVERY FIXTURE MOVES A VALUE derived from the bars in JavaScript, never typed.
 import { describe, it, expect } from 'vitest'
@@ -111,21 +112,25 @@ describe('⭐⭐ `array.insert` — at `index`, the rest moved up one', () => {
     expect(last).toEqual(closes.map((c) => -c))
     expect(size).toEqual(closes.map((_, i) => i + 2))
   })
-  it('⛔ an index the manual does not settle STOPS by name: at `size`, negative, past the end', () => {
-    expect(() => runPine('a = array.from(1.0, 2.0)\na.insert(2, close)\nplot(a.sum())'))
-      .toThrow(/array\.insert: index 2 into an array of 2 .*Q-W19R2a/)
+  // ⭐⭐ UDT unit (2026-11-16) — AT `size` IS AN APPEND, an empty array's 0 included: witnessed by
+  // `bollinger-band-width-percentile-rddt-1d-2026-11-14` (`udtBinarySearch.test.js` grades it). ⚰️ It stopped here.
+  it('at `size` appends, an empty array\'s index 0 included (witnessed, not read)', () => {
+    const [n, last] = runPine('a = array.from(1.0, 2.0)\na.insert(2, close)\nplot(a.size())\nplot(a.last())')
+    expect(n).toEqual(closes.map(() => 3))
+    expect(last).toEqual(closes)
+    const [m, first] = runPine('a = array.new_float()\na.insert(0, close)\nplot(a.size())\nplot(a.first())')
+    expect(m).toEqual(closes.map(() => 1))
+    expect(first).toEqual(closes)
+  })
+  it('⛔ an index the manual does not settle STOPS by name: negative, past `size`', () => {
     expect(() => runPine('a = array.from(1.0, 2.0)\na.insert(-1, close)\nplot(a.sum())'))
-      .toThrow(/array\.insert: index -1/)
-    expect(() => runPine('a = array.new_float()\na.insert(0, close)\nplot(a.sum())'))
-      .toThrow(/array\.insert: index 0 into an array of 0/)
+      .toThrow(/array\.insert: index -1 .*Q-W19R2a/)
+    expect(() => runPine('a = array.from(1.0, 2.0)\na.insert(3, close)\nplot(a.sum())'))
+      .toThrow(/array\.insert: index 3 into an array of 2 .*Q-W19R2a/)
+    expect(() => runPine('a = array.new_float()\na.insert(1, close)\nplot(a.sum())'))
+      .toThrow(/array\.insert: index 1 into an array of 0/)
   })
 })
 
-describe('⛔ the binary searches stay refused by name (Q-W19R2b)', () => {
-  it.each(['array.binary_search', 'array.binary_search_leftmost', 'array.binary_search_rightmost'])('%s', (fn) => {
-    const built = buildRuntimeIr(`//@version=6\nindicator("t")\na = array.from(1.0, 2.0)\nplot(${fn}(a, close))`, { bars: BARS, inputs: {} })
-    expect(built.ok).toBe(false)
-    expect(built.refusal.guard).toBe('runtime:array')
-    expect(built.refusal.message).toContain(fn)
-  })
-})
+// ⭐⭐ The three binary searches (Q-W19R2b) are served from their reference entries since the UDT unit:
+// `udtBinarySearch.test.js` (their refusals by name live there too).

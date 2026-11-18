@@ -2,10 +2,11 @@ import { lazy, memo, Suspense, useCallback, useEffect, useId, useLayoutEffect, u
 import StockChart from '../../../../components/StockChart'
 import ErrorBoundary from '../../../../components/ErrorBoundary'
 import CompanyLogo from '../../../../components/CompanyLogo'
+import Select from '../../../../components/ui/Select'
 import { PANE_LOOK } from '../../../../components/chart/pane/paneLook'
 import { mergeChartSettings, mergeSettingsOverride } from '../../../../components/chart/chartDefaults'
 import usePreferences from '../../../../hooks/usePreferences'
-import { prefetchListDeep } from '../../../../utils/prefetchBars'
+import { prefetchListDeep } from '../../../../utils/barsWarm'
 import { fmtPct } from './scanDeckModel'
 import { GRID_SORTS, sortGridRows } from './gridSort'
 import { DRILL_POPOVER_ATTR } from './scanFacets'
@@ -40,7 +41,9 @@ const PAD = 10
 const OVERSCAN_ROWS = 2   // rows kept alive above and below the screen
 const WARM_AHEAD_ROWS = 3 // rows whose bars are warmed past the bottom of the screen
 
-const chartLook = { ...PANE_LOOK }
+// ⛔ Breadth scan cells FIX volume to its own pane (the volumeOpts below say so):
+// the member's /charts Display in choice is not theirs to follow.
+const chartLook = { ...PANE_LOOK, volumeSeparatePane: true }
 
 // The full Chart Settings window, for the enlarged chart's gear. Loaded on first
 // open only.
@@ -468,9 +471,8 @@ export default function ScanGrid({ rows, dir = 1, onSelect, toolbarStart = null,
         {toolbarStart}
         <span className={styles.spacer} />
         <label className={styles.tbLabel} htmlFor={sortId}>Sort</label>
-        <select id={sortId} className={styles.select} value={sortKey} onChange={e => setSortKey(e.target.value)}>
-          {GRID_SORTS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-        </select>
+        <Select id={sortId} className={styles.select} value={sortKey} onChange={e => setSortKey(e.target.value)}
+          options={GRID_SORTS.map(s => ({ value: s.key, label: s.label }))} />
         <span className={styles.tbSep} aria-hidden="true" />
         <div className={`${styles.seg} ${styles.segSm}`} role="group" aria-label="Timeframe">
           {TFS.map(([k, l]) => <button key={k} type="button" aria-pressed={tf === k} onClick={() => setTf(k)}>{l}</button>)}

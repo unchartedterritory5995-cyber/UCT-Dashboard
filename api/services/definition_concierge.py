@@ -234,34 +234,38 @@ REFUSALS: Mapping[str, str] = {
     "prompt:empty": (
         "there is nothing to turn into a formula yet"),
     "cost:global": (
-        "the formula assistant has reached its spending limit for today"),
+        "the UCT Agent has reached its spending limit for today"),
     "cost:user": (
-        "you have used up today's allowance of the formula assistant"),
+        "you have used up today's allowance of the UCT Agent"),
     "rate:busy": (
-        "the formula assistant is still working on your previous request -- "
+        "the UCT Agent is still working on your previous request -- "
         "wait for it to finish, then try again"),
     "model:transport": (
-        "the formula assistant could not be reached"),
+        "the UCT Agent could not be reached"),
+    # ⭐ O7 (2026-11-17): the provider answered and REFUSED OUR ACCOUNT (a key, a permission, credit).
+    # Its own gate so monitoring can tell that from an outage; the member is told neither detail.
+    "model:unavailable": (
+        "the UCT Agent is not available right now"),
     "model:no-tool": (
-        "the assistant replied without emitting a formula"),
+        "the UCT Agent replied without emitting a formula"),
     "schema:node": (
-        "the assistant emitted something that is not a formula tree"),
+        "the UCT Agent emitted something that is not a formula tree"),
     "schema:name": (
-        "the assistant used a name that is not in the formula vocabulary"),
+        "the UCT Agent used a name that is not in the formula vocabulary"),
     "schema:number": (
-        "the assistant wrote a number this formula language cannot spell"),
+        "the UCT Agent wrote a number this formula language cannot spell"),
     "lint:repaint": (
-        "the assistant's formula would repaint, so it was not accepted"),
+        "the UCT Agent's formula would repaint, so it was not accepted"),
     "compute:empty": (
-        "the assistant's formula produces no value on the bars in view"),
+        "the UCT Agent's formula produces no value on the bars in view"),
     "compute:wiring": (
-        "the assistant's formula collides with a name this chart already declares"),
+        "the UCT Agent's formula collides with a name this chart already declares"),
     "kind:unknown": (
-        "the assistant was asked for a kind of formula it does not draft"),
+        "the UCT Agent was asked for a kind of formula it does not draft"),
     "scan:not-a-condition": (
         "a screen needs a yes-or-no condition and this expression produces a number"),
     "model:unresolved": (
-        "the assistant could not confidently express part of this request in "
+        "the UCT Agent could not confidently express part of this request in "
         "the supported vocabulary"),
     # ⭐ P0 (2026-10-05). The schema offers `sym`, `tf` and `textop`, but this
     # door cannot finish a tree holding one: it evaluates on the chart's own bars
@@ -269,11 +273,13 @@ REFUSALS: Mapping[str, str] = {
     # read-back has no English for them. Refused BY NAME and terminally — a
     # repair turn would invite the model to answer a DIFFERENT question.
     "unsupported:node": (
-        "this request needs something the formula assistant cannot draft yet"),
+        "this request needs something the UCT Agent cannot draft yet"),
     # ⭐ P0 (2026-10-05). Any unexpected failure after the model call. Logged
     # with its traceback; the member gets a controlled answer, never a 500.
+    # ⭐ 2026-11-18 (ruling): it says what is true and what to do. It is OURS, so it never asks the
+    # member to rephrase; the window says this same sentence (`memberWords.INTERNAL`).
     "internal:error": (
-        "the formula assistant hit an internal problem and drafted nothing"),
+        "That didn't work on our side and nothing was changed. Try again in a moment."),
 }
 
 #: ⭐ P0 (2026-10-05) — node types this door CANNOT FINISH, each with the honest
@@ -1784,6 +1790,34 @@ def _tool_input(msg: Any) -> Optional[dict]:
     return parsed if isinstance(parsed, dict) else None
 
 
+#: HTTP statuses with which a provider refuses the ACCOUNT rather than the request: the key, the
+#: permission, the payment. Retrying cannot help and a person has to act.
+_ACCOUNT_STATUSES = frozenset({401, 402, 403})
+_ACCOUNT_WORDS = re.compile(r"credit balance|billing|payment|api[ _-]?key|authentication", re.I)
+
+
+def model_failure_gate(exc: Optional[BaseException]) -> str:
+    """Which gate a failed model call is: ``model:unavailable`` when the provider REFUSED OUR ACCOUNT,
+    ``model:transport`` for everything else (a timeout, a dropped connection, a 5xx, an overload).
+
+    ⭐ O7 -- both used to read ``model:transport``, so an empty credit balance looked like a network
+    blip in every report, and the fix (a person tops up or rotates a key) was nobody's alert.
+    ⛔ Only an HTTP error RESPONSE can be an account refusal. A 400 counts only when its text names
+    billing or the key (a 400 is otherwise our request's fault). Never raises.
+    """
+    try:
+        import anthropic
+        if isinstance(exc, anthropic.APIStatusError):
+            status = int(getattr(exc, "status_code", 0) or 0)
+            if status in _ACCOUNT_STATUSES:
+                return "model:unavailable"
+            if status == 400 and _ACCOUNT_WORDS.search(str(exc) or ""):
+                return "model:unavailable"
+    except Exception:                               # noqa: BLE001
+        pass
+    return "model:transport"
+
+
 def charge_unreported(exc: Optional[BaseException], user_id: Any, market_date: str, model: str,
                       max_tokens: int, request: Dict[str, Any]) -> float:
     """A call that reports no usage is charged its WORST CASE on the shared ledger and the member's allowance.
@@ -2532,7 +2566,78 @@ def _is_name_word(word: str) -> bool:
     return len(word) > 1 and word[0].isupper() and not word.isupper()
 
 
-def _named_phrases(prompt: str, already_found: List[dict]) -> List[dict]:
+#: ⭐ 2026-11-18 -- THE WHOLE-PHRASE RULE (opt-in, `plan(strict_names=True)`; the chart door uses it).
+#: A NAME is short: a Title-Case run longer than this is a sentence typed in capitals, and keeps
+#: the older rule.
+NAME_MAX_WORDS = 4
+#: Words capitalised by grammar or habit, never by being part of a name.
+_NAME_GRAMMAR = frozenset("a an the of on in to for with and or but vs at by from as than".split())
+#: The words a request OPENS with. Only these are excused for standing first in a sentence with a
+#: capital ("Add Bollinger Bands"). Any other first word is read as part of the name, so a name
+#: typed alone ("Klinger Volume Oscillator") is still caught. A closed list on purpose: a missing
+#: opener costs one request a rephrase; excusing every first word let every bare name through.
+_SENTENCE_OPENERS = frozenset("""add show plot draw create make build give put use display highlight mark get want
+need try set turn change switch apply overlay graph chart include insert load open see view find calculate compute
+track watch compare replace remove delete hide rename color colour paint shade label call name please can could
+would let i we also and then now just ok okay yes no hey hi with for when if on in the a an my this that what how
+why does do is are explain tell describe""".split())
+_VOCABULARY: Dict[int, Tuple[Any, frozenset]] = {}
+
+
+def _lexicon_vocabulary(lexicon: Mapping[str, Any]) -> frozenset:
+    """Every word (by stem) any phrase of this lexicon is made of: the product's own vocabulary.
+    ⭐ A phrase a lexicon lists under ``names_only`` is a NAME it recognises whole and nothing more
+    (the chart door's well-known names with no checked formula): its words are no vocabulary, so
+    "Fisher" and "Williams" stay foreign words inside any other name."""
+    held = _VOCABULARY.get(id(lexicon))
+    if held is None or held[0] is not lexicon:
+        names_only = lexicon.get("names_only") or ()
+        held = (lexicon, frozenset(stem_ for key in lexicon["index"] if key not in names_only for stem_ in key))
+        _VOCABULARY[id(lexicon)] = held
+    return held[1]
+
+
+def _opens_a_sentence(text: str, w: Any) -> bool:
+    """Is this word a request OPENER standing first in its sentence ("Add ...", "Done. Show ...")?
+    Its capital is grammar. ⭐ MEASURED 2026-11-18: counted as the first word of a name, it made
+    "Add Inside bar", "Show Weekly pivot points", "Highlight Mondays", "Mark Fridays in blue" and
+    "Add The 10:00 bar marked" unknown indicators called "Add Inside", "Show Weekly", "Highlight
+    Mondays", "Mark Fridays" and "Add The": 56 of 140 indicator ideas written "Add <Idea>" were
+    refused before any model call for that reason alone."""
+    before = text[:w.start()].rstrip()
+    return (not before or before[-1] in ".!?;:\n") and w.group(0).lower() in _SENTENCE_OPENERS
+
+
+def _foreign_words(words: List[Any], lexicon: Mapping[str, Any]) -> List[str]:
+    """The words of one Title-Case run that NOTHING accounts for: not a grammar word, and not a
+    word of the product's own vocabulary. (A word that is part of something already understood
+    needs no clause of its own: every word of a lexicon phrase IS vocabulary. A request opener
+    standing first is taken off the run before this is asked: `_opens_a_sentence`.)
+
+    ⭐ MEASURED BEFORE IT WAS WRITTEN (2026-11-18, 604 requests: the plain-English corpus, every
+    evaluation case, 102 live-round requests and 140 indicator ideas in three spellings). Counting
+    ANY unaccounted word as foreign refused 43 of 138 Title-Case descriptions ("Previous Week High
+    And Low", "Linear Regression Slope"); with a hand list of verbs it still needed the list. This
+    form flips NO real request and newly refuses the same 10 of 138 Title-Case names however they
+    are written (alone, after "Add the", mid-sentence), nine of them real named indicators (Chande
+    Momentum Oscillator, Klinger Volume Oscillator, TD Sequential ...). The one description it
+    catches holds a word the product has never used ("Interquartile")."""
+    vocabulary = _lexicon_vocabulary(lexicon)
+    out: List[str] = []
+    for w in words:
+        word = w.group(0)
+        # (an opener is no part of a name wherever it stands: "so Add Bollinger Bands")
+        if word.lower() in _NAME_GRAMMAR or word.lower() in _SENTENCE_OPENERS:
+            continue
+        stems, _cost = _stem_key(_form_tokens(word))
+        if stems and all(st in vocabulary for st in stems):
+            continue
+        out.append(word)
+    return out
+
+
+def _named_phrases(prompt: str, already_found: List[dict],
+                   strict_lexicon: Optional[Mapping[str, Any]] = None) -> List[dict]:
     """Runs of two-or-more proper-noun-shaped words `prompt` contains that no
     existing match already accounts for.
 
@@ -2564,10 +2669,24 @@ def _named_phrases(prompt: str, already_found: List[dict]) -> List[dict]:
         while (j < n and _is_name_word(words[j].group(0))
                and text[words[j - 1].end():words[j].start()].isspace()):
             j += 1
-        if j - i >= 2:
-            start, end = words[i].start(), words[j - 1].end()
+        # ⭐ A REQUEST OPENER IS NOT PART OF A NAME (`strict_lexicon` only): "Add Inside bar" is the
+        # word "Inside" after a verb, not an indicator called "Add Inside".
+        first = i + 1 if strict_lexicon is not None and _opens_a_sentence(text, words[i]) else i
+        if j - first >= 2:
+            start, end = words[first].start(), words[j - 1].end()
             phrase = text[start:end]
-            if not any(start < f["end"] and f["start"] < end for f in already_found):
+            overlaps = any(start < f["end"] and f["start"] < end for f in already_found)
+            # ⭐ THE WHOLE-PHRASE RULE (`strict_lexicon`): one known word inside a short Title-Case
+            # name no longer accounts for the name. "Schaff Trend Cycle" knows "trend"; it is
+            # still a name nobody here has a formula for.
+            # ⭐ A NAME THE LEXICON RECOGNISES WHOLE (`names_only_section`) accounts for its own words
+            # and no others: they are not vocabulary, so they are taken off the run here.
+            whole = strict_lexicon.get("names_only_section") if strict_lexicon is not None else None
+            rest = [w for w in words[first:j]
+                    if not (whole and any(f.get("section") == whole and f["start"] <= w.start() and w.end() <= f["end"]
+                                          for f in already_found))]
+            if not overlaps or (strict_lexicon is not None and j - first <= NAME_MAX_WORDS
+                                and _foreign_words(rest, strict_lexicon)):
                 out.append({"kind": NAMED_ENTRY, "key": phrase, "section": None,
                             "start": start, "end": end, "matched_as": phrase})
             i = j
@@ -2763,11 +2882,37 @@ def user_turn(understanding: Mapping[str, Any]) -> str:
     ])
 
 
+def _name_key(text: Any) -> str:
+    """A screen name's comparison key: lower case, every run of non-alphanumerics one space."""
+    return " ".join("".join(ch if ch.isalnum() else " " for ch in str(text or "").lower()).split())
+
+
+def _starter_named(text: Any) -> Optional[Mapping[str, Any]]:
+    """The shipped starter screen whose WHOLE name ``text`` is, or None. Never raises."""
+    key = _name_key(text)
+    if not key:
+        return None
+    try:
+        from api.services.screener import saved_screens  # noqa: PLC0415
+        for screen in saved_screens.starters():
+            if _name_key(screen.get("name")) == key:
+                return screen
+    except Exception:  # noqa: BLE001 -- no screen list: nothing named, the old outcome
+        return None
+    return None
+
+
 def plan(prompt: str, kind: str = INDICATOR_KIND, *,
          vocab: Optional[Mapping[str, Any]] = None,
          table: Optional[Mapping[str, Any]] = None,
-         lexicon: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+         lexicon: Optional[Dict[str, Any]] = None,
+         strict_names: bool = False,
+         name_refusal: Optional[str] = None) -> Dict[str, Any]:
     """What this door understood, what it did not, and what the model will be told.
+
+    ``strict_names`` turns on the whole-phrase rule for unknown names (`_foreign_words`); off, the
+    planner is exactly what it was. ``name_refusal`` is the caller's own sentence for an unknown
+    name (``{name}`` is the phrase); without it, this door's.
 
     ⭐ PURE. No model call, no clock, no network -- which is why the corpus rail
     can drive hundreds of real member phrasings through it for nothing, and why a
@@ -2802,7 +2947,9 @@ def plan(prompt: str, kind: str = INDICATOR_KIND, *,
     # `_clauses` must not split a named phrase across a clause boundary --
     # both already do exactly that for every OTHER match kind, for free, once
     # a named-phrase span is part of `found`.
-    found = sorted(found + _named_phrases(text, found), key=lambda m: m["start"])
+    # (a known word INSIDE an unknown name needs no removing: the name's clause is refused whole, and
+    # nothing in a refused clause is reported as understood)
+    found = sorted(found + _named_phrases(text, found, lex if strict_names else None), key=lambda m: m["start"])
     written = _numbers_in(text, found)
     clauses = _clauses(text, found + written)
 
@@ -2848,7 +2995,7 @@ def plan(prompt: str, kind: str = INDICATOR_KIND, *,
             refusals_by_clause.setdefault(index, []).append({
                 "phrase": match["matched_as"],
                 "gate": concept_vocabulary.GATE_UNGROUNDED,
-                "reason": (
+                "reason": name_refusal.format(name=match["matched_as"]) if name_refusal else (
                     f'"{match["matched_as"]}" is not one of this door\'s supported '
                     "functions or concepts, so there is no formula to expand it "
                     "into. Name a supported indicator, or ask for it to be added "
@@ -2915,6 +3062,27 @@ def plan(prompt: str, kind: str = INDICATOR_KIND, *,
         if not survivor_spans or any(a <= num["start"] and num["end"] <= b
                                      for a, b in survivor_spans)
     ]
+
+    # ⭐ A SHIPPED SCREEN'S OWN NAME, SAID ON ITS OWN, IS NAMED RATHER THAN PASSED THROUGH BLIND
+    # (2026-11-15). The 2026-09-20 screener rebuild renamed the firm's starters, and five of the
+    # new names ("Pocket pivots", "Three weeks tight", "Stage-2 breakouts", "Anticipation",
+    # "UCT 50") anchored NOTHING here: a member who typed the firm's own screen name reached the
+    # model as bare English, free to invent a definition of a screen the firm already ships.
+    # ⛔ ONLY WHEN NOTHING ELSE ANCHORED, AND ONLY ON THE WHOLE NAME: an anchored request keeps
+    # exactly the outcome it had, and a name inside a longer sentence is ordinary English. The
+    # entry is `unavailable` (named, not excised): the screen's rule lives in the screener --
+    # structure matches, ranks -- which no tree in this grammar spells.
+    if not (concepts or terms or not_understood or unavailable):
+        starter = _starter_named(text)
+        if starter is not None:
+            unavailable.append({
+                "phrase": text.strip(),
+                "name": f"starter_screen:{starter.get('id')}",
+                "reason": (
+                    f'"{starter.get("name")}" is the firm\'s own screen of that name'
+                    + (f' ({starter.get("description")})' if starter.get("description") else "")
+                    + ". Its rule lives in the screener, not in this formula language: open "
+                    "that screen to run it, or describe the parts you want.")})
 
     briefing = _KIND_BRIEF.get(kind, "")
     if concepts:
@@ -3198,10 +3366,14 @@ def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None,
         try:
             msg, in_tokens, out_tokens = _call_model(messages, kind)
         except Exception as exc:                   # noqa: BLE001 -- never raises out
-            logger.warning("[concierge] model call failed: %s", exc)
+            gate = model_failure_gate(exc)
+            if gate == "model:unavailable":
+                # ERROR, not WARNING: this does not heal by itself (O7)
+                logger.error("[concierge] the provider refused the account: %s", type(exc).__name__)
+            else:
+                logger.warning("[concierge] model call failed: %s", exc)
             charge_unreported(exc, user_id, market_date, MODEL, MAX_TOKENS, _request_for(messages, kind))
-            return {"ok": False, "gate": "model:transport",
-                    "reason": REFUSALS["model:transport"]}
+            return {"ok": False, "gate": gate, "reason": REFUSALS[gate]}
 
         tokens["input"] += in_tokens
         tokens["output"] += out_tokens

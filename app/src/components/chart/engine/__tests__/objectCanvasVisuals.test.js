@@ -6,8 +6,9 @@
 //   * a label's STYLE is what it draws: `label_*` = body + pointer on the side Pine's
 //     name says, a shape style = its glyph, `none` = text alone, `text_outline` = ringed;
 //   * `line.style_arrow_*` draws its arrowhead(s) at the end(s) it names.
-// ⚠️ Positions are asserted RELATIVELY (above / below / inside / at the tip) — no
-// capture pins TradingView's pixel geometry for these, and none is claimed.
+// ⚠️ Positions are asserted RELATIVELY (above / below / inside / at the tip). A LABEL's pixels are
+// TradingView's measured ones since Q-LB2 (2026-11-17) and are held in `labelGeometry.test.js`; a box's
+// and a line's are not measured, and none is claimed.
 import { describe, it, expect } from 'vitest'
 import { paintObjects } from '../objectCanvas'
 
@@ -99,23 +100,28 @@ describe('⭐⭐ label styles', () => {
     }
   })
 
-  it('triangleup sits below its anchor with the text below it; triangledown above, text above', () => {
-    const up = recorder()
-    paintObjects(up, { labels: [label('triangleup')] }, mapping)
-    const down = recorder()
-    paintObjects(down, { labels: [label('triangledown')] }, mapping)
-    expect(of(up.calls, 'fillText')[0][3]).toBeGreaterThan(200)
-    expect(of(down.calls, 'fillText')[0][3]).toBeLessThan(200)
+  // ⭐ Q-LB2 (2026-11-17): MEASURED on TradingView, a glyph sits ON its anchor and its text ABOVE it
+  // whichever way it points (`labelGeometry.test.js` holds the pixels); this pins the direction
+  it('triangleup and triangledown both sit on the anchor, their text above it', () => {
+    for (const style of ['triangleup', 'triangledown']) {
+      const ctx = recorder()
+      paintObjects(ctx, { labels: [label(style)] }, mapping)
+      const ys = of(ctx.calls, 'moveTo').concat(of(ctx.calls, 'lineTo')).map((c) => c[2])
+      expect(Math.min(...ys), style).toBeLessThan(200)
+      expect(Math.max(...ys), style).toBeGreaterThan(200)
+      expect(of(ctx.calls, 'fillText')[0][3], style).toBeLessThan(Math.min(...ys))
+    }
   })
 
   it('none: text alone, no body; text_outline: the text ringed in the label colour', () => {
     const none = recorder()
     paintObjects(none, { labels: [label('none')] }, mapping)
     expect(of(none.calls, 'fillRect')).toHaveLength(0)
-    expect(of(none.calls, 'fillText')[0]).toEqual(['fillText', 'S', 100, 200])
+    // ⭐ Q-LB2: `none` ENDS at its anchor (its top a font height above it); `text_outline` is centred
+    expect(of(none.calls, 'fillText')[0]).toEqual(['fillText', 'S', 100, 200 - 12])
     const ring = recorder()
     paintObjects(ring, { labels: [label('text_outline')] }, mapping)
-    expect(of(ring.calls, 'strokeText')[0]).toEqual(['strokeText', 'S', 100, 200])
+    expect(of(ring.calls, 'strokeText')[0]).toEqual(['strokeText', 'S', 100, 200 - 5])
     expect(of(ring.calls, 'fillRect')).toHaveLength(0)
   })
 })

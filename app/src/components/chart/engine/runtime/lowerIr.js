@@ -15,7 +15,7 @@
 import { OP, SERIES_NAMES, CLOCK_FIELDS, makeProgram } from './program.js'
 import { STMT, EXPR, SLOT } from './ir.js'
 import { isVoid } from './collections.js'
-import { naConditionIsFalse } from '../ast/interpret.js'
+import { pineNaConditionIsFalse } from '../ast/interpret.js'
 
 export class LoweringGap extends Error {
   constructor(kind, detail) {
@@ -88,7 +88,7 @@ export function lowerIrProgram(ir, opts = {}) {
    *  listing (`opts.historyFromListing`), and only in a version that has the
    *  rule. The rule and its evidence live in ONE place (`interpret.js::pineBool`,
    *  `naConditionIsFalse`); this lowering only asks it. */
-  const naFalse = !!(opts && opts.historyFromListing === true) && naConditionIsFalse(ir && ir.version)
+  const naFalse = !!(opts && opts.historyFromListing === true) && pineNaConditionIsFalse(ir && ir.version)
   let naTests = 0
   const code = []
   const consts = []
@@ -929,7 +929,8 @@ export function lowerIrProgram(ir, opts = {}) {
       for (let k = results - 1; k >= 0; k -= 1) emit(OP.EMIT, k)
     }
     emit(OP.HALT)
-    return { timeframe: r.timeframe, entry, results }
+    // ⭐ RS RATING L5 — the host's reading of the request (`target`), for the run's supply
+    return { timeframe: r.timeframe, entry, results, target: r.target || null }
   })
 
   const made = makeProgram({

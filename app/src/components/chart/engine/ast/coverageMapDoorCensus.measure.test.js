@@ -47,7 +47,8 @@ import { assessObjectLoss } from './objectLoss'
 import { TABLE, parseFormula } from './parse'
 import { translatePine } from './pine'
 import { functionReachability } from './doorCoverage'
-import { probeRuntimeProgram } from '../runtime/runtimeColumns'
+import { probeRuntimeProgram, runtimeColumnsFor } from '../runtime/runtimeColumns'
+import { runHalfOf } from '../runtime/runtimeObjects'
 import { valueBuildDefersToDrawing } from '../../builder/memberPane/runtimeObjectsDoor'
 import { runtimePaneEnabled, __permitRuntimePaneForTests, __resetRuntimePanePermission } from '../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList } from '../runtimeKill'
@@ -55,15 +56,30 @@ import {
   CENSUS_RUNTIME_ENV, LANE_PRODUCTION, LANE_RUNTIME_ON, requestedLane, assertLaneMeasured, isGateDecline,
 } from '../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { peelStatement } from '../../../../../../tools/pine_coverage/census_peel.mjs'
+import { paintsWithheldFromDocument, paintsWithheldByTranslation } from '../../../../../../tools/pine_coverage/paint_predicate.mjs'
 import { loadCapture } from '../__tests__/vendorHarness/harness.js'
 import { toProductBars } from '../__tests__/vendorHarness/ourSide.js'
 import { hostObjectRun, hostObjectReaderOpts } from '../runHalfObjectRail.js'
 import { OTHER_SYMBOL_REFUSAL, staticallyUnservable } from '../otherSymbols'
 import { foldNotesForOutput } from './parse'
+import { CALL_EXPANSIONS } from './callExpansions'
+import { supertrendTreesEngine56 } from './__fixtures__/supertrendTreesEngine56.js'
+import { loadPineLibraryStoreFromEnv } from './__tests__/pineLibraryStoreLoader.js'
+import {
+  armedStrategyVerdict, brokerFlagOf, historyWindowBarsOf, STRATEGY_DECLARATION,
+} from '../runtime/__tests__/strategyArmed.js'
+import { barsOfCapture } from '../__tests__/vendorHarness/strategyHarness.js'
 
 const INPUT = process.env.COVERAGE_INPUT
 const OUT = process.env.COVERAGE_OUT
 const RUN = !!(INPUT && OUT)
+// ⭐ LIBRARIES, OPT-IN AND MEASURE-ONLY (2026-11-16): `PINE_LIBRARY_STORE=<scratch store dir>`
+// loads that store into the registry for the whole run, so the census can be measured with the
+// store production will hold (the promotion allowlist's versions) instead of an empty one. Unset,
+// nothing is loaded and the census measures the registry as every process starts it: empty. A row
+// measured with a store says how many versions it had (`libraryStore`); a row without one is unchanged.
+// ⛔ The store is a scratch directory outside the repository (library code is never committed).
+const LIBRARIES_LOADED = RUN ? loadPineLibraryStoreFromEnv() : []
 // ⛔ read strictly: a typo throws at collection rather than measuring the other lane
 const LANE = requestedLane(process.env[CENSUS_RUNTIME_ENV], CENSUS_RUNTIME_ENV) || LANE_PRODUCTION
 const RT_ON = LANE === LANE_RUNTIME_ON
@@ -77,6 +93,8 @@ const GATE = (rel) => fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
 const flagOf = (src) => (src.match(/source\.(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
 const OBJECTS_ONLY_FLAG = RUN ? flagOf(GATE('src/components/chart/engine/objectsOnlyPaneGate.js')) : null
 const RUNTIME_FLAG = RUN ? flagOf(GATE('src/components/chart/engine/runtimePaneGate.js')) : null
+// ⭐⭐ W9 ARMED — the broker gate's flag, read off its module (`import.meta.env.<NAME> === '1'`)
+const BROKER_FLAG = RUN ? brokerFlagOf(GATE('src/components/chart/engine/strategyBrokerGate.js')) : null
 
 function bindingNameOf(line) {
   const hash = line.indexOf('//')
@@ -143,6 +161,13 @@ export function dropHeads(diag) {
     const m = /^cell@([\d?]+): (\S+)/.exec(String(e))
     if (m) out.push(`cell:text@${m[1]}: ${m[2] === 'no' ? 'unrecorded' : m[2]}`)
   }
+  // ⭐ DRAW-1 — a `guard:partial` step (C33: carried, withheld on the bars its unread term
+  // decides) is named in `guardPartial` (`<op>@<line>: <guard>`); its head is keyed `partial`,
+  // the drop key's own kind, so the census can say which guard it was.
+  for (const e of d.guardPartial || []) {
+    const m = /^\w+@([\d?]+): (\S+)/.exec(String(e))
+    if (m) out.push(`partial@${m[1]}: ${m[2] === 'refused' ? 'unrecorded' : m[2]}`)
+  }
   return [...new Set(out)].slice(0, 60)
 }
 
@@ -158,6 +183,7 @@ function oneDoor(source, { runtimeDetail = RT_ON, bound = false } = {}) {
   if (bound && d.ok) {
     try { boundWhy = boundBlockers(d) } catch (err) { boundWhy = [`bound-threw:${short((err && err.message) || err, 80)}`] }
   }
+  const runHalfBound = bound && d.ok && d.runHalf ? runHalfBoundOf(d) : null
   const t = d.translation || {}
   const refusals = (t.refusals || []).map((r) => ({
     guard: r.guard || null,
@@ -193,7 +219,10 @@ function oneDoor(source, { runtimeDetail = RT_ON, bound = false } = {}) {
     drawsObjects: !!(d.definition && d.definition.objects),
     // an object program the translation built that the pane did NOT carry
     withheldObjects: !!(d.ok && t.objects && (t.objects.ops || []).length && !(d.definition && d.definition.objects)),
-    withheldPaints: (((t.presentation || {}).paints) || []).filter((p) => p && p.withheld).length,
+    // INSTRUMENT (2026-11-16): a paint counts as withheld only when the DOCUMENT does not draw it
+    // (`tools/pine_coverage/paint_predicate.mjs`); the translation's own count rides beside it.
+    withheldPaints: paintsWithheldFromDocument(t, d.ok ? d.definition : null),
+    withheldPaintsTranslated: paintsWithheldByTranslation(t),
     lane: d.lane || (d.ok ? 'host' : null),
     lossVerdict: loss ? loss.verdict : null,
     droppedOps: diag.droppedOps || 0,
@@ -206,6 +235,13 @@ function oneDoor(source, { runtimeDetail = RT_ON, bound = false } = {}) {
     notes: (d.notes || []).map((n) => (n && n.name) || null).filter(Boolean),
     refusals,
     ...(boundWhy ? { boundWhy } : {}),
+    // ⭐⭐ PARITY UNIT 1 (`objects`, 2026-11-18) — an ATTACHED host step that lost drawings carries a run
+    // half (engine 53), minted or declined by code; and (step 0, the bound check) the run half BOUND on the
+    // reference bars as the binder binds it: `served` (the run draws the host's plots' drawings, the calls
+    // the host lost included: `runHalfObjectRail.js`, the lost-drawings rule) or `refused:<code>`. The
+    // census used to record neither, so an attached-dirty row had no runtime reading at all.
+    ...(d.runHalf ? { runHalf: 'minted' } : (d.runHalfDeclined ? { runHalf: `declined:${d.runHalfDeclined.code}` } : {})),
+    ...(runHalfBound ? { runHalfBound } : {}),
     ...(runtimeDetail ? {
       runtimeDeclined: d.runtimeDeclined ? { code: d.runtimeDeclined.code, why: short(d.runtimeDeclined.why, 300) } : null,
       rtProbe: d.runtimeDeclined ? runtimeProbeOf(source, d.runtimeDeclined) : null,
@@ -238,6 +274,25 @@ let boundBars = null
 function referenceBars() {
   if (!boundBars) boundBars = toProductBars(loadCapture(BOUND_REFERENCE).capture)
   return boundBars
+}
+
+// ⭐⭐ W9 ARMED — the same reference capture, as the broker reads bars (epoch seconds, the strategy
+// harness's own reader), and the context a strategy run is handed: the window is the ONE authority,
+// `bars_window.HISTORY_WINDOW_BARS`, read off the Python module.
+let armedBars = null
+function strategyBars() {
+  if (!armedBars) armedBars = barsOfCapture(loadCapture(BOUND_REFERENCE).capture)
+  return armedBars
+}
+const ARMED_CTX = () => ({ ...BOUND_CTX, historyWindowBars: historyWindowBarsOf(path.resolve(process.cwd(), '..')) })
+/** The census's own door answer, in the shape `strategyArmed.js` reads, judged as the RUNTIME-ON lane judges it
+ *  (`coverage_map.py::runtimeClean`): `isClean`, or attached by the runtime lane (a runtime document keeps the
+ *  host translation's refusals beside it by design, so `isClean` cannot judge it, and the broker runs only there). */
+function armedDoor(source) {
+  const r = oneDoor(source, { runtimeDetail: false })
+  const attached = !!r.attached && r.installed !== false
+  return { attached, clean: isClean(r) || (attached && r.lane === 'runtime'), guard: r.guard || null, lane: r.lane || null,
+    refusals: (r.refusals || []).map((x) => x.guard).filter(Boolean), runtimeDeclined: r.runtimeDeclined || null }
 }
 
 /** ⭐⭐ ENGINE 55 (coordinator, s6-bugs-1114) — THE DARK-PLOT TEST. The reference bars start at
@@ -341,9 +396,42 @@ export function boundBlockers(d, bars = referenceBars(), ctx = BOUND_CTX) {
   return [...new Set(out)]
 }
 
+/** ⭐⭐ PARITY UNIT 1 (`objects`, 2026-11-18) — the door's RUN HALF bound on the reference bars as the binder
+ *  binds it (`nativeRegistry.js::withRunHalf`, every gate and both rails): `{state, code}`. The run is the
+ *  in-process lane (`runtimeColumnsFor`, the run-half rails' own call), registered for THIS bind only and
+ *  taken off again, so no other bound reading of the census changes (the census registers no lane). */
+export function runHalfBoundOf(d, bars = referenceBars(), ctx = BOUND_CTX) {
+  registry.registerRuntimeLane(runtimeColumnsFor)
+  try {
+    const cols = registry.computeFor(d.definition, bars, undefined, ctx)
+    if (cols && typeof cols.then === 'function') return { state: 'async', code: null }
+    const half = runHalfOf(cols)
+    return half ? { state: half.state || null, code: half.code || null } : { state: null, code: null }
+  } catch (err) {
+    return { state: 'threw', code: short((err && err.message) || err, 80) }
+  } finally {
+    registry.registerRuntimeLane(null)
+  }
+}
+
+/** ⭐⭐ PARITY UNIT 1 — "TRANSFERS FULLY, ITS LOST DRAWINGS DRAWN BY ITS RUN HALF": the step is the host
+ *  document, clean in every respect but its object program's loss (`isClean` with the loss verdict
+ *  `partial` admitted, the program carried), and its run half is SERVED on the reference bars: the plots
+ *  are the host's, and every drawing is the run's, each the host draws held to the host's. An attached
+ *  step's `pine:objects-only` is the CONSEQUENCE of its dropped ops (the host lane refuses a DIRTY
+ *  objects-only program by that name, a clean one is `ok`: `coverage_map.py`, DRAW-1), so it is the loss
+ *  the run half draws, not a refusal of its own. */
+function isCleanByRunHalf(r) {
+  if (!r || r.lane !== 'host' || r.lossVerdict !== 'partial' || !r.drawsObjects) return false
+  const refusals = (r.refusals || []).filter((x) => !(x && x.guard === 'pine:objects-only'))
+  return isClean({ ...r, refusals, lossVerdict: 'clean' })
+    && !!r.runHalfBound && r.runHalfBound.state === 'served'
+}
+
 /** ⭐ "TRANSFERS FULLY" — the coverage map's headline predicate, in one place.
  *  Attached by the member door AND installed AND zero refusals AND the object
- *  program carried with nothing dropped or withheld AND no paint withheld. */
+ *  program carried with nothing dropped or withheld AND no paint withheld.
+ *  A paint is withheld when the DOCUMENT the member gets does not draw it (`paint_predicate.mjs`). */
 function isClean(r) {
   return !!r && !!r.attached && r.installed !== false
     && (r.refusals || []).length === 0
@@ -389,8 +477,14 @@ function census(source, cap, { rtOn = RT_ON } = {}) {
   return {
     attached: !!first.attached && first.installed !== false,
     clean: isClean(first),
+    // INSTRUMENT (2026-11-16): the same predicate under the paint rule it had before (every paint the
+    // TRANSLATION withheld counts), so one run states the headline under both definitions.
+    cleanTranslatedPaints: isClean({ ...first, withheldPaints: first.withheldPaintsTranslated }),
     // ⭐ ENGINE 55 — the BOUND predicate (`boundBlockers`), beside the static one.
     cleanBound: isClean(first) && Array.isArray(first.boundWhy) && first.boundWhy.length === 0,
+    // ⭐⭐ PARITY UNIT 1 — clean but for the drawings its host program lost, which its run half draws
+    // (`coverage_map.py::runtime_on_transfers` reads it on the runtime-on lane)
+    cleanByRunHalf: isCleanByRunHalf(first),
     reachedAfterPeel: !!last.attached,
     peelSteps: steps.length - 1,
     stuck,
@@ -454,13 +548,32 @@ describe.skipIf(!RUN)('coverage-map door census (driven by run_census.py)', () =
       vi.stubEnv(RUNTIME_FLAG, '1')
       try {
         const rt = oneDoor(source)
-        row.runtime = { attached: !!rt.attached && rt.installed !== false, clean: isClean(rt), lane: rt.lane || null,
+        row.runtime = { attached: !!rt.attached && rt.installed !== false, clean: isClean(rt),
+          cleanTranslatedPaints: isClean({ ...rt, withheldPaints: rt.withheldPaintsTranslated }), lane: rt.lane || null,
           guard: rt.guard || null, threw: rt.threw || null, refusalGuards: [...new Set((rt.refusals || []).map((x) => x.guard))] }
       } catch (err) {
         row.runtime = { attached: false, clean: false, threw: short((err && err.message) || err) }
       }
       vi.unstubAllEnvs()
-      fs.appendFileSync(OUT, `${JSON.stringify({ key: it.key, lane: LANE, ms: Date.now() - t0, ...row })}\n`)
+      // ⭐⭐ W9 ARMED (coordinator ruling 2026-11-16) — THE BROKER COUNTERFACTUAL, step 0, a strategy only:
+      // the same door with the objects-only pane, the runtime pane AND the dark strategy broker switched on
+      // (`runtime/__tests__/strategyArmed.js`). A SEPARATE column (`strategyArmed`): it measures what arming
+      // the broker would serve and is never counted in the headline (`transfers_fully` is unchanged).
+      if (STRATEGY_DECLARATION.test(source)) {
+        vi.stubEnv(OBJECTS_ONLY_FLAG, '1')
+        vi.stubEnv(RUNTIME_FLAG, '1')
+        vi.stubEnv(BROKER_FLAG, '1')
+        __permitRuntimePaneForTests()
+        __allowEveryRuntimeScriptForTests()
+        try {
+          row.strategyArmed = armedStrategyVerdict({ source, door: armedDoor, bars: strategyBars(), ctx: ARMED_CTX() })
+        } catch (err) {
+          row.strategyArmed = { threw: short((err && err.message) || err) }
+        }
+        vi.unstubAllEnvs()
+      }
+      fs.appendFileSync(OUT, `${JSON.stringify({ key: it.key, lane: LANE, ms: Date.now() - t0,
+        ...(LIBRARIES_LOADED.length ? { libraryStore: LIBRARIES_LOADED.length } : {}), ...row })}\n`)
       n += 1
     }
     fs.writeFileSync(cur, '')
@@ -687,10 +800,12 @@ describe('W4 T0: the runtime probe asks the build the door asked (objects in the
   // explains it. Here the drawing build's own refusal is `runtime:conditional-history`
   // (a `ta.*` assigned in an `if`, read by `line.new`), and the host lane refused the
   // unknown function first so the runtime lane was consulted.
+  // ⭐ L4d (re-pinned): `ta.sma` / `ta.ema` / `ta.rma` in an `if` are now served to a drawing per
+  // call site (W3N-D1a/b/c), so the fixture uses `ta.wma`, which no drawing capture witnesses.
   const OBJECT_OP = [...FIXTURE_HEAD,
     'var float lo = na',
     'if close > open',
-    '    lo := ta.sma(close, 3)',
+    '    lo := ta.wma(close, 3)',
     'ln = line.new(bar_index, lo, bar_index + 1, lo)',
     'plot(math.nosuch(close))',
   ].join(LF)
@@ -758,11 +873,32 @@ describe('⛔ engine 55 — the census bound check (`boundBlockers`) can fail', 
   const head = ['//@version=5', "indicator('e55 bound', overlay=true)"]
   const doorOf = (lines) => underLane(false, () => memberPaneDefinition({ source: [...head, ...lines].join(LF), id: DEF_ID, name: 'b' }))
 
-  it('⛔ a DARK plot (the builtin Supertrend from the listing: 0 bars against the off-listing replay) is a blocker', () => {
+  // ⭐ ENGINE 57 moved this rail's subject: it was the builtin Supertrend, dark until engine 57
+  // fixed its tree. The subject is now THAT dark plot, rebuilt: the door translates the same
+  // script with engine 56's supertrend expansion swapped in (the verbatim fixture
+  // `__fixtures__/supertrendTreesEngine56.js`, restored in `finally`). The control below is
+  // today's tree on the same script: no dark-plot blocker.
+  const withEngine56Supertrend = (fn) => {
+    const st = CALL_EXPANSIONS.supertrend
+    const sd = CALL_EXPANSIONS.supertrendDirection
+    const was = [st.build, sd.build]
+    st.build = (a) => { const t = supertrendTreesEngine56(a[0], a[1]); return t ? t.value : null }
+    sd.build = (a) => { const t = supertrendTreesEngine56(a[0], a[1]); return t ? t.direction : null }
+    try { return fn() } finally { [st.build, sd.build] = was }
+  }
+
+  it('⛔ a DARK plot (engine 56\'s builtin Supertrend tree from the listing: fewer bars than the off-listing replay) is a blocker', () => {
+    const d = withEngine56Supertrend(() => doorOf(['[st, dir] = ta.supertrend(3, 10)', 'plot(st)']))
+    expect(d.ok).toBe(true)
+    const why = boundBlockers(d)
+    expect(why.some((w) => /^dark-plot:[^:]+:listing \d+ (\/ off-listing|of the off-listing) [1-9]\d*$/.test(w)), why.join(' | ')).toBe(true)
+  })
+
+  it('CONTROL (engine 57): today\'s builtin Supertrend on the same script is NOT dark', () => {
     const d = doorOf(['[st, dir] = ta.supertrend(3, 10)', 'plot(st)'])
     expect(d.ok).toBe(true)
     const why = boundBlockers(d)
-    expect(why.some((w) => /^dark-plot:[^:]+:listing 0 \/ off-listing [1-9]\d*$/.test(w)), why.join(' | ')).toBe(true)
+    expect(why.filter((w) => w.startsWith('dark-plot:')), why.join(' | ')).toEqual([])
   })
 
   it('a plot empty in BOTH replays (an input left off) is NOT a dark plot (the control for the rule)', () => {
@@ -796,5 +932,36 @@ describe('⛔ engine 55 — the census bound check (`boundBlockers`) can fail', 
     const why = boundBlockers(d)
     expect(why.some((w) => w.startsWith('objects:withheld-unknown:'))).toBe(true)
     expect(why).toContain('objects:not-computable')
+  })
+})
+
+// ─── ⛔ SELF-CHECK: THE PAINT RULE (instrument correction, 2026-11-16) ───────────────────
+// A paint counts as withheld only when the document the member gets does not draw it.
+describe('⛔ census paint rule: withheld means the document does not draw it', () => {
+  const t = { presentation: { paints: [
+    { kind: 'barcolor', line: 12, withheld: { code: 'paint:colour', reason: 'x' } },
+    { kind: 'bgcolor', line: 20, withheld: { code: 'paint:offset', reason: 'y' } },
+    { kind: 'bgcolor', line: 30, color: '#ff0000' },
+  ] } }
+  it('the translation count is every paint the translation withheld', () => {
+    expect(paintsWithheldByTranslation(t)).toBe(2)
+    expect(paintsWithheldByTranslation(null)).toBe(0)
+  })
+  it('a withheld paint the document draws (same kind, same line) is not counted', () => {
+    expect(paintsWithheldFromDocument(t, { paints: [{ kind: 'barcolor', line: 12 }, { kind: 'bgcolor', line: 30 }] })).toBe(1)
+  })
+  it('a document paint of another line or another kind lifts nothing', () => {
+    expect(paintsWithheldFromDocument(t, { paints: [{ kind: 'barcolor', line: 13 }, { kind: 'barcolor', line: 20 }] })).toBe(2)
+  })
+  it('no document (the door did not attach), or a document with no paints: every withheld paint counts', () => {
+    expect(paintsWithheldFromDocument(t, null)).toBe(2)
+    expect(paintsWithheldFromDocument(t, { paints: [] })).toBe(2)
+  })
+  it('one document paint lifts one withheld paint, never two on the same line', () => {
+    const two = { presentation: { paints: [
+      { kind: 'barcolor', line: 5, withheld: { code: 'paint:colour', reason: 'a' } },
+      { kind: 'barcolor', line: 5, withheld: { code: 'paint:colour', reason: 'b' } },
+    ] } }
+    expect(paintsWithheldFromDocument(two, { paints: [{ kind: 'barcolor', line: 5 }] })).toBe(1)
   })
 })

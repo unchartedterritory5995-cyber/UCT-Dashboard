@@ -55,6 +55,10 @@ _pending_unsubscribe: dict[str, set[str]] = {}
 # "volume") share the one connection without one's release narrowing another's feed.
 _sub_owners: dict[str, dict[str, frozenset[str]]] = {}
 _state_lock = threading.Lock()
+#: STREAM_FEED_SOURCE=remote: this pod has no socket; owner holds are only RECORDED
+#: (feed_client sends them to stream-ingest), so nothing is queued for a drain that
+#: never runs. Set once at startup by feed_client.start_remote.
+_record_only = False
 
 # ── Owner-scoped channels (STREAM_SCOPED_CHANNELS) ───────────────────────────
 # Wire order of the channels for one symbol. Fixed so the messages stay
@@ -758,6 +762,8 @@ def _reconcile_locked(sym: str) -> None:
     have = _active_channels.get(sym, set())
     added = want - have
     removed = have - want
+    if _record_only:
+        added = removed = set()      # no socket to send to: just record (see _record_only)
     if added:
         _pending_subscribe.setdefault(sym, set()).update(added)
         left = _pending_unsubscribe.get(sym)
@@ -926,6 +932,12 @@ def start_stream(on_bar: OnBarCallback) -> None:
     # point, not in the reconnect loop — see realtime_stream.start_stream.
     from api.services import vendor_socket_guard
     if vendor_socket_guard.refuse_if_local("massive-bars"):
+        return
+    # Invariant 11 (stream-ingest): in remote mode the stream-ingest service holds the
+    # ONE Massive stocks socket. This pod must never open a second one.
+    if os.environ.get("STREAM_FEED_SOURCE", "local").strip().lower() == "remote":
+        _logger.warning("[bar_stream] STREAM_FEED_SOURCE=remote: NOT opening the Massive socket "
+                        "(stream-ingest holds it)")
         return
 
     def _thread_target():

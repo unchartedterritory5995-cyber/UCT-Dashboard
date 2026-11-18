@@ -274,7 +274,7 @@ def _run_priority_sweep():
     if not tickers:
         return
     try:
-        bars_audit.audit_universe(tickers, scope=PRIORITY_SCOPE)
+        bars_audit.audit_universe(tickers, scope=PRIORITY_SCOPE, lane=PRIORITY_SCOPE)
     except Exception:
         _logger.exception("[continuous_audit] priority audit_universe failed")
 
@@ -292,6 +292,6 @@ def _run_universe_sweep():
     if not tickers:
         return
     try:
-        bars_audit.audit_universe(tickers, scope=UNIVERSE_SCOPE)
+        bars_audit.audit_universe(tickers, scope=UNIVERSE_SCOPE, lane=UNIVERSE_SCOPE)
     except Exception:
         _logger.exception("[continuous_audit] universe audit_universe failed")

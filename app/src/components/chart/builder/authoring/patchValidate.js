@@ -24,7 +24,9 @@ export const OP_NAMES = Object.freeze(SCHEMA.$defs.patchOp.oneOf
 
 const KNOWN = new Set(['$schema', '$id', 'title', 'description', 'type', 'additionalProperties', 'required',
   'properties', 'x-uct-limits', '$defs', 'const', 'enum', 'pattern', 'minLength', 'maxLength', 'minimum',
-  'maximum', 'minItems', 'maxItems', 'items', '$ref', 'oneOf', 'minProperties', 'x-uct-node-schema'])
+  'maximum', 'minItems', 'maxItems', 'items', '$ref', 'oneOf', 'minProperties', 'x-uct-node-schema',
+  // a property only the DOOR may write (a note's `by`): the assistant's copy of the schema leaves it out
+  'x-uct-door-only'])
 
 /** Every keyword in the file must be one this walker implements. */
 export function assertSubset(node = SCHEMA, at = '#') {

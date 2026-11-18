@@ -49,7 +49,7 @@ import { mergeChartSettings } from '../../chartDefaults'
 import { memberPaneEnabled } from '../../engine/memberPaneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
 import {
-  setRuntimeKillList, setRuntimeAllowList, setRuntimeCapabilityAdmission, runtimeCapabilityAdmissionOn,
+  latchRuntimeLists, runtimeCapabilityAdmissionOn,
   runtimeAdmissionOf, watchRuntimeAdmission, RUNTIME_KILL_PATH,
 } from '../../engine/runtimeKill'
 import { requirementNote } from '../../engine/ast/parse'
@@ -83,6 +83,9 @@ const REFUSAL_LOG_SETTLE_MS = 1500
  * @param {((definition: object) => Promise<{ok: boolean, error?: string}>)|null}
  *        [props.onAttach] omit for a preview-only pane; supply it and the pane
  *        offers to SAVE the document and put it on the member's real chart.
+ * @param {((definition: object|null) => void)|null} [props.onDocument] told the document
+ *        this pane installed (the one "Add this script to my chart" adds), or null when
+ *        there is none, so a host can describe IT rather than its own state.
  */
 export default function MemberPane({
   sym = null, tf = null, source = null, defId = MEMBER_PANE_DEF_PREFIX, settings = null,
@@ -94,6 +97,7 @@ export default function MemberPane({
   doneLabel = 'Saved, and added to this chart.',
   onAttachCopy = null,
   copyLabel = null,
+  onDocument = null,
 }) {
   // ⛔ FIRST, AND BEFORE ANY BUILD. Reading the flag after `memberPaneDefinition`
   // would translate a member's script on a build that may not show it — work
@@ -133,11 +137,11 @@ export default function MemberPane({
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!alive || !d) return
-        setRuntimeKillList(d.kill)
         // ⭐ GT (D6) — the starter allowlist rides the same read. Until it lands
         // the lane declines every script (nothing graded), never the reverse.
-        setRuntimeAllowList(d.allow)
-        setRuntimeCapabilityAdmission(d.capability_admission)
+        // ⭐ RS RATING L8 — so does the run half's object evidence: ONE latch for every
+        // key of this read (`runtimeKill.js::latchRuntimeLists`, also the recheck's).
+        latchRuntimeLists(d)
         setAdmissionOn(runtimeCapabilityAdmissionOn())
         setKillVersion((n) => n + 1)
       })
@@ -209,6 +213,13 @@ export default function MemberPane({
     setInstalled(null)
     return undefined
   }, [built, defId])
+
+  // ⭐ THE HOST IS TOLD WHAT THIS PANE WOULD ADD (the installed document, or null), so
+  // the sheet's own counts can describe the script and not its empty formula.
+  useEffect(() => {
+    if (typeof onDocument === 'function') onDocument(installed)
+  }, [installed, onDocument])
+  useEffect(() => () => { if (typeof onDocument === 'function') onDocument(null) }, [onDocument])
 
   // ⛔ A SEPARATE, EMPTY-DEP EFFECT for the teardown. Putting it in the cleanup
   // above would fire on every source change — uninstall-then-reinstall bumps the

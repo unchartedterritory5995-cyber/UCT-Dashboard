@@ -101,11 +101,19 @@ const CONTROLS = {
   // a parameter redeclared in a body whose function the runtime lane lowers with slots
   paramMut: [['f(x) =>', '    y = 0.0', '    y := x', '    x = nz(x[1]) + y', '    x', 'plot(f(close))'], ['pine:state', 'pine:state', 'OK', 'pine:state']],
   // a block local shadowing a global, and a loop counter redeclared in the loop body
-  blockShadow: [['x = close', 'y = if close > 100', '    x = nz(x[1]) + 1', '    x', 'else', '    0.0', 'plot(y)'], ['pine:state', 'OK', 'runtime:conditional-history', 'OK']],
+  // ⭐ HIST-S3 — the runtime build ACCEPTS it now (was `runtime:conditional-history`): the arm's block-local
+  // history is drawn only while the arm has run on every bar, and the run stops by name at the first skip
+  blockShadow: [['x = close', 'y = if close > 100', '    x = nz(x[1]) + 1', '    x', 'else', '    0.0', 'plot(y)'], ['pine:state', 'OK', 'OK', 'OK']],
   loopShadow: [['f(s) =>', '    t = 0.0', '    for i = 0 to 2', '        i = nz(i[1]) + s', '        t := t + i', '    t', 'plot(f(close))'], ['pine:block', 'pine:block', 'runtime:conditional-history', 'pine:block']],
 }
 
 const V3 = [3, 4, 5, 6]
+/** ⭐ LANDING TRAIN 1 (the review of #1330, item 4, coordinator ruling): a script with NO `//@version` that
+ *  uses v4+ syntax is refused at the MEMBER DOOR by name (`pine:version-missing`: TradingView compiles a
+ *  no-pragma script as v1, which has no `var` and no typed declaration). The three translator doors keep
+ *  their path. These five controls are the ones written with `var` / a typed declaration. */
+const NO_PRAGMA_MODERN = new Set(['var', 'shadowSlot', 'shadowSlotTop', 'blockVar', 'blockString'])
+const doorWant = (shape, v, want) => (v === null && NO_PRAGMA_MODERN.has(shape) ? [want[0], want[1], want[2], 'pine:version-missing'] : want)
 const V12 = [null, 2]
 
 describe('⭐⭐ engine 49 — v3+: a declaration that reads its own history refuses `pine:cycle`, ONE sentence, every door', () => {
@@ -143,7 +151,9 @@ describe('⭐⭐ engine 49 — v1/v2 and no pragma compile these spellings: thei
     nzSum: ['pine:state', 'pine:state', 'OK', 'pine:state'],
     holdMax: ['OK', 'OK', 'OK', 'OK'],
     naSeeded: ['pine:cycle', 'pine:cycle', 'pine:cycle', 'pine:cycle'],
-    warmupSeed: ['OK', 'OK', 'runtime:conditional-history', 'OK'],
+    // ⭐ HIST-S1 — before v4 a `?:` runs both arms on every bar (vw-ternary-arm-legacy-*): the runtime
+    // lane builds it now (was `runtime:conditional-history`)
+    warmupSeed: ['OK', 'OK', 'OK', 'OK'],
     warmupNa: ['pine:cycle', 'pine:cycle', 'pine:cycle', 'pine:cycle'],
     fnLocal: ['pine:state', 'pine:state', 'OK', 'pine:state'],
     fnSeed: ['pine:state', 'pine:state', 'OK', 'pine:state'],
@@ -167,7 +177,7 @@ describe('⭐⭐ engine 49 — controls keep their path in every pragma (the che
     for (const v of [...V12, ...V3]) cases.push([shape, v === null ? 'none' : `v${v}`, v, lines, want])
   }
   it.each(cases)('%s, pragma %s', (shape, _label, v, lines, want) => {
-    expect(guards(pineAt(v, lines))).toEqual(want)
+    expect(guards(pineAt(v, lines))).toEqual(doorWant(shape, v, want))
   })
 })
 
@@ -323,7 +333,9 @@ describe('⭐⭐ engine 50 — controls: nothing here reads an undeclared variab
     blockVar: [() => ['var x = if close > open', '    nz(x[1]) + 1', 'else', '    0.0', 'plot(x)'], ['pine:block', 'pine:block', 'OK', 'pine:block']],
     blockMutable: [() => ['x = 0.0', 'x := if close > open', '    nz(x[1]) + 1', 'else', '    0.0', 'plot(x)'], ['OK', 'OK', 'OK', 'OK']],
     blockString: [() => ['x = if close > open', '    str.length("x[1]") * 1.0', 'else', '    0.0', 'plot(x)'], ['OK', 'OK', 'OK', 'OK']],
-    blockCallHistory: [(v) => ['x = if close > open', `    ${ta(v, 'sma')}(close, 5)[1]`, 'else', '    0.0', 'plot(x)'], ['OK', 'OK', 'runtime:conditional-history', 'OK']],
+    // COND-TA (engine 58): the screener lane refuses it by name. ⭐ HIST-S3: the runtime BUILD accepts it
+    // (was `runtime:conditional-history`); the run checks the arm runs on every bar and stops by name if not
+    blockCallHistory: [(v) => ['x = if close > open', `    ${ta(v, 'sma')}(close, 5)[1]`, 'else', '    0.0', 'plot(x)'], ['pine:block', 'OK', 'OK', 'OK']],
     // function namespace: a name that is a function only, a mutable variable of a function's name, a
     // parameter named after a function, and a history read of a CALL
     fnNameMutable: [() => ['x(a) => a * 2', 'float x = 0.0', 'x := nz(x[1]) + 1', 'plot(x)'], ['pine:state', 'pine:state', 'OK', 'pine:state']],
@@ -339,7 +351,7 @@ describe('⭐⭐ engine 50 — controls: nothing here reads an undeclared variab
     for (const v of [...V12, ...V3]) cases.push([shape, v === null ? 'none' : `v${v}`, v, lines, want])
   }
   it.each(cases)('%s, pragma %s', (shape, _label, v, lines, want) => {
-    expect(guards(pineAt(v, lines(v)))).toEqual(want)
+    expect(guards(pineAt(v, lines(v)))).toEqual(doorWant(shape, v, want))
   })
 })
 

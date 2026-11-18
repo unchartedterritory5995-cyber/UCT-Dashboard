@@ -35,6 +35,33 @@
    full height of the chart section, one divider on the chart side, no card chrome.
    Opacity-only entrance: the reflow itself is instant, so the chart never animates
    through intermediate widths. */
+/* ── PHONE AND TABLET (the touch tier, 1024px and below) ──
+   A half-height sheet across the bottom, so the chart being previewed stays in view above
+   it. It was a fixed 360px panel at every width, which on a phone covered the chart it was
+   drawing on. `!important` because the floating position is an inline style measured from
+   the chart; the docked variant (the workspace's reserved column) is left alone. */
+@media (max-width: 1024px) {
+  .panel:not(.panelDocked) {
+    top: auto !important;
+    left: 0 !important;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: min(58dvh, 560px) !important;
+    border-radius: 16px 16px 0 0;
+    border-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  /* In the phone sheet (the dock host's overlay case, `ChartsWorkspace.module.css`) the
+     panel is the docked variant: it loses its side border and takes the sheet's top edge. */
+  [data-studio-dock="overlay"] > .panelDocked {
+    border-left: none;
+    border-top: 1px solid var(--menu-border, #242426);
+    border-radius: 16px 16px 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
 .panelDocked {
   position: relative;
   z-index: auto;
@@ -156,6 +183,15 @@
   font-size: 11px; color: var(--menu-text-faint, #93939a);
   padding: 0 0 6px 12px;
 }
+/* While it works: the line, the seconds under it, Stop at the right. */
+.workingRow { display: flex; align-items: center; gap: 10px; }
+.workingText { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.workingNote {
+  padding-left: 12px;
+  font-size: 10.5px; color: var(--menu-text-faint, #93939a);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 1024px) { .workingRow .ghost { height: 44px; } }
 .working {
   font-size: 11.5px; color: var(--menu-text-faint, #93939a);
   padding-left: 12px;
@@ -219,7 +255,6 @@
 .swatch { flex: none; width: 9px; height: 9px; border-radius: 2px; border: 1px solid rgba(255, 255, 255, 0.18); }
 .refused { color: #e57373; }
 .ack { font-size: 11px; color: var(--menu-text-dim, #b3b3b9); display: flex; gap: 6px; align-items: flex-start; }
-
 /* ── COMPOSER + ACTIONS ───────────────────────────────────────────── */
 .composer {
   flex: none;
@@ -241,7 +276,11 @@
   outline: none;
   transition: border-color 120ms;
 }
-.input::placeholder { color: var(--menu-text-faint, #93939a); }
+/* The hint stays on ONE line. The box is one row tall, so a wrapped hint was cut off mid-word. */
+.input::placeholder {
+  color: var(--menu-text-faint, #93939a);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .input:focus { border-color: var(--menu-accent, #dcbb5e); }
 .input:disabled { opacity: 0.6; }
 
@@ -277,6 +316,90 @@
 }
 .ghost:hover:not(:disabled) { color: var(--menu-text, #ededed); border-color: rgba(255, 255, 255, 0.18); }
 .ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── V1 — HISTORY: the earlier steps of this draft, above the footer ── */
+/* ⛔ IT FLOATS ABOVE THE FOOTER; IT TAKES NO LAYOUT SPACE. Measured on production
+   2026-11-16 in a 444px dock: as a block in the column it pushed Undo and Add to Chart
+   38px below the panel's edge, where a click landed on the chart. Both panel variants
+   are positioned (fixed, or relative when docked), so this anchors to the panel. The
+   58px is the footer row (10 + 30 + 12) plus a gap. */
+.history {
+  position: absolute;
+  left: 12px; right: 12px; bottom: 58px;
+  z-index: 3;
+  max-height: calc(100% - 130px);
+  display: flex; flex-direction: column;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+  background: var(--menu-card, #1a1b1f);
+  border: 1px solid var(--menu-border, #2c2c30);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.historyHead {
+  flex: none;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px;
+  font-size: 11px; font-weight: 600; color: var(--menu-text, #ededed);
+  border-bottom: 1px solid var(--menu-border, #2c2c30);
+}
+.historyClose {
+  background: none; border: 0; padding: 4px 2px; cursor: pointer;
+  font-family: inherit; font-size: 11px; color: var(--menu-text-dim, #b3b3b9);
+}
+.historyClose:hover { color: var(--menu-text, #ededed); }
+.historyList { list-style: none; margin: 0; padding: 0; overflow-y: auto; min-height: 0; }
+.historyRow {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+}
+.historyRow + .historyRow { border-top: 1px solid var(--menu-border, #2c2c30); }
+.historyWhat { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.historyStep { font-size: 10.5px; color: var(--menu-text-faint, #93939a); }
+.historyLine {
+  font-size: 11.5px; color: var(--menu-text-dim, #b3b3b9);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* The saved versions, under the draft's own steps (backlog 30). A reason or a note about lines
+   is a sentence, so it wraps; a step's read-back line stays on one line as before. */
+.historyVersions { display: flex; flex-direction: column; min-height: 0; flex: 0 1 auto; }
+.historySub {
+  flex: none; padding: 8px 10px 6px;
+  font-size: 11px; font-weight: 600; color: var(--menu-text, #ededed);
+  border-top: 1px solid var(--menu-border, #2c2c30);
+  border-bottom: 1px solid var(--menu-border, #2c2c30);
+}
+.historyNote { margin: 0; padding: 8px 10px; font-size: 11.5px; color: var(--menu-text-dim, #b3b3b9); }
+.historyWrap { white-space: normal; overflow: visible; text-overflow: clip; }
+@media (max-width: 1024px) {
+  .historyRow .ghost { height: 44px; }
+  .historyClose { min-height: 44px; padding: 0 8px; }
+}
+
+/* F1 — the allowance line, quiet, just above the box it limits. */
+.allowance {
+  flex: none;
+  margin: 0; padding: 0 14px 6px;
+  font-size: 11px; color: var(--menu-text-faint, #93939a);
+}
+
+/* L8 — the quiet way to send a conversation to UCT, at the end of the log. */
+.sendRow { padding: 2px 12px 6px; }
+.sendLink {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font-family: inherit; font-size: 11px; color: var(--menu-text-faint, #93939a);
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.sendLink:hover { color: var(--menu-text, #ededed); }
+@media (max-width: 1024px) { .sendLink { min-height: 44px; } }
+
+/* What the assistant says it built: quieter than the engine's lines above it, with its label. */
+.said {
+  display: flex; flex-direction: column; gap: 2px;
+  margin-top: 6px; padding-top: 6px;
+  border-top: 1px solid var(--menu-border, #2c2c30);
+  font-size: 11.5px; color: var(--menu-text-dim, #b3b3b9);
+}
+.saidLabel { font-size: 10.5px; color: var(--menu-text-faint, #93939a); }
 
 .foot {
   flex: none;

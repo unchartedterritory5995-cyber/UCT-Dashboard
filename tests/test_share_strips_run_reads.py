@@ -258,8 +258,22 @@ def test_the_LIBRARY_lists_no_script():
     _assert_no_script(got.json(), src)
     # ⛔ the entry is a CLOSED projection of meta: a new field that carried the document would
     # have to be added here, on purpose
-    assert set(got.json()["entries"][0]) == {"token", "name", "shortName", "description", "repaint",
-                                             "placement", "inputs", "published_at", "ast_hash"}
+    entry = got.json()["entries"][0]
+    assert set(entry) == {"token", "name", "shortName", "description", "repaint",
+                          "placement", "inputs", "published_at", "ast_hash", "licence",
+                          "headline", "engine_version"}
+    # 2026-11-17 (Studio R4, Indicators backlog 43): `headline` and `engine_version` were added on
+    # purpose. `headline` is the AUTHOR's own status-panel sentence for the pinned version, as their
+    # browser recorded it (`svc.record_status_headline`), or None; `engine_version` is the engine
+    # number that recorded it, or None. Neither is the script, the author or their id. A third,
+    # `headline_current`, rides only BESIDE a headline (tests/test_share_headline.py); this fixture
+    # records none, so both are None here.
+    assert entry["headline"] is None and entry["engine_version"] is None
+    # 2026-11-16 (library moderation, f424543581): `licence` was added on purpose. It is the
+    # licence NAME a pasted script's header declares (`svc.licence_of`: one regex capture of at
+    # most 90 characters, header comments only), or None. It is a fact about the script, never
+    # its text, and this fixture declares none.
+    assert entry["licence"] is None or (isinstance(entry["licence"], str) and len(entry["licence"]) <= 90)
 
 
 def test_a_runtime_document_share_carries_its_script_AND_says_so(monkeypatch):
@@ -291,13 +305,32 @@ ROUTES = {
     ("POST", "/api/user-definitions"): "own",
     ("POST", "/api/user-definitions/propose"): "none",
     ("POST", "/api/user-definitions/converse"): "none",
+    # 2026-11-17 (8a3a2e04ea, Settings shows what Create Indicator remembers): the CALLER's own
+    # Create Indicator memory (`indicator_memory.Memory(user["id"])`, the session id only, never
+    # one from the request), behind require_paid + require_admin_dark_rollout. Each answers
+    # `definition_conversation.memory_view` -- remembered question/choice pairs -- and never reads
+    # or returns a stored definition, so none of the three can carry an author's script.
+    ("GET", "/api/user-definitions/assistant-memory"): "none",
+    ("PUT", "/api/user-definitions/assistant-memory"): "none",
+    ("DELETE", "/api/user-definitions/assistant-memory"): "none",
     ("GET", "/api/user-definitions/library"): "cross",
+    # 2026-11-16 (library moderation, f424543581): UCT takes a library entry down or lifts that.
+    # Admin only in the body; `svc.take_down` answers {token, taken_down, reason} and never reads
+    # the definition store, so neither returns a stored definition.
+    ("POST", "/api/user-definitions/library/{token}/takedown"): "none",
+    ("DELETE", "/api/user-definitions/library/{token}/takedown"): "none",
+    # U5 (e3dd9976c9): the capability detector PROCESS's state for the operator (enabled, alive, pid,
+    # quarantine sizes, counters); admin only, and it reads the worker, never the definition store.
+    ("GET", "/api/user-definitions/capability-worker"): "none",
     ("GET", "/api/user-definitions/runtime-kill"): "none",
     # WS-I Part 2: a verdict about the script the CALLER sends; it reads and stores nothing.
     ("POST", "/api/user-definitions/runtime-admission"): "none",
     ("GET", "/api/user-definitions/{def_id}"): "own",
     ("PUT", "/api/user-definitions/{def_id}"): "own",
     ("POST", "/api/user-definitions/{def_id}/engine-status"): "own",
+    # 2026-11-17 (Studio R4): the owner records their status headline for their OWN live version;
+    # it answers {def_id, version, engine, headline} and never returns a stored definition.
+    ("POST", "/api/user-definitions/{def_id}/status-headline"): "own",
     ("POST", "/api/user-definitions/{def_id}/fork"): "own",
     ("DELETE", "/api/user-definitions/{def_id}"): "own",
     ("POST", "/api/user-definitions/{def_id}/share"): "own",

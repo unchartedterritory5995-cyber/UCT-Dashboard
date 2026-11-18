@@ -146,16 +146,21 @@ describe('the offline working copy never stores a computed value', () => {
 
 describe("the list's SWR cache stays in memory", () => {
   const mounting = sourceFiles(SRC_ROOT)
-    // Test harnesses, never mounted by the app: the a11y fixture and src/testing/.
+    // Test harnesses, never mounted by the app: the a11y fixture, src/testing/, and any harness kept
+    // beside its tests in a __tests__/ folder (pages/screener/focus/__tests__/rsHarness.jsx, 32bb102b22).
     .filter((f) => !/[\\/]a11y[\\/]fixtures\.jsx$/.test(f))
     .filter((f) => !relative(SRC_ROOT, f).replace(/\\/g, '/').startsWith('testing/'))
+    .filter((f) => !/[\\/]__tests__[\\/]/.test(f))
+    // The Study workbench's own entry (lab.html -> lab/main.jsx): a dev-server-only page that never
+    // ships (lab/labAbsent.test.js). Only the ENTRY: a lab module the product imports is still read.
+    .filter((f) => relative(SRC_ROOT, f).replace(/\\/g, '/') !== 'lab/main.jsx')
     .filter((f) => readFileSync(f, 'utf8').includes('<SWRConfig'))
 
-  // App.jsx owns the cache. The Screener Focus chart pane nests a provider-less <SWRConfig> that
-  // only adds middleware, so it shares App.jsx's in-memory cache rather than making its own.
-  const PRODUCTION_MOUNTS = ['App.jsx', 'pages/screener/focus/ChartPane.jsx']
+  // App.jsx owns the cache. ⚰️ The Screener Focus chart pane used to nest a provider-less <SWRConfig>
+  // too; 7f80af2a45 (2026-10-18) made the screener's chart the /charts Chart widget and it went.
+  const PRODUCTION_MOUNTS = ['App.jsx']
 
-  it('App.jsx and the Focus chart pane are the only production <SWRConfig>s', () => {
+  it('App.jsx is the only production <SWRConfig>', () => {
     expect(mounting.map((f) => relative(SRC_ROOT, f).replace(/\\/g, '/')).sort()).toEqual(PRODUCTION_MOUNTS)
   })
 

@@ -1222,7 +1222,30 @@ _OUTCOME_LABEL = {
 #: Actions whose results are local only. Decided by NAME on the server (never trusted from the
 #: browser alone); the browser's `localOnly` flag on the same capabilities is a second signal.
 # journal.reviewTrades (W3 review B3): the member's own journal stats are shown, never replayed to a model
-LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades"})
+# news.movers (Phase 2 catalysts): UCT's catalyst board — stored third-party headlines and the engine's AI write-ups
+# (catalysts.board is model-isolated): a model never sees them, so a co-occurring headline never becomes a stated cause
+# rs.compare (Phase 2 market intelligence): UCT's RS Ratings / leadership are UCT-derived (rs.leadership is model-isolated)
+# stock.analystActions / stock.sessionHighsLows / stock.longRunLeaders / stock.darkPoolLevels (terminal data wave 1): each
+# reads a model-isolated kind (analyst.actions: third-party analyst calls; highsLows.session, leaders.longRun and
+# levels.darkpool: UCT-derived counts, selections and levels), so the member sees the card and a model never sees a value
+# stock.yearlyHighsLows / stock.themeRotation / stock.confluenceBoard / stock.expectedMove / stock.callSearch (terminal data
+# wave 2): each reads a model-isolated kind (highsLows.yearly: UCT breadth lists; themes.rotation and confluence.board:
+# UCT's own selections; earnings.expectedMove: UCT-computed from an option chain; earnings.callSearch: third-party
+# transcript excerpts), so the member sees the card and a model never sees a value or an excerpt
+# stock.gammaLevels / stock.topFlowPicks / stock.flowRecord / stock.earningsReactions (terminal data wave 3): each reads a
+# model-isolated kind (levels.gamma: UCT-computed from an option chain; flow.topPicks and flow.record: UCT's own selections
+# and their option contract results; earnings.reactions: UCT's calendar with third-party results and estimates), so the
+# member sees the card and a model never sees a value
+# stock.earningsSeason / stock.callThemes / stock.groupDrill (terminal data wave 4): each reads a model-isolated kind
+# (earnings.season: UCT's calendar with third-party results and estimates, and UCT's priced and past moves;
+# earnings.callThemes: phrases from third-party transcripts; group.drill: UCT's RS rank, confluence board and themes),
+# so the member sees the card and a model never sees a value or a phrase
+LOCAL_ONLY_ACTIONS = frozenset({"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades", "news.movers",
+                                "rs.compare", "stock.analystActions", "stock.sessionHighsLows", "stock.longRunLeaders",
+                                "stock.darkPoolLevels", "stock.yearlyHighsLows", "stock.themeRotation",
+                                "stock.confluenceBoard", "stock.expectedMove", "stock.callSearch",
+                                "stock.gammaLevels", "stock.topFlowPicks", "stock.flowRecord", "stock.earningsReactions",
+                                "stock.earningsSeason", "stock.callThemes", "stock.groupDrill"})
 #: ⛔ DATA-READ ANSWERS (hotfix 2026-11-03, live: "when does nvda report" got a reply inventing a date and a
 #: beat while the stock.earnings card said the date was not in UCT's data). These read-only actions (manifest
 #: `query: true`, market / screen data) answer with UCT's own deterministic card; the model's `reply` is written
@@ -1236,6 +1259,8 @@ DATA_READ_ACTIONS = frozenset({
     "chart.describeSetup",
     # Phase 2 COT research: the positioning card is UCT's deterministic read of stored CFTC rows (cot.positioning)
     "cot.positioning",
+    # Terminal data wave 1: the sector card is UCT's deterministic read of the sector ranking (sectors.performance)
+    "stock.sectorPerformance",
 })
 #: Brain response handling (owner, 2026-11-03, before activation). Planner v1 writes `reply` BEFORE any knowledge is
 #: read, so a plan holding ANY knowledge read (playbook.*, decided by action name: knowledge.frame) never serves it,
@@ -1514,6 +1539,10 @@ ACTIONLESS_OUTCOME_KINDS = frozenset({
     # of its changes are still on the board (each of them already has its own receipt row, with its actions); this row
     # names no action, so the model never reads it as an applied change
     "compound-takeback-failed",
+    # H14 / D23 (#1324): a chart pick refused because that chart changed since the question was asked — UCT's own
+    # fixed sentence ("Your board changed since I asked, so I didn't change anything …"), no data, nothing applied;
+    # the same class as "refused-stale", so it is replayable and names no action
+    "refused-stale-pick",
 })
 
 

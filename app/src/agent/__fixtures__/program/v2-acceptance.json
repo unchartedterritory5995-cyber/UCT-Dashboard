@@ -1536,7 +1536,7 @@
     {
       "id": "L05",
       "group": "lists",
-      "title": "a list removed from, then its remaining ticker opened on a new chart",
+      "title": "a list removed from, then its remaining ticker brought up — already on the board, so its chart is reused (D18 item 3)",
       "board": "ROOMY",
       "say": "prune amd out of Momentum and bring up what remains",
       "script": [
@@ -1578,7 +1578,11 @@
         "listCount": {
           "Momentum": 1
         },
-        "charts": 2
+        "charts": 1,
+        "symbol": {
+          "c": "NVDA"
+        },
+        "transcript": "NVDA is already on your board — I used that chart"
       }
     },
     {

@@ -54,6 +54,57 @@ describe('🔴 the page is wired into the app', () => {
   })
 })
 
+// The section's first open loads the engine's refusal families and what they import, which is
+// slow the first time in a cold test process (8 s was not enough). Every case that opens it waits
+// this long and carries a matching test timeout.
+const PINE_LOAD_MS = 45000
+
+describe('TradingView (Pine) names on the reference page', () => {
+  const open = () => render(
+    <MemoryRouter><FormulaReference /></MemoryRouter>)
+
+  it('the section is there and closed until asked for, so the page loads nothing extra', () => {
+    open()
+    expect(screen.getByRole('heading', { name: 'TradingView names' })).toBeInTheDocument()
+    expect(screen.getByTestId('pine-open')).toHaveTextContent('Show TradingView names')
+    expect(screen.queryByTestId('pine-names')).toBeNull()
+  })
+
+  it('opened, a Pine author finds ta.rsi and reads that it runs, and how', async () => {
+    open()
+    fireEvent.click(screen.getByTestId('pine-open'))
+    const section = await screen.findByTestId('pine-names', {}, { timeout: PINE_LOAD_MS })
+    expect(within(section).getByTestId('pine-count')).toHaveTextContent(/^\d+ of \d+ TradingView names run$/)
+    const row = section.querySelector('[data-pine="ta.rsi"]')
+    expect(row).not.toBeNull()
+    expect(row).toHaveAttribute('data-status', 'reachable')
+    expect(row).toHaveTextContent(/Runs as ta\.rsi\(/)
+  }, PINE_LOAD_MS + 5000)
+
+  it('request.security says not yet and why, in plain words, never a guard id', async () => {
+    open()
+    fireEvent.click(screen.getByTestId('pine-open'))
+    const section = await screen.findByTestId('pine-names', {}, { timeout: PINE_LOAD_MS })
+    const row = section.querySelector('[data-pine="request.security"]')
+    expect(row).toHaveTextContent(/^request\.securityNot yet: data from another symbol or timeframe$/)
+    expect(section.textContent).not.toMatch(/pine:[a-z-]+|runtime:[a-z-]+/)
+    expect(section.textContent).not.toMatch(/\b(Valid|Supported|Verified|Converted)\b/)
+  }, PINE_LOAD_MS + 5000)
+
+  it("the page's one search box filters the section, and the button says what it will look for", async () => {
+    open()
+    fireEvent.change(screen.getByTestId('reference-search'), { target: { value: 'request.' } })
+    expect(screen.getByTestId('pine-open')).toHaveTextContent('Look for “request.” in TradingView names')
+    fireEvent.click(screen.getByTestId('pine-open'))
+    const section = await screen.findByTestId('pine-names', {}, { timeout: PINE_LOAD_MS })
+    const rows = [...section.querySelectorAll('[data-pine]')].map((el) => el.getAttribute('data-pine'))
+    expect(rows.length).toBeGreaterThan(0)
+    expect(rows.every((n) => n.includes('request.'))).toBe(true)
+    fireEvent.change(screen.getByTestId('reference-search'), { target: { value: 'zzzz-no-such' } })
+    await waitFor(() => expect(within(section).getByTestId('pine-empty')).toBeInTheDocument())
+  }, PINE_LOAD_MS + 5000)
+})
+
 describe('what the page may never tell a member', () => {
   const open = () => render(
     <MemoryRouter><FormulaReference /></MemoryRouter>)
@@ -88,7 +139,9 @@ describe('what the page may never tell a member', () => {
     await waitFor(() => {
       const gone = document.querySelector('[data-excluded="obv"]')
       expect(gone).toBeTruthy()
-      expect(gone.textContent).toMatch(/CUMULATIVE/)
+      // the reason in a member's words (`memberReason.js`), never the engine's own note
+      expect(gone.textContent).toMatch(/running total from the first bar of history/)
+      expect(gone.textContent).not.toMatch(/CUMULATIVE|ABSOLUTE SEED/)
     })
     // ⭐ AND THE BOUNDED FORM WE DO HAVE IS IN THE SAME ANSWER, so the member
     // leaves with something to write rather than only with a refusal.

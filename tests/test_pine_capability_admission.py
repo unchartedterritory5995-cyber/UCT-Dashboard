@@ -32,6 +32,11 @@ from api.services import runtime_definitions as rt
 from api.services import user_definitions as svc
 
 ROOT = Path(__file__).resolve().parents[1]
+
+import sys  # noqa: E402
+
+sys.path.insert(0, str(ROOT / "tools" / "vendor_harness"))
+import licence_held  # noqa: E402 -- licence-held captures: read from the local store, skipped by name
 FIXTURE = ROOT / "tests" / "fixtures" / "runtime_documents" / "documents.json"
 DOCS = {d["slug"]: d for d in json.loads(FIXTURE.read_text(encoding="utf-8"))["documents"]}
 ADX = DOCS["adx-and-di-for-v4"]["definition"]
@@ -41,11 +46,11 @@ USER = "u-capadmit"
 #: ⭐ THE CASE THIS SLICE EXISTS FOR: the graded ADX script with one comment line added, as a
 #: member's own copy would be. Same capabilities, a different sha256, so the allowlist misses it.
 MEMBER_COPY = ADX["compute"]["source"] + "\n// my own copy\n"
-#: A script using a capability the committed registry does NOT admit (`udt`: one script's evidence,
-#: U3 2026-11-15). Was a `switch` script until U3 admitted `switch` on S1's second community script.
-UNADMITTED_CAP = "udt"
-UNADMITTED_SCRIPT = ("//@version=5\nindicator('u')\ntype P\n    float v\n"
-                     "p = P.new(close)\nplot(p.v)\n")
+#: A script using a capability the committed registry does NOT admit (`collections:matrix`: no
+#: runtime-drawn MATCH capture). It was `switch` until U3 admitted switch, then `udt` until U3b did.
+UNADMITTED_CAP = "collections:matrix"
+UNADMITTED_SCRIPT = ("//@version=5\nindicator('u')\nm = matrix.new<float>(2, 2, close)\n"
+                     "plot(close)\n")
 
 
 def member_doc(source: str = MEMBER_COPY) -> dict:
@@ -123,15 +128,27 @@ def test_the_committed_admitted_set_is_the_evidence_supported_one():
         "core", "reassign", "ternary", "if-block", "var", "fn-single", "fn-multi", "for",
         "compound-assign", "history-expr", "tuple-destructure",
         # U1 (2026-11-15): object families on objects v2 runtime-on MATCH with records paired;
-        # obj:box withheld by ruling (the v4 default border colour, test_A7_obj_box_waits_...)
+        # (obj:box came back in DRAW-1 with the count-at-cap carve-out: test_A7_obj_box_is_admitted_...)
         "obj:line", "obj:label", "obj:delete", "obj:collection",
         # U3 (2026-11-15): each on the one evidence rule over the S1-era corpus; realtime-state for
         # closed-bar history only (G6); max_bars_back by coordinator ruling (a)
-        "obj:getter", "obj:linefill", "switch", "for-in", "max_bars_back", "realtime-state",
+        # (obj:linefill withdrawn in U3b: no x-graded linefill capture since U13)
+        "obj:getter", "switch", "for-in", "max_bars_back", "realtime-state",
+        # U3b (2026-11-15): S20 supplied the second community scripts; calc-bars HELD (non-binding windows)
+        "udt", "generics",
         # coordinator rulings 2026-11-13: the one evidence rule, no exceptions in either direction;
         # distinct script families, at least one community script (generics: probes only, out);
         # the array namespace on its own evidence (matrix and map have none)
-        "while", "typed-array", "method-call", "collections:array"])
+        "while", "typed-array", "method-call", "collections:array",
+        # COND-TA (U2, engine 58, 2026-11-15): conditional ta.* is exact-or-refused-by-name on the
+        # runtime lane; 7 captures / 4 community scripts (`ast/condTaLanes.test.js` for the machinery)
+        "conditional-ta",
+        # DRAW-1 (2026-11-16, coordinator approval): table.* on Signal Ledger + RCT Mann-Kendall, both
+        # drawn by the runtime lane, objects v2 MATCH with tables and cells paired
+        "obj:table",
+        # DRAW-1 (coordinator ruling 2026-11-16): box.* on its x-graded evidence, with the count-at-cap
+        # carve-out (`objectPool.js` COUNT_AT_CAP_FAMILIES): a box family whose collector ran is withheld by name
+        "obj:box"])
 
 
 # ═══ flag OFF: the answers before Part 2 ═══════════════════════════════════════
@@ -152,7 +169,13 @@ def test_OFF_the_default_is_pinned_in_SOURCE():
 
 def test_OFF_the_kill_read_is_the_one_before_Part_2(store):
     body = _client().get("/api/user-definitions/runtime-kill").json()
-    assert set(body) == {"kill", "allow", "save_enabled"}
+    # RS Rating (2026-11-16): the committed allowlist now holds a record on the SUBSTITUTED path, so
+    # the read also carries what that record discloses (`substituted`), and since Q-RS8 (its three
+    # captures re-taken with the x table, objects v2 MATCH_SUBSTITUTED on master b7cd7a0e63) its
+    # run-half evidence (`run_half_evidence`). Neither is a Part 2 key: `capability_admission` is
+    # still absent while it is off.
+    assert set(body) == {"kill", "allow", "save_enabled", "substituted", "run_half_evidence"}
+    assert "capability_admission" not in body
 
 
 def test_ON_the_kill_read_says_so(store, on):
@@ -180,8 +203,10 @@ def test_the_save_door_follows_the_same_rule(store, monkeypatch):
 def test_the_allow_report_carries_the_admission_only_while_ON(on):
     rep = rt.allow_report()["capability_admission"]
     assert "for" in rep["admitted"] and UNADMITTED_CAP not in rep["admitted"]
-    assert "conditional-ta" in rep["withheld"]
-    assert rt.graded_allow_list() == ["d0853c4724651a1d3c63542a2ae767861030137cb1c75ea57a376c53a1630499"]
+    # COND-TA: `conditional-ta` is admitted (conformant); it is no longer withheld
+    assert "conditional-ta" in rep["admitted"] and "conditional-ta" not in rep["withheld"]
+    assert rt.graded_allow_list() == ["d0853c4724651a1d3c63542a2ae767861030137cb1c75ea57a376c53a1630499",
+                                      "caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0"]
 
 
 # ═══ A1 — a non-conformant row never admits ════════════════════════════════════
@@ -263,8 +288,12 @@ def test_C3_an_id_outside_the_vocabulary_counts_missing(tmp_path, monkeypatch, o
         rt._reset_capability_cache(persisted=True)
 
 
-def test_C1_a_matrix_or_map_script_is_withheld(on):
+def test_C1_a_matrix_or_map_script_is_withheld(on, monkeypatch):
     """The collection namespaces are admitted on their own evidence: matrix and map have none."""
+    # fresh detector runs back to back: this rail is admission POLICY, not the duty cycle (the GATE
+    # rails test the cool-down). Without this the 2nd run can land inside the 1st one's cool-down
+    # (2 x its run time, no floor) and answer pending: red on every Linux runner, green on Windows.
+    monkeypatch.setattr(rt, "DETECTOR_DUTY_CYCLE", 1.0)
     for body, cap in (("m = matrix.new<float>(2, 2)\n", "collections:matrix"),
                       ("var mp = map.new<string, float>()\n", "collections:map")):
         ok, missing = rt.capability_admitted(MEMBER_COPY + body)
@@ -402,51 +431,111 @@ def test_A7_an_x_grade_that_DIVERGES_vetoes_the_family():
 #: U1 (2026-11-15): the object families admitted on objects v2 runtime-on evidence (y graded, G1).
 U1_OBJECT_FAMILIES = ["obj:collection", "obj:delete", "obj:label", "obj:line"]
 #: U3 (2026-11-15): two more object operations met the rule on S1's community scripts.
-U3_OBJECT_FAMILIES = ["obj:getter", "obj:linefill"]
+U3_OBJECT_FAMILIES = ["obj:getter"]   # obj:linefill withdrawn in U3b (test_U3b_...)
+#: DRAW-1 (2026-11-16): table.* met the rule on two community scripts drawn by the run.
+DRAW1_OBJECT_FAMILIES = ["obj:table", "obj:box"]
 
 
 def test_A7_the_committed_object_families_are_U1s_four_and_U3s_two():
     rep = rt.admitted_capabilities()
-    assert sorted(c for c in rep["admitted"] if c.startswith("obj:")) == sorted(U1_OBJECT_FAMILIES + U3_OBJECT_FAMILIES)
-    # table and polyline have no runtime-drawn evidence at all (U3 shortfall); box waits for a fix
-    for c in ("obj:table", "obj:polyline", "obj:box"):
+    assert sorted(c for c in rep["admitted"] if c.startswith("obj:")) == sorted(
+        U1_OBJECT_FAMILIES + U3_OBJECT_FAMILIES + DRAW1_OBJECT_FAMILIES)
+    # polyline has no runtime-drawn evidence at all; linefill has one runtime-drawn script (FVG Finder)
+    for c in ("obj:polyline", "obj:linefill"):
         assert c not in rep["admitted"], c
 
 
-#: ⛔ Coordinator ruling 2026-11-15: obj:box's y evidence passes the rule, but the runtime lane draws a
-#: v4 `box.new` with no `border_color` in #2962ff (v5+ color.blue) where TradingView draws #2196f3
-#: (v4 color.blue). The family waits for runtime object defaults made version-aware.
-OBJ_BOX_BUG_CAPTURE = "inside-bar-boxes-rddt-1d-2026-11-14"
+#: ⭐ DRAW-1 (coordinator ruling 2026-11-16): obj:box was withheld on inside-bar-boxes' COUNT (vendor 52,
+#: ours 50). Measured: both sides made 158 boxes (TradingView's newest id 158, ours 158), the 50 boxes both
+#: hold agree on every graded field, and TradingView holds two more of the OLDEST: the batch collector
+#: (`objectPool.js` C7) ran, and the reference calls the count approximate ("The count is approximate; more
+#: drawings than the specified count may be displayed."). obj:box is admitted on its x-graded evidence WITH
+#: a carve-out: on the runtime lane a BOX family whose collector ran in a script that reads a past value of a variable
+#: holding a box (DRAW-1 GC, `objectPool.js::historyHeldOf`) is withheld by name
+#: (`objects:count-at-cap`, `runtime/objectStore.js::collect`), so inside-bar-boxes' boxes are withheld,
+#: never drawn at the wrong count.
+OBJ_BOX_COUNT_CAPTURE = "inside-bar-boxes-rddt-1d-2026-11-14"
 
 
-def test_A7_obj_box_waits_for_version_aware_object_defaults():
+def test_A7_obj_box_is_admitted_with_the_count_at_cap_carve_out():
     doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
-    assert "obj:box" not in doc["capabilities"]
+    assert "obj:box" in doc["capabilities"] and "obj:box" in rt.admitted_capabilities()["admitted"]
     readme = " ".join(doc["_readme"])
-    assert "obj:box IS DELIBERATELY ABSENT" in readme and OBJ_BOX_BUG_CAPTURE in readme
-    assert "#2962ff" in readme and "#2196f3" in readme
-    # the evidence the ruling names is what it says: runtime-drawn, objects v2 DIVERGE on a box colour
-    r = _verdicts()[OBJ_BOX_BUG_CAPTURE]
+    assert "objects:count-at-cap" in readme and OBJ_BOX_COUNT_CAPTURE in readme
+    # the reading the carve-out rests on: TradingView holds 52 boxes at a cap of 50 (the capture, below), and the run
+    # WITHHOLDS the box family by name there. ⭐ Engine 68 (#1556: count-at-cap withholds only the shape no capture
+    # witnesses) — re-graded on the engine-68 tree (feat/pine-host-known-divergence), the grade no longer reads "boxes
+    # count of boxes held — vendor 52, ours 50" (the engine-66 run that drew 50): our boxes are withheld by name, and
+    # every other family's counts and texts agree
+    r = _verdicts()[OBJ_BOX_COUNT_CAPTURE]
     o = r["objectsV2"]
-    assert o["verdict"] == "DIVERGE" and "boxes border_color" in o["reason"], o["reason"]
-    assert "#2196f3" in o["reason"] and "#2962ff" in o["reason"]
-    src = (json.loads((ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
-    assert "obj:box" in pc.capabilities_of(src)
+    assert "our boxes are withheld by name (objects:count-at-cap" in o["reason"], o["reason"]
+    assert "every other object family's counts and texts agree" in o["reason"], o["reason"]
+    boxes = next(f for f in o["families"] if f["family"] == "boxes")
+    assert boxes["paired"] == 0 and boxes["differing"] == 0, boxes
+    cap = json.loads((ROOT / r["file"]).read_text(encoding="utf-8"))
+    tv = [b["id"] for b in cap["objects"]["records"]["boxes"]]
+    assert len(tv) == 52 and tv == list(range(107, 159)), tv[:3]
+    # it is evidence for nothing, and the carve-out is in the run's store, named
+    assert all(e["capture"] != OBJ_BOX_COUNT_CAPTURE for e in doc["capabilities"]["obj:box"]["evidence"])
+    store = (ROOT / "app/src/components/chart/engine/runtime/objectStore.js").read_text(encoding="utf-8")
+    assert "withhold(fam, countAtCapReason(fam, cap))" in store
+    pool = (ROOT / "app/src/components/chart/engine/objectPool.js").read_text(encoding="utf-8")
+    assert "COUNT_AT_CAP_GUARD = 'objects:count-at-cap'" in pool
+
+
+def test_U3b_linefill_is_withdrawn_until_an_x_graded_capture_carries_it():
+    """U3b: the three linefill captures U3 admitted on were taken before the x table and now grade
+    objects v2 INCONCLUSIVE, so no evidence is left; the row is gone and the readme says why."""
+    doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
+    assert "obj:linefill" not in doc["capabilities"]
+    assert "obj:linefill is WITHDRAWN" in " ".join(doc["_readme"])
+    v = _verdicts()
+    for cid in ("trend-targets-algoalpha-rddt-1d-2026-10-02", "trend-targets-algoalpha-spy-1d-2026-10-02",
+                "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-14"):
+        assert v[cid]["objectsV2"]["verdict"] != "MATCH", cid
+
+
+#: U3b: calc-bars is HELD. Its evidence passes the count, but a window the chart never exceeds
+#: witnesses nothing: the picture is the same whether calc_bars_count is honoured or ignored.
+CALC_BARS_BINDING_ONLY = "wyckoff-accumulation-distribution-spy-1d-2026-10-02"
+
+
+def test_U3b_calc_bars_is_held_while_one_script_runs_past_its_window():
+    import re
+    doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
+    assert "calc-bars" not in doc["capabilities"]
+    readme = " ".join(doc["_readme"])
+    assert "calc-bars is HELD" in readme and CALC_BARS_BINDING_ONLY in readme
+    # the measurement the hold rests on: Sweep Reversal Map's window is wider than both charts
+    for cid in ("high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15",
+                "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15",
+                CALC_BARS_BINDING_ONLY):
+        cap = json.loads((ROOT / _verdicts()[cid]["file"]).read_text(encoding="utf-8"))
+        window = int(re.search(r"calc_bars_count\s*=\s*(\d+)", cap["source"]["text"]).group(1))
+        binding = window < len(cap["bars"]["rows"])
+        assert binding is (cid == CALC_BARS_BINDING_ONLY), (cid, window, len(cap["bars"]["rows"]))
 
 
 def test_A7_a_box_drawing_member_script_is_withheld(on):
-    src = MEMBER_COPY + "var box b = na" + chr(10) + "b := box.new(bar_index - 1, high, bar_index, low)" + chr(10)
+    # (DRAW-1: obj:box is admitted; the unadmitted object family here is now linefill)
+    src = (MEMBER_COPY + "var linefill f = na" + chr(10)
+           + "f := linefill.new(line.new(0, low, 1, low), line.new(0, high, 1, high), color.blue)" + chr(10))
     ok, missing = rt.capability_admitted(src)
-    assert not ok and missing == ["obj:box"], missing
+    assert not ok and missing == ["obj:linefill"], missing
 
 
-def test_A7_an_object_drawing_member_script_is_withheld_while_its_family_is(on):
-    src = MEMBER_COPY + "var table t = table.new(position.top_right, 1, 1)\n"
+def test_A7_an_object_drawing_member_script_is_withheld_while_its_family_is(on, monkeypatch):
+    monkeypatch.setattr(rt, "DETECTOR_DUTY_CYCLE", 1.0)   # two fresh runs; a policy rail, not the cool-down
+    src = (MEMBER_COPY + "var linefill f = na\n"
+           + "f := linefill.new(line.new(0, low, 1, low), line.new(0, high, 1, high), color.blue)\n")
     ok, missing = rt.capability_admitted(src)
-    assert not ok and "obj:table" in missing
-    # CONTROL: a line drawing alone now admits (U1)
+    assert not ok and "obj:linefill" in missing
+    # CONTROL: a line drawing alone now admits (U1), and a table (DRAW-1)
     line = MEMBER_COPY + "var line l = na\nl := line.new(bar_index, low, bar_index, high)\n"
     assert rt.capability_admitted(line) == (True, [])
+    table = MEMBER_COPY + "var table t = table.new(position.top_right, 1, 1)\n"
+    assert rt.capability_admitted(table) == (True, [])
 
 
 # ═══ G6 — realtime-state admits for CLOSED-BAR HISTORY only (ruling 2026-11-15) ══
@@ -533,8 +622,8 @@ def _phantoms(registry: dict) -> list:
                 bad.append((cap, cid, "names another script"))
             if e.get("community") is not community:
                 bad.append((cap, cid, "states the wrong community flag"))
-            fixture = ROOT / r["file"]
-            if not fixture.is_file():
+            fixture = licence_held.fixture_path(r["file"])
+            if fixture is None or not fixture.is_file():
                 bad.append((cap, cid, "no fixture"))
                 continue
             text = (json.loads(fixture.read_text(encoding="utf-8")).get("source") or {}).get("text")
@@ -542,14 +631,35 @@ def _phantoms(registry: dict) -> list:
                 bad.append((cap, cid, "the capture's script does not use it"))
             if cap.startswith(rg.PINE_CAPABILITY_OBJECT_PREFIX):
                 bad += [(cap, cid, why) for why in _object_evidence_problems(cap, e, r)]
+                sha = rt.source_hash(text)
+                if sha in _x_vetoed_sources():
+                    bad.append((cap, cid, "its script has a capture whose x DIVERGES"))
+                if sha in rt.committed_kills():
+                    bad.append((cap, cid, "its script is on the kill list"))
     return bad
+
+
+def _x_vetoed_sources() -> set:
+    """Coordinator ruling 2026-11-15: ONE capture whose x DIVERGES vetoes its SCRIPT (by source sha256)
+    as evidence for every object family: the same source draws the same way on every chart."""
+    out = set()
+    for r in _verdicts().values():
+        if _x_verdict(r.get("objectsV2") or {}) != "DIVERGE":
+            continue
+        at = licence_held.fixture_path(r["file"])
+        try:
+            text = (json.loads((at or ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
+        except (OSError, ValueError):
+            continue
+        if isinstance(text, str):
+            out.add(rt.source_hash(text))
+    return out
 
 
 #: The objects v2 family whose OWN paired records witness an object capability; the operations
 #: (delete, collection, getter) are witnessed by every paired record of the capture.
 OBJECT_FAMILY_OF = {"obj:line": "lines", "obj:label": "labels", "obj:box": "boxes", "obj:table": "tables",
                     "obj:linefill": "linefills"}
-X_GRADES = ROOT / "docs" / "pine" / "evidence" / "2026-11-15-u1-u3-admission" / "runs" / "x-grades.json"
 
 
 def _object_evidence_problems(cap: str, e: dict, r: dict) -> list:
@@ -566,12 +676,233 @@ def _object_evidence_problems(cap: str, e: dict, r: dict) -> list:
     want = by.get(OBJECT_FAMILY_OF[cap], 0) if cap in OBJECT_FAMILY_OF else sum(by.values())
     if e.get("objectsPaired") != want or not want:
         out.append(f"states {e.get('objectsPaired')} paired records; the verdict pairs {want}")
-    if "objectsX" in e:
-        grades = {g["of"]: g for g in json.loads(X_GRADES.read_text(encoding="utf-8"))["grades"]}
-        xg = grades.get(r["id"])
-        if not xg or xg.get("verdict") != e.get("objectsX") or xg.get("capture") != e.get("objectsXCapture"):
-            out.append("its x grade is not the committed x-grade record")
+    # U3b: since U13 (#1335) the verdict grades x itself; an entry's objectsX IS that verdict's x answer
+    if e.get("objectsX") != _x_verdict(o):
+        out.append(f"states x {e.get('objectsX')}; the verdict's x is {_x_verdict(o)}")
     return out
+
+
+def _x_verdict(o: dict):
+    """The x answer of one objects v2 grade: DIVERGE on any x difference, MATCH when x was graded and
+    nothing was missing, INCONCLUSIVE when some x could not be graded, None when none was."""
+    x = o.get("x") or {}
+    if not x.get("graded"):
+        return None
+    return "DIVERGE" if x.get("differing") else ("INCONCLUSIVE" if x.get("missing") else "MATCH")
+
+
+# ═══ RT1 — the committed kill list (2026-11-15) ════════════════════════════════
+
+KILL_DOC = ROOT / "api" / "data" / "pine_runtime_killlist.json"
+
+
+def _kill_entry_problems(s: dict, v: dict) -> list:
+    """Why one kill entry is not held to its graded evidence: a committed capture of THAT source whose
+    runtime-on grade is not MATCH, a reason in the member's words, and the condition that lifts it."""
+    out = []
+    ev = s.get("evidence") or {}
+    r = v.get(ev.get("capture"))
+    if r is None:
+        return [f"{s.get('slug')}: names no committed capture"]
+    if not (r["verdict"] == ev.get("verdict") != "MATCH"):
+        out.append(f"{s.get('slug')}: its capture grades {r['verdict']}, the entry says {ev.get('verdict')}")
+    text = json.loads((ROOT / r["file"]).read_text(encoding="utf-8"))["source"]["text"]
+    if rt.source_hash(text) != s.get("sha256"):
+        out.append(f"{s.get('slug')}: its capture is another source")
+    src = ROOT / str(s.get("source"))
+    if not src.is_file() or rt.source_hash(src.read_text(encoding="utf-8")) != s.get("sha256"):
+        out.append(f"{s.get('slug')}: its source file is another source")
+    if not (s.get("reason") and s.get("liftWhen")):
+        out.append(f"{s.get('slug')}: no reason or no liftWhen")
+    return out
+
+
+def test_RT1_every_committed_kill_is_held_to_its_graded_evidence():
+    """Each entry names a committed capture of THAT source whose runtime-on grade is not MATCH, a reason
+    in the member's words, and the condition that lifts it. 2026-11-16: the list is EMPTY (parabolic-sar
+    lifted, below), which is a valid state; the rule is shown able to fail on a synthetic entry."""
+    doc = json.loads(KILL_DOC.read_text(encoding="utf-8"))
+    assert isinstance(doc["scripts"], list) and doc["_readme"]
+    v = _verdicts()
+    for s in doc["scripts"]:
+        assert _kill_entry_problems(s, v) == [], s["slug"]
+        assert s["sha256"] in rt.kill_list()
+    # CONTROL: an entry whose capture grades MATCH (the lifted parabolic-sar entry, as it stood) is red;
+    # the same entry on a capture that DIVERGES is green
+    src = SYNTHETIC_KILL_SOURCE.read_text(encoding="utf-8")
+    entry = {"slug": "synthetic-subject", "sha256": rt.source_hash(src),
+             "source": "corpus/committed/parabolic-sar__xoeoPMOWGJ.pine", "reason": "SYNTHETIC",
+             "liftWhen": "SYNTHETIC", "evidence": {"capture": "parabolic-sar-spy-1d-2026-11-15", "verdict": "DIVERGE"}}
+    assert any("grades MATCH" in p for p in _kill_entry_problems(entry, v))
+    moved = copy.deepcopy(v)
+    moved["parabolic-sar-spy-1d-2026-11-15"]["verdict"] = "DIVERGE"
+    assert _kill_entry_problems(entry, moved) == []
+
+
+#: The by-name rails need a killed script, and the committed kill list is empty since parabolic-sar's kill
+#: was lifted (2026-11-16). They kill a REAL source through a SYNTHETIC entry in a tmp kill list, so they
+#: still prove "a killed script is refused by name at every door" without depending on a real kill.
+SYNTHETIC_KILL_SOURCE = ROOT / "corpus" / "committed" / "parabolic-sar__xoeoPMOWGJ.pine"
+SYNTHETIC_KILL_REASON = "SYNTHETIC kill for the by-name rails (no real kill is on the committed list)"
+
+
+def synthetic_kill(tmp_path, monkeypatch) -> str:
+    """Point the committed kill list at a tmp file killing SYNTHETIC_KILL_SOURCE; returns the source."""
+    src = SYNTHETIC_KILL_SOURCE.read_text(encoding="utf-8")
+    doc = {"_readme": ["tmp, synthetic"], "scripts": [{
+        "slug": "synthetic-subject", "sha256": rt.source_hash(src), "source": str(SYNTHETIC_KILL_SOURCE),
+        "reason": SYNTHETIC_KILL_REASON, "liftWhen": "never: a tmp file", "evidence": {}}]}
+    f = tmp_path / "synthetic-killlist.json"
+    f.write_text(json.dumps(doc), encoding="utf-8")
+    monkeypatch.setattr(rt, "KILLLIST_PATH", str(f))
+    return src
+
+
+def test_RT1_a_killed_script_is_refused_by_name_at_every_door(store, monkeypatch, on, tmp_path):
+    src = SYNTHETIC_KILL_SOURCE.read_text(encoding="utf-8")
+    # CONTROL first: on the committed (empty) list the same script is admitted (every capability it uses
+    # is), and the served kill list does not hold it
+    assert not rt.killed(None, src)
+    assert pc.capabilities_of(src) <= set(rt.admitted_capabilities()["admitted"])
+    assert rt.runtime_admission(src, member="u-x")["admitted"] is True
+    assert rt.source_hash(src) not in _client().get("/api/user-definitions/runtime-kill").json()["kill"]
+    # killed through the synthetic entry: refused by name at the verdict door, the served list and `killed`
+    synthetic_kill(tmp_path, monkeypatch)
+    why = rt.killed(None, src)
+    assert why and SYNTHETIC_KILL_REASON in why, why
+    assert rt.runtime_admission(src, member="u-x")["admitted"] is False
+    body = _client().get("/api/user-definitions/runtime-kill").json()
+    assert rt.source_hash(src) in body["kill"]
+
+
+#: 2026-11-16 -- the parabolic-sar kill (s28: a label "654.4" where TradingView prints "654.41") is LIFTED
+#: on its own `liftWhen` ("then a runtime-on re-grade to MATCH on RDDT and SPY"): the engine fix writes
+#: `math.round_to_mintick`'s tick count as `x * (1 / syminfo.mintick)` (`ast/tickRound.js`).
+PARABOLIC_SAR_LIFT = ("parabolic-sar-rddt-1d-2026-11-15", "parabolic-sar-spy-1d-2026-11-15")
+
+
+def test_RT1_the_parabolic_sar_kill_is_lifted_on_its_own_condition():
+    src = SYNTHETIC_KILL_SOURCE.read_text(encoding="utf-8")
+    assert rt.source_hash(src) not in rt.committed_kills() and not rt.killed(None, src)
+    v = _verdicts()
+    for cid in PARABOLIC_SAR_LIFT:
+        r = v[cid]
+        text = json.loads((ROOT / r["file"]).read_text(encoding="utf-8"))["source"]["text"]
+        assert rt.source_hash(text) == rt.source_hash(src), cid
+        assert r["verdict"] == "MATCH" and r["objects"]["verdict"] == "MATCH", cid
+        texts = next(t for t in r["objects"]["texts"] if t["family"] == "labels text")
+        assert texts["agree"] is True and texts["onlyVendor"] == [] and texts["onlyOurs"] == [], cid
+        o = r["objectsV2"]
+        assert o["verdict"] == "MATCH" and o["pairedNothing"] is False, cid
+    # the label that held the kill: TradingView printed "654.41" (no label text differs on SPY now)
+    spy = json.loads((ROOT / v[PARABOLIC_SAR_LIFT[1]]["file"]).read_text(encoding="utf-8"))
+    assert "654.41" in spy["objects"]["texts"]["labels"]
+    # ...and lifting the kill ADMITS it: every capability it uses is admitted
+    assert pc.capabilities_of(src) <= set(rt.admitted_capabilities()["admitted"])
+
+
+#: The trend-targets kill (s28: its latest trade's lines on the wrong bar, x1 656 vs 653) was LIFTED by the
+#: engine fix of PR #1374 (the runtime document's host object program carries the Pine tree stamps): its
+#: `liftWhen` was "an engine fix, then a runtime-on re-grade to MATCH on RDDT and SPY".
+TREND_TARGETS_LIFT = ("trend-targets-algoalpha-rddt-1d-2026-11-15", "trend-targets-algoalpha-spy-1d-2026-11-15")
+
+
+def test_RT1_the_trend_targets_kill_is_lifted_on_its_own_condition():
+    src = (ROOT / "corpus" / "committed" / "trend-targets-algoalpha__92ff5628d7.pine").read_text(encoding="utf-8")
+    assert rt.source_hash(src) not in rt.committed_kills() and not rt.killed(None, src)
+    v = _verdicts()
+    for cid in TREND_TARGETS_LIFT:
+        r = v[cid]
+        text = json.loads((ROOT / r["file"]).read_text(encoding="utf-8"))["source"]["text"]
+        assert rt.source_hash(text) == rt.source_hash(src), cid
+        o = r["objectsV2"]
+        assert r["verdict"] == "MATCH" and o["verdict"] == "MATCH" and o["pairedNothing"] is False, cid
+        assert _x_verdict(o) == "MATCH" and o["x"]["graded"] == 15, (cid, o["x"])
+    # ...and lifting the kill admits nothing: the script still uses capabilities that are not admitted
+    assert not pc.capabilities_of(src) <= set(rt.admitted_capabilities()["admitted"])
+
+
+#: ⭐ DRAW-1 (2026-11-16, coordinator ruling): admitting obj:box and obj:table makes scripts servable on
+#: capability evidence alone. Every script that uses either family, is admitted, and has a committed
+#: capture grading DIVERGE on EITHER lane is on the committed kill list until its own `liftWhen`.
+DRAW1_NEW_OBJECT_FAMILIES = {"obj:box", "obj:table"}
+DRAW1_KILLED_SLUGS = {"contraction-box-doji-lines", "heat-map-seasons", "htf-candle-footprint-cartel-console",
+                      "sonarlab-order-blocks", "vw-object-gc-a", "vw-object-gc-b", "vw-object-gc-c"}
+
+
+def _draw1_unkilled_diverging(kills: dict) -> list:
+    """Sources using obj:box / obj:table, admitted on capabilities, with a committed capture grading DIVERGE on
+    either lane, whose sha256 is not in `kills`."""
+    admitted = set(rt.admitted_capabilities()["admitted"])
+    lanes = [json.loads(VERDICTS_RT.read_text(encoding="utf-8"))["results"],
+             json.loads((ROOT / "docs" / "pine" / "vendor-harness" / "production" / "verdicts.json")
+                        .read_text(encoding="utf-8"))["results"]]
+    out = set()
+    for results in lanes:
+        for r in results:
+            if r.get("verdict") != "DIVERGE":
+                continue
+            at = licence_held.fixture_path(r["file"])
+            try:
+                text = (json.loads((at or ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
+            except (OSError, ValueError):
+                continue
+            if not isinstance(text, str):
+                continue
+            caps = pc.capabilities_of(text)
+            if caps & DRAW1_NEW_OBJECT_FAMILIES and caps <= admitted and rt.source_hash(text) not in kills:
+                out.add((r["id"], rt.source_hash(text)))
+    return sorted(out)
+
+
+def test_DRAW1_every_newly_admitted_object_script_with_a_DIVERGE_capture_is_killed():
+    kills = rt.committed_kills()
+    assert _draw1_unkilled_diverging(kills) == []
+    doc = json.loads(KILL_DOC.read_text(encoding="utf-8"))
+    assert {s["slug"] for s in doc["scripts"]} >= DRAW1_KILLED_SLUGS
+    # CONTROL: without the DRAW-1 entries the same scan names every one of their sources
+    draw1 = {s["sha256"] for s in doc["scripts"] if s["slug"] in DRAW1_KILLED_SLUGS}
+    named = {sha for _cid, sha in _draw1_unkilled_diverging({k: v for k, v in kills.items() if k not in draw1})}
+    assert named == draw1, (named, draw1)
+
+
+def test_RT1_a_broken_committed_file_kills_nothing_extra(tmp_path, monkeypatch):
+    for content in ("{ not json", "[]", '{"scripts": [{"sha256": "zz"}]}'):
+        f = tmp_path / "kill.json"
+        f.write_text(content, encoding="utf-8")
+        monkeypatch.setattr(rt, "KILLLIST_PATH", str(f))
+        assert rt.committed_kills() == {}, content
+    monkeypatch.setenv(rt.KILL_ENV, "a" * 64)
+    assert rt.kill_list() == ["a" * 64]
+
+
+def test_A8_a_script_with_an_x_DIVERGE_capture_is_evidence_for_no_object_family(monkeypatch, tmp_path):
+    """The rail can fail: parabolic-sar (killed through a SYNTHETIC entry since its real kill was lifted,
+    2026-11-16) named as obj:label evidence on its RDDT capture, which on its own grades MATCH with x; and
+    the same entry once ANOTHER capture of that source grades an x that DIVERGES. (Until PR #1374 the
+    committed example was trend-targets, x DIVERGE on RDDT; its fix left no committed x DIVERGE, so that
+    half is shown on a copy of the snapshot.)"""
+    synthetic_kill(tmp_path, monkeypatch)
+    v = _verdicts()
+    good, other = "parabolic-sar-rddt-1d-2026-11-15", "parabolic-sar-spy-1d-2026-11-15"
+    r = v[good]
+    fam, comm = rg.pine_evidence_script(r["script"], good)
+    o = r["objectsV2"]
+    labels = next(f["paired"] for f in o["families"] if f["family"] == "labels")
+    fake = {"obj:label": {"admitted": True, "evidence": [
+        {"capture": good, "script": fam, "community": comm, "verdict": "MATCH", "runtimePane": "on",
+         "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": labels, "objectsX": _x_verdict(o)}]}}
+    got = {why for _c, _id, why in _phantoms(fake)}
+    assert "its script is on the kill list" in got, got
+    # CONTROL: as committed, no capture of that source has an x that DIVERGES
+    assert "its script has a capture whose x DIVERGES" not in got, got
+    moved = copy.deepcopy(v)
+    x = moved[other]["objectsV2"]["x"]
+    assert x["graded"] and not x["differing"]
+    x["differing"], x["agreeing"] = 1, x["agreeing"] - 1
+    monkeypatch.setattr(sys.modules[__name__], "_verdicts", lambda: moved)
+    got = {why for _c, _id, why in _phantoms(fake)}
+    assert "its script has a capture whose x DIVERGES" in got, got
 
 
 def test_A8_no_phantom_evidence():
@@ -603,11 +934,11 @@ def test_A8_the_rail_can_fail():
     fe, ce = rg.pine_evidence_script(v[empty]["script"], empty)
     fake["obj:delete"] = {"admitted": True, "evidence": [
         {"capture": empty, "script": fe, "community": ce, "objectsV2": "MATCH", "objectsPaired": 3,
-         "objectsX": "MATCH", "objectsXCapture": "no-such-recapture"}]}
+         "objectsX": "MATCH"}]}
     got = {(c, why) for c, _id, why in _phantoms(fake)}
     assert ("obj:delete", "its objects v2 MATCH paired nothing") in got
     assert ("obj:delete", "states 3 paired records; the verdict pairs 0") in got
-    assert ("obj:delete", "its x grade is not the committed x-grade record") in got
+    assert ("obj:delete", "states x MATCH; the verdict's x is None") in got
     assert ("for", "no such capture in the runtime-on verdicts") in got
     assert ("for", "runtime-on verdict is DIVERGE") in got
     assert ("for", "names another script") in got
@@ -738,18 +1069,65 @@ def test_the_door_stores_nothing_and_logs_no_source(store, on, caplog):
 # (`runs/report.json`, whose lanes `capabilityEvidenceLane.test.js` re-asks of the door) and the
 # committed harness snapshots of both lanes.
 
-REPORT = ROOT / "docs" / "pine" / "evidence" / "2026-11-13-capability-admission" / "runs" / "report.json"
+REPORT = ROOT / "docs" / "pine" / "evidence" / "2026-11-16-draw1-drawing-objects" / "runs" / "report.json"
 VERDICTS_PROD = ROOT / "docs" / "pine" / "vendor-harness" / "production" / "verdicts.json"
+
+
+#: ⛔⛔ TEMPORARY (coordinator ruling 2026-11-15: RE-CAPTURE is preferred over a named exception).
+#: TODO(COND-TA): remove `vw-deadband-ticks-brk-a-1d-2026-09-28` from this set — and the set and
+#: `withheld_whole` with it, if it is then empty — when the capture agent's re-take of NYSE:BRK.A 1D
+#: with `history.startsAtBar0` asserted lands; that capture is expected to grade MATCH on the
+#: runtime lane (D03_dbhf already equals TradingView on 11,335 / 11,335 bars with the listing stated).
+#: 2026-11-16: the re-take landed (`vw-deadband-ticks-brk-a-1d-2026-11-15`, #1373). Runtime-on it grades
+#: INCONCLUSIVE, not MATCH: DBHF, D00, D02 and D03 agree on 11,369 / 11,369 bars and the bar colour
+#: agrees, and D01_mintick has no column on our side. The 09-28 capture is still committed and still
+#: grades as described below, so it stays named here until that capture is retired.
+#: ⭐ COND-TA (engine 58, 2026-11-15) — ADMITTED CAPTURES THE RUNTIME LANE WITHHOLDS WHOLE, BY NAME.
+#: Named one by one, each with why, and each re-proved from its own verdict record on every run
+#: (`withheld_whole`): every plot INCONCLUSIVE because our side computed NO column for it, no
+#: drawing object on either side, and the only DIVERGE a paint (B1 grades a paint our side did not
+#: draw as a gap). Such a capture shows the member a by-name withholding, never a picture, so it is
+#: not "drawn by the runtime lane". ⛔ A record that drifts from that shape (any plot compared, any
+#: object, any non-paint DIVERGE) is a REACH stop again. ⛔ A capture not named here never gets this
+#: reading: the set is closed.
+WITHHELD_WHOLE = {
+    "vw-deadband-ticks-brk-a-1d-2026-09-28": (
+        "runtime:warmup-never-converges on every column: the capture does not assert its history "
+        "starts at the listing (history.startsAtBar0 'not asserted'), so the run is off the listing and "
+        "its two warm-up runs never agree exactly; with the history stated from bar 0 (its own "
+        "D00_bar_index_CONTROL reads 0 on its first bar) D03_dbhf equals TradingView on 11,335 / 11,335 "
+        "bars. The ATR branch holding the conditional ta.atr is never taken (Threshold Mode = Ticks). "
+        "docs/pine/evidence/2026-11-15-cond-ta/EVIDENCE.md"),
+}
+
+
+def withheld_whole(record: dict) -> bool:
+    """Is this runtime-on verdict record a by-name withholding of the WHOLE run (see above)?"""
+    if not isinstance(record, dict) or record.get("verdictWithoutPaints") != "INCONCLUSIVE":
+        return False
+    plots = record.get("plots") or []
+    if not plots or any(p.get("verdict") != "INCONCLUSIVE"
+                        or "our side produced no column" not in str(p.get("reason") or "") for p in plots):
+        return False
+    objs = record.get("objects") or {}
+    if objs.get("verdict") not in (None, "MATCH") or "neither side draws" not in str(objs.get("reason") or "neither side draws"):
+        return False
+    paints = record.get("paints") or {}
+    return paints.get("verdict") == "DIVERGE" and all(
+        r.get("state") in ("notDrawn", "withheld") for r in (paints.get("rows") or [{"state": "x"}]))
 
 
 def reach_rule_violations(report: dict, rt_verdicts: dict, prod_verdicts: dict) -> list:
     rton = {r["id"]: r["verdict"] for r in rt_verdicts["results"]}
+    records = {r["id"]: r for r in rt_verdicts["results"]}
     prod = {r["id"]: r["verdict"] for r in prod_verdicts["results"]}
     out = []
     if rt_verdicts.get("lane") != "runtime-on" or prod_verdicts.get("lane") != "production":
         out.append("a snapshot is not the lane it is read as")
     for c in report["captures"]:
         if c["lane"] == "runtime" and rton.get(c["capture"]) != "MATCH" and rton.get(c["capture"]) != "INCONCLUSIVE":
+            if c["capture"] in WITHHELD_WHOLE and withheld_whole(records.get(c["capture"])):
+                continue
             out.append(f"{c['capture']}: drawn by the runtime lane and graded {rton.get(c['capture'])}")
     for cid, v in prod.items():
         if v == "MATCH" and rton.get(cid) == "DIVERGE":
@@ -757,26 +1135,48 @@ def reach_rule_violations(report: dict, rt_verdicts: dict, prod_verdicts: dict) 
     return out
 
 
-def _admitted_capture_ids() -> set:
+def _admitted_capture_ids(held_absent: dict | None = None) -> set:
     """The captures the committed registry admits, from the detector itself (not the serving path,
-    whose process-wide gate and cool-down answer "pending" between runs)."""
+    whose process-wide gate and cool-down answer "pending" between runs).
+
+    A licence-held capture (docs/pine/vendor-harness/licence-held.json) is read from the local
+    capture store; one that is not on this machine is recorded in `held_absent` {id: file}, so the
+    caller can say so by name rather than count it either way."""
     admitted = set(rt.admitted_capabilities()["admitted"])
     out = set()
     for r in _verdicts().values():
+        at = licence_held.fixture_path(r["file"])
+        if at is None and licence_held.entry(r["file"]) is not None:
+            if held_absent is not None:
+                held_absent[r["id"]] = r["file"]
+            continue
         try:
-            text = (json.loads((ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
+            text = (json.loads((at or ROOT / r["file"]).read_text(encoding="utf-8")).get("source") or {}).get("text")
         except (OSError, ValueError):
             continue
-        if isinstance(text, str) and text.strip() and pc.capabilities_of(text) <= admitted:
+        if isinstance(text, str) and text.strip() and pc.capabilities_of(text) <= admitted \
+                and not rt.killed(None, text):
             out.add(r["id"])
     return out
 
 
 def test_REACH_the_committed_reach_run_is_the_committed_registrys():
     report = json.loads(REPORT.read_text(encoding="utf-8"))
-    assert {c["capture"] for c in report["captures"]} == _admitted_capture_ids()
-    assert report["stops"] == [] and report["matchToDiverge"] == []
+    held_absent: dict = {}
+    admitted = _admitted_capture_ids(held_absent)
+    # ⛔ A held capture that is not on this machine cannot be classified either way: it is taken
+    # out of BOTH sides, every other capture is still held to exact equality, and the test then
+    # SKIPS naming it (with its ledger verdict) instead of reporting a full pass.
+    assert {c["capture"] for c in report["captures"]} - set(held_absent) == admitted
+    # ⭐ COND-TA: the reach run lists a runtime-lane DIVERGE as a stop whatever its shape; the only
+    # stops a committed run may carry are the captures named in WITHHELD_WHOLE, each re-proved from
+    # its own verdict record by `reach_rule_violations` (the next test). Any other stop is red here.
+    assert {s["capture"] for s in report["stops"]} <= set(WITHHELD_WHOLE), report["stops"]
+    assert report["matchToDiverge"] == []
     assert sum(1 for c in report["captures"] if c["lane"] == "runtime") >= 10   # not vacuous
+    if held_absent:
+        pytest.skip(f"the other {len(admitted)} admitted captures were verified equal; "
+                    + licence_held.note(sorted(held_absent.values())))
 
 
 def test_REACH_no_runtime_lane_DIVERGE_and_no_MATCH_to_DIVERGE():
@@ -802,6 +1202,26 @@ def test_REACH_the_rule_can_fail():
     got = reach_rule_violations(report, rtv, prodv)
     assert any(drawn in p and "runtime lane" in p for p in got), got
     assert any(host_match in p and "MATCH -> DIVERGE" in p for p in got), got
+
+
+def test_REACH_a_whole_run_withholding_is_named_and_re_proved_and_nothing_else_reads_that_way():
+    """COND-TA (engine 58). CONTROLS: each named capture's record IS the shape; the same record with
+    one plot compared, or a capture not named, is a REACH stop."""
+    rtv = json.loads(VERDICTS_RT.read_text(encoding="utf-8"))
+    prodv = json.loads(VERDICTS_PROD.read_text(encoding="utf-8"))
+    recs = {r["id"]: r for r in rtv["results"]}
+    for cid in WITHHELD_WHOLE:
+        assert recs[cid]["verdict"] == "DIVERGE" and withheld_whole(recs[cid]), cid
+        report = {"captures": [{"capture": cid, "lane": "runtime"}]}
+        assert all(cid not in p for p in reach_rule_violations(report, rtv, prodv))
+        drifted = copy.deepcopy(rtv)
+        for r in drifted["results"]:
+            if r["id"] == cid:
+                r["plots"][0] = dict(r["plots"][0], verdict="DIVERGE", reason="2 bars differ")
+        assert any(cid in p for p in reach_rule_violations(report, drifted, prodv))
+    # a DIVERGE capture NOT named never reads as withheld whole, whatever its record
+    other = next(r["id"] for r in rtv["results"] if r["verdict"] == "DIVERGE" and r["id"] not in WITHHELD_WHOLE)
+    assert any(other in p for p in reach_rule_violations({"captures": [{"capture": other, "lane": "runtime"}]}, rtv, prodv))
 
 
 # ═══ SERVING COST, FLAG ON (re-verify of #1204, 2026-11-13) ════════════════════
@@ -1015,11 +1435,24 @@ def test_SERVE_the_detector_version_moves_with_what_it_answers():
     "probe-default-colour-v6-rddt-1d-2026-09-27", "probe-sparse-rows-rddt-1d-2026-09-27",
     "adx-14-2026-09-06", "atr-14-2026-09-06", "ema-close20-2026-09-06", "hma-close20-2026-09-06",
     "rma-close14-2026-09-06", "stoch-k-14-2026-09-06", "vw-library-import-rddt-1d-2026-10-02",
+    # 2026-11-17: the W9 strategy probes (`W9_<ROW>` titles, `w9_probes.py`) are ours, the evidence the
+    # strategy-decl admission was asked of (docs/pine/evidence/2026-11-17-admit-strategy-decl/EVIDENCE.md)
+    "w9-k1-commission-pct-rddt-1d-2026-11-15", "w9-q-s1a-size-v2-rddt-1d-2026-11-15",
+    "w9-d1-margin50-rpt-rddt-1d-2026-11-16", "w9-r1-risk-intraday-range-spy-15-2026-11-15",
 ])
 def test_EVIDENCE_these_captures_are_ours_not_community(capture_id):
     title = _verdicts()[capture_id]["script"]
     family, community = rg.pine_evidence_script(title, capture_id)
     assert community is False, (capture_id, title)
+
+
+def test_EVIDENCE_every_w9_strategy_capture_is_ours():
+    """2026-11-17: every W9 strategy probe capture in the runtime-on run is one of OUR scripts, whatever its
+    title: a `W9_<ROW>` title read as a COMMUNITY script would let a strategy capability admit on probes alone."""
+    w9 = {cid: r for cid, r in _verdicts().items() if cid.startswith("w9-")}
+    assert len(w9) >= 30, "non-vacuity: the W9 Strategy Tester captures are in the runtime-on verdicts"
+    community = sorted(cid for cid, r in w9.items() if rg.pine_evidence_script(r.get("script"), cid)[1])
+    assert community == [], community
 
 
 def test_EVIDENCE_variants_are_one_family_and_community_titles_are_untouched():
@@ -1134,13 +1567,39 @@ def _hold_gate(seconds: float) -> threading.Thread:
     return t
 
 
+def _hold_gate_until(release: threading.Event) -> threading.Thread:
+    """A thread that holds the process-wide detector gate until `release` is set (30 s at most, so a
+    failing test cannot hang the run). The busy state then lasts exactly as long as the test needs it,
+    whatever the runner's speed."""
+    held = threading.Event()
+
+    def hold():
+        assert rt._DETECTOR_GATE.acquire(timeout=5)
+        held.set()
+        release.wait(30)
+        rt._DETECTOR_GATE.release()
+    t = threading.Thread(target=hold)
+    t.start()
+    assert held.wait(5)
+    return t
+
+
 def test_F1_a_save_never_stores_an_unadmitted_row_while_the_check_is_busy(store, monkeypatch):
     """D6 holds: only a graded script is stored. A save waits at most `SAVE_WAIT_SECONDS` for the
-    detector; past that it is refused as busy (retryable, 503), and nothing is stored."""
+    detector; past that it is refused as busy (retryable, 503), and nothing is stored.
+
+    ⛔ The gate is held until the test RELEASES it, never for a fixed time. It was held for
+    `SAVE_WAIT_SECONDS + 1.0` (1.7 s): the direct save times out at 0.7 s and the HTTP save then waits its own
+    0.7 s, so the 503 needed the work between them (`svc.get`, building the FastAPI app and TestClient, the
+    request's own work before the gate) to finish within 0.3 s. On the pine-twins leg (1262 tests in one process
+    on a GitHub runner) it did not, the gate came free inside the HTTP save's wait, and the save stored: 200
+    (run 44029625436 on #1541's 8c7d1c2303; the same test is green 3/3 alone on master and on that head). A wall
+    clock in a test is a function of the runner's load (lesson_an_intermittent_red_can_be_a_population_not_a_test)."""
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     monkeypatch.setenv(rt.STAGE_ENV, "admins")
     monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
-    holder = _hold_gate(rt.SAVE_WAIT_SECONDS + 1.0)
+    release = threading.Event()
+    holder = _hold_gate_until(release)
     try:
         t0 = time.perf_counter()
         with pytest.raises(rt.CapabilityCheckBusy, match="try again in a moment"):
@@ -1149,7 +1608,9 @@ def test_F1_a_save_never_stores_an_unadmitted_row_while_the_check_is_busy(store,
         assert svc.get(USER, ADX["id"]) is None                                # nothing stored
         r = _client().post("/api/user-definitions", json={"definition": member_doc()})
         assert r.status_code == 503 and r.headers.get("Retry-After") and r.json()["retryable"] is True
+        assert svc.get(USER, ADX["id"]) is None                                # nothing stored by HTTP either
     finally:
+        release.set()
         holder.join(10)
     with sqlite3.connect(svc._DB_PATH) as c:
         c.execute(rt._CAPS_DDL)
@@ -1174,7 +1635,9 @@ def test_F1_a_save_of_an_unadmitted_script_is_refused_not_stored(store, monkeypa
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     monkeypatch.setenv(rt.STAGE_ENV, "admins")
     monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
-    doc = member_doc(MEMBER_COPY + "var table t = table.new(position.top_right, 1, 1)\n")
+    # (a table was the unadmitted example until DRAW-1 admitted obj:table and obj:box; a linefill is not)
+    doc = member_doc(MEMBER_COPY + "var linefill f = na\n"
+                     + "f := linefill.new(line.new(0, low, 1, low), line.new(0, high, 1, high), color.blue)\n")
     with pytest.raises(ValueError, match="not yet been graded"):
         svc.save(USER, ADX["id"], doc, role="admin")
     assert svc.get(USER, ADX["id"]) is None

@@ -20,7 +20,7 @@
 // `previewSharedDefinition` / `installSharedDefinition` doors, the same
 // grammar-version refusal. Nothing here is a second way in.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useContext, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import UIcon from '../../components/ui/UIcon'
@@ -30,6 +30,10 @@ import {
 } from '../../hooks/useUserDefinitions'
 import { sharedFormulaPath } from './formulaShareLink'
 import { WHAT_TO_DO } from './shareRefusal'
+import { sharedVerdict } from './sharedVerdict'
+import { loadLine } from './loadWords'
+import { AuthContext } from '../../context/AuthContext'
+import { TakedownControl } from '../../components/chart/IndicatorMembersTab'
 import styles from './FormulaLibrary.module.css'
 
 /** A repaint verdict → what it means to somebody deciding whether to install.
@@ -51,6 +55,9 @@ export default function FormulaLibrary() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [installed, setInstalled] = useState({})
+  // ⭐ MODERATION: an admin sees UCT's takedown on each entry (the server refuses anyone else)
+  const auth = useContext(AuthContext)
+  const isAdmin = !!(auth && auth.user && auth.user.role === 'admin')
 
   const load = useCallback(async (after) => {
     setLoading(true)
@@ -82,9 +89,9 @@ export default function FormulaLibrary() {
 
   return (
     <div className={styles.page} data-testid="formula-library">
-      <TileCard title="Formula library" icon="book">
+      <TileCard title="Indicator library" icon="book">
         <p className={styles.lead}>
-          Formulas other members chose to publish. Installing one makes your own copy —
+          Indicators other members chose to publish. Installing one makes your own copy —
           {' '}you can edit it freely, and your edits never reach theirs.
         </p>
 
@@ -95,7 +102,7 @@ export default function FormulaLibrary() {
             {/* ⛔ "NOTHING PUBLISHED YET" IS NOT "SOMETHING WENT WRONG", and the two
                 must not share a sentence — an empty library on a working page is
                 the honest state on the day this ships. */}
-            Nothing has been published yet. Any formula you have built can be the first:
+            Nothing has been published yet. Any indicator you have built can be the first:
             {' '}open it in the builder and choose “Publish to the library”.
           </p>
         ) : null}
@@ -110,6 +117,14 @@ export default function FormulaLibrary() {
                   {e.shortName ? <span className={styles.short}>{e.shortName}</span> : null}
                 </div>
                 {e.description ? <p className={styles.desc}>{e.description}</p> : null}
+                {/* ⭐ R4: the author's verdict for the listed version, when the listing carries it */}
+                {sharedVerdict(e) ? (
+                  <p className={styles.desc} data-testid={`library-verdict-${e.token}`}>{sharedVerdict(e).sentence}</p>
+                ) : null}
+                {/* ⭐ R6: how heavy the listed version is to draw, as the server measured it */}
+                {loadLine(e.load) ? (
+                  <p className={styles.desc} data-testid={`library-load-${e.token}`} data-load={loadLine(e.load).code}>{loadLine(e.load).text}</p>
+                ) : null}
                 <div className={styles.facts}>
                   {e.repaint ? (
                     <span className={styles.fact} data-repaint={e.repaint}>
@@ -122,7 +137,16 @@ export default function FormulaLibrary() {
                       {e.inputs} {e.inputs === 1 ? 'setting' : 'settings'}
                     </span>
                   ) : null}
+                  {e.licence ? (
+                    <span className={styles.fact} data-testid={`library-licence-${e.token}`}>
+                      licence: {e.licence}
+                    </span>
+                  ) : null}
                 </div>
+                {isAdmin ? (
+                  <TakedownControl token={e.token} styles={{}}
+                    onDone={(t) => setEntries((prev) => prev.filter((x) => x.token !== t))} />
+                ) : null}
                 <div className={styles.actions}>
                   <button
                     type="button"
