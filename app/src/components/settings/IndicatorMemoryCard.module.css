@@ -93,7 +93,11 @@
     align-items: flex-start;
     gap: 8px;
   }
+}
 
+/* Tablet is touch too (styles/tapFloor.test.js): the finger target holds up to 1024px, not only on
+   a phone. */
+@media (max-width: 1024px) {
   .pill {
     min-height: var(--tap-min, 44px);
   }

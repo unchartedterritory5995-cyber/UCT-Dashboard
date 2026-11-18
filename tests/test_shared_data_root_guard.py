@@ -598,6 +598,33 @@ def test_each_newly_pinned_path_MOVES_when_its_env_var_is_set(tmp_path):
 
 # ─── the tripwire: watched firing, on a probe directory ─────────────────────
 
+#: `(file, function, literal)` -> why a bare shared-root literal there is safe. Derived from
+#: `rootconf.UNGUARDED_SHARED_LITERAL_SITES` on master 1809ae1c6f, each line read by hand.
+_ALLOWED_SHARED_SITES = {
+    ("api/darkpool_router.py", "get_darkpool_data", "/data"):
+        'a URL route, `@router.get("/data")`, not a filesystem path',
+    ("api/flow_router.py", "get_flow_data", "/data"):
+        'a URL route, `@flow_router.get("/data")`, not a filesystem path',
+    ("api/flow_router_RESTORE.py", "get_flow_data", "/data"):
+        'a URL route, `@flow_router.get("/data")`, not a filesystem path',
+    ("api/gex_router.py", "gex_data", "/data"):
+        'a URL route, `@router.get("/data")`, not a filesystem path',
+    ("api/flow_backup.py", "_marker_path", "/data"):
+        '`os.path.dirname(DB_PATH) or "/data"`: a fallback for a bare file name, unreachable '
+        'while DB_PATH carries a directory',
+    ("api/flow_db_autorestore.py", "_marker", "/data"):
+        'the same `dirname(db_path) or "/data"` idiom as flow_backup._marker_path (b56fe3900d, '
+        'flow.db self-repair, 11-13); flow-worker code, so a product edit would be a flow-worker deploy',
+    ("api/main.py", "_flow_plan_sync", "/data/flow.db"):
+        "a main.py `_flow_*` helper, owned elsewhere (named by this rail since it was written)",
+    ("api/main.py", "_flow_optimize_sync", "/data/flow.db"):
+        "a main.py `_flow_*` helper, owned elsewhere (named by this rail since it was written)",
+    ("api/services/uct_agent/scan/sat/seed.py", "check_data_dir", "/data"):
+        "a REFUSAL comparison: the SAT-1 seed refuses to run against the shared root and "
+        "creates nothing (1a88810ffe, 11-01)",
+}
+
+
 def test_no_shared_root_literal_sits_in_a_function_that_reads_no_env_var():
     """🔴 A LITERAL BEING PINNED SOMEWHERE ≠ EVERY SITE OF IT BEING REACHABLE.
 
@@ -612,10 +639,12 @@ def test_no_shared_root_literal_sits_in_a_function_that_reads_no_env_var():
     A pin moves an env READ; neither had one; both wrote to `C:\\data\\flow.db`.
     Both are fixed, and this fails BY `file:line:function` if a third appears.
 
-    ⚠️ The remaining entries are ALLOWED and enumerated, not silenced: they
-    are all bare `/data` probes (`os.path.isdir("/data")` inside a status
-    handler), which create nothing, plus `api/main.py`'s two `_flow_*`
-    helpers, which are owned elsewhere. Growing this list is what fails.
+    ⚠️ The remaining entries are ALLOWED and ENUMERATED in `_ALLOWED_SHARED_SITES`,
+    each with its reason, keyed on `file::function::literal` (never a line number).
+    A new site fails BY NAME; an allowed one that disappears must leave the list.
+    ⚰️ This was a COUNT pinned at 8 until 2026-11-18. The first full backend run
+    (PR #1855) found 9 (red since 11-01) and a count cannot say which one is new,
+    or whether a benign arrival is hiding a real one.
 
     ⭐ `api/routers/auth.py` USED to be on the allowed side: `export_user_data`
     spelled two bare literals, `/data/trades.json` and `/data/watchlists.json`.
@@ -629,7 +658,8 @@ def test_no_shared_root_literal_sits_in_a_function_that_reads_no_env_var():
     # The CONTROL, first: an "X must not appear" rail passes trivially against a
     # census that finds nothing, so prove it still finds the sites that are
     # genuinely there before asking whether the fixed ones are gone.
-    assert len(sites) >= 8, f"the site census went blind — it found {len(sites)}"
+    assert len(sites) >= len(_ALLOWED_SHARED_SITES) // 2, (
+        f"the site census went blind — it found {len(sites)}")
     assert "api/main.py" in named_files, \
         "_flow_plan/_flow_optimize still carry a bare /data/flow.db and the " \
         "census no longer sees them; it is not looking"
@@ -640,10 +670,15 @@ def test_no_shared_root_literal_sits_in_a_function_that_reads_no_env_var():
         "FlowDB.__init__ is carrying a bare /data default again"
     assert "api/baselines.py" not in named_files, \
         "baselines is carrying a bare /data default again"
-    assert len(sites) <= 8, (
+    found = {(f, fn, v): ln for f, ln, fn, v in sites}
+    new = sorted(k for k in found if k not in _ALLOWED_SHARED_SITES)
+    assert not new, (
         "a new /data literal now sits in a function that reads no env var — "
         "the redirect cannot reach it:\n  "
-        + "\n  ".join(f"{f}:{ln} {fn}() -> {v}" for f, ln, fn, v in sites))
+        + "\n  ".join(f"{f}:{found[(f, fn, v)]} {fn}() -> {v}" for f, fn, v in new))
+    gone = sorted(k for k in _ALLOWED_SHARED_SITES if k not in found)
+    assert not gone, ("allowed sites no longer in the code — take them off "
+                      f"_ALLOWED_SHARED_SITES: {gone}")
 
 
 def test_the_tripwire_refuses_every_write_primitive_under_a_probe_root(tmp_path):

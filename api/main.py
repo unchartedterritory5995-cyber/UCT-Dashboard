@@ -2388,12 +2388,17 @@ def _run_snapshot_resume() -> None:
 RS_HISTORY_SHORT_SHARE = 0.20
 
 
-def rs_history_enabled() -> bool:
-    """`RS_HISTORY_ENABLED` read per call: a flip needs no restart. Only "1" arms it
-    (the `_wire_enabled` convention: "true", "yes" and typos all mean off). The ONE
-    reader -- `/api/screener/snapshot-status` imports this, so the job and the
-    surface cannot disagree about the switch."""
-    return os.environ.get("RS_HISTORY_ENABLED", "0") == "1"
+# `rs_history_enabled` MOVED OUT of this module on 2026-11-15 and is re-exported
+# here, so `api.main.rs_history_enabled` keeps resolving for everyone who already
+# spells it that way. It is still ONE definition; it simply no longer lives in a
+# module that costs the whole app to import.
+#
+# ⚰️ Why it moved: `api/services/indicator_alert_evaluator.py` read it with a lazy
+# `from api.main import rs_history_enabled`, which put THIS module inside
+# flow-worker's import closure and took the web app with it — 1,654 files reachable
+# against 24 watched, the S7 price-level modules among them. See
+# `api/services/rs_history_flag.py` for the full account.
+from api.services.rs_history_flag import rs_history_enabled  # noqa: E402
 
 
 def _rs_history_shortfall(receipt: dict):
@@ -12271,7 +12276,7 @@ def _csv_response(csv_path: str, filename: str):
     return JSONResponse(status_code=404, content={"error": f"{filename} not found"})
 
 @app.get("/api/brand/massive-card-logo.png")
-async def _massive_card_logo():
+def _massive_card_logo():
     """Public author-icon for the Massive Discord cards (the UCT Logo).
 
     Discord fetches an embed's ``icon_url`` anonymously, so the image MUST be

@@ -489,6 +489,11 @@ const BARE_POLL_SITES = {
   'app/src/pages/terminal/panels/BreakoutPanel.jsx': 1,
   'app/src/pages/terminal/panels/marketRead.js': 1,
   'app/src/pages/terminal/panels/TwtPanel.jsx': 1,
+  // ⭐ UNVOL (#1832, 2026-11-18): the same terminal-panel decision, one site (`useScan`, three calls).
+  // 60 s only while the by-now reading is live and moving (`unvolIsMoving`), else 5 min, and the
+  // empty-pick probe and the last-session read tick at 5 min. It sets `revalidateOnFocus: false`
+  // itself, which is the half of the trade the wrapper would undo.
+  'app/src/pages/terminal/panels/UnusualVolumePanel.jsx': 1,
   'app/src/pages/terminal/panels/WatchlistPanel.jsx': 3,
 }
 

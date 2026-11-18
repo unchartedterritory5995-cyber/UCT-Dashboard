@@ -874,6 +874,11 @@ def get_themes(month: Optional[str] = None) -> dict:
         return {"status": "computing"}
     age = _age_s(held)
     refreshing = bool(age is None or age > STALE_REBUILD_S) and (_kick("stale") or _inflight is not None)
+    return _answer_of(held, month, refreshing)
+
+
+def _answer_of(held: dict, month: Optional[str], refreshing: bool) -> dict:
+    """The answer for one month out of a held payload (`get_themes` and `held_themes` share it)."""
     common = {"months": list(held["months"]), "built_at": held["built_at"], "corpus": held["corpus"],
               "rules": held.get("rules") or dict(RULES), "refreshing": refreshing}
     if not held["months"]:
@@ -883,6 +888,18 @@ def get_themes(month: Optional[str] = None) -> dict:
     if one is None:
         return {"status": "no_month", "month": ym, **common}
     return {"status": "ok", **one, **common}
+
+
+def held_themes(month: Optional[str] = None) -> Optional[dict]:
+    """READ ONLY: the answer `get_themes` gives from what this server already HOLDS (this module's
+    copy, else the stored file, read once), or None when it holds nothing. It NEVER starts a build,
+    cold or stale, so a caller that must not cause work (the Agent's `earnings.callThemes` kind,
+    inside a turn) reads through here and never through `get_themes`. `refreshing` is true only
+    when a build someone else started is running; an old answer is told by `built_at`."""
+    held = _current()
+    if held is None:
+        return None
+    return _answer_of(held, month, _inflight is not None)
 
 
 def debug_state() -> dict:

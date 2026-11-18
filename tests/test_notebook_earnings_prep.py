@@ -230,6 +230,11 @@ def _intel(monkeypatch, payload) -> None:
 
 def _today(monkeypatch):
     from api.services.journal_two import calendar as j2cal
+    # ⛔ IMPORT THE BINDER BEFORE PATCHING. `compass_daily_caps` does `from ...calendar import et_today`;
+    # first imported INSIDE this patch, it kept the lambda after the patch was undone (the conftest
+    # bound-function tripwire). It used to be loaded earlier only through flow-worker's accidental `api.main`
+    # edge; with that edge cut (PR #1360) the test imports it itself.
+    from api.services.journal_two import compass_daily_caps  # noqa: F401
     monkeypatch.setattr(j2cal, "et_today", lambda: TODAY)
 
 

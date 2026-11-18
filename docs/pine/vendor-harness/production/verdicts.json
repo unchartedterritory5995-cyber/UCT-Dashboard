@@ -17845,15 +17845,15 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "1 object families differ (count or text); colours agree on 208 paired slots; 102 slots on objects neither side draws not graded; coordinates are NOT compared by v1",
+    "verdict": "MATCH",
+    "verdictWithoutColour": "MATCH",
+    "reason": "object counts and texts agree; colours agree on 208 paired slots; 102 slots on objects neither side draws not graded; coordinates are NOT compared by v1",
     "counts": [
      {
       "family": "lines",
       "vendor": 204,
-      "ours": 205,
-      "agree": false
+      "ours": 204,
+      "agree": true
      },
      {
       "family": "labels",
@@ -17923,38 +17923,26 @@
      }
     ],
     "colourUnpaired": {
-     "ours": 1,
+     "ours": 0,
      "vendor": 0
     }
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 1 compared items diverge",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "MATCH",
+   "reason": "all 1 items agree",
+   "verdictWithoutColour": "MATCH",
    "ourNotes": [
     "plots/objects: replayed: 6677 bars of prehistory from vw-object-gc-b-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)",
     "51 of 53 held boxes cannot be drawn (a coordinate is na) — counted as held, the way the capture counts them"
    ],
    "objectsV2": {
-    "verdict": "DIVERGE",
-    "verdictWithoutX": "DIVERGE",
-    "v1": "DIVERGE",
+    "verdict": "INCONCLUSIVE",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
     "pairedNothing": false,
     "differsOnlyByCreationOrder": false,
-    "reason": "1 object family differs field by field (first: lines count of lines held — vendor 204, ours 205); x: 0 graded (0 differ), 514 not resolvable to a bar (the capture records no x table (taken before U13)); v1: 1 object families differ (count or text); colours agree on 208 paired slots; 102 slots on objects neither side draws not graded; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
-    "first": {
-     "family": "lines",
-     "field": "count",
-     "vendor": 204,
-     "ours": 205,
-     "where": "lines held"
-    },
-    "firstWithoutX": {
-     "family": "lines",
-     "field": "count",
-     "vendor": 204,
-     "ours": 205,
-     "where": "lines held"
-    },
+    "reason": "every paired record agrees on 1342 graded fields; x: 0 graded (0 differ), 514 not resolvable to a bar (the capture records no x table (taken before U13)), so x is not witnessed and this is not a MATCH (G1); v1: object counts and texts agree; colours agree on 208 paired slots; 102 slots on objects neither side draws not graded; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
+    "first": null,
+    "firstWithoutX": null,
     "x": {
      "graded": 0,
      "agreeing": 0,
@@ -17964,6 +17952,7 @@
       "the capture records no x table (taken before U13)": 514
      },
      "incompleteFamilies": [
+      "lines",
       "boxes"
      ]
     },
@@ -17972,7 +17961,7 @@
       "family": "lines",
       "paired": 204,
       "unpairedVendor": 0,
-      "unpairedOurs": 1,
+      "unpairedOurs": 0,
       "graded": 1224,
       "agreeing": 1224,
       "differing": 0,
@@ -18020,20 +18009,10 @@
         "notGraded": 0
        }
       },
-      "first": {
-       "field": "count",
-       "vendor": 204,
-       "ours": 205,
-       "where": "lines held"
-      },
-      "firstWithoutX": {
-       "field": "count",
-       "vendor": 204,
-       "ours": 205,
-       "where": "lines held"
-      },
-      "agree": false,
-      "agreeWithoutX": false,
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": true,
       "x": {
        "graded": 0,
        "agreeing": 0,
@@ -18044,7 +18023,7 @@
        },
        "first": null
       },
-      "xIncomplete": false,
+      "xIncomplete": true,
       "differsOnlyByCreationOrder": false
      },
      {
@@ -18305,15 +18284,15 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "1 object families differ (count or text); colours agree on 210 paired slots; 96 slots on objects neither side draws not graded; coordinates are NOT compared by v1",
+    "verdict": "MATCH",
+    "verdictWithoutColour": "MATCH",
+    "reason": "object counts and texts agree; colours agree on 210 paired slots; 96 slots on objects neither side draws not graded; coordinates are NOT compared by v1",
     "counts": [
      {
       "family": "lines",
       "vendor": 200,
-      "ours": 201,
-      "agree": false
+      "ours": 200,
+      "agree": true
      },
      {
       "family": "labels",
@@ -18383,38 +18362,26 @@
      }
     ],
     "colourUnpaired": {
-     "ours": 1,
+     "ours": 0,
      "vendor": 0
     }
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 1 compared items diverge",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "MATCH",
+   "reason": "all 1 items agree",
+   "verdictWithoutColour": "MATCH",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
     "48 of 53 held boxes cannot be drawn (a coordinate is na) — counted as held, the way the capture counts them"
    ],
    "objectsV2": {
-    "verdict": "DIVERGE",
-    "verdictWithoutX": "DIVERGE",
-    "v1": "DIVERGE",
+    "verdict": "INCONCLUSIVE",
+    "verdictWithoutX": "MATCH",
+    "v1": "MATCH",
     "pairedNothing": false,
     "differsOnlyByCreationOrder": false,
-    "reason": "1 object family differs field by field (first: lines count of lines held — vendor 200, ours 201); x: 458 graded (0 differ), 48 not resolvable to a bar (the vendor x is TradingView's off-chart timepoint (-2000000: an na x, or one off the loaded bars)); v1: 1 object families differ (count or text); colours agree on 210 paired slots; 96 slots on objects neither side draws not graded; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
-    "first": {
-     "family": "lines",
-     "field": "count",
-     "vendor": 200,
-     "ours": 201,
-     "where": "lines held"
-    },
-    "firstWithoutX": {
-     "family": "lines",
-     "field": "count",
-     "vendor": 200,
-     "ours": 201,
-     "where": "lines held"
-    },
+    "reason": "every paired record agrees on 1336 graded fields; x: 458 graded (0 differ), 48 not resolvable to a bar (the vendor x is TradingView's off-chart timepoint (-2000000: an na x, or one off the loaded bars)), so x is not witnessed and this is not a MATCH (G1); v1: object counts and texts agree; colours agree on 210 paired slots; 96 slots on objects neither side draws not graded; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
+    "first": null,
+    "firstWithoutX": null,
     "x": {
      "graded": 458,
      "agreeing": 458,
@@ -18432,7 +18399,7 @@
       "family": "lines",
       "paired": 200,
       "unpairedVendor": 0,
-      "unpairedOurs": 1,
+      "unpairedOurs": 0,
       "graded": 1200,
       "agreeing": 1200,
       "differing": 0,
@@ -18480,20 +18447,10 @@
         "notGraded": 0
        }
       },
-      "first": {
-       "field": "count",
-       "vendor": 200,
-       "ours": 201,
-       "where": "lines held"
-      },
-      "firstWithoutX": {
-       "field": "count",
-       "vendor": 200,
-       "ours": 201,
-       "where": "lines held"
-      },
-      "agree": false,
-      "agreeWithoutX": false,
+      "first": null,
+      "firstWithoutX": null,
+      "agree": true,
+      "agreeWithoutX": true,
       "x": {
        "graded": 400,
        "agreeing": 400,

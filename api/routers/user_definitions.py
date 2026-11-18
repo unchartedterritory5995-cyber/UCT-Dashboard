@@ -651,7 +651,18 @@ def converse_definition(body: ConverseIn, user: dict = Depends(require_paid),
         examples=body.examples is True, browser_refusal=body.browser_refusal,
         accepts=body.accepts,
         # ⭐ what THIS member chose when the door asked before (their own account row, no one else's)
-        memory=indicator_memory.Memory(user["id"]))
+        memory=indicator_memory.Memory(user["id"]),
+        # ⭐ and what they USUALLY use, read from their own saved indicators only when the door asks
+        saved=svc.list_for_user)
+
+
+def _saved_or_none(user_id: Any):
+    """This member's own saved indicators for the Settings card's "usual" lines, or None when the
+    store cannot be read (the card then shows no such line; nothing else about it changes)."""
+    try:
+        return svc.list_for_user(user_id)
+    except Exception:                              # noqa: BLE001
+        return None
 
 
 class AssistantMemoryIn(BaseModel):
@@ -667,7 +678,7 @@ def assistant_memory(user: dict = Depends(require_paid),
     """WHAT CREATE INDICATOR REMEMBERS about this member (their own account row, no one else's):
     every question it can remember an answer to, and their answer where they have one."""
     from api.services import definition_conversation, indicator_memory
-    return definition_conversation.memory_view(indicator_memory.Memory(user["id"]))
+    return definition_conversation.memory_view(indicator_memory.Memory(user["id"]), _saved_or_none(user["id"]))
 
 
 @router.put("/assistant-memory")
@@ -679,7 +690,7 @@ def set_assistant_memory(body: AssistantMemoryIn, user: dict = Depends(require_p
     memory = indicator_memory.Memory(user["id"])
     if not definition_conversation.set_memory(memory, body.question, body.value):
         raise HTTPException(status_code=400, detail="That is not one of this question's choices.")
-    return definition_conversation.memory_view(memory)
+    return definition_conversation.memory_view(memory, _saved_or_none(user["id"]))
 
 
 @router.delete("/assistant-memory")
@@ -691,7 +702,7 @@ def forget_assistant_memory(question: Optional[str] = Query(None, max_length=32)
     from api.services import definition_conversation, indicator_memory
     memory = indicator_memory.Memory(user["id"])
     memory.forget(question)
-    return definition_conversation.memory_view(memory)
+    return definition_conversation.memory_view(memory, _saved_or_none(user["id"]))
 
 
 @router.get("/library")
