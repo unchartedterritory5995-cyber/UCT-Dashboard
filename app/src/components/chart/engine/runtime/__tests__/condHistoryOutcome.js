@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/runtime/__tests__/condHistoryOutcome.js
 //
-// ⭐ HIST-S3 (NUMBER PENDING) — WHAT HAPPENS TO A CONDITIONAL-HISTORY SHAPE, BUILD AND RUN TOGETHER.
+// ⭐ HIST-S3 (Engine 64 (#1450)) — WHAT HAPPENS TO A CONDITIONAL-HISTORY SHAPE, BUILD AND RUN TOGETHER.
 //
 // Before HIST-S3 a call written in a block or a `?:` arm that this lane does not step per call site
 // was refused at BUILD (`runtime:conditional-history`). Now most such regions are lowered as on

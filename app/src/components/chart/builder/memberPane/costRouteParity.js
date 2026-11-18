@@ -1,6 +1,6 @@
 // app/src/components/chart/builder/memberPane/costRouteParity.js
 //
-// ⭐⭐ ROUTE BY COST (NUMBER PENDING) — THE TWO LANES' VALUES FOR ONE SCRIPT, OUTPUT BY OUTPUT.
+// ⭐⭐ ROUTE BY COST (Engine 73 (#1711)) — THE TWO LANES' VALUES FOR ONE SCRIPT, OUTPUT BY OUTPUT.
 //
 // Read by the route's parity rail (`routeByCost.test.js`) and its measurement
 // (`ast/hostLaneCost.measure.test.js`), never by the product: a moved script must compute the same
