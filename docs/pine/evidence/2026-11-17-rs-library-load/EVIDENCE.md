@@ -1,6 +1,45 @@
 # RS Rating added from "Your indicators": the load-time refusal flash (2026-11-17)
 
-**Status: CLOSED as not reproducible at engine 73** (coordinator ruling, 2026-11-17). The instrument is kept as
+## ⭐ UPDATE 2026-11-18: reproduced, cause found, fixed (L10b)
+
+The instrument reproduced the flash in **#1733's restart window**: prod `fbc204529e`, deployed at
+00:42:56Z, probe run 00:43–00:49Z. This time the refusal-creation hooks were armed.
+
+| load | seed + SPX requested | SPX 200 | run half | seed 200 |
+|---|---|---|---|---|
+| 1 | 15.2 s | 15.4 s | pending → served | 15.5 s |
+| 2 | 14.9 s | 15.0 s | pending → served | 15.2 s |
+| 3 | 14.9 s | 15.0 s | pending → pending → **refused `runtime:request` (15.13 s, beacon 15.3 s)** → pending → served (15.93 s) | 16.0 s |
+
+**Cause.** A run waiting for another symbol's bars throws `runtime:request` with `pending: true`
+(`runtimeColumns.js`), and `nativeRegistry.js::withRunHalf` holds a pending error as *pending*:
+
+- **On the main thread**, the error arrives as thrown, so it stays pending.
+- **Off the main thread**, it lost its flag. `runtimeWorker.js` posted only `{name, message, guard, limit, bar, ms}`,
+  and `runtimeAsync.js::errorOf` rebuilt only those fields. So a worker run that finished **before the seed landed**
+  came back as a plain `runtime:request` and was refused, until the seed's arrival started a new run.
+
+Load 3's seed came 1.0 s after SPX, which gave a worker run time to finish first. Loads 1 and 2 had 0.1–0.2 s.
+That is why it shows in slow restart windows, and why the 22:44Z beacons sat between SPX's answer and the seed's.
+
+**Fix.** The worker posts `pending`, and `errorOf` keeps it.
+
+**Rail.** `rsRunHalfWorkerPending.test.js` runs RS Rating's run half through the **real** worker module, with
+each message structured-cloned as the browser does, SPX in hand and the seed loading:
+
+| state | run-half states |
+|---|---|
+| before the fix | `refused:runtime:request`, as production showed |
+| after the fix | pending only |
+| control (both series in hand) | served |
+
+Mutants: dropping the flag in the worker turns 1 test red; dropping it in `errorOf` turns 2 red.
+
+The ruling below ("not reproducible at e73") is kept as written: it was true of the windows it had.
+
+---
+
+**Status (2026-11-17): CLOSED as not reproducible at engine 73** (coordinator ruling, 2026-11-17). The instrument is kept as
 `tools/rs_library_load_probe.py`, which only measures and never gates. Any later restart can be probed in one command:
 
     python tools/rs_library_load_probe.py --profile <rig profile dir> --loads 3

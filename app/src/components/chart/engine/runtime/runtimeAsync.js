@@ -58,6 +58,8 @@ function errorOf(e) {
   const err = new Error(e && e.message ? e.message : 'the runtime lane failed')
   err.name = (e && e.name) || 'Error'
   if (e && e.guard) err.guard = e.guard
+  // ⭐ RS RATING L10b — a wait stays a wait (`nativeRegistry.js::withRunHalf` holds `pending` as pending)
+  if (e && e.pending === true) err.pending = true
   if (e && typeof e.limit === 'string') err.limit = e.limit
   if (e && Number.isInteger(e.bar)) err.bar = e.bar
   if (e && Number.isFinite(e.ms)) err.ms = e.ms

@@ -58,6 +58,9 @@ self.onmessage = (event) => {
         name: (err && err.name) || 'Error',
         message: String((err && err.message) || err),
         guard: (err && err.guard) || null,
+        // ⭐ RS RATING L10b — a run waiting for another symbol's bars is a WAIT (`runtimeColumns.js`
+        // throws it with `pending: true`); without this it crossed as a refusal and flashed one
+        pending: err && err.pending === true ? true : null,
         limit: (err && typeof err.limit === 'string') ? err.limit : null,
         bar: err && Number.isInteger(err.bar) ? err.bar : null,
         ms: Math.max(0, Math.round(clock() - startedAt)),
