@@ -132,13 +132,15 @@ def test_a_refused_name_in_no_catalogue_row_is_other_and_its_words_are_dropped(s
 
 
 def test_a_catalogue_name_is_recorded_on_a_turn_that_BUILT_too(store, conv, clean_env, model):
-    """So the report can say how often a name the library does not have was built from the
-    assistant's own knowledge: that is the queue for the library."""
+    """So the report can say how often a name was built from the assistant's own knowledge. "obv"
+    is the live case: On Balance Volume is in the library, but a three-letter acronym is a
+    spelling the library may not carry, so this request is built unchecked, and counted."""
     model([emits(ema(20))])
     r = conv.converse("show obv with a 20 ema of it", user_id="u1", view=empty_view(0), chart=CHART)
     assert r["ok"] is True and r["disposition"] == "change"
     p = last_turn()
     assert learned(p) == {"unknown_name": "on_balance_volume"} and p["failure_class"] == "ok"
+    assert names.now_in_library()["on_balance_volume"] == "on_balance_volume"
 
 
 def test_an_ordinary_turn_records_none_of_them(store, conv, clean_env, model):
@@ -246,23 +248,32 @@ def test_the_catalogue_is_names_only_in_one_spelling_each_id_once():
 
 
 def test_no_catalogue_name_is_one_the_door_already_knows(conv):
-    """A name the library has, or one the door resolves whole to a function it has, is not unknown."""
+    """A spelling the library answers, or one the door resolves whole to a function it has, is not
+    unknown. Asked of EVERY spelling still counted (a row the library has gained may keep one the
+    library does not carry, such as an acronym)."""
     library = {names.norm(a) for a, _ in ni.phrases()}
+    checked = 0
     for row in names.catalogue():
         assert not (set(row["aliases"]) & library), row["id"]
-        r = conv.understand_turn(f"Add the {row['name']}", CHART)
-        whole = [t["name"] for t in (r.get("terms") or []) if t.get("section") == "functions"
-                 and names.norm(t.get("matched_as")) in row["aliases"]] if r["refusal"] is None else []
-        assert whole == [], (row["id"], whole)
-        assert not r.get("named"), row["id"]
+        for spelling in row["aliases"]:
+            r = conv.understand_turn(f"Add the {spelling}", CHART)
+            whole = [t["name"] for t in (r.get("terms") or []) if t.get("section") == "functions"
+                     and names.norm(t.get("matched_as")) == spelling] if r["refusal"] is None else []
+            assert whole == [], (row["id"], spelling, whole)
+            assert not r.get("named"), (row["id"], spelling)
+            checked += 1
+    assert checked >= 150
 
 
 def test_a_request_is_read_as_whole_words_longest_first_and_answers_ids_only():
     assert names.names_in("Add the Klinger Volume Oscillator") == ["klinger_volume_oscillator"]
     assert names.names_in("a KLINGER oscillator, please") == ["klinger_volume_oscillator"]
-    assert names.names_in("an aroon oscillator") == ["aroon"]                       # one row, read once
+    assert names.names_in("a fisher transform, an EHLERS FISHER TRANSFORM") == ["fisher_transform"]   # one row, read once
     assert names.names_in("macaroons and a necktrix") == []                         # never inside a word
-    assert names.names_in("the on-balance volume") == ["on_balance_volume"]         # punctuation is spacing
+    assert names.names_in("the half-trend") == ["half_trend"]                       # punctuation is spacing
+    # a spelling the LIBRARY answers is not unknown; one it does not answer still is
+    assert names.names_in("the on-balance volume") == [] and names.names_in("an aroon up line") == []
+    assert names.names_in("add obv") == ["on_balance_volume"]
     assert names.names_in("") == [] and names.names_in(None) == [] and names.names_in(7) == []
     many = "ppo and pvo and trix and qqe and renko and kagi"
     assert len(names.names_in(many)) == names.MAX_PER_TURN
@@ -280,7 +291,7 @@ def test_a_name_the_library_gains_stops_being_unknown_and_the_file_still_knows_i
     try:
         assert names.names_in("Add the Klinger Volume Oscillator") == []
         assert "klinger_volume_oscillator" in names.ids()                  # an earlier record still passes
-        assert names.now_in_library() == {"klinger_volume_oscillator": "klinger_volume_oscillator_entry"}
+        assert names.now_in_library()["klinger_volume_oscillator"] == "klinger_volume_oscillator_entry"
     finally:
         monkeypatch.undo()
         for cached in (names.catalogue, names._spellings):
@@ -324,18 +335,18 @@ def test_names_asked_for_are_ranked_by_distinct_members_and_each_is_split_by_wha
         turn(u, unknown_name="klinger_volume_oscillator")
     turn("m1", unknown_name="klinger_volume_oscillator")                    # one member asking twice is one member
     for u in ("m1", "m2", "m3"):
-        turn(u, unknown_name="on_balance_volume", built=u != "m3")
-    turn("m1", unknown_name="aroon,other")
+        turn(u, unknown_name="fisher_transform", built=u != "m3")
+    turn("m1", unknown_name="half_trend,other")
     r = tel.weekly_report(7)
     asked = r["names"]["asked_for"]
-    assert [n["id"] for n in asked] == ["klinger_volume_oscillator", "on_balance_volume", "aroon"]   # `other` is no row
+    assert [n["id"] for n in asked] == ["klinger_volume_oscillator", "fisher_transform", "half_trend"]   # `other` is no row
     assert asked[0] == {"id": "klinger_volume_oscillator", "name": "Klinger Volume Oscillator", "members": 4, "turns": 5,
                         "refused": 5, "built_unchecked": 0, "built_from_library": 0, "builders_turns": 0,
                         "in_library": None, "in_library_since": None}
     # built with no formula of ours behind the name: the recollection gap, apart from the refusals
     assert (asked[1]["members"], asked[1]["turns"], asked[1]["refused"], asked[1]["built_unchecked"],
             asked[1]["built_from_library"]) == (3, 3, 1, 2, 0)
-    assert asked[2] == {"id": "aroon", "name": "Aroon", "members": tel.FEWER, "turns": None, "refused": None,
+    assert asked[2] == {"id": "half_trend", "name": "Half Trend", "members": tel.FEWER, "turns": None, "refused": None,
                         "built_unchecked": None, "built_from_library": None, "builders_turns": 0,
                         "in_library": None, "in_library_since": None}
     assert r["names"]["not_in_the_catalogue"] == {"members": tel.FEWER, "turns": None, "builders_turns": 0}
@@ -416,7 +427,8 @@ def test_a_turn_is_never_counted_under_two_outcomes(store, monkeypatch):
     monkeypatch.setattr(names, "now_in_library", lambda: {"klinger_volume_oscillator": "mcginley_dynamic"})
     (row,) = tel.weekly_report(7)["names"]["asked_for"]
     assert row["turns"] == 3
-    assert row["refused"] + row["built_unchecked"] + row["built_from_library"] == 3
+    # and it is a LIBRARY build: what the patch holds is the fact
+    assert (row["refused"], row["built_unchecked"], row["built_from_library"]) == (0, 0, 3)
 
 
 def test_questions_this_window_against_the_one_before_and_per_indicator_built(store):
@@ -467,11 +479,11 @@ def test_the_report_in_plain_words_says_what_the_report_says(store):
     for u in ("m1", "m2", "m3", "m4"):
         turn(u, unknown_name="klinger_volume_oscillator")
     for u in ("m1", "m2", "m3"):
-        turn(u, unknown_name="on_balance_volume", built=u != "m3")
+        turn(u, unknown_name="fisher_transform", built=u != "m3")
         turn(u, named_held="pocket_pivot")
         turn(u, named_built="mcginley_dynamic", built=True)
-    turn("m1", unknown_name="aroon,other")
-    turn("admin-1", admin=True, unknown_name="aroon")
+    turn("m1", unknown_name="half_trend,other")
+    turn("admin-1", admin=True, unknown_name="half_trend")
     turn("m1", asked="average_kind")
     turn("m2", asked="average_kind")
     turn("m3", asked="assistant")
@@ -487,8 +499,8 @@ def test_the_report_in_plain_words_says_what_the_report_says(store):
         "  Built using a remembered choice: 1 of 6",
         "  Asked 2 times: Which kind of moving average?",
         "  Klinger Volume Oscillator: 4 members, 4 requests; 4 refused",
-        "  On Balance Volume: 3 members, 3 requests; 1 refused; 2 built unchecked, from the assistant's own recollection",
-        "  Aroon: fewer than 3 members; 1 by the builders' own accounts",
+        "  Fisher Transform: 3 members, 3 requests; 1 refused; 2 built unchecked, from the assistant's own recollection",
+        "  Half Trend: fewer than 3 members; 1 by the builders' own accounts",
         "  Names in no list: fewer than 3 members",
         "  Pocket Pivot: 3 members, 3 requests",
         "  McGinley Dynamic: 3 members, 3 builds",

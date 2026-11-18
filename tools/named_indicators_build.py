@@ -62,7 +62,7 @@ await esbuild.build({ entryPoints: [entry], outfile, bundle: true, platform: 'no
 
 #: A different number for every parameter, so the second parse shows where each one sits. Small
 #: enough to pass every window guard; a text that already holds one of them is refused.
-INT_PROBES = (131, 137, 139, 149, 151, 157)
+INT_PROBES = (131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191)    # twelve: Know Sure Thing has nine
 FLOAT_PROBES = (1.37, 2.37, 3.37, 4.37, 5.37, 6.37)
 
 

@@ -391,6 +391,168 @@ def stoch_rsi_d(bars, rsi_length=14, stoch_length=14, k_smooth=3, d_smooth=3):
     return sma(stoch_rsi_k(bars, rsi_length, stoch_length, k_smooth), d_smooth)
 
 
+# ── slice 3 (2026-11-18): thirteen classics, each from its published definition ──────────────
+
+def _days_since_extreme(xs, length, pick):
+    """Over this bar and the `length` before it: how many bars ago the extreme was set (the most
+    recent bar, when two hold it)."""
+    out = []
+    for i in range(len(xs)):
+        if i < length:
+            out.append(None)
+            continue
+        extreme = pick(xs[i - length:i + 1])
+        out.append(min(k for k in range(length + 1) if xs[i - k] == extreme))
+    return out
+
+
+def aroon_up(bars, length=25):
+    return [NAN if d is None else (length - d) / length * 100.0 for d in _days_since_extreme(col(bars, "h"), length, max)]
+
+
+def aroon_down(bars, length=25):
+    return [NAN if d is None else (length - d) / length * 100.0 for d in _days_since_extreme(col(bars, "l"), length, min)]
+
+
+def aroon_oscillator(bars, length=25):
+    return [u - d if ok(u) and ok(d) else NAN for u, d in zip(aroon_up(bars, length), aroon_down(bars, length))]
+
+
+def _wilder_sums(xs, n):
+    """Wilder's smoothing AS THE PAGE GIVES IT: the first value is the SUM of the first n; then
+    prior - prior / n + current. (A running sum, n times the running average.)"""
+    out, prev, seen = [], None, []
+    for v in xs:
+        if not ok(v):
+            out.append(NAN if prev is None else prev)
+            continue
+        if prev is None:
+            seen.append(v)
+            if len(seen) == n:
+                prev = sum(seen)
+        else:
+            prev = prev - prev / n + v
+        out.append(NAN if prev is None else prev)
+    return out
+
+
+def _directional_moves(bars):
+    plus, minus = [NAN], [NAN]
+    for i in range(1, len(bars)):
+        up, down = bars[i]["h"] - bars[i - 1]["h"], bars[i - 1]["l"] - bars[i]["l"]
+        plus.append(up if up > down and up > 0 else 0.0)
+        minus.append(down if down > up and down > 0 else 0.0)
+    return plus, minus
+
+
+def _di(bars, length, which):
+    plus, minus = _directional_moves(bars)
+    moves, ranges = _wilder_sums(plus if which == "plus" else minus, length), _wilder_sums(true_range(bars), length)
+    return [100.0 * m / r if ok(m) and ok(r) and r else NAN for m, r in zip(moves, ranges)]
+
+
+def plus_di(bars, length=14):
+    return _di(bars, length, "plus")
+
+
+def minus_di(bars, length=14):
+    return _di(bars, length, "minus")
+
+
+def adx_line(bars, length=14):
+    p, m = plus_di(bars, length), minus_di(bars, length)
+    dx = [100.0 * abs(a - b) / (a + b) if ok(a) and ok(b) and (a + b) else NAN for a, b in zip(p, m)]
+    return wilder(dx, length)            # the simple average of the first N, then (prior x (N - 1) + DX) / N
+
+
+def _running_total(steps):
+    out, total = [], 0.0
+    for v in steps:
+        total += v
+        out.append(total)
+    return out
+
+
+def on_balance_volume(bars):
+    c, v = col(bars, "c"), col(bars, "v")
+    return _running_total([0.0 if i == 0 or c[i] == c[i - 1] else (v[i] if c[i] > c[i - 1] else -v[i])
+                           for i in range(len(bars))])
+
+
+def accumulation_distribution_line(bars):
+    return _running_total([0.0 if b["h"] == b["l"] else ((b["c"] - b["l"]) - (b["h"] - b["c"])) / (b["h"] - b["l"]) * b["v"]
+                           for b in bars])
+
+
+def price_volume_trend(bars):
+    c, v = col(bars, "c"), col(bars, "v")
+    return _running_total([0.0 if i == 0 else (c[i] - c[i - 1]) / c[i - 1] * v[i] for i in range(len(bars))])
+
+
+def ppo_line(bars, fast=12, slow=26, signal=9):
+    c = col(bars, "c")
+    return [(f - s) / s * 100.0 if ok(f) and ok(s) else NAN for f, s in zip(ema(c, fast), ema(c, slow))]
+
+
+def ppo_signal(bars, fast=12, slow=26, signal=9):
+    return ema(ppo_line(bars, fast, slow), signal)
+
+
+def ppo_histogram(bars, fast=12, slow=26, signal=9):
+    return [a - b if ok(a) and ok(b) else NAN for a, b in zip(ppo_line(bars, fast, slow), ppo_signal(bars, fast, slow, signal))]
+
+
+def kst_line(bars, roc1=10, roc2=15, roc3=20, roc4=30, sma1=10, sma2=10, sma3=10, sma4=15, signal=9):
+    c = col(bars, "c")
+    parts = [sma(roc(c, r), a) for r, a in ((roc1, sma1), (roc2, sma2), (roc3, sma3), (roc4, sma4))]
+    return [w + 2 * x + 3 * y + 4 * z if all(ok(q) for q in (w, x, y, z)) else NAN for w, x, y, z in zip(*parts)]
+
+
+def kst_signal(bars, signal=9, **lengths):
+    return sma(kst_line(bars, **lengths), signal)
+
+
+def mass_index(bars, length=25):
+    spread = [b["h"] - b["l"] for b in bars]
+    single = ema(spread, 9)
+    double = ema(single, 9)
+    return rolling_sum([a / b if ok(a) and ok(b) and b else NAN for a, b in zip(single, double)], length)
+
+
+def force_index(bars, length=13):
+    c, v = col(bars, "c"), col(bars, "v")
+    return ema([NAN] + [(c[i] - c[i - 1]) * v[i] for i in range(1, len(bars))], length)
+
+
+def ease_of_movement(bars, length=14):
+    one = [NAN]
+    for i in range(1, len(bars)):
+        b, a = bars[i], bars[i - 1]
+        if b["h"] == b["l"] or b["v"] == 0:               # no range or no volume: counted as 0 (the entry's note)
+            one.append(0.0)
+            continue
+        distance = (b["h"] + b["l"]) / 2 - (a["h"] + a["l"]) / 2
+        one.append(distance / ((b["v"] / 100000000.0) / (b["h"] - b["l"])))
+    return sma(one, length)
+
+
+def negative_volume_index(bars, signal=255):
+    c, v = col(bars, "c"), col(bars, "v")
+    return [1000.0 + t for t in _running_total(
+        [(c[i] - c[i - 1]) / c[i - 1] * 100.0 if i > 0 and v[i] < v[i - 1] else 0.0 for i in range(len(bars))])]
+
+
+def nvi_signal(bars, signal=255):
+    return ema(negative_volume_index(bars), signal)
+
+
+def ulcer_index(bars, length=14):
+    c = col(bars, "c")
+    top = highest(c, length)
+    squared = [((x - h) / h * 100.0) ** 2 if ok(h) else NAN for x, h in zip(c, top)]
+    return [math.sqrt(t / length) if ok(t) else NAN for t in rolling_sum(squared, length)]
+
+
 REFERENCES = {
     "double_exponential_moving_average": {"dema": dema},
     "triple_exponential_moving_average": {"tema": tema},
@@ -410,6 +572,18 @@ REFERENCES = {
     "choppiness_index": {"chop": choppiness_index},
     "elder_ray": {"bull": elder_bull, "bear": elder_bear},
     "squeeze_momentum": {"momentum": squeeze_momentum, "squeeze_on": squeeze_on},
+    "aroon": {"up": aroon_up, "down": aroon_down, "oscillator": aroon_oscillator},
+    "directional_movement_index": {"plus": plus_di, "minus": minus_di, "adx": adx_line},
+    "on_balance_volume": {"obv": on_balance_volume},
+    "accumulation_distribution_line": {"adl": accumulation_distribution_line},
+    "price_volume_trend": {"pvt": price_volume_trend},
+    "percentage_price_oscillator": {"ppo": ppo_line, "signal": ppo_signal, "histogram": ppo_histogram},
+    "know_sure_thing": {"kst": kst_line, "signal": kst_signal},
+    "mass_index": {"mass": mass_index},
+    "force_index": {"force": force_index},
+    "ease_of_movement": {"emv": ease_of_movement},
+    "negative_volume_index": {"nvi": negative_volume_index, "signal": nvi_signal},
+    "ulcer_index": {"ulcer": ulcer_index},
 }
 
 #: Other numbers for the second pass: each inside the parameter's own range, none a default.
@@ -431,6 +605,18 @@ OTHER = {
     "choppiness_index": {"length": 20},
     "elder_ray": {"length": 21},
     "squeeze_momentum": {"bb_length": 18, "bb_mult": 1.8, "kc_length": 24, "kc_mult": 1.2},
+    "aroon": {"length": 14},
+    "directional_movement_index": {"length": 20},
+    "on_balance_volume": {},
+    "accumulation_distribution_line": {},
+    "price_volume_trend": {},
+    "percentage_price_oscillator": {"fast": 10, "slow": 30, "signal": 7},
+    "know_sure_thing": {"roc1": 9, "roc2": 12, "roc3": 18, "roc4": 24, "sma1": 6, "sma2": 7, "sma3": 8, "sma4": 9, "signal": 7},
+    "mass_index": {"length": 20},
+    "force_index": {"length": 2},
+    "ease_of_movement": {"length": 9},
+    "negative_volume_index": {"signal": 100},
+    "ulcer_index": {"length": 20},
 }
 
 ENTRIES = {e["id"]: e for e in ni.entries()}
@@ -491,6 +677,11 @@ def test_an_entry_equals_its_independent_calculation_at_OTHER_numbers_written_at
     for o in e["outputs"]:
         used = {k: v for k, v in other.items() if k in o["sites"]}
         tree = ni.tree_at(o, used)
+        if not o["sites"]:
+            # an output with NO parameter (a running total has none) has no site to prove: it was
+            # checked at its only numbers above, and here it is held to having none in its text
+            assert "{" not in o["formula"] and tree == o["tree"], f"{entry_id}.{o['key']}"
+            continue
         assert tree != o["tree"]
         got = _engine(tree, bars)
         want = REFERENCES[entry_id][o["key"]](bars, **used)

@@ -6,8 +6,9 @@ catalogue row's ID, never the member's words, so the weekly owner report can say
 asked for most and the named-indicator library can be grown by demand.
 
 * NAMES ONLY. No formula is here and none is implied: a row says "people call something this".
-* A name the library knows is not unknown: a row whose spelling the library answers is skipped
-  when the catalogue is read, whether or not the file has been regenerated since.
+* A spelling the library answers is not unknown: it is dropped when the catalogue is read,
+  whether or not the file has been regenerated since. A spelling of the same row the library does
+  NOT answer (an acronym it may not carry, such as "obv") is still unknown and still counted.
 * ``names_in`` reads a request and returns IDS. Nothing else leaves this module.
 """
 from __future__ import annotations
@@ -54,11 +55,23 @@ def _library_spellings() -> frozenset:
     return frozenset(norm(alias) for alias, _ in named_indicators.phrases())
 
 
+def _answered(spelling: str, known: frozenset) -> bool:
+    """Does the library answer this spelling: is one of its own spellings written in it, as whole words?"""
+    padded = f" {spelling} "
+    return any(f" {k} " in padded for k in known)
+
+
 @functools.lru_cache(maxsize=1)
 def catalogue() -> Tuple[Dict[str, Any], ...]:
-    """The rows that are still unknown: every row of the file the library has no spelling of."""
+    """What is still unknown: each row of the file with the spellings the library does not answer
+    (a row with none left is gone)."""
     known = _library_spellings()
-    return tuple(r for r in _file() if not any(a in known for a in r["aliases"]))
+    rows = []
+    for r in _file():
+        left = tuple(a for a in r["aliases"] if not _answered(a, known))
+        if left:
+            rows.append({**r, "aliases": left})
+    return tuple(rows)
 
 
 def now_in_library() -> Dict[str, str]:

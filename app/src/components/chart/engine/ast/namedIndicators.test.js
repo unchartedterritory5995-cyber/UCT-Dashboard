@@ -45,7 +45,8 @@ function differences(a, b, at = []) {
   aa.forEach((x, i) => out.push(...differences(x, ba[i], [...at, i])))
   return out
 }
-const INT_PROBES = [211, 223, 227, 229, 233, 239]
+// twelve, as the build tool's own pool has (tools/named_indicators_build.py): Know Sure Thing has nine settings
+const INT_PROBES = [211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271]
 const FLOAT_PROBES = [1.43, 2.43, 3.43, 4.43, 5.43, 6.43]
 
 describe('the named-indicator library and the shipped parser', () => {

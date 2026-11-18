@@ -199,3 +199,49 @@ says "simple" (two house indicators' request sentences and one evaluation case).
 
 **What it does not do.** A name written in lowercase is not a Title-Case run and is not caught by this
 rule; a held or library name is caught in any spelling, because it is looked up, not guessed from shape.
+
+## Library slice 3: twelve classics, chosen by a measurement
+
+**The measurement (2026-11-18).** 140 well-known indicator names were put to the chart door as
+"Add the <Name>". 93 were refused by name. 35 reached the assistant with no formula of ours behind
+the name, so whatever was built came from its own recollection. 12 resolved to a function the engine
+already has. Two of the refused names are indicators the ENGINE HAS THE PARTS FOR ("Directional
+Movement Index", "Aroon Oscillator"); and the engine's `obvN` and `pvtN` are windowed changes, not
+the classic running lines members mean by On Balance Volume and Price Volume Trend.
+
+**The entries.** Aroon (up, down and the oscillator, one entry), Directional Movement Index (+DI,
+-DI, ADX), On Balance Volume, Accumulation Distribution Line, Price Volume Trend, Percentage Price
+Oscillator, Know Sure Thing, Mass Index, Force Index, Ease of Movement, Negative Volume Index, Ulcer
+Index. Each is at tier (a) and (b): an independent calculation written from the published
+definition, compared bar by bar at the default numbers and at other numbers written at the entry's
+parameter sites (`tests/test_named_indicators_values.py`), and a published definition read on
+2026-11-18 (eleven from StockCharts ChartSchool; Price Volume Trend from TradingView's help
+center). None is graded against a TradingView capture yet, so no entry here says anything about
+TradingView.
+
+**What the pages do not state, and how each point was settled** (`tests/test_named_indicators_slice3.py`):
+
+| point | the page | settled by |
+|---|---|---|
+| Aroon: is the window N bars or N + 1 | not stated; "days since" runs 0 to N | a check: a high set exactly N bars ago still counts and reads 0, so it is this bar and the N before it |
+| Aroon: which of two equal highs counts | not stated | a check with two equal highs and two equal lows in one window: the most recent |
+| Running totals: where they start | On Balance Volume's page says its level depends on the start | a check: the level moves with the first loaded bar and the bar-to-bar changes do not. Negative Volume Index starts at 1000 on that bar |
+| A bar with no range, an unchanged close, unchanged or no volume | stated only for On Balance Volume's unchanged close | a check on bars made to have each: an unchanged close leaves On Balance Volume unchanged; a bar with no range adds 0 to the Accumulation Distribution Line (as Chaikin Money Flow already does here) and reads 0 in Ease of Movement, which UCT writes as distance x range / scaled volume, the same number with no division by the range; a bar with no volume counts as 0 there; volume that is not lower leaves the Negative Volume Index unchanged |
+| Know Sure Thing: which rate of change | the page does not restate it | the percent form (x 100), as ChartSchool's own rate-of-change page defines it and as this engine's `roc` is |
+
+**Left out, each for a stated reason.** TRIX: neither page read gives the scale of its percent
+change and vendors differ (one uses the logarithm of price), so it waits for a capture. Detrended
+Price Oscillator: its displacement is a number derived from the length, which the library cannot
+express as a parameter yet. Stochastic: "stochastic oscillator" already names the engine's own %K.
+
+**One spelling, one indicator.** "Triple exponential average" is TRIX's formal name, and it was a
+spelling of the Triple Exponential Moving Average. It has been removed: an ambiguous spelling does
+not belong in a lookup.
+
+**A check on the checks.** `test_CONTROL_no_reference_accepts_another_outputs_formula` evaluates
+every output's formula once and holds it against every reference calculation in the library: only
+its own may agree.
+
+**Acronyms.** A bare two- or three-letter acronym is never a library spelling ("OBV", "DMI",
+"PPO"): several are real tickers. A request that uses only the acronym is not looked up, and is
+counted by the name catalogue as that name, so the weekly report shows how often it happens.

@@ -784,13 +784,12 @@ def _name_row(asked: list, from_library: list) -> dict:
                           recollection: no formula of ours stands behind the name
       built_from_library  built to the library's checked formula (once the library has the name)
 
-    ``asked`` are the turns that named it while it was unknown; ``from_library`` the turns that
-    built its library entry. A turn is in one list only."""
-    seen = {id(p) for _, p in asked}
-    library = [(u, p) for u, p in from_library if id(p) not in seen]
-    marks = {id(p) for _, p in library}
+    ``asked`` are the turns that named it in a spelling the library does not answer;
+    ``from_library`` the turns that built its library entry. A turn in both is a library build:
+    what the patch holds is the fact."""
+    marks = {id(p) for _, p in from_library}
     return _counted(
-        asked + library,
+        [t for t in asked if id(t[1]) not in marks] + list(from_library),
         refused=lambda p: not _is_built(p),                    # a library build is always a build
         built_unchecked=lambda p: id(p) not in marks and _is_built(p),
         built_from_library=lambda p: id(p) in marks)
