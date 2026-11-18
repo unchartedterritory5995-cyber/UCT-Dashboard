@@ -804,6 +804,11 @@ CONVERSE_SYSTEM_PROMPT = (
     "  A count of bars is never negative here: `highestbars`, `lowestbars` and `barssince` "
     "answer how many bars BACK (0 = this bar, 3 = three bars ago). This is not TradingView's "
     "sign: never negate one, and compare it with numbers of 0 or more.\n"
+    "  THE BAR'S FIELDS GO IN THIS ORDER: high, low, close (then volume for mfi), then the "
+    "length. stoch(high, low, close, 14) is the 14-bar stochastic %K; atr, adx, cci, plusDI, "
+    "minusDI and williamsR take them the same way. This is NOT TradingView's order: its "
+    "ta.stoch takes the source first, and stoch(close, high, low, 14) here is a different, "
+    "wrong number.\n"
     "  SuperTrend and Parabolic SAR are FUNCTIONS, called by name: `supertrend(factor, atrPeriod)` "
     "with `supertrendDirection` (TradingView's sign: -1 while the trend is UP, 1 while it is "
     "DOWN), and `sar(step, maxStep)` with `sarDirection` (1 while the dots are under price, -1 "
@@ -3014,6 +3019,7 @@ MEND_OUTPUT_REF = "output-ref"
 MEND_LIST_AS_TEXT = "list-as-text"
 MEND_ASSUMPTION = "assumption-link"
 MEND_STATE_PAINT = "state-as-paint"
+MEND_BAR_FIELDS = "bar-field-order"
 _MEND_MAX_PASSES = 8
 
 
@@ -3101,6 +3107,65 @@ def _mend_output_refs(envelope: Dict[str, Any], view: Any) -> int:
     return count[0]
 
 
+#: The roles of a function's arguments that are the bar's own fields.
+_BAR_FIELD_ROLES = ("open", "high", "low", "close", "volume")
+
+
+@functools.lru_cache(maxsize=1)
+def bar_field_functions() -> Dict[str, Tuple[str, ...]]:
+    """Every engine function whose FIRST arguments are the bar's fields by position, and the order
+    it takes them in: `{"stoch": ("high", "low", "close"), "mfi": ("high", "low", "close", "volume"),
+    "donchianUpper": ("high", "low"), ...}`. Read from the engine's own table, never typed here."""
+    from api.services import ast_interpret as engine
+    out: Dict[str, Tuple[str, ...]] = {}
+    for name, spec in (engine.TABLE.get("functions") or {}).items():
+        lead: List[str] = []
+        for role in spec.get("argRoles") or ():
+            if role not in _BAR_FIELD_ROLES:
+                break
+            lead.append(role)
+        if len(lead) >= 2 and len(set(lead)) == len(lead):
+            out[name] = tuple(lead)
+    return out
+
+
+def _mend_bar_field_order(envelope: Dict[str, Any]) -> int:
+    """⭐ THE BAR'S FIELDS IN THE ENGINE'S ORDER. `stoch`, `atr`, `adx`, `cci`, the DI pair, Williams
+    %R and `mfi` take high, low, close (then volume) and then the length. TradingView's `ta.stoch`
+    takes the SOURCE first: `stoch(close, high, low, 14)`. Both forms have the same number of
+    arguments, so nothing refuses the wrong one; it computes a different oscillator, and the
+    read-back says "of the close, the high and the low" as if that were the request.
+
+    ⚰️ Measured 2026-11-18 in the answers on file: every Stochastic built from the bar's fields was
+    written in TradingView's order.
+
+    The mend is made ONLY where the intent cannot be anything else: the leading arguments are the
+    bar's own fields, each exactly once, a PERMUTATION of the fields the function takes. Then they
+    are put in the engine's order. Any other argument (an average, another symbol's field, a
+    member's own input, the same field twice) is left exactly as written: there the order may be
+    what was meant. Returns how many calls were reordered."""
+    order = bar_field_functions()
+    mended = 0
+    for _path, tree in _trees_of(envelope):
+        stack = [tree]
+        while stack:
+            node = stack.pop()
+            if not isinstance(node, dict):
+                continue
+            args = node.get("args")
+            if isinstance(args, list):
+                want = order.get(node.get("name")) if node.get("type") == "call" else None
+                if want and len(args) > len(want):
+                    got = [a.get("name") if isinstance(a, dict) and a.get("type") == "series" and set(a) == {"type", "name"}
+                           else None for a in args[:len(want)]]
+                    if None not in got and sorted(got) == sorted(want) and tuple(got) != want:
+                        by_name = {a["name"]: a for a in args[:len(want)]}
+                        args[:len(want)] = [by_name[field] for field in want]
+                        mended += 1
+                stack.extend(args)
+    return mended
+
+
 def _mend_single_state_paint(envelope: Dict[str, Any], view: Any) -> int:
     """Re-spell `set_color_states` on a CHANNEL (candles / background) that carries exactly one
     `when` state and no `otherwise` as `set_paint` of the output whose tree is that condition.
@@ -3164,6 +3229,8 @@ def mend(candidate: Any, view: Any) -> Tuple[Any, List[str]]:
             names.append(MEND_OUTPUT_REF)
         if _mend_single_state_paint(work, view):
             names.append(MEND_STATE_PAINT)
+        if _mend_bar_field_order(work):
+            names.append(MEND_BAR_FIELDS)
         if _mend_assumptions(work, view):
             names.append(MEND_ASSUMPTION)
         return (work, names) if names else (candidate, [])
