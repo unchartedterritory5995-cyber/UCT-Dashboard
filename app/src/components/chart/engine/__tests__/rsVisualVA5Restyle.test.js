@@ -54,6 +54,9 @@ describe('control — no shipped definition other than UCT RS declares the opt-o
       // 2026-11-12 (RS Exit Warnings): its three glyph dots opt out like the RS line's (a sparse dot column
       // restyled as a line draws nothing); the next case pins that none of them is offered a Plot style.
       if (def.id === 'rsExit') continue
+      // 2026-11-18 (UCT Mansfield RS): its cross dot opts out exactly as rsLine's own `dotMansfieldCross` does;
+      // the case below pins that it is never offered a Plot style and the Mansfield line is.
+      if (def.id === 'rsMansfield') continue
       for (const p of def.plots || []) expect(isPlotRestyleable(p), `${def.id}.${p.key}`).toBe(true)
     }
   })
@@ -75,5 +78,16 @@ describe('control — no shipped definition other than UCT RS declares the opt-o
       expect(offered, k).not.toContain(k)
     }
     for (const k of ['rsLine', 'fast', 'slow']) expect(offered, k).toContain(k)
+  })
+
+  it('UCT Mansfield RS: styleChoicesFor offers the Mansfield line, never the cross dot (2026-11-18)', () => {
+    const def = registry.getDefinition('rsMansfield')
+    const inst = { instanceId: 'user:rsMansfield:1', defId: 'rsMansfield', inputs: {} }
+    const offered = styleChoicesFor(def, inst, { indicatorInstances: [inst] }).map((c) => c.key)
+    expect(def.plots.find((p) => p.key === 'dotMansfieldCross').restyle).toBe(false)
+    expect(offered).not.toContain('dotMansfieldCross')
+    expect(offered).toContain('mansfield')
+    // every OTHER plot of it is restyleable (the opt-out is the dot alone)
+    for (const p of def.plots) if (p.key !== 'dotMansfieldCross') expect(isPlotRestyleable(p), p.key).toBe(true)
   })
 })

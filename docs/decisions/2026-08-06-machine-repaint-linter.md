@@ -111,13 +111,22 @@ adding one.
 
 ```
 LINTER-MEASUREMENT-V1
-definitions 57
-plots 164
+definitions 58
+plots 167
 decided 1
-undecidable-hand-written 163
+undecidable-hand-written 166
 verdict ichimoku.chikou preview-repaints forward=26
 disagreement ichimoku.chikou shipped=non-repainting measured=preview-repaints
 ```
+
+⭐ **2026-11-18 — the counts moved by one definition and three plots, and the FINDING did not
+move at all.** UCT Mansfield RS (`rsMansfield`) is the sixth RS definition, the rsLine row's
+Mansfield Reading on a pane of its own: `mansfield`, the `zero` guide and the cross dot
+`dotMansfieldCross`. A `server` compute like its siblings, so all three plots land in
+`undecidable-hand-written` (164 to 167 plots, 163 to 166 undecidable): `decided` stays 1, the one
+verdict and the one disagreement are unchanged. Measured by `ast/lint.test.js`, never edited into
+agreement; its `meta.repaint` is `non-repainting`, the shared default every definition carries
+(judged in `indicatorCatalog.test.js`).
 
 ⭐ **2026-11-12 — the counts moved by one definition and six plots, and the FINDING did not
 move at all.** UCT RS Exit Warnings (`rsExit`) is the fifth RS definition: `rsLine`, `fast`, `slow`
