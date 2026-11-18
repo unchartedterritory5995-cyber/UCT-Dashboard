@@ -1,17 +1,23 @@
-"""Exact merge-tree evidence for an agent/** PR into master (P2, 2026-11-17).
+"""Exact merge-tree evidence for an agent/** PR into master (P2 2026-11-17; P2b: self-built merge, same day).
 
 WHY: agent-ci.yml's push run proves the PR HEAD (on its old base); the tree that lands on master is the MERGE of that
-head with master's current tip. Once this lands, agent-ci.yml also runs its full jobs on `pull_request` into master
-for same-repo agent/** heads, i.e. on refs/pull/N/merge, and every required job uploads one evidence record
-(`agent-ci-evidence-pr<N>-<job key>`): the merge commit, its tree, its two parents (base tip, PR head) and the failed
-test names per suite. This tool turns those records into a PASS/FAIL for ONE PR and ONE expected tree.
+head with master's current tip. agent-ci.yml runs its full jobs on `pull_request` into master for same-repo agent/**
+heads (on refs/pull/N/merge as GitHub computed it when the event fired), and on a RE-ARM dispatch
+(tools/agent_ci_rearm.py), which runs on a merge commit the tool built ITSELF (`git merge-tree --write-tree` +
+`git commit-tree -p <master tip> -p <PR head>`) and pushed to the tool-owned ref refs/agent-ci-evidence/pr-<N>.
+GitHub's refs/pull/N/merge is never relied on to be current: it goes stale while master moves (P2b). Every required
+job uploads one evidence record (`agent-ci-evidence-pr<N>-<job key>`): the commit it tested, its tree, its two parents
+(base tip, PR head) and the failed test names per suite. This tool turns those records into a PASS/FAIL for ONE PR and
+ONE expected tree. It trusts the tested commit's CONTENT (parents + tree read from the commit object in CI), never a
+ref name or an author: whoever built the commit, it counts only if its parents are the master tip and PR head AT
+VERIFY TIME and its tree is the tree the caller computed.
 
     python tools/agent_ci_evidence.py verify --pr <n> --tree <expected tree sha> [--accept-dispatch] [--root <master checkout>]
     python tools/agent_ci_evidence.py record --job-key <key> [--junit f.xml] [--vitest-json f.json ...] --out evidence.json
         (`record` runs inside agent-ci.yml; stdlib only, so it works in jobs that never install PyYAML)
 
 `verify` reads the PR, the base branch tip, the agent ci runs and their artifacts through the `gh` CLI (read-only
-`gh api` GETs + `gh run download`), and prints PASS with the evidence, or FAIL with the reason. Exit 0 = PASS only.
+`gh api` GETs + `gh run download`), plus (with --accept-dispatch) refs/agent-ci-evidence/pr-<N> by `git ls-remote`, and prints PASS with the evidence, or FAIL with the reason. Exit 0 = PASS only.
 It FAILS CLOSED on every one of these (each is a named guard; tests/test_agent_ci_evidence.py drives each one):
   pr-not-open / pr-not-master / pr-not-agent-head   the PR is not an open same-repo agent/** PR into master
   self-protected-diff the PR edits a file its own run executes (workflows, tools/agent_ci_*.py, the suite lock, the
@@ -21,13 +27,18 @@ It FAILS CLOSED on every one of these (each is a named guard; tests/test_agent_c
   no-run              no pull_request (or, with --accept-dispatch, rearm) agent ci run for this PR
   run-in-progress     the newest such run (or any dispatch run, with --accept-dispatch) is not completed
   non-pr-event        the chosen run, or any record in it, is not a pull_request (/ rearm) run of THIS PR
-  dispatch-ref        a re-arm run whose workflow did not come from master's .github/workflows/agent-ci.yml
+  dispatch-ref        a re-arm run whose workflow did not come from master's .github/workflows/agent-ci.yml, or a
+                      re-arm record whose GITHUB_REF is not refs/heads/master
   missing-job         a required job (agent-ci.yml, matrix-expanded) is absent from the run
   job-not-success     a required job, or the run, did not conclude success
   missing-artifact    a required job's evidence record is absent or unreadable
   record-mismatch     the records disagree on the merge commit / tree, or name another run or PR
-  stale-merge-ref     the merge commit is not (current base tip) + (current PR head), or is not a merge
-  tree-mismatch       the merge tree is not the expected tree
+  wrong-parents       the tested commit is not a two-parent merge
+  stale-base          its first parent is not master's tip NOW (master moved: re-arm)
+  stale-head          its second parent is not the PR head NOW (the PR moved: re-arm)
+  tree-mismatch       its tree is not the expected tree (e.g. a forged commit with the right parents)
+  evidence-ref        a re-arm run whose commit is not what refs/agent-ci-evidence/pr-<N> points at now (absent,
+                      unreadable, or overwritten by a later re-arm): only the tool's latest merge for this PR counts
 Any API / download error is a FAIL (`api-error`).
 
 The required jobs are read from agent-ci.yml under --root, which should be a MASTER checkout: a PR cannot drop a job
@@ -281,13 +292,24 @@ def _fail(code: str, why: str) -> tuple[str, str, dict]:
     return "FAIL", f"{code}: {why}", {}
 
 
+EVIDENCE_NS = "refs/agent-ci-evidence/"
+
+
+def evidence_ref(n: int) -> str:
+    """The tool-owned ref a re-arm of PR <n> pushes its merge commit to (tools/agent_ci_rearm.py writes it)."""
+    return f"{EVIDENCE_NS}pr-{int(n)}"
+
+
 def decide(pr: dict, base_tip: str, runs: list[dict], keys: dict[str, str], expected_tree: str,
-           accept_events=(PR_EVENT,), dispatch_busy: bool = False, changed_paths=None, protected=SELF_PROTECTED):
+           accept_events=(PR_EVENT,), dispatch_busy: bool = False, changed_paths=None, protected=SELF_PROTECTED,
+           evidence_ref_sha: str | None = None):
     """pr: {number, state, head_sha, head_ref, head_repo, repo, base_ref}. base_tip: the base branch tip now.
     runs: candidate agent ci runs for THIS PR (pull_request runs of the PR, + rearm dispatch runs naming it), each
       {id, event, status, conclusion, created_at, html_url, jobs: [{name, conclusion}], records: {key: record|None}}.
     keys: required job name -> evidence key. changed_paths: the PR's files vs its merge base (None = unknown).
-    protected: protected_patterns(master root). Returns (PASS|FAIL, reason, evidence)."""
+    protected: protected_patterns(master root). evidence_ref_sha: where refs/agent-ci-evidence/pr-<N> points now (None =
+      absent / unread). changed_paths is the PR's diff vs its merge base with master, NOT the evidence commit's diff:
+      building the merge ourselves never narrows the self-protected check. Returns (PASS|FAIL, reason, evidence)."""
     n = pr.get("number")
     if pr.get("state") != "open":  # guard: pr-not-open
         return _fail("pr-not-open", f"PR #{n} is {pr.get('state')}")
@@ -340,19 +362,23 @@ def decide(pr: dict, base_tip: str, runs: list[dict], keys: dict[str, str], expe
             return _fail("non-pr-event", f"record {k} is from a {rec.get('event')!r} run")
         if rec.get("pr") != n or rec.get("run_id") != run.get("id"):  # guard: record-other-run
             return _fail("record-mismatch", f"record {k} names PR {rec.get('pr')} run {rec.get('run_id')}, not PR #{n} run {run.get('id')}")
+        if rec.get("event") == DISPATCH_EVENT and rec.get("ref") != "refs/heads/master":  # guard: dispatch-record-ref
+            return _fail("dispatch-ref", f"re-arm record {k} ran from {rec.get('ref')!r}, not refs/heads/master")
         if rec.get("errors"):  # guard: record-errors
             return _fail("record-mismatch", f"record {k} reports: {rec['errors'][0]}")
     if len({(r.get("sha"), r.get("tree")) for r in recs}) != 1:  # guard: records-disagree
         return _fail("record-mismatch", "the jobs' records name different merge commits / trees")
     rec = recs[0]
     if len(rec.get("parents") or []) != 2:  # guard: not-a-merge
-        return _fail("stale-merge-ref", f"{rec.get('sha')} is not a two-parent merge commit")
+        return _fail("wrong-parents", f"{rec.get('sha')} has parents {rec.get('parents')}, not a two-parent merge")
     if rec["parents"][0] != base_tip:  # guard: stale-base
-        return _fail("stale-merge-ref", f"merged onto base {rec['parents'][0]}, but {pr.get('base_ref')} is now {base_tip}: rearm")
+        return _fail("stale-base", f"merged onto base {rec['parents'][0]}, but {pr.get('base_ref')} is now {base_tip}: rearm")
     if rec["parents"][1] != pr.get("head_sha"):  # guard: stale-head
-        return _fail("stale-merge-ref", f"merged PR head {rec['parents'][1]}, but the PR head is now {pr.get('head_sha')}")
+        return _fail("stale-head", f"merged PR head {rec['parents'][1]}, but the PR head is now {pr.get('head_sha')}: rearm")
     if rec.get("tree") != expected_tree:  # guard: tree-mismatch
         return _fail("tree-mismatch", f"merge tree {rec.get('tree')} != expected {expected_tree}")
+    if run.get("event") == DISPATCH_EVENT and (not SHA_RE.match(str(evidence_ref_sha or "")) or evidence_ref_sha != rec.get("sha")):  # guard: evidence-ref
+        return _fail("evidence-ref", f"re-arm commit {rec.get('sha')} is not what {evidence_ref(n)} points at ({evidence_ref_sha})")
     failed = {}
     for r in recs:
         for suite, names in (r.get("failed") or {}).items():
@@ -366,7 +392,7 @@ def decide(pr: dict, base_tip: str, runs: list[dict], keys: dict[str, str], expe
 
 # ============================================================================================ GitHub reads (gh)
 class GhApi:
-    """Read-only: `gh api` GETs and `gh run download`. Never posts, dispatches or reruns anything."""
+    """Read-only: `gh api` GETs, `gh run download` and `git ls-remote`. Never posts, pushes, dispatches or reruns anything."""
 
     def __init__(self, repo: str):
         self.repo = repo
@@ -380,6 +406,14 @@ class GhApi:
             return json.loads(p.stdout or "null")
         except ValueError as e:
             raise ApiError(f"GET {url}: {e}") from e
+
+    def remote_ref(self, ref: str) -> str | None:
+        """The sha `ref` points at on the remote (read-only `git ls-remote`), or None when it does not exist."""
+        p = subprocess.run(["git", "ls-remote", f"https://github.com/{self.repo}.git", ref], capture_output=True, text=True, encoding="utf-8")
+        if p.returncode != 0:
+            raise ApiError(f"ls-remote {ref}: {p.stderr.strip()[:200]}")
+        hits = [ln.split("\t") for ln in p.stdout.splitlines() if ln.endswith("\t" + ref)]
+        return hits[0][0] if len(hits) == 1 else None
 
     def download(self, run_id: int, name: str, dest: str) -> None:
         p = subprocess.run(["gh", "run", "download", str(run_id), "-R", self.repo, "-n", name, "-D", dest],
@@ -454,7 +488,8 @@ def gather(api, n: int, keys: dict[str, str], accept_dispatch: bool):
         out.append(item)
     from tools import agent_ci_required as acr
     changed = acr.pr_changed_paths(api, n)   # pulls/N/files: the diff vs the merge base; None when truncated
-    return pr, base_tip, out, dispatch_busy, changed
+    ref_sha = api.remote_ref(evidence_ref(n)) if accept_dispatch else None
+    return pr, base_tip, out, dispatch_busy, changed, ref_sha
 
 
 def cmd_verify(a) -> int:
@@ -471,8 +506,8 @@ def cmd_verify(a) -> int:
         print(f"FAIL usage: --tree must be a full 40-hex tree sha, got {a.tree!r}")
         return 1
     try:
-        pr, base_tip, runs, busy, changed = gather(GhApi(a.repo), a.pr, keys, a.accept_dispatch)
-        verdict, reason, evidence = decide(pr, base_tip, runs, keys, a.tree, accept, busy, changed, protected)
+        pr, base_tip, runs, busy, changed, ref_sha = gather(GhApi(a.repo), a.pr, keys, a.accept_dispatch)
+        verdict, reason, evidence = decide(pr, base_tip, runs, keys, a.tree, accept, busy, changed, protected, ref_sha)
     except (ApiError, OSError, ValueError, KeyError, TypeError) as e:
         verdict, reason, evidence = "FAIL", f"api-error: {e}"[:300], {}
     print(f"{verdict} PR #{a.pr}: {reason}")

@@ -74,8 +74,28 @@ export function distinctNotUnderstood(res) {
   return items.filter((n) => !(n && n.reason && n.reason === res.reason))
 }
 
+/**
+ * ⭐ 2026-11-17 — THE BROWSER'S OWN REFUSAL, SENT BACK FOR ONE REPAIR. The door checks a patch's
+ * structure; this engine applies it and holds rules of its own, so the door can offer a patch the
+ * engine then refuses ("Nothing was changed" for a request the assistant had built). The turn is
+ * sent once more with the refused patch and the engine's own words (`definition_conversation.
+ * browser_refusal` decides whether to use them); the model's repair is spent on that.
+ * The bounds are the server's (`BROWSER_REFUSAL_MAX_ERRORS`, `BROWSER_REFUSAL_MAX_CHARS`).
+ */
+export const BROWSER_REFUSAL_LIMITS = Object.freeze({ maxErrors: 4, maxChars: 300 })
+
+/** `{envelope, errors}` as it goes on the wire, or null when there is nothing usable to send. */
+export function browserRefusalBlock(refusal) {
+  if (!refusal || typeof refusal !== 'object' || !refusal.envelope || typeof refusal.envelope !== 'object') return null
+  const errors = (Array.isArray(refusal.errors) ? refusal.errors : [])
+    .filter((e) => typeof e === 'string' && e.trim())
+    .slice(0, BROWSER_REFUSAL_LIMITS.maxErrors)
+    .map((e) => e.replace(/\s+/g, ' ').trim().slice(0, BROWSER_REFUSAL_LIMITS.maxChars))
+  return errors.length ? { envelope: refusal.envelope, errors } : null
+}
+
 /** The request body for one turn — exported so tests can pin the wire shape. */
-export function converseBody({ message, state, gateCtx = {}, snippets = [] }) {
+export function converseBody({ message, state, gateCtx = {}, snippets = [], browserRefusal = null }) {
   const view = compactView(state.working, state, gateCtx)
   const body = {
     message: String(message || '').slice(0, CONVERSE_LIMITS.maxMessage),
@@ -95,6 +115,8 @@ export function converseBody({ message, state, gateCtx = {}, snippets = [] }) {
   // (`definition_conversation.conversation_usage`). Omitted when not well-formed.
   const id = state && state.lineage
   if (typeof id === 'string' && CONVERSATION_ID_RE.test(id)) body.conversationId = id
+  const refused = browserRefusalBlock(browserRefusal)
+  if (refused) body.browser_refusal = refused
   return body
 }
 
@@ -118,7 +140,7 @@ function retryAfterOf(r) {
   } catch { return null }
 }
 
-export async function converseTurn({ message, state, gateCtx = {}, snippets = [], fetchImpl = null, signal = null }) {
+export async function converseTurn({ message, state, gateCtx = {}, snippets = [], fetchImpl = null, signal = null, browserRefusal = null }) {
   const doFetch = fetchImpl || globalThis.fetch
   let r
   try {
@@ -126,7 +148,7 @@ export async function converseTurn({ message, state, gateCtx = {}, snippets = []
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(converseBody({ message, state, gateCtx, snippets })),
+      body: JSON.stringify(converseBody({ message, state, gateCtx, snippets, browserRefusal })),
       ...(signal ? { signal } : {}),
     })
   } catch {

@@ -1,8 +1,8 @@
-# MD-1 — UCT market-data contract (v1.8)
+# MD-1 — UCT market-data contract (v1.9)
 
 - **Owner:** agent-md implements the kinds. agent-lead owns `gateway.py` and `envelope.py`, the framework every consumer relies on.
 - **Consumers:** agent-sc, agent-rs, agent-qa, and later the D and G workstreams.
-- **Status:** v1.8 (v1.1–v1.8 each additive or a scope reduction; v1.1–v1.4 acked by agent-lead 2026-11-01, v1.5 agreed for Sprint 2; v1.6, v1.7 and v1.8 are additions whose new kinds are default OFF; v1.7 is written up after its kinds merged dark and v1.8 with its kinds; v1.7 and v1.8 acked by the owner 2026-11-17 in place of agent-lead, whose session has ended, see §9). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: no version since v1.0 adds an envelope field.
+- **Status:** v1.9 (v1.1–v1.9 each additive or a scope reduction; v1.1–v1.4 acked by agent-lead 2026-11-01, v1.5 agreed for Sprint 2; v1.6, v1.7, v1.8 and v1.9 are additions whose new kinds are default OFF; v1.7 is written up after its kinds merged dark, v1.8 and v1.9 with their kinds; v1.7 and v1.8 acked by the owner 2026-11-17 in place of agent-lead, whose session has ended; the §8.1 notice for v1.9 is owed by a person and is not acknowledged, see §9). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: no version since v1.0 adds an envelope field.
 - **Changes:** see §8.
 
 ## 1. Purpose
@@ -677,8 +677,9 @@ while the server lists its own kind.
   (`dark pool levels could not be read for {sym}`). A failed read is never "no levels".
 - Data fields: `sym, levels, windowDays, datesCovered, version, asOf` (the build's epoch seconds), `computed_at,
   newest_print_date`. Level fields: `price, notional, printCount, lastDate, lo, hi, rank`.
-- **Not kinds:** the dark pool prints themselves (§4.4, still deferred) and gamma walls
-  (`GET /api/signature/gex-walls`) are not exposed to the Agent.
+- **Not kinds:** the dark pool prints themselves (§4.4, still deferred). Gamma walls
+  (`GET /api/signature/gex-walls`) were not exposed to the Agent in v1.7 and v1.8; since v1.9 they are read only by the
+  separate, model-isolated kind `levels.gamma` (§4.12), default OFF, which never starts an option chain read.
 
 ### 4.11 Terminal data wave 2: `highsLows.yearly`, `themes.rotation`, `confluence.board`, `earnings.expectedMove`, `earnings.callSearch` (v1.8, terminal-data)
 
@@ -927,6 +928,220 @@ while the server lists its own kind.
 - **Not kinds:** the month-by-month trend of a word (`GET /api/earnings/transcript-trend`), a whole transcript, and
   `flow.summary` (§4.4, still deferred: `confluence.board` is UCT's joined board, not the options-flow tape).
 
+### 4.12 Terminal data wave 3: `levels.gamma`, `flow.topPicks`, `flow.record`, `earnings.reactions` (v1.9, terminal-data)
+
+Four more thin kinds, the Agent half of the LVL panel's options levels, the TOPF panel, the Flow Record page and the EMOV
+panel. Each is an adapter over the service its member route already reads
+(`api/services/uct_agent/marketdata/gamma_levels.py`, `flow_top_picks.py`, `flow_record.py`, `earnings_reactions.py`;
+registered in `kinds.py` with `owner="terminal-data"`). No new connection, job, database or write (§6).
+
+**Status: dark, not armed.** Like every kind, each is served only when it is listed in `UCT_AGENT_DATA_KINDS` (with
+`UCT_AGENT_DATA=1`). All four are model-isolated, so each also needs the master switch `UCT_AGENT_ISOLATED=1` and its own
+entry in `UCT_AGENT_ISOLATED_KINDS` (§4.4, ADR-005); until then it is refused for every purpose, and once armed it is
+served for purpose `answer` only. This section describes what the code does when a kind is switched on. It does not
+switch anything on. As written (2026-11-17), no kind of this section is in production's list.
+
+| Kind | Canonical service (member route) | Params | Declared freshness | `as_of` | `provider_calls` | Model-isolated |
+|---|---|---|---|---|---|---|
+| `levels.gamma` | the gamma walls `api/routers/signature.py` already holds for `_serve_gxw`: its cache entry and its last-good slot (`GET /api/signature/gex-walls`; `services/signature/gex_walls.py` over `api/gex_service.py`) | `{symbol}` | periodic | null (only UCT's build time is known) | 0 | **yes** |
+| `flow.topPicks` | `api/top_flow_tracker.py` `get_all()`, each pick scored by `api/flow_scoreboard.py` `pick_stats` (`GET /api/top-flow/history`) | `{status, direction, sort, limit, symbol?}` | periodic (every read reports `historical`) | the newest daily price date in the pick store | 0 | **yes** |
+| `flow.record` | `api/flow_scoreboard.py` `_get_payload()` (`GET /api/flow-scoreboard`) | none | periodic (every read reports `historical`) | the newest daily price date in the pick store | 0 | **yes** |
+| `earnings.reactions` | the calendar week and the reactions answer `api/routers/calendar.py` already holds in its cache (`GET /api/calendar?week=`, `GET /api/calendar/reactions?date=`) | `{date?, limit}` | periodic · historical (a past day) | null (no data time is carried) | 0 | **yes** |
+
+**No read of this section starts a build or spends a provider call.** (§5: a turn has 20 provider requests and a member
+waiting.) Two of these member routes can start work that does not fit a turn, so their adapters read only what the
+route already holds and answer `unavailable` (or `partial`), with the reason, when it holds nothing. The two flow kinds
+read lists the server keeps in memory:
+
+| Kind | What the member route can start | What the adapter reads instead |
+|---|---|---|
+| `levels.gamma` | `_serve_gxw` builds synchronously when it holds nothing for the symbol: a whole option chain read (one Schwab request with a 20 second timeout, or a first request and a Massive walk of up to 48 pages under a 25 second budget; `GEX_CHAIN_SOURCE` says which chain) | the route's cache entry for the symbol (kept 10 minutes: `data.held` `fresh`), else its last-good slot (30 minutes: `data.held` `last_good`, and the read is `stale`); otherwise `unavailable`. The route's memory of a failed build is never read |
+| `flow.topPicks` | nothing: the route returns the tracker's in-memory lists as they are | `top_flow_tracker.get_all()`, each pick scored by `flow_scoreboard.pick_stats`; filtered, ordered and cut on the server |
+| `flow.record` | on a cache miss the service works the board out from the same in-memory lists (arithmetic only: no I/O, no provider) | `flow_scoreboard._get_payload()`: the service's own 5-minute cache, and its own 30-second memory of a failed tracker read |
+| `earnings.reactions` | `get_reactions` for a past day not in its cache works the moves out from daily bars, one Massive request per reporter (up to 250); for today, one Massive batch snapshot. Any week but the current one is built on a cache miss | the cached week that owns the day (`calendar_weekly`, or `calendar_week_<monday>`: the two entries the router's own `cached_report_session` reads) and the cached reactions answer (`calendar_reactions_<date>`); nothing else |
+
+Each cache read is one coupling to private names of its route. A rail fills each cache through the route's own function
+(`_serve_gxw` with the chain read stubbed; `get_reactions` with the price reads stubbed; `_get_or_build_range_week` with
+the week build stubbed) and reads it back, so a rename fails by name. There is no small pure helper for the earnings
+moves: the logic lives in the route handler, so this kind serves what is cached and nothing more.
+
+**Rules all four share**
+- **A bad request is refused before any read.** Each kind's `validate` runs before admission (a `symbol` that is not one
+  ticker, an unknown `status`, `direction` or `sort`, an out-of-range `limit`, any parameter on `flow.record`, a `date`
+  that is not a real weekday written `YYYY-MM-DD`): the read is `refused` and spends no budget.
+- **A failed read is `unavailable`, never an empty answer.** "No gamma level in the band", "no pick matches", "nobody
+  reported" are said only when the service answered healthily with nothing in it, and that read is `ok` with a note that
+  says so. Levels that are not held, a pick record that could not be read and a day that is not in the cache are each
+  `unavailable`, with their own note; reporters whose moves are not held are a `partial` read.
+- **A value that does not exist is null, never 0.** A pick with fewer than two daily prices is too new to score: its
+  gains are null. A reporter with no move on record has `move: null`.
+- **Never worded as live or now** (§3). Where the source carries only UCT's own build time, `as_of` is null, that time
+  rides in `data` under a name that says what it is, and a note says why `as_of` is not given.
+- **The server says when it cut a list.** Each list-shaped kind returns at most `limit` rows, the whole count beside
+  them, and a note naming both; `flow.record` states the service's own two cuts.
+- **The member's answer is built from the read's `data` and `status`.** The browser capabilities template their text
+  from those; an envelope note is never echoed to the member as if it were data.
+
+**Why all four are model-isolated.** A value is isolated when the owner has not cleared it for the model (§4.4):
+UCT-derived output, options data, or third-party data whose AI-processing right is unresolved. When in doubt, a kind is
+isolated.
+- `levels.gamma`: the three levels are computed by UCT (its own wall search, band and zero-gamma rules) from a vendor
+  option chain: UCT-derived, and derived from options data. On licensing, `api/gex_service.py` records that showing
+  Schwab-sourced option data to members is approved by the owner, and that production reads Massive's chain. Member
+  display is not the same as sending data to a model provider, and no record clears either chain for that, so the kind
+  is isolated whichever chain is read.
+- `flow.topPicks`: which contracts are picks, and each one's grade, are UCT's own selection from its options flow tape,
+  and the results are option contract prices from a vendor: a UCT-derived selection over options data.
+- `flow.record`: the rates are UCT's own measurement of its own selections, worked out from the same vendor option
+  contract prices.
+- `earnings.reactions`: the day's list is UCT's own calendar (its universe filter over third-party calendar vendors'
+  results and estimates, whose AI-processing right is not on record), and the move is worked out by UCT under its own
+  session rule. The Agent's existing `calendar.day` answer deliberately gives tickers only, never a figure; this kind
+  carries the figures.
+
+Whether an isolated value may ever reach the model is an owner decision (§4.4). On the browser the four kinds are read
+only by local-only capabilities (`stock.gammaLevels`, `stock.topFlowPicks`, `stock.flowRecord`,
+`stock.earningsReactions` in `app/src/agent/capabilities/terminalDataWave3.js`, all in `turn.LOCAL_ONLY_ACTIONS`): the
+model plans the lookup and never sees what came back. Each capability registers only while the server lists its own
+kind.
+
+**`levels.gamma`** (source `uct-gex-walls`)
+- What it returns: one stock's call wall, put wall and zero gamma level, as the LVL panel's options read gives them.
+  Every `ok` read carries the notes
+  `the call wall, the put wall and the zero gamma level UCT works out from the options on {sym} expiring within a week, each given only when it is within {band}% of the stock price; UCT's own arithmetic on an option chain, not a forecast`
+  and `the stock price given is the one the option chain carried when the levels were worked out, never a current quote`.
+- Params: `symbol` (one ticker, the gex-walls route's own rule).
+- **Which chain.** `data.chain_source` is `massive` or `schwab`: the chain `GEX_CHAIN_SOURCE` sets this server to read
+  (`shadow` serves Schwab), with the note `the option chain behind these levels is the one this server is set to read: {vendor}`.
+- What is held (`data.held`): `fresh`, the route's cache entry; or `last_good`, its last-good slot, when the read is
+  `stale` with the note
+  `these are the last good levels, older than the {minutes} minutes they are normally kept, so they may be behind the option market`.
+- `as_of` is always null. The payload's `asOf` is when UCT read the chain and worked the levels out (a computation
+  time); `data.computed_at` gives it, with the note
+  `worked out by UCT at {at} from an option chain it read then (UCT's own time; the vendor's quote time is not carried), so as_of is not given: not a live feed`
+  (or `the held levels carry no build time, so their age is unknown and as_of is not given`, and then the read is `stale`: unknown is never claimed fresh).
+- **The zero gamma level is not always a true flip.** `gex_service` names how it found the level, and a stand-in is not
+  a flip, but the walls payload does not carry that through. Every read that returns a zero gamma level says so:
+  `the zero gamma level is an estimate of where dealer hedging flips; the held read does not say how it was found, and for some stocks it is a stand-in level rather than a true flip`.
+- No level inside the band is a healthy answer: `ok`, with the note `no gamma level is within {band}% of the stock price for {sym}; that is a healthy answer, not a failed read`.
+- `unavailable`: nothing is held for the symbol
+  (`no gamma levels are held for {sym} in the server's cache (they are kept {minutes} minutes after a chart or the Levels panel reads them, and a last good copy for {max_minutes}), and this read never starts an option chain read; that is not the same as no levels`);
+  the held read carries no stock price (`the held option read for {sym} carries no stock price, so no level could be placed; that is not the same as no levels`);
+  a malformed payload or a failing route (`gamma levels could not be read for {sym}`). The option service's own error sentence is never passed on.
+- Data fields: `sym`, `levels` (`kind` ∈ callWall · putWall · zeroGamma, `price`), `spot`, `regime` (bullish · bearish ·
+  choppy · unbound, or null), `version`, `asOf` (epoch seconds of the build), `computed_at`, `held` (fresh · last_good),
+  `chain_source`, `band_pct`, `kept_minutes`, `last_good_minutes`. `sym`, `levels`, `spot`, `regime` and `asOf` keep the
+  route's own names. No strike table, no open interest and nothing else of the chain is returned.
+
+**`flow.topPicks`** (source `uct-top-flow`)
+- What it returns: UCT's Top Flow picks, one by one, each with how its option contract has done since it was flagged.
+  Every `ok` read carries the notes
+  `each Top Flow pick UCT flagged on its options flow tape, with how its option contract has done since: a gain is the contract's own price change against its price when flagged, never the stock's move; UCT's own selection, not a recommendation`
+  and
+  ``picks and entry prices come from UCT's options flow tape; daily contract prices are recorded each weekday after the close, from Massive with Schwab as backup since November 2026 and from Schwab alone before (each row's `src` names the sources that priced it; an entry with no source on record is Schwab)``.
+- **One definition of a gain, the Flow Record's.** Every gain is `flow_scoreboard.pick_stats(pick)`, called, never
+  re-derived. A pick with fewer than two usable daily prices is too new to score: `scored` is false and
+  `current_gain_pct`, `max_gain_pct`, `peak_price` and `days_tracked` are null, never 0, with the note
+  `{n} of the {total} picks that match have fewer than {min} daily prices and are too new to score: their gains are not given, which is not the same as 0%`.
+  The store's own `finalPnl` (0 for a missing price) is never returned.
+- Params: `status` ∈ all · open · expired (default all); `direction` ∈ any · bullish · bearish (default any); `sort` ∈
+  gain · loss · peak · newest (default gain); `limit` 1–50 (default 20); `symbol` (optional, one ticker). The keys are the
+  TOPF panel's own; a rail reads both files.
+- The order is the TOPF panel's own: a pick that is not scored has no gain, so under the three gain orders it goes last
+  (newest first), never ranked as 0.
+- `as_of` = the newest daily price date in the whole store, as that session's close, with the note
+  `as_of is the newest daily price date in the pick store, as that session's close; prices are recorded once each weekday after the close, never during a session`.
+  When no pick carries a price, `as_of` is null with the note `no pick in the store carries a daily price, so as_of is not given`.
+- `stale` when that newest price is more than 4 calendar days old (the TOPF panel's own number), with the note
+  `the newest daily price in the store is {date}, more than {days} days old, so the results stop there`.
+- **The newest pick is a different question from the newest price.** `data.newest_pick_date` gives it; when it is more
+  than 14 days old (the panel's own number) `data.no_new_picks` is true, with the note
+  `the newest pick in the store was flagged on {date}; none has been added since`.
+- An empty store is ambiguous and said so: `ok`, no rows, with the note
+  `the pick store holds no pick; a store that could not be loaded when the server started reads the same as an empty one, so this is not a statement that no pick was ever flagged`.
+  A store with picks, none matching: `the store holds {total} picks, none of them matching what was asked for`.
+- More picks than `limit`: the first `limit` in the order asked for, `data.count` is every pick that matches, and the
+  note is `showing the first {n} of {total} picks that match, {order}`.
+  A stored pick the Flow Record's arithmetic cannot read is left out and counted (`data.unread`):
+  `{n} stored picks carry no readable symbol or history and are left out`.
+- `unavailable`: the store could not be read (`the Top Flow picks could not be read`). Never an empty list.
+- Data fields: `status`, `direction`, `sort`, `symbol`, `rows`, `count`, `counts` (`total, open, expired, scored,
+  too_new, never_scored`, over the whole store), `matching_too_new`, `unread`, `min_prices`, `newest_price_date`,
+  `newest_pick_date`, `days_since_newest_price`, `days_since_newest_pick`, `no_new_picks`. Row fields: `id, sym, cp`
+  (C · P), `strike, exp` (the text the store holds), `grade` (A+ · A · B · C · D, or null), `dir` (BULL · BEAR, or null),
+  `dateSaved, saved_date, status` (open · expired), `stopped, scored, prices, entry, latest_price, latest_date,
+  peak_price, current_gain_pct, max_gain_pct` (percent, one decimal), `days_tracked, oi_evaluable, oi_confirmed, prem,
+  hits, cap, src` (massive · schwab: the sources that priced it). `coverage` counts the picks read against the rows
+  returned.
+
+**`flow.record`** (source `uct-flow-record`)
+- What it returns: the Flow Record's aggregate results. Every `ok` read carries the notes
+  `the Flow Record: how every Top Flow pick UCT flagged has done, measured on the option contract's own daily prices; a win rate is the share of scored picks whose best daily price reached that gain over the price when flagged, and losers are never left out; past results, not a forecast`
+  and
+  `picks and entry prices come from UCT's options flow tape; every gain, win rate and open-interest confirmation is worked out from daily contract prices recorded each weekday after the close, from Massive with Schwab as backup since November 2026 and from Schwab alone before`.
+- Params: none. A request that carries one is refused.
+- **Nothing is re-derived.** Every rate and gain is the service's. A pick too new to score is counted apart and is in no
+  rate: `{n} picks have fewer than {min} daily prices and are too new to score: they are counted apart and are in no rate, never as 0%`.
+- The two lists are the service's own, and their cut is stated:
+  `the two lists are the service's own cut: its {winners} best peak gains among scored picks flagged in the last {days} days, and its last {picks} scored picks whatever their result`.
+  The page's own sentences (`window`, `methodology`) are not returned.
+- `as_of` = the newest daily price date in the pick store, as that session's close (`as_of is the newest daily price date in the pick store, as that session's close; prices are recorded once each weekday after the close, never during a session`),
+  or null with the note `no pick in the store carries a daily price, so as_of is not given`. The service's `generated_at` is a computation time: it rides as
+  `data.computed_at`, with the note `worked out by UCT at {at} and kept for up to {minutes} minutes (UCT's own time, never as_of)`.
+- `stale` and the newest-pick note are `flow.topPicks`'s own rule, so the two kinds cannot disagree:
+  `the newest daily price in the store is {date}, more than {days} days old, so the results stop there`;
+  `the newest pick in the record was flagged on {date}; none has been added since`.
+  When the store's dates cannot be read the read is `stale`, with the note `the pick store's dates could not be read, so as_of is not given and the record's age is unknown`.
+- An empty record is ambiguous and said so: `ok`, with the note
+  `the record holds no pick; a pick store that could not be loaded when the server started reads the same as an empty one, so this is not a statement about the picks`.
+- `unavailable`: the tracker read failed, now or within the service's 30-second failure memory, or the payload is
+  malformed (`the Flow Record could not be read; that is a gap in what could be read, not a statement about the picks`). Never a zero-pick board.
+- Data fields: `flagged`, `picks_tracked`, `too_new`, `overall`, `by_grade` (one row per grade, A+ to D), each with
+  `picks, win_rate_10, win_rate_25, win_rate_50, pct_doubled, avg_max_gain, median_max_gain, oi_confirmed_rate,
+  oi_evaluated` (rates in percent; null when no pick is scored), `recent_winners`, `recent_picks` (`sym, cp, strike, exp,
+  grade, dateSaved, entry, peak_price, max_gain_pct, days_tracked, oi_confirmed`, and on recent picks `current_gain_pct,
+  latest_price`), `generated_at`, `computed_at`, `min_prices`, `recent_window_days`, `newest_price_date`,
+  `newest_pick_date`, `days_since_newest_price`, `days_since_newest_pick`, `no_new_picks`.
+
+**`earnings.reactions`** (source `uct-earnings-calendar`)
+- What it returns: the companies on UCT's earnings calendar for one day that have a reported result, each with its
+  result against what was expected and the stock's move. Every `ok` or `partial` read carries the note
+  `the companies on UCT's earnings calendar for {date} that have a reported result on record, each with its earnings per share and revenue against what was expected, and the stock's move; results and estimates are third-party calendar data as UCT holds it`.
+- Params: `date` (optional, `YYYY-MM-DD`, a weekday; default the newest completed session, the EMOV panel's own
+  default); `limit` 1–50 reporters (default 25).
+- **Who is a reporter:** an entry of the day whose reported EPS (`eps_act`) is set, the same test the reactions route
+  and the EMOV panel apply. A symbol listed under two sessions is counted once.
+- **What a move is** (the route's own rule, restated, never re-derived). A past day:
+  `a move is the stock's close-to-close change around the report: for a report before the open or with no confirmed time, that day's close against the prior close; for a report after the close, the next session's close against that day's close`.
+  Today: `for today a move is the stock's change on the day in one market snapshot, kept {seconds} seconds; it is not the settled close-to-close move, which is worked out once the sessions have closed`.
+- The moves (`data.moves`):
+  - `held`: the route's reactions answer for the day is in its cache. A reporter the answer does not name has
+    `move: null`, counted in `data.no_move`, with the note
+    `{n} of the {total} reporters have no move on record (no price bar for the day, or the session it is measured to has not closed)`;
+  - `none_worked_out`: the cached answer is empty while the day has reporters. The read is `partial`, with the note
+    `no move is held for any of the {n} reporters: the price source did not answer, or the session a move is measured to has not closed; that is not the same as no move`;
+  - `not_cached`: the route holds no answer for the day. The reporters and their results are given without moves, the
+    read is `partial`, and the note is
+    `the moves for {date} are not held in the server's cache (a past day's are kept up to {hours} hours after a member opens it, today's {seconds} seconds), and this read never starts price reads; the results are given without them, which is not the same as no move`.
+- `as_of` is always null, with the note
+  `the calendar and the moves carry no data time, only the day they are for, so as_of is not given: not a live feed`.
+  Today's read is `periodic`; a past day's is `historical`. `stale` is always false.
+- Nobody reported is a healthy answer: `ok`, `data.moves` null, with the note
+  `{scheduled} companies are on the calendar for {date} and none has a reported result on record; that is a healthy answer, not a failed read`.
+- More reporters than `limit`: `data.count` is every reporter, and the note is
+  `showing the first {n} of {total} reporters, biggest move first by size, a reporter with no move last`.
+- `unavailable`: the day's calendar is not in the cache
+  (`the earnings calendar for {date} is not held in the server's cache, and this read never builds a calendar week; that is not the same as nobody reporting`);
+  the calendar could not be read (`the earnings reactions could not be read for {date}`).
+- Data fields: `date`, `day_kind` (past · today · future), `scheduled` (every entry of the day), `reporters`, `count`,
+  `moves` (held · none_worked_out · not_cached, or null), `moved`, `up`, `down`, `flat`, `no_move`. Reporter fields, by
+  the calendar's own names: `sym, name, session` (bmo · amc · tbd), `eps_act, eps_est, rev_act, rev_est` (revenue in
+  millions, as the route sends it), `move` (percent, or null). `coverage` counts the reporters against the rows returned.
+- **Not kinds:** the flow-worker's lists (Cream of the Crop, the open flow board, repeat-hit contracts, the day read).
+  No Agent adapter and no cache on `web` reads them inside a turn's budget, so a kind would be a new blocking network
+  read in a turn. `flow.summary` (§4.4) stays deferred for the same reason: `flow.topPicks` and `flow.record` read
+  the pick tracker on `web`, not the options-flow tape.
+
 ## 8. Changing this contract
 
 1. Open a PR that edits this file, with a version bump (v1.1 adds; v2.0 breaks). Message agent-lead.
@@ -936,6 +1151,7 @@ while the server lists its own kind.
 
 ## 9. Changelog
 
+- **v1.9 addition (2026-11-17, terminal-data, data wave 3):** §4.12 documents four kinds added dark with this version: `levels.gamma`, `flow.topPicks`, `flow.record`, `earnings.reactions`. All four are model-isolated (ADR-005: UCT-derived levels, selections and measurements over options data, and UCT's calendar with third-party results and estimates), and none starts a build or spends a provider call: `levels.gamma` and `earnings.reactions` read only what their routes already hold and are `unavailable` or `partial`, with the reason, otherwise; the two flow kinds read the pick tracker's in-memory lists (§5). One earlier statement is amended: §4.10's "Not kinds" line said gamma walls are not exposed to the Agent; they are now read only by the isolated `levels.gamma`. `flow.summary` stays deferred (§4.4), and the flow-worker's lists are not kinds. Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** every kind of §4.12 is default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.12 records an owner decision.
 - **v1.8 addition (2026-11-17, terminal-data, data wave 2):** §4.11 documents five kinds added dark with this version: `highsLows.yearly`, `themes.rotation`, `confluence.board`, `earnings.expectedMove`, `earnings.callSearch`. All five are model-isolated (ADR-005: UCT-derived lists, selections and option-chain arithmetic, and third-party transcript excerpts), and none starts a build inside a turn: each reads what its service already holds and is `unavailable`, with the reason, otherwise (§5). One earlier statement gains a pointer: the §4 `nhnl` row (the names behind the two 52-week counts are read by `highsLows.yearly`; the counts stay `breadth.current` measures). `flow.summary` stays deferred (§4.4). Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** every kind of §4.11 is default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds; acknowledged by the owner on 2026-11-17, in place of agent-lead: that session has ended (`PROGRAM.md`, 2026-11-03: "agent-lead's session has ended; the Agent project continues in this integrator session") and the program has no inbox, so the owner was shown both additions (ten kinds, all default OFF) and acknowledged them. The acknowledgement covers the contract text only: it arms nothing, and switching any kind on stays a separate owner decision per kind.
 - **v1.7 addition (2026-11-17, terminal-data, data wave 1):** §4.10 documents five kinds that merged dark in #1584: `analyst.actions`, `highsLows.session`, `sectors.performance`, `leaders.longRun`, `levels.darkpool` (four model-isolated, ADR-005; `sectors.performance` is not). Two earlier statements are amended with them: the §4 `nhnl` row (v1.3 recorded `nhnl_live` as "not exposed"; it is now read only by the isolated `highsLows.session`, which is never a 52-week measure) and the §4.4 `darkpool` deferral (a trustworthy `as_of` is identified for price LEVELS only, the newest confirmed print date; a prints kind stays deferred). Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** every kind of §4.10 is default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that edits this file; acknowledged by the owner on 2026-11-17, in place of agent-lead: that session has ended (`PROGRAM.md`, 2026-11-03: "agent-lead's session has ended; the Agent project continues in this integrator session") and the program has no inbox, so the owner was shown both additions (ten kinds, all default OFF) and acknowledged them. The acknowledgement covers the contract text only: it arms nothing, and switching any kind on stays a separate owner decision per kind.
 - **v1.6 addition (2026-11-03, builder-b, W2-B2):** `bars.daily` gains `from` (a window read); §4.6 `offHigh`, `pullbacks` and `range` with `from`; §4.9 `history.eventStudy` over Market Intelligence's event study (technical series only, local-only to the model). No envelope change.

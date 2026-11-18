@@ -25,7 +25,7 @@ import jsonFetcher from '../../../utils/jsonFetcher'
 import Select from '../../../components/ui/Select'
 import HighlightThesis, { isFailedSynthesis } from '../../../utils/highlightThesis'
 import { sessionModel } from '../../../components/dashboard/sessionModel'
-import { BoardFromList, PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, usePanelLinkedSym } from '../../../components/terminal'
+import { BoardFromList, PanelSkeleton, PanelState, WatchMark, useInTerminalPanel, usePanelFreshness, usePanelLinkedSym } from '../../../components/terminal'
 import {
   formatCompactTerminal, formatNumber, formatPercent, formatTimeEt,
 } from '../../../lib/presentation/presentationPrimitives'
@@ -231,6 +231,7 @@ export default function MoversPanel({ lens: lensProp = null, mine: mineProp = fa
                         title={`Load ${r.sym} into the linked panels`}>
                         <span className={styles.rowNum}>{i + 1}</span>
                         <span className={styles.sym}>{r.sym}</span>
+                        <WatchMark sym={r.sym} overlay={!aside(r)} />
                         {aside(r) ? <span className={styles.muted}> {aside(r)}</span> : null}
                       </button>
                     </td>

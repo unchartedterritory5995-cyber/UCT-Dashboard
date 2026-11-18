@@ -1069,6 +1069,7 @@ def _run_priority_audit_now() -> None:
             bars_counts=[5000],
             parallelism=4,
             scope="priority",
+            lane="startup-priority-audit",   # api/services/bg_lane.py
         )
     except Exception:
         logging.getLogger(__name__).exception("[startup] priority audit run failed")
@@ -1092,7 +1093,7 @@ def _run_deploy_smoke_now() -> None:
     """Run a small validation smoke audit ~30s after every deploy."""
     try:
         from api.services import bars_audit
-        bars_audit.audit_universe(_DEPLOY_SMOKE_FIXTURE, scope="deploy-smoke")
+        bars_audit.audit_universe(_DEPLOY_SMOKE_FIXTURE, scope="deploy-smoke", lane="deploy-smoke")
     except Exception:
         logging.getLogger(__name__).exception("[startup] deploy smoke failed")
 
@@ -4809,6 +4810,20 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] thread switch interval tuning failed (non-fatal): {e}")
 
+    # ⚡ The background lane (2026-11-17). For ~15 min after every restart the site answered ~10x
+    # slower: a dozen member-invisible sweeps (weekly purge, off-grid sweep, audits, breadth heal and
+    # verify, split heal) ran at once and starved every request of the interpreter. Lane users wait
+    # for the settle window, then run one item at a time at a bounded share of the clock. Activated
+    # HERE ONLY: the same sweeps run unpaced in every other process (the worker's purge must not wait).
+    # BG_LANE_ENABLED=0 restores the previous behaviour. See api/services/bg_lane.py.
+    try:
+        from api.services import bg_lane
+        bg_lane.activate(_BOOT_T0)
+        print(f"[startup] background lane: {'ON' if bg_lane.enabled() else 'OFF'} "
+              f"(settle {bg_lane.settle_s():.0f}s, duty {bg_lane.duty():.2f})")
+    except Exception as e:
+        print(f"[startup] background lane failed to activate (non-fatal, sweeps run unpaced): {e}")
+
     # ⭐ U5 (2026-11-14): the capability detector's own process, off the request GIL
     # (PINE_CAPABILITY_DETECTOR_WORKER=on). Started 30 s after boot, off the boot path; until it
     # is READY every detector call answers "still being checked" (fail closed). Off: nothing.
@@ -6629,6 +6644,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] ticker-names prewarm scheduling failed (non-fatal): {e}")
 
+    # The Terminal's one-click period rankings (PCHG: this month, this quarter, year to date
+    # ...) are kept built so a member's first click is not a half-minute "computing". The
+    # loop starts itself on the web service only (scan_period.start_preset_warmer).
+    try:
+        from api.services import scan_period as _scan_period
+        if not _light_skip("period-preset-warm"):
+            _scan_period.start_preset_warmer()
+    except Exception as e:
+        print(f"[startup] period preset warm scheduling failed (non-fatal): {e}")
+
     # Company-logo cache prewarm: fill /data/logo_cache for the whole cap_universe
     # so the FIRST view of any watchlist / theme / calendar serves real logos from
     # disk (edge-cacheable, immutable) instead of a cold transparent-pixel-then-retry
@@ -6992,7 +7017,9 @@ async def lifespan(app: FastAPI):
                 while True:
                     time.sleep(interval)
                     try:
-                        res = breadth_self_heal.heal_recent(10)
+                        from api.services import bg_lane    # a background repair: one lane turn
+                        with bg_lane.turn("breadth-self-heal-loop"):
+                            res = breadth_self_heal.heal_recent(10)
                         healed = res.get("healed") or []
                         if healed:
                             print(f"[breadth-heal] loop healed {len(healed)}: "
@@ -11479,7 +11506,18 @@ def health():
         "build_id": _bundle_build_id(),
         # The commit this process runs, so a frontend release can wait for its backend.
         "commit": _deployed_commit(),
+        # The background lane (api/services/bg_lane.py): knobs in force and, per sweep, items run,
+        # busy/paused seconds and when its first and latest item ran. Counters only.
+        "bg_lane": _bg_lane_stats(),
     }
+
+
+def _bg_lane_stats() -> dict:
+    try:
+        from api.services import bg_lane
+        return bg_lane.stats()
+    except Exception as e:  # noqa: BLE001 - observability never fails the health check
+        return {"error": type(e).__name__}
 
 
 @app.get("/api/ready")

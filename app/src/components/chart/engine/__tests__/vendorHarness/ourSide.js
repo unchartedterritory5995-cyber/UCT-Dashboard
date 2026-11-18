@@ -640,7 +640,15 @@ export function warmBarsSupply(capture, { dir = OTHER_CAPTURE_DIR, useIndex = tr
   const metas = (warmCandidates({ dir, useIndex }).get(key) || [])
     // only a capture that starts BEFORE the window and reaches its first bar
     .filter((meta) => meta.timeUnit === capture.bars.timeUnit && meta.firstT < first && meta.lastT >= first)
-  /** One candidate: its prehistory when every overlapping window bar is equal, else why not. */
+  let windowTimes = null
+  /** One candidate: its prehistory when the overlap is the SAME SERIES as the window, else why not.
+   *  The same series means both directions: every window bar is in the candidate, equal, AND every
+   *  candidate bar inside the window's span is in the window. ⛔ (2026-11-17) The second direction
+   *  was missing: an extended-hours capture holds every regular-hours bar, equal, so it proved
+   *  against a regular-hours window and handed it extended-hours prehistory.
+   *  `rolling-vwap-spy-5-2026-11-16` (session 0400-2000) supplied three 0930-1600 SPY 5m windows
+   *  that way. The bars decide, not the `symbol.session` label: the label is a claim, the bars are
+   *  what gets replayed. */
   const prove = (meta) => {
     const candRows = warmCandidateRowsOf(meta.file, dir)
     if (!candRows) return { refused: `${meta.file}: its receipt does not validate` }
@@ -654,6 +662,13 @@ export function warmBarsSupply(capture, { dir = OTHER_CAPTURE_DIR, useIndex = tr
       if (!c) return { refused: `${meta.file}: window bar ${w[0]} is absent from it inside its span` }
       for (let k = 1; k < OHLCV_FIELDS.length; k += 1) {
         if (c[k] !== w[k]) return { refused: `${meta.file}: bar ${w[0]} ${OHLCV_FIELDS[k]} ${c[k]} vs the capture's ${w[k]}` }
+      }
+    }
+    windowTimes = windowTimes || new Set(rows.map((r) => r[0]))
+    const windowLast = rows[rows.length - 1][0]
+    for (let i = at; i < candRows.length && candRows[i][0] <= windowLast; i += 1) {
+      if (!windowTimes.has(candRows[i][0])) {
+        return { refused: `${meta.file}: its bar ${candRows[i][0]} lies inside the window's span and the window has no such bar (another session's series)` }
       }
     }
     return { proved: { file: meta.file, rows: candRows.slice(0, at), listing: meta.listing, capturedAt: meta.capturedAt } }

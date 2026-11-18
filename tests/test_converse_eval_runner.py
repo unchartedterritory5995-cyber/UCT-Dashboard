@@ -512,6 +512,9 @@ DOOR_BROWSER_CASES = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_
 DOOR_BROWSER_SCRIPT = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_door_browser_scripted.json"
 DOOR_BROWSER_IDS = {"door-marker-colour-states", "door-calc-timeframe-marker", "door-column-limit",
                     "door-table-cell-setting", "door-calc-timeframe-other-symbol"}
+#: NOT a door rule: the door accepts it, the browser refuses it and sends its own refusal back to
+#: the door for one repair (`definition_conversation.browser_refusal`, `authoringSession.modelTurn`).
+BROWSER_REPAIR_ID = "browser-sends-its-refusal-back"
 
 
 def test_the_door_browser_cases_are_two_answers_each_and_the_standard_controls():
@@ -519,7 +522,7 @@ def test_the_door_browser_cases_are_two_answers_each_and_the_standard_controls()
     doc = json.loads(io.open(DOOR_BROWSER_CASES, encoding="utf-8").read())
     script = json.loads(io.open(DOOR_BROWSER_SCRIPT, encoding="utf-8").read())["turns"]
     examples = {c["id"]: c for c in doc["cases"] if c["group"] == "example"}
-    assert set(examples) == DOOR_BROWSER_IDS
+    assert set(examples) == DOOR_BROWSER_IDS | {BROWSER_REPAIR_ID}
     for cid, case in examples.items():
         (turn,) = case["turns"]
         answers = script[f"{cid}#0"]
@@ -551,6 +554,28 @@ def test_what_the_door_refuses_is_repaired_and_the_browser_applies_the_repair(tm
     assert last.split("failed gates: ")[-1].strip() == "['first-pass rate (no repair, >= 70%)']", last
     done, of = last.split(" -- ")[1].split(" case runs passed")[0].split("/")
     assert done == of and int(of) >= len(DOOR_BROWSER_IDS), last          # every case run passed
+    # none of these needed the browser to ask again: the door's own rule caught each
+    assert not any(r.get("browser_repair") for r in rows)
+
+
+@needs_node
+def test_what_the_browser_refuses_goes_back_to_the_door_once_and_is_repaired(tmp_path):
+    """The general half. The door accepts a candle colour that follows a number; the browser's
+    engine refuses it. Through the SHIPPED modules: the browser builds the second request with the
+    refused patch and its own words, the real door spends one call on it, the browser applies the
+    repair, and the indicator computes."""
+    proc, _work, out = _run(tmp_path, "--cases", str(DOOR_BROWSER_CASES), "--script", str(DOOR_BROWSER_SCRIPT),
+                            "--only", BROWSER_REPAIR_ID)
+    assert ce.ACCEPT_THEN_REFUSE not in proc.stdout, proc.stdout[-3000:]
+    (row,) = [r for r in _records(out) if r.get("case") == BROWSER_REPAIR_ID]
+    assert row["grade"]["ok"] is True, row["grade"].get("problems")
+    assert row["browser_repair"] is True
+    assert row["usage"]["repair_gate"] == "browser:refused"
+    assert row["server"]["attempts"] == 1                                 # the repair cost ONE more call
+    assert row["client"]["changed"] is True and row["client"]["revision"] == 1
+    grading = json.loads(io.open(out / "grading.json", encoding="utf-8").read())
+    # a turn the browser sent back is not a first pass
+    assert grading["gates"]["first-pass rate (no repair, >= 70%)"]["value"] == 0
 
 
 def test_the_runner_names_the_class_on_any_model_turn_and_only_then():
