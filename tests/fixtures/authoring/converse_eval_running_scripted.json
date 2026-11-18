@@ -357,14 +357,84 @@
                      ]
                     },
                     {
-                     "type": "num",
-                     "value": 0.6022
+                     "type": "op",
+                     "name": "-",
+                     "args": [
+                      {
+                       "type": "op",
+                       "name": "/",
+                       "args": [
+                        {
+                         "type": "num",
+                         "value": 2
+                        },
+                        {
+                         "type": "op",
+                         "name": "+",
+                         "args": [
+                          {
+                           "type": "num",
+                           "value": 2
+                          },
+                          {
+                           "type": "num",
+                           "value": 1
+                          }
+                         ]
+                        }
+                       ]
+                      },
+                      {
+                       "type": "op",
+                       "name": "/",
+                       "args": [
+                        {
+                         "type": "num",
+                         "value": 2
+                        },
+                        {
+                         "type": "op",
+                         "name": "+",
+                         "args": [
+                          {
+                           "type": "num",
+                           "value": 30
+                          },
+                          {
+                           "type": "num",
+                           "value": 1
+                          }
+                         ]
+                        }
+                       ]
+                      }
+                     ]
                     }
                    ]
                   },
                   {
-                   "type": "num",
-                   "value": 0.0645
+                   "type": "op",
+                   "name": "/",
+                   "args": [
+                    {
+                     "type": "num",
+                     "value": 2
+                    },
+                    {
+                     "type": "op",
+                     "name": "+",
+                     "args": [
+                      {
+                       "type": "num",
+                       "value": 30
+                      },
+                      {
+                       "type": "num",
+                       "value": 1
+                      }
+                     ]
+                    }
+                   ]
                   }
                  ]
                 },
@@ -459,7 +529,7 @@
                "args": [
                 {
                  "type": "num",
-                 "value": 8.4
+                 "value": 14
                 },
                 {
                  "type": "call",
