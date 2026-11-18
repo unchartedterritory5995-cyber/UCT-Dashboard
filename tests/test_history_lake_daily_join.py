@@ -36,14 +36,22 @@ def test_a_split_the_reference_lacks_is_healed_only_where_the_series_shows_its_c
     assert {b[4] for b in out["bars"]} == {20.0} and out["bars"][0][5] == 150
 
 
-def test_a_spin_off_filed_as_a_split_is_never_healed():
-    """ABT 2013-01-02 (AbbVie): the second vendor lists 2.0842 as a split; the series is split-adjusted only."""
+def test_a_spin_off_is_healed_where_the_series_shows_its_cliff():
+    """ABT 2013-01-02 (AbbVie): the second vendor files 2.0842; the served history adjusts for it the same way."""
     days = DAYS[:60]
     closes = [65.0] * 30 + [65.0 / 2.0842] * 30
     rec = {"sym": "ABT", "splits": [], "bars": [[d, c, c, c, c, 100] for d, c in zip(days, closes)]}
-    assert J.heal_splits(rec, [[days[30], 2.0842]])["healed_splits"] == []
-    assert all(J.clean_split_ratio(r) for r in (1.5, 1.25, 2.0, 3.0, 0.1, 1 / 15, 4.0, 0.2))
-    assert not any(J.clean_split_ratio(r) for r in (2.0842, 1.0475, 1.3382))
+    out = J.heal_splits(rec, [[days[30], 2.0842]])
+    assert out["healed_splits"] == [[days[30], 2.0842]]
+    assert abs(max(b[4] for b in out["bars"]) - 65.0 / 2.0842) < 1e-3    # no cliff left at the spin-off
+
+
+def test_an_event_the_reference_already_applied_is_never_applied_again():
+    """BMI 2016: the reference has the 2:1 a day off the second vendor's date; applying both halves the price."""
+    days = DAYS[:60]
+    closes = [20.0] * 29 + [10.0] * 31                       # a one-day leftover step, as the off-by-a-day leaves
+    rec = {"sym": "BMI", "splits": [[days[29], 2.0]], "bars": [[d, c, c, c, c, 100] for d, c in zip(days, closes)]}
+    assert J.heal_splits(rec, [[days[30], 2.0]])["healed_splits"] == []
 
 
 def test_too_short_an_overlap_joins_nothing():

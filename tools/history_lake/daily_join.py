@@ -46,8 +46,22 @@ def heal_splits(rec: dict, yf_splits: list) -> dict:
     ⚰️ 2026-11-18: the reference had no entry for Balchem's 3:2 splits before 2007 (none under BCP, only 2007
     and 2010 under BCPC), so the rebuild drew two -33% overnight drops that never traded."""
     from api.services import bars_sanitize as S
-    have = {d for d, _ in rec.get("splits") or ()}
-    cand = [(d, float(r)) for d, r in yf_splits if d not in have and r and float(r) > 0 and clean_split_ratio(float(r))]
+    import datetime as _dt
+    have = [(_dt.date.fromisoformat(d), float(r)) for d, r in rec.get("splits") or ()]
+
+    def _already(d: str, r: float) -> bool:
+        """The same event the reference already applied, filed a few days apart (BMI 2016: applied twice
+        otherwise, the rebuild read half the price for 43 years)."""
+        x = _dt.date.fromisoformat(d)
+        return any(abs((x - hd).days) <= 14 and abs(r / hr - 1) <= 0.02 for hd, hr in have)
+
+    # ⭐ Spin-offs count too. The second vendor files them in its split list at the price ratio they caused
+    # (REZI 2026-08-04 = 1.437, VYX 2023 = 1.63, NTGR 2019 = 1.612, ABT 2013 = 2.0842), and the served
+    # history adjusts for them exactly the same way (measured: it agrees with the second vendor there), so a
+    # rebuild without them would move hundreds of members' charts onto a different basis. The cliff test is
+    # what authorises each one; a ratio too close to 1 to tell from an ordinary day is never applied
+    # (`bars_sanitize.adjudicable`, inside `unadjusted_splits`).
+    cand = [(d, float(r)) for d, r in yf_splits if r and float(r) > 0 and not _already(d, float(r))]
     if not cand or not rec["bars"]:
         rec["healed_splits"] = []
         return rec
