@@ -187,7 +187,7 @@ import { LEGACY_PARAM_IDS } from './paramIdLegacy.js'
 // registry holds that version (`pineLibraries.js`).
 import { linkLibraries, remapLibraryLocation } from './pineLibraries.js'
 import { PINNED_SCRIPT_KEYS } from './paramIdPinned.js'
-import { strategyTaintSinks } from './strategyTaint.js'
+import { strategyTaintSinks, STRATEGY_TAINT_ROW_SINKS, STRATEGY_TAINT_SCRIPT_SINKS } from './strategyTaint.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -967,13 +967,11 @@ import { OBJECT_ENUM_VALUES } from '../objectEnums.js'
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
 
 
-/** ⛔ W9-OQ-N2 — sinks that refuse (or withhold) their own row. */
-const STRATEGY_TAINT_ROW_SINKS = new Set(['plot', 'plotshape', 'plotchar', 'plotcandle', 'plotbar',
-  'plotarrow', 'alertcondition', 'bgcolor', 'barcolor'])
-/** ⛔ W9-OQ-N2 — sinks with no row and no object of their own (a `fill` band, `alert()`, `hline`):
- *  a broker value reaching one refuses the script. Every OTHER tainted sink is a drawing, and the
- *  object pass withholds that one drawing step by name (`strategyTaintDrawingAtLine`). */
-const STRATEGY_TAINT_SCRIPT_SINKS = new Set(['fill', 'alert', 'hline'])
+// ⛔ W9-OQ-N2 — the sinks that refuse (or withhold) their own row (`STRATEGY_TAINT_ROW_SINKS`) and the sinks with no
+// row and no object of their own (`STRATEGY_TAINT_SCRIPT_SINKS`: a `fill` band, `alert()`, `hline`, which refuse the
+// script) are `strategyTaint.js`'s, imported above: the disarmed strategy run (`strategyDisarmOf`) reads the same two.
+// Every OTHER tainted sink is a drawing, and the object pass withholds that one drawing step by name
+// (`strategyTaintDrawingAtLine`).
 /** ⛔ W9-OQ-N2 — the drawing sink a broker value reaches on a line, set per `translatePineResult`. */
 let strategyTaintDrawingAtLine = () => null
 /** ⛔ W9-OQ-N2 — the current translation's taint verdict at a line, set per `translatePineResult`. */

@@ -182,7 +182,7 @@ def test_the_rule_the_assistant_reads_says_ask_never_assume(conv):
     assert term["rule"] == conv.MOVING_AVERAGE_RULE
     assert "NEVER assume a kind" in term["rule"] and "disposition clarify" in term["rule"]
     assert "simple average (sma) and say so" not in term["rule"]             # the superseded rule
-    assert {key for key, _rule in conv.GENERIC_PHRASES.values()} == {"moving_average"}
+    assert {key for key, _rule in conv.GENERIC_PHRASES.values()} == {"moving_average", "follow_through_day"}
 
 
 def test_a_generic_phrase_never_takes_a_phrase_that_already_means_something(conv, monkeypatch):

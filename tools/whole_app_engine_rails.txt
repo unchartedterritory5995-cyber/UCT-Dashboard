@@ -77,6 +77,7 @@ src/components/chart/engine/runtime/__tests__/minContractLock.test.js
 src/components/chart/engine/runtime/__tests__/runtimeDoorBudget.rail.test.js
 src/components/chart/engine/runtime/__tests__/runtimeInputKinds.test.js
 src/components/chart/engine/runtime/__tests__/serverBundle.rail.test.js
+src/components/chart/engine/runtime/__tests__/timeframeInputSetting.test.js
 src/components/chart/engine/runtime/__tests__/w9T11Record.test.js
 src/components/chart/engine/runtime/__tests__/w9T1Broker.test.js
 src/components/chart/engine/runtime/__tests__/w9T4Sizing.test.js

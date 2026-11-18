@@ -326,7 +326,10 @@ export function readback(def, state = {}, gateCtx = {}) {
   const on = (key) => (key && outputs.length > 1 ? ` (on ${nameOf(key)})` : '')
   const assumptions = (state.assumptions || []).map((a) => (a.label !== undefined
     ? `Assumed ${slotWords(a.label)} ${a.value}${on(a.output)}`
-    : (a.source === 'engine' ? `Default: ${a.text}${on(a.output)}` : `The UCT Agent assumed: "${a.text}"`)))
+    // ⭐ 2026-11-18: a note the DOOR wrote is a statement (what was built, what was used), printed
+    // as it stands. It read: The UCT Agent assumed: "Built to UCT's checked formula ...".
+    : (a.source === 'engine' ? `Default: ${a.text}${on(a.output)}`
+      : (a.source === 'uct' ? a.text : `The UCT Agent assumed: "${a.text}"`))))
   const questions = (state.questions || []).map((q) => `Question: ${q.text}`)
   const needsAck = outputs.filter((o) => o.mode === 'preview-repaints').map((o) => o.key)
   // ⭐ PHASE 5 — a FORMING-period read repaints for a reason a member can name.

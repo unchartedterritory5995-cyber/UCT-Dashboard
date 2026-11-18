@@ -188,8 +188,8 @@ function PerformanceBody({ pick, registry, code, several }) {
                   aria-label={`Your results by setup, best expectancy first, ${a.setups.length} ${a.setups.length === 1 ? 'setup' : 'setups'}`}>
                   <thead>
                     <tr>
-                      <th scope="col" className={styles.wrapCell}>Setup</th>
-                      <th scope="col" title="Closed trades tagged with this setup: the sample behind every number in the row">Trades</th>
+                      <th scope="col" className={`${styles.wrapCell} ${styles.phoneTight}`}>Setup</th>
+                      <th scope="col" className={styles.phoneWrap} title="Closed trades tagged with this setup: the sample behind every number in the row">Trades</th>
                       <th scope="col" title="Wins divided by wins and losses; breakeven trades are left out">Win rate</th>
                       <th scope="col" title="The setup's total profit or loss before fees, divided by its trades">Expectancy</th>
                       <th scope="col" className={styles.phoneHide} title="The average result in R, over this setup's trades with a known R">Average R</th>
@@ -199,8 +199,8 @@ function PerformanceBody({ pick, registry, code, several }) {
                   <tbody>
                     {a.setups.map((r) => (
                       <tr key={r.key} data-testid="terminal-perf-setup-row" data-low={r.lowConfidence ? 'true' : 'false'}>
-                        <td className={styles.wrapCell}>{r.setup}</td>
-                        <td>{count(r.trades)}{r.lowConfidence ? ` (small sample, ${count(CONFIDENCE_MIN)} needed)` : ''}</td>
+                        <td className={`${styles.wrapCell} ${styles.phoneTight}`}>{r.setup}</td>
+                        <td className={styles.phoneWrap}>{count(r.trades)}{r.lowConfidence ? ` (small sample, ${count(CONFIDENCE_MIN)} needed)` : ''}</td>
                         <td>{r.winRatePct === null ? 'No win or loss yet' : formatPercent(r.winRatePct, { decimals: 1 })}</td>
                         <td className={tone(r.expectancy)}>{r.expectancy === null ? NA : signedUsd(r.expectancy)}</td>
                         <td className={`${styles.phoneHide} ${tone(r.avgR) || ''}`.trim()}>{r.avgR === null ? 'R not known' : rText(r.avgR)}</td>
