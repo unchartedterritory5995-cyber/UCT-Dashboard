@@ -25,6 +25,12 @@ export const drawingIds = () => DRAWING_IDS
 const VIEW = { firstMs: Date.UTC(2025, 0, 2), lastMs: Date.UTC(2026, 9, 30), rightMs: Date.UTC(2026, 9, 30), activeRange: null, atDefaultView: false, indicatorsHidden: false, priceAuto: true,
   zoomLimits: { minWidth: 1, maxWidth: 2000 }, frame: { fromRight: 100, toRight: 0, activeRange: null, locked: false, lock: null } }
 /** The Charts fixture with existing state of every kind. Drawings live in the module store (reset here). */
+function layoutHistoryStandIn() {
+  const versions = [{ version: 5, created_at: 1763000000, source: 'mirror', content_sha256: 'h5' }, { version: 4, created_at: 1762900000, source: 'mirror', content_sha256: 'h4' }]
+  const prefsOf = { 5: { chart_settings: '{"a":1}' }, 4: { chart_settings: '{"a":2}' } }
+  return { read: () => ({ here: true }), list: async () => ({ ok: true, status: 200, body: { versions } }),
+    readVersion: async (v) => ({ ok: true, status: 200, body: { doc: { prefs: prefsOf[v] || null } } }), restore: async () => ({ ok: false, status: 500 }) }
+}
 function newsLibraryStandIn() {
   const st = { status: 'ready', ids: new Set(['ev1']), collections: [{ id: 'k1', name: 'Earnings', count: 1 }], notes: { ev1: 'old note' }, member: { ev1: ['k1'] } }
   const ok = async () => ({ ok: true })
@@ -74,6 +80,8 @@ export function stateFixture() {
     ...b.host, charts, drawings: buildDrawingSource(charts), drawingBoards: buildDrawingBoardSource(store), layoutDock: buildLayoutDockSource(() => dock),
     flagged: { read: () => [...flags], write: async (n) => { flags = [...n]; return true } },
     persist: async () => ({ ok: true }),
+    // #1248 Layouts → Version history: the panel's own routes as they answer — two saved versions of the board (5 current)
+    layoutHistory: layoutHistoryStandIn(),
     // newsLibrary.* (2026-11-15): the member's UCT News library as the library module's own API answers it — one saved
     // headline with a note, in one collection (the kind reads `host.newsLibrary` in place of the page's module when present)
     newsLibrary: newsLibraryStandIn(),

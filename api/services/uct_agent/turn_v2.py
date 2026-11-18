@@ -77,6 +77,7 @@ _DOMAIN_OF = {
     "periodSort": "board",                                # C3-205..207: Tools → Custom-Period Sort (a workspace tool)
     "compare": "board",                                   # Tools → Compare Symbols: the panel's Rotation / Overlay view (a workspace tool)
     "watchlist": "watchlist", "layout": "layout",
+    "layoutHistory": "layout",                            # Layouts → Version history: list the board's versions, restore one
     "indicator": "indicator", "indicatorCopy": "indicator", "indicatorStyle": "indicator", "indicatorTemplate": "indicator", "definition": "indicator",
     "volumeProfile": "indicator",                       # a chart's Volume Profile overlay (Chart Settings → Indicators; the carved-out key)
     "drawing": "drawing", "alert": "alert", "indicatorAlert": "alert", "screener": "screener",

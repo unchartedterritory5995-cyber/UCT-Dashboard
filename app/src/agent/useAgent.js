@@ -874,6 +874,12 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         // (each bound to the chart's ref AND what it showed when asked: a stale pick is never applied — the pick handler)
         return ask.candidates.map((c, i) => ({ ref: `rail:${i}`, id: `chart:${c.ref}`, label: c.label, chartRef: c.ref, fp: c.symbol || null, ops: ops.map(o => ({ ...o, target: c.ref })) }))
       }
+      // (#1248 AUDIT T2) which saved version a restore means: each recent version a choice; the pick restores exactly it
+      if (ask.kind === 'versions') {
+        const mine = (ops || []).filter(o => o?.action === 'layoutHistory.restore')
+        if (!mine.length || mine.length !== (ops || []).length) return null
+        return ask.versions.map((v, i) => ({ ref: `rail:${i}`, id: `ver:${v.version}`, label: v.label.replace(/^./, c => c.toUpperCase()), ops: mine.map(o => ({ ...o, args: { ...(o.args || {}), version: v.version, stepsBack: null, before: null } })) }))
+      }
       if (ask.kind === 'label') {
         const out = [{ ref: 'rail:0', id: ask.effect.id, label: `your saved look “${ask.label}”`, ops }]
         const lists = (() => { try { return getTargetKind('watchlist')?.list?.(host) || [] } catch { return [] } })()

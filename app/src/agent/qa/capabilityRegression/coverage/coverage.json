@@ -1,53 +1,53 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 234,
-  "withProductionKinds": 205,
+  "all": 236,
+  "withProductionKinds": 207,
   "darkGated": 29
  },
  "totals": {
-  "capabilities": 234,
-  "withAnyRegressionCase": 182,
+  "capabilities": 236,
+  "withAnyRegressionCase": 184,
   "perProtection": {
    "nl": {
-    "covered": 179,
-    "applicable": 234
+    "covered": 181,
+    "applicable": 236
    },
    "routing": {
-    "covered": 176,
-    "applicable": 234
+    "covered": 178,
+    "applicable": 236
    },
    "args": {
-    "covered": 182,
-    "applicable": 234
+    "covered": 184,
+    "applicable": 236
    },
    "execution": {
-    "covered": 179,
-    "applicable": 234
+    "covered": 181,
+    "applicable": 236
    },
    "receipt": {
-    "covered": 151,
-    "applicable": 234
+    "covered": 153,
+    "applicable": 236
    },
    "refusal": {
     "covered": 35,
-    "applicable": 234
+    "applicable": 236
    },
    "permission": {
-    "covered": 227,
-    "applicable": 234
+    "covered": 229,
+    "applicable": 236
    },
    "undo": {
     "covered": 84,
-    "applicable": 143
+    "applicable": 144
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 234
+    "applicable": 236
    },
    "phrasings": {
-    "covered": 175,
-    "applicable": 234
+    "covered": 177,
+    "applicable": 236
    }
   }
  },
@@ -7583,6 +7583,116 @@
     "undo": [
      "layout.unpinFromBar: undo restores"
     ],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "layoutHistory.list": {
+   "domain": "layoutHistory",
+   "group": "layoutHistory",
+   "target": "layoutHistory",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "layoutHistory.list: \"show me my version history\"",
+     "layoutHistory.list: \"what versions of my board are there\"",
+     "layoutHistory.list: \"list the saved versions of my layout\"",
+     "layoutHistory.list: \"show the layout history\""
+    ],
+    "routing": [
+     "layoutHistory.list: \"show me my version history\"",
+     "layoutHistory.list: \"what versions of my board are there\"",
+     "layoutHistory.list: \"list the saved versions of my layout\"",
+     "layoutHistory.list: \"show the layout history\""
+    ],
+    "args": [
+     "corpus layoutHistory.list"
+    ],
+    "execution": [
+     "layoutHistory.list (c)"
+    ],
+    "receipt": [
+     "layoutHistory.list (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "layoutHistory.restore": {
+   "domain": "layoutHistory",
+   "group": "layoutHistory",
+   "target": "layoutHistory",
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false,
+   "surfaces": [
+    "charts"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": false,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "layoutHistory.restore: \"restore my board to the previous version\"",
+     "layoutHistory.restore: \"roll back my layout to the version before this one\"",
+     "layoutHistory.restore: \"go back to the last saved version of my board\"",
+     "layoutHistory.restore: \"open my version history and restore the one before the current version\""
+    ],
+    "routing": [
+     "layoutHistory.restore: \"restore my board to the previous version\"",
+     "layoutHistory.restore: \"roll back my layout to the version before this one\"",
+     "layoutHistory.restore: \"go back to the last saved version of my board\"",
+     "layoutHistory.restore: \"open my version history and restore the one before the current version\""
+    ],
+    "args": [
+     "corpus layoutHistory.restore"
+    ],
+    "execution": [
+     "layoutHistory.restore (c)"
+    ],
+    "receipt": [
+     "layoutHistory.restore (c)"
+    ],
+    "refusal": [],
+    "permission": [
+     "layoutHistory.restore: waits for Apply"
+    ],
+    "undo": [],
     "multiStep": [],
     "phrasings": []
    }
