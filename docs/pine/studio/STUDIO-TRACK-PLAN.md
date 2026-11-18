@@ -469,11 +469,19 @@ screenshot and logs) were read from their public pages and not used hands-on.
 | Adapted copies | all eight conditions hold: a Pine-writing model that meets a measured bar on a hidden set (the bar derived from its first run); no output dropped; a line-by-line view of what changed before install; a forced "Adapted: " name and badge that travels with shares; the original refusal still counted in demand; never for strategies; offered only where the engine refuses; "your original now runs, switch?" when it later does |
 | A separate community feed | not planned; the Members tab is the library |
 | Side-by-side instruction versions; model routing | section 7, L9 |
+| Ehlers Super Smoother, Instantaneous Trendline and Cyber Cycle as named, checked indicators | a published statement of each recurrence can be READ (2026-11-18: the author's own site refuses automated fetches and no page that could be read states them). They are not written from memory. Until then each is built from a member's words with the name withheld, where its shape settles |
+| Laguerre Filter and Laguerre RSI as named, checked indicators | their value side is graded: the published equations were read (2026-11-18), a probe was written from them and captured on TradingView, and the entry's own formula has yet to be graded against that capture |
+| A setting as a coefficient of linked running values (a Laguerre gamma in the Inputs panel) | the settle bound is recomputed for the member's value when it is bound, not read once from the numbers |
 
 This track will not: edit engine-owned files or bump the engine version; add a second
 scripting language, runtime or authoring door; save or apply anything without a press; show
 a model's description of its own output as a verdict; copy a competitor's documents,
 formulas or members' scripts.
+
+One exception, made by ruling and recorded here: `fisher(length)` (2026-11-18) is a formula
+function in the engine's shared expansion module, built by this track under the engine
+programme coordinator's authorisation, with no engine version bump (its number is pending and
+rides the next train) and no Pine name. It follows the SuperTrend and Parabolic SAR precedent.
 
 ## 14. What has been measured
 

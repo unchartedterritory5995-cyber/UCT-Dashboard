@@ -82,7 +82,7 @@ function runtimeOn(fn) {
 const rsLineOf = (verdict) => (verdict.plots || []).find((p) => p.title === 'RS Line')
 
 describe('L11 — RS Rating on NYSE:RDDT 1W: the RS line equals TradingView\'s on every settled week', () => {
-  it('runtime-on: RS line 139/139 settled weeks exact; the forming week the one difference; both labels drawn', () => {
+  it('runtime-on: RS line 139/139 settled weeks exact; the forming week INCONCLUSIVE by name (supply behind); both labels drawn', () => {
     runtimeOn(() => {
       const cap = capOf(RDDT_W)
       expect(cap.newestBarIsForming).toBe(true)
@@ -94,10 +94,13 @@ describe('L11 — RS Rating on NYSE:RDDT 1W: the RS line equals TradingView\'s o
       const rs = rsLineOf(verdict)
       expect(rs, JSON.stringify(verdict.plots.map((p) => p.title))).toBeTruthy()
       const n = cap.bars.rows.length
-      expect(rs.stats.compared).toBe(n)
-      // ⭐ every settled week MATCHES (maxRel 0 on them); the ONLY divergence is the forming bar
-      expect(rs.stats.steadyDivergent.map((d) => d.bar)).toEqual([n - 1])
+      // ⭐ every settled week MATCHES (maxRel 0 on them). The forming week read the 2026-11-17 close, a session the
+      // SPX supply recorded beside the capture (2026-11-16T23:13Z) does not hold: INCONCLUSIVE by name, not compared
+      // (SUPPLY BEHIND THE CAPTURE, `vendorHarness.supplyBehind.test.js`)
+      expect(rs.stats.compared).toBe(n - 1)
+      expect(rs.stats.steadyDivergent).toEqual([])
       expect(rs.stats.matching).toBe(n - 1)
+      expect(rs.supplyBehind).toMatchObject({ verdict: 'INCONCLUSIVE', bar: n - 1, session: '2026-11-17' })
       // the three averages (off at the defaults) agree on every bar
       for (const p of verdict.plots.filter((x) => x.title !== 'RS Line')) expect(p.stats.steady.divergent, p.title).toBe(0)
       // ⭐ the run half (R2 / R3 / R4 read there) is served on a weekly chart: TradingView's two labels, drawn
@@ -115,9 +118,11 @@ describe('L11 — RS Rating on NASDAQ:NVDA 1W (1453 weeks from 1999)', () => {
       expect(ours.ok, String(ours.refusal)).toBe(true)
       const rs = rsLineOf(verdict)
       const n = cap.bars.rows.length
-      expect(rs.stats.compared).toBe(n)
-      const divergent = rs.stats.steadyDivergent.map((d) => d.bar)
-      expect(divergent).toContain(n - 1)
+      // the forming week: INCONCLUSIVE by name (the supply recorded beside the capture predates the session it read)
+      expect(rs.stats.compared).toBe(n - 1)
+      expect(rs.supplyBehind).toMatchObject({ verdict: 'INCONCLUSIVE', bar: n - 1 })
+      const divergent = (rs.stats.steadyDivergent || []).map((d) => d.bar)
+      expect(divergent).not.toContain(n - 1)
       const settledOff = divergent.filter((b) => b !== n - 1)
       // ⛔ not one settled week on or after the session FMP and TradingView agree from
       expect(settledOff.filter((b) => isoOf(cap.bars.rows[b][0]) >= FMP_EXACT_FROM)).toEqual([])

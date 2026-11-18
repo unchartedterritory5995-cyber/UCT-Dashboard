@@ -74,9 +74,14 @@ lies outside the epsilon, so its built-in rows cannot rule. Hence the rows below
 | Q-FCMP2-11 | `tools/visual_conformance/probes/vw-fcmp-const-v4.pine` | AMEX:SPY 1D | from the listing; every plot on every bar | which v4 operands are compile-time constants, compared exactly (T50) |
 | Q-FCMP2-12 | `tools/visual_conformance/probes/vw-fcmp-const-v5.pine` | AMEX:SPY 1D | from the listing; every plot on every bar | the same under v5 |
 | Q-FCMP2-13 | `tools/visual_conformance/probes/vw-fcmp-form-v5.pine` | AMEX:SPY 1D | from the listing; every plot on every bar | whether v5 runs the v4 / v6 rule (rows 1-8 read v4 and v6 only) |
+| Q-FCMP2-14 | `tools/visual_conformance/probes/vw-fcmp-form-v3.pine` | AMEX:SPY 1D | from the listing; every plot on every bar | whether v3 runs the v4 / v6 rule (ruling D4: no version assumed) |
+| Q-FCMP2-15 | `tools/visual_conformance/probes/vw-fcmp-form-v2.pine` | AMEX:SPY 1D | from the listing; every plot on every bar | the same for v2 |
+| Q-FCMP2-16 | `tools/visual_conformance/probes/vw-fcmp-form-v1.pine` | AMEX:SPY 1D | from the listing (no version pragma: TradingView reads it as v1); every plot on every bar | the same for v1 |
 
-Rows 9 and 10 are the coordinator's ask. Rows 11-13 are recommended: without them a v5 script's comparisons and a
-v4 / v5 constant comparison are unmeasured, and the engine would have to refuse them by name.
+Rows 9-13 are approved (coordinator rulings 2026-11-18). Rows 14-16 are ruling D4: until a version is measured,
+the engine serves its comparisons only where exact and tolerant agree and refuses the rest by name
+(`pine:compare-version-unpinned`). v1-v3 grammar: `n` is the bar counter, the functions are untyped, `one` is
+`close * 0 + 1.0`; v1 / v2 have no int type, so T40-T44 read as float rows there.
 
 ### Built probes (rerun; record each sha256 with its capture)
 
@@ -86,6 +91,9 @@ v4 / v5 constant comparison are unmeasured, and the engine would have to refuse 
 | `vw-fcmp-const-v4.pine` | 15 | `86d69d0ddec8fffbe9926f38f8898e4e401019f72ebeeee0d3a971f0d0441b8d` |
 | `vw-fcmp-const-v5.pine` | 15 | `f1a561bb66e03c45ccbed1d7cd0cd776c920ef07bb330ea4310c1fd1fb960dfa` |
 | `vw-fcmp-form-v5.pine` | 51 | `cb2d146b6cf0398e317ca3f69c5ffaea63340450fd238f4fe8b36b5114ebb94b` |
+| `vw-fcmp-form-v3.pine` | 51 | `9d78f19d69744578ec58cdfca9c6704e481c7f64e4556e1cf16f147fe41bcd42` |
+| `vw-fcmp-form-v2.pine` | 51 | `3c5799d7a9b270e4cb94fdd25dc3f1c642713130a5b091e1138d81e5259b5b06` |
+| `vw-fcmp-form-v1.pine` | 51 | `d7e1ed59d2aeb11db8abc8faf0e5f83a90fbb30d095171bdf1a6bdc5778c5a22` |
 
 What each answers:
 
@@ -104,6 +112,26 @@ What each answers:
   control, a reassigned name, a function's literal, a `?:` of consts, int against float, and Q-FCMP's literal tie.
   An exact compare reads 50 (or 14 for C12) and the epsilon reads 41. C08 (series) is the control and must read 41.
 - `vw-fcmp-form-v5.pine` is `vw-fcmp-form.pine` under v5, read against the same T table.
+
+## Q-FCMP3: the array searches (filed with the engine build, for the next capture batch)
+
+The engine build of rows 1-16 (branch `feat/pine-tolerant-compare-engine`) compares `array.indexof` /
+`array.includes` within the epsilon, as rows 9-10 read them. `array.lastindexof` and the three binary searches were
+not measured, so they stay EXACT (no change from today) until these rows are read. Coordinator ruling, 2026-11-18.
+
+| id | probe | chart | what to record | unblocks |
+|---|---|---|---|---|
+| Q-FCMP3-1 | `tools/visual_conformance/probes/vw-fcmp-arrays.pine` | AMEX:SPY 1D | from the listing (`history.startsAtBar0` asserted); every plot on every bar | whether `array.lastindexof` and `array.binary_search` / `_leftmost` / `_rightmost` find a value within the epsilon |
+| Q-FCMP3-2 | `tools/visual_conformance/probes/vw-fcmp-arrays.pine` | NYSE:RDDT 1D | from the listing; every plot on every bar | the same, on a second symbol |
+
+| probe | plots | sha256 |
+|---|---:|---|
+| `vw-fcmp-arrays.pine` | 17 | `58219b5343ba17799e8fe8fd50cad5565420cdb72a80f138419176e7ca79bc40` |
+
+Each row's line in the probe names its two readings, tolerant / exact. A01, A05, A06, A10, A15 and A16 are
+controls that read the same under both rules. Every array is sorted ascending with no value repeated (inside the
+epsilon or out), so every binary-search row has one answer under each rule. A reading that matches neither column
+is a finding: record it as read.
 
 ## Readings each model predicts (what each plot answers)
 

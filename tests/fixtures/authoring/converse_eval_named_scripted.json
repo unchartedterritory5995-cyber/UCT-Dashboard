@@ -2123,6 +2123,56 @@
     ]
    }
   ],
+  "named-fisher#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built the Fisher Transform.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Fisher Transform",
+      "placement": "pane",
+      "primary": "fisher",
+      "outputs": [
+       {
+        "key": "fisher",
+        "tree": {
+         "type": "call",
+         "name": "fisher",
+         "args": [
+          {
+           "type": "num",
+           "value": 9
+          }
+         ]
+        }
+       },
+       {
+        "key": "trigger",
+        "tree": {
+         "type": "offset",
+         "value": 1,
+         "args": [
+          {
+           "type": "call",
+           "name": "fisher",
+           "args": [
+            {
+             "type": "num",
+             "value": 9
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
   "held-own-words#0": [
    {
     "contract": "uct.authoring.patch/1",

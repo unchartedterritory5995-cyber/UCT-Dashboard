@@ -94,6 +94,10 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // captures are the ones it moves (btc-charlie, pivot-point-supertrend, qqe-signals, trend-duration-forecast,
 // trendlines, twin-range-filter, vw-ratchet-stops; RDDT and SPY each). Each was graded on the runtime lane
 // after the change: 14 of 14 MATCH, every plot and object (and `runtimeOn` was MATCH in this report already).
+// ⭐ PINE'S TOLERANT COMPARE (engine 78, feat/pine-tolerant-compare-engine, #1858) added 4 rows, lane `host`:
+// contraction-box-doji-lines' RDDT and SPY captures. Its runtime kill entry was lifted on its own condition (both SPY
+// captures re-grade MATCH runtime-on, run 44319610649), so the registry now admits it. The door answers `host` for
+// all four, each MATCH on both lanes (docs/pine/evidence/2026-11-18-tolerant-compare/EVIDENCE.md).
 
 describe('WS-I Part 2 — the reach run records the lanes the door itself answers', () => {
   beforeAll(() => {

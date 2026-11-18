@@ -601,6 +601,53 @@ the base, served here). A daily row has no weekly block and its keys are the pla
   (the drawing build) reads it as a slot and is not affected. On a weekly chart that column is now refused
   by name instead.
 
+## L13: Fred RS on a MONTHLY chart (2026-11-18, branch `feat/rs-monthly-witness`, stacked on L11 PR 2)
+
+**Monthly is served.** Before L13 a 1M chart drew no RS line: both witness rows covered D and W only, so every
+plot was refused `other-symbol:witness-timeframe` and the chart showed the "complete set of this script's drawings
+isn't shown" note (found by the 10-member production sweep at engine 76). TradingView draws it.
+
+**Witnessed** on the `rs-monthly-2026-11-18c` captures (pre-market 13:0xZ, newest month forming; Q-RS-M in the
+capture queue): Fred RS on NYSE:RDDT 1M (33 months from the 2024-03 listing month) and NASDAQ:NVDA 1M (335 months
+from 1999-01), committed (MPL-2.0); the `rs-spx-daily` and `rs-seed-rsrating` probes on NYSE:RDDT 1M (local).
+`requestWitnesses.json` gains `periods.M` on both rows, held at `D` like the weekly blocks:
+
+- **R1** `SP:SPX` at `timeframe.period`: each month reads the PREVIOUS month's last daily close
+  (`previous-month`; 32/32 settled RDDT months against our FMP daily). Fred RS's RS line is close / that x 3360
+  (4200 x 80 / 100: `timeframe.isweekly` is false on 1M) on all 33 RDDT months. The forming month on this fresh
+  load read October's 7580.07, as PR 2 serves it (its own month only while the index session is on).
+- **R2** `SP:SPX` at `"D"`: each month reads the previous-session bar at its LAST session (`month-last-row`,
+  o/h/l/c 32/32). The FORMING month read 7340.53, the newest SPX close (2026-11-17), which the previous-session
+  read places on its NEXT session (2026-11-18), inside November. One rule for weekly and monthly
+  (`otherSymbols.js::belowChartSeriesOf`, coordinator ruling 2026-11-18): a `*-last-row` sample reads the newest
+  held row on its next session (the exchange calendar). The weekly after-close capture (X04 7340.53) is the
+  second witness; the weekly rail's forming week now reads it (`rsWeeklyWitness.test.js` R2). A daily chart's
+  series is unchanged (the row is kept beside it, not enumerable).
+- **R3** this chart's own symbol at `"D"`, a bare `close`: the monthly close is its month's last daily close
+  (32/32 settled RDDT months, the 1M capture against the committed daily one): the identity, as on weekly.
+- **R4** the seed at `"D"`: the row dated the month's FIRST SESSION (`month-first-session`): November read 75
+  (Monday 2026-11-02's row), not Sunday 2026-11-01's 92.81; October read `na` (no 2026-10-01 row; the series
+  begins 2026-10-13).
+
+**On 1M TradingView draws the labels "RS Rating" and an EMPTY rating** (the script prints the number only when
+`timeframe.isdaily`, unless Rating Only is set): the run half draws the same (objects MATCH).
+
+**Graded by the harness** (`vendorHarness.l13MonthlyWitness.test.js`, runtime-on): RDDT 1M RS line 33/33 months
+exact, the listing month and the forming month included, every average agreeing on every bar (the capture reads
+INCONCLUSIVE for one reason only: the longest average's warm-up is longer than 33 months); NVDA 1M exact on every
+month from 2023-12-05 (earlier: Q-RS9's accepted S&P 500 history); the SPX probe X01..X05 and the seed probe
+S01..S05 equal on every graded month. Unit rails `rsMonthlyWitness.test.js`; the held fetch asks 31 calendar days
+a month plus two months (`heldDepthOf(n, 'M')`).
+
+**Found beside it, fixed separately (#1852):** our `/api/bars/RDDT?tf=M` dropped the listing month (and SPY's
+January 1993): the serve-time reuse cutoff read a monthly series' 31-day step as a gap. The harness grades on the
+capture's own bars, so L13's grade does not depend on it; a member's monthly chart does.
+
+**Not settled, by name.**
+- The monthly OPEN / HIGH / LOW of `SP:SPX` at `timeframe.period` (only the close, X05, is captured).
+- R4 on a month whose first session has no seed row but a later day does: read `na`, as October was.
+- The forming month's R1 on a chart that ticked after the close (PR 2's residual, unchanged).
+
 ## Owner rulings
 
 - **2026-11-16, the S&P 500 history difference (Q-RS9):** told that the RS line on bars before

@@ -43,13 +43,18 @@ from datetime import datetime, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo
 
+from api.services import rs_weighted_return as _rsw
 from api.services.uct_agent.marketdata import envelope as env
 
 KIND = "rs.leadership"
 SOURCE = "uct-rs"
 SCOPES = ("symbols", "sectors", "industry", "backdrop")
-#: trading sessions per period: 1W / 1M / 3M are sector_strength.PERIOD_TO_BARS's own; 6M is rs_history's 126
-PERIODS = {"1W": 5, "1M": 21, "3M": 63, "6M": 126}
+#: trading sessions per period, READ from the RS weighting's own table (`rs_weighted_return.RS_TERMS`:
+#: 1w 5, 1m 21, 3m 63, 6m 126), never retyped. ⚰️ It was a literal {"1W": 5, "1M": 21, "3M": 63, "6M": 126}
+#: whose comment said the numbers were other modules' own; tests/test_single_authority_rails.py allows one
+#: module to declare the RS lookbacks, and a comment claiming agreement is not agreement.
+_BARS_BY_TERM = {label.upper(): bars for label, bars, _w in _rsw.RS_TERMS}
+PERIODS = {p: _BARS_BY_TERM[p] for p in ("1W", "1M", "3M", "6M")}   # the order members read: shortest first
 DEFAULT_PERIOD = "1M"
 MAX_SYMBOLS = 6
 BENCHMARK = "SPY"

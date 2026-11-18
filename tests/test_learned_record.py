@@ -268,7 +268,7 @@ def test_no_catalogue_name_is_one_the_door_already_knows(conv):
 def test_a_request_is_read_as_whole_words_longest_first_and_answers_ids_only():
     assert names.names_in("Add the Klinger Volume Oscillator") == ["klinger_volume_oscillator"]
     assert names.names_in("a KLINGER oscillator, please") == ["klinger_volume_oscillator"]
-    assert names.names_in("a fisher transform, an EHLERS FISHER TRANSFORM") == ["fisher_transform"]   # one row, read once
+    assert names.names_in("a wavetrend, a WAVE TREND OSCILLATOR") == ["wave_trend_oscillator"]   # one row, read once
     assert names.names_in("macaroons and a necktrix") == []                         # never inside a word
     assert names.names_in("the half-trend") == ["half_trend"]                       # punctuation is spacing
     # a spelling the LIBRARY answers is not unknown; one it does not answer still is
@@ -281,7 +281,9 @@ def test_a_request_is_read_as_whole_words_longest_first_and_answers_ids_only():
     assert len(names.names_in(many)) == names.MAX_PER_TURN
     for got in names.names_in(many) + names.names_in("Add the Klinger Volume Oscillator"):
         assert got in names.ids()
-    assert names.lookup("Fisher Transform") == "fisher_transform" and names.lookup("fisher transform please") is None
+    assert names.lookup("Wave Trend Oscillator") == "wave_trend_oscillator" and names.lookup("wave trend oscillator please") is None
+    # a name that has since joined the checked library is not an unknown name any more
+    assert names.names_in("a fisher transform") == [] and names.now_in_library().get("fisher_transform") == "fisher_transform"
     assert names.name_of("gann_fan") == "Gann Fan" and names.name_of("nope") is None
 
 
@@ -337,11 +339,11 @@ def test_names_asked_for_are_ranked_by_distinct_members_and_each_is_split_by_wha
         turn(u, unknown_name="klinger_volume_oscillator")
     turn("m1", unknown_name="klinger_volume_oscillator")                    # one member asking twice is one member
     for u in ("m1", "m2", "m3"):
-        turn(u, unknown_name="fisher_transform", built=u != "m3")
+        turn(u, unknown_name="wave_trend_oscillator", built=u != "m3")
     turn("m1", unknown_name="half_trend,other")
     r = tel.weekly_report(7)
     asked = r["names"]["asked_for"]
-    assert [n["id"] for n in asked] == ["klinger_volume_oscillator", "fisher_transform", "half_trend"]   # `other` is no row
+    assert [n["id"] for n in asked] == ["klinger_volume_oscillator", "wave_trend_oscillator", "half_trend"]   # `other` is no row
     assert asked[0] == {"id": "klinger_volume_oscillator", "name": "Klinger Volume Oscillator", "members": 4, "turns": 5,
                         "refused": 5, "built_unchecked": 0, "built_from_library": 0, "builders_turns": 0,
                         "in_library": None, "in_library_since": None}
@@ -481,7 +483,7 @@ def test_the_report_in_plain_words_says_what_the_report_says(store):
     for u in ("m1", "m2", "m3", "m4"):
         turn(u, unknown_name="klinger_volume_oscillator")
     for u in ("m1", "m2", "m3"):
-        turn(u, unknown_name="fisher_transform", built=u != "m3")
+        turn(u, unknown_name="wave_trend_oscillator", built=u != "m3")
         turn(u, named_held="pocket_pivot")
         turn(u, named_built="mcginley_dynamic", built=True)
     turn("m1", unknown_name="half_trend,other")
@@ -501,7 +503,7 @@ def test_the_report_in_plain_words_says_what_the_report_says(store):
         "  Built using a remembered choice: 1 of 6",
         "  Asked 2 times: Which kind of moving average?",
         "  Klinger Volume Oscillator: 4 members, 4 requests; 4 refused",
-        "  Fisher Transform: 3 members, 3 requests; 1 refused; 2 built unchecked, from the assistant's own recollection",
+        "  Wave Trend Oscillator: 3 members, 3 requests; 1 refused; 2 built unchecked, from the assistant's own recollection",
         "  Half Trend: fewer than 3 members; 1 by the builders' own accounts",
         "  Names in no list: fewer than 3 members",
         "  Pocket Pivot: 3 members, 3 requests",

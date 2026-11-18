@@ -303,6 +303,47 @@ def _sar_part(part: str) -> Callable[[List[Any]], Optional[Dict[str, Any]]]:
     return build
 
 
+#: ⭐ NUMBER PENDING (studio, 2026-11-18) -- the Fisher Transform, `callExpansions.js::fisherTree`
+#: mirrored node for node (the parity test requires the two byte-identical). What it is, what it was
+#: graded against and why it is offered on evidence is said there, once.
+FISHER_WARMUP = 300
+
+
+def fisher_tree(length_node: Any, warmup: int = FISHER_WARMUP) -> Optional[Dict[str, Any]]:
+    n = _window(length_node, 2)
+    if n is None:
+        return None
+
+    def hl2() -> Dict[str, Any]:
+        return _op("/", [_op("+", [_series("high"), _series("low")]), _num(2)])
+
+    def lo() -> Dict[str, Any]:
+        return _call("lowest", [hl2(), _num(n)])
+
+    def hi() -> Dict[str, Any]:
+        return _call("highest", [hl2(), _num(n)])
+
+    def x() -> Dict[str, Any]:
+        return _op("/", [_op("-", [hl2(), lo()]), _op("-", [hi(), lo()])])
+
+    def raw() -> Dict[str, Any]:
+        return _op("+", [_op("*", [_num(0.66), _op("-", [x(), _num(0.5)])]),
+                         _op("*", [_num(0.67), _call("nz", [_series("state1"), _num(0)])])])
+
+    def value() -> Dict[str, Any]:
+        return _op("?:", [_op(">", [raw(), _num(0.99)]), _num(0.999),
+                          _op("?:", [_op("<", [raw(), _num(-0.99)]), _num(-0.999), raw()])])
+
+    fisher = _op("+", [
+        _op("*", [_num(0.5), _call("ln", [_op("/", [_op("+", [_num(1), value()]), _op("-", [_num(1), value()])])])]),
+        _op("*", [_num(0.5), _call("nz", [_series("state2"), _num(0)])])])
+    return _call("accum2", [_num(2), _num(warmup), _num(0), _num(0), value(), fisher])
+
+
+def _fisher(a: List[Any]) -> Optional[Dict[str, Any]]:
+    return fisher_tree(a[0])
+
+
 #: name -> (min args, max args, signature, builder). Same order and words as the JS module.
 CALL_EXPANSIONS: Dict[str, tuple] = {
     "roc": (2, 2, "roc(source, length)", _roc),
@@ -320,6 +361,7 @@ CALL_EXPANSIONS: Dict[str, tuple] = {
     "supertrendDirection": (2, 2, "supertrendDirection(factor, atrPeriod)", _supertrend_part("direction")),
     "sar": (2, 2, "sar(step, maxStep)", _sar_part("value")),
     "sarDirection": (2, 2, "sarDirection(step, maxStep)", _sar_part("direction")),
+    "fisher": (1, 1, "fisher(length)", _fisher),
 }
 
 EXPANSION_NAMES = tuple(CALL_EXPANSIONS)

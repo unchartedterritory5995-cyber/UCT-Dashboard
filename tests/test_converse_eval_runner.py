@@ -631,7 +631,10 @@ def test_for_the_first_time_in_n_bars_builds_marks_and_computes_in_one_call(tmp_
 
 RUNNING_CASES = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_running_cases.json"
 RUNNING_SCRIPT = ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_running_scripted.json"
-RUNNING_IDS = {"run-streak", "run-ratchet-stop", "run-smoother", "run-kama", "run-mcginley"}
+ONE_VALUE_IDS = {"run-streak", "run-ratchet-stop", "run-smoother", "run-kama", "run-mcginley"}
+# ⭐ 2026-11-18 -- several running values that feed each other, for the shapes that settle
+LINKED_IDS = {"run-two-pole": 2, "run-two-pole-maths": 2, "run-four-stage": 4, "run-range-stretch": 2}
+RUNNING_IDS = ONE_VALUE_IDS | set(LINKED_IDS)
 
 
 def test_the_running_value_cases_are_five_examples_a_new_control_and_the_standard_ones():
@@ -639,14 +642,20 @@ def test_the_running_value_cases_are_five_examples_a_new_control_and_the_standar
     doc = json.loads(io.open(RUNNING_CASES, encoding="utf-8").read())
     script = json.loads(io.open(RUNNING_SCRIPT, encoding="utf-8").read())["turns"]
     assert {c["id"] for c in doc["cases"] if c["group"] == "example"} == RUNNING_IDS
-    for cid in RUNNING_IDS:
+    for cid in ONE_VALUE_IDS:
         (answer,) = script[f"{cid}#0"]
         text = json.dumps(answer["ops"])
         assert '"name": "accum"' in text and '"name": "self"' in text and "accum2" not in text, cid
+    for cid, k in LINKED_IDS.items():
+        (answer,) = script[f"{cid}#0"]
+        text = json.dumps(answer["ops"])
+        assert f'"name": "accum{k}"' in text and f'"name": "state{k}"' in text and '"name": "self"' not in text, cid
+    # the coefficients of one example are written as maths of plain numbers, as the instructions show
+    assert '"name": "exp"' in json.dumps(script["run-two-pole-maths#0"]) and '"name": "cos"' in json.dumps(script["run-two-pole-maths#0"])
     controls = {c["id"]: c for c in doc["cases"] if c["group"] == "control"}
     new = controls.pop("ctl-two-running-values")
     assert new["turns"][0]["expect"]["gate_prefix"] == "unsupported:running-value"
-    assert all("accum2" in json.dumps(a["ops"]) for a in script["ctl-two-running-values#0"])
+    assert all("accum2" in json.dumps(a["ops"]) and '"name": "max"' in json.dumps(a["ops"]) for a in script["ctl-two-running-values#0"])
     base = {c["id"]: c for c in json.loads(io.open(ROOT / "tests" / "fixtures" / "authoring" / "converse_eval_cases.json", encoding="utf-8").read())["cases"]}
     assert controls == {k: v for k, v in base.items() if v["group"] == "control"}
     assert doc["bars"] > ce.DEFAULT_BARS                                   # a 300-bar running value needs the history
@@ -655,9 +664,11 @@ def test_the_running_value_cases_are_five_examples_a_new_control_and_the_standar
 @needs_node
 def test_a_running_value_builds_applies_and_computes_in_one_call_and_two_stay_closed(tmp_path):
     """A streak, a stop that only rises, a smoother, Kaufman's adaptive average and the McGinley
-    Dynamic: each accepted by the door in one call, applied by the browser's own patch engine, and
-    computed by the engine to the reference. The door's own note is on each. Two running values
-    that feed each other are refused by name, twice, and nothing is built."""
+    Dynamic, and (several values that feed each other) two two-pole filters, a four-stage filter
+    and a smoothed, stretched range position: each accepted by the door in one call, applied by
+    the browser's own patch engine, and computed by the engine to the reference. The door's own
+    note is on each. A ratchet with a switch beside it never settles: refused by name, twice, and
+    nothing is built."""
     proc, _work, out = _run(tmp_path, "--cases", str(RUNNING_CASES), "--script", str(RUNNING_SCRIPT))
     assert proc.returncode == 0, proc.stdout[-3000:]
     assert _last_line(proc.stdout).startswith("VERDICT: PASS"), proc.stdout[-1500:]
@@ -674,8 +685,11 @@ def test_a_running_value_builds_applies_and_computes_in_one_call_and_two_stay_cl
     running_note = lambda cid: next(a["text"] for a in rows[cid]["server"]["envelope"]["assumptions"]  # noqa: E731
                                     if "bars back on every bar" in a["text"])
     assert "starting point no longer matters" in running_note("run-smoother")
-    for cid in RUNNING_IDS - {"run-smoother"}:
+    for cid in ONE_VALUE_IDS - {"run-smoother"}:
         assert "counts and levels restart" in running_note(cid), cid
+    for cid, k in LINKED_IDS.items():
+        assert f"built from {k} linked running values that start 300 bars back" in running_note(cid), cid
+        assert "their starting points no longer matter (to within 0.01%" in running_note(cid), cid
     for cid, name in (("run-kama", "Kaufman Adaptive Moving Average"), ("run-mcginley", "McGinley Dynamic")):
         assert rows[cid]["server"]["envelope"]["assumptions"][0]["text"].startswith(f"Built to UCT's checked formula for {name}"), cid
     closed = rows["ctl-two-running-values"]

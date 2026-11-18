@@ -3324,10 +3324,56 @@ def _yf_only_bars_response(ticker_up: str, tf: str, bars: int):
     )
 
 
+#: The join of yfinance's older bars onto Massive's (`_yf_join_factor`): the factor is read from
+#: this many sessions both vendors hold, starting at Massive's first bar ...
+_MERGE_JOIN_SESSIONS = 20
+#: ... and is used only when every one of them is within this of their median (ONE basis) ...
+_MERGE_JOIN_TOL = 0.01
+#: ... and the median is further than this from 1 (closer is the same basis, left as it is).
+_MERGE_JOIN_MIN_GAP = 0.01
+
+
+def _yf_join_factor(yf_bars: list[dict], massive_bars: list[dict]) -> float | None:
+    """The factor that puts yfinance's OLDER bars on Massive's basis, or None to leave them.
+
+    ⚰️ 2026-11-18, production EMBJ (Embraer ADR, 4:1 on 2026-11-16): Massive's EMBJ starts on
+    2025-11-03 (the ERJ -> EMBJ ticker change) and is adjusted; yfinance had not adjusted its
+    history yet, so every deep fetch wrote 64.48 before 2025-11-03 against Massive's 16.17 after
+    it, a x0.25 cliff, and put that back over a repaired store within minutes. The same seam
+    is where the 2003-09-10 cliffs sit (Massive's archive starts there; MNST x75, BF-A x12.5).
+
+    The two vendors overlap from Massive's first bar on. When their closes keep ONE ratio over
+    the first `_MERGE_JOIN_SESSIONS` shared sessions, they are one security on two bases, and
+    that ratio joins them. When the ratio wanders, they are different securities (GEN: Massive's
+    per-ticker GenOn against yfinance's Symantec) and nothing is rescaled: that is a lineage
+    question (bars_identity), not a basis one."""
+    by_t = {b.get("t"): b for b in yf_bars}
+    ratios = []
+    for m in massive_bars:
+        y = by_t.get(m.get("t"))
+        try:
+            mc, yc = float(m["c"]), float(y["c"]) if y else 0.0
+        except (KeyError, TypeError, ValueError):
+            continue
+        if mc > 0 and yc > 0:
+            ratios.append(mc / yc)
+            if len(ratios) >= _MERGE_JOIN_SESSIONS:
+                break
+    if len(ratios) < _MERGE_JOIN_SESSIONS:
+        return None
+    med = sorted(ratios)[len(ratios) // 2]
+    if abs(med - 1.0) <= _MERGE_JOIN_MIN_GAP:
+        return None
+    if any(abs(r / med - 1.0) > _MERGE_JOIN_TOL for r in ratios):
+        return None
+    return med
+
+
 def _merge_daily_bars(yf_bars: list[dict], massive_bars: list[dict]) -> list[dict]:
     """Merge yfinance (deep history) + Massive (recent, more accurate).
     Massive wins for any overlapping date range. yfinance fills the older
-    pre-Massive history.
+    pre-Massive history, on Massive's basis when the two overlap on one
+    (`_yf_join_factor`).
     """
     if not yf_bars:
         return massive_bars
@@ -3335,6 +3381,10 @@ def _merge_daily_bars(yf_bars: list[dict], massive_bars: list[dict]) -> list[dic
         return yf_bars
     cutoff = massive_bars[0]["t"]  # ISO date string sorts lexically
     older_yf = [b for b in yf_bars if b["t"] < cutoff]
+    f = _yf_join_factor(yf_bars, massive_bars)
+    if f is not None and older_yf:
+        from api.services.bars_sanitize import scale_bar
+        older_yf = [scale_bar(dict(b), 1.0 / f) for b in older_yf]
     return older_yf + massive_bars
 
 

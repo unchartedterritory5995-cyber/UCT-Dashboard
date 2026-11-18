@@ -33,6 +33,7 @@ import {
 // ships a refusal reading "undefined — sma argument 1 folded to 12.5", which is
 // exactly what the first cut of this file did.
 import { REFUSALS } from './interpret.js'
+import { pineCompareAmbiguous } from '../pineCompare.js'
 
 // ⭐ THE SYMBOL-SCOPED VOCABULARY AS DATA. Everything in it is a fact about the
 // outside world — our store's exchange spellings on one side, TradingView's on
@@ -71,6 +72,7 @@ const FOLD_CALLS = {
   pow: (a, b) => a ** b,
 }
 
+const CMP_OPS = new Set(['>', '<', '>=', '<=', '==', '!='])
 const BINARY = {
   '+': (a, b) => a + b,
   '-': (a, b) => a - b,
@@ -487,7 +489,17 @@ export function foldScalar(node, consts) {
     if (node.name === '?:' && vals.length === 3) return vals[0] ? vals[1] : vals[2]
     if (node.name === 'u-' && vals.length === 1) return -vals[0]
     if (node.name === '!' && vals.length === 1) return vals[0] ? 0 : 1
-    if (BINARY[node.name] && vals.length === 2) return BINARY[node.name](vals[0], vals[1])
+    // ⭐⭐ engine 78 (#1858) (Q-FCMP / Q-FCMP2) — two numbers that are equal to TradingView only within
+    // its epsilon (`pineCompare.js::pineCompareAmbiguous`) are NOT folded: the exact answer this table
+    // gives and Pine's tolerant one differ there, and a fold cannot know which document it serves. Left
+    // unfolded, the operand is what the downstream check names (a window slot), or the evaluator answers it
+    // with the document's own comparison. Every other pair folds exactly as before (both rules agree).
+    if (BINARY[node.name] && vals.length === 2) {
+      if (CMP_OPS.has(node.name) && pineCompareAmbiguous(vals[0], vals[1])) {
+        throw new NotFoldable(`'${node.name}' of two numbers equal only within Pine's comparison epsilon`)
+      }
+      return BINARY[node.name](vals[0], vals[1])
+    }
     throw new NotFoldable(`operator '${node.name}'`)
   }
 

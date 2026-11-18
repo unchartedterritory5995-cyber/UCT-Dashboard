@@ -1,35 +1,35 @@
 {
  "populations": {
   "capture": {
-   "scripts": 920,
-   "admitted": 539,
-   "runtimeLane": 163,
-   "hostLane": 234,
-   "refused": 142,
+   "scripts": 867,
+   "admitted": 446,
+   "runtimeLane": 72,
+   "hostLane": 248,
+   "refused": 126,
    "coreOnly": 44
   },
   "committed": {
    "scripts": 266,
-   "admitted": 117,
-   "runtimeLane": 41,
-   "hostLane": 43,
-   "refused": 33,
+   "admitted": 101,
+   "runtimeLane": 25,
+   "hostLane": 48,
+   "refused": 28,
    "coreOnly": 4
   },
   "reference": {
    "scripts": 271,
-   "admitted": 167,
-   "runtimeLane": 36,
-   "hostLane": 87,
-   "refused": 44,
+   "admitted": 154,
+   "runtimeLane": 23,
+   "hostLane": 91,
+   "refused": 40,
    "coreOnly": 7
   },
   "builtin": {
    "scripts": 142,
-   "admitted": 109,
-   "runtimeLane": 27,
-   "hostLane": 69,
-   "refused": 13,
+   "admitted": 87,
+   "runtimeLane": 7,
+   "hostLane": 71,
+   "refused": 9,
    "coreOnly": 30
   }
  },
@@ -46,32 +46,10 @@
    ]
   },
   {
-   "capture": "adx-and-di-for-v4-rddt-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": null,
-   "caps": [
-    "core",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
    "capture": "adx-and-di-for-v4-spy-1d-2026-10-03",
    "lane": "runtime",
    "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "adx-and-di-for-v4-spy-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "DIVERGE",
-   "production": null,
    "caps": [
     "core",
     "reassign",
@@ -110,44 +88,6 @@
     "switch",
     "ternary",
     "var"
-   ]
-  },
-  {
-   "capture": "atr-god-strategy-by-tradesmart-rddt-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for-in",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "switch",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "atr-god-strategy-by-tradesmart-spy-1d-2026-11-15",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for-in",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "switch",
-    "ternary"
    ]
   },
   {
@@ -452,6 +392,74 @@
    "production": "MATCH",
    "caps": [
     "core"
+   ]
+  },
+  {
+   "capture": "contraction-box-doji-lines-rddt-1d-2026-09-28",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:box",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "contraction-box-doji-lines-rddt-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:box",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "contraction-box-doji-lines-spy-1d-2026-10-03",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:box",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "var"
+   ]
+  },
+  {
+   "capture": "contraction-box-doji-lines-spy-1d-2026-11-15",
+   "lane": "host",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
+   "caps": [
+    "core",
+    "fn-multi",
+    "fn-single",
+    "if-block",
+    "obj:box",
+    "obj:line",
+    "reassign",
+    "ternary",
+    "var"
    ]
   },
   {
@@ -854,36 +862,6 @@
    ]
   },
   {
-   "capture": "fvg-trend-rddt-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "fvg-trend-spy-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
    "capture": "h3-alma-v4-rddt-1d-2026-10-02",
    "lane": "runtime",
    "runtimeOn": "MATCH",
@@ -934,50 +912,6 @@
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-rddt-1d-2026-11-17",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "switch",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-spy-1d-2026-11-17",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": null,
    "caps": [
     "conditional-ta",
     "core",
@@ -1075,23 +1009,6 @@
    ]
   },
   {
-   "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
    "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03",
    "lane": "runtime",
    "runtimeOn": "MATCH",
@@ -1113,23 +1030,6 @@
    "lane": "runtime",
    "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:delete",
-    "obj:line",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": null,
    "caps": [
     "core",
     "fn-multi",
@@ -1413,34 +1313,6 @@
    ]
   },
   {
-   "capture": "macd-shortlong-strategy-for-tradingview-input-optimizer-rddt-1d-2026-10-02",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "macd-shortlong-strategy-for-tradingview-input-optimizer-spy-1d-2026-10-03",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
    "capture": "machine-learning-knn-based-strategy-rddt-1d-2026-11-14",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
@@ -1465,56 +1337,6 @@
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "machine-learning-moving-average-backquant-rddt-1d-2026-11-17",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "if-block",
-    "obj:box",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "machine-learning-moving-average-backquant-spy-1d-2026-11-17",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": null,
    "caps": [
     "collections:array",
     "compound-assign",
@@ -1788,36 +1610,6 @@
    ]
   },
   {
-   "capture": "nadaraya-watson-rational-quadratic-kernel-non-repainting-rddt-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "nadaraya-watson-rational-quadratic-kernel-non-repainting-spy-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "ternary"
-   ]
-  },
-  {
    "capture": "neural-network-buy-and-sell-signals-rddt-1d-2026-11-14",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
@@ -1862,42 +1654,6 @@
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "reassign",
-    "ternary",
-    "tuple-destructure"
-   ]
-  },
-  {
-   "capture": "nubia-auto-midas-anchored-vwap-xdecow-rddt-1d-2026-11-17",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "max_bars_back",
-    "reassign",
-    "ternary",
-    "tuple-destructure"
-   ]
-  },
-  {
-   "capture": "nubia-auto-midas-anchored-vwap-xdecow-spy-1d-2026-11-17",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": null,
    "caps": [
     "core",
     "fn-multi",
@@ -1969,38 +1725,6 @@
     "reassign",
     "ternary",
     "var"
-   ]
-  },
-  {
-   "capture": "optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "optimized-keltner-channels-sltp-strategy-for-btc-spy-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "ternary"
    ]
   },
   {
@@ -2275,20 +1999,6 @@
     "core",
     "if-block",
     "reassign",
-    "var"
-   ]
-  },
-  {
-   "capture": "r1-strategy-draws-rddt-1d-2026-10-02",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "compound-assign",
-    "core",
-    "if-block",
-    "reassign",
-    "strategy-decl",
     "var"
    ]
   },
@@ -2951,22 +2661,6 @@
    ]
   },
   {
-   "capture": "s1-broker-core-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
    "capture": "session-highs-and-lows-indicator-smc-sessions-dst-safe-rddt-60-2026-11-16",
    "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
@@ -3063,62 +2757,6 @@
    ]
   },
   {
-   "capture": "supertrend-strategy-alab-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": null,
-   "caps": [
-    "core",
-    "fn-single",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "supertrend-strategy-rddt-1d-2026-10-02",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-single",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "supertrend-strategy-rddt-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": null,
-   "caps": [
-    "core",
-    "fn-single",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "supertrend-strategy-spy-1d-2026-10-02",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-single",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
    "capture": "support-and-resistance-5f95e90f-rddt-1d-2026-11-13",
    "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
@@ -3152,60 +2790,6 @@
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for-in",
-    "generics",
-    "if-block",
-    "method-call",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "udt",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "capture": "support-and-resistance-logistic-regression-flux-charts-rddt-1d-2026-11-17",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for-in",
-    "generics",
-    "if-block",
-    "method-call",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "udt",
-    "var",
-    "while"
-   ]
-  },
-  {
-   "capture": "support-and-resistance-logistic-regression-flux-charts-spy-1d-2026-11-17",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": null,
    "caps": [
     "collections:array",
     "compound-assign",
@@ -3363,66 +2947,6 @@
    "caps": [
     "core",
     "ternary"
-   ]
-  },
-  {
-   "capture": "tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto-rddt-1d-2026-10-02",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto-spy-1d-2026-10-03",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "tradingview-alerts-to-mt4-mt5-strategy-example-rddt-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "tradingview-alerts-to-mt4-mt5-strategy-example-spy-1d-2026-10-03",
-   "lane": "host",
-   "runtimeOn": "MATCH",
-   "production": "MATCH",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
    ]
   },
   {
@@ -3675,60 +3199,6 @@
    ]
   },
   {
-   "capture": "volatility-coil-edge-bullbyte-rddt-1d-2026-11-17",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": null,
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "history-expr",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "capture": "volatility-coil-edge-bullbyte-spy-1d-2026-11-17",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": null,
-   "caps": [
-    "collections:array",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "generics",
-    "history-expr",
-    "if-block",
-    "obj:box",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "obj:table",
-    "realtime-state",
-    "reassign",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
    "capture": "volume-delta-hapharmonic-rddt-1d-2026-11-14",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
@@ -3749,36 +3219,6 @@
     "ternary",
     "udt",
     "var"
-   ]
-  },
-  {
-   "capture": "volume-divergence-by-mm-rddt-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "capture": "volume-divergence-by-mm-spy-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "reassign",
-    "ternary"
    ]
   },
   {
@@ -5575,226 +5015,6 @@
    ]
   },
   {
-   "capture": "vw-s1-q-s1d-close-reverse-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "vw-s1-q-s1d-close-reverse-rpt-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "vw-s1-q-s1d-two-entries-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "vw-s1-q-s1d-two-entries-rpt-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "vw-s1-q-s1d-two-stops-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "vw-s1-q-s1d-two-stops-rpt-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "vw-s1-q-s1e-stop-past-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "vw-s1-q-s1e-stop-past-rpt-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "vw-s1-q-s1g-blocked-stop-entry-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "vw-s1-q-s1g-blocked-stop-entry-rpt-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "vw-s1-q-s1h-fifo-exit-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "vw-s1-q-s1h-fifo-exit-rpt-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "vw-s1-q-s1j-stop-limit-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "vw-s1-q-s1j-stop-limit-rpt-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "vw-s1-q-s1k-fractional-profit-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "vw-s1-q-s1k-fractional-profit-rpt-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "vw-s1-q-s1k-na-modify-rddt-1d-2026-11-16",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "vw-s1-q-s1k-na-modify-rpt-rddt-1d-2026-11-16",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "vw-s1-q-s1k-profit-and-limit-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "vw-s1-q-s1k-profit-and-limit-rpt-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
    "capture": "vw-tc1-colour-na-compare-rddt-1d-2026-11-16",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
@@ -6322,7 +5542,7 @@
   {
    "capture": "vw-udt-legacy-array-param-rddt-1d-2026-11-16",
    "lane": "runtime",
-   "runtimeOn": "MATCH",
+   "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
     "collections:array",
@@ -6680,7 +5900,7 @@
   {
    "capture": "vw-w6-forin-fn-two-sites-rddt-1d-2026-11-16",
    "lane": "runtime",
-   "runtimeOn": "MATCH",
+   "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
     "collections:array",
@@ -6780,632 +6000,6 @@
    "caps": [
     "core",
     "ternary"
-   ]
-  },
-  {
-   "capture": "w9-d1-margin50-rddt-1d-2026-11-16",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-d1-margin50-rpt-rddt-1d-2026-11-16",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-d11-late-first-use-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-d11-late-first-use-rpt-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-g1-v3-properties-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "w9-k1-commission-pct-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-k2-commission-contract-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-k3-commission-order-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-k4-slippage-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-mk1-markers-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-mk1-markers-rpt-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-p1-on-close-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-p1b-on-close-fills-nv-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-p2-order-fills-nv-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-p3-every-tick-history-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "realtime-state",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-q-s1a-size-stop-v6-rddt-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": null,
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-q-s1a-size-v2-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "w9-q-s1a-size-v4-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "w9-q-s1a-size-v5cash-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-q-s1a-size-v5pct-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-q-s1a-size-v6-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-q-s1b-defaults-v4-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "w9-q-s1b-defaults-v5-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-q-s1b-defaults-v6-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-q-s1b-v4-shape-a-rddt-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": null,
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "w9-q-s1b-v4-shape-b-rddt-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": null,
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "capture": "w9-q-s1e-live-past-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-q-s1i-funds-rddt-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": null,
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-q-s1i-short-v6-rddt-1d-2026-11-16",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-q-s1j-stop-limit-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-q-s1k-exit-levels-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-q-s1k-exit-levels-v6-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-q-s1p-when-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-r1-risk-allow-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-r1-risk-ddown-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-r1-risk-intraday-range-spy-15-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-x1-trail-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-x2-partial-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "INCONCLUSIVE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-x3-oca-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-x4-order-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "w9-x5-cancel-rddt-1d-2026-11-15",
-   "lane": "runtime",
-   "runtimeOn": "MATCH",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
    ]
   },
   {
@@ -7642,7 +6236,7 @@
   {
    "capture": "supertrend-kivancozbilgic-rddt-1d-2026-10-02",
    "lane": "host",
-   "runtimeOn": "MATCH",
+   "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
     "core",
@@ -7652,78 +6246,6 @@
   }
  ],
  "admittedUngraded": [
-  {
-   "key": "committed:72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt",
-   "lane": null,
-   "guard": "pine:statement",
-   "declined": "runtime:history-dynamic-offset",
-   "caps": [
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "max_bars_back",
-    "obj:delete",
-    "obj:getter",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:atr-trailing-stoploss-strategy__oayb1wVXkZ",
-   "lane": null,
-   "guard": "pine:statement",
-   "declined": "runtime:expression-statement",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:buy-monday-exit-tuesday__8f2f69cc99",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:flawless-victory-strategy__1BVZuaaWOU",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
-   "key": "committed:highlow-channel-swing__e3692e253c",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
   {
    "key": "committed:ict-turtle-soup-flux-charts__053c3e6056",
    "lane": null,
@@ -7750,49 +6272,6 @@
     "reassign",
     "ternary",
     "udt",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:inside-bar-strategy-w-sl__b39f395d5d",
-   "lane": null,
-   "guard": "pine:tuple",
-   "declined": "pine:collection",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:linear-regression-channel-breakout-strategy__3a1cf28800",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "collections:array",
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "history-expr",
-    "if-block",
-    "obj:collection",
-    "obj:delete",
-    "obj:label",
-    "obj:line",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "tuple-destructure",
     "var"
    ]
   },
@@ -7940,38 +6419,6 @@
    ]
   },
   {
-   "key": "committed:rsi-vwap-indicator__pTI5ZVw9n4",
-   "lane": null,
-   "guard": "budget:lookback",
-   "declined": "budget:lookback",
-   "caps": [
-    "core",
-    "if-block",
-    "obj:delete",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "key": "committed:scalping-strategy-with-williams-r-macd-and-sma-1-minute-only__e247952471",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "tuple-destructure",
-    "var"
-   ]
-  },
-  {
    "key": "committed:session-tpo-profile__41088ef96d",
    "lane": null,
    "guard": "pine:no-output",
@@ -7997,16 +6444,17 @@
    ]
   },
   {
-   "key": "committed:stop-loss-and-take-profit-in-example__YlblCbts4x",
+   "key": "committed:volume-divergence-by-mm__cvG2Djaryv",
    "lane": "runtime",
    "guard": null,
    "declined": null,
    "caps": [
+    "conditional-ta",
     "core",
     "fn-multi",
     "fn-single",
-    "if-block",
-    "strategy-decl",
+    "for",
+    "reassign",
     "ternary"
    ]
   },
@@ -8027,18 +6475,6 @@
     "reassign",
     "ternary",
     "var"
-   ]
-  },
-  {
-   "key": "committed:vwap-fibo-dev-extensions-strategy__mR2vfyGjUv",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "reassign",
-    "strategy-decl",
-    "ternary"
    ]
   },
   {
@@ -8276,7 +6712,7 @@
   },
   {
    "key": "reference:average-true-range-trailing-stops-strategy-by-sylvain-vervoort__608",
-   "lane": "runtime",
+   "lane": "host",
    "guard": null,
    "declined": null,
    "caps": [
@@ -8296,24 +6732,8 @@
    ]
   },
   {
-   "key": "reference:best-engulfing-ma__Vh6SGyOD3H",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
    "key": "reference:best-supertrend-cci__nngZVuIMCz",
-   "lane": "runtime",
+   "lane": "host",
    "guard": null,
    "declined": null,
    "caps": [
@@ -8327,39 +6747,11 @@
   },
   {
    "key": "reference:bill-williams-awesome-oscillator-ao__543",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "ternary"
-   ]
-  },
-  {
-   "key": "reference:bollinger-bands-filter__M8AKuon90n",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
-   "key": "reference:bollinger-rsi-double-strategy-by-chartart-v11__2187",
    "lane": "host",
    "guard": null,
    "declined": null,
    "caps": [
-    "conditional-ta",
     "core",
-    "if-block",
-    "strategy-decl",
     "ternary"
    ]
   },
@@ -8802,24 +7194,12 @@
   },
   {
    "key": "reference:fixed-percent-stop-loss-take-profit-for-study-scripts__8l8h5SVmib",
-   "lane": "runtime",
+   "lane": "host",
    "guard": null,
    "declined": null,
    "caps": [
     "core",
     "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "key": "reference:fixed-percent-stop-loss-take-profit__1j62blFnpJ",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl",
     "ternary"
    ]
   },
@@ -8887,7 +7267,7 @@
    "key": "reference:fvg-order-blocks-bigbeluga__64decdabc4",
    "lane": null,
    "guard": "pine:object-removal-lost",
-   "declined": "runtime:colour",
+   "declined": "runtime:loop",
    "caps": [
     "collections:array",
     "core",
@@ -8922,18 +7302,6 @@
    ]
   },
   {
-   "key": "reference:golden-cross-sma-200-long-only-moving-average-strategy-by-chartart__2811",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
    "key": "reference:heatmap-volume-xdecow__2lteb6l2tk",
    "lane": "runtime",
    "guard": null,
@@ -8962,21 +7330,6 @@
     "ternary",
     "tuple-destructure",
     "var"
-   ]
-  },
-  {
-   "key": "reference:hull-moving-average-crossover-strategy__ASuWFtACGl",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "max_bars_back",
-    "obj:line",
-    "realtime-state",
-    "strategy-decl",
-    "ternary"
    ]
   },
   {
@@ -9204,18 +7557,6 @@
    ]
   },
   {
-   "key": "reference:macd-sma-200-strategy-by-chartart__2004",
-   "lane": "host",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
    "key": "reference:macd-trend-heatmap-by-chartart__1985",
    "lane": "host",
    "guard": null,
@@ -9267,7 +7608,7 @@
   },
   {
    "key": "reference:market-structure-confluence-algoalpha__bf28f1838f",
-   "lane": "runtime",
+   "lane": "host",
    "guard": null,
    "declined": null,
    "caps": [
@@ -9503,7 +7844,7 @@
   },
   {
    "key": "reference:orb__xLXe22qQZC",
-   "lane": "runtime",
+   "lane": "host",
    "guard": null,
    "declined": null,
    "caps": [
@@ -9564,7 +7905,7 @@
   },
   {
    "key": "reference:pivot-based-swing-highs-and-lows__b230ea4c6d",
-   "lane": "runtime",
+   "lane": "host",
    "guard": null,
    "declined": null,
    "caps": [
@@ -9614,25 +7955,6 @@
     "history-expr",
     "if-block",
     "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "key": "reference:qqe-mod-ssl-hybrid-waddah-attar-explosion__6092fcc4e7",
-   "lane": null,
-   "guard": "pine:window",
-   "declined": "runtime:history-dynamic-offset",
-   "caps": [
-    "compound-assign",
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "for",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
     "ternary"
    ]
   },
@@ -10082,20 +8404,6 @@
    ]
   },
   {
-   "key": "reference:swing-parabolic-sar-strategy__i5Ni9xpTee",
-   "lane": null,
-   "guard": "pine:state",
-   "declined": "runtime:strategy-repaint",
-   "caps": [
-    "core",
-    "if-block",
-    "realtime-state",
-    "reassign",
-    "strategy-decl",
-    "var"
-   ]
-  },
-  {
    "key": "reference:trade-archer-on-balance-volume-moving-averages-v1__897",
    "lane": "host",
    "guard": null,
@@ -10134,19 +8442,6 @@
    ]
   },
   {
-   "key": "reference:trailing-sl-strategy-quantnomad__kvEZ1RweKL",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
    "key": "reference:trend-direction-helper__XQTKs6HB2y",
    "lane": "host",
    "guard": null,
@@ -10165,24 +8460,6 @@
     "reassign",
     "ternary",
     "tuple-destructure",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:trend-following-parabolic-buy-sell-strategy-tradedots__bb6d929535",
-   "lane": null,
-   "guard": "pine:function",
-   "declined": "pine:function",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "obj:label",
-    "reassign",
-    "strategy-decl",
-    "ternary",
     "var"
    ]
   },
@@ -10224,26 +8501,6 @@
     "reassign",
     "ternary",
     "udt",
-    "var"
-   ]
-  },
-  {
-   "key": "reference:trendline-breaks-with-multi-fibonacci-supertrend-strategy__89cd796179",
-   "lane": null,
-   "guard": "pine:state",
-   "declined": "pine:strategy-call",
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "if-block",
-    "obj:line",
-    "reassign",
-    "strategy-decl",
-    "switch",
-    "ternary",
-    "tuple-destructure",
     "var"
    ]
   },
@@ -10371,7 +8628,7 @@
   },
   {
    "key": "reference:ut-bot-cooldown-visual-fvg__17b93cb3b0",
-   "lane": "runtime",
+   "lane": "host",
    "guard": null,
    "declined": null,
    "caps": [
@@ -10380,19 +8637,6 @@
     "reassign",
     "ternary",
     "var"
-   ]
-  },
-  {
-   "key": "reference:vix-fix-stochrsi-strategy__3173",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "obj:line",
-    "strategy-decl",
-    "ternary"
    ]
   },
   {
@@ -10713,17 +8957,6 @@
    ]
   },
   {
-   "key": "builtin:bar-updown-strategy__Bars1Up1Dn1S",
-   "lane": null,
-   "guard": "pine:no-output",
-   "declined": "runtime:strategy-option",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
    "key": "builtin:bbtrend__BBTrend",
    "lane": "host",
    "guard": null,
@@ -10742,29 +8975,6 @@
    "declined": null,
    "caps": [
     "core"
-   ]
-  },
-  {
-   "key": "builtin:bollinger-bands-strategy-directed__Bollinger1Ba",
-   "lane": null,
-   "guard": "pine:no-output",
-   "declined": "runtime:strategy-option",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
-   "key": "builtin:bollinger-bands-strategy__Bollinger1Ba",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
    ]
   },
   {
@@ -10859,17 +9069,6 @@
    ]
   },
   {
-   "key": "builtin:channel-breakout-strategy__Channel1Brea",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
    "key": "builtin:chop-zone__Chop1Zone",
    "lane": null,
    "guard": null,
@@ -10905,7 +9104,7 @@
   },
   {
    "key": "builtin:connors-rsi__Connors_RSI",
-   "lane": "runtime",
+   "lane": "host",
    "guard": null,
    "declined": null,
    "caps": [
@@ -10913,19 +9112,6 @@
     "fn-multi",
     "fn-single",
     "reassign",
-    "ternary"
-   ]
-  },
-  {
-   "key": "builtin:consecutive-updown-strategy__Consecutive1",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "reassign",
-    "strategy-decl",
     "ternary"
    ]
   },
@@ -11042,18 +9228,6 @@
    ]
   },
   {
-   "key": "builtin:greedy-strategy__Greedy1Strat",
-   "lane": null,
-   "guard": "pine:no-output",
-   "declined": "runtime:strategy-option",
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
    "key": "builtin:historical-volatility__Historical_V",
    "lane": "host",
    "guard": null,
@@ -11081,33 +9255,6 @@
     "conditional-ta",
     "core",
     "fn-single",
-    "ternary"
-   ]
-  },
-  {
-   "key": "builtin:inside-bar-strategy__InSide1Bar1S",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "key": "builtin:keltner-channels-strategy__Keltner1Chan",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "reassign",
-    "strategy-decl",
     "ternary"
    ]
   },
@@ -11160,17 +9307,6 @@
    ]
   },
   {
-   "key": "builtin:macd-strategy__MACD1Strateg",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
    "key": "builtin:mass-index__Mass1Index",
    "lane": "host",
    "guard": null,
@@ -11198,19 +9334,6 @@
    "caps": [
     "core",
     "ternary"
-   ]
-  },
-  {
-   "key": "builtin:momentum-strategy__Momentum1Str",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "fn-multi",
-    "fn-single",
-    "if-block",
-    "strategy-decl"
    ]
   },
   {
@@ -11277,19 +9400,6 @@
    ]
   },
   {
-   "key": "builtin:moving-average-crossover__MovingAvg1Cr",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
    "key": "builtin:moving-average-ribbon__MARibbon",
    "lane": "host",
    "guard": null,
@@ -11335,31 +9445,6 @@
    ]
   },
   {
-   "key": "builtin:outside-bar-strategy__OutSide1Bar1",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
-   "key": "builtin:parabolic-sar-strategy__Parabolic1SA",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "realtime-state",
-    "reassign",
-    "strategy-decl",
-    "var"
-   ]
-  },
-  {
    "key": "builtin:parabolic-sar__PSAR",
    "lane": null,
    "guard": "pine:function",
@@ -11386,17 +9471,6 @@
    ]
   },
   {
-   "key": "builtin:pivot-extension-strategy__Pivot1Extens",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
    "key": "builtin:pivot-points-high-low__Pivot1Points",
    "lane": "host",
    "guard": null,
@@ -11410,19 +9484,6 @@
    ]
   },
   {
-   "key": "builtin:pivot-reversal-strategy__Pivot1Revers",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "reassign",
-    "strategy-decl",
-    "ternary"
-   ]
-  },
-  {
    "key": "builtin:positive-volume-index__Positive_Vol",
    "lane": "host",
    "guard": null,
@@ -11432,17 +9493,6 @@
     "if-block",
     "method-call",
     "realtime-state"
-   ]
-  },
-  {
-   "key": "builtin:price-channel-strategy__Price1Channe",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
    ]
   },
   {
@@ -11548,22 +9598,6 @@
    ]
   },
   {
-   "key": "builtin:rob-booker-adx-breakout__Rob1Booker1A",
-   "lane": null,
-   "guard": "pine:strategy-call",
-   "declined": "pine:strategy-call",
-   "caps": [
-    "conditional-ta",
-    "core",
-    "fn-multi",
-    "fn-single",
-    "history-expr",
-    "strategy-decl",
-    "ternary",
-    "tuple-destructure"
-   ]
-  },
-  {
    "key": "builtin:rsi-divergence-indicator__Divergence1I",
    "lane": "host",
    "guard": null,
@@ -11574,17 +9608,6 @@
     "fn-multi",
     "fn-single",
     "ternary"
-   ]
-  },
-  {
-   "key": "builtin:rsi-strategy__RSI1Strategy",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
    ]
   },
   {
@@ -11622,7 +9645,7 @@
   },
   {
    "key": "builtin:smoothed-moving-average__Smoothed1Mov",
-   "lane": "runtime",
+   "lane": "host",
    "guard": null,
    "declined": null,
    "caps": [
@@ -11652,36 +9675,12 @@
    ]
   },
   {
-   "key": "builtin:stochastic-slow-strategy__Stochastic1S",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
    "key": "builtin:stochastic__Stochastic",
    "lane": "host",
    "guard": null,
    "declined": null,
    "caps": [
     "core"
-   ]
-  },
-  {
-   "key": "builtin:supertrend-strategy__SupertrendSt",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "history-expr",
-    "if-block",
-    "strategy-decl",
-    "tuple-destructure"
    ]
   },
   {
@@ -11752,17 +9751,6 @@
    ]
   },
   {
-   "key": "builtin:two-moving-averages-crossover__MovingAvg1Cr",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
-   ]
-  },
-  {
    "key": "builtin:ultimate-oscillator__Ultimate_Osc",
    "lane": "host",
    "guard": null,
@@ -11785,17 +9773,6 @@
     "realtime-state",
     "typed-array",
     "var"
-   ]
-  },
-  {
-   "key": "builtin:volatility-expansion-close-strategy__Volty1Expan1",
-   "lane": "runtime",
-   "guard": null,
-   "declined": null,
-   "caps": [
-    "core",
-    "if-block",
-    "strategy-decl"
    ]
   },
   {
@@ -11891,17 +9868,6 @@
   }
  ],
  "stops": [
-  {
-   "capture": "adx-and-di-for-v4-spy-1d-2026-11-17",
-   "lane": "runtime",
-   "runtimeOn": "DIVERGE",
-   "production": null,
-   "caps": [
-    "core",
-    "reassign",
-    "ternary"
-   ]
-  },
   {
    "capture": "vw-deadband-ticks-brk-a-1d-2026-09-28",
    "lane": "runtime",

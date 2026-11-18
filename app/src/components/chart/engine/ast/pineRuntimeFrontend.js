@@ -71,6 +71,7 @@ import {
   // build the wrong node with nothing red.
   record as irRecord, field as irField, fieldSet as irFieldSet,
 } from '../runtime/ir.js'
+import { constCompareFold, pineConstCompareExact, constantTreeValue } from '../pineCompare.js'
 import { CLOCK_FIELDS } from '../runtime/program.js'
 // ⭐⭐ S1 — the strategy broker: its vocabulary, the declaration / argument reader, the gate.
 import { BROKER_VALUE_NAMES, BROKER_TRADE_FNS, BROKER_ORDER_OPS, BROKER_OPS } from '../runtime/broker.js'
@@ -292,6 +293,14 @@ export const RUNTIME_REFUSALS = Object.freeze({
     'a WINDOWED builtin fed by a mutable variable — this one needs the series bridge',
   'runtime:request-with-state':
     'a data request whose argument is a mutable value',
+  // ⭐⭐ U-REQ-HOIST-COLUMN, THE GUARD HALF (2026-11-18): a requested function whose body is hoisted into the
+  // request's region, and whose lines read one of their own earlier values through a COLUMN, which the
+  // columnar lane computes once over THIS chart's bars (PA ZigZag Fibonacci FAN's `_isUp[1]` at 1W / 1M read
+  // the chart's daily bar j-1 on weekly bar j). Refused by name, never read at the wrong bars.
+  'runtime:request-hoisted-history':
+    "a data request runs a helper's lines that read their own earlier values (such as `x[1]`), and this chart "
+    + "can read that history only from its own bars, not the requested timeframe's or symbol's, so nothing is "
+    + 'drawn rather than a wrong value',
   // ⭐⭐ SPLIT AGAIN IN 2F-1, FOR THE SAME REASON 2E SPLIT THE FIRST ONE (§14).
   // With the pointwise 14 executing, the residual bucket was re-read by name and
   // it was NOT one family either: `str.upper`, `int` and `iff` sat in
@@ -408,6 +417,39 @@ const BUILTIN_WITNESS_REFUSALS = new Set([STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE, RC
  *  answer a `bool` (the v1-v5 `bool`-`na` rule), as this lane spells them. */
 const RUNTIME_BAR_PRICES = new Set(['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'])
 const RUNTIME_BOOL_OPS = new Set(['<', '>', '<=', '>=', '==', '!=', '&&', '||'])
+
+/** ⭐ engine 78 (#1858) — the value of an IR CONSTANT expression (a `num`, `-` of one, `+ - * /` of two, a
+ *  `?:` whose test is one, a column the columnar lane computed from a constant tree, a parameterless pure
+ *  function whose result is one), or `null`: what `constCompareFold` may fold on this lane. The arithmetic is
+ *  the VM's own (IEEE), so a folded answer is the one the run would have compared.
+ *  `ctx` = `{ columnTrees, functions }`, the build's own tables. */
+function irConstValue(e, ctx, depth = 0) {
+  if (!e || typeof e !== 'object' || depth > 64) return null
+  if (e.kind === EXPR.COLUMN && ctx && ctx.columnTrees) return constantTreeValue(ctx.columnTrees[e.index])
+  if (e.kind === EXPR.CALL && ctx && ctx.functions) {
+    const f = ctx.functions[e.fn]
+    if (!f || f.params !== 0 || !f.effects || f.effects.pure !== true || (f.body && f.body.length)) return null
+    return irConstValue(f.result, ctx, depth + 1)
+  }
+  if (e.kind === EXPR.NUM) return typeof e.value === 'number' && Number.isFinite(e.value) ? e.value : null
+  if (e.kind === EXPR.UNARY && e.op === 'u-') {
+    const v = irConstValue(e.of, ctx, depth + 1)
+    return v === null ? null : -v
+  }
+  if (e.kind === EXPR.BINARY && ['+', '-', '*', '/'].includes(e.op)) {
+    const x = irConstValue(e.left, ctx, depth + 1)
+    const y = irConstValue(e.right, ctx, depth + 1)
+    if (x === null || y === null) return null
+    const v = e.op === '+' ? x + y : e.op === '-' ? x - y : e.op === '*' ? x * y : x / y
+    return Number.isFinite(v) ? v : null
+  }
+  if (e.kind === EXPR.TERNARY) {
+    const t = irConstValue(e.test, ctx, depth + 1)
+    if (t === null) return null
+    return irConstValue(t !== 0 ? e.then : e.else, ctx, depth + 1)
+  }
+  return null
+}
 
 export class RuntimeRefusal extends Error {
   constructor(guard, detail, at) {
@@ -2627,11 +2669,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  ⭐⭐ W34-I4b — and, the same way, whether this version leaves bar 0's history
    *  unpinned (`interpret.js::listingSeedIsUnpinned`: v1/v2, or no pragma — here
    *  the lex is in hand, so `null` IS "no pragma"). */
+  // ⭐⭐ engine 78 (#1858) (Q-FCMP / Q-FCMP2, ruling D1) — the runtime lane runs only Pine, so every column
+  // it hands the columnar lane compares the way TradingView does (`interpret.js::binaryFor`, `pineCompare`).
+  const pineCompareOpts = { pineCompare: true }
   const columnInterpretOpts = (opts && opts.historyFromListing === true && !atObjectDoor)
     ? { ...((opts && opts.interpretOpts) || {}), historyFromListing: true,
       ...(pineNaConditionIsFalse(pineVersion) ? { naConditionFalse: true } : {}),
-      ...(listingSeedIsUnpinned(pineVersion) ? { listingSeedUnpinned: true } : {}) }
-    : ((opts && opts.interpretOpts) || undefined)
+      ...(listingSeedIsUnpinned(pineVersion) ? { listingSeedUnpinned: true } : {}), ...pineCompareOpts }
+    : { ...((opts && opts.interpretOpts) || {}), ...pineCompareOpts }
   /** ⭐⭐ C23 — WHICH CONTRACT THIS BUILD SERVES, decided by the CALLER, never
    *  guessed here: `opts.pane === true` says the run draws ONE symbol's chart
    *  pane, and the columnar resolver it asks for pure subtrees then answers as the
@@ -7055,6 +7100,22 @@ function buildRuntimeIrLinked(source, opts, holder) {
         + 'runs once over the bars of THIS chart — serving it per requested symbol '
         + 'is the next step, not something to approximate', at)
     }
+    // ⭐⭐ U-REQ-HOIST-COLUMN, THE GUARD HALF (2026-11-18) — AND ITS HOISTED STATEMENTS TOO.
+    // A requested function whose body lowers as statements (a `var`, a recurrence such as
+    // `int d = na , d := … nz(d[1])`) is hoisted into this region, and a history read of one of
+    // its bindings (`_isUp[1]`) can be lowered there as a COLUMN: computed once over THIS chart's
+    // bars, then read by the request's sub-run at the REQUESTED bar's index (`vm.js::runRequest`
+    // hands it the chart's columns). ⚰️ The walk above saw the value only, so PA ZigZag Fibonacci
+    // FAN at 1W / 1M read the chart's daily bar j-1 for weekly bar j and drew a different zigzag
+    // than TradingView's (our column reproduced by that model on 140 / 140 weeks, 33 / 33 months).
+    // The same walk, over the statements, refuses it by name. A slot's own history (`d[1]`, committed
+    // per requested bar) and a `var` are the region's, not columns, and keep serving.
+    // ⏳ Serving it is the roadmap's later unit: lower such a read as the region's own slot history.
+    if (hoisted.some((s) => carriesColumn(s))) {
+      note('runtime:request-hoisted-history')
+      throw new RuntimeRefusal('runtime:request-hoisted-history',
+        valueNode && valueNode.type === 'call' && typeof valueNode.name === 'string' ? `\`${valueNode.name}()\`` : null, at)
+    }
 
     const results = valueIr && valueIr.kind === EXPR.TUPLE ? valueIr.elements.length : 1
     const site = requests.length
@@ -9048,6 +9109,36 @@ function buildRuntimeIrLinked(source, opts, holder) {
         }
         const loweredL = lowerExpr(node.left, scope)
         const loweredR = lowerExpr(node.right, scope)
+        // ⭐⭐ engine 78 (#1858) (Q-FCMP2) — v1-v4 compare two COMPILE-TIME CONSTANTS exactly
+        // (`pineCompare.js::constCompareFold`). Here a constant is an IR constant expression: a literal or a
+        // name bound to one is a `num`, an input a parameter read, a reassigned name a slot read, a call a call
+        // (so a function's constant result is the run's tolerant compare on this lane, the host lane folds it).
+        if (pineConstCompareExact(pineVersion)) {
+          // a side the IR cannot read as a constant (a user function's constant result is a call here) is read
+          // through the frozen resolver (`constValueOf`) — only when it names no slot (a reassigned or `var`
+          // name) and no input, which Pine compares at run time
+          const runtimeName = (n, depth = 0) => {
+            if (!n || typeof n !== 'object' || depth > 64) return false
+            if (Array.isArray(n)) return n.some((x) => runtimeName(x, depth + 1))
+            if (n.type === 'name' && typeof n.name === 'string') {
+              if (scope && scope.lookup(n.name) !== null) return true
+              const bound = env.get(n.name)
+              return !!(bound && bound.kind === 'expr' && bound.node && isInputCall(bound.node))
+            }
+            return Object.entries(n).some(([k, v]) => k !== 'tok' && v && typeof v === 'object' && runtimeName(v, depth + 1))
+          }
+          const sideConst = (lowered, pineNode) => {
+            const v = runtimeName(pineNode) ? null : irConstValue(lowered, { columnTrees, functions })
+            if (v !== null) return v
+            if (runtimeName(pineNode)) return null
+            const cv = constValueOf(pineNode, scope)
+            return cv && typeof cv.value === 'number' ? cv.value : null
+          }
+          const a = sideConst(loweredL, node.left)
+          const b = a === null ? null : sideConst(loweredR, node.right)
+          const fold = a !== null && b !== null ? constCompareFold(op, a, b, pineVersion) : null
+          if (fold !== null) return num(fold)
+        }
         const naLate = boolNaOnThisLane(node.op, loweredL, loweredR, locate(node.tok), node.left, node.right)
         const lowered = binary(op, loweredL, loweredR)
         if (naLate) boolNaDeferred.push({ ...naLate, node: lowered })
