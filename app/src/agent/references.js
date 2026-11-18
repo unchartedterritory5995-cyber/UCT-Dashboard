@@ -99,10 +99,15 @@ export function resolveReference(text, { host, memory, epoch = null } = {}) {
   if (edit) {
     const last = memory.lastChange(epoch)
     const subject = memory.subject('indicator', epoch)
-    if (subject && last && last.ops.every(o => String(o.action).startsWith('indicator.'))) {
+    // ⛔ STALE-REFERENT GUARD (memory.pronounLive): …and only while no unrelated member message has come since that change
+    const live = typeof memory.pronounLive !== 'function' || memory.pronounLive()
+    if (live && subject && last && last.ops.every(o => String(o.action).startsWith('indicator.'))) {
       const r = updateOfSubject(host, subject, edit[1])
       if (r?.say) return { kind: 'say', text: r.say }
-      if (r?.op) return { kind: 'ops', ops: [r.op], target: null, ref: { indicator: subject.instanceId } }
+      if (r?.op) {
+        try { memory.noteEngaged?.() } catch { /* a stand-in memory */ }
+        return { kind: 'ops', ops: [r.op], target: null, ref: { indicator: subject.instanceId } }
+      }
     }
   }
 
