@@ -326,6 +326,16 @@ export function createNetwork({
       if (!got || !Array.isArray(got.bars) || !got.bars.length) return { fallback: true, exhausted: got?.exhausted === true }
       // (an answer from before a reset is dropped by the reducer: it carries the gen it was asked at)
       const before = registry.getSnapshot(r.key)
+      // ⛔⛔ THE LAKE MUST REACH THE CHART (2026-11-17, production). The lake is published up to a date
+      // (it ended Fri 11-13 19:59 ET), while the chart's server bars start where its window starts: on
+      // 1m for AAPL/NVDA that was Mon 11-16 ~12:30 ET, so Monday's premarket and morning were in
+      // NEITHER. `prependOlder` checks the price basis only when the lake HAS the bar at the join, so a
+      // lake that ends before the chart's oldest bar was joined straight across the hole: a chart with
+      // missing hours, growing every day the lake is not extended. The lake window is used only when it
+      // contains the chart's oldest bar (proof the two meet); otherwise the server's window answers this
+      // scroll (no hole), and a later scroll, once the chart reaches back into the lake, uses the lake.
+      const joinT = before.bars.length ? before.bars[0].t : null
+      if (joinT == null || !got.bars.some((b) => b.t === joinT)) return { fallback: true, gap: true }
       // the same seam rule as the server's window: another price basis at the join is refused whole
       if (prependOlder(before.bars, got.bars) === before.bars) return { fallback: true }
       const after = registry.dispatch(r.key, { type: ACTION.SCROLL_BACK, key: r.key, gen, payload: { bars: got.bars } })
@@ -531,6 +541,31 @@ export function createNetwork({
     primeLake(key) {
       if (!history?.prime || !lakeCarriesKey(key)) return
       try { history.prime(key) } catch { /* a warm only */ }
+    },
+    /**
+     * ⭐ LAKE FIRST PAINT (2026-11-17). A chart with nothing saved in this browser waits on the bar
+     * server's first answer, and a cold read there can take seconds (FROG 5m: `bars(sqlite)=1523`,
+     * first paint 1,326 ms) while the lake pieces holding the same history were ALREADY in the
+     * browser (primed while the ticker was typed). So when the key holds nothing and no server answer
+     * has landed, its newest lake bars are painted at once as an UNSTAMPED local copy (LAKE_HIT):
+     * provisional / context, never persisted, and the server's full answer keeps those rows only where
+     * their overlap with its own rows proves the same basis (reducer applyRest), discarding them
+     * otherwise, so a lake that ends early can never be joined across a hole. A lake hit that arrives
+     * after the answer only adds deeper rows on a proven overlap (applyLocal). Resolves true when painted.
+     */
+    lakeSeed(key) {
+      if (!history?.olderBars || !lakeCarriesKey(key)) return Promise.resolve(false)
+      const held = registry.peek(key)
+      if (held && (held.restSeen || held.bars.length)) return Promise.resolve(false)
+      return Promise.resolve()
+        .then(() => history.olderBars(key, Math.floor(now() / 1000) + 1, { bars: LAKE_WINDOW_BARS }))
+        .then((got) => {
+          const cur = registry.peek(key)
+          if (!got || !Array.isArray(got.bars) || !got.bars.length || !cur || cur.restSeen || cur.bars.length) return false
+          registry.dispatch(key, { type: ACTION.LAKE_HIT, key, payload: { sym: parseKey(key)?.sym, bars: got.bars } })
+          return true
+        })
+        .catch(() => false)
     },
     /** Would a scroll-back of `key` ask the history lake (intraday, not a replay window, the lake on
      *  and not found exhausted for this key)? Sets the background depth target (historyPrepend). */

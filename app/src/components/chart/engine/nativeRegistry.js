@@ -175,7 +175,7 @@ import { runtimePaneEnabled, runtimePaneBuilt, runtimePanePermitted } from './ru
 import './lowerTfGate.js'
 import { runtimeWarmupOf, RUNTIME_OBJECTS_KEY, withRunHalfState, carriesRunHalf } from './runtime/runtimeObjects'
 import { LIMIT_NAMES } from './runtime/limits'
-import { registeredObjectRuntimeValues, inputsAtDefaults } from './objectRuntimeSeam.js'
+import { registeredObjectRuntimeValues, inputsAtDefaults, registerObjectComputeFor } from './objectRuntimeSeam.js'
 import { manifestAtDefaults } from './paramLiteral.js'
 import { originalDocumentOf } from './symbolInputs.js'
 import { noteRuntimeLoadFailed } from './runtimeRunTelemetry.js'
@@ -191,6 +191,8 @@ import {
 } from './astColumns.js'
 // ⭐⭐ HEADLESS (R6) — `computeFor` dispatches on the ONE router the headless export asks too.
 import { computeLaneOf, COMPUTE_LANE } from './computeLane.js'
+// ⭐⭐ HOST WORKER — a chart's costly host document, computed off the main thread.
+import { hostLaneOffThread } from './hostLaneAsync.js'
 export {
   columnErrors, registerRuntimeErrorStop, RUNTIME_ERROR_GUARD, runtimeErrorStopOf, lowerTfFor, lowerTfReport,
   otherSymbolsFor, otherSymbolReport, withheldBarsReport, chartClockReport, PINE_RECURRENCE_ORIGIN,
@@ -3051,7 +3053,15 @@ export function computeFor(def, bars, inputs, ctx) {
   // `compute.fn` is an `astHash` no native table holds). Its VALUES are `astColumns.js::
   // astLaneColumns` (moved there unchanged, with the full note); the run-read colours and the run
   // half stay here (`astRunExtras`): they answer to this tab's gates.
-  if (lane === COMPUTE_LANE.AST) return astLaneColumns(def, bars, inputs, ctx, astRunExtras)
+  if (lane === COMPUTE_LANE.AST) {
+    // ⭐⭐ HOST WORKER — a CHART's request (`ctx.hostPane`) of a document whose recurrences hold the
+    // main thread (#1711's estimate) is computed off it (`hostLaneAsync.js`: the same values, a
+    // pending answer with the pane's last picture until they land); every other request, and every
+    // document under the budget, is answered here exactly as before.
+    const off = hostLaneOffThread(def, bars, inputs, ctx, astRunExtras)
+    if (off) return off
+    return astLaneColumns(def, bars, inputs, ctx, astRunExtras)
+  }
   const fn = NATIVE_COMPUTE[def?.compute?.fn]
   if (!fn) {
     throw new Error(
@@ -3077,6 +3087,10 @@ export function computeFor(def, bars, inputs, ctx) {
   const hold = COLUMN_HOLDS[def.compute.fn]
   return hold ? hold(columns) : columns
 }
+
+// ⭐ HOST WORKER — the object reader's one runtime-document read goes through its seam
+// (`objectRuntimeSeam.js`), so the reader's closure holds no registry; written here, on import.
+registerObjectComputeFor(computeFor)
 
 /** ⭐⭐ ENGINE 53 / DIV-4 — what an `ast` document adds to its values on THIS chart: the run-read
  *  colours (`withRuntimeColours`) and the run half (`withRunHalf`), each answering to this tab's

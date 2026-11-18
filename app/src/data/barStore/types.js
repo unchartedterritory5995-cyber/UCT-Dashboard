@@ -46,6 +46,7 @@ export const STATUS = Object.freeze({
 export const ACTION = Object.freeze({
   SEED_FROM_PACK: 'seed-from-pack',
   IDB_HIT: 'idb-hit',
+  LAKE_HIT: 'lake-hit',       // newest history-lake bars painted before the server's first answer (network.lakeSeed)
   MEM_HIT: 'mem-hit',
   REST_FULL: 'rest-full',
   REST_DELTA: 'rest-delta',

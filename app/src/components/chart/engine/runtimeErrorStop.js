@@ -67,9 +67,10 @@ import { timeframeFlags } from '../indicators'
 import { foldBound } from './ast/bind'
 import { unknownMask } from './objectColumns'
 import { defaultNumberText } from './objectRuntime'
-import {
-  resolveInputs, treeScalars, bindConstsFor, historyFromListingFor, registerRuntimeErrorStop,
-} from './nativeRegistry'
+// ⭐ HOST WORKER — from where they live (the registry re-exports these same functions), so this
+// module, and the object reader that imports it, stay out of the chart registry's closure.
+import { resolveInputs, treeScalars, historyFromListingFor, registerRuntimeErrorStop } from './astColumns.js'
+import { bindConstsFor } from './ast/bind'
 import { periodValuesDiffer } from './periodReads'
 import { runtimeErrorWords } from './runtimeErrorText'
 

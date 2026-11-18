@@ -173,6 +173,45 @@ def test_a_full_subscriber_queue_drops_its_oldest():
     asyncio.run(go())
 
 
+def test_a_slow_reader_gets_the_CURRENT_value_of_the_forming_candle_not_a_backlog():
+    """⭐ 2026-11-17: 18% of bar frames were dropped from full queues in one session, and a reader that
+    fell behind drained up to 64 stale frames before the newest price (6-12 s behind). Forming frames of
+    one candle are last-value-wins: the queue holds ONE, the newest, and nothing is dropped."""
+    async def go():
+        rb, c, _ = make_rb()
+        q = rb.subscribe("ZZA", "1", v2=True)
+        for i in range(100):
+            rb.apply_batch(batch(i + 1, [("ZZA", "1", bar(T0, 10.0 + i / 100))]))
+        assert q.qsize() == 1
+        assert rb.counters["dropped"] == 0 and rb.counters["conflated"] == 99
+        assert drain(q)[0]["bar"]["c"] == 10.99
+        assert rb.get_status()["conflated_total"] == 99
+    asyncio.run(go())
+
+
+def test_a_final_is_never_replaced_or_overtaken_and_order_is_kept():
+    async def go():
+        rb, c, _ = make_rb()
+        q = rb.subscribe("ZZA", "1", v2=True)
+        seq = iter(range(1, 100))
+        put = lambda t, cl, final=False: rb.apply_batch(batch(next(seq), [("ZZA", "1", bar(t, cl, final=final))]))
+        put(T0, 10.0)                 # forming, candle 1
+        put(T0, 10.1, final=True)     # its final takes the forming frame's place (same candle)
+        put(T0 + MIN, 11.0)           # candle 2 forming: appended behind the final
+        put(T0 + MIN, 11.1)           # replaces candle 2's forming frame
+        put(T0, 10.2, final=True)     # a late correction of candle 1: appended, never merged backwards
+        put(T0 + MIN, 11.2)           # candle 2 again: a final sits last, so it is appended
+        got = [(m["bar"]["t"], m["bar"]["c"], bool(m["bar"].get("final"))) for m in drain(q)]
+        assert got == [(T0, 10.1, True), (T0 + MIN, 11.1, False), (T0, 10.2, True), (T0 + MIN, 11.2, False)]
+        assert rb.counters["dropped"] == 0
+        # a correction of the SAME candle right behind its final: both finals are delivered
+        put(T0 + 2 * MIN, 12.0, final=True)
+        put(T0 + 2 * MIN, 12.5, final=True)
+        got = [(m["bar"]["t"], m["bar"]["c"]) for m in drain(q)]
+        assert got == [(T0 + 2 * MIN, 12.0), (T0 + 2 * MIN, 12.5)]
+    asyncio.run(go())
+
+
 # ── the remote-mode guards ────────────────────────────────────────────────────
 
 def test_feed_source_is_local_unless_remote_is_asked(monkeypatch):

@@ -101,15 +101,26 @@ async function handle(req) {
     case 'model': {
       const s = sessions.get(req.sid)
       const before = s.state
-      const server = req.serverBody
+      // the door's answers for this member turn, in order. The browser asks the door a second time
+      // when its own engine refuses the first patch (`browserRefusalBlock`); when no answer is armed
+      // for that request it is handed back to the runner (`needsServer`), which owns the door, and
+      // NOTHING is applied: the runner calls again with both answers.
+      const bodies = Array.isArray(req.serverBodies) ? [...req.serverBodies] : [req.serverBody]
+      let wanted = null
       const converse = (args) => converseTurn({
         ...args,
-        fetchImpl: async () => ({ ok: true, status: 200, json: async () => server }),
+        fetchImpl: async (_url, init) => {
+          if (bodies.length) { const body = bodies.shift(); return { ok: true, status: 200, json: async () => body } }
+          wanted = JSON.parse(init.body)
+          throw new Error('lane: no door answer armed for this request')
+        },
       })
       const out = await modelTurn(before, () => s.state, req.words,
         { snippets: [], gateCtx: gateCtxOf(s), converse })
+      if (wanted) return { needsServer: wanted, ...summary(s) }
       if (out.state) s.state = out.state
       return { turnOk: out.ok, changed: !!out.changed, outcome: out.outcome || null,
+        repairedAfterRefusal: !!out.repairedAfterRefusal,
         entries: out.entries, changes: out.changes || [], errors: out.errors || [], ...summary(s) }
     }
     case 'save': {

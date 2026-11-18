@@ -834,7 +834,9 @@ Not finished, and why (as of the afternoon of 2026-11-17):
   that usually leads to it. The load budget was first checked only at List; a re-share moved
   the listed version past it. The engine's review caught it before it merged.
 
-**Next, in order:** see #1701, #1708, #1722 and #1713 on production with the requests that found them; the rail in Indicators backlog 59 (run every evaluated patch through the browser as well as the door); backlog 63 and 64; the same request sent three times, to measure how often an answer changes; then names and read-backs with the authoring owner, the house set a third time, and the owner's look.
+**Done since (2026-11-17, late):** Indicators backlog 59 in three parts: the door/browser rail (#1734), the sweep that measures the class (`tools/door_browser_sweep.py`, measure-only) and the general fix (#1738: the browser sends its own refusal back to the door for one repair). A correction on the record: "Mansfield relative strength versus SPY over 52 weeks" was reported fixed after #1680 from the door's answer alone; the window had refused it. It is #1730. A live result is the window's text, never the door's answer.
+
+**Next, in order:** see #1701, #1708, #1722, #1730, #1738 and #1713 on production with the requests that found them (the daily allowance is durable and renews at midnight Eastern, so re-checks queue for after it); backlog 63 and 64; the same request sent three times, to measure how often an answer changes; then names and read-backs with the authoring owner, the house set a third time, and the owner's look.
 
 **Open for the owner:**
 1. Look at each of the fourteen house indicators on a chart (Indicators, UCT tab) and say which

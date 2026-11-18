@@ -162,7 +162,8 @@ INDEX_RETRY_BASE_S = 0.5
 
 def upload(packs: Dict[tuple, Path], indexes: Dict[str, dict], put_file: Callable, put_bytes: Callable, *,
            prefix: str = "", jobs: int = 16, log=print, exists: Optional[Callable] = None,
-           every: int = 10, sleep: Callable[[float], None] = time.sleep) -> dict:
+           every: int = 10, sleep: Callable[[float], None] = time.sleep,
+           force: Optional[set] = None) -> dict:
     """Packs first, indexes last (an index never names a pack the bucket does not have yet).
     `put_file(key, path, content_type)` / `put_bytes(key, data, content_type)` do the network.
 
@@ -174,9 +175,14 @@ def upload(packs: Dict[tuple, Path], indexes: Dict[str, dict], put_file: Callabl
     items = list(packs.items())
     total = len(items)
 
+    # DAILY REFRESH (2026-11-17): a CURRENT period's pack (this month of 1m, this quarter of 5m, this
+    # year of the rest) is rebuilt in place every day, so "same key, same size, same pack" no longer
+    # holds for it. Keys in `force` (the packs rebuilt by this run) are always sent.
+    forced = set(force or ())
+
     def _one(key: str, path: Path):
         size = path.stat().st_size
-        if exists is not None and exists(key, size):
+        if key not in forced and exists is not None and exists(key, size):
             return size, True
         put_file(key, path, "application/octet-stream")
         return size, False
@@ -243,6 +249,13 @@ def s3_client_from_env():
     )
 
 
+def forced_keys(packs: Dict[tuple, Path], since: float, *, prefix: str = "") -> set:
+    """The bucket keys of the packs written at or after `since` (epoch seconds): the ones a daily
+    refresh rebuilt, which must be sent whatever size the bucket's copy has."""
+    return {f"{prefix}{pack.pack_relpath(s, p)}" for (s, p), path in packs.items()
+            if path.stat().st_mtime >= since}
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--from", dest="roots", action="append", default=[], type=Path, required=True)
@@ -257,6 +270,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--jobs", type=int, default=16)
     ap.add_argument("--check-jobs", type=int, default=min(8, os.cpu_count() or 1),
                     help="processes reading and checking the packs (default: up to 8)")
+    ap.add_argument("--force-since", type=float, default=None,
+                    help="epoch seconds: packs written at or after this are always uploaded (daily refresh)")
     args = ap.parse_args(argv)
     try:
         packs = collect_packs(args.roots)
@@ -291,7 +306,11 @@ def main(argv: Optional[List[str]] = None) -> int:
                 except Exception:                 # noqa: BLE001 — absent / unreadable: send it
                     return False
 
-            upload(packs, indexes, put_file, put_bytes, prefix=args.prefix, jobs=args.jobs, exists=exists)
+            force = forced_keys(packs, args.force_since, prefix=args.prefix) if args.force_since is not None else None
+            if force:
+                print(f"{len(force)} packs rebuilt since {args.force_since:.0f}: always sent")
+            upload(packs, indexes, put_file, put_bytes, prefix=args.prefix, jobs=args.jobs, exists=exists,
+                   force=force)
     except BuildError as exc:
         print(f"PUBLISH FAILED: {exc}")
         return 2

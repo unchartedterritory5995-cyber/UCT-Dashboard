@@ -449,8 +449,14 @@
              "name": "close"
             },
             {
-             "type": "series",
-             "name": "open"
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              }
+             ]
             }
            ]
           },
@@ -508,8 +514,14 @@
              "name": "close"
             },
             {
-             "type": "series",
-             "name": "open"
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              }
+             ]
             }
            ]
           },
@@ -584,8 +596,14 @@
              "name": "close"
             },
             {
-             "type": "series",
-             "name": "open"
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              }
+             ]
             }
            ]
           },
@@ -641,8 +659,14 @@
              "name": "close"
             },
             {
-             "type": "series",
-             "name": "open"
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              }
+             ]
             }
            ]
           },
@@ -1404,8 +1428,14 @@
                  "name": "close"
                 },
                 {
-                 "type": "series",
-                 "name": "open"
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
                 }
                ]
               },
@@ -1442,8 +1472,14 @@
                  "name": "close"
                 },
                 {
-                 "type": "series",
-                 "name": "open"
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
                 }
                ]
               },
@@ -1495,8 +1531,14 @@
                    "name": "close"
                   },
                   {
-                   "type": "series",
-                   "name": "open"
+                   "type": "offset",
+                   "value": 1,
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
                   }
                  ]
                 },
@@ -1533,8 +1575,14 @@
                    "name": "close"
                   },
                   {
-                   "type": "series",
-                   "name": "open"
+                   "type": "offset",
+                   "value": 1,
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
                   }
                  ]
                 },
