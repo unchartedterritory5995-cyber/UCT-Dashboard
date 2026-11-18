@@ -32,7 +32,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { isStrategyCapture } from '../../../../../../../tools/vendor_harness/strategy_capture.mjs'
-import { gradeStrategyCapture, barsTradingViewRan } from './strategyHarness.js'
+import { gradeStrategyCapture, barsTradingViewRan, VALUE_SLOT_CALLS } from './strategyHarness.js'
 import { strategyReportOf } from '../../runtime/brokerReport.js'
 import { LANE_PRODUCTION, LANE_RUNTIME_ON } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
 
@@ -71,13 +71,18 @@ export function strategyRanView(capture) {
 // OWN times: a run that recorded a date, or an instant off TradingView's, now grades as what it is instead of being
 // mapped onto TradingView's clock by the harness.
 
-/** Our `plot()` outputs, in the order the source makes them, each `[{time, value}]` on the capture's bars. */
-function plotsOf(ours, capture) {
+/** Our VALUE outputs (`plot`, `plotshape`, `plotchar`, `plotarrow`: `strategyHarness.js::VALUE_SLOT_CALLS`), in the
+ *  order the source makes them, each `{kind, points: [{time, value}]}` on the capture's bars.
+ *  ⛔ AN OUTPUT OUR SIDE CARRIED NO COLUMN FOR IS NOT `na` ON EVERY BAR: it is `{kind, points: null, missing}`, the
+ *  door's own reason (`ourSide.js` `missingReason`), and the value grade cannot compare it (INCONCLUSIVE, named).
+ *  ⚰️ (2026-11-17) read as all-`na`, supertrend-strategy's `mPlot` (a fill anchor the member pane does not carry)
+ *  graded DIVERGE at step 7 against TradingView's `ohlc4`, a value our side never computed for the chart. */
+export function laneValueOutputsOf(ours, capture) {
   const times = capture.bars.rows.map((r) => r[0])
-  return (ours.plots || []).filter((p) => p.kind === 'plot').map((p) => times.map((time, i) => {
-    const v = p.column ? p.column[i] : undefined
+  return (ours.plots || []).filter((p) => VALUE_SLOT_CALLS.has(p.kind)).map((p) => (p.column ? { kind: p.kind, points: times.map((time, i) => {
+    const v = p.column[i]
     return { time, value: Number.isFinite(v) ? v : null }
-  }))
+  }) } : { kind: p.kind, points: null, missing: p.missingReason || 'our side carried no column for it' }))
 }
 
 /** The label texts the run drew, by bar time; or why they cannot be graded (`strategyHarness.js::drawnOf`'s rule). */
@@ -118,7 +123,7 @@ export function strategyLaneRunOf(capture, ours) {
     const first = (report.refusals || [])[0] || {}
     return refused(first.guard || 'runtime:strategy-report', first.sentence || 'the strategy report refused')
   }
-  return { ok: true, record: s.record, report, plots: plotsOf(ours, capture), drawn: drawnOf(s), ruleFirstTime: null }
+  return { ok: true, record: s.record, report, plots: laneValueOutputsOf(ours, capture), drawn: drawnOf(s), ruleFirstTime: null }
 }
 
 /**
@@ -152,6 +157,7 @@ export function strategyLaneGradeOf(capture, ours, { slotMap = STRATEGY_SLOT_MAP
     referenceTrades: g.referenceTrades ?? null,
     rulesExercised: g.rulesExercised || [],
     ungradedSlots: (g.ungradedSlots || []).map((u) => u.slot),
+    ...(g.ungradedValues && g.ungradedValues.length ? { ungradedValues: g.ungradedValues.map((u) => u.slot) } : {}),
     ...(run.ok ? { tradesRun: run.record.trades.length } : { refusedBy: run.refusal.guard, refusal: run.refusal.message.slice(0, 400) }),
   }
 }
