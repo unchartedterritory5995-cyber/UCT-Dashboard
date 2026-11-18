@@ -98,6 +98,35 @@ describe('ONE paint, the whole chart (owner 2026-11-17: "a good chunk, then the 
     expect(w.store.lakePending(key)).toBe(false)                             // so the handoff paints it at once
   })
 
+  // ⭐ Measured 2026-11-17 at 00:36 ET (flip proof, server at normal speed): first paints ended at
+  // 11:05 the day before, and that session's afternoon arrived ~500 ms later in view. Overnight and
+  // pre-open, the session-completeness rule (marketSession, ramped to 100% the same night) is what
+  // keeps such a copy off the instant path.
+  it('overnight, a saved copy that stops mid-way through the last session is not painted at once; one that reaches the close is', async () => {
+    vi.setSystemTime((OPEN + 15 * 3600 + 6 * 60) * 1000)                    // the next day, 00:36 ET
+    const w = await boot({ lake: null })
+    const idb = await import('../../utils/barsIDB')
+    const { intradayRows } = await import('./testing/fakeBarsServer')
+    await idb.idbPutMonotonic('HALF', '5', intradayRows(5, OPEN + 95 * 60))   // stops at 11:05
+    await idb.idbPutMonotonic('WHOLE', '5', intradayRows(5, OPEN + 385 * 60)) // reaches 15:55
+    w.pf.peekDisplayable('HALF', '5')
+    w.pf.peekDisplayable('WHOLE', '5')                                       // first peeks hydrate
+    await vi.advanceTimersByTimeAsync(20)
+    expect(w.pf.peekDisplayable('HALF', '5')).toBe(false)
+    expect(w.pf.peekDisplayable('WHOLE', '5')).toBe(true)
+  })
+
+  it('a saved copy current for the view still takes the instant path with no answer', async () => {
+    const w = await boot({ lake: null })
+    const idb = await import('../../utils/barsIDB')
+    const { intradayRows } = await import('./testing/fakeBarsServer')
+    await idb.idbPutMonotonic('SAVED', '5', intradayRows(5, Math.floor(NOW / 1000) - 300))
+    w.pf.peekDisplayable('SAVED', '5')                                       // first peek hydrates
+    await vi.advanceTimersByTimeAsync(20)
+    expect(w.store.peek(w.k('SAVED', '5'))?.restSeen).toBe(false)
+    expect(w.pf.peekDisplayable('SAVED', '5')).toBe(true)
+  })
+
   it('a lake load that settles with nothing to add is no longer due (a young listing never waits again)', async () => {
     const w = await boot({ lake: lakeOf(likeServer(OPEN - 2 * 86400 - 3000, OPEN - 2 * 86400)) })   // no bar in common
     const key = w.k('COLD', '5')
