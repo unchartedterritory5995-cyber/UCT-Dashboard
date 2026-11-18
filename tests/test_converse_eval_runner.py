@@ -879,6 +879,11 @@ def test_a_remembered_choice_is_used_and_said_beside_the_assistants_note_and_bes
     assert library["model_calls"] == 1 and library["grade"]["ok"] is True and library["client"]["changed"] is True
     said = [a.get("text") for a in library["server"]["envelope"]["assumptions"]]
     assert said[0] == "Reading DMI as the Directional Movement Index, as you chose before. Name the other one to change it."
+    # the runner sends what the browser's own request says it accepts, so the door's notes arrive MARKED
+    # as the door's and the browser's engine applied the patch with them (`tests/test_note_by.py`)
+    marks = [a.get("by") for a in library["server"]["envelope"]["assumptions"]]
+    assert marks[0] == "uct" and marks.count("uct") >= 2
+    assert [a.get("by") for a in note["server"]["envelope"]["assumptions"]] == ["uct", None]
     assert any(t.startswith("Built to UCT's checked formula for Directional Movement Index") for t in said[1:])
 
 

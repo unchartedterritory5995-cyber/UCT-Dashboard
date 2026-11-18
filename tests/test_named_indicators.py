@@ -509,7 +509,8 @@ def test_check_named_and_named_notes_directly(conv):
     assert conv.named_notes(patch, empty_view(0), []) == [] and conv.named_notes(patch, empty_view(0), [MCG]) == []
     # the door's notes come first, are not repeated, and respect the contract's limit
     merged = conv._with_door_notes({**patch, "assumptions": [{"text": "mine"}]}, notes)
-    assert merged["assumptions"] == notes + [{"text": "mine"}] and len(notes) == 1
+    # (each of the door's own notes is marked as the door's: `tests/test_note_by.py`)
+    assert merged["assumptions"] == [{**n, "by": "uct"} for n in notes] + [{"text": "mine"}] and len(notes) == 1
     assert conv._with_door_notes(merged, notes)["assumptions"] == merged["assumptions"]
     full = {**patch, "assumptions": [{"text": f"a{i}"} for i in range(conv.MAX_ASSUMPTIONS)]}
     assert len(conv._with_door_notes(full, notes)["assumptions"]) == conv.MAX_ASSUMPTIONS

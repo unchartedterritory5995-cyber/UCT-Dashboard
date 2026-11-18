@@ -94,12 +94,21 @@ export function browserRefusalBlock(refusal) {
   return errors.length ? { envelope: refusal.envelope, errors } : null
 }
 
+/**
+ * What THIS build of the browser accepts beyond the first contract, told to the door on every turn.
+ * The door adds an optional field to its answer only for a browser that names it here, so a tab
+ * still running an older build never meets a field its own validator refuses.
+ *   note.by: a note may say who wrote it (`by: "uct"`).
+ */
+export const ACCEPTS = Object.freeze(['note.by'])
+
 /** The request body for one turn — exported so tests can pin the wire shape. */
 export function converseBody({ message, state, gateCtx = {}, snippets = [], browserRefusal = null }) {
   const view = compactView(state.working, state, gateCtx)
   const body = {
     message: String(message || '').slice(0, CONVERSE_LIMITS.maxMessage),
     view,
+    accepts: [...ACCEPTS],
     authoring: { assumptions: view.assumptions, openQuestions: view.openQuestions },
     snippets: boundedSnippets(snippets),
     chart: {

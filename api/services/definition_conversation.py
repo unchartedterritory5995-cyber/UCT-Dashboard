@@ -252,12 +252,27 @@ def composed_schema() -> Dict[str, Any]:
     return schema
 
 
+#: ⭐ 2026-11-18 -- A NOTE SAYS WHO SAID IT. The door's own notes ("Built to UCT's checked formula
+#: ...", "as you chose before") carry ``by: "uct"`` so the window prints them as statements, never
+#: as something the assistant assumed. Three rules hold it:
+#:   * ONLY THE DOOR WRITES IT: the property is marked door-only in the contract, the assistant's
+#:     copy of the schema leaves it out (`_strip_meta`), and it is taken off the assistant's answer
+#:     before anything reads it (`_own_notes_only`);
+#:   * IT IS SENT ONLY TO A BROWSER THAT ACCEPTS IT (`ACCEPTS_NOTE_BY` in the request's `accepts`):
+#:     a tab on an older build never meets a field its validator refuses;
+#:   * it changes nothing the door decides: notes are compared by output and text, as before.
+NOTE_BY = "uct"
+ACCEPTS_NOTE_BY = "note.by"
+DOOR_ONLY = "x-uct-door-only"
+
+
 def _strip_meta(node: Any) -> Any:
-    """The tool copy of the schema: no ``$schema``/``$id`` and no ``x-*``
-    annotations. Validation keywords are untouched."""
+    """The tool copy of the schema: no ``$schema``/``$id``, no ``x-*`` annotations, and no property
+    marked door-only (the assistant is never offered it). Validation keywords are untouched."""
     if isinstance(node, dict):
         return {k: _strip_meta(v) for k, v in node.items()
-                if k not in ("$schema", "$id") and not k.startswith("x-")}
+                if k not in ("$schema", "$id") and not k.startswith("x-")
+                and not (isinstance(v, dict) and v.get(DOOR_ONLY) is True)}
     if isinstance(node, list):
         return [_strip_meta(v) for v in node]
     return node
@@ -1487,6 +1502,25 @@ def asked_names(message: Any, refused: Any = ()) -> List[str]:
     return ids
 
 
+def _own_notes_only(envelope: Any) -> Any:
+    """The patch with ``by`` taken off every note. Used on whatever did NOT come from the door this
+    turn: the assistant's answer (it may not sign a note as UCT's), and a patch the browser sends
+    back for repair (so the assistant re-reads its own answer as it wrote it)."""
+    if not isinstance(envelope, Mapping) or not isinstance(envelope.get("assumptions"), list):
+        return envelope
+    if not any(isinstance(a, Mapping) and "by" in a for a in envelope["assumptions"]):
+        return envelope
+    out = dict(envelope)
+    out["assumptions"] = [{k: v for k, v in a.items() if k != "by"} if isinstance(a, Mapping) else a
+                          for a in envelope["assumptions"]]
+    return out
+
+
+def accepts_note_by(accepts: Any) -> bool:
+    """Did the browser say it accepts a note's ``by``? (A list holding that word; anything else is no.)"""
+    return isinstance(accepts, list) and ACCEPTS_NOTE_BY in accepts
+
+
 def _with_door_notes(envelope: Dict[str, Any], notes: List[Dict[str, Any]]) -> Dict[str, Any]:
     """The patch with the door's own notes ahead of what it already carries (never more than the
     contract allows; a note already there for that output, word for word, is not repeated)."""
@@ -1495,7 +1529,8 @@ def _with_door_notes(envelope: Dict[str, Any], notes: List[Dict[str, Any]]) -> D
     have = [a for a in (envelope.get("assumptions") or []) if isinstance(a, Mapping)]
     # (a note may have NO `output`: "as you chose before" is about the whole indicator. Read it with
     # .get: indexed, it raised on any turn whose patch already carried an assumption.)
-    fresh = [n for n in notes if not any(a.get("output") == n.get("output") and a.get("text") == n["text"] for a in have)]
+    fresh = [{**n, "by": NOTE_BY}
+             for n in notes if not any(a.get("output") == n.get("output") and a.get("text") == n["text"] for a in have)]
     out = dict(envelope)
     out["assumptions"] = (fresh + have)[:MAX_ASSUMPTIONS]
     return out
@@ -3022,7 +3057,7 @@ def browser_refusal(raw: Any, revision: int, view: Any) -> Optional[Tuple[Dict[s
     try:
         if len(json.dumps(envelope)) > MAX_INPUT_CHARS // 4:
             return None
-        checked = check_envelope(dict(envelope), revision, view)
+        checked = check_envelope(_own_notes_only(dict(envelope)), revision, view)
     except Exception:                              # noqa: BLE001 -- not ours: an ordinary turn
         return None
     if checked.get("disposition") != "change" or not checked.get("ops"):
@@ -3152,7 +3187,8 @@ def with_running_value_notes(envelope: Dict[str, Any]) -> Dict[str, Any]:
         return envelope
     have = [a for a in (envelope.get("assumptions") or []) if isinstance(a, Mapping)]
     said = {a.get("text") for a in have}
-    merged = [n for n in notes if n["text"] not in said or not any(a.get("output") == n["output"] and a.get("text") == n["text"] for a in have)] + have
+    merged = [{**n, "by": NOTE_BY} for n in notes
+              if n["text"] not in said or not any(a.get("output") == n["output"] and a.get("text") == n["text"] for a in have)] + have
     out = dict(envelope)
     out["assumptions"] = merged[:MAX_ASSUMPTIONS]
     return out
@@ -3350,8 +3386,11 @@ def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
 def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
              snippets: Any = None, chart: Any = None, admin: bool = False,
              conversation_id: Any = None, examples: Any = False,
-             browser_refusal: Any = None, memory: Any = None) -> Dict[str, Any]:
+             browser_refusal: Any = None, memory: Any = None, accepts: Any = None) -> Dict[str, Any]:
     """One conversational turn. NEVER raises.
+
+    ``accepts`` is what the browser said it accepts beyond the first contract (`ACCEPTS_NOTE_BY`).
+    Without it the answer is exactly what an older tab has always been sent.
 
     ``memory`` is this member's remembered choices (`indicator_memory.Memory`), or None for a turn
     that remembers nothing and uses nothing remembered (every test that does not ask for one).
@@ -3390,6 +3429,8 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
                                     refused_by_browser=browser_refusal, memory=memory)
         else:
             result = {"ok": False, "gate": "rate:busy", "reason": dc.REFUSALS["rate:busy"]}
+    if not accepts_note_by(accepts) and isinstance(result.get("envelope"), Mapping):
+        result["envelope"] = _own_notes_only(result["envelope"])      # an older tab: the answer it always got
     latency_ms = int((time.monotonic() - started) * 1000)
     outcome = result.get("turn") if result.get("ok") else result.get("gate")
     try:
@@ -3844,6 +3885,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
 
         tool_input = _tool_input(msg)
         candidate, wrapper = _unwrap_input(tool_input)
+        candidate = _own_notes_only(candidate)             # the assistant may not sign a note as UCT's
         if wrapper:
             # shape only: the wrapper NAME and the attempt, never its content
             logger.info("[converse] unwrapped %r on attempt=%d", wrapper, attempts)

@@ -666,7 +666,7 @@ class Run:
         server = self.conv.converse(
             body["message"], user_id=EVAL_USER, view=body["view"], authoring=body.get("authoring"),
             snippets=body.get("snippets"), chart=body.get("chart") or {}, admin=True,
-            conversation_id=body.get("conversationId"), memory=memory)
+            conversation_id=body.get("conversationId"), memory=memory, accepts=body.get("accepts"))
         server = json.loads(json.dumps(server, default=str))
         servers = [server]
         client = self.lane.call("model", sid=sid, words=words, serverBodies=servers)
@@ -681,7 +681,7 @@ class Run:
                 want["message"], user_id=EVAL_USER, view=want["view"], authoring=want.get("authoring"),
                 snippets=want.get("snippets"), chart=want.get("chart") or {}, admin=True,
                 conversation_id=want.get("conversationId"), browser_refusal=want.get("browser_refusal"),
-                memory=memory)
+                memory=memory, accepts=want.get("accepts"))
             servers.append(json.loads(json.dumps(again, default=str)))
             client = self.lane.call("model", sid=sid, words=words, serverBodies=servers)
         if client.get("needsServer"):

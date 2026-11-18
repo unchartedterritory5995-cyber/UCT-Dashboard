@@ -183,12 +183,14 @@ def test_notes_follow_every_door_a_formula_enters_by_and_only_running_values(con
 def test_the_doors_notes_come_first_are_not_repeated_and_respect_the_contracts_limit(conv):
     own = notes_of(conv, [create(STREAK)])[0]
     with_models = conv.with_running_value_notes({**env(0, [create(STREAK)]), "assumptions": [{"text": "I took 'in a row' to mean consecutive closes."}]})
-    assert with_models["assumptions"][0] == own and len(with_models["assumptions"]) == 2
+    # (each of the door's own notes is marked as the door's: `tests/test_note_by.py`)
+    marked = {**own, "by": "uct"}
+    assert with_models["assumptions"][0] == marked and len(with_models["assumptions"]) == 2
     again = conv.with_running_value_notes({**env(0, [create(STREAK)]), "assumptions": [dict(own)]})
-    assert again["assumptions"] == [own]
+    assert again["assumptions"] == [own]                                    # already said: not said again
     full = {**env(0, [create(STREAK)]), "assumptions": [{"text": f"assumption {i}"} for i in range(conv.MAX_ASSUMPTIONS)]}
     capped = conv.with_running_value_notes(full)
-    assert len(capped["assumptions"]) == conv.MAX_ASSUMPTIONS == 12 and capped["assumptions"][0] == own
+    assert len(capped["assumptions"]) == conv.MAX_ASSUMPTIONS == 12 and capped["assumptions"][0] == marked
     untouched = env(0, [create(call("sma", S("close"), num(20)))])
     assert conv.with_running_value_notes(untouched) is untouched
 
