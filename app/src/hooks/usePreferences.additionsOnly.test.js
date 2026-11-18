@@ -212,7 +212,13 @@ const BASELINE_OPAQUE = {
   // (pages/screener/focus/board/boardModel.js): the same constant its read and the board page's
   // tests import, so the key has ONE spelling, the MemberTemplates shape above. Not computed: a
   // literal one hop away, listed opaque by the server (api/routers/auth.py).
-  'pages/screener/focus/board/useScanBoard.js': 1,
+  // ⭐ DECLARED AFTER THE FACT (2026-11-18). The tablet board (#1725, dark behind
+  // SCREENER_SCAN_BOARD_TABLET_ENABLED) writes its own layout through
+  // `BOARD_PREF_TABLET = 'screener_scan_board_tablet'` (same file, same one-spelling shape), chosen by
+  // `tablet ? BOARD_PREF_TABLET : BOARD_PREF`. Not computed either, and the server lists it opaque
+  // beside the desktop key. #1725 added the site without declaring it, which turned this rail red on
+  // master; 1 -> 2 records that second constant, nothing else.
+  'pages/screener/focus/board/useScanBoard.js': 2,
   // ⭐ DECLARED AFTER THE FACT (sweep, 2026-09-24). The screener redesign
   // (a7176a764, PR #157, 2026-09-20) added column presets written through the
   // exported constant `PRESETS_KEY = 'screener_column_presets'` — a NEW key, one
