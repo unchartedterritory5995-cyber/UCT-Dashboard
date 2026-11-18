@@ -910,9 +910,9 @@ const CHART_POINTER = /\s(?:on|to|onto|in|from|off|off of)\s+(?:(this|that|my|th
 export function resolveFollowUp(text, opts = {}) {
   const r = readFollowUp(text, opts)
   // ⭐ STALE-REFERENT GUARD (memory.pronounLive): the thread is still about the conversation's indicators when this message
-  // was read as a follow-up to them (its ops, or a "which one?" — even when its change turns out a no-op: "make it red" when
+  // was read as a follow-up to them (its ops, a "which one?" / "which chart?" — even when its change turns out a no-op: "make it red" when
   // it already is), when it only acknowledges ("thanks", "ok cool"), or when it names one of them ("what's the ema at?")
-  if ((r && r.kind !== 'say') || keepsThread(text, opts)) { try { opts.memory?.noteEngaged?.() } catch { /* a stand-in memory */ } }
+  if (r || keepsThread(text, opts)) { try { opts.memory?.noteEngaged?.() } catch { /* a stand-in memory */ } }
   return r
 }
 const ACK = /^(?:(?:ok|okay|k|kk|thanks|thank you|thank u|thx|ty|cool|great|nice|perfect|awesome|sweet|good|got it|looks good|love it|that works|lovely|neat|wow|yes|yep|yeah|appreciate it)(?: (?:so much|a lot|man|dude))?[\s,.!]*)+$/
