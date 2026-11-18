@@ -25,6 +25,15 @@
 //
 // ⚠️ THE SET IS LOADED ON OPEN (`house/houseIndicators.json`): it is not part of the first-open
 // bytes of any page.
+//
+// ⭐⭐ FRED RS (2026-11-18, owner): the house set also ships PINE scripts (`house/housePineIndicators.json`),
+// third-party TradingView scripts whose own source carries an explicit open licence (docs/pine/LICENSING.md),
+// byte for byte, so every parity proof keyed to the script's sha256 holds for the member's copy. Adding one
+// builds the copy through the SAME steps a pasted script takes in Create Indicator (`memberPaneDefinition`,
+// the engine stamp, the registry's validation) and saves the script beside it (`pineSource`), licence notice
+// included. The first is Fred6724's RS Rating, named "Fred RS". The build happens on the press, never on open
+// (a translation is a quarter second), so a member's existing copy of a Pine entry is recognised then, by the
+// same maths fingerprint as a formula entry's.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { saveUserDefinition } from '../../hooks/useUserDefinitions'
@@ -65,7 +74,27 @@ export function ownCopyId(item, own) {
 /** Every line's formula as one fingerprint, or '' for an indicator of one formula (no `trees`). */
 const wholeMaths = (compute) => (compute && typeof compute.treesHash === 'string' ? compute.treesHash : '')
 
-const loadHouseSet = () => import('./house/houseIndicators.json').then((m) => (m.default || m).indicators || [])
+const listOf = (m) => (m.default || m).indicators || []
+/** The whole set, Pine entries first (Fred RS leads the tab). */
+export const loadHouseSet = () => Promise.all([import('./house/housePineIndicators.json'), import('./house/houseIndicators.json')])
+  .then(([pine, formulas]) => [...listOf(pine), ...listOf(formulas)])
+
+/** A Pine house entry's copy, built exactly as Create Indicator builds a pasted script: `{doc, options}` to
+ *  save, or `{error}`. Loaded on the press, so the tab itself stays light. */
+export async function buildPineCopy(item, id) {
+  const [{ memberPaneDefinition }, { withEngineStamp }, registry] = await Promise.all([
+    import('./builder/memberPane/memberPaneDefinition'), import('./engine/scriptEngineVersion'), import('./engine/nativeRegistry')])
+  const built = memberPaneDefinition({ source: item.pine, id, name: item.name })
+  const def = built && built.ok ? built.definition : null
+  if (!def || built.saveable === false) return { error: 'It could not be prepared just now. Try again.' }
+  // ⛔ a script that repaints needs the member's own acknowledgement, which only Create Indicator asks for
+  if (def.meta && def.meta.repaint === 'preview-repaints') return { error: 'This one has to be added from Create Indicator.' }
+  const formulaLane = def.compute && def.compute.kind === 'ast'
+  const doc = formulaLane ? withEngineStamp(def) : def
+  const { defs, errors } = registry.validateUserDefinitions([doc])
+  if (errors.length || defs.length !== 1) return { error: 'It could not be prepared just now. Try again.' }
+  return { doc, options: formulaLane ? { pineSource: item.pine } : null }
+}
 const NONE = () => []
 
 /**
@@ -79,7 +108,7 @@ const NONE = () => []
  */
 export default function IndicatorHouseTab({
   styles = ownStyles, query = '', isOnOffer = () => false, onPutOnChart = () => false,
-  listOwn = NONE, load = loadHouseSet, save = saveUserDefinition, addWaitMs = ADD_WAIT_MS,
+  listOwn = NONE, load = loadHouseSet, save = saveUserDefinition, addWaitMs = ADD_WAIT_MS, buildPine = buildPineCopy,
 }) {
   const [items, setItems] = useState(null)
   const [failed, setFailed] = useState(false)
@@ -107,8 +136,22 @@ export default function IndicatorHouseTab({
     const mine = ownCopyId(item, listOwn())
     if (mine && isOnOffer(mine)) { put(item.slug, mine); return }
     setState((p) => ({ ...p, [item.slug]: 'busy' }))
-    // ⛔ A NEW ID EVERY TIME: the copy is the member's own definition, never the house one.
-    const r = await save({ ...item.definition, id: mintDefId(), version: 1 }, null)
+    let r
+    if (typeof item.pine === 'string') {
+      // ⭐ FRED RS — a Pine entry is built now, as Create Indicator builds a pasted script
+      const built = await buildPine(item, mintDefId())
+      if (!live.current) return
+      if (!built || built.error || !built.doc) {
+        setState((p) => ({ ...p, [item.slug]: { error: (built && built.error) || 'It could not be added just now. Try again.' } }))
+        return
+      }
+      const held = ownCopyId({ definition: built.doc }, listOwn())
+      if (held && isOnOffer(held)) { put(item.slug, held); return }
+      r = await save({ ...built.doc, version: 1 }, null, null, built.options)
+    } else {
+      // ⛔ A NEW ID EVERY TIME: the copy is the member's own definition, never the house one.
+      r = await save({ ...item.definition, id: mintDefId(), version: 1 }, null)
+    }
     if (!live.current) return
     if (r && r.ok) {
       const defId = (r.row && r.row.def_id) || null
@@ -116,7 +159,7 @@ export default function IndicatorHouseTab({
       return
     }
     setState((p) => ({ ...p, [item.slug]: { error: (r && r.error) || 'It could not be added just now. Try again.' } }))
-  }, [save, listOwn, isOnOffer, put])
+  }, [save, listOwn, isOnOffer, put, buildPine])
 
   // ⭐ a saved copy goes on the chart the moment the chart knows it; after `addWaitMs` the row
   // stops waiting and offers the button instead (the copy is saved either way).
@@ -150,7 +193,7 @@ export default function IndicatorHouseTab({
   return (
     <section className={styles.insAddGroup} data-testid="house-tab">
       <p className={styles.resRefusedLede}>
-        Built by UCT and checked bar by bar. Adding one puts your own copy on this chart: rename it,
+        Chosen by UCT and checked bar by bar. Adding one puts your own copy on this chart: rename it,
         change it in Create Indicator, or delete it.
       </p>
       {shown.length === 0 ? (
@@ -172,6 +215,9 @@ export default function IndicatorHouseTab({
                     <span className={styles.resName} style={{ color: 'inherit' }}>{it.name}</span>
                   </span>
                   <span className={styles.resSub} style={{ whiteSpace: 'normal' }}>{it.summary}</span>
+                  {it.attribution ? (
+                    <span className={styles.resMeta} data-testid="house-attribution">{it.attribution}</span>
+                  ) : null}
                   {haveIt ? (
                     <span className={styles.resMeta} data-testid="house-have-note">You have this one under “Your indicators”.</span>
                   ) : null}
