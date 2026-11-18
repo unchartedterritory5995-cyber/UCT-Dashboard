@@ -81,6 +81,8 @@ import { readStrategyDeclaration, orderArgsOf, readRiskCall, StrategyOptionError
 import { strategyBrokerGateOn } from '../strategyBrokerGateRegistry.js'
 const strategyBrokerEnabled = () => strategyBrokerGateOn()
 import { strategyRepaintConstruct } from './strategyRepaint.js'
+// ⭐⭐ NUMBER PENDING (fix/strategy-disarmed-taint) — what a broker document may draw when its broker run is refused
+import { strategyTaintSinks, strategyDisarmOf } from './strategyTaint.js'
 import {
   RUNTIME_SOURCES as MEMBER_SOURCES, textInputKindOf, textInputIsMemberSet, isTimeInputCall,
   timeInputDefaultOf, isTimeValue, isSessionString, constantVarsOf, foldConstantVarsIntoInputs,
@@ -1802,6 +1804,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // ⭐⭐ I6a-N4 — a block whose lines are not at a block indent refuses BY NAME, at the pane AND
   // the object door (`pine.js::refuseOffBlockIndent`, the one check both lanes call).
   try { stmts = blockStatements(tokens, indents, 0); refuseOffBlockIndent(stmts, indents) } catch (e) { return fail(e, diagnostics) }
+  // ⭐⭐ NUMBER PENDING (fix/strategy-disarmed-taint) — W9-OQ-N2's taint (`strategyTaint.js`), in broker mode only, read
+  // on the ORIGINAL statements before any rewrite, as the host lane reads it. It decides what a run WITHOUT the broker
+  // may draw when the broker run is refused by name (`strategyDisarmOf`, carried on the declaration as `disarm`). A
+  // trace that throws is `null`, and the disarmed run then keeps the broker's refusal.
+  let brokerTaint = null
+  if (brokerMode) { try { brokerTaint = strategyTaintSinks(stmts) } catch { brokerTaint = null } }
   // ⭐⭐ W34-I6a — a wrapped `switch` arm is one expression (see `wrappedArmOf`); pane only.
   if (!atObjectDoor) stmts = joinWrappedSwitchArms(stmts, indents, String(source || '').split(/\r?\n/))
   // ⭐⭐ W34-I4 — a v1/v2 self-referencing definition whose every self read states its
@@ -2734,6 +2742,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const columnTrees = []
   const columnByKey = new Map()
   const outputs = []
+  // ⭐⭐ NUMBER PENDING (fix/strategy-disarmed-taint) — per output, the source line its call is on (broker mode reads it,
+  // `strategyDisarmOf`); kept beside `outputs`, never on them, so no output descriptor changes shape.
+  const outputLines = []
   // ⭐ THE STATIC HISTORY-DEMAND ANALYSIS, accumulated as the body is lowered:
   // one entry per variable that any `[n]` reads, carrying the deepest offset seen.
   // Nothing allocates a ring for a variable nobody looks back at (§16).
@@ -11080,6 +11091,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         throw new RuntimeRefusal('runtime:colour', `\`${callName}()\` draws numbers, and a colour is not one`, at)
       }
       outputs.push({ call: callName, role, group })
+      outputLines[outputs.length - 1] = at && Number.isInteger(at.line) ? at.line : null
       descs.push(outputs[outputs.length - 1])
       out.push(emit(outputs.length - 1, lowerExpr(node, scope)))
     }
@@ -11163,6 +11175,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     outputs.push({ call: callName, ...(extra || {}) })
     const index = outputs.length - 1
+    outputLines[index] = at && Number.isInteger(at.line) ? at.line : null
     out.push(emit(index, lowerExpr(arg0, scope)))
     if (wantColours) {
       const desc = outputs[index]
@@ -15990,7 +16003,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       requests,
       // ⭐ RT5 — the declared `max_*_count`s, comments and strings stripped.
       ...(objectsInRun ? { objectCaps: { ...declaredCapsOf(strippedForScan(source)), ...historyHeldOf(strippedForScan(source)) } } : {}),
-      ...(brokerMode ? { broker: brokerDecl } : {}),
+      ...(brokerMode ? { broker: { ...brokerDecl, disarm: strategyDisarmOf(brokerTaint, outputs, outputLines) } } : {}),
     })
   } catch (e) { return fail(e, diagnostics) }
 

@@ -44,7 +44,9 @@ import { runtimeInputValues, runtimeBuildInputs } from './runtimeInputs.js'
 // ⭐⭐ W9-T11 — the run's `strategy` record (design 3.2) and the window a broker run takes.
 import { BROKER_START_GUARD, BrokerRefusal, BrokerUnpinned, BrokerStart } from './broker.js'
 import { barOpenInstants } from '../../indicators.js'
-import { STRATEGY_WINDOW_HISTORY, strategyRecordOf, withStrategyRecord, refusedStrategyRecordOf } from './strategyRecord.js'
+import { STRATEGY_WINDOW_HISTORY, strategyRecordOf, withStrategyRecord, refusedStrategyRecordOf, DISARMED_WITHHELD_GUARD,
+  disarmedWithheldSentence } from './strategyRecord.js'
+import { withColumnErrors } from '../astColumns.js'
 import { makeWarmupProbe, sameProgram } from './warmupProbe.js'
 export { RUNTIME_WARMUP_KEY, runtimeWarmupOf }
 // W5-T1: the identity constants the server bundle's entry re-exports (it must not import the front end itself: pineRuntimeFrontendGate).
@@ -1459,13 +1461,26 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
    *  a strategy's broker run refuses by name ([B-START] on a chart whose history does not reach the listing, an
    *  unpinned rule, an unsettled question), the same program is run again WITHOUT its broker (`vm.js`
    *  `brokerDisarmed`: an order places nothing, every bar is run as the host lane runs it) and its plots and paints
-   *  are drawn; the backtest alone is refused, by the broker's own name (`disarmedRecordOf`). ⛔ Only a program
-   *  whose outputs never read the broker can stand in: a read of a broker value stops the disarmed run, and the
-   *  member reads the broker's refusal exactly as before. Any other stop is not the broker's and is not retried.
+   *  are drawn; the backtest alone is refused, by the broker's own name (`refusedStrategyRecordOf`). Any other stop
+   *  is not the broker's and is not retried.
+   *  ⭐⭐ NUMBER PENDING (fix/strategy-disarmed-taint) — WHAT IS DRAWN IS DECIDED STATICALLY, by the host lane's own
+   *  taint (W9-OQ-N2, `strategyTaint.js::strategyDisarmOf`, the program's `broker.disarm`, coordinator ruling
+   *  2026-11-18 (a)): every output a broker value reaches is withheld by name (`withheldByTaint`, below) and the rest
+   *  are drawn; a broker number read inside the run is `na` only so the order logic can finish. ⛔ FAIL CLOSED, the
+   *  broker's refusal kept (ruling (b)): a broker value reaching a sink with no row of its own (a `fill` band,
+   *  `alert()`, `hline`) or a drawing, a trace that failed, a program with no verdict, and any throw of the run.
    *  ⚰️ supertrend-strategy on SPY daily (5,000 of 8,509 bars): the broker run refused [B-START] and the member lost
-   *  the seven plots the host lane drew. */
+   *  the seven plots the host lane drew; macd-shortlong-strategy-for-tradingview-input-optimizer, whose ORDER logic
+   *  reads `strategy.position_size`, lost its six MACD plots until the verdict was static. */
+  const disarm = runProgram.broker && runProgram.broker.disarm
   const disarmedAfter = (err) => {
     if (!runProgram.broker || !(err instanceof BrokerRefusal || err instanceof BrokerUnpinned || err instanceof BrokerStart)) return null
+    if (!disarm || disarm.refused || !Array.isArray(disarm.withheld)) return null
+    // a stand-in that would draw NOTHING (every output it maps is one a broker value reaches) gains the member nothing:
+    // the broker's refusal stands, exactly as it read before
+    const held = new Set(disarm.withheld.map((w) => w.index))
+    const built = (runProgram.outputs || []).length
+    if (!Object.values(outputs).some((index) => Number.isInteger(index) && index < built && !held.has(index))) return null
     try {
       finished = -1
       return execute(runProgram, runCtx, opts.limits, { ...injectedNow(opts), brokerDisarmed: true, onBar })
@@ -1557,10 +1572,20 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       + 'rather than a blank line')
   }
   const out = {}
+  // ⭐⭐ NUMBER PENDING (fix/strategy-disarmed-taint) — a run that stood in for a refused broker: the outputs a broker
+  // value reaches are WITHHELD by name (`strategyDisarmOf`), never drawn from the `na` the run read in its place
+  const withheldByTaint = backtestRefused ? new Map(disarm.withheld.map((w) => [w.index, w])) : null
+  const taintErrors = {}
   for (const [plotKey, index] of Object.entries(outputs)) {
+    const w = withheldByTaint && withheldByTaint.get(index)
+    if (w) {
+      taintErrors[plotKey] = { guard: DISARMED_WITHHELD_GUARD, message: disarmedWithheldSentence(w) }
+      continue
+    }
     const col = res.outputs[index]
     if (col) out[plotKey] = plainCopy(col)
   }
+  withColumnErrors(out, taintErrors)
   // ⭐ RS RATING L5 — the newest bar a request cannot know yet (`request:htf-newest-unconfirmed`)
   // is withheld on every column, as the host withholds that bar, and named beside them.
   if (reqSupply && reqSupply.newestWithheld && rows.length) {
@@ -1580,7 +1605,8 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   } else if (backtestRefused) {
     // the plots stood in without the broker: the backtest is refused by the broker's own name (`disarmedAfter`)
     withStrategyRecord(out, refusedStrategyRecordOf({ decl: runProgram.broker, barTimes: runTimes,
-      historyWindowBars: ctx && ctx.historyWindowBars, confirmed: forming === false, refused: backtestRefused }))
+      historyWindowBars: ctx && ctx.historyWindowBars, confirmed: forming === false, refused: backtestRefused,
+      withheld: Object.keys(taintErrors).length }))
   }
   // ⭐⭐ RT5 — THE DRAWINGS THIS SAME RUN MADE, as plain data (structured-clone
   // safe for the worker), beside the columns.
