@@ -34,9 +34,30 @@ describe('createBarStore + history lake', () => {
     const key = keyOf({ sym: 'SIM', tf: '1' })
     const off = store.subscribe(key, () => {})
     await vi.advanceTimersByTimeAsync(100)
-    expect(olderBars).toHaveBeenCalledTimes(1)
-    expect(olderBars.mock.calls[0][1]).toBe(OPEN)
+    // one DEPTH window, from the chart's oldest bar (the open's first-paint read, network.lakeSeed, is
+    // the only other ask: from "now", before the first answer)
+    const depth = olderBars.mock.calls.filter((c) => c[1] === OPEN)
+    expect(depth.length).toBe(1)
+    expect(olderBars.mock.calls.length).toBeLessThanOrEqual(2)
     expect(store.getSnapshot(key).bars[0].t).toBe(OPEN - 120)
+    off()
+    store.dispose?.()
+  })
+
+  it('a chart with nothing saved paints from the lake before a slow first answer (subscribe -> hydrate -> lakeSeed)', async () => {
+    let release
+    const slow = vi.fn(() => new Promise((r) => { release = () => r(answer('SIM', '1')) }))
+    const olderBars = vi.fn(async (key, beforeT) => ({ bars: [{ t: OPEN - 120, o: 100, h: 101, l: 99, c: 100.5, v: 1 }, { t: OPEN - 60, o: 100, h: 101, l: 99, c: 100.5, v: 1 }].filter((b) => b.t < beforeT) }))
+    const store = makeStore({ request: slow, history: { olderBars } })
+    const key = keyOf({ sym: 'SIM', tf: '1' })
+    const off = store.subscribe(key, () => {})
+    await vi.advanceTimersByTimeAsync(50)
+    const s = store.getSnapshot(key)
+    expect(s.restSeen).toBe(false)                         // the server has not answered ...
+    expect(s.bars.map((b) => b.t)).toEqual([OPEN - 120, OPEN - 60])   // ... and the chart already has history
+    release()
+    await vi.advanceTimersByTimeAsync(50)
+    expect(store.getSnapshot(key).restSeen).toBe(true)
     off()
     store.dispose?.()
   })

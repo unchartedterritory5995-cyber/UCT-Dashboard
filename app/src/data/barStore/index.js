@@ -78,7 +78,9 @@ export function createBarStore(o = {}) {
       a = { n: 0, stops: [] }
       active.set(key, a)
       registry.acquire(key)
-      persist.hydrate(key).catch(() => {})
+      // Saved copy first; with none (and no server answer yet) the lake's newest bars paint at once
+      // (network.lakeSeed: never persisted, kept only where the server's answer proves them).
+      persist.hydrate(key).catch(() => {}).then(() => { try { network.lakeSeed?.(key) } catch { /* paint only */ } })
       a.stops.push(persist.attach(key))
       a.stops.push(live.attach(key, { session }))
       // P3-S2b: a live gap (reducer.liveGapStart) asks the server NOW — once per gap; the answer

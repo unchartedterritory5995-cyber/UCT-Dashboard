@@ -542,6 +542,31 @@ export function createNetwork({
       if (!history?.prime || !lakeCarriesKey(key)) return
       try { history.prime(key) } catch { /* a warm only */ }
     },
+    /**
+     * ⭐ LAKE FIRST PAINT (2026-11-17). A chart with nothing saved in this browser waits on the bar
+     * server's first answer, and a cold read there can take seconds (FROG 5m: `bars(sqlite)=1523`,
+     * first paint 1,326 ms) while the lake pieces holding the same history were ALREADY in the
+     * browser (primed while the ticker was typed). So when the key holds nothing and no server answer
+     * has landed, its newest lake bars are painted at once as an UNSTAMPED local copy (LAKE_HIT):
+     * provisional / context, never persisted, and the server's full answer keeps those rows only where
+     * their overlap with its own rows proves the same basis (reducer applyRest), discarding them
+     * otherwise, so a lake that ends early can never be joined across a hole. A lake hit that arrives
+     * after the answer only adds deeper rows on a proven overlap (applyLocal). Resolves true when painted.
+     */
+    lakeSeed(key) {
+      if (!history?.olderBars || !lakeCarriesKey(key)) return Promise.resolve(false)
+      const held = registry.peek(key)
+      if (held && (held.restSeen || held.bars.length)) return Promise.resolve(false)
+      return Promise.resolve()
+        .then(() => history.olderBars(key, Math.floor(now() / 1000) + 1, { bars: LAKE_WINDOW_BARS }))
+        .then((got) => {
+          const cur = registry.peek(key)
+          if (!got || !Array.isArray(got.bars) || !got.bars.length || !cur || cur.restSeen || cur.bars.length) return false
+          registry.dispatch(key, { type: ACTION.LAKE_HIT, key, payload: { sym: parseKey(key)?.sym, bars: got.bars } })
+          return true
+        })
+        .catch(() => false)
+    },
     /** Would a scroll-back of `key` ask the history lake (intraday, not a replay window, the lake on
      *  and not found exhausted for this key)? Sets the background depth target (historyPrepend). */
     lakeCarries(key) { return lakeCarriesKey(key) },

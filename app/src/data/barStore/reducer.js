@@ -1076,6 +1076,10 @@ export function reduce(state, action, ctx = {}) {
   switch (action.type) {
     case ACTION.SEED_FROM_PACK: return applyLocal(state, action, ctx, 'pack')
     case ACTION.IDB_HIT: return applyLocal(state, action, ctx, 'idb')
+    // An UNSTAMPED local copy, exactly like an unstamped IDB copy: painted (provisional / context),
+    // never persisted (not restSeen), and the server's full answer keeps its rows only where their
+    // overlap proves the same basis; with no overlap they are discarded (no hole is ever joined).
+    case ACTION.LAKE_HIT: return applyLocal(state, action, ctx, 'lake')
     case ACTION.MEM_HIT: return applyLocal(state, action, ctx, 'mem')
     case ACTION.REST_FULL: return applyRest(state, action, ctx, 'full')
     case ACTION.REST_DELTA: return applyRest(state, action, ctx, 'delta')
