@@ -18,6 +18,14 @@ export const STREAM_RECONNECT_CAP_MS = 20000
 // poll stays the freshness floor beneath this. Raise to slow, lower to speed up.
 export const LIVE_UI_CADENCE_MS = 1000
 
+// The live CANDLE's own hold: how long the chart may sit on a tick before repainting the newest
+// candle (realtimeCandle) and how long a developing bar from the push stream waits before it is
+// dispatched (barsStreamManager). Separate from LIVE_UI_CADENCE_MS (the numeric readouts stay calm at
+// 1 s). Was 1000 / 500 ms. Measured on production in RTH, 2026-11-17, 4 charts of 1m, paired runs:
+// 250 ms cut the bar push stream's receive-to-paint p90 (see the plan report, section 10e) without
+// raising long frames; 100 ms did raise them (2026-11-16), so 250 is the floor this default takes.
+export const LIVE_CANDLE_CADENCE_MS = 250
+
 // How long a chart may hold a live candle update before painting it. Defaults keep today's
 // behaviour (the caller passes its own default). `localStorage['uct.liveCadenceMs']` overrides it
 // for THIS browser only (16 to 1000 ms), so a faster cadence can be measured on production

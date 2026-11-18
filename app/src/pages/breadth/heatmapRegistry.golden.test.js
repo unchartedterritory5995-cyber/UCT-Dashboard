@@ -22,14 +22,21 @@ export function serialiseRegistry() {
   return {
     HM_METRICS: HM_METRICS.map(m => Object.fromEntries(FIELDS
       .filter(f => m[f] !== undefined)
-      .map(f => [f, typeof m[f] === 'function' ? m[f].toString() : m[f]]))),
+      .map(f => [f, typeof m[f] === 'function' ? lf(m[f].toString()) : m[f]]))),
     TREEMAP_DEF,
     FFILL_KEYS: [...FFILL_KEYS],
     PCTILE_KEYS: [...PCTILE_KEYS].sort(),
   }
 }
 
-const golden = () => JSON.parse(fs.readFileSync(GOLDEN, 'utf8'))
+// ⛔ A FUNCTION'S SOURCE CARRIES THE CHECKOUT'S LINE ENDINGS. The golden was written on a CRLF
+// checkout (core.autocrlf=true), so its multi-line tier/format functions hold CR LF, and the same
+// source read on an LF checkout (every CI runner) differed by nothing but the CR: red on every
+// runner, green on the box that wrote it. Both sides are compared with LF; the golden is untouched.
+const lf = (s) => s.replace(/\r\n/g, '\n')
+const lfDeep = (v) => (typeof v === 'string' ? lf(v) : Array.isArray(v) ? v.map(lfDeep)
+  : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, lfDeep(x)])) : v)
+const golden = () => lfDeep(JSON.parse(fs.readFileSync(GOLDEN, 'utf8')))
 
 describe('the heatmap registry is unchanged by R1', () => {
   it('serialises exactly as the golden recorded before the move', () => {

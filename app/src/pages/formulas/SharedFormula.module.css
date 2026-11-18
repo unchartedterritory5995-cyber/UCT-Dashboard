@@ -39,6 +39,20 @@
   line-height: 1.2;
 }
 
+/* R4: the author's verdict for this saved version, one line directly under the name. Text only:
+   the sentence in the body colour, the engine it was checked on in the secondary colour. The
+   negative top margin takes back most of the title's own gap, so the line reads as the title's. */
+.verdict {
+  margin: -14px 0 22px;
+  color: var(--text, #cfcabd);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.verdictChecked { color: var(--text-muted, #8a857a); }
+/* R6: how heavy it is to draw, directly under the verdict (or under the name when there is no
+   verdict). Two lines read as one block: the second takes back the first's bottom gap. */
+.verdict + .load { margin-top: -18px; }
+
 .sectionHdr {
   margin: 0 0 10px;
   color: var(--text-muted, #8a857a);

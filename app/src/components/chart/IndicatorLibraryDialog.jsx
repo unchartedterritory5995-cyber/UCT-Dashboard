@@ -78,6 +78,10 @@ import {
 import { isIndicatorEnabled, setIndicatorEnabled, addInstance, definitionVisibility } from './engine/instanceControls'
 import IndicatorMembersTab from './IndicatorMembersTab'
 import IndicatorHouseTab from './IndicatorHouseTab'
+import {
+  SHELF_ALL, SHELF_HOUSE, SHELF_MEMBERS, SHELF_MINE, shelfOptions, shelfHolds, optionText, validShelf,
+  isListShelf, emptyShelfText,
+} from './libraryShelves'
 // The blob-shape readers for the two BUILT-IN rows. They are not instances and
 // not settings slices, so `instanceControls` cannot answer for them — see
 // `isRowOn` below, and `chartDefaults`'s tombstone header for why removal is a
@@ -282,10 +286,14 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   // Indicators window, and that window is not the indicators surface at 1024px and below:
   // this sheet is (measured on production at 820 and 390: no Chart Settings control is
   // visible). So the sheet opens the same list itself.
-  const [membersOpen, setMembersOpen] = useState(false)
-  // ⭐ UCT, the house set, the same way (2026-11-16)
-  const [houseOpen, setHouseOpen] = useState(false)
-  useEffect(() => { if (!open) { setMembersOpen(false); setHouseOpen(false) } }, [open])
+  // ⭐⭐ ONE CHOICE OF LIST (owner decision 2026-11-17, mock-up B; `libraryShelves.js`). The two
+  // lists above used to be two door rows, each swapping the whole sheet for its own view with a
+  // way back. They are now two of the choices in one "Showing" control, beside "On this chart",
+  // "Your indicators" and each catalogue heading, every one with its count where it is known.
+  const [shelf, setShelf] = useState(SHELF_ALL)
+  // ⭐ how many UCT house indicators match a search on "All indicators" (the UCT set is its own file)
+  const [houseMatchCount, setHouseMatchCount] = useState(0)
+  useEffect(() => { if (!open) setShelf(SHELF_ALL) }, [open])
   const { seen: tourSeen } = useIndicatorTours(typeof onFirstAdd === 'function')
   const searchRef = useRef(null)
   const bodyRef = useRef(null)
@@ -426,6 +434,23 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
     () => [...indicatorRows, ...symbolRows.rows],
     [indicatorRows, symbolRows],
   )
+
+  // ⭐ THE SHELVES. Counts are of the whole catalogue (`all`), never of what the search left: a
+  // count says how much a list holds. A shelf that is no longer offered falls back to everything.
+  const isOnChart = useCallback((row) => rowVisibility(row, settings).state !== 'absent', [settings])
+  const shelves = useMemo(
+    () => shelfOptions({ rows: all, categories: orderCategories([...new Set(all.map((r) => r.category))]), isOn: isOnChart }),
+    [all, isOnChart],
+  )
+  const shown = validShelf(shelf, shelves)
+  const shelfLabel = (shelves.find((o) => o.value === shown) || shelves[0]).label
+  /** The catalogue rows of the chosen shelf that match what is typed. Symbols are "All" only. */
+  const shelfRows = useMemo(
+    () => (shown === SHELF_ALL ? rows : indicatorRows.filter((r) => shelfHolds(shown, r, isOnChart))),
+    [shown, rows, indicatorRows, isOnChart],
+  )
+  /** A list shelf has its own box: switching shelves starts it empty, as the two doors did. */
+  const chooseShelf = (next) => { setQuery(''); setShelf(next) }
 
   // ─── THE FORMULAS THAT ARE NOT ON THAT LIST, AND WHY ──────────────────────
   const refusals = useMemo(
@@ -624,7 +649,7 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
     <section key={category} className={styles.group}>
       <h3 className={styles.groupHead}>{category}</h3>
       <ul className={styles.list} aria-label={category}>
-        {rows.filter((r) => r.category === category).map((row) => {
+        {shelfRows.filter((r) => r.category === category).map((row) => {
           // ⛔ A SYMBOL IS NEVER "ALREADY ON" — `isRowOn` answers per
           // DEFINITION and a symbol row's id is a ticker. Three QQQ series on
           // one chart is legitimate (§32), so the row keeps offering.
@@ -745,77 +770,6 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
 
   if (!open) return null
 
-  if (houseOpen) {
-    return (
-      <Sheet open={open} onClose={onClose} variant="auto" title="UCT indicators" ariaLabel="UCT indicators" maxWidth={640} className={sheetClassName}>
-        <div className={styles.body} data-testid="library-house-view" {...{ [PORTAL_POPUP_ATTR]: 'indicator-library' }}>
-          <button type="button" className={styles.backRow} data-testid="library-house-back"
-            onClick={() => { setHouseOpen(false); setQuery('') }}>
-            <span aria-hidden="true">←</span> All indicators
-          </button>
-          <input
-            type="search"
-            role="searchbox"
-            className={styles.search}
-            placeholder="Search UCT indicators"
-            aria-label="Search UCT indicators"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <IndicatorHouseTab
-            query={query}
-            listOwn={() => (generation >= 0 && registry?.listUserDefinitions?.()) || []}
-            isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
-            onPutOnChart={(defId) => {
-              if (!defId || !registry?.getDefinition?.(defId)) return false
-              const next = addInstance(settings, defId, registry)
-              if (next === settings) return false
-              onChange?.({ ...next, preset: 'custom' })
-              onClose?.()
-              return true
-            }}
-          />
-        </div>
-      </Sheet>
-    )
-  }
-
-  if (membersOpen) {
-    return (
-      <Sheet open={open} onClose={onClose} variant="auto" title="Members' indicators" ariaLabel="Members' indicators" maxWidth={640} className={sheetClassName}>
-        <div className={styles.body} data-testid="library-members-view" {...{ [PORTAL_POPUP_ATTR]: 'indicator-library' }}>
-          <button type="button" className={styles.backRow} data-testid="library-members-back"
-            onClick={() => { setMembersOpen(false); setQuery('') }}>
-            <span aria-hidden="true">←</span> All indicators
-          </button>
-          <input
-            type="search"
-            role="searchbox"
-            className={styles.search}
-            placeholder="Search members' indicators"
-            aria-label="Search members' indicators"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <IndicatorMembersTab
-            query={query}
-            isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
-            onPutOnChart={(defId) => {
-              if (!defId || !registry?.getDefinition?.(defId)) return false
-              // the same write a row's first add makes for a definition; a refused write
-              // returns `settings` itself and persists nothing
-              const next = addInstance(settings, defId, registry)
-              if (next === settings) return false
-              onChange?.({ ...next, preset: 'custom' })
-              onClose?.()
-              return true
-            }}
-          />
-        </div>
-      </Sheet>
-    )
-  }
-
   return (
     <Sheet open={open} onClose={onClose} variant="auto" title="Indicators" ariaLabel="Indicator library" maxWidth={640} className={sheetClassName}>
       {/* The portal exemption. See the header. */}
@@ -825,8 +779,8 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
           type="search"
           role="searchbox"
           className={styles.search}
-          placeholder="Search indicators"
-          aria-label="Search indicators"
+          placeholder={shown === SHELF_HOUSE ? 'Search UCT indicators' : shown === SHELF_MEMBERS ? "Search members' indicators" : 'Search indicators'}
+          aria-label={shown === SHELF_HOUSE ? 'Search UCT indicators' : shown === SHELF_MEMBERS ? "Search members' indicators" : 'Search indicators'}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -861,40 +815,6 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
             <span className={styles.createArrow} aria-hidden="true">→</span>
           </button>
         )}
-        {/* ⭐ MEMBERS' INDICATORS, from the library. Like the two rows around it, not filtered
-            by `query`. The typed text is cleared on the way in: it was a search of the
-            catalogue, and the list it opens has its own box. */}
-        {/* ⭐ UCT INDICATORS, the house set: built by UCT and checked bar by bar. */}
-        <button
-          type="button"
-          className={styles.createRow}
-          data-testid="library-house"
-          onClick={() => { setQuery(''); setHouseOpen(true) }}
-        >
-          <span className={`${styles.createPlus} ${styles.createSpark}`} aria-hidden="true">◆</span>
-          <span className={styles.createMain}>
-            <span className={styles.createName}>UCT indicators</span>
-            <span className={styles.createBlurb}>
-              The ones traders build first, already built and checked. Install one to make your own copy.
-            </span>
-          </span>
-          <span className={styles.createArrow} aria-hidden="true">→</span>
-        </button>
-        <button
-          type="button"
-          className={styles.createRow}
-          data-testid="library-members"
-          onClick={() => { setQuery(''); setMembersOpen(true) }}
-        >
-          <span className={styles.createPlus} aria-hidden="true">◇</span>
-          <span className={styles.createMain}>
-            <span className={styles.createName}>Members' indicators</span>
-            <span className={styles.createBlurb}>
-              Indicators other members chose to publish. Install one to make your own copy.
-            </span>
-          </span>
-          <span className={styles.createArrow} aria-hidden="true">→</span>
-        </button>
         {onCreateFormula && (
           <button
             type="button"
@@ -905,7 +825,7 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
           >
             <span className={styles.createPlus} aria-hidden="true">＋</span>
             <span className={styles.createMain}>
-              <span className={styles.createName}>New formula</span>
+              <span className={styles.createName}>Create indicator</span>
               <span className={styles.createBlurb}>
                 Build your own indicator or screen — pick conditions, describe it in
                 plain English, or start from one of the firm’s setups.
@@ -914,7 +834,66 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
             <span className={styles.createArrow} aria-hidden="true">→</span>
           </button>
         )}
-        {rows.length === 0 && refusals.length === 0 && (
+        {/* ⭐⭐ SHOWING: every list of this sheet, in one control, with how much each holds. A native
+            select: on a phone it opens the system's own picker, which is the easiest thing to use
+            with a thumb, and it is the one control here that needs no layout of its own. */}
+        <label className={styles.shelf} data-testid="library-shelf-row">
+          <span className={styles.shelfLabel}>Showing</span>
+          <select className={styles.shelfSelect} data-testid="library-shelf" value={shown}
+            onChange={(e) => chooseShelf(e.target.value)}>
+            {shelves.map((o) => <option key={o.value} value={o.value}>{optionText(o)}</option>)}
+          </select>
+        </label>
+        {shown === SHELF_HOUSE && (
+          <div data-testid="library-house-view">
+            <IndicatorHouseTab
+              query={query}
+              listOwn={() => (generation >= 0 && registry?.listUserDefinitions?.()) || []}
+              isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
+              onPutOnChart={(defId) => {
+                if (!defId || !registry?.getDefinition?.(defId)) return false
+                const next = addInstance(settings, defId, registry)
+                if (next === settings) return false
+                onChange?.({ ...next, preset: 'custom' })
+                onClose?.()
+                return true
+              }}
+            />
+          </div>
+        )}
+        {shown === SHELF_MEMBERS && (
+          <div data-testid="library-members-view">
+            <IndicatorMembersTab
+              query={query}
+              isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
+              onPutOnChart={(defId) => {
+                if (!defId || !registry?.getDefinition?.(defId)) return false
+                // the same write a row's first add makes for a definition; a refused write
+                // returns `settings` itself and persists nothing
+                const next = addInstance(settings, defId, registry)
+                if (next === settings) return false
+                onChange?.({ ...next, preset: 'custom' })
+                onClose?.()
+                return true
+              }}
+            />
+          </div>
+        )}
+        {/* a catalogue shelf that shows nothing says which of the two reasons it is */}
+        {!isListShelf(shown) && shown !== SHELF_ALL && shelfRows.length === 0 && (
+          <div className={styles.empty} data-testid="library-shelf-empty">
+            {query.trim()
+              ? `Nothing in ${shelfLabel} matches “${query.trim()}”.`
+              : emptyShelfText(shown)}
+            {query.trim() && indicatorRows.length > 0 && (
+              <button type="button" className={styles.emptyDescribe} data-testid="library-shelf-all"
+                onClick={() => setShelf(SHELF_ALL)}>
+                {indicatorRows.length === 1 ? 'Show the 1 match in all indicators' : `Show the ${indicatorRows.length} matches in all indicators`}
+              </button>
+            )}
+          </div>
+        )}
+        {shown === SHELF_ALL && rows.length === 0 && refusals.length === 0 && !(query.trim() && houseMatchCount > 0) && (
           <div className={styles.empty}>
             {/* ⚠️ A REQUEST IN FLIGHT IS NOT A FINISHED ANSWER, AND BOTH FACTS GO IN
                 ONE SENTENCE. Replacing the line with a bare "Searching…" hid the
@@ -934,17 +913,38 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
             )}
           </div>
         )}
-        {indicatorGroups.map(renderGroup)}
+        {/* ⭐ "All indicators" SEARCHES THE UCT SET TOO (2026-11-18): "Fred" found nothing while Fred RS sat on
+            the "UCT indicators" shelf. Its matches lead the results, under their own heading. */}
+        {shown === SHELF_ALL && query.trim() && (
+          <div data-testid="library-house-search">
+            <IndicatorHouseTab
+              query={query}
+              searchOnly
+              onMatches={setHouseMatchCount}
+              listOwn={() => (generation >= 0 && registry?.listUserDefinitions?.()) || []}
+              isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
+              onPutOnChart={(defId) => {
+                if (!defId || !registry?.getDefinition?.(defId)) return false
+                const next = addInstance(settings, defId, registry)
+                if (next === settings) return false
+                onChange?.({ ...next, preset: 'custom' })
+                onClose?.()
+                return true
+              }}
+            />
+          </div>
+        )}
+        {!isListShelf(shown) && indicatorGroups.filter((c) => shelfRows.some((r) => r.category === c)).map(renderGroup)}
         {/* ⭐ THE HINT ROW SITS UNDER THE INDICATOR RESULTS AND ABOVE ANY SYMBOL
             RESULTS: it is a note about the indicators, so it must not end up
             below a dozen tickers (2026-11-08). */}
-        {searchHint && renderSearchHint(searchHint, settings, toggle)}
-        {discoveryGroups.map(renderGroup)}
+        {shown === SHELF_ALL && searchHint && renderSearchHint(searchHint, settings, toggle)}
+        {shown === SHELF_ALL && discoveryGroups.map(renderGroup)}
         {/* 🔴 SAVED, AND NOT OFFERED — WITH THE REASON. Rendered LAST, and only
             when something was actually refused, so a member whose formulas all
             install sees no new section, no empty heading and no warning about
             nothing. */}
-        {refusals.length > 0 && (
+        {(shown === SHELF_ALL || shown === SHELF_MINE) && refusals.length > 0 && (
           <section className={styles.group} data-testid="user-definition-refusals">
             <h3 className={styles.groupHead}>{REFUSED_CATEGORY}</h3>
             {/* The ONE sentence this surface writes for itself, and it says WHAT

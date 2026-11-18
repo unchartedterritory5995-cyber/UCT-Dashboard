@@ -28,8 +28,9 @@ import { runtimeStrategyOf } from '../strategyRecord'
 import { drawsTradeMarkers, memberTradeMarkers } from '../tradeMarkers'
 
 export const ARMED_SCHEMA = 'uct.strategy-armed/v1'
-/** A source that DECLARES a strategy (the call form, at the start of a line). */
-export const STRATEGY_DECLARATION = /^[ \t]*strategy[ \t]*\(/m
+/** A source that DECLARES a strategy (the call form, at the start of a line): the member door's own predicate,
+ *  re-exported (one authority: the door's strategy-backtest disclosure reads the same one). */
+export { STRATEGY_DECLARATION } from '../../../builder/memberPane/memberPaneDefinition'
 const ARMED_DEF_ID = 'u_strategy-armed-census'
 
 /** The broker gate's flag NAME, read off its module (`import.meta.env.<NAME> === '1'`), never typed. */
@@ -92,6 +93,17 @@ export function armedStrategyVerdict({ source, door, bars, ctx }) {
   }
   const rec = runtimeStrategyOf(cols)
   if (!rec) { out.run = { ok: false, guard: 'strategy:no-record', rule: null }; out.wall = 'run:strategy:no-record'; return out }
+  // ⭐ Engine 76 (#1803, fix/strategy-refusal-keeps-plots) — a broker run refused by name no longer throws when its plots
+  // can stand in without the broker (`runtimeColumns.js::disarmedAfter`): the plots are drawn and the RECORD holds the
+  // refusal (`refusedStrategyRecordOf`; every other record carries none). It is the run's wall exactly as the thrown
+  // refusal was, by the same guard and rule (or capture row).
+  const refusal = (rec.refusals || [])[0]
+  if (refusal) {
+    out.run = { ok: false, guard: refusal.guard || 'runtime:error', rule: refusal.rule || null, capture: null,
+      message: short(refusal.sentence) }
+    out.wall = `run:${out.run.guard}${refusal.rule ? `:${refusal.rule}` : ''}`
+    return out
+  }
   out.run = { ok: true, trades: rec.trades.length, orders: rec.orders.length, rulesUsed: [...rec.rulesUsed].sort() }
   const mk = memberTradeMarkers(cols) || {}
   out.markers = { status: mk.status || null, guard: mk.guard || null, capture: mk.capture || null,

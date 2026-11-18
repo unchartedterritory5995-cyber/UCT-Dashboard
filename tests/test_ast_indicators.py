@@ -410,7 +410,10 @@ def test_our_atr_IS_WILDER_and_the_difference_from_pine_is_the_SEED(bars):
 #: ⭐ 2026-10-30 -- ``stateIndex``: a multi-state recurrence's OUTPUT slot (which of
 #: its K running values the call reads, 1…K). It names a position, never a window,
 #: and the window slot beside it is ``warmupPeriod``.
-_INT_ROLES = frozenset({"anchor", "mult", "percentage", "occurrence", "stateIndex"})
+#: ⭐ 2026-11-17 -- ``minutes``: the length of an opening range (``openingRangeHigh(minutes)``), a
+#: duration on the CLOCK and never a count of bars. The window these entries declare is the
+#: session (``lookback: "session"``), and no period role sits beside this one to confuse it with.
+_INT_ROLES = frozenset({"anchor", "mult", "percentage", "occurrence", "stateIndex", "minutes"})
 
 
 def test_every_function_PINS_ITS_ARGUMENT_ORDER_for_the_translators():

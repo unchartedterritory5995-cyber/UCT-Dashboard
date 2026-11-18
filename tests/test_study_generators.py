@@ -24,12 +24,47 @@ from scripts.study._common import EM_DASH, dedash
 REPO = pathlib.Path(__file__).resolve().parent.parent
 ID_RE = re.compile(r"^si_[0-9a-f]{12}$")
 
+# ⚰️ 2026-11-17 — 22 OF THIS FILE'S TESTS WERE RED ON EVERY MACHINE BUT ONE (nightly 43726736793: 21
+# setup errors + 1 failure, all FileNotFoundError). The O'Neil rules ("the methodology bible") are read
+# from the PRIVATE uct-intelligence repo, and gen_recall named that file by one developer's absolute
+# path, so the module fixture died on CI and on the owner's own box alike. gen_recall now resolves it
+# (`BIBLE_ROOTS`: $UCT_INTEL_PATH, the submodule, the dev-box checkouts) and REFUSES by name without it.
+# ⛔ WHERE THE PRIVATE FILE IS ABSENT (every CI runner: this repo is public, the sibling is not, and
+# its text is never vendored here) the 23 rules come from the committed bank's OWN quotes
+# (docs/study/bank/recall.bible.json, `reveal_json.quote`), so every generator assertion below still
+# runs over the bible segment. The ONE claim that needs the private file -- the committed quotes ARE
+# its rules, rule for rule -- is `test_the_committed_bible_quotes_are_the_private_sources_rules`. It
+# SKIPS there with NO_BIBLE as its reason, and runs wherever the checkout is (the owner's dev box).
+BIBLE_SOURCE = gen_recall.bible_path()
+COMMITTED_BIBLE = REPO / "docs" / "study" / "bank" / "recall.bible.json"
+NO_BIBLE = ("needs the PRIVATE uct-intelligence checkout (prompts/01_methodology_bible.txt), which is not on "
+            f"this box: looked under {list(gen_recall.BIBLE_ROOTS)}. Point UCT_INTEL_PATH at a checkout to run "
+            "it; it runs on the owner's dev box (C:\\Users\\Patrick\\uct-intelligence). Every other bible "
+            "assertion in this file still ran, on the committed bank's own quotes.")
+
+
+def _committed_bible_rules() -> list[tuple[int, str]]:
+    by_rule: dict[int, set] = {}
+    for it in json.loads(COMMITTED_BIBLE.read_text(encoding="utf-8")):
+        by_rule.setdefault(it["reveal_json"]["rule"], set()).add(it["reveal_json"]["quote"])
+    assert all(len(q) == 1 for q in by_rule.values()), "one rule is quoted two ways in the committed bank"
+    return [(n, next(iter(by_rule[n]))) for n in sorted(by_rule)]
+
+
+#: The 23 rules every bible assertion reads: the private source where it is on this box, else the
+#: committed bank's quotes (see above; never a typed copy).
+BIBLE_RULES = gen_recall.read_bible_rules() if BIBLE_SOURCE else _committed_bible_rules()
+
+
+def _generate(mod) -> dict:
+    return mod.generate(bible_rules=BIBLE_RULES) if mod is gen_recall else mod.generate()
+
 
 @pytest.fixture(scope="module")
 def segments() -> dict:
     out: dict = {}
     for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
-        out.update(mod.generate())
+        out.update(_generate(mod))
     js = gen_regime.BOTTOMS.read_text(encoding="utf-8")
     out["regime.bottoms"] = gen_regime.bottom_items(gen_regime.read_bottoms(js), gen_regime.read_signposts(js))
     return out
@@ -58,7 +93,7 @@ def test_every_item_is_a_draft_with_a_citation_and_a_valid_id(segments):
 def test_ids_are_deterministic_across_runs(segments):
     again: dict = {}
     for mod in (gen_recall, gen_size, gen_candles, gen_walkthroughs):
-        again.update(mod.generate())
+        again.update(_generate(mod))
     for name in ("recall.glossary", "size.house_rule", "candles.catalog", "walk.method"):
         assert [i["id"] for i in segments[name]] == [i["id"] for i in again[name]], name
     assert _common.item_id("ref", "q") == _common.item_id("ref", "q") != _common.item_id("ref", "q2")
@@ -103,7 +138,7 @@ def test_recall_keys_are_verbatim_substrings_of_their_source(segments):
         a = it["answer_json"]["answer"]
         assert a in glossary or a in glossary.values(), it["id"]
         assert EM_DASH not in a
-    rules = dict(gen_recall.read_bible_rules())
+    rules = dict(BIBLE_RULES)
     for it in segments["recall.bible"]:
         a = it["answer_json"]["answer"]
         assert any(a.lower() in dedash(r).lower() for r in rules.values()), it["id"]
@@ -119,10 +154,45 @@ def test_recall_keys_are_verbatim_substrings_of_their_source(segments):
 
 
 def test_bible_numbers_are_only_the_ones_the_rule_states():
-    rules = dict(gen_recall.read_bible_rules())
+    rules = dict(BIBLE_RULES)
     assert len(rules) == 23
     for n, (_q, key, _accept) in gen_recall.BIBLE_NUMBERS.items():
         assert key.lower() in rules[n].lower(), (n, key)
+
+
+@pytest.mark.skipif(BIBLE_SOURCE is None, reason=NO_BIBLE)
+def test_the_committed_bible_quotes_are_the_private_sources_rules():
+    """The one link only the private file can prove: the bank's quotes, which every CI run of this file
+    stands on, are the source's 23 rules verbatim and in order."""
+    assert _committed_bible_rules() == gen_recall.read_bible_rules()
+
+
+def test_the_bible_parser_reads_the_sources_shape():
+    """CI never parses the private file, so the parser is driven on its shape: a header line naming the
+    23 rules, numbered lines, a blank line ending the block, and numbered lines after it ignored."""
+    body = "\n".join(f"{n}. {rule}" for n, rule in BIBLE_RULES)
+    text = f"PREAMBLE\n1. not a rule\n\nO'NEIL 23 RULES (condensed)\n{body}\n\nNEXT SECTION\n24. not a rule\n"
+    assert gen_recall.read_bible_rules(text) == BIBLE_RULES
+    assert len(BIBLE_RULES) == 23
+
+
+def test_without_the_private_source_the_generator_refuses_by_name(monkeypatch, tmp_path):
+    """A box without the checkout gets a FileNotFoundError naming where it looked, never a bank
+    regenerated with the bible segment silently missing or empty."""
+    monkeypatch.setattr(gen_recall, "BIBLE_ROOTS", (str(tmp_path / "nowhere"),))
+    assert gen_recall.bible_path() is None
+    with pytest.raises(FileNotFoundError, match="PRIVATE uct-intelligence"):
+        gen_recall.generate()
+
+
+def test_the_private_source_is_found_under_any_listed_root(monkeypatch, tmp_path):
+    """The resolution the skip above depends on: the first root that holds the file wins."""
+    src = tmp_path / "second" / "prompts" / "01_methodology_bible.txt"
+    src.parent.mkdir(parents=True)
+    src.write_text("O'NEIL 23 RULES\n1. x\n\n", encoding="utf-8")
+    monkeypatch.setattr(gen_recall, "BIBLE_ROOTS", (str(tmp_path / "first"), str(tmp_path / "second")))
+    assert gen_recall.bible_path() == src
+    assert gen_recall.read_bible_rules() == [(1, "x")]
 
 
 def test_playbook_parse_finds_thirteen_playbooks_with_mistakes_and_stops():

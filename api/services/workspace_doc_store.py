@@ -109,6 +109,17 @@ WORKSPACE_PREF_KEYS = frozenset({
     "watchlist_settings",
 })
 
+#: Keys ``ChartsWorkspace.jsx`` writes that are deliberately NOT board state, each with its reason.
+#: ⛔ The one place an exclusion is recorded: the key-set rail subtracts exactly these, and fails if one
+#: stops being written or lands in ``WORKSPACE_PREF_KEYS`` too.
+NOT_BOARD_STATE = {
+    # Coordinator ruling 2026-11-17 (owner delegated): the member's saved indicator templates are a
+    # LIBRARY that outlives any board, not part of one board's layout. Versioning them with the board
+    # would make restoring an older Charts board roll back the member's template library. The
+    # workspace writes it (36cb18b6c5, for the Agent); it is still kept, just not in board history.
+    "indicator_templates": "a template library, not board layout: a board restore must never roll it back",
+}
+
 #: The terminal board's persisted keys: every ``*_PREF`` constant
 #: ``app/src/pages/terminal/useTerminalLayout.js`` exports. ⛔ Derived, not hand-kept:
 #: ``tests/test_workspace_doc_terminal_board.py`` re-reads the client constants, both directions.

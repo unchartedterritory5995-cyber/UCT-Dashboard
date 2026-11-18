@@ -18,16 +18,16 @@ import { __allowEveryRuntimeScriptForTests, setRuntimeKillList } from './runtime
 const REPO = path.resolve(process.cwd(), '..')
 const RS = fs.readFileSync(path.join(REPO, 'docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine'), 'utf8')
 
-// TradingView's Inputs tab for RS Rating, as its capture records it (study.inputs in order), minus the two
-// see-through AREA colours ('Positive Area' / 'Negative Area', source lines 42-43) this document does not offer
-// yet (#1574, engine 70). 'Comparative Symbol for Line' (source line 22) is on TradingView's tab and joined ours
-// with engine 68 (#1545, the comparison symbol as a run-half setting). The two see-through DOT colours (the
-// 'Color' after each 'Type' in the New Highs / New Lows groups, source lines 27 and 32) joined with engine 69
-// (#1565, see-through colours as settings), at TradingView's positions.
+// TradingView's Inputs tab for RS Rating, as its capture records it (study.inputs in order): every input, nothing
+// left out. 'Comparative Symbol for Line' (source line 22) joined ours with engine 68 (#1545, the comparison symbol
+// as a run-half setting); the two see-through DOT colours (the 'Color' after each 'Type' in the New Highs / New Lows
+// groups, source lines 27 and 32) with engine 69 (#1565); the two see-through AREA colours ('Positive Area' /
+// 'Negative Area', source lines 42-43) with engine 70 (#1574). Each at TradingView's position.
 const TV_INPUTS = ['Hide Rating', 'Rating Only', 'Color', 'Comparative Symbol for Line',
   'Approximate Value of Comparative Symbol', 'Offset (%)',
   'Plot RS New Highs', 'Type', 'Color', 'Look-back', 'Size', 'Plot RS New Lows', 'Type', 'Color', 'Look-back', 'Size',
   'Display MA 1 on RS Line', 'Lenght Da', 'Color', 'Type Da', 'Lenght We', 'Type We', 'Area Color',
+  'Positive Area', 'Negative Area',
   'Display MA 2 on RS Line', 'Lenght Da', 'Color', 'Type Da', 'Lenght We', 'Type We',
   'Use fix values for replay mode', 'For 99 stocks', 'For 90+ stocks', 'For 70+ stocks', 'For 50+ stocks',
   'For 30+ stocks', 'For 10+ stocks', 'For 1- stocks']

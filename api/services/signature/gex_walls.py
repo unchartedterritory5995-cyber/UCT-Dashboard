@@ -1,7 +1,7 @@
 """UCT Signature: GEX Walls (gxw-v1).
 
-The underlying gex_service call is a LIVE Schwab /chains request (~20s
-timeout, zero caching today). It must only ever be reached through the
+The underlying gex_service call is a LIVE option-chain walk (Massive; up to ~25s,
+cached 60s per window). It must only ever be reached through the
 router's ServeStale slot — never called per chart render directly.
 """
 from __future__ import annotations

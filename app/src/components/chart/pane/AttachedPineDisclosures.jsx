@@ -180,6 +180,13 @@ export function attachedDisclosures(settings, registry = defaultRegistry, barsLo
       ? dropsFor(inst.instanceId) : null
     let merged = false
     for (const n of (Array.isArray(meta.disclosures) ? meta.disclosures : [])) {
+      // ⭐⭐ CHART-STATE AWARE (2026-11-17). The document's drawing note is the HOST lane's ("its drawings
+      // are not shown ... where this chart can run the script bar by bar, ... made by that run instead").
+      // ⚰️ It stood above RS Rating's drawn label on production. Where the binder drew THIS instance's
+      // drawings from the run half (`servedByRun`, its own decision), that note is not this chart's truth
+      // and is left out; the run's own losses, if any, still get a note of their own (below). Where the run
+      // is refused, the binder publishes no `servedByRun` and the note stands with the refusal sentence.
+      if (n && n.name === DRAWING_NOTE_NAME && drops && drops.servedByRun === true) continue
       if (drops && !merged && n && n.name === DRAWING_NOTE_NAME) { push(withRenderDrops(n, drops)); merged = true; continue }
       push(n)
     }

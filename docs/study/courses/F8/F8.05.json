@@ -530,10 +530,10 @@
    "key": "w1",
    "title": "What a run does to your head",
    "steps": [
-    "A run of winners feels like proof you've figured it out.",
-    "That's self-attribution: the wins are your skill, the losses are bad luck or someone else's fault.",
-    "Gervais and Odean show where it leads. Traders take too much credit for their successes and become overconfident.",
-    "Overconfidence can show up as bigger positions. And bigger positions lose money faster when you're wrong."
+    "A run of winners feels like proof you've finally figured this game out.",
+    "That's self-attribution. The wins are your skill. The losses are bad luck, or somebody else's fault.",
+    "Take too much credit for the wins and you get overconfident. And overconfidence shows up as bigger positions.",
+    "Bigger positions lose money a lot faster when you're wrong. Feeling hot is exactly when to stay humble."
    ],
    "facts": [
     "f52",
@@ -548,9 +548,9 @@
    "key": "w2",
    "title": "There's no house money",
    "steps": [
-    "After a gain, people tend to take more risk. Thaler and Johnson called it the house money effect.",
-    "It hits pros too. Market makers on Taiwan's index options market took above-average risk after a profitable morning.",
-    "Profit is not play money. It's your money, and it follows your normal rules."
+    "After a gain, people take more risk. It's called the house money effect, like betting with the casino's chips.",
+    "Pros do it too. On Taiwan's index options market, even market makers took bigger risks after a profitable morning.",
+    "Profit isn't play money. It's your money, and it follows your normal rules."
    ],
    "facts": [
     "f39",
@@ -562,15 +562,16 @@
    "key": "w3",
    "title": "Keep the risk flat",
    "steps": [
-    "Write your risk per trade into your plan before the run starts.",
-    "As the account grows, the same percent means more dollars. That's compounding by rule, and it's fine.",
-    "What you never do is raise the percent because you feel hot. One oversized loss can wipe out the run."
+    "Write your risk per trade into the plan before any run starts. A calm day, one number.",
+    "As the account grows, the same percent is more dollars. That's compounding by rule, and it's fine.",
+    "What you never do is raise the percent because you feel hot. One oversized loss can wipe out the whole run."
    ],
    "facts": [
     "f26",
     "f18",
     "f12",
-    "f21"
+    "f21",
+    "f55"
    ]
   }
  ],
@@ -581,27 +582,27 @@
    "rung": 1,
    "format": "mcq",
    "term": "Overconfidence bias",
-   "q": "What does overconfidence bias mean?",
+   "q": "You've closed five winners in a row. Now you're sure about the next one and barely look at what could go wrong. What's that?",
    "choices": [
-    "Overrating your own skill and knowledge",
-    "Fearing you'll miss out on a move",
-    "Holding on to losers too long",
-    "Buying what the crowd is buying"
+    "Overconfidence, rating yourself high",
+    "FOMO, scared you'll miss the move",
+    "Holding losers, hoping they come back",
+    "Herding, buying what everyone buys"
    ],
-   "answer": "Overrating your own skill and knowledge",
-   "why": "Overrating your own skill and knowledge. Investopedia defines it as overestimating your abilities, knowledge and skills. Schwab names where it leads: risky bets and ignored data. It is not FOMO or following the crowd. It can feed the disposition effect, but that is a separate bias.",
-   "lesson_line": "Feeling sure is not the same as being right.",
+   "answer": "Overconfidence, rating yourself high",
+   "why": "Overconfidence. You're rating your own skill and knowledge higher than they really are. The tell is what you stop doing. Five wins in, you quit checking the downside, because the last five worked. That's where it gets expensive. It pushes you into risky bets and has you ignore what's right in front of you. Notice you're not scared of anything here. You're sure you can't miss. That's the feeling to catch.",
+   "lesson_line": "Feeling sure isn't the same as being right.",
    "facts": [
     "f01",
     "f02",
     "f07"
    ],
    "wrong": {
-    "Fearing you'll miss out on a move": "That's FOMO, the fear of missing out. Overconfidence is rating yourself too highly.",
-    "Holding on to losers too long": "That's one half of the disposition effect, a separate bias that also sells winners too soon. Overconfidence can feed it, but the word means overrating yourself.",
-    "Buying what the crowd is buying": "That's herd behavior, following the crowd. Overconfidence is trusting your own call too much."
+    "FOMO, scared you'll miss the move": "FOMO is fear of missing a move. Here you're not afraid of anything. You're sure.",
+    "Holding losers, hoping they come back": "That's the disposition effect, holding losers too long and selling winners too early. Overconfidence can feed it, but it's a different thing.",
+    "Herding, buying what everyone buys": "That's following the crowd. Overconfidence is the opposite problem, trusting your own call too much."
    },
-   "simple": "It means rating your own skill and knowledge higher than they really are, which pushes you into risky bets.",
+   "simple": "You're rating your own skill too high. A run does that, and you stop checking what can go wrong.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -609,21 +610,24 @@
      "fixed before (track audit 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia defines overconfidence bias as overestimating your abilities, knowledge and skills. Schwab adds where it leads: risky bets, ignored data, and believing you can beat the market every time."
+   }
   },
   {
    "key": "q02",
    "skill": "psych.euphoria",
    "rung": 1,
    "format": "tf",
-   "q": "In a FINRA Foundation survey, most investors rated their own investing knowledge highly.",
+   "q": "A big FINRA Foundation survey asked US investors to rate their own investing knowledge. Most of them rated it high.",
    "answer": "True",
-   "why": "True. Almost two-thirds, 64 percent, rated their own knowledge 5 to 7 on a 7-point scale. The FINRA Foundation said those self-ratings seemed positively biased. That is a finding about the group, so assume it may apply to you.",
+   "why": "True, and by a lot. 64 percent rated themselves 5 to 7 on a 7-point scale. The people who ran the survey said those ratings looked too kind. Here's why that matters to you. Most investors rate themselves high, so assume you're in that group too. That's not an insult. It's the reason you write your risk down before you trade, not after a good week.",
    "lesson_line": "Overconfidence is common. Assume you have it, and build rules for it.",
    "facts": [
     "f45"
    ],
-   "simple": "True, 64 percent rated their own know-how high, and the people who ran the survey said those ratings seemed too kind.",
+   "simple": "True. 64 percent rated their own know-how high, and the survey's authors said those ratings looked too kind.",
    "tier": "core",
    "risk": {
     "score": 6,
@@ -633,7 +637,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
@@ -676,15 +680,15 @@
    "rung": 2,
    "format": "mcq",
    "term": "House money effect",
-   "q": "What is the house money effect?",
+   "q": "You had a big week. Monday you catch yourself buying a riskier name than usual, since it's only profit on the line. What's this?",
    "choices": [
-    "Taking on more risk after a gain",
-    "Taking more risk after a loss",
-    "Selling winners too early",
+    "The house money effect",
+    "The break-even effect",
+    "The disposition effect",
     "Trading with borrowed money"
    ],
-   "answer": "Taking on more risk after a gain",
-   "why": "Taking on more risk after a gain. Thaler and Johnson found more risk seeking after a prior gain. The name comes from a gambler who bets the winnings from earlier bets. Its mirror is the break-even effect, which comes after a loss.",
+   "answer": "The house money effect",
+   "why": "House money. After a gain, the profit starts to feel like the casino's chips, so a riskier bet feels free. It isn't free. That profit is your money, and a careless trade can give the whole week back. Its mirror is the break-even effect, which shows up after a loss. Here's how I'd catch it. Ask yourself if you'd take this exact trade, at this size, on a flat week. If not, pass.",
    "lesson_line": "Profit in your account is your money. Risk it like your money.",
    "facts": [
     "f39",
@@ -692,11 +696,11 @@
     "f14"
    ],
    "wrong": {
-    "Taking more risk after a loss": "That's the break-even effect from the same study: grabbing at a chance to get back to even.",
-    "Selling winners too early": "That's the disposition effect. House money is about raising your risk after a win.",
-    "Trading with borrowed money": "Borrowed money is a different thing. House money is about taking more risk after a gain."
+    "Trading with borrowed money": "That's margin, money you borrowed. This is your own profit, treated like it's free.",
+    "The break-even effect": "That one follows a loss. It's grabbing at any chance to get back to even.",
+    "The disposition effect": "That's holding losers and selling winners too early. It has nothing to do with buying riskier names after a gain."
    },
-   "simple": "It is taking bigger risks after a win, as if the profit were the casino's money and not your own.",
+   "simple": "It's the house money effect. After a gain, profit starts to feel like free chips, so you take more risk.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -704,17 +708,20 @@
      "two publishers agree on a stable definition"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Thaler and Johnson found more risk seeking after a prior gain in real-money experiments. Investopedia traces the name to a gambler who takes winnings from earlier bets and uses them in later bets."
+   }
   },
   {
    "key": "q05",
    "skill": "psych.euphoria",
    "rung": 2,
    "format": "tf",
-   "q": "A run of winning trades shows your method has gotten better.",
+   "q": "You just hit six winners in a row. That run is proof your method got better.",
    "answer": "False",
-   "why": "False. A run can come from luck or from outside circumstances, not only your skill. More wins do hint at more ability. But traders take too much credit for their successes, and that is how overconfidence builds. Your edge shows over your whole history, as your average gain or loss per trade.",
-   "lesson_line": "A streak is a result. Your edge shows over your whole record, not a few trades.",
+   "why": "False. Six wins can come from luck, from a market lifting everything, or from real skill. From the inside they all feel the same. More wins do hint at more ability. But we all take too much credit for our wins, and that's exactly how overconfidence builds. Your edge shows over your whole record, your average gain or loss per trade. So pull up the journal and judge the method on all of it, not the last six.",
+   "lesson_line": "A streak is a result. Your edge shows over your whole record.",
    "facts": [
     "f35",
     "f50",
@@ -725,7 +732,7 @@
     "f20",
     "f30"
    ],
-   "simple": "False, a run can come from luck or outside circumstances. It does not prove your method improved.",
+   "simple": "False. A short run can be luck or a strong market, so judge your method over your whole record.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -733,22 +740,22 @@
      "fixed before (checker added f53)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q06",
    "skill": "psych.euphoria",
    "rung": 3,
    "format": "mcq",
-   "q": "What best stops your size from creeping up during a hot streak?",
+   "q": "You're on a hot streak, and each trade's a little bigger than the one before. What actually stops that creep?",
    "choices": [
-    "A risk % written in your plan",
+    "The risk % written in your plan",
     "Sizing by how sure you feel",
     "Watching your P&L more closely",
-    "Raising size until a loss stops you"
+    "Raising size until a loss hits"
    ],
-   "answer": "A risk % written in your plan",
-   "why": "A risk % written in your plan. Schwab: a good trade plan sets ground rules for how much you risk on one trade. Fixed limits like the 2% rule exist to stop impulsive trading. Our rule is the same: pick one way to set risk and write it in the plan. Your feelings and your P&L set no limit, and a streak inflates both.",
+   "answer": "The risk % written in your plan",
+   "why": "The risk percent you wrote in your plan. You set that number on a calm day, before any streak. Then every trade gets checked against it, not against your mood. On a hot run your confidence and your P&L both swell, so neither one can be the limit. That's what a fixed number is for. It stops the impulse trade before it gets sized. Pick one way to set risk per trade, write it down, and size from it every time.",
    "lesson_line": "Decide your risk before the streak, so the streak can't decide it for you.",
    "facts": [
     "f26",
@@ -760,11 +767,11 @@
     "f05"
    ],
    "wrong": {
-    "Sizing by how sure you feel": "How sure you feel is exactly what a streak inflates. That's the overconfidence you're guarding against.",
-    "Watching your P&L more closely": "Watching the score sets no limit. A fat P&L can make the urge to size up stronger.",
-    "Raising size until a loss stops you": "Then the first loss lands at your biggest size. That's how a run gets handed back."
+    "Sizing by how sure you feel": "How sure you feel is exactly what a streak pumps up. That's the thing you're guarding against.",
+    "Watching your P&L more closely": "Watching the score sets no limit. A fat P&L can make the urge to size up even stronger.",
+    "Raising size until a loss hits": "Then your first loss lands at your biggest size. That's how a run gets handed back."
    },
-   "simple": "A risk percent you wrote in your plan before the streak, because a feeling or a score sets no limit.",
+   "simple": "A risk percent you wrote down before the streak, because your mood and your P&L both grow on a run.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -772,23 +779,23 @@
      "two publishers agree; matches the owner's rulebook (D39, D45) without resting on it"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
    "skill": "psych.euphoria",
    "rung": 3,
    "format": "mcq",
-   "q": "In Barber and Odean's study of 66,465 households, how did the ones that traded most do after costs?",
+   "q": "Barber and Odean followed 66,465 brokerage households from 1991 to 1996. How did the busiest traders do after costs?",
    "choices": [
     "Fell short of the market",
     "Beat the market by a bit",
     "Kept pace with the market",
-    "Matched the least active ones"
+    "Matched the quietest traders"
    ],
    "answer": "Fell short of the market",
-   "why": "Fell short of the market. From 1991 to 1996 the households that traded most netted 11.4% a year. The market returned 17.9%, and the least active households netted 18.5%. Before costs, the busy and the quiet traders did about the same, so trading costs made the gap. The authors say overconfidence can explain the heavy trading. These are that study's numbers for those years, not a figure for today.",
-   "lesson_line": "More trades is not more profit. Every trade has to earn its place.",
+   "why": "They fell short, and by a lot. The busiest households netted 11.4% a year while the market made 17.9%. The quietest ones netted 18.5%. Before costs, the busy and the quiet did about the same. So all that extra trading bought nothing but costs. The authors say overconfidence can explain the heavy trading. Those are that study's numbers for those years, not a figure for today. The point still holds for you. More trades isn't more profit, and every one has to earn its spot.",
+   "lesson_line": "More trades isn't more profit. Every trade has to earn its place.",
    "facts": [
     "f32",
     "f33",
@@ -798,11 +805,11 @@
     "f54"
    ],
    "wrong": {
-    "Beat the market by a bit": "Not after costs. The busiest traders netted 11.4% a year while the market returned 17.9%.",
+    "Beat the market by a bit": "Not after costs. The busiest netted 11.4% a year while the market returned 17.9%.",
     "Kept pace with the market": "Not even close. 11.4% a year is well under the market's 17.9%.",
-    "Matched the least active ones": "Before costs they did about the same. After costs, the least active netted 18.5% a year to the busiest's 11.4%."
+    "Matched the quietest traders": "Before costs they did about the same. After costs, the quietest netted 18.5% a year to the busiest's 11.4%."
    },
-   "simple": "After costs they fell short of the market, earning 11.4% a year while the market made 17.9%.",
+   "simple": "They fell short, netting 11.4% a year after costs while the market made 17.9%.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -811,23 +818,23 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
    "skill": "psych.euphoria",
    "rung": 4,
    "format": "scenario",
-   "story": "Your plan risks 1% on every trade. You've just closed three winners in a row. The next setup looks great, and you want to risk 3%.",
-   "q": "What do you do?",
+   "story": "Your plan says 1% risk a trade. You just closed three winners in a row, and the next setup looks like the best one yet. Part of you wants to risk 3% on it.",
+   "q": "How much do you risk?",
    "choices": [
-    "Risk your usual 1%, nothing more",
-    "Risk 3%, you're seeing it clearly",
-    "Risk 2% as a middle ground",
-    "Risk 3% just once, then back to 1%"
+    "Your usual 1%, nothing more",
+    "3%, you're seeing it clearly",
+    "2%, meet yourself halfway",
+    "3% just this once, then back"
    ],
-   "answer": "Risk your usual 1%, nothing more",
-   "why": "Risk your usual 1%. Your plan set the risk before the trade, and three wins did not change the plan. Our rule: never raise risk past the rules after a run of winners. Overconfidence can lead to positions bigger than is wise, and those lose money faster. Past success can make you wave off the downside.",
+   "answer": "Your usual 1%, nothing more",
+   "why": "1%, same as always. The plan set your risk before the trade, and three wins didn't rewrite it. We don't raise risk past the rules after a run of winners. Here's why. The streak makes the next one feel safer than it is. Past success has you wave off the downside. If that 3% trade stops out, it's a much bigger hole than your normal loss. And it hits right when you feel bulletproof. If the setup's really that good, it's good at 1% too.",
    "lesson_line": "Your plan sets the risk. Your last three trades don't get a vote.",
    "facts": [
     "f04",
@@ -838,11 +845,11 @@
     "f55"
    ],
    "wrong": {
-    "Risk 3%, you're seeing it clearly": "That's the streak talking. Past success can make you wave off the downside, and a loss at 3% is far bigger than your normal loss.",
-    "Risk 3% just once, then back to 1%": "Once is all it takes. A single large loss can wipe out the earlier gains, and the plan never allowed 3%.",
-    "Risk 2% as a middle ground": "That still raises your risk on a feeling. A middle ground is still breaking the plan."
+    "3%, you're seeing it clearly": "That's the streak talking. A stop-out at 3% is a far bigger hole than your normal loss.",
+    "3% just this once, then back": "Once is all it takes. One big loss can wipe out the gains from the run, and the plan never allowed 3%.",
+    "2%, meet yourself halfway": "Still raising risk on a feeling. Halfway to breaking the plan is still breaking it."
    },
-   "simple": "Risk your usual 1%, because three wins don't change your plan and a bigger bet can lose faster.",
+   "simple": "Risk your usual 1%. Three wins don't change the plan, and a bigger bet loses faster when it's wrong.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -850,14 +857,14 @@
      "rests on the owner's rulebook D45 (never raise risk past the rules after a run of winners), now cited as a house fact"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q09",
    "skill": "psych.euphoria",
    "rung": 4,
    "format": "mcq",
-   "q": "Your rule is 1% risk on a $60,000 account. Feeling hot, you set up a trade risking $2,400. How many times your normal risk is that?",
+   "q": "You risk 1% a trade on a $60,000 account. Feeling hot, you size one so the stop costs $2,400. How many times your normal risk is that?",
    "answer": "4 times",
    "calc": {
     "fn": "arith",
@@ -869,14 +876,14 @@
     }
    },
    "suffix": "",
-   "why": "4 times. Your normal risk is 1% of $60,000, and $2,400 is four of those. Your rule is a percent of the account, so check every trade in percent.",
-   "lesson_line": "Measure every position against your rule in percent. Dollars can fool you.",
+   "why": "4 times. 1% of $60,000 is $600, your normal risk. $2,400 divided by $600 is 4. So this one trade carries four normal losses. That's what feeling hot looks like in numbers. In dollars it sounds like just one trade. In percent it's 4% of the account. Check every order in percent before you send it, and this one never goes out.",
+   "lesson_line": "Check every position against your rule in percent. Dollars can fool you.",
    "facts": [
     "f26",
     "f24",
     "f04"
    ],
-   "simple": "It is 4 times your normal risk, since $2,400 is four times 1% of $60,000.",
+   "simple": "It's 4 times your normal risk, since 1% of $60,000 is $600 and $2,400 is four of those.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -884,7 +891,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "24 times",
     "2.4 times",
@@ -892,9 +899,9 @@
     "4 times"
    ],
    "wrong": {
-    "24 times": "Divided $2,400 by 100 instead of by the normal risk.",
-    "2.4 times": "Slipped a decimal place in the division.",
-    "0.04 times": "Divided the risk by the account only."
+    "24 times": "You divided $2,400 by 100. Divide by your normal risk, $600.",
+    "2.4 times": "A slipped decimal. $2,400 over $600 is 4.",
+    "0.04 times": "That's $2,400 over the whole $60,000, the risk as a share of the account. You want it over your normal risk."
    },
    "visual": {
     "kind": "size",
@@ -930,9 +937,9 @@
    "skill": "psych.euphoria",
    "rung": 5,
    "format": "tf",
-   "q": "Risking the same 1% of a bigger account after a good run is oversizing.",
+   "q": "Your account grew on a good run. You keep risking 1% a trade, so each trade now risks more dollars. That's oversizing.",
    "answer": "False",
-   "why": "False. The percent is the rule, and a bigger account turns the same percent into more dollars. At UCT you recalculate the account value weekly or monthly and size every trade from it. Growing size by a set, calculated rule is how gains compound. Oversizing is a position bigger than is wise, such as raising the percent on a feeling.",
+   "why": "False. That's the rule working. The percent is the rule, and a bigger account turns the same percent into more dollars. That's how gains compound. We recalculate the account weekly or monthly and size every trade from the new number. Oversizing is something else. It's a position bigger than is wise, like raising the percent because you feel good. More dollars by rule is fine. A bigger percent on a mood is the problem.",
    "lesson_line": "Size grows with the account, by rule. It never grows with your mood.",
    "facts": [
     "f12",
@@ -941,7 +948,7 @@
     "f58",
     "f04"
    ],
-   "simple": "False, the same 1% of a bigger account is still your rule, just in more dollars.",
+   "simple": "False. The same 1% of a bigger account is still your rule, just in more dollars.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -949,15 +956,15 @@
      "touches the owner's rulebook (A2 flat risk, D43 size from the current account value)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q11",
    "skill": "psych.euphoria",
    "rung": 5,
    "format": "scenario",
-   "story": "Account $50,000, risking 1% a trade. Your last three winners made $500 each. Feeling sure, you risk $2,000 on the next one, and it's stopped out.",
-   "q": "Where do the four trades leave you?",
+   "story": "$50,000 account, 1% risk a trade. Your last three winners made $500 each. Feeling sure, you put $2,000 at risk on the next one. It stops out.",
+   "q": "Where are you after the four trades?",
    "choices": [
     "$500 down",
     "$1,000 up",
@@ -974,7 +981,7 @@
      "each": 500
     }
    },
-   "why": "$500 down. Three winners at $500 each could not cover one $2,000 stop-out. That loss was far above your normal 1% risk. One oversized loss took back the whole run, and more. A single large loss can wipe out a run of gains.",
+   "why": "$500 down. Three winners at $500 is $1,500. The stop-out cost $2,000. Take $1,500 from $2,000 and you're $500 in the hole. Look at what happened there. Your normal 1% is $500, so that one trade carried four normal losses. Three good trades, gone, plus some. Size the fourth like the first three and you'd still be up on the run.",
    "lesson_line": "Wins come in small steps. One oversized loss can take them all back.",
    "facts": [
     "f21",
@@ -983,12 +990,12 @@
    ],
    "wrong": {
     "$1,000 up": "That treats the loss like one of your $500 trades. It was $2,000.",
-    "$1,500 up": "That leaves out the $2,000 loss.",
+    "$1,500 up": "That's just the three wins. It leaves out the $2,000 loss.",
     "$2,000 down": "That counts the stop-out but forgets the three $500 winners."
    },
-   "simple": "You are $500 down, because one $2,000 loss wiped out three $500 wins and more.",
+   "simple": "You're $500 down. One $2,000 loss wiped out three $500 wins and then some.",
    "deeper": {
-    "example": "Three wins at $500 each, then one stop-out at $2,000, leaves you $500 down. At your normal 1% risk, the stop-out would have cost far less. Same trades, same stop-out; only the size changed."
+    "example": "Three wins at $500 each, then one stop-out at $2,000, leaves you $500 down. At your normal 1% risk, the stop-out would have cost $500 and you'd be up. Same trades, same stop-out. Only the size changed."
    },
    "tier": "extended",
    "risk": {
@@ -998,7 +1005,7 @@
      "fixed before"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "Four trades",
@@ -1033,16 +1040,16 @@
    "skill": "psych.euphoria",
    "rung": 5,
    "format": "scenario",
-   "story": "The market has run up for three months. You notice you're placing about twice as many trades as usual.",
-   "q": "What do you check first?",
+   "story": "The market's been up for three months straight. Going through your journal, you see you're taking about twice as many trades as you normally do.",
+   "q": "What's the first thing you check?",
    "choices": [
-    "Whether each trade met your rules",
+    "Whether each one met your rules",
     "Whether you can add more names",
-    "Whether to raise risk on each one",
-    "Whether those extra trades made money"
+    "Whether to raise risk on each",
+    "Whether the extra ones made money"
    ],
-   "answer": "Whether each trade met your rules",
-   "why": "Whether each trade met your rules. Research finds investors trade more after the market goes up, and the researchers read it as overconfidence. More trades aren't wrong by themselves. The test is whether each one came from your rules or from your mood, not whether it made money.",
+   "answer": "Whether each one met your rules",
+   "why": "Whether each one met your rules. Investors trade more after the market goes up, and the researchers read that as overconfidence. More trades aren't wrong by themselves. A good market can hand you more good setups. The question is where they came from. Go through them one at a time. Check that each was on your list, at your entry, with your stop and your size. If so, great. If it came from feeling good, that's the leak.",
    "lesson_line": "More trades after a run is a flag. Check each one against your rules.",
    "facts": [
     "f38",
@@ -1054,10 +1061,10 @@
    ],
    "wrong": {
     "Whether you can add more names": "That feeds the same urge. First find out whether the extra trades came from your rules or your mood.",
-    "Whether to raise risk on each one": "That stacks bigger size on top of more trades, both pushed by the same overconfidence.",
-    "Whether those extra trades made money": "That's grading by result, which is outcome bias. A trade can win and still break your rules."
+    "Whether to raise risk on each": "That stacks bigger size on top of more trades, both pushed by the same overconfidence.",
+    "Whether the extra ones made money": "That's grading by result, which is outcome bias. A trade can win and still break your rules."
    },
-   "simple": "Check that each trade met your rules. Investors tend to trade more after a market rise, and researchers read that as being too sure.",
+   "simple": "Check that each trade met your rules, because a strong market makes it easy to trade on a good mood.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1065,7 +1072,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q13",
@@ -1073,15 +1080,15 @@
    "rung": 6,
    "format": "scenario",
    "story": "Your last five swing trades all worked. That same month the whole market rallied and most stocks went up.",
-   "q": "What's the honest read on your run?",
+   "q": "Be honest. What does that run really tell you?",
    "choices": [
-    "Can't tell skill from tailwind yet",
-    "My picking has jumped a level",
+    "Too early to tell skill from market",
+    "My stock picking just leveled up",
     "Size up while the run lasts",
-    "Luck, so my method is weak"
+    "Luck, so my method must be weak"
    ],
-   "answer": "Can't tell skill from tailwind yet",
-   "why": "Can't tell skill from tailwind yet. When most stocks rose, five wins can't separate your skill from the market's lift. Wins do hint at some ability. But people give themselves too much credit for success and too little to chance or outside circumstance. Compare your results to the market, and let your plan, not the streak, set your size.",
+   "answer": "Too early to tell skill from market",
+   "why": "Too early to tell. When most stocks went up, five winners can't separate your skill from the market's lift. A rising market does a lot of the work for you. Wins do hint at some ability. But we all give ourselves too much credit for wins and too little to chance. So put your month next to the S&P 500. If you barely kept up with it, the market did most of the lifting. Either way, let your plan set your size, not the streak.",
    "lesson_line": "In a strong market, compare your results to the market before you grade yourself.",
    "facts": [
     "f15",
@@ -1093,11 +1100,11 @@
     "f50"
    ],
    "wrong": {
-    "My picking has jumped a level": "The run can't show that. Wins while most stocks rose can't separate your skill from the market's lift.",
     "Size up while the run lasts": "That's the hot hand feeling. Size that grows on a run can turn a sudden reversal into a large loss.",
-    "Luck, so my method is weak": "Too far the other way. More wins do hint at more ability. In a broad rally they just can't show how much."
+    "My stock picking just leveled up": "The run can't show that. Wins while most stocks rose can't separate your skill from the market's lift.",
+    "Luck, so my method must be weak": "Too far the other way. More wins do hint at more ability. In a broad rally they just can't show how much."
    },
-   "simple": "You can't tell yet. Most stocks went up, so five wins can't show how good you are.",
+   "simple": "You can't tell yet. Most stocks went up, so five wins can't show how good you really are.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1106,7 +1113,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q14",
@@ -1114,7 +1121,7 @@
    "rung": 6,
    "format": "scenario",
    "story": "You're up $4,000 this month. A speculative stock that isn't on your list is ripping. You think: if it fails, I just give back some of this month's gains.",
-   "q": "What's the trap?",
+   "q": "What's wrong with that thinking?",
    "choices": [
     "Treating profit as play money",
     "Missing the move by waiting",
@@ -1122,7 +1129,7 @@
     "Holding a loser to get back to even"
    ],
    "answer": "Treating profit as play money",
-   "why": "Treating profit as play money. That's the house money effect: after profitable trades, people tend to buy riskier stocks. It comes from mental accounting, seeing profit as a separate kind of money. Your $4,000 is yours, and it follows your normal rules.",
+   "why": "You're treating profit as play money. That's house money. After profitable trades, people go buy riskier stocks, because the profit feels like a separate pile. It isn't. That $4,000 is your money, same as what you deposited. And look at the trade itself. It's not on your list. Pass. If it wouldn't get a dollar from you on a flat month, it doesn't get one now.",
    "lesson_line": "There's no house money in trading. Profit is just your money.",
    "facts": [
     "f11",
@@ -1132,10 +1139,10 @@
    ],
    "wrong": {
     "Missing the move by waiting": "That's FOMO talking. The stock isn't on your list, and this month's profit doesn't change that.",
-    "Risking more than this month's gain": "Capping the bet at your gains still treats profit as play money. That mental accounting is how earlier gains get lost.",
-    "Holding a loser to get back to even": "That's the break-even effect, which follows a loss. You're up $4,000, so this is the house money side."
+    "Risking more than this month's gain": "Capping the bet at your gains still treats profit as play money. That's how earlier gains get lost.",
+    "Holding a loser to get back to even": "That's the break-even effect, and it follows a loss. You're up $4,000, so you're on the house money side."
    },
-   "simple": "The trap is treating this month's profit as play money, when it is your money and follows your normal rules.",
+   "simple": "The trap is treating this month's profit as play money, when it's your money and follows your normal rules.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1143,15 +1150,15 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q15",
    "skill": "psych.euphoria",
    "rung": 7,
    "format": "scenario",
-   "story": "Researchers studied traders on Taiwan's stock index options market, market makers included. Some finished the morning with gains.",
-   "q": "What did those traders tend to do that afternoon?",
+   "story": "A study looked at traders on Taiwan's stock index options market, including the pros who make markets there. Some of them had a green morning.",
+   "q": "What did they tend to do that afternoon?",
    "choices": [
     "Took on above-average risk",
     "Cut risk to protect the gain",
@@ -1159,7 +1166,7 @@
     "Traded more, at their usual risk"
    ],
    "answer": "Took on above-average risk",
-   "why": "Took on above-average risk. Liu and colleagues studied traders on Taiwan's stock index options market. After morning gains, traders took above-average risk that afternoon. It showed up in all three types of market makers' accounts and across other participants. If market makers do it, assume you will too, unless a rule stops you.",
+   "why": "They took above-average risk. Liu and colleagues found it after morning gains, in all three types of market makers' accounts and across other traders too. These are people who trade for a living. If a good morning pushes them to swing bigger, assume it'll push you too. The fix isn't willpower. It's a size you set before the open, one a green morning can't touch.",
    "lesson_line": "A good morning is not a license to swing bigger in the afternoon.",
    "facts": [
     "f41",
@@ -1172,7 +1179,7 @@
     "Traded as they would any day": "The study found a strong link between earlier results and later risk. The morning's P&L changed how they traded.",
     "Traded more, at their usual risk": "Not their usual risk. After morning gains, the study found above-average risk that afternoon."
    },
-   "simple": "They took above-average risk that afternoon after a good morning, and market makers did it too.",
+   "simple": "They took above-average risk after a good morning, even the market makers, so expect the same pull in yourself.",
    "deeper": {
     "counter": "Theory allows either direction. The authors note prospect theory can predict more risk or less risk after a gain. These traders took more. So the study shows a strong tendency, not a law of nature. The safe move is to assume the tendency is in you and let a written rule set the size."
    },
@@ -1183,16 +1190,16 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q16",
    "skill": "psych.euphoria",
    "rung": 7,
    "format": "tf",
-   "q": "In Gervais and Odean's model, a trader's overconfidence tends to rise early in a career, then ease with experience.",
+   "q": "Gervais and Odean's model says a trader's overconfidence climbs early in his career, then eases as he gains experience.",
    "answer": "True",
-   "why": "True. In the model, the trader takes too much credit for his successes and grows overconfident. His overconfidence rises early in his career. With more experience, he comes to see his ability more clearly. That is the model's prediction, not a measured career path.",
+   "why": "True. In their model a new trader takes too much credit for his early wins, so his overconfidence climbs. With more experience he sees his real ability more clearly. That's a model's prediction, not a study of real careers. But think about what it means for you. The early hot streak is the dangerous one. You don't have the record yet to check it against.",
    "lesson_line": "Overconfidence doesn't make you rich. Making money can make you overconfident.",
    "facts": [
     "f36",
@@ -1200,7 +1207,7 @@
     "f51",
     "f46"
    ],
-   "simple": "True, in their model early wins make a new trader too sure, and experience then helps him see his skill more clearly.",
+   "simple": "True. In their model early wins make a new trader too sure, and experience then helps him see his skill clearly.",
    "deeper": {
     "example": "The FINRA Foundation saw a similar gap by age, not by experience. Investors under 35 rated themselves knowledgeable about investing, yet gave fewer correct and more incorrect quiz answers than those 35 and older. Feeling you know it and knowing it are two different things."
    },
@@ -1211,14 +1218,14 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
    "skill": "psych.euphoria",
    "rung": 8,
    "format": "mcq",
-   "q": "A friend starts at 100 shares and doubles his size after every win. He wins five in a row. How many shares on trade six?",
+   "q": "Your buddy starts at 100 shares and doubles his size after every win. He wins five straight. What's his size on trade six?",
    "answer": "3,200 shares",
    "calc": {
     "fn": "arith",
@@ -1228,7 +1235,7 @@
     }
    },
    "suffix": "",
-   "why": "3,200 shares. 100 shares doubled five times is 3,200. Doubling after wins can work for a while in a strong trend. But doubling down on a winning bet exposes you to a single large loss that may wipe out the earlier gains.",
+   "why": "3,200 shares. 100 doubles to 200, then 400, 800, 1,600 and 3,200. Five wins, five doublings. Here's the problem. Every step felt safe because every step won. So his first loss lands at 3,200 shares, when he started at 100. Doubling after wins can work for a while in a strong trend. Then one sudden reversal hands the whole run back.",
    "lesson_line": "Size that doubles on every win can hand the whole streak back in one loss.",
    "facts": [
     "f21",
@@ -1247,7 +1254,7 @@
      "fixed before"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "6,400 shares",
     "12,800 shares",
@@ -1255,9 +1262,9 @@
     "3,200 shares"
    ],
    "wrong": {
-    "6,400 shares": "Doubled six times, once on trade six itself.",
-    "12,800 shares": "Doubled two extra times.",
-    "24,300 shares": "Tripled after each win instead of doubling."
+    "6,400 shares": "That doubles six times, once more on trade six itself.",
+    "12,800 shares": "That doubles two extra times.",
+    "24,300 shares": "That triples after each win instead of doubling."
    },
    "visual": {
     "kind": "size",
@@ -1287,7 +1294,7 @@
    "skill": "psych.euphoria",
    "rung": 8,
    "format": "scenario",
-   "story": "Your plan risks 1% a trade. In your month-end journal review, you see your risk crept up to 2.5% during a winning streak. Every one of those trades made money.",
+   "story": "Your plan says 1% a trade. In your month-end journal review, you see your risk crept up to 2.5% during a winning streak. Every one of those trades made money.",
    "q": "How do you grade the bigger sizing?",
    "choices": [
     "A rule break that happened to pay",
@@ -1296,7 +1303,7 @@
     "Okay if those setups were all A+"
    ],
    "answer": "A rule break that happened to pay",
-   "why": "A rule break that happened to pay. Your plan said 1%, and the trades used 2.5%. At UCT, 2% is the absolute ceiling, so it broke ours too. Judging a decision by its result instead of its reasoning is outcome bias. Schwab's review checks each trade against your trade plan, not just the P&L. A win does not turn a rule break into a good decision.",
+   "why": "A rule break that happened to pay. The plan said 1%, and you used 2.5%. That's past our 2% ceiling too. Grading it by the P&L is outcome bias, judging a decision by how it turned out. Grade the process instead. Check the entry, the stop and the size against the plan. Here the size broke it. The losing trade just hasn't shown up yet. Mark it as a mistake in the journal and go back to 1%.",
    "lesson_line": "Grade the decision, not the result. Size that broke the plan is a mistake, win or lose.",
    "facts": [
     "f20",
@@ -1308,11 +1315,11 @@
     "f56"
    ],
    "wrong": {
-    "Fine, since every trade made money": "That's outcome bias: judging the decision by how it turned out.",
+    "Fine, since every trade made money": "That's outcome bias, judging the decision by how it turned out.",
     "Proof you can handle bigger risk now": "A run of wins never tested the bigger size. The first loss at 2.5% does, and it costs two and a half normal losses.",
-    "Okay if those setups were all A+": "Your plan risks 1% a trade, with no step-up for any grade. And at UCT, 1.5% is the most any grade uses."
+    "Okay if those setups were all A+": "Your plan risks 1% a trade, with no step-up for any grade. And with us, 1.5% is the most any grade uses."
    },
-   "simple": "It was a rule break that happened to pay, so grade the choice you made, not the profit.",
+   "simple": "It's a rule break that happened to pay, so grade the choice you made, not the profit.",
    "deeper": {
     "trap": "Every trade at 2.5% won, so the month-end numbers show only profit. That is exactly when outcome bias hides a rule break. The review looks clean because the losing trade has not come yet. When it does, it costs two and a half normal losses."
    },
@@ -1323,15 +1330,15 @@
      "two publishers agree on outcome bias; the 2% ceiling and 1.5% grade maximum come from the owner's rulebook A1 (house fact)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
    "skill": "psych.euphoria",
    "rung": 9,
    "format": "scenario",
-   "story": "It's your best month of the year. Your plan risks more on A+ setups. Lately every setup you look at grades A+.",
-   "q": "What should you suspect first?",
+   "story": "Best month of your year. Your plan sizes up on A+ setups, our grade for the cleanest kind. Lately every setup you pull up grades A+.",
+   "q": "What do you suspect first?",
    "choices": [
     "Your wins are inflating your grades",
     "The market is full of A+ setups",
@@ -1339,7 +1346,7 @@
     "You're finally seeing setups clearly"
    ],
    "answer": "Your wins are inflating your grades",
-   "why": "Your wins are inflating your grades. Taking too much credit for your successes is how overconfidence builds. Overconfidence can make you trust your own predictions more than you should and underrate the risk. When every setup grades A+ right after your best month, check the grader before you size up.",
+   "why": "Your wins are inflating your grades. Grading is judgment, and judgment drifts with your mood. After your best month, an A starts to look like an A+. Your plan sizes it up, and your size creeps higher without you breaking the written percent. The rule held. The grader moved. So before you size up, check the grader. Put an A+ from a normal month next to today's. If today's doesn't look as clean, it's not an A+.",
    "lesson_line": "When every setup looks like an A+, check the grader first.",
    "facts": [
     "f47",
@@ -1353,7 +1360,7 @@
     "Your grading was too strict before": "Loosening the grades after a hot run is how size creeps up through the back door.",
     "You're finally seeing setups clearly": "That's how overconfidence feels from the inside: trusting your own reads more than you should."
    },
-   "simple": "Suspect that your hot month is making every setup look better than it is, so check yourself before sizing up.",
+   "simple": "Suspect that your hot month is making every setup look better than it is, so check yourself before you size up.",
    "deeper": {
     "trap": "Grades are a judgment, so they drift with your mood. After your best month, an A setup can start to look like an A+. Your plan then sizes it up, and size creeps higher without you ever breaking the written percent. The rule held; the grader moved."
    },
@@ -1364,7 +1371,7 @@
      "touches the owner's rulebook (D38 A+ sized up, E50 grading is discretionary)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
@@ -1372,15 +1379,15 @@
    "rung": 9,
    "format": "scenario",
    "story": "Best quarter you've had. You want to raise risk from 0.5% to 0.75% a trade, well under your 2% cap.",
-   "q": "What would make that a plan and not euphoria?",
+   "q": "When does that raise count as a plan, not euphoria?",
    "choices": [
     "A rule for it written before the run",
-    "It still fits under your 2% cap",
+    "It still fits well under your 2% cap",
     "You feel sure about the next one",
     "The quarter's profit covers it"
    ],
    "answer": "A rule for it written before the run",
-   "why": "A rule for it written before the run. Setting your risk ahead of time is what a trade plan is for. Our rule: never raise risk past the rules after a run of winners. A change made up at your peak is the streak deciding, even under the cap. Feeling sure and having profit to spare are not tests.",
+   "why": "Only when a rule you wrote before the run calls for it. Say you decided on a calm day what results earn a bigger risk. Following that now is discipline. Dream up the same raise at your peak and it's the streak deciding, even at 0.75%. Being well under your 2% cap doesn't change that. The cap is a ceiling, not a reason. Feeling sure and having profit to spare aren't tests either. Both are just what a great quarter hands you. If you want a step-up rule, write it on a slow week.",
    "lesson_line": "Any change in size comes from a rule you wrote while you were calm.",
    "facts": [
     "f18",
@@ -1394,9 +1401,9 @@
     "f09"
    ],
    "wrong": {
-    "It still fits under your 2% cap": "The cap is a ceiling, not a reason. A raise with no rule behind it is still a mood.",
     "You feel sure about the next one": "Feeling sure is what a hot run produces, so it can't be the test.",
-    "The quarter's profit covers it": "That's the house money effect: treating profit as money you can afford to lose."
+    "The quarter's profit covers it": "That's the house money effect, treating profit as money you can afford to lose.",
+    "It still fits well under your 2% cap": "The cap is a ceiling, not a reason. A raise with no rule behind it is still a mood."
    },
    "simple": "Only a rule written before the hot run makes it a plan, since a raise made at the peak is the streak deciding.",
    "deeper": {
@@ -1411,23 +1418,24 @@
      "fixed before"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
    "skill": "psych.euphoria",
    "rung": 3,
    "format": "tf",
-   "q": "At UCT, a run of winners is never a reason to raise risk past your rules.",
+   "q": "Nine winners in a row and your best month ever. With us, that still doesn't earn you more risk per trade than your rules allow.",
    "answer": "True",
-   "why": "True. It's one of our account rules: never raise risk past the rules after a run of winners. Past success can make you assume more gains are coming. Your plan still sets the risk.",
+   "why": "True. A hot run is exactly when you'll want to break this one. Nine wins make you assume more are coming, and the downside gets waved off. That's when a bigger bet does the most damage. Your size still grows as the account grows, and that happens by rule. You recalculate the account weekly or monthly and size from the new number. The streak itself never gets a vote.",
    "lesson_line": "A streak changes how you feel, not what you risk.",
    "facts": [
     "f55",
     "f05",
-    "f26"
+    "f26",
+    "f58"
    ],
-   "simple": "True. Our rules say a winning run never lets you risk more than your rules allow.",
+   "simple": "True. A winning run never lets you risk more than your rules allow, however good it feels.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1435,22 +1443,22 @@
      "rests on the owner's rulebook D45, a house rule that can change"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q97",
    "skill": "psych.euphoria",
    "rung": 2,
    "format": "mcq",
-   "q": "You credit every win to your skill and every loss to bad luck. What does that habit build?",
+   "q": "Every win, you tell yourself you read it right. Every loss, it was bad luck. What does that habit build over time?",
    "choices": [
-    "Becoming overconfident in your skill",
-    "Becoming too cautious after a win",
-    "Spotting your own mistakes sooner",
-    "Trading less after a winning run"
+    "Overconfidence in your own skill",
+    "Extra caution after each win",
+    "Spotting your mistakes sooner",
+    "Trading less after a good run"
    ],
-   "answer": "Becoming overconfident in your skill",
-   "why": "Becoming overconfident in your skill. This is self-attribution bias: crediting your successes to your own skill and blaming your failures on things outside your control. A research review done for the SEC lists it as a form of overconfidence. Real brokerage clients show it: the better their recent returns, the more they credited their skill.",
+   "answer": "Overconfidence in your own skill",
+   "why": "Overconfidence. That's self-attribution: wins are your skill, losses are someone else's fault. Do that long enough and all you ever see is proof you're good. Real brokerage clients show it. The better their recent returns, the more they believed those returns showed their skill. The cost is that your losses stop teaching you anything. So write down the reason for every loss, and every win, and grade them the same way.",
    "lesson_line": "Grade your wins as hard as you grade your losses.",
    "facts": [
     "f52",
@@ -1459,9 +1467,9 @@
     "f53"
    ],
    "wrong": {
-    "Becoming too cautious after a win": "Overconfidence pushes the other way. Winners tend to feel surer of their skill.",
-    "Spotting your own mistakes sooner": "Blaming losses on luck hides your mistakes, so you spot them later, not sooner.",
-    "Trading less after a winning run": "Overconfidence tends to raise trading after good returns, not cut it."
+    "Extra caution after each win": "It pushes the other way. Winners feel surer of their skill, not more careful.",
+    "Spotting your mistakes sooner": "Blaming losses on luck hides your mistakes, so you spot them later, not sooner.",
+    "Trading less after a good run": "Overconfidence tends to raise trading after good returns, not cut it."
    },
    "simple": "Taking credit for wins and blaming luck for losses makes you too sure of yourself, so judge wins as hard as losses.",
    "tier": "core",
@@ -1469,7 +1477,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "fills"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1506,16 +1514,15 @@
   },
   "q01": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Real moment after five winners; overconfidence keyed from f01/f02; FOMO, disposition and herding cleanly wrong. 'The tell is what you stop doing' sounds like him. Sources sit in deeper."
   },
   "q02": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "64 percent and the 5-7 of 7 scale match f45; 'looked too kind' is a fair plain read of 'positively biased'. Why turns the stat into what you do about it."
   },
   "q03": {
    "status": "cut",
@@ -1527,118 +1534,115 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided key from f39/f09 before reading it: more risk after a gain. Two publishers (Management Science, Investopedia). Key ties a distractor for length; break-even distractor is the real mirror, not a second answer. why/simple grounded.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "House money keyed from f09/f39/f14. The flat-week check is the practical how, in his register. Break-even and disposition notes correct."
   },
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key False holds (f15/f03/f06/f50/f30). Simple said a run can come from \"outside help\"; f15 says chance or outside circumstance, and help implies someone helped. Reworded simple to match the why."
+   "fixed": false,
+   "notes": "False holds (f03/f06/f15/f50/f30). Luck, market, skill and the whole-record check are all sourced."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from f26/f18 (Schwab) + f25 (Investopedia) + house A2 (f57). Key not longest (28 vs 35). Fits rulebook A2/D39. Overlap with q20 accepted as Learn then Prove."
+   "fixed": true,
+   "notes": "Answer and wrongs right (f26/f18/f25/f57). Why closed on a stiff 'We do it the same way' and a textbook 'That's the point of a fixed number' line. Rewrote the why to say when you set the number, why mood and P&L can't be the limit, and the how."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Fell short: f32/f34 net 11.4% vs market 17.9%; f54 gross gap small. Stem says after costs so 'Matched the least active ones' is cleanly wrong. All numbers in quotes; dated to 1991-1996."
+   "fixed": true,
+   "notes": "TRUTH: the why added 'Commissions were bigger back then', a claim in no fact (f32/f33/f34/f54 give only the returns and the small gross gap). Replaced with the original, sourced dating line ('that study's numbers for those years'). Numbers 11.4 / 17.9 / 18.5 rechecked."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key 1% decided first; fits rulebook A2/D45 and A1 2% ceiling. But wrong notes state computed ratios with no calc: 3% is three normal losses (twice) and 2% doubles your risk. Reworded to drop the computed numbers; meaning unchanged. Complete wrong map given."
+   "fixed": false,
+   "notes": "1% keyed from the plan and D45; 3% and 2% wrongs clearly mood-driven. 'If it's really that good, it's good at 1% too' is a line he'd say."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "account, normal risk, risk this trade; times normal; key '4 times'"
+   "notes": "Steps shown: 1% of 60,000 = 600; 2,400 / 600 = 4; 2,400 / 60,000 = 4% of the account. Distractor math checks (2,400/100 = 24; 0.04 = 2,400/60,000)."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False keyed from f12 + house D43 (f58); oversizing defined from f04. Consistent with rulebook A2/D43."
+   "notes": "False keyed from f12 and D43 (f58, weekly or monthly). Oversizing defined from f04. Clear line between more dollars by rule and a bigger percent on a mood."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'Down after four trades' tells the member the net is a loss, which removes the two 'up' choices. Neutral label."
+   "fixed": false,
+   "notes": "Calc: 3 x 500 = 1,500; 2,000 - 1,500 = 500 down. 1% of 50,000 = 500, so 2,000 is four normal losses. Each wrong names its slip correctly (1,000 up treats the loss as 500)."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key decided first: check each trade against your rules. f38/f48/f37 support trade-more-after-rise read as overconfidence; f20 outcome bias for the made-money distractor. Key not longest. Simple 24 words, two sentences, same content as why."
+   "notes": "Key from f38/f48/f37; made-money distractor is outcome bias (f20). The trade-by-trade journal check (list, entry, stop, size) is the practical how."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Decided 'can't tell yet' from f15/f31/f50 before reading key; matches. Key 34 chars, not longest; two hedged, two confident choices; no story echo. Size line fits rulebook D45/A1.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Key and wrongs right (f15/f50/f31). One overclaim: 'If you didn't beat the S&P 500, you just rode it' states as fact what f31 only offers as a comparison. Softened to a judgment line, kept the benchmark check."
   },
   "q14": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "House money keyed from f11/f10/f39; 'Pass.' and the flat-month check are his blunt register. Break-even and FOMO notes correct."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Abstract re-fetched 2026-11-12: TAIEX options markets, above-average afternoon risk after morning gains, all three market maker account types; prospect theory can predict either. Key not longest. w2 teaches the same finding (taught, not leaked by a question)."
+   "notes": "Above-average afternoon risk after morning gains, market makers included (f41/f40); 'cut risk' wrong note uses f42. Fix line (size set before the open) is a practical how."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "RePEc abstract re-fetched: overconfidence grows early in a career and fades with experience. Asked as the model, so the paper is the right source. Deeper FINRA example says age not experience; numbers in f46."
+   "notes": "True per f36; why flags it as a model's prediction and says what it means for a new trader. Plain claim, not leading."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "starting size and wins in a row; shares on trade six; key '3,200 shares'"
+   "notes": "100 -> 200 -> 400 -> 800 -> 1,600 -> 3,200. Wrongs: 6,400 = six doublings, 12,800 = seven, 24,300 = 100 x 3^5. Reversal line from f21/f23."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Outcome bias keyed from f20 + f31; 2% ceiling and 1.5% grade max from house f56 (rulebook A1/E49). Key not longest."
+   "notes": "Outcome bias (f20); 2.5% past the 2% ceiling and 1.5% as the most any grade uses match f56 / A1 / E49. Journal action is the how."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key decided first from f35/f47 (credit for wins breeds overconfidence) and rulebook D38/E50 (A+ sized up, grading discretionary). Market-full distractor note concedes it might be, keyed on suspect first. Key not longest."
+   "notes": "Says what A+ means; grading is judgment (E50); size creeps with the written percent intact. Side-by-side check of the grader is a good practical how."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key fits rulebook A1/E49 (risk can follow recent results, but by a rule set ahead) and D45. Key ties a distractor for longest (36), not a lone tell. Cap note no longer contradicts A1.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Key and wrongs right. The why repeated q08's stamped line 'We don't raise risk past the rules after a run of winners' word for word, and the cap point was only in a wrong note. Rewrote the why to work the 0.75% and the 2% cap and give the how."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Asked as our rule (At UCT) and keyed on Tier 3 f55 (rulebook D45). README section 5 requires house: true; the previous checker note says it was added but the file has no house field. Key True is right. Also note q08 and q20 whys state this rule verbatim, so q21 is plain recall if seen after them; acceptable at rung 3."
+   "notes": "Key True right (f55, D45). But the stem was a bare rule to recall, no situation, so it reads as a leading glossary line. Gave it a real moment and a why that says when the rule bites and how size still grows by rule (f58 added to facts)."
   },
   "q97": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. What crediting wins to skill and losses to luck builds is overconfidence; supported by f52, f44, f15, f53; distractors are plausible opposites; wrong notes keyed to exact texts."
+   "notes": "Overconfidence from self-attribution (f52/f15/f53); wrongs are plain opposites with reasons. Journal fix (grade wins and losses the same way) is the how."
   }
  }
 }

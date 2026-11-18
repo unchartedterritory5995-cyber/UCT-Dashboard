@@ -1,4 +1,6 @@
-"""LCQ-02 — GEX's chain source: Schwab by default, Massive in Schwab's own shape, parity first."""
+"""LCQ-02 — GEX's chain source: Massive, and only Massive (Schwab was retired from the product on
+2026-11-17 by the owner's instruction). The walk builds the chain in the shape the arithmetic was
+written against, which still carries the old vendor's name (`to_schwab_shape`)."""
 from __future__ import annotations
 
 import asyncio
@@ -28,13 +30,26 @@ def _schwab_equivalent():
                                     "100.0": [{"openInterest": 200, "gamma": 0.05, "delta": -0.45, "totalVolume": None}]}}}
 
 
-def test_the_default_source_is_schwab_and_unknown_values_fall_back(monkeypatch):
-    monkeypatch.delenv(g.GEX_SOURCE_ENV, raising=False)
-    assert g.chain_source() == "schwab"
-    monkeypatch.setenv(g.GEX_SOURCE_ENV, "yfinance")
-    assert g.chain_source() == "schwab"
-    monkeypatch.setenv(g.GEX_SOURCE_ENV, "Massive")
-    assert g.chain_source() == "massive"
+def test_the_chain_source_is_massive_whatever_the_retired_variable_says(monkeypatch):
+    """GEX_CHAIN_SOURCE is retired: production still carries `massive`, and a stale `schwab` or
+    `shadow` must not send anyone looking for a chain that no longer exists."""
+    for value in (None, "schwab", "shadow", "massive", "yfinance"):
+        if value is None:
+            monkeypatch.delenv("GEX_CHAIN_SOURCE", raising=False)
+        else:
+            monkeypatch.setenv("GEX_CHAIN_SOURCE", value)
+        assert g.chain_source() == "massive", value
+
+
+def test_the_schwab_read_the_modes_and_the_parity_route_are_gone():
+    import inspect
+    from api import gex_router
+    for name in ("_fetch_chain_" + "schwab", "_get_gex_shadow", "get_gex_source_parity", "GEX_CHAIN_MODE_FLAGS",
+                 "GEX_SOURCE_ENV", "GEX_MODES", "CHAINS_URL", "schwab"):
+        assert not hasattr(g, name), name
+    assert "source" not in inspect.signature(g.get_gex_data).parameters
+    paths = {r.path for r in gex_router.router.routes}
+    assert paths == {"/api/gex/data", "/api/gex/compare"}
 
 
 def test_massive_rows_become_schwabs_shape():
@@ -53,22 +68,26 @@ def test_the_sessions_contract_volume_rides_under_schwabs_key():
     assert call100["totalVolume"] == 1234 and put95["totalVolume"] is None
 
 
-def test_the_same_contracts_give_the_same_gex_from_either_source(monkeypatch):
-    """The whole point of the shape: identical contracts -> identical GEX, walls and zero gamma."""
-    async def fake_schwab(t, f, to):
+def test_the_converted_massive_rows_give_the_gex_of_the_hand_written_chain(monkeypatch):
+    """The whole point of the shape: the converted Massive rows and the same contracts written by
+    hand in the chain shape -> identical GEX, walls and zero gamma. (Until 2026-11-17 the
+    hand-written side stood in for a Schwab response.)"""
+    async def by_hand(t, f, to):
         return _schwab_equivalent(), None
 
-    async def fake_massive(t, f, to):
+    async def converted(t, f, to):
         d = g.to_schwab_shape(_massive_rows(), 101.0, TODAY)
         d.update(massive_contracts=4, massive_pages=1, massive_truncated=False)
         return d, None
 
-    monkeypatch.setattr(g, "_fetch_chain_schwab", fake_schwab)
-    monkeypatch.setattr(g, "_fetch_chain_massive", fake_massive)
-    a = asyncio.run(g.get_gex_data("TEST", "week", source="schwab"))
-    b = asyncio.run(g.get_gex_data("TEST", "week", source="massive"))
+    monkeypatch.setattr(g, "_fetch_chain_massive", by_hand)
+    a = asyncio.run(g.get_gex_data("TEST", "week"))
+    monkeypatch.setattr(g, "_fetch_chain_massive", converted)
+    b = asyncio.run(g.get_gex_data("TEST", "week"))
     assert "error" not in a and "error" not in b
-    assert a["chainSource"] == "schwab" and b["chainSource"] == "massive"
+    assert a["chainSource"] == "massive" and b["chainSource"] == "massive"
+    assert "chainMode" not in a and "chainMode" not in b
+    assert a["totalGex"] != 0 and len(a["strikes"]) == 3
     for k in ("totalGex", "callGex", "putGex", "zeroGamma", "netDelta", "callWall", "putWall", "strikes"):
         assert a[k] == b[k], k
 
@@ -77,40 +96,9 @@ def test_a_source_error_is_named_not_empty(monkeypatch):
     async def down(t, f, to):
         return None, "Massive API error: 503"
     monkeypatch.setattr(g, "_fetch_chain_massive", down)
-    out = asyncio.run(g.get_gex_data("SPY", "week", source="massive"))
+    out = asyncio.run(g.get_gex_data("SPY", "week"))
     assert out == {"error": "Massive API error: 503", "chain_source": "massive"}
 
-
-def test_parity_reports_agreement_between_sources(monkeypatch):
-    async def fake_schwab(t, f, to):
-        return _schwab_equivalent(), None
-
-    async def fake_massive(t, f, to):
-        return g.to_schwab_shape(_massive_rows(), 101.0, TODAY), None
-
-    monkeypatch.setattr(g, "_fetch_chain_schwab", fake_schwab)
-    monkeypatch.setattr(g, "_fetch_chain_massive", fake_massive)
-    p = asyncio.run(g.get_gex_source_parity("TEST", "week"))
-    assert p["sign_agreement"] == 1.0 and p["total_gex_ratio"] == 1.0
-    assert p["same_call_wall"] and p["same_put_wall"] and p["strikes_common"] == 3
-
-
-
-def test_parity_still_reports_massive_when_schwab_is_down(monkeypatch):
-    """2026-09-30: Schwab unauthenticated in production and the endpoint returned only the
-    error fields, so Massive's numbers -- the source under review -- were unreadable."""
-    async def down(t, f, to):
-        return None, "Schwab not authenticated"
-
-    async def fake_massive(t, f, to):
-        return g.to_schwab_shape(_massive_rows(), 101.0, TODAY), None
-
-    monkeypatch.setattr(g, "_fetch_chain_schwab", down)
-    monkeypatch.setattr(g, "_fetch_chain_massive", fake_massive)
-    p = asyncio.run(g.get_gex_source_parity("TEST", "week"))
-    assert p["schwab_error"] == "Schwab not authenticated" and "schwab" not in p
-    assert p["massive"]["spot"] == 101.0 and p["massive"]["strikes"] == 3
-    assert "sign_agreement" not in p          # no comparison is claimed from one side
 
 def test_the_massive_walk_follows_the_cursor_url_unchanged(monkeypatch):
     """Measured 2026-09-29: passing `params=` with a next_url REPLACED the cursor's own query in
@@ -159,15 +147,15 @@ def test_the_massive_walk_follows_the_cursor_url_unchanged(monkeypatch):
 
 # ── O5: zero gamma names how it was found ─────────────────────────────────────────────────────
 
-def _fake_schwab_with(monkeypatch, chain):
+def _fake_chain_with(monkeypatch, chain):
     async def fake(t, f, to):
         return chain, None
-    monkeypatch.setattr(g, "_fetch_chain_schwab", fake)
+    monkeypatch.setattr(g, "_fetch_chain_massive", fake)
 
 
 def test_zero_gamma_says_which_method_found_it(monkeypatch):
-    _fake_schwab_with(monkeypatch, _schwab_equivalent())
-    out = asyncio.run(g.get_gex_data("TEST", "week", source="schwab"))
+    _fake_chain_with(monkeypatch, _schwab_equivalent())
+    out = asyncio.run(g.get_gex_data("TEST", "week"))
     assert out["zeroGammaMethod"] in ("cumulative_flip", "cumulative_flip_from_top",
                                       "first_negative_strike_below_spot",
                                       "below_1pct_of_call_wall", "put_wall_fallback")
@@ -183,8 +171,8 @@ def test_an_all_positive_chain_does_not_pass_a_fallback_off_as_a_flip(monkeypatc
              "callExpDateMap": {key: {"100.0": [{"openInterest": 500, "gamma": 0.05, "delta": 0.55}],
                                       "105.0": [{"openInterest": 300, "gamma": 0.03, "delta": 0.30}]}},
              "putExpDateMap": {}}
-    _fake_schwab_with(monkeypatch, chain)
-    out = asyncio.run(g.get_gex_data("TEST", "week", source="schwab"))
+    _fake_chain_with(monkeypatch, chain)
+    out = asyncio.run(g.get_gex_data("TEST", "week"))
     assert out["zeroGammaIsFlip"] is False
     if out["zeroGamma"] is not None:
         assert out["zeroGammaMethod"] not in ("cumulative_flip", "cumulative_flip_from_top")
@@ -208,6 +196,6 @@ def test_the_expiry_window_starts_on_the_et_date_not_utc(monkeypatch):
         return _schwab_equivalent(), None
 
     monkeypatch.setattr(_dt, "datetime", _Late)
-    monkeypatch.setattr(g, "_fetch_chain_schwab", fake)
-    asyncio.run(g.get_gex_data("TEST", "week", source="schwab"))
+    monkeypatch.setattr(g, "_fetch_chain_massive", fake)
+    asyncio.run(g.get_gex_data("TEST", "week"))
     assert seen["from"] == "2026-10-05"

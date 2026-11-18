@@ -21,7 +21,7 @@
 import { createRegistry } from './registry'
 import { createPersist } from './persist'
 import { createNetwork } from './network'
-import { createHistoryFeed, historyLakeEnabled } from './historyFeed'
+import { createHistoryFeed, historyLakeEnabled, appHistoryFeed } from './historyFeed'
 import { createLiveFeed } from './liveFeed'
 import { STATUS } from './types'
 
@@ -78,7 +78,9 @@ export function createBarStore(o = {}) {
       a = { n: 0, stops: [] }
       active.set(key, a)
       registry.acquire(key)
-      persist.hydrate(key).catch(() => {})
+      // Saved copy first; with none (and no server answer yet) the lake's newest bars paint at once
+      // (network.lakeSeed: never persisted, kept only where the server's answer proves them).
+      persist.hydrate(key).catch(() => {}).then(() => { try { network.lakeSeed?.(key) } catch { /* paint only */ } })
       a.stops.push(persist.attach(key))
       a.stops.push(live.attach(key, { session }))
       // P3-S2b: a live gap (reducer.liveGapStart) asks the server NOW — once per gap; the answer
@@ -167,6 +169,18 @@ export function createBarStore(o = {}) {
       return n
     },
     scrollBack: (key, opts) => network.scrollBack(key, opts),
+    /** Prime the history lake for `key` ahead of its open (network.primeLake). */
+    primeLake: (key) => network.primeLake?.(key),
+    /** Warm the edge's copy of `key`'s whole lake depth, no download (network.lakeEdgeWarm). */
+    lakeEdgeWarm: (key, opts) => network.lakeEdgeWarm?.(key, opts) ?? Promise.resolve(0),
+    /** Paint `key` from the lake's newest bars now, if it holds nothing and no answer landed (network.lakeSeed). */
+    lakeSeed: (key) => network.lakeSeed?.(key) ?? Promise.resolve(false),
+    /** Is the lake's whole depth still due for `key` (network.lakePending)? */
+    lakePending: (key) => !!network.lakePending?.(key),
+    /** Is `sym` in the history lake (network.lakeHas)? */
+    lakeHas: (sym) => network.lakeHas?.(sym) ?? Promise.resolve(false),
+    /** Does the history lake carry `key`'s scroll-back (network.lakeCarries)? */
+    lakeCarries: (key) => !!network.lakeCarries?.(key),
     applyLive: (key, frame) => live.applyFrame(key, frame),
     flush: () => persist.flush(),
     dispose() {
@@ -186,7 +200,8 @@ export function createBarStore(o = {}) {
 let _default = null
 /** The app's one store (created on first use). */
 export function getBarStore() {
-  if (!_default) _default = createBarStore()
+  // The history lake is ON for the app's store unless this browser says '0' (historyFeed.js).
+  if (!_default) _default = createBarStore({ history: appHistoryFeed() })
   return _default
 }
 /** Test hook. */

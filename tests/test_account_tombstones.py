@@ -160,6 +160,11 @@ def test_the_default_store_is_NEVER_the_real_bucket_unless_the_backups_are_armed
     from api.services import data_sync
     monkeypatch.delenv(at.LOCAL_STORE_ENV, raising=False)
     monkeypatch.setattr(data_sync, "_client", lambda: object())
+    # ⛔ default_store() builds its OWN bounded client from the DATA_SYNC_* env (`_bounded_client`),
+    # not data_sync._client, so "credentials present" is stubbed there too. Without it this rail
+    # passed only on a box that HAS the credentials (the owner's) and read None on every other
+    # (red alone on a runner, 2026-11-17 run 44123836297).
+    monkeypatch.setattr(at, "_bounded_client", lambda: object())
     monkeypatch.setattr(data_sync, "_bucket", lambda: "real-bucket")
     monkeypatch.delenv("AUTHDB_BACKUP_ENABLED", raising=False)
     assert at.default_store() is None

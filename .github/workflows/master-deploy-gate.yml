@@ -52,6 +52,12 @@
 # worse than none because it reads as coverage. The heavy suites stay where they
 # are (the six-shard gate, the scoped backend runs) and are the pusher's job.
 #
+# ⚰️ 2026-11-18 — "the pusher's job" was, measured, NOBODY's job: 2,982 of the 3,329 files
+# under tests/ ran in no per-push or per-PR job, and the 203 under api/** ran in no job at
+# all. The full backend suite is the NIGHTLY's (full-suite-report.yml, report-only, never
+# a deploy blocker). What THIS gate holds is the cheap half: the "Every backend test file
+# is in the nightly's shard plan" step below fails BY NAME when a test file joins no job.
+#
 # Measured build context: `web` builds from `Dockerfile.web` (the dashboard's
 # dockerfilePath overrides railway.json's NIXPACKS — read the build log, not the
 # config), and watch patterns are set per-service in the Railway dashboard.
@@ -331,6 +337,13 @@ jobs:
       - name: CI cost rails
         run: python -m pytest tests/test_ci_cost_rails.py tests/test_promote_decision.py -q -p no:cacheprovider
 
+      # ⛔ 2026-11-18: a test file that is in NO shard of the nightly is run by no CI job at all, and
+      # nothing used to say so (api/** was in that state for as long as it existed). A filesystem walk
+      # and the planner's own partition: no suite runs, ~1 s. The planner, its discovery config and
+      # the planted-file controls are all inside the file.
+      - name: Every backend test file is in the nightly's shard plan
+        run: python -m pytest tests/test_every_backend_test_file_is_in_the_shard_plan.py -q -p no:cacheprovider
+
       # RAILWAY COST (2026-11-06): the memory observer's per-file page-cache probe (mincore, /proc) only runs
       # on Linux, so its tests skip on dev PCs; this is where they actually run. Stdlib only, ~1 s.
       - name: Memory observer file-cache probe (Linux)
@@ -433,6 +446,7 @@ jobs:
           echo "Run the same checks locally:"
           echo "  python tools/secret_scrub.py --scan $(git diff --name-only --diff-filter=d HEAD^ HEAD)"
           echo "  git -c core.quotePath=false diff -z --name-only --diff-filter=d origin/production HEAD | xargs -0 python tools/secret_scrub.py --scan   # the range scan"
+          echo "  python -m pytest tests/test_every_backend_test_file_is_in_the_shard_plan.py -q"
           echo "  python -m pytest tests/test_no_shadowed_definitions.py -q"
           echo "  python -m pytest tests/test_dockerfile_vite_build_args.py tests/test_vite_flag_ledger.py -q"
           echo "  python -m pytest tests/test_visibility_flag_ledger.py -q"
@@ -659,19 +673,101 @@ jobs:
       - name: Pine runtime - the image agrees with Dockerfile.web
         run: /tmp/prodvenv/bin/python -m pytest tests/test_pine_runtime_dockerfile.py -q -p no:cacheprovider
 
+  # ── THE ENGINE'S WHOLE-APP RAILS (2026-11-17) ──────────────────────────────────
+  # Engine tests that read files OUTSIDE the engine (memberPaneGate walks the import graph from
+  # src/main.jsx; suiteCoverage lists components/chart; three rails read StockChart.jsx as text).
+  # #1662 and #1670 merged green while breaking two of them, because only pine heavy ran them.
+  # The PR side is whole-app-engine-rails.yml; this is the member-facing backstop for what slips
+  # past it (two PRs green apart and red together). Its OWN job, beside `gate`, so the `gate`
+  # job's 60-minute budget above is untouched; ~3-5 min, off the critical path (the Agent shards
+  # run 13-17). ONE LIST, read from the file the PR job and pine heavy's derivation use
+  # (tools/whole_app_engine_rails.txt), in pine heavy's environment (its setup action: empty
+  # licence-held stores, the no-network wrapper). tests/test_ci_whole_app_rails.py rails it.
+  whole-app-engine-rails:
+    name: Engine whole-app rails (tools/whole_app_engine_rails.txt)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      UCT_VENDOR_CAPTURE_STORE: /tmp/pine-heavy-empty-store/captures
+      UCT_HARNESS_SUPPLY_STORE: /tmp/pine-heavy-empty-store/supply
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # full history: listed rails read StockChart.jsx at an older commit (`git show <sha>:...`)
+          fetch-depth: 0
+      - uses: ./.github/actions/pine-heavy-setup
+      - name: The list names real engine test files, once each
+        run: python3 tools/ci_whole_app_rails.py --verify-list
+      - name: The whole-app rails (offline)
+        working-directory: app
+        run: |
+          set -euo pipefail
+          files="$(python3 ../tools/ci_whole_app_rails.py --print-list)"
+          echo "$files"
+          # shellcheck disable=SC2086
+          bash ../tools/ci_offline.sh npx vitest run $files --maxWorkers=2             --reporter=default --reporter=json --outputFile=../whole-app-report.json
+      - name: Every listed file ran
+        run: python3 tools/ci_whole_app_rails.py --ran whole-app-report.json
+
+  # ── BARS RAILS (2026-11-17) ──────────────────────────────────────────────────────
+  # Bars are the CRITICAL path (CLAUDE.md "Bars Freshness & Reliability Architecture"), and
+  # tests/test_bar_contract.py sat red on master unseen: it went red on a DATE (a wall-clock read
+  # behind a pinned seam) and no gate ran it. Its OWN job, in parallel with every other job (no
+  # `needs:`), named in `verdict.needs`. The file list is tools/bars_gate_rails.py's: every
+  # tests/test_bars_*.py and tests/test_bar_*.py, plus the named bars rails, minus the exclusions it
+  # names with their reasons. Installed as `remote-tests.yml` installs ("green on a clean runner").
+  # ⛔ NEVER SKIPPED: no conditional, no optional-failure flag, no path filter. An empty list fails
+  # (pytest with no paths would run the whole tests/ tree). tests/test_bars_deploy_gate.py rails all
+  # of this, and the list includes it.
+  bars-rails:
+    name: Bars rails (the critical path)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install the bars rails' dependencies
+        run: |
+          sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
+          python -m pip install --quiet -r requirements.txt
+          (cd app && npm ci --no-audit --no-fund)
+
+      - name: Bars rails (tools/bars_gate_rails.py)
+        run: |
+          set -euo pipefail
+          files="$(python tools/bars_gate_rails.py)"
+          test -n "$files"
+          echo "bars rails: $(echo "$files" | wc -w) files"
+          python -m pytest $files -q -p no:cacheprovider
+
   # One named verdict for the whole gate. Runs even when a dependency failed or was
   # cancelled, and passes ONLY if every job above succeeded.
   verdict:
     name: master deploy gate verdict
-    needs: [gate, agent-browser, agent-browser-union, pine-runtime]
+    needs: [gate, agent-browser, agent-browser-union, pine-runtime, whole-app-engine-rails, bars-rails]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Every gate job succeeded
         run: |
-          echo "gate=${{ needs.gate.result }} agent-browser=${{ needs.agent-browser.result }} union=${{ needs.agent-browser-union.result }} pine-runtime=${{ needs.pine-runtime.result }}"
-          if [ "${{ needs.gate.result }}" = success ] && [ "${{ needs.agent-browser.result }}" = success ] && [ "${{ needs.agent-browser-union.result }}" = success ] && [ "${{ needs.pine-runtime.result }}" = success ]; then
+          echo "gate=${{ needs.gate.result }} agent-browser=${{ needs.agent-browser.result }} union=${{ needs.agent-browser-union.result }} pine-runtime=${{ needs.pine-runtime.result }} whole-app-engine-rails=${{ needs.whole-app-engine-rails.result }} bars-rails=${{ needs.bars-rails.result }}"
+          if [ "${{ needs.gate.result }}" = success ] && [ "${{ needs.agent-browser.result }}" = success ] && [ "${{ needs.agent-browser-union.result }}" = success ] && [ "${{ needs.pine-runtime.result }}" = success ] && [ "${{ needs.whole-app-engine-rails.result }}" = success ] && [ "${{ needs.bars-rails.result }}" = success ]; then
             echo "master deploy gate: ALL JOBS GREEN"; exit 0
           fi
           exit 1
@@ -693,6 +789,7 @@ jobs:
           echo "Run the same checks locally:"
           echo "  python tools/secret_scrub.py --scan $(git diff --name-only --diff-filter=d HEAD^ HEAD)"
           echo "  git -c core.quotePath=false diff -z --name-only --diff-filter=d origin/production HEAD | xargs -0 python tools/secret_scrub.py --scan   # the range scan"
+          echo "  python -m pytest tests/test_every_backend_test_file_is_in_the_shard_plan.py -q"
           echo "  python -m pytest tests/test_no_shadowed_definitions.py -q"
           echo "  python -m pytest tests/test_dockerfile_vite_build_args.py tests/test_vite_flag_ledger.py -q"
           echo "  python -m pytest tests/test_visibility_flag_ledger.py -q"
@@ -701,3 +798,5 @@ jobs:
           echo "  python -m venv /tmp/prodvenv && /tmp/prodvenv/bin/pip install -r requirements.txt && /tmp/prodvenv/bin/python -I tools/prod_dependency_smoke.py"
           echo "  python -m pytest tests/test_uct_agent*.py -q"
           echo "  (cd app && npm ci && npx vitest run $AGENT_VITEST_PATHS)  # CI runs this as 10 runtime-balanced shards + an equivalence rail"
+          echo "  (cd app && npx vitest run \$(python ../tools/ci_whole_app_rails.py --print-list))  # the engine's whole-app rails"
+          echo "  python -m pytest $(python tools/bars_gate_rails.py) -q -p no:cacheprovider   # the bars-rails job (remote: python tools/remote_tests.py --pytest $(python tools/bars_gate_rails.py))"

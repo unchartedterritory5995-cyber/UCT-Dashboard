@@ -45,18 +45,18 @@ const byUrl = (map) => async (url) => {
   throw Object.assign(new Error(`unserved ${url}`), { status: 500 })
 }
 
-function renderPanel(props = {}, { run = vi.fn(), rerun = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null } = {}) {
+function renderPanel(props = {}, { run = vi.fn(), rerun = vi.fn(), open = vi.fn(), publishRows = vi.fn(), setFreshness = vi.fn(), code = null } = {}) {
   const body = <SectorsPanel {...props} />
   render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
       <PanelFreshnessContext.Provider value={setFreshness}>
-        <PanelListContext.Provider value={{ open: vi.fn(), run, rerun, publish: vi.fn(), publishRows }}>
+        <PanelListContext.Provider value={{ open, run, rerun, publish: vi.fn(), publishRows }}>
           {code ? <TerminalPanelContext.Provider value={{ code, density: 'comfortable', inset: true }}>{body}</TerminalPanelContext.Provider> : body}
         </PanelListContext.Provider>
       </PanelFreshnessContext.Provider>
     </SWRConfig>,
   )
-  return { run, rerun, publishRows, setFreshness }
+  return { run, rerun, open, publishRows, setFreshness }
 }
 const symsInTable = () => within(screen.getByTestId('terminal-sectors-table')).getAllByRole('row').slice(1)
   .map((r) => r.getAttribute('data-testid').replace('terminal-sectors-row-', ''))
@@ -218,6 +218,34 @@ describe('SCTR panel, populated', () => {
     fireEvent.click(screen.getByTestId('panel-symbol-XLF'))
     expect(run).toHaveBeenCalledWith('$XLF')
     expect(publishRows).toHaveBeenLastCalledWith(['$XLK', '$XLC', '$XLY', '$XLI', '$XLF', '$XLB', '$XLV', '$XLRE', '$XLP', '$XLU', '$XLE'])
+  })
+
+  it('a sector opens its stocks, ranked, beside the panel (GRP); 1 month and 3 months carry over', async () => {
+    jsonFetcher.mockResolvedValue(TODAY)
+    const { open, run } = renderPanel()
+    await screen.findByTestId('terminal-sectors-table')
+    // every one of the 11 sectors is a door, by its fund (the ranking spells some sectors differently)
+    expect(screen.getAllByRole('button', { name: /^Open the stocks of .+, ranked \(GRP XL[A-Z]+\)$/ })).toHaveLength(11)
+    fireEvent.click(within(screen.getByTestId('terminal-sectors-row-XLY')).getByRole('button', { name: 'Open the stocks of Consumer Discretionary, ranked (GRP XLY)' }))
+    expect(open).toHaveBeenLastCalledWith('GRP XLY')
+    expect(run).not.toHaveBeenCalled()
+    expect(screen.getByTestId('terminal-sectors-method').textContent).toContain('Click a sector to open its stocks, ranked.')
+    cleanup()
+    jsonFetcher.mockResolvedValue(MONTH)
+    const month = renderPanel({ period: '1M' })
+    await screen.findByTestId('terminal-sectors-table')
+    fireEvent.click(within(screen.getByTestId('terminal-sectors-row-XLE')).getByRole('button', { name: /^Open the stocks of Energy, ranked/ }))
+    expect(month.open).toHaveBeenLastCalledWith('GRP XLE 1M')
+  })
+
+  it('a fund the drill-down does not know keeps its sector as plain text, never a door to nothing', async () => {
+    jsonFetcher.mockResolvedValue({ period: 'Today', sectors: sectors([['Mystery', 'ZZZ', 1.0], ['Technology', 'XLK', 0.5]]) })
+    renderPanel()
+    await screen.findByTestId('terminal-sectors-table')
+    const row = screen.getByTestId('terminal-sectors-row-ZZZ')
+    expect(row.textContent).toContain('Mystery')
+    expect(within(row).queryByRole('button', { name: /^Open the stocks of/ })).toBeNull()
+    expect(within(screen.getByTestId('terminal-sectors-row-XLK')).getByRole('button', { name: /^Open the stocks of Technology/ })).toBeTruthy()
   })
 
   it('a short answer says how many funds are missing instead of passing for the whole board', async () => {

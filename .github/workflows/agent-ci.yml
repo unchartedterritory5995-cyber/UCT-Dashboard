@@ -15,6 +15,23 @@
 # files the AGENT_SHARDS shards executed equals the set `vitest list` reports for the same paths, and
 # unless the file count clears the same floor the gate uses (30). Since 2026-11-15 (owner D27 #2)
 # it also fails if any file ran in more than one shard.
+#
+# MERGE-TREE EVIDENCE (P2, 2026-11-17; inert until merged, activation = AUDIT T2 + owner): a same-repo agent/** PR into
+# MASTER now also runs every job on its pull_request event, i.e. on refs/pull/N/merge (the tree a merge would land), not
+# only on the branch head's push run (the head on its OLD base). PRs into agent/int keep skipping (push evidence only).
+# Each required job uploads `agent-ci-evidence-pr<N>-<job key>` (merge commit, its tree, base + head parents, the failed
+# test names per suite); tools/agent_ci_evidence.py verify turns them into PASS/FAIL for one PR + one expected tree.
+# A PR that edits what its own run executes (this file, tools/agent_ci_*.py, test config, deps) never passes on it:
+# verify answers `self-protected-diff` and AUDIT's local evidence decides (AUDIT F1).
+# repository_dispatch `agent-ci-evidence` (client_payload pr + merge_sha) is the RE-ARM for one named PR after master
+# moved (P2b; P2c 2026-11-18 moved it off workflow_dispatch, which the re-arm token may not call, and dropped that trigger):
+# tools/agent_ci_rearm.py builds the merge of (master tip, PR head) itself (git merge-tree + commit-tree; GitHub's
+# refs/pull/N/merge goes stale while master moves), pushes it to the tool-owned ref refs/agent-ci-evidence/pr-<N> (not a
+# branch: no push trigger fires on it), then dispatches once; every job validates the payload FIRST and checks out that
+# exact merge commit. GITHUB_SHA / GITHUB_REF on such a run are master's tip / refs/heads/master, never the commit under
+# test: the evidence record carries `git rev-parse HEAD` after checkout, and verify compares that to the tool's ref.
+# Push runs are unchanged: every added step is `github.event_name != 'push'`, the checkout `ref:` is empty on push,
+# and the push concurrency group is the same string as before (rails: tests/test_ci_agent_merge_ref.py).
 name: agent ci
 
 on:
@@ -96,9 +113,24 @@ on:
       - 'docs/agent/knowledge/setup-criteria.json'
       - 'docs/agent/program/**'
       - '.github/workflows/agent-ci.yml'
+  # RE-ARM (P2b; P2c 2026-11-18: repository_dispatch, the ONE re-arm path): ONE named PR's evidence run on its current
+  # merge commit. Start it only through tools/agent_ci_rearm.py (it refuses a merge conflict, a closed / non-agent /
+  # non-master PR). client_payload {pr, merge_sha} is attacker-controlled data: every job's FIRST step validates it and
+  # the rest of the job reads only that step's outputs; it is never put in a shell. repository_dispatch always runs this
+  # file as it is on the DEFAULT branch (master), so there is no ref to choose (AUDIT F2 holds by construction).
+  repository_dispatch:
+    types: [agent-ci-evidence]
 
+# P2: an evidence run (pull_request, or a re-arm dispatch) is grouped PER PR (`agent-ci-pr-<N>`), so a push anywhere else
+# (another PR, this PR's own branch push run, master) never cancels it. A new push to the SAME PR fires `synchronize`, whose
+# run joins the same group and cancels the superseded one (its tree is no longer the PR's); a re-arm of the same PR does
+# the same. A base (master) move fires no event, so it cancels nothing: re-arm. Push runs keep `agent-ci-<ref>`, the exact
+# group string they had before.
+# The repository_dispatch branch uses the RAW client_payload.pr (concurrency cannot read step outputs), so a Contents:write
+# holder could cancel another PR's evidence run by sending its number: denial of service only (a cancelled run is never
+# evidence, and that holder can already push). AUDIT accepted this (P2d).
 concurrency:
-  group: agent-ci-${{ github.ref }}
+  group: ${{ github.event_name == 'pull_request' && format('agent-ci-pr-{0}', github.event.pull_request.number) || github.event_name == 'repository_dispatch' && format('agent-ci-pr-{0}', github.event.client_payload.pr) || format('agent-ci-{0}', github.ref) }}
   cancel-in-progress: true
 
 env:
@@ -107,7 +139,14 @@ env:
   AGENT_VITEST_PATHS: src/agent src/components/chart/builder/agentMutations src/components/chart/builder/studio/agentRoute.test.jsx src/components/StockChart.timeRangeSync.test.jsx src/pages/breadth/breadthTabHookOrder.test.jsx src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx src/pages/charts/ChartsWorkspace.previousLayout.test.jsx src/pages/charts/ChartsWorkspace.thisChart.test.jsx src/pages/charts/widgets/ChartWidget.agent.test.jsx src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx
   # 4 -> 8 (2026-11-16, GitHub Pro: 40 concurrent jobs, was 20). The four runtime-balanced shards each ran 23-28 min,
   # so the browser suite set agent ci's ~30 min wall. Same plan and timings, cut eight ways.
-  AGENT_SHARDS: '8'
+  # 8 -> 12 (2026-11-17, critical path): on 6 green push runs the 8 shards' jobs ran 10.9-17.6 min (vitest span 10.4-14.1)
+  # and set the run's critical path. The span is ~0.6 x a shard's summed file-minutes (2 vitest forks), floored by its
+  # largest file; the 9.5-min agentTickerCompoundExclusion was split into 3 slices (~3.2 min each) and the timings refreshed,
+  # so 12 shards carry ~13.8 file-min each (~8.3 min span). Per-run job-minutes stay ~130 (each shard adds ~1.2 min of setup).
+  AGENT_SHARDS: '12'
+  # capreg @ rth (2026-11-17): the regular-session clock leg was ONE 11-12 min job (16.8 file-min, 4 finalState slices of
+  # ~3.6 min). It is now this many legs, cut by the same time-balanced planner; the join job proves their union.
+  CAPREG_RTH_LEGS: '2'
 
 # A PR from a branch in this repo already ran on its push; running it again on the
 # pull_request event only doubles the queue. Fork PRs have no push run here, so they keep it.
@@ -115,13 +154,27 @@ env:
 jobs:
   server:
     name: UCT Agent server tests (production dependency set)
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # P2c: the re-arm payload is attacker-controlled DATA. It is validated here, FIRST, and reaches the job only as this
+      # step's outputs (never interpolated into a shell); any event but push / pull_request must carry a valid one.
+      - name: Validate the re-arm payload
+        id: payload
+        if: github.event_name != 'push' && github.event_name != 'pull_request'
+        shell: bash
+        env:
+          EVIDENCE_PR: ${{ github.event.client_payload.pr }}
+          EVIDENCE_MERGE_SHA: ${{ github.event.client_payload.merge_sha }}
+        run: |
+          [[ "$EVIDENCE_PR" =~ ^[1-9][0-9]{0,6}$ ]] || { echo "::error::the re-arm pr is not a PR number"; exit 1; }
+          [[ "$EVIDENCE_MERGE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::the re-arm merge_sha is not a 40-hex commit"; exit 1; }
+          { echo "pr=$EVIDENCE_PR"; echo "merge_sha=$EVIDENCE_MERGE_SHA"; } >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ steps.payload.outputs.merge_sha }}   # P2c re-arm: the VALIDATED merge commit; '' (the default) otherwise
       # Some QA rails diff the tree against the integration branch (e.g. the F-16 rail that proves
       # the member Screener's server code is untouched). A shallow checkout has no such ref.
       - name: Fetch the integration branch for diff-based rails
@@ -135,12 +188,40 @@ jobs:
           sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
           python -m pip install --quiet --upgrade pip
           python -m pip install --quiet -r requirements.txt pytest httpx
+      # P2d (AUDIT): one line naming the merge-base mode the baseline rail below will use, from the REAL merge_base_mode()
+      # in the same environment (no payload value, no expression in the shell; a missing origin/master prints empty)
+      - name: Print the capreg merge-base mode
+        run: |
+          python -c '
+          import importlib.util, os, sys
+          spec = importlib.util.spec_from_file_location("capreg_baseline", "tests/test_uct_agent_capreg_baseline.py")
+          m = importlib.util.module_from_spec(spec)
+          sys.modules["capreg_baseline"] = m
+          spec.loader.exec_module(m)
+          head = (m._git("rev-parse", "HEAD") or "").strip()
+          om = (m._git("rev-parse", "origin/master") or "").strip()
+          ev = os.environ.get("GITHUB_EVENT_NAME", "")
+          print(f"merge_base_mode={m.merge_base_mode()} event={ev} head={head} origin_master={om}")
+          '
       - name: pytest tests/test_uct_agent*.py
+        env:
+          PYTEST_ADDOPTS: ${{ github.event_name != 'push' && '--junitxml=evidence-pytest.xml' || '' }}   # P2: '' on push
         run: python -m pytest tests/test_uct_agent*.py -q -p no:cacheprovider
+      # P2 evidence (pull_request / re-arm runs only): merge commit, tree, parents, failed test names
+      - name: Evidence record
+        if: always() && github.event_name != 'push'
+        run: python3 tools/agent_ci_evidence.py record --job-key server --junit evidence-pytest.xml --out evidence/evidence.json
+      - name: Upload the evidence record
+        if: always() && github.event_name != 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-ci-evidence-pr${{ github.event.pull_request.number || steps.payload.outputs.pr }}-server
+          path: evidence/evidence.json
+          if-no-files-found: error
 
   browser:
-    name: UCT Agent browser tests (shard ${{ matrix.shard }}/8)
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')
+    name: UCT Agent browser tests (shard ${{ matrix.shard }}/12)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master'
     runs-on: ubuntu-latest
     # 25 -> 40 (2026-11-11): shard 4/4 hit the 25-min limit and was CANCELLED on #1101 (25m18s) and #1107 (25m12s)
     # while shards 1-3 ran 10-17 min; shard 4 ran 17-22 min on earlier runs the same day. Headroom only, not a redesign:
@@ -151,9 +232,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     steps:
+      # P2c: the re-arm payload is attacker-controlled DATA. It is validated here, FIRST, and reaches the job only as this
+      # step's outputs (never interpolated into a shell); any event but push / pull_request must carry a valid one.
+      - name: Validate the re-arm payload
+        id: payload
+        if: github.event_name != 'push' && github.event_name != 'pull_request'
+        shell: bash
+        env:
+          EVIDENCE_PR: ${{ github.event.client_payload.pr }}
+          EVIDENCE_MERGE_SHA: ${{ github.event.client_payload.merge_sha }}
+        run: |
+          [[ "$EVIDENCE_PR" =~ ^[1-9][0-9]{0,6}$ ]] || { echo "::error::the re-arm pr is not a PR number"; exit 1; }
+          [[ "$EVIDENCE_MERGE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::the re-arm merge_sha is not a 40-hex commit"; exit 1; }
+          { echo "pr=$EVIDENCE_PR"; echo "merge_sha=$EVIDENCE_MERGE_SHA"; } >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.payload.outputs.merge_sha }}   # P2c re-arm: the VALIDATED merge commit; '' (the default) otherwise
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -185,8 +281,10 @@ jobs:
         run: |
           npx vitest list $AGENT_VITEST_PATHS --filesOnly > ../agent-files.txt
           T=../tools/agent_vitest_shard_timings.json; [ -s ../.shard-timings/agent_vitest_shard_timings.json ] && T=../.shard-timings/agent_vitest_shard_timings.json; echo "shard timings: $T"
-          python3 ../tools/agent_vitest_shards.py --files-list ../agent-files.txt --of "${AGENT_SHARDS}" --timings "$T" --plan
-          python3 ../tools/agent_vitest_shards.py --files-list ../agent-files.txt --of "${AGENT_SHARDS}" --timings "$T" \
+          # a file the refreshed week has no time for (added or split since) is weighed by the committed file (2026-11-17)
+          F=../tools/agent_vitest_shard_timings.json
+          python3 ../tools/agent_vitest_shards.py --files-list ../agent-files.txt --of "${AGENT_SHARDS}" --timings "$T" --timings-fallback "$F" --plan
+          python3 ../tools/agent_vitest_shards.py --files-list ../agent-files.txt --of "${AGENT_SHARDS}" --timings "$T" --timings-fallback "$F" \
             --shard ${{ matrix.shard }} > ../shard-${{ matrix.shard }}.files
           # never fall through to an unfiltered `vitest run` (it would run the whole app suite)
           test -s ../shard-${{ matrix.shard }}.files || { echo "::error::shard ${{ matrix.shard }} has no files"; exit 1; }
@@ -203,6 +301,19 @@ jobs:
             shard-${{ matrix.shard }}.json
             shard-${{ matrix.shard }}.files
           if-no-files-found: error
+      # P2 evidence (pull_request / re-arm runs only): merge commit, tree, parents, failed test names
+      - name: Evidence record
+        if: always() && github.event_name != 'push'
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: python3 tools/agent_ci_evidence.py record --job-key "browser-$SHARD" --vitest-json "shard-$SHARD.json" --out evidence/evidence.json
+      - name: Upload the evidence record
+        if: always() && github.event_name != 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-ci-evidence-pr${{ github.event.pull_request.number || steps.payload.outputs.pr }}-browser-${{ matrix.shard }}
+          path: evidence/evidence.json
+          if-no-files-found: error
 
   # Mission 2 (2026-11-04): the deterministic CAPABILITY REGRESSION suite, as its own named check — the NL equivalence
   # corpus (routing / deterministic plan / final state), the golden workflows, the capability inventory + coverage
@@ -215,21 +326,40 @@ jobs:
   # each, its own timeout), so a market-clock dependence can never again turn a gate red at the 09:30 ET open
   # (2026-11-04): `post` = after the close (the default, which the master deploy gate's `vitest run src/agent` uses)
   # and `rth` = the regular session. The baseline (Python) rail runs once, on the `post` leg.
+  # 2026-11-17: the `rth` clock runs as CAPREG_RTH_LEGS legs (`rth-1`, `rth-2`, ...): each takes the same `vitest list` of the
+  # suite and runs only its slice of the time-balanced partition (tools/agent_vitest_shards.py, as the browser shards do);
+  # every leg pins CAPREG_CLOCK=rth. The join job below fails unless the legs' union is the whole list, once each.
   capability-regression-clock:
     name: UCT Agent capability regression (deterministic, no model) @ ${{ matrix.clock }}
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        clock: [post, rth]
+        clock: [post, rth-1, rth-2]
     env:
-      CAPREG_CLOCK: ${{ matrix.clock }}
+      CAPREG_CLOCK: ${{ startsWith(matrix.clock, 'rth') && 'rth' || matrix.clock }}
     steps:
+      # P2c: the re-arm payload is attacker-controlled DATA. It is validated here, FIRST, and reaches the job only as this
+      # step's outputs (never interpolated into a shell); any event but push / pull_request must carry a valid one.
+      - name: Validate the re-arm payload
+        id: payload
+        if: github.event_name != 'push' && github.event_name != 'pull_request'
+        shell: bash
+        env:
+          EVIDENCE_PR: ${{ github.event.client_payload.pr }}
+          EVIDENCE_MERGE_SHA: ${{ github.event.client_payload.merge_sha }}
+        run: |
+          [[ "$EVIDENCE_PR" =~ ^[1-9][0-9]{0,6}$ ]] || { echo "::error::the re-arm pr is not a PR number"; exit 1; }
+          [[ "$EVIDENCE_MERGE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::the re-arm merge_sha is not a 40-hex commit"; exit 1; }
+          { echo "pr=$EVIDENCE_PR"; echo "merge_sha=$EVIDENCE_MERGE_SHA"; } >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          # only `post` reads history (the merge-base baseline lock); an rth leg runs vitest on the tree alone. Written
+          # `!= 'post' && 1 || 0`, never `== 'post' && 0 || 1` (0 is falsy, so that form gives 1 on post too).
+          fetch-depth: ${{ matrix.clock != 'post' && 1 || 0 }}
+          ref: ${{ steps.payload.outputs.merge_sha }}   # P2c re-arm: the VALIDATED merge commit; '' (the default) otherwise
       # the baseline rail also holds the corpus to the lock AS IT IS ON MASTER (merge base), so a hand-edited lock in
       # the same PR cannot launder a weakening (review #769)
       - name: Fetch master for the merge-base baseline check
@@ -239,8 +369,26 @@ jobs:
         if: matrix.clock == 'post'
         with:
           python-version: '3.12'
+      # P2d (AUDIT): one line naming the merge-base mode the baseline rail below will use, from the REAL merge_base_mode()
+      # in the same environment (no payload value, no expression in the shell; a missing origin/master prints empty)
+      - name: Print the capreg merge-base mode
+        if: matrix.clock == 'post'
+        run: |
+          python -c '
+          import importlib.util, os, sys
+          spec = importlib.util.spec_from_file_location("capreg_baseline", "tests/test_uct_agent_capreg_baseline.py")
+          m = importlib.util.module_from_spec(spec)
+          sys.modules["capreg_baseline"] = m
+          spec.loader.exec_module(m)
+          head = (m._git("rev-parse", "HEAD") or "").strip()
+          om = (m._git("rev-parse", "origin/master") or "").strip()
+          ev = os.environ.get("GITHUB_EVENT_NAME", "")
+          print(f"merge_base_mode={m.merge_base_mode()} event={ev} head={head} origin_master={om}")
+          '
       - name: Baseline lock (removing or weakening a baseline entry needs a recorded decision)
         if: matrix.clock == 'post'
+        env:
+          PYTEST_ADDOPTS: ${{ github.event_name != 'push' && '--junitxml=evidence-pytest.xml' || '' }}   # P2: '' on push
         run: |
           python -m pip install --quiet pytest
           python -m pytest tests/test_uct_agent_capreg_*.py -q -p no:cacheprovider
@@ -250,41 +398,166 @@ jobs:
       # leg's own vitest run was a second, identical ~15-minute execution. The `rth` leg is the only place the
       # suite runs at the regular-session clock, so it keeps its vitest run.
       - uses: actions/setup-node@v4
-        if: matrix.clock == 'rth'
+        if: matrix.clock != 'post'
         with:
           node-version: '20'
           cache: npm
           cache-dependency-path: app/package-lock.json
       - name: npm ci
-        if: matrix.clock == 'rth'
+        if: matrix.clock != 'post'
         working-directory: app
         run: npm ci
-      - name: vitest src/agent/qa/capabilityRegression (CAPREG_CLOCK=${{ matrix.clock }})
-        if: matrix.clock == 'rth'
+      # this leg's slice of the suite: the json report always (the join job's union rail reads it; P2 evidence too)
+      - name: vitest src/agent/qa/capabilityRegression (CAPREG_CLOCK=rth, leg ${{ matrix.clock }} of CAPREG_RTH_LEGS)
+        if: matrix.clock != 'post'
         working-directory: app
-        run: npx vitest run src/agent/qa/capabilityRegression --reporter=default
+        env:
+          LEG: ${{ matrix.clock }}
+        run: |
+          K="${LEG#rth-}"
+          npx vitest list src/agent/qa/capabilityRegression --filesOnly > "../capreg-$LEG.expected.txt"
+          python3 ../tools/agent_vitest_shards.py --files-list "../capreg-$LEG.expected.txt" --of "${CAPREG_RTH_LEGS}" --plan
+          python3 ../tools/agent_vitest_shards.py --files-list "../capreg-$LEG.expected.txt" --of "${CAPREG_RTH_LEGS}" \
+            --shard "$K" > "../capreg-$LEG.files"
+          # never fall through to an unfiltered `vitest run` (it would run the whole app suite)
+          test -s "../capreg-$LEG.files" || { echo "::error::capreg leg $LEG has no files"; exit 1; }
+          echo "capreg leg $LEG: $(wc -l < "../capreg-$LEG.files") files of $(wc -l < "../capreg-$LEG.expected.txt")"
+          npx vitest run $(cat "../capreg-$LEG.files") --reporter=default --reporter=json --outputFile="../capreg-$LEG.json"
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.clock != 'post'
+        with:
+          name: agent-capreg-${{ matrix.clock }}
+          path: |
+            capreg-${{ matrix.clock }}.json
+            capreg-${{ matrix.clock }}.files
+            capreg-${{ matrix.clock }}.expected.txt
+          if-no-files-found: error
+      # P2 evidence (pull_request / re-arm runs only): merge commit, tree, parents, failed test names
+      - name: Evidence record
+        if: always() && github.event_name != 'push'
+        env:
+          LEG: ${{ matrix.clock }}
+        run: |
+          if [ "$LEG" = post ]; then R="--junit evidence-pytest.xml"; else R="--vitest-json capreg-$LEG.json"; fi
+          python3 tools/agent_ci_evidence.py record --job-key "capability-regression-clock-$LEG" $R --out evidence/evidence.json
+      - name: Upload the evidence record
+        if: always() && github.event_name != 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-ci-evidence-pr${{ github.event.pull_request.number || steps.payload.outputs.pr }}-capability-regression-clock-${{ matrix.clock }}
+          path: evidence/evidence.json
+          if-no-files-found: error
 
-  # one named result for both clock legs (the check to watch / require)
+  # one named result for every clock leg (the check to watch / require); since 2026-11-17 it also proves the rth legs'
+  # union is the whole suite, each file once, none failed (the browser `union` rail's rule, for the rth clock)
   capability-regression:
     name: UCT Agent capability regression (deterministic, no model)
     needs: capability-regression-clock
-    if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/'))
+    if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      # P2c: the re-arm payload is attacker-controlled DATA. It is validated here, FIRST, and reaches the job only as this
+      # step's outputs (never interpolated into a shell); any event but push / pull_request must carry a valid one.
+      - name: Validate the re-arm payload
+        id: payload
+        if: github.event_name != 'push' && github.event_name != 'pull_request'
+        shell: bash
+        env:
+          EVIDENCE_PR: ${{ github.event.client_payload.pr }}
+          EVIDENCE_MERGE_SHA: ${{ github.event.client_payload.merge_sha }}
+        run: |
+          [[ "$EVIDENCE_PR" =~ ^[1-9][0-9]{0,6}$ ]] || { echo "::error::the re-arm pr is not a PR number"; exit 1; }
+          [[ "$EVIDENCE_MERGE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::the re-arm merge_sha is not a 40-hex commit"; exit 1; }
+          { echo "pr=$EVIDENCE_PR"; echo "merge_sha=$EVIDENCE_MERGE_SHA"; } >> "$GITHUB_OUTPUT"
       - name: Both pinned clocks passed
         run: |
           echo "clock legs: ${{ needs.capability-regression-clock.result }}"
           test "${{ needs.capability-regression-clock.result }}" = "success"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: agent-capreg-rth-*
+          path: capreg
+          merge-multiple: true
+      - name: The rth legs ran the whole suite once; exactly CAPREG_RTH_LEGS legs; no failures
+        run: |
+          node - <<'EOF'
+          const fs = require('fs'), path = require('path');
+          const norm = p => path.resolve(p).replace(/\\/g, '/').replace(/^.*?\/app\//, 'app/');
+          const legs = Number(process.env.CAPREG_RTH_LEGS);
+          const dir = 'capreg', all = fs.existsSync(dir) ? fs.readdirSync(dir).sort() : [];
+          const reports = all.filter(f => /^capreg-rth-\d+\.json$/.test(f));
+          const lists = all.filter(f => /^capreg-rth-\d+\.expected\.txt$/.test(f));
+          const read = f => fs.readFileSync(path.join(dir, f), 'utf8').split(/\r?\n/).filter(Boolean).map(x => norm(path.join('app', x))).sort();
+          const bad = [];
+          if (!(legs >= 1)) bad.push(`CAPREG_RTH_LEGS is not a leg count: ${process.env.CAPREG_RTH_LEGS}`);
+          if (reports.length !== legs) bad.push(`expected ${legs} rth leg reports, got ${reports.length}`);
+          if (lists.length !== legs) bad.push(`expected ${legs} rth leg file lists, got ${lists.length}`);
+          // every leg listed the suite on the same tree, so the lists are identical; one that differs is a leg that planned elsewhere
+          const expected = lists.length ? read(lists[0]) : [];
+          for (const l of lists.slice(1)) if (read(l).join('\n') !== expected.join('\n')) bad.push(`${l} differs from ${lists[0]}`);
+          if (expected.length < 10) bad.push(`fewer than 10 capability-regression files listed (${expected.length})`);
+          const where = new Map(); let failed = 0, passed = 0;
+          for (const f of reports) {
+            const r = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+            for (const t of r.testResults || []) { const k = norm(t.name); where.set(k, [...(where.get(k) || []), f]); }
+            failed += r.numFailedTests || 0; passed += r.numPassedTests || 0;
+          }
+          const want = new Set(expected);
+          const missing = expected.filter(f => !where.has(f));
+          const extra = [...where.keys()].filter(f => !want.has(f));
+          const dupes = [...where].filter(([, s]) => s.length > 1).map(([k, s]) => `${k} (${s.join(', ')})`);
+          console.log(`rth: ${expected.length} files listed; ${legs} legs ran ${where.size} distinct; passed ${passed}, failed ${failed}`);
+          if (missing.length) bad.push('files no rth leg ran:\n' + missing.join('\n'));
+          if (extra.length) bad.push('files an rth leg ran outside the list:\n' + extra.join('\n'));
+          if (dupes.length) bad.push('files more than one rth leg ran:\n' + dupes.join('\n'));
+          if (failed > 0) bad.push(`${failed} rth tests failed`);
+          for (const b of bad) console.log('::error::' + b);
+          if (bad.length) process.exit(1);
+          EOF
+      # P2: this job had no checkout; evidence runs take a one-file sparse one to read the merge commit + tree
+      - uses: actions/checkout@v4
+        if: always() && github.event_name != 'push'
+        with:
+          ref: ${{ steps.payload.outputs.merge_sha }}   # P2c re-arm: the VALIDATED merge commit; '' (the default) otherwise
+          sparse-checkout: |
+            tools/agent_ci_evidence.py
+          sparse-checkout-cone-mode: false
+      # P2 evidence (pull_request / re-arm runs only): merge commit, tree, parents, failed test names
+      - name: Evidence record
+        if: always() && github.event_name != 'push'
+        run: python3 tools/agent_ci_evidence.py record --job-key capability-regression --out evidence/evidence.json
+      - name: Upload the evidence record
+        if: always() && github.event_name != 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-ci-evidence-pr${{ github.event.pull_request.number || steps.payload.outputs.pr }}-capability-regression
+          path: evidence/evidence.json
+          if-no-files-found: error
 
   union:
     name: Shards cover every Agent test file (equivalence rail)
     needs: browser
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/')
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'agent/') || github.event_name == 'repository_dispatch' || github.base_ref == 'master'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # P2c: the re-arm payload is attacker-controlled DATA. It is validated here, FIRST, and reaches the job only as this
+      # step's outputs (never interpolated into a shell); any event but push / pull_request must carry a valid one.
+      - name: Validate the re-arm payload
+        id: payload
+        if: github.event_name != 'push' && github.event_name != 'pull_request'
+        shell: bash
+        env:
+          EVIDENCE_PR: ${{ github.event.client_payload.pr }}
+          EVIDENCE_MERGE_SHA: ${{ github.event.client_payload.merge_sha }}
+        run: |
+          [[ "$EVIDENCE_PR" =~ ^[1-9][0-9]{0,6}$ ]] || { echo "::error::the re-arm pr is not a PR number"; exit 1; }
+          [[ "$EVIDENCE_MERGE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::the re-arm merge_sha is not a 40-hex commit"; exit 1; }
+          { echo "pr=$EVIDENCE_PR"; echo "merge_sha=$EVIDENCE_MERGE_SHA"; } >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.payload.outputs.merge_sha }}   # P2c re-arm: the VALIDATED merge commit; '' (the default) otherwise
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -327,3 +600,16 @@ jobs:
           if (ran.size < 30) { console.log('::error::fewer than 30 Agent test files ran'); process.exit(1); }
           if (missing.length || dupes.length || failed > 0) process.exit(1);
           EOF
+      # P2 evidence (pull_request / re-arm runs only): merge commit, tree, parents, failed test names
+      - name: Evidence record
+        if: always() && github.event_name != 'push'
+        run: |
+          set --; for f in shards/shard-*.json; do if [ -f "$f" ]; then set -- "$@" --vitest-json "$f"; fi; done
+          python3 tools/agent_ci_evidence.py record --job-key union "$@" --out evidence/evidence.json
+      - name: Upload the evidence record
+        if: always() && github.event_name != 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-ci-evidence-pr${{ github.event.pull_request.number || steps.payload.outputs.pr }}-union
+          path: evidence/evidence.json
+          if-no-files-found: error

@@ -100,6 +100,7 @@
 .landing { color: var(--scr-dim); font-style: italic; }
 
 /* NameDialog: a note under the name, e.g. saving a screen with no matches today (B17). */
+.dialogInfo { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--scr-rest); }
 .dialogNote { margin: 0; font-size: var(--text-base); line-height: var(--lh-snug); color: var(--warn); background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: var(--radius-lg); padding: 8px 10px; }
 
 /* Keyboard shortcuts sheet (B10/N6). */

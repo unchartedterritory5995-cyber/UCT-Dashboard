@@ -8,7 +8,7 @@ import { render, screen, cleanup, fireEvent, act, within } from '@testing-librar
 import { SWRConfig } from 'swr'
 import { setCreateIndicatorFlag } from './studio/createIndicatorFlag'
 import BuilderSheet from './BuilderSheet'
-import { openInputs } from './builderStart.testkit.js'
+import { openInputs } from '../../../testing/builder/builderStart.testkit.js'
 import { AuthContext } from '../../../context/AuthContext'
 import { clearUserDefinitions } from '../engine/nativeRegistry'
 import { parseFormula } from '../engine/ast/parse'
@@ -70,6 +70,9 @@ describe('a described indicator shows its numbers', () => {
     openInputs()
     const rows = within(screen.getByTestId('converse-settings')).getAllByTestId('studio-setting')
     expect(rows.map((r) => box(r).value)).toEqual(['14', '70'])
+    // the form's own "add an input" note is not offered beside them: it would act on a formula
+    // this indicator does not have
+    expect(screen.getByTestId('declared-inputs').hidden).toBe(true)
   })
 
   it('changing a number asks the assistant nothing, and what will run follows it', async () => {

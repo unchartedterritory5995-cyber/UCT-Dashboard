@@ -8,6 +8,7 @@ import HelpPanel from './HelpPanel'
 import { START_HERE } from '../grammar'
 import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS } from '../functions'
 import parseCommand from '../parseCommand'
+import { STARTER_BOARDS } from '../starterBoards'
 
 afterEach(cleanup)
 
@@ -63,5 +64,25 @@ describe('HELP opens with Start here', () => {
   it('HELP GP (one code) shows that code, not the Start here list', () => {
     render(<HelpPanel auth={{}} focusCode="GP" />)
     expect(screen.queryByTestId('terminal-help-start')).toBeNull()
+  })
+})
+
+// 2026-11-17: HELP points at the one-click boards, inside Start here and after its rows.
+describe('HELP names the ready-made boards', () => {
+  it('one sentence under Start here, with the name of every board and the Boards shortcut', () => {
+    render(<HelpPanel auth={{}} />)
+    const start = screen.getByTestId('terminal-help-start')
+    const line = within(start).getByTestId('terminal-help-ready-boards')
+    expect(line.textContent).toContain('Boards button')
+    expect(line.textContent.replace(/\s+/g, ' ')).toContain('Alt+O')
+    for (const b of STARTER_BOARDS) expect(line.textContent).toContain(b.name)
+    // it follows the rows: the first control in HELP is still a Start here function
+    const rows = start.querySelectorAll('button')
+    expect(rows[rows.length - 1].compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('HELP for one code does not show it', () => {
+    render(<HelpPanel auth={{}} focusCode="GP" />)
+    expect(screen.queryByTestId('terminal-help-ready-boards')).toBeNull()
   })
 })

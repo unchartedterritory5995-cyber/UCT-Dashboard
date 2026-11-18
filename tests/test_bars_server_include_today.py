@@ -124,7 +124,13 @@ def test_replay_to_window_is_never_touched(monkeypatch, today_open):
 
 def test_index_symbol_is_never_touched(monkeypatch, today_open):
     """Index series (SPX/^IXIC…) come from a different provider path and are
-    excluded — the guard checks is_index()."""
+    excluded from THIS (Massive) append — the guard checks is_index(). An index's own
+    developing bar is built from its 5m series (RS RATING L10,
+    `tests/test_index_developing_bar.py`); held to "none" here so this case is the
+    equity append's alone and never reads this box's clock or index cache."""
+    from api import index_bars
+    monkeypatch.setattr(index_bars, "with_todays_session", lambda *a, **k: None)
+
     def _boom(tk):
         raise AssertionError("todays_daily_bar must not be called for an index")
     monkeypatch.setattr(massive, "todays_daily_bar", _boom)
@@ -175,6 +181,13 @@ def test_todays_daily_bar_stamps_today_and_caches(monkeypatch):
     # Not testing the calendar gate here (see the weekend/holiday tests below) —
     # force it open so this test's result never depends on which real day it runs.
     monkeypatch.setattr(massive, "_today_et_is_a_trading_day", lambda: True)
+    # ⛔ AND THE CLOCK GATE, or this test is red from ET midnight to the 09:30 open. Since
+    # 2026-09-11 `todays_daily_bar` asks `_regular_session_has_opened_today()` (a clock check,
+    # with its own tests below), so forcing only the calendar gate left the result depending on
+    # the HOUR this runs: it returned None overnight and `bar["t"]` raised. Measured 2026-11-18,
+    # 05:11Z to 06:15Z: the master deploy gate's bars lane failed on it on every run and nothing
+    # promoted. This case is about the date stamp and the per-ticker cache, not either gate.
+    monkeypatch.setattr(massive, "_regular_session_has_opened_today", lambda: True)
     from datetime import datetime
     from zoneinfo import ZoneInfo
     today = datetime.now(ZoneInfo("America/New_York")).date().isoformat()

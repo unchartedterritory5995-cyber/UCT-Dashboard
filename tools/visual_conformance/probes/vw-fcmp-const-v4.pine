@@ -1,0 +1,46 @@
+//@version=4
+study("vw-fcmp-const-v4")
+
+// PROVENANCE: written 2026-11-18 for the Pine parity programme after the Q-FCMP2 readings (coordinator patrick-2b).
+// Q-FCMP2 found the operators' rule an absolute epsilon (|a - b| < ~1e-10) at RUNTIME in v4 and v6, and in v6 for
+// compile-time constants too; but the v4 twin compared its CONST straddle (vw-fcmp-form-v4 T50, two literals inline,
+// 2e-14 apart) EXACTLY. This probe asks which v4 / v5 operands count as compile-time constants for that exact compare.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// Every row compares a pair 3e-14 apart (inside the epsilon) unless it says otherwise: an EXACT compare reads 50
+// (a > b) or 14 (a < b), the epsilon reads 41.
+// CODE = 1*(a == b) + 2*(a != b) + 4*(a < b) + 8*(a <= b) + 16*(a > b) + 32*(a >= b), written inline per row so the
+// operands keep their own qualifier (a function call would make them arguments).
+// C01 literals inline. C02 names bound to literals. C03 / C04 (0.1 + 0.2) vs 0.3 inline / named (Q-FCMP F01).
+// C05 / C06 an input's default against a literal / another input. C07 a const against a series. C08 both series
+// (the control: tolerant). C09 a name reassigned with :=. C10 a function returning a literal. C11 a ?: of consts.
+// C12 an int literal against a float literal. C13 / C14 Q-FCMP's literal tie (F11 / F12), named / inline.
+// CAPTURE: AMEX:SPY 1D FROM THE LISTING (history.startsAtBar0 asserted), then NYSE:RDDT 1D, inputs at defaults.
+
+one = bar_index >= 0 ? 1.0 : 0.0
+ca = 1.00000000000003
+cb = 1.0
+cs = 0.1 + 0.2
+ct = 0.3
+ia = input(1.00000000000003)
+ib = input(1.0)
+rv = 1.0
+rv := 1.00000000000003
+cf() => 1.00000000000003
+tieUp = 189.22 - 189.13
+tieDown = 188.14 - 188.05
+
+plot(bar_index, "C00_bar_index_CONTROL")
+plot(((1.00000000000003 == 1.0 ? 1 : 0) + (1.00000000000003 != 1.0 ? 2 : 0) + (1.00000000000003 < 1.0 ? 4 : 0) + (1.00000000000003 <= 1.0 ? 8 : 0) + (1.00000000000003 > 1.0 ? 16 : 0) + (1.00000000000003 >= 1.0 ? 32 : 0)), "C01_literals")
+plot(((ca == cb ? 1 : 0) + (ca != cb ? 2 : 0) + (ca < cb ? 4 : 0) + (ca <= cb ? 8 : 0) + (ca > cb ? 16 : 0) + (ca >= cb ? 32 : 0)), "C02_named_consts")
+plot((((0.1 + 0.2) == 0.3 ? 1 : 0) + ((0.1 + 0.2) != 0.3 ? 2 : 0) + ((0.1 + 0.2) < 0.3 ? 4 : 0) + ((0.1 + 0.2) <= 0.3 ? 8 : 0) + ((0.1 + 0.2) > 0.3 ? 16 : 0) + ((0.1 + 0.2) >= 0.3 ? 32 : 0)), "C03_literal_sum")
+plot(((cs == ct ? 1 : 0) + (cs != ct ? 2 : 0) + (cs < ct ? 4 : 0) + (cs <= ct ? 8 : 0) + (cs > ct ? 16 : 0) + (cs >= ct ? 32 : 0)), "C04_named_sum")
+plot(((ia == 1.0 ? 1 : 0) + (ia != 1.0 ? 2 : 0) + (ia < 1.0 ? 4 : 0) + (ia <= 1.0 ? 8 : 0) + (ia > 1.0 ? 16 : 0) + (ia >= 1.0 ? 32 : 0)), "C05_input_literal")
+plot(((ia == ib ? 1 : 0) + (ia != ib ? 2 : 0) + (ia < ib ? 4 : 0) + (ia <= ib ? 8 : 0) + (ia > ib ? 16 : 0) + (ia >= ib ? 32 : 0)), "C06_input_input")
+plot(((ca == (cb * one) ? 1 : 0) + (ca != (cb * one) ? 2 : 0) + (ca < (cb * one) ? 4 : 0) + (ca <= (cb * one) ? 8 : 0) + (ca > (cb * one) ? 16 : 0) + (ca >= (cb * one) ? 32 : 0)), "C07_const_series")
+plot((((ca * one) == (cb * one) ? 1 : 0) + ((ca * one) != (cb * one) ? 2 : 0) + ((ca * one) < (cb * one) ? 4 : 0) + ((ca * one) <= (cb * one) ? 8 : 0) + ((ca * one) > (cb * one) ? 16 : 0) + ((ca * one) >= (cb * one) ? 32 : 0)), "C08_series_series_CONTROL")
+plot(((rv == 1.0 ? 1 : 0) + (rv != 1.0 ? 2 : 0) + (rv < 1.0 ? 4 : 0) + (rv <= 1.0 ? 8 : 0) + (rv > 1.0 ? 16 : 0) + (rv >= 1.0 ? 32 : 0)), "C09_reassigned")
+plot(((cf() == 1.0 ? 1 : 0) + (cf() != 1.0 ? 2 : 0) + (cf() < 1.0 ? 4 : 0) + (cf() <= 1.0 ? 8 : 0) + (cf() > 1.0 ? 16 : 0) + (cf() >= 1.0 ? 32 : 0)), "C10_function_result")
+plot((((true ? ca : 2.0) == cb ? 1 : 0) + ((true ? ca : 2.0) != cb ? 2 : 0) + ((true ? ca : 2.0) < cb ? 4 : 0) + ((true ? ca : 2.0) <= cb ? 8 : 0) + ((true ? ca : 2.0) > cb ? 16 : 0) + ((true ? ca : 2.0) >= cb ? 32 : 0)), "C11_ternary_of_consts")
+plot(((1 == 1.00000000000003 ? 1 : 0) + (1 != 1.00000000000003 ? 2 : 0) + (1 < 1.00000000000003 ? 4 : 0) + (1 <= 1.00000000000003 ? 8 : 0) + (1 > 1.00000000000003 ? 16 : 0) + (1 >= 1.00000000000003 ? 32 : 0)), "C12_int_vs_float")
+plot(((tieUp == tieDown ? 1 : 0) + (tieUp != tieDown ? 2 : 0) + (tieUp < tieDown ? 4 : 0) + (tieUp <= tieDown ? 8 : 0) + (tieUp > tieDown ? 16 : 0) + (tieUp >= tieDown ? 32 : 0)), "C13_tie_literals")
+plot((((189.22 - 189.13) == (188.14 - 188.05) ? 1 : 0) + ((189.22 - 189.13) != (188.14 - 188.05) ? 2 : 0) + ((189.22 - 189.13) < (188.14 - 188.05) ? 4 : 0) + ((189.22 - 189.13) <= (188.14 - 188.05) ? 8 : 0) + ((189.22 - 189.13) > (188.14 - 188.05) ? 16 : 0) + ((189.22 - 189.13) >= (188.14 - 188.05) ? 32 : 0)), "C14_tie_inline")

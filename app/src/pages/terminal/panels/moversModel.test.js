@@ -2,7 +2,8 @@
 // never a zero that sorts or filters as if it were real.
 import { describe, it, expect } from 'vitest'
 import {
-  MAX_NAMES, SESSION_COPY, SESSIONS, buildRows, catalystLabel, defaultSort, filterRows, liveSymbols, parsePct, sortRows,
+  MAX_NAMES, MAX_SOURCES, SESSION_COPY, SESSIONS, buildRows, catalystLabel, catalystSources, defaultSort, filterRows, liveSymbols,
+  parsePct, ratingWords, sortRows,
 } from './moversModel'
 
 const MOVERS = {
@@ -45,7 +46,9 @@ describe('buildRows', () => {
     const prices = { AAA: { price: 52.1, change_pct: 13.2, volume: 4_200_000 } }
     const { AAA, DDD, BBB } = by(buildRows({ movers: MOVERS, catalysts: CATALYSTS, volume: VOLUME, prices, session: 'regular' }))
     expect(AAA).toMatchObject({ last: 52.1, pct: 13.2, volume: 4_200_000, volVsAvg: 3.2, volSource: 'scanner', lit: true })
-    expect(AAA.catalyst).toEqual({ label: 'Earnings', thesis: 'Beat and raised.', at: 1760000000 * 1000 })
+    expect(AAA.catalyst).toEqual({
+      label: 'Earnings', thesis: 'Beat and raised.', at: 1760000000 * 1000, writtenAt: null, sources: { list: [], more: 0 }, rating: null,
+    })
     // DDD: no live price, no scanner — falls back to the catalyst board; vol_x 0 is unknown, not 0×
     expect(DDD).toMatchObject({ last: 9, pct: 2.1, volVsAvg: null, volSource: null })
     expect(DDD.catalyst.label).toBe('FDA')
@@ -128,10 +131,56 @@ describe('liveSymbols / catalystLabel', () => {
     expect(liveSymbols({})).toEqual([])
   })
 
-  it('a catalyst says its tag, else its type, else nothing', () => {
-    expect(catalystLabel({ tag: 'Gapper', catalyst_type: 'x' })).toBe('Gapper')
+  it('a catalyst says its type, else its tag, else nothing', () => {
+    // the board's own type says what happened; its tag only says which bucket the name was filed under
+    expect(catalystLabel({ tag: 'Catalyst', catalyst_type: 'FDA' })).toBe('FDA')
+    expect(catalystLabel({ tag: 'Gapper', catalyst_type: ' M&A ' })).toBe('M&A')
     expect(catalystLabel({ catalyst_type: 'FDA' })).toBe('FDA')
+    // "None" is the board saying it named no type: the tag stands, never the word None
+    expect(catalystLabel({ tag: 'Gapper', catalyst_type: 'None' })).toBe('Gapper')
+    expect(catalystLabel({ tag: 'Earnings', catalyst_type: '' })).toBe('Earnings')
+    expect(catalystLabel({ tag: 'News', catalyst_type: 7 })).toBe('News')
+    expect(catalystLabel({ catalyst_type: 'none' })).toBeNull()
     expect(catalystLabel({})).toBeNull()
     expect(catalystLabel(null)).toBeNull()
+  })
+
+  it('catalystSources: the links a write-up cites, http(s) only, each once, capped and counted', () => {
+    const raw = JSON.stringify(['https://www.reuters.com/a', 'http://sec.gov/b?x=1', 'https://www.reuters.com/a', 'javascript:alert(1)', 'not a link', 5, ''])
+    expect(catalystSources(raw)).toEqual({
+      list: [{ url: 'https://www.reuters.com/a', host: 'reuters.com' }, { url: 'http://sec.gov/b?x=1', host: 'sec.gov' }],
+      more: 0,
+    })
+    // the list itself (already parsed) reads the same as its JSON text
+    expect(catalystSources(['https://a.example/1']).list).toEqual([{ url: 'https://a.example/1', host: 'a.example' }])
+    const many = Array.from({ length: MAX_SOURCES + 3 }, (_, i) => `https://s${i}.example/x`)
+    expect(catalystSources(many).list).toHaveLength(MAX_SOURCES)
+    expect(catalystSources(many).more).toBe(3)
+    // unreadable is no sources, never a guess
+    for (const bad of [null, undefined, '', '[]', 'x', '{"a":1}', 12, {}]) expect(catalystSources(bad)).toEqual({ list: [], more: 0 })
+  })
+
+  it('ratingWords: the analyst action with its firm and its date, each only when it was sent', () => {
+    expect(ratingWords({ action: 'upgrade', company: 'Morgan Stanley', from_grade: 'Equal-Weight', to_grade: 'Overweight', date: '2026-11-17' }))
+      .toBe('Upgrade by Morgan Stanley, Equal-Weight to Overweight, 2026-11-17')
+    expect(ratingWords({ action: 'INITIATE', company: 'Jefferies', to_grade: 'Buy', date: '2026-11-17T08:00:00' })).toBe('Initiate by Jefferies, to Buy, 2026-11-17')
+    expect(ratingWords({ action: 'downgrade' })).toBe('Downgrade')
+    expect(ratingWords({ action: 'downgrade', from_grade: 'Buy', date: 'soon' })).toBe('Downgrade')
+    for (const none of [null, undefined, {}, { company: 'X' }, 'upgrade', { action: '' }]) expect(ratingWords(none)).toBeNull()
+  })
+
+  it('buildRows carries the write-up\'s time, its sources and the analyst action for a listed name', () => {
+    const [row] = buildRows({
+      movers: { ripping: [{ sym: 'AAA', pct: '+12.50%' }], drilling: [] },
+      catalysts: { rows: [{
+        ticker: 'AAA', tag: 'Catalyst', catalyst_type: 'Analyst', thesis_text: 'Upgraded.', catalyst_at: 1760000000, thesis_at: 1760000600,
+        thesis_sources: '["https://www.example.com/note"]', rating_change: { action: 'upgrade', company: 'Acme Research', to_grade: 'Buy', date: '2026-11-18' },
+      }] },
+    })
+    expect(row.catalyst).toEqual({
+      label: 'Analyst', thesis: 'Upgraded.', at: 1760000000 * 1000, writtenAt: 1760000600 * 1000,
+      sources: { list: [{ url: 'https://www.example.com/note', host: 'example.com' }], more: 0 },
+      rating: 'Upgrade by Acme Research, to Buy, 2026-11-18',
+    })
   })
 })
