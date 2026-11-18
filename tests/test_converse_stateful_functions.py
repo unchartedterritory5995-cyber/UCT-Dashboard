@@ -162,8 +162,11 @@ def test_the_instructions_name_the_two_as_functions_with_each_directions_own_sig
     # the two directions do NOT share a sign, and the instructions say each one's
     assert "-1 while the trend is UP, 1 while it is DOWN" in text
     assert "1 while the dots are under price, -1 while they are above" in text
-    assert "a window is always a literal whole number" in text
-    assert "ratchets" in text and "set disposition unsupported" in text
+    assert "A window is always a literal whole number" in text
+    # (2026-11-18) a stop that only moves one way is a running value; only one that FLIPS sides is
+    # declined. This line used to hold the sentence that said any ratchet "cannot be written".
+    assert "A stop that FLIPS to the other side when price crosses it" in text and "set disposition unsupported" in text
+    assert "only ever moves ONE way" in text and "is a RUNNING VALUE" in text
 
 
 def test_the_signs_the_instructions_state_are_the_ones_the_expansions_compute():
