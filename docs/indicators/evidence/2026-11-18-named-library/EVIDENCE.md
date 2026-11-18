@@ -359,3 +359,19 @@ The four prices are stored exactly as those ticks. Subtracted as binary floating
 is 0.09000000000000341 and the down move 0.08999999999997499, so UCT counts the up move as the
 larger and TradingView counts a tie. No engine change was made for it; it is recorded as a known
 precision difference, and the entry still says nothing about TradingView.
+
+## The shipped-version ledger
+
+"An entry's maths never changes under the same version" was held by the fingerprint stored in the
+library file itself. A library file regenerated with empty fingerprints, which is how the entries
+above were written, could therefore move a shipped entry's formula and record the new fingerprint
+as if it had always been version 1, and nothing went red. It was found while Ease of Movement and
+the Negative Volume Index were being given a second version; each first version's fingerprint was
+then pinned by hand.
+
+`api/data/named_indicators_shipped.json` closes it for every entry: each (entry, version) is
+recorded once, with its fingerprint, when it ships. The build tool refuses a library whose recorded
+version moved, even when the file carries no fingerprint to compare with, and one that lost a
+recorded entry or version; `--ship` adds what is new and never rewrites a recorded line; `--check`
+fails while a version is unrecorded. Proved by changing a shipped formula through the seed and
+watching the build refuse it (`tests/test_named_indicators_ledger.py`).
