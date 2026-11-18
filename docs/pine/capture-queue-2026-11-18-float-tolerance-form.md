@@ -74,9 +74,14 @@ lies outside the epsilon, so its built-in rows cannot rule. Hence the rows below
 | Q-FCMP2-11 | `tools/visual_conformance/probes/vw-fcmp-const-v4.pine` | AMEX:SPY 1D | from the listing; every plot on every bar | which v4 operands are compile-time constants, compared exactly (T50) |
 | Q-FCMP2-12 | `tools/visual_conformance/probes/vw-fcmp-const-v5.pine` | AMEX:SPY 1D | from the listing; every plot on every bar | the same under v5 |
 | Q-FCMP2-13 | `tools/visual_conformance/probes/vw-fcmp-form-v5.pine` | AMEX:SPY 1D | from the listing; every plot on every bar | whether v5 runs the v4 / v6 rule (rows 1-8 read v4 and v6 only) |
+| Q-FCMP2-14 | `tools/visual_conformance/probes/vw-fcmp-form-v3.pine` | AMEX:SPY 1D | from the listing; every plot on every bar | whether v3 runs the v4 / v6 rule (ruling D4: no version assumed) |
+| Q-FCMP2-15 | `tools/visual_conformance/probes/vw-fcmp-form-v2.pine` | AMEX:SPY 1D | from the listing; every plot on every bar | the same for v2 |
+| Q-FCMP2-16 | `tools/visual_conformance/probes/vw-fcmp-form-v1.pine` | AMEX:SPY 1D | from the listing (no version pragma: TradingView reads it as v1); every plot on every bar | the same for v1 |
 
-Rows 9 and 10 are the coordinator's ask. Rows 11-13 are recommended: without them a v5 script's comparisons and a
-v4 / v5 constant comparison are unmeasured, and the engine would have to refuse them by name.
+Rows 9-13 are approved (coordinator rulings 2026-11-18). Rows 14-16 are ruling D4: until a version is measured,
+the engine serves its comparisons only where exact and tolerant agree and refuses the rest by name
+(`pine:compare-version-unpinned`). v1-v3 grammar: `n` is the bar counter, the functions are untyped, `one` is
+`close * 0 + 1.0`; v1 / v2 have no int type, so T40-T44 read as float rows there.
 
 ### Built probes (rerun; record each sha256 with its capture)
 
@@ -86,6 +91,9 @@ v4 / v5 constant comparison are unmeasured, and the engine would have to refuse 
 | `vw-fcmp-const-v4.pine` | 15 | `86d69d0ddec8fffbe9926f38f8898e4e401019f72ebeeee0d3a971f0d0441b8d` |
 | `vw-fcmp-const-v5.pine` | 15 | `f1a561bb66e03c45ccbed1d7cd0cd776c920ef07bb330ea4310c1fd1fb960dfa` |
 | `vw-fcmp-form-v5.pine` | 51 | `cb2d146b6cf0398e317ca3f69c5ffaea63340450fd238f4fe8b36b5114ebb94b` |
+| `vw-fcmp-form-v3.pine` | 51 | `9d78f19d69744578ec58cdfca9c6704e481c7f64e4556e1cf16f147fe41bcd42` |
+| `vw-fcmp-form-v2.pine` | 51 | `3c5799d7a9b270e4cb94fdd25dc3f1c642713130a5b091e1138d81e5259b5b06` |
+| `vw-fcmp-form-v1.pine` | 51 | `d7e1ed59d2aeb11db8abc8faf0e5f83a90fbb30d095171bdf1a6bdc5778c5a22` |
 
 What each answers:
 
