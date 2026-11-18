@@ -302,7 +302,7 @@ def register(registry) -> None:
         freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
         description="UCT's Top Flow picks, one by one, with how each option CONTRACT has done since it was flagged (the "
                     "Flow Record's own arithmetic; a pick with fewer than two daily prices is too new to score, never "
-                    "0%). Picks from UCT's options flow tape; daily prices from Massive with Schwab as backup. as_of is "
+                    "0%). Picks from UCT's options flow tape; daily prices from Massive (before November 2026, from Schwab). as_of is "
                     "the newest daily price date. Shown to the member only. "
                     f"Params: {{status: {'|'.join(flow_top_picks.STATUSES)}, direction: {'|'.join(flow_top_picks.DIRECTIONS)}, "
                     f"sort: {'|'.join(flow_top_picks.SORTS)}, limit (1-{flow_top_picks.MAX_LIMIT}), symbol?}}.",

@@ -21,7 +21,7 @@ const index = (symbol) => ({
 })
 
 describe('historyFeed.prime', () => {
-  it('warms the index and the series\' newest PRIME_PIECES pieces, once per key', async () => {
+  it('warms the index and the newest pieces holding the whole first-paint depth, once per key', async () => {
     const source = { loadIndex: vi.fn(async (sym) => index(sym)), warmPieces: vi.fn(async () => {}) }
     const feed = createHistoryFeed({ source })
     const key = keyOf({ sym: 'AAA', tf: '5' })
@@ -33,7 +33,18 @@ describe('historyFeed.prime', () => {
     const [sym, series, entries] = source.warmPieces.mock.calls[0]
     expect(sym).toBe('AAA')
     expect(series).toBe('5')
-    expect(entries.map((e) => e.period)).toEqual(['2026Q2', '2026Q3', '2026Q4'].slice(-PRIME_PIECES))
+    // 4,000 + 6,100 + 6,000 bars: every piece is needed for LAKE_PREFETCH_TARGET_BARS (20,000)
+    expect(entries.map((e) => e.period)).toEqual(['2026Q2', '2026Q3', '2026Q4'])
+  })
+
+  it('stops at the pieces that hold the depth asked, never fewer than PRIME_PIECES', async () => {
+    const source = { loadIndex: vi.fn(async (sym) => index(sym)), warmPieces: vi.fn(async () => {}) }
+    const feed = createHistoryFeed({ source })
+    feed.prime(keyOf({ sym: 'BBB', tf: '5' }), { bars: 9000 })          // 4,000 + 6,100 reach it
+    feed.prime(keyOf({ sym: 'CCC', tf: '5' }), { bars: 1 })             // the newest piece would: still two
+    await flush()
+    expect(source.warmPieces.mock.calls[0][2].map((e) => e.period)).toEqual(['2026Q3', '2026Q4'])
+    expect(source.warmPieces.mock.calls[1][2].length).toBe(PRIME_PIECES)
   })
 
   it('daily keys, symbols the lake lacks and failures cost nothing and throw nothing', async () => {

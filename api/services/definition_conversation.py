@@ -176,6 +176,8 @@ MAX_OPS: int = int(json.loads(_raw_schema_text())["x-uct-limits"]["maxOps"])
 #: How many columns one indicator holds, hidden colour-rule columns included (the browser's
 #: ``PATCH_LIMITS.maxOutputs``, read from the same contract file).
 MAX_OUTPUTS: int = int(json.loads(_raw_schema_text())["x-uct-limits"]["maxOutputs"])
+#: How many assumptions one patch may carry (the door adds its own: `with_running_value_notes`).
+MAX_ASSUMPTIONS: int = int(json.loads(_raw_schema_text())["x-uct-limits"]["maxAssumptions"])
 
 
 def chart_table() -> Dict[str, Any]:
@@ -319,6 +321,8 @@ REFUSALS: Mapping[str, str] = {
     "envelope:revision": (
         "the assistant's change was written against a different version of this "
         "indicator, so nothing was offered to apply"),
+    "unsupported:running-value": (
+        "the indicator would need a kind of running value the assistant cannot write yet"),
     "unsupported:scalar": (
         "this needs a value that exists only as today's nightly number and cannot be "
         "drawn as history on a chart"),
@@ -681,6 +685,27 @@ CONVERSE_SYSTEM_PROMPT = (
     "the highest volume of the last 10 days is volume > offset 1 of highest(volume, 10)). A "
     "window that includes this bar compares it with itself. Only \"is AT an N-bar high or low\" "
     "includes this bar (close >= highest(close, N)).\n"
+    "  A RUNNING VALUE reads its own previous value: an adaptive average, a stop that ratchets, a "
+    "streak or a count. It is accum(seed, update, warmup): it starts at `seed` and becomes "
+    "`update` on each of the last `warmup` bars, and inside `update` the series named `self` is "
+    "its previous value. A streak of up days: accum(0, close > offset 1 of close ? self + 1 : 0, "
+    "100). A stop that only rises: accum(low, max(self, close - 3 * atr(high, low, close, 14)), "
+    "300). An adaptive average: accum(close, self + k * (close - self), 300) with k any formula "
+    "between 0 and 1. `warmup` is a plain whole number up to 960: use 300 unless the member "
+    "asks. `self` exists ONLY inside an accum's update; one accum never sits inside another "
+    "(give the inner one its own output's formula instead); accum2, accum3 and accum4 are NOT "
+    "available, so an indicator needing two running values that feed each other is unsupported. "
+    "A named indicator built this way is built to its PUBLISHED formula or not at all.\n"
+    "  AN UP DAY is a close above the PREVIOUS close (close > offset 1 of close), a down day a "
+    "close below it; the same for an up or down week or month. That is what up/down volume, "
+    "accumulation and distribution days, and \"up on volume\" count. A close above its own OPEN "
+    "is an up BAR (a green candle): use that only when the member says candle, an up or down "
+    "bar, or \"above its open\". A colour alone (\"green shading\") says nothing about which.\n"
+    "  FOR THE FIRST TIME IN N BARS (or days: \"the first new high in 30 days\", \"hasn't done it in "
+    "N bars\") is the condition now AND not once on the N bars before: "
+    "cond && (offset 1 of barssince(cond, N)) >= N. `barssince` takes its window as its second "
+    "argument and answers N when the condition was not true that recently. Never leave the "
+    "\"first time\" part out: without it the mark repeats on every bar of a run.\n"
     "  A `sym` goes OUTSIDE a timeframe read, never under one: SPY's weekly close is "
     "sym(SPY, tf(close, W)). Wrap only what is read from the other symbol: "
     "\"close above SPY's 50 EMA\" compares the chart's close with "
@@ -1272,6 +1297,92 @@ def _offered_calls_as_plain(tree: Any, declared: Any) -> Any:
     return root
 
 
+# --------------------------------------------------------------------------- #
+# ⭐ 2026-11-18 -- ONE RUNNING VALUE: `accum(seed, update, warmup)` with `self`
+# --------------------------------------------------------------------------- #
+#
+# A capability census (177 indicator ideas, each written by hand and run through the parser,
+# this door and the engine) found twelve that the ENGINE computes and this door refused, every
+# one for the same reason: a value that reads its own previous value. KAMA, McGinley Dynamic,
+# VIDYA, a ratcheting ATR stop, an up/down streak, Connors RSI, a negative volume index, TD
+# counts, Heikin Ashi's open. The table offers `accum`; the boundary's name list had no `self`,
+# so the model was shown a function it could not use.
+#
+# Opened by the engine session's ruling, with its conditions:
+#   * ONE running value. `accum2`..`accum4` (two to four values that feed each other, read
+#     through `state1`..`state4`) stay closed, refused here BY NAME.
+#   * `self` is the model's to write ONLY inside an `accum` update. Anywhere else it is refused
+#     by the boundary exactly as before. One `accum` may not sit inside another.
+#   * The warm-up is a literal the budget gate already holds to the lookback cap.
+#   * HONESTY BY SHAPE (`running_value_notes`): `accum` is a windowed restart. Each bar
+#     recomputes from `warmup` bars back, so a count or a level older than that is forgotten.
+#     The door says so itself, on every such output, in the member's own list of assumptions:
+#     the model is not trusted to remember to.
+RUNNING_VALUE_GATE = "unsupported:running-value"
+RUNNING_VALUE_FN = "accum"
+RUNNING_VALUE_SELF = "self"
+RUNNING_VALUE_CLOSED = ("accum2", "accum3", "accum4")
+
+
+def _is_call(node: Any, names: Any) -> bool:
+    return isinstance(node, dict) and node.get("type") == "call" and node.get("name") in names
+
+
+def _refuse_closed_running_values(where: str, tree: Any) -> None:
+    """The forms that stay closed, refused by name with the way out for the model."""
+    stack: List[Tuple[Any, bool]] = [(tree, False)]
+    while stack:
+        node, inside = stack.pop()
+        if isinstance(node, list):
+            stack.extend((x, inside) for x in node)
+            continue
+        if not isinstance(node, dict):
+            continue
+        if _is_call(node, RUNNING_VALUE_CLOSED):
+            raise _Refused(
+                RUNNING_VALUE_GATE,
+                f"{where}: {node.get('name')} is not available -- ONE running value only: "
+                "accum(seed, update, warmup) with `self`. An indicator that needs two running values "
+                "feeding each other is unsupported: say so (disposition unsupported) and offer the "
+                "nearest thing one running value can do.",
+                member="it needs two or more running values that feed each other")
+        here = _is_call(node, (RUNNING_VALUE_FN,))
+        if here and inside:
+            raise _Refused(
+                RUNNING_VALUE_GATE,
+                f"{where}: an accum sits inside another accum -- a running value cannot contain "
+                "another. Give the inner one its own hidden output and read that output's formula, or "
+                "restructure with one accum.",
+                member="one running value sits inside another")
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend((a, inside or here) for a in args)
+
+
+def _running_values_as_plain(tree: Any) -> Any:
+    """What the MODEL wrote, with the `self` inside each `accum` UPDATE read as a constant, so the
+    boundary's name list (which has no `self`) judges every other name the model wrote. `self` in
+    a seed, in a warm-up or outside an `accum` is left as it is, and is refused by name there.
+    Iterative copy; the input is never mutated."""
+    root = copy.deepcopy(tree)
+    stack: List[Tuple[Any, bool]] = [(root, False)]
+    while stack:
+        node, in_update = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        args = node.get("args")
+        if not isinstance(args, list):
+            continue
+        is_accum = _is_call(node, (RUNNING_VALUE_FN,)) and len(args) == 3
+        for i, a in enumerate(args):
+            reads_self = in_update or (is_accum and i == 1)
+            if reads_self and isinstance(a, dict) and a.get("type") == "series" and a.get("name") == RUNNING_VALUE_SELF:
+                args[i] = {"type": "num", "value": 1}
+            else:
+                stack.append((a, reads_self))
+    return root
+
+
 def _check_tree(where: str, tree: Any, inputs: frozenset = frozenset()) -> None:
     """The concierge's own tree gates, minus evaluation (the engine probes)."""
     # ⭐ BATCH 2 -- a model's linreg / correlation / vwma / roc / mom / Keltner call is
@@ -1280,6 +1391,7 @@ def _check_tree(where: str, tree: Any, inputs: frozenset = frozenset()) -> None:
     from api.services import ast_table
     declared = lambda name: name in (ast_table.TABLE.get("functions") or {})  # noqa: E731
     written = _inputs_as_constants(tree, inputs)          # what the MODEL wrote
+    _refuse_closed_running_values(where, written)
     try:
         tree = call_expansions.expand_calls(tree, declared)
     except call_expansions.ExpansionRefused as exc:
@@ -1290,7 +1402,8 @@ def _check_tree(where: str, tree: Any, inputs: frozenset = frozenset()) -> None:
         # ⛔ the boundary reads the model's own text, never the door's expansion of it
         # (`_offered_calls_as_plain`): strict about every name the model wrote, and silent about
         # the names the system writes inside a function it offered
-        dc._assert_within_schema(_unscoped(_offered_calls_as_plain(written, declared)))
+        dc._assert_within_schema(_unscoped(_offered_calls_as_plain(
+            _running_values_as_plain(written), declared)))
     except dc._Refused as exc:
         # the concierge's own gate; its located text is the model's diagnostic
         raise _Refused(exc.gate, f"{exc.reason} ({where})") from exc
@@ -2215,6 +2328,109 @@ def browser_refusal_codes(raw: Any) -> Optional[str]:
         return None
 
 
+#: A running value's own share of its starting point, below which the door calls it settled.
+RUNNING_VALUE_SETTLED = 1e-4
+RUNNING_VALUE_NOTE_MAX = 4
+
+
+def _settles(update: Any, warmup: Any) -> bool:
+    """Is this update the ONE shape whose starting point provably stops mattering inside the
+    window: `self + k * (x - self)` (either order of the product) with a LITERAL k in (0, 1],
+    `x` not reading `self`, and (1 - k) ** warmup below `RUNNING_VALUE_SETTLED`? Anything else
+    (a series for k, a condition, a max or a min, a running total) answers False, and the door
+    uses the stronger sentence: it cannot tell a ratchet from a filter by looking."""
+    def is_self(n: Any) -> bool:
+        return isinstance(n, dict) and n.get("type") == "series" and n.get("name") == RUNNING_VALUE_SELF
+
+    def reads_self(n: Any) -> bool:
+        stack = [n]
+        while stack:
+            x = stack.pop()
+            if is_self(x):
+                return True
+            if isinstance(x, dict) and isinstance(x.get("args"), list):
+                stack.extend(x["args"])
+        return False
+
+    def op(n: Any, name: str) -> Optional[List[Any]]:
+        if isinstance(n, dict) and n.get("type") == "op" and n.get("name") == name and isinstance(n.get("args"), list) and len(n["args"]) == 2:
+            return n["args"]
+        return None
+
+    plus = op(update, "+")
+    if not plus:
+        return False
+    for a, b in (plus, plus[::-1]):
+        times = op(b, "*")
+        if not is_self(a) or not times:
+            continue
+        for k, diff in (times, times[::-1]):
+            minus = op(diff, "-")
+            if (isinstance(k, dict) and k.get("type") == "num" and isinstance(k.get("value"), (int, float))
+                    and not isinstance(k.get("value"), bool) and 0 < k["value"] <= 1
+                    and minus and is_self(minus[1]) and not reads_self(minus[0])
+                    and isinstance(warmup, int) and not isinstance(warmup, bool) and warmup > 0):
+                return (1 - k["value"]) ** warmup < RUNNING_VALUE_SETTLED
+    return False
+
+
+def running_value_notes(envelope: Mapping[str, Any]) -> List[Dict[str, Any]]:
+    """One assumption per output this patch builds from a running value: where it starts, in the
+    member's words. The STRONGER sentence unless the update is the one shape that provably
+    settles (`_settles`). Deterministic: the same patch always carries the same notes."""
+    notes: List[Dict[str, Any]] = []
+    for op in envelope.get("ops") or []:
+        if not isinstance(op, Mapping):
+            continue
+        if op.get("op") == "create":
+            outputs = [(o.get("key"), o.get("tree")) for o in op.get("outputs") or [] if isinstance(o, Mapping)]
+        elif op.get("op") == "add_output":
+            outputs = [(op.get("key"), op.get("tree"))]
+        elif op.get("op") == "set_output_tree":
+            outputs = [(op.get("output"), op.get("tree"))]
+        else:
+            continue
+        for key, tree in outputs:
+            found: List[Tuple[int, bool]] = []
+            stack = [tree]
+            while stack:
+                node = stack.pop()
+                if isinstance(node, dict):
+                    args = node.get("args")
+                    if _is_call(node, (RUNNING_VALUE_FN,)) and isinstance(args, list) and len(args) == 3:
+                        w = args[2].get("value") if isinstance(args[2], dict) and args[2].get("type") == "num" else None
+                        if isinstance(w, int) and not isinstance(w, bool):
+                            found.append((w, _settles(args[1], w)))
+                    if isinstance(args, list):
+                        stack.extend(args)
+            if not found or not isinstance(key, str):
+                continue
+            window = min(w for w, _ in found)
+            if all(ok for _, ok in found):
+                text = (f"This value starts {window} bars back on every bar. After that many bars its "
+                        "starting point no longer matters.")
+            else:
+                text = (f"This value is recomputed from {window} bars back on every bar, so its counts "
+                        f"and levels restart {window} bars back. A chart computed from the symbol's "
+                        "first bar can differ.")
+            notes.append({"output": key, "text": text})
+    return notes[:RUNNING_VALUE_NOTE_MAX]
+
+
+def with_running_value_notes(envelope: Dict[str, Any]) -> Dict[str, Any]:
+    """The patch with the door's own notes ahead of the model's assumptions (never more than the
+    contract allows; a note already there word for word is not repeated)."""
+    notes = running_value_notes(envelope)
+    if not notes:
+        return envelope
+    have = [a for a in (envelope.get("assumptions") or []) if isinstance(a, Mapping)]
+    said = {a.get("text") for a in have}
+    merged = [n for n in notes if n["text"] not in said or not any(a.get("output") == n["output"] and a.get("text") == n["text"] for a in have)] + have
+    out = dict(envelope)
+    out["assumptions"] = merged[:MAX_ASSUMPTIONS]
+    return out
+
+
 def _browser_repair_turns(messages: List[dict], envelope: Mapping[str, Any], words: str) -> List[dict]:
     """The conversation as if this door had made the call and the app had answered it."""
     verdict = (f"[{BROWSER_REFUSAL_GATE}] the app's own patch engine refused this patch and applied "
@@ -2820,6 +3036,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         try:
             envelope = check_envelope(candidate, revision, view)
             check_output_renames(envelope, message, view, turns)
+            envelope = with_running_value_notes(envelope)      # the door says where a running value starts
             if replayed and envelope.get("ops") == replayed[0].get("ops"):
                 raise _Refused("envelope:reference",
                                f"this is the patch the app already refused ({replayed[1]}); change it")

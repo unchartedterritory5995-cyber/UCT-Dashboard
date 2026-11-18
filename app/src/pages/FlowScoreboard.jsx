@@ -10,9 +10,9 @@
 // gate in api/main.py, family `paid`; see api/flow_scoreboard.py for what that gate does).
 // Two sources, and the label below names both: the picks and their entry prices come from our
 // options flow tape; every result (gains, win rates, open-interest confirmation) is computed from
-// the daily option prices and open interest recorded each weekday after the close from Massive,
-// with Schwab as backup (api/top_flow_tracker.py). Results recorded before that change (November
-// 2026) came from Schwab.
+// the daily option prices and open interest recorded each weekday after the close from Massive
+// (api/top_flow_tracker.py). Results recorded before November 2026 came from Schwab and stay as
+// recorded.
 import { useState } from 'react'
 import useSWR from 'swr'
 import PanelTicker from '../components/terminal/PanelTicker'
@@ -30,10 +30,10 @@ import jsonFetcher from '../utils/jsonFetcher'
 const fetcher = (url) => jsonFetcher(url, { credentials: 'include' })
 
 // The panel header's source line. Picks and entry prices: our options flow tape. Results: each
-// contract's price and open interest, recorded each weekday after the close from Massive, with
-// Schwab as backup. Results recorded before that change (November 2026) came from Schwab, which
-// the method text on the page says. It said only "our options flow tape" until 2026-11-17.
-export const FREC_SOURCE = 'UCT flow record (picks from our options flow tape; results from daily option prices and open interest from Massive, with Schwab as backup)'
+// contract's price and open interest, recorded each weekday after the close from Massive. Results
+// recorded before November 2026 came from Schwab, which the method text on the page says once.
+// (It named Schwab as a backup for one day, 2026-11-17, until Schwab was retired from the product.)
+export const FREC_SOURCE = 'UCT flow record (picks from our options flow tape; results from daily option prices and open interest from Massive)'
 
 /** "Oct 5, 4:12 PM ET" from the payload's generated_at, or null. */
 export function asOfText(iso) {

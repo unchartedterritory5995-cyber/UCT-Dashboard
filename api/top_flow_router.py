@@ -174,7 +174,7 @@ async def migrate_entries(
 
 @router.post("/archive-now")
 def trigger_archive(_auth: dict = Depends(require_flow_admin)):
-    """Debug endpoint — just archive expired picks, no Schwab calls."""
+    """Debug endpoint — just archive expired picks, no vendor calls."""
     from api.top_flow_tracker import archive_expired, get_all
     count = archive_expired()
     data = get_all()

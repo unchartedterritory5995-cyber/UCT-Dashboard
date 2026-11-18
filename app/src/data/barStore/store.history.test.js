@@ -79,14 +79,17 @@ describe('createBarStore + history lake', () => {
   })
 
   it('a lake window is as big as a piece: LAKE_WINDOW_BARS, never the server window size', async () => {
-    const { LAKE_WINDOW_BARS, HISTORY_WINDOW_BARS } = await import('../../utils/historyPrepend')
+    const { LAKE_WINDOW_BARS, HISTORY_WINDOW_BARS, LAKE_PREFETCH_TARGET_BARS } = await import('../../utils/historyPrepend')
     expect(LAKE_WINDOW_BARS).toBeGreaterThan(HISTORY_WINDOW_BARS)
     const olderBars = vi.fn(async (key, beforeT) => ({ bars: [{ t: beforeT - 60, o: 100, h: 101, l: 99, c: 100.4, v: 1 }] }))
     const store = makeStore({ history: { olderBars } })
     const key = keyOf({ sym: 'SIM', tf: '1' })
     const off = store.subscribe(key, () => {})
     await vi.advanceTimersByTimeAsync(100)
-    expect(olderBars.mock.calls[0][2].bars).toBe(LAKE_WINDOW_BARS)          // depth without a scroll
+    // the open's lake load (lakeSeed) is the WHOLE background depth in one go (2026-11-17)
+    expect(olderBars.mock.calls[0][2].bars).toBe(LAKE_PREFETCH_TARGET_BARS)
+    // every other lake read without a scroll (a depth window) is a piece's size
+    for (const c of olderBars.mock.calls.slice(1)) expect(c[2].bars).toBe(LAKE_WINDOW_BARS)
     await store.scrollBack(key, { bars: HISTORY_WINDOW_BARS })                 // a scroll asking the server size
     expect(olderBars.mock.calls.at(-1)[2].bars).toBe(LAKE_WINDOW_BARS)
     off()

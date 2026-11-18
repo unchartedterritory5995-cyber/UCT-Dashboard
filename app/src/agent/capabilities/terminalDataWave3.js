@@ -60,7 +60,11 @@ export const gain1 = (v) => (num(v) == null ? null : `${v > 0 ? '+' : v < 0 ? '�
 const rate1 = (v) => (num(v) == null ? null : `${v.toFixed(1)}%`)
 
 // ── stock.gammaLevels ──────────────────────────────────────────────────────────────────────────────────────────────────
-const CHAIN_VENDORS = { massive: 'Massive', schwab: 'Schwab' }
+// The option chain a gamma read names. One chain since 2026-11-17 (Schwab was retired); any other value is not named.
+const CHAIN_VENDORS = { massive: 'Massive' }
+// The `src` labels a Top Flow row can carry. Nothing reads Schwab any more: 'schwab' labels the daily prices recorded
+// before November 2026, which stay as recorded.
+const PRICE_VENDORS = { massive: 'Massive', schwab: 'Schwab' }
 export const ZERO_GAMMA_CAVEAT = 'The zero gamma level is an estimate: this read does not say how it was found, and for some stocks it is a stand-in rather than a true flip.'
 
 /** The `levels.gamma` envelope → the member's answer + its facts (pure). Rows: levelsModel `gexRead` / `levelRows`. */
@@ -122,7 +126,7 @@ export async function answerGamma(args = {}) {
 
 // ── the two flow answers: what they share ──────────────────────────────────────────────────────────────────────────────
 export const GAIN_MEANING = "A gain is the option contract's own price change since the pick was flagged, not the stock's move."
-export const FLOW_SOURCES = "Picks and entry prices come from UCT's options flow tape. Daily contract prices are recorded each weekday after the close: from Massive with Schwab as backup since November 2026, from Schwab alone before."
+export const FLOW_SOURCES = "Picks and entry prices come from UCT's options flow tape. Daily contract prices are recorded each weekday after the close, from Massive (prices recorded before November 2026 came from Schwab and stay as recorded)."
 /** What the Flow Record calls "OI confirmed" (flow_scoreboard OI_RISE_FACTOR, by the TOPF panel's own constant), in plain words. */
 export const OI_ROSE = `open interest later rose more than ${Math.round((OI_RISE_FACTOR - 1) * 100)}% above its first reading`
 const contractText = (r) => [num(r.strike) > 0 ? money(r.strike) : null, r.cp === 'C' ? 'call' : r.cp === 'P' ? 'put' : null, r.exp ? `expiring ${r.exp}` : null].filter(Boolean).join(' ') || 'contract not given'
@@ -155,7 +159,7 @@ function pickRow(r) {
     gain_pct: scored ? num(r.current_gain_pct) : null, gain_text: scored ? gain1(r.current_gain_pct) : null,
     peak_pct: scored ? num(r.max_gain_pct) : null, peak_text: scored ? gain1(r.max_gain_pct) : null,
     days_tracked: scored ? int(r.days_tracked) : null, oi_confirmed: scored && r.oi_confirmed === true,
-    priced_by: (Array.isArray(r.src) ? r.src : []).map(s => CHAIN_VENDORS[s]).filter(Boolean),
+    priced_by: (Array.isArray(r.src) ? r.src : []).map(s => PRICE_VENDORS[s]).filter(Boolean),
   }
 }
 

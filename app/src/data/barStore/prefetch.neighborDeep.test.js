@@ -94,6 +94,23 @@ describe('the neighbor hold deepens the next rows once the member rests', () => 
     expect(t.scrolls).toEqual([])                                     // at the lake target: done
   })
 
+  it('where the lake carries the row, ONE lake load brings its whole depth: no window is asked', async () => {
+    const t = await boot()
+    t.store.lakeCarries = () => true
+    t.store.lakeSeed = vi.fn(async () => 'join')
+    t.seed('AAA')
+    const hold = t.pf.createNeighborHold()
+    hold.set(['AAA'], '5', { deep: ['AAA'] })
+    await t.fire()
+    expect(t.store.lakeSeed).toHaveBeenCalledWith(t.k('AAA'))
+    expect(t.scrolls).toEqual([])
+    // a lake that adds nothing (it ends before the row's answer) hands over to the windows
+    t.store.lakeSeed = vi.fn(async () => false)
+    hold.set(['AAA'], '5', { deep: ['AAA'] })
+    await t.fire()
+    expect(t.scrolls.length).toBeGreaterThan(0)
+  })
+
   it('never asks a row already at the chart\'s target', async () => {
     const t = await boot()
     t.seed('AAA', '5', HISTORY_PREFETCH_TARGET_BARS)

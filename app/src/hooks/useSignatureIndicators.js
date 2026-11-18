@@ -98,7 +98,7 @@ export function signatureUrls(sym, cfg, isPaid, tf) {
 }
 
 // Quiet on purpose: no console noise on a 402/5xx. The endpoints are paid-gated
-// and Schwab-auth-dependent, so a non-OK response is a routine state, not an
+// and depends on a live option-chain read, so a non-OK response is a routine state, not an
 // incident — it surfaces as an absent overlay, never as an error UI.
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {

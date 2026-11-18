@@ -13,11 +13,11 @@ Where the numbers come from (two sources, both named on the page):
   * Every gain, win rate and OI confirmation is computed from the daily option
     price and open interest recorded each weekday after the close by
     api.top_flow_tracker.snapshot_prices: from Massive
-    (api.massive_oi_snapshots._fetch_fields_all_async), with Schwab
-    (api.schwab_service.get_batch_option_quotes) as the backup for a contract
-    Massive has no price for (owner ruling 2026-11-17). Results recorded before
-    that change came from Schwab and stay as recorded: each history entry
-    written since carries `src`, and an entry without one is Schwab.
+    (api.massive_oi_snapshots._fetch_fields_all_async), and from nothing else
+    (owner, 2026-11-17: Schwab was retired from the product). Results recorded
+    before November 2026 came from Schwab and stay as recorded: each history
+    entry written since carries `src`, and an entry with `src` "schwab" or
+    with none is Schwab.
 
 Honesty rules (LOCKED — this is a trust asset):
   * Losers are NEVER excluded from aggregate stats.
@@ -68,8 +68,8 @@ CACHE_TTL_SECONDS = 300           # 5 min
 METHODOLOGY = (
     "Every Top Flow pick is saved the day it is flagged on UCT's options flow tape "
     "and tracked until expiration with the option contract's price and open interest, "
-    "recorded each weekday after the close from Massive, with Schwab as backup. "
-    "Results recorded before the move to Massive in November 2026 came from Schwab. Entry = the contract's "
+    "recorded each weekday after the close from Massive. "
+    "Results recorded before November 2026 came from Schwab and stay as recorded. Entry = the contract's "
     "price when the pick was flagged. All gains "
     "are contract-price gains (the option's price, not the underlying stock's move). "
     "Peak gain = the best daily closing price since the flag versus entry; current "
