@@ -23,8 +23,10 @@
 # test names per suite); tools/agent_ci_evidence.py verify turns them into PASS/FAIL for one PR + one expected tree.
 # A PR that edits what its own run executes (this file, tools/agent_ci_*.py, test config, deps) never passes on it:
 # verify answers `self-protected-diff` and AUDIT's local evidence decides (AUDIT F1).
-# workflow_dispatch (pr + merge_sha) is the RE-ARM for one named PR after master moved: tools/agent_ci_rearm.py waits
-# for GitHub's merge ref to be current, then dispatches once; every job checks out that exact merge commit.
+# workflow_dispatch (pr + merge_sha) is the RE-ARM for one named PR after master moved (P2b): tools/agent_ci_rearm.py
+# builds the merge of (master tip, PR head) itself (git merge-tree + commit-tree; GitHub's refs/pull/N/merge goes stale
+# while master moves), pushes it to the tool-owned ref refs/agent-ci-evidence/pr-<N> (not a branch: no push trigger
+# fires on it), then dispatches once; every job checks out that exact merge commit.
 # Push runs are unchanged: every added step is `github.event_name != 'push'`, the checkout `ref:` is empty on push,
 # and the push concurrency group is the same string as before (rails: tests/test_ci_agent_merge_ref.py).
 name: agent ci
@@ -108,8 +110,8 @@ on:
       - 'docs/agent/knowledge/setup-criteria.json'
       - 'docs/agent/program/**'
       - '.github/workflows/agent-ci.yml'
-  # RE-ARM (P2): ONE named PR's evidence run on its current merge commit. Start it only through tools/agent_ci_rearm.py
-  # (it refuses a stale merge ref, a conflict, a closed / non-agent / non-master PR). Inputs are never put in a shell.
+  # RE-ARM (P2b): ONE named PR's evidence run on its current merge commit. Start it only through tools/agent_ci_rearm.py
+  # (it refuses a merge conflict, a closed / non-agent / non-master PR). Inputs are never put in a shell.
   workflow_dispatch:
     inputs:
       pr:
@@ -117,7 +119,7 @@ on:
         required: true
         type: string
       merge_sha:
-        description: 'that PR''s current merge commit (pulls/N merge_commit_sha, parents = [master tip, PR head])'
+        description: 'the merge commit tools/agent_ci_rearm.py built and pushed to refs/agent-ci-evidence/pr-<N> (parents = [master tip, PR head])'
         required: true
         type: string
 
