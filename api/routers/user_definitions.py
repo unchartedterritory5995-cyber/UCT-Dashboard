@@ -649,6 +649,46 @@ def converse_definition(body: ConverseIn, user: dict = Depends(require_paid),
         memory=indicator_memory.Memory(user["id"]))
 
 
+class AssistantMemoryIn(BaseModel):
+    """One remembered choice the member sets themselves: a question's id and one of that
+    question's own values (a choice id, or a whole number for a length)."""
+    question: str = Field(..., min_length=1, max_length=32)
+    value: Union[int, float, str] = Field(...)
+
+
+@router.get("/assistant-memory")
+def assistant_memory(user: dict = Depends(require_paid),
+                     _dark: dict = Depends(require_admin_dark_rollout)):
+    """WHAT CREATE INDICATOR REMEMBERS about this member (their own account row, no one else's):
+    every question it can remember an answer to, and their answer where they have one."""
+    from api.services import definition_conversation, indicator_memory
+    return definition_conversation.memory_view(indicator_memory.Memory(user["id"]))
+
+
+@router.put("/assistant-memory")
+def set_assistant_memory(body: AssistantMemoryIn, user: dict = Depends(require_paid),
+                         _dark: dict = Depends(require_admin_dark_rollout)):
+    """The member changes a remembered choice. The value must be one of that question's own
+    (checked against the registry); anything else is refused and nothing is written."""
+    from api.services import definition_conversation, indicator_memory
+    memory = indicator_memory.Memory(user["id"])
+    if not definition_conversation.set_memory(memory, body.question, body.value):
+        raise HTTPException(status_code=400, detail="That is not one of this question's choices.")
+    return definition_conversation.memory_view(memory)
+
+
+@router.delete("/assistant-memory")
+def forget_assistant_memory(question: Optional[str] = Query(None, max_length=32),
+                            user: dict = Depends(require_paid),
+                            _dark: dict = Depends(require_admin_dark_rollout)):
+    """Forget one remembered choice (`?question=`), or everything (no parameter): the row is
+    removed and nothing else holds a copy."""
+    from api.services import definition_conversation, indicator_memory
+    memory = indicator_memory.Memory(user["id"])
+    memory.forget(question)
+    return definition_conversation.memory_view(memory)
+
+
 @router.get("/library")
 def public_library(limit: int = 24, after: Optional[int] = None,
                    user: dict = Depends(require_paid)):

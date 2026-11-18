@@ -1048,6 +1048,60 @@ def offered_first(question: Dict[str, Any], memory: Any) -> Dict[str, Any]:
     return {**question, "choices": ([mine] + rest)[:6]}
 
 
+# ⭐ VISIBLE, EDITABLE, FORGETTABLE (slice C). What the door remembers about a member is theirs to
+# see and change: Settings shows it ("What Create Indicator remembers"), each entry with where it
+# came from, and can change or forget it. Every write is checked HERE against the registry, so a
+# member can only ever store one of a question's own choices.
+
+MEMORY_LENGTH_RANGE = (1, 960)
+
+
+def memory_choices(question_id: str) -> List[Dict[str, Any]]:
+    """The choices a member may keep for one question, as {label, value}."""
+    question = clarify_registry()[question_id]
+    values = question.get("values")
+    if values:
+        return [{"label": label, "value": values[label]} for label in question["choices"]]
+    return [{"label": label, "value": int(label)} for label in question["choices"] if label.isdigit()]
+
+
+def memory_view(memory: Any) -> Dict[str, Any]:
+    """What Settings shows: every question the door can remember an answer to, and this member's
+    answer where they have one. Only what the registry still knows is shown (an entry for a
+    question that no longer exists is not)."""
+    kept = memory.read()["choices"] if memory is not None else {}
+    rows = []
+    for qid, question in clarify_registry().items():
+        mine = kept.get(qid)
+        rows.append({
+            "id": qid, "title": question["title"], "question": question["text"],
+            # what an answer does next time, in the member's words
+            "use": ("Used without asking, and said each time." if question.get("remember") == "default"
+                    else "Asked each time, with yours listed first."),
+            "choices": memory_choices(qid),
+            "any_number": qid == "average_length",
+            "remembered": None if not mine else {
+                "label": mine["label"], "value": mine["value"], "last": mine["last"], "times": mine["times"],
+                "from": mine["from"]},
+        })
+    return {"questions": rows, "remembers": sum(1 for r in rows if r["remembered"])}
+
+
+def set_memory(memory: Any, question_id: Any, value: Any) -> bool:
+    """The member sets a remembered choice themselves. True when it was stored; False when the
+    value is not one this question can hold (nothing is written)."""
+    question = clarify_registry().get(question_id) if isinstance(question_id, str) else None
+    if question is None or isinstance(value, bool):
+        return False
+    if question_id == "average_length":
+        lo, hi = MEMORY_LENGTH_RANGE
+        if not isinstance(value, (int, float)) or not float(value).is_integer() or not (lo <= value <= hi):
+            return False
+        return memory.remember(question_id, int(value), str(int(value)), source="settings")
+    label = next((c["label"] for c in memory_choices(question_id) if c["value"] == value), None)
+    return label is not None and memory.remember(question_id, value, label, source="settings")
+
+
 def as_before_notes(used: List[Tuple[str, str]]) -> List[Dict[str, Any]]:
     """What the member is told when the door used a remembered choice instead of asking."""
     notes = []
