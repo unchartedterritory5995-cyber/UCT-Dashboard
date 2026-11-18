@@ -21,7 +21,7 @@
     {"message": "Exponential Moving Average 9 and Simple Moving Average 50", "model": true, "terms": ["ema", "sma"]},
     {"message": "show the Donchian Channel 20", "model": true, "terms": ["donchianUpper"]},
     {"message": "show the Ichimoku Cloud", "model": true, "terms": ["ichimokuSpanA"]},
-    {"message": "show the Stochastic Oscillator 14 3 3", "model": true, "terms": ["stoch"]},
+    {"message": "show the Stochastic Oscillator 14 3 3", "model": true, "terms": ["stochastic_oscillator"]},
     {"message": "add the Average Directional Index", "model": true, "terms": ["adx"]},
     {"message": "plot the Moving Average Convergence Divergence", "model": true, "terms": ["macd"]},
     {"message": "show the Bollinger Band Width", "model": true, "terms": ["bbw"]},

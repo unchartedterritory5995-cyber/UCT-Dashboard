@@ -225,6 +225,34 @@
    "remember": "offer",
    "number": true,
    "title": "How far back a breakout looks"
+  },
+  {
+   "id": "stochastic_kind",
+   "text": "Which Stochastic?",
+   "choices": [
+    "Slow Stochastic (14, 3, 3)",
+    "Fast Stochastic (14, 1, 3)"
+   ],
+   "open_when": "the request asks for the Stochastic Oscillator and says neither slow, fast or full nor any number",
+   "also": {
+    "Slow Stochastic (14, 3, 3)": [
+     "slow"
+    ],
+    "Fast Stochastic (14, 1, 3)": [
+     "fast"
+    ]
+   },
+   "remember": "default",
+   "values": {
+    "Slow Stochastic (14, 3, 3)": "slow",
+    "Fast Stochastic (14, 1, 3)": "fast"
+   },
+   "as_before": "Using the {choice}, as you chose before. Say slow or fast to change it.",
+   "said": {
+    "Slow Stochastic (14, 3, 3)": "slow Stochastic (14, 3, 3)",
+    "Fast Stochastic (14, 1, 3)": "fast Stochastic (14, 1, 3)"
+   },
+   "title": "Slow or fast Stochastic"
   }
  ]
 }
