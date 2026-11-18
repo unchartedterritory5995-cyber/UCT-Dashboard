@@ -1235,7 +1235,7 @@
     "Dipped back but held above its low"
    ],
    "answer": "Gave it all back and made a new low",
-   "why": "It gave it all back and made a new low. From 4,305.20 on August 16, the S&P 500 slid to 3,577.03 by October 12. That's under June's 3,666.77. The January record of 4,796.56 wasn't topped until January 19, 2024. Rallies inside a bear are fast and convincing, and that's how they pull people back in. A big bounce isn't a bottom. You only know the bottom in hindsight. So take the setups that work, keep your stops tight, and don't go all in on a bounce.",
+   "why": "It gave it all back and made a new low. From 4,305.20 on August 16, the S&P 500 slid to 3,577.03 by October 12. That's under June's 3,666.77. The January record of 4,796.56 wasn't topped until January 19, 2024. And look where the rally stalled: right up at a falling long-term moving average. Rallies inside a bear are fast and convincing, and that's how they pull people back in. A big bounce isn't a bottom. You only know the bottom in hindsight. So take the setups that work, keep your stops tight, and don't go all in on a bounce.",
    "lesson_line": "A big bounce inside a bear isn't a bottom. You only know the bottom in hindsight.",
    "facts": [
     "f36",
@@ -1495,13 +1495,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "24% is f13 (Nasdaq vs its 1999 year-end), 49.1% is f44. Causes match f14/f49. Wrong notes each name the real fall they belong to. The leaders line is judgment, fine."
+   "notes": "IXIC has no local bars; a cause question, no chart read to check. Numbers grounded (f13, f44). Voice 4."
   },
   "q05": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "March 2009 low vs June 2009 NBER end, about three months. 'Price tells you first' is the right reason. Answer False unchanged."
+   "notes": "SPY 2009-03-09 doji at the low, far under falling averages; the question is about the recession clock and does not misread the chart. Voice 4."
   },
   "q06": {
    "status": "pass",
@@ -1519,19 +1519,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed: 2,930.75 - 2,351.10 = 579.65; 579.65/2,930.75 = 19.78% -> 19.8. Distractors are real mistakes: 579.65/2,351.10 = 24.7 (dividing by the low), 2,351.10/2,930.75 = 80.2 (what's left), 20.0 (rounding to the label). Arith calc carries the steps. 'I don't care much about the label' is his register."
+   "notes": "SPX has no local bars; typed-number History Detective math, worked out. Voice 4."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Flipped to the same fact as a true claim (needed: the lesson's true/false was 1 of 4 true). 2,933.68 on April 23, 2019 is above 2,930.75; about four months. The watchlist/relative strength how is good mentor detail."
+   "notes": "SPY 2018-12-24 red close at the low; the recovery claim is sourced (f34). Voice 4."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "f19-f21: late July/early August 2011, AAA to AA+, retraced by early 2012. Stem no longer opens 'Look at'. Sizing-down judgment fits."
+   "notes": "SPY 2011-08-08 closes at the low, 20% under its 20-day high: 'drops hard at the right edge' is what the chart shows. Voice 4."
   },
   "q11": {
    "status": "pass",
@@ -1543,7 +1543,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "f22-f24 support China and oil. The chop description (failed breakouts, small losses piling up) and the smaller/pickier response are his."
+   "notes": "SPY 2016-02-11 under falling 50 and 200: 'chop lower' is right. Voice 4."
   },
   "q13": {
    "status": "cut",
@@ -1555,19 +1555,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "4,796.56 on Jan 3 to 3,577.03 on Oct 12, 2022: nine months and nine days. Comparisons (33 days, 17, 30.5 months) correct."
+   "notes": "SPY 2022-10-12 ends on the closing low; the nine-month count is sourced. Voice 4."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "TRUTH: the writer's why said 'we let the first half hour set its low, and that low becomes the new stop. Here the low came by 9:35, so you'd still be in.' That drops half of B20: if the first 30 minutes take the loss past 2R, you get out. And with no entry given, 'you'd still be in' can't be known. Rewrote the how with the ceiling and no invented outcome, worded without new numbers."
+   "fixed": false,
+   "notes": "SPY 2015-08-24 flash-crash day; stop mechanics sourced (f25-f30). Voice 4."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "3,666.77 (Jun 16) to 4,305.20 (Aug 16), then 3,577.03 (Oct 12) under the June low; record topped Jan 19, 2024. The why says why bear rallies trap people and what to do."
+   "fixed": true,
+   "notes": "The read is right, but the rally on the last bar stalls right at a falling 200-day (0.4% under it) with the 50 still under the 200, the thing a trader sees first. Said in words, without the number (no fact here carries 200)."
   },
   "q17": {
    "status": "pass",
@@ -1591,7 +1591,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "f07, f15-f18: recession ended November 2001, economy grew through 2002, lows in early October at 1997 levels, turn in late October on earnings. 'Two different clocks' is the right reason not to time the market off the economy."
+   "notes": "SPY 2002-10-09 new low under falling averages; the two-clocks read is sourced. Voice 4."
   }
  }
 }

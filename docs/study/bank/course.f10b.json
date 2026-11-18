@@ -3738,7 +3738,7 @@
   "difficulty": 3,
   "id": "si_0e74ecb382c0",
   "lesson_origin": "session",
-  "lesson_text": "Stopped out. The next day it ran to $483.00. That's $135.49 over the $347.51 close, about 39%, straight through a stop 20% above. Then it fell more than 86% by the end of the first week of February. Right on direction, still lost. That's GameStop, January 2021. And it isn't a short we'd take. We short as price trades down through a trigger, never on the close. A 20% stop is far wider than anything we'd risk. Right on direction, still stopped out. A crowded short has to roll over before I touch it.",
+  "lesson_text": "Stopped out. The next day it ran to $483.00. That's $135.49 over the $347.51 close, about 39%, straight through a stop 20% above. Then it fell more than 86% by the end of the first week of February. Right on direction, still lost. That's GameStop, January 2021. The chart shows split-adjusted prices, so its scale sits below the $347.51 and $483.00 it traded at then. And it isn't a short we'd take. We short as price trades down through a trigger, never on the close. A 20% stop is far wider than anything we'd risk. Right on direction, still stopped out. A crowded short has to roll over before I touch it.",
   "module": "F10b",
   "prompt_json": {
    "chart": {
@@ -3793,7 +3793,7 @@
    "simple": "Stopped out. It spiked about 39% over that close the next day, through the 20% stop, then fell hard.",
    "tier": "expert",
    "unit": "F10b.02",
-   "why": "Stopped out. The next day it ran to $483.00. That's $135.49 over the $347.51 close, about 39%, straight through a stop 20% above. Then it fell more than 86% by the end of the first week of February. Right on direction, still lost. That's GameStop, January 2021. And it isn't a short we'd take. We short as price trades down through a trigger, never on the close. A 20% stop is far wider than anything we'd risk.",
+   "why": "Stopped out. The next day it ran to $483.00. That's $135.49 over the $347.51 close, about 39%, straight through a stop 20% above. Then it fell more than 86% by the end of the first week of February. Right on direction, still lost. That's GameStop, January 2021. The chart shows split-adjusted prices, so its scale sits below the $347.51 and $483.00 it traded at then. And it isn't a short we'd take. We short as price trades down through a trigger, never on the close. A 20% stop is far wider than anything we'd risk.",
    "wrong": {
     "A small new high, stop not hit": "Nothing small about it. $483.00 was about 39% over the $347.51 close, well past a stop 20% above.",
     "It fell over 86%, no new high first": "It did fall over 86%, but not before one more high. The next day it traded about 39% over this close.",

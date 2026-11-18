@@ -7007,7 +7007,7 @@
   "difficulty": 3,
   "id": "si_c6e1dfdfa414",
   "lesson_origin": "session",
-  "lesson_text": "Bad news failed, and that's worth noting. The worst headline you could ask for hit, and the index went from down 2.4% to up 2.6%. Even the analysts couldn't really explain it. When price stops falling on bad news, sellers may be running out. But it's day one of a rally attempt. So it's a clue, not a buy signal. This was the S&P 500, the day after its Oct. 12 low close in 2022. I'd mark that low and watch two things: does it hold, and does a follow-through day come. Watch how price reacts to bad news. When it stops falling on it, pay attention.",
+  "lesson_text": "Bad news failed, and that's worth noting. The worst headline you could ask for hit, and the index went from down 2.4% to up 2.6%. Even the analysts couldn't really explain it. On the chart that's a big outside day, closing near its high. When price stops falling on bad news, sellers may be running out. But it's day one of a rally attempt, and the index is still well under its falling longer averages. So it's a clue, not a buy signal. This was the S&P 500, the day after its Oct. 12 low close in 2022. I'd mark that low and watch two things: does it hold, and does a follow-through day come. Watch how price reacts to bad news. When it stops falling on it, pay attention.",
   "module": "F7",
   "prompt_json": {
    "chart": {
@@ -7093,7 +7093,7 @@
    "simple": "Price shrugging off bad news is worth noting, but one day like this proves nothing on its own.",
    "tier": "extended",
    "unit": "F7.04",
-   "why": "Bad news failed, and that's worth noting. The worst headline you could ask for hit, and the index went from down 2.4% to up 2.6%. Even the analysts couldn't really explain it. When price stops falling on bad news, sellers may be running out. But it's day one of a rally attempt. So it's a clue, not a buy signal. This was the S&P 500, the day after its Oct. 12 low close in 2022. I'd mark that low and watch two things: does it hold, and does a follow-through day come.",
+   "why": "Bad news failed, and that's worth noting. The worst headline you could ask for hit, and the index went from down 2.4% to up 2.6%. Even the analysts couldn't really explain it. On the chart that's a big outside day, closing near its high. When price stops falling on bad news, sellers may be running out. But it's day one of a rally attempt, and the index is still well under its falling longer averages. So it's a clue, not a buy signal. This was the S&P 500, the day after its Oct. 12 low close in 2022. I'd mark that low and watch two things: does it hold, and does a follow-through day come.",
    "wrong": {
     "Bear rally, sell into the bounce": "You can't know that yet. A bear rally only shows itself once it unwinds.",
     "Likely a follow-through day, buy some": "Too early. It just ended a six-day losing streak, so this is day one. A follow-through day comes several days in, on higher volume.",
@@ -15289,7 +15289,7 @@
   "difficulty": 3,
   "id": "si_17ef39872af5",
   "lesson_origin": "session",
-  "lesson_text": "It gave it all back and made a new low. From 4,305.20 on August 16, the S&P 500 slid to 3,577.03 by October 12. That's under June's 3,666.77. The January record of 4,796.56 wasn't topped until January 19, 2024. Rallies inside a bear are fast and convincing, and that's how they pull people back in. A big bounce isn't a bottom. You only know the bottom in hindsight. So take the setups that work, keep your stops tight, and don't go all in on a bounce. A big bounce inside a bear isn't a bottom. You only know the bottom in hindsight.",
+  "lesson_text": "It gave it all back and made a new low. From 4,305.20 on August 16, the S&P 500 slid to 3,577.03 by October 12. That's under June's 3,666.77. The January record of 4,796.56 wasn't topped until January 19, 2024. And look where the rally stalled: right up at a falling long-term moving average. Rallies inside a bear are fast and convincing, and that's how they pull people back in. A big bounce isn't a bottom. You only know the bottom in hindsight. So take the setups that work, keep your stops tight, and don't go all in on a bounce. A big bounce inside a bear isn't a bottom. You only know the bottom in hindsight.",
   "module": "F7",
   "prompt_json": {
    "chart": {
@@ -15368,7 +15368,7 @@
    "simple": "It made a new low. The rally faded and the index closed under its June low by October.",
    "tier": "extended",
    "unit": "F7.08",
-   "why": "It gave it all back and made a new low. From 4,305.20 on August 16, the S&P 500 slid to 3,577.03 by October 12. That's under June's 3,666.77. The January record of 4,796.56 wasn't topped until January 19, 2024. Rallies inside a bear are fast and convincing, and that's how they pull people back in. A big bounce isn't a bottom. You only know the bottom in hindsight. So take the setups that work, keep your stops tight, and don't go all in on a bounce.",
+   "why": "It gave it all back and made a new low. From 4,305.20 on August 16, the S&P 500 slid to 3,577.03 by October 12. That's under June's 3,666.77. The January record of 4,796.56 wasn't topped until January 19, 2024. And look where the rally stalled: right up at a falling long-term moving average. Rallies inside a bear are fast and convincing, and that's how they pull people back in. A big bounce isn't a bottom. You only know the bottom in hindsight. So take the setups that work, keep your stops tight, and don't go all in on a bounce.",
    "wrong": {
     "Dipped back but held above its low": "It didn't hold. 3,577.03 on October 12 is under the June 16 close of 3,666.77.",
     "Held its gains and went sideways": "It gave the whole rally back and more, closing at 3,577.03 on October 12.",
@@ -17219,7 +17219,7 @@
   "difficulty": 3,
   "id": "si_5e418fe3c2e6",
   "lesson_origin": "session",
-  "lesson_text": "Pass until the group is strong. In March 2023 bank stocks fell hard as the banking sector came under stress. Officials stepped in to support the banks, and the stocks still fell sharply. By mid-year they were still below where the year began. Cheap can get a lot cheaper. I buy relative strength and stay away from relative weakness, and this whole group was breaking. Look at KRE on this chart. I'd want the group to show a higher low and some strength before I even look at a bank. Don't fight a group that's breaking. A cheap stock in a weak group can stay cheap.",
+  "lesson_text": "Pass until the group is strong. In March 2023 bank stocks fell hard as the banking sector came under stress. Officials stepped in to support the banks, and the stocks still fell sharply. By mid-year they were still below where the year began. Cheap can get a lot cheaper. Look at KRE on this chart. It sits way under every average on the chart, and the long ones point down. One green bounce on the last day doesn't fix that. I buy relative strength and stay away from relative weakness. I'd want the group to show a higher low and some strength before I even look at a bank. Don't fight a group that's breaking. A cheap stock in a weak group can stay cheap.",
   "module": "F7",
   "prompt_json": {
    "chart": {
@@ -17277,7 +17277,7 @@
    "simple": "Pass for now, because a cheap stock in a group that's breaking down can keep falling.",
    "tier": "expert",
    "unit": "F7.09",
-   "why": "Pass until the group is strong. In March 2023 bank stocks fell hard as the banking sector came under stress. Officials stepped in to support the banks, and the stocks still fell sharply. By mid-year they were still below where the year began. Cheap can get a lot cheaper. I buy relative strength and stay away from relative weakness, and this whole group was breaking. Look at KRE on this chart. I'd want the group to show a higher low and some strength before I even look at a bank.",
+   "why": "Pass until the group is strong. In March 2023 bank stocks fell hard as the banking sector came under stress. Officials stepped in to support the banks, and the stocks still fell sharply. By mid-year they were still below where the year began. Cheap can get a lot cheaper. Look at KRE on this chart. It sits way under every average on the chart, and the long ones point down. One green bounce on the last day doesn't fix that. I buy relative strength and stay away from relative weakness. I'd want the group to show a higher low and some strength before I even look at a bank.",
    "wrong": {
     "Buy it, cheap stocks bounce back": "Not on your schedule. By mid-year bank stocks were still below their January levels.",
     "Buy it, the Fed will rescue banks": "Officials did step in to support the banks, and bank stocks still fell sharply.",

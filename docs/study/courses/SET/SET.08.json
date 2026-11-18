@@ -1125,6 +1125,12 @@
    "source": "hw",
    "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
    "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
+  },
+  {
+   "id": "dNUS",
+   "source": "d1",
+   "quote": "NUS | 2013-07-18 | +39% in 12 d to 79.96 (2013-07-11) | 4 d, 76.39 to 79.90 | 4.5% (16%) | 0.75x | 78.01 | 76.81 (1.5%) | 18.3",
+   "claim": "NUS, trigger 2013-07-18: a 39% pole in 12 days, a 4-day flag; buy 78.01, stop 76.81 (1.5%), best 18.3R."
   }
  ],
  "walkthroughs": [
@@ -1134,7 +1140,7 @@
    "steps": [
     "SHOP doubled off the 2020 low in 12 days, to 66.57. Then it rested eight sessions between 59.50 and 66.26.",
     "Every close held its rising short-term averages, on lighter volume than the pole. It's over the 50 and 200-day too.",
-    "May 4 it trades over the prior day's high. Buy at market, 62.80, still under the flag's high. Stop 61.65, 1.8% away.",
+    "After a doji the day before, May 4 trades over its high. Buy at market, 62.80. Stop 61.65, 1.8% away.",
     "Lose the day's low and we're out. Instead it ran 41.7R. A runner like that, you trail on the 9 EMA."
    ],
    "facts": [
@@ -1147,15 +1153,21 @@
     "h22",
     "h24",
     "h21"
-   ]
+   ],
+   "chart": {
+    "sym": "SHOP",
+    "asof": "2020-05-04",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
    "title": "AMD, August 2018: four quiet days after an earnings gap",
    "steps": [
     "AMD gapped up on earnings and ran 29% in 14 days to 20.28. Then it rested four days on light volume.",
-    "Short and shallow, 18.73 to 20.10, only 7.6% deep. A fast pole on a catalyst is the kind I want.",
-    "August 21 the prior day's high breaks. We buy at market, 20.09. Stop just under the day's low, 19.81, 1.4% away.",
+    "Short and shallow, 18.73 to 20.10, just 7.6% off the 20.28 top. A fast pole on a catalyst is what I want.",
+    "After a hammer, August 21 takes out its high. Buy at market, 20.09. Stop just under the day's low, 19.81.",
     "Sell some into a push, day 3 or later, and trail the rest. AMD went 20 to 34 in five weeks."
    ],
    "facts": [
@@ -1168,15 +1180,21 @@
     "h05",
     "h20",
     "r05"
-   ]
+   ],
+   "chart": {
+    "sym": "AMD",
+    "asof": "2018-08-21",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
    "title": "RARE, May 2015: a staircase, one step at a time",
    "steps": [
-    "RARE ran 53% in 13 days to 85.93. Then it rests four days, 80.25 to 85.79, right on its short-term average.",
-    "May 27 it takes out the prior day's high before the flag's high even breaks. We buy right there at market, 83.26.",
-    "Stop a few cents under the low, 81.18, 2.5% away. Full size at one price, one stop. No starter piece.",
+    "RARE ran 53% in 13 days to 85.93. Then it rests four days, 80.25 to 85.79, letting its short-term average catch up.",
+    "After a doji, May 27 takes out the prior day's high, before the flag's high breaks. We buy at market, 83.26.",
+    "Stop a few cents under the prior day's low, 81.18, 2.5% away. Full size at one price, one stop. No starter piece.",
     "Then a second leg as big as the first, 25.9R at its best. Sell into strength and trail what's left."
    ],
    "facts": [
@@ -1186,7 +1204,13 @@
     "h22",
     "h20",
     "aw1"
-   ]
+   ],
+   "chart": {
+    "sym": "RARE",
+    "asof": "2015-05-27",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1252,7 +1276,7 @@
     "Dead flat, a tilt down fails it"
    ],
    "answer": "Sideways to down, against the run",
-   "why": "Sideways to down, leaning against the run. That's what a flag does. AMD topped at 20.28, then held 18.73 to 20.10 for four days. The highs stopped climbing and nobody dumped it either. That lean back lets the 9 EMA catch up, so you're not buying something stretched. If the highs and lows keep rising through the pause, it never rested. That's a wedge up, and I pass.",
+   "why": "Sideways to down, leaning against the run. That's what a flag does. AMD topped at 20.28, then held 18.73 to 20.10 for four days. The highs stopped climbing and nobody dumped it either. That lean back lets the 9 EMA catch up, so you're not buying something stretched. And the last candle is a hammer: sold early, closed near the high. That's a very good look the day before a trigger. If the highs and lows keep rising through the pause, it never rested. That's a wedge up, and I pass.",
    "lesson_line": "The flag leans back against the run. Up and to the right is something else.",
    "facts": [
     "cs1",
@@ -1278,7 +1302,7 @@
      "three agreeing web sources, a stable definition"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "The day before the buy. This leader ran up hard, then rested four sessions. Look at where the highs and lows of that rest go.",
    "chart": {
     "sym": "AMD",
@@ -1801,7 +1825,7 @@
     "Tight, only because the pole was big"
    ],
    "answer": "Tight, small bars, no wild swings",
-   "why": "Tight. Four small bars inside a 2.9% range, on about half the pole's volume. That's as clean as a flag gets. Tight matters for two reasons. It shows nobody's in a hurry to sell. And it puts the low of the day close to your buy. PANW filled at 48.98 with the stop at 48.29, a 1.4% stop, and later reached 26.4R.",
+   "why": "Tight. Four small bars inside a 2.9% range, on about half the pole's volume. The last one's a doji, open and close nearly the same. Nobody's pushing it around. That's as clean as a flag gets. Tight matters for two reasons. It shows nobody's in a hurry to sell. And it puts the low of the day close to your buy. PANW filled at 48.98 with the stop at 48.29, a 1.4% stop, and later reached 26.4R.",
    "lesson_line": "Tight means smaller bars than the run. Jagged means pass.",
    "facts": [
     "b7",
@@ -1832,7 +1856,7 @@
      "+1 fixed before (a wrong count of four-day rests was corrected)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "PANW",
     "asof": "2020-12-02",
@@ -2256,13 +2280,14 @@
     },
     "round": 2
    },
-   "why": "2.5%. Five cents under 81.23 puts the stop at 81.18. Take 81.18 from 83.26, then divide by the fill, 83.26, not by the stop. You get 2.5%. That's inside the 1% to 3% we like, so your normal size fits. Do this before every buy. The stop sets the distance, and the distance sets the shares.",
+   "why": "2.5%. Five cents under 81.23, the prior day's low, puts the stop at 81.18. Take 81.18 from 83.26, then divide by the fill, 83.26, not by the stop. You get 2.5%. That's inside the 1% to 3% we like, so your normal size fits. Do this before every buy. The stop sets the distance, and the distance sets the shares.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h24",
     "h04",
     "d05",
-    "r01"
+    "r01",
+    "c36"
    ],
    "house": true,
    "suffix": "%",
@@ -2275,7 +2300,7 @@
      "rests on the owner's rulebook (the stop under the day's low, A3 and F62)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "choices": [
     "102.56%",
     "25.00%",
@@ -2287,7 +2312,7 @@
     "97.50%": "That's where the stop sits as a share of the fill. You want the gap, not the stop itself.",
     "102.56%": "That's the fill as a percent of the stop. Subtract first, then divide by the fill."
    },
-   "story": "You bought the flag break at 83.26. The low of the day is 81.23, and your stop goes five cents under it.",
+   "story": "You bought the flag break at 83.26. Your plan puts the stop five cents under the prior day's low, 81.23.",
    "chart": {
     "sym": "RARE",
     "asof": "2015-05-27",
@@ -2935,7 +2960,7 @@
     "Any red day, even a small one"
    ],
    "answer": "A close under the 9 EMA",
-   "why": "A close under the 9 EMA. A fast mover like this rides that line the whole way up. As long as it closes above it, the push is alive. A close below says it's stalled, so you sell what's left. Not on an intraday dip, on the close. For a steadier mover we give it room to the 20 EMA instead. RARE rested right on its fast average, then ran a second leg the same size as the first.",
+   "why": "A close under the 9 EMA. A fast mover like this rides that line the whole way up. As long as it closes above it, the push is alive. A close below says it's stalled, so you sell what's left. Not on an intraday dip, on the close. For a steadier mover we give it room to the 20 EMA instead. RARE rested above its fast average and let it catch up, then ran a second leg the same size as the first.",
    "lesson_line": "What's left rides the line. The close below it is the exit, not a dip under it.",
    "facts": [
     "r07",
@@ -3640,7 +3665,7 @@
     "p6"
    ],
    "wrong": {
-    "The stop was set too close": "It sat a few cents under the low of the day, a 2.25% stop. That's right. The setup was the weak spot.",
+    "The stop was set too close": "It sat a few cents under the prior day's low, a 2.25% stop. That's right. The setup was the weak spot.",
     "The pole was too small to trust": "A 30% pole is a normal flag pole. The issue was how late in the run it came.",
     "The flag was too deep to buy": "It was only 3.8% deep after a 30% pole. Depth wasn't the problem."
    },
@@ -3771,35 +3796,35 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "bf.market_order",
-   "q": "Write tomorrow's plan. Entry, stop, first sell?",
+   "q": "Write tomorrow's plan. What do you buy through, and where does the stop go?",
    "choices": [
-    "Market buy, day-low stop, sell a push",
-    "Limit under, mental stop, sell a push",
-    "Market buy, mental stop, no sell plan",
-    "Buy the close, day-low stop, no sell"
+    "Buy 78.00 at market, stop under 76.86",
+    "Limit at 76.86, stop under the 50-day",
+    "Buy the close over 78.00, no stop yet",
+    "Buy 78.00 at market, mental stop"
    ],
-   "answer": "Market buy, day-low stop, sell a push",
-   "why": "Market buy, day-low stop, sell into a push. Set the alert at the prior day's high tonight. Tomorrow, when it trades through, buy at market. Put a real stop order with the broker, a few cents under that day's low. Then the first sell: by judgment into a push, day 3 at the earliest. Writing it down before the open means you decide with a calm head, not in the middle of the move.",
-   "lesson_line": "Entry, stop, first sell, trail. Write it down before the open.",
+   "answer": "Buy 78.00 at market, stop under 76.86",
+   "why": "Buy it at market as it trades through 78.00, the top of today's inside day. The stop goes a few cents under 76.86, the inside day's low. That's your spot, and it's tight. The inside day did that for you. NUS filled at 78.01 with the stop at 76.81, 1.5% away. It's a tad extended from the 20 EMA after that pole, so a tight stop is exactly what I want. Set the alert at 78.00 tonight and put a real stop order in with the broker. The first sell is a judgment into a push, day 3 at the earliest.",
+   "lesson_line": "An inside day hands you the spot: buy through its high, stop under its low.",
    "facts": [
+    "c12",
     "c13",
+    "c36",
     "h17",
     "h24",
-    "d01",
-    "h18",
-    "r04",
+    "dNUS",
     "r05",
     "r06",
-    "r07"
+    "c37"
    ],
    "wrong": {
-    "Limit under, mental stop, sell a push": "A limit under the level can miss the break, and a stop in your head isn't a stop.",
-    "Market buy, mental stop, no sell plan": "Every position gets a real stop with the broker, and the plan includes a first sell.",
-    "Buy the close, day-low stop, no sell": "We buy as it trades through the level, not at the close. And the plan includes a first sell."
+    "Limit at 76.86, stop under the 50-day": "That waits for weakness and puts the stop miles away. We buy strength through 78.00 and stop under the inside day's low.",
+    "Buy the close over 78.00, no stop yet": "We buy as it trades through 78.00, not at the close. And every buy gets a real stop the moment it fills.",
+    "Buy 78.00 at market, mental stop": "Right entry. But a stop in your head isn't a stop. Put a real order in, a few cents under 76.86."
    },
    "house": true,
-   "story": "The night before the buy. A tight four-day flag after a 39% pole. Tonight you plan tomorrow's buy at the prior day's high.",
-   "simple": "Buy at market when the level trades, stop under the low of the day, and plan to sell some into a push.",
+   "story": "The night before the buy. A tight four-day flag after a 39% pole. Today is an inside day: high 78.00, low 76.86.",
+   "simple": "Buy at market as it trades through today's high, put a real stop just under today's low, and sell some into a push later.",
    "deeper": {
     "example": "The plan written tonight: alert at the prior day's high. Tomorrow, buy at market if it trades through. A real stop a few cents under that day's low. First sell into a 3, 5 or 7 day push, then trail the last part."
    },
@@ -3811,7 +3836,7 @@
      "fixed before: the stop wording was clarified"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "NUS",
     "asof": "2013-07-17",
@@ -4000,14 +4025,15 @@
     "Take it, the rest ran four days"
    ],
    "answer": "Take it, every close held the line",
-   "why": "Take it. Every close in this eight-day flag held the rising 20 EMA. Buyers defended the line every single day. That's a picture perfect flag. SHOP is the chart: a 99% pole in 12 days to 66.57, then eight sessions between 59.50 and 66.26. It triggered at 62.80 with a stop at 61.65, just 1.8% away, and went on to 41.7R.",
+   "why": "Take it. Every close in this eight-day flag held the rising 20 EMA. Buyers defended that line every single day. Yes, it's extended, way over its 50-day. That's what a 99% pole does. Your risk sits at the low of the day, not down at the 50. And that doji on the last candle sits right on the 9 EMA. That's a good look the day before a trigger. SHOP triggered at 62.80 with a stop at 61.65, just 1.8% away, and went on to 41.7R.",
    "lesson_line": "The flag that never closes under its line is the one worth the alert.",
    "facts": [
     "c10",
     "d01",
     "d02",
     "r07",
-    "r1"
+    "r1",
+    "h24"
    ],
    "wrong": {
     "Pass, two closes sat under it": "Look again. Every close sits on or above the 20 EMA.",
@@ -4021,7 +4047,7 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Every close held the rising 20 EMA, so buyers defended it every day, and the flag is intact.",
+   "simple": "Every close held the rising 20 EMA, so buyers defended it every day. It's stretched from the 50-day, but the stop sits close.",
    "deeper": {
     "trap": "An intraday dip under the line that closes back above is fine, and it's often the buy. What ends a flag is a close under the line that isn't taken back the next day."
    },
@@ -4033,7 +4059,7 @@
      "the 41.7R run is from our own scan"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "The day before the buy. Read this flag against its rising 20 EMA, close by close."
   },
   {
@@ -4050,18 +4076,19 @@
     "Pass, the flag ran too long"
    ],
    "answer": "Pass, the highs rose, a wedge up",
-   "why": "Pass. The highs climbed 5.6% across this seven-day pause. A pause that keeps climbing never rested. That's a wedge up, not a flag, and I don't buy it. BA had everything else going for it: a 58% pole and a pause only 10.7% deep. That's what makes it a good trap. Check the slope of the highs, not just the depth.",
+   "why": "Pass. The highs climbed 5.6% across this seven-day pause. A pause that keeps climbing never rested. That's a wedge up, not a flag, and I don't buy it. Then check the lines. The 50-day is still under a 200-day that's pointing down. I want the 50 over the 200, and here it isn't. BA did have a 58% pole and a pause only 10.7% deep. That's what makes it a good trap. Check the slope of the highs and the lines, not just the depth.",
    "lesson_line": "A rest that climbs isn't resting. Flat or down is the flag. Up is a pass.",
    "facts": [
     "c16",
     "d31",
     "z2",
     "r2",
-    "b6"
+    "b6",
+    "c02"
    ],
    "wrong": {
-    "Take it, the pole was 58%": "The pole was fine. The pause after it climbed, and a climbing pause is a wedge up.",
-    "Take it, it's only 10.7% deep": "Depth isn't the problem here. The slope of the highs is.",
+    "Take it, the pole was 58%": "The pole was fine. The pause after it climbed, and the 50-day sits under a falling 200-day.",
+    "Take it, it's only 10.7% deep": "Depth isn't the problem here. The climbing highs are, and so are the averages.",
     "Pass, the flag ran too long": "Right call, wrong reason. Seven sessions is a normal rest. It's the climbing highs."
    },
    "house": true,
@@ -4071,7 +4098,7 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Pass. The highs kept climbing through the pause, so it never rested, and a rising pause is a wedge up.",
+   "simple": "Pass. The highs kept climbing through the pause, so it's a wedge up, and the 50-day sits under a falling 200-day.",
    "deeper": {
     "counter": "Zanger: a bull flag has lower tops and lower bottoms with parallel lines. Bulkowski finds the best flags tilt down after an upward trend."
    },
@@ -4083,7 +4110,7 @@
      "a chart question read off our own bars"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "The day before it trades over the prior day's high. Look at the slope of the highs through the pause."
   },
   {
@@ -4715,13 +4742,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "RARE numbers match d05 (53% in 13 d to 85.93, 80.25-85.79). Stem not leading; wrong notes name the mistakes."
+   "notes": "Doji the day before the buy; pole read is right."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "AMD 20.28 top, 18.73-20.10 for 4 d match d03. Wedge-up call matches c07/c16."
+   "notes": "Writer edit checked: Aug 20 is a hammer closing at 86% of its range, 2.2% over the 9 EMA; reads right."
   },
   "q03": {
    "status": "pass",
@@ -4738,8 +4765,8 @@
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "His 'change' note (volume DRIES UP) applied in stem, answer, why, simple and lesson line; raises the grade, not a must (D-006). BB 37% in 4 d to 84.10, 0.28x match d07. Fix: a wrong note still said the bars 'shrank' (rule 21)."
+   "fixed": false,
+   "notes": "Volume question; last bar is a red day on 0.5x volume, not a heavy red day; reads right."
   },
   "q06": {
    "status": "pass",
@@ -4781,7 +4808,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "TSEM 66.62 / 64.78 match d13; inside-day chart claim was in the original story. Bonde moved to deeper."
+   "notes": "Inside day confirmed (H66.61 L65.40 inside the prior day)."
   },
   "q13": {
    "status": "pass",
@@ -4793,19 +4820,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D-013 first sell as judgment, day 3 at the earliest, 3/5/7 day push, 10-20R (r03, r05). TSEM nine sessions to 3R, 100+ (d14). No fixed 3R key."
+   "notes": "First-sell judgment; stop 64.78 sits under the buy-day low 64.83."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "UIS seven days, half the pole's volume, 2.3x break (d16). 9 EMA per D-021."
+   "notes": "Last close 0.2% under the 9 EMA, every rest close over the 20 EMA; reads right."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "PANW 2.9%, half volume, 48.98/48.29 = 1.4%, 26.4R all match d09/d10."
+   "notes": "Writer edit checked: the last bar is a doji, 0.9% over the 9 EMA."
   },
   "q17": {
    "status": "pass",
@@ -4829,7 +4856,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ISRG 10.63 / 10.46 match d11; report inside the pole fine (c39, d12, d33)."
+   "notes": "Earnings timing; chart read not the decision."
   },
   "q21": {
    "status": "cut",
@@ -4865,7 +4892,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(83.26 - 81.18) / 83.26 = 2.50%; 102.56% = 83.26/81.18, 97.50% = 81.18/83.26, 25.00% a slip. All distractors are real mistakes. Drives the size, so not a ratio drill."
+   "notes": "Writer edit checked: buy-day low is 83.20, the prior day low 81.23; the story now names the right low."
   },
   "q27": {
    "status": "pass",
@@ -4883,7 +4910,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "LLY 957.53 / 935.95, stopped day three (d23); 'third flag' was in the original story. 'Sit on hands' is his phrase."
+   "notes": "Day before a late-flag buy, close sits on the 9 EMA; reads right."
   },
   "q30": {
    "status": "pass",
@@ -4931,7 +4958,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed: 300 / 0.28 = 1,071.4 -> 1,071; cap 24,000 / 20.09 = 1,194; 2,142 double risk; 14 = 300 / 20.09. Pass: the validator forbids the intermediate 300 and 0.28 (not in a quote or the calc), so the steps are named, not printed."
+   "notes": "Sizing arithmetic."
   },
   "q38": {
    "status": "pass",
@@ -4960,20 +4987,20 @@
   "q42": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "9 EMA trail for fast movers, 20 for steadier, on the close (h21). RARE second leg (d06)."
+   "fixed": true,
+   "notes": "The why said RARE rested right on its fast average, but the rest closes sat 3% to 10% over the 9 EMA and never touched it; the 9 EMA rose into the rest."
   },
   "q43": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "STZ 44.34 / 43.55, 0.85R, day-2 low 43.07, ran to 50 (d20, d22); seven in ten (c34)."
+   "notes": "Stop 43.55 under the buy-day low 43.60; reads right."
   },
   "q44": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: 0.69 risk, 3.45 gain, 5.0R; 6R from the stop, 7R = 7.04% percent gain. Breakeven 2R-5R right. Fix: the gain 3.45 is now shown (the 0.69 is barred by the grounding gate), and the lesson line ('5R is a mark worth knowing') was filler."
+   "fixed": false,
+   "notes": "R arithmetic."
   },
   "q45": {
    "status": "pass",
@@ -5003,7 +5030,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "META 18.2% in 20 sessions, no pole (d28). Bulkowski moved to deeper."
+   "notes": "Inside day, 2.3% over the 20 EMA, no pole; reads right."
   },
   "q50": {
    "status": "cut",
@@ -5033,7 +5060,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "First sell by judgment, day 3 at the earliest, 3/5/7 day push or 5-10R (r04-r06)."
+   "notes": "First-sell judgment."
   },
   "q55": {
    "status": "pass",
@@ -5056,8 +5083,8 @@
   "q58": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "21.58 / 957.53 = 2.25% (d23); 3.8% deep, 30% pole (d24); late flag (d25)."
+   "fixed": true,
+   "notes": "The wrong text said the stop sat a few cents under the low of the day; the buy day low is 940.51, and 935.95 is five cents under the prior day low 936.00."
   },
   "q59": {
    "status": "pass",
@@ -5075,7 +5102,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Plan order: market buy at the level, real stop under the LOD, first sell by judgment into a push (c13, h18, D-013)."
+   "notes": "Writer edit checked: Jul 17 is an inside day H78.00 L76.86; Jul 18 opened 77.88 and traded through 78.00, so the 78.01 fill and 76.81 stop fit."
   },
   "q62": {
    "status": "pass",
@@ -5093,7 +5120,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "QCOM 0.76x close at the high was the top (d19); three of four failures (d32). Breakeven window right."
+   "notes": "Trigger-day close read is right."
   },
   "q65": {
    "status": "cut",
@@ -5104,14 +5131,14 @@
   "q66": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "SHOP 99% in 12 d to 66.57, eight sessions 59.50-66.26, 62.80 / 61.65, 41.7R (d01, d02). 'Picture perfect' is his phrase."
+   "fixed": true,
+   "notes": "Price sat about 30% over its 50-day; a tad extended undersold it. Now extended, way over its 50-day."
   },
   "q67": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "BA highs +5.6%, 58% pole, 10.7% deep (d31)."
+   "notes": "Writer edit checked: 50-day 172.45 under a 200-day 173.60 that points down; said plainly."
   },
   "q68": {
    "status": "pass",
@@ -5153,7 +5180,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stop to entry at the first sell (h05, c47)."
+   "notes": "Breakeven question."
   },
   "q75": {
    "status": "pass",

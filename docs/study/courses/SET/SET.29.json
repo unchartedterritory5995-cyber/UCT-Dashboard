@@ -1191,7 +1191,13 @@
     "h24",
     "h05",
     "c36"
-   ]
+   ],
+   "chart": {
+    "sym": "MGM",
+    "asof": "2004-09-14",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -1211,7 +1217,13 @@
     "h22",
     "h24",
     "h05"
-   ]
+   ],
+   "chart": {
+    "sym": "SPG",
+    "asof": "2005-11-11",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -1232,7 +1244,13 @@
     "h24",
     "h05",
     "c36"
-   ]
+   ],
+   "chart": {
+    "sym": "MUSA",
+    "asof": "2022-03-15",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1297,30 +1315,34 @@
    "rung": 1,
    "format": "scenario",
    "criterion": "fh.trigger",
-   "q": "It's back over the neckline. When do you buy it?",
+   "q": "Tomorrow it trades through 184.96. Where's your buy, and what do you stop under?",
    "choices": [
-    "A trade over the right-shoulder high",
-    "The first bounce back to the neckline",
-    "A touch of the undercut low",
-    "A close back over the 50-day"
+    "Buy through 184.96, day-low stop",
+    "Buy through 184.96, stop under 164.30",
+    "Buy the neckline retest near 176.18",
+    "Buy a close over 184.96, day-low stop"
    ],
-   "answer": "A trade over the right-shoulder high",
-   "why": "A trade over the right-shoulder high. That's the buy. Under that level the sellers can still win. Over it, everyone who sold the right shoulder is wrong, and the failure is done. MUSA did it the next session. It traded over 184.96, filled at 184.97, and hit 3R in 1 day. Mark the level the night before and set an alert, so you buy the break and don't chase it.",
-   "lesson_line": "Mark the right-shoulder high. The trade through it is the buy.",
+   "answer": "Buy through 184.96, day-low stop",
+   "why": "Buy it at market as it trades through 184.96, and stop a few cents under that day's low. That's your spot. Under the right-shoulder high the sellers can still win. Over it, everyone who sold the break is wrong. MUSA filled at 184.97 with the stop at 182.98, about 1.1% away. The 164.30 low is where the idea dies, not your stop. It's way too far to risk against. One thing I see: it's still just under a 50-day that's pointing down. On the buy day it closed back over it, and that's what I want.",
+   "lesson_line": "Mark the right-shoulder high. Buy through it, stop under that day's low.",
    "facts": [
     "c02",
     "br01",
     "c22",
     "c09",
-    "d13"
+    "d13",
+    "c04",
+    "r09",
+    "h24",
+    "h22"
    ],
    "wrong": {
-    "A touch of the undercut low": "The undercut low is where the idea dies, not where it starts. It sits far under the buy.",
-    "The first bounce back to the neckline": "That's the bounce the shorts wait for, their second chance to sell. Buying there is a classic mistake.",
-    "A close back over the 50-day": "Getting back over the 50-day helps, but it doesn't complete anything. The buy is the right-shoulder high, during the day, never a close."
+    "Buy through 184.96, stop under 164.30": "Right entry, wrong stop. 164.30 is where the idea dies. It's miles under the buy, so your size shrinks to almost nothing.",
+    "Buy the neckline retest near 176.18": "That's the bounce the shorts wait for, their second chance to sell. Nothing has failed until 184.96 trades.",
+    "Buy a close over 184.96, day-low stop": "We buy as price goes through the level, never at the close. By the close the fill can be much worse."
    },
    "house": true,
-   "simple": "You buy when price trades over the right-shoulder high. A bounce back to the neckline proves nothing yet.",
+   "simple": "Buy at market as it trades through the right-shoulder high, and stop just under that day's low.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1329,8 +1351,8 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17",
-   "story": "This top broke its neckline, but the fall stayed shallow and price climbed back over the line.",
+   "batch": "chart-reads-2026-11-18",
+   "story": "This top broke its 176.18 neckline and fell to 164.30. Then it climbed back over the line. The right-shoulder high is 184.96.",
    "chart": {
     "sym": "MUSA",
     "asof": "2022-03-14",
@@ -2388,13 +2410,15 @@
     "Yes, volume never matters"
    ],
    "answer": "Yes, volume is just a plus",
-   "why": "Yes. Volume raises the grade. It's not a requirement. Heavy volume on the trigger is nice to see, because it shows real buyers stepping in. But light volume doesn't cancel a clean trigger. It just means it's not the best version. ICLR is the proof. It triggered on 1.0x its average volume, took three weeks to get to 3R, then ran 25%. Waiting for volume would have meant missing it.",
+   "why": "Yes. Volume raises the grade. It's not a requirement. Heavy volume on the trigger is nice to see, because it shows real buyers stepping in. But light volume doesn't cancel a clean trigger. It just means it's not the best version. One more thing I see: the 50-day is still pointing down from the break. Price is back over it, and that's what I want on the trigger day. ICLR is the proof. It triggered on 1.0x its average volume, took three weeks to get to 3R, then ran 25%.",
    "lesson_line": "Volume raises the grade. It doesn't decide the trade.",
    "facts": [
     "c08",
     "d12",
     "b10",
-    "r14"
+    "r14",
+    "c09",
+    "r09"
    ],
    "wrong": {
     "No, it needs 2x the average": "There's no volume minimum. Heavy volume raises the grade, light volume doesn't cancel it.",
@@ -2410,7 +2434,7 @@
      "the volume cue is a proposed card criterion"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "Tomorrow this one trades over its right-shoulder high, but on plain volume, 1.0x its average day.",
    "chart": {
     "sym": "ICLR",
@@ -2615,7 +2639,7 @@
     "Higher, a long run is strength"
    ],
    "answer": "Lower, it's late in the run",
-   "why": "Lower. After a year or more of running, a failed top can be the last push. It's often not the start of a new leg. The shape can look perfect and the timing can still be late. So I grade it down, though it's not a ban. GOOGL shows it. It triggered at 351.60, stalled under the 50-day and the neckline, got to just 0.8R, and fell 20% by late October.",
+   "why": "Lower. That hammer on the last candle looks good, I'll give it that. But after a year or more of running, a failed top can be the last push. It's often not the start of a new leg. And it's sitting right on a 50-day that's rolled over. The shape can look perfect and the timing can still be late. So I grade it down, though it's not a ban. GOOGL shows it. It triggered at 351.60, stalled under the 50-day and the neckline, got to just 0.8R, and fell 20% by late October.",
    "lesson_line": "A failed top a year into a run can be the last push. Grade it down.",
    "facts": [
     "c14",
@@ -2641,7 +2665,7 @@
      "rests on one dated example"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "Here's the chart the day before it triggers. This stock has already been running for more than a year.",
    "chart": {
     "sym": "GOOGL",
@@ -3631,7 +3655,7 @@
     "Wait for a pullback to 27.71"
    ],
    "answer": "Buy the open, stop under day low",
-   "why": "Buy the open, with the stop a few cents under the low of the day. A 1% gap over the level is well inside our 4% chase line. The open itself is a trade over the right-shoulder high, so that's your trigger, at market. Waiting for a pullback to 27.71 sounds safer, but strong ones often never come back. MCO filled at the open, 27.98, on 2.6x volume and hit 3R in 1 day.",
+   "why": "Buy the open, with the stop a few cents under the low of the day. A 1% gap over the level is well inside our 4% chase line. The open itself is a trade over the right-shoulder high, so that's your trigger, at market. One flaw: the 200-day is drifting a little lower here. Price sits well over it and the 50-day is above it, so I can live with that. Waiting for a pullback to 27.71 sounds safer, but strong ones often never come back. MCO filled at the open, 27.98, on 2.6x volume and hit 3R in 1 day.",
    "lesson_line": "A small gap over the level is the trigger. A big one is a chase.",
    "facts": [
     "h11",
@@ -3639,7 +3663,8 @@
     "d10",
     "h22",
     "c03",
-    "h24"
+    "h24",
+    "r09"
    ],
    "wrong": {
     "Buy the open, stop at the neckline": "The neckline is way under a 27.98 fill. The stop goes under the low of the day.",
@@ -3658,7 +3683,7 @@
      "rests on the owner's rule C28 and the held decisions D-022 and D-003"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "MCO",
     "asof": "2011-01-05",
@@ -3763,7 +3788,7 @@
     "22.71 market, stop 22.30, sell day 1"
    ],
    "answer": "22.71 market, stop 22.30, push day 3+",
-   "why": "Buy 22.71 at market, stop 22.30, and a first sell into a push from day 3 on. The entry goes in at market as price trades over the 22.70 right-shoulder high. The stop sits a few cents under 22.35, the low of the day, 1.8% under your buy. That's a tight trade. The first sell is a judgment. I very rarely sell on day 1, so give it until day 3 at the earliest and sell some into a push. Trail the rest on the 9 or 20 EMA. MGM hit 3R in 5 days.",
+   "why": "Buy 22.71 at market, stop 22.30, and a first sell into a push from day 3 on. The entry goes in as price trades over the 22.70 right-shoulder high. The stop sits a few cents under 22.35, the low of the day, 1.8% under your buy. One flaw I see: the 50-day is still a hair under the 200 and pointing down from the break. Price is over both, the shoulders are textbook and the stop is tight, so I take it. I very rarely sell on day 1, so give it until day 3 and sell some into a push. Trail the rest on the 9 or 20 EMA. MGM hit 3R in 5 days.",
    "lesson_line": "Entry, stop, first sell, trail. Write it down, then do it without a debate.",
    "facts": [
     "h22",
@@ -3776,7 +3801,8 @@
     "r01",
     "r06",
     "r07",
-    "r08"
+    "r08",
+    "r09"
    ],
    "wrong": {
     "Limit 21.22, stop 19.80, all at 2R": "A limit at the neckline never buys the trigger. And dumping it all at 2R cuts off the run.",
@@ -3796,7 +3822,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "MGM",
     "asof": "2004-09-14",
@@ -3822,7 +3848,7 @@
     "Take it, the shape is enough"
    ],
    "answer": "Take it, it's above both lines",
-   "why": "Take it. Price is above the 200-day and above the 50-day, and that's what we want on the trigger day. Under the 200-day we don't buy stocks. Back over the 50-day is the sign the failure is real. TOL had equal shoulders, a flat neckline, and a seven-week failed break that got bought back. It triggered on 1.3x volume and hit 3R in 2 days.",
+   "why": "Take it. Price is above the 200-day, and back over the 50-day, just barely. That's what we want on the trigger day. Under the 200-day we don't buy stocks. Two things I see, though. The 50-day is still pointing down from the break. And after a big up day it's a tad extended from the 9 EMA. Neither one stops me. It's still under the 10% over the 9 EMA where we'd skip it. TOL had equal shoulders, a flat neckline, and a seven-week failed break that got bought back. It triggered on 1.3x volume and hit 3R in 2 days.",
    "lesson_line": "Check the lines before the shape. Above the 200, back over the 50.",
    "facts": [
     "c37",
@@ -3830,7 +3856,9 @@
     "h10",
     "d15",
     "d16",
-    "d32"
+    "d32",
+    "h13",
+    "r09"
    ],
    "wrong": {
     "Pass, it's under the 200-day": "Look again. Price is well above the 200-day here.",
@@ -3844,7 +3872,7 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Take it. Price is over both the 200-day and the 50-day on the trigger day.",
+   "simple": "Take it. Price is over the 200-day and back over the 50-day, though the 50 still points down.",
    "deeper": {
     "counter": "AMZN looked like a failed top in one near-miss. But the trigger close was 2.6% under the 200-day, a bounce inside a decline. We don't buy stocks there, and that buy stopped out at 0R."
    },
@@ -3857,7 +3885,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "chart-reads-2026-11-18"
   },
   {
    "key": "q64",
@@ -4241,13 +4269,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and truth checked: numbers recomputed, answer right, wrong choices clearly wrong, no working words, no ruling misstated."
+   "notes": "Concept question; the doji is not the decision."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "voice 3 -> fixed: Brandt led the why on a question about our trigger, not his principle (rule 13), so he moves to deeper; the story no longer points at the right-shoulder high ('sits just overhead' was a hint); the stem asks the trader's question."
+   "fixed": false,
+   "notes": "Writer edit checked: rule 34 rebuild; MUSA 3/15 opened 184.77, traded through 184.96, low 183.03 over a 182.98 stop; closed 188.05 over the 186.12 50-day."
   },
   "q03": {
    "status": "pass",
@@ -4270,8 +4298,8 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "truth: the wrong note now names the real reason the undercut low can't be the stop (way past our 5% max, r12), not only 'size shrinks'."
+   "fixed": false,
+   "notes": "Invalidation line vs stop read right."
   },
   "q07": {
    "status": "pass",
@@ -4295,7 +4323,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and truth checked: numbers recomputed, answer right, wrong choices clearly wrong, no working words, no ruling misstated."
+   "notes": "Order type with the level named."
   },
   "q11": {
    "status": "cut",
@@ -4372,20 +4400,20 @@
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "voice 3 -> fixed: the stem read as a bare ratio drill (rule 23); now it is the check a trader runs before buying, which the why ties to the 10% line. Math verified: 1.88 / 63.38 = 3.0%; the 0.3, 1.9 and 97.0 distractors are the slips they name."
+   "fixed": false,
+   "notes": "Depth arithmetic."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and truth checked: numbers recomputed, answer right, wrong choices clearly wrong, no working words, no ruling misstated."
+   "notes": "Chase read right. Doubtful only: local bars open at 366.25, the story and dossier say 365.00 (a data-feed difference, 0.3%)."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and truth checked: numbers recomputed, answer right, wrong choices clearly wrong, no working words, no ruling misstated."
+   "notes": "Re-entry question."
   },
   "q26": {
    "status": "pass",
@@ -4396,8 +4424,8 @@
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "voice 3 -> fixed: 'Your risk was the gap from...' used 'gap' for the stop distance inside a gap question, and the rule read as a recital; now the 2R check is walked plainly and the exit stated. Truth verified: risk 3.00 a share, the 2R line 101.59, the 96.73 open is about 3.6R down."
+   "fixed": false,
+   "notes": "Gap-through-stop rule."
   },
   "q28": {
    "status": "pass",
@@ -4415,13 +4443,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and truth checked: numbers recomputed, answer right, wrong choices clearly wrong, no working words, no ruling misstated."
+   "notes": "Writer edit checked: 50-day 53.02 pointing down, close 5.7% over it."
   },
   "q31": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "truth: the wrong note said the filter lets you buy 'smaller and fewer, unless it reads Red' (no buys in Red as a rule, a known misstatement, and Orange is A+ only); now the ladder as ruled."
+   "fixed": false,
+   "notes": "Market context read right."
   },
   "q32": {
    "status": "pass",
@@ -4433,7 +4461,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and truth checked: numbers recomputed, answer right, wrong choices clearly wrong, no working words, no ruling misstated."
+   "notes": "R arithmetic."
   },
   "q34": {
    "status": "pass",
@@ -4445,13 +4473,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and truth checked: numbers recomputed, answer right, wrong choices clearly wrong, no working words, no ruling misstated."
+   "notes": "Writer edit checked: Sep 17 is a hammer, 0.5% over a 50-day pointing down."
   },
   "q36": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and truth checked: numbers recomputed, answer right, wrong choices clearly wrong, no working words, no ruling misstated."
+   "notes": "Too-deep break pass right."
   },
   "q37": {
    "status": "pass",
@@ -4547,19 +4575,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and truth checked: numbers recomputed, answer right, wrong choices clearly wrong, no working words, no ruling misstated."
+   "notes": "Earnings timing."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and truth checked: numbers recomputed, answer right, wrong choices clearly wrong, no working words, no ruling misstated."
+   "notes": "Sizing arithmetic."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and truth checked: numbers recomputed, answer right, wrong choices clearly wrong, no working words, no ruling misstated."
+   "notes": "Version B read right."
   },
   "q55": {
    "status": "pass",
@@ -4582,14 +4610,14 @@
   "q58": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "truth: the why said the 61.03 undercut low and the 65.03 neckline 'work as stops too' and deeper called them 'fine stops on paper'; from a 69.53 fill they sit about 12% and 6.5% away, past our 5% max (r12), so a member could read a stop wider than 5% as fine."
+   "fixed": false,
+   "notes": "Stop 68.76 under the 68.81 day low; reads right."
   },
   "q59": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "voice: 'MCO bought the open' (the stock doing the buying) reworded; truth fine."
+   "fixed": false,
+   "notes": "Writer edit checked: 200-day drifting lower (-0.6%), 50 over it."
   },
   "q60": {
    "status": "pass",
@@ -4607,19 +4635,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and truth checked: numbers recomputed, answer right, wrong choices clearly wrong, no working words, no ruling misstated."
+   "notes": "Writer edit checked: 50-day 21.38 a hair under the 200-day 21.44, pointing down; said plainly."
   },
   "q63": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and truth checked: numbers recomputed, answer right, wrong choices clearly wrong, no working words, no ruling misstated."
+   "notes": "Writer edit checked: 6.3% over the 9 EMA, 50-day pointing down, 1.1% over it; the 10% line is the house rule h13."
   },
   "q64": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and truth checked: numbers recomputed, answer right, wrong choices clearly wrong, no working words, no ruling misstated."
+   "notes": "Under the 200-day pass right."
   },
   "q65": {
    "status": "cut",

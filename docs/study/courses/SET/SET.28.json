@@ -910,7 +910,13 @@
     "h04",
     "h03",
     "m07"
-   ]
+   ],
+   "chart": {
+    "sym": "AMD",
+    "asof": "2023-11-03",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -918,7 +924,7 @@
    "steps": [
     "DOCU spent a long stretch under its 50-day. March 11, 2024, it remounts. Then a quiet inside day above the line.",
     "March 14 it clears the quiet day's high. Buy at market, 59.54. Stop 58.44, under its low, 1.8% away.",
-    "Next morning, March 15, it gaps under the stop and the trade's done. The stop is the exit.",
+    "It falls straight through the stop, and the trade's done. The stop is the exit.",
     "Then it held the 50-day for 20 sessions and reached 61.47. Right level. That trigger just didn't run."
    ],
    "facts": [
@@ -1780,7 +1786,7 @@
    "criterion": "rm.trim_1",
    "q": "It then holds the 50-day for weeks and tops at 61.47. How many R is that from your 59.54 buy?",
    "answer": "1.75R",
-   "why": "1.75R. Your risk was 59.54 minus 58.44, so 1.10 a share. The best it did was 61.47, which is 1.93 over your buy. 1.93 over 1.10 is 1.75R. So you took the loss on the gap and missed a move that never reached 3R anyway. The level was right. The trigger just didn't run. That was DOCU in March 2024, and it's a normal cost of trading this setup.",
+   "why": "1.75R. Your risk was 59.54 minus 58.44, so 1.10 a share. The best it did was 61.47, which is 1.93 over your buy. 1.93 over 1.10 is 1.75R. So you took the planned loss and missed a move that never reached 3R anyway. The level was right. The trigger just didn't run. That was DOCU in March 2024, and it's a normal cost of trading this setup.",
    "lesson_line": "The level was right and the trigger didn't run. That happens.",
    "facts": [
     "d05",
@@ -1800,7 +1806,7 @@
    "suffix": "R",
    "simple": "The gain per share divided by the risk per share. That's 1.75R, still short of 3R.",
    "deeper": {
-    "example": "DOCU, March 2024: bought at 59.54, and a gap under the stop on day 1 ended the trade. The stock then held its 50-day for 20 sessions and traded up to 61.47. It never reached 3R. The stop did its job."
+    "example": "DOCU, March 2024: bought at 59.54, and it fell through the stop right away. The stock then held its 50-day for 20 sessions and traded up to 61.47. It never reached 3R. The stop did its job."
    },
    "tier": "core",
    "risk": {
@@ -1809,7 +1815,7 @@
      "+2 computed key"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "choices": [
     "1.93R",
     "2.75R",
@@ -1821,7 +1827,7 @@
     "1.93R": "That's the dollar gain per share, 1.93. Divide it by the 1.10 risk to get R.",
     "0.03R": "That divides the gain by the price. R divides by your risk per share."
    },
-   "story": "You bought a 50-day remount over the quiet day's high at 59.54, stop at 58.44. The next morning it gaps under your stop and you're out.",
+   "story": "You bought a 50-day remount over the quiet day's high at 59.54, stop at 58.44. It falls straight through your stop and you're out.",
    "chart": {
     "sym": "DOCU",
     "asof": "2024-03-13",
@@ -3005,14 +3011,15 @@
     "The 200-day doesn't work"
    ],
    "answer": "The market was against it",
-   "why": "The market was against it. The S&P 500 was under its own 200-day, and in a market like that even a clean Remount is a weaker bet. The stock's trying to go up while the index drags on it. That was AAPL in September 2022. It opened lower and ran through the stop the next morning. The stop did its job. Most tries lose small, and this was one of them.",
+   "why": "The market was against it. The S&P 500 was under its own 200-day, and in a market like that even a clean Remount is a weaker bet. The stock's trying to go up while the index drags on it. Look at the chart too. AAPL's own 50-day sat under its 200-day. Another mark against it. That was AAPL in September 2022. It opened lower and ran through the stop the next morning. The stop did its job. Most tries lose small, and this was one of them.",
    "lesson_line": "Check the index before you trust the chart.",
    "facts": [
     "e01",
     "e02",
     "k25",
     "k24",
-    "h02"
+    "h02",
+    "r21"
    ],
    "wrong": {
     "Bad luck, nothing showed it": "The clue was there. The S&P 500 was under its own 200-day.",
@@ -3059,14 +3066,15 @@
     "Follow-through is now likely"
    ],
    "answer": "Not enough to beat the market",
-   "why": "Not enough to beat the market. Volume raises the grade, and 2.98x is heavy. But with the index under its 200-day in a correction, a Remount is weak, and volume doesn't fix that. This was PYPL in October 2018, and it stopped out the session after the buy. I'll take heavy volume as a plus. I won't let it talk me out of checking the market.",
+   "why": "Not enough to beat the market. Volume raises the grade, and 2.98x is heavy. But with the index under its 200-day in a correction, a Remount is weak, and volume doesn't fix that. Look at the chart too. The 50-day still sits overhead, pointing down. That's one more mark against it. This was PYPL in October 2018, and it stopped out the session after the buy. I'll take heavy volume as a plus. I won't let it talk me out of checking the market.",
    "lesson_line": "Volume helps. It doesn't beat a weak market.",
    "facts": [
     "d08",
     "d09",
     "k25",
     "d13",
-    "r01"
+    "r01",
+    "m18"
    ],
    "wrong": {
     "It makes it an A+ setup": "Volume raises the grade. It doesn't cancel a weak market.",
@@ -3088,7 +3096,7 @@
      "the old key said Nothing and was softened"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "PYPL",
     "asof": "2018-10-19",
@@ -3756,12 +3764,13 @@
     "No, sell it all, lock the gain"
    ],
    "answer": "No, liking it isn't a reason",
-   "why": "No. Liking it more isn't a reason to buy more. The full size went on at one price with one stop, and that's the plan. Two days in, it's holding the line, not running. Add here and your average price climbs, so a normal pullback hurts more. Adding to a winner on strength does happen, but it's rare and a feel call, never the plan. If it keeps working, you'll be selling some into strength soon.",
+   "why": "No. Liking it more isn't a reason to buy more. The full size went on at one price with one stop, and that's the plan. Look at the chart. Two days in, it has already run, and it sits well over its 200-day now, a tad extended. Add up here and your average price climbs, so a normal pullback hurts a lot more. Adding to a winner on strength does happen, but it's rare and a feel call, never the plan. If it keeps working, you'll be selling some into strength soon.",
    "lesson_line": "One price, one stop. Liking it more isn't a trigger.",
    "facts": [
     "k30",
     "r03",
-    "aw1"
+    "aw1",
+    "r21"
    ],
    "wrong": {
     "Yes, add half, same stop": "That turns one buy into two. The full size went on once, and adding isn't the plan.",
@@ -3769,7 +3778,7 @@
     "No, sell it all, lock the gain": "That cuts a winner early. The first sell is judgment, into strength."
    },
    "house": true,
-   "story": "A 200-day remount bought over the quiet day's high at 110.67, stop at 108.11. Two days later it's holding over the line and you like it even more.",
+   "story": "A 200-day remount bought over the quiet day's high at 110.67, stop at 108.11. Two days later it's pushing higher on heavy volume, and you like it even more.",
    "simple": "No. The full size went on once, at one price with one stop, and liking it more isn't a reason to add.",
    "tier": "extended",
    "risk": {
@@ -3778,7 +3787,7 @@
      "rests on the owner's rulebook (A5, the full size at one price with one stop, no adding)"
     ]
    },
-   "batch": "rulings-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "UTHR",
     "asof": "2020-10-19",
@@ -4409,14 +4418,14 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Math rechecked (2.72, 3.15 -> 3.2; distractors 2.7, 0.3, 96.8). Truth nit: 'so it's still a trade' blessed a buy that q54 teaches was weak (SPY under its 200-day, d09); now speaks only to the stop width."
+   "fixed": false,
+   "notes": "pass: read right against the chart facts"
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "109.42-105.86=3.56, x3=10.68, +109.42=120.10. Distractors recomputed (116.54, 112.98, 98.74). First sell as judgment (r03/r05)."
+   "notes": "pass: read right against the chart facts"
   },
   "q17": {
    "status": "cut",
@@ -4440,7 +4449,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "NKE remount 2020-08-05, inside day, 1.2% stop per d01/d02. Market order over the high, stop a few cents under."
+   "notes": "pass: read right against the chart facts"
   },
   "q21": {
    "status": "cut",
@@ -4470,7 +4479,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "61.47-59.54=1.93; 59.54-58.44=1.10; 1.93/1.10=1.75R. Distractors recomputed (2.75 from stop, 0.03 over price). Borderline rule 23, but the R count is how a trade gets reviewed and the lesson (level right, trigger didn't run) is real."
+   "notes": "pass: read right against the chart facts"
   },
   "q26": {
    "status": "pass",
@@ -4494,13 +4503,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.5% of 100,000=$500; 3.56/share; 140.4 -> 140. 365 = 40% cap/109.42; 1,404 decimal slip. Stop 3.3% from d03."
+   "notes": "pass: read right against the chart facts"
   },
   "q30": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "9 or 20 EMA by how it moves (h21). No 10/21-day trail."
+   "notes": "pass: read right against the chart facts"
   },
   "q31": {
    "status": "pass",
@@ -4512,7 +4521,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "r04 rarely day 1; r05 3/5/7 day push or 5-10R; no fixed third. MGM 3R in 2 days per dossier."
+   "notes": "pass: read right against the chart facts"
   },
   "q33": {
    "status": "pass",
@@ -4548,7 +4557,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "MSFT 2024-11-26 chop line, 0R (e08/e09). No crossing count stated as a rule."
+   "notes": "pass: read right against the chart facts"
   },
   "q39": {
    "status": "cut",
@@ -4566,7 +4575,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ENOV: 3 closes under then back, U&R (dossier near-miss, bars checked last pass)."
+   "notes": "pass: read right against the chart facts"
   },
   "q42": {
    "status": "pass",
@@ -4584,7 +4593,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ESS 0.08 ATR poke per d11/d12; ATR explained plainly."
+   "notes": "pass: read right against the chart facts"
   },
   "q45": {
    "status": "pass",
@@ -4632,19 +4641,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "FDX 198.12/195.31; risk 2.81 x3 = 8.43 -> 206.55 (e03/e04). Cost of the setup."
+   "notes": "pass: stop-out lesson read right; doubt kept for the owner: the 198.12 fill is that day's close (the dossier's Entry A, a late-session market order)"
   },
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "AAPL 2022-09-12 with the S&P 500 under its 200-day (e01/e02/k25)."
+   "fixed": true,
+   "notes": "fix: the chart shows AAPL's 50-day under its 200-day on the buy day (rule 33, a flaw a trader sees); now said. Doubt kept for the owner: the 163.43 fill is that day's close (the dossier's Entry A, a late-session market order)"
   },
   "q54": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "PYPL 2018-10-19, 2.98x per d13, SPY under its 200-day (d09). Volume only raises the grade."
+   "notes": "pass: read right against the chart facts"
   },
   "q55": {
    "status": "pass",
@@ -4656,13 +4665,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "NKE 2020-08-06 chart; 1.3 ATR close and inside day per d02; 101.19/99.98/1.2%."
+   "notes": "pass: read right against the chart facts"
   },
   "q57": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Kept: pass on the 200-day; 'The 50-day sits under the 200-day here' is CRM's chart (267.88 < 295.88). Voice 4."
+   "notes": "pass: read right against the chart facts"
   },
   "q58": {
    "status": "pass",
@@ -4746,13 +4755,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Rewrite teaches the ruling: liking it isn't a reason; adding to a winner rare, never the plan. Answer clearly right, wrongs clearly wrong. Voice 4."
+   "notes": "pass: up about 5% in two days on 2.2x volume, now read as already run and a tad extended"
   },
   "q72": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1.10 x5 = 5.50 -> 65.04; 66.14=6R, 67.24=7R, 70.54=10R recomputed. Marks, not orders."
+   "notes": "pass: read right against the chart facts"
   },
   "q73": {
    "status": "pass",
@@ -4812,7 +4821,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "k08/k35 nothing overhead raises the grade, as judgment (h50)."
+   "notes": "pass: read right against the chart facts"
   },
   "q87": {
    "status": "cut",

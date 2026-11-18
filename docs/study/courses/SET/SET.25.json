@@ -740,7 +740,13 @@
     "o_failed",
     "h05",
     "h22"
-   ]
+   ],
+   "chart": {
+    "sym": "ACN",
+    "asof": "2006-10-23",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -760,13 +766,19 @@
     "o_failed",
     "h05",
     "h22"
-   ]
+   ],
+   "chart": {
+    "sym": "ADBE",
+    "asof": "2018-05-03",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
    "title": "DELL, March 2026: a deeper undercut and the widest stop",
    "steps": [
-    "Here's one fresh off a 200-day reclaim. DELL, March 2026, drifts two weeks, 5.4% off its high.",
+    "Fresh off a 200-day reclaim, DELL, March 2026, drifts two weeks, 5.4% off its high. Its 50-day's still under the 200.",
     "March 19 it digs deeper, 1.58% under the prior low. Then it rips back and closes at the high.",
     "Buy at market as it reclaims the prior close, 149.22. Stop 146.52 under the low. 1.81% is wider, still well inside 3%.",
     "It closed over the prior high and hit 3R the next day. That was the start of a very large run."
@@ -779,8 +791,15 @@
     "cs",
     "o_failed",
     "h05",
-    "h04"
-   ]
+    "h04",
+    "r06"
+   ],
+   "chart": {
+    "sym": "DELL",
+    "asof": "2026-03-19",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1932,7 +1951,7 @@
    ],
    "story": "You bought this Oops day at 67.48, stop at 66.70. Next morning it opens at 68.48, then sells straight through your stop to 66.63.",
    "answer": "Fine, the stop did its job",
-   "why": "That's the trade working the way it should. It looked perfect, a strong close and then a gap up to 68.48 the next morning. Then it sold right through. Nothing on the chart warned you. Your stop took a planned loss of 1.16% and that's it. This was ADBE, and it was 59.63 by 04-07. Without the stop, you'd be sitting in a real hole.",
+   "why": "That's the trade working the way it should. It looked perfect, a strong close and then a gap up to 68.48 the next morning. Then it sold right through. Nothing on the chart warned you. Your stop took a planned loss of 1.16% and that's it. This was ADBE, and by early April it was down at 59.63. Without the stop, you'd be sitting in a real hole.",
    "lesson_line": "A perfect-looking Oops gives no warning when it fails. The stop is the plan.",
    "facts": [
     "dADBE14",
@@ -2028,7 +2047,7 @@
    ],
    "story": "This chart runs through the session after your buy. You bought at 149.22, stop 146.52. It's already through your 3R mark.",
    "answer": "Hold it all, too early to sell",
-   "why": "Hold it all. This is day 1 after the buy, and we very rarely sell that early. A strong Oops can run for days, and I'm looking for a 3, 5 or 7 day push to sell into. Hitting a number on day 1 isn't that. If you want the safety, the stop can come up to breakeven somewhere between 2R and 5R.",
+   "why": "Hold it all. This is day 1 after the buy, and we very rarely sell that early. Now look at that candle. It ran way up, then closed right on its low, on heavy volume. I don't love that. But it's still just over your 3R mark, and the stop is the exit, not one ugly candle. I'm looking for a 3, 5 or 7 day push to sell into. If you want the safety, the stop can come up to breakeven somewhere between 2R and 5R.",
    "lesson_line": "3R on day 1 isn't a sell signal. Wait for the push.",
    "facts": [
     "r04",
@@ -2950,13 +2969,14 @@
    ],
    "story": "This chart ends on the Oops day. It undercut the prior low by 1.26% and closed at 0.85 of its range. You bought at 74.97, stop 73.73. It's stopped out the next day, and the index goes on to a lower low.",
    "answer": "The market wasn't Green",
-   "why": "The market wasn't Green. On its own chart this was fine: a 1.26% undercut, a strong close and a 1.65% stop. But SPY was rolling over, and it made a lower low a few days later. You check the market reading before every buy, not after the stop. A good chart in a bad market fails a lot more often.",
+   "why": "The market wasn't Green. On its own chart this was mostly fine: a 1.26% undercut, a strong close and a 1.65% stop. One flaw: the 50-day was still a hair under the 200-day, just crossing up. The bigger problem was SPY. It was rolling over, and it made a lower low a few days later. You check the market reading before every buy, not after the stop. A good chart in a bad market fails a lot more often.",
    "lesson_line": "A clean chart can't tell you what the market's doing. Check the reading first.",
    "facts": [
     "dUBER",
     "dUBERn",
     "o_mktr",
-    "h04"
+    "h04",
+    "r06"
    ],
    "wrong": {
     "The close was too weak": "It closed at 0.85 of its range. That's strong.",
@@ -2976,7 +2996,7 @@
      "rebuilt from the dossier row so every number is in a cited quote"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "UBER",
     "asof": "2025-03-07",
@@ -3146,21 +3166,22 @@
    "choices": [
     "Pass, it only dipped at the highs",
     "Take it, the reclaim is a trigger",
-    "Take it, the 200-day is rising",
+    "Take it, it's over the 200-day",
     "Pass, the undercut is too shallow"
    ],
    "answer": "Pass, it only dipped at the highs",
-   "why": "Pass. Yesterday's close was only 0.6% under the 20-day high. That's not a pullback, it's a stock resting at the top. An Oops works because it reverses a real pullback and traps the sellers in it. Here there's nothing to reverse. Our scans want something like 3% to 12% off the 20-day high first. I'd leave this one on the watchlist.",
+   "why": "Pass. Yesterday's close was only 0.6% under the 20-day high. That's not a pullback, it's a stock resting at the top. It's a tad extended from the 50-day too, and the 200-day under it has gone flat. An Oops works because it reverses a real pullback and traps the sellers in it. Here there's nothing to reverse. Our scans want something like 3% to 12% off the 20-day high first. I'd leave this one on the watchlist.",
    "lesson_line": "No pullback, no Oops. A dip at the highs isn't one.",
    "facts": [
     "dHD",
     "dHDn",
-    "o_pull"
+    "o_pull",
+    "r06"
    ],
    "wrong": {
     "Take it, the reclaim is a trigger": "Only after a real pullback. Here it's just a dip at the highs.",
-    "Take it, the 200-day is rising": "A rising 200-day is a plus. It doesn't replace the pullback.",
-    "Pass, the undercut is too shallow": "Any trade under yesterday's low is an undercut. The missing piece is the pullback."
+    "Pass, the undercut is too shallow": "Any trade under yesterday's low is an undercut. The missing piece is the pullback.",
+    "Take it, it's over the 200-day": "Over the 200-day is where we start, not a reason to buy. And that 200-day has gone flat here. The missing piece is the pullback."
    },
    "house": true,
    "chart": {
@@ -3180,7 +3201,7 @@
      "a dated example read off our own bars"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "This chart ends yesterday. Tomorrow it trades under yesterday's low, then closes back over yesterday's close."
   },
   {
@@ -3620,8 +3641,8 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: 'anyone who sold yesterday is now under water' misdescribes a seller; now 'sold lower than this'. FCX Super close was already in the original and checked."
+   "fixed": false,
+   "notes": "Super Oops definition; last bar a doji inside day is context only."
   },
   "q05": {
    "status": "pass",
@@ -3632,8 +3653,8 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: 'broke this morning' asserted a time of day the daily bar can't show; now 'broke today'. Rest checked: 218.69 under 221.11."
+   "fixed": false,
+   "notes": "Stop under the Oops-day low 218.74 at 218.69; reads right."
   },
   "q07": {
    "status": "cut",
@@ -3668,8 +3689,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: dropped 'the stock stair-stepped higher from there', a new chart claim nobody verified. The 9 EMA wrong note said a pullback never finds buyers there, too strong; now says why we want the deeper 20/50 tag."
+   "fixed": false,
+   "notes": "Next day low 45.83 tagged the rising 50-day 45.97; reads right."
   },
   "q13": {
    "status": "pass",
@@ -3697,8 +3718,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "3R = 149.22 + 3 x 2.70 = 157.32 checked; 154.62, 151.92, 141.12 each a real slip. Deeper said 'We still held', a made-up personal trade; now 'You'd still hold'."
+   "fixed": false,
+   "notes": "R arithmetic."
   },
   "q18": {
    "status": "pass",
@@ -3740,7 +3761,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.39 / 31.51 = 1.24% checked; 0.39%, 12.4%, 98.8% each a real slip."
+   "notes": "Stop-width arithmetic."
   },
   "q25": {
    "status": "pass",
@@ -3787,8 +3808,8 @@
   "q32": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Voice in his register; numbers recomputed and match; answer right, wrongs are named mistakes; no working words."
+   "fixed": true,
+   "notes": "Voice: it was 59.63 by 04-07 read like a data row."
   },
   "q33": {
    "status": "pass",
@@ -3799,8 +3820,8 @@
   "q34": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Voice in his register; numbers recomputed and match; answer right, wrongs are named mistakes; no working words."
+   "fixed": true,
+   "notes": "The chart runs through the day after the buy: it ran to 169.90 and closed on its low (0% of range) on 2.7x volume. The why ignored that candle; now said, then why you still hold."
   },
   "q35": {
    "status": "cut",
@@ -3848,7 +3869,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers recomputed and match; answer right, wrongs are named mistakes; no working words."
+   "notes": "Re-entry question."
   },
   "q43": {
    "status": "pass",
@@ -3890,7 +3911,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers recomputed and match; answer right, wrongs are named mistakes; no working words."
+   "notes": "Inside day, low 0.48% over the prior low; Red to Green read right."
   },
   "q50": {
    "status": "pass",
@@ -3902,7 +3923,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers recomputed and match; answer right, wrongs are named mistakes; no working words."
+   "notes": "Delayed reaction read right."
   },
   "q52": {
    "status": "cut",
@@ -3914,7 +3935,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "q53's fix holds: hard no below the 200-day for a stock, indexes and levered ETFs excepted. 12% under 76.48 checked for 67.23 and 66.97."
+   "notes": "12% under a falling 200-day; hard no read right."
   },
   "q54": {
    "status": "pass",
@@ -3925,14 +3946,14 @@
   "q55": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'The best-looking close of the bunch' pointed at a study set the member never sees; now 'about as good a close as you'll see'."
+   "fixed": false,
+   "notes": "Super close review."
   },
   "q56": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers recomputed and match; answer right, wrongs are named mistakes; no working words."
+   "notes": "Writer edit checked: 50-day 70.40 a hair under the 200-day 70.65, rising; said plainly."
   },
   "q57": {
    "status": "cut",
@@ -3955,14 +3976,14 @@
   "q60": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Deeper said 'a named mistake', a working phrase; now plain. ADBE 5.2% drift onto the 21/50 matches dADBE; 3% to 12% framed as what our scans look for."
+   "fixed": false,
+   "notes": "Prior close 0.6% under the 20 EMA and 0.9% over the 50; reads right."
   },
   "q61": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers recomputed and match; answer right, wrongs are named mistakes; no working words."
+   "notes": "Writer edit checked: 200-day flat, 8.6% over the 50-day, 0.6% under the 20-day high; reads right."
   },
   "q62": {
    "status": "cut",
@@ -4010,7 +4031,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "R 0.39; 5R 33.46, 6R 33.85, from-stop 33.07, 3R 32.68 checked."
+   "notes": "R arithmetic."
   },
   "q70": {
    "status": "cut",

@@ -1785,7 +1785,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "seller framing reframed; answer unchanged"
+   "notes": "SPX, no local bars. Text reads no chart and names no drawing."
   },
   "q22": {
    "status": "pass",

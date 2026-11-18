@@ -936,7 +936,13 @@
     "h05",
     "h22",
     "h24"
-   ]
+   ],
+   "chart": {
+    "sym": "BBY",
+    "asof": "2013-07-01",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -958,15 +964,21 @@
     "h05",
     "h22",
     "h21"
-   ]
+   ],
+   "chart": {
+    "sym": "COHR",
+    "asof": "2024-01-16",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
    "title": "ATRO, June 2026: the trims and the trail",
    "steps": [
-    "A red day drops ATRO 2.7% right into its 50-day, June 2026. It closes near the low.",
+    "A red day drops ATRO 2.7% to just under its 20 EMA, June 2026. It closes near the low.",
     "June 11 it gaps up 3.0% and trades through the red high. Buy at market, 68.80. Stop 67.36, 2.1% away.",
-    "It closes on the high, up 15.1%. 3R on day 1 is too soon to sell, so the stop goes to breakeven.",
+    "Closes on the high, up 15.1%. 3R on day 1 is too soon to sell. Breakeven on the stop is your call.",
     "It ran 13.8R in two weeks, then gave most of it back. Sell into the push, or you hand it back."
    ],
    "facts": [
@@ -980,8 +992,15 @@
     "h05",
     "h20",
     "tp2",
-    "h22"
-   ]
+    "h22",
+    "r06"
+   ],
+   "chart": {
+    "sym": "ATRO",
+    "asof": "2026-06-11",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1099,7 +1118,7 @@
     "A cent over the red day's open"
    ],
    "answer": "A cent over the red day's high",
-   "why": "One cent over the red day's high, on the Kicker day only. It's a market order that fires as price trades through. JBI filled at 11.05, a cent over the previous day's high. Once price is over the red high, everyone who sold the red day is underwater. Wait for the close and you just pay more, with your stop further away. Mark the level the night before and set an alert.",
+   "why": "One cent over 11.04, the red day's high, on the Kicker day only. It's a market order that fires as price trades through. JBI filled right there, at 11.05. Once price is over the red high, everyone who sold the red day is underwater. Wait for the close and you just pay more, with your stop further away. Mark 11.04 the night before and set an alert.",
    "lesson_line": "The trade through the red high is your buy. The close is too late.",
    "facts": [
     "k_ea",
@@ -1113,7 +1132,7 @@
     "A cent over the red day's open": "The open isn't the line that traps anyone. The red high is."
    },
    "house": true,
-   "simple": "A cent over the red day's high, as price trades through it. Never at the close.",
+   "simple": "A cent over 11.04, the red day's high, as price trades through it. Never at the close.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1121,8 +1140,8 @@
      "rests on the owner's ruling of 2026-11-02 for the Kicker entry"
     ]
    },
-   "batch": "voice-8-2026-11-17",
-   "story": "Here's the red day, closing weak near its low. Tomorrow it gaps up and trades through this high.",
+   "batch": "chart-reads-2026-11-18",
+   "story": "Here's the red day, closing weak near its low. Its high is 11.04. Tomorrow it gaps up and trades through that high.",
    "chart": {
     "sym": "JBI",
     "asof": "2023-12-13",
@@ -1286,7 +1305,7 @@
     "On any earnings gap"
    ],
    "answer": "On a base or an orderly pullback",
-   "why": "A base or an orderly pullback. A Kicker works on a leader that's already set up. Tight closes before the red day, above the 200-day, with the 50-day flat or rising. SWKS sat on a flat six-week base over a rising 50-day. That's the spot. The base is where buyers showed they want the stock. The Kicker tells you they're back.",
+   "why": "A base or an orderly pullback. A Kicker works on a leader that's already set up. Tight closes before the red day, above the 200-day, with the 50-day flat or rising. SWKS sat on a flat six-week base over a rising 50-day. That's the spot. It's a bit stretched off that 50-day, and the 200-day is way down there, so this is a later base in a long run. Still a base. The base is where buyers showed they want the stock. The Kicker tells you they're back.",
    "lesson_line": "No base, no setup. The Kicker sits on a leader that's already resting.",
    "facts": [
     "cx1",
@@ -1317,7 +1336,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "Here's the red day of a Kicker. Look at the weeks behind it.",
    "chart": {
     "sym": "SWKS",
@@ -3023,14 +3042,15 @@
    ],
    "story": "The red day closed at 7% of its range. The next day opens 0.8% over that close, trades through this high and closes up 8.4%.",
    "answer": "No, there's barely a gap",
-   "why": "No, there's barely a gap. It opened just 0.8% over the red close. That's close to a flat open. The Kicker's whole trick is the overnight jump that traps yesterday's sellers. Without a real gap nobody's trapped. It's a plain breakout day, a strong green bar. CEG did this in 2024 and closed up 8.4%. Nice day. Different setup.",
-   "lesson_line": "A strong green bar with no real gap is a breakout, not a Kicker.",
+   "why": "No, there's barely a gap. It opened just 0.8% over the red close. That's close to a flat open. The Kicker's whole trick is the overnight jump that traps yesterday's sellers. Without a real gap nobody's trapped. Look where it sits on the chart too. CEG had pulled back well off its high and closed just under its 50-day. So the next day is a strong bounce, not a Kicker. It closed up 8.4%. Nice day. Different setup.",
+   "lesson_line": "A strong green bar with no real gap isn't a Kicker, however well it closes.",
    "facts": [
     "k_gap",
     "dCEG",
     "dCEGn",
     "dCEGd",
-    "cp1"
+    "cp1",
+    "r06"
    ],
    "wrong": {
     "Yes, it closed up 8.4%": "A strong close doesn't make the gap. It opened almost flat.",
@@ -3038,9 +3058,9 @@
     "Yes, it traded through the red high": "That's the trigger, but there was no real gap before it."
    },
    "house": true,
-   "simple": "No. It barely gapped, so nobody got trapped and it's just a breakout day.",
+   "simple": "No, it barely gapped, so nobody got trapped. It's just a strong up day.",
    "deeper": {
-    "trap": "A big up day through the red high looks like a Kicker. Check the open, not the close. CEG opened 0.8% over the red close and closed +8.4% on 2.0x. Without the gap it's a breakout."
+    "trap": "A big up day through the red high looks like a Kicker. Check the open, not the close. CEG opened 0.8% over the red close and closed +8.4% on 2.0x. Without the gap it's just a strong up day."
    },
    "tier": "extended",
    "risk": {
@@ -3049,7 +3069,7 @@
      "the 1.5% line is a proposed card threshold"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "CEG",
     "asof": "2024-06-07",
@@ -3800,7 +3820,7 @@
     "Pass, there's no news behind it"
    ],
    "answer": "Pass, the red day is too small",
-   "why": "Pass. Look at that red day. The body is 0.04% of price and the drop just 0.4%. That's a baby candle. Nobody got scared, so nobody's trapped when it gaps. GWW's base was fine and the gap was real. The red day is what fails. What you've got is a breakout, so judge it as one.",
+   "why": "Pass. Look at that red day. It's a doji: the body is 0.04% of price and the drop just 0.4%. That's a baby candle. Nobody got scared, so nobody's trapped when it gaps. GWW's base was fine and the gap was real. The red day is what fails. What you've got is a breakout, so judge it as one.",
    "lesson_line": "A tiny red body before the gap is a breakout, not a Kicker.",
    "facts": [
     "dGWW1",
@@ -3832,7 +3852,7 @@
      "rests on a settled card criterion, with examples read from our own bars"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "Here's the red day. Tomorrow it gaps up 2.2% and trades through this high. Everything else checks out."
   },
   {
@@ -4809,7 +4829,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "JBI 11.05, a cent over the red high, matches tp3. Never the close (his words). Alert how-to included."
+   "notes": "pass: red high 11.04 given as the spot, buy a cent over"
   },
   "q05": {
    "status": "cut",
@@ -4833,13 +4853,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Gap holds = never back to the red close (k_hold). JBI held: 16 of 16 kept examples held."
+   "notes": "pass: read right against the chart facts"
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "SWKS six-week base over a rising 50-day matches dSWKSn. The 200-day is a hard no for stocks, no parabolic exception. No scanner number stated."
+   "notes": "pass: SWKS about 9% over its 50 and 39% over its 200 now said, still a base"
   },
   "q10": {
    "status": "pass",
@@ -4893,7 +4913,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "AXON 21.44 / 20.70, 3R in 1 day matches dAXON. Day 3 at the earliest per D-013; no fixed third."
+   "notes": "pass: read right against the chart facts"
   },
   "q19": {
    "status": "pass",
@@ -4905,7 +4925,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "122.84 - 119.51 = 3.33; x3 = 9.99; 132.83. Distractors 126.17 (1R), 129.50 (from the stop), 112.85 (down) recomputed. AMD 3R in 2 days matches dAMD. 3R called a ruler, not a sell."
+   "notes": "pass: read right against the chart facts"
   },
   "q21": {
    "status": "pass",
@@ -4929,13 +4949,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "27.96 + 0.01 = 27.97; BBY 2013-07-01, +8.8% matches dBBY."
+   "notes": "pass: read right against the chart facts"
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "42.83 x 0.965 = 41.33. COHR open fill matches dCOHR. Raise at 10:00 per kk.stop_open_fill."
+   "notes": "pass: read right against the chart facts"
   },
   "q26": {
    "status": "pass",
@@ -4965,7 +4985,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "B22 3-session window; GOOGL 2020 gap to 0R matches the card. The reason (a report gap skips the stop) given."
+   "notes": "pass: read right against the chart facts"
   },
   "q31": {
    "status": "pass",
@@ -4989,7 +5009,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Never the close (his ruling). The strong close grades afterward. depends_on D-026 inherited."
+   "notes": "pass: read right against the chart facts"
   },
   "q35": {
    "status": "pass",
@@ -5007,19 +5027,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.41 / 22.17 = 1.85% -> 1.8%; 18.5 decimal slip; 98.2 = 21.76 / 22.17. MS 3R in 2 days matches dMS."
+   "notes": "pass: read right against the chart facts"
   },
   "q38": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.5% of 100,000 = 500; 0.74 a share; 675.68 -> 675; 1,351 at 1%; 4,664 = 100,000 / 21.44; 6,756 ten times. 3.45% stop inside 3.5%. All recomputed."
+   "notes": "pass: read right against the chart facts"
   },
   "q39": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "TRUTH: the why used ATRO (13.8R in two weeks) as the reason to hold everything, but dATROn says it then gave most of it back and hit the stop; q63 and q89 use the same case as the reason to sell into the push. Rewritten so ATRO teaches both halves: hold on day 1, sell into the push later. 68.80 - 67.36 = 1.44; 3R = 73.12 checks."
+   "fixed": false,
+   "notes": "pass: read right against the chart facts"
   },
   "q40": {
    "status": "cut",
@@ -5073,13 +5093,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "LUV 6.2% gap, +18.7% on 3.8x, report 2026-01-28 after the close: matches dLUV."
+   "notes": "pass: read right against the chart facts"
   },
   "q49": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "CEG 0.8% open over the red close, close at 7%, +8.4%: matches dCEG. No 1.5% line stated."
+   "notes": "pass: CEG well off its high and just under its 50-day read right"
   },
   "q50": {
    "status": "cut",
@@ -5091,7 +5111,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "IDCC 44.1% span, -5.8%, 1% close, 5.7% gap, 60% burst, stopped the next session: matches dIDCC/dIDCCn. No 15% cutoff stated."
+   "notes": "pass: read right against the chart facts"
   },
   "q52": {
    "status": "pass",
@@ -5127,13 +5147,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "AVGO 352.77 x 0.965 = 340.42; -5.9%, 8.7% gap, +9.9%, gave it back: matches dAVGO/dAVGOn. No 3 ATR cap stated as a rule. depends_on D-097 inherited."
+   "notes": "pass: read right against the chart facts"
   },
   "q58": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "LLY -10.0%, 5.5% gap, Monday opened under 131.73: matches dLLY/dLLYn. Red mostly cash (F65 guide); Yellow is smaller and fewer."
+   "notes": "pass: read right against the chart facts"
   },
   "q59": {
    "status": "cut",
@@ -5145,13 +5165,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "CDNS 181.81 / 177.50 = 2.4% (dCDNS); next-day low 175.34 under the stop. Correct."
+   "notes": "pass: read right against the chart facts"
   },
   "q61": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "PGR 141.14 / 137.35, day 2 open 142.16, close 136.32: matches dPGR/dPGRn."
+   "notes": "pass: read right against the chart facts"
   },
   "q62": {
    "status": "cut",
@@ -5181,13 +5201,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "BBY -1.8%, 2% of range, 6.2% base, 2.1% gap, +8.8% match dBBY. Judges the call, not the outcome."
+   "notes": "pass: read right against the chart facts"
   },
   "q67": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "GWW 0.04% body, 0.4% drop, 2.2% gap, base fine: matches dGWW1/dGWW2."
+   "notes": "pass: the red doji named the way he does"
   },
   "q68": {
    "status": "pass",
@@ -5265,7 +5285,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D39 plan before the open; sizes off the 3.5% cap since the low does not exist yet. Correct."
+   "notes": "pass: read right against the chart facts"
   },
   "q81": {
    "status": "pass",
@@ -5295,7 +5315,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Breakeven 2R to 5R or at the first sell (not a fixed 2R). MS numbers 22.17 / 21.76."
+   "notes": "pass: read right against the chart facts"
   },
   "q86": {
    "status": "cut",
@@ -5307,7 +5327,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "41.42 - 40.67 = 0.75; 5R = 45.17; 42.17 (1R), 44.42 (from the stop), 37.67 (down) recomputed. 5R a ruler, not a sell."
+   "notes": "pass: read right against the chart facts"
   },
   "q88": {
    "status": "cut",

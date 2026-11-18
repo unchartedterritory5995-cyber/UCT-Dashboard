@@ -1832,7 +1832,7 @@
     "Sell everything and go to cash"
    ],
    "answer": "Pass until the group is strong",
-   "why": "Pass until the group is strong. In March 2023 bank stocks fell hard as the banking sector came under stress. Officials stepped in to support the banks, and the stocks still fell sharply. By mid-year they were still below where the year began. Cheap can get a lot cheaper. I buy relative strength and stay away from relative weakness, and this whole group was breaking. Look at KRE on this chart. I'd want the group to show a higher low and some strength before I even look at a bank.",
+   "why": "Pass until the group is strong. In March 2023 bank stocks fell hard as the banking sector came under stress. Officials stepped in to support the banks, and the stocks still fell sharply. By mid-year they were still below where the year began. Cheap can get a lot cheaper. Look at KRE on this chart. It sits way under every average on the chart, and the long ones point down. One green bounce on the last day doesn't fix that. I buy relative strength and stay away from relative weakness. I'd want the group to show a higher low and some strength before I even look at a bank.",
    "lesson_line": "Don't fight a group that's breaking. A cheap stock in a weak group can stay cheap.",
    "facts": [
     "g09",
@@ -1859,7 +1859,7 @@
      "teaches the owner's rule C31 (sizing_rule.md section 9)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "KRE",
     "asof": "2023-03-15",
@@ -2052,7 +2052,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Narrates the crash like a review and says what he writes down. 50.72/31.94/12.99/13.53/12.69 match f13-f17."
+   "notes": "pass: sector damage, numbers cited; XLE chart not misread"
   },
   "q17": {
    "status": "pass",
@@ -2075,8 +2075,8 @@
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "f48 says bank stocks were still below January levels by mid-year; the why and a wrong note said they 'stayed below where the year began' with no end date. Tied to mid-year."
+   "fixed": false,
+   "notes": "pass: KRE far under a falling 50 and 200 with a one-day green bounce, read right after the answer; ticker only in the why"
   },
   "q21": {
    "status": "cut",

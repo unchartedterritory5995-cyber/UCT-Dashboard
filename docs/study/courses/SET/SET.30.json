@@ -1189,7 +1189,13 @@
     "h24",
     "r01",
     "r02"
-   ]
+   ],
+   "chart": {
+    "sym": "BABA",
+    "asof": "2022-03-15",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -1198,7 +1204,7 @@
     "DB, August 2024. Nine sessions down, 19.7% off the high, with the whole market unwinding.",
     "Monday, August 5, a 4.2% gap down on 2.3 times volume. The first 5-minute close back over VWAP is the buy.",
     "Stop 13.67, just under the low. A new low means the selling's not done. It held; 3R in 9 sessions.",
-    "Turns like this often come on a Monday. And on a stock, check the 200-day first. Under it, it's a pass."
+    "Turns like this often come on a Monday. But DB closed just under its 200-day, so as a stock it's a pass."
    ],
    "facts": [
     "d03",
@@ -1212,7 +1218,13 @@
     "h24",
     "r01",
     "r02"
-   ]
+   ],
+   "chart": {
+    "sym": "DB",
+    "asof": "2024-08-05",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -1236,7 +1248,13 @@
     "h24",
     "r01",
     "r02"
-   ]
+   ],
+   "chart": {
+    "sym": "HTHT",
+    "asof": "2021-07-27",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -2106,7 +2124,7 @@
     "Short it into the Monday open"
    ],
    "answer": "Wait, Monday may bring a flush",
-   "why": "Wait. A lot of crashes put in the real low on a Monday. Bracco calls it the Monday Effect: notable capitulations and turns have come on Mondays. People sit with their losses all weekend, then dump at the open. In our study, three of the four failed trades were Friday buys, all stopped the next session. This chart is KRE. Monday gapped lower, traded through the Friday stop, and only then printed the real low. If you like it Friday, write the plan and watch Monday's open.",
+   "why": "Wait. A lot of crashes put in the real low on a Monday. Bracco calls it the Monday Effect: notable capitulations and turns have come on Mondays. People sit with their losses all weekend, then dump at the open. In our study, three of the four failed trades were Friday buys, all stopped the next session. This chart is KRE. And Friday's candle looked good, a doji with a long lower wick that closed near the high. Didn't matter. Monday gapped lower, traded through the Friday stop, and only then printed the real low. If you like it Friday, write the plan and watch Monday's open.",
    "lesson_line": "Friday's turn is often Monday's gap. Let the weekend decide.",
    "facts": [
     "c15",
@@ -2135,7 +2153,7 @@
      "+1 fixed before"
     ]
    },
-   "batch": "rulings-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "KRE",
     "asof": "2025-04-04",
@@ -2362,7 +2380,7 @@
     "Take it, a 2x fund gets more room"
    ],
    "answer": "Pass, wait for a tighter trigger",
-   "why": "Pass, and wait for a tighter trigger. 89.56 down to 83.01 is 7.3%. We like stops 1-3% away, 3.5% is still good, and we'll go up to 5%. Past that, we mostly wait. With a stop that wide the bounce has to run 7.3% just to pay you 1R. That's a lot to ask of a snap back that lives for days. Don't fix it by pulling the stop up. Under the climax low is where it belongs. In fairness, this one worked: 6.67R at its best. Wide ones sometimes do. We still pass on most of them.",
+   "why": "Pass, and wait for a tighter trigger. 89.56 down to 83.01 is 7.3%. We like stops 1-3% away, 3.5% is still good, and we'll go up to 5%. Past that, we mostly wait. With a stop that wide the bounce has to run 7.3% just to pay you 1R. That's a lot to ask of a snap back that lives for days. Don't fix it by pulling the stop up. Under the climax low is where it belongs. Yes, the candle's a great-looking hammer, closing right at the high. The stop's still the problem. In fairness, this one worked: 6.67R at its best. Wide ones sometimes do. We still pass on most of them.",
    "lesson_line": "Past 5%, wait for a tighter trigger. Never pull the stop up to make it fit.",
    "facts": [
     "d07",
@@ -2387,7 +2405,7 @@
      "the 8% skip line is the card's proposal, a number that can change"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "A 2x silver fund turns on its climax day at 89.56. The low of the day puts your stop at 83.01, 7.3% under the fill.",
    "chart": {
     "sym": "AGQ",
@@ -3629,7 +3647,7 @@
     "Widen the stop to give it time"
    ],
    "answer": "Don't count on the 9 EMA soon",
-   "why": "Don't count on the 9 EMA soon. After a crash that fast, the 9 EMA is still way up near the old prices. Here it was above 260 at the end of April, with price near 202.31. Getting there isn't a bounce, it's a big recovery, and it took until 05-21. When the target's that far off, don't expect it in days, and don't widen your stop to wait for it. Room to the target is good. A target in another zip code is a warning.",
+   "why": "Don't count on the 9 EMA soon. After a crash that fast, the 9 EMA is still way up near the old prices. Here it was above 260 at the end of April, with price near 202.31. And today's bar closed right near its low, so the selling hadn't let up yet. Getting back to the 9 isn't a bounce, it's a big recovery, and it took until May 21. When the target's that far off, don't expect it in days, and don't widen your stop to wait for it. Room to the target is good. A target in another zip code is a warning.",
    "lesson_line": "Room to the target is good. A target in another zip code is a warning.",
    "facts": [
     "c33",
@@ -3639,7 +3657,7 @@
    ],
    "house": true,
    "wrong": {
-    "The 9 EMA is days away at most": "Not after a crash this fast. It took until 05-21 here.",
+    "The 9 EMA is days away at most": "Not after a crash this fast. It took until May 21 here.",
     "Expect a bounce as big as the fall": "Nothing promises that. A bigger crash just puts the target further away.",
     "Widen the stop to give it time": "The stop only moves up, never wider."
    },
@@ -3656,8 +3674,8 @@
      "the quote sits in the criteria card, not the research note the source cites"
     ]
    },
-   "batch": "voice-8-2026-11-17",
-   "story": "A three-session crash from 847.70 to 202.31. The 9 EMA is still way up above the price, and today it turns.",
+   "batch": "chart-reads-2026-11-18",
+   "story": "A three-session crash from 847.70 to 202.31, and today it closed right near that low. The 9 EMA is still way up above the price. Say it reclaims VWAP next session.",
    "chart": {
     "sym": "CAR",
     "asof": "2026-04-24",
@@ -4288,7 +4306,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Checked JCI bars: the 9 EMA was reached three sessions after the climax, so 'inside a week' holds; JCI under its 200-day verified (close 84.95, 200-day 111.10)."
+   "notes": "JCI under a falling 200-day, said; 9 EMA target right."
   },
   "q04": {
    "status": "pass",
@@ -4408,7 +4426,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Agrees: no starter piece. Voice 4."
+   "notes": "KRE Friday doji (long lower wick, close 84%) named right. Note: KRE is an unlevered sector ETF 16% under its 200-day; the lesson treats it as an allowed ETF, unchanged."
   },
   "q24": {
    "status": "pass",
@@ -4443,8 +4461,8 @@
   "q29": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Writer rightly re-keyed off the card's 3-8% size-down proposal to D-005 (past 5% we mostly wait). Fixed: removed the unsupported 'the 9 EMA ends up only a few R away'."
+   "fixed": false,
+   "notes": "AGQ hammer closing at the high (97%) right; a 2x fund under the 200 is the allowed exception; passing the 7.3% stop is right."
   },
   "q30": {
    "status": "pass",
@@ -4474,7 +4492,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "BAC under its 200-day verified on bars (28.50 vs 30.81). 37% is d12's own figure."
+   "notes": "BAC under its 200-day, said."
   },
   "q35": {
    "status": "cut",
@@ -4510,7 +4528,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "HTHT under its 200-day verified (40.75 vs 51.80)."
+   "notes": "HTHT under its 200-day, said."
   },
   "q41": {
    "status": "pass",
@@ -4522,7 +4540,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.5% of 40,000 = 200; 76.76 - 73.20 = 3.56; 200 / 3.56 = 56.2 -> 56; 57 rounded up, 521 = 40,000 / 76.76, 561 = 2,000 / 3.56. Stop 4.6%. BABA far under its 200-day (157.72)."
+   "notes": "BABA sizing; under the 200, said."
   },
   "q43": {
    "status": "pass",
@@ -4534,7 +4552,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Kept: never add to a loser. Voice 4."
+   "notes": "WDC under the 200, said; stop lesson right."
   },
   "q45": {
    "status": "pass",
@@ -4581,14 +4599,14 @@
   "q52": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'closed 2.8% off the open' read like a loss; d09 is +2.8%, now 'above its open'. GE under its 200-day verified (167.70 vs 180.62)."
+   "fixed": false,
+   "notes": "GE 7.2% under its 200-day, said; 25.6% and 2.8% check out."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: the deeper said 'The rule needs 2x', a card proposal (volume only raises the grade, D-006). Removed. APD under its 200-day verified (259.10 vs 296.83)."
+   "fixed": false,
+   "notes": "APD doji; under the 200-day said."
   },
   "q54": {
    "status": "pass",
@@ -4600,7 +4618,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1.47 / 20.50 = 7.17%; 7.72% = 1.47 / 19.03; 92.83% = 19.03 / 20.50. SLG under its 200-day verified (20.50 vs 40.73)."
+   "notes": "SLG stop math; under the 200 said."
   },
   "q56": {
    "status": "pass",
@@ -4617,20 +4635,20 @@
   "q58": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "CAR was ABOVE its 200-day on 2026-04-24 (204.00 vs 158.04), so no 200-day flag is owed; 9 EMA date from d24."
+   "fixed": true,
+   "notes": "The writer's story asked the member to imagine a VWAP reclaim 'off today's low' while the last bar visibly closes at 204.00, 0.8% off its 202.31 low (close in range 4%): the screen contradicts the premise. Moved the hypothetical to the next session and said the close plainly."
   },
   "q59": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "one word changed (None -> Not one) for the missing-number rail"
+   "notes": "DIA, an index fund: the under-200 exception applies."
   },
   "q60": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "BKU under its 200-day verified (23.10 vs 36.10); 6.1% stop from d16."
+   "notes": "BKU: 6.1% stop and under the 200 both said."
   },
   "q61": {
    "status": "pass",
@@ -4648,19 +4666,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "SQQQ 0.01R from d22; inverse-fund tell from c38/d23."
+   "notes": "SQQQ inverse lesson; right."
   },
   "q64": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor at the screen; numbers recomputed and match the facts; no working words; key unchanged and right."
+   "notes": "BABA plan; under the 200 said."
   },
   "q65": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Writer re-keyed from 'Take it' to pass-on-the-stock: GE was under its 200-day (167.70 vs 180.62 on our bars), so the old key broke D-009. Correct."
+   "notes": "GE 7.2% under the 200; pass on the stock, right."
   },
   "q66": {
    "status": "cut",
@@ -4719,8 +4737,8 @@
   "q72": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Grounded the gap as Bracco's own must (p06) rather than an unsourced rule; checked CHTR bars: opened 375.46 vs 376.00 (0.1%) and kept falling; under its 200-day (377.58 vs 524.30), now flagged."
+   "fixed": false,
+   "notes": "CHTR normal open, no gap; under the 200 said."
   }
  }
 }

@@ -834,7 +834,7 @@
     "Two weeks of flat shelf on the 50-day. That's QCOM in September 2020, and the level is 109.62.",
     "September 21 the low hits 108.30, 1.20% under. Same day it's back over 109.62. That's the trap.",
     "Never buy the undercut. Buy at market as it clears the level, 109.63. Stop 108.25, under the undercut low.",
-    "A close back under 109.62 is the warning. Instead it hit 3R in a day and ran to 37.3R."
+    "A close back under 109.62 is the warning. It closes near the high instead, 3R the next day, then 37.3R."
    ],
    "facts": [
     "d01",
@@ -846,7 +846,13 @@
     "c07",
     "h05",
     "r07"
-   ]
+   ],
+   "chart": {
+    "sym": "QCOM",
+    "asof": "2020-09-21",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -865,14 +871,20 @@
     "h22",
     "h24",
     "c06"
-   ]
+   ],
+   "chart": {
+    "sym": "WYNN",
+    "asof": "2013-11-21",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
    "title": "NVDA, April 2024: a planned loss",
    "steps": [
     "This one didn't work, and that's fine. NVDA's level is 87.62, from April 2, 2024. One close under, a 1.99% undercut.",
-    "It reclaims April 5. Buy at market as it clears the level, 87.63. Stop 85.83, under the undercut low, 2.05% away.",
+    "April 5 it reclaims, an inside day. Buy at market as it clears the level, 87.63. Stop 85.83, under the undercut low.",
     "It gets to 0.67R, then rolls over. April 9 it trades down to 83.02, through the stop. You're out.",
     "That loss was planned. Across our research, 50.2% reached 3R before the stop. Back in only on a new trigger."
    ],
@@ -886,7 +898,13 @@
     "h24",
     "c06",
     "h28"
-   ]
+   ],
+   "chart": {
+    "sym": "NVDA",
+    "asof": "2024-04-05",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1015,30 +1033,32 @@
    "rung": 1,
    "format": "scenario",
    "criterion": "ur.never_buy_undercut",
-   "q": "You like the stock. When does it become a buy?",
+   "q": "You like the stock. What's your plan for tomorrow?",
    "choices": [
-    "As price trades back above the level",
-    "Right now, while it's under the level",
-    "At the close of the third day under",
-    "When it makes a new 52-week high"
+    "Buy over $23.04, stop under $22.72",
+    "Buy now, under the level, stop $22.72",
+    "Buy over $23.04, stop just under it",
+    "Wait for a new 52-week high"
    ],
-   "answer": "As price trades back above the level",
-   "why": "When it trades back above the level. Today's dip is the trap, not the buy. Under the level, you can't tell a shakeout from a breakdown. The trade back through tells you which one you have. NTAP opened under it the next day and closed near the high. The buy was 23.05, a cent over the 23.04 level. Set an alert at the level tonight so you catch it.",
-   "lesson_line": "Buy the reclaim, not the dip.",
+   "answer": "Buy over $23.04, stop under $22.72",
+   "why": "Buy as it trades back over $23.04, stop a few cents under $22.72. That's your spot: the level you buy through, and the undercut low you stop under. Today's dip is the trap, not the buy. Under the level, you can't tell a shakeout from a breakdown. The trade back through tells you which one you have. NTAP opened under it the next day and closed near the high. The buy was 23.05, the stop 22.67, 1.65% away. Set an alert at the level tonight.",
+   "lesson_line": "Buy the reclaim, not the dip. The level you buy through, the undercut low you stop under.",
    "facts": [
     "c03",
     "o1",
     "c02",
     "d05",
-    "d06"
+    "d06",
+    "c04",
+    "h24"
    ],
    "wrong": {
-    "When it makes a new 52-week high": "That's a different trade, and a much later one. The U&R buys the reclaim of the level.",
-    "Right now, while it's under the level": "That's buying the dip itself. If it never comes back, you own a breakdown.",
-    "At the close of the third day under": "Sitting under the level isn't a signal. The signal is the trade back over it."
+    "Buy now, under the level, stop $22.72": "That's buying the dip itself. If it never comes back, you own a breakdown.",
+    "Buy over $23.04, stop just under it": "Right buy, wrong stop. Just under the level is normal wiggle. The idea's only wrong under $22.72.",
+    "Wait for a new 52-week high": "That's a different trade, and a much later one. The U&R buys the trade back over the level."
    },
    "house": true,
-   "simple": "You buy the trade back over the level. Under it, you can't tell a shakeout from a breakdown.",
+   "simple": "Buy as it trades back over $23.04 and stop a few cents under $22.72. Under the level, it could still break down.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1046,8 +1066,8 @@
      "the trigger rests on the card (c03) and Morales (o1)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
-   "story": "A two-week shelf. Today a red day poked under the level it had held and closed just under it.",
+   "batch": "chart-reads-2026-11-18",
+   "story": "A two-week shelf held $23.04. Today a red day poked under it, down to $22.72, and closed just under $23.04.",
    "chart": {
     "sym": "NTAP",
     "asof": "2004-10-26",
@@ -1061,7 +1081,7 @@
    "rung": 1,
    "format": "scenario",
    "criterion": "ur.trigger_intraday",
-   "q": "Say it trades back over the level mid-morning tomorrow. How do you get in?",
+   "q": "Say it trades back over $55.87 mid-morning tomorrow. How do you get in?",
    "choices": [
     "Buy as it trades back over the level",
     "Wait for the close, then buy it",
@@ -1069,7 +1089,7 @@
     "Only buy it if volume comes in heavy"
    ],
    "answer": "Buy as it trades back over the level",
-   "why": "Market order as it goes through. The trade back over the level is your trigger, so that's your buy. Wait for the close and it can be well over the level by then. Your stop stays under the undercut low either way. So the distance grows, and the same risk buys fewer shares. WHR came back through the next day and was bought at 55.88, a cent over its 55.87 level.",
+   "why": "Market order as it goes through $55.87. That trade back over is your trigger, so that's your buy. Your stop goes a few cents under today's low, 54.90, the bottom of the dip. Wait for the close and it can be well over the level by then. The stop stays put, so the distance grows and the same risk buys fewer shares. WHR came back through the next day and was bought at 55.88, stop 54.85.",
    "lesson_line": "Buy it as it trades through. Never wait for the close.",
    "facts": [
     "r01",
@@ -1095,8 +1115,8 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17",
-   "story": "It undercut a level it had held and closed under it today.",
+   "batch": "chart-reads-2026-11-18",
+   "story": "It undercut $55.87, a level it had held, and closed under it today at $55.51.",
    "chart": {
     "sym": "WHR",
     "asof": "2009-08-17",
@@ -1610,7 +1630,7 @@
     "Buy now with a tight stop"
    ],
    "answer": "Wait for a trade back over the level",
-   "why": "Wait for the trade back over the level. Right now it's just a stock under its level, and that's how breakdowns start too. You don't know which one you have until it comes back. If it never does, you never owned it, and that's the point. SWKS did come back the next day, bought at 22.52, a cent over the 22.51 level. Set the alert tonight.",
+   "why": "Wait for the trade back over the level. Right now it's just a stock under its level, and that's how breakdowns start too. You don't know which one you have until it comes back. If it never does, you never owned it, and that's the point. SWKS did come back the next day, bought at 22.52, a cent over the level. The stop went at 22.02, a few cents under today's low. Set the alert tonight.",
    "lesson_line": "No reclaim, no trade. Let the level come back first.",
    "facts": [
     "c03",
@@ -1623,7 +1643,7 @@
     "Buy now with a tight stop": "A tight stop doesn't fix buying before the level is back. The noise under the level takes you out."
    },
    "house": true,
-   "story": "It closed under a level it had held. It hasn't taken it back yet.",
+   "story": "It closed under $22.51, a level it had held. It hasn't taken it back yet.",
    "simple": "Wait for it to trade back over the level. Until then it could just be breaking down.",
    "tier": "core",
    "risk": {
@@ -1632,7 +1652,7 @@
      "the card's never-buy-the-undercut line (c03)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "SWKS",
     "asof": "2010-11-16",
@@ -2016,7 +2036,7 @@
     "A few cents under the last close"
    ],
    "answer": "Under the lowest low of the whole dip",
-   "why": "Under the lowest low of the whole dip. Two days under means two lows, so take the lower one, here the second day's. That's the furthest it went against the level, so that's where the trap is proven wrong. Then go a few cents under it. AMD's real stop was 102.58, five cents under that low. Put it under the higher low and an ordinary retest takes you out.",
+   "why": "Under the lowest low of the whole dip. Two days under means two lows, so take the lower one, here today's, the long tail on that hammer. That's the furthest it went against the level, so that's where the trap is proven wrong. Then go a few cents under it. AMD's real stop was 102.58, five cents under that low. Put it under the higher low and an ordinary retest takes you out. And a hammer closing near its high is a good look for a trade back over tomorrow.",
    "lesson_line": "The stop hides under the lowest low of the whole dip.",
    "facts": [
     "c04",
@@ -2029,7 +2049,7 @@
     "A few cents under the first undercut day": "The second day went lower. The stop goes under the lowest low."
    },
    "house": true,
-   "story": "It has closed under its level two days running.",
+   "story": "It has closed under $105.52, its level, two days running.",
    "simple": "Under the lowest low of the whole dip, the point where the trap is proven wrong.",
    "tier": "extended",
    "risk": {
@@ -2038,7 +2058,7 @@
      "the key follows from the card's definition of the undercut low"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "AMD",
     "asof": "2021-09-13",
@@ -2509,7 +2529,7 @@
     "Wait and buy the dip tomorrow morning"
    ],
    "answer": "A planned loss, wait for a trigger",
-   "why": "A planned loss. It hit your stop, so you're out. That's the deal you made before the buy. The bounce stings, but it isn't a new trigger. If it sets up again, you take it as a new trade with its own stop. TRIP is the lesson here. It closed at 103.35 that day, then slid to 91.78 by 08-01.",
+   "why": "A planned loss. It hit your stop, so you're out. That's the deal you made before the buy. The bounce stings, but it isn't a new trigger. If it sets up again, you take it as a new trade with its own stop. TRIP is the lesson here. It closed at 103.35 that day, then slid to 91.78 by August 1.",
    "lesson_line": "The stop that shakes you out pays for the ones that keep falling.",
    "facts": [
     "d10",
@@ -2682,7 +2702,7 @@
     "A spring off a range floor"
    ],
    "answer": "A U&R of the 20 EMA",
-   "why": "A U&R of the 20 EMA. The leader closed over its rising 20 EMA, dipped under it during the day, and closed right back over. The average is the level. It didn't open under yesterday's close, so it's not an Oops. There's no swing low or flat range in play either. DELL did exactly this and closed strong.",
+   "why": "A U&R of the 20 EMA. The leader closed over its rising 20 EMA, dipped under it during the day, and closed right back over. The average is the level. It didn't open under yesterday's close, so it's not an Oops. There's no swing low or flat range in play either. Look at the candle: a hammer, a long tail under the line and a close near the high. That's the U&R in one bar.",
    "lesson_line": "Name the level. A rising average makes a good U&R.",
    "facts": [
     "c25",
@@ -2708,7 +2728,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "DELL",
     "asof": "2026-08-07",
@@ -3494,13 +3514,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth pass. Numbers re-derived; chart story checked against the daily bars where there is a chart."
+   "notes": "Rule 34/35 met: NTAP 2004-10-26 red outside day poking to $22.72 and closing just under $23.04; the plan is a spot (buy through $23.04, stop under $22.72). Voice 4-5."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Fix: two of the three wrong choices were the same mistake (buy at the close). Replaced with named mistakes: waiting a day, and needing heavy volume (volume only raises the grade). Answer text and slot kept; the answer is no longer the longest choice. 'Gets you a higher fill' softened to 'can be well over the level' (c14)."
+   "fixed": false,
+   "notes": "WHR 2009-08-17: level now said in dollars ($55.87), stop under today's 54.90 low. Voice 4."
   },
   "q07": {
    "status": "pass",
@@ -3512,7 +3532,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth pass. Numbers re-derived; chart story checked against the daily bars where there is a chart."
+   "notes": "OII 2007-05-25 inside day after the buy; exit under the undercut low (23.31, stop 23.26). Voice 4."
   },
   "q09": {
    "status": "cut",
@@ -3554,7 +3574,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. WHR bars: 08-17 low 54.90 closed 55.51 under 55.87; 08-18 low 55.70, so 'yesterday's low, 54.90' is right. 1.84% re-derived."
+   "notes": "WHR reclaim day closes at 95% of range; the 50-day is rising as the distractor says; stop read right. Voice 4."
   },
   "q16": {
    "status": "cut",
@@ -3566,7 +3586,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth pass. Numbers re-derived; chart story checked against the daily bars where there is a chart."
+   "notes": "STLD undercut-depth calc worked; depth as judgment. Voice 4."
   },
   "q18": {
    "status": "pass",
@@ -3590,19 +3610,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth pass. Numbers re-derived; chart story checked against the daily bars where there is a chart."
+   "notes": "SWKS: level said in dollars ($22.51), stop under today's 22.07 low (22.02). Voice 4."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth pass. Numbers re-derived; chart story checked against the daily bars where there is a chart."
+   "notes": "STLD stop-distance calc. Voice 4."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. 135.38 + 3 x 1.69 = 140.45; 142.14 (4R), 145.52, 141.38 re-derived. 3R framed as a mark, first sell as judgment."
+   "notes": "AMD 3R calc; 'very rarely sell on day 1' intact. Voice 4."
   },
   "q24": {
    "status": "pass",
@@ -3638,13 +3658,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. 1.43 risk, 7.15 gain, 5.0R; ZS high 69.00 on 04-25 so 68.55 'a few days later' holds."
+   "notes": "ZS R calc; the reclaim hammer is not the question. Voice 4."
   },
   "q30": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. AMD bars: closes 105.20 (09-10) and 104.80 (09-13) under 105.52; lows 104.98 and 102.63, so the second day's low is the lower one; stop 102.58 is 5 cents under."
+   "notes": "AMD 2021-09-13 red hammer named; level in dollars ($105.52); stop under the lowest low of the dip. Voice 4."
   },
   "q31": {
    "status": "pass",
@@ -3704,7 +3724,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth pass. Numbers re-derived; chart story checked against the daily bars where there is a chart."
+   "notes": "AFRM 20 EMA undercut and reclaim; stop under the day's low. Voice 4."
   },
   "q41": {
    "status": "pass",
@@ -3727,14 +3747,14 @@
   "q44": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Voice and truth pass. Numbers re-derived; chart story checked against the daily bars where there is a chart."
+   "fixed": true,
+   "notes": "Read is right. Voice fix: 'by 08-01' now 'by August 1'."
   },
   "q45": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth pass. Numbers re-derived; chart story checked against the daily bars where there is a chart."
+   "notes": "SBUX Oops read matches the candle. Voice 4."
   },
   "q46": {
    "status": "cut",
@@ -3752,7 +3772,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth pass. Numbers re-derived; chart story checked against the daily bars where there is a chart."
+   "notes": "DELL 2026-08-07 hammer outside day under and back over the rising 20 EMA, named in the reveal. Voice 4."
   },
   "q49": {
    "status": "pass",
@@ -3776,7 +3796,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. MSFT bars: closes 158.18 and 162.01 under 163.23, low 152.00, gap open 165.31; (165.31-151.95)/165.31 = 8.08%. Keyed on the stop against our 5%, not the pending depth line."
+   "notes": "MSFT stop 8.08% away: skip, past 5% we mostly wait. Voice 4."
   },
   "q53": {
    "status": "cut",
@@ -3800,7 +3820,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth pass. Numbers re-derived; chart story checked against the daily bars where there is a chart."
+   "notes": "ADBE gap up next day that sold through the stop; index context sourced. Voice 4."
   },
   "q57": {
    "status": "cut",
@@ -3812,19 +3832,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth pass. Numbers re-derived; chart story checked against the daily bars where there is a chart."
+   "notes": "WYNN gap back over at 159.97, 0.4% over the level: buy the open. Voice 4."
   },
   "q59": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth pass. Numbers re-derived; chart story checked against the daily bars where there is a chart."
+   "notes": "NTAP reclaim day over a rising 50 (6.6% over it). Voice 4."
   },
   "q60": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. MSFT 2026-06-08: low 408.56 under 409.58, close 411.74 back over; stock rule hard no under the 200-day, index/levered-ETF exception stated correctly."
+   "notes": "MSFT 2026-06-08 9.7% under a falling 200-day: hard no. Voice 4."
   },
   "q61": {
    "status": "pass",
@@ -3836,7 +3856,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. 0.25% of 100,000 = 250; 242.18-235.64 = 6.54; 250/6.54 = 38.2, round down 38. Distractors 39, 165 (40% cap), 382 re-derived."
+   "notes": "LULU sizing calc, 38 checks. Voice 4."
   },
   "q63": {
    "status": "pass",
@@ -3848,7 +3868,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth pass. Numbers re-derived; chart story checked against the daily bars where there is a chart."
+   "notes": "QCOM stop order goes in with the buy. Voice 4."
   }
  }
 }

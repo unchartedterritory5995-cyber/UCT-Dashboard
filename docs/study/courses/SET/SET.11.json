@@ -1100,7 +1100,13 @@
     "c17",
     "h24",
     "h05"
-   ]
+   ],
+   "chart": {
+    "sym": "KBH",
+    "asof": "2004-09-01",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -1120,7 +1126,13 @@
     "c17",
     "h24",
     "h05"
-   ]
+   ],
+   "chart": {
+    "sym": "BABA",
+    "asof": "2025-01-24",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -1141,7 +1153,13 @@
     "c19",
     "c20",
     "h21"
-   ]
+   ],
+   "chart": {
+    "sym": "DDOG",
+    "asof": "2024-10-04",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1159,7 +1177,7 @@
     "A V rally into the averages"
    ],
    "answer": "A launchpad off a long rest",
-   "why": "That's a launchpad. KBH fell 24.8%, then sat for two months around a flat 200-day. Watch the averages through that rest. The three short ones pinch to within about 3% of each other, close to the 200. That pinch is the pad. I want weeks of it before I care about a launch. The next day KBH pushed up 2.5% and closed above all four lines. That was the launch.",
+   "why": "That's a launchpad. KBH fell 24.8%, then sat for two months around a flat 200-day. Watch the averages through that rest. The three short ones pinch to within about 3% of each other, close to the 200. That pinch is the pad. Now look at the last candle. A hammer, and an inside day, sitting right on the averages. That's a good look the day before a launch. The next day KBH pushed up 2.5% and closed above all four lines.",
    "lesson_line": "Hard fall, long rest, averages pinch. That's the pad. The launch comes after.",
    "facts": [
     "t02",
@@ -1187,7 +1205,7 @@
      "the long rest and the tight bundle are the unit's proposed card lines, with TraderLion's four steps as the outside view"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "This stock fell hard. Then it sat for two months around a flat 200-day while its shorter averages squeezed together. The chart stops the day before the move.",
    "chart": {
     "sym": "KBH",
@@ -1552,7 +1570,7 @@
     "Wherever your usual size fits"
    ],
    "answer": "A few cents under the day's low",
-   "why": "A few cents under the low of the day. That's where this launch is wrong. If it trades back under the day's low, the push failed. On CMC that put the stop at 16.01, about 4.1% under the 16.69 buy. That's wider than the 1% to 3% I like, but inside the 5% we take, so you buy fewer shares. A stop under the base low or the averages is allowed, but it sits further down still. Put full size on a stop that far away and a normal loss turns into a big one. A stop at your buy is breakeven, and that comes later.",
+   "why": "A few cents under the low of the day. That's where this launch is wrong. If it trades back under the day's low, the push failed. On CMC that put the stop at 16.01. Even measured from the 16.69 close, that's about 4.1%. You bought lower, as it went through the averages, so a touch less. Still wider than the 1% to 3% I like, but inside the 5% we take, so you buy fewer shares. A stop under the base low or the averages is allowed, but it sits further down still. Put full size on a stop that far away and a normal loss turns into a big one. A stop at your buy is breakeven, and that comes later.",
    "lesson_line": "The low of the day is your stop. Size from it, never the other way round.",
    "facts": [
     "c17",
@@ -2600,7 +2618,7 @@
     "A bigger loss than a tight stop"
    ],
    "answer": "Fewer shares, the loss was still 1R",
-   "why": "Fewer shares. 4.9% is wider than the 1% to 3% I like, but it's inside the 5% we accept. So you take it with a smaller position. You size from the stop: risk dollars divided by the stop distance. A wider honest stop means fewer shares, and the loss lands at 1R either way. That's what happened here. Stopped out, 1R, done. Pulling the stop in to 3% to buy more would've been the mistake.",
+   "why": "Fewer shares. 4.9% is wider than the 1% to 3% I like, but it's inside the 5% we accept. So you take it with a smaller position. Look where 76.16 sits, though. Right at the top of a 4.6% day, a tad extended over its short averages. The higher up the day you buy, the wider that stop gets. You size from the stop: risk dollars divided by the stop distance. A wider honest stop means fewer shares, and the loss lands at 1R either way. That's what happened here. Stopped out, 1R, done. Pulling the stop in to 3% to buy more would've been the mistake.",
    "lesson_line": "A wide honest stop buys fewer shares. It never gets pulled in to fit.",
    "facts": [
     "d15",
@@ -3226,7 +3244,7 @@
     "No, a 4.8% bar is too big"
    ],
    "answer": "No, the averages never pinched",
-   "why": "Not a pad. The averages never pinched. They were 5.77% of price apart the day before. On pads that worked they were tight: 2.91% on KBH, 1.86% on BABA. A big bar on big volume through loose averages is just a rally bar. Volume raises the grade of a real launch. It can't create the pad. And it was still under a falling 200-day, where we don't buy stocks anyway.",
+   "why": "Not a pad. The averages never pinched. They were 5.77% of price apart the day before. On pads that worked they were tight: 2.91% on KBH, 1.86% on BABA. A big bar on big volume through loose averages is just a rally bar. It left the stock well stretched over its 50-day too. Volume raises the grade of a real launch. It can't create the pad. And that 200-day was still pointed down. One bar poking over a falling 200 is a bounce in a downtrend, not a launch.",
    "lesson_line": "No pinch, no pad. A big bar through loose averages is just a big bar.",
    "facts": [
     "d23",
@@ -3241,10 +3259,10 @@
    "house": true,
    "wrong": {
     "Yes, 2.78x volume makes it A+": "Volume raises the grade of a real launch. Without the pinch there's no pad to grade.",
-    "Yes, it cleared the averages": "It cleared loose averages and stayed under a falling 200-day. That's a rally bar.",
+    "Yes, it cleared the averages": "It cleared loose averages and poked over a 200-day that's still falling. That's a rally bar, not a launch.",
     "No, a 4.8% bar is too big": "A big bar is fine. Loose averages are the problem."
    },
-   "story": "The day before, the three short averages sit 5.77% of price apart. Then a bar up 4.8% on 2.78x volume pushes through them, still under a falling 200-day.",
+   "story": "The day before, the three short averages sit 5.77% of price apart, all under a falling 200-day. Then a bar up 4.8% on 2.78x volume pushes through them.",
    "simple": "No. The averages were loose, not pinched, so a big bar through them is just a rally.",
    "deeper": {
     "trap": "A big bar on big volume draws the eye. The real test comes the day before: have the averages pinched together? Here they were 5.77% of price apart. Skip that check and a rally bar gets called a launch."
@@ -3256,7 +3274,7 @@
      "the 3% bundle width is a proposed card number"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "AAPL",
     "asof": "2013-08-13",
@@ -3272,7 +3290,7 @@
    "criterion": "lp.not_above_bundle",
    "q": "Price has been riding on top of the three averages, and they're tight. That makes this bar a launchpad.",
    "answer": "False",
-   "why": "False. Look where price sat. On top of tight averages in an uptrend is a pullback breakout, not a pad. In a pad, price rests under the averages for weeks while they pinch, and the launch clears them. Here the averages are support that price has been riding. That's a different trade with its own entry and stop. Tight lines alone don't make it a pad.",
+   "why": "False. Look where price sat. It's been sitting on top of its averages, using them as support, not resting under them for weeks. That's a pullback breakout, not a pad. In a pad, price rests under the averages while they pinch, and the launch clears them. A pullback breakout is a different trade with its own entry and stop. Tight lines alone don't make it a pad.",
    "lesson_line": "Price on top of tight averages is a pullback. A pad has price under them.",
    "facts": [
     "c24",
@@ -3312,7 +3330,7 @@
     "The 16% fall was too shallow"
    ],
    "answer": "Right bar, wrong kind of stock",
-   "why": "Right bar, wrong stock. Every number on the setup passed: a real fall, a tight pinch, a real push, heavy volume. But CMCSA is a slow large cap, and those don't get the buyers a leader gets. The bar is only the timing. The stock, the base and the market carry the edge. So read the stock first. I want a leader or a name in a strong group. The good news: the stop did its job, 1R and out.",
+   "why": "Right bar, wrong stock. Every number on the setup passed: a real fall, a tight pinch, a real push, heavy volume. By the close it sat a tad extended over its short averages, so you buy it through the trigger during the day, never up there at the close. But the real problem is the stock. CMCSA is a slow large cap, and those don't get the buyers a leader gets. The bar is only the timing. The stock, the base and the market carry the edge. I want a leader or a name in a strong group. The good news: the stop did its job, 1R and out.",
    "lesson_line": "The bar is the timing. The stock, the base and the market are the edge.",
    "facts": [
     "d19",
@@ -3343,7 +3361,7 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "CMCSA",
     "asof": "2017-12-04",
@@ -3754,7 +3772,7 @@
     "Next open, 200-day stop, day 3": "The buy is through the trigger that day, not the next open. The stop goes under the day's low.",
     "At the close, base-low stop, day 1": "We buy through the trigger, never at the close. The base low is too far, and day 1 is too early."
    },
-   "story": "Weeks of closes under the averages after a big fall. Today it's up 3.6% and pushing through all four.",
+   "story": "A big fall, then weeks chopping under and around the three short averages. The 200-day sits well under price. Today it's up 3.6% and closes over all four, right at its high.",
    "simple": "Buy through the trigger, stop under the day's low, no sell before day 3. Plan it first so nothing gets decided under pressure.",
    "deeper": {
     "trap": "The trap is the stop. A stop under the averages or the base is allowed, but it sits far from the buy. Size from it and you get a tiny position. Pull it in to fit more shares and you've made the classic mistake. The low of the day is the stop."
@@ -3790,7 +3808,7 @@
     "Watch it, it's a flat base"
    ],
    "answer": "Watch it, weeks under tight averages",
-   "why": "Watch it. For about two months the closes sat under a bundle only 0.7% wide, with a flat 200-day 4.9% away. That's a pad. The launch is just the trigger. Spot the pad early and your entry, stop and size are ready before the bar comes. ILMN launched the next day, up 3.8%, and the trade ran to 18.8R.",
+   "why": "Watch it. For about two months the closes sat under a bundle only 0.7% wide, with a flat 200-day 4.9% over it. That's a pad. Now the last two bars. Price pushed up through the three short averages and closed at its high, right under the 200-day. Under the 200 we don't buy stocks, so it's a watch, not a buy yet. Have your entry, stop and size ready. ILMN launched the next day, up 3.8%, back over the 200, and the trade ran to 18.8R.",
    "lesson_line": "Find the pad first. Then you're ready when the launch comes.",
    "facts": [
     "lb_ilmn1",
@@ -3802,7 +3820,7 @@
    "house": true,
    "wrong": {
     "Pass, it rode on top of the averages": "Look again. The closes sat under the averages for weeks, not on top.",
-    "Pass, the 200-day is too far away": "4.9% from the bundle is close enough.",
+    "Pass, the 200-day is too far away": "4.9% over the bundle is close enough, and price already sits right under it.",
     "Watch it, it's a flat base": "A flat base holds over the 50-day. These closes sat under the averages."
    },
    "chart": {
@@ -4052,20 +4070,20 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Voice good. Truth: 'right on top of the 200' overstated it; KBH's 200-day sat 2.6% from the bundle (d01), so 'close to the 200'."
+   "fixed": false,
+   "notes": "writer's edit good: KBH Aug 31 is a hammer and an inside day sitting on the averages, the day before the launch; the read is honest"
   },
   "q02": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice good; RMD 21.1% checks (d07). No scanner cutoff stated as a rule."
+   "notes": "the doji doesn't bear on 'what happened before the rest'; RMD under a flat 200 the day before, as a pad should be"
   },
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: the stem says you bought through the trigger, but 36.92 is the close at the bar's high (d09, 1.00 of range), so the 2.1% is now framed as measured from the close."
+   "fixed": false,
+   "notes": "launch bar closed at its high; risk framed 'even from the close', honest"
   },
   "q04": {
    "status": "cut",
@@ -4094,8 +4112,8 @@
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: the wrong note for 'Far below it' said 'Workable, but weaker', so a wrong read of the chart sounded right; it now says what the chart shows (0.8%, d11). Simple said 'We never buy under the 200-day'; the hard no is for stocks (indexes and leveraged ETFs are excepted), so 'We don't buy stocks'."
+   "fixed": false,
+   "notes": "200-day 0.8% from the bundle, as said"
   },
   "q09": {
    "status": "cut",
@@ -4113,7 +4131,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Truth catch: two wrong choices (a stop under the bottom average, under the base low) are ACCEPTABLE stops by his ruling D-008, and the writer's own wrong notes called them 'Allowed', so they were not clearly wrong. Replaced with named mistakes (c41: a base-low stop at full size; back-fitting the stop to the size). The why now works CMC's real stop (16.01, 4.1% under 16.69, dossier row 5) against our 1-3% / 5% band."
+   "notes": "the why measured 4.1% 'under the 16.69 buy', but 16.69 is the launch-day close and the story buys through the averages; his rule: a risk measured from a close fill isn't ours. Now framed from the close, with the real fill lower"
   },
   "q12": {
    "status": "pass",
@@ -4160,8 +4178,8 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Math checks (35.26 + 2 x 1.00 = 37.26); breakeven kept at 2R to 5R as judgment. The 'wrong' map carried the right answer as a key; removed."
+   "fixed": false,
+   "notes": "R calc on KBH launch day; fill and stop inside the bar"
   },
   "q20": {
    "status": "cut",
@@ -4178,8 +4196,8 @@
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Voice: stem 'they aren't stacked yet, fastest on top' was awkward; rewritten plainly. Dropped the unsupported 'with a stop further away'. BABA numbers check (d03, d04)."
+   "fixed": false,
+   "notes": "50 still above the fast lines on the launch bar, as said"
   },
   "q23": {
    "status": "pass",
@@ -4221,7 +4239,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "4.37/122.69 = 3.56%; 4.37/118.32 = 3.69%; D-005 band said as ours."
+   "notes": "stop-percent calc; DDOG a touch stretched at the close but not the subject here"
   },
   "q30": {
    "status": "pass",
@@ -4268,8 +4286,8 @@
   "q37": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "NEE 22%, +4.6%, 2.36x, 4.9% check against the dossier row; up to 5% accepted, 1R loss."
+   "fixed": true,
+   "notes": "NEE closed the launch day 5.8% over the 9 EMA and 7.9% over the 50, right at its high; the why ignored that the 76.16 fill sat a tad extended, which is why the stop was so wide"
   },
   "q38": {
    "status": "cut",
@@ -4317,7 +4335,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "400/2.71 = 147.6, rounds down to 147; 40% cap = 16,000/89.14 = 179; 1,476 decimal slip."
+   "notes": "sizing calc"
   },
   "q46": {
    "status": "pass",
@@ -4359,31 +4377,31 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "MSFT 11.2% checks (d21/d22); 15% cutoff not stated as a rule; KBH 24.8%, BABA 31.6%."
+   "notes": "MSFT about 10% over a rising 200, shallow dip: right"
   },
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Voice: stamped grade line dropped from the story. Truth: the bar was also under a falling 200-day, a hard no for stocks; the why now says so (h10 cited). Numbers check (d23, d24, d01, d03)."
+   "fixed": false,
+   "notes": "writer's edit good: the bar closed over a falling 200 and 13% over the 50, now read honestly"
   },
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "JPM rode on top of the bundle (dossier near-miss); pullback breakout, not a pad."
+   "fixed": true,
+   "notes": "JPM's 200-day points down (and the 50 sits under it), so 'in an uptrend' misreads the chart; dropped, the read now rests on where price sat"
   },
   "q55": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "CMCSA 16%, 0.83%, +4.9%, 2.17x check against the dossier row; 1R loss."
+   "notes": "writer's edit good: 7% over the 9 EMA and 9% over the 50 at the close, said as 'a tad extended' with the buy through the trigger"
   },
   "q56": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "13.55/2.71 = 5.0R; 0.2R, 2.7R and 4.0R each a named slip; 5 to 10R as judgment."
+   "notes": "R calc"
   },
   "q57": {
    "status": "pass",
@@ -4401,7 +4419,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "C33: under 1R after 10 days; DDOG 33 sessions to 3R, 10.8R (d05, d06)."
+   "notes": "time-stop question; chart doesn't contradict it"
   },
   "q60": {
    "status": "pass",
@@ -4437,19 +4455,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Detail: the why was generic and its facts cited BABA while the chart is CME 2005-05-16. Now works CME's real stop (38.61, 2.5% from the 39.60 close, dossier row 2) and cites it; BABA facts removed."
+   "notes": "the story said the bar was 'pushing through all four', but CME's 200-day sat about 7% under the close (price had been over it for three weeks); it pushed through the 9 and 20 and closed over all four at its high"
   },
   "q66": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "ILMN 0.7% bundle, 4.9%, +3.8%, 18.8R check (lb_ilmn1/2)."
+   "fixed": true,
+   "notes": "the last two bars already closed over the three short averages (313.32 vs about 300) and sit just under a flat 200-day (315); the why read only the weeks under the bundle. Now says what the last bars show and why it's still a watch, not a buy (under the 200)"
   },
   "q67": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "AAPL 148.03 / 146.83 / 154.21 check (d26); hard no under the 200-day for a stock."
+   "notes": "4% under a falling 200, as said"
   },
   "q68": {
    "status": "cut",

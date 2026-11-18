@@ -900,33 +900,38 @@
  "walkthroughs": [
   {
    "key": "w1",
-   "title": "GPN, October 2013: the first touch of the line",
+   "title": "GPN, October 2013: the hammer back over the line",
    "steps": [
     "GPN gapped up October 2, 2013, opening 7.0% higher on 11.5 times normal volume. The gap-up low, 27.00, is the line.",
-    "A week later, October 9, it comes back. The low dips 0.3% under 27.00 and it closes well off the low.",
+    "A week later it's back, one close just under 27.00. October 9 it dips 0.3% under, then a hammer back over.",
     "Buy as it trades back over the line, around 27.15. Stop 26.89, under the test-day low. That's 0.9% of risk.",
-    "Close under the line and the gap's failed. It held, and ran to 24.9R."
+    "A close under the line that doesn't get taken back, and the gap's failed. It held, and ran to 24.9R."
    ],
    "facts": [
     "e01",
     "e02",
-    "e03",
     "g01",
     "g12",
     "g27",
     "h05",
     "h24",
     "h20"
-   ]
+   ],
+   "chart": {
+    "sym": "GPN",
+    "asof": "2013-10-09",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
    "title": "ILMN, November 2010: the slight undercut that reclaims",
    "steps": [
     "October 27, 2010: ILMN gaps on earnings, opening 5.6% up on 3.6 times volume. The gap-up low, 53.03, is the line.",
-    "Four sessions later the low slips 1.1% under it. Looks broken. But the day closes near its high, back over the line.",
-    "A slight undercut that gets taken back still counts. Buy back over the line, around 53.27. Stop 52.40, 1.6% away.",
-    "What makes it wrong is a close under 53.03 with no reclaim. It ran to 18.6R instead."
+    "Then a few days of chop right on the line, a couple of closes just under it. Looks broken. It isn't.",
+    "Four sessions in, the low slips 1.1% under, then it closes near its high. Buy back over the line, around 53.27.",
+    "Stop 52.40, 1.6% away. A close under 53.03 that isn't taken back makes it wrong. It ran to 18.6R."
    ],
    "facts": [
     "e04",
@@ -938,22 +943,29 @@
     "h05",
     "h24",
     "h20"
-   ]
+   ],
+   "chart": {
+    "sym": "ILMN",
+    "asof": "2010-11-02",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
    "title": "AXON, December 2022: the late test",
    "steps": [
     "Earnings put AXON up 8.0% at the open, November 9, 2022, on 3.6 times volume. The line: the gap-up low, 161.70.",
-    "Then a 15% slide off the high. It takes 35 sessions, and stops just 0.4% above the line with a hammer.",
-    "A late test still counts. Buy as it turns up off the line, around 165.93. Stop 162.22, under the hammer, 2.2% away.",
-    "A close under the line kills it. It held and ran to 16.2R. Sell part into the push, trail the rest."
+    "Then a 15% slide off the high. It takes 35 sessions, and stops just 0.4% above the line, right around the 50-day.",
+    "A late test still counts. Buy as it turns up off the line, around 165.93. Stop 162.22, under the day's low.",
+    "That's 2.2% of risk. A close under the line kills it. It held and ran to 16.2R. Sell part into the push."
    ],
    "facts": [
     "e07",
     "e08",
     "e09",
     "g01",
+    "g04",
     "g12",
     "g27",
     "g30",
@@ -962,7 +974,13 @@
     "h20",
     "h21",
     "h24"
-   ]
+   ],
+   "chart": {
+    "sym": "AXON",
+    "asof": "2022-12-30",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -2916,7 +2934,7 @@
     "Yes, but at half size"
    ],
    "answer": "No, it's under the 200-day",
-   "why": "No. The test closed 6.9% under the 200-day, and under the 200 we don't buy stocks. That's a hard line. The gap looked great, 11.3% on 4.1x volume over a rising 50-day. Doesn't matter. Under the 200 the long-term trend is against you, and one big gap can't fix that. The only things we'll buy under it are indexes and levered ETFs, never a single stock.",
+   "why": "No. The test closed 6.9% under the 200-day, and under the 200 we don't buy stocks. That's a hard line. I'll give it this, that's a nice hammer on the test. And the gap looked great, 11.3% on 4.1x volume over a rising 50-day. Doesn't matter. The 50-day is still under a flat 200-day. The long-term trend isn't with you, and one big gap can't fix that. The only things we'll buy under it are indexes and levered ETFs, never a single stock.",
    "lesson_line": "A stock under its 200-day is a pass, however good the rest looks.",
    "facts": [
     "e25",
@@ -2930,7 +2948,7 @@
     "Yes, but at half size": "Half size doesn't fix a stock under its 200-day."
    },
    "house": true,
-   "simple": "No. It closed under the 200-day, and a stock under its 200-day is a hard no, however good the gap.",
+   "simple": "No. It closed under the 200-day, and a stock under its 200-day is a hard no, however good the hammer or the gap.",
    "deeper": {
     "trap": "Letting a strong gap overrule the 200-day. The gap looked strong, but the test day closed under the 200-day, and that's the close we check."
    },
@@ -2942,7 +2960,7 @@
      "example read from our own bars"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "EVR",
     "asof": "2019-02-07",
@@ -3242,7 +3260,7 @@
     "Pass, it closed under the line"
    ],
    "answer": "Take it, it closed back over",
-   "why": "Take it. The low dipped 0.3% under the 27.00 gap-up low, then buyers took it right back. It closed at 62% of its range, back over the line. That's a hold. On GPN you'd buy as it traded back over 27.00 during the day. The stop goes a few cents under the day's low, at 26.89. That's under a percent of risk, on a stock that had gapped on 11x volume. Tight risk on a strong gap is exactly what I want.",
+   "why": "Take it. That's a hammer right on the line, and an inside day too. The day before closed just under 27.00. This one dipped 0.3% under, then buyers took it right back. It closed at 62% of its range, back over the line. It's a tad extended off the 50-day, but that's the gap doing it. You'd buy as it traded back over 27.00 during the day. Stop a few cents under the day's low, 26.89. Under a percent of risk on a strong gap. That's exactly what I want.",
    "lesson_line": "A dip under the line that closes back over it is the hold you want.",
    "facts": [
     "e01",
@@ -3252,7 +3270,8 @@
     "g10",
     "g11",
     "g27",
-    "r01"
+    "r01",
+    "g04"
    ],
    "wrong": {
     "Pass, the gap already filled": "No close had come back to the prior day's high. The gap was still open.",
@@ -3266,7 +3285,7 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Take it. It dipped under the line, but buyers took it back and it closed in the upper half.",
+   "simple": "Take it. A hammer on the line: it dipped under, buyers took it back, and it closed in the upper half.",
    "deeper": {
     "trap": "A dip under the line is not a failed test. A close under the line with no reclaim is. So is a day still falling into the close."
    },
@@ -3279,7 +3298,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "chart-reads-2026-11-18"
   },
   {
    "key": "q62",
@@ -3295,7 +3314,7 @@
     "Take it, small undercuts are fine"
    ],
    "answer": "Pass, it closed at its low",
-   "why": "Pass. It closed at 0.01 of its range, right on the low, and 0.8% under the line. No hold, no reclaim, still falling into the close. You want to see buyers take it back over the line during the day. That never happened, so your trigger never hit. A close at the very low tells you sellers had it all day. Leave it alone and see what it does next.",
+   "why": "Pass. It closed right on the low of the day, 0.8% under the line. No hold, no reclaim, still falling into the close. You want to see buyers take it back over the line during the day. That never happened, so your trigger never hit. A close at the very low tells you sellers had it all day. Leave it alone and see what it does next.",
    "lesson_line": "A test that closes at its low isn't a hold.",
    "facts": [
     "e21",
@@ -4291,13 +4310,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed: 2.70 a share, 3R 239.23 just under the 239.37 high, 5R 244.63. First sell framed as day 3 or later, a judgment (D-013)."
+   "notes": "3R vs the old high; no chart misread."
   },
   "q01": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
+   "notes": "Which level holds; test day 6.2% over a rising 50, 38% over the 200; nothing misread."
   },
   "q03": {
    "status": "pass",
@@ -4356,20 +4375,20 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Steps kept in words (an arith calc carries no in-between numbers for the grounding gate). Why now says what the number tells you: a slight undercut vs a broken line (rule 23)."
+   "fixed": false,
+   "notes": "Undercut calc; 'closed near its high' = 94% of range (an inside day); true."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed: 0.39 a share, 3R 26.27; wrongs 23.93 (3R down), 25.49 (1R), 26.66 (4R). Steps in words because an arith calc grounds no in-between numbers. 3R correctly framed as a level, not an automatic sell (D-013)."
+   "notes": "3R calc; no chart read (14.7% over the 50 does not bear on the 3R level)."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
+   "notes": "Stop under the test day's low; reads right."
   },
   "q20": {
    "status": "cut",
@@ -4386,7 +4405,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed: 0.48 / 15.96 = 3.0%. Stop band 1-3%, 3.5% good, up to 5% (D-005) stated right."
+   "notes": "Stop-percent calc."
   },
   "q24": {
    "status": "pass",
@@ -4428,7 +4447,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
+   "notes": "Gap day is a PEG; reads right."
   },
   "q33": {
    "status": "cut",
@@ -4469,8 +4488,8 @@
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: 'Here you're well under it' (the position cap) does not hold: 287 x 53.27 is about 30% of the account, over the old 20-25% guide and near the 40% cap. Claim removed. Steps right (250 / 0.87 = 287.4)."
+   "fixed": false,
+   "notes": "Share-count calc."
   },
   "q41": {
    "status": "pass",
@@ -4512,25 +4531,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "5.84 over 339.31 is 1.7%. AVGO e15 matches."
+   "notes": "Close at 88% (a doji); 'the close was strong' fair; filing a loss."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Deeper read 'halved by 10-30'; written as 'by late October' to match the why."
+   "fixed": false,
+   "notes": "Last bar is the gap-fill close at its low (10% of range), under the 9/20/50; reads right."
   },
   "q52": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Why claimed DOCU 'never got going', which no fact supports (e24 says only a bounce in a downtrend). Replaced with the year and a plain verdict."
+   "fixed": false,
+   "notes": "Falling 50-day; reads right."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
+   "notes": "Writer's edit checked: hammer (red, 70% of range), 6.9% under a flat 200, 50 under the 200; true."
   },
   "q54": {
    "status": "pass",
@@ -4560,13 +4579,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Truth: the why said 'about 0.9% of risk', the scan's close fill (27.15 to 26.89 is 0.96%), while the same why buys through 27.00 during the day (0.4%). Now 'under a percent', true for both."
+   "notes": "Rule 33: the day before this test (Oct 8) traded to about 26.62 and CLOSED under the 27.00 line (26.87); a member sees it on the chart and the why never said it. Now said, with why the test still counts (taken right back the next day)."
   },
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
+   "fixed": true,
+   "notes": "Voice (3/5): 'It closed at 0.01 of its range' reads like a data field. Said the way he would."
   },
   "q63": {
    "status": "pass",
@@ -4578,7 +4597,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
+   "notes": "No new trigger; reads right."
   },
   "q66": {
    "status": "pass",
@@ -4620,13 +4639,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed: 0.26 a share, 5R 28.45; wrongs 27.41 (1R), 28.19 (off the stop), 25.85 (down). 5R tied to holding through a report (B22)."
+   "notes": "5R calc."
   },
   "q73": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
+   "notes": "First-sell timing; no chart read."
   },
   "q74": {
    "status": "pass",
@@ -4674,7 +4693,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
+   "notes": "Fixed-cushion stop; dip 1.8% under the line; reads right."
   },
   "q84": {
    "status": "pass",
@@ -4692,7 +4711,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Breakeven 2R to 5R or at the first sell. Right."
+   "notes": "Breakeven timing."
   }
  }
 }

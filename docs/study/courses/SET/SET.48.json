@@ -810,7 +810,13 @@
     "d02",
     "g01",
     "c01"
-   ]
+   ],
+   "chart": {
+    "sym": "VRSN",
+    "asof": "2008-07-14",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -825,7 +831,13 @@
     "d03",
     "d04",
     "d05"
-   ]
+   ],
+   "chart": {
+    "sym": "DLTR",
+    "asof": "2020-01-03",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -842,7 +854,13 @@
     "d09",
     "c14",
     "c25"
-   ]
+   ],
+   "chart": {
+    "sym": "CIEN",
+    "asof": "2017-09-29",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -955,7 +973,7 @@
     "Nothing, just empty space"
    ],
    "answer": "Resistance to the rally",
-   "why": "Resistance. Think about who's sitting in there. Everyone who bought before the gap is underwater. The first rally back gives them a chance to get out near even, and they take it. That's supply. So price tends to stall in the zone. It's a speed bump though, not a wall. A close back above the top edge fills the gap and the read is done. LDOS rallied right into it here, so you watch for sellers.",
+   "why": "Resistance. Think about who's sitting in there. Everyone who bought before the gap is underwater. The first rally back gives them a chance to get out near even, and they take it. That's supply. So price tends to stall in the zone. It's a speed bump though, not a wall. A close back above 46.86 fills the gap and the read is done. LDOS crawled into the bottom of the zone for about a week and stalled. The last bar closed back under 44.69, near the low. Sellers showed up right where you'd expect.",
    "lesson_line": "An open gap down leaves sellers overhead. Expect the rally to stall there.",
    "facts": [
     "c09",
@@ -983,8 +1001,8 @@
      "proposed card criterion (bg.level_resistance), though three outside publishers agree"
     ]
    },
-   "batch": "voice-8-2026-11-17",
-   "story": "This stock gapped down off its highs and left an open gap overhead. Now it has rallied back up into that gap zone.",
+   "batch": "chart-reads-2026-11-18",
+   "story": "This stock gapped down off its highs and left an open gap from 44.69 up to 46.86. Now it has rallied back up to that zone.",
    "chart": {
     "sym": "LDOS",
     "asof": "2010-04-27",
@@ -1168,14 +1186,15 @@
    "rung": 2,
    "format": "tf",
    "criterion": "bg.long_warning",
-   "q": "The bounce on this chart just reached the open gap zone overhead. That's a good spot to start a new long.",
+   "q": "This stock gapped down and left open space from 123.26 up to 127.75. The bounce just reached it. A good spot to start a new long.",
    "answer": "False",
-   "why": "False. You'd be buying right into the sellers. Everyone trapped above the gap wants out near even, and the first rally into the zone is where they sell. This is MDT, and I'd rather let it prove itself. Wait for a close back above the zone's top edge, a fill, or for a base to build under it. Then you've got an area to risk against.",
+   "why": "False. You'd be buying right into the sellers. Everyone trapped above the gap wants out near even, and the first rally into the zone is where they sell. Look at the last few bars. It got a toe into the zone over 123.26, then the last bar closed back under it. And the 200-day sits just overhead too. This is MDT, and I'd rather let it prove itself. Wait for a close back above 127.75, a fill, or for a base to build under it. Then you've got an area to risk against.",
    "lesson_line": "Don't buy right under an open bear gap. Let it fill or base first.",
    "facts": [
     "c07",
     "c09",
-    "c06"
+    "c06",
+    "r21"
    ],
    "house": true,
    "simple": "False, because the open gap above is where trapped buyers sell, so wait for a fill or a base.",
@@ -1187,7 +1206,7 @@
      "proposed card criterion (bg.long_warning) awaiting the owner"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "MDT",
     "asof": "2021-10-27",
@@ -1643,7 +1662,7 @@
    ],
    "story": "The gap day. It opens 6.0% lower, then buyers step in. It closes down 4.2%, up at 70% of the day's range.",
    "answer": "No, buyers bought it back",
-   "why": "No. This was CMCSA on 2015-08-24. It opened 6.0% lower, but buyers took a good chunk of that back. Down 4.2% at the close and sitting at 70% of the day's range is a strong finish for a gap day. The sellers didn't win. That looks more like a News Failure starting than a bear gap. For a bear gap you want the bad news to work, with the close down near the lows. Read the close, not the open.",
+   "why": "No. This was CMCSA in August 2015. It opened 6.0% lower, but buyers took a good chunk of that back. Down 4.2% at the close and sitting at 70% of the day's range is a strong finish for a gap day. The sellers didn't win. That looks more like a News Failure starting than a bear gap. For a bear gap you want the bad news to work, with the close down near the lows. Read the close, not the open.",
    "lesson_line": "The close is the test, not the open.",
    "facts": [
     "d14",
@@ -2919,7 +2938,7 @@
    ],
    "story": "A stock topped, then 23 sessions later opened 7.9% lower. It closed down 13.5% on 6.7x volume and left a full window, its first gap since the top. Fifteen sessions later the bounce stalled under the falling 20-day and the zone.",
    "answer": "A first gap, a zone to watch",
-   "why": "A first gap and a zone to watch. Walk it through. Full window, a 13.5% hit on 6.7x volume, the first gap off the top. Then a bounce that stalls under the falling 20-day and under the zone. Sellers are sitting right where you'd expect. That's OI in 2011, and it's still not a trade by itself. A short would also need the stock under its 200-day and a Red or Orange market, and you don't know either here.",
+   "why": "A first gap and a zone to watch. Walk it through. Full window, a 13.5% hit on 6.7x volume, the first gap off the top. Then a bounce that stalls under the falling 20-day and under the zone. Sellers are sitting right where you'd expect. That's OI in 2011. It's under its 200-day too, you can see that on the chart. But it's still not a trade by itself. A short also needs a Red or Orange market, and the chart can't tell you that.",
    "lesson_line": "A full window and a bounce that stalls under it. Watch it, don't jump it.",
    "facts": [
     "d23",
@@ -2931,11 +2950,12 @@
     "c04",
     "c06",
     "c14",
-    "c25"
+    "c25",
+    "r21"
    ],
    "house": true,
    "wrong": {
-    "A confirmed short at the open": "Nothing's confirmed. A short still needs the 200-day and the market.",
+    "A confirmed short at the open": "Nothing's confirmed. It's under its 200-day, but a short still needs the market.",
     "A buy, the window fills soon": "The bounce stalled under the zone. Don't count on a fill.",
     "Nothing, the stall ends it": "The stall is the read. Only a close over the top edge ends it."
    },
@@ -2952,7 +2972,7 @@
      "fixed before by the checker"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "OI",
     "asof": "2011-07-07",
@@ -3757,8 +3777,8 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Voice and truth hold. Numbers and facts check out; stem gives enough to decide and doesn't lead."
+   "fixed": true,
+   "notes": "The writer gave the zone its prices (right), but 'poked up over 44.69 here' undersells the chart: LDOS closed inside the zone six straight sessions (up to 45.58) before the last bar closed back under 44.69. Now read as it is. Voice 4."
   },
   "q05": {
    "status": "pass",
@@ -3781,14 +3801,14 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "ruling right; 'adding to a loser ... never add to a loser' said it twice"
+   "fixed": false,
+   "notes": "The stop decides; the chart doesn't contradict it. Voice 4."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Names MDT, says why the zone is supply, what to wait for. Reads like him."
+   "fixed": true,
+   "notes": "The writer gave the zone its prices (right), but 'It poked over 123.26 and closed back under it' misreads the last bar: it opened inside the zone at 124.51 after two closes in it, then closed back under 123.26. Now read as it is. Voice 4."
   },
   "q11": {
    "status": "pass",
@@ -3824,13 +3844,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "EEFT numbers (7.6%, 20.0%, 12.3x) match the dossier table row 8. Reflex short explained by the stop and the bounce."
+   "notes": "Stretched under the 9 EMA and under the 200, read right. Voice 4."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "CMCSA 6.0% / 4.2% / 70% match the near-miss table; the card's 5% line is gone from member text."
+   "fixed": true,
+   "notes": "Chart read right (70% of the range). Voice: 'on 2015-08-24' reads like a database; now said the way a person says it. Voice 4 after."
   },
   "q22": {
    "status": "pass",
@@ -3866,7 +3886,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "TSLA 5.9% above the 200-day matches the near-miss table. Strong mentor close."
+   "notes": "Over the 200, answer already no. Voice 4."
   },
   "q35": {
    "status": "pass",
@@ -3979,8 +3999,8 @@
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: the story gave only QQQ vs its 50-day, and the why said 'nowhere near a Red or Orange reading', more than the dossier claims (the scan never read the market filter itself; section 13 says the general market was in a strong uptrend). Story now says the strong uptrend so the member has enough to decide; why no longer overclaims."
+   "fixed": false,
+   "notes": "Market check. Voice 4."
   },
   "q37": {
    "status": "pass",
@@ -3992,7 +4012,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "BMRN 35% day, 27x, 40% off the high, 24 sessions match dossier; DLTR 24 sessions recounted from 2019-11-26 to 2020-01-02 = 24."
+   "notes": "Late short read. Voice 4."
   },
   "q46": {
    "status": "pass",
@@ -4016,19 +4036,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "OI numbers match d23-d25; ends on what you don't know yet. His voice."
+   "notes": "The writer's fix confirmed: 9.3% under the 200. Voice 4."
   },
   "q59": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'key a trade' is working jargon; now plain. DLTR numbers (15.2%, 15.1x, 98.98-112.39, 94.25, five weeks) match d03-d05."
+   "fixed": false,
+   "notes": "Rejection at the 20 EMA under the 200 confirmed (200-day 104.78 vs close 93.78). Voice 4."
   },
   "q60": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth hold. Numbers and facts check out; stem gives enough to decide and doesn't lead."
+   "notes": "Strong close at 82% read right. Voice 4."
   },
   "q02": {
    "status": "cut",
@@ -4142,7 +4162,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "VZ 2.1% / 0.89 ATR match; taught as sizing the gap against the stock's normal day, not as the 1-ATR proposal stated as ours. Borderline but acceptable."
+   "notes": "Ordinary down day. Voice 4."
   },
   "q67": {
    "status": "cut",

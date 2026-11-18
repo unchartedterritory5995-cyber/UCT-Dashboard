@@ -950,7 +950,7 @@
    "title": "NVDA, January 2024: four days after the breakout",
    "steps": [
     "NVDA broke out in January 2024. Four days later, an inside day on light volume, above a rising 50 and 200-day.",
-    "Small and quiet, 36% of the mother bar. What matters is where it sits: a leader resting days after a breakout.",
+    "Small and quiet, 36% of the mother bar. A tad extended from the 50, but it's a leader resting after a breakout.",
     "January 16 it opens 0.1% over the trigger. Buy at market, 55.02. Stop a few cents under the inside low, 54.28.",
     "If the break fails and the stop goes, we're wrong. Instead 3R came in two days. The first sell is your call."
    ],
@@ -964,7 +964,13 @@
     "c48",
     "h05",
     "d19"
-   ]
+   ],
+   "chart": {
+    "sym": "NVDA",
+    "asof": "2024-01-16",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -983,7 +989,13 @@
     "h22",
     "c48",
     "h05"
-   ]
+   ],
+   "chart": {
+    "sym": "MPC",
+    "asof": "2013-01-15",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -1005,7 +1017,13 @@
     "h21",
     "h24",
     "h22"
-   ]
+   ],
+   "chart": {
+    "sym": "VST",
+    "asof": "2023-12-22",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1512,12 +1530,13 @@
     "Buy premarket on a gap up"
    ],
    "answer": "Market order as it goes through",
-   "why": "A market order as it trades through. We market order every entry. When it breaks, you want to be in, not sitting on a limit the stock runs away from. Mark the high the night before and set an alert, so you're ready when it goes. No buys before the open either. The break has to happen in regular hours. A limit under the low just waits for the weakness that kills the trade.",
+   "why": "A market order as it trades through. We market order every entry. When it breaks, you want to be in, not sitting on a limit the stock runs away from. And look at this bar. It's an inside day and a hammer, a long lower wick and a close near the high. That's a good look, even if it's a tad extended from the 50-day. Mark the high the night before and set an alert, so you're ready when it goes. No buys before the open either. The break has to happen in regular hours. A limit under the low just waits for the weakness that kills the trade.",
    "lesson_line": "Market order, regular hours, as it goes through.",
    "facts": [
     "h22",
     "h23",
-    "c21"
+    "c21",
+    "r91"
    ],
    "house": true,
    "wrong": {
@@ -1540,7 +1559,7 @@
    "depends_on": [
     "D-038"
    ],
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "The last bar is the inside day. Tomorrow you want to buy the break.",
    "chart": {
     "sym": "ALGN",
@@ -1622,7 +1641,7 @@
     "Yes, buy over its high"
    ],
    "answer": "No, it's a pause in a range",
-   "why": "No. Under the 20 EMA the stock is still leaking. A quiet day down there is a pause in a range, not a spring. We want the inside day at or above a rising line, where buyers have already shown up. So wait for AMZN to get back over the 20 EMA and give you a higher low. That's the spot where I'd want to be involved.",
+   "why": "No. Under the 20 EMA the stock is still leaking. And look further down. It's under a falling 50-day too, sitting right on a flat 200-day. A quiet day down there is a pause in a range, not a spring. We want the inside day at or above a rising line, where buyers have already shown up. So wait for AMZN to get back over the 20 EMA and give you a higher low. That's the spot where I'd want to be involved.",
    "lesson_line": "Under the fast line, a quiet day is a stall, not a spring.",
    "facts": [
     "c23",
@@ -1645,7 +1664,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "The last bar is an inside day in a pullback, closing under the 20 EMA.",
    "chart": {
     "sym": "AMZN",
@@ -1841,12 +1860,13 @@
     },
     "round": 2
    },
-   "why": "1.56%. 41.09 minus 40.45 is 0.64 a share. 0.64 divided by 41.09, times 100, is 1.56%. That's right in the 1 to 3% we like. This is why we like inside days: a quiet bar gives you a stop close to your buy. ATI's did. Work it in percent every time. A dollar figure means nothing until you compare it to the price.",
+   "why": "1.56%. 41.09 minus 40.45 is 0.64 a share. 0.64 divided by 41.09, times 100, is 1.56%. That's right in the 1 to 3% we like. This is why we like inside days: a quiet bar gives you a stop close to your buy. ATI's did. One honest flaw on this chart, though. It's well extended from its 50-day. A tight stop keeps the loss small. It doesn't fix a stretched spot. Work it in percent every time. A dollar figure means nothing until you compare it to the price.",
    "lesson_line": "Measure the stop as a percent of the buy. Quiet bars give small stops.",
    "facts": [
     "d05",
     "h24",
-    "r11"
+    "r11",
+    "r91"
    ],
    "house": true,
    "suffix": "%",
@@ -1858,7 +1878,7 @@
      "a computed key"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "choices": [
     "0.64%",
     "15.58%",
@@ -2229,14 +2249,15 @@
     "Move the stop to breakeven"
    ],
    "answer": "Hold, the stop still decides",
-   "why": "Hold, and take the warning seriously. A close back under the high is a red flag: the break didn't stick. But the stop is the exit, not your nerves. 31.84 is still over the 31.76 stop, so you're in. Have the order sitting with your broker. NFLX opened under the stop the next morning, so the gap rule took over. That happens. The plan still handled it.",
+   "why": "Hold, and take the warning seriously. A close back under the high is a red flag: the break didn't stick. But the stop is the exit, not your nerves. 31.84 is still over the 31.76 stop, so you're in. Have the order sitting with your broker. NFLX opened under the stop the next morning, so the gap rule took over. That happens. The plan still handled it. Looking back, it was a stretched spot, way over its 50-day. That's a lesson for grading the next one, not a reason to sell today.",
    "lesson_line": "A weak close is a warning. The stop is the exit.",
    "facts": [
     "c40",
     "c24",
     "c41",
     "d11",
-    "h05"
+    "h05",
+    "r91"
    ],
    "house": true,
    "wrong": {
@@ -2254,7 +2275,7 @@
      "example numbers read from our own bars"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "NFLX",
     "asof": "2018-03-16",
@@ -2280,7 +2301,7 @@
     "Bad luck, the spot was fine"
    ],
    "answer": "A planned loss at a weak spot",
-   "why": "A planned loss at a weak spot. Six up closes, then a pause. That's late in a run. The easy move already happened, and the quiet day is a tired stock, not a coiled one. The stop was 1.06% away, right in the day's noise, and the next day took it. Grade the spot before the bar. Earlier in the move I'd want AMZN here. This late, it's the low end of the grade.",
+   "why": "A planned loss at a weak spot. Six up closes, then a pause. That's late in a run. The easy move already happened, and the quiet day is a tired stock, not a coiled one. Look at the buy day itself, the last candle: a doji with a long upper wick. It broke the high and sold right back. The stop was 1.06% away, right in the day's noise, and the next day took it. Grade the spot before the bar. Earlier in the move I'd want AMZN here. This late, it's the low end of the grade.",
    "lesson_line": "Grade the spot before the bar. Late in a run, the quiet day is weak.",
    "facts": [
     "c42",
@@ -2305,7 +2326,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "AMZN",
     "asof": "2017-05-30",
@@ -3442,13 +3463,13 @@
    "criterion": "id.trend_200",
    "q": "A few days after a breakout, this leader prints an inside day. Check the 50-day and 200-day. Do you take it?",
    "choices": [
-    "Take it, the lines are right",
-    "Pass, price is under the 200-day",
+    "Yes, a tad extended, but stop is tight",
+    "Pass, too far over the 50-day to buy",
     "Pass, the 50 is under the 200",
-    "Take it, a tiny bar is better"
+    "Yes, a tiny bar is always better"
    ],
-   "answer": "Take it, the lines are right",
-   "why": "Take it. Price is over a rising 50-day and 200-day, and the 50 is over the 200. That's the picture I like to see. The inside day came four days after the breakout, on light volume. That's a leader resting, not tiring. The next session opened just over the high at 55.02, and NVDA hit 3R in two days. Check the lines and the spot first. Then the bar.",
+   "answer": "Yes, a tad extended, but stop is tight",
+   "why": "Yes, but be honest about it. Price is over a rising 50-day and 200-day, and the 50 is over the 200. The lines are right. It's also a tad extended. It sits well over the 50-day, and the 200 is way down there. Here's why I still take it. The inside day came four days after the breakout, on light volume. That's a leader resting, not tiring. And the quiet bar puts the stop close: 54.28 under a 55.02 buy, 1.34%. Wrong, and it's a small loss. The next session opened just over the high, and NVDA hit 3R in two days.",
    "lesson_line": "Lines and location first, then the bar.",
    "facts": [
     "c04",
@@ -3461,9 +3482,9 @@
    ],
    "house": true,
    "wrong": {
-    "Pass, price is under the 200-day": "Look again. Price is well over the 200-day.",
     "Pass, the 50 is under the 200": "The 50 runs above the 200 here.",
-    "Take it, a tiny bar is better": "Tiny isn't better. The reason to take it is where it sits."
+    "Pass, too far over the 50-day to buy": "It is a tad extended. But it's four days past a breakout, and the inside day gives you a stop about 1.34% away. That risk is worth taking.",
+    "Yes, a tiny bar is always better": "Tiny isn't the reason. It's where it sits, and the tight stop it gives you."
    },
    "chart": {
     "sym": "NVDA",
@@ -3471,7 +3492,7 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Take it. It's above a rising 50 and 200-day, a few days after a breakout, on light volume.",
+   "simple": "Yes. It's a tad extended, but it's resting days after a breakout, and the stop is tight.",
    "deeper": {
     "trap": "Do the lines first, then the bar. An inside day under the 200-day isn't ours, however clean it looks. A full stack of the fast lines is only a plus."
    },
@@ -3483,7 +3504,7 @@
      "the chart read rests on the dossier"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "chart-reads-2026-11-18"
   },
   {
    "key": "q63",
@@ -3735,7 +3756,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers recomputed; answer and wrong choices hold; no working words."
+   "notes": "FTNT inside day definition; right."
   },
   "q02": {
    "status": "pass",
@@ -3747,7 +3768,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers recomputed; answer and wrong choices hold; no working words."
+   "notes": "MPC inside day, stop under its low; right."
   },
   "q04": {
    "status": "cut",
@@ -3818,20 +3839,20 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Voice in his register; numbers recomputed; answer and wrong choices hold; no working words."
+   "fixed": true,
+   "notes": "The writer added 'That's a good look' for the inside-day hammer, but the bar closes 9.8% over the 50-day: the q66 pattern (praise that skips a flaw he'd see). Added the half-clause; cited r91 for '50-day'."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers recomputed; answer and wrong choices hold; no working words."
+   "notes": "JBLU 3R math; makes no spot call."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: the wrong note asserted 'over the high it's still under the line', a chart claim not checked on the AMZN bars. Reworded to what the stem gives."
+   "fixed": false,
+   "notes": "AMZN: under the 20 EMA, under a falling 50, on a flat 200: the writer's fix is right."
   },
   "q18": {
    "status": "pass",
@@ -3867,7 +3888,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers recomputed; answer and wrong choices hold; no working words."
+   "notes": "ATI buy day 17.4% over the 50: 'well extended' said honestly."
   },
   "q24": {
    "status": "cut",
@@ -3915,19 +3936,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers recomputed; answer and wrong choices hold; no working words."
+   "notes": "GOOGL R math, no spot call. Doubtful, pre-existing: the stop 205.65 equals the buy day's low on the chart."
   },
   "q32": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers recomputed; answer and wrong choices hold; no working words."
+   "notes": "NFLX buy day closes at its low (1%); 18.5% over the 50 said as a grading lesson; hold to the stop right."
   },
   "q33": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers recomputed; answer and wrong choices hold; no working words. Teaches a not-yet-ruled idea (index inside-day clusters / room / run length) as judgment with no card number; acceptable as written."
+   "notes": "AMZN buy-day doji with a long upper wick that sold back: right."
   },
   "q34": {
    "status": "cut",
@@ -3950,8 +3971,8 @@
   "q37": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Weak tail line ('AAPL in 2017 is the example.') replaced with the reason; 'the 5% we'll ever take' tightened."
+   "fixed": false,
+   "notes": "AAPL earnings gap 6% over 4%; the flat 50 is not called rising."
   },
   "q38": {
    "status": "pass",
@@ -3968,8 +3989,8 @@
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Math checks (125 / 0.47 = 265.96, cap 526). Dropped the orphan closing line 'That was VST's stop.'"
+   "fixed": false,
+   "notes": "VST share math."
   },
   "q41": {
    "status": "pass",
@@ -4017,7 +4038,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers recomputed; answer and wrong choices hold; no working words."
+   "notes": "TSLA 39.7% over the 50: 'stretched after a vertical January' said."
   },
   "q49": {
    "status": "pass",
@@ -4071,7 +4092,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers recomputed; answer and wrong choices hold; no working words."
+   "notes": "NVDA plan mechanics; the extension is said on q62 (same chart)."
   },
   "q58": {
    "status": "pass",
@@ -4101,13 +4122,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
+   "notes": "NVDA 13% over a rising 50, 31% over the 200: answer and choices now honest ('a tad extended', '200 way down there'), still a yes on the tight stop four days after a breakout. Meets the q66 note."
   },
   "q63": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers recomputed; answer and wrong choices hold; no working words."
+   "notes": "MSFT high pokes over yesterday's; right."
   },
   "q64": {
    "status": "pass",
@@ -4130,8 +4151,8 @@
   "q67": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Voice 3: Mish named in the why without the question being about her principle (rule 13). Moved her to deeper and narrated the chart instead."
+   "fixed": false,
+   "notes": "TSLA last bar is an inside day; the double reading is consistent."
   }
  }
 }

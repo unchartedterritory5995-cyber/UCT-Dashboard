@@ -902,7 +902,13 @@
     "h22",
     "h24",
     "h05"
-   ]
+   ],
+   "chart": {
+    "sym": "EQT",
+    "asof": "2011-08-09",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -922,7 +928,13 @@
     "h24",
     "h05",
     "h20"
-   ]
+   ],
+   "chart": {
+    "sym": "KRYS",
+    "asof": "2023-08-08",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -942,7 +954,13 @@
     "h22",
     "h24",
     "h05"
-   ]
+   ],
+   "chart": {
+    "sym": "ACMR",
+    "asof": "2020-09-09",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -3100,7 +3118,7 @@
     "Pass, it's a report-day drop"
    ],
    "answer": "Pass, no level to lean on",
-   "why": "Pass. There's nothing under it to lean on. It flushed hard on the report, 6x volume, but volume tells you how much got sold, not where buyers step in. A report drop with no level under it keeps falling. And the honest stop is 6.4% away. That's past the 5% I'll take, so I'd wait for a tighter trigger anyway. This was DASH in May 2024. The turn day reclaimed and failed.",
+   "why": "Pass. There's nothing under it to lean on. Sure, the flush day closed as a hammer. Buyers showed up off the low, I'll give it that. But a hammer isn't a level. It flushed hard on the report, 6x volume, and volume tells you how much got sold, not where buyers step in. A report drop with no level under it keeps falling. And the honest stop is 6.4% away. That's past the 5% I'll take, so I'd wait for a tighter trigger anyway. This was DASH in May 2024. The turn day reclaimed and failed.",
    "lesson_line": "A report drop with nothing under it keeps falling.",
    "facts": [
     "cY",
@@ -3128,7 +3146,7 @@
      "rests on the card's proposed location line (gate or grade row open); stop width is held (D-005)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "DASH",
     "asof": "2024-05-02",
@@ -3915,19 +3933,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "106.93-0.05=106.88; 2.25/109.13=2.06%; 97.94 and 20.60 distractors recomputed; steps shown. Ok."
+   "notes": "Stop-width arithmetic."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.76x3=2.28, 26.76+2.28=29.04; 28.28 from the stop, 29.76 adds 3 dollars, 27.52 is 1R. First-sell ruling stated right. Ok."
+   "notes": "R arithmetic."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.5% of 50,000=250; 250/0.76=328.95 -> 328; 657 (1%), 747 (40% cap), 3,289 (5%) recomputed. Ok."
+   "notes": "Sizing arithmetic."
   },
   "q27": {
    "status": "pass",
@@ -3939,7 +3957,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ACMR 38.6% in three days and the bounce to the 20-day match dAC/dAC1. Ok."
+   "notes": "Wait-for-the-turn read right."
   },
   "q29": {
    "status": "cut",
@@ -4028,7 +4046,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Agrees: never add to a trade closing on its lows; stop still the exit. Voice 4."
+   "notes": "Weak first-day close read right."
   },
   "q44": {
    "status": "pass",
@@ -4076,25 +4094,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ELF broken trend (dEL, dEL2). Ok."
+   "notes": "Broken trend read right."
   },
   "q52": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "8.86/320.55 = 2.8%; low 296.28 from dIL1. Ok."
+   "notes": "Buy day is a hammer; stop 311.69 under the 311.74 low; review reads right."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "2.09/105.48 = 2.0%; any stop inside 5% (100.21) was also hit at 99.80. Good."
+   "notes": "Stop-out review."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "DASH 6.4% stop is past 5% (D-005); no-level read from dDA2/cY. Good."
+   "notes": "Writer edit checked: the flush day is a red hammer closing at 60% of its range; buyers showed up off the low is honest; nothing under it for 13%."
   },
   "q55": {
    "status": "pass",
@@ -4142,13 +4160,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False alarm for MA-50-200: price against the 50-day and 200-day only; above the 200 so on the table. Voice 4."
+   "notes": "13% under a rising 50-day, 20% over the 200-day; reads right."
   },
   "q63": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "LLY 3.0% under the 200-day (dLL1); a hard no for a stock. Ok."
+   "notes": "Flush closed 3.0% under the 200-day; reads right."
   },
   "w1": {
    "status": "pass",
@@ -4171,8 +4189,8 @@
   "q64": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "TRUTH: the story called ACMR 'a broken parabolic stock', which teaches the opposite of q51 (a broken trend is not a trade). Told it as the fast post-run flush the facts describe (dAC1)."
+   "fixed": false,
+   "notes": "R arithmetic."
   },
   "q65": {
    "status": "pass",
@@ -4202,7 +4220,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D-013 stated right; LITE 3R next session, 11.7R inside 20 sessions (dLI). Good."
+   "notes": "First-sell judgment."
   }
  }
 }

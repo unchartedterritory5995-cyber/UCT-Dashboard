@@ -924,7 +924,7 @@
    "key": "w1",
    "title": "NUS, April 2013: the longest base",
    "steps": [
-    "NUS, 2013. A December capitulation low, then a February higher low, with the 150 and 200-day flat for three months.",
+    "NUS, 2013. A December capitulation low, then a February higher low, with the 200-day flat for three months.",
     "Then a 19-day pause above a turning 50-day. The low was 48% under its high; now it's back above the 200-day.",
     "April 18 it trades over the pause high. Buy at market, 49.99. Stop 49.05, a tight 1.9%.",
     "If Stage 4 resumes, the stop takes you out. Instead its best run hit 31.9R. Sell into a push, trail the rest."
@@ -938,13 +938,19 @@
     "h05",
     "c02",
     "c04"
-   ]
+   ],
+   "chart": {
+    "sym": "NUS",
+    "asof": "2013-04-18",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
    "title": "PENN, November 2019: the picture-book shape",
    "steps": [
-    "Memorize this shape. PENN, 2019: a long Stage 4 under a falling 30-week line, then an August low.",
+    "Memorize this shape. PENN, 2019: a long Stage 4 slide, then an August low.",
     "In October, a higher low 7.7% above it. Then a 17-day pause above a 50-day that's turned up.",
     "November 5 it trades over the pause high, above the 200-day. Buy at market, 22.12. Stop 21.49, 2.8% away.",
     "If it stalls under a falling long average, the stop goes. Instead its best run was 15.7R. Sell into a push."
@@ -956,7 +962,13 @@
     "h22",
     "h05",
     "c11"
-   ]
+   ],
+   "chart": {
+    "sym": "PENN",
+    "asof": "2019-11-05",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -975,7 +987,13 @@
     "h22",
     "c40",
     "c25"
-   ]
+   ],
+   "chart": {
+    "sym": "F",
+    "asof": "2024-02-12",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1312,30 +1330,31 @@
    "rung": 2,
    "format": "scenario",
    "criterion": "w4b.trigger",
-   "q": "This is the day before the trigger. It's back over the 50-day and pausing. How do you get in?",
+   "q": "It's the day before the trigger. How do you get in, and where does the stop go?",
    "choices": [
-    "Market order through the pause high",
-    "On the first close over the 50-day",
-    "A limit order resting at the pause high",
-    "On a close back over the 200-day"
+    "Market over 73.24, stop under day's low",
+    "Close over 73.24, stop under day's low",
+    "Limit at 73.24, stop under day's low",
+    "Market over 73.24, stop on the 50-day"
    ],
-   "answer": "Market order through the pause high",
-   "why": "Market order as it trades through the pause high. That high is where the sellers in the pause kept turning it back. When price takes it out during the day, they're used up, and you want in right there. Set an alert on the pause high the night before. We buy with a market order, because a limit can leave you watching it run. Your stop goes a few cents under the low of the day, the LOD.",
+   "answer": "Market over 73.24, stop under day's low",
+   "why": "Market order as it trades through 73.24, stop a few cents under the low of the day. That's the spot you trade against. 73.24 is the top of the pause. When price takes it out during the day, the rest is over, and you want in right there. Set the alert the night before. Be honest about this chart, though. It's well over its 50-day and a tad extended off the 9 EMA, and the 50 still points down. Early in a turn the 50 lags like that. It's not a picture-perfect one.",
    "lesson_line": "Alert on the pause high. Market order when it trades through.",
    "facts": [
     "c19",
     "h22",
     "h01",
     "r31",
-    "h10"
+    "h10",
+    "r91"
    ],
    "wrong": {
-    "On the first close over the 50-day": "That close is the reclaim, step one. The buy waits for the pause and a trade through its high.",
-    "A limit order resting at the pause high": "We buy at market. A limit can leave you watching it run without you.",
-    "On a close back over the 200-day": "Being over the 200-day is a gate, not the trigger. And we buy during the day, never at the close."
+    "Close over 73.24, stop under day's low": "We buy as it trades through during the day, never at the close. By the close you've often paid up.",
+    "Limit at 73.24, stop under day's low": "We buy at market. A limit can leave you watching it run without you.",
+    "Market over 73.24, stop on the 50-day": "The 50-day is way down there. That stop is far wider than the chart needs."
    },
    "house": true,
-   "simple": "Buy at market as it trades through the pause high. Set the alert the night before.",
+   "simple": "Buy at market as it trades through the top of the pause, and put the stop a few cents under that day's low.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1345,8 +1364,8 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17",
-   "story": "Months of decline, a higher low, the 50-day won back, and a pause sitting above it.",
+   "batch": "chart-reads-2026-11-18",
+   "story": "Months of decline, a higher low, the 50-day won back, and a pause above it. The top of the pause is 73.24, today's high.",
    "chart": {
     "sym": "NDSN",
     "asof": "2016-03-01",
@@ -2757,7 +2776,7 @@
     "After waiting a full week"
    ],
    "answer": "Only when it triggers again",
-   "why": "Only on a new trigger. A stop-out ends that trade. If the stock sets up again and trades through a new pause high, that's a new trade with its own stop and its own size. Don't buy back just to get even. META stopped on this one and stopped again on 2020-06-10. The real move came from a third base, and small losses kept you in the game for it.",
+   "why": "Only on a new trigger. A stop-out ends that trade. If the stock sets up again and trades through a new pause high, that's a new trade with its own stop and its own size. Don't buy back just to get even. META stopped on this one and stopped again in June 2020. The real move came from a third base, and small losses kept you in the game for it.",
    "lesson_line": "This setup can fail twice. Only a new trigger gets you back in.",
    "facts": [
     "h28",
@@ -2954,26 +2973,27 @@
    "q": "It's 2022-07-18 and the stock is back over its 50-day. It reports after tomorrow's close. Can you buy it here?",
    "story": "It closed back over its 50-day on 2022-07-15 and again on 2022-07-18. The company reports after the close on 2022-07-19.",
    "choices": [
-    "No, it's too close to the report",
+    "No, the report and the 200-day",
     "Yes, the reclaim was clean",
     "Yes, it's before the report",
-    "No, wait for the 200-day first"
+    "No, only the report blocks it"
    ],
-   "answer": "No, it's too close to the report",
-   "why": "No. We take no new buys in the 3 days before a report, and the 18th is one day out. A clean chart doesn't move the window. The report can gap it right through your stop, and a stop can't catch a gap. Even without the report, a close back over the 50-day isn't the buy. You wait for the pause and the trigger. Check the report date in our app's calendar before every buy. This was NFLX in July 2022.",
+   "answer": "No, the report and the 200-day",
+   "why": "No, twice over. We take no new buys in the 3 days before a report, and the 18th is one day out. The report can gap it right through your stop, and a stop can't catch a gap. Now look where it sits against its 200-day. Way under it, with the 200 way overhead. Below the 200-day we don't buy stocks, report or not. And a close back over the 50-day isn't the buy anyway. You wait for the pause and the trigger. Check the report date in our app's calendar before every buy. This was NFLX in July 2022.",
    "lesson_line": "Check the report date before every buy, even on a clean chart.",
    "facts": [
     "d23",
     "h08",
-    "c19"
+    "c19",
+    "h10"
    ],
    "wrong": {
-    "Yes, the reclaim was clean": "A clean chart doesn't move the earnings window.",
+    "Yes, the reclaim was clean": "A clean reclaim doesn't move the earnings window, and it's way under its 200-day.",
     "Yes, it's before the report": "Right before the report is exactly when we don't buy.",
-    "No, wait for the 200-day first": "The problem here is the report date, not the 200-day."
+    "No, only the report blocks it": "The report blocks it, and so does the 200-day. It's way under it, and below the 200-day we don't buy stocks."
    },
    "house": true,
-   "simple": "No. A buy on the 18th is the day before the report, and we don't buy within 3 days of one.",
+   "simple": "No. It reports in a day and it's way under its 200-day, and either one alone is a no.",
    "deeper": {
     "trap": "A clean chart isn't a free pass. The window looks at the report date, not at how good the base looks. Check the date before every buy."
    },
@@ -2985,7 +3005,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "NFLX",
     "asof": "2022-07-18",
@@ -3008,7 +3028,7 @@
     "Buy 49.99, stop 49.05, add on dips"
    ],
    "answer": "Buy 49.99, stop 49.05, sell day 3+",
-   "why": "Buy 49.99 at market, stop 49.05. That's a tight 1.9% stop. The first sell is a judgment, into a push on day 3 or later. Then trail what's left under the 9 or 20 EMA. One price, one stop, and no add in the plan. Write it all down before the open: entry, stop and size. Then you're just executing. That's NUS in April 2013.",
+   "why": "Buy 49.99 at market, stop 49.05. That's a tight 1.9% stop. It's stretched well over its 50-day here, and the 50 still sits under the 200. Early in a turn the 50 lags like that, and a 1.9% stop keeps the risk small. The first sell is a judgment, into a push on day 3 or later. Then trail what's left under the 9 or 20 EMA. One price, one stop, and no add in the plan. That's NUS in April 2013.",
    "lesson_line": "Entry, stop, size, first sell, trail. Write it before the open.",
    "facts": [
     "d03",
@@ -3017,7 +3037,8 @@
     "r12",
     "h21",
     "r28",
-    "aw2"
+    "aw2",
+    "r91"
    ],
    "wrong": {
     "Buy 49.99, stop 45.00, hold it all": "45.00 is a wide stop pulled from nowhere. The honest one sat 1.9% away, and there's no plan to sell.",
@@ -3038,7 +3059,7 @@
      "stop width rests on held decision D-005"
     ]
    },
-   "batch": "rulings-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "NUS",
     "asof": "2013-04-18",
@@ -3172,7 +3193,7 @@
     "Take it, washouts always bounce"
    ],
    "answer": "Take it, it's above the 200-day",
-   "why": "Take it. A spring washout, a higher low well above it, and an 11-day pause that walked up through the 50, 150 and 200-day lines. The close before the trigger was above the 200-day, so it clears our hard line. It went in with a 2% stop and ran to 5R in 9 sessions. That's DY in May 2025. One winner proves nothing, but that's the picture you want.",
+   "why": "Take it. A spring washout, a higher low well above it, and an 11-day pause that walked up through the 50-day and the 200-day. The close before the trigger was above the 200-day, so it clears our hard line. Now the honest part. It's well over its 50-day, and the 50 still points down. Early in a turn the 50 lags like that. And the last candle closed near its low, not the look I want the night before. Still, it's not more than 10% over its 9 EMA, so it isn't too stretched to buy. It went in with a 2% stop and ran to 5R in 9 sessions. That's DY in May 2025.",
    "lesson_line": "The 200-day first, then the base. Both pass here.",
    "facts": [
     "h10",
@@ -3180,7 +3201,8 @@
     "d28",
     "d00",
     "d06",
-    "d09"
+    "d09",
+    "h13"
    ],
    "wrong": {
     "Pass, the 200-day is overhead": "Look again. Price is above the 200-day here.",
@@ -3207,7 +3229,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "chart-reads-2026-11-18"
   },
   {
    "key": "q60",
@@ -3930,8 +3952,8 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'We market order everything' overstates E57 (entries are market orders; stops are stop orders). Now 'we buy with a market order'."
+   "fixed": false,
+   "notes": "The writer's rule-34 rebuild and honest note (18.7% over a falling 50, 5.7% over the 9 EMA) are right; 73.24 is today's high. Voice 4."
   },
   "q13": {
    "status": "pass",
@@ -3943,7 +3965,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3R: 0.63 x 3 = 1.89, 22.12 + 1.89 = 24.01. Distractors check (23.38 stop+3R, 22.75 1R, 24.64 4R). PENN d01/d02 support the story."
+   "notes": "3R math. Voice 4."
   },
   "q15": {
    "status": "pass",
@@ -4009,7 +4031,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.31 risk, 1.55 gain, 5.0R. 6.0R, 44.9R, 50.0R are real mistakes. AMD d05."
+   "notes": "R math; stop under the 12.16 low. Voice 4."
   },
   "q26": {
    "status": "pass",
@@ -4093,7 +4115,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "500/0.63 = 793.65, round down 793; 2.85% stop; 22 / 79 / 396 distractors check; 793 x 22.12 is under the 40% cap."
+   "notes": "Sizing math; 2.85% checks. Voice 4."
   },
   "q40": {
    "status": "cut",
@@ -4145,13 +4167,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "F d06/d07: 12.59 was the day low, 3.1% (0.40/12.99). Planned loss."
+   "notes": "Stop 12.59 under the 12.64 low; 3.1% checks. Voice 4."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "META d09-d11 check; 2.90/213.22 = 1.4%."
+   "fixed": true,
+   "notes": "Chart read fine (stop 210.32 under the 210.37 low). Voice: 'on 2020-06-10' reads like a database; now said the way a person says it. Voice 4 after."
   },
   "q50": {
    "status": "cut",
@@ -4169,7 +4191,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "COST d19/d20: 150-day rising 528.74 vs 521.41; pullback in an uptrend."
+   "notes": "Answer is already no; the 150-day is given as numbers in the story, not as a drawn line. Voice 4."
   },
   "q53": {
    "status": "pass",
@@ -4180,14 +4202,14 @@
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Stem had the member wanting to buy the reclaim close, which q10 teaches against, and d23 shows NFLX had already closed over the 50-day on 07-15. Story now gives both closes; the why adds that a reclaim alone isn't the trigger."
+   "fixed": false,
+   "notes": "The writer's fix is right: 54% under the 200-day, report one day out. Voice 3.5 for the ISO dates in the story and stem, left because the dates carry the earnings-window math."
   },
   "q55": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
+   "notes": "The writer's note matches (16.6% over the 50, the 50 under the 200); 1.9% stop checks. Voice 4."
   },
   "q56": {
    "status": "pass",
@@ -4210,14 +4232,14 @@
   "q59": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Voice in his register; numbers and facts checked; answer right, wrong choices are named mistakes."
+   "fixed": true,
+   "notes": "The writer's note is right, but the why says the pause 'walked up through the 50, 150 and 200-day lines'; the chart draws no 150. And the last candle closed near its low (18% of the range, long upper wick), a flaw a trader sees the night before. Both now said. Voice 4."
   },
   "q60": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "BAC d17/d18: 10.2% under the 200-day; indexes and levered ETFs exception stated right."
+   "notes": "10.2% under the 200 confirmed. Voice 4."
   },
   "q61": {
    "status": "pass",

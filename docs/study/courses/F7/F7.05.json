@@ -2314,7 +2314,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "June 4, 2007 peak, just over 4 months before the Dow's top (f89); July and October new highs (f11, f12); January support break (f13). Good 'warning with no clock on it' line."
+   "notes": "SPY Oct 31 2007, over a rising 50 and 200; the why reads the A/D divergence and the January break, nothing on the price chart contradicts it"
   },
   "q21": {
    "status": "pass",
@@ -2326,13 +2326,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Broad rally off the late-March 2026 low (f80, f81, f82); grades, doesn't forecast (f83). Fidelity named as the reader of that chart, which is the cited source for a real date."
+   "notes": "index chart, no local bars; no drawing named"
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
+   "notes": "index chart, no local bars; no drawing named"
   },
   "q24": {
    "status": "pass",
@@ -2343,8 +2343,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "True is right (f93, f94, f95, f103, f104; 1926 is in f93's quote). One precision catch: McClellan's figure is the WORST drawdown within 3 months, 'usually limited to about a 10% max drawdown', not 'the drop'. Reworded so the 10% is the worst drop, not a typical one. Kept everything else."
+   "fixed": false,
+   "notes": "index chart, no local bars; no drawing named"
   },
   "q26": {
    "status": "cut",

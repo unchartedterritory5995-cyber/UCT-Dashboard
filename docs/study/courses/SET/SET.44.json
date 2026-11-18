@@ -1071,6 +1071,12 @@
    "source": "hw",
    "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
    "claim": "We buy the full size at one price with one stop, with no starter piece and never an add to a loser. An add to a working winner on strength is rare, a feel call, never the plan."
+  },
+  {
+   "id": "rw_ma",
+   "source": "hw",
+   "quote": "For a long, the 50-day above the 200-day is mostly a must, not always; an exception is a judgment call. Below the 200-day stays a hard no for stocks.",
+   "claim": "For a long, the 50-day above the 200-day is mostly a must, not always; below the 200-day is a hard no for stocks."
   }
  ],
  "walkthroughs": [
@@ -1093,7 +1099,13 @@
     "h22",
     "c15",
     "h05"
-   ]
+   ],
+   "chart": {
+    "sym": "CI",
+    "asof": "2000-10-26",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -1115,14 +1127,20 @@
     "h22",
     "c15",
     "h05"
-   ]
+   ],
+   "chart": {
+    "sym": "EXPD",
+    "asof": "2006-03-09",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
    "title": "LITE, July 2025: touch and trigger the same day",
    "steps": [
     "LITE, July 2025, the leader of this cycle. Seven days down, 6.4% deep, into the rising 20 EMA.",
-    "Touch and trigger the same day: the low tags the line, then price clears the prior day's high.",
+    "Touch and trigger the same day: the low tags the line, then price clears the prior day's high. An outside day.",
     "Buy at market, 91.78. Stop a few cents under the swing low, 88.88, 3.2% away. 3R in five sessions.",
     "Then it went parabolic. Sell a big part into a climax run like that, and trail the rest."
    ],
@@ -1138,7 +1156,13 @@
     "h20",
     "h16",
     "c19"
-   ]
+   ],
+   "chart": {
+    "sym": "LITE",
+    "asof": "2025-07-10",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1922,7 +1946,7 @@
     "Wait for a close over the high"
    ],
    "answer": "Late, the push has faded",
-   "why": "It's late. A Grail works because the push is still alive when it rests. A stock that needs five days to clear a prior high is no longer in the thrust the ADX measured. It isn't a hard no. But it's not the quick turn you want either, so I grade it down and size it that way. This was LULU. It triggered and got stopped out.",
+   "why": "It's late. That hammer today is a decent look, I'll give it that. But a Grail works because the push is still alive when it rests. A stock that needs five days to clear a prior high is no longer in the thrust the ADX measured. It isn't a hard no. It's just not the quick turn you want, so I grade it down and size it that way. This was LULU. It triggered and got stopped out.",
    "lesson_line": "The longer it takes to trigger, the less push is left.",
    "facts": [
     "d22",
@@ -1951,7 +1975,7 @@
      "+1 fixed before (cold check 2026-11-10)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "LULU",
     "asof": "2024-01-11",
@@ -2037,13 +2061,14 @@
     },
     "round": 2
    },
-   "why": "3.02%. 50.27 minus 48.75 is 1.52 a share. Divide that by your fill: 1.52 over 50.27, times 100, is 3.02%. Always divide by what you paid, because that's your real loss if it fails. I like 1 to 3%, 3.5% is good, and up to 5% I'll take. So this one's fine, right at the top of where I like it. Now you size off that distance. This was AMBA in June 2016, and the line held to the cent.",
+   "why": "3.02%. 50.27 minus 48.75 is 1.52 a share. Divide that by your fill: 1.52 over 50.27, times 100, is 3.02%. Always divide by what you paid, because that's your real loss if it fails. I like 1 to 3%, 3.5% is good, and up to 5% I'll take. So the stop's fine, right at the top of where I like it. The chart's another story. The 50-day is still under a 200-day that points down. The 50 over the 200 is mostly a must for us, so this one's a judgment call. AMBA in June 2016 had only just got back over its 200-day. The line held to the cent.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h04",
     "d07",
     "d08",
-    "r60"
+    "r60",
+    "rw_ma"
    ],
    "suffix": "%",
    "house": true,
@@ -2059,7 +2084,7 @@
      "+2 rests on the owner's rulebook (sizing_rule.md section 9) (the about 3% habit, A13)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "choices": [
     "3.12%",
     "3.02%",
@@ -3833,7 +3858,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers and key rechecked against facts; voice fine."
+   "notes": "Trigger day an outside day; stop 24.45 under the swing low 24.50; reads right."
   },
   "q04": {
    "status": "cut",
@@ -3874,8 +3899,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: 'the 20 couldn't hold it' was wrong; a Grail touch reaches the 20 by design. The test is the low breaking the 50-day. Writer voice 4."
+   "fixed": false,
+   "notes": "Low under the 50-day, closes back over; reads right."
   },
   "q11": {
    "status": "pass",
@@ -3911,13 +3936,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key leans on Raschke's ADX over 30 (pending for us); the why names it as hers, which is honest. 26.1 sits over Wilder's 25, so if he rules a lower bar this one re-keys."
+   "notes": "Naming by the ADX push; the touch-day hammer doesn't change the name."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Agrees: never add to a loser; 1.24 / 49.79 = 2.5% checks. Voice 4."
+   "notes": "Taking the stop; no chart misread."
   },
   "q18": {
    "status": "pass",
@@ -3929,7 +3954,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.69 x3 = 2.07; 38.79, 38.10, 37.41, 39.48 all rechecked."
+   "notes": "3R calc."
   },
   "q20": {
    "status": "pass",
@@ -3941,7 +3966,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key moved off the 5-session void to the judgment in d23; LULU stopped out (dossier failure row). Right answer clearly right."
+   "notes": "Writer's edit checked: hammer closing at 91% of range, still under both the 9 and 20 EMA; 'late' read stands."
   },
   "q22": {
    "status": "cut",
@@ -3959,7 +3984,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1.52/50.27=3.02%, 1.52/48.75=3.12% checked."
+   "notes": "Writer's edit checked: 50 under a falling 200, price 3.6% over the 200; a judgment call per the 50/200 ruling; true."
   },
   "q25": {
    "status": "pass",
@@ -3970,8 +3995,8 @@
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'Every box ticks' in the story collided with Bracco's burst boxes in the answer. Story reworded, numbers kept (d20, dossier). Writer voice 4."
+   "fixed": false,
+   "notes": "Near-vertical run (14% over the 50, 65% over the 200) is the risk; reads right."
   },
   "q27": {
    "status": "pass",
@@ -4013,7 +4038,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers and key rechecked against facts; voice fine."
+   "notes": "Planned loss."
   },
   "q34": {
    "status": "pass",
@@ -4031,7 +4056,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "250/0.79=316.46->316; 316 x 38.93 about 25% of the account, under the 40% cap. Distractors 632/3,164/63,291 rechecked."
+   "notes": "Share-count calc."
   },
   "q37": {
    "status": "pass",
@@ -4102,8 +4127,8 @@
   "q48": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: 'two- or three-day rests are the ones I size up' invented a sizing rule out of Raschke's line, close to the proposed 2-5 = A+ grading. Now said by eye. Writer voice 4."
+   "fixed": false,
+   "notes": "Grading going in; the trigger day's weak close comes after the buy."
   },
   "q49": {
    "status": "cut",
@@ -4121,7 +4146,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Agrees: never add into a vertical leg. Voice 4."
+   "notes": "Selling into a vertical leg."
   },
   "q52": {
    "status": "cut",
@@ -4175,19 +4200,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers and key rechecked against facts; voice fine."
+   "notes": "Stop and first-sell plan; reads right."
   },
   "q61": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False alarm for MA-50-200: only price against the 50-day and 200-day. Voice 4."
+   "notes": "Low held about 8% over a rising 50, 24% over the 200; reads right."
   },
   "q62": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers and key rechecked against facts; voice fine."
+   "notes": "2.6% under a falling 200; reads right."
   },
   "q63": {
    "status": "pass",

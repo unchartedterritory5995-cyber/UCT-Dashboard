@@ -1227,7 +1227,7 @@
     "MOD sat flat for six months, down 8%. Then a surprise earnings report gaps it 18.8% on 3.2 times volume.",
     "It closes near the high and never fills the gap. A neglected stock plus real news: that's an EP.",
     "Day two it opens over the gap-day high, 24.50. Buy at market, 25.00. Stop just under the day's low, 24.75.",
-    "A fill or a stop-out and the idea's dead. Instead, 3R the next session, too soon to sell. It ran to 89.9R."
+    "A gap fill or a stop-out kills it. Instead it runs past 3R that same day, and later to 89.9R."
    ],
    "facts": [
     "d01",
@@ -1239,7 +1239,13 @@
     "h24",
     "h05",
     "c19"
-   ]
+   ],
+   "chart": {
+    "sym": "MOD",
+    "asof": "2023-05-26",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -1260,15 +1266,21 @@
     "h24",
     "h05",
     "h21"
-   ]
+   ],
+   "chart": {
+    "sym": "CACI",
+    "asof": "2004-08-19",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
    "title": "ENPH, October 2021: sell into the push, trail the rest",
    "steps": [
     "ENPH gaps 18.5% on earnings in October 2021, on 8.3 times volume. The close is 56% up its range, upper half, just.",
-    "Day three it breaks the post-gap high, 227.59. Buy at market, 227.60. Stop 224.95, 1.2% under.",
-    "3R the next session, too soon to sell. Stop to breakeven. Sell into a push, trail the rest on the 9 EMA.",
+    "Day three it breaks the post-gap high, 227.59. Buy at market, 227.60. Stop just under the day's low, 224.95, 1.2% away.",
+    "Same day it tags 3R. Too soon to sell. Sell into a later push and trail the rest on the 9 EMA.",
     "Later it tops and collapses back through the old stop. The sells and the trail kept it a win."
    ],
    "facts": [
@@ -1282,7 +1294,13 @@
     "h20",
     "h21",
     "c36"
-   ]
+   ],
+   "chart": {
+    "sym": "ENPH",
+    "asof": "2021-10-29",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "conflicts": [
@@ -3455,7 +3473,7 @@
     },
     "round": 1
    },
-   "why": "Up 3.0R, and the stop can come up to breakeven. One R is your risk: 227.60 minus 224.95 is 2.65 a share. The gain is 235.55 minus 227.60, so 7.95. 7.95 over 2.65 is 3.0R. Anywhere from 2R to 5R we can move the stop to breakeven, and then a pullback can't turn this into a loss. Don't sell just because it hit 3R, though. It's the day after you bought, and we almost never sell on day 1.",
+   "why": "Up 3.0R, and the stop can come up to breakeven. One R is your risk: 227.60 minus 224.95 is 2.65 a share. The gain is 235.55 minus 227.60, so 7.95. 7.95 over 2.65 is 3.0R. Anywhere from 2R to 5R we can move the stop to breakeven, and then a pullback can't turn this into a loss. Look at the buy day on the chart too. It already poked past that level, then closed well off the high. Don't sell just because it hit 3R, though. It's only the day after you bought, and that's too early to sell.",
    "lesson_line": "Count the gain in R. From 2R to 5R the stop can move to breakeven.",
    "facts": [
     "d05",
@@ -3477,7 +3495,7 @@
      "rests on the owner's rulebook (B19, first trim)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "choices": [
     "Up 3.0R, stop can go to breakeven",
     "Up 8.0R, time to sell it all",
@@ -3515,7 +3533,7 @@
     "All of it now, 3R is the target",
     "None, hold it all for the big run"
    ],
-   "story": "A news EP after the election: a 14.2% gap on 3.9x. You bought the day-3 break at 259.70, stop 257.10. The next session it's already up 3R.",
+   "story": "A news EP after the election: a 14.2% gap on 3.9x. You bought the day-3 break at 259.70, stop 257.10. The same day, it's already past 3R.",
    "answer": "On judgment, day 3 or later",
    "why": "On judgment, and not today. We almost never sell on day 1 after the buy. Most of the time we wait until day 3 at the earliest. Then we sell into a 3, 5 or 7 day push, or at about 5 to 10R. That's when the stock is handing you strength. COIN ran to 34R, then fell back to the stop in December. Holding everything for the big run would have cost you the whole move.",
    "lesson_line": "Sell part into strength, on judgment. The EP you never sold is the one that hurts.",
@@ -3545,7 +3563,7 @@
      "the owner often waits for 5R on the first trim"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "COIN",
     "asof": "2024-11-08",
@@ -4407,7 +4425,7 @@
     "No, news gaps always fill": "This one didn't. It closed near the high with the gap wide open.",
     "Yes, any gap on volume counts": "It needs real news behind it. This one had it. A gap on nothing wouldn't count."
    },
-   "why": "Yes. An EP needs a named surprise. Earnings come first, but really big news counts too, and here it was the election result. The stock was down 8% over six months, so it was neglected going in. It gapped 14.2% on 3.9x and closed at 91% of its range, gap wide open. COIN's day-3 break hit 3R the next session. We focus on earnings and really big news. Smaller news, much less.",
+   "why": "Yes. An EP needs a named surprise. Earnings come first, but really big news counts too, and here it was the election result. The stock was down 8% over six months, so it was neglected going in. It gapped 14.2% on 3.9x and closed at 91% of its range, gap wide open. COIN's day-3 break ran past 3R that same day. We focus on earnings and really big news. Smaller news, much less.",
    "simple": "Yes. Big news is a named surprise, and this ignored stock held its gap near the high.",
    "lesson_line": "Earnings first, but big news can be the episode too.",
    "facts": [
@@ -4430,7 +4448,7 @@
     "window": 150,
     "forward": 20
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "deeper": {
     "counter": "Kullamagi: when unexpected good news hits a stock, especially a neglected one, it can trigger multi-month and multi-year moves."
    }
@@ -4471,7 +4489,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register: verdict first, the question's numbers worked, the reason and the how. Truth re-checked against the facts and rulings; answer right, wrong choices clearly wrong."
+   "notes": "MOD gap day closes at 96% of range; the six months flat to down under a falling 50 are on the chart. Voice 4."
   },
   "q04": {
    "status": "cut",
@@ -4525,7 +4543,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register: verdict first, the question's numbers worked, the reason and the how. Truth re-checked against the facts and rulings; answer right, wrong choices clearly wrong."
+   "notes": "SIG closes at 91% of range with the gap open. Voice 4."
   },
   "q13": {
    "status": "cut",
@@ -4543,7 +4561,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Story and stem repeat the day-three buy once, but it reads fine on the screen. Stop under the trigger day's low is c17."
+   "notes": "META 2013-07-26 day two (an inside day) before the day-3 break; stop under the trigger day's low is right. Voice 4."
   },
   "q16": {
    "status": "cut",
@@ -4609,7 +4627,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register: verdict first, the question's numbers worked, the reason and the how. Truth re-checked against the facts and rulings; answer right, wrong choices clearly wrong."
+   "notes": "DLB 2006-11-13 is day two; story timing (gap two days ago, today the break) fits d14. Voice 4."
   },
   "q27": {
    "status": "pass",
@@ -4693,7 +4711,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed: 0.5% of 40,000 = 200; 34.89-33.96 = 0.93; 200/0.93 = 215.05 -> 215; 0.93/34.89 = 2.67%; 215 x 34.89 = 7,501, under the 40% cap. Distractors 430 (2x risk), 2,150 (5% slip), 5 (divided by price) all check."
+   "notes": "META buy day sizing calc, 215 checks. Voice 4."
   },
   "q41": {
    "status": "pass",
@@ -4729,19 +4747,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register: verdict first, the question's numbers worked, the reason and the how. Truth re-checked against the facts and rulings; answer right, wrong choices clearly wrong."
+   "notes": "SBUX day-4 inside-day break that failed next day, matches d16/d17. Voice 4."
   },
   "q47": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register: verdict first, the question's numbers worked, the reason and the how. Truth re-checked against the facts and rulings; answer right, wrong choices clearly wrong."
+   "notes": "TSLA 2019-10-28 doji buy day, stopped next session, per d18/d19. Voice 4."
   },
   "q48": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register: verdict first, the question's numbers worked, the reason and the how. Truth re-checked against the facts and rulings; answer right, wrong choices clearly wrong."
+   "notes": "GOOGL 19% run-in as the soft spot, sourced (d20/d21), framed as judgment. Voice 4."
   },
   "q49": {
    "status": "cut",
@@ -4753,13 +4771,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register: verdict first, the question's numbers worked, the reason and the how. Truth re-checked against the facts and rulings; answer right, wrong choices clearly wrong."
+   "notes": "MU closes at 32% of range: faded gap day, watch only. Voice 4."
   },
   "q51": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stock-only hard no under the 200-day; no ETF exception misapplied."
+   "notes": "AMZN 2022-02-04 under a falling 200-day: hard no for a stock. Voice 4."
   },
   "q52": {
    "status": "cut",
@@ -4771,13 +4789,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc recomputed: 2.65 risk, 7.95 gain, 3.0R; 8.0 = dollars, 4.0R = measured from the stop (10.60/2.65), 0.3R = flipped. Breakeven 2R-5R and 'almost never sell on day 1' match the rulings."
+   "notes": "ENPH buy day ran to 237 (past the 235.55 3R mark) and closed at 55% of range: the writer's added line is honest; breakeven 2R-5R and the day-3 sell rule intact. Voice 4."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Stem repeated the story's last line ('up 3R the very next session'). Trimmed so the story carries the situation and the stem asks the question. First-sell ruling (judgment, day 3 or later, into a 3/5/7 day push or 5-10R) is right."
+   "fixed": false,
+   "notes": "COIN 2024-11-08: 3R is 267.50 and the buy day's high is 273.50, so 'the same day, already past 3R' is true; first sell as judgment, day 3 or later. Voice 4."
   },
   "q55": {
    "status": "cut",
@@ -4801,7 +4819,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register: verdict first, the question's numbers worked, the reason and the how. Truth re-checked against the facts and rulings; answer right, wrong choices clearly wrong."
+   "notes": "WING 2018-08-07 doji inside day named and used as the trigger. Voice 4."
   },
   "q59": {
    "status": "pass",
@@ -4813,7 +4831,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register: verdict first, the question's numbers worked, the reason and the how. Truth re-checked against the facts and rulings; answer right, wrong choices clearly wrong."
+   "notes": "DLB gap-day volume bar 18x its 50-day on the chart, 27.6x by the dossier's measure; volume raises the grade, not a must. Voice 4."
   },
   "q61": {
    "status": "pass",
@@ -4825,7 +4843,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register: verdict first, the question's numbers worked, the reason and the how. Truth re-checked against the facts and rulings; answer right, wrong choices clearly wrong."
+   "notes": "OII down 19% into the gap, closes at 85% of range. Voice 4."
   },
   "q63": {
    "status": "cut",
@@ -4909,7 +4927,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register: verdict first, the question's numbers worked, the reason and the how. Truth re-checked against the facts and rulings; answer right, wrong choices clearly wrong."
+   "notes": "COIN news gap closing at 91%; 'ran past 3R that same day' checks against the bars. Voice 4."
   }
  }
 }

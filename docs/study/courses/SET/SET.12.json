@@ -973,8 +973,8 @@
    "steps": [
     "ON in 2017, a leader in an uptrend. It pulls back four times: 19.4%, 7.8%, 5.8%, then 3.5%. Each one smaller.",
     "I like to see volume dry up into that last tight swing. Its high, 16.47, is the pivot.",
-    "August 30 it trades through 16.47 on 1.7 times volume. Buy at market. Stop just under the day's low, 15.85.",
-    "The worry is a close back inside the base. It held. 3R took 20 days, so this one takes patience."
+    "August 30 it trades through 16.47 on 1.7 times volume. Buy at market. Stop just under the prior day's low, 15.85.",
+    "The worry is a close back inside the base. It closes near the high instead. 3R took 20 days, so be patient."
    ],
    "facts": [
     "d01",
@@ -982,9 +982,15 @@
     "c01",
     "c05",
     "h22",
-    "h24",
+    "h01",
     "h05"
-   ]
+   ],
+   "chart": {
+    "sym": "ON",
+    "asof": "2017-08-30",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -992,17 +998,23 @@
    "steps": [
     "JOYY ran 146%, then built a six-week base. Three pullbacks, each smaller: 18.4%, 10.7%, then just 3.7%.",
     "The base high on the left is 56.75. The last swing tops out lower, at 51.22. That's your pivot.",
-    "January 2, 2014, it clears 51.22 on 1.9 times volume. Buy at market, stop just under the day's low, 49.27.",
-    "Lose the day's low in the first few days and you're out. Instead, 3R the very next day, and you hold."
+    "January 2, 2014, it clears 51.22 on 1.9 times volume. Buy at market, stop just under the prior day's low, 49.27.",
+    "Lose 49.27 and you're out. Instead it closes near the high of the day, then 3R the very next day."
    ],
    "facts": [
     "d06",
     "d07",
     "c01",
     "h22",
-    "h24",
+    "h01",
     "h05"
-   ]
+   ],
+   "chart": {
+    "sym": "JOYY",
+    "asof": "2014-01-02",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -1019,7 +1031,13 @@
     "c16",
     "h01",
     "h28"
-   ]
+   ],
+   "chart": {
+    "sym": "ALGN",
+    "asof": "2007-10-17",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1125,13 +1143,13 @@
    "criterion": "vcp.pivot",
    "q": "Where's the pivot on this base, the price you buy through?",
    "choices": [
-    "The top of the last, tight swing",
-    "The highest price in the whole base",
-    "The low of the first pullback",
-    "Yesterday's closing price"
+    "About $51.20, the last swing high",
+    "$56.75, the high on the left side",
+    "About $46.60, the low of the base",
+    "About $50.30, where it closed today"
    ],
-   "answer": "The top of the last, tight swing",
-   "why": "The top of the last, tight swing. On JOYY that's 51.22. The base high on the left, 56.75, sits higher, and that's fine. The last swing is where sellers kept turning it back, so that's the line to clear. Mark it the night before and set an alert. When it trades through 51.22, you buy at market.",
+   "answer": "About $51.20, the last swing high",
+   "why": "About $51.20, the top of the last tight swing. The high on the left, 56.75, sits higher, and that's fine. The last swing is where sellers turned it back most recently, so that's the price to clear. Set the alert at 51.22 the night before. When it trades through, you buy at market. JOYY did it the next day on 1.9x volume.",
    "lesson_line": "The pivot is the top of the last tight swing, not always the base high.",
    "facts": [
     "c01",
@@ -1141,12 +1159,12 @@
     "d07"
    ],
    "wrong": {
-    "The low of the first pullback": "That's the bottom of the deepest dip, nowhere near where buyers prove themselves.",
-    "The highest price in the whole base": "Waiting for the old high means buying well after the real breakout. The pivot can sit under the base high.",
-    "Yesterday's closing price": "One close isn't a level. The pivot comes from the base, the high of that last swing."
+    "$56.75, the high on the left side": "Waiting for the old high means buying well after the real breakout. The pivot can sit under the base high.",
+    "About $46.60, the low of the base": "That's the bottom of the base, nowhere near where buyers prove themselves.",
+    "About $50.30, where it closed today": "One close isn't a level. The pivot comes from the base, the high of that last swing."
    },
    "house": true,
-   "simple": "The pivot is the top of the last, tight swing. Price through it means the last sellers are used up.",
+   "simple": "About $51.20, the top of the last tight swing. Price through it means the last sellers are used up.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1154,7 +1172,7 @@
      "the pivot is a proposed card criterion, not an owner ruling"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "A leader rested six weeks after a big run. Three pullbacks, each one smaller. It may break out tomorrow.",
    "chart": {
     "sym": "JOYY",
@@ -3483,7 +3501,7 @@
     "The base is done, buy it"
    ],
    "answer": "Sellers may still be around",
-   "why": "Sellers may still be around. The price looks tight, but the volume says otherwise. In a real dry-up the last leg goes quiet. AMZN's last leg ran 1.13x its 50-day average, and its quietest day was still 0.81x. Somebody was selling into it. Volume raises the grade, it doesn't make the call. So I'd still look at it, but it's a lower grade and I'd be pickier on the entry.",
+   "why": "Sellers may still be around. The price looks tight, but the volume says otherwise. In a real dry-up the last leg goes quiet. AMZN's last leg ran 1.13x its 50-day average, and its quietest day was still 0.81x. Somebody was selling into it. It's also a tad extended from the 50-day. Volume raises the grade, it doesn't make the call. So I'd still look at it, but it's a lower grade and I'd be pickier on the entry.",
    "lesson_line": "Tight price isn't enough. I want the volume to dry up too.",
    "facts": [
     "d24",
@@ -3516,7 +3534,7 @@
      "the bars were not checked by the writer"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "chart-reads-2026-11-18"
   },
   {
    "key": "q64",
@@ -4517,8 +4535,8 @@
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Stem opened 'Look at the', a banned opener. Now sets the moment on the chart (no ticker before the answer). ON 19.4/7.8/5.8/3.5 matches d01."
+   "fixed": false,
+   "notes": "ON 2017-08-29: the four shrinking swings (d01) are on the chart. Voice 4."
   },
   "q03": {
    "status": "cut",
@@ -4530,7 +4548,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers rechecked against the dossier rows and his rules; answer and idea kept."
+   "notes": "JOYY 2013-12-31: pivot said in dollars ($51.20, the last swing high), price 0.7% over its 50, nothing stretched; no drawing named. Voice 4."
   },
   "q05": {
    "status": "cut",
@@ -4547,8 +4565,8 @@
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Story opened 'Look at today's bar'. Distractors now real mistakes, so pattern low stays an accepted alternative (r02). ALGN 28.65/27.70 matches d10."
+   "fixed": false,
+   "notes": "ALGN buy day: low 27.75, stop 27.70 a few cents under. Voice 4."
   },
   "q08": {
    "status": "pass",
@@ -4608,19 +4626,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers rechecked against the dossier rows and his rules; answer and idea kept."
+   "notes": "RNG stop-distance calc worked. Voice 4."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Truth: 'I'll pull the stop up to breakeven' read as automatic; h05 says it MAY move, as judgment. Math 17.38+2x0.79=18.96 and all distractors recomputed. Note: wrong{} still carries a note for the answer key (pre-existing, merge cannot drop it; harmless)."
+   "notes": "The read is fine (a 2R calc on the buy day). Fix: 'wrong' carried an entry for the right answer, $18.96; wrong is keyed by the wrong choices only."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers rechecked against the dossier rows and his rules; answer and idea kept."
+   "notes": "ON day before: price 0.4% over its 9 EMA; the 4% chase calc is right. Voice 4."
   },
   "q20": {
    "status": "pass",
@@ -4632,13 +4650,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers rechecked against the dossier rows and his rules; answer and idea kept."
+   "notes": "TRV: the last swing (3.4%) is the tightest per d28. Voice 4."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Story opened 'Look at the'. PHM 2.0x next day matches d03. The dry-up on PHM's bars is a chart claim with no dossier number; it was passed by the earlier checker and the chart gate."
+   "fixed": false,
+   "notes": "PHM 2003-09-30 quiet bars under the last swing; volume as a grade cue, not a must. Voice 4."
   },
   "q23": {
    "status": "cut",
@@ -4668,7 +4686,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "the 28.14 close is under the 28.65 buy, so adding is to a loser; never stays. Voice 4."
+   "notes": "ALGN closes 28.14 back inside the base: the squat read and the hold-to-stop rule are right. Voice 4."
   },
   "q28": {
    "status": "pass",
@@ -4686,7 +4704,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers rechecked against the dossier rows and his rules; answer and idea kept."
+   "notes": "GXO higher lows read; the 50-day is flat and is never called rising. Voice 4."
   },
   "q31": {
    "status": "cut",
@@ -4722,7 +4740,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers rechecked against the dossier rows and his rules; answer and idea kept."
+   "notes": "NKE light-volume breakout closing at its high; volume is not an exit. Voice 4."
   },
   "q37": {
    "status": "pass",
@@ -4739,20 +4757,20 @@
   "q39": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: 'No breakeven before 2R' dropped the first-sell half of the ruling (h05). META 522.89/505.97 = 3.2%, low 494.23 matches d15/d16."
+   "fixed": false,
+   "notes": "META retrospective stop question; breakeven 2R-5R stated right. Voice 4."
   },
   "q40": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers rechecked against the dossier rows and his rules; answer and idea kept."
+   "notes": "CMG clean setup that failed, matches d12/d13. Voice 4."
   },
   "q41": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers rechecked against the dossier rows and his rules; answer and idea kept."
+   "notes": "SHOP sizing calc, 201 checks. Voice 4."
   },
   "q42": {
    "status": "pass",
@@ -4776,7 +4794,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "never add to a loser is the ruling; gap rule correct. Voice 4."
+   "notes": "AXON gap-rule read matches the bars and his rule (first 30-minute low, out past 2R). Voice 4."
   },
   "q46": {
    "status": "cut",
@@ -4878,13 +4896,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers rechecked against the dossier rows and his rules; answer and idea kept."
+   "notes": "RNG shrinking swings and 0.46x final-T volume per d05. Voice 4."
   },
   "q63": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers rechecked against the dossier rows and his rules; answer and idea kept."
+   "notes": "AMZN 2020-08-05 is about 13% over its 50: the writer's 'a tad extended' line is honest; volume read sourced (d24). Voice 4."
   },
   "q64": {
    "status": "pass",
