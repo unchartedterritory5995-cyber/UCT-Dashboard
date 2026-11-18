@@ -83,8 +83,13 @@ export function unpackRows(pack) {
 /** ⭐ THE PLAIN FIELDS OF THE CONTEXT `astColumnsFor` READS (beside `symbol`, `secondary`,
  *  `exchangeOf` and `lowerTf`, which cross below). ⛔ ONE LIST: `hostLaneWorker.rail.test.js` walks
  *  the closure of `astColumns.js` and fails on a `ctx.<field>` read this list and those four do
- *  not carry, so a new read cannot compute differently in the worker without a red. */
-export const HOST_CTX_FIELDS = Object.freeze(['tf', 'newestBarIsForming', 'historyFromListing', 'barIndexFromFirstBar', 'framed'])
+ *  not carry, so a new read cannot compute differently in the worker without a red.
+ *  ⭐ RS RATING L11 — `requestCode` and `below` are the RUN's request (`runtime/requestSupply.js` sets
+ *  them per request; the host lane's context never holds them): carried all the same, so a context
+ *  that holds one answers the same on both threads, and one that does not stays without it (only a
+ *  defined field is imaged, and `otherSymbols` asks `hasOwnProperty`). */
+export const HOST_CTX_FIELDS = Object.freeze(['tf', 'newestBarIsForming', 'historyFromListing', 'barIndexFromFirstBar', 'framed',
+  'requestCode', 'below'])
 /** The context fields that cross by their own rule (not plain). `workSink` is the headless export's
  *  counter and never on a chart's context. */
 export const HOST_CTX_CARRIED = Object.freeze(['symbol', 'secondary', 'exchangeOf', 'lowerTf', 'workSink'])
