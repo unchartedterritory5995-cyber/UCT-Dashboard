@@ -216,8 +216,7 @@ Index. Each is at tier (a) and (b): an independent calculation written from the 
 definition, compared bar by bar at the default numbers and at other numbers written at the entry's
 parameter sites (`tests/test_named_indicators_values.py`), and a published definition read on
 2026-11-18 (eleven from StockCharts ChartSchool; Price Volume Trend from TradingView's help
-center). None is graded against a TradingView capture yet, so no entry here says anything about
-TradingView.
+center). They were then graded against TradingView's built-ins (the third batch, below).
 
 **What the pages do not state, and how each point was settled** (`tests/test_named_indicators_slice3.py`):
 
@@ -245,3 +244,54 @@ its own may agree.
 **Acronyms.** A bare two- or three-letter acronym is never a library spelling ("OBV", "DMI",
 "PPO"): several are real tickers. A request that uses only the acronym is not looked up, and is
 counted by the name catalogue as that name, so the weekly report shows how often it happens.
+
+## The third batch: slice 3 against TradingView's built-ins
+
+Run `builtin3-2026-11-18`, graded by `grade_builtins3.py` (beside this file): the same two daily
+charts as before (SPY, 8,509 bars; RDDT, 668), TradingView's settings set to each entry's defaults
+and read back from its dialog. All twelve are TradingView built-ins. The capture itself is vendor
+data and stays out of the repository; only these verdicts are recorded.
+
+| entry | verdict |
+|---|---|
+| Aroon | EQUAL on every bar (Up and Down; TradingView's built-in draws no oscillator) |
+| On Balance Volume | EQUAL on every bar |
+| Accumulation Distribution Line | EQUAL on every bar |
+| Price Volume Trend | EQUAL on every bar |
+| Percentage Price Oscillator | EQUAL on every bar (oscillator, signal, histogram) |
+| Know Sure Thing | EQUAL on every bar (both lines) |
+| Mass Index | EQUAL on every bar |
+| Force Index | EQUAL on every bar |
+| Ulcer Index | EQUAL on every bar |
+| Ease of Movement | EQUAL on every bar at TradingView's divisor, 10,000 |
+| Directional Movement Index | formula equal; ONE rounding tie differs |
+| Negative Volume Index | differs BY DEFINITION |
+
+**Ease of Movement: the divisor became a setting (version 2).** Version 1 held ChartSchool's
+100,000,000 as a fixed number, and its values were exactly 10,000 times TradingView's: the same
+shape at another size. TradingView's dialog has a Divisor, 10,000 by default. It is a setting here
+too, with that default, and the entry's first version keeps the fingerprint it shipped with.
+
+**Directional Movement Index: one bar of 8,509.** All three lines are equal on every bar of RDDT,
+and -DI on every bar of SPY. On SPY, +DI and ADX part on one bar and need about 400 bars of
+Wilder's smoothing to meet again. On that bar the up move and the down move are both 9 cents; in
+floating point the up move is larger by 3 parts in 100 trillion. UCT counts it as the larger (the
+published rule: the up move counts when it is greater than the down move); TradingView counts the
+two as equal and gives neither. The entry therefore says nothing about TradingView. Whether the
+engine should compare the two moves as prices (to the tick) is a question for the engine.
+
+**Negative Volume Index: two definitions under one name.** TradingView's built-in compounds: prior
+NVI x (1 + the price change) on a lower-volume day, from 1000, and a calculation written that way
+is equal to it on every bar. The pages read, TradingView's own help page among them, describe the
+additive form (prior NVI + the percent change), and that is what this entry holds. Wikipedia and
+TA-Lib's documentation state the compounding form. The entry says nothing about TradingView until
+it is decided which form the name should mean here.
+
+**Two indicators the capture informs and the library still leaves out.**
+TRIX: TradingView's built-in is 10,000 x the one-bar change of the triple average of the LOGARITHM
+of price (equal on every bar when computed that way). Every page read, TradingView's help page
+included, describes the percent change of the triple average of price, which is about a hundredth
+of that size. Two definitions again, so no entry yet.
+Detrended Price Oscillator, length 20: TradingView's uncentred line is the close minus the average
+of 11 bars ago (length / 2 + 1), equal on every bar. ChartSchool's is the centred form, which
+leaves the last bars blank. It waits for a displacement the library can derive from the length.

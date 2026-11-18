@@ -48,7 +48,7 @@ def test_the_slice_is_in_the_library_checked_and_cited():
         assert published["by"] and published["says"] and published["read"] == "2026-11-18", entry_id
         assert all(s["url"].startswith(("https://chartschool.stockcharts.com/", "https://www.tradingview.com/support/"))
                    for s in published["sources"]), entry_id
-        assert e["evidence"]["capture"] is None, entry_id        # no claim about any vendor's chart until one is graded
+        assert e["evidence"]["capture"]["id"] == "builtin3-2026-11-18", entry_id      # each was graded (third batch)
         assert e["placement"] == "pane", entry_id
 
 
@@ -170,6 +170,27 @@ def test_the_equal_cases_each_page_leaves_open_or_states_in_passing():
     # Ease of Movement's two odd bars count as 0 inside the average: without them the average differs
     plain = _walk(11, n=140)
     assert not math.isclose(got_emv[95], engine(ENTRIES["ease_of_movement"]["outputs"][0]["tree"], plain)[95], rel_tol=1e-6)
+
+
+def test_ease_of_movements_divisor_is_a_setting_and_its_first_version_keeps_its_fingerprint(conv, clean_env, model):
+    """Version 1 held ChartSchool's 100,000,000 as a fixed number. The divisor only sets the size of
+    the values; TradingView's setting defaults to 10,000, and at that number the entry is equal to
+    TradingView's own on every captured bar. So it is a setting, and the default is TradingView's."""
+    e = ENTRIES["ease_of_movement"]
+    assert [p["key"] for p in e["params"]] == ["length", "divisor"] and ni.defaults(e) == {"length": 14, "divisor": 10000}
+    assert [v["version"] for v in e["versions"]] == [1, 2] and e["versions"][0]["maths"] != e["versions"][1]["maths"]
+    assert e["versions"][0]["maths"] == "sha256:d7955d5bcf6dcd462a5d5265d0d7e7682e633a2d5554e9ddf90aadb37bf0daea"
+    assert "10,000" in e["versions"][1]["why"] and ni.fingerprint(e) == e["versions"][1]["maths"]
+    # the same shape at any divisor: 100,000,000 gives exactly 10,000 times the default's values
+    bars = _walk(11, n=120)
+    o = e["outputs"][0]
+    small, big = engine(o["tree"], bars), engine(ni.tree_at(o, {"divisor": 100000000}), bars)
+    assert all(math.isclose(b, s * 10000, rel_tol=1e-9, abs_tol=1e-9) for s, b in zip(small[40:], big[40:]))
+    # a member's own divisor is built and said
+    client = model([emits(env(0, [create("ease_of_movement", {"divisor": 100000000})]))])
+    r = conv.converse("Add the Ease of Movement with a divisor of 100000000", user_id="u1", view=empty_view(0), chart=CHART)
+    assert r["ok"] is True and len(client.calls) == 1
+    assert "divisor 100000000" in r["envelope"]["assumptions"][0]["text"]
 
 
 # ═══ 3. one spelling, one indicator ══════════════════════════════════════════

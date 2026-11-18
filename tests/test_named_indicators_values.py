@@ -524,7 +524,7 @@ def force_index(bars, length=13):
     return ema([NAN] + [(c[i] - c[i - 1]) * v[i] for i in range(1, len(bars))], length)
 
 
-def ease_of_movement(bars, length=14):
+def ease_of_movement(bars, length=14, divisor=10000):
     one = [NAN]
     for i in range(1, len(bars)):
         b, a = bars[i], bars[i - 1]
@@ -532,7 +532,7 @@ def ease_of_movement(bars, length=14):
             one.append(0.0)
             continue
         distance = (b["h"] + b["l"]) / 2 - (a["h"] + a["l"]) / 2
-        one.append(distance / ((b["v"] / 100000000.0) / (b["h"] - b["l"])))
+        one.append(distance / ((b["v"] / float(divisor)) / (b["h"] - b["l"])))
     return sma(one, length)
 
 
@@ -614,7 +614,7 @@ OTHER = {
     "know_sure_thing": {"roc1": 9, "roc2": 12, "roc3": 18, "roc4": 24, "sma1": 6, "sma2": 7, "sma3": 8, "sma4": 9, "signal": 7},
     "mass_index": {"length": 20},
     "force_index": {"length": 2},
-    "ease_of_movement": {"length": 9},
+    "ease_of_movement": {"length": 9, "divisor": 100000000},
     "negative_volume_index": {"signal": 100},
     "ulcer_index": {"length": 20},
 }
