@@ -200,6 +200,12 @@ def test_publish_checks_merges_stamps_and_uploads_in_order(raw, tmp_path):
     with pytest.raises(BLD.BuildError, match="disagree"):
         PUB.build_indexes(PUB.collect_packs([a]), log=lambda *_: None)
     PUB.build_indexes(PUB.collect_packs([a]), check=False, log=lambda *_: None)    # unchecked: not read
+    # check_since: only packs written at or after it are read (an immutable pack was checked when written)
+    import os as _os
+    import time as _time
+    PUB.build_indexes(PUB.collect_packs([a]), check_since=_time.time() + 3600, log=lambda *_: None)
+    with pytest.raises(BLD.BuildError, match="disagree"):
+        PUB.build_indexes(PUB.collect_packs([a]), check_since=_os.path.getmtime(p) - 1, log=lambda *_: None)
     p.write_bytes(good)
     (a / "build.lock").write_text("1")
     with pytest.raises(BLD.BuildError, match="held by a build"):

@@ -88,13 +88,19 @@ def _read_pack(job) -> tuple:
     return series, period, entries
 
 
-def build_indexes(packs: Dict[tuple, Path], *, check: bool = True, log=print, jobs: int = 1) -> Dict[str, dict]:
+def build_indexes(packs: Dict[tuple, Path], *, check: bool = True, log=print, jobs: int = 1,
+                  check_since: Optional[float] = None) -> Dict[str, dict]:
     """symbol -> index document. With `check`, every piece's header is read and must agree with the
     pack's trailer (symbol, series, period, bars, first, last, crc, length). `jobs` > 1 reads the
-    packs in a process pool (the check is CPU-bound: ~80 s a year of packs in one process); results
-    are merged in the same order as one process, so the documents are identical."""
+    packs in a process pool; results are merged in the same order as one process, so the documents
+    are identical.
+
+    `check_since` (epoch seconds, 2026-11-17): only packs written at or after it are checked. A pack is
+    immutable once written and was checked by the publish that followed its build; re-reading all 469
+    packs' piece headers took ~35 minutes of random reads on the lake's disk at every daily run."""
     out: Dict[str, dict] = {}
-    work = [(key, path, check) for key, path in packs.items()]
+    work = [(key, path, check and (check_since is None or path.stat().st_mtime >= check_since))
+            for key, path in packs.items()]
     pool = ProcessPoolExecutor(max_workers=jobs) if jobs > 1 and len(work) > 1 else None
     try:
         results = pool.map(_read_pack, work, chunksize=1) if pool else map(_read_pack, work)
@@ -267,6 +273,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--ticker-events", type=Path,
                     help="ref/ticker_events.jsonl: cut reused tickers, stitch renamed companies (identity.py)")
     ap.add_argument("--no-check", action="store_true", help="skip reading every piece header")
+    ap.add_argument("--check-since", type=float, default=None,
+                    help="epoch seconds: check only the packs written at or after this (the rest were checked when written)")
     ap.add_argument("--upload", action="store_true")
     ap.add_argument("--bucket")
     ap.add_argument("--prefix", default="")
@@ -279,7 +287,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     try:
         packs = collect_packs(args.roots)
         print(f"{len(packs)} packs")
-        indexes = build_indexes(packs, check=not args.no_check, jobs=args.check_jobs)
+        indexes = build_indexes(packs, check=not args.no_check, jobs=args.check_jobs, check_since=args.check_since)
         print(f"{len(indexes):,} symbols")
         if args.splits:
             if not args.as_of:
