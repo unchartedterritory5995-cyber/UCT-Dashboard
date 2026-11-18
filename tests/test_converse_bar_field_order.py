@@ -136,3 +136,78 @@ def test_the_instructions_state_the_order(conv):
     assert "THE BAR'S FIELDS GO IN THIS ORDER: high, low, close (then volume for mfi), then the length" in text
     assert "stoch(high, low, close, 14) is the 14-bar stochastic %K" in text
     assert "This is NOT TradingView's order" in text
+
+
+# ═══ 4. what was SAVED before the mend: counted for the owner, never changed ═══════════
+
+def saved(user_id, *trees, kind="ast"):
+    """A stored row as `user_definitions` serves one: one formula, or several by output key."""
+    compute = {"kind": kind, "ast": copy.deepcopy(trees[0])} if len(trees) == 1 else \
+        {"kind": kind, "trees": {f"line{i}": copy.deepcopy(t) for i, t in enumerate(trees)}}
+    return {"user_id": user_id, "definition": {"compute": compute}}
+
+
+def test_reading_which_calls_are_out_of_order_does_not_touch_the_formula(conv):
+    tree = call("sma", copy.deepcopy(VENDOR_ORDER), num(3))
+    before = copy.deepcopy(tree)
+    assert conv.misordered_bar_fields(tree) == ["stoch"] and tree == before
+    assert conv.misordered_bar_fields(ENGINE_ORDER) == []
+    assert conv.reorder_bar_fields(tree) == ["stoch"] and tree == call("sma", ENGINE_ORDER, num(3))     # the mend's half does
+
+
+def test_the_weekly_report_counts_saved_indicators_that_carry_it_and_changes_none():
+    from api.services import indicator_telemetry as tel
+    rows = [
+        saved("m1", call("sma", VENDOR_ORDER, num(3)), call("sma", call("sma", VENDOR_ORDER, num(3)), num(3))),   # one indicator, two lines
+        saved("m1", call("atr", C, H, L, num(14))),
+        saved("m2", VENDOR_ORDER),
+        saved("m3", VENDOR_ORDER),
+        saved("m3", ENGINE_ORDER),                                   # right: not counted
+        saved("m4", call("ema", C, num(20))),                        # nothing to do with it
+        saved("m5", VENDOR_ORDER, kind="pine"),                      # a script is not a formula of this kind
+        saved("boss", VENDOR_ORDER),                                 # a builder's own
+    ]
+    kept = copy.deepcopy(rows)
+    got = tel.bar_field_order_block(rows, lambda uid: uid == "boss")
+    assert got == {"read": True, "saved_indicators_looked_at": 8, "members": 3, "indicators": 4,
+                   "by_function": {"atr": 1, "stoch": 3}, "builders_indicators": 1}
+    assert rows == kept                                              # ⛔ a count, never a correction
+    # one or two members: the numbers are withheld, and that some exist is still said
+    few = tel.bar_field_order_block(rows[:3], lambda uid: False)
+    assert few["members"] == tel.FEWER and few["indicators"] is None and few["by_function"] is None
+    # none at all is a plain zero
+    none = tel.bar_field_order_block([saved("m4", ENGINE_ORDER)], lambda uid: False)
+    assert none["members"] == 0 and none["indicators"] == 0 and none["builders_indicators"] == 0
+
+
+def test_a_store_that_cannot_be_read_is_said_and_is_never_a_zero(monkeypatch):
+    from api.services import indicator_telemetry as tel, user_definitions
+
+    def broken():
+        raise RuntimeError("the store is locked")
+    monkeypatch.setattr(user_definitions, "live_definitions", broken)
+    assert tel._bar_field_order() == {"read": False}
+    text = tel.weekly_report_text({**_empty_report(tel), "bar_field_order": {"read": False}})
+    assert "Could not be read this time. This is not a zero." in text
+    # CONTROL: a store that reads says its numbers
+    monkeypatch.setattr(user_definitions, "live_definitions", lambda: [saved("m1", VENDOR_ORDER), saved("m2", VENDOR_ORDER), saved("m3", VENDOR_ORDER)])
+    monkeypatch.setattr("api.services.auth_service.get_user_by_id", lambda uid: {"role": "member"})
+    block = tel._bar_field_order()
+    assert block["read"] is True and block["members"] == 3 and block["indicators"] == 3
+    text = tel.weekly_report_text({**_empty_report(tel), "bar_field_order": block})
+    assert "3 saved indicators of 3 members; stoch: 3" in text and "nothing is changed" in text
+    few = tel.weekly_report_text({**_empty_report(tel), "bar_field_order": tel.bar_field_order_block([saved("m1", VENDOR_ORDER)], lambda u: False)})
+    assert "fewer than 3 members have one" in few
+
+
+def _empty_report(tel):
+    """The smallest report `weekly_report_text` reads, so the new section's words can be read alone."""
+    block = {"built": 0, "questions": 0, "asked_by_the_door": 0, "asked_by_the_assistant": 0, "questions_per_built": None,
+             "built_from_memory": 0, "by_question": {}}
+    failed = {"turns": 0, "members_turns": 0, "builders_turns": 0}
+    return {"window_days": 7, "questions": {"this": block, "previous": block},
+            "internal_error": {"this": failed, "previous": failed},
+            "names": {"asked_for": [], "held_and_refused": [], "not_in_the_catalogue": {"members": 0, "builders_turns": 0}},
+            "named_built": [], "built_from_an_acronym": [], "demand": {"ranked": []},
+            "second_calls": {"repair_rate": None, "repair_gates": {}, "browser_refusals": {}}}
+
