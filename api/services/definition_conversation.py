@@ -2198,6 +2198,23 @@ def browser_refusal(raw: Any, revision: int, view: Any) -> Optional[Tuple[Dict[s
     return checked, "; ".join(lines)
 
 
+def browser_refusal_codes(raw: Any) -> Optional[str]:
+    """The browser engine's own codes for a refusal it sent back (each line begins `code: `), as
+    the comma-separated value the turn's telemetry stores -- or None. SHAPE ONLY: a line that does
+    not begin with a code of the telemetry's strict pattern contributes nothing, so no word of a
+    sentence can ride along (`indicator_telemetry.BROWSER_CODE`)."""
+    try:
+        from api.services import indicator_telemetry
+        codes: List[str] = []
+        for e in (raw.get("errors") or [])[:BROWSER_REFUSAL_MAX_ERRORS]:
+            head = e.split(": ", 1)[0].strip() if isinstance(e, str) else ""
+            if indicator_telemetry.BROWSER_CODE.fullmatch(head) and head not in codes:
+                codes.append(head)
+        return ",".join(codes[:indicator_telemetry.BROWSER_CODES_MAX]) or None
+    except Exception:                              # noqa: BLE001 -- telemetry never costs a turn
+        return None
+
+
 def _browser_repair_turns(messages: List[dict], envelope: Mapping[str, Any], words: str) -> List[dict]:
     """The conversation as if this door had made the call and the app had answered it."""
     verdict = (f"[{BROWSER_REFUSAL_GATE}] the app's own patch engine refused this patch and applied "
@@ -2337,6 +2354,7 @@ def reset_conversation_usage() -> None:
 def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
              outcome: str, admin: bool, cap_usd: float,
              repair_gate: Optional[str] = None,
+             browser_codes: Optional[str] = None,
              input_wrapper: Optional[str] = None,
              examples: Optional[int] = None, mended: Optional[str] = None) -> Dict[str, Any]:
     """The turn's cost record: returned to the caller as ``usage`` and logged.
@@ -2356,6 +2374,7 @@ def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
         "outcome": outcome,
         # ⭐ P3: the gate CODE that made this turn pay for a repair (None = no repair)
         "repair_gate": repair_gate,
+        "browser_codes": browser_codes,
         # ⭐ P3S: the argument wrapper unwrapped this turn (None = the input arrived bare)
         "input_wrapper": input_wrapper,
         # ⭐ L5: how many worked examples rode along (None = the turn carried none)
@@ -2431,6 +2450,7 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
         result["usage"] = _account(user_id, conversation_id, calls, outcome=str(outcome),
                                    admin=admin, cap_usd=cap_usd,
                                    repair_gate=trace.get("repair_gate"),
+                                   browser_codes=trace.get("browser_codes"),
                                    input_wrapper=trace.get("input_wrapper"),
                                    examples=trace.get("examples"), mended=trace.get("mended"))
     except Exception:                              # noqa: BLE001 -- telemetry never breaks a turn
@@ -2593,6 +2613,7 @@ def _record_turn(user_id: Any, conversation_id: Any, result: Mapping[str, Any], 
             attempts=result.get("attempts"),
             calls=usage.get("calls"),
             repair_gate=usage.get("repair_gate"),
+            browser_codes=usage.get("browser_codes"),
             input_wrapper=usage.get("input_wrapper"),
             examples=usage.get("examples"),
             mended=usage.get("mended"),
@@ -2732,6 +2753,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     if replayed:
         messages = _browser_repair_turns(messages, replayed[0], replayed[1])
         trace["repair_gate"] = BROWSER_REFUSAL_GATE
+        trace["browser_codes"] = browser_refusal_codes(refused_by_browser)
         logger.info("[converse] repair after the browser refused the patch")
     tokens = {"input": 0, "output": 0}
     cost_usd = 0.0
