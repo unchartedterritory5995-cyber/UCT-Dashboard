@@ -67,7 +67,9 @@ describe('ONE paint, the whole chart (owner 2026-11-17: "a good chunk, then the 
     expect(state()).toBe('current')
     const s = w.store.peek(w.k('COLD', '5'))
     expect(s.bars[0].t).toBe(OPEN - 300 * 60)                               // the first paint holds the depth
-    expect(LAKE_JOIN_WAIT_MS).toBeLessThanOrEqual(350)
+    // the cap on how long a ready chart may wait for its depth: 600 ms (2026-11-18: cold lake loads on
+    // production landed 441-458 ms after the key; the wait is 550)
+    expect(LAKE_JOIN_WAIT_MS).toBeLessThanOrEqual(600)
   })
 
   it('a lake slower than LAKE_JOIN_WAIT_MS never holds the chart longer than that', async () => {

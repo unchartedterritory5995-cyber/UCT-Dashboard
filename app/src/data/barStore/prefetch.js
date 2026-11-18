@@ -194,8 +194,11 @@ export const LAKE_ALONE_MS = 450
  *  2026-11-18 on production: never-opened tickers' first answers 485-926 ms. */
 export const LAKE_BEHIND_MAX_MS = 1200
 /** After an answer (or a saved copy) that paints, how long the handoff waits for the lake's whole
- *  depth to join it, so the first paint is the whole chart and nothing loads in view afterwards. */
-export const LAKE_JOIN_WAIT_MS = 350
+ *  depth to join it, so the first paint is the whole chart and nothing loads in view afterwards.
+ *  550, not 350 (2026-11-18): on production, never-opened 5m tickers' lake loads landed 441-458 ms
+ *  after the key (4/4), so a held copy painted alone at ~370 ms and the depth redrew the averages
+ *  ~80 ms later. A lake already in the browser joins in tens of ms; only a cold load waits. */
+export const LAKE_JOIN_WAIT_MS = 550
 /** How long a typed text the daily pack does not know may wait for the lake's answer to "is it a
  *  ticker?" (its index: one edge round trip) before the warm gives up on it. */
 export const INTENT_LAKE_INDEX_WAIT_MS = 400
